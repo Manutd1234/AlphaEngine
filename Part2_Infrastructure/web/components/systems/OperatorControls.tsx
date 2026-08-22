@@ -32,6 +32,7 @@ export default function OperatorControls({
   counters,
   busyAction,
   disabled,
+  registryObserved,
   providerCount,
   openCircuits,
   simulated,
@@ -53,6 +54,14 @@ export default function OperatorControls({
   };
   busyAction: string | null;
   disabled: boolean;
+  /**
+   * Whether the provider registry was read at all. The four counts below are
+   * derived from `providers ?? []` upstream, so a refusing health route made
+   * them zeros — "0 open, 0 simulated" next to Close all circuits, and "0
+   * providers" next to Reload. A zero here is an answer; the dash is the
+   * absence of one, and `OperatorPanel` states the reason once above.
+   */
+  registryObserved: boolean;
   providerCount: number;
   openCircuits: number;
   simulated: number;
@@ -122,7 +131,7 @@ export default function OperatorControls({
     <div className="console-action">
       <div className="console-action__head">
         <strong>Restore routing</strong>
-        <span className="console-action__figure num">{`${openCircuits} open, ${simulated} simulated`}</span>
+        <span className="console-action__figure num">{registryObserved ? `${openCircuits} open, ${simulated} simulated` : "—"}</span>
         <div className="console-action__controls">
           <button
             type="button"
@@ -151,7 +160,7 @@ export default function OperatorControls({
     <div className="console-action">
       <div className="console-action__head">
         <strong>Re-read provider configuration</strong>
-        <span className="console-action__figure num">{`${providerCount} providers`}</span>
+        <span className="console-action__figure num">{registryObserved ? `${providerCount} providers` : "—"}</span>
         <div className="console-action__controls">
           <button type="button" onClick={() => onAction("reload_providers")} disabled={disabled}>
             {busyAction === "reload_providers" ? "Reloading…" : "Reload"}
@@ -171,7 +180,7 @@ export default function OperatorControls({
     <div className="console-action">
       <div className="console-action__head">
         <strong>Reset a quota ledger</strong>
-        <span className="console-action__figure num">{`${quotaLedgers} ledgers`}</span>
+        <span className="console-action__figure num">{registryObserved ? `${quotaLedgers} ledgers` : "—"}</span>
         <div className="console-action__controls">
           <label className="sr-only" htmlFor="console-quota-target">Provider</label>
           <select
@@ -204,9 +213,11 @@ export default function OperatorControls({
             /* A dimmed control names its own reason, as the Session card's
                Reconnect does. This one dims for two different reasons and used
                to give neither. */
-            title={metered.length === 0
-              ? "No provider in this instance keeps a quota ledger."
-              : quotaTarget ? undefined : "Choose a provider first."}
+            title={!registryObserved
+              ? "The provider registry has not been observed."
+              : metered.length === 0
+                ? "No provider in this instance keeps a quota ledger."
+                : quotaTarget ? undefined : "Choose a provider first."}
           >
             Reset counter
           </button>
@@ -224,7 +235,9 @@ export default function OperatorControls({
           and the button is dimmed, and a reader was left to guess which. */}
       {metered.length === 0 && (
         <small className="muted">
-          No provider in this instance keeps a local quota ledger, so there is nothing to reset.
+          {registryObserved
+            ? "No provider in this instance keeps a local quota ledger, so there is nothing to reset."
+            : "The provider registry has not been observed, so no quota ledger can be listed here."}
         </small>
       )}
     </div>

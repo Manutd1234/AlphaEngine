@@ -363,6 +363,25 @@ describe("the tokens a rewrite is most likely to drop", () => {
    * chart goes, beside five tiles that had already rendered — an unreported
    * empty result, which this tree treats as the same defect as a coerced zero.
    */
+  /**
+   * Added by the seventh sweep, which found the tab polished and two faults in
+   * one sentence, both only at the horizon seg's first choice — which is how
+   * five passes over this card missed them. The verdict read "over 1 days", and
+   * then claimed the screen was conservative BECAUSE the loss is multi-day. At
+   * 1d it is not: loss and cushion both span one day, so the comparison is exact
+   * and the qualifier was one the figure had not earned. Pinned here because
+   * `disclosure-risk.test.ts` — which still holds the harder rule, that the
+   * sentence stays in the file and out of a fold — is a line under the ceiling.
+   */
+  it("the headroom verdict counts its days and claims multi-day only when it is", () => {
+    const card = stripCode(readSource("components/risk/MonteCarloDistribution.tsx")).replace(/\s+/g, " ");
+    assert.ok(card.includes('over {horizonDays} day{horizonDays === 1 ? "" : "s"}'),
+      'the banner is back to printing "over 1 days" at the seg\'s 1d choice');
+    assert.ok(card.includes("{horizonDays > 1 && <>A multi-day loss"),
+      "the multi-day qualifier is ungated again: at a one-day horizon the card calls an "
+      + "exact comparison a conservative one");
+  });
+
   it("the histogram reports a result it cannot bin, rather than drawing nothing", () => {
     const hist = stripCode(readSource("components/risk/McHistogram.tsx")).replace(/\s+/g, " ");
     assert.ok(

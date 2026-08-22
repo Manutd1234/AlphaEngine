@@ -384,6 +384,9 @@ describe("what was deliberately left alone", () => {
         + "every clause is a threshold or a boundary",
       needle: /nearest-rank over the rolling 15-minute pool, failures included; shown after 20 samples/,
     },
+    { path: "components/systems/mutation-scope.ts",
+      why: "'out of reach' is a fourth state, not a shorter 'no': three would fold the unreadable meter in with the six stores a write leaves alone",
+      needle: /no control in this instance reaches the vendor's meter/ },
   ];
 
   for (const { path, why, needle } of REFUSED) {

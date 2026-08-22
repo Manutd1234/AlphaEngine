@@ -120,10 +120,19 @@ export default function KpiDeck({
     : STRATEGY_LABELS[request.strategy];
   // The parameters tick when a sweep lands on a new winner; the label never
   // animates — a strategy name has no intermediate values.
+  //
+  // The separator carries `.num` for the same reason the figures either side of
+  // it do. This is the one card in the deck rendered `mono={false}` — the value
+  // leads with a strategy name, which is words — so the `<strong>` is in --sans
+  // while `NumberTicker` always wears `.num` itself. That left "30/200" set in
+  // two faces at --fs-h2, a mono 30, a sans slash and a mono 200, which reads as
+  // a rendering fault rather than as one figure. Wrapping only the slash, not
+  // the whole value: putting `.num` on the `<strong>` would set the strategy
+  // name in monospace, which is what `mono={false}` exists to prevent.
   const candidateValue = shown
     ? (
       <>
-        {STRATEGY_LABELS[shown.request.strategy]} <NumberTicker value={shown.best.fast} />/<NumberTicker value={shown.best.slow} />
+        {STRATEGY_LABELS[shown.request.strategy]} <NumberTicker value={shown.best.fast} /><span className="num">/</span><NumberTicker value={shown.best.slow} />
       </>
     )
     : STRATEGY_LABELS[request.strategy];

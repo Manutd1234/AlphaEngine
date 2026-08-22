@@ -122,7 +122,16 @@ export default function FavouritesPanel({ records }: { records: ExperimentRecord
         <div>
           <h2>Combine favourites</h2>
         </div>
-        <span className="num muted">{selected.length}/{MAX_SELECTED} selected</span>
+        {/* The same counter slot every other research card's head uses, in the
+            same class: `.section-note` is where 01-workspace-shell.css puts the
+            desk's live counts ("12/200 entries", "8/20 routable"), sans at
+            --fs-sm with tabular figures. `num muted` set this one in mono at
+            the inherited size, so the run history directly above it — which
+            does use `.section-note` for "{n} runs, {m} promotable" — and this
+            card carried the same kind of fact in two typefaces, one under the
+            other. Tabular figures survive the move: `.section-note` declares
+            them, which is the whole reason it exists in the sans face. */}
+        <span className="section-note">{selected.length}/{MAX_SELECTED} selected</span>
       </div>
 
       {/* Construction, not measurement: how a combination is produced and which
@@ -170,7 +179,15 @@ export default function FavouritesPanel({ records }: { records: ExperimentRecord
           onClick={combine}
           title={selected.length < 2 ? "Select at least two runs" : "Re-run and combine"}
         >
-          {running ? "Re-running…" : `Combine ${selected.length} runs`}
+          {/* Pluralised, because this label is read at every count the control
+              can hold and one of them is 1. Disabled below two, so "Combine 1
+              runs" was on screen at exactly the moment a reader is being told
+              to pick a second — a grammatical slip on the panel's own commit
+              button. Every other count on this tab already pluralises this way
+              (`run${n === 1 ? "" : "s"}` in the run history, `combination…` in
+              the stability panel, `trade…` in sizing); this was the one that
+              did not. Zero still reads correctly as "Combine 0 runs". */}
+          {running ? "Re-running…" : `Combine ${selected.length} run${selected.length === 1 ? "" : "s"}`}
         </button>
         {selected.length >= MAX_SELECTED ? (
           <small className="muted">

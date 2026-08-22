@@ -129,16 +129,19 @@ export default function PositionsSection({
               <table>
                 <caption className="sr-only">Current portfolio positions and their measured risk contributions</caption>
                 <thead>
+                  {/* `scope` on every header. The overview's five-column
+                      summary of this same book already had it, and two views of
+                      one table should not announce their cells differently. */}
                   <tr>
-                    <th>Instrument</th>
-                    <th>Side</th>
-                    <th>Notional</th>
-                    <th>Share</th>
-                    <th>Mark</th>
-                    <th>Total P&amp;L</th>
-                    <th>β</th>
-                    <th>Vol contrib</th>
-                    <th><span className="sr-only">Actions</span></th>
+                    <th scope="col">Instrument</th>
+                    <th scope="col">Side</th>
+                    <th scope="col">Notional</th>
+                    <th scope="col">Share</th>
+                    <th scope="col">Mark</th>
+                    <th scope="col">Total P&amp;L</th>
+                    <th scope="col">β</th>
+                    <th scope="col">Vol contrib</th>
+                    <th scope="col"><span className="sr-only">Actions</span></th>
                   </tr>
                 </thead>
                 <tbody>

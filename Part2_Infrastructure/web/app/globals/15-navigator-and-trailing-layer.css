@@ -1,21 +1,27 @@
 /* ---------- compact segmented workspace navigator ----------
-   Batam's control tray and Garena's shallow toolbars share the useful idea:
-   navigation is one quiet row, while actions are a separate group. The old
-   numbered/checkmarked stepper consumed about 23px per tab and implied that
-   opening a section completed work. Labels now carry the whole hierarchy. */
-/* A tab strip needs a baseline, or its active item is a box floating in space.
-   Flattening the tray removed the chrome and left exactly that: a rounded,
-   tinted 34px block adrift in a 42px row, with an underline attached to
-   nothing. The hairline is what says "these are tabs, and there are more of
-   them" — it is the same job the header's own bottom border does for the role
-   tabs one level up.
-   Children align to the BOTTOM so the active tab's 2px rule lands on the
-   hairline rather than hovering four pixels above it. */
+   Navigation is one quiet row; actions are a separate group. The old
+   numbered/checkmarked stepper cost ~23px per tab and implied that opening a
+   section completed work — labels carry the whole hierarchy instead.
+
+   THIS FILE IS THE SECTION RAIL'S ONLY SET OF METRICS. Four partials sized it
+   at once (06, 07, 12 and here) and all of them lost to the rules below
+   without saying so — reported, twice, as the second level of navigation not
+   being standardised. 12 keeps the sticky docking and the action buttons'
+   box; nothing else may state a rail metric, and tab-chrome-metrics.test.ts
+   fails if anything does.
+
+   A tab strip needs a baseline or its active item floats: the hairline says
+   "these are tabs and there are more of them", and children align to the
+   BOTTOM so the active tab's 2px rule lands ON it. */
 .workspace-subtabs {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;
   gap: var(--space-2);
+  /* The rail's one height, written here and nowhere else. 34px of tab plus
+     the hairline is all that must fit. 12 declared this as `var(--chrome-rail)`
+     and lost, which made the coarse block's raise to 50px look like it
+     applied; the strip is measured live into `--rail-h` instead. */
   min-height: 40px;
   margin-bottom: var(--space-3);
   padding: 0;
@@ -33,13 +39,10 @@
   position: relative;
 }
 
-/* No container chrome, the same as the level above it.
-   This was a bordered, tinted tray carrying two shadow layers — an inset
-   highlight and a 24px drop — around buttons that were themselves bordered
-   pills. Three enclosures for one row of eight words, at the second level of a
-   navigation whose FIRST level is a bare row with an underline. The two levels
-   now read as one family at two scales, which is the whole argument for having
-   two of them. */
+/* No container chrome, the same as the level above it. This was a bordered,
+   tinted tray under two shadow layers, around buttons that were themselves
+   bordered pills: three enclosures for one row of eight words, at the second
+   level of a navigation whose first level is a bare row with an underline. */
 .workspace-subtabs__rail[data-scroll-affordance="horizontal"] {
   display: flex;
   width: 100%;
@@ -60,98 +63,96 @@
   display: flex;
   flex: 1 1 0;
   min-width: 0;
-  /* Growth is capped so a sparse rail stays a row of tabs. Overview has three
-     sections, and uncapped flex stretched each to ~486px at desk width — a
-     third of the screen per two-word label, with the active ring drawn around
-     the whole slab. Dense rails are untouched (research's eight tabs sit at
-     ~183px); short rails now cluster left on the hairline, which is how the
-     role tabs one level up already read. Measured at 1512px: overview tabs
-     486px → 200px, loop/desks/audit all opening 28px below the rail. */
+  /* Growth is capped so a sparse rail stays a row of tabs. Uncapped flex
+     stretched Overview's three sections to ~486px each at desk width — a
+     third of the screen per two-word label. Dense rails are untouched
+     (research's eight sit at ~183px). Measured at 1512px: 486px → 200px. */
   max-width: 200px;
+  /* The rail's one box: this floor, this inset, this frame, restated nowhere.
+     06 said 34px over an 8px/13px inset, 12 said `calc(var(--chrome-rail) -
+     2px)` over 8px/12px; both lost here silently. 34px is also the action
+     buttons' floor (12), so both halves of the rail share one line. */
   min-height: 34px;
   align-items: center;
   justify-content: center;
   padding: 5px 9px;
+  /* Every tab reserves the divider a secondary tab paints, as `.seg button`
+     reserves its seam: a border on some tabs and not others is a metric, and
+     a metric that follows a class or a state is the reported resize. */
   border: 1px solid transparent;
   /* Top corners only. A fully rounded tint reads as a pill that happens to be
      highlighted; a tab is a shape that meets the baseline. */
   border-radius: 6px 6px 0 0;
   background: transparent;
   color: var(--text-secondary);
+  /* The rail's type, declared once, on the box that owns its metrics. It was
+     --fs-body (14px) on the `strong` below — a rung LARGER than the role tabs
+     above it at --fs-chrome-tab (13px), on a rail the sheet's own note says
+     must read quieter than the level above. --fs-sm is 13px and still steps
+     with the Text-size preference, and it is the rung the action buttons and
+     every `.seg` already use: one size across the workspace chrome. */
+  font-size: var(--fs-sm);
   text-align: center;
-  /* Eight sections fit a full-width rail; a ninth, or a narrow window, has to
-     degrade to a truncated label rather than pushing its neighbours out of the
-     track. The scroll affordance below 820px is the real answer — this is the
-     band between. */
+  /* A ninth section, or a narrow window, degrades to a truncated label rather
+     than pushing its neighbours out of the track. The scroll affordance below
+     820px is the real answer; this is the band between. */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+/* Weight and truncation, never a size — the button above owns that. 650
+   against the role tabs' 680 is the "one step down" this rail reads at, and it
+   is CONSTANT: a heavier selected label re-measures the text and moves every
+   tab beside it, which is the reported resize. Bolding the selection and
+   reserving its width, as `.system-health` reserves its longest count, was
+   rejected: that reservation is per label, and eight workspaces supply these. */
 .workspace-subtabs button strong {
   min-width: 0;
   overflow: hidden;
-  font-size: var(--fs-body);
-  font-weight: 680;
+  font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 /* The role tabs' idiom, one step down: a 5% wash on hover, a 9% wash and full
-   contrast when selected, and a 2px rule under the active item against the role
-   tabs' 3px. Weight and contrast do the work the pill's border and drop shadow
-   were doing.
-
-   The rule stays an inset shadow rather than the `::after` the role tabs use,
+   contrast when selected, and a 2px rule under the active item against the
+   role tabs' 3px. PAINT ONLY — not one declaration in the two state rules
+   below changes the box, which is the whole of the reported defect.
+   The rule is an inset shadow rather than the `::after` the role tabs use,
    because this rail becomes a scroll container below 820px and anything drawn
-   outside the content box is clipped there. Same signal, one that cannot be
-   cropped.
-
+   outside the content box is clipped there — and because a shadow, unlike a
+   border or an outline, occupies no space whatever it is doing.
    Colour is not the only carrier: the rule, the contrast step from
-   `--text-secondary` to `--text-primary`, and `aria-selected` all say it too. */
+   `--text-secondary` to `--text-primary`, and `aria-selected` all say it. */
 .workspace-subtabs button:hover:not(:disabled) {
-  border-color: transparent;
   background: color-mix(in srgb, var(--series-1) 5%, transparent);
   color: var(--text-primary);
 }
 
 /* Inside the tab's own shape. The global ring sits at offset 0, and on a
-   bottom-flush tab that draws a box colliding with the hairline and the
-   active tab's 2px rule — three blue edges stacked on one baseline. Inset,
-   the ring follows the tab's rounded top and stays clear of the strip's
-   geometry; contrast is unchanged. */
+   bottom-flush tab that collides with the hairline and the active tab's 2px
+   rule — three blue edges on one baseline. Contrast is unchanged. */
 .workspace-subtabs__rail[data-scroll-affordance="horizontal"] > button:focus-visible {
   outline-offset: -2px;
 }
 
 .workspace-subtabs button[aria-selected="true"] {
-  border-color: transparent;
   background: color-mix(in srgb, var(--series-1) 9%, transparent);
   color: var(--text-primary);
   box-shadow: inset 0 -2px 0 var(--series-1);
 }
 
-/* Archives and catalogues remain available without pretending to be another
-   workflow step. A neutral wash is enough separation; no width-costly divider. */
+/* Archives and catalogues stay available without pretending to be a workflow
+   step: a muted label, and the divider painted into the 1px the tab above
+   already reserves. This rule also restated `padding-left: 9px`, `margin-left:
+   0`, the border width and the radius — declarations that merely repeated the
+   base rule's numbers, so a secondary tab matched its neighbours by coincidence
+   and the next edit to the inset above would have made one tab in the row a
+   different width. Colour only. */
 .workspace-subtabs button.is-secondary {
-  margin-left: 0;
-  padding-left: 9px;
-  border-left: 1px solid color-mix(in srgb, var(--text-muted) 14%, transparent);
-  /* Matches the tab shape of its neighbours; it is a quieter tab, not a chip. */
-  border-radius: 6px 6px 0 0;
+  border-left-color: color-mix(in srgb, var(--text-muted) 14%, transparent);
   color: var(--text-muted);
-}
-
-.workspace-subtabs__actions {
-  min-width: 0;
-  padding: 3px 0 3px var(--space-2);
-  border-left: 1px solid var(--border);
-  gap: 5px;
-}
-
-.workspace-subtabs__actions button,
-.workspace-subtabs__actions .rail-toggle {
-  min-height: 34px;
 }
 
 .workspace-subtabs__actions .rail-meta {
@@ -545,11 +546,9 @@
 }
 
 @media (forced-colors: active) {
-  /* Edge masks can erase system-colour text. High Contrast gets a visible
-     scrollbar instead of the decorative fade. */
+  /* High Contrast gets a visible scrollbar rather than a hidden one. The
+     edge-mask resets that sat here went with the decorative fade itself. */
   .workspace-subtabs__rail[data-scroll-affordance="horizontal"] {
-    -webkit-mask-image: none;
-    mask-image: none;
     scrollbar-width: auto;
   }
 

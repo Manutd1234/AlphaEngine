@@ -243,6 +243,14 @@ describe("what a reader would be wrong not to have seen stays on screen", () => 
     { path: "components/systems/RemediationLedger.tsx", kind: "REFUSAL HEADLINE", needle: "<strong>No MTTR trend is drawn.</strong>" },
     { path: "components/systems/RemediationLedger.tsx", kind: "CAVEAT ON A FIGURE", needle: "the counts above are a floor." },
     { path: "components/systems/CrossSourceCheck.tsx", kind: "COST", needle: "This check spends a call per provider, so it runs only when you ask." },
+    /* Added when the server mutations took their own Remediation pane. The
+       ledger warning is now said twice on that pane on purpose — under the
+       button that spends it, and on the map that draws what it cannot reach —
+       and a reader arrives at only one of them, so neither copy may fold.
+       `reliability-mutations-move.test.ts` pins the other three sentences. */
+    { path: "components/systems/OperatorControls.tsx", kind: "COST", needle: "This clears <em>our</em> count, not the vendor" },
+    { path: "components/systems/MutationScopeMap.tsx", kind: "COST and SAFETY", needle: "clears <em>our</em> count and not the" },
+    { path: "components/systems/MutationScopeMap.tsx", kind: "EMPTY STATE", needle: "No mutation is highlighted." },
     /**
      * The one candidate this sweep surveyed and did NOT move, recorded here so
      * the next reader knows it was weighed rather than missed.

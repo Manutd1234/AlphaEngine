@@ -270,7 +270,17 @@ export default function OrderBlotter({
                         <td>{row.venue ?? "—"}</td>
                         <td className="num">{row.fillPrice != null ? usd(row.fillPrice, 2) : "—"}</td>
                         <td className="num">{row.feeUsd != null ? usd(row.feeUsd, 2) : "—"}</td>
-                        <td className="num">{row.slippageBps != null ? `${fmt(row.slippageBps, 1)}bp` : "—"}</td>
+                        {/* " bps", not "bp". Every other figure on this tab
+                            spells the unit that way — the quality tiles, the
+                            spread decomposition, the venue table, the heatmap's
+                            fold, the ticket's price-band hint — and this cell
+                            was the tab's only "bp", closed up against its
+                            number. A reader comparing a blotter row against the
+                            Avg slippage tile above it should not have to decide
+                            whether two spellings are two measurements. The
+                            header stays "Slip": the cell carries the unit, so
+                            the column heading does not have to. */}
+                        <td className="num">{row.slippageBps != null ? `${fmt(row.slippageBps, 1)} bps` : "—"}</td>
                         <td>
                           {/* Status, not `accepted`. A cancelled or expired order was
                               accepted and never filled — labelling it "filled" would

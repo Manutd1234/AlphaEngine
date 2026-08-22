@@ -111,7 +111,15 @@ export default function OverviewSection({
         </div>
         <div>
           <span>Binding constraint</span>
-          <strong>{constraintLabel(binding[0])}</strong>
+          {/* The one value in this strip that is a name rather than a figure,
+              and `.portfolio-metrics strong` is `nowrap` + `text-overflow:
+              ellipsis` inside a tile that floors at 172px. The gateway emits
+              `symbol:BTCUSDT` for a per-instrument binder, so at --fs-h2 the
+              reader saw "Symbol: BTCU…" and could not recover WHICH instrument
+              binds first — the whole point of naming the binding constraint.
+              The title carries the full label; the ellipsis stays, because
+              widening this tile would drop the strip to five across. */}
+          <strong title={constraintLabel(binding[0])}>{constraintLabel(binding[0])}</strong>
           <small className="num">{fmt(binding[1] * 100, 1)}% utilised</small>
         </div>
         <div>

@@ -320,7 +320,7 @@ export default function TraceConsole({ pollMs, active, filterRequest }: TraceCon
         <aside className="console-trace-detail" id="trace-event-detail" aria-labelledby="trace-event-detail-title">
           <div className="console-trace-pane-heading">
             <strong id="trace-event-detail-title">Structured detail</strong>
-            <span>{selected ? `event ${selected.seq}` : "No selection"}</span>
+            <span>{selected ? `Event ${selected.seq}` : "No selection"}</span>
           </div>
           {selected ? (
             <div className="console-trace-detail__body">

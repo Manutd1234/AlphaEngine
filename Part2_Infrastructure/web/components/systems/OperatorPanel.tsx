@@ -31,11 +31,28 @@
  * What stayed is what the seam could not cut — authorisation, the pending
  * confirmation and its focus restore, the one derivation every figure on the
  * card reads, and the dispatch itself.
+ *
+ * **`part` renders one of two Remediation panes from one component.** The five
+ * server writes and their map are `part="mutations"`; the scope summary — the
+ * ring of provider routing states and the three counts under it — is
+ * `part="scope"`. The panes are conditional renders, so only one is ever
+ * mounted, and the shell hands the same props to both.
+ *
+ * The split is along a question, not along markup: `scope` answers "what would
+ * a mutation reach", and reaching for it costs nothing and changes nothing;
+ * `mutations` answers "what will this button do", and every surface a reader
+ * needs before pressing one travels with it — the blast-radius banner, the
+ * guard and its token field, the confirmation preview, the price under each
+ * row, and the map of what each write clears. Splitting the guard away from
+ * the buttons it gates was the alternative and it was refused: a disabled
+ * button whose reason lives one pane away is a button with no reason on it.
+ * `ReliabilityOverview` splits the same way, with the same prop name.
  */
 
 import { useEffect, useRef, useState } from "react";
 
 import DonutChart, { type DonutSlice } from "@/components/common/DonutChart";
+import MutationScopeMap from "@/components/systems/MutationScopeMap";
 import OperatorConfirmation from "@/components/systems/OperatorConfirmation";
 import OperatorControls from "@/components/systems/OperatorControls";
 import OperatorGuard from "@/components/systems/OperatorGuard";
@@ -61,6 +78,8 @@ export interface ActionOptions {
 export const UI_OUTAGE_MS = 120_000;
 
 interface OperatorPanelProps {
+  /** Which Remediation pane is asking. See the `part` paragraph above. */
+  part: "mutations" | "scope";
   guard: GuardMode;
   tokenEnv: string;
   providers: ProviderRow[] | null;
@@ -120,6 +139,7 @@ export function OperatorActionResult({ result }: { result: ActionResponse }) {
 }
 
 export default function OperatorPanel({
+  part,
   guard,
   tokenEnv,
   providers,
@@ -182,6 +202,18 @@ export default function OperatorPanel({
    * that supports counts and a distribution but never a trend.
    */
   const rows = providers ?? [];
+  /**
+   * Whether the registry was READ, as against read and found empty.
+   *
+   * `providers ?? []` collapses the two, and every figure below is derived from
+   * it — so with the health route refusing, the one card on the tab that can
+   * mutate provider routing opened with "Not configured 0 — every provider has
+   * a key", which is a claim about a registry nobody has seen. Threaded into
+   * `OperatorControls` as well, because its row figures read the same counts
+   * and half a fix would put a dash and a zero for the same fact ten pixels
+   * apart. An empty array keeps its zeros: that is a measurement.
+   */
+  const observed = providers !== null;
   const openCircuits = rows.filter((row) => row.circuitOpen).length;
   const simulated = rows.filter((row) => row.simulatedOutage).length;
   const unconfigured = rows.filter((row) => !row.configured).length;
@@ -194,6 +226,66 @@ export default function OperatorPanel({
     { label: "not configured", value: unconfigured, colour: "var(--axis)" },
   ];
 
+  /**
+   * The Scope pane: what a mutation would reach, and nothing that reaches it.
+   *
+   * Returned early rather than folded into one tree behind two ternaries — the
+   * two panes share their derivations and share almost no markup, and a
+   * `{part === "scope" && …}` around each of nine blocks reads as one pane with
+   * holes in it rather than as two panes.
+   */
+  if (part === "scope") {
+    return (
+      <div className="card console-card console-actions">
+        <div className="section-heading compact">
+          <div>
+            <span className="page-kicker">Scope</span>
+            <h2>What a mutation would act on</h2>
+          </div>
+          <span className="section-note">
+            {observed ? `${rows.length} providers registered here` : "registry not observed"}
+          </span>
+        </div>
+
+        <section className="remediation-scope" aria-label="What these controls would act on">
+          <DonutChart
+            slices={scopeSlices}
+            centreValue={rows.length ? String(rows.length) : undefined}
+            centreLabel="providers"
+            ariaLabel="Provider routing states in this instance, the scope these controls act on."
+            emptyNote={observed
+              ? "No provider is registered in this instance."
+              : "No provider snapshot yet."}
+          />
+          <dl className="remediation-scope__facts">
+            <div>
+              <dt>Open circuits</dt>
+              <dd className="num">{observed ? openCircuits : "—"}</dd>
+              {/* What the state IS. What closing one does is stated beside the
+                  button that does it, which is where a caveat belongs. */}
+              <small>{!observed ? "not observed" : openCircuits ? "held out of routing until a probe closes them" : "nothing held open"}</small>
+            </div>
+            <div>
+              <dt>Simulated outages</dt>
+              <dd className="num">{observed ? simulated : "—"}</dd>
+              <small>{!observed ? "not observed" : simulated ? "operator-caused, cleared on demand" : "none active"}</small>
+            </div>
+            <div>
+              <dt>Not configured</dt>
+              <dd className="num">{observed ? unconfigured : "—"}</dd>
+              <small>{!observed ? "not observed" : unconfigured ? "a missing key, not a failure" : "every provider has a key"}</small>
+            </div>
+          </dl>
+        </section>
+
+        <p className="console-note">
+          These are the counts every control on the Mutations pane is dispatched against. A dash is
+          a registry this instance has not read; a zero is a registry it has read and found empty.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="card console-card console-actions">
       <div className="section-heading compact">
@@ -203,35 +295,6 @@ export default function OperatorPanel({
         </div>
         <span className="section-note">Preview required for disruptive actions.</span>
       </div>
-
-      <section className="remediation-scope" aria-label="What these controls would act on">
-        <DonutChart
-          slices={scopeSlices}
-          centreValue={rows.length ? String(rows.length) : undefined}
-          centreLabel="providers"
-          ariaLabel="Provider routing states in this instance, the scope these controls act on."
-          emptyNote="No provider snapshot yet."
-        />
-        <dl className="remediation-scope__facts">
-          <div>
-            <dt>Open circuits</dt>
-            <dd className="num">{openCircuits}</dd>
-            {/* What the state IS. What closing one does is stated beside the
-                button that does it, which is where a caveat belongs. */}
-            <small>{openCircuits ? "held out of routing until a probe closes them" : "nothing held open"}</small>
-          </div>
-          <div>
-            <dt>Simulated outages</dt>
-            <dd className="num">{simulated}</dd>
-            <small>{simulated ? "operator-caused, cleared on demand" : "none active"}</small>
-          </div>
-          <div>
-            <dt>Not configured</dt>
-            <dd className="num">{unconfigured}</dd>
-            <small>{unconfigured ? "a missing key, not a failure" : "every provider has a key"}</small>
-          </div>
-        </dl>
-      </section>
 
       <div className="banner warn console-control-scope" role="note">
         <span aria-hidden>!</span>
@@ -285,6 +348,7 @@ export default function OperatorPanel({
         counters={counters}
         busyAction={busyAction}
         disabled={disabled}
+        registryObserved={observed}
         providerCount={rows.length}
         openCircuits={openCircuits}
         simulated={simulated}
@@ -298,6 +362,23 @@ export default function OperatorPanel({
         onRequestConfirmation={requestConfirmation}
       />
 
+      {/* The disclosure at the foot of `OperatorControls`, drawn. Same figures
+          as the badges beside the rows — they are threaded from here, not
+          re-derived there, so the map cannot state a quantity the buttons will
+          not find. A capability with no caller is the defect this repository
+          keeps a scar about, so the map is mounted where its subject is rather
+          than offered as a component nothing renders. */}
+      <MutationScopeMap
+        registryObserved={observed}
+        providerCount={rows.length}
+        openCircuits={openCircuits}
+        simulated={simulated}
+        quotaLedgers={quotaLedgers}
+        cacheEntries={counters?.cacheEntries ?? null}
+        stateEntries={counters?.stateEntries ?? null}
+        eventsRetained={counters?.eventsRetained ?? null}
+        eventsCapacity={counters?.eventsCapacity ?? null}
+      />
     </div>
   );
 }

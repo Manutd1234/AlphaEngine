@@ -7,11 +7,11 @@
  * ledger and may never grow, which is why these overrides live here at all.
  *
  * Desk-width PACKING only: every packing rule in this file must sit inside a
- * min-width media query, so phones keep the single-column flow. Two blocks sit
- * outside the media query and are not packing rules — a type-ladder collision
- * and a divider that separates nothing, both of which exist at every width.
- * They live here because 08, 10 and 13, where they would otherwise belong, are
- * shared partials this tab may not edit.
+ * min-width media query, so phones keep the single-column flow. Four blocks sit
+ * outside them and are not packing rules — a type-ladder collision, a divider
+ * that separates nothing, a diagram head boxed into a centred measure and a
+ * scroll port no keyboard reaches; each is wrong at every width. They live here
+ * because 08, 10 and 13, where they belong, are shared and not ours to edit.
  *
  * What this pass packs, and what it refused to pack.
  *
@@ -237,4 +237,163 @@
 .developer-cp-disclosure + .developer-cp-disclosure {
   padding-top: 0;
   border-top: 0;
+}
+
+
+/* ---------- 7 · Deployment topology: the diagram gets the width it has -----
+ *
+ * REPORTED, against the Overview subtab: "use the empty space on the left and
+ * right, the words are not aligned properly and the diagram seems very
+ * compressed."
+ *
+ * WHAT WAS MEASURED FIRST. `.shell` caps content at 1200px and `.card` is
+ * `padding: var(--card-pad-y) var(--card-pad)` — 11px 16px — so at >=1121px,
+ * where 13-warm-bright-pass.css hands `.developer-cp-topology` the whole row,
+ * the plane the diagram is drawn on is 1168px wide. In the >=1280px
+ * arrangement pairing 1 above builds, the inner grid is eight of twelve
+ * 85.33px tracks plus seven 16px gutters — 794.7px of card, 762.7px of plane.
+ * Against those two numbers the head of the diagram was:
+ *
+ *   .developer-cp-edge            width: min(420px, 72%);      margin: 0 auto
+ *   .developer-cp-topology__line  width: calc(66.666% + 1px);  margin: 0 auto
+ *
+ * A 420px band on a 1168px plane leaves 374px of bare grid paper on EACH side,
+ * and 171px each side even in the narrowed arrangement. Worth recording what
+ * the cause was NOT, because three likelier ones were cleared first: there is
+ * no SVG anywhere on this tab — topology, pipeline strip and readiness ring are
+ * all DOM and CSS — so no `viewBox` and no `preserveAspectRatio` letterboxing
+ * to undo; there is no `max-width` on the card or the section; and the node
+ * track list is already `repeat(3, minmax(0, 1fr))`, which grows on its own.
+ * The cause is a fixed centred measure written onto the diagram's own head
+ * element, plus one dead grid band described under 7b. Overriding the symptom
+ * with a `width: 100%` somewhere lower would have left both in place.
+ */
+
+/* 7a. The band names the runtime that CONTAINS all three deployables, so it is
+   the head of the diagram rather than a pill floating above it, and the honest
+   width for it is the width of the plane. Its own comment in 10 sized it to
+   "a third of the plane… the width that reads as belonging to them" — that
+   argument is what put 374px of nothing on either side of it, and it is the
+   one being reversed here. Nothing about what the band SAYS changes: same
+   label, same pill, same order. Deliberately outside the media query below,
+   for the reason blocks 5 and 6 are: a centred 72% band over a stacked column
+   of full-width node cards is the same misalignment on a phone, just smaller,
+   and no rule in 10 or 13 sets a different width for it at any breakpoint, so
+   there is nothing here to accidentally outrank. */
+.developer-cp-edge {
+  width: auto;
+  margin-inline: 0;
+}
+
+/* One source of truth for the node track gutter. The bracket below is drawn
+   from it, so the two cannot drift apart the way `66.666% + 1px` already had
+   drifted from the 11px gap it was meant to account for. */
+.developer-cp-topology {
+  --developer-topology-gap: 11px;
+}
+
+@media (min-width: 901px) {
+
+  /* 7b. The dead band, 901px to 1120px.
+     `@media (max-width: 1120px)` in 10 puts the overview grid on eight tracks
+     and gives the topology `span 5`; the card that spans the other three is
+     `.developer-cp-readiness`, which is `hidden` on this part. So at 1120px the
+     diagram was drawn on 637px of plane with 379px of empty grid beside it —
+     the same emptiness pairing 1 removed at >=1280px, in the one band nobody
+     had looked at. 13 already gives the card the full row at >=1121px and
+     pairing 1 does at >=1280px; this closes the gap under both with the same
+     answer rather than a third arrangement, and at the same (0,2,0) 13 uses,
+     so the child combinator here is deliberate rather than decorative. */
+  .developer-cp-overview__grid > .developer-cp-topology {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (min-width: 721px) {
+
+  /* 7c. The bracket now lands ON the node centres.
+     Three tracks and a gutter g make each track (100% - 2g)/3, so the span from
+     the centre of the first node to the centre of the third is
+     100% - (100% - 2g)/3 = (200% + 2g)/3. At g = 11px that is 66.667% + 7.33px;
+     the rule it replaces was 66.666% + 1px, which stopped 3.2px inside each
+     node's centre — an arm that visibly misses the box it points at. Written
+     as arithmetic over the same custom property the columns use, so it stays
+     true if the gutter is ever retuned.
+
+     Scoped to >=721px because `@media (max-width: 720px)` in 10 redraws this
+     element as a 1px vertical stem for the stacked column. Media queries carry
+     no extra specificity, so an unscoped width here would sit later in the
+     cascade and silently win on a phone. */
+  .developer-cp-topology__nodes {
+    column-gap: var(--developer-topology-gap);
+    row-gap: 0;
+    grid-template-rows: repeat(5, auto);
+  }
+
+  .developer-cp-topology__line {
+    width: calc((200% + 2 * var(--developer-topology-gap)) / 3);
+  }
+
+  /* 7d. "The words are not aligned properly."
+     Each node card was an independent block, so its five rows — the 01/02/03
+     figure with its pill, the name, the role, the path, the detail — began
+     wherever the row above it had ended. The paths are the proof:
+     `Part2_Infrastructure/main.py` is 28 characters and sets one line, while
+     `Part2_Infrastructure/OpenBB_Service/app.py` is 42 and, under the
+     `-webkit-line-clamp: 2` in 10, sets two. So the middle card's detail
+     sentence sat a full line above its neighbours' and the three columns read
+     as three unrelated blocks.
+
+     `grid-template-rows: subgrid` puts all three cards on the same five row
+     lines, so every row starts at one y across the diagram and the tallest
+     entry sets the height for all three. Row gap goes to 0 because the rows
+     already carry their own margins from 10 (11px under the head row, 3px
+     under the name, 8px/5px around the path) and an 11px grid gap would be
+     added on top of each — the existing rhythm is kept exactly, only shared.
+
+     Rejected: per-row `min-height` in `lh` units, which is a second set of
+     numbers to keep in step with the type scale and reintroduces clipping the
+     moment a string grows; and `display: contents` on the card, which would
+     have thrown away its border, its background and the border-top colour that
+     is half of the tone signal. Where subgrid is unsupported the declaration is
+     simply dropped and the card falls back to a plain grid of five auto rows —
+     which is what it renders as today, so the failure mode is the old layout
+     rather than a broken one.
+
+     The 01/02/03 figures already line up and are left alone: `.num` in 00 is
+     `font-family: var(--mono); font-variant-numeric: tabular-nums`, and
+     `.developer-cp-node > div > .num` only retints and resizes it. */
+  .developer-cp-node {
+    display: grid;
+    grid-row: span 5;
+    grid-template-rows: subgrid;
+  }
+}
+
+
+/* ---------- 8 · The pipeline strip scrolls where a keyboard can reach it ---
+ *
+ * Found while auditing the tab's other diagram, and the same class of defect.
+ * `.developer-cp-pipeline` carries `min-width: 660px` — six stages will not
+ * compress below that — and 10 answered it by making the CARD
+ * `overflow-x: auto`. That is the right container in the sense that the page
+ * never scrolls sideways (`html` is `overflow-x: clip`), and the wrong one in
+ * two smaller senses: a keyboard cannot reach a scroll port that is not
+ * focusable, and the card's own 16px gutter scrolled away with the strip, so
+ * stage 6 ended flush against the border.
+ *
+ * The scroll moves one level in, onto a wrapper the component now renders with
+ * `tabIndex={0}` — the same fix `components/execution/OrderVerdict.tsx` and
+ * three sibling tables already carry as `<div className="table-wrap"
+ * tabIndex={0}>`. `overflow: visible` rather than `overflow-x: visible`,
+ * because a computed `visible` beside a non-visible `overflow-y` is forced
+ * back to `auto` and the card would have kept the scroll port it is giving up.
+ */
+.developer-cp-pipeline-card {
+  overflow: visible;
+}
+
+.developer-cp-pipeline-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
 }

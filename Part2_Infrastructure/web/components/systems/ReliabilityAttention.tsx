@@ -184,7 +184,16 @@ export default function ReliabilityAttention({
               <span className="page-kicker">Triage</span>
               <h2 id="reliability-attention-title">Active attention</h2>
             </div>
-            <span className="section-note">{attention.length} signal{attention.length === 1 ? "" : "s"}</span>
+            {/* A count, or the fact that no count was taken. With no snapshot and
+                no error this slot printed "0 signals" beside "Waiting for
+                telemetry" — the two disagreed, and the reassuring one was the
+                one set in the heading. An empty list once the snapshot IS in is
+                still a measurement, so only the unread case is withheld. */}
+            <span className="section-note">
+              {!health && !healthError
+                ? "not yet counted"
+                : `${attention.length} signal${attention.length === 1 ? "" : "s"}`}
+            </span>
           </div>
 
           {health && attention.length === 0 ? (

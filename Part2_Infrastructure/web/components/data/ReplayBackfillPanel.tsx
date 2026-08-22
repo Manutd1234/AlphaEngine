@@ -238,7 +238,7 @@ export default function ReplayBackfillPanel({
       <div className="portfolio-card-heading">
         <div>
           <span className="page-kicker">Orchestration</span>
-          <h2 id="replay-backfill-heading">Replay and backfill</h2>
+          <h2 id="replay-backfill-heading">Replay &amp; backfill</h2>
         </div>
         <span className="section-note">
           {jobs ? `${jobs.backend} queue; ${jobs.jobs.length} recent ${jobs.jobs.length === 1 ? "job" : "jobs"}` : jobsError ? "queue unreachable" : "reading the queue"}

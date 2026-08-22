@@ -931,18 +931,14 @@ button.page-insight:hover:not(:disabled) {
      overlaps the scrollport and no seam shows between them. */
   top: -1px;
   z-index: var(--z-rail);
-  min-height: var(--chrome-rail);
-  margin: 0 0 var(--space-3);
-  padding: 0;
-  border: 0;
-  border-bottom: 1px solid var(--border);
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
+  /* Docking, and nothing else. This rule also used to declare the rail's
+     height, margin, padding, border, radius, shadow, display mode, alignment
+     and gap — every one of them restated by 15, which is later in the cascade
+     and won all fourteen. Two files describing the same box, one of them
+     silently ignored, is the mechanism behind the report that the section rail
+     is not standardised; the height in particular read `var(--chrome-rail)`
+     here and `40px` there, so the coarse-pointer block's raise to 50px looked
+     like it applied and did not. The strip's geometry is 15's, in one rule. */
 }
 
 /* The band behind the rail. It bleeds out by exactly the shell's padding so
@@ -961,30 +957,37 @@ button.page-insight:hover:not(:disabled) {
   margin-bottom: 0;
 }
 
-.workspace-subtabs__rail {
-  flex: 1 1 auto;
-  min-width: 0;
-  align-items: stretch;
-}
-
-.workspace-subtabs button {
-  min-height: calc(var(--chrome-rail) - 2px);
-  padding: 8px 12px;
-}
-
 /* Surface-level controls, sized to the rail. They stay reachable at any scroll
    position, which is the reason the book source switch and the sweep button
    left their own full-width strips. */
 .workspace-subtabs__actions {
-  flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding-bottom: 2px;
+  min-width: 0;
+  /* The group's own box, beside the box of the controls in it. It was split
+     across two partials — this file's `gap: 6px` and `padding-bottom: 2px`
+     against 15's `gap: 5px` and `padding: 3px 0 3px var(--space-2)`, the
+     later file winning both — which is the same drift the tabs themselves
+     suffered, on the other half of the same rail. */
+  padding: 3px 0 3px var(--space-2);
+  border-left: 1px solid var(--border);
+  gap: 5px;
+}
+
+/* Everything docked beside the tabs stands one height, including the auto-run
+   switch — a <label>, so it never passes through the `button` element rule and
+   would otherwise sit 27px tall against 34px buttons. The floor was written
+   28px here and 34px in 15 four partials later; 34 is what shipped, because
+   the cascade says so and not because anyone chose it. It is chosen here now,
+   and it is the same 34px the tabs themselves stand at, so the two halves of
+   the rail share one line. The fingertip raise to 44px is paid once, in 15's
+   coarse-pointer block, for the tabs and these controls together. */
+.workspace-subtabs__actions button,
+.workspace-subtabs__actions .rail-toggle {
+  min-height: 34px;
 }
 
 .workspace-subtabs__actions button {
-  min-height: 28px;
   padding: 4px 10px;
   border-radius: var(--radius-sm);
   font-size: var(--fs-sm);
@@ -1375,12 +1378,10 @@ button.page-insight:hover:not(:disabled) {
 }
 
 @media (max-width: 900px) {
-  .workspace-subtabs {
-    flex-wrap: wrap;
-    padding-bottom: 4px;
-  }
+  /* `flex-wrap` and a `padding-bottom` used to sit here too. The rail is a
+     two-track grid from 15 and its `padding: 0` is a later rule of the same
+     specificity, so a media query cannot outrank it: both were inert. */
   .workspace-subtabs__actions {
-    flex: 1 1 100%;
     justify-content: flex-start;
   }
 }
@@ -1964,9 +1965,6 @@ h4 {
   .workspace-tabs {
     flex: 1 0 100%;
   }
-  .workspace-tabs button {
-    min-height: 34px;
-  }
   .workspace-header__utility {
     padding-bottom: 6px;
   }
@@ -1979,7 +1977,6 @@ h4 {
 @media (max-width: 620px) {
   .workspace-subtabs {
     position: static;
-    padding-bottom: 6px;
   }
   /* The full-bleed band is positioned against the rail. Once the rail is static
      the band resolves against a further ancestor instead and its −14px bleed
@@ -1987,11 +1984,6 @@ h4 {
      tab. Nothing scrolls under a static rail, so the band has no job here. */
   .workspace-subtabs::before {
     display: none;
-  }
-  .workspace-subtabs__actions {
-    flex: 1 1 100%;
-    justify-content: flex-start;
-    padding-top: 6px;
   }
   .page-heading__insights {
     grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
@@ -2098,22 +2090,14 @@ h4 {
   text-align: right;
 }
 
-/* Phone widths. Two more rigid rows, same shape as the ones above.
-   The section rail wraps to a grid of ~96px cells below 620px (l.8148) while
-   its labels stayed `nowrap`, so "Providers & Capacity" and "Quality &
-   Incidents" ran out through the cell. And a `.section-heading` holding a title
-   plus a row of status pills had no wrap at all, so the pills left the card. */
+/* Phone widths. One more rigid row, same shape as the ones above: a
+   `.section-heading` holding a title plus a row of status pills had no wrap at
+   all, so the pills left the card.
+   Two rail rules used to sit here as well, letting a tab label wrap inside a
+   ~96px grid cell. There is no grid and there are no tabs at this width — 15
+   hides `__rail-shell` outright below 620px and swaps in the native section
+   picker — so they wrapped nothing. */
 @media (max-width: 620px) {
-  .workspace-subtabs button {
-    white-space: normal;
-    line-height: 1.25;
-  }
-
-  .workspace-subtabs button strong {
-    display: block;
-    overflow-wrap: break-word;
-  }
-
   .section-heading {
     align-items: flex-start;
     flex-wrap: wrap;

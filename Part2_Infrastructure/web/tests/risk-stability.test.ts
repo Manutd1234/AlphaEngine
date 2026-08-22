@@ -173,8 +173,13 @@ describe("neither loss estimate re-simulates on the poll cadence", () => {
     // `record` joined the run callback's list when the re-run trend landed; it
     // is a `useCallback` over exactly the same three inputs, which is why its
     // own list is asserted too rather than the addition being waved through.
-    assert.match(source, /\[annualVol, equityForRun, horizonDays, record\]/,
-      "the run callback re-fires on a model or horizon change, never on an equity tick");
+    // `sandbox` joined it when the panel started holding its last good answer:
+    // the held record stamps which book it was computed for, so a Live/Sandbox
+    // toggle discards it rather than captioning generated figures as a live
+    // run. It is READ inside the callback, so omitting it would be a stale
+    // closure — the reason this list is pinned at all.
+    assert.match(source, /\[annualVol, equityForRun, horizonDays, record, sandbox\]/,
+      "the run callback re-fires on a model, horizon or book change, never on an equity tick");
     assert.match(source, /\[annualVol, equityForRun, horizonDays\],\n\s*\);/,
       "the trend recorder keys on the same three inputs the run does");
   });

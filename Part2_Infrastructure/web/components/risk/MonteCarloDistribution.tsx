@@ -296,7 +296,7 @@ export default function MonteCarloDistribution({
           <div className="skeleton" style={{ height: 212 }} />
           <div className="skeleton" style={{ height: "var(--mc-tile-reserve, 196px)", marginTop: 12 }} />
           <p className="muted num" style={{ fontSize: "var(--fs-body)" }}>
-            simulating: {(state.progress?.done ?? 0).toLocaleString()} /{" "}
+            Simulating {(state.progress?.done ?? 0).toLocaleString()} /{" "}
             {(state.progress?.total ?? paths).toLocaleString()} paths
           </p>
           <span className="sr-only" role="status">
@@ -363,20 +363,18 @@ export default function MonteCarloDistribution({
 
           {withinHeadroom !== null && (
             <div className={`banner${withinHeadroom ? "" : " warn"}`} role="status">
-              <span
-                aria-hidden
-                style={{ color: withinHeadroom ? "var(--success-text)" : "var(--warning-text)" }}
-              >
+              <span aria-hidden style={{ color: withinHeadroom ? "var(--success-text)" : "var(--warning-text)" }}>
                 {withinHeadroom ? "✓" : "▲"}
               </span>
               <div>
-                <strong>
-                  {withinHeadroom ? "Within headroom." : "Breaches headroom."}
-                </strong>{" "}
-                P{lossBands[1]} loss {mcUsd(result.loss.p95)} over {horizonDays} days against the{" "}
-                {usd(cushionUsd, 0)} left in the drawdown-to-halt budget on the Limits tab
+                <strong>{withinHeadroom ? "Within headroom." : "Breaches headroom."}</strong>{" "}
+                P{lossBands[1]} loss {mcUsd(result.loss.p95)} over {horizonDays} day{horizonDays === 1 ? "" : "s"}{" "}
+                against the {usd(cushionUsd, 0)} left in the drawdown-to-halt budget on the Limits tab
                 {withinHeadroom ? "." : " — a tail outcome this size would trip the halt."}{" "}
-                A multi-day loss against today&apos;s budget is a conservative screen.
+                {/* Gone at 1d, the seg's first choice, where it stops being true: this screen is
+                    conservative BECAUSE a multi-day tail meets one day's cushion, and over one day
+                    the spans match. `disclosure-risk.test.ts` pins the sentence, so WHEN is the lever. */}
+                {horizonDays > 1 && <>A multi-day loss against today&apos;s budget is a conservative screen.</>}
                 {sandbox ? " Sandbox book, same limits." : ""}
               </div>
             </div>

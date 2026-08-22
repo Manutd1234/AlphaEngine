@@ -159,7 +159,17 @@ export default function BenchmarkPanel({ comparison, requested }: BenchmarkPanel
         <div>
           <h2>Versus {comparison.symbol}</h2>
         </div>
-        <span className="num muted">{comparison.alignedBars} aligned bars</span>
+        {/* `.section-note`, not `num muted`, and thousands-separated. This slot
+            is the desk's counter slot — 01-workspace-shell.css names it as
+            such ("12/200 entries", "8/20 routable") and gives it the sans face
+            at --fs-sm — and every other research card's head uses it, this
+            panel's OWN empty state four screens up included. Set in mono at
+            the inherited body size it read a size larger and a face apart from
+            the head of FactorPanel, the card it shares a row with in the
+            Explain pane. The separator matches too: FactorPanel prints
+            `{r.n.toLocaleString()} bars` beside this, so an unseparated 9431
+            sat next to a separated 9,431 measuring the same kind of thing. */}
+        <span className="section-note">{comparison.alignedBars.toLocaleString()} aligned bars</span>
       </div>
 
       <p className="sub">

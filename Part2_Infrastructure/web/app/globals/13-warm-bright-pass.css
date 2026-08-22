@@ -302,8 +302,8 @@ button:active:not(:disabled) {
   transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 
-.workspace-tabs button::after,
-.workspace-subtabs button::after {
+/* The rail's rule is an inset shadow, not a pseudo-element: it has no ::after. */
+.workspace-tabs button::after {
   transition: background var(--dur) var(--ease), inset var(--dur) var(--ease);
 }
 

@@ -1238,43 +1238,28 @@
 }
 
 /* ---------- role workspace subtabs ----------
-   The second level of navigation, and it must read quieter than the first.
-   This rail used to be a bordered, shadowed container of 58px two-line cards
-   with a raised selected state, sitting directly under `.workspace-tabs`
-   (l.1510) — eight desk roles rendered as flat text with a 3px underline. The
-   subordinate choice was the louder object on the page, in all eight
-   workspaces.
+   The rail's metrics are not in this file, and this note is what stands where
+   they were.
 
-   Same idiom as the level above it, one step down: no container chrome, a 2px
-   underline against the role tabs' 3px, and one line of text. The section
-   description moved to the button's `title` — the same trade the role tabs
-   already make at 900px (l.3080).
+   `.workspace-subtabs button` used to declare a whole box from here: a 34px
+   floor, an 8px/13px inset, an 8px 8px 0 0 radius, `display: block` and
+   `text-align: left`. Not one of those metrics ever reached a rail tab.
+   The navigator's own `.workspace-subtabs__rail[data-scroll-affordance] >
+   button` scores (0,2,1) against this rule's (0,1,1) and restates every one
+   of them; a reader opening this file was reading the rail's size off a rule
+   the browser had already thrown away. What it did still reach were the
+   ACTION buttons docked beside the tabs, and there it contributed four inert
+   declarations: `display: block` on a flex item, which is blockified anyway;
+   `text-align: left` on a button sized by its own content; `min-width: auto`,
+   which is the initial value; and `position: relative` with nothing
+   positioned against it.
 
-   That paragraph described a design this sheet then stopped delivering. A later
-   pass replaced the markup with a `__rail-shell` / `__rail` pair and gave the
-   rail a bordered, tinted, twice-shadowed tray with bordered pills inside it,
-   which is the opposite of "no container chrome"; the rules here were left
-   behind, mostly out-specified and with their underline switched off outright
-   by a `display: none` further down. Comments that describe a removed design
-   are worse than no comment, because they are read as the current intent.
-
-   The tray is gone again and the idiom above is what ships. What remains here
-   is only what still applies to the rail's ACTION buttons, which the newer
-   `__rail[…] > button` selector does not reach. */
-
-.workspace-subtabs button {
-  position: relative;
-  display: block;
-  min-width: auto;
-  min-height: 34px;
-  padding: 8px 13px;
-  border: 0;
-  border-radius: 8px 8px 0 0;
-  background: transparent;
-  color: var(--text-secondary);
-  text-align: left;
-  white-space: nowrap;
-}
+   Four partials sized this one rail — this file, 12, 13 and 15 — which is how
+   the reader came to report the second level of navigation as inconsistent
+   twice. One home now: `15-navigator-and-trailing-layer.css` owns every rail
+   metric, `12-workspace-standardisation.css` owns the sticky docking and the
+   action buttons' box, and this file owns none of it.
+   `tests/tab-chrome-metrics.test.ts` fails if a second home opens. */
 
 .workspace-subtab-panel {
   min-width: 0;

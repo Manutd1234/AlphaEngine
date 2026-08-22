@@ -92,7 +92,7 @@ export default function SessionControls({
           <dt>Reconnect WebSockets</dt>
           <dd>Resets the backoff and sequence guard rather than waiting one out.</dd>
           <dt>Health snapshot cadence</dt>
-          <dd>Background priority is fenced out of each provider&rsquo;s interactive reserve; only an explicit <em>Refresh now</em> is interactive.</dd>
+          <dd>Background priority is fenced out of each provider&rsquo;s interactive reserve; only an explicit <em>Refresh</em> is interactive.</dd>
         </dl>
       </details>
 

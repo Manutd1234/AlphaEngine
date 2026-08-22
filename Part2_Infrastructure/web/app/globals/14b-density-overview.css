@@ -23,9 +23,12 @@
  * to pair here: the only full-width blocks are the hero (the identity band,
  * with nothing to pair against) and the audit card (an eight-column table
  * that needs the width, alone in its section). So this file spends its lines
- * on the two honest levers left — vertical rhythm and reserved space — and
- * pairs nothing, because pairing here would mean wrapping the headline or
- * crushing the chips below their 172px floor.
+ * on vertical rhythm and pairs nothing, because pairing here would mean
+ * wrapping the headline or crushing the chips below their 172px floor.
+ *
+ * Reserved space was the second lever this pass tried, and it is the one rule
+ * the pass withdrew: the block below records what it measured and why eight
+ * pixels were the wrong thing to buy with a row of four chips' alignment.
  */
 @media (min-width: 1100px) {
   /* The page column: hero to rail to section. One step down the spacing
@@ -51,18 +54,48 @@
     margin-bottom: var(--space-3);
   }
 
-  /* The chips' note slot reserves two lines so the eight tab headers stay
-     the same height; the hero opted out of that parity contract long ago
-     ("nothing in this band has to match anything" — partial 12). Its four
-     notes are one-liners today, so the reserve is a blank line under each
-     figure. Let the slot size to its content: the sparkline still rides in
-     it, grid row-stretch still equalises the four chips against the tallest,
-     and a note that genuinely wraps to two lines gets its second line back
-     the moment it needs one. The shared `.page-insight > small` rule that
-     page-head-contract.test.ts reads is untouched. */
-  .overview-hero .page-insight > small {
-    min-height: 0;
-  }
+  /* ── The chips' note slot: a reserve this pass tried to reclaim, and gave
+     back ─────────────────────────────────────────────────────────────────
+     This block used to hold `.overview-hero .page-insight > small
+     { min-height: 0 }`, on the argument that the two-line reserve in
+     `.page-insight > small` exists for parity BETWEEN the eight tab headers,
+     and the hero opted out of that contract long ago ("nothing in this band
+     has to match anything" — partial 12), so its one-line notes were paying
+     for a blank line.
+
+     That argument was about the wrong parity. The reserve also holds the four
+     chips level WITHIN this row, and here only one of them carries a
+     sparkline. Measured against the tokens the rows are drawn with, at
+     --type-step 1:
+
+       reserve (shared rule)   2.68 × --fs-sm 13px  = 34.84px, all four chips
+       Equity note, unreserved max(26px spark, one line) = 26.00px
+       the other three         1.34 × --fs-sm 13px  = 17.42px
+
+     `.page-insight` is `display: grid; align-content: start`, so the grid's
+     row-stretch equalises the four BOXES and drops the 8.58px of slack at the
+     bottom of the three chips without a spark — their provenance lines then
+     sit 8.58px above Equity's, four sibling chips on two baselines. That is
+     the divergence `tests/page-head-contract.test.ts` was written against,
+     and its own words are why row-stretch is not an answer to it: "only the
+     grid's row-stretch hides that". Its sibling assertion — "a chip carrying
+     a sparkline is no taller than one without" — is the case the override
+     broke, one scope down.
+
+     What the override bought was 34.84 − 26.00 = 8.58px, once, on one band.
+     Rejected alternative: a tighter shared floor of 26px, keeping the four
+     level AND most of the 8.58px. It holds only while every note is one line
+     — the note text is clamped to two lines by the shared rule, and the
+     Equity note ("start $1,204,880; gateway snapshot") shares its row with a
+     90px sparkline in a ~270px chip, so a wrap is a resize away, and a wrap
+     puts that chip back at 34.84px alone. A floor that is correct only at
+     today's copy width is the kind of number the shared rule's own comment
+     records drifting before (81px, then 84px, against a real 89.8px chip).
+
+     So the reserve stands, this pass keeps the padding and rhythm steps
+     above, and the hero is 8.58px taller than the tightest thing that would
+     render. Precision on a landing surface a risk officer reads is worth more
+     than eight pixels of a 320px band. */
 }
 
 /* ── The role launcher's orphan row, 721–1120px ────────────────────────────

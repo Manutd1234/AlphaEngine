@@ -24,6 +24,7 @@ import ReliabilityOverview, { type ReliabilityDrilldown } from "@/components/sys
 import RemediationLedger from "@/components/systems/RemediationLedger";
 import TraceConsole from "@/components/systems/TraceConsole";
 import { ConsoleChrome, type ConsoleTile } from "@/components/systems/ConsoleChrome";
+import { POSTURE_LABEL, postureTone } from "@/components/systems/reliability-posture";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
 import { formatDuration } from "@/lib/format";
 import {
@@ -33,7 +34,7 @@ import {
   LATENCY_MIN_SAMPLES,
   latencyTone,
 } from "@/lib/overview-state";
-import { deriveReliabilityPosture, type ReliabilityStatus } from "@/lib/reliability";
+import { deriveReliabilityPosture } from "@/lib/reliability";
 import { RELIABILITY_SECTIONS, type ReliabilitySection } from "@/lib/sections";
 import type { SystemHealthView } from "@/lib/use-system-health";
 
@@ -49,30 +50,22 @@ export interface ReliabilityConsoleProps {
   active?: boolean;
 }
 
-const POSTURE_LABEL: Record<ReliabilityStatus, string> = {
-  nominal: "Nominal",
-  degraded: "Degraded",
-  critical: "Critical",
-  halted: "Trading halted",
-  unknown: "Unknown",
-};
-
-function postureTone(status: ReliabilityStatus | undefined): ConsoleTile["tone"] {
-  if (status === "critical" || status === "halted") return "bad";
-  if (status === "degraded" || status === "unknown") return "warn";
-  if (status === "nominal") return "good";
-  return "neutral";
-}
-
 /**
  * Remediation was three stacked cards in one scroll — a reader arriving
  * mid-incident had to scroll past two reference surfaces to reach the only one
- * with buttons on it. Now four panes with separate sources, so each degrades on
- * its own: the guarded controls read `guard` and the provider registry, the
- * session controls read only this tab, the state machine reads
- * `health.providers[].breaker`, and the ledger fetches this instance's event
- * ring. Act and Session split the old controls card along its own blast-radius
- * seam: server mutations behind the guard on one, browser-only on the other.
+ * with buttons on it. Now five panes with separate sources, so each degrades on
+ * its own: the guarded writes read `guard` and the registry, Scope reads the
+ * registry alone, the session controls read only this tab, the state machine
+ * reads `health.providers[].breaker`, and the ledger fetches this instance's
+ * event ring. Session split from the writes along the old controls card's
+ * blast-radius seam: server mutations behind the guard, browser-only beside it.
+ *
+ * The fifth pane came from a reader's own words: the server mutations were
+ * sharing a pane with the ring and counts above them, and that block is a
+ * REFERENCE surface — it answers what a write would reach, asked before
+ * deciding rather than while pressing. So the writes kept the pane a reader
+ * lands on and the reference took the new one. `OperatorPanel` renders both
+ * from one `part` prop, and argues there why the guard went with the buttons.
  *
  * Deliberately NOT a nested `<WorkspaceSubtabs>`: that publishes `--rail-h`
  * from a ResizeObserver and its own comment asserts exactly one rail is mounted
@@ -80,15 +73,14 @@ function postureTone(status: ReliabilityStatus | undefined): ConsoleTile["tone"]
  * offset in the app. The house in-panel pattern is `.seg role="group"`, as
  * Dependencies and the blotter use.
  */
-type RemediationPane = "act" | "session" | "recovery" | "history";
+type RemediationPane = "mutations" | "scope" | "session" | "recovery" | "history";
 
-/**
- * Act leads and is the default: the pane a reader lands on in an incident, and
- * the only one that can change server state; the rest are worth one click
- * rather than a page of scrolling above the controls.
- */
+/** Mutations leads and is the default: the pane a reader lands on in an
+ *  incident, and the only one that can change server state; the rest are worth
+ *  one click rather than a page of scrolling above the controls. */
 const REMEDIATION_PANES: Array<{ id: RemediationPane; label: string; hint: string }> = [
-  { id: "act", label: "Act", hint: "Every guarded control, what it acts on and costs" },
+  { id: "mutations", label: "Mutations", hint: "The five server writes, what each costs and what it clears" },
+  { id: "scope", label: "Scope", hint: "What a write would reach in this instance right now" },
   { id: "session", label: "Session", hint: "This tab's own sockets and poll cadence" },
   { id: "recovery", label: "Recovery", hint: "How a tripped circuit comes back, and cooldown left" },
   { id: "history", label: "History", hint: "Which circuits tripped here, and how each closed" },
@@ -108,7 +100,7 @@ export default function ReliabilityConsole({
     label: string;
   } | null>(null);
   const traceFilterSequence = useRef(0);
-  const [remediationPane, setRemediationPane] = useState<RemediationPane>("act");
+  const [remediationPane, setRemediationPane] = useState<RemediationPane>("mutations");
   const {
     health,
     guard,
@@ -263,9 +255,9 @@ export default function ReliabilityConsole({
       {/* Exactly one copy of the outcome, wherever the reader is. `OperatorPanel`
           renders `lastResult` inline beside the button that caused it, so this
           console-level banner covers every other position — another section, or
-          the Session, Recovery and History panes, where that panel is not
-          mounted. */}
-      {(section !== "controls" || remediationPane !== "act") && actionResult && (
+          the Scope, Session, Recovery and History panes, where the mutations
+          pane is not mounted. */}
+      {(section !== "controls" || remediationPane !== "mutations") && actionResult && (
         <OperatorActionResult result={actionResult} />
       )}
 
@@ -339,11 +331,19 @@ export default function ReliabilityConsole({
 
         {/* Conditional renders, never `hidden`. The section panel above stays
             mounted so a typed token and a chosen purge scope survive a rail
-            switch; there is nothing comparable to preserve between these four,
-            and leaving them mounted would keep the ledger's 15s poll and the
-            cooldown arithmetic running behind a pane nobody is reading. */}
-        {remediationPane === "act" && (
+            switch; there is nothing comparable to preserve between Session,
+            Recovery and History, and leaving them mounted would keep the
+            ledger's 15s poll and the cooldown arithmetic running behind a pane
+            nobody is reading.
+
+            Mutations and Scope share ONE mount, and therefore one condition:
+            they are two `part`s of `OperatorPanel`, and two conditional renders
+            would remount it on every switch — discarding the chosen purge
+            scope, quota target and previewed confirmation this comment has just
+            said must survive. Neither part polls, so the mount costs nothing. */}
+        {(remediationPane === "mutations" || remediationPane === "scope") && (
         <OperatorPanel
+          part={remediationPane}
           guard={guard}
           tokenEnv={tokenEnv}
           providers={health?.providers ?? null}
@@ -364,7 +364,7 @@ export default function ReliabilityConsole({
         />
         )}
 
-        {/* The browser-only half of the old Act card — no guard, no server writes. */}
+        {/* The browser-only half of the old controls card: no guard, no server write. */}
         {remediationPane === "session" && (
           <SessionControls
             pollMs={effectivePollMs}
@@ -390,14 +390,13 @@ export default function ReliabilityConsole({
         )}
 
         {/* A sibling, not a section inside OperatorPanel: that component stays a
-            pure controls surface with no poll threaded through it.
-
-            The gate is BOTH conditions, exactly as `BlotterViews` gates
-            `WorkingOrders`. The section clause is load-bearing today, because
-            `WorkspaceSubtabPanel` hides rather than unmounts; the pane clause is
-            redundant only for as long as this stays a conditional render, and
-            the poll must not start running again the day someone switches these
-            three to `hidden` to preserve scroll position. */}
+            pure controls surface with no poll threaded through it. The gate is
+            BOTH conditions, exactly as `BlotterViews` gates `WorkingOrders`:
+            the section clause is load-bearing today because
+            `WorkspaceSubtabPanel` hides rather than unmounts, and the pane
+            clause is redundant only for as long as this stays a conditional
+            render — the poll must not come back the day someone switches these
+            to `hidden` to preserve scroll position. */}
         {remediationPane === "history" && (
           <RemediationLedger active={active && section === "controls" && remediationPane === "history"} />
         )}

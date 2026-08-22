@@ -254,6 +254,10 @@ export function BookSourceControl({ view }: { view: BookView }) {
   const meta = sandbox
     ? "generated book"
     : isStale ? `stale, last good ${lastRefreshLabel}` : lastRefreshLabel;
+  const metaTitle = sandbox
+    ? "Generated book: no gateway is being read"
+    : isStale ? "The gateway is not answering; this is the last read that succeeded"
+      : "Last successful gateway refresh";
   const label = pending
     ? (isStale ? "Reconnecting…" : "Refreshing…")
     : (isStale ? "Reconnect" : "Refresh");
@@ -269,7 +273,12 @@ export function BookSourceControl({ view }: { view: BookView }) {
 
   return (
     <>
-      <span className="rail-meta num" title="Last successful gateway refresh">
+      {/* The tooltip says what the span says. It read "Last successful gateway
+          refresh" in all three states, so on the sandbox it captioned the words
+          "generated book" as a refresh time, and while stale it re-stated the
+          "last good" the span was already printing. A tooltip that contradicts
+          the text under it is worse than none on a surface an auditor reads. */}
+      <span className="rail-meta num" title={metaTitle}>
         {meta}
       </span>
       <div className="seg research-seg" role="group" aria-label="Book source">

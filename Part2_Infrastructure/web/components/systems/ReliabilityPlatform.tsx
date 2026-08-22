@@ -22,17 +22,10 @@
 
 import { CrossLinkTile } from "@/components/portfolio/BookChrome";
 import RouteLatencyBars from "@/components/systems/RouteLatencyBars";
+import { POSTURE_LABEL } from "@/components/systems/reliability-posture";
 import { fmt, formatDuration, metricRow } from "@/lib/format";
-import { deriveReliabilityPosture, type ReliabilityPosture, type ReliabilityStatus } from "@/lib/reliability";
+import { deriveReliabilityPosture, type ReliabilityPosture } from "@/lib/reliability";
 import type { SystemHealthView } from "@/lib/use-system-health";
-
-const POSTURE_LABEL: Record<ReliabilityStatus, string> = {
-  nominal: "Nominal",
-  degraded: "Degraded",
-  critical: "Critical",
-  halted: "Trading halted",
-  unknown: "Unknown",
-};
 
 export default function ReliabilityPlatform({
   view,

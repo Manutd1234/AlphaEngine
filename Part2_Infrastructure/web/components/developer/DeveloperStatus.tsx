@@ -169,7 +169,13 @@ export function numericsParityState(view: SystemHealthView): ControlState {
   // No gateway in this claim: the reference is committed and the run is this
   // deployment's own Node instance, so the verdict is measured every poll.
   if (evidence.state === "match") {
-    return { label: "Byte-exact", detail: `${evidence.detail} sha256 ${evidence.expectedDigest.slice(0, 12)}…`, tone: "good" };
+    /* The whole digest, not a twelve-character prefix with an ellipsis after
+       it. This string is the row's `title`, where width is not the constraint
+       a pill's width is, and a truncated hash is a hash a reader cannot check
+       — the reported defect that produced the custody chain in the Numerics
+       pane. The prefix was never wrong, only useless: it asserts that a digest
+       exists rather than handing one over. */
+    return { label: "Byte-exact", detail: `${evidence.detail} sha256 ${evidence.expectedDigest}`, tone: "good" };
   }
   return { label: "Drift detected", detail: evidence.detail, tone: "bad" };
 }

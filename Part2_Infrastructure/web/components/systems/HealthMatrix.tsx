@@ -128,9 +128,17 @@ export default function HealthMatrix({
             carried the meaning on their own, as the house rule requires, and
             the missing half was the half nobody misses. */}
         <div className="health-matrix__counts">
-          <span className="pill pill--live"><span aria-hidden>●</span> { (providers ?? []).filter((p) => p.ready && p.configured && !p.simulatedOutage).length } online</span>
-          <span className="pill pill--warn"><span aria-hidden>▲</span> { (providers ?? []).filter((p) => p.configured && (!p.ready || p.simulatedOutage || (p.quota && p.quota.remaining <= 0))).length } degraded</span>
-          <span className="pill pill--info"><span aria-hidden>○</span> { (providers ?? []).filter((p) => !p.configured).length } not configured</span>
+          {/* `providers ?? []` counted an unread registry as an empty one, so the heading of the
+              card that answers "is the desk up" opened with three zeros — "0 online" beside the
+              body's own "Loading provider health…", and the reassuring half was the one set in
+              heading type. Null is not zero here: it is the state `BreakerStateMachine` reports
+              as "registry not observed" one pane over, in this same slot, and the glyph is the
+              house mark for unknown rather than the ○ these pills already spend on not-configured.
+              An EMPTY array keeps its zeros — that is a registry that was read and holds nobody. */}
+          {providers === null && <span className="pill pill--info"><span aria-hidden>◌</span> registry not observed</span>}
+          {providers && <span className="pill pill--live"><span aria-hidden>●</span> {providers.filter((p) => p.ready && p.configured && !p.simulatedOutage).length} online</span>}
+          {providers && <span className="pill pill--warn"><span aria-hidden>▲</span> {providers.filter((p) => p.configured && (!p.ready || p.simulatedOutage || (p.quota && p.quota.remaining <= 0))).length} degraded</span>}
+          {providers && <span className="pill pill--info"><span aria-hidden>○</span> {providers.filter((p) => !p.configured).length} not configured</span>}
         </div>
       </div>
 
@@ -176,9 +184,7 @@ export default function HealthMatrix({
 
       <div className="table-wrap" tabIndex={0}>
         <table className="console-matrix">
-          <caption className="sr-only">
-            Provider health, latency, quota and failover rank, with per-provider actions.
-          </caption>
+          <caption className="sr-only">Provider health, latency, quota and failover rank, with per-provider actions.</caption>
           <thead>
             <tr>
               <th scope="col">Provider</th>
@@ -324,16 +330,10 @@ export default function HealthMatrix({
               );
             })}
 
-            {providers === null && (
-              <tr>
-                <td colSpan={6} className="muted">Loading provider health…</td>
-              </tr>
-            )}
-            {providers?.length === 0 && (
-              <tr>
-                <td colSpan={6} className="muted">No providers are registered.</td>
-              </tr>
-            )}
+            {/* Reflowed, not cut, to pay for the honest counts in the heading: this file is at
+                the 400-line ceiling and both empty states are pinned present and unfolded. */}
+            {providers === null && <tr><td colSpan={6} className="muted">Loading provider health…</td></tr>}
+            {providers?.length === 0 && <tr><td colSpan={6} className="muted">No providers are registered.</td></tr>}
           </tbody>
         </table>
       </div>

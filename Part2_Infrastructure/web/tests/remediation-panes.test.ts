@@ -1,12 +1,17 @@
 /**
- * Remediation as four panes, and the four ways splitting a section goes wrong.
+ * Remediation as five panes, and the four ways splitting a section goes wrong.
  *
  * The section was three stacked cards in one scroll — controls, the state
  * machine that explains recovery, and the ledger of what has been done; the
  * controls card later split again along its blast-radius seam, into guarded
- * server mutations (Act) and browser-only session controls (Session). Cutting
- * it into panes is cheap; the failure modes are not, and none of them is visible
- * to a type checker:
+ * server mutations and browser-only session controls (Session). The fifth pane
+ * finished that split: the five server writes kept the pane a reader lands on,
+ * and the REFERENCE half they were sharing it with — the ring of provider
+ * routing states and the three counts under it — moved to Scope. Both are
+ * `OperatorPanel`, rendered from one `part` prop and one mount, so a chosen
+ * purge scope and a previewed confirmation survive a switch between them.
+ * Cutting a section into panes is cheap; the failure modes are not, and none of
+ * them is visible to a type checker:
  *
  *  1. A second `<WorkspaceSubtabs>` publishes `--rail-h` from a ResizeObserver
  *     and its own comment asserts exactly one rail is mounted, so a nested one
@@ -68,7 +73,7 @@ function controlsPanel(source: string): string {
   return source.slice(start, end);
 }
 
-describe("Remediation splits into four panes, not a second rail", () => {
+describe("Remediation splits into five panes, not a second rail", () => {
   it("switches with `.seg role=\"group\"`, never a nested WorkspaceSubtabs", () => {
     /**
      * `WorkspaceSubtabs` sets `--rail-h` on the document element from a
@@ -85,12 +90,15 @@ describe("Remediation splits into four panes, not a second rail", () => {
     assert.match(controlsPanel(console_), /className="seg [^"]*" role="group"/);
   });
 
-  it("offers exactly four panes and no more", () => {
+  it("offers exactly five panes and no more", () => {
     const start = console_.indexOf("const REMEDIATION_PANES");
     assert.ok(start > 0, "the pane list is no longer a module-level constant");
     const block = console_.slice(start, console_.indexOf("];", start));
     const ids = [...block.matchAll(/\{\s*id:\s*"(\w+)"/g)].map((match) => match[1]);
-    assert.deepEqual(ids, ["act", "session", "recovery", "history"]);
+    assert.deepEqual(ids, ["mutations", "scope", "session", "recovery", "history"]);
+    // The pane the reader lands on leads the switcher. A default that is not
+    // first reads as a selection someone made rather than as the way in.
+    assert.equal(ids[0], "mutations");
   });
 
   it("carries a hint on every pane, as the Dependencies switcher does", () => {
@@ -99,7 +107,7 @@ describe("Remediation splits into four panes, not a second rail", () => {
     const start = console_.indexOf("const REMEDIATION_PANES");
     const block = console_.slice(start, console_.indexOf("];", start));
     const hints = [...block.matchAll(/hint:\s*"([^"]*)"/g)].map((match) => match[1]);
-    assert.equal(hints.length, 4);
+    assert.equal(hints.length, 5);
     for (const hint of hints) assert.ok(hint.length > 24, `a hint that says nothing: "${hint}"`);
     assert.match(controlsPanel(console_), /title=\{option\.hint\}/);
     assert.match(controlsPanel(console_), /aria-pressed=\{remediationPane === option\.id\}/);
@@ -107,26 +115,48 @@ describe("Remediation splits into four panes, not a second rail", () => {
     assert.match(planes, /title=\{option\.hint\}/);
   });
 
-  it("opens on Act, the only pane with controls on it", () => {
+  it("opens on Mutations, the only pane with controls on it", () => {
     /**
      * A reader reaches Remediation mid-incident, from "Recover safely" on the
-     * triage path. Landing them on a state-machine diagram puts every button
-     * behind a click they did not know they had to make.
+     * triage path. Landing them on a state-machine diagram — or on the scope
+     * ring, which answers a question asked before deciding rather than while
+     * pressing — puts every button behind a click they did not know they had to
+     * make. Scope is the pane that moved when the fifth was added, precisely so
+     * this stayed true.
      */
-    assert.match(console_, /useState<RemediationPane>\("act"\)/);
+    assert.match(console_, /useState<RemediationPane>\("mutations"\)/);
   });
 });
 
 describe("a switched-away pane stops doing work", () => {
   it("renders conditionally, never behind `hidden`", () => {
     const panel = code(controlsPanel(console_));
-    for (const pane of ["act", "session", "recovery", "history"]) {
+    for (const pane of ["session", "recovery", "history"]) {
       assert.match(
         panel,
         new RegExp(`remediationPane === "${pane}" && \\(`),
         `the ${pane} pane is not a conditional render`,
       );
     }
+    /**
+     * Mutations and Scope are the two `part`s of one component, so they are one
+     * conditional render rather than two — and that is a property worth pinning
+     * rather than a shortcut to tolerate. Two renders would remount
+     * `OperatorPanel` on every switch between them, discarding the chosen purge
+     * scope, the chosen quota target and a confirmation already previewed. The
+     * pane is still CONDITIONAL: switch to Session and the whole subtree goes.
+     */
+    assert.match(
+      panel,
+      /\(remediationPane === "mutations" \|\| remediationPane === "scope"\) && \(/,
+      "the two OperatorPanel parts are no longer one conditional render",
+    );
+    assert.equal(
+      (panel.match(/<OperatorPanel\b/g) ?? []).length,
+      1,
+      "a second OperatorPanel mount is a second copy of the purge scope and the pending confirmation",
+    );
+    assert.match(panel, /part=\{remediationPane\}/, "the shared mount no longer says which part it is");
     // `hidden` keeps the subtree mounted, which is right for the section rail
     // (a typed token and a chosen purge scope survive a switch) and wrong here.
     assert.doesNotMatch(panel, /hidden=/);
@@ -159,12 +189,15 @@ describe("an action outcome is reported from wherever the reader is", () => {
     /**
      * `OperatorPanel` renders `lastResult` beside the button that caused it, so
      * the console-level banner is the fallback for every other position. Once
-     * Act became a pane, "not the controls section" stopped covering the case —
-     * Recovery and History are the controls section with no panel mounted.
+     * the writes became a pane, "not the controls section" stopped covering the
+     * case — Recovery and History are the controls section with no result on
+     * screen. Scope is the subtler one: the panel IS mounted there, sharing a
+     * mount with Mutations, and `part="scope"` renders no result — so the gate
+     * has to name the part rather than the component.
      */
     assert.match(
       console_,
-      /\(section !== "controls" \|\| remediationPane !== "act"\) && actionResult/,
+      /\(section !== "controls" \|\| remediationPane !== "mutations"\) && actionResult/,
     );
     assert.match(code(operator), /\{lastResult && <OperatorActionResult result=\{lastResult\} \/>\}/);
   });

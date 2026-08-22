@@ -68,7 +68,7 @@ export default function RemediationLedger({ active }: { active: boolean }) {
     // Gated, exactly as TraceConsole is: section panels stay mounted, so an
     // ungated poll would keep running behind a subtab nobody is reading. The
     // caller's flag now carries the pane as well as the section — a reader on
-    // Act or Recovery is not reading this either.
+    // Mutations or Recovery is not reading this either.
     if (!active) return;
     void load();
   }, [active, load]);

@@ -122,7 +122,8 @@ export default function ResearchWorkspace({
           { label: "Instrument", value: req.symbol, detail: req.interval, tone: "accent", mono: true },
           {
             label: "Candidate",
-            value: running ? "Running" : activeResult ? activeResult.verdict.level : researchDirty ? "Stale" : "Pending",
+            // Uppercased, as WorkspaceOverview and the Verdict pill already print this same field: the raw enum rendered "pass" in lowercase beside the Title-case "Running", "Stale" and "Pending" it shares the slot with, and `.page-insight > strong` sets no text-transform.
+            value: running ? "Running" : activeResult ? activeResult.verdict.level.toUpperCase() : researchDirty ? "Stale" : "Pending",
             detail: activeResult ? `${activeResult.combosTested} combinations tested` : "explicit rerun required",
             tone: activeResult?.verdict.level === "pass" ? "good" : activeResult?.verdict.level === "fail" ? "critical" : "warn",
           },

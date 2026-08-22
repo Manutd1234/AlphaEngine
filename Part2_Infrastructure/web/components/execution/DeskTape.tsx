@@ -114,7 +114,24 @@ export default function DeskTape({ symbol }: { symbol: string }) {
             <tbody>
               {rows.map((row) => (
                 <tr key={row.id} className={row.fresh ? "desk-tape__row is-fresh" : "desk-tape__row"}>
-                  <td className="num">{new Date(row.occurredAt).toLocaleTimeString()}</td>
+                  {/* The same clock as every other time column on this tab.
+                      `AlertFeed` sits in the SAME grid row as this card and
+                      `OrderBlotter` one pane over; both render
+                      `toLocaleTimeString("en-GB", { hour12: false })`, so a
+                      reader on a US-default browser was comparing "3:35:07 PM"
+                      here against "15:35:07" beside it, for decisions seconds
+                      apart on one desk. `WorkingOrders`, the remediation ledger
+                      and the quarantine panel use the same call: a time in a
+                      table column is 24-hour on this desk, and a 12-hour one
+                      also loses the tabular column width the `num` class is
+                      here for, because AM/PM is not a digit.
+                      The instant itself is unchanged — the mirror's two
+                      renderings both carry a +00 offset (see `use-desk-tape`),
+                      so this parses to the same moment either way; what was
+                      wrong was only how it was spelt. */}
+                  <td className="num">
+                    {new Date(row.occurredAt).toLocaleTimeString("en-GB", { hour12: false })}
+                  </td>
                   {/* Words, in every row. The tint on a freshly streamed row is
                       a one-off flash and forced colours strip it, so it can
                       carry none of this meaning. */}

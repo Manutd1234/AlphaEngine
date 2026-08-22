@@ -80,7 +80,16 @@ export function CockpitBanners({
         <div>
           <strong>Last known desk.</strong> The gateway stopped answering, so these are the
           numbers it last sent
-          {lastSyncAt ? <> at <span className="num">{lastSyncAt.toLocaleTimeString()}</span></> : null}
+          {/* One instant, one spelling. `PnlStrip` prints this same
+              `lastSyncAt` on the line directly below this banner as
+              `synced 15:35:07` (en-GB, 24-hour); printed here on the browser
+              default it read "at 3:35:07 PM", so a stale desk showed a reader
+              two renderings of one Date and left them to work out they were
+              the same moment. The explicit `hour12` matches the tab's table
+              columns rather than leaning on en-GB's default hour cycle. */}
+          {lastSyncAt
+            ? <> at <span className="num">{lastSyncAt.toLocaleTimeString("en-GB", { hour12: false })}</span></>
+            : null}
           , not the book as it stands now. Nothing here is generated.
         </div>
       </div>

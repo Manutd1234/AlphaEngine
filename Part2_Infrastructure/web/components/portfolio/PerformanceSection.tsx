@@ -148,16 +148,19 @@ export default function PerformanceSection({ book, isStale, equityTrack }: Perfo
                 <table>
                   <caption className="sr-only">Order activity and performance attributed by strategy</caption>
                   <thead>
+                    {/* `scope` on every header, matching the by-instrument
+                        table below it: two peer tables on one pane were
+                        announcing their cells two different ways. */}
                     <tr>
-                      <th>Strategy</th>
-                      <th>Orders</th>
-                      <th>Accepted</th>
-                      <th>Notional</th>
-                      <th>Realised P&amp;L</th>
-                      <th>Win rate</th>
-                      <th>Closed</th>
-                      <th>Fees</th>
-                      <th>Avg slippage</th>
+                      <th scope="col">Strategy</th>
+                      <th scope="col">Orders</th>
+                      <th scope="col">Accepted</th>
+                      <th scope="col">Notional</th>
+                      <th scope="col">Realised P&amp;L</th>
+                      <th scope="col">Win rate</th>
+                      <th scope="col">Closed</th>
+                      <th scope="col">Fees</th>
+                      <th scope="col">Avg slippage</th>
                     </tr>
                   </thead>
                   <tbody>

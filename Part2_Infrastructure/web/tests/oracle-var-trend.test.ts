@@ -129,9 +129,27 @@ describe("a re-run repaints the chart and does not move the card", () => {
 
 describe("one observation per input set, not per attempt", () => {
   it("the point is keyed on the inputs the simulation ran on", () => {
-    assert.match(panelCode, /key: `\$\{equityForRun\}\|\$\{annualVol\}\|\$\{horizonDays\}`/);
-    assert.match(panelCode, /held\.findIndex\(\(o\) => o\.key === point\.key\)/,
+    // One definition of the key, exported by the module that owns what an
+    // observation IS, and reached from both places the panel needs it: the
+    // point it folds into the series, and the request identity it reads the
+    // held answer against. Two hand-written templates that must agree is one
+    // too many, and the drift would be silent — a key differing by a space
+    // appends a duplicate observation AND marks a fresh answer as cached.
+    assert.match(trendCode,
+      /export const observationKey = \(equity: number, annualVol: number, horizonDays: number\) =>\s*`\$\{equity\}\|\$\{annualVol\}\|\$\{horizonDays\}`/);
+    assert.match(panelCode, /key: observationKey\(equityForRun, annualVol, horizonDays\)/);
+    assert.match(panelCode, /requestKey = annualVol === null\s*\? null : observationKey\(equityForRun, annualVol, horizonDays\)/);
+    assert.match(panelCode, /kept\.findIndex\(\(o\) => o\.key === point\.key\)/,
       "a repeated request updates its own point rather than claiming a second observation");
+  });
+
+  it("the series is appended to, never reset", () => {
+    // The chart is the record of this panel's re-runs. A re-run that cleared
+    // it would leave a one-point chart claiming to be the history — and the
+    // caption, which counts what it holds, would agree with it.
+    assert.doesNotMatch(panelCode, /setObservations\(\[\]\)/,
+      "a re-run must add or update one point, never restart the series");
+    assert.match(panelCode, /at === -1 \? \[\.\.\.kept, point\] : kept\.map/);
   });
 
   it("the trend is capped, and the cap is what the caption counts", () => {

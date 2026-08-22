@@ -166,7 +166,22 @@ export default function RouteEstimate({ tca, dp, capBps, whatIfActive }: RouteEs
           />
         </>
       ) : (
-        <p className="muted" style={{ fontSize: "var(--fs-xl)" }}>Waiting for a live book on both venues…</p>
+        /* NOT "waiting for a live book on both venues", which is what this
+           said and which the code has never required. `liveTca` bails only on
+           an empty live set — `lib/livebook.ts`: `const live = snap.venues
+           .filter(v => v.status === "live" && v.book.ok); if (!live.length)
+           return null` — so the estimate appears with ONE venue streaming and
+           this line is only ever on screen when NO venue is. Naming two of
+           them told a reader watching a single-venue outage that the probe was
+           still waiting on the other feed, when in fact both were dark.
+           Rejected: "waiting for at least one live book", which states the
+           threshold but not the state the reader is in. The wording below is
+           the venue toggles' own, a few lines up in `RoutingProbe` ("No venue
+           is streaming yet, so there is nothing to include or exclude"), so
+           the two absences on this panel read as one voice. */
+        <p className="muted" style={{ fontSize: "var(--fs-xl)" }}>
+          No venue has a live book yet, so there is nothing to walk.
+        </p>
       )}
     </>
   );

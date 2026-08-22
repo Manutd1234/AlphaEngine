@@ -6,8 +6,15 @@
  * 15-navigator-and-trailing-layer.css. The owners are on the over-ceiling
  * ledger and may never grow, which is why these overrides live here at all.
  *
- * Desk-width packing only: every rule in this file must sit inside a
- * min-width media query, so phones keep the single-column flow.
+ * Desk-width packing was all this file did, and one section now breaks that
+ * rule deliberately: the Remediation Mutations pane's blast-radius map is new
+ * markup introduced with the pane, and every partial that would otherwise own
+ * its base rules — 02-systems-console, 12-workspace-standardisation,
+ * 15-navigator-and-trailing-layer — is shared with other surfaces and other
+ * authors. This partial is the Reliability tab's own, so the map's base rules
+ * live here, under their own banner and clearly separated from the packing
+ * below. Everything under "Panel pairing" and "Reclaimed space" still obeys the
+ * original rule: min-width only, so phones keep the single-column flow.
  *
  * WHAT THIS PASS DOES, AND WHAT IT REFUSED. The Reliability tab's scroll
  * height is layout, not words: at desk width nearly every card stacked
@@ -22,7 +29,7 @@
  * width the bars stop being comparable, and it is the tallest card in its
  * pane so pairing it buys nothing), the operator guard and its warning
  * banner (authorisation state must stay full-bleed above every control it
- * gates), and the four Remediation panes against each other (conditionally
+ * gates), and the five Remediation panes against each other (conditionally
  * rendered — never on screen together, so there is nothing to pair). */
 
 /* ------------------------------------------------------------------ */
@@ -63,6 +70,19 @@
   .reliability-dependency-digest,
   .reliability-evidence {
     padding: var(--card-pad-tight) var(--card-pad);
+  }
+
+  /* The Dependencies KPI strip is the second four-across figure row on this
+     tab, sitting directly under the first: `PageHead` renders every metric
+     value through `.num`, which is mono AND tabular, so the header's figures
+     hold their columns while these four — same shape, same poll, one card
+     lower — reflowed on every tick. Only `font-variant-numeric` is set, not
+     `.num`'s mono family: the same slot also prints "Not configured" and
+     "Unreachable" at --fs-h2 in a quarter-width cell, and widening those to a
+     mono face to align digits they do not have is how a state word starts
+     wrapping. Digits only, which is the half that was actually inconsistent. */
+  #reliability-subpanel-planes .reliability-dependency-summary strong {
+    font-variant-numeric: tabular-nums;
   }
 
   /* The all-clear box reserves 92px for a message that is two lines tall.
@@ -176,5 +196,108 @@
   #reliability-subpanel-controls .remediation-ledger > .dependency-charts,
   #reliability-subpanel-controls .remediation-ledger > .remediation-ledger__facts {
     grid-column: auto;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Remediation → Mutations: the blast-radius map                       */
+/* ------------------------------------------------------------------ */
+/* Base rules, not packing — see the banner at the top of this file for why
+   they are in a density partial at all.
+
+   Three surfaces render one model: a `.seg` of five buttons, an SVG drawing,
+   and an eight-column table. Only the table needs help from CSS. The drawing
+   is presentation attributes throughout, which is what keeps it inside the
+   forced-colors allow-list at two entries — `svg path[stroke]` and
+   `svg line[stroke]` already fall back to `currentColor`, and nothing here
+   claims `forced-color-adjust`. Colour is never the carrier: every cell prints
+   a mark and a word, and the tone is set inline from `EFFECT_STYLE` so the
+   stylesheet holds no meaning the markup does not repeat. */
+
+.mutation-map {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* `.seg` carries no margin of its own and the drawing under it supplies none,
+   so the gap between the control and what it highlights comes from the flex
+   column above; the picker only has to stop stretching to the card's width. */
+.mutation-map__picker {
+  flex-wrap: wrap;
+  align-self: flex-start;
+}
+
+.mutation-map__diagram {
+  display: block;
+  width: 100%;
+}
+
+/* Eight columns of two-word cells. `.table-wrap` scrolls them horizontally, so
+   the cells may refuse to wrap: a "left intact" broken across two lines in a
+   28px row is what makes a matrix unreadable at a glance, which is the one
+   thing this panel exists to be. */
+.mutation-map__matrix {
+  font-size: var(--fs-sm);
+}
+
+.mutation-map__matrix td {
+  white-space: nowrap;
+  padding: var(--space-2) var(--space-3);
+}
+
+/* The selected row, marked by a wash. NOT the only carrier: the picker button
+   above holds `aria-pressed`, the drawing dims every other edge, and the
+   reasons list below names the row in words. */
+.mutation-map__matrix tr[data-selected="true"] > * {
+  background: color-mix(in srgb, var(--surface-2) 72%, transparent);
+}
+
+/* The live figure under a column head, and beside a store in the reasons list.
+   `text-transform` and `letter-spacing` are reset because `th` uppercases and
+   tracks its label, and a count is not a label. */
+.mutation-map__figure {
+  display: block;
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: var(--fs-2xs);
+  font-variant-numeric: tabular-nums;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.mutation-map__reasons {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.mutation-map__reasons dt {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+  font-weight: 650;
+}
+
+.mutation-map__reasons dd {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+}
+
+@media (min-width: 1100px) {
+  /* The drawing is 560x262 of labelled boxes. Scaled to a full desk-width card
+     it is 400px of magnified rectangles, which is the same waste the breaker
+     diagram above is capped for; same fix, same reason. */
+  .mutation-map__diagram {
+    max-width: 720px;
+    margin: 0 auto;
+  }
+
+  /* Seven reasons stacked is a column of mostly margin at desk width. */
+  .mutation-map__reasons {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

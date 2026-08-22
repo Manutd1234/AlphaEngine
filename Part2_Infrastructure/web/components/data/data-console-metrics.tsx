@@ -10,6 +10,7 @@
 import type { ReactNode } from "react";
 
 import NumberTicker from "@/components/common/NumberTicker";
+import { absoluteTime } from "@/components/data/trust-time";
 import { PROGRESS_WIP_LIMIT } from "@/components/data/work-board-model";
 import type { InspectResponse } from "@/components/systems/types";
 import type { DataWorkItem, DataWorkSource } from "@/lib/data-work-queue";
@@ -27,11 +28,16 @@ export interface DataBarMetric {
   tone?: "good" | "warn" | "bad" | "neutral";
 }
 
-function absoluteTime(value: string | Date | null): string {
-  if (!value) return "not observed";
-  const date = value instanceof Date ? value : new Date(value);
-  return Number.isNaN(date.getTime()) ? String(value) : date.toISOString().replace("T", " ").replace(".000Z", " UTC");
-}
+/*
+ * The head's "last …" stamp is the panes' stamp: `trust-time.ts` renders it,
+ * and this file no longer keeps a second copy. The copy that stood here shared
+ * the same defect — `.replace(".000Z", " UTC")` fires only on a whole-second
+ * timestamp, and the gateway sends microseconds — so the same instant could
+ * print two ways in the head and the card beneath it. It also carried a `Date`
+ * branch no caller could reach: `ValidationTelemetry.lastValidationAt` is
+ * `string | null`. Deleted rather than fixed twice, because two helpers over
+ * one fact is how they drift apart in the first place.
+ */
 
 export function metricsForSection(
   view: SystemHealthView,
@@ -75,7 +81,14 @@ export function metricsForSection(
         tone: validation?.fatal ? "bad" : validation?.evaluated ? "good" : "neutral",
       },
       {
-        label: "Warning / drift",
+        // "Warn", not "Warning". The tile beside this one reads "Fatal
+        // findings" — the severity token exactly as the ledger spells it — and
+        // the card directly below prints this pair as a "Warn / drift" column
+        // header. Expanding one of the two tokens and leaving the other put two
+        // vocabularies for one set of severities in a single row of tiles. The
+        // value, its denominator and the note are untouched: this is the
+        // label's spelling, not the measurement.
+        label: "Warn / drift",
         value: validation ? `${validation.warn} / ${validation.drift}` : "—",
         note: "served but labelled",
         tone: validation && validation.warn + validation.drift > 0 ? "warn" : validation?.evaluated ? "good" : "neutral",

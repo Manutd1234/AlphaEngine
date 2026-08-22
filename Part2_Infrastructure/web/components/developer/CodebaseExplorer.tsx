@@ -88,7 +88,27 @@ export default function CodebaseExplorer() {
           <div className="codebase-explorer__asof"><span>As of</span><strong className="num">{REPOSITORY_MANIFEST_PROVENANCE.generatedAt}</strong></div>
           <div><span>Files</span><strong className="num">{REPOSITORY_STATS.files}</strong></div>
           <div><span>Areas</span><strong className="num">{REPOSITORY_STATS.areas}</strong></div>
-          <div><span>Tests</span><strong className="num">{REPOSITORY_STATS.tests}</strong></div>
+          {/* "Test files", not "Tests". `REPOSITORY_STATS.tests` is
+              `REPOSITORY_FILES.filter(kind === "Test").length` — 447 FILES —
+              and the CI / CD subtab of this same tab reports 4,008 tests,
+              meaning test CASES, from `TEST_COUNTS.web.total`. Two figures an
+              order of magnitude apart, both labelled "tests", two subtabs
+              apart: a reader who carries one away has the wrong number and no
+              way to know it. The unit is the fix, and it belongs in the label
+              rather than in a note, because a note is read after the figure
+              has already been believed — the same argument the "As of" stamp
+              is placed first for.
+
+              Measured before choosing the wording: this strip is
+              `grid-template-columns: auto repeat(4, minmax(64px, 1fr))` inside
+              `flex: 0 1 480px` (08-developer-engineering.css), so each count
+              cell is ~97px wide. "TEST FILES" is exactly as many characters as
+              "API ROUTES", which already sits in the sibling cell — so the
+              longest label on this strip does not change and nothing rewraps.
+              Rejected: "Test suites" (wrong — a file is not a suite) and
+              leaving it and adding a tooltip (a hover is not available to the
+              reader who is scanning four figures). */}
+          <div><span>Test files</span><strong className="num">{REPOSITORY_STATS.tests}</strong></div>
           <div><span>API routes</span><strong className="num">{REPOSITORY_STATS.webRoutes}</strong></div>
         </div>
       </div>
@@ -168,8 +188,30 @@ export default function CodebaseExplorer() {
                           onClick={() => setSelectedPath(file.path)}
                           title={file.path}
                         >
+                          {/* Four characters, not three. `slice(1, 4)` printed
+                              "JSO" on every `.json` path — 33 of the 1,413 in
+                              the manifest, and they are `package.json`,
+                              `tsconfig.json` and `tools/openapi.json`, the
+                              files a reviewer opens this explorer to find. A
+                              badge truncated mid-word reads as a rendering
+                              bug, which is the last thing a repository map
+                              wants to be doing to its most-clicked rows. It
+                              also cost "HTML" and "TOML" a letter each.
+
+                              Four fits, and this is measured rather than
+                              estimated: the extension-less branch beside it
+                              already renders "FILE" — four characters, in this
+                              same 35px box, at every one of the three
+                              `--type-step` settings — on 12 paths today. So
+                              the box is known to hold four; nothing about the
+                              stylesheet has to change, and 08-developer-
+                              engineering.css is not this component's to edit
+                              anyway. `.ipynb`, `.example` and `.dockerfile`
+                              still clip, at 6 paths between them; a per-
+                              extension label map would fix those and is
+                              rejected as a table invented for six rows. */}
                           <span className={`codebase-file-icon is-${file.kind.toLocaleLowerCase().replaceAll(" ", "-")}`} aria-hidden="true">
-                            {file.extension ? file.extension.slice(1, 4).toLocaleUpperCase() : "FILE"}
+                            {file.extension ? file.extension.slice(1, 5).toLocaleUpperCase() : "FILE"}
                           </span>
                           <span>
                             <strong>{file.name}</strong>
@@ -212,7 +254,20 @@ export default function CodebaseExplorer() {
                 <div><dt>Code area</dt><dd>{activeArea.label}</dd></div>
                 <div><dt>Owner</dt><dd>{activeArea.owner}</dd></div>
                 <div><dt>Lifecycle</dt><dd>{activeArea.lifecycle}</dd></div>
-                <div><dt>Artifact</dt><dd>{activeFile.kind}</dd></div>
+                {/* "File kind", not "Artifact". On this tab "artifact" is
+                    already taken, and taken by the thing a promotion decision
+                    turns on: Artifact custody is one of the five launch gates,
+                    and Artifact lineage and Artifact registry are the two
+                    tables that carry a signed build's provenance. This field
+                    holds `file.kind` — Module, Test, Component, Configuration,
+                    Tooling, API route, Contract, Documentation, Application
+                    shell — which is a category of source file, not a build
+                    output. Read beside "LANGUAGE: TypeScript" one cell over,
+                    "ARTIFACT: Test" also invites the wrong reading: what this
+                    file compiles into. Rejected: "Type", which collides with
+                    the Task Queue composer's own Type select and with the
+                    file-type badge in the list beside this panel. */}
+                <div><dt>File kind</dt><dd>{activeFile.kind}</dd></div>
                 <div><dt>Language</dt><dd>{activeFile.language}</dd></div>
                 <div><dt>Directory</dt><dd><code>{activeFile.directory}</code></dd></div>
               </dl>

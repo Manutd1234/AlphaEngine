@@ -168,7 +168,17 @@ export default function DataQualityLedger({
       <div className="section-heading compact">
         <div>
           <span className="page-kicker">Data quality</span>
-          <h2 id="data-quality-ledger-heading">Quality ledger and escalations</h2>
+          {/* "&", not "and". Every other card title on this tab joins its two
+              halves with an ampersand — "Providers & failover depth", "Payload
+              verdict & findings", "Feed throughput & freshness", "Exact payload
+              & instance sample", "Requests, tickets & bugs" — and so does the
+              rail that routes to them ("Feeds & Contracts", "Lineage &
+              Payloads", "Providers & Capacity"). This heading and Replay &
+              backfill's were the two spelling it out, which put two title
+              styles in one scroll. Prose keeps "and": a sentence is not a
+              title, which is why the disabled-control notes below are
+              untouched. */}
+          <h2 id="data-quality-ledger-heading">Quality ledger &amp; escalations</h2>
         </div>
         <span className="section-note">
           {ledger

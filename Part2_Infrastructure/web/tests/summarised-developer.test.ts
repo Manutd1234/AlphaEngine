@@ -50,6 +50,7 @@ const FILES = [
   "components/developer/DeveloperPipelines.tsx",
   "components/developer/DeveloperStatus.tsx",
   "components/developer/DeveloperWorkQueue.tsx",
+  // `NumericsCustody*.tsx` are inventoried in developer-custody, in this shape.
 ] as const;
 
 const sources = new Map<string, string>(FILES.map((file) => [file, readSource(file)] as const));
@@ -212,7 +213,8 @@ const TAB_FACTS: ReadonlyArray<readonly [string, string]> = [
   // Numbers, units and thresholds.
   ["8000", "the uvicorn port in the gateway-offline instruction"],
   ["sha256", "the digest the numerics claim is made in"],
-  ["MC_PARITY_REFERENCE_SHA256.slice(0, 12)", "the digest prefix the browser run reproduces"],
+  // Succeeds `MC_PARITY_REFERENCE_SHA256.slice(0, 12)`: whole digest, not a prefix.
+  ["sha256 ${evidence.expectedDigest}", "the numerics digest in the schema row, whole rather than a prefix"],
   ["MC_PARITY_PATHS.toLocaleString()", "the bootstrap path count all three runtimes must agree on"],
   ["TEST_COUNTS.generatedOn", "the date the test totals were measured"],
   ["TEST_COUNTS.gateway.total", "the gateway suite's measured count"],

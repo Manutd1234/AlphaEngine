@@ -137,7 +137,19 @@ export default function DeveloperPipelines({ view, workspaceHealth }: {
 
             <section className="card developer-cp-pipeline-card stagger-reveal" style={{ "--stagger-i": 1 } as CSSProperties}>
               <div className="developer-cp-heading"><div><span>Current build path</span><h2>Commit {APP_COMMIT}</h2></div><StatusPill state={workspaceHealth} live={workspaceHealth.tone === "good"} /></div>
-              <PipelineStrip />
+              {/* The strip carries a 660px min-width — six stages will not
+                  compress below that — and the card itself was the scroll port
+                  for it. A scroll port that is not focusable cannot be reached
+                  by a keyboard at all, which is the fix `OrderVerdict` and three
+                  sibling tables already carry as `<div className="table-wrap"
+                  tabIndex={0}>`; this is the same fix at the same precedent.
+                  Moving the scroll one level in also keeps the card's 16px
+                  gutter still on screen when stage 6 is scrolled to, instead of
+                  scrolling away with the strip. The page never scrolls sideways
+                  either way: `html` is `overflow-x: clip`. */}
+              <div className="developer-cp-pipeline-scroll" tabIndex={0}>
+                <PipelineStrip />
+              </div>
             </section>
           </>
         )}

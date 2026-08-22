@@ -15,7 +15,7 @@ fundamentals. Provider keys (also optional) extend coverage through the
 seven-provider registry — see [Data providers](#data-providers).
 
 The Telegram companion is a separate client — text cards, charts and inline
-keyboards on a phone, 114 commands. The header carries a one-way deep link out
+keyboards on a phone, 135 commands. The header carries a one-way deep link out
 to it (**Connect**), but the web workspace never embeds it and never
 authenticates through it, and the bot never opens or controls this UI.
 
@@ -25,8 +25,9 @@ authenticates through it, and the bot never opens or controls this UI.
 
 **This app:** Next.js 16 (App Router, Turbopack), React 19, TypeScript 5,
 Tailwind 4 utilities over a hand-written token system (`app/globals.css` owns
-every colour, both theme palettes and the AA contrast contract that
-`tests/theme.test.ts` enforces). Charts are hand-rolled SVG on one scale kit
+every colour and both theme palettes; `tests/theme-contrast.test.ts` enforces
+the AA contrast contract and `tests/theme-palette-parity.test.ts` holds the two
+palettes to the same role set). Charts are hand-rolled SVG on one scale kit
 (`components/chart-kit.tsx`) — no chart library. Deployed on Vercel, region
 `sin1` (venue egress — see the region note under Deploy).
 
@@ -90,8 +91,15 @@ npm install
 npm run dev        # http://localhost:3000 (Turbopack)
 npm run build      # Turbopack production build
 npm run typecheck  # tsc --noEmit
-npm test           # 3,900 tests across 839 suites, no network required (2026-08-22;
-                   # lib/test-counts.generated.ts records the figure and CI checks it)
+npm test           # 4,124 tests across 899 suites — 4,122 passed, 2 skipped, no network
+                   # required (re-measured 2026-08-22 on this working tree).
+                   # lib/test-counts.generated.ts is the constant the Developer console
+                   # displays and CI checks against the runner's log; it still records the
+                   # previous refresh (4,008 / 871) and is therefore STALE, which is a CI
+                   # failure waiting on the next push, not a suite failure:
+                   #   npm run counts:refresh -- --suite=web
+                   # The count gate lives outside the suite on purpose — a test that
+                   # asserts the total changes the total.
 ```
 
 Built on **Next.js 16** with **Turbopack**, which is the default bundler for both
@@ -131,8 +139,9 @@ book.
 The Data workspace opens on an overview-first trust cockpit for the active
 instrument. It combines market-data freshness, quote/bar validation evidence,
 quarantine, lineage and provider capacity into one triage view, then drills into
-**Quality & Incidents**, **Lineage & Payloads**, **Providers & Capacity** and
-**Work Queue**. A trust verdict is evidence-backed: the validation window is
+six further panes — **Feeds & Contracts**, **Quality**, **Incidents**, **Lineage
+& Payloads**, **Providers & Capacity** and **Work Queue**. A trust verdict is
+evidence-backed: the validation window is
 bounded and local to one function instance, and zero evaluated payloads is
 reported as insufficient evidence rather than healthy. On entry, an on-demand
 quote inspection attaches the contract outcome to that exact active-symbol
@@ -141,15 +150,33 @@ separate Vercel route instances.
 
 Lineage follows the workspace's active symbol and selected interval through the
 cache key, TTL, provenance, skipped providers, upstream calls, raw vendor JSON
-and normalised output. The Work Queue is deliberately mocked sample data held
-only in browser memory for the current session; it is not a durable ticketing
-or incident system. This scope keeps the assessment's market-data
-quality/freshness monitor useful to a trader while making infrastructure
-quality, reliability and implemented-vs-mocked boundaries reviewable.
+and normalised output.
+
+**The Work Queue is no longer browser-memory sample data, and this paragraph
+used to say it was.** Rows now live in the gateway's SQLite work-item table
+(`GET`/`POST /api/data/work-items`, `PATCH …/{id}`): every create and status
+change is versioned and audit-logged, a stale edit is refused with the current
+row rather than silently overwritten, and the nine seeded samples are marked as
+seeded so nobody mistakes them for real intake. What it is **not** is a ticketing
+or incident system with a workflow engine behind it — the board says "queue" and
+means it. When the gateway is unreachable the board says so and holds edits
+locally until it answers. The durable quality ledger behind the Quality pane
+works the same way: each web instance pushes its contract findings through the
+ops-sync round trip and the gateway persists them in SQLite on its data volume,
+so the record outlives the function instance that produced it. Quarantine
+evidence and the raw-payload excerpts do **not** — those stay bounded to the
+health-route instance that observed them, and an empty buffer is never treated
+as proof of cleanliness. That split keeps the assessment's market-data
+quality/freshness monitor useful to a trader while leaving the
+implemented-vs-mocked boundary visible where it actually falls. The gateway side
+of that contract — the SQLite tables, the retention window, the two escalation
+rules and the versioned-edit semantics — is documented once, in
+[`../README.md` §7 and §8](../README.md#7-api); this section describes only what
+the tab does with it.
 
 **Connected desk context** — instrument and horizon remain shared application
 state, edited inside the workspaces that use them rather than in a permanent
-header row. Research winners retain their modeled slippage budget when handed
+header row. Research winners retain their modelled slippage budget when handed
 to the live TCA probe; quote lookups and portfolio positions can focus the
 other workspaces without re-entry.
 
@@ -196,6 +223,18 @@ It answers the questions an SRE actually arrives with:
   keyboard-focusable preview showing target, control plane, blast radius and
   consequence. Resetting a quota ledger clears *our* count, not the vendor's
   meter, and says so.
+- **A map of what each write reaches** — the five server mutations against the
+  seven stores they could touch. Of the 35 cells, five clear, one re-reads,
+  twenty-four are left intact and five are out of reach: the whole column for
+  the vendor's own meter, which no route in this deployment reads and no button
+  here can reset. It is drawn three ways over one model — a bipartite figure
+  (`role="img"`, the whole matrix spoken in its label), an eight-column table
+  and a per-control selector — so no surface can disagree with another and none
+  of them is the only route to a fact. Every cell names the function in
+  `lib/operator.ts` it was read out of, and two of them came out *different*
+  from the prose they replaced: `clear_telemetry` zeroes the cache counters
+  while leaving cached responses in place, and `reload_providers` drops the
+  cached OpenBB readiness verdict while leaving the response cache alone.
 
 Reads are always available. Writes are gated by `ALPHAENGINE_OPERATOR_TOKEN`:
 open outside production, refused in production when unset, so a public
@@ -209,10 +248,91 @@ The secret is never returned to the browser. Any pasted credential is validated
 as a strict override, while kill/flatten, cancel/replace, and remediation remain
 explicitly token-gated.
 
-The four stable subtab IDs now present the incident workflow as **Telemetry &
-SLIs → Services & Circuits → Logs & Traces → Remediation**. The compact strip is
-the only repeated posture summary; the overview begins with active attention
-and evidence scope instead of restating the same latency and success figures.
+**Remediation is itself five panes**, on the in-panel `.seg role="group"`
+pattern rather than a nested subtab rail — a second `WorkspaceSubtabs` would
+publish a competing `--rail-h` and fight the first over every sticky offset in
+the app. **Mutations** leads and is where a reader lands: the blast-radius
+banner, the operator guard and its token field, the confirmation preview, the
+five controls with their prices inline, and the map above. **Scope** carries
+what a write *would* reach — the provider-routing ring and its three counts —
+because that is a reference question asked before deciding, not while pressing.
+**Session** holds this tab's own sockets and poll cadence (browser-only, so no
+token gates it), **Recovery** the breaker state machine, **History** the
+circuit-trip ledger for this instance. Each reads a different source, so each
+degrades on its own. These pane IDs are component state and not deep links —
+the URL still addresses the subtab `controls`, and "Copy link to this view" is
+unchanged — but cross-tab prose elsewhere still points at "Reliability →
+Remediation" without naming a pane, which stays correct only while Mutations is
+the pane a reader lands on. **Not yet seen in a real viewport:** the panes and
+the map were verified through `react-dom/server` and by checking the SVG
+geometry by hand, and the two things worth eyeballing are the eight-column
+matrix at narrow widths — it scrolls inside its own `.table-wrap`, so the page
+body must not scroll sideways — and the 6px gap between the seven store boxes
+in the drawing, which is the tightest measurement in it.
+
+The five stable subtab IDs present the incident workflow as **Attention & SLIs
+→ Dependencies → Services & Circuits → Logs & Traces → Remediation**. The
+compact strip is the only repeated posture summary; the overview begins with
+active attention and evidence scope instead of restating the same latency and
+success figures. **SLIs, not SLOs**: this tab draws indicators with their sample
+counts and a tone rule, and publishes no objective, because no SLA target is
+defined anywhere in the tree. Defining one is an open item on the Data tab's own
+work queue rather than something the label quietly implies.
+
+<a id="developer-console"></a>
+**Developer console** — six subtabs: **Topology**, **Readiness**, **CI / CD**,
+**API & Schema**, **Code & Diffs** and **Task Queue**. Two of them changed shape
+in this round, and both changes are the same idea: draw the mechanism instead of
+asserting the verdict.
+
+*API & Schema* is three panes — **Contracts** (which compatibility gates are
+automated and which are unverified), **Routes** (the API catalogue) and
+**Numerics**. Numerics used to be a status pill and one sentence: *byte-exact,
+this browser reproduced sha256 009be58f34bb… exactly*. That digest is the end of
+a five-artefact chain and none of the links were on screen, so the panel asserted
+custody and showed none. It now draws the chain it actually is — `lib/mc-parity.ts`
+runs the bootstrap, `lib/mc-distribution.ts` produces the result,
+`lib/canonical-json.ts` canonicalises it, `crypto.subtle` hashes it, and the
+committed `lib/mc-parity-reference.generated.ts` is the terminal node carrying
+the digest in full and the verdict. It refuses to wear a row of ticks before
+anyone presses the button: every computing link reads **not run**, because
+nothing ran, and the one thing knowable at rest — whether the committed module is
+self-consistent — is re-hashed on load rather than assumed.
+
+Three things that chain does **not** do, stated because the panel looks like it
+might. It does not draw the *other* digest chain in this repository: the gateway
+OpenAPI contract (`main.py` routes → `tools/export_openapi.py` →
+`tools/openapi.json` → canonicalise and SHA-256 → `lib/gateway-openapi-digest.generated.ts`,
+enforced by `scripts/check-gateway-openapi-digest.mjs` at `prebuild` and by
+`python tools/export_openapi.py --check` in CI). That chain is real and has the
+same shape, and its verdict is still only a pill in the Contracts pane with no
+digest visible at all; the row components take `{caption, hex, note, glyph, word,
+tint}` and know nothing about Monte Carlo, so drawing it needs a second chain
+array and a caller, not new components. It does not show the **server** leg's
+live verdict either: `delivery.numerics` — this deployment's Node instance
+recomputing the same fixture — stays the "Monte Carlo numerics" row of the schema
+table one pane away, because the pane's mount is pinned as `<McBrowserParityCheck />`
+with no props and the card cannot read `view`. The terminal node names that row so
+a reader can find it. And it carries **no stylesheet of its own**: `app/globals/**`
+is shared, so the chain reuses `SignalDAGViewer`'s classes plus inline layout. The
+64 hex characters' wrap point at each breakpoint is argued from a ch-derived width
+rather than measured — worth one look at ~900px and ~1400px.
+
+*Topology* draws the deployment map: a runtime band, a dashed bracket forking
+from it, three deployable cards. It is DOM and CSS, not SVG — there is no SVG on
+this tab at all — and its three node cards now share row lines through
+`grid-template-rows: subgrid`, so a path that wraps to two lines in one card
+(`Part2_Infrastructure/OpenBB_Service/app.py` is 42 characters and sets two under
+the two-line clamp) no longer drops that card's detail sentence a line below its
+neighbours'. `tests/developer-diagram-layout.test.ts` pins the arithmetic rather
+than a remembered pixel — including a child-count assertion that fails if a sixth
+row is ever added to the node card, which would otherwise land in an implicit row
+and put the misalignment straight back. Two honest limits: subgrid needs Chrome
+or Edge 117+, Safari 16+, Firefox 71+, and where it is unsupported the declaration
+is dropped and the card renders as a plain five-row auto grid — the failure mode
+is the old layout, not a broken one; and jsdom does no layout and this tree has no
+browser driver, so the geometry is derived rather than observed. The widths worth
+a glance are ~1200px and ~1000px.
 
 **Portfolio oversight** — when `ALPHAENGINE_GATEWAY_URL` is configured, the
 read-only server proxy renders authoritative equity, day P&L, gross/net
@@ -222,8 +342,8 @@ retains a last-good snapshot only with an explicit stale warning, disables its
 execution handoff while stale, and validates the gateway schema before calling
 the book live.
 
-The tab is four sub-tabs — **Overview**, **Positions**, **Allocation**,
-**Performance** — on the same `WorkspaceSubtabs` roving-tablist primitive the
+The tab is five sub-tabs — **Overview**, **Equity & P&L**, **Positions**,
+**Allocation**, **Performance** — on the same `WorkspaceSubtabs` roving-tablist primitive the
 other six dense workspaces already use. Portfolio was the last one still a single
 scroll, and a PM checking exposure had to travel past a rebalance table and an
 attribution table to reach it. The split duplicates nothing: the Overview's
@@ -276,7 +396,9 @@ questions a researcher asks *after* a result comes back red:
 for RSI), and the bars where it held a position shaded behind them. Two moving
 averages crossing is abstract; "you were long here and flat there" is not.
 
-**Parameter controls** — symbol, interval, history depth, model, direction, the
+**Parameter controls** — symbol, interval, history depth, strategy (46 of them,
+grouped into seven families in the picker — Trend, Breakout, Mean reversion,
+Momentum, Volume, Volatility and Fitted), direction, the
 fast/slow grid (from / to / step for each), fees and slippage in bps, and the
 number of walk-forward folds. The combination count updates live, because a wider
 search is not free: it raises the statistical hurdle the winner has to clear.
@@ -321,6 +443,7 @@ exchanges live. `GET /api/markets` returns this list at runtime.
 | `GET /api/gateway/orders/working?symbol=` | the gateway's resting order book — what is still open, and therefore still actionable |
 | `POST /api/gateway/orders/{id}/cancel` | pull one resting order |
 | `POST /api/gateway/orders/{id}/replace` | cancel-and-new; relays the replacement's own check vector, not the original's |
+| `GET /api/stream/desk` | the gateway's server-sent risk state, relayed same-origin: equity, drawdown and kill-switch pushed **on change** rather than polled, each event carrying a monotonic `seq` so a reconnecting client can tell "nothing happened" from "I missed something" |
 | `POST /api/backtest` | parameter sweep with deflated Sharpe and walk-forward |
 
 The read is ungated, exactly like every other read in this app; the two mutators
@@ -345,6 +468,15 @@ The research-data group routes through the [provider registry](#data-providers):
 | `GET /api/research?q=bitcoin+etf+flows` | open-web search returning readable markdown documents |
 | `GET /api/research?url=https://…` | one page fetched as markdown (public HTTP(S) targets only) |
 | `GET /api/providers` | the supply chain: per provider — configured? actively ready? circuit open? quota spent? which env var enables it |
+
+Two optional Oracle routes back the Risk tab's **Oracle VaR** subtab and a
+second opinion on retrieval. Both refuse in the open when no Oracle credentials
+are configured — the panel reports the refusal, never a figure:
+
+| Endpoint | Returns |
+|---|---|
+| `POST /api/oracle/var` | 99% Value at Risk from an **in-database** GBM Monte Carlo. Deliberately a *second* opinion, not a replacement: `lib/portfolio-risk/` already computes VaR from the covariance model and the Risk tab shows both, because two independent implementations of one quantity is the only cheap check on either. The two are **not interchangeable** and the panel must never present them as one figure with two sources — this is a terminal-value GBM VaR over a horizon, the client-side one is a one-day parametric/historical VaR on the current book. The simulation count is bounded here *and again in PL/SQL*, because a public endpoint that lets a caller choose how much database CPU to spend is a way to take the instance down from an anonymous request |
+| `POST /api/oracle/research` | similarity search over the same research corpus, answered by Oracle 23ai's native `VECTOR` type instead of Supabase pgvector, in the existing `ResearchRagSearchResponse` shape. The query vector comes from the gateway's `/api/research/rag/embed`, so both stores are searched with the *same* embedding model — vectors are comparable only inside one model |
 
 The systems group backs the [developer console](#systems-console):
 
@@ -431,8 +563,8 @@ against the same ladder depth (Binance 20 / Bybit 50, matching the gateway) so a
 probe answers the same question in both places.
 
 The arithmetic is a port of Module A in the Python gateway, and
-`tests/venues.test.ts` replays the gateway's own hand-computed ladders through
-it — so a slippage number here and one from the Telegram bot cannot disagree.
+`tests/venues-book-maths.test.ts` and `tests/venues-parity.test.ts` replay the
+gateway's own hand-computed ladders through it — so a slippage number here and one from the Telegram bot cannot disagree.
 
 ### Depth is measured in a price band, not a level count
 
@@ -454,11 +586,11 @@ web/
 │   ├── globals.css           design tokens (palette, light + dark)
 │   ├── login/page.tsx        optional sign-in — outside the workspace shell
 │   ├── profile/page.tsx      account and security centre — the other one
-│   └── api/                  37 routes (2026-08-17). Re-derive: find app/api -name route.ts
-│       │                     This list read 11 for a long time, having been
+│   └── api/                  44 routes (2026-08-22). Re-derive, do not believe:
+│       │                     find app/api -name route.ts | wc -l
+│       │                     This list read 11 for a long time, then 37, each
 │       │                     written when it was true and never rebuilt; every
-│       │                     route added since — the whole gateway proxy, auth,
-│       │                     Oracle and Telegram — was invisible here.
+│       │                     route added since was invisible here.
 │       ├── backtest/route.ts parameter sweep
 │       ├── depth/route.ts    live L2 books + consolidated ladder
 │       ├── tca/route.ts      VWAP, slippage, cross-venue route
@@ -472,14 +604,19 @@ web/
 │       ├── providers/route.ts  supply-chain health: keys, quotas, breakers
 │       ├── favourites/route.ts pinned runs, per identity
 │       ├── auth/             guest · login · logout · session — 4 routes
-│       ├── gateway/          the risk gateway proxy — 14 routes
+│       ├── stream/desk/route.ts  the gateway's server-sent risk state, relayed
+│       ├── gateway/          the risk gateway proxy — 20 routes
 │       │   ├── risk/route.ts   halt · resume · flatten, and the reachability probe
 │       │   ├── orders/         submit · working · [id]/cancel · [id]/replace
 │       │   ├── portfolio/      book, and history
 │       │   ├── audit/route.ts  the append-only log
+│       │   ├── jobs/[jobId]/   one queued sweep or fit, polled
 │       │   ├── data/          quality · work-items · [id] · jobs · schedules — the
 │       │   │                  durable quality ledger, the persisted work queue and
 │       │   │                  the replay/backfill jobs and their schedule
+│       │   ├── data-quality/escalations/[id]/ack  take an open escalation
+│       │   ├── research/ml/   fit · runs · runs/[runId] — supervised walk-forward
+│       │   ├── research/graph/[id]  what one document is connected to
 │       │   └── research/rag/route.ts  retrieval over the research corpus
 │       ├── oracle/           research · var — 2 routes, optional backend
 │       ├── system/           actions · events · health · inspect — 4 routes
@@ -489,7 +626,7 @@ web/
 │   ├── indicators.ts         O(n) SMA / rolling extremes / RSI kernels
 │   ├── stats.ts              PSR, Deflated Sharpe, verdict logic
 │   ├── marketdata.ts         Binance klines + deterministic synthetic fallback
-│   ├── venues.ts             live venue adapters + book/TCA maths
+│   ├── venues/               live venue adapters, book/TCA maths, fill tolerance
 │   ├── livebook.ts           browser WebSocket L2 client (Binance + Bybit);
 │   │                          venue status decided by VenueLiveness, below
 │   ├── desk-source.ts        DeskSourceMachine — what the desk shows and why:
@@ -502,13 +639,14 @@ web/
 │   │                          so a throttled background tab cannot disarm it
 │   ├── params.ts             NaN-safe query-parameter coercion for the routes
 │   ├── format.ts             number/date formatting shared by the UI
-│   ├── types.ts              shared contracts
+│   ├── types/                shared contracts — analytics, strategies, sweep
 │   └── providers/            the seven-provider registry
 │       ├── types.ts          capability contracts, normalised payloads, provenance,
 │       │                      the error taxonomy (failed / no_data / unlicensed / quota)
 │       ├── capabilities.ts    which capability applies to which asset class — the
 │       │                      table the route matrix is derived from
-│       ├── contracts.ts       the quote, bars, news and fundamentals contracts
+│       ├── contracts/         the quote, bars, news and fundamentals contracts,
+│       │                      one file each over a shared base
 │       ├── runtime.ts        quota ledger, circuit breaker, cache, learned licence
 │       │                      state, dispatch
 │       ├── registry.ts       ranked routing, consensus quotes, status
@@ -519,12 +657,16 @@ web/
 │       └── …one adapter per vendor (binance, fmp, tiingo, massive,
 │            alphavantage, firecrawl, openbb)
 ├── components/               charts (hand-rolled SVG), controls, tables
-└── tests/                   3,900 tests across 839 suites, incl. cross-engine,
-                              risk-engine and gate parity, and the design-system
-                              ratchets (type-scale, motion, house-rules, dead-css,
-                              accent-budget, null-honesty, live-motion, forced-colors,
-                              interaction, header-ladder, decision-latency, middle-dot,
-                              text-size, tour-truth)
+└── tests/                   4,124 tests across 899 suites (2026-08-22), incl.
+                              cross-engine, risk-engine and gate parity, the
+                              design-system ratchets (type-scale, motion, house-rules,
+                              dead-css, accent-budget, null-honesty, live-motion,
+                              forced-colors, interaction, header-ladder,
+                              decision-latency, middle-dot, text-size, tour-truth)
+                              and the eight-plus-eight per-tab guard suites,
+                              summarised-*.test.ts (what each tab's prose must still
+                              say) and disclosure-*.test.ts (what it may never stop
+                              saying) — those two may be ADDED to and never weakened
 ```
 
 **Why the sweep runs server-side.** Binance's public API is called from the
@@ -536,8 +678,9 @@ are cached at the edge. A 74-combination sweep over 2000 bars takes **~20 ms**.
 vectorbt/numba, which cannot run in a serverless function. Two implementations of
 the same accounting is two chances to be wrong, so
 `tests/parity.test.ts` replays real Binance bars through the TS engine and
-asserts it reproduces what `Part2_Infrastructure/modules/backtester.py` produced
-from identical input — across all three models and both directions. Trade counts,
+asserts it reproduces what `Part2_Infrastructure/modules/backtester/` produced
+from identical input — across **all 46 strategies and both directions**, 48
+cases in `tests/fixtures/parity.json` (2026-08-22). Trade counts,
 exposure and turnover must match exactly; return statistics to 1e-6.
 
 That test earned its keep: it caught two real bugs in the port — pandas applies
@@ -649,9 +792,10 @@ separate client of the same authoritative state — cards, charts and inline
 keyboards: it reports halts, risk, portfolio and execution quality, and it
 cannot open this workspace or submit an order. It *can* queue a research sweep
 (`/backtest`, on the shared jobs engine, never the order path), and it *can*
-halt, resume, flatten, set reduce-only and reset the paper book — five commands
-reserved for a second, narrower operator allow-list, each needing a single-use
-confirmation code and never fired from an inline button, because a desk that
+halt, resume, flatten, set reduce-only, reset the paper book and re-fetch a feed
+through the validated path — six commands reserved for a second, narrower
+operator allow-list, each needing a single-use confirmation code and never fired
+from an inline button, because a desk that
 can only be stopped from a laptop is a desk that cannot be stopped from a
 train.
 
@@ -683,7 +827,8 @@ to honour.
    for classification and rank. Fixtures are committed, so no test reaches the
    network.
 
-Quote and bar data contracts (`lib/providers/contracts.ts`) then apply
+Quote and bar data contracts (`lib/providers/contracts/` — one file per
+capability, with `shared.ts` beneath them) then apply
 automatically: the capability façade attaches the expectations, and a payload
 that fails them is failed over and quarantined without the adapter having to
 know. The contract result travels with each inspected payload; health counters
@@ -698,12 +843,29 @@ platform-wide quality ledger.
    stays on the server and the browser bundle never sees it.
 3. Use the existing tokens. `--status-*` are fill colours at 3:1 and must never
    be a `color:` value; the `--*-text` roles exist for that and a test enforces
-   it (`tests/theme.test.ts`).
+   it (`tests/theme-contrast.test.ts`).
 4. State always encodes as **icon + word + colour**, never colour alone.
+5. **A state that would render as nothing has to report itself.** An absent
+   measurement dashes and says why it is absent; an empty result says it is
+   empty. `?? 0` on a figure nobody measured invents one — a beta of 0.00 is an
+   exposure, a latency of 0 ms is the fastest possible response — and
+   `tests/null-honesty.test.ts` is the ratchet that keeps those four cases from
+   coming back. It may be added to and never weakened.
+6. **Wide content scrolls inside its own wrapper, and that wrapper is
+   focusable.** `html` is `overflow-x: clip`, so a table or a strip that will
+   not compress must carry its own `overflow-x: auto` container — and a
+   container a pointer can drag but a keyboard cannot reach is a section of the
+   panel no keyboard user can read. `tabIndex={0}` plus a name on the scroller
+   is the pattern, and it is what `.table-wrap` carries everywhere it is used;
+   `tests/developer-diagram-layout.test.ts` pins it for the Developer tab's
+   pipeline strip, which scrolled where no keyboard could reach it.
 
 ### Adding a gateway endpoint
 
-That one lives in the gateway's own README (§7): define the shape in
-`modules/schemas.py`, add the route with `response_model=`, test it, and
-regenerate `tools/openapi.json`. The committed snapshot is what stops a rename
-here from 404ing a browser there.
+That one lives in the gateway's own README (§7): define the shape in the right
+`modules/schemas_*.py` and re-export it from the `modules/schemas.py` façade, add
+the route to the matching `APIRouter` in `modules/api/` — **not** to `main.py`,
+which only mounts them now — with `response_model=`, test it, and regenerate
+`tools/openapi.json`. The committed snapshot is what stops a rename there from
+404ing a browser here; `npm run prebuild` verifies its SHA-256 before this app
+will build at all.

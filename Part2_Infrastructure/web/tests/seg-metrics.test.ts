@@ -23,8 +23,9 @@
  * These tests are the ratchet on both. They read the concatenated cascade the
  * browser actually applies (`tests/globals-css.ts`), not one partial — a rule
  * added to a later partial is exactly how the four sizes accumulated in the
- * first place, and a suite reading only file 12 would never see it.
- */
+ * first place, and a suite reading only file 12 would never see it. "Subtabs"
+ * also names the role tabs and the section rail, held to the same two rules by
+ * `tab-chrome-metrics.test.ts`. */
 
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync, statSync } from "node:fs";

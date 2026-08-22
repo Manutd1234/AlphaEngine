@@ -46,6 +46,10 @@ const FILES = [
   "components/developer/DeveloperPipelines.tsx",
   "components/developer/DeveloperStatus.tsx",
   "components/developer/DeveloperWorkQueue.tsx",
+  // A fold is invisible in a diff, so a file left out of this scan is a file
+  // where every fold is invisible. These joined it the day they were written.
+  "components/developer/NumericsCustodyChain.tsx",
+  "components/developer/NumericsCustodyDigest.tsx",
 ] as const;
 
 /** Source by path. `readSource` throws on a missing or empty file. */
@@ -234,10 +238,11 @@ const VISIBLE = [
 // ---------------------------------------------------------------------------
 
 describe("the developer sweep moved prose and deleted none of it", () => {
-  it("reads eight non-empty developer sources", () => {
+  it("reads ten non-empty developer sources", () => {
     // The guard that makes every negative assertion below mean something: a
     // scan of an empty string satisfies `doesNotMatch` and proves nothing.
     for (const file of FILES) assert.ok(source(file).length > 500, `${file} is too short to be the real file`);
+    assert.equal(FILES.length, 10, "a developer source joined or left the tab without joining this sweep");
   });
 
   for (const moved of MOVED) {
@@ -293,6 +298,28 @@ describe("the honesty floor stays on screen", () => {
           + "in every other state it is the result the reader came for",
       );
     }
+  });
+
+  it("the custody panel's reasons for having no digest stay on screen", () => {
+    /**
+     * NULL EXPLANATION. The panel prints two sixty-four character digests; with
+     * no second one — nobody pressed the button, the run failed, or this context
+     * exposes no `crypto.subtle` — the row dashes and the note says which. Fold
+     * the note and a dash sits under a heading promising a digest, which reads
+     * as a broken panel, not a measurement nobody took. The three reasons are
+     * different facts and none is a failed parity check.
+     */
+    const chain = "components/developer/NumericsCustodyChain.tsx";
+    const reasons = [
+      "No run in this session, so nothing has been hashed in this browser yet.",
+      "The simulation did not finish, so there were no bytes to hash.",
+    ];
+    for (const reason of reasons) {
+      assert.ok(collapse(source(chain)).includes(collapse(reason)), `the custody panel stopped saying: "${reason}"`);
+      for (const block of disclosures(chain)) assert.ok(!block.includes(collapse(reason)), `folded: "${reason}"`);
+    }
+    // The remedy for a stale committed digest is a command, not just a fault.
+    assert.match(source(chain), /node --import tsx scripts\/generate-mc-parity\.ts/);
   });
 
   it("no empty-state note is folded anywhere in the tab", () => {

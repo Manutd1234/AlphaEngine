@@ -42,11 +42,27 @@ import { useExitQuotes } from "@/lib/use-exit-quotes";
  */
 const PARTICIPATION_STEPS = [0.05, DEFAULT_PARTICIPATION, 0.2, 0.3] as const;
 
+/**
+ * Band to the pill's own tone vocabulary.
+ *
+ * These read `is-good`/`is-warning`/`is-critical`/`is-neutral` until now, which
+ * matched no rule anywhere: `.pill` styles its tones as
+ * `pill--live|--warn|--stop|--info` and no `.pill.is-good` has ever existed, so
+ * every band on this table rendered as plain untoned text. Nothing looked
+ * broken, which is why it survived — the uppercase word carries the meaning on
+ * its own, as the house rule requires, and the colour was the half nobody
+ * misses. `HealthMatrix` hit the identical defect and records the same finding.
+ * The word still carries it; the tone is reinforcement, never the only channel.
+ *
+ * `unmeasurable` takes `--info` rather than a severity: a position with too
+ * little volume history is not a safe one, and colouring it green would say it
+ * was.
+ */
 const BAND_TONE: Record<string, string> = {
-  liquid: "good",
-  moderate: "warning",
-  illiquid: "critical",
-  unmeasurable: "neutral",
+  liquid: "pill--live",
+  moderate: "pill--warn",
+  illiquid: "pill--stop",
+  unmeasurable: "pill--info",
 };
 
 export default function LiquidityPanel({
@@ -141,14 +157,17 @@ export default function LiquidityPanel({
       <div className="table-wrap" tabIndex={0}>
         <table>
           <thead>
+            {/* `scope` on every header, as WorkingOrders on this same pane
+                already has: this was the one table on the tab that announced
+                its cells with no column behind them. */}
             <tr>
-              <th>Symbol</th>
-              <th className="num">Notional</th>
-              <th className="num">ADV (20d)</th>
-              <th className="num">Position / ADV</th>
-              <th className="num">Days to exit</th>
-              <th>Band</th>
-              <th>Exit probe</th>
+              <th scope="col">Symbol</th>
+              <th scope="col" className="num">Notional</th>
+              <th scope="col" className="num">ADV (20d)</th>
+              <th scope="col" className="num">Position / ADV</th>
+              <th scope="col" className="num">Days to exit</th>
+              <th scope="col">Band</th>
+              <th scope="col">Exit probe</th>
             </tr>
           </thead>
           <tbody>
@@ -168,12 +187,17 @@ export default function LiquidityPanel({
                       : "—"}
                   </td>
                   <td className="num">
+                    {/* "(4s)" beside "3.2d" read as four SECONDS on a desk
+                        whose other tables measure latency in ms — the one
+                        place this column could be misread, and it was the
+                        whole-session count that carried the risk. Spelled
+                        out; neither figure was dropped. */}
                     {row.daysToLiquidate != null
-                      ? `${row.daysToLiquidate.toFixed(1)}d (${row.sessionsToExit}s)`
+                      ? `${row.daysToLiquidate.toFixed(1)}d (${row.sessionsToExit} session${row.sessionsToExit === 1 ? "" : "s"})`
                       : "—"}
                   </td>
                   <td>
-                    <span className={`pill is-${BAND_TONE[row.band] ?? "neutral"}`}>{row.band}</span>
+                    <span className={`pill ${BAND_TONE[row.band] ?? "pill--info"}`}>{row.band}</span>
                   </td>
                   <td>
                     {/* Three outcomes, and the failure is one of them. The probe

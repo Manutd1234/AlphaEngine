@@ -132,6 +132,15 @@ export default function DeveloperOverview({
             <div><span>Runtime map</span><h2>Deployment topology</h2></div>
             <button className="text-action" type="button" onClick={() => onOpenSection("quality")}>Open CI / CD →</button>
           </div>
+          {/* Three elements, one diagram, and its geometry is entirely CSS:
+              the runtime band, the dashed bracket that forks from it, and the
+              three node cards the bracket's arms point at. There is no SVG
+              here — no viewBox and no preserveAspectRatio — so anything about
+              how WIDE the diagram draws, where the arms land or which rows the
+              node labels sit on is a stylesheet question. Section 7 of
+              `app/globals/14i-density-developer.css` is the answer to all
+              three, and says what it measured. Nothing in this markup sets a
+              width, and nothing here should start to. */}
           <div className="developer-cp-edge">
             <span>{IS_VERCEL_DEPLOYMENT ? "Vercel edge" : "Local runtime"}</span>
             <StatusPill state={currentWorkspace} compact live={currentWorkspace.tone === "good"} />

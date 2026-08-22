@@ -26,9 +26,7 @@
 import { useMemo, useState, type CSSProperties } from "react";
 
 import DeveloperApiCatalog, { API_OPERATIONS } from "@/components/developer/DeveloperApiCatalog";
-import { canonicalJson } from "@/lib/canonical-json";
 import { mcParityFixture, MC_PARITY_PATHS } from "@/lib/mc-parity";
-import { MC_PARITY_REFERENCE_JSON, MC_PARITY_REFERENCE_SHA256 } from "@/lib/mc-parity-reference.generated";
 import { useMcDistribution } from "@/lib/use-mc-distribution";
 import type { SystemHealthView } from "@/lib/use-system-health";
 
@@ -38,6 +36,7 @@ import {
   schemaCompatibilityState,
   type ControlState,
 } from "./DeveloperStatus";
+import NumericsCustodyChain, { browserRun, engineWord } from "./NumericsCustodyChain";
 
 /**
  * The third runtime of the numerics-parity claim: the committed reference was
@@ -54,22 +53,31 @@ function McBrowserParityCheck() {
   // math ignores it, so the result bytes stay comparable.
   const request = useMemo(() => (requested ? { ...mcParityFixture(), nonce: runNonce } : null), [requested, runNonce]);
   const simulation = useMcDistribution(request);
+  /* The run as a custody state, so this card and the chain beneath it cannot
+     disagree about what happened. The byte comparison and the two digests live
+     in `NumericsCustodyChain`; what stays here is the pill's wording, which the
+     summarisation and disclosure suites pin to this file. */
+  const run = browserRun(requested, simulation);
 
   let state: ControlState;
-  if (!requested) {
+  if (run.phase === "idle") {
     state = {
       label: "Not run",
       detail: "Runs entirely in this tab; nothing is uploaded.",
       tone: "off",
     };
-  } else if (simulation.status === "error") {
-    state = { label: "Failed", detail: simulation.error ?? "The simulation did not complete.", tone: "bad" };
-  } else if (simulation.status !== "done" || !simulation.result) {
+  } else if (run.phase === "failed") {
+    state = { label: "Failed", detail: run.reason, tone: "bad" };
+  } else if (run.phase === "running") {
     state = { label: "Running", detail: "Simulating in this browser…", tone: "info" };
-  } else if (canonicalJson(simulation.result) === MC_PARITY_REFERENCE_JSON) {
+  } else if (run.matches) {
     state = {
       label: "Byte-exact",
-      detail: `This browser (${simulation.engine === "worker" ? "worker thread" : "main thread"}) reproduced sha256 ${MC_PARITY_REFERENCE_SHA256.slice(0, 12)}… exactly.`,
+      /* No truncated digest in this sentence any more. The full sixty-four
+         characters are printed below at --fs-h1 beside the committed ones, and
+         a twelve-character prefix in a pill was the whole reported defect: it
+         is a claim that a digest exists, not a digest a reader can check. */
+      detail: `This browser (${engineWord(run.engine)}) reproduced the committed reference byte for byte; both digests are below.`,
       tone: "good",
     };
   } else {
@@ -105,11 +113,17 @@ function McBrowserParityCheck() {
           type="button"
           className="primary-action"
           onClick={() => setRunNonce((nonce) => nonce + 1)}
-          disabled={requested && simulation.status === "running"}
+          disabled={run.phase === "running"}
         >
-          {requested && simulation.status === "running" ? "Simulating…" : requested ? "Run again" : "Run in this browser"}
+          {run.phase === "running" ? "Simulating…" : requested ? "Run again" : "Run in this browser"}
         </button>
       </div>
+      {/* The custody chain, always mounted: at rest it is the only thing on the
+          card naming what gets hashed and by what, and its links report "not
+          run" rather than pretending a verdict. Wiring it here rather than
+          exporting it for a later pane is deliberate — a capability with no
+          caller is the defect this repository keeps a scar about. */}
+      <NumericsCustodyChain run={run} />
     </section>
   );
 }

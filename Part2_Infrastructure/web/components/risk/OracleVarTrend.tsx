@@ -46,11 +46,30 @@
 import { DEFAULT_MARGIN, extent, linePath, linearScale, ticks, Grid, AnimatedPath } from "@/components/chart-kit";
 import { usd } from "@/lib/format";
 
+/**
+ * The identity of one observation: the INPUTS, not the attempt.
+ *
+ * Exported and used at every site that needs it, because the panel needs the
+ * same string twice for two different jobs — to fold a repeated request onto
+ * its own point here, and to decide whether the answer it is holding on screen
+ * still belongs to the request it is showing a horizon for. Two hand-written
+ * templates that must agree is one too many, and the failure would be silent:
+ * a key that drifted by a space would append a duplicate observation and mark
+ * a fresh answer as cached, both without erroring.
+ *
+ * The volatility term arrives already bucketed by the panel — see its
+ * `VOL_BUCKET` note. An unbucketed sigma here would make every book poll a new
+ * key, which is the defect that comment records.
+ */
+export const observationKey = (equity: number, annualVol: number, horizonDays: number) =>
+  `${equity}|${annualVol}|${horizonDays}`;
+
 /** One completed attempt, whether or not it produced a figure. */
 export interface OracleVarObservation {
   /**
-   * Identity of the inputs, not of the attempt: `equity|sigma|days`. A repeat
-   * replaces its own point rather than adding one — see the module note.
+   * Identity of the inputs, not of the attempt: `equity|sigma|days`, built by
+   * `observationKey`. A repeat replaces its own point rather than adding one —
+   * see the module note.
    */
   key: string;
   at: number;
@@ -62,6 +81,18 @@ export interface OracleVarObservation {
   /** The closed form over the same echoed assumptions. Null when there are none. */
   clientVar: number | null;
 }
+
+/**
+ * How many observations the series keeps.
+ *
+ * Lives here, with the chart that draws them, rather than beside the panel's
+ * fetch: it is a statement about what this plot can honestly show. A cap
+ * rather than an unbounded array because the panel stays mounted for as long
+ * as the tab is open, and forty is what the 640-px plot can render as
+ * distinguishable marks. Beyond it the oldest point leaves — and the caption
+ * counts what is DRAWN, so the chart never claims history it has dropped.
+ */
+export const TREND_MAX_OBSERVATIONS = 40;
 
 const HEIGHT = 132;
 /** Height of the not-computed rug at the foot of the plot. */
