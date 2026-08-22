@@ -103,19 +103,34 @@ function AccountChip({
    *
    * This branch used to fall through to "Sign in", so every page load flashed
    * a signed-out control at someone who was signed in — the reading that made
-   * sign-out feel unreliable even when it worked. The placeholder occupies the
-   * same box as the control that replaces it, so nothing reflows when the
-   * answer arrives, and it is bounded by SESSION_PROBE_TIMEOUT_MS so it can
-   * never shimmer forever.
+   * sign-out feel unreliable even when it worked. It is bounded by
+   * SESSION_PROBE_TIMEOUT_MS so it can never shimmer forever.
+   *
+   * THE BOX IS MEASURED, and it did not used to match. This placeholder is
+   * built against the SIGNED-OUT control below — same padding, same gap, an
+   * icon and a label bar — but measured in Chrome in the real header row it
+   * came out 90x28 against that control's 77.3x32: 12.7px too wide and 4px too
+   * short, so the answer landing reflowed the whole utility cluster. Two
+   * causes, both fixed here. The bar was 52px where "Sign in" sets 39.3px at
+   * the chip's own 12px/600. And an 11px bar raises no line box, where the
+   * label's text raises an 18px one — `min-h-[32px]` restores that height
+   * directly rather than by inflating the bar, which would have made the
+   * shimmer read as a second icon.
+   *
+   * REJECTED: reserving the signed-in monogram's 32x32 box instead. It is the
+   * steadier state on a configured deployment, but it is the SMALLER box, so
+   * every signed-out load would have grown the row by 45px — trading a reflow
+   * this branch can zero for one it cannot. 32px of height is the row's norm
+   * either way, so the height fix serves both outcomes.
    */
   if (session.status === "loading") {
     return (
       <span
         aria-hidden
-        className="inline-flex items-center gap-1.5 rounded-[9px] border border-transparent px-2 py-1.5"
+        className="inline-flex min-h-[32px] items-center gap-1.5 rounded-[9px] border border-transparent px-2 py-1.5"
       >
         <span className="skeleton block h-[14px] w-[14px] rounded-[50%]" />
-        <span className="skeleton block h-[11px] w-[52px] max-[520px]:hidden" />
+        <span className="skeleton block h-[11px] w-[39px] max-[520px]:hidden" />
       </span>
     );
   }

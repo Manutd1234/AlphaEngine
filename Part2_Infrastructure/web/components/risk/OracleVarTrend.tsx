@@ -9,22 +9,30 @@
  * per distinct set of inputs the in-database simulation has been asked for
  * since the tab was opened. The distinction matters because the figure is a
  * terminal-value GBM VaR over a forward horizon, and the panel's copy is
- * careful to keep that apart from the one-day book VaR on the VaR & model
+ * careful to keep that apart from the one-day book VaR on the Risk engine
  * section. A chart that put those on one axis would undo that sentence, so
  * this one draws only the two figures that ARE comparable — the database's
  * simulated quantile and the closed form priced on the assumptions the
  * database echoed back — and the caption says what an observation is.
  *
- * WHY ONE POINT PER INPUT SET AND NOT PER RUN
+ * WHY A REPEAT AT UNCHANGED INPUTS IS A POINT, NOT A DUPLICATE
  * ------------------------------------------------------------------------
- * The panel re-runs when the volatility model changes, when the horizon
- * changes, or when the live book crosses into the next $1,000 equity bucket.
- * React's StrictMode double-invokes effects in development, and a "per run"
- * series would therefore claim two observations of one fact — a chart
- * inventing history, which is the failure `EquityCurve` documents for its own
- * backfill. Keyed on the inputs instead, a repeat of an identical request
- * updates its own point rather than appending a second one, and the count in
- * the caption is a count of things actually learned.
+ * This series used to be keyed on the inputs alone, so a re-run that asked the
+ * same question overwrote its own point. That reading of "one observation, one
+ * fact" was wrong about what the fact IS. `oracle/02_monte_carlo.sql` draws
+ * `DBMS_RANDOM.NORMAL` with no SEED and persists nothing, so every call is an
+ * independent 20,000-path draw: the answer to a repeated question is new
+ * information, and the spread across repeats is the sampling error the panel's
+ * divergence tile exists to price. Measured over 300 repeats of the procedure,
+ * sd 1.11% of the figure at 1 day, 0.98% at 30, 0.83% at 90 — a visibly moving
+ * line, and the reason the panel now re-runs on a cadence at all.
+ *
+ * What must still not happen is a chart inventing history, which is the failure
+ * `EquityCurve` documents for its own backfill. React's StrictMode
+ * double-invokes effects in development, so the panel keys each point on the
+ * inputs AND on the cadence tick that asked for it: one tick's two invocations
+ * fold together, a later tick appends. The panel's abort discipline already
+ * stops the superseded twin recording at all; the key is the second guard.
  *
  * WHY ONLY THE CURRENT HORIZON IS DRAWN
  * ------------------------------------------------------------------------
@@ -47,15 +55,17 @@ import { DEFAULT_MARGIN, extent, linePath, linearScale, ticks, Grid, AnimatedPat
 import { usd } from "@/lib/format";
 
 /**
- * The identity of one observation: the INPUTS, not the attempt.
+ * The identity of one REQUEST: the inputs a simulation stands on.
  *
  * Exported and used at every site that needs it, because the panel needs the
- * same string twice for two different jobs — to fold a repeated request onto
- * its own point here, and to decide whether the answer it is holding on screen
- * still belongs to the request it is showing a horizon for. Two hand-written
- * templates that must agree is one too many, and the failure would be silent:
- * a key that drifted by a space would append a duplicate observation and mark
- * a fresh answer as cached, both without erroring.
+ * same string for two different jobs — the base of each observation's key, and
+ * the test of whether the answer it is holding on screen still belongs to the
+ * request it is showing a horizon for. Two hand-written templates that must
+ * agree is one too many, and the failure would be silent: a key that drifted by
+ * a space would mark a fresh answer as cached without erroring.
+ *
+ * It is the base of an observation's key and not the whole of it. The panel
+ * suffixes the cadence tick, so a repeat at unchanged inputs is its own point.
  *
  * The volatility term arrives already bucketed by the panel — see its
  * `VOL_BUCKET` note. An unbucketed sigma here would make every book poll a new
@@ -67,9 +77,9 @@ export const observationKey = (equity: number, annualVol: number, horizonDays: n
 /** One completed attempt, whether or not it produced a figure. */
 export interface OracleVarObservation {
   /**
-   * Identity of the inputs, not of the attempt: `equity|sigma|days`, built by
-   * `observationKey`. A repeat replaces its own point rather than adding one —
-   * see the module note.
+   * `observationKey`'s `equity|sigma|days`, suffixed by the cadence tick that
+   * asked for this draw. Unique per completed run, which is what lets repeats
+   * at unchanged inputs accumulate; the suffix folds only StrictMode's twin.
    */
   key: string;
   at: number;
@@ -89,8 +99,11 @@ export interface OracleVarObservation {
  * fetch: it is a statement about what this plot can honestly show. A cap
  * rather than an unbounded array because the panel stays mounted for as long
  * as the tab is open, and forty is what the 640-px plot can render as
- * distinguishable marks. Beyond it the oldest point leaves — and the caption
- * counts what is DRAWN, so the chart never claims history it has dropped.
+ * distinguishable marks. Against the panel's 30-second cadence that is exactly
+ * twenty minutes of history — the window the two numbers were chosen to meet
+ * at, argued in `lib/oracle/var-request.ts`. Beyond it the oldest point leaves,
+ * and the caption counts what is DRAWN, so the chart never claims history it
+ * has dropped.
  */
 export const TREND_MAX_OBSERVATIONS = 40;
 
@@ -104,11 +117,24 @@ export default function OracleVarTrend({
   observations,
   horizonDays,
   width = 640,
+  everySeconds = null,
 }: {
   observations: OracleVarObservation[];
   horizonDays: number;
   /** Measured by the caller, which already owns a width observer. */
   width?: number;
+  /**
+   * Seconds between re-runs, or null when none is scheduled.
+   *
+   * The chart is a record of re-runs, so "how often does one happen" is the
+   * one fact that turns every state here from a shrug into an answer: a plot
+   * with nothing on it can say when its first point arrives, and a plot with
+   * one point can say when it becomes a line. Passed rather than imported so
+   * this component states the cadence the PANEL is actually running at —
+   * slowed while the database refuses, stopped when this is not the section on
+   * screen — instead of the healthy constant in every state.
+   */
+  everySeconds?: number | null;
 }) {
   const shown = observations.filter((o) => o.horizonDays === horizonDays);
   const held = observations.length - shown.length;
@@ -117,10 +143,28 @@ export default function OracleVarTrend({
     : "";
   const missing = shown.filter((o) => o.var99 === null).length;
 
+  /**
+   * Nothing at THIS horizon, which is not the same as nothing at all.
+   *
+   * This was the reported defect and it is worth naming precisely. The reader
+   * changes the horizon; the tiles above stay populated, because the panel
+   * holds its last completed answer across a re-run by design; but `shown` is
+   * filtered to the horizon being asked about, and until a run lands at the new
+   * one it is empty. The branch then returned a single quiet line inside a
+   * 156px reserve — no legend, no axis, no caption — so a card that was working
+   * perfectly read as a broken box. The 1-observation case never looked broken
+   * because its caption explains itself, and the fix is to hold this state to
+   * the same standard: say what is missing, why, and what will end it.
+   */
   if (shown.length === 0) {
     return (
       <p className="muted">
         No completed run at the {horizonDays}-day horizon yet, so there is no trend to draw.
+        {everySeconds === null
+          ? " No re-run is scheduled either: this panel simulates only while it is the section"
+            + " on screen and has a measured volatility to run against."
+          : ` The next re-run lands within ${everySeconds} seconds and draws the first point;`
+            + " a line needs two, so the one after it draws the line."}
         {heldNote}
       </p>
     );
@@ -133,7 +177,10 @@ export default function OracleVarTrend({
     return (
       <p className="muted">
         {shown.length} run{shown.length === 1 ? "" : "s"} at the {horizonDays}-day horizon, none of
-        which returned a figure, so there is no scale to draw them on.{heldNote}
+        which returned a figure, so there is no scale to draw them on.
+        {everySeconds === null ? "" : ` Retrying every ${everySeconds} seconds; the first answer`
+          + " draws the axis with it."}
+        {heldNote}
       </p>
     );
   }
@@ -247,6 +294,14 @@ export default function OracleVarTrend({
       <p className="sub num">
         {shown.length} observation{shown.length === 1 ? "" : "s"} of this panel re-running, oldest
         left{shown.length === 1 ? "; a line needs two, so the next re-run draws one" : ""}.
+        {/* The cadence, and what a repeat at unchanged inputs means. Without
+            the second half a reader watching the line wobble on a book that has
+            not moved would reasonably read it as a bug in the panel; it is the
+            Monte Carlo's own sampling error, which is the quantity the
+            divergence tile above is measured against. */}
+        {everySeconds !== null && ` One every ${everySeconds} seconds while this section is on `
+          + "screen, and the simulation seeds nothing, so a repeat on unchanged inputs is an "
+          + "independent draw: the spread between these points is its sampling error."}
         {missing > 0 && ` ${missing} could not be computed and are drawn as gaps, never as zero.`}
         {heldNote}
       </p>

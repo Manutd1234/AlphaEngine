@@ -170,13 +170,61 @@ export default function ReliabilityAttention({
 
   return (
     <div className="reliability-overview">
-      {/* SYMPTOMS FIRST, THEN THE TREND. The trend chart used to open this
-          section, which put a 168px plot plus its heading and legend between
-          the rail and the only list on the tab that says what is wrong right
-          now — on a laptop the first symptom sat below the fold. The chart
-          answers "since when", and that is the second question: the console
-          header already prints the current p99 as a tile, so nothing here is
-          the reader's only route to the number. */}
+      {/* THE TREND OPENS THE SECTION, AND THE COST WAS PAID DOWN RATHER THAN
+          DENIED. The reader asked for this order in these words: "put the tail
+          latency at the top and the triage and incident path below it".
+
+          The note that used to sit here argued the other way and is kept,
+          because the cost it named is real and is what the numbers below had to
+          answer. It read: the trend used to open this section, which put a
+          168px plot plus its heading and legend between the rail and the only
+          list on the tab that says what is wrong right now, and on a laptop the
+          first symptom sat below the fold. It understated the cost. The block
+          is not 168px of plot: at 1440 wide it was a 307px card once the head
+          (75px), the legend row (32px), the card padding and borders (24px) and
+          the descender an inline svg reserves under itself (8px) are counted,
+          plus the 12px seam under it. 319px, all of it above the first symptom.
+
+          Measured against the fold rather than argued about. Above the panel
+          sit the 57px header, the shell top padding, the 199px page head and
+          the 52px rail: 324px before any content. The first triage row is 89px
+          into its card and 61px tall, so it used to end 474px down and would
+          have ended 793px down unchanged — past a real laptop window, which is
+          about 790 CSS px once a browser has taken its menu bar, tab strip and
+          toolbar out of 900.
+
+          So the card gave 54px back, none of it from the data: the plot is 140
+          user units rather than 168, its svg is a block box so it stops
+          reserving a text descender, the legend drops the 10px margin it needs
+          only when it sits ABOVE a chart, and the head keeps its height while
+          tightening the air around its rule (14h-density-systems.css). The
+          first symptom now ends 739px down at comfortable, ~51px clear of that
+          fold, and 807px down at the Large text size, which clears a locked
+          900px viewport by 93px and misses a real laptop one by about 17px of
+          the detail line's last row.
+
+          REJECTED, and the 17px is the price: dropping the plot to 120 units.
+          It would close the gap at Large and leave 82 units of inner plot,
+          under the 96px sparkline in the overview KPI deck, which is the point
+          at which a trend stops being able to answer "since when" and becomes
+          decoration standing where a symptom list should be. Also rejected:
+          taking the kicker out of the shared `.section-heading compact` box for
+          9px, which costs the one thing that rule exists for (see the note in
+          LatencyTrend.tsx), and pairing the chart beside the triage list at
+          desk width, which reads as "beside" and not "at the top" and which
+          14h-density-systems.css already records this owner withdrawing for
+          this section.
+
+          The chart answers "since when". The console header still prints the
+          current p99 as a tile, so nothing here is the reader's only route to
+          the number, and no interactive control changed places: the chart holds
+          none, so the keyboard still reaches the symptom buttons first.
+
+          Conditional at the section boundary, not `hidden` here: the parent
+          mounts this half only when the reader is on it, so nothing above is a
+          hidden subtree quietly holding an observer. */}
+      <LatencyTrend history={view.latencyHistory} />
+
       <div className="reliability-overview__split">
         <section className="card reliability-attention" aria-labelledby="reliability-attention-title">
           <div className="section-heading compact">
@@ -277,11 +325,6 @@ export default function ReliabilityAttention({
           </ol>
         </section>
       </div>
-
-      {/* Conditional at the section boundary, not `hidden` here: the parent
-          mounts this half only when the reader is on it, so nothing below is a
-          hidden subtree quietly holding an observer. */}
-      <LatencyTrend history={view.latencyHistory} />
     </div>
   );
 }

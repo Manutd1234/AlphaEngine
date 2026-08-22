@@ -18,8 +18,8 @@
  * floor over 8px/12px) and 15 (34px, 5px/9px, which is what the browser
  * applies). Three lost silently on specificity, in files whose comments
  * described them as live: nothing was wrong on screen at any one instant, and
- * no reader could tell which number was the real one. And the rail's label sat
- * at --fs-body, a rung LARGER than the role tabs above it.
+ * no reader could tell which number was the real one. The label's rung has now
+ * moved twice, and is back at --fs-body because the reader asked for 14px.
  *
  * So, for all three, read against the concatenated cascade rather than one
  * partial (a rule appended to a later file is how four sizes accumulated): no
@@ -337,14 +337,14 @@ describe("the size is the smaller one, and it is on the ladder", () => {
     assert.deepEqual(offenders, [], `off the type ladder:\n  ${offenders.join("\n  ")}`);
   });
 
-  it("the section rail does not read louder than the role tabs above it", () => {
-    // 13px against 13px, one weight step down. It was --fs-body (14px) on the
-    // label, so the SECOND level of navigation was the larger of the two on
-    // every screen — the opposite of what the rail's own comment claims, and
-    // half of "do not increase in size" as the reader meant it.
+  it("the section rail sits on the rung the reader asked for", () => {
+    // Was --fs-sm, one rung under the role tabs' fixed 13px, on the reading of
+    // "do not increase in size" that took it to mean the rail's own type. It
+    // did not: "subtab headers can be bigger to 14px and bigger for comfortable
+    // setting". subtab-chrome-stability.test.ts holds the three px it lands on.
     const railTab = desk("rail-tab").find((entry) => /font-size/.test(entry.rule.body));
     assert.ok(railTab, "the rail's tabs carry no size at all");
-    assert.match(railTab!.rule.body, /font-size: var\(--fs-sm\)/);
+    assert.match(railTab!.rule.body, /font-size: var\(--fs-body\)/);
     assert.match(css, /\.workspace-tabs button span \{[^}]*font-size: var\(--fs-chrome-tab\)/);
   });
 

@@ -40,6 +40,28 @@ describe("an unmeasured number is dashed, not zeroed", () => {
     assert.match(source, /currently not measured/);
   });
 
+  it("the risk diagram names the floor it fell short of, not an empty chart", () => {
+    /**
+     * `rollingVarSeries` returns null on a book with fewer than window + 20
+     * aligned bars (var-validation.ts:179). Before the VaR/model split that
+     * null dropped the chart out from under a populated card and said nothing;
+     * on a subtab of its own it would be a kicker over blank space, which this
+     * tree treats as the same defect as a coerced zero — an absence reported as
+     * a state rather than as a NAMED reason is what the doctrine forbids.
+     *
+     * The positive assertion leads for the reason the depth test below gives:
+     * the two negative ones pass over any file that stopped mentioning the
+     * diagram at all.
+     */
+    const source = code(read("../components/portfolio/RiskEngine.tsx"));
+    assert.match(source, /showDiagram && \(varSeries \? \(/);
+    assert.ok(source.includes("needs 80 daily bars"),
+      "the diagram's refusal lost the floor it is refusing against");
+    assert.ok(source.includes("60 to fit the first sigma and 20 more to score"),
+      "without the split the 80 is a magic number the reader cannot check");
+    assert.doesNotMatch(source, /varSeries \?\? \{/);
+  });
+
   it("depth tiles dash when the spread tile beside them dashes", () => {
     /**
      * `LiquidityBook`, not `LiveMarket`: the tiles moved with the depth curve

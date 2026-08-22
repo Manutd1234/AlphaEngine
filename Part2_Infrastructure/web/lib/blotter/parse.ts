@@ -13,6 +13,26 @@ function num(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+/**
+ * A tri-state flag off the wire: true, false, or "the feed did not say".
+ *
+ * NOT `value === true`. That is the idiom `accepted` uses two fields below, and
+ * it is correct there — an audit row always carries `accepted`, so an absent
+ * one is a corrupt row and refusing it is right. `simulated` is the opposite
+ * case: the gateway's `orders` table has no column for it at all, so absence is
+ * the NORMAL reading and `=== true` would silently stamp every historical fill
+ * "not simulated" — a claim about provenance that nothing measured.
+ *
+ * The 0/1 arm is not defensive padding. `AuditStore._sqlite_fallback` opens a
+ * SQLite twin when DuckDB will not load, and SQLite has no boolean type, so the
+ * same column comes back as an integer on that backend.
+ */
+function bool(value: unknown): boolean | null {
+  if (typeof value === "boolean") return value;
+  if (value === 1 || value === 0) return value === 1;
+  return null;
+}
+
 function parseChecks(raw: unknown): GateCheck[] {
   if (typeof raw !== "string" || !raw.trim()) return [];
   try {
@@ -59,6 +79,7 @@ export function toBlotterRow(raw: unknown): BlotterRow | null {
     feeUsd: num(row.fee_usd),
     slippageBps: num(row.slippage_bps),
     venue: str(row.venue),
+    simulated: bool(row.simulated),
     source: str(row.source),
     // Derived, not required. Rows written before the order lifecycle existed
     // carry no status, and back then an accepted order *was* a filled order —
@@ -127,7 +148,21 @@ export interface ExecutionSummary {
   fillRate: number | null;
   avgSlippageBps: number | null;
   worstSlippageBps: number | null;
+  /**
+   * Fees over the fills that RECORDED one — never over every fill.
+   *
+   * A fill whose audit row carries no `fee_usd` is not a free execution, and
+   * the two counts below are what stop this total reading as though it were:
+   * they say how much of the window the figure actually covers. Kept as a
+   * number rather than nullable so the panels that already print it are
+   * unchanged; `feePricedFills === 0` is the state where there is nothing to
+   * print at all.
+   */
   totalFees: number;
+  /** Filled rows carrying a fee — the denominator `totalFees` is summed over. */
+  feePricedFills: number;
+  /** Filled rows carrying none. Reported, never absorbed into the total as 0. */
+  feeUnpricedFills: number;
   p50LatencyMs: number | null;
   p90LatencyMs: number | null;
   p99LatencyMs: number | null;

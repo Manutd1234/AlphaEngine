@@ -159,7 +159,12 @@ function phrases(text: string, n = 4): Set<string> {
  * the file must still hold.
  */
 const MUST_SURVIVE: { file: Owned; text: string }[] = [
-  { file: "components/WorkspaceOverview.tsx", text: "Your one-stop infrastructure that can solve all needs from trade execution, debugging and research." },
+  // Shortened from "Your one-stop infrastructure that can solve all needs from
+  // trade execution, debugging and research." on the user's instruction — that
+  // line wrapped to two rows and they asked for one. The rewrite is pinned
+  // fact-by-fact in summarised-overview.test.ts; this list only needs to know
+  // which sentence the tab now renders in that slot.
+  { file: "components/WorkspaceOverview.tsx", text: "Trade execution, debugging and research on one desk." },
   { file: "components/WorkspaceOverview.tsx", text: "start ${usd(equity.start_of_day, 0)}; gateway snapshot" },
   { file: "components/WorkspaceOverview.tsx", text: "${signedPct(equity.daily_return)} on the session" },
   { file: "components/WorkspaceOverview.tsx", text: "backtested in this browser" },
@@ -198,7 +203,7 @@ const MUST_SURVIVE: { file: Owned; text: string }[] = [
  * figure with no provenance.
  */
 const MUST_STAY_VISIBLE: { file: Owned; text: string; kind: string }[] = [
-  { file: "components/WorkspaceOverview.tsx", text: "Your one-stop infrastructure that can solve all needs from trade execution, debugging and research.", kind: "the tab's thesis line, read by copy-audit as the question this tab answers" },
+  { file: "components/WorkspaceOverview.tsx", text: "Trade execution, debugging and research on one desk.", kind: "the tab's thesis line, read by copy-audit as the question this tab answers" },
   { file: "components/WorkspaceOverview.tsx", text: "backtested in this browser", kind: "provenance for the VaR figure a risk reader acts on" },
   { file: "components/WorkspaceOverview.tsx", text: "measured from this browser's polls", kind: "provenance that stops p99 reading as gateway-measured" },
   { file: "components/WorkspaceOverview.tsx", text: "fewer than 20 polls measured", kind: "null explanation, the whole content of the chip under a dash" },

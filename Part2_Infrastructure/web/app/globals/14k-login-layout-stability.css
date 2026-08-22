@@ -1,0 +1,130 @@
+/* ==========================================================================
+   Login layout stability — the sign-in card holds still while the provider
+   probe is out.
+
+   The complaint was that /login twitches: the card jerks as sign-in options
+   pop in. Driven over CDP against the running dev server at 1440x900, with
+   the text-size preference stamped before first paint, there is exactly ONE
+   shift and it is neither first paint nor hydration. The server HTML and the
+   first client render are the same state — `enabledProviders` starts null on
+   both sides — and the layout-shift observer stays silent from paint until
+   the probe answers, at 688ms over the network or at 4.09s on the abort path.
+   What moves is the mount of the button column.
+
+   It reads as the PAGE jerking rather than a button appearing because the
+   card is vertically centred: `.auth-shell` (01) puts `margin-block-start:
+   auto` on its first child and `margin-block-end: auto` on its last, so a
+   +42px card growth moves the card's top edge up by exactly 21px and the
+   guest button below it down by 21px in the same frame. One mount, doubled
+   and split in direction. Hold the card's height still and all of that stops.
+
+   Its own partial rather than a paragraph in `14j-layout-stability.css`,
+   whose preamble already argues this exact split-constant case: that file is
+   modified in another agent's working tree today. `01-workspace-shell.css`,
+   where every other `.auth-*` rule lives, is 2209 lines and on the
+   over-ceiling list in `tests/file-size.test.ts`, so it may not grow either.
+   ========================================================================== */
+
+/* THE ASYNC REGION IS RESERVED. THE CARD IS NOT.
+
+   `LoginScreen` answers the probe from an effect, so the answer cannot exist
+   before paint and the button column is genuinely empty in the first HTML —
+   measured at 0px, not hidden at some height. Region heights (divider,
+   optional warning, button column) at the 12 / 14 / 17px body rungs:
+
+     probe still out       48.71 /  51.50 /  55.67   the divider alone
+     one provider          90.71 /  93.50 /  98.67   what this project answers
+     no provider enabled       0 /      0 /      0   the region was dropped
+     three providers      190.71 / 193.50 / 200.67
+     probe failed         235.71 / 244.00 / 259.42
+
+   A provider row measures 42 / 42 / 43px. Reserving exactly ONE of them under
+   the divider makes the first three lines above the same box, which is every
+   state this deployment can reach: the card's height across the probe becomes
+   a constant, and the masthead and guest button stop moving with it.
+
+   RE-MEASURED WITH THIS RULE IN PLACE, same method, same viewport, the three
+   states that used to differ are now identical to the hundredth of a pixel:
+
+                        card height        card top    "Continue as guest" top
+     probe still out  515.69 / 567.14 / 619.31   163.16 / 123.94 / 92.34
+     one provider     515.69 / 567.14 / 619.31   163.16 / 123.94 / 92.34
+     no provider      515.69 / 567.14 / 619.31   163.16 / 123.94 / 92.34
+
+   with the guest button at 702.84 / 715.08 / 735.66 in all three and the
+   shell's scrollHeight still 900 against a 900px viewport, so nothing gains a
+   scrollbar. The reserved column measures exactly 42.00 / 44.00 / 47.00, and
+   the named-reason line sits on one line inside it at every rung.
+
+   `calc(30px + 1 * var(--fs-body))` resolves to 42 / 44 / 47px. The 30px is
+   the row's own chrome — `.auth-provider` carries `min-height: 42px` over a
+   1px border in 01 — and the token multiple is the label inside it, which is
+   what pushes the row to 43px on large. The 2 and 4px of slack on the upper
+   rungs are also what lets the named-reason line wrap to two lines
+   (33.00 / 38.50 / 46.75px) without moving anything.
+
+   REJECTED — a flat `min-height: 42px`, the number you get by measuring at
+   comfortable only. It is 1px short of the row on large, where it stops
+   reserving and the card jumps again, and the wrapped reason line overflows
+   it there by 4.75px. That is the flat-420px defect `14j` documents one
+   partial along, repeated one rung down.
+
+   REJECTED — reserving the tallest state, `calc(176px + 5 * var(--fs-body))`
+   = 236 / 246 / 261px. It removes the jump on the fail-open path and pays
+   145 / 150 / 161px of blank card for it under the single button this project
+   actually offers, which is the state every reader here settles in. A reserve
+   that holds a void in the common state has traded a jump for a hole.
+
+   REJECTED — a floor on `.card.auth-card`, which the ticket asked for as
+   `min-h-[480px]`. 480px is BELOW the probing card at comfortable (523.14)
+   and large (572.31), so it reserves nothing at two of the three rungs; and a
+   floor tall enough for the real states (`calc(454px + 19 * var(--fs-body))`
+   = 682 / 720 / 777) pushes the column past the 900px viewport and puts a
+   permanent scrollbar on a page that has none today.
+
+   Left standing: the fail-open branch draws three speculative buttons and a
+   warning when the probe fails, and still grows the card by
+   145.00 / 148.50 / 156.75px when that lands (re-measured: 660.69 / 715.64 /
+   776.06 against the reserved 515.69 / 567.14 / 619.31). Shrinking it to one named-reason
+   line would let the reserve cover every state, but the branch is pinned by
+   `auth-providers.test.ts` and belongs to the provider-safety argument rather
+   than to this slice. */
+.auth-providers__options {
+  min-height: calc(30px + 1 * var(--fs-body));
+}
+
+/* THE ANSWER ARRIVES AS A FADE, NEVER AS A HIDDEN CONTROL BECOMING VISIBLE.
+
+   Nothing here is rendered and hidden. A provider button is mounted only once
+   the probe says that provider exists, because a button reading "Continue
+   with Google" on a project that has not enabled Google is a full-page
+   redirect to a Supabase JSON error with no way back into the app.
+
+   `opacity: 0` was the tempting way to reserve the row and it is the trap.
+   Probed in this page over CDP: an `opacity: 0` button still takes focus,
+   still reports role=button with its accessible name, and still answers
+   elementFromPoint — an invisible, tabbable, announced provider. Only
+   `visibility: hidden` reserves space while dropping out of the tab order and
+   the accessibility tree, and even that is inherited-but-overridable, so one
+   future descendant rule can undo it in silence. The reserve above is
+   therefore an EMPTY box with a floor, and this transition only softens the
+   arrival of controls that are already real.
+
+   `@starting-style` rather than a mount flag in React: the elements are
+   conditionally rendered, which is what the feature exists for, and it costs
+   no state, no effect and no second render. A browser without it paints the
+   button immediately, which is today's behaviour rather than a broken one.
+   `prefers-reduced-motion` is honoured by the single reduce block in 12,
+   which collapses this to 1ms — the house form of off, chosen over `none` so
+   that end states and transition events survive. */
+.auth-providers__note,
+.auth-providers__options > * {
+  transition: opacity var(--dur-fast) var(--ease);
+}
+
+@starting-style {
+  .auth-providers__note,
+  .auth-providers__options > * {
+    opacity: 0;
+  }
+}

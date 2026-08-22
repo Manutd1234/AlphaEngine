@@ -129,7 +129,15 @@ export const DEPLOYABLES = [
     role: "Interactive desk portal",
     entry: "Part2_Infrastructure/web/app/page.tsx",
     stack: "Next.js, React, TypeScript",
-    detail: "Role workflows plus twenty server-side API handlers.",
+    /* No count here. "twenty server-side API handlers" was hand-written and had
+       drifted to less than half the truth: the app ships 44 route handlers, and
+       this same tab prints that figure correctly twice — the Code & Diffs stats
+       strip ("API routes") and the API & Schema heading, both derived. A third
+       copy, typed by hand, is the exact defect the API catalogue's own comment
+       records ("the arithmetic checks out and the inventory is still a lie").
+       Rejected: updating the word to "forty-four", which fixes today's reading
+       and restores the drift the moment a route is added. */
+    detail: "Role workflows and their server-side API routes.",
   },
   {
     id: "gateway",

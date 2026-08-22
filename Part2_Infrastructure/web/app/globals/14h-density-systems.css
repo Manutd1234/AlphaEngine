@@ -6,8 +6,11 @@
  * 15-navigator-and-trailing-layer.css. The owners are on the over-ceiling
  * ledger and may never grow, which is why these overrides live here at all.
  *
- * Desk-width packing was all this file did, and one section now breaks that
- * rule deliberately: the Remediation Mutations pane's blast-radius map is new
+ * Desk-width packing was all this file did, and two sections now break that
+ * rule deliberately. The second is at "the tail-latency card's height budget"
+ * below, under its own banner, and its reason is the same as the first's: the
+ * partial that owns the rules it overrides is shared with the rest of the desk.
+ * The first: the Remediation Mutations pane's blast-radius map is new
  * markup introduced with the pane, and every partial that would otherwise own
  * its base rules — 02-systems-console, 12-workspace-standardisation,
  * 15-navigator-and-trailing-layer — is shared with other surfaces and other
@@ -91,14 +94,58 @@
     min-height: 0;
   }
 
-  /* The breaker diagram is a 560x208 drawing scaled to the card's full inner
-     width — at desk width that is over 400px of height spent magnifying
-     three boxes and four arrows. Cap the drawing at a size its labels were
-     drawn for and centre it; every count, edge and caption is unchanged. */
-  #reliability-subpanel-controls .breaker-machine {
-    max-width: 660px;
-    margin: var(--space-3) auto;
-  }
+  /* The breaker diagram used to be capped at 660px and centred here, which is
+     what left the outer two thirds of a desk-width card empty. It no longer
+     scales at all — see the base rules at the foot of this file — so there is
+     nothing left to cap, and the cap is gone rather than retuned. */
+}
+
+/* ------------------------------------------------------------------ */
+/* Overview: the tail-latency card's height budget                     */
+/* ------------------------------------------------------------------ */
+/* Base rules, not packing, and unconditional — the second exception the banner
+   at the top of this file names. The rules these override live in
+   00-tokens-and-base.css and 12-workspace-standardisation.css, both shared with
+   every surface on the desk; `.legend` alone is read by eleven of them, and
+   most of those do put it above their chart, where its margin is right.
+
+   `ReliabilityAttention` renders the trend chart ABOVE the triage list on the
+   owner's instruction, so every pixel this card spends now sits between the
+   rail and the first symptom. The three rules below hand back 26 of them and
+   cost the chart nothing: all three are packaging, not plot. The other 28 came
+   out of `HEIGHT` in LatencyTrend.tsx, and only after these. Measured at 1440
+   wide, comfortable: the card was 307px and is 253px, which puts the first
+   triage row's last line 739px down against the ~790px a browser leaves of a
+   1440x900 laptop. The arithmetic is in ReliabilityAttention.tsx. */
+
+/* An `<svg>` is an inline box, so its line reserves a text descender beneath
+   it: 8px of blank card at comfortable, ~10px at Large, under a plot that
+   already carries a 26-unit bottom margin for its own axis. A block box has no
+   baseline to hang from. Scoped here rather than fixed for every chart on the
+   desk: a dozen other surfaces sit on that baseline, unmeasured. */
+.latency-trend svg {
+  display: block;
+}
+
+/* `.legend`'s 10px is the gap between a legend and the chart UNDER it. This
+   legend is under its chart and is the card's last child, so the margin only
+   doubles the card's own bottom padding. REJECTED: retuning `.legend` itself,
+   which would take the gap away from the eleven call sites that need it. */
+.latency-trend .legend {
+  margin-bottom: 0;
+}
+
+/* The head keeps its HEIGHT. The kicker, the title and the rule land exactly
+   where the seventeen card heads below them do, which is the whole reason this
+   card wears `.section-heading compact` (LatencyTrend.tsx records what it cost
+   to get there). Only the air on either side of the rule tightens, 8px twice,
+   on the one card whose vertical cost is now this section's opening argument.
+   `.compact` is in the selector to outrank
+   `.card > .section-heading:not(:last-child)`, (0,3,0), which would otherwise
+   win on specificity rather than on source order. */
+.latency-trend > .section-heading.compact {
+  padding-bottom: var(--space-2);
+  margin-bottom: var(--space-2);
 }
 
 /* ------------------------------------------------------------------ */
@@ -289,8 +336,10 @@
 
 @media (min-width: 1100px) {
   /* The drawing is 560x262 of labelled boxes. Scaled to a full desk-width card
-     it is 400px of magnified rectangles, which is the same waste the breaker
-     diagram above is capped for; same fix, same reason. */
+     it is 400px of magnified rectangles. Capped rather than rebuilt: the
+     breaker diagram answered the same waste by dropping its viewBox and laying
+     out in percentages, which is the better fix and a bigger one than this
+     map's owner asked for. */
   .mutation-map__diagram {
     max-width: 720px;
     margin: 0 auto;
@@ -299,5 +348,50 @@
   /* Seven reasons stacked is a column of mostly margin at desk width. */
   .mutation-map__reasons {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Breaker state machine — base rules, and why they are in this file   */
+/* ------------------------------------------------------------------ */
+/* The drawing has no viewBox any more (the reasoning is at the top of
+   `components/systems/BreakerStateMachine.tsx`): one user unit is one CSS
+   pixel, so it fills whatever width the card gives it instead of being scaled
+   into the middle third of it, and no label magnifies on a wide desk. Two
+   rules follow, and neither has a shared partial to live in —
+   15-navigator-and-trailing-layer.css owns `.breaker-machine`'s base but is
+   shared with every other trailing surface, and 02-systems-console.css is over
+   the length ceiling and may not grow by a line. `.card >` rather than a new
+   class, because dead-css.test.ts is sitting on its baseline with no headroom
+   and the child combinator is also what outranks the shared
+   `.breaker-machine { max-width }` in 15 regardless of which partial loads
+   last. */
+
+/* An unscaled drawing has a floor. Below roughly 480px the two outer captions
+   would reach the frame, so the width stops there and the card takes the
+   overflow — shrinking the type instead is exactly how the half-open caption
+   came to be truncated. */
+.card > .breaker-machine {
+  min-width: 480px;
+}
+
+/* Each arrowhead hangs in a 1x1 nested `<svg>` so it can be anchored at a
+   percentage — `transform: translate()` takes none — and the chevron is drawn
+   around that origin, which puts it outside its own viewport. The element's
+   `overflow="visible"` attribute is not enough on its own: the UA stylesheet's
+   `svg:not(:root) { overflow: hidden }` is a real rule and outranks a
+   presentation attribute. Said again here, in the author origin, where it
+   wins. */
+.breaker-machine svg {
+  overflow: visible;
+}
+
+/* Only reachable under the floor above, which in practice is a phone: the card
+   scrolls sideways so the page does not. Scoped to that case deliberately —
+   an unconditional `overflow-x` would make the card a scroll container at
+   every width and start clipping the focus ring on its own disclosure. */
+@media (max-width: 560px) {
+  .card:has(> .breaker-machine) {
+    overflow-x: auto;
   }
 }

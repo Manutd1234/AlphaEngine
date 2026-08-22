@@ -6,28 +6,25 @@
  *
  * The blueprint's line for this role is that risk should be a live guardrail
  * rather than an end-of-day report, so the ordering is deliberate — headroom
- * first (how close are we), then the loss estimate and its own scorecard, then
- * scenarios, and only then the controls. A halt button above the numbers that
- * justify pressing it would be a worse page.
+ * first (how close are we), then the loss estimate, then the diagram that
+ * scores it, then scenarios, and only then the controls. A halt button above
+ * the numbers that justify pressing it would be a worse page.
  *
  * The book itself is on the Portfolio tab. What comes along is only what a risk
  * decision needs: equity, exposure and position count.
  */
 
-import { useState, type CSSProperties } from "react";
+import { useState } from "react";
 
-import { BookChrome, BookFallback, BookSourceControl, CrossLinkTile } from "@/components/portfolio/BookChrome";
+import { BookChrome, BookFallback, BookSourceControl } from "@/components/portfolio/BookChrome";
 import ExecutionHandoff, { type HandoffIntent } from "@/components/portfolio/ExecutionHandoff";
-import HeadroomBar from "@/components/portfolio/HeadroomBar";
 import OracleVarPanel from "@/components/portfolio/OracleVarPanel";
 import RiskEngine from "@/components/portfolio/RiskEngine";
 import StressTest from "@/components/portfolio/StressTest";
-import BookConcentration from "@/components/risk/BookConcentration";
 import HorizonSeg from "@/components/risk/HorizonSeg";
+import LimitsPanel from "@/components/risk/LimitsPanel";
 import MonteCarloDistribution, { type McDriver } from "@/components/risk/MonteCarloDistribution";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
-import { fmt, pct, usd } from "@/lib/format";
-import { type LimitTone, limitRows, limitTone } from "@/lib/portfolio";
 import { RISK_SECTIONS, type PortfolioSection, type RiskSection } from "@/lib/sections";
 import type { BookView } from "@/lib/use-book";
 
@@ -55,19 +52,8 @@ export interface RiskWorkspaceProps {
 
 export { RISK_SECTION_IDS, type RiskSection } from "@/lib/sections";
 
-const TONE_TEXT: Record<LimitTone, string | undefined> = {
-  good: undefined,
-  warning: "var(--warning-text)",
-  critical: "var(--critical-text)",
-};
-
 /** Why "Flatten the book" is unavailable, in the button and on screen. */
 const FLAT_BOOK_REASON = "Nothing to flatten: this book holds no open position.";
-
-/** Raw values arrive from `limitRows`; the unit decides the formatter. */
-function limitValue(value: number, unit: "usd" | "pct"): string {
-  return unit === "usd" ? usd(value, 0) : pct(value, 2);
-}
 
 export default function RiskWorkspace({
   view,
@@ -110,17 +96,19 @@ export default function RiskWorkspace({
   const fallback = <BookFallback view={view} onOpenResearch={onOpenResearch} surface="risk" />;
   if (!book) return fallback;
 
-  const binding = book.risk_budget.binding_constraint;
   const positions = book.exposure.positions;
   const flatBook = positions.length === 0;
 
   /**
-   * Same props, same snapshot, one half each. The model and drivers subtabs
-   * cannot disagree about the book because they are one component reading one
-   * set of props — written once here so that stays true by construction rather
-   * than by two panels being kept in step by hand.
+   * Same props, same snapshot, one third each. The model, diagram and drivers
+   * subtabs cannot disagree about the book because they are one component
+   * reading one set of props — written once here so that stays true by
+   * construction rather than by three panels being kept in step by hand. It
+   * matters most for the diagram: the forecast it draws and the Kupiec score
+   * on the model subtab are graded off the same `varSeries` and `varValidation`
+   * pair, and a second call site is all it would take for them to drift.
    */
-  const riskEngine = (part: "model" | "drivers") => (
+  const riskEngine = (part: "model" | "diagram" | "drivers") => (
     <RiskEngine
       risk={risk}
       model={covarianceModel}
@@ -160,134 +148,22 @@ export default function RiskWorkspace({
       />
 
       <WorkspaceSubtabPanel workspaceId="risk" tabId="limits" activeId={section}>
-        <HeadroomBar
-          grossUsed={book.risk_budget.gross_exposure.used}
-          grossLimit={book.risk_budget.gross_exposure.limit}
-          net={book.exposure.net}
-          equity={book.equity.current}
-          drawdownUsedPct={book.risk_budget.daily_drawdown.used_pct}
-          drawdownLimitPct={book.risk_budget.daily_drawdown.limit_pct}
-          cushionUsd={book.risk_budget.daily_drawdown.cushion_usd}
-          bindingConstraint={binding[0]}
-          bindingUtilisation={binding[1]}
-          largestPosition={
-            positions[0]
-              ? {
-                  symbol: positions[0].symbol,
-                  utilisation: positions[0].symbol_limit.utilisation,
-                  remaining: positions[0].symbol_limit.remaining,
-                }
-              : null
-          }
-        />
-
-        <div className="risk-main-grid">
-          <div className="card portfolio-risk-card">
-            <div className="portfolio-card-heading">
-              <div>
-                <span className="page-kicker">Pre-trade guardrails</span>
-                <h2>Risk budget</h2>
-              </div>
-              <span>{book.sandbox ? "sandbox thresholds — same limits, generated book" : "enforced at the gate"}</span>
-            </div>
-            {/* The gauges above already carry each constraint as a bar and a
-                sentence. What they compress away is the arithmetic, so this is
-                the table rather than a second set of the same bars — which is
-                what it used to be. */}
-            <div className="table-wrap" tabIndex={0}>
-              <table>
-                <caption className="sr-only">
-                  Each pre-trade constraint, and whether it binds first.
-                </caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Constraint</th>
-                    <th scope="col">Used</th>
-                    <th scope="col">Limit</th>
-                    <th scope="col">Headroom</th>
-                    <th scope="col">Utilisation</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {limitRows(book).map((row) => (
-                    <tr key={row.id}>
-                      <td>
-                        {row.label}
-                        {/* icon + word, never colour alone */}
-                        {row.binding && <span className="muted">; ▲ binds first</span>}
-                      </td>
-                      <td className="num">{limitValue(row.used, row.unit)}</td>
-                      <td className="num">{limitValue(row.limit, row.unit)}</td>
-                      <td className="num">{limitValue(row.headroom, row.headroomUnit)}</td>
-                      <td className="num" style={{ color: TONE_TEXT[limitTone(row.utilisation)] }}>
-                        {pct(row.utilisation, 1)}
-                        {/* The same figure, ranked. Inherits the tone colour above,
-                            so a constraint at cap reads red in both encodings. */}
-                        <span
-                          className="cell-meter"
-                          aria-hidden
-                          style={{ "--fill": `${Math.max(0, row.utilisation * 100)}%` } as CSSProperties}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Counting, not cutting: BookConcentration records why the Risk tab was the one book-fed tab wiring no live motion. */}
-            <BookConcentration largestShare={book.concentration.largest_share} effectivePositions={book.concentration.effective_positions} />
-            {/* The derivation, not the number. Both figures above stay visible;
-                what collapses is the explanation of how one of them is computed,
-                which a reader needs once and not on every visit. The summary
-                states what is inside so the choice to open it is informed. */}
-            <details className="disclosure">
-              <summary>How effective positions is derived</summary>
-              <p className="research-note">
-                1 ÷ the Herfindahl index of the book&apos;s weights: how many equally-sized
-                positions would carry this concentration. {positions.length} position
-                {positions.length === 1 ? "" : "s"} behaving like{" "}
-                {fmt(book.concentration.effective_positions, 1)} says how much is one bet.
-              </p>
-            </details>
-          </div>
-
-          {/* The book, compressed to what a limit decision needs. Full positions
-              table is one click away rather than duplicated here — and the click
-              now names `positions`, which is where that table actually is.
-              `onNavigate` was a bare thunk, so "one click away" meant one click
-              to the Portfolio tab and then however many more it took to find the
-              section the reader had left it on. The label says where it lands. */}
-          <CrossLinkTile<PortfolioSection>
-            kicker="Owned by the portfolio desk"
-            title="Book under these limits"
-            actionLabel="Open Portfolio positions"
-            onNavigate={onOpenPortfolio}
-            targetSection="positions"
-            metrics={[
-              {
-                label: "Equity",
-                value: usd(book.equity.current, 0),
-                note: `day ${usd(book.equity.daily_pnl, 0)}`,
-                tone: book.equity.daily_pnl >= 0 ? "pos" : "neg",
-              },
-              {
-                label: "Gross exposure",
-                value: usd(book.exposure.gross, 0),
-                note: `${fmt(book.exposure.leverage, 2)}×, net ${usd(book.exposure.net, 0)}`,
-              },
-              {
-                label: "Positions",
-                value: String(positions.length),
-                note: positions[0] ? `largest ${positions[0].symbol}` : "flat book",
-              },
-            ]}
-          />
-        </div>
+        <LimitsPanel book={book} onOpenPortfolio={onOpenPortfolio} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="risk" tabId="model" activeId={section}>
         {riskEngine("model")}
+      </WorkspaceSubtabPanel>
+
+      {/* The forecast and the scorecard that grades it, one subtab apart. They
+          were one card: a VaR figure with its Kupiec zone, and under it the
+          chart of the same band against realised losses. Splitting them gives
+          the chart the full desk width its 361 lines were drawn for, and the
+          engine card a heading that is not a preamble to something else. The
+          section id behind "Risk engine" is still `model`, so #risk/model keeps
+          resolving to the half it always named. */}
+      <WorkspaceSubtabPanel workspaceId="risk" tabId="diagram" activeId={section}>
+        {riskEngine("diagram")}
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="risk" tabId="drivers" activeId={section}>
@@ -316,11 +192,22 @@ export default function RiskWorkspace({
           against each other on two different clocks. */}
       <WorkspaceSubtabPanel workspaceId="risk" tabId="oraclevar" activeId={section}>
         {horizonSeg("Forward horizon for the Oracle GBM loss estimate")}
+        {/* `live` is the gate on the panel's re-run cadence and it needs BOTH
+            terms: `active` is this workspace being the visible tab, the section
+            test is this subtab being the visible one within it. Subtab panels
+            mount on first open and stay mounted behind `display: none` for the
+            life of the workspace, so "mounted" says nothing about whether
+            anyone is looking — and every re-run is a real database call.
+            `positionCount` is not a figure the card renders; it is how the card
+            tells a flat book apart from a model still being measured, which
+            arrive at its boundary as the same null. */}
         <OracleVarPanel
           equity={book.equity.current}
           annualVol={risk?.annualisedVolatility ?? null}
           sandbox={Boolean(book.sandbox)}
           horizonDays={mcHorizonDays}
+          positionCount={positions.length}
+          live={active && section === "oraclevar"}
         />
       </WorkspaceSubtabPanel>
 

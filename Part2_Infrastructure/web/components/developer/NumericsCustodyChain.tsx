@@ -17,6 +17,14 @@
  * would be a second thing to keep true. The classes are that panel's classes,
  * unchanged, so no stylesheet edit was needed and none was made.
  *
+ * THE DRAWING NO LONGER LIVES HERE. When the gateway OpenAPI contract — the
+ * second chain this repository has, and the one this file's own report named as
+ * undrawn — was drawn, the renderer moved to
+ * `components/developer/CustodyChainTrack.tsx` and both chains render through
+ * it. Nothing about this chain changed in the move: what stays in this file is
+ * the derivation, which is the part that is about the Monte Carlo claim rather
+ * than about pictures. See that file's header for the alternative rejected.
+ *
  * WHAT IS DRAWN IS THE REAL CHAIN, confirmed against the files rather than
  * assumed. Each arrow is the operation that produces the artefact after it:
  *
@@ -38,8 +46,6 @@
  * is self-consistent, and the panel re-hashes it on load rather than assuming.
  */
 
-import { useState, type CSSProperties } from "react";
-
 import { canonicalJson } from "@/lib/canonical-json";
 import { MC_PARITY_HORIZON_BARS, MC_PARITY_PATHS } from "@/lib/mc-parity";
 import {
@@ -49,6 +55,7 @@ import {
 import { STAGE_GLYPH } from "@/lib/signal-path";
 import type { McDistributionState } from "@/lib/use-mc-distribution";
 
+import CustodyChainTrack, { TINT, type CustodyLink, type LinkState } from "./CustodyChainTrack";
 import {
   CustodyDigestRow,
   digestAbsenceReason,
@@ -91,33 +98,6 @@ export function browserRun(requested: boolean, simulation: McDistributionState):
     json,
     matches: json === MC_PARITY_REFERENCE_JSON,
   };
-}
-
-type LinkState = "ok" | "degraded" | "down" | "absent" | "unknown";
-
-const TINT: Record<LinkState, string> = {
-  ok: "var(--success-text)",
-  degraded: "var(--warning-text)",
-  down: "var(--critical-text)",
-  absent: "var(--text-muted)",
-  unknown: "var(--text-muted)",
-};
-
-export interface CustodyLink {
-  id: string;
-  /** What this artefact IS, printed as the node's kicker. */
-  role: string;
-  artefact: string;
-  /** The operation on the edge leaving this node; null on the terminal node. */
-  operation: string | null;
-  /** What this link produced, or null when it produced nothing and says why. */
-  produced: string | null;
-  state: LinkState;
-  /** The state in this chain's own words. "healthy" would mean nothing here. */
-  word: string;
-  detail: string;
-  /** The repository path a reader opens to check the claim. */
-  source: string;
 }
 
 /** The computing links share one state, because one run either happened or did not. */
@@ -231,24 +211,6 @@ export function custodyChain(
   ];
 }
 
-const ARROW_STYLE: CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: "2px",
-  flex: "0 0 auto",
-  maxWidth: "92px",
-  textAlign: "center",
-};
-
-const EDGE_LABEL: CSSProperties = {
-  fontSize: "var(--fs-2xs)",
-  fontWeight: 650,
-  lineHeight: "var(--lh-snug)",
-  color: "var(--text-muted)",
-};
-
 /**
  * The panel: the chain, both digests in full, and the remedy when one is wrong.
  *
@@ -257,7 +219,6 @@ const EDGE_LABEL: CSSProperties = {
  * so nothing here is exported for a pane that might exist later.
  */
 export default function NumericsCustodyChain({ run }: { run: BrowserRun }) {
-  const [open, setOpen] = useState<string | null>(null);
   const committed = useSha256(MC_PARITY_REFERENCE_JSON, "The committed module has not been re-hashed yet.");
   const observed = useSha256(
     run.phase === "complete" ? run.json : null,
@@ -269,7 +230,6 @@ export default function NumericsCustodyChain({ run }: { run: BrowserRun }) {
   );
 
   const chain = custodyChain(run, committed, observed);
-  const opened = chain.find((link) => link.id === open) ?? null;
   const observedHex = digestHex(observed);
   const committedHex = digestHex(committed);
   const stale = committedHex !== null && committedHex !== MC_PARITY_REFERENCE_SHA256;
@@ -278,54 +238,7 @@ export default function NumericsCustodyChain({ run }: { run: BrowserRun }) {
 
   return (
     <div style={{ marginTop: "var(--space-3)" }}>
-      <ol className="signal-workflow__track" aria-label="Numerics custody chain">
-        {chain.map((link, index) => (
-          <li key={link.id} className="signal-workflow__stage">
-            <button
-              type="button"
-              className={`signal-workflow__node${open === link.id ? " is-selected" : ""}`}
-              aria-pressed={open === link.id}
-              data-state={link.state}
-              onClick={() => setOpen(open === link.id ? null : link.id)}
-            >
-              <span className="signal-workflow__step">
-                Link {index + 1}: {link.role}
-              </span>
-              <strong>{link.artefact}</strong>
-              <span className="signal-workflow__meta">
-                {/* A link that produced nothing says so, rather than borrowing
-                    the figure from the link beside it. */}
-                <span className="num">{link.produced ?? "nothing yet"}</span>
-                <em>
-                  <span aria-hidden>{STAGE_GLYPH[link.state]}</span> {link.word}
-                </em>
-              </span>
-            </button>
-            {/* The edge is labelled with the operation that makes the next
-                artefact, which is the difference between a chain and a row of
-                boxes. Rendered on every stage and hidden on the last, for the
-                reason SignalDAG records: a stage with no arrow gets the gap and
-                the glyph's width back and comes out wider than its neighbours. */}
-            <span
-              className="signal-workflow__arrow"
-              style={link.operation ? ARROW_STYLE : { ...ARROW_STYLE, visibility: "hidden" }}
-            >
-              <span aria-hidden>→</span>
-              <small style={EDGE_LABEL}>{link.operation ?? "end"}</small>
-            </span>
-          </li>
-        ))}
-      </ol>
-
-      {opened && (
-        <div className="signal-workflow__detail" role="status">
-          <strong>{opened.artefact}</strong>
-          <p>{opened.detail}</p>
-          <p className="signal-workflow__source">
-            Read from <code>{opened.source}</code>
-          </p>
-        </div>
-      )}
+      <CustodyChainTrack chain={chain} label="Numerics custody chain" />
 
       <div className="signal-workflow__detail" style={{ marginTop: "var(--space-3)" }}>
         <CustodyDigestRow

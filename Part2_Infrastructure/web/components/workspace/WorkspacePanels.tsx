@@ -22,6 +22,7 @@ import LiveMarket from "@/components/LiveMarket";
 import { type PortfolioFocusDestination } from "@/components/PortfolioWorkspace";
 import ResearchWorkspace from "@/components/ResearchWorkspace";
 import NextStepFooter from "@/components/common/NextStepFooter";
+import { BookStatus } from "@/components/portfolio/BookChrome";
 import WorkspaceIntro from "@/components/WorkspaceIntro";
 import WorkspaceSubtabs from "@/components/WorkspaceSubtabs";
 import {
@@ -140,6 +141,12 @@ export default function WorkspacePanels({ routing, sweep, desk }: WorkspacePanel
             insights={portfolioInsights({
               book, executionStrategy, selectedSleeveDetail, selectedSleeveAttribution,
             })}
+            /* Which book these four chips describe, in the heading's control
+               slot rather than a full-width row below them. Both book tabs
+               pass the same node, because Portfolio and Risk are one snapshot
+               asked a different question and a reader who saw "Live" on one
+               and nothing on the other would have to guess which was current. */
+            actions={<BookStatus view={book} />}
           />
           <PortfolioTab
             active={view === "portfolio"}
@@ -170,6 +177,7 @@ export default function WorkspacePanels({ routing, sweep, desk }: WorkspacePanel
             insights={riskInsights({
               book, executionStrategy, selectedSleeveDetail, selectedSleeveAttribution,
             })}
+            actions={<BookStatus view={book} />}
           />
           <RiskTab
             view={book}

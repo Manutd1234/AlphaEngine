@@ -38,7 +38,7 @@
 
 import { useState } from "react";
 
-import { BookChrome, BookFallback, BookSourceControl } from "@/components/portfolio/BookChrome";
+import { BookChrome, BookFallback, BookSourceControl, bookStateLabel } from "@/components/portfolio/BookChrome";
 import AllocationSection from "@/components/portfolio/AllocationSection";
 import EquityCurve from "@/components/portfolio/EquityCurve";
 import ExecutionHandoff, { type HandoffIntent } from "@/components/portfolio/ExecutionHandoff";
@@ -113,10 +113,11 @@ export default function PortfolioWorkspace({
   if (!book) return fallback;
 
   // Sandbox first: `isStale` is forced false in sandbox, so keying on it alone
-  // would caption generated positions as a "Live book". Decided once here
-  // rather than per section, so two panels can never caption one snapshot two
-  // different ways.
-  const bookLabel = book.sandbox ? "Sandbox book (generated)" : isStale ? "Last known book" : "Live book";
+  // would caption generated positions as a "Live book". The three words now
+  // come from `bookStateLabel`, which the heading's status line reads too — the
+  // wording was stated in both places and had already drifted apart in the
+  // stale case, so one snapshot carried two names a scroll apart.
+  const bookLabel = bookStateLabel(Boolean(book.sandbox), isStale);
 
   // Moving focus with the section is what makes the jump usable from a keyboard:
   // the rail is a tablist, so landing on the tab itself puts the arrow keys back

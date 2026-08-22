@@ -91,7 +91,19 @@ export default function AlertFeed({ events, source = "live" }: AlertFeedProps) {
                 {event.symbol ? <span className="muted">, {event.symbol}</span> : null}
                 {event.detail ? <span className="cockpit-alert-list__detail">{event.detail}</span> : null}
               </span>
-              <span className="muted cockpit-alert-list__actor">{event.actor ?? "system"}</span>
+              {/* "system" was a value this component invented. `actor` is
+                  nullable all the way from the gateway's row (parse.ts keeps
+                  it null), and this file's own opening note is that "who
+                  halted this" has a different answer for a human and for the
+                  circuit breaker — so printing "system" over a null answered
+                  that question with a guess, and named the automation, which
+                  is the reading that changes what a trader does next.
+                  Rejected: a bare dash, which every other column on the desk
+                  uses for an absent measurement; the actor is one word and
+                  the space is already there, so the row can say why. */}
+              <span className="muted cockpit-alert-list__actor">
+                {event.actor ?? "actor not recorded"}
+              </span>
             </li>
           ))}
         </ul>

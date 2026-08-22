@@ -84,8 +84,21 @@ export default function ExecutionQuality({ summary, symbol, symbolOrders, rows =
             </div>
             <div>
               <dt>Fees paid</dt>
-              <dd>{usd(summary.totalFees, 2)}</dd>
-              <span className="muted">on filled notional</span>
+              {/* A window whose fills all arrived without a fee summed to 0
+                  and printed "$0.00" — a desk that traded for free, which is
+                  the one reading this panel must never produce. Zero fees
+                  recorded and zero fees charged are opposite claims, so the
+                  first one dashes; and when only SOME fills carry a fee the
+                  total is real but partial, and the line beneath it says over
+                  how many. Rejected: dashing the total whenever any fee is
+                  missing, which discards every fee the gateway did record and
+                  answers a partial measurement with no measurement. */}
+              <dd>{summary.feePricedFills ? usd(summary.totalFees, 2) : "—"}</dd>
+              <span className="muted">
+                {summary.feeUnpricedFills
+                  ? `over ${summary.feePricedFills} of ${summary.accepted} fills; ${summary.feeUnpricedFills} recorded no fee`
+                  : "on filled notional"}
+              </span>
             </div>
             <div>
               {/* "Median gate latency", not "median latency". This is time inside

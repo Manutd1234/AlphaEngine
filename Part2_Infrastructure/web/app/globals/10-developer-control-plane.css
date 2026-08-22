@@ -141,12 +141,12 @@
   gap: 2px;
 }
 
+/* Voice, not size: the --fs-title declared here never reached the hero (--fs-h1, further down this file) and made the other two a fourth card-title size; both are card heads, so they take the house rung. */
 .developer-cp-heading h2,
 .developer-cp-section-hero h2,
 .developer-cp-context h2 {
   margin: 0;
   color: var(--text-primary);
-  font-size: var(--fs-title);
   font-weight: 710;
   letter-spacing: var(--ls-figure);
   line-height: 1.25;
@@ -723,7 +723,7 @@
 }
 
 .developer-cp-section-hero h2 {
-  font-size: var(--fs-h1);
+  font-size: var(--fs-h2);
 }
 
 .developer-cp-section-hero p {

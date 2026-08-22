@@ -59,7 +59,16 @@ export default function FactorPanel({ report }: { report: FactorReport | null })
     <div className="card">
       <div className="section-heading compact">
         <div>
-          <h2>Factor exposure &amp; alpha decomposition</h2>
+          {/* The same title the !report branch above prints. This read
+              "Factor exposure & alpha decomposition", so one card answered to
+              two names depending on whether the regression estimated — and at
+              360px, the half-width track this shares with Versus benchmark, the
+              longer one wrapped to a second row while its neighbour sat on one.
+              Renaming the null branch to match the longer title was the other
+              way to make them agree and was rejected: "alpha decomposition"
+              restates the sub beneath it, which already says the return is
+              regressed on three factors and that the residual is measured. */}
+          <h2>Factor exposure</h2>
         </div>
         <span className="section-note">{r.n.toLocaleString()} bars</span>
       </div>

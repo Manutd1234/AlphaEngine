@@ -64,7 +64,14 @@ export const positionsSection = code(read("components/portfolio/PositionsSection
 export const allocationSection = code(read("components/portfolio/AllocationSection.tsx"));
 /** The one place the bands and the drift prompt are written down. */
 export const alertBands = read("components/portfolio/alert-bands.ts");
-export const riskSource = read("components/RiskWorkspace.tsx");
-export const risk = code(riskSource);
+/**
+ * The Risk tab's limits subtab. It was the body of `RiskWorkspace.tsx` until
+ * that file reached the line ceiling, and the cross-link tile came out with it,
+ * so this follows the tile rather than the workspace that used to hold it. A
+ * read left on the workspace would scan a file the tile has left, find nothing,
+ * and report green — the exact failure this helper's header opens by naming.
+ */
+export const limitsPanelSource = read("components/risk/LimitsPanel.tsx");
+export const limitsPanel = code(limitsPanelSource);
 export const bookChromeSource = read("components/portfolio/BookChrome.tsx");
 export const bookChrome = code(bookChromeSource);

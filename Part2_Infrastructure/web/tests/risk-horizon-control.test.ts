@@ -1,23 +1,24 @@
 /**
- * The shared forward horizon takes the row it is standing in.
+ * The shared forward horizon is styled without forking the shared seg.
  *
- * Reported: "fix the monte carlo dates 1d 10d 30d 90d i want it to be bigger,
- * there is so much space to the right of it." Accurate. `.seg` is a
- * shrink-to-fit flex box inside `.risk-horizon`, which is a flex row, so four
- * two-glyph labels sized the control at roughly 180px and left the rest of a
- * desk-width panel empty — on the one control that governs BOTH loss estimates
- * on this tab, which is exactly why it sits above a card rather than in its
- * heading.
+ * This suite used to pin the OTHER half of that sentence too — that the row
+ * became a two-track grid and the seg stretched to fill a `1fr` track, written
+ * for "i want it to be bigger, there is so much space to the right of it". The
+ * desk then reported the result: "reduce the size of the 10d 30d 90d dont need
+ * occupy the entire row." The stretch is gone, and the assertions that pinned
+ * it went with it rather than being softened into something that would pass
+ * either way. What replaced them lives in `risk-rail-fit.test.ts`, which pins
+ * the opposite just as hard: content-sized, with a fingertip floor.
  *
- * The constraint that shaped the fix is the interesting half. `.seg` and
- * `.seg button` are being converged in `12-workspace-standardisation.css` onto
- * one size for all eight tabs, with the note "the ask was consistent and NOT
- * bigger", and `15-navigator-and-trailing-layer.css` raises the same floor to
- * 40px for coarse pointers. So this partial changes the BOX the seg occupies
- * and not one property of the seg itself: no padding, no font-size, no
- * min-height, no border. The two assertions that matter here are therefore in
- * opposite directions — the row must claim the width, and the partial must
- * still not redeclare a single metric the shared rules own.
+ * What stays here is the constraint that outlived both answers, and it is the
+ * interesting half. `.seg` and `.seg button` are converged in
+ * `12-workspace-standardisation.css` onto one size for all eight tabs, with the
+ * note "the ask was consistent and NOT bigger", and
+ * `15-navigator-and-trailing-layer.css` raises the same floor to 40px for
+ * coarse pointers. Whatever this partial does to the horizon row, it must do
+ * without redeclaring one metric the shared rules own: no padding, no
+ * font-size, no min-height, no border. That held for the stretch and it holds
+ * for the floor that replaced it.
  */
 
 import assert from "node:assert/strict";
@@ -30,26 +31,17 @@ const density = readSource("app/globals/14e-density-risk.css");
 const rules = density.replace(/\/\*[\s\S]*?\*\//g, "");
 const seg = stripCode(readSource("components/risk/HorizonSeg.tsx"));
 
-describe("the control fills the space that was empty beside it", () => {
-  it("the row becomes a two-track grid at tablet width and up", () => {
-    assert.match(rules, /@media \(min-width: 720px\)[\s\S]*?\.risk-horizon \{[^}]*grid-template-columns: auto minmax\(0, 1fr\)/,
-      "the label takes its own width, the seg takes the rest");
-  });
-
-  it("the seg is told to fill its track", () => {
-    assert.match(rules, /\.risk-horizon > \.seg \{[^}]*width: 100%/);
-  });
-
-  it("the four segments spread themselves, through the shared flex rule", () => {
-    // `.seg button { flex: 1 }` in 00 is what distributes them once the
-    // container has a width. Nothing here needs to say so, and this asserts
-    // that nothing here DOES: the fix is one width declaration, not four.
+describe("the row styles the seg's box and nothing inside it", () => {
+  it("does not redistribute the segments itself", () => {
+    // `.seg button { flex: 1 }` in 00 equalises them; this partial has never
+    // needed to say so and must not start. Survives the stretch's removal
+    // unchanged, because it was never about the stretch.
     assert.doesNotMatch(rules, /\.risk-horizon[^{]*\.seg button \{[^}]*flex:/);
   });
 
-  it("the label is legible against a control that now spans the panel", () => {
+  it("the label is legible beside the control it names", () => {
     assert.match(rules, /\.risk-horizon > span \{[^}]*font-size: var\(--fs-sm\)/,
-      "12.5px over a full-width control reads as a caption that lost its subject");
+      "12.5px beside the seg reads as a caption that lost its subject");
   });
 });
 

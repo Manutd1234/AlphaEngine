@@ -9,6 +9,13 @@
  * names the one thing the setting does not touch — the header — because a
  * reader who sets Large and sees the toolbar unchanged should be told that is
  * the design, not a defect.
+ *
+ * The descriptions quote PIXELS, not the fraction the step is written as. The
+ * old wording ("fifteen sixteenths", "a step more on a wide monitor") was
+ * both unquotable and, after the content ladder stopped being fluid on
+ * 2026-08-20, untrue; nothing pinned it, so it drifted in silence for two
+ * days. tests/type-ladder-presets.test.ts now pins these three numbers
+ * against the stylesheet, so the prose cannot outlive the tokens again.
  */
 
 import { useEffect, useState } from "react";
@@ -25,18 +32,18 @@ import {
 const LABELS: Record<TextSize, { label: string; title: string; description: string }> = {
   compact: {
     label: "Compact",
-    title: "Text size: compact — the ladder before the 2026-08-17 lift, for a dense desk.",
-    description: "Every workspace rung at fifteen sixteenths — the ladder the desk had before it stepped up.",
+    title: "Text size: compact — reading text at 12px, for a dense desk.",
+    description: "Reading text at 12px, with every other workspace rung scaled to match, for a dense desk.",
   },
   comfortable: {
     label: "Comfortable",
-    title: "Text size: comfortable — the default ladder, fluid between a laptop and a wide desk.",
-    description: "The default: 12–17px reading rungs on a laptop, a step more on a wide monitor.",
+    title: "Text size: comfortable — the default, reading text at 14px.",
+    description: "The default: reading text at 14px, the ladder exactly as the stylesheet writes it.",
   },
   large: {
     label: "Large",
-    title: "Text size: large — every workspace rung at nine eighths.",
-    description: "Every workspace rung at nine eighths, for a far monitor or a long day.",
+    title: "Text size: large — reading text at 17px, for a far monitor.",
+    description: "Reading text at 17px, with every other workspace rung scaled to match, for a far monitor or a long day.",
   },
 };
 

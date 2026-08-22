@@ -129,7 +129,14 @@ export default function DeveloperApiCatalog() {
           <span className="page-kicker">Developer surface</span>
           <h2>{API_OPERATIONS.length} web API operations</h2>
         </div>
-        <span className="section-note">{API_ROUTE_HANDLER_COUNT} route handlers, grouped by responsibility</span>
+        {/* The count, not a description of the control below it. "grouped by
+            responsibility" described the domain filter that renders forty
+            pixels down and names its own five groups — All, Market data,
+            Research, Gateway, System — so the caption announced a grouping the
+            reader was already looking at. Rejected: moving the phrase onto the
+            filter as an aria-label, which would put the same restatement into
+            a screen reader instead of onto the screen. */}
+        <span className="section-note">{API_ROUTE_HANDLER_COUNT} route handlers</span>
       </div>
 
       <div className="developer-api-catalog__toolbar">

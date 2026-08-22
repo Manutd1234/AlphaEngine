@@ -138,8 +138,17 @@ describe("one type scale", () => {
   it("reading text never drops below the floor, in rem, at the browser's default size", () => {
     // --fs-tick is SVG chart furniture; no rung below it. The reading floor
     // is --fs-2xs, in rem × step: at 16px root and step 1 it must not fall
-    // under 10px (it came in one commit after small type crept to 7pt), and
-    // the compact step must not take it under 10px either.
+    // under 10.5px (it came in one commit after small type crept to 7pt), and
+    // the compact step must not take it under 10.5px either.
+    //
+    // Raised from 10 to 10.5 on 2026-08-22, when the compact step went to 6/7:
+    // at the old 0.75rem that step computed to 10.29px, which cleared the 10px
+    // guard while putting prose 0.29px above --fs-tick — and --fs-2xs is not a
+    // kicker rung, it carries the bare `small` rule, two prose selectors, a log
+    // stream, table bodies and 21 controls. The rung moved to 0.78125rem in the
+    // same change; the guard moved with it so the next step cannot quietly
+    // re-enter the tick zone. Strengthening, not a weakening: nothing that
+    // passed at 10.5 would have failed at 10.
     const tick = declarations.match(/--fs-tick:\s*([\d.]+)px/);
     assert.ok(tick && Number(tick[1]) >= 9, "--fs-tick must stay a legible px tick size");
     // Fluid or fixed, the floor is the clamp's minimum: what a laptop and a
@@ -147,9 +156,9 @@ describe("one type scale", () => {
     const floor = declarations.match(/--fs-2xs:\s*calc\((?:clamp\()?([\d.]+)rem/);
     assert.ok(floor, "--fs-2xs must be rem × --type-step");
     const px = Number(floor![1]) * 16;
-    assert.ok(px >= 10, `--fs-2xs is the reading floor: never below 10px (got ${px})`);
+    assert.ok(px >= 10.5, `--fs-2xs is the reading floor: never below 10.5px (got ${px})`);
     const compact = declarations.match(/\[data-text-size="compact"\]\s*\{[^}]*--type-step:\s*([\d.]+)/);
-    if (compact) assert.ok(px * Number(compact[1]) >= 10, "the compact step must keep the floor legible");
+    if (compact) assert.ok(px * Number(compact[1]) >= 10.5, "the compact step must keep the floor legible");
   });
 
   it("every fluid rung's maximum is above its minimum, and the viewport term is gentle", () => {

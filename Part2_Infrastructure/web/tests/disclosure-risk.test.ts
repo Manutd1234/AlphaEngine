@@ -29,7 +29,7 @@
  *
  * `tests/copy-audit.test.ts` holds the tree-wide rule that a `<summary>` may not
  * repeat a contiguous four-word phrase from what it hides, re-run here over
- * these seven files so this suite fails on its own terms.
+ * these eight files so this suite fails on its own terms.
  */
 
 import assert from "node:assert/strict";
@@ -38,11 +38,12 @@ import { describe, it } from "node:test";
 import { readSource, stripCode } from "./helpers/source-files";
 
 /**
- * The seven files the Risk tab draws itself from. `MonteCarloDistribution` was
+ * The eight files the Risk tab draws itself from. `MonteCarloDistribution` was
  * missing from the first six, which is why the first sweep never reached it.
  */
 const PATHS = [
   "components/RiskWorkspace.tsx",
+  "components/risk/LimitsPanel.tsx",
   "components/risk/MonteCarloDistribution.tsx",
   "components/portfolio/RiskEngine.tsx",
   "components/portfolio/StressTest.tsx",
@@ -211,7 +212,7 @@ const VISIBLE: Pinned[] = [
       + "a fold the subtab renders a kicker, a heading and blank space.",
   },
   {
-    path: "components/RiskWorkspace.tsx",
+    path: "components/risk/LimitsPanel.tsx",
     text: "sandbox thresholds — same limits, generated book",
     because:
       "SAFETY. It says the book under these limits is generated, and it is a heading meta span "
@@ -344,7 +345,7 @@ describe("every fold on this tab is a real bargain with the reader", () => {
     assert.ok(checked >= 4, `expected at least four folds to check, checked ${checked}`);
   });
 
-  /** The tree-wide `copy-audit` invariant, re-run over these seven files. A
+  /** The tree-wide `copy-audit` invariant, re-run over these eight files. A
    *  summary is a question; opening it must buy an answer not already given
    *  away. Four contiguous words is the narrow, unarguable form of that — a
    *  looser measure punishes a summary for naming its own subject. */

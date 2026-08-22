@@ -133,4 +133,11 @@
    ones they replace, so a data event never moves the reader. After the
    density partials, which set the settled heights it reserves against. */
 @import "./globals/14j-layout-stability.css";
+
+/* The same argument, one surface along: the sign-in card reserves the space
+   its provider probe will answer into. Its own partial because 14j is open in
+   another working tree and 01, where the .auth-* rules live, is over the
+   file-length ceiling. After 14j, since it restates that file's split-constant
+   idiom and must be able to override it. */
+@import "./globals/14k-login-layout-stability.css";
 @import "./globals/15-navigator-and-trailing-layer.css";

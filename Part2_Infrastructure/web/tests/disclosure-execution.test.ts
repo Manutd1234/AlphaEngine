@@ -194,9 +194,10 @@ const VISIBLE: { key: Key; why: string; sentence: string }[] = [
   { key: "spread", why: "empty state", sentence: "No priced fill in this window. Rejections carry no execution price, so this is an absence of trading, not of measurement." },
   { key: "venueMix", why: "empty state", sentence: "No audit log is reachable here, so there are no fills to attribute to a venue." },
   { key: "book", why: "empty state", sentence: "waiting for book…" },
-  // The withheld column keeps its word and its basis, on screen, beside the figure.
+  // The withheld column keeps its word and its basis, beside the figure. The basis cell was one
+  // constant claim over every venue; it is derived now, and fill-quality-provenance.test.ts says why.
   { key: "spread", why: "withheld leg", sentence: "Realized spread — not measured" },
-  { key: "spread", why: "withheld leg", sentence: "measured, measured, not measurable" },
+  { key: "spread", why: "withheld leg", sentence: "{BASIS_WORD[venue.provenance.spread.kind]}, {BASIS_WORD[venue.provenance.fee.kind]}, not measurable" },
   // SAFETY: generated data, in both panels that can render it.
   { key: "spread", why: "safety", sentence: "Generated desk." },
   { key: "venueMix", why: "safety", sentence: "Generated desk." },

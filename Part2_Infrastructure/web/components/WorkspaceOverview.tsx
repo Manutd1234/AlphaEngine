@@ -209,8 +209,26 @@ export default function WorkspaceOverview({
            below names them in order, and a sentence that enumerates what the
            next element enumerates is a caption for a diagram nobody has read
            yet. What survives is what the desk is FOR, which the pipeline
-           cannot say about itself. */
-        description={<>Your one-stop infrastructure that can solve all needs from trade execution, debugging and research.</>}
+           cannot say about itself.
+
+           Fourteen words became eight, on the user's instruction: they pointed
+           at this line wrapping onto a second row and asked for one row. All
+           three of their nouns are kept and only the scaffolding between them
+           is gone — "Your", "one-stop", and the clause that claimed scope
+           instead of stating it. Fifty-two characters holds one row at every
+           type preset, in a band that gives the copy column roughly 880px
+           beside the CTA; the hundred-and-one-character original held one at
+           no width this desk is read at.
+
+           REJECTED: "Every figure on this desk names where it came from." It
+           is the truer sentence about this product and the wrong one in this
+           slot — it is the claim the four chips directly below already make
+           one at a time, each with its own provenance note, so the head would
+           have been narrating the row under it. An earlier sweep refused to
+           touch this line at all on the grounds that the words were the
+           user's own; that argument expired when the user asked for them
+           shortened. */
+        description={<>Trade execution, debugging and research on one desk.</>}
         metrics={[
           {
             label: "Equity",

@@ -54,6 +54,26 @@ function numberOrNull(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
+/**
+ * The rate a sleeve was charged, in basis points of what it traded.
+ *
+ * Not a second fee figure: it is the only thing on this card that says WHICH
+ * schedule produced the dollars beside it, and the answer is a fixture.
+ * `modules/risk_proxy/execution.py` charges every taker fill
+ * `notional × settings.paper_fee_bps / 1e4` and every maker fill the maker
+ * rate, both flat — so a simulated cost reads the SAME rate on every sleeve
+ * where a negotiated one would not, and that repetition IS the disclosure.
+ *
+ * Derived, never read from a constant here: the payload publishes no fee rate,
+ * so a rate typed into this file would be a literal wearing a measurement's
+ * clothes the moment PAPER_FEE_BPS moved — the defect this exists to expose.
+ * Null with no notional to divide by; 0 bps would say the sleeve traded free.
+ */
+function impliedFeeBps(notional: number | null, fees: number | null): number | null {
+  if (notional === null || fees === null || notional <= 0) return null;
+  return (fees / notional) * 1e4;
+}
+
 export interface PerformanceSectionProps {
   book: PortfolioPayload;
   /** A book is on screen but the most recent refresh failed. */
@@ -109,7 +129,10 @@ export default function PerformanceSection({ book, isStale, equityTrack }: Perfo
     {
       label: "Fees paid",
       value: numberOrNull(quality.total_fees) == null ? null : usd(numberOrNull(quality.total_fees)!, 2),
-      note: "lifetime, across every session",
+      // No implied rate here, unlike the table below: `execution_stats()`
+      // sums fees over every order and reports no notional to divide by, so
+      // the rate this total was struck at is not derivable from this block.
+      note: "lifetime; charged by the paper broker at a flat rate",
     },
   ].filter((tile): tile is typeof tile & { value: string } => tile.value !== null);
 
@@ -164,12 +187,21 @@ export default function PerformanceSection({ book, isStale, equityTrack }: Perfo
                     </tr>
                   </thead>
                   <tbody>
-                    {strategies.map((strategy, index) => (
+                    {strategies.map((strategy, index) => {
+                      // Through `numberOrNull`, like the by-instrument table
+                      // below: `?? 0` stood here and drew a $0 notional and a
+                      // $0.00 fee bill for a sleeve the gateway sent neither
+                      // for, while Realised P&L, Win rate and Closed beside
+                      // them already dashed.
+                      const notional = numberOrNull(strategy.notional);
+                      const fees = numberOrNull(strategy.fees);
+                      const feeRate = impliedFeeBps(notional, fees);
+                      return (
                       <tr key={`${strategy.strategy ?? "unattributed"}-${index}`}>
                         <th scope="row">{strategy.strategy || "Unattributed"}</th>
                         <td>{strategy.orders}</td>
                         <td>{strategy.filled}</td>
-                        <td>${compact(strategy.notional ?? 0)}</td>
+                        <td>{notional === null ? <span className="muted">—</span> : `$${compact(notional)}`}</td>
                         <td className={
                           strategy.realized_pnl == null ? undefined : strategy.realized_pnl >= 0 ? "pos" : "neg"
                         }>
@@ -189,15 +221,40 @@ export default function PerformanceSection({ book, isStale, equityTrack }: Perfo
                         <td className="num">
                           {strategy.closed_trades == null ? <span className="muted">—</span> : strategy.closed_trades}
                         </td>
-                        <td>{usd(strategy.fees ?? 0, 2)}</td>
+                        <td>
+                          {fees === null ? <span className="muted">—</span> : usd(fees, 2)}
+                          {/* The schedule, read back off the two columns either
+                              side of it. Same shape as the ", open" marker two
+                              cells left: a qualifier on the figure it sits
+                              beside, never a column of its own. */}
+                          {feeRate !== null && (
+                            <small className="muted" title="Fees divided by notional traded — the rate this sleeve was charged">
+                              {", "}{fmt(feeRate, 2)} bps
+                            </small>
+                          )}
+                        </td>
                         <td>{strategy.avg_slippage_bps == null ? "—" : `${fmt(strategy.avg_slippage_bps, 2)} bps`}</td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             ) : (
               <p className="portfolio-attribution-empty">No audited order flow was recorded this session.</p>
+            )}
+            {/* AT REST, NOT FOLDED. The disclosure below is a scope claim read
+                once; this says a figure on screen is not a measurement, and a
+                reader who never opens a fold must not take a simulated cost for
+                one the desk paid — the rule that keeps BookChrome's sandbox
+                declaration and RiskAdjustedTrend's generated marker unfoldable.
+                Gated on rows: with none there is no figure to qualify. */}
+            {strategies.length > 0 && (
+              <p className="research-note">
+                Every fill is charged by the paper broker at one flat rate on notional, so the bps
+                beside each fee total is that schedule read back rather than a venue&apos;s tariff.
+                It repeats across sleeves because nothing measured it.
+              </p>
             )}
             {/* The boundary itself is on screen without this: the pane switcher
                 above reads "Flow, lifetime" beside "Trend, this session", and

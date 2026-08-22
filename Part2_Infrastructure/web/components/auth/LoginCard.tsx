@@ -32,10 +32,18 @@ interface LoginCardProps {
   onSwitchMode: (next: FormMode) => void;
   showPasswordField: boolean;
   showRemember: boolean;
-  showProviders: boolean;
+  /**
+   * Whether this mode has a provider region at all — signin and signup do,
+   * forgot and reset do not. Deliberately NOT "whether there are providers to
+   * draw": the region is reserved before the answer exists, which is the whole
+   * of the layout fix, so its presence may not depend on the answer.
+   */
+  showProviderSlot: boolean;
   /** Null only while the probe is still out — see `LoginScreen`'s three states. */
   probePending: boolean;
   probeFailed: boolean;
+  /** The probe answered, and it named at least one provider we can offer. */
+  providersOffered: boolean;
   offeredProviders: typeof PROVIDERS;
   onProvider: (provider: Provider) => void;
 }
@@ -43,8 +51,8 @@ interface LoginCardProps {
 export default function LoginCard({
   copy, banner, mode, email, onEmailChange, password, onPasswordChange,
   showPassword, onShowPasswordChange, remember, onRememberChange, busy,
-  onSubmit, onSwitchMode, showPasswordField, showRemember, showProviders,
-  probePending, probeFailed, offeredProviders, onProvider,
+  onSubmit, onSwitchMode, showPasswordField, showRemember, showProviderSlot,
+  probePending, probeFailed, providersOffered, offeredProviders, onProvider,
 }: LoginCardProps) {
   return (
     <div className="card auth-card">
@@ -138,13 +146,33 @@ export default function LoginCard({
         </button>
       </form>
 
-      {showProviders && (
-        <>
+      {showProviderSlot && (
+        /**
+         * The async region, reserved rather than mounted into.
+         *
+         * The button column was empty at ZERO height while the probe was out —
+         * measured, not assumed — and the answer lands after paint: 688ms over
+         * the network, 4.09s when `AbortSignal.timeout` gives up. The card then
+         * grew by a whole button row, and because `.auth-shell` centres the
+         * column with auto margins, that growth moved the masthead up by half
+         * and the guest action down by half in the same frame. Reserving one
+         * row under the divider makes the probing card and the answered card
+         * the same box; `14k-login-layout-stability.css` carries the numbers.
+         *
+         * `role="status"` because the reserve is deliberately silent to a
+         * screen reader — nothing is hidden and revealed, so no name and no
+         * focus stop appears out of nowhere — and what is worth announcing is
+         * what finally settled into it. Same shape as `AuthCallback`.
+         */
+        <div className="auth-providers" role="status" aria-live="polite">
           <p className="mt-5 mb-3 text-center text-fs-sm uppercase tracking-[0.08em] text-text-muted">
             {/* Not a bare "or" while the probe is out: a divider above nothing
                 is the headless-section case, and saying what is being waited
-                for costs one word. */}
-            {probePending ? "checking sign-in options" : "or"}
+                for costs one word. Not "or" once the answer is none either —
+                "or" promises an alternative that does not exist. */}
+            {probePending
+              ? "checking sign-in options"
+              : providersOffered ? "or" : "sign-in options"}
           </p>
           {probeFailed && (
             /**
@@ -157,11 +185,11 @@ export default function LoginCard({
              * warning at all, which is the defect this whole branch exists to
              * bound.
              */
-            <p className="mb-3 text-center text-fs-body leading-snug text-text-muted">
+            <p className="auth-providers__note mb-3 text-center text-fs-body leading-snug text-text-muted">
               We could not check which of these are enabled here, so one may not complete.
             </p>
           )}
-          <div className="flex flex-col gap-2">
+          <div className="auth-providers__options flex flex-col gap-2">
             {offeredProviders.map((provider) => (
               <button
                 key={provider.id}
@@ -173,8 +201,18 @@ export default function LoginCard({
                 Continue with {provider.label}
               </button>
             ))}
+            {!probePending && !providersOffered && (
+              /* Absence is a typed state with a named reason, and the reason
+                 fills the reserve rather than leaving it blank. This state used
+                 to drop the whole region, so an answer of "none enabled" made
+                 the card 48.71 to 55.67px SHORTER than the probing card — the
+                 one path where the page jumped upward instead of down. */
+              <p className="text-center text-fs-body leading-snug text-text-muted">
+                No provider is enabled in this deployment.
+              </p>
+            )}
           </div>
-        </>
+        </div>
       )}
 
       <div className="mt-5 border-t border-grid pt-4 text-fs-lg text-text-secondary">

@@ -24,6 +24,7 @@ import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { API_OPERATIONS } from "../components/developer/DeveloperApiCatalog";
+import { DEPLOYABLES } from "../lib/repository-catalog";
 
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
 const apiRoot = join(webRoot, "app/api");
@@ -113,5 +114,70 @@ describe("the developer API catalogue matches the app", () => {
       "more distinct paths than operations is arithmetically impossible",
     );
     assert.equal(catalogued.size, onDisk.size);
+  });
+
+  /*
+   * The same defect, one surface over, and it had already happened.
+   *
+   * The three tests above diff the catalogue against the filesystem, so the
+   * LIST cannot go stale. Nothing was watching the prose beside it. The
+   * topology card's Next.js node read "Role workflows plus twenty server-side
+   * API handlers" while this catalogue derived 44 from disk — two figures for
+   * one fact, two subtabs apart, and only the hand-written one was wrong.
+   *
+   * A count a human typed is a count nobody re-measures. This asserts the tab
+   * carries no second one: a deployable may describe what a runtime does, and
+   * may not say how many routes, handlers, endpoints or operations it has.
+   *
+   * Scoped to a quantity standing in front of one of those four nouns, not to
+   * any numeral. "behind one provider facade" is the openbb detail and is not
+   * a count of anything derived — a bare-numeral rule would have failed on it
+   * and been loosened back out within the week, which is a guard that teaches
+   * people to delete guards.
+   */
+  it("lets no hand-typed route count sit beside the derived one", () => {
+    const quantity = "one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve"
+      + "|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|\\d+";
+    const counted = DEPLOYABLES
+      .filter((deployable) => new RegExp(
+        `\\b(?:${quantity})\\b[^.;]{0,30}\\b(?:routes?|handlers?|endpoints?|operations?)\\b`,
+        "i",
+      ).test(deployable.detail))
+      .map((deployable) => `${deployable.id}: ${deployable.detail}`);
+    assert.deepEqual(
+      counted, [],
+      "a deployable's description hand-counts something this tab already derives "
+        + `from disk, which is how "twenty" survived to 44:\n  ${counted.join("\n  ")}`,
+    );
+  });
+
+  /*
+   * The caption over this list states the count and stops.
+   *
+   * It read "{n} route handlers, grouped by responsibility". The domain filter
+   * renders directly beneath it and names all five groups on its own buttons,
+   * so the caption was announcing a grouping already on screen — the tab's
+   * third documented restatement, after the topology intro that listed the
+   * buttons under it and the explorer subtitle that restated its heading.
+   *
+   * Pinned in both directions, the way tests/summarised-developer.test.ts pins
+   * its rewrites: without the second half a later pass could paste the phrase
+   * back and the first assertion would still pass.
+   */
+  it("captions the catalogue with the count alone", () => {
+    const panel = readFileSync(
+      join(webRoot, "components/developer/DeveloperApiCatalog.tsx"),
+      "utf8",
+    ).replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
+    assert.match(
+      panel,
+      /<span className="section-note">\{API_ROUTE_HANDLER_COUNT\} route handlers<\/span>/,
+      "the caption no longer states the derived handler count",
+    );
+    assert.doesNotMatch(
+      panel,
+      /grouped by responsibility/,
+      "the caption is describing the domain filter rendered beneath it again",
+    );
   });
 });

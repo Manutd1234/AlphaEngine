@@ -141,6 +141,13 @@ export const MC_DIST_HISTOGRAM_BINS = 32;
  * `stationaryBootstrapIndices` (lib/montecarlo.ts), `percentile`
  * (lib/quant.ts) and `histogramBins` (lib/stats.ts); the parity test fails
  * the build if any of them drifts from its original.
+ *
+ * `bootstrapIndices` carries the library's four-parameter shape for the same
+ * reason the library has it: `n` is the INDEX RANGE (the whole driver) and
+ * `count` is the STEP COUNT (the forward horizon). This card is the caller
+ * that needs them to differ — the horizon is short and the history is long —
+ * so passing the horizon as the range, as this file once did, resampled only
+ * the driver's oldest `horizonBars` bars.
  */
 export function mcSimulationFactory(): (req: McDistributionRequest) => McSimulation {
   const MIN_PATHS = 100;
@@ -158,13 +165,18 @@ export function mcSimulationFactory(): (req: McDistributionRequest) => McSimulat
     };
   };
 
-  const bootstrapIndices = (n: number, meanBlockLength: number, rand: () => number): Uint32Array => {
-    const out = new Uint32Array(n);
-    if (n === 0) return out;
+  const bootstrapIndices = (
+    n: number,
+    meanBlockLength: number,
+    rand: () => number,
+    count: number = n,
+  ): Uint32Array => {
+    const out = new Uint32Array(count);
+    if (count === 0 || n === 0) return out;
     const pNew = 1 / Math.max(1, meanBlockLength);
     let cur = Math.floor(rand() * n);
     out[0] = cur;
-    for (let i = 1; i < n; i++) {
+    for (let i = 1; i < count; i++) {
       cur = rand() < pNew ? Math.floor(rand() * n) : (cur + 1) % n;
       out[i] = cur;
     }
@@ -246,9 +258,13 @@ export function mcSimulationFactory(): (req: McDistributionRequest) => McSimulat
       step(count: number): number {
         const until = Math.min(paths, done + Math.max(1, Math.floor(count)));
         for (; done < until; done++) {
-          const idx = bootstrapIndices(horizonBars, meanBlockLength, rand);
+          // `n` is the range drawn from, `horizonBars` the number of steps.
+          // No `% n` on the read: after the split `idx[i] < n` by
+          // construction, and restating that invariant at the read was what
+          // made drawing from `[0, horizonBars)` look deliberate.
+          const idx = bootstrapIndices(n, meanBlockLength, rand, horizonBars);
           let multiple = 1;
-          for (let i = 0; i < horizonBars; i++) multiple *= 1 + drivers[idx[i] % n];
+          for (let i = 0; i < horizonBars; i++) multiple *= 1 + drivers[idx[i]];
           outcomes[done] = equity * (multiple - 1);
         }
         return done;

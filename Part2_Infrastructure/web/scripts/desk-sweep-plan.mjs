@@ -19,13 +19,13 @@ const TABS = {
   research: ["summary", "parameters", "walkforward", "attribution", "lineage", "decision", "runs", "fitted", "codex"],
   live: ["trade", "liquidity", "routing", "quality", "activity"],
   portfolio: ["overview", "equity", "positions", "allocation", "performance"],
-  risk: ["limits", "model", "drivers", "montecarlo", "oraclevar", "scenarios", "controls"],
+  risk: ["limits", "model", "diagram", "drivers", "montecarlo", "oraclevar", "scenarios", "controls"],
   data: ["overview", "feeds", "quality", "incidents", "lineage", "providers", "queue"],
   reliability: ["overview", "planes", "services", "events", "controls"],
   developer: ["overview", "readiness", "quality", "apis", "codebase", "work"],
 };
 
-const EXPECTED_SECTIONS = 47;
+const EXPECTED_SECTIONS = 48;
 
 /**
  * The two tabs whose job is to report infrastructure truth.

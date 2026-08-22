@@ -34,7 +34,16 @@ import {
 import { LATENCY_MIN_SAMPLES, type LatencyHistoryPoint } from "@/lib/overview-state";
 
 const MARGIN = { top: 12, right: 48, bottom: 26, left: 48 };
-const HEIGHT = 168;
+/* 140, down from 168, on the day this card moved ABOVE the triage list — the
+   arithmetic is in the comment at the top of ReliabilityAttention's return.
+   MARGIN takes 38, so the plot is 102 user units against the 130 it had: four
+   gridlines about 25 apart, still a shape a reader can date a degradation
+   from. 28 of the card's 54px saving is here; the other 26 came from its
+   packaging (14h-density-systems.css), which was taken first because it costs
+   the data nothing. The floor is the 96px sparkline in the overview KPI deck:
+   under that this stops being a second reading of the same series and becomes
+   a smaller copy of the one the header already shows. */
+const HEIGHT = 140;
 
 export default function LatencyTrend({ history }: { history: LatencyHistoryPoint[] }) {
   const [ref, width] = useMeasuredWidth<HTMLDivElement>(680);

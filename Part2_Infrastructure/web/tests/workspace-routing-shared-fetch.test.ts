@@ -42,6 +42,7 @@ describe("tabs that read the same snapshot share one fetch", () => {
       "../components/portfolio/AllocationSection.tsx",
       "../components/portfolio/PerformanceSection.tsx",
       "../components/RiskWorkspace.tsx",
+      "../components/risk/LimitsPanel.tsx",
     ]) {
       const code = stripNonCode(read(relative));
       assert.ok(

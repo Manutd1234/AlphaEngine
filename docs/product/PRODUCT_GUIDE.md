@@ -57,7 +57,7 @@ saved systems link is most likely asking (`web/lib/workspace-hash.ts`).
 
 The rails below name each tab's sections. They are transcribed from
 `web/lib/sections.ts` — the single definition the rails, the palette, the hash
-whitelist and "Copy link to this view" all read, 47 sections across the eight
+whitelist and "Copy link to this view" all read, 48 sections across the eight
 tabs — so if this file and the app ever disagree, `sections.ts` is right.
 
 ### 1 · Overview — `#overview`
@@ -128,11 +128,12 @@ mutate the book would be marking its own homework.
 
 **The question:** how much can we lose, and who can stop the desk?
 
-**Rail:** Limits → VaR & model → Risk drivers → Monte Carlo → Oracle VaR →
-Stress tests → Controls. The VaR carries its own backtest score; Oracle VaR
-asks the same question a second way, inside Oracle 23ai, because loss estimates
-that disagree are signal about method, not error; stress tests are forward
-shocks applied by hand.
+**Rail:** Limits → Risk engine → Risk diagram → Risk drivers → Monte Carlo →
+Oracle VaR → Stress tests → Controls. The VaR carries its own backtest score,
+and Risk diagram draws that forecast against what the book actually lost;
+Oracle VaR asks the same question a second way, inside Oracle 23ai, because
+loss estimates that disagree are signal about method, not error; stress tests
+are forward shocks applied by hand.
 
 **Writes it gates:** the desk's authority controls, all operator-gated and all
 reversible: the kill switch (`POST /api/risk/kill`, `/api/risk/resume`),

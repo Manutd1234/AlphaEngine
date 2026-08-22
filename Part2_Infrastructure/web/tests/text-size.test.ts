@@ -57,8 +57,15 @@ describe("the document contract", () => {
     const rootBlock = css.slice(css.indexOf(":root {"), css.indexOf("\n}\n", css.indexOf(":root {")));
     assert.match(rootBlock, /--type-step: 1;/);
     assert.doesNotMatch(rootBlock, /data-text-size/);
-    assert.match(css, /:root\[data-text-size="compact"\] \{\n  --type-step: 0\.9375;\n\}/);
-    assert.match(css, /:root\[data-text-size="large"\] \{\n  --type-step: 1\.125;\n\}/);
+    // 2026-08-22: the two steps became 6/7 and 17/14, so --fs-body resolves to
+    // exactly 12 / 14 / 17px. The old pair (0.9375, 1.125) put compact 0.88px
+    // from comfortable, which is not a difference a reader can see. Each block
+    // now opens with a comment stating its fraction, so the match runs to the
+    // declaration rather than straight to the closing brace.
+    // tests/type-ladder-presets.test.ts does the arithmetic these two numbers
+    // exist for; this assertion only keeps them where the bootstrap expects.
+    assert.match(css, /:root\[data-text-size="compact"\] \{[^}]*\n  --type-step: 0\.857142857;\n\}/);
+    assert.match(css, /:root\[data-text-size="large"\] \{[^}]*\n  --type-step: 1\.214285714;\n\}/);
     assert.match(css, /\nhtml \{\n  font-size: 100%;/);
   });
 

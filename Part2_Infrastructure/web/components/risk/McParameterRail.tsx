@@ -137,13 +137,31 @@ export default function McParameterRail({
             input reports an empty string for anything not yet a valid number,
             and committing `Number("")` would run the simulation on seed 0
             while the box still read what was typed. */}
+        {/* Eleven characters of seed plus the box's own chrome — the widest
+            uint32 is ten digits, so this is ten digits and one to spare.
+            The `+ 24px` is the arithmetic that was missing: `* { box-sizing:
+            border-box }` (00:437) makes a `width` the BORDER box, and this box
+            spends 18px of it on padding and border under a fine pointer
+            (14e's `padding: var(--space-1) var(--space-2)` plus 1px each side)
+            and 22px under a coarse one (00:1449's `8px 10px`). A bare `12ch`
+            therefore held 12ch MINUS that chrome — 9.7 characters at the
+            comfortable preset — and the tenth digit of the derived-seed
+            placeholder was clipped by the box's right border at every viewport
+            width. 24px clears the wider of the two chromes and leaves a full
+            character of slack at all three text sizes, because the 11ch half
+            scales with the preset and the 24px half does not.
+            Inline rather than a class, which is why it stays inline: 14e's
+            `pointer: fine` block sets `width: auto` on this exact input through
+            00:1447-1448's five-`:not()` selector, which is (0,6,1). Any sane
+            class hook loses to that, and replicating five `:not()`s to win a
+            width is a worse rule than one honest inline style. */}
         <input
           type="text"
           inputMode="numeric"
           value={seedText}
           placeholder={String(derivedSeed)}
           onChange={(event) => onSeedText(event.target.value)}
-          style={{ width: "12ch" }}
+          style={{ width: "calc(11ch + 24px)" }}
           aria-label={`Simulation seed; empty runs the sweep's derived seed, ${derivedSeed}`}
         />
       </label>

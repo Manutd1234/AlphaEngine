@@ -200,6 +200,10 @@ const REWRITES: Rewrite[] = [
     after: 'ariaLabel="Answers served: contract-checked against replayed from cache."',
     facts: ["Answers served", "contract-checked against replayed from cache"],
   },
+  // facts [] is this cut's argument: "Data operations work queue" was the board printing its own name back, "for triage" the Intake column's own description.
+  { file: "components/data/DataWorkBoard.tsx", what: "the summary stamped on a desk-created item", facts: [],
+    before: 'summary: "Added from the Data operations work queue for triage.",', after: 'summary: "No detail captured.",' },
+  { file: "components/data/DataTrustOverview.tsx", what: "the trust hero's kicker", facts: ["Market data trust"], before: '<span className="page-kicker">Market data quality / freshness monitor</span>', after: '<span className="page-kicker">Market data trust</span>' },
   {
     file: "components/data/FeedThroughput.tsx",
     what: "a venue whose every book reports a measured stop",

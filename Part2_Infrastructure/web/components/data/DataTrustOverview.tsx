@@ -166,7 +166,7 @@ export default function DataTrustOverview({
         <>
           <section className={`card data-trust-hero is-${trust.verdict.tone}`} aria-labelledby="data-trust-heading">
             <div>
-              <span className="page-kicker">Market data quality / freshness monitor</span>
+              <span className="page-kicker">Market data trust</span>
               <h2 id="data-trust-heading">{trust.verdict.label}</h2>
               <p>{trust.verdict.detail}</p>
             </div>

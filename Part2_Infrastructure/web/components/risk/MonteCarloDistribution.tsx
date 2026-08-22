@@ -17,12 +17,11 @@
  * could not tell a reader when the two disagreed, which is the only case worth
  * reporting.
  *
- * The line that reported the seed, the block length and the path count was
- * removed on request. Note what that does and does not change: the run is
- * still reproducible, and the seed is still derived from the sweep rather than
- * drawn fresh — the property survives, only the sentence about it went. It is
- * `directed-removals.test.ts` (entry O.7) that keeps the sentence from coming
- * back, not this comment.
+ * What the desk removed was the STANDALONE line reporting the seed, the block
+ * length and the path count, and `directed-removals.test.ts` (entry O.7) is
+ * what keeps it from coming back, not this comment. The facts did not all go
+ * with it: the run is still reproducible from the sweep-derived seed, and the
+ * block the run resolved survives as a derivation inside the disclosure below.
  */
 
 import { useMemo, useState } from "react";
@@ -154,6 +153,9 @@ export default function MonteCarloDistribution({
   // be printed under a confidence or a resampler it was not computed at.
   const lossBands = result ? mcLossConfidences(result) : ([50, 95, 99] as [number, number, number]);
   const ran = result ? mcResamplerOf(result) : resampler;
+  /* The block the run RESOLVED, never the rail's request: "auto" derives √N and an asked block
+     is clamped, so the two can differ. Rejected: widening `asked`, printed only when it refuses. */
+  const blocksRan = result ? `${result.meanBlockLength} bar${result.meanBlockLength === 1 ? "" : "s"}` : "— nothing simulated yet";
   /* The other half of the guard, over the finished run rather than its inputs:
      a result whose paths all end at one value has no quantiles, whatever the
      drivers looked like going in. A guard only on the inputs would cover the
@@ -222,7 +224,7 @@ export default function MonteCarloDistribution({
         <p className="research-note">
           Resamples <strong>{driver.label}</strong>&apos;s realised {driver.interval} returns with the{" "}
           {MC_RESAMPLER_LABELS[ran]} over a {horizonDays}-day forward horizon, keeping where each
-          path ends.
+          path ends. Blocks average {blocksRan}.
         </p>
       </details>
       {state.engine === "main-thread" && (

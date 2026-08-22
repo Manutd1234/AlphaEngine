@@ -25,8 +25,19 @@
   gap: 4px;
 }
 
+/* NO FONT SIZES IN THIS BLOCK, and that is the point of the block.
+   All three lines were sized here AND re-sized in the standardisation layer
+   (12), which is later and therefore what ships: the kicker at --fs-2xs and not
+   --fs-body, the title at --fs-xl and not --fs-h2, the hint at --fs-sm and not
+   --fs-2xl. Anyone tuning this footer from the file named after it — the
+   obvious place to look — was moving numbers that had not rendered since 12 was
+   written, and a cross-tab review read the dead 19px title off this file and
+   reported the footer's h3 as outranking every card h2 above it. It never did;
+   it ships at 15.5px. The three declarations are gone rather than moved, so the
+   rung is stated once, where the rest of this component's geometry already
+   lives. tests/rung-single-declaration.test.ts is what keeps them from coming
+   back. */
 .next-step-footer__kicker {
-  font-size: var(--fs-body);
   font-weight: 700;
   letter-spacing: var(--ls-caps);
   text-transform: uppercase;
@@ -35,14 +46,12 @@
 
 .next-step-footer__title {
   margin: 0;
-  font-size: var(--fs-h2);
   font-weight: 700;
   color: var(--text-primary);
 }
 
 .next-step-footer__hint {
   margin: 0;
-  font-size: var(--fs-2xl);
   color: var(--text-secondary);
 }
 

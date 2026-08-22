@@ -321,6 +321,14 @@ export function WorkspaceSubtabPanel<T extends string>({
    * not rendered yet — an empty box, measured, and realigned to the wrong
    * place. Re-running once the children exist is what makes the first visit
    * behave like every later one.
+   *
+   * SUPERSEDED on a routed subtab change, and deliberately kept. The shell
+   * reset in `lib/use-workspace-routing.ts` is a LAYOUT effect keyed on the
+   * active section, so it lands the shell at 0 before this passive one runs;
+   * `drift` then computes at or above zero and this no-ops. Removing it was
+   * rejected: it is the only code that resolves the right box by walking, and
+   * it still fires for the scrollers routing cannot reach — `.research-content`
+   * at desk width, and the in-panel `.seg` switchers that never enter the URL.
    */
   useEffect(() => {
     if (!active) return;

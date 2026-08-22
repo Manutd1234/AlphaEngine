@@ -10,6 +10,7 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { mcResultDegeneracy } from "@/components/risk/mc-degeneracy";
 import { parseMcSeed } from "@/components/risk/McParameterRail";
 import {
   createMcSimulation,
@@ -134,9 +135,9 @@ describe("the inlined helpers are the library helpers", () => {
     const rand = mulberry32(request.seed);
     const pnl: number[] = [];
     for (let p = 0; p < request.paths; p++) {
-      const idx = stationaryBootstrapIndices(request.horizonBars, meanBlockLength, rand);
+      const idx = stationaryBootstrapIndices(n, meanBlockLength, rand, request.horizonBars);
       let multiple = 1;
-      for (let i = 0; i < request.horizonBars; i++) multiple *= 1 + request.returns[idx[i] % n];
+      for (let i = 0; i < request.horizonBars; i++) multiple *= 1 + request.returns[idx[i]];
       pnl.push(request.equity * (multiple - 1));
     }
     const sorted = [...pnl].sort((a, b) => a - b);
@@ -179,6 +180,59 @@ describe("the inlined helpers are the library helpers", () => {
     direct.step(direct.total);
     assert.deepEqual(result.result, direct.finish());
     assert.ok(messages.some((m) => m.type === "progress"), "no progress was posted");
+  });
+});
+
+describe("the horizon is a number of steps, not a slice of the driver", () => {
+  /**
+   * The regression these two hold. `bootstrapIndices` was called with the
+   * horizon as its ONLY size, so it served as the index range as well as the
+   * path length and every draw landed in `[0, horizonBars)` — the driver's
+   * OLDEST bars. On a moving-average winner those are the warm-up, where
+   * `lib/engine/combo.ts:167-169` writes exact 0.0 because `lagged === 0`, so
+   * the card refused a perfectly healthy driver and reported the refusal as a
+   * property of the data. The `% n` at the read masked it: with
+   * `horizonBars <= returns.length` it is an identity map, which reads as a
+   * deliberate wrap rather than a range that was never wide enough to need one.
+   *
+   * Neither case could be caught by the full-run parity replay above, which
+   * transcribed the same call and so asserted the implementation against
+   * itself. These assert against the DRIVER instead — 60 warm-up zeros in
+   * front of 340 live bars, asked at a 60-bar horizon, which is the exact
+   * shape that reproduced the blank card.
+   */
+  const warmUpDriver = (): number[] => [
+    ...Array.from({ length: 60 }, () => 0),
+    ...syntheticReturns(340, 23),
+  ];
+
+  const finished = (overrides: Partial<McDistributionRequest> = {}) => {
+    const sim = createMcSimulation({
+      returns: warmUpDriver(),
+      horizonBars: 60,
+      paths: 2_000,
+      seed: 4_242,
+      equity: 1_000_000,
+      ...overrides,
+    });
+    sim.step(sim.total);
+    return sim.finish();
+  };
+
+  it("draws from the whole driver, not from its first horizonBars", () => {
+    assert.equal(
+      mcResultDegeneracy(finished()),
+      null,
+      "340 live bars behind a 60-bar warm-up is a distribution, not a driver with nothing in it",
+    );
+  });
+
+  it("the block length still moves the tail when the driver outlasts the horizon", () => {
+    // Two block lengths that can only reach the warm-up zeros produce the
+    // same single outcome, so this pair reads identical under the defect and
+    // the resampler control looks inert — the second way the same bug showed.
+    const at = (meanBlockLength: number) => finished({ meanBlockLength }).loss.p95;
+    assert.notEqual(at(5), at(40), "the block length reached no bar that differed from any other");
   });
 });
 

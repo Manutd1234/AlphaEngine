@@ -32,6 +32,10 @@ import { readSource, stripCode } from "./helpers/source-files";
 
 const SURFACES = [
   "components/RiskWorkspace.tsx",
+  // The limits subtab's body, extracted from the workspace when it hit the
+  // line ceiling. It is where the concentration tile is mounted now, so the
+  // workspace alone would no longer see the mount this suite exists to pin.
+  "components/risk/LimitsPanel.tsx",
   "components/risk/BookConcentration.tsx",
   "components/risk/MonteCarloDistribution.tsx",
   "components/portfolio/OracleVarPanel.tsx",
@@ -54,8 +58,8 @@ describe("the Risk tab counts the live figures it is safe to count", () => {
     const tile = at("components/risk/BookConcentration.tsx");
     assert.match(tile, /NumberTicker value=\{largestShare \* 100\}/);
     assert.match(tile, /NumberTicker value=\{effectivePositions\}/);
-    assert.match(at("components/RiskWorkspace.tsx"), /<BookConcentration/,
-      "the workspace must mount it, or the tab is exactly as still as it was");
+    assert.match(at("components/risk/LimitsPanel.tsx"), /<BookConcentration/,
+      "the limits panel must mount it, or the tab is exactly as still as it was");
   });
 
   it("both simulation cards count the live book equity beside their figures", () => {

@@ -50,11 +50,13 @@ its aria-label and title; HALTED is never folded.
 
 **Where the rail lists below come from.** Every rail in this document is transcribed from
 `Part2_Infrastructure/web/lib/sections.ts`, which is the single definition the rails, the
-command palette, the hash whitelist and "Copy link to this view" all read. **47 sections across
-the eight tabs.** Three ids deliberately disagree with their labels, because the deep link came
+command palette, the hash whitelist and "Copy link to this view" all read. **48 sections across
+the eight tabs.** Four ids deliberately disagree with their labels, because the deep link came
 first and ids never change: view `live` renders "Execution", section `codex` renders
-"Strategies", section `activity` renders "Blotter". If a rail here disagrees with the app,
-`sections.ts` is right and this file is stale — fix it here, not there.
+"Strategies", section `activity` renders "Blotter", and Risk's section `model` renders "Risk
+engine" — it was labelled "VaR & model" until the forecast and the chart scoring it were split
+onto two subtabs. If a rail here disagrees with the app, `sections.ts` is right and this file
+is stale — fix it here, not there.
 
 ---
 
@@ -202,13 +204,16 @@ rather than substituting an assumption.
 
 **The question it answers:** how much can we lose, and who can stop the desk?
 
-**60 seconds:** rail: **Limits → VaR & model → Risk drivers → Monte Carlo → Oracle VaR →
-Stress tests → Controls**. Limits shows the binding constraint and its utilisation. VaR & model
-carries the validated loss estimate with its traffic-light backtest zone and the
-forecast-against-realised chart that scores it. **Risk drivers** answers the next question
-separately — which positions carry the volatility, and how much of the diversification is real
-— because a contribution table and a correlation matrix sharing a row with a time series gave
-all three too little width to be read. **Monte Carlo** bootstraps the research winner's
+**60 seconds:** rail: **Limits → Risk engine → Risk diagram → Risk drivers → Monte Carlo →
+Oracle VaR → Stress tests → Controls**. Limits shows the binding constraint and its
+utilisation. **Risk engine** carries the validated loss estimate with its traffic-light
+backtest zone; **Risk diagram** is the forecast-against-realised chart that scores it, on a
+subtab of its own because a 361-line time series and a four-tile scorecard were sharing one
+card and the chart got whatever width was left. When the book has fewer than 80 aligned daily
+bars the diagram says so and names the floor, rather than leaving the subtab blank. **Risk
+drivers** answers the next question separately — which positions carry the volatility, and how
+much of the diversification is real — because a contribution table and a correlation matrix
+sharing a row with a time series gave all three too little width to be read. **Monte Carlo** bootstraps the research winner's
 realised returns into a terminal-outcome distribution, computed in a dedicated worker so the
 main thread only draws it. **Oracle VaR** asks the same question a second way — a terminal-value
 GBM simulated inside Oracle 23ai, read against its own closed-form quantile — and the two

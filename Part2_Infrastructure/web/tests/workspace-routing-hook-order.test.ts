@@ -137,6 +137,7 @@ const COMPONENTS = [
   "../components/portfolio/AllocationSection.tsx",
   "../components/portfolio/PerformanceSection.tsx",
   "../components/RiskWorkspace.tsx",
+  "../components/risk/LimitsPanel.tsx",
   "../components/DataConsole.tsx",
   "../components/ReliabilityConsole.tsx",
   "../components/DeveloperConsole.tsx",

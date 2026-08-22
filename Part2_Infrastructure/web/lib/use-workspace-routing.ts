@@ -191,24 +191,48 @@ export function useWorkspaceRouting() {
   }, []);
 
   /**
-   * The cut lands when the panel does.
+   * The cut lands when the panel does — for a tab change AND a subtab change.
    *
-   * A layout effect keyed on the view runs inside the commit that flips the
-   * panels' `hidden` attributes, before the browser paints — so the incoming
-   * workspace appears already at its top, in the same frame, instead of the
-   * old one jerking upward and the new one arriving later. It also covers
-   * every path that changes the view without passing through `navigate`:
-   * popstate and hashchange land in `readLocation`'s bare `setView`, which
-   * used to leave Back parked mid-page at whatever depth the previous tab had
-   * been read to. Instant on purpose — a tab change is a cut, not a camera
-   * move, and a cut leaves `prefers-reduced-motion` nothing to reduce. The
-   * subtab rails do their own finer restore (WorkspaceSubtabPanel realigns a
-   * revealed section under the chrome), which this reset composes with: the
-   * shell arrives at 0, and a panel already at its beginning stays put.
+   * A layout effect keyed on the view and on the ACTIVE workspace's section
+   * runs inside the commit that flips the panels' `hidden` attributes, before
+   * the browser paints — so the incoming panel appears already at its top, in
+   * the same frame, instead of the old one jerking upward and the new one
+   * arriving later. It also covers every path that changes either level
+   * without passing through `navigate`: popstate and hashchange land in
+   * `readLocation`'s bare setters, which used to leave Back parked mid-page at
+   * whatever depth the previous panel had been read to. Instant on purpose — a
+   * change of panel is a cut, not a camera move, and a cut leaves
+   * `prefers-reduced-motion` nothing to reduce.
+   *
+   * The section half exists because a workspace's visited panels stay mounted
+   * behind `display: none` and share one scroller, so its scrollHeight follows
+   * the TALLEST open panel. Measured on Portfolio: Performance settles at
+   * 1066px against Positions' 406px, so switching down clamped scrollTop from
+   * 650 to 5 and slid the page heading 645px back under the sticky rail — read
+   * as "the summary card getting smaller then bigger". Keyed on
+   * `sectionByViewRef.current[view]`, not on all eight section states, so a
+   * change in a HIDDEN workspace cannot scroll the visible one; that ref is
+   * assigned during render, so it is a legal dependency. And keyed on a
+   * CHANGE: a data poll re-rendering the same section moves nobody.
+   *
+   * REJECTED — per-subtab scroll memory: returning to a section and finding
+   * yourself mid-page with no explanation is worse than a predictable top, and
+   * each section's summary and verdict live at its top. REJECTED — copying
+   * ResearchWorkspace's local `scrollTop = 0` into the other seven rails:
+   * `.research-content` and `.workspace-shell` are different boxes, so the
+   * copy is inert in seven of eight workspaces, and eight `onChange` handlers
+   * would miss Back, the cross-links and the palette. Research keeps its own
+   * line rather than losing it here — at desk width its inner pane scrolls
+   * too, and a reset of the shell cannot reach inside it.
+   *
+   * WorkspaceSubtabPanel's finer realignment composes rather than fights:
+   * layout effects run before passive ones, so the shell lands at 0 first and
+   * that effect's `drift < 0` branch then finds nothing to correct.
    */
+  const activeSection = sectionByViewRef.current[view];
   useLayoutEffect(() => {
     shellRef.current?.scrollTo({ top: 0, behavior: "auto" });
-  }, [view]);
+  }, [view, activeSection]);
 
   useEffect(() => followLocation(applier, setView), [applier]);
 

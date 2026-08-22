@@ -964,12 +964,12 @@ button.page-insight:hover:not(:disabled) {
   display: flex;
   align-items: center;
   min-width: 0;
-  /* The group's own box, beside the box of the controls in it. It was split
-     across two partials — this file's `gap: 6px` and `padding-bottom: 2px`
-     against 15's `gap: 5px` and `padding: 3px 0 3px var(--space-2)`, the
-     later file winning both — which is the same drift the tabs themselves
-     suffered, on the other half of the same rail. */
-  padding: 3px 0 3px var(--space-2);
+  /* NO VERTICAL PADDING: it WAS the rail's height. 15 floors the strip at 40px
+     over a 1px hairline — a 39px content row — so 34px controls under `3px 0`
+     measured 40px and the three rails with actions stood 41px, publishing a
+     `--rail-h` the other five did not. Chrome at 1512px: 41 -> 40, controls'
+     baseline 312.031 -> 314.031, the tabs' own. REJECTED: 41px in 15. */
+  padding: 0 0 0 var(--space-2);
   border-left: 1px solid var(--border);
   gap: 5px;
 }
@@ -1225,12 +1225,14 @@ button.page-insight:hover:not(:disabled) {
   border-bottom: 1px solid var(--rule);
 }
 
+/* One rung for a card title. `.compact` is not a size: all 69 .section-heading
+   call sites carry it, so the --fs-title override that used to sit under this
+   rule WAS the card-title rung and the rule above it matched nothing — two
+   declarations reading as a choice a component could make, one of them dead.
+   .card > h2 and .portfolio-card-heading h2 now name this same rung, so a card
+   title is one size wherever it is written; type-role-map.test.ts holds that. */
 .section-heading :is(h2, h3) {
   font-size: var(--fs-h2);
-}
-
-.section-heading.compact :is(h2, h3) {
-  font-size: var(--fs-title);
 }
 
 
@@ -1568,6 +1570,20 @@ h4 {
 .portfolio-statusbar > div > span:last-child {
   flex: 1 1 320px;
   min-width: 0;
+}
+
+/* The same strip, in the page heading's control slot on Portfolio and Risk.
+   A fixed `width` and not a `max-width`: the refresh time inside re-renders
+   about once a second, and while `.num` is mono with tabular-nums — so no
+   digit is wider than another — the label around it still changes length when
+   the hour rolls from 9 to 10. A box sized to its content would breathe there,
+   beside a title, once an hour. This one cannot. The sandbox reading wraps to
+   a second line inside it rather than truncating, which is the whole point of
+   not using the nowrap `.page-status` pill. */
+.page-heading__actions .portfolio-statusbar {
+  width: 62ch;
+  max-width: 100%;
+  margin-bottom: 0;
 }
 
 /* ---------- header ---------- */

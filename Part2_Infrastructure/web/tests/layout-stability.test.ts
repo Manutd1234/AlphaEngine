@@ -34,8 +34,27 @@ describe("the book workspaces keep a locked floor under their sections", () => {
   it("portfolio, risk and execution panels carry one min-height between them", () => {
     assert.match(
       globalsCss,
-      /\.workspace-subtab-panel\[data-workspace-id="portfolio"\],\s*\.workspace-subtab-panel\[data-workspace-id="risk"\],\s*\.workspace-subtab-panel\[data-workspace-id="execution"\]\s*\{\s*min-height: 420px;/,
+      /\.workspace-subtab-panel\[data-workspace-id="portfolio"\],\s*\.workspace-subtab-panel\[data-workspace-id="risk"\],\s*\.workspace-subtab-panel\[data-workspace-id="execution"\]\s*\{\s*min-height: calc\(330px \+ 5 \* var\(--fs-body\)\);/,
       "the floor under the three data-rebuilt workspaces went",
+    );
+  });
+
+  it("the floor scales with the reader's text size instead of naming one", () => {
+    /*
+     * It was a flat `420px`, and measured against the running desk that
+     * number was wrong at both ends of the ladder: 13.6px of visible dead
+     * reserve under the shortest settled panel on the comfortable step, and
+     * BELOW that panel's settled height on large, where it stopped reserving
+     * anything. A floor that goes inert exactly where the type is biggest is
+     * a floor that is quietly missing the next time the ladder moves, so the
+     * literal is pinned out rather than merely replaced.
+     */
+    const floor = /min-height: calc\(330px \+ 5 \* var\(--fs-body\)\);/;
+    assert.match(globalsCss, floor);
+    assert.doesNotMatch(
+      globalsCss,
+      /data-workspace-id="execution"\]\s*\{\s*min-height: \d+px;/,
+      "the panel floor went back to a literal px, which does not follow the text size",
     );
   });
 

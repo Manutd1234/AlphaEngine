@@ -12,11 +12,18 @@
  *
  * The unconditional blocks at the top are not packing. Two are the shape of
  * control groups this tab owns, and they exist to make a row WRAP rather than
- * to fit more on a screen — a fix a phone needs more than a desk does. The
- * third puts the disabled Flatten button's reason on its own line under the
+ * to fit more on a screen — a fix a phone needs more than a desk does. Three
+ * more are the STATE of the Monte Carlo rail's controls, at every width: one
+ * focus ring where two were painting, and a disabled pill that looks disabled.
+ * The last puts the disabled Flatten button's reason on its own line under the
  * action row, at every width, because a reason crushed against the control it
  * explains is a reason a reader scrolls past. The horizon row's step is
  * tightened inside the desk query below, with everything else.
+ *
+ * The single `@media (pointer: fine)` block is the counterpart to those three:
+ * it makes the same controls SMALLER, which is only ever safe to say to a
+ * mouse, so it is gated rather than unconditional. The gate is load-bearing
+ * arithmetic, not caution — the block says why.
  */
 
 /* The shared forward horizon, above the card on the montecarlo and oraclevar
@@ -41,47 +48,62 @@
   white-space: nowrap;
 }
 
-/* THE HORIZON SEG TAKES THE ROW IT IS STANDING IN.
+/* THE HORIZON SEG IS SIZED BY ITS CONTENT, WITH A FINGERTIP FLOOR.
  *
- * Reported: "fix the monte carlo dates 1d 10d 30d 90d i want it to be bigger,
- * there is so much space to the right of it." It was accurate. `.seg` is a
- * shrink-to-fit flex box and `.risk-horizon` is a flex row, so four two-glyph
- * labels sized the whole control at roughly 180px and left the rest of a
- * desk-width panel empty — a control governing BOTH loss estimates on this tab
- * reading as an afterthought hugging the left margin.
+ * This row has now been reported twice, in opposite directions. First: "fix the
+ * monte carlo dates 1d 10d 30d 90d i want it to be bigger, there is so much
+ * space to the right of it" — answered by making `.risk-horizon` a two-track
+ * grid above 720px and telling the seg to fill a `1fr` second track. Then, of
+ * that result: "reduce the size of the 10d 30d 90d dont need occupy the entire
+ * row". Both readings are fair. The second is the correction of an
+ * over-correction: a `1fr` track spends the whole panel width on four two-glyph
+ * labels, so each segment ran to several hundred pixels and the control stopped
+ * reading as a control — it read as a nav bar.
  *
- * What this does NOT do is restyle `.seg`. Not one property `00-tokens-and-
- * base.css` declares on `.seg` or `.seg button` is redeclared here — not the
- * padding, not the font-size, not the border, not the pressed state — because
- * those rules are being converged elsewhere and a local override would fork
- * them at exactly one call site. What is set instead is the box the seg
- * OCCUPIES, which is this row's business and nobody else's: the row becomes a
- * two-track grid, the seg is told to fill its track, and `.seg button`'s
- * existing `flex: 1` does the rest — the four segments spread themselves
- * across the width without a single declaration of theirs being touched.
+ * What sits between the two is a FLOOR, not a stretch. The seg goes back to
+ * being the shrink-to-fit flex box `.seg` already is, sized by its own four
+ * labels, and each segment is given a 44px minimum width. Measured through the
+ * cascade at the comfortable preset: `.seg button`'s widest label "90d" is
+ * ~21px of text inside 12's `padding: 3px var(--space-2)`, so an unfloored
+ * segment is ~37px and the whole control ~169px; floored it is 44px a segment
+ * and ~193px overall; stretched it was the panel's full width, ~700px at desk.
  *
- * HEIGHT IS NOT TOUCHED, and that is a deliberate refusal rather than an
- * oversight. `12-workspace-standardisation.css` has just converged every
- * `.seg button` on one 24px floor with the note "the ask was consistent and
- * NOT bigger", and `15-navigator-and-trailing-layer.css` raises that to 40px
- * in the coarse-pointer block. Raising it again for this one row would fork a
- * decision that was made two files up, one week old, on a control twenty-two
- * components render. The desk's "bigger" is answered by width here; if height
- * is still wanted it belongs in that convergence, not in this partial.
+ * 44px is not a taste number, and it is a literal for the same reason 12's 24px
+ * and 15's 40px are — this is a fingertip dimension, not a step on the type or
+ * space ladder, and there is no width ladder to read. 44px is the target size
+ * this repo names: 12's convergence note says "44px at the fingertip is paid
+ * once in 15's coarse block", and 15:490 pays it for HEIGHT as `min-height:
+ * 40px` — 40 plus the seg's own 3px frame and 1px border reaching 48. Width
+ * cannot borrow that arithmetic, because the frame is drawn once around the
+ * GROUP and not around each segment, so each segment has to carry the whole 44
+ * itself. Doing so is what makes the two axes agree: a tablet reader gets a
+ * 44-by-44 target on the one control that governs BOTH loss estimates on this
+ * tab, which is the whole reason it sits above a card instead of in a heading.
  *
- * The grid is gated at 720px. Below it the row keeps the wrapping flex layout
- * above, because a phone has no space to the right of anything.
+ * The floor also holds the width STILL across the type ladder, which the
+ * stretch never did. "90d" measures ~18px at compact and ~25px at large; both
+ * sit under 44px, so the segments keep one width at all three presets and the
+ * card below them cannot shift when the preset changes.
+ *
+ * What this does NOT do is restyle `.seg` — unchanged from the stretch it
+ * replaces, and still the constraint that shapes the rule. Not one property 00
+ * or `12-workspace-standardisation.css` declares on `.seg` or `.seg button` is
+ * redeclared here: not the padding, not the font-size, not the border, not the
+ * pressed state, and NOT the height, which stays on 12's 24px floor and 15's
+ * 40px coarse floor. `min-width` is the one metric neither of them owns, which
+ * is exactly why the floor is expressed in that axis and not by widening the
+ * padding.
+ *
+ * REJECTED: keeping the grid and capping the seg with `max-width: max-content`.
+ * It is the smaller diff and it leaves a `1fr` track and a `width: 100%` on
+ * screen describing a layout the page no longer has, so the next reader has to
+ * run the cascade to learn which of the three declarations still does work.
+ * REJECTED: dropping the floor and letting the seg be purely content-sized.
+ * That is the ~169px control the first report called too small, and it puts a
+ * 37px-wide target under a fingertip on the tablet this tab is read on.
  */
-@media (min-width: 720px) {
-  .risk-horizon {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    column-gap: var(--space-3);
-  }
-
-  .risk-horizon > .seg {
-    width: 100%;
-  }
+.risk-horizon > .seg button {
+  min-width: 44px;
 }
 
 /* What the simulation was asked for, under a refusal to draw it
@@ -112,14 +134,135 @@
    five siblings they were spread across the heading's full width at desk size
    and overflowed the card below it. One flex item that wraps within itself is
    what the heading's grammar expects on every other card: title left, the
-   controls that act on the panel right. */
+   controls that act on the panel right. That grouping stays; the two changes
+   below are the floor it was missing, not a retreat from it.
+
+   `min-width` was 0, and that is what let the rail cross the card's border.
+   The rail wraps internally, so the narrowest it can honestly be is its widest
+   single `.rail-toggle` — Resampler, ~264px at the comfortable preset, because
+   `.rail-toggle` is `white-space: nowrap` (12:1016) and a `<select>` will not
+   ellipsis. `min-width: 0` told flexbox it could go below that anyway, so once
+   the title and the rail together outgrew the card the rail was squeezed under
+   its own content and the last pill on each line — Seed, at the right-hand end
+   — was painted straight through the card edge. `min-content` says the true
+   floor out loud: the rail may shrink to its widest pill and not one pixel
+   further.
+   REJECTED: `overflow: hidden` on the rail. It stops the paint crossing the
+   border and hides half a control to do it, which trades a visible defect for
+   an invisible one — a reader cannot tell a clipped Seed box from a short one.
+
+   The heading is then allowed to wrap, so the floor has somewhere to go. With
+   the rail unable to shrink past ~264px, a card narrower than title + rail had
+   to overflow SOMETHING; wrapping drops the rail onto its own full-width line
+   under the title instead, which is also what the desk asked for in as many
+   words — "shift the paths onwards to the left to give more space for the
+   seed". On its own line `space-between` puts the single remaining item at the
+   line's start, so the rail lands left-aligned with the title above it and the
+   Seed box ends nowhere near the border.
+   Scoped with `:has()` to the one heading that carries a rail, NOT added to
+   `.portfolio-card-heading` itself: that class is 01-workspace-shell.css's and
+   is rendered by cards on all eight tabs, most of which pair a title with a
+   single short control and rely on the row never breaking. */
+.portfolio-card-heading:has(> .mc-parameter-rail) {
+  flex-wrap: wrap;
+}
+
 .mc-parameter-rail {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-1) var(--space-2);
-  min-width: 0;
+  min-width: min-content;
+}
+
+/* One focus ring on a rail control, not two.
+ *
+ * `.rail-toggle` is a `<label>` that WRAPS its control (McParameterRail.tsx:80,
+ * 92, 103, 123, 134; ResearchWorkspace.tsx:163), so `:focus-within` on the pill
+ * (12:1026) is true at the same instant the control's own ring paints —
+ * `select:focus` at 00:1459 for a pointer, `:focus-visible` at 00:1530 for a
+ * keyboard. Two concentric author rings on one gesture, no UA outline involved.
+ *
+ * The pill's ring is the one that survives, because it is the one that can be
+ * seen: full-strength `--series-1` on `--surface-1` measures 5.17:1 light and
+ * 4.51:1 dark, while the control's keyboard ring — a 70% mix of the same token —
+ * measures 3.02:1 and 2.89:1, and the dark figure is under the 3:1 floor WCAG
+ * SC 1.4.11 sets for a non-text indicator. Turning the outline off here does not
+ * leave the control unindicated: the label it sits inside is drawing one.
+ * REJECTED: deleting `.rail-toggle:focus-within` from 12 and keeping the
+ * control's own ring. It is the shorter edit and it ships the 2.89:1 indicator
+ * as the only thing a keyboard reader gets in dark mode.
+ * Scoped from 14e rather than fixed at either source: 00 and 12 both sit on the
+ * over-ceiling ratchet, and (0,2,1) here beats 00's (0,1,1) from a later file.
+ * This de-doubles the Research "Auto" checkbox too — 00:1459's `input:focus`
+ * carries no `[type]` exclusion, so it wears the same pair of rings. Same
+ * defect, one rule; not scope creep. */
+.rail-toggle :is(select, input):focus,
+.rail-toggle :is(select, input):focus-visible {
+  outline: none;
+}
+
+/* The five parameter pills, sized for a card heading instead of a settings
+   panel. 00:1448 gives every select `width: 100%`, 8px/10px padding, `--fs-xl`
+   mono and a 38px floor, so each pill stood 48px inside a 43px
+   `.portfolio-card-heading` (01:1783) and printed a 15.5px value beside its own
+   13px label. That mismatch is what read as "the layout is off".
+   Measured in Chrome at 1440px after this block, at the comfortable preset: the
+   controls come down to 29px and the seed box to 27px, the pills to 39px and
+   37px, and the whole rail from 49px to 39px — a step off the 34px the rest of
+   the chrome stands at, with label and value finally one size. The 26px floor is
+   NOT what sets that height; the 13px line box plus 8px of padding and the 1px
+   border does. The floor is there for the compact preset, where the line box
+   shrinks and the row would otherwise drift below the neighbouring chrome, and
+   it is a floor rather than a cap so the large preset simply grows past it.
+   Nothing clips at any of the three. (26px is a literal because this tab has no
+   control-height ladder to read; `risk-horizon-control.test.ts:76-79` polices
+   the type and space ladders, which the two declarations below now read.)
+   REJECTED: widening `.mc-parameter-rail`'s gap above. It is already a uniform
+   4px/8px in both axes; what read as uneven spacing was five controls too big
+   for the row, not the space between them.
+   The `pointer: fine` gate is load-bearing, not defensive: 15:441 raises every
+   select to the 44px fingertip floor at (0,0,1) inside `@media (pointer:
+   coarse)`, and the two selectors below are (0,1,1) and (0,6,1). A media query
+   carries no specificity of its own, so ungated this block would quietly
+   outrank the touch floor at every width.
+   The selector is 00:1447-1448's own pair, scoped — not the `:is(select, input)`
+   shorthand it looks like it could be. 00 reaches an untyped `<input>` through
+   five chained `:not()`s, which is (0,5,1); a one-class shorthand is (0,1,1) and
+   loses to it, so the four selects shrank and the Seed box stayed 38px and
+   15.5px — one pill still too big for the row, which is the defect this block
+   exists to close. Measured in Chrome before this line was written. Keep the two
+   halves in step with 00:1447-1448: they are meant to name the same set. */
+@media (pointer: fine) {
+  .mc-parameter-rail select,
+  .mc-parameter-rail input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]) {
+    width: auto;
+    min-height: 26px;
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--fs-sm);
+  }
+}
+
+/* The Block pill when an i.i.d. draw leaves it nothing to set. 00:1523 fades the
+   `select` alone, so the word "Block", the pill's border and background and
+   `.rail-toggle`'s `cursor: pointer` (12:1017) all stayed at full strength: a
+   control that looks live, takes the click and does nothing — the second route
+   to "the dropdown does not work", and the one that needs no dropdown to open.
+   REJECTED: hiding the pill while i.i.d. is selected. McParameterRail.tsx:112
+   already records why it is disabled rather than hidden — a control that
+   vanishes leaves the reader unsure whether the length they last set is still in
+   force. */
+.mc-parameter-rail .rail-toggle:has(:disabled) {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Faded once, by the pill. 00:1523 already puts the `select` at 0.5; inside a
+   0.55 label that composites to 0.275, which is not an inactive control but an
+   unreadable one. */
+.mc-parameter-rail .rail-toggle:has(:disabled) :is(select, input):disabled {
+  opacity: 1;
 }
 
 /* The reason "Flatten the book" is unavailable, under the two buttons on the

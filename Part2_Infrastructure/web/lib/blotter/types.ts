@@ -32,6 +32,25 @@ export interface BlotterRow {
   feeUsd: number | null;
   slippageBps: number | null;
   venue: string | null;
+  /**
+   * Did the gateway say this fill was simulated?
+   *
+   * `boolean | null`, and the null carries the whole weight. It means the feed
+   * did not say, which is NOT `false`: `row.simulated === true` would flatten
+   * "no claim" into "this was a real venue fill", and that is the one direction
+   * the error must never run on a cost surface.
+   *
+   * Measured, not assumed, before this field was added: `Fill.simulated` exists
+   * on the gateway (modules/schemas_trading.py) and reaches the browser on the
+   * order-ticket decision response, but the `orders` audit table has no such
+   * column (modules/audit/schema.py) and `recent_orders` cannot select one — a
+   * live probe of /api/gateway/audit?feed=orders returned 14 rows whose key
+   * union has no `simulated` in it. So every row on the blotter feed arrives
+   * with the flag absent TODAY, and the panels must render that as "not stated"
+   * rather than as a clean bill of health. When the gateway grows the column
+   * the same field starts carrying true/false and nothing downstream changes.
+   */
+  simulated: boolean | null;
   source: string | null;
   status: OrderStatus;
   timeInForce: string | null;

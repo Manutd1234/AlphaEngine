@@ -23,7 +23,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { read } from "./helpers/workspace-sources";
+import { read, stripNonCode } from "./helpers/workspace-sources";
 
 /**
  * The shell split. `page.tsx` still mounts the eight panels and still owns the
@@ -99,6 +99,60 @@ describe("dense role workspaces expose accessible feature sections", () => {
     assert.match(researchWorkspace, /const researchContentRef = useRef<HTMLDivElement \| null>/);
     assert.match(researchWorkspace, /researchContentRef\.current\.scrollTop = 0/);
     assert.match(researchWorkspace, /className="research-content" ref=\{researchContentRef\}/);
+  });
+
+  it("resets the shell to the top of every subtab change, instantly, from one owner", () => {
+    // The reported bug: a workspace's visited panels stay mounted behind
+    // `display: none` and share the shell scroller, so its scrollHeight
+    // follows the tallest open panel. Portfolio measured 1066px (Performance)
+    // against 406px (Positions) — switching down clamped scrollTop 650 -> 5
+    // and slid the page heading back under the sticky rail.
+    const code = stripNonCode(routingHook);
+
+    // Keyed on the view AND the ACTIVE workspace's section, so every one of
+    // the eight rails is covered by this single reset.
+    assert.match(routingHook, /const activeSection = sectionByViewRef\.current\[view\];/);
+    assert.match(routingHook, /shellRef\.current\?\.scrollTo\(\{ top: 0, behavior: "auto" \}\)/);
+
+    // Instant, never animated: the point is to remove motion, not restyle it.
+    // Prose is stripped but string literals are kept — `stripNonCode` blanks
+    // them, which would blank a `"smooth"` this is meant to catch.
+    const noProse = routingHook.replace(/\/\*[\s\S]*?\*\//g, "");
+    assert.ok(!noProse.includes('behavior: "smooth"'), "the shell reset animates — a cut has nothing to reduce");
+
+    // Scoped to the visible workspace. Keying on every section state would let
+    // a hidden rail scroll the panel the reader is on; keying on the ref
+    // object itself would fire on every render, throwing a reader who is
+    // merely being re-rendered by a data poll back to the top mid-read.
+    const resetDeps = code.match(/useLayoutEffect\(\(\) => \{\s*shellRef\.current\?\.scrollTo\(\{ top: 0, behavior: "" \}\);\s*\}, (\[[^\]]*\])\);/)?.[1];
+    assert.equal(
+      resetDeps,
+      "[view, activeSection]",
+      "the reset is keyed on something other than the view and the active workspace's section",
+    );
+    assert.equal(
+      routingHook.match(/shellRef\.current\?\.scrollTo/g)?.length,
+      2,
+      "a third shell reset appeared — the keyed effect and navigate's same-tab click are the two",
+    );
+
+    // One mechanism, not eight: every rail's section change lands in the same
+    // `change` table this hook owns, so rail clicks, arrow keys, cross-links,
+    // the palette, the tour and Back/Forward all reach the reset.
+    for (const workspace of [
+      "overview", "research", "live", "developer", "risk", "portfolio", "data", "reliability",
+    ]) {
+      assert.ok(
+        routingHook.includes(`${workspace}: bind("${workspace}", set`),
+        `${workspace} sections do not route through the hook that resets the shell`,
+      );
+    }
+
+    // No rival owner of the shell scroller. Research keeps its own reset —
+    // asserted above — but that one names `.research-content`, the inner pane
+    // the desk-width media query gives its own overflow, and never the shell.
+    assert.ok(!/scrollTo\(/.test(stripNonCode(researchWorkspace)), "Research holds a second shell reset");
+    assert.ok(!/scrollTo\(/.test(stripNonCode(page)), "page.tsx scrolls the shell behind the hook's back");
   });
 
   it("splits every dense role workspace into focused feature groups", () => {

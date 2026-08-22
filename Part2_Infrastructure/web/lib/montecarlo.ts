@@ -26,18 +26,42 @@ import type { MonteCarloBands } from "./types";
  * One resample's bar indices. With probability 1/meanBlockLength start a new
  * block at a uniform position; otherwise continue sequentially, wrapping mod n
  * so end-of-sample bars are not under-drawn.
+ *
+ * The two sizes are DIFFERENT QUESTIONS and the parameters keep them apart.
+ * `n` is the index range — how much history a draw may reach. `count` is the
+ * number of steps drawn — how long the resampled path is. They default to the
+ * same value because the equity band resamples a path exactly as long as the
+ * sample it draws from, but a forward horizon is shorter than the history
+ * behind it, and binding the two together silently confines every draw to the
+ * first `count` bars. On a moving-average driver those leading bars are the
+ * warm-up, where `lib/engine/combo.ts:167-169` writes exact 0.0 because
+ * `lagged === 0` — so the collapsed form does not merely narrow the sample,
+ * it resamples the one stretch that carries no information at all.
+ *
+ * `modules/quant_risk/montecarlo.py` is the corroborating implementation and
+ * has always kept them apart: `n = len(usable)` at :279 is the index range,
+ * `for t in range(horizon)` at :311 is the step count, and the wrap at :313
+ * is `(cursor + 1) % n` against the sample, not the horizon.
+ *
+ * Rejected alternative: leave this helper alone and give `mcSimulationFactory`
+ * a second, horizon-aware bootstrap of its own. Refused because
+ * `lib/mc-distribution.ts:138-151` claims its inlined helpers are exact copies
+ * of the library ones and the entire cross-module parity argument rests on
+ * that staying literally true; a bespoke private copy would end the argument
+ * while looking like a local fix.
  */
 export function stationaryBootstrapIndices(
   n: number,
   meanBlockLength: number,
   rand: () => number,
+  count: number = n,
 ): Uint32Array {
-  const out = new Uint32Array(n);
-  if (n === 0) return out;
+  const out = new Uint32Array(count);
+  if (count === 0 || n === 0) return out;
   const pNew = 1 / Math.max(1, meanBlockLength);
   let cur = Math.floor(rand() * n);
   out[0] = cur;
-  for (let i = 1; i < n; i++) {
+  for (let i = 1; i < count; i++) {
     cur = rand() < pNew ? Math.floor(rand() * n) : (cur + 1) % n;
     out[i] = cur;
   }

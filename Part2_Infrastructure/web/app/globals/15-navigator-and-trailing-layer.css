@@ -85,13 +85,13 @@
   border-radius: 6px 6px 0 0;
   background: transparent;
   color: var(--text-secondary);
-  /* The rail's type, declared once, on the box that owns its metrics. It was
-     --fs-body (14px) on the `strong` below — a rung LARGER than the role tabs
-     above it at --fs-chrome-tab (13px), on a rail the sheet's own note says
-     must read quieter than the level above. --fs-sm is 13px and still steps
-     with the Text-size preference, and it is the rung the action buttons and
-     every `.seg` already use: one size across the workspace chrome. */
-  font-size: var(--fs-sm);
+  /* The rail's type, declared once, on the box that owns its metrics. --fs-sm
+     (13px) sat here so the rail read under the role tabs' fixed 13px; the
+     reader asked for the opposite, in these words: "subtab headers can be
+     bigger to 14px and bigger for comfortable setting". --fs-body is 14px at
+     comfortable, and 12 / 17px at the other two Text sizes. REJECTED: a
+     literal 14px, which pins the rung against the preference that moves it. */
+  font-size: var(--fs-body);
   text-align: center;
   /* A ninth section, or a narrow window, degrades to a truncated label rather
      than pushing its neighbours out of the track. The scroll affordance below
@@ -101,12 +101,12 @@
   white-space: nowrap;
 }
 
-/* Weight and truncation, never a size — the button above owns that. 650
-   against the role tabs' 680 is the "one step down" this rail reads at, and it
-   is CONSTANT: a heavier selected label re-measures the text and moves every
-   tab beside it, which is the reported resize. Bolding the selection and
-   reserving its width, as `.system-health` reserves its longest count, was
-   rejected: that reservation is per label, and eight workspaces supply these. */
+/* Weight and truncation, never a size — the button above owns that. 650 is
+   CONSTANT through selection, and that IS the width reserve: a heavier glyph
+   is a wider glyph, so a tab's width stays a function of its label and the
+   track alone, in both flex bands. REJECTED: (a) bolding the selection over a
+   hidden 750 twin, when three carriers already say selected and the twin costs
+   a stacked grid on every tab; (c) a width axis — no variable face is loaded. */
 .workspace-subtabs button strong {
   min-width: 0;
   overflow: hidden;
@@ -115,18 +115,18 @@
   white-space: nowrap;
 }
 
-/* The role tabs' idiom, one step down: a 5% wash on hover, a 9% wash and full
-   contrast when selected, and a 2px rule under the active item against the
-   role tabs' 3px. PAINT ONLY — not one declaration in the two state rules
-   below changes the box, which is the whole of the reported defect.
-   The rule is an inset shadow rather than the `::after` the role tabs use,
-   because this rail becomes a scroll container below 820px and anything drawn
-   outside the content box is clipped there — and because a shadow, unlike a
-   border or an outline, occupies no space whatever it is doing.
-   Colour is not the only carrier: the rule, the contrast step from
-   `--text-secondary` to `--text-primary`, and `aria-selected` all say it. */
-.workspace-subtabs button:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--series-1) 5%, transparent);
+/* The role tabs' idiom, one step down: a neutral wash on hover, a 9% accent wash and full contrast when selected, and a 2px rule under the active item
+   against the role tabs' 3px. PAINT ONLY — not one declaration in the two state rules below changes the box, which is the whole of the reported defect.
+   Hover was 5% of the SAME accent selection washes at 9%. Composited, those two fills measure 1.05:1 against each other in both palettes — one colour, to
+   the eye — so hover was wearing the carrier selection needs; and at (0,3,1) against the selected rule's (0,2,1) it outranked it, so resting a pointer on
+   the selected tab downgraded it to hover paint. The `:not([aria-selected="true"])` takes hover to (0,4,1) and out of selection's way. The neutral swap is
+   not a contrast win — neutral against the 9% accent is 1.03:1, marginally lower — it stops hover speaking in selection's voice. REJECTED: swapping the
+   colour and leaving the selector, which under a resting pointer strips the selected tab of its accent and leaves the inset rule carrying selection alone.
+   That rule is an inset shadow rather than the `::after` the role tabs use, because this rail becomes a scroll container below 820px and anything drawn
+   outside the content box is clipped there — and because a shadow, unlike a border or an outline, occupies no space whatever it is doing. Colour is not
+   the only carrier: the rule, the contrast step from `--text-secondary` to `--text-primary`, and `aria-selected` all say it. */
+.workspace-subtabs button:hover:not(:disabled):not([aria-selected="true"]) {
+  background: color-mix(in srgb, var(--text-primary) 5%, transparent);
   color: var(--text-primary);
 }
 

@@ -1,7 +1,7 @@
 /**
  * The rules that keep the desk from dead-ending again.
  *
- * `scripts/desk-sweep.mjs` is the real proof — 47 sections under six fault
+ * `scripts/desk-sweep.mjs` is the real proof — 48 sections under six fault
  * profiles in a browser — but it needs a dev server and a copy of Chrome, so it
  * runs when someone asks it to. These are the same invariants stated statically,
  * so the ones that CAN be checked on every commit are.

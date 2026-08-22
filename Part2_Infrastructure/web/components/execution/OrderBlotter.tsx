@@ -342,8 +342,17 @@ export default function OrderBlotter({
                           )}
 
                           {row.clientOrderId?.startsWith("EXP-") && onOpenResearch ? (
+                            /* "…that produced this order" said again what the
+                               row it is nested inside already says: this
+                               button only exists in one order's expanded
+                               detail, directly under that order's own id. At
+                               the large preset the full sentence wrapped the
+                               button onto a second row inside a table cell.
+                               Rejected: "Research run", which drops the verb
+                               and reads as a column header rather than a
+                               control. */
                             <button type="button" className="icon" onClick={onOpenResearch}>
-                              Open the research run that produced this order
+                              Open the research run
                             </button>
                           ) : null}
                         </div>

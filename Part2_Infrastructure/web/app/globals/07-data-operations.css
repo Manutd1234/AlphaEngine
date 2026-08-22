@@ -377,7 +377,7 @@ button.data-trust-action > i {
 
 .data-workboard__heading h2 {
   margin-top: 3px;
-  font-size: var(--fs-h1);
+  font-size: var(--fs-h2);
   letter-spacing: var(--ls-tight);
 }
 
@@ -660,7 +660,6 @@ button.data-trust-action > i {
 }
 
 .data-work-column__heading h3 {
-  font-size: var(--fs-lg);
   line-height: var(--lh-snug);
 }
 

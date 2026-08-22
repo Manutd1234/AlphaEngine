@@ -130,7 +130,14 @@ const MEASURE = `
   check("chip-state", ".latency-chip__state");
   check("settings-label", ".workspace-header__utility > .header-anchor > .header-settings span");
   check("tier-label", ".data-tier__label");
-  // The Connect label is a Tailwind max-[Npx]:hidden span; the N is a rung.
+  // The Connect label is a Tailwind arbitrary max-width hidden span, where the
+  // breakpoint is a rung. The class is NOT written out here on purpose: Tailwind
+  // v4 scans .mjs for class names and cannot tell a comment from markup, so a
+  // literal `max-[` + placeholder + `]:hidden` in this line was extracted as a
+  // real utility and emitted `@media (width < Npx)` into app/tailwind.css —
+  // invalid CSS, a build warning today and a build failure the moment warnings
+  // become fatal. Rejected alternative: a Tailwind ignore comment, which does
+  // not exist for source scanning; the scanner takes the file, not the syntax.
   check("connect-label", ".workspace-header__utility span[class*='max-[1']");
 
   check("providers-label", ".system-health__label");

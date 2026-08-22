@@ -130,7 +130,17 @@ const NEXT_FROM: Record<string, { view: WorkspaceView; section: string; why: str
     why: "Attribution charges a modelled cost.",
   },
 
+  // The engine's own continuation, not the next desk's: the loss estimate on
+  // `model` is a forecast, and `diagram` is where it gets marked against what
+  // the book actually lost. Sending a reader straight from the forecast to a
+  // second forecast (montecarlo) offered a second opinion before the first one
+  // had been scored, which is the order this split exists to correct.
   "risk/model": {
+    view: "risk",
+    section: "diagram",
+    why: "A forecast is a claim until it is scored.",
+  },
+  "risk/diagram": {
     view: "risk",
     section: "montecarlo",
     why: "The bootstrap resamples these returns.",

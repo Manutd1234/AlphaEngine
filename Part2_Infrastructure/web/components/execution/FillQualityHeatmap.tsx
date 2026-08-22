@@ -9,6 +9,14 @@
  * mediocre all day. Signed slippage on a diverging ramp: red cells cost, blue
  * cells beat the reference price.
  *
+ * A ROW OF IDENTICAL CELLS IS NOT A CALM VENUE. `paper_equity_slippage_bps`
+ * reached every PAPER_EQUITY fill as the same 8.0, so that venue's row printed
+ * 8.0 in every hour it traded and read as the steadiest venue on the grid. The
+ * ramp cannot say that; a row header can. Each venue therefore carries the mark
+ * `venueProvenance` already computes for the cost card beside it — one source
+ * for the verdict, so the two panes cannot disagree on screen about whether a
+ * venue was measured.
+ *
  * Cells are drawn only where fills exist, and the grid refuses to render below
  * a minimum sample — an hour×venue grid interpolated from four fills would be
  * a picture of noise wearing the authority of a heatmap. Below the floor the
@@ -20,7 +28,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { MIN_PRICED_FILLS, type BlotterRow } from "@/lib/blotter";
+import { MIN_PRICED_FILLS, venueQuality, type BlotterRow, type ProvenanceMark } from "@/lib/blotter";
 import { SHARPE_RAMP_DARK, SHARPE_RAMP_LIGHT, divergingScale } from "@/lib/colormap";
 import { fmt } from "@/lib/format";
 
@@ -68,12 +76,20 @@ export default function FillQualityHeatmap({
       return { fillCount: fills.length, grid: null };
     }
 
+    // Same computation the cost pane draws its Basis column from, not a second
+    // opinion. `venueQuality` groups on status === "FILLED" where this grid
+    // groups on `accepted`, so a venue can carry a mark and no cell; indexing
+    // by name rather than by position keeps that harmless.
+    const marks = new Map<string, ProvenanceMark>(
+      venueQuality(rows).venues.map((v) => [v.venue, v.provenance.mark]),
+    );
+
     const hourList = [...hours].sort((a, b) => a - b);
     const absMax = Math.max(
       0.1,
       ...[...grid.values()].map((cell) => Math.abs(cell.mean)),
     );
-    return { venues, hourList, grid, absMax, fillCount: fills.length };
+    return { venues, hourList, grid, absMax, marks, fillCount: fills.length };
   }, [rows]);
 
   // Same theme resolution as components/Heatmap.tsx: the toggle stamps
@@ -150,7 +166,18 @@ export default function FillQualityHeatmap({
           <tbody>
             {view.venues.map((venue) => (
               <tr key={venue}>
-                <th scope="row">{venue}</th>
+                <th scope="row">
+                  {venue}{" "}
+                  {(() => {
+                    const mark = view.marks.get(venue);
+                    if (!mark) return null;
+                    return (
+                      <span className={`pill pill--${mark.tone === "warn" ? "warn" : "info"}`}>
+                        <span aria-hidden>{mark.glyph}</span> {mark.word}
+                      </span>
+                    );
+                  })()}
+                </th>
                 {view.hourList.map((hour) => {
                   const cell = view.grid.get(`${venue}:${hour}`);
                   if (!cell) {
@@ -188,6 +215,13 @@ export default function FillQualityHeatmap({
           Mean realised slippage (bps) across {view.fillCount}
           {source === "sandbox" ? " generated" : ""} priced fills by UTC hour;
           red pays up, blue beats the reference.
+        </p>
+        {/* The rule the ramp cannot express, folded beside the one it can. */}
+        <p className="research-note">
+          A venue marked ASSUMED prints the same figure in every hour because the gateway assigned it
+          one, not because the venue was steady. The mark comes from the cost pane&apos;s own
+          dispersion test, and a venue marked UNSTATED is one whose fills never said whether they
+          were simulated — that is an unanswered question, not a clean bill.
         </p>
       </details>
     </section>

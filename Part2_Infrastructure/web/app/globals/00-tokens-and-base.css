@@ -167,49 +167,52 @@
   --ease-emphasized: cubic-bezier(0.3, 0, 0, 1);
   --ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
 
-  /* The type scale.
-     ---------------
-     Forty distinct font sizes had accumulated — a half-pixel ramp, pt, em, rem
-     and px all naming nearly the same steps — so the ramp the file already
-     used most became the only one (2026-08-16), lifted one step on 2026-08-17.
+  /* The type scale. Forty distinct font sizes had accumulated, so the ramp the
+     file already used most became the only one (2026-08-16); it went px to rem
+     on 2026-08-17 so zoom and a browser preference scale the desk (WCAG 1.4.4),
+     was made fluid, and on 2026-08-20 became one size per rung, centred on 14px.
 
-     On 2026-08-17 the ladder moved from px to rem: a reader's browser font
-     preference and page zoom now scale the desk (WCAG 1.4.4), which a px
-     ladder ignored. Every content rung is `calc(<rem> * var(--type-step))`,
-     where --type-step is the reader's Text size preference (Quick Settings:
-     compact 0.9375, comfortable 1, large 1.125). It was then lifted a step and
-     made fluid between 1280 and 1920px, which overshot: on a wide desk that
-     put headings near 25px and figures near 29px. On 2026-08-20 the content
-     rungs became one size each again, centred on --fs-body: 14px — between the
-     ladder before the lift and the fluid one after it, and quotable.
+     2026-08-22 moved the two PRESET STEPS and not the ladder: 0.9375 against 1
+     put compact 0.88px from comfortable, three states a reader cannot tell
+     apart offered as a choice. 6/7 and 17/14 land --fs-body on 12 / 14 / 17px,
+     and type-ladder-presets.test.ts does that arithmetic rung by rung. REJECTED: retuning --fs-body itself, which resizes every reader
+     who never expressed a preference — the step leaves the default desk alone.
+     The bottom two rungs moved, 12 to 12.5 and 12.5 to 12.75, to pay for 6/7:
+     --fs-2xs is no kicker rung — the bare `small` rule, two prose selectors, a
+     log stream, table bodies and 21 controls read it — and 0.75rem × 6/7 =
+     10.29px would have set prose 0.29px above --fs-tick, which is chart
+     furniture. REJECTED there: clamp()/max() round the token, and a per-preset
+     override would claim a rung means something different at one preference.
+     Inline SVG text is user units and steps at neither end; it has a ladder of
+     its own, in the role map cited below.
 
-     Two rungs are not typography and stay px: --fs-tick is SVG chart
-     furniture (axis ticks, bar labels — user units, never prose) and
-     --fs-input is the iOS focus-zoom threshold. The three hero clamps keep
-     their fluid behaviour as rungs.
+     2026-08-23. The four rungs above --fs-title are back to the sizes a 1512px
+     desk had before 2026-08-20 flattened them — 20.73 / 24.73 / 28.73 / 34.73 —
+     now FIXED at 20.5 / 24.5 / 28.5 / 34.5. Reading text never shrank that day
+     (--fs-body 13.86 → 14.00); only headings and figures did, by 7-11%, which is
+     why the desk read as smaller while the rung named for reading had not moved.
+     REJECTED: restoring the clamps, which put a 25px h1 on a 1720px monitor and
+     started the complaint 2026-08-20 answered. WHICH ROLE READS WHICH RUNG is
+     tests/type-role-map.test.ts, not this list.
+
+     Two rungs are not typography and stay px: --fs-tick is SVG chart furniture
+     (axis ticks, bar labels — user units, never prose) and --fs-input the iOS
+     focus-zoom threshold. The three hero clamps are the only fluid rungs left.
 
      THE HEADER IS CHROME. Its words use the four --fs-chrome-* tokens below,
      fixed px with no --type-step: the header's priority ladder is a px
      measurement (see "The header's priority ladder"), so its type must not
-     move with a preference the ladder was not measured under, and a reader
-     whose browser text is set Large keeps a toolbar that fits. Sanctioned
-     exceptions, each annotated in place: the print block sizes in pt, the
-     brand and tech lettermarks, and `font-size: 0` icon-text hiding. */
+     move with a preference it was not measured under, and a reader on Large
+     keeps a toolbar that fits. Accepted at both ends: at compact the 13px tab
+     outranks 12px body, at large body sits 4px above it. Sanctioned
+     exceptions, annotated in place: the print block's pt sizes, the brand and
+     tech lettermarks, and `font-size: 0` icon-text hiding. */
   --type-step: 1;
   --fs-tick: 10px;
-  /* One size per rung, centred on --fs-body: 14px. The fluid version of this
-     ladder read too large on a wide desk — headings near 25px and figures near
-     29px at 1720px — and a rung whose value depends on the viewport is a rung
-     nobody can quote. The reading rungs step by half a pixel; the headings sit
-     a little under a 1.2 ratio from --fs-title. Comments give the px at step 1
-     on a 16px root; the reader's zoom and Text size still scale all of it.
-     Only the three hero rungs below stay fluid — a hero is the one place the
-     extra room on a wide monitor is worth spending, and they carry one line
-     of type where a pixel of growth costs no layout. Their formula is the one
-     the content rungs used: clamp(min, (3·min − 2·max) + (max − min)/6.4 vw,
-     max), so each reaches its minimum at 1280px and its maximum at 1920px. */
-  --fs-2xs: calc(0.75rem * var(--type-step));                 /* 12px */
-  --fs-xs: calc(0.78125rem * var(--type-step));               /* 12.5px */
+  /* Comments give the px at step 1 on a 16px root; zoom and Text size scale it
+     all. The three hero rungs keep the fluid formula: min 1280px, max 1920px. */
+  --fs-2xs: calc(0.78125rem * var(--type-step));              /* 12.5px */
+  --fs-xs: calc(0.796875rem * var(--type-step));              /* 12.75px */
   --fs-sm: calc(0.8125rem * var(--type-step));                /* 13px */
   --fs-body: calc(0.875rem * var(--type-step));               /* 14px */
   --fs-md: calc(0.90625rem * var(--type-step));               /* 14.5px */
@@ -222,11 +225,11 @@
      used only by the coarse-pointer field rules, never for reading text.
      A threshold cannot move — not with zoom, not with the Text-size step. */
   --fs-input: 16px;
-  --fs-h2: calc(1.1875rem * var(--type-step));                /* 19px */
-  --fs-h1: calc(1.4375rem * var(--type-step));                /* 23px */
-  --fs-figure: calc(1.625rem * var(--type-step));             /* 26px */
-  --fs-display: calc(2rem * var(--type-step));                /* 32px */
-  --fs-hero-line: calc(clamp(1.375rem, 0.875rem + 0.625vw, 1.625rem) * var(--type-step)); /* 22 → 26 */
+  --fs-h2: calc(1.28125rem * var(--type-step));               /* 20.5px */
+  --fs-h1: calc(1.53125rem * var(--type-step));               /* 24.5px */
+  --fs-figure: calc(1.78125rem * var(--type-step));           /* 28.5px */
+  --fs-display: calc(2.15625rem * var(--type-step));          /* 34.5px */
+  --fs-hero-line: calc(clamp(1.5625rem, 1.4375rem + 0.15625vw, 1.625rem) * var(--type-step)); /* 25 → 26; was 22 → 26, a 4px span whose bottom sat UNDER --fs-h1, so on a 1280-1512px desk a section head out-shouted the page title it sits inside. The top is untouched; only the range narrows. */
   --fs-hero-sub: calc(clamp(1.875rem, 1.375rem + 0.625vw, 2.125rem) * var(--type-step)); /* 30 → 34 */
   --fs-hero: calc(clamp(2.375rem, 1.875rem + 0.625vw, 2.625rem) * var(--type-step)); /* 38 → 42 */
 
@@ -282,19 +285,18 @@
 
 }
 
-/* The Text size preference (Quick Settings; lib/text-size.ts). One number,
-   multiplied into every content rung above; the chrome tokens carry no step,
-   so the header does not move. Comfortable is the :root value and stamps no
-   attribute — the same rule as the theme's System — so an unset preference
-   and the default are one state. Outside the first :root block on purpose:
-   theme-preference.test.ts and tailwind-bridge.test.ts read that block up to its first
-   closing brace. */
+/* The Text size preference (Quick Settings; lib/text-size.ts). One number into
+   every content rung above, none into the chrome tokens. Comfortable is the
+   :root value and stamps no attribute, the rule the theme's System follows.
+   Outside the first :root block: theme-preference.test.ts reads only that. */
 :root[data-text-size="compact"] {
-  --type-step: 0.9375;
+  /* 6/7 exactly, so --fs-body lands on 12px. A decimal and not calc(6 / 7): the reading-floor guard in type-scale.test.ts matches a bare number, so a calc() would disarm it in silence rather than fail. */
+  --type-step: 0.857142857;
 }
 
 :root[data-text-size="large"] {
-  --type-step: 1.125;
+  /* 17/14 exactly, so --fs-body lands on 17px. A decimal for the same reason. */
+  --type-step: 1.214285714;
 }
 
 /* Wrapping. Headings balance so a two-line title does not leave one word
@@ -770,12 +772,12 @@ a:not([class]):active {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  /* One rung down for the figure on a phone. The Execution tiles size their
-     own columns (auto-fit, 150px floor) and land three across at 520px, and a
-     nine-character mono figure at --fs-figure is 5px wider than that column;
-     the tile has nowhere to put it but over its neighbour. */
+  /* Two rungs down for the figure on a phone, not one. The Execution tiles size
+     their own columns (auto-fit, 150px floor) and land three across at 520px,
+     where a nine-character mono figure at --fs-figure overhangs by 5px. --fs-h1
+     cleared that column at step 1 and not at 17/14; --fs-h2 clears it at both. */
   .tiles .stat-tile__value {
-    font-size: var(--fs-h1);
+    font-size: var(--fs-h2);
   }
 }
 
@@ -1568,7 +1570,6 @@ button.icon {
   border: 0;
   background: none;
   padding: 6px 4px;
-  font-size: var(--fs-lg);
   color: var(--text-secondary);
   border-radius: 6px;
 }
@@ -1771,7 +1772,6 @@ tbody tr[tabindex]:focus-visible {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 11px 14px;
-  font-size: var(--fs-xl);
   margin-bottom: 14px;
   display: flex;
   gap: 10px;

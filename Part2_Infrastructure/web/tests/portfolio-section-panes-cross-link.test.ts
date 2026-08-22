@@ -15,7 +15,8 @@
  *
  * Source-level assertions, like the rest of this suite: there is no DOM here.
  * The tile itself is `components/portfolio/BookChrome.tsx`; its two callers
- * are the Overview Book pane and `RiskWorkspace.tsx`, and the scan for
+ * are the Overview Book pane and `components/risk/LimitsPanel.tsx` — the Risk
+ * tile moved there with the rest of the limits subtab — and the scan for
  * hand-rolled copies walks `components/` for itself rather than trusting a
  * list.
  *
@@ -28,7 +29,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 
-import { bookChrome, code, overviewBook, risk, root } from "./helpers/portfolio-sources";
+import { bookChrome, code, limitsPanel, overviewBook, root } from "./helpers/portfolio-sources";
 
 // --------------------------------------------------------------------------
 // The cross-link tile knows where it is going
@@ -55,7 +56,7 @@ describe("a cross-link tile lands on the panel that explains its numbers", () =>
     // section the reader last had open — the defect this prop exists to end,
     // wearing a different cause.
     assert.match(overviewBook, /<CrossLinkTile<RiskSection>/);
-    assert.match(risk, /<CrossLinkTile<PortfolioSection>/);
+    assert.match(limitsPanel, /<CrossLinkTile<PortfolioSection>/);
   });
 
   it("sends the Portfolio tile to Limits and the Risk tile to Positions", () => {
@@ -68,15 +69,19 @@ describe("a cross-link tile lands on the panel that explains its numbers", () =>
      */
     const portfolioTile = overviewBook.slice(overviewBook.indexOf("<CrossLinkTile<RiskSection>"));
     assert.match(portfolioTile.slice(0, 400), /targetSection="limits"/);
-    const riskTile = risk.slice(risk.indexOf("<CrossLinkTile<PortfolioSection>"));
-    assert.match(riskTile.slice(0, 400), /targetSection="positions"/);
+    // `indexOf` returns -1 when the tile has moved out of the file being
+    // scanned, and `slice(-1)` then hands the assertion the last character —
+    // a failure message about one byte rather than about the missing tile.
+    const riskAt = limitsPanel.indexOf("<CrossLinkTile<PortfolioSection>");
+    assert.notEqual(riskAt, -1, "the Risk tile is not in the file this suite reads");
+    assert.match(limitsPanel.slice(riskAt, riskAt + 400), /targetSection="positions"/);
   });
 
   it("says on the button where the click lands", () => {
     // "Open Risk" named a tab. A destination the reader cannot predict before
     // clicking is the same navigation problem one step earlier.
     assert.match(overviewBook, /actionLabel="Open Risk limits"/);
-    assert.match(risk, /actionLabel="Open Portfolio positions"/);
+    assert.match(limitsPanel, /actionLabel="Open Portfolio positions"/);
   });
 });
 

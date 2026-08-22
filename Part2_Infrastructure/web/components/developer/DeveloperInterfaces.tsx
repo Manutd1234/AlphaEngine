@@ -26,6 +26,7 @@
 import { useMemo, useState, type CSSProperties } from "react";
 
 import DeveloperApiCatalog, { API_OPERATIONS } from "@/components/developer/DeveloperApiCatalog";
+import GatewayContractCustodyChain from "@/components/developer/GatewayContractCustodyChain";
 import { mcParityFixture, MC_PARITY_PATHS } from "@/lib/mc-parity";
 import { useMcDistribution } from "@/lib/use-mc-distribution";
 import type { SystemHealthView } from "@/lib/use-system-health";
@@ -172,6 +173,14 @@ export default function DeveloperInterfaces({ view }: { view: SystemHealthView }
               <div className="developer-cp-heading"><div><span>Breaking-change guard</span><h2>Schema compatibility</h2></div><StatusPill state={liveSchema} live={liveSchema.tone === "good"} /></div>
               <SchemaGateTable view={view} />
             </section>
+            {/* The chain behind the table's first row, mounted here rather than
+                in Numerics. The Gateway OpenAPI row names a baseline and a
+                candidate and stops; what it cannot show in four columns is the
+                path between them, which crosses a deployment boundary and is
+                gated in two places at once. Reading the row and the chain in
+                one pane is the point — a reader who found drift would otherwise
+                hold two sections in their head to say which side moved. */}
+            <GatewayContractCustodyChain view={view} stagger={2} />
           </>
         )}
 

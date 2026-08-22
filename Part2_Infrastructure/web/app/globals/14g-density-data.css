@@ -6,8 +6,10 @@
  * 15-navigator-and-trailing-layer.css. The owners are on the over-ceiling
  * ledger and may never grow, which is why these overrides live here at all.
  *
- * Desk-width packing only: every rule in this file must sit inside a
- * min-width media query, so phones keep the single-column flow.
+ * Desk-width packing, with ONE exception at the foot of the file: every
+ * packing rule must sit inside a min-width media query, so phones keep the
+ * single-column flow. The exception is a type rung, which is not a width
+ * decision and is unconditional under its own banner.
  */
 
 /* What this pass found, so the next one does not re-survey. The Data tab has
@@ -113,4 +115,48 @@
     min-width: 0;
     margin-bottom: 0;
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Task queue: a column head is no longer the size of its own cards     */
+/* ------------------------------------------------------------------ */
+/* UNCONDITIONAL, the same exception the Research partial takes and for the
+ * same reason: a type rung is not a width decision, so it may not sit inside a
+ * min-width query. The rule superseded is `.data-work-column__heading h3` in
+ * 07-data-operations.css, which is on the over-ceiling ledger and may not grow,
+ * so the four declarations and the reasoning could not go there. Its dead
+ * `font-size` line was DELETED in the same change, leaving its `line-height`:
+ * `rung-single-declaration.test.ts` fails on a selector sized in two places,
+ * and it is right to — this sheet's habit of appending rather than editing is
+ * what makes a declaration unreadable without walking 26 partials by hand.
+ *
+ * MEASURED IN CHROME over the running desk, at all three presets. The column
+ * head ("Intake", "In progress", "Blocked", "Shipped") and the <h4> title of
+ * every card standing under it computed the SAME 12.86 / 15 / 18.21px at
+ * compact / comfortable / large, both at weight 700. Two levels of one board
+ * in one voice: a parent a reader cannot tell from its children. That is the
+ * flattening that reads as "sizes all over the place" the moment you move
+ * between this board and Reliability, where the same role — a head inside a
+ * card, above a group of rows — is a tracked uppercase line at --fs-sm.
+ *
+ * So it takes THAT idiom rather than inventing a fifth in-card rung.
+ * `.console-subhead` (Reliability and Data), `.stress-subhead` (Risk) and
+ * `.allocation-subhead` (Portfolio) are already this exact declaration set,
+ * and it is the `subheading` role in tests/type-role-map.test.ts. Rank by
+ * voice, not by size, which is also why dropping BELOW the card titles it
+ * introduces is legal here: the map's ordering test carves the idiom out by
+ * the uppercase in the rule, not by a list of selector names that would go
+ * stale on the first rename.
+ *
+ * REJECTED: --fs-title (17px), which would have kept the plain-case voice and
+ * simply made the head bigger than its cards. It restores the two levels and
+ * leaves the desk with a sixth size for one structural role — the arithmetic
+ * that produced this complaint in the first place. The count pill beside the
+ * head (--fs-2xs, mono, 750) and the column's `small` line are untouched.
+ */
+.data-work-column__heading h3 {
+  font-size: var(--fs-sm);
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: var(--ls-caps);
 }

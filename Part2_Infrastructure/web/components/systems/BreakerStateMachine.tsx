@@ -24,25 +24,107 @@
  * `openedAt` and `cooldownRemainingMs` both are, and their sum reconstructs it
  * exactly — both are server timestamps, so the arithmetic never touches the
  * browser clock.
+ *
+ * WHY THIS DRAWING HAS NO viewBox, AND WHY EVERY x IS A PERCENTAGE.
+ *
+ * It was a 560×208 viewBox scaled to the card and then capped at 660px and
+ * centred, which on a desk-width card left the outer two thirds empty and —
+ * worse — clipped the half-open caption against the viewport edge: "observed
+ * only between cooldown and the", and then nothing. A drawing that truncates
+ * its own explanation is losing information, not merely wasting space.
+ *
+ * Letting that viewBox scale to the full width fixes the margins and breaks
+ * everything else: on a 1900px card the same drawing is 706px tall and its
+ * 10-unit labels land at 34px, which is a poster, not a diagram. Rejected in
+ * order: `preserveAspectRatio="none"` (stretches the type), a wider viewBox
+ * (the same magnification, arriving later), and a breakpoint that swaps
+ * geometry (attributes are not reachable from a media query, so it means two
+ * copies of the markup and a dead-css bill on a sheet with zero headroom).
+ *
+ * So the viewBox is gone: one user unit is one CSS pixel, the width is 100% of
+ * whatever the card gives, and the height is a constant. Horizontal geometry
+ * is written in percentages, which SVG resolves against the VIEWPORT rather
+ * than against a scaled coordinate system — so the machine spreads to fill a
+ * 1900px card and closes up to fill a 700px one, and every label stays exactly
+ * the size it was drawn at either way. The node anchors are 15/50/85 per cent
+ * and the return edge runs round the outside at 3 and 97 per cent, which is
+ * what actually reaches the white space the outer thirds used to be.
+ *
+ * Captions wrap instead of truncating (`wrap()` below). The type here is chart
+ * furniture and does not move with the Text size preference: 10 user units is
+ * 10px, the fixed rung --fs-tick names, because every y in this file is an
+ * absolute number and a caption that grew a fifth at the Large preset would
+ * land on the return edge.
  */
 
 import type { ProviderRow } from "@/components/systems/types";
 
-const NODE_W = 132;
-const NODE_H = 46;
+/** Node boxes: 18% wide on 15/50/85 anchors, so the gap an edge and its label
+ *  live in is 17% of the card — 82px at the 480px floor the stylesheet pins,
+ *  which is the widest edge label ("consecutive failures") plus a hair. */
+const BOX_W = "18%";
+const BOX_Y = 74;
+const BOX_H = 52;
+/** The box's own middle: every horizontal edge and both arrowheads sit on it. */
+const MID = BOX_Y + BOX_H / 2;
+const CAP_Y = 144;
+const CAP_STEP = 13;
+/** The return edge's horizontal run, below the deepest caption line (170). */
+const RAIL_Y = 196;
+/** Characters per caption line. An outer node has 15% of the card to the side
+ *  of its anchor; 26 characters is ~127px, and half of that clears 15% of the
+ *  480px minimum width. Larger wraps the long caption to one line on a wide
+ *  desk but clips it on a laptop, which is the defect this replaced. */
+const WRAP = 26;
+
 const NODES = [
-  { id: "closed", label: "CLOSED", x: 16, sub: "calls flow" },
-  { id: "open", label: "OPEN", x: 214, sub: "provider skipped" },
-  { id: "half_open", label: "HALF-OPEN", x: 412, sub: "next call probes" },
+  { id: "closed", label: "CLOSED", cx: "15%", boxX: "6%", sub: "calls flow" },
+  { id: "open", label: "OPEN", cx: "50%", boxX: "41%", sub: "provider skipped" },
+  { id: "half_open", label: "HALF-OPEN", cx: "85%", boxX: "76%", sub: "next call probes" },
 ] as const;
 
+/** Greedy word wrap, because SVG text does not wrap and the alternative on the
+ *  table — `foreignObject` — inherits the page's fluid rungs, which would
+ *  reflow the drawing at the Large text preset. A `<tspan dy>` stack was
+ *  rejected too: percentage `x` on a tspan is not reliably honoured, and every
+ *  x in this drawing is a percentage. */
+function wrap(text: string, max: number): string[] {
+  const lines: string[] = [];
+  for (const word of text.split(" ")) {
+    const last = lines[lines.length - 1];
+    if (last && `${last} ${word}`.length <= max) lines[lines.length - 1] = `${last} ${word}`;
+    else lines.push(word);
+  }
+  return lines;
+}
+
+/** One straight run of an edge. `<line>` rather than one `<path>`: a path's `d`
+ *  takes no percentages, and every horizontal coordinate here is one. */
+function Edge({ x1, y1, x2, y2, dashed }: {
+  x1: string; y1: number; x2: string; y2: number; dashed?: boolean;
+}) {
+  return (
+    <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="var(--axis)" strokeWidth={1}
+      strokeDasharray={dashed ? "4 3" : undefined} />
+  );
+}
+
 /** Chevron as a stroked path — `<marker>` fills do not follow `currentColor`,
- *  and the one permitted forced-colors rule only reaches `path[stroke]`. */
-function Arrow({ x, y, dir = "right" }: { x: number; y: number; dir?: "right" | "left" | "up" }) {
-  const d = dir === "right" ? `M${x - 6} ${y - 4} L${x} ${y} L${x - 6} ${y + 4}`
-    : dir === "left" ? `M${x + 6} ${y - 4} L${x} ${y} L${x + 6} ${y + 4}`
-      : `M${x - 4} ${y + 6} L${x} ${y} L${x + 4} ${y + 6}`;
-  return <path d={d} stroke="var(--axis)" strokeWidth={1.2} fill="none" />;
+ *  and the one permitted forced-colors rule only reaches `path[stroke]`.
+ *  The path hangs in a 1×1 nested `<svg>` so it can be anchored at a
+ *  percentage: `transform="translate()"` takes no percentages either. The
+ *  nested viewport is escaped in CSS rather than by this `overflow` attribute
+ *  alone, because the UA stylesheet's `svg:not(:root) { overflow: hidden }`
+ *  outranks a presentation attribute — see 14h-density-systems.css. */
+function Arrow({ x, y, dir = "right" }: { x: string; y: number; dir?: "right" | "left" | "up" }) {
+  const d = dir === "right" ? "M-6 -4 L0 0 L-6 4"
+    : dir === "left" ? "M6 -4 L0 0 L6 4"
+      : "M-4 6 L0 0 L4 6";
+  return (
+    <svg x={x} y={y} width={1} height={1} overflow="visible">
+      <path d={d} stroke="var(--axis)" strokeWidth={1.2} fill="none" />
+    </svg>
+  );
 }
 
 function secs(ms: number): string {
@@ -100,9 +182,8 @@ export default function BreakerStateMachine({
 
       <svg
         className="breaker-machine"
-        viewBox="0 0 560 208"
         width="100%"
-        preserveAspectRatio="xMidYMid meet"
+        height={240}
         role="img"
         aria-label={
           `Circuit breaker state machine. ${counts.closed} providers closed, `
@@ -112,10 +193,11 @@ export default function BreakerStateMachine({
       >
         {/* operator reset — dashed, because a human action is not the machine
             running its own course. */}
-        <path d="M280 62 L280 26 L82 26 L82 58" stroke="var(--axis)" strokeWidth={1}
-          strokeDasharray="4 3" fill="none" />
-        <Arrow x={82} y={58} dir="up" />
-        <text x={181} y={20} textAnchor="middle" fontSize={10} fill="var(--text-muted)">
+        <Edge x1="50%" y1={BOX_Y} x2="50%" y2={30} dashed />
+        <Edge x1="50%" y1={30} x2="15%" y2={30} dashed />
+        <Edge x1="15%" y1={30} x2="15%" y2={68} dashed />
+        <Arrow x="15%" y={68} dir="up" />
+        <text x="32.5%" y={22} textAnchor="middle" fontSize={10} fill="var(--text-muted)">
           operator reset — “Close all circuits”
         </text>
 
@@ -123,54 +205,66 @@ export default function BreakerStateMachine({
           const active = nodeCount(node.id) > 0;
           const tone = node.id === "open" ? "var(--status-critical)"
             : node.id === "half_open" ? "var(--status-warning)" : "var(--status-good)";
+          /* The live state is carried by the border WEIGHT as well as its
+             colour — 1.6 against 1 — and by the count itself, which is the
+             pair High Contrast keeps when the palette collapses. */
+          const caption = [
+            ...wrap(node.sub, WRAP).map((line) => ({ line, mono: false })),
+            ...wrap(detail(node.id), WRAP).map((line) => ({ line, mono: true })),
+          ];
           return (
             <g key={node.id}>
-              <rect x={node.x} y={62} width={NODE_W} height={NODE_H} rx={8}
+              <rect x={node.boxX} y={BOX_Y} width={BOX_W} height={BOX_H} rx={8}
                 fill="var(--surface-2)" stroke={active ? tone : "var(--border)"}
                 strokeWidth={active ? 1.6 : 1} />
-              <text x={node.x + NODE_W / 2} y={80} textAnchor="middle" fontSize={12.5}
+              <text x={node.cx} y={BOX_Y + 22} textAnchor="middle" fontSize={12.5}
                 fontWeight={750} fill="var(--text-primary)" fontFamily="var(--mono)">
                 {node.label}
               </text>
-              <text x={node.x + NODE_W / 2} y={95} textAnchor="middle" fontSize={15}
+              <text x={node.cx} y={BOX_Y + 42} textAnchor="middle" fontSize={15}
                 fontWeight={700} fill={active ? tone : "var(--text-muted)"}>
                 {nodeCount(node.id)}
               </text>
-              <text x={node.x + NODE_W / 2} y={122} textAnchor="middle" fontSize={10}
-                fill="var(--text-muted)">
-                {node.sub}
-              </text>
-              <text x={node.x + NODE_W / 2} y={134} textAnchor="middle" fontSize={10}
-                fill="var(--text-muted)" fontFamily="var(--mono)">
-                {detail(node.id)}
-              </text>
+              {caption.map((row, index) => (
+                <text key={`${index} ${row.line}`} x={node.cx} y={CAP_Y + index * CAP_STEP}
+                  textAnchor="middle" fontSize={10} fill="var(--text-muted)"
+                  fontFamily={row.mono ? "var(--mono)" : undefined}>
+                  {row.line}
+                </text>
+              ))}
             </g>
           );
         })}
 
         {/* closed → open */}
-        <line x1={148} y1={85} x2={208} y2={85} stroke="var(--axis)" strokeWidth={1} />
-        <Arrow x={214} y={85} />
-        <text x={178} y={78} textAnchor="middle" fontSize={10} fill="var(--text-secondary)">
+        <Edge x1="24%" y1={MID} x2="41%" y2={MID} />
+        <Arrow x="41%" y={MID} />
+        <text x="32.5%" y={MID - 8} textAnchor="middle" fontSize={10} fill="var(--text-secondary)">
           {threshold ? `${threshold} in a row` : "consecutive failures"}
         </text>
 
         {/* open → half-open */}
-        <line x1={346} y1={85} x2={406} y2={85} stroke="var(--axis)" strokeWidth={1} />
-        <Arrow x={412} y={85} />
-        <text x={376} y={78} textAnchor="middle" fontSize={10} fill="var(--text-secondary)">
+        <Edge x1="59%" y1={MID} x2="76%" y2={MID} />
+        <Arrow x="76%" y={MID} />
+        <text x="67.5%" y={MID - 8} textAnchor="middle" fontSize={10} fill="var(--text-secondary)">
           cooldown ends
         </text>
 
-        {/* half-open → closed */}
-        <path d="M478 108 L478 156 L82 156 L82 112" stroke="var(--axis)" strokeWidth={1} fill="none" />
-        <Arrow x={82} y={110} dir="up" />
-        <text x={280} y={169} textAnchor="middle" fontSize={10} fill="var(--text-secondary)">
+        {/* half-open → closed, routed round the OUTSIDE of both node rows: an
+            inner return would cross the captions it is supposed to leave
+            legible, and the outer track is the width this card was wasting. */}
+        <Edge x1="94%" y1={MID} x2="97%" y2={MID} />
+        <Edge x1="97%" y1={MID} x2="97%" y2={RAIL_Y} />
+        <Edge x1="97%" y1={RAIL_Y} x2="3%" y2={RAIL_Y} />
+        <Edge x1="3%" y1={RAIL_Y} x2="3%" y2={MID} />
+        <Edge x1="3%" y1={MID} x2="6%" y2={MID} />
+        <Arrow x="6%" y={MID} />
+        <text x="50%" y={RAIL_Y + 14} textAnchor="middle" fontSize={10} fill="var(--text-secondary)">
           probe succeeds
         </text>
 
         {/* The edge that is NOT here, said out loud. */}
-        <text x={280} y={195} textAnchor="middle" fontSize={10} fill="var(--text-muted)">
+        <text x="50%" y={RAIL_Y + 32} textAnchor="middle" fontSize={10} fill="var(--text-muted)">
           no half-open → open edge: a failed probe restarts the count from one
         </text>
       </svg>

@@ -37,6 +37,9 @@ const row = (over: Partial<BlotterRow> = {}): BlotterRow => ({
   symbol: "BTCUSDT", side: "BUY", orderType: "MARKET", quantity: 1, notional: 100_000,
   accepted: true, rejectedBy: [], reason: null, latencyMs: 0.2, fillPrice: 100,
   feeUsd: 60, slippageBps: 4, venue: "BINANCE", source: "gateway",
+  // Null, not false — the audit feed carries no `simulated`, and the filter
+  // suite must not be the place that quietly decides it carries `false`.
+  simulated: null,
   status: "FILLED", timeInForce: "IOC", checks: [], ...over,
 });
 

@@ -249,7 +249,33 @@ export function SchemaGateTable({ view, compact = false }: { view: SystemHealthV
     }
     return { ...row, detail: `${row.baseline} → ${row.candidate}` };
   });
+  /*
+   * WHICH THREE OF THESE FIVE WERE READ HERE, AND WHICH TWO WERE NOT.
+   *
+   * Three rows carry a committed verdict — `CI gated`, toned `good` — and two
+   * are resolved from the live health payload above. Nothing on screen told
+   * the two apart: the pill is the same shape and the same green in both, the
+   * `live` pulse this file reserves for poll-fed states is passed on neither,
+   * and a reader scanning the State column reasonably took five current
+   * readings off a table that holds two. That is the file's own three-verdict
+   * rule applied against itself — a gate that did not run in this deployment
+   * has not passed here — so the split is stated rather than left to be
+   * inferred from which two words happen to change.
+   *
+   * LABELLED, NOT RE-VERDICTED. The alternative was to demote the three to
+   * `info` or to `unverified`. Both refused: `CI gated` is TRUE — `.github/
+   * workflows/ci.yml` runs `tools/export_openapi.py --check`, the Python and
+   * TypeScript engine parity suite and the payload fixture suite on every
+   * push — and `info` is this file's "Checking" tone, so it would trade a
+   * reader believing a stale pass for a reader believing a poll is in flight.
+   * Downgrading a true claim is not the honest move; naming where it was read
+   * is.
+   *
+   * At rest, never folded: this is a caveat on figures the reader is reading
+   * in the same glance, which the repository distinguishes from methodology.
+   */
   return (
+    <>
     <div className={`developer-cp-table${compact ? " is-compact" : ""}`} role="table" aria-label="Schema compatibility gates">
       <div className="developer-cp-table__row is-head" role="row">
         <span role="columnheader">Contract</span><span role="columnheader">Baseline</span><span role="columnheader">Candidate</span><span role="columnheader">State</span>
@@ -268,6 +294,12 @@ export function SchemaGateTable({ view, compact = false }: { view: SystemHealthV
         </div>
       ))}
     </div>
+    <p className="muted">
+      <span aria-hidden>◌</span> Read here: only Production schema and Monte Carlo numerics, which
+      resolve from this poll. The three CI gated rows are the verdict of the continuous-integration
+      run for this commit, not a check this deployment repeated.
+    </p>
+    </>
   );
 }
 

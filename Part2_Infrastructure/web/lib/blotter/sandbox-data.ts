@@ -159,6 +159,13 @@ export function sandboxBlotter(
           latencyMs: latency, fillPrice: mark * (1 + (side === "BUY" ? 1 : -1) * slippage / 1e4),
           feeUsd: fee, slippageBps: slippage,
           venue: SANDBOX_VENUES[Math.floor(rand() * SANDBOX_VENUES.length)],
+          // True, and not a formality: these fills were drawn from mulberry32,
+          // not filled by BINANCE. The venue tag is a plausible label on a
+          // generated row, so the row has to carry the correction itself —
+          // otherwise the Fill quality panes read a seeded desk as an exchange
+          // one. A constant, so the random stream is unchanged and the sandbox
+          // reconciliation suites still see byte-identical rows.
+          simulated: true,
           source: "sandbox", checks: [],
         });
       } else {
@@ -177,7 +184,9 @@ export function sandboxBlotter(
           accepted: false, status: "REJECTED", timeInForce: "IOC", rejectedBy: [gate],
           reason: REJECT_REASONS[gate], latencyMs: latency,
           fillPrice: null, feeUsd: null, slippageBps: null,
-          venue: null, source: "sandbox", checks: [],
+          // Null rather than true: a rejected order produced no fill, so there
+          // is nothing here whose provenance could be simulated or otherwise.
+          venue: null, simulated: null, source: "sandbox", checks: [],
         });
       }
     }

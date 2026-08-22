@@ -249,7 +249,7 @@ export default function ReliabilityConsole({
         tiles={tiles}
         kicker="DevOps / SRE"
         title="Reliability"
-        description="Is the desk up, what is degrading it, and which control brings it back?"
+        description="Is the desk up, and if not, which layer broke?"
       />
 
       {/* Exactly one copy of the outcome, wherever the reader is. `OperatorPanel`

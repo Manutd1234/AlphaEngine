@@ -204,6 +204,7 @@ export function summarise(rows: BlotterRow[]): ExecutionSummary {
   // counted it would flatter the desk.
   const accepted = rows.filter((r) => r.status === "FILLED");
   const slippage = accepted.map((r) => r.slippageBps).filter((v): v is number => v != null);
+  const fees = accepted.map((r) => r.feeUsd).filter((v): v is number => v != null);
   const latency = rows.map((r) => r.latencyMs).filter((v): v is number => v != null).sort((a, b) => a - b);
 
   const gates = new Map<string, number>();
@@ -224,7 +225,16 @@ export function summarise(rows: BlotterRow[]): ExecutionSummary {
     fillRate: rows.length ? accepted.length / rows.length : null,
     avgSlippageBps: slippage.length ? slippage.reduce((a, b) => a + b, 0) / slippage.length : null,
     worstSlippageBps: slippage.length ? Math.max(...slippage) : null,
-    totalFees: accepted.reduce((sum, r) => sum + (r.feeUsd ?? 0), 0),
+    // `?? 0` inside a sum is the one place a null can be coerced without
+    // looking like it: the total comes out lower and there is nothing on
+    // screen saying over how many fills. The filter is the same discipline
+    // `avgSlippageBps` above it already uses — the denominator is the rows
+    // that HAVE the measure — and the two counts travel with the figure so a
+    // partial total can say so. Rejected: nulling the total whenever one fee
+    // is missing, which would throw away every fee the gateway did record.
+    totalFees: fees.reduce((sum, fee) => sum + fee, 0),
+    feePricedFills: fees.length,
+    feeUnpricedFills: accepted.length - fees.length,
     p50LatencyMs: quantile(0.5),
     p90LatencyMs: quantile(0.9),
     p99LatencyMs: quantile(0.99),

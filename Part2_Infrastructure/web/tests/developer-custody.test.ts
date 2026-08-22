@@ -48,8 +48,17 @@ const CHAIN = "components/developer/NumericsCustodyChain.tsx";
 const DIGEST = "components/developer/NumericsCustodyDigest.tsx";
 const INTERFACES = "components/developer/DeveloperInterfaces.tsx";
 const STATUS = "components/developer/DeveloperStatus.tsx";
+/**
+ * The renderer, extracted when the gateway OpenAPI chain was drawn and both
+ * chains started sharing it. It is in this list rather than swapped for CHAIN:
+ * the assertions below split cleanly into "what this chain claims" (still the
+ * chain file, where the derivation lives) and "how any chain is drawn" (now
+ * here), and every whole-surface scan — the truncation sweep, the dependency
+ * sweep — must read both or it reads less than it did before the split.
+ */
+const TRACK = "components/developer/CustodyChainTrack.tsx";
 
-const FILES = [CHAIN, DIGEST, INTERFACES, STATUS] as const;
+const FILES = [CHAIN, DIGEST, INTERFACES, STATUS, TRACK] as const;
 const sources = new Map<string, string>(FILES.map((file) => [file, readSource(file)] as const));
 
 /**
@@ -79,7 +88,7 @@ const panel = () => FILES.map(rendered).join(" ");
 // ---------------------------------------------------------------------------
 
 describe("the custody surface reads as the real files", () => {
-  it("reads four non-empty sources", () => {
+  it("reads five non-empty sources", () => {
     for (const file of FILES) assert.ok(source(file).length > 500, `${file} is too short to be the real file`);
     assert.ok(panel().length > 10_000, "the panel read short — every assertion below would scan almost nothing");
   });
@@ -187,6 +196,7 @@ describe("the chain drawn is the chain in the repository", () => {
   });
 
   it("borrows the signal path's idiom rather than inventing a second one", () => {
+    const track = rendered(TRACK);
     for (const className of [
       "signal-workflow__track",
       "signal-workflow__stage",
@@ -197,15 +207,19 @@ describe("the chain drawn is the chain in the repository", () => {
       "signal-workflow__detail",
       "signal-workflow__source",
     ]) {
-      assert.ok(chain.includes(className), `${className} is gone — the panel has grown a second dialect`);
+      assert.ok(track.includes(className), `${className} is gone — the panel has grown a second dialect`);
     }
     // Same glyph table as the signal path, imported rather than restated.
-    assert.match(chain, /import \{ STAGE_GLYPH \} from "@\/lib\/signal-path"/);
+    assert.match(track, /import \{ STAGE_GLYPH \} from "@\/lib\/signal-path"/);
+    // And this chain still goes THROUGH that renderer. Without this line the
+    // loop above would stay green over a track file nothing draws with, which
+    // is exactly the shape of a second dialect being grown quietly.
+    assert.match(chain, /<CustodyChainTrack chain=\{chain\} label="Numerics custody chain" \/>/);
   });
 
   it("lets a reader check each link instead of trusting it", () => {
     // The provenance line is the point of the panel, as it is in SignalDAG.
-    assert.match(chain, /Read from <code>\{opened\.source\}<\/code>/);
+    assert.match(rendered(TRACK), /Read from <code>\{opened\.source\}<\/code>/);
     for (const path of ["scripts/generate-mc-parity.ts", "lib/mc-parity-reference.generated.ts"]) {
       assert.ok(chain.includes(`source: "${path}"`), `the chain stopped citing ${path}`);
     }
@@ -214,7 +228,7 @@ describe("the chain drawn is the chain in the repository", () => {
   it("never lets colour carry a state on its own", () => {
     // Every node prints the glyph AND the word; the tint is applied beside
     // both, never instead of them.
-    assert.match(chain, /<span aria-hidden>\{STAGE_GLYPH\[link\.state\]\}<\/span> \{link\.word\}/);
+    assert.match(rendered(TRACK), /<span aria-hidden>\{STAGE_GLYPH\[link\.state\]\}<\/span> \{link\.word\}/);
     assert.match(rendered(DIGEST), /<span aria-hidden>\{glyph\}<\/span> \{word\}/);
   });
 });

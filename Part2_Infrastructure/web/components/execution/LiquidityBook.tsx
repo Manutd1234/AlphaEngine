@@ -25,7 +25,7 @@ import DepthChart from "@/components/DepthChart";
 import StatTile from "@/components/StatTile";
 import { compact, fmt } from "@/lib/format";
 import type { LiveSnapshot } from "@/lib/livebook";
-import type { Side } from "@/lib/venues";
+import { DEPTH_BAND_BPS, type Side } from "@/lib/venues";
 
 import { type HideablePanelProps, skipWhileHidden } from "./hidden-panel";
 
@@ -114,6 +114,16 @@ function LiquidityBook({ symbol, snap, dp, onPriceSelect }: LiquidityBookProps) 
     [bids, symbol, dp, onPriceSelect],
   );
 
+  // Depth is notional inside a band around the mid, so it is exactly as
+  // measurable as the mid is. Named once and read by both tiles, which must
+  // never disagree about whether the book was read.
+  const bandMeasurable = snap != null && snap.consolidatedMid != null;
+  const depthNote = snap == null
+    ? "no book snapshot"
+    : snap.consolidatedMid == null
+      ? "no consolidated mid to measure a band against"
+      : `within ±${DEPTH_BAND_BPS} bps of mid`;
+
   return (
     <>
       <div className="tiles" style={{ marginBottom: 16, gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))" }}>
@@ -126,16 +136,41 @@ function LiquidityBook({ symbol, snap, dp, onPriceSelect }: LiquidityBookProps) 
         />
         {/* Dashed, not zeroed — matching the Spread tile beside them. An
             absent snapshot rendered "$0 of depth", which reads as an empty
-            book rather than as an unread one. */}
+            book rather than as an unread one.
+
+            The same hole was still open one level down, and this is what
+            closes it: `depthWithinBps` answers a null mid with a literal 0
+            (lib/venues/book-maths.ts), so `depthUsdBid == null` could never
+            be true and a snapshot taken while every venue was dark printed
+            "$0" under the note "within ±10 bps of mid" — a band that did not
+            exist to be measured. Traced rather than guessed: `consolidatedMid`
+            is null whenever no venue is both connected and fresh, and the same
+            publish tick that produces that null hands these tiles a 0 — the
+            Imbalance tile beside them takes the honest branch (`bandImbalance`
+            returns null on an empty band) and these two did not. The band is
+            measured FROM the mid, so no mid is no measurement, and the tile
+            names which of the two is missing. Rejected: changing that 0 to
+            null in book-maths, whose other five call sites include the
+            router's own depth sums — the claim to a reader is made here, so
+            the guard belongs here.
+
+            The `== null` half stays in front of it rather than being replaced
+            by the mid check: `depthUsdBid` is typed `number` today only
+            because that 0 exists, and `null-honesty.test.ts` reads this
+            expression as the proof the tile does not zero an unread book.
+
+            The band itself is read from the constant the maths uses rather
+            than spelt "10" a second time: the note and the measurement were
+            two copies of one number with nothing keeping them in step. */}
         <StatTile
           label="Bid depth"
-          value={snap?.depthUsdBid == null ? "—" : `$${compact(snap.depthUsdBid)}`}
-          note={snap == null ? "no book snapshot" : "within ±10 bps of mid"}
+          value={!bandMeasurable || snap?.depthUsdBid == null ? "—" : `$${compact(snap.depthUsdBid)}`}
+          note={depthNote}
         />
         <StatTile
           label="Ask depth"
-          value={snap?.depthUsdAsk == null ? "—" : `$${compact(snap.depthUsdAsk)}`}
-          note={snap == null ? "no book snapshot" : "within ±10 bps of mid"}
+          value={!bandMeasurable || snap?.depthUsdAsk == null ? "—" : `$${compact(snap.depthUsdAsk)}`}
+          note={depthNote}
         />
         <StatTile
           label="Imbalance"

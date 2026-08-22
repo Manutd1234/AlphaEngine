@@ -135,7 +135,12 @@ export default function DataWorkBoard({
       priority: draft.priority,
       status: "intake",
       title,
-      summary: "Added from the Data operations work queue for triage.",
+      // Restatement, cut: this card sits on the Data operations work queue and
+      // lands in a column reading "Needs triage", so the old boilerplate said
+      // nothing the screen was not already saying — and spent three rows of the
+      // tab's narrowest column doing it. Not an empty string, the other option:
+      // an empty <p> leaves a thin record indistinguishable from a broken one.
+      summary: "No detail captured.",
       owner: draft.owner.trim() || "Unassigned",
       area: draft.area,
       openedAt: createdAt,

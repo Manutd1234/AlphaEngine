@@ -33,7 +33,22 @@ import type { ParamResult, PromotionGate } from "@/lib/types";
 interface SizingPanelProps {
   best: ParamResult;
   gate: PromotionGate;
-  /** Book equity the fraction is applied to. */
+  /**
+   * Book the fraction is applied to.
+   *
+   * The research lab holds no account context — the only caller passes
+   * `REFERENCE_EQUITY`, the reference book size every allocation on the site is
+   * quoted against, and nothing here reads a balance from the risk gateway. So
+   * the notional below is arithmetic over an assumption, and the tile says
+   * "reference book" rather than "equity": a reader who takes the word equity
+   * for a measured balance is being told their book is this size, which this
+   * panel has never asked anyone.
+   *
+   * Rejected alternative — wiring the portfolio tab's `book.equity.current`
+   * through to here. It is the sandbox book whenever the gateway is down, so
+   * the figure would still be an assumption, and it would additionally change
+   * under the reader while the sweep it sizes did not.
+   */
   equity: number;
 }
 
@@ -118,7 +133,9 @@ export default function SizingPanel({ best, gate, equity }: SizingPanelProps) {
         <div className="stability-tile">
           <span>Notional</span>
           <strong className="num">{usd(sizing.recommendedNotional, 0)}</strong>
-          <small>on {usd(equity, 0)} of equity</small>
+          <small title="A reference book size, not a balance read from any account: the research lab has no account context.">
+            on a reference {usd(equity, 0)} book
+          </small>
         </div>
         <div className="stability-tile">
           <span>Payoff ratio</span>

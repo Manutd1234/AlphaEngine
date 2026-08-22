@@ -66,7 +66,12 @@ export const PORTFOLIO_SECTION_IDS =
 
 export const RISK_SECTIONS = [
   { id: "limits", label: "Limits", description: "Headroom & concentration" },
-  { id: "model", label: "VaR & model", description: "Loss estimates & validation" },
+  // The id stays `model` while the label becomes "Risk engine": ids are public
+  // deep links (see the header), so #risk/model must keep resolving to the half
+  // it has always named. A section-level alias was considered and rejected —
+  // nothing is broken, so it would be a migration mechanism for no migration.
+  { id: "model", label: "Risk engine", description: "Loss estimates & validation" },
+  { id: "diagram", label: "Risk diagram", description: "Forecast against realised" },
   { id: "drivers", label: "Risk drivers", description: "Contribution & correlation" },
   { id: "montecarlo", label: "Monte Carlo", description: "Terminal distribution & tail" },
   { id: "oraclevar", label: "Oracle VaR", description: "In-database GBM check" },

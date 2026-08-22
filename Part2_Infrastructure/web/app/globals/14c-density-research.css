@@ -6,8 +6,10 @@
  * 15-navigator-and-trailing-layer.css. The owners are on the over-ceiling
  * ledger and may never grow, which is why these overrides live here at all.
  *
- * Desk-width packing only: every rule in this file must sit inside a
- * min-width media query, so phones keep the single-column flow.
+ * Desk-width packing, with ONE exception at the foot of the file: every
+ * packing rule must sit inside a min-width media query, so phones keep the
+ * single-column flow. The exception is a type rung, which is not a width
+ * decision and is unconditional under its own banner.
  */
 
 /* What this pass measured before writing a rule, so the next reader does not
@@ -115,4 +117,39 @@
   #panel-research .workspace-subtab-panel > .seg {
     margin-bottom: var(--space-2);
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Strategy codex: a family head is a card title                        */
+/* ------------------------------------------------------------------ */
+/* UNCONDITIONAL, and the one exception to the "desk-width packing only" line
+ * in the banner at the top of this file. A type rung is not a width decision:
+ * a rule that only applied above 1280px would leave a phone reading the old
+ * size and would make the tab's own headings disagree with themselves across a
+ * breakpoint. The rule it supersedes is `.codex-family__head h2` in
+ * 14-symbol-combobox.css, a partial shared with the combobox and the verdict
+ * headline and 500 lines over the file ceiling, so the reasoning below could
+ * not be written there. Its dead `font-size` line was DELETED in the same
+ * change rather than left to contradict this one — `rung-single-declaration`
+ * fails on exactly that, and the nine duplicates it was built to clear are the
+ * reason a careful reader once spent a pass measuring a defect that existed
+ * only in a line the browser never applied.
+ *
+ * MEASURED IN CHROME over the running desk at all three Text-size presets, not
+ * read out of the sheet. Every other card title on the eight tabs computed
+ * 17.57 / 20.5 / 24.89px at compact / comfortable / large — 51
+ * `.portfolio-card-heading h2`, the `.section-heading` heads and every bare
+ * `.card > h2`. The seven codex family heads computed 14.57 / 17 / 20.64px,
+ * one rung down, on a container that declares the whole card treatment
+ * (border, --radius-lg, --surface-1, --card-pad). Research was the last card
+ * grammar still holding a fourth size after the convergence that named three.
+ *
+ * NOT --fs-h1, the section-head rung its structure would otherwise argue for.
+ * The head does own a grid of cards, which is that role's test, but every
+ * other member of the role is the ONLY card in its panel, and seven family
+ * heads stand on this one. Seven section heads is not a hierarchy. The map's
+ * `section head` entry records that distinction rather than leaving it here.
+ */
+.codex-family__head h2 {
+  font-size: var(--fs-h2);
 }

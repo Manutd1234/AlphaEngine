@@ -15,6 +15,17 @@
  * cost has been fully decomposed; the gap says which question is still open and
  * names the table that would answer it.
  *
+ * WHAT THE COLUMNS DO NOT SAY ON THEIR OWN. Two of the bars are drawn from an
+ * execution simulator's configuration and the rest from a walked ladder, and as
+ * numbers they are indistinguishable — a PAPER_EQUITY venue reported 16.0 bps
+ * on every fill because `paper_equity_slippage_bps` is 8.0 and the formula
+ * doubles it, while BINANCE reported 0.1, 0.5 and 1.1 because a route was
+ * actually walked. Both arrived here as "bps". So each venue now carries a
+ * one-word mark taken from `venueProvenance`, the Basis cell is derived instead
+ * of the constant string "measured, measured, not measurable" it used to print
+ * over every row, and the fold argues the case. The bars themselves did not
+ * change and must not: the figure is correct, the silence about it was not.
+ *
  * The withheld-column idiom is `PnlWaterfall`'s, deliberately: one convention
  * for "measured at zero" versus "not measured", used on both surfaces that need
  * it. Axis labels are hand-placed rather than delegated to `XAxis`, for the
@@ -29,7 +40,9 @@
 
 import { LABEL_CLEARANCE, MONO_ADVANCE_EM, TICK_FONT_SIZE, fitLabel } from "@/components/chart-axis";
 import { DEFAULT_MARGIN, Grid, extent, linearScale, ticks, useMeasuredWidth } from "@/components/chart-kit";
-import { REALIZED_SPREAD_WITHHELD, venueQuality, type BlotterRow } from "@/lib/blotter";
+import {
+  BASIS_WORD, REALIZED_SPREAD_WITHHELD, SIMULATED_FLAG_UNSTATED, venueQuality, type BlotterRow,
+} from "@/lib/blotter";
 
 const HEIGHT = 210;
 const MARGIN = { ...DEFAULT_MARGIN, right: 18, bottom: 42 };
@@ -76,6 +89,13 @@ export default function SpreadDecomposition({
       </section>
     );
   }
+
+  /** Venues whose spread or fee did not move across enough fills to have been
+   *  measured. Computed, never listed: a hard-coded venue name here would be
+   *  the same defect one layer up. */
+  const assumed = priced.filter(
+    (venue) => venue.provenance.spread.kind === "assumed" || venue.provenance.fee.kind === "assumed",
+  );
 
   const values = priced.flatMap((venue) => [venue.effectiveSpreadBps ?? 0, venue.meanFeeBps ?? 0]);
   const [, hi] = extent([0, ...values]);
@@ -130,14 +150,14 @@ export default function SpreadDecomposition({
                 <rect x={x0} y={yScale(effective)} width={barW}
                   height={Math.max(1, base - yScale(effective))}
                   fill="var(--diverging-neg)" rx={2}>
-                  <title>{`${venue.venue} — effective spread ${effective.toFixed(1)} bps`}</title>
+                  <title>{`${venue.venue} — effective spread ${effective.toFixed(1)} bps, ${BASIS_WORD[venue.provenance.spread.kind]}`}</title>
                 </rect>
 
                 {fee != null ? (
                   <rect x={x0 + barW + 6} y={yScale(fee)} width={barW}
                     height={Math.max(1, base - yScale(fee))}
                     fill="var(--series-2)" rx={2}>
-                    <title>{`${venue.venue} — fee ${fee.toFixed(1)} bps`}</title>
+                    <title>{`${venue.venue} — fee ${fee.toFixed(1)} bps, ${BASIS_WORD[venue.provenance.fee.kind]}`}</title>
                   </rect>
                 ) : (
                   <rect x={x0 + barW + 6} y={base - 1} width={barW} height={1} fill="var(--axis)">
@@ -186,6 +206,19 @@ export default function SpreadDecomposition({
         <li><i aria-hidden className="is-withheld" /> Realized spread — not measured</li>
       </ul>
 
+      {/* At rest, never folded. A reader acts on these figures, and "this
+          column is a setting" is not methodology — it is the difference between
+          quoting a venue's cost and quoting a config file back at yourself. The
+          fold below carries the argument; this carries the finding. */}
+      {assumed.length > 0 && (
+        <p className="research-note" role="status">
+          {assumed.length === 1 ? "One venue" : `${assumed.length} of ${priced.length} venues`} here
+          report{assumed.length === 1 ? "s" : ""} a cost that is identical on every fill:{" "}
+          {assumed.map((venue) => venue.venue).join(", ")}. A figure that does not vary was applied
+          to those fills rather than measured from them, and it is marked ASSUMED below.
+        </p>
+      )}
+
       <div className="table-wrap" tabIndex={0}>
         <table>
           <thead>
@@ -200,11 +233,23 @@ export default function SpreadDecomposition({
           <tbody>
             {priced.map((venue) => (
               <tr key={venue.venue}>
-                <td><strong>{venue.venue}</strong></td>
+                <td>
+                  <strong>{venue.venue}</strong>{" "}
+                  {/* Glyph AND word, from lib/signal-path's set. The tone class
+                      is decoration: strip every colour and the word still says
+                      which of these venues the desk may quote. */}
+                  <span className={`pill pill--${venue.provenance.mark.tone === "warn" ? "warn" : "info"}`}>
+                    <span aria-hidden>{venue.provenance.mark.glyph}</span>{" "}
+                    {venue.provenance.mark.word}
+                  </span>
+                </td>
                 <td className="num">{venue.effectiveSpreadBps!.toFixed(1)} bps</td>
                 <td className="num">{venue.meanFeeBps != null ? `${venue.meanFeeBps.toFixed(1)} bps` : "—"}</td>
                 <td className="num">—</td>
-                <td>measured, measured, not measurable</td>
+                {/* Derived per venue. This cell used to print one constant
+                    string on every row, which claimed a measurement for the two
+                    columns beside it whatever they actually rested on. */}
+                <td>{BASIS_WORD[venue.provenance.spread.kind]}, {BASIS_WORD[venue.provenance.fee.kind]}, not measurable</td>
               </tr>
             ))}
           </tbody>
@@ -227,6 +272,29 @@ export default function SpreadDecomposition({
           Effective spread is <span className="num">2 × |slippage|</span> against the consolidated mid
           the gateway priced each decision at. {REALIZED_SPREAD_WITHHELD}
         </p>
+        {/* The longer version of the provenance argument lives here rather than
+            in a rival disclosure: a reader asking what a figure is measured
+            against is already asking whether it was measured at all, and two
+            folds would let them read one answer and miss the other. */}
+        <p className="research-note">
+          Every fill this gateway reports is built by an execution simulator. For a crypto symbol it
+          walks the consolidated ladder and the price it returns depends on the book; for an equity
+          it assigns a configured constant and never touches a ladder at all. Both then arrive here
+          as a number of basis points, so this card cannot tell them apart by inspection and does not
+          try. It reports dispersion instead: a venue whose fills all carry the identical figure, to
+          within a millionth of a basis point across three or more fills, did not get that figure
+          from those fills. The bars are unchanged and no venue is hidden — inventing a fee schedule
+          or dropping the paper venues would both be worse than the silence this replaces.
+        </p>
+        <p className="research-note">{SIMULATED_FLAG_UNSTATED}</p>
+        <ul className="research-note">
+          {priced.map((venue) => (
+            <li key={venue.venue}>
+              <strong>{venue.venue}</strong> — {venue.provenance.spread.detail}{" "}
+              {venue.provenance.fee.detail}
+            </li>
+          ))}
+        </ul>
       </details>
     </section>
   );

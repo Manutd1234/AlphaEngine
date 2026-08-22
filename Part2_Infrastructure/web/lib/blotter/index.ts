@@ -19,5 +19,11 @@ export { createSandboxDesk, summarise } from "./sandbox-desk";
 export type { SandboxDecision, SandboxOrder } from "./sandbox-desk";
 export { UNTAGGED, filterBlotterRows, filterWorkingOrders, rejectGateTags, strategyTags } from "./views";
 export type { BlotterStatusFilter } from "./views";
-export { MIN_PRICED_FILLS, REALIZED_SPREAD_WITHHELD, effectiveSpreadBps, feeBps, priceImprovement, venueQuality } from "./fill-quality";
-export type { PriceImprovement, VenueMix, VenueQuality } from "./fill-quality";
+export {
+  BASIS_WORD, MIN_DISPERSION_FILLS, MIN_PRICED_FILLS, REALIZED_SPREAD_WITHHELD,
+  SIMULATED_FLAG_UNSTATED, assumedSlippageNote, costBasis, effectiveSpreadBps, feeBps,
+  priceImprovement, venueProvenance, venueQuality,
+} from "./fill-quality";
+export type {
+  CostBasis, FillSource, PriceImprovement, ProvenanceMark, VenueMix, VenueProvenance, VenueQuality,
+} from "./fill-quality";

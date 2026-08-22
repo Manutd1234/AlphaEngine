@@ -2,8 +2,11 @@ import { emitPrefChange } from "./pref-sync-bus";
 
 /**
  * The reader's Text size — one of three steps the whole content ladder is
- * multiplied by (`--type-step` in globals.css: compact 0.9375, comfortable 1,
- * large 1.125).
+ * multiplied by (`--type-step` in globals.css). The three land the reading
+ * rung --fs-body on 12px, 14px and 17px: compact 6/7, comfortable 1 (the
+ * ladder exactly as the stylesheet writes it), large 17/14. The steps were
+ * 0.9375 and 1.125 until 2026-08-22, which left compact and comfortable
+ * 0.88px apart — a control whose states a reader could not tell apart.
  *
  * Applies to the workspace, not to the header: the header, the tab switcher
  * and the bottom bar use the fixed chrome tokens, because their priority

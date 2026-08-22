@@ -112,11 +112,88 @@ export function BookFallback({ view, onOpenResearch, surface = "portfolio" }: Bo
 }
 
 /**
- * Halt / stale / sandbox banners and the source-and-refresh strip. Rendered at
- * the top of both tabs.
+ * The three words that name which book is on screen. The strips below spell
+ * them as literals too, rather than calling this, because
+ * `layout-stability.test.ts` pins the live reading's markup byte for byte —
+ * so `page-status-book.test.ts` parses both out of this file and fails if they
+ * drift. It also records why the stale reading is now "Last known book".
+ */
+export function bookStateLabel(sandbox: boolean, isStale: boolean): string {
+  return sandbox ? "Sandbox book (generated)" : isStale ? "Last known book" : "Live book";
+}
+
+/**
+ * The two banners that have to interrupt, above the section rail on both tabs.
+ *
+ * The status line that used to close this component is now `BookStatus`, in
+ * the page heading. A halt and a dead gateway are events, and an event belongs
+ * across the reader's path to the numbers; which book is on screen is state,
+ * and state belongs in the header that already frames the page.
  */
 export function BookChrome({ view }: { view: BookView }) {
-  const { book, error, isStale, sandbox, setSandbox, refresh, refreshing, lastSuccessAt, streamState } = view;
+  const { book, error, isStale } = view;
+  if (!book) return null;
+
+  return (
+    <>
+      {book.trading_halted && (
+        <div className="banner error" role="alert">
+          <span aria-hidden>■</span>
+          <div>
+            <strong>{isStale ? "Trading was halted at the last successful refresh." : "Trading is halted."}</strong>{" "}
+            {book.halted_symbols.length
+              ? `Halted instruments: ${book.halted_symbols.join(", ")}.`
+              : "The global kill switch is active."}
+          </div>
+        </div>
+      )}
+
+      {/* The refresh time is NOT repeated here. `isStale` is `!sandbox &&
+          connectionState === "stale"`, so the status line in the heading
+          renders under exactly this condition and prints the same
+          `lastRefreshLabel` off the same variable, in the tabular face a
+          timestamp belongs in. What is left is the half that line cannot
+          carry: what went wrong, and what stops working until it is fixed. */}
+      {isStale && (
+        <div className="banner warn" role="status" aria-live="polite">
+          <span aria-hidden>!</span>
+          <div>
+            <strong>Portfolio data is stale.</strong>{" "}
+            {error?.error} Execution handoffs are disabled until the gateway reconnects.
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+/**
+ * Which book is on screen, for the page heading's control slot.
+ *
+ * ONE STRIP, THREE READINGS, ONE HEIGHT. Every state renders it, so the
+ * Live/Sandbox toggle changes the words and moves nothing — the live path once
+ * rendered no strip, and pressing Sandbox inserted a 43px block that shifted
+ * the rail, every panel and the shell's scroll position.
+ *
+ * WHY THE HEADING. It was a full-width row below the four summary chips, which
+ * put the least conditional fact on the page furthest from the title it
+ * qualifies. `.page-heading__actions` is the heading's row-1 right slot —
+ * beside the title, above the chips — and on Portfolio and Risk it renders
+ * empty, because neither passes `status` or `actions`. That is the band.
+ *
+ * REJECTED: `PageHead`'s `status` pill, the slot its own docblock nominates
+ * for a status word. `PageStatus.label` is a `string` and `.page-status` is a
+ * nowrap pill, so the sandbox reading — a full sentence with a bolded lead —
+ * would have to be truncated into it, or `PageStatus` widened to take a node.
+ * globals.css says the generated-book marker must never be subtle, and an
+ * ellipsised honesty declaration is the subtlest form there is.
+ *
+ * The timestamp re-renders about once a second and cannot reflow the row: it
+ * is `.num` — mono AND `tabular-nums`, so no digit is wider than another — and
+ * the strip takes a fixed `width` in the heading rather than a max.
+ */
+export function BookStatus({ view }: { view: BookView }) {
+  const { book, isStale, sandbox, lastSuccessAt, streamState } = view;
   if (!book) return null;
 
   // How the last change arrived. The stream and the poll beneath it deliver the
@@ -135,53 +212,6 @@ export function BookChrome({ view }: { view: BookView }) {
 
   return (
     <>
-      {book.trading_halted && (
-        <div className="banner error" role="alert">
-          <span aria-hidden>■</span>
-          <div>
-            <strong>{isStale ? "Trading was halted at the last successful refresh." : "Trading is halted."}</strong>{" "}
-            {book.halted_symbols.length
-              ? `Halted instruments: ${book.halted_symbols.join(", ")}.`
-              : "The global kill switch is active."}
-          </div>
-        </div>
-      )}
-
-      {/* The refresh time is NOT repeated here. `isStale` is `!sandbox &&
-          connectionState === "stale"`, so the strip below renders under exactly
-          this condition and prints the same `lastRefreshLabel` off the same
-          variable, in the tabular face a timestamp belongs in — this said it and
-          then the strip said it again, two lines apart. What is left is the half
-          the strip cannot carry: what went wrong, and what stops working until
-          it is fixed. */}
-      {isStale && (
-        <div className="banner warn" role="status" aria-live="polite">
-          <span aria-hidden>!</span>
-          <div>
-            <strong>Portfolio data is stale.</strong>{" "}
-            {error?.error} Execution handoffs are disabled until the gateway reconnects.
-          </div>
-        </div>
-      )}
-
-      {/* One strip, three readings, one height.
-
-          The source controls that used to share this strip moved to the section
-          rail (`BookSourceControl`), where they stay reachable while scrolling
-          instead of costing ~70px at the top of two tabs. The declaration that
-          the book is generated did NOT move with them: it is rendered on every
-          pass for as long as the mode is on, at full width, on the notice rail.
-          A one-time or shrunken banner is how a generated book gets mistaken for
-          a real one after ten minutes of reading, and globals.css says outright
-          that this marker must never be subtle.
-
-          The live path used to render no strip at all, and that was the jump:
-          pressing Sandbox inserted a 43px block above the rail and pressing
-          Live removed it, so the rail, every panel and the shell's scroll
-          position moved with each press. The live reading now occupies the
-          same slot — the gateway the book comes from and when it last
-          answered, which at desk width the rail's meta slot does not show —
-          so the toggle changes the words in the strip and nothing below it. */}
       {sandbox && (
         <div className="portfolio-statusbar is-sandbox" role="status">
           <div>
@@ -199,7 +229,7 @@ export function BookChrome({ view }: { view: BookView }) {
         <div className="portfolio-statusbar" role="status">
           <div>
             <span className="system-health is-warn">
-              <i aria-hidden /> Stale portfolio snapshot
+              <i aria-hidden /> Last known book
             </span>
             <span className="num">Last successful refresh {lastRefreshLabel}</span>
           </div>

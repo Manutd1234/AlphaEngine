@@ -21,13 +21,67 @@
    first ladders. Each of those transitions passes through a shorter state — a
    skeleton, a "waiting for book…" line, a one-sentence placeholder — and the
    shell's scroller followed the panel down and back up again: the twitch was
-   the page, not the panel. 420px is under every one of these sections' settled
-   height, so the floor is never visible at rest; it only stops the collapse
-   between two settled states. Attribute selectors on the id the panel already
+   the page, not the panel. Attribute selectors on the id the panel already
    carries, so the dead-CSS budget gains no class. A hidden panel is
-   `display: none` (06) and the floor does not apply to it. */
+   `display: none` (06) and the floor does not apply to it.
+
+   THE FLOOR SCALES WITH THE TYPE LADDER, AND IT HAS TO.
+
+   It read a flat `420px`, chosen at one text size, and measured against the
+   live desk at 1440px that number was wrong at both ends of the ladder. The
+   binding panel is Portfolio's Positions section, the shortest of the twelve
+   this rule covers; headless Chrome puts its settled height at 396.8px on the
+   compact step, 406.4px on comfortable and 427.2px on large. A flat 420 is
+   therefore 23.2px of dead reserve under a compact reader, 13.6px under a
+   comfortable one — visible whitespace at rest, which is the one thing this
+   file's own preamble says a reserve must never be — and on large it sits
+   BELOW the settled height, so it stops reserving anything at all. A floor
+   that goes inert exactly where the type is biggest is a floor that will be
+   quietly missing when the ladder moves again.
+
+   `calc(330px + 5 * var(--fs-body))` resolves to 390 / 400 / 415px against
+   the 12 / 14 / 17px body sizes, which is 6.8 / 6.4 / 12.2px under the
+   measured settled height at each step: under every one of them, at every
+   one of them, and never by enough to show.
+
+   The rejected alternative was a pure `em` floor — `30em` is exactly today's
+   420px and reads more cleanly. It was rejected on the measurement: a panel
+   is not made of type. Its charts, table rows, chart reserves and card
+   padding are px, so its height grows far more slowly than the ladder does
+   (a 41.7% type step buys 7.7% of panel), and 30em would land at 510px on
+   large — 83px of void under the Positions table. The split constant is the
+   arithmetic the panel is actually built from, and it is the same idiom
+   `.page-insight` uses one partial along for the same reason: a fixed part
+   for the chrome, a token multiple for the type, so neither can drift from
+   the other when the ladder moves. */
 .workspace-subtab-panel[data-workspace-id="portfolio"],
 .workspace-subtab-panel[data-workspace-id="risk"],
 .workspace-subtab-panel[data-workspace-id="execution"] {
-  min-height: 420px;
+  min-height: calc(330px + 5 * var(--fs-body));
 }
+
+/* NO FLOOR ON THE PAGE HEADER, AND THAT IS THE MEASUREMENT TALKING.
+
+   A complaint arrived that the Portfolio summary card holding Book source,
+   Positions, Risk model and Execution sleeve changes height as the reader
+   moves between the five subtabs. It does not. Driven through CDP against
+   the running desk, the header measures 168.6px on compact, 189.3px on
+   comfortable and 220.1px on large, and it measures the same on all five
+   subtabs, at every viewport from 760 to 1512px, sampled every frame for
+   1.5s across each switch: zero variance. It cannot vary, because it is
+   rendered by `WorkspacePanels` as a sibling ABOVE `<PortfolioTab>` rather
+   than inside any `.workspace-subtab-panel`, its four chips come from
+   `portfolioInsights`, which takes no section argument, and each chip already
+   carries a token-derived `min-height` with its note slot reserved at two
+   lines whether or not the note fills them.
+
+   So a second floor here would reserve against a collapse that cannot
+   happen, and would be a rival to the chip arithmetic that the chip's own
+   comment records having drifted twice already (81px, then 84px, against a
+   real 89.8px). What actually moves on a subtab switch is the scroller: the
+   five panels settle between 406.4px and 1066.4px, so leaving a tall section
+   for a short one clamps the shell's scrollTop — 650 to 5 between Performance
+   and Positions — and the header slides 645px back into view under a sticky
+   rail. That is a scroll contract, not a height contract, and it belongs to
+   the shell rather than to this file. tests/bookchrome-stability.test.ts pins
+   the height contract instead of duplicating it. */

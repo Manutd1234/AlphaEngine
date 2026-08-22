@@ -42,9 +42,9 @@ import { describe, it } from "node:test";
 import { readSource, stripCode } from "./helpers/source-files";
 
 /**
- * The nine files this pass rewrote in.
+ * The ten files this pass rewrote in.
  *
- * The first six are the ones `tests/disclosure-risk.test.ts` calls the Risk
+ * The first seven are the ones `tests/disclosure-risk.test.ts` calls the Risk
  * tab's sources. `CorrelationMatrix` and `HeadroomBar` are Risk surfaces that
  * suite does not list — the drivers subtab mounts the first through
  * `RiskEngine`, the limits subtab mounts the second directly. `UnrealisedSpread`
@@ -54,6 +54,7 @@ import { readSource, stripCode } from "./helpers/source-files";
  */
 const PATHS = [
   "components/RiskWorkspace.tsx",
+  "components/risk/LimitsPanel.tsx",
   "components/portfolio/RiskEngine.tsx",
   "components/portfolio/StressTest.tsx",
   "components/portfolio/VarBacktestChart.tsx",
@@ -108,7 +109,7 @@ interface Rewrite {
 
 const REWRITES: Rewrite[] = [
   {
-    path: "components/RiskWorkspace.tsx",
+    path: "components/risk/LimitsPanel.tsx",
     what: "how effective positions is derived",
     facts: [
       "1 ÷ the Herfindahl index",

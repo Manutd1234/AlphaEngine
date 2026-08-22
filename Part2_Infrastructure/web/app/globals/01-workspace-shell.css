@@ -2,23 +2,18 @@
    Integrated workspace shell
    ======================================================================== */
 
+/* Thinner than they look: the bar's paint and z-index (13, 12) and this row's
+   height and inline padding (12) are declared later — here and in the ≤720
+   block — and every copy lost the cascade. Deleted, not left reading as live. */
 .workspace-header {
   position: sticky;
   top: 0;
-  z-index: var(--z-header);
-  background: color-mix(in srgb, var(--surface-1) 96%, transparent);
-  border-bottom: 1px solid var(--border);
-  backdrop-filter: blur(18px);
-  box-shadow: 0 1px 0 color-mix(in srgb, var(--border) 50%, transparent);
 }
 
 .workspace-header__utility {
   width: 100%;
   max-width: 100vw;
   margin: 0 auto;
-  padding-left: 16px;
-  padding-right: 16px;
-  min-height: 62px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -333,8 +328,7 @@
    exact defect df63e49 fixed, reappearing because that row has no slack left
    and `overflow-x: clip` eats the evidence. 1440 failed while 1380 passed
    because the Settings gear drops its own label at 1380, which is the same
-   trade being made here one breakpoint higher. (Now rung 4 of the header's
-   priority ladder, re-measured with the larger header type.)
+   trade being made here one breakpoint higher. (Now rung 4 of the ladder.)
 
    The glyph survives, and it is doing more work than a dot: ● ◇ △ are three
    distinct shapes for three states. The full sentence is in the aria-label, the
@@ -474,6 +468,23 @@
   flex: 1;
 }
 
+/* ≥1441, and ADDING only: 1200-1440 has clipped twice (the data-tier note
+   above) and has nothing to lend. `.workspace-tabs` and `.header-spacer` are
+   both `flex: 1` over a 0 basis, so past the tabs' min-content they split the
+   surplus 50/50 — at 2560 both measured exactly 592.8px, and that second one
+   is the empty space. Dropping the spacer's GROW (never its shrink, never its
+   basis) hands it to the eight destinations: the strip goes 592.8 → 1185.6px
+   at 2560 and 561.7 → 601.4px at 1780, and the cluster stays hard right
+   because the strip is now the only grower. Nothing narrower moves, measured:
+   at 1728, 1630, 1500 and the already-clipping 1440 the surplus is 0, so grow
+   never runs. REJECTED: reserving the separation as a `width` — a 20px basis
+   does NOT collapse under deficit; it put the row 12px past its clip at 1728. */
+@media (min-width: 1441px) {
+  .header-spacer {
+    flex-grow: 0;
+  }
+}
+
 /* Inter's figures are proportional by default, and this chip's whole content
    is a count: measured in Chrome at the chip's own 12px/600, "20/20 providers
    routable" set 5.68px wider than "12/12 providers routable" purely because of
@@ -514,9 +525,8 @@
    padding either side and the border is 34.45px — the height the row's other
    two-line control (the Telegram CTA) already stands at — and the icon comes
    down with it rather than setting the floor on its own. (Measured by
-   scripts/header-ladder-measure.mjs, which prints the chip's height at every
-   width. 1.05 belonged to the lifted chrome, where 1.15 stood 36.7px; with
-   the chrome back at 12/11 it is 1.15 that lands on the row's norm.) */
+   scripts/header-ladder-measure.mjs at every width: 1.05 belonged to the
+   short-lived larger chrome, 1.15 is what lands on the row's norm at 12/11.) */
 .latency-chip {
   display: inline-grid;
   grid-template-columns: auto auto auto;
@@ -773,12 +783,10 @@
   background: var(--surface-2);
 }
 
-/* `.workspace-shell` and `.view-panel` are declared once, in the workspace
-   standardisation layer at the foot of this file. They used to be declared here
-   too — a padding-only shell from before `.workspace-shell` became the app's
-   single scroller, and a `.view-panel` with a hardcoded 180ms. Both lost the
-   cascade to the later block on source order, so the only thing they still did
-   was make this file look like it disagreed with itself. */
+/* `.workspace-shell` and `.view-panel` are declared once, in the standardisation
+   layer. Every copy here — a padding-only shell, a `.view-panel` with a
+   hardcoded 180ms, and the ≤720 paddings that went with them — lost the cascade
+   on source order and only made this file look like it disagreed with itself. */
 
 @keyframes panel-in {
   from { opacity: 0; transform: translateY(3px); }
@@ -817,20 +825,17 @@
 /* :is(h2, h3): a card whose right outline level is h3 — ResearchCorpus, the
    execution quality cards — used to fall through to UA sizing, the one title
    off the type scale. The outline level is the component's choice; the scale
-   is not. */
+   is not. Geometry only here: the rung is declared once, in the
+   standardisation layer, and the --fs-h1 that used to sit on this line had not
+   rendered since that layer was written. */
 .section-heading :is(h2, h3) {
   margin-top: 4px;
-  font-size: var(--fs-h1);
   line-height: var(--lh-tight);
   letter-spacing: var(--ls-tight);
 }
 
 .section-heading.compact {
   align-items: center;
-}
-
-.section-heading.compact :is(h2, h3) {
-  font-size: var(--fs-h2);
 }
 
 /* The caption under a section heading, and the shared home of the desk's live
@@ -946,9 +951,12 @@
 /* A card's own title is a title, not an eyebrow. This read as a 12px muted
    uppercase label — under an 11px uppercase kicker on the profile cards, and
    smaller than the h3s inside the card it named. The eyebrow voice belongs to
-   .page-kicker; the card title sits one rung under the section h2. */
+   .page-kicker. It read --fs-title until 2026-08-23, one rung under the section
+   h2, which made a bare-h2 card title a third size beside .section-heading's 17
+   and .portfolio-card-heading's 19 — three sizes for one object, decided by
+   which wrapper the component reached for. All three are --fs-h2 now. */
 .card > h2 {
-  font-size: var(--fs-title);
+  font-size: var(--fs-h2);
   font-weight: 650;
   line-height: var(--lh-tight);
   letter-spacing: var(--ls-figure);
@@ -1696,7 +1704,6 @@ a.text-action {
   align-items: center;
   gap: 16px;
   color: var(--text-muted);
-  font-size: var(--fs-2xs);
 }
 
 .portfolio-statusbar .system-health {
@@ -2095,11 +2102,6 @@ a.text-action {
 }
 
 @media (max-width: 720px) {
-  .workspace-header__utility,
-  .workspace-shell {
-    padding-left: 16px;
-    padding-right: 16px;
-  }
   .workspace-header__utility {
     gap: 10px;
   }
@@ -2118,9 +2120,6 @@ a.text-action {
   .latency-chip__core,
   .latency-chip__state {
     display: none;
-  }
-  .workspace-shell {
-    padding-top: 16px;
   }
   .overview-section > .section-heading {
     align-items: flex-start;

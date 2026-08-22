@@ -39,6 +39,12 @@ import { readSource, stripCode } from "./helpers/source-files";
 
 const panel = readSource("components/portfolio/OracleVarPanel.tsx");
 const code = stripCode(panel);
+/** The request contract, extracted when the panel hit the 400-line ceiling.
+ *  Read here because the quantisation this suite executes now lives across two
+ *  files, and a suite that only read the panel would have gone quiet on the
+ *  half that moved. The cadence added beside it has its own suite,
+ *  `oracle-var-cadence.test.ts`. */
+const request = readSource("lib/oracle/var-request.ts");
 /** JSX wraps prose at whatever indent it lands on. */
 const flat = code.replace(/\s+/g, " ");
 
@@ -164,7 +170,10 @@ describe("the re-run cadence is what the comments claim", () => {
   /** The bucket rule, extracted from the component and executed — a copy here
    *  would stay green while the shipped rule drifted away from it. */
   const bucketSource = panel.match(/Math\.round\(measuredAnnualVol \* VOL_BUCKET\) \/ VOL_BUCKET/);
-  const sizeSource = panel.match(/const VOL_BUCKET = ([0-9_]+);/);
+  // The constant moved to `lib/oracle/var-request.ts` with the rest of what
+  // describes a request; the rule that APPLIES it stayed in the panel, because
+  // the dependency lists that quantisation exists to stabilise are there.
+  const sizeSource = request.match(/const VOL_BUCKET = ([0-9_]+);/);
 
   it("the volatility input is bucketed, and the bucket is a basis point", () => {
     assert.ok(bucketSource, "the sigma bucket is gone — every book poll re-simulates again");
@@ -235,6 +244,13 @@ describe("a superseded run lands nowhere", () => {
   it("the effect cancels the request whose inputs no longer exist", () => {
     assert.match(code, /const superseded = new AbortController\(\);\s*void run\(superseded\.signal\);\s*return \(\) => superseded\.abort\(\);/,
       "without the cleanup a mid-flight request can land after the one that replaced it");
+    // The cadence does not open a request of its own. It bumps `runNonce`, and
+    // the dependency list below is what turns that into a run — so a scheduled
+    // run and an input-driven one are the same code path with the same
+    // cancellation. Two entry points would have been two ways to land a stale
+    // answer over a fresh one, which is the defect this describe block opens on.
+    assert.match(code, /\}, \[run, runNonce\]\);/,
+      "the cadence tick must drive the SAME effect, not a second request path");
   });
 
   it("a cancellation is not reported as a database that failed to answer", () => {

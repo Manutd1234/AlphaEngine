@@ -318,8 +318,19 @@ export default function LoginScreen() {
     ? PROVIDERS.filter((provider) => enabledProviders.has(provider.id))
     // Only when the probe failed outright — never while it is still out.
     : probeFailed ? PROVIDERS : [];
-  const showProviders = (mode === "signin" || mode === "signup")
-    && (offeredProviders.length > 0 || probePending);
+  const providersOffered = offeredProviders.length > 0;
+  /**
+   * The region exists because the MODE has one, not because the probe has
+   * answered — and that inversion is the layout fix.
+   *
+   * It used to read `(offeredProviders.length > 0 || probePending)`, which is
+   * true while the probe is out and false the instant it comes back empty, so
+   * the region appeared, then vanished, and the card changed height twice. The
+   * card reserves the region's height instead (14k-login-layout-stability.css)
+   * and the answer decides only what fills it — including the sentence that
+   * says nothing is enabled, which is what stops the reserve being a hole.
+   */
+  const showProviderSlot = mode === "signin" || mode === "signup";
   const showPasswordField = mode !== "forgot";
   const showRemember = mode === "signin" || mode === "signup";
 
@@ -346,9 +357,10 @@ export default function LoginScreen() {
         onSwitchMode={switchMode}
         showPasswordField={showPasswordField}
         showRemember={showRemember}
-        showProviders={showProviders}
+        showProviderSlot={showProviderSlot}
         probePending={probePending}
         probeFailed={probeFailed}
+        providersOffered={providersOffered}
         offeredProviders={offeredProviders}
         onProvider={(provider) => void onProvider(provider)}
       />

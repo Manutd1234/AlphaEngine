@@ -72,7 +72,7 @@ describe("the feature tour names the sections the app actually ships", () => {
 
   it("the section total the tour quotes is the total that exists", () => {
     const total = WORKSPACES.reduce((n, workspace) => n + railOf(workspace).length, 0);
-    assert.equal(total, 47, "the rail count moved; the tour and desk-sweep both quote it");
+    assert.equal(total, 48, "the rail count moved; the tour and desk-sweep both quote it");
     assert.ok(
       plain.includes(`${total} section`),
       `the tour does not state the ${total}-section total`,
@@ -84,7 +84,11 @@ describe("the feature tour names the sections the app actually ships", () => {
     // invented for a section that was renamed or removed. Checked against the
     // handful of labels that have actually changed, because a general scan of
     // prose for section-shaped phrases would be noise.
-    const retired = ["Codex", "Activity", "Telemetry & SLIs"];
+    // "VaR & model" was one subtab carrying a forecast and the chart that
+    // scores it; it is now "Risk engine" and "Risk diagram". The id `model`
+    // survives the rename, so nothing here checks ids — only that the dead
+    // LABEL stops being quoted as a rail entry.
+    const retired = ["Codex", "Activity", "Telemetry & SLIs", "VaR & model"];
     const shipped = new Set(WORKSPACES.flatMap((w) => railOf(w).map((s) => s.label)));
     for (const label of retired) {
       assert.ok(!shipped.has(label), `${label} is shipping again — update this list`);

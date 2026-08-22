@@ -278,9 +278,15 @@ export default function OperatorPanel({
           </dl>
         </section>
 
+        {/* Only the dash/zero rule survives here. The sentence in front of it —
+            "These are the counts every control on the Mutations pane is
+            dispatched against" — was the third statement of the same claim on
+            one screen, after the h2 and the section's own aria-label; the
+            rejected alternative was cutting the aria-label instead, which would
+            have taken the fact away from the readers who cannot see the h2. */}
         <p className="console-note">
-          These are the counts every control on the Mutations pane is dispatched against. A dash is
-          a registry this instance has not read; a zero is a registry it has read and found empty.
+          A dash is a registry this instance has not read; a zero is a registry it has read and
+          found empty.
         </p>
       </div>
     );
