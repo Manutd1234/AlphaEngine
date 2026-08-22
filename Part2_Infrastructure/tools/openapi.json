@@ -3000,6 +3000,74 @@
         "title": "ResearchAnswer",
         "type": "object"
       },
+      "ResearchBoundRefusal": {
+        "description": "A research request refused AT THE DOOR, before anything was searched.\n\nTHREE REFUSALS ALREADY EXIST IN THIS PLANE AND THIS IS NONE OF THEM. The\nwhole reason for a model of its own is that a caller must never have to\nguess which one it got:\n\n``ResearchRagSearchResponse.state == \"unavailable\"``  the index is not\n    configured \u2014 could not search.\n``ResearchAnswer.state == \"refused\"``                 documents came back\n    and none of them are relevant \u2014 CRAG's relevance floor.\n``generation.verdict == \"corpus_silent\"``             the model read the\n    documents and reported that they do not answer.\n\nAll three mean the request WAS served. This one means it was not: no\nretrieval ran, no model was called, and nothing about the corpus has been\nstated. Folding it into any of the three would tell a reader that the desk's\nown research has nothing on a subject it may well have plenty on \u2014 which is\nthe failure `research_crag`'s refusal text spends a paragraph avoiding.\n\nCarried on HTTP 429 for the two spend bounds and 503 for the scope one,\nbecause \"come back later\" and \"this deployment cannot do that\" are different\ninstructions. Never a bare 500: a bound doing its job is not an error.",
+        "properties": {
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "retry_after_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retry After S"
+          },
+          "route": {
+            "title": "Route",
+            "type": "string"
+          },
+          "spend": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spend"
+          },
+          "state": {
+            "enum": [
+              "rate_limited",
+              "spend_capped",
+              "scope_unavailable"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "route",
+          "query",
+          "reason"
+        ],
+        "title": "ResearchBoundRefusal",
+        "type": "object"
+      },
       "ResearchGraphNeighbour": {
         "description": "One document reachable from another, and how it was reached.",
         "properties": {
@@ -3383,6 +3451,29 @@
               }
             ],
             "title": "Corpus Size"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image"
           },
           "matches": {
             "items": {
@@ -7696,7 +7787,7 @@
     },
     "/api/research/graph/{document_id}": {
       "get": {
-        "description": "What is CONNECTED to one research document \u2014 the question similarity cannot answer.\n\n`/api/research/rag/search` finds what a document resembles. This walks\nresearch_edges instead: every run that saw the same bars, the incident that\nfollowed a promotion, the regime a parameter set was fitted in. Those are\nrelations between documents, and a fused similarity ranking has no way to\nexpress one \u2014 the two documents at either end of the most useful edge here\ntypically read nothing alike.\n\nDepth is capped at 4 by the SQL function regardless of what is asked for,\nand every row carries the relation and the evidence that reached it.",
+        "description": "What is CONNECTED to one research document \u2014 the question similarity cannot answer.\n\n`/api/research/rag/search` finds what a document resembles. This walks\nresearch_edges instead: every run that saw the same bars, the incident that\nfollowed a promotion, the regime a parameter set was fitted in. Those are\nrelations between documents, and a fused similarity ranking has no way to\nexpress one \u2014 the two documents at either end of the most useful edge here\ntypically read nothing alike.\n\nDepth is capped at 4 by the SQL function regardless of what is asked for,\nand every row carries the relation and the evidence that reached it.\n\n`relations` is the CTE filter, reachable at last. `traverse_research_graph`\nhas taken it since the migration and `ResearchRag.connected` has forwarded\nit since the traversal was written, but no route exposed it \u2014 so \"what\nFOLLOWED this run\" was answerable by the database, by the client, and by\nnobody in between. Omitted means every relation, which is what every caller\ngets today; `?relations=followed_by&relations=promoted_to` narrows it. An\nempty list never reaches the RPC as an empty array \u2014 `connected` leaves the\nkey off \u2014 because `relations = '{}'` matches no edge at all and would answer\n\"this document is connected to nothing\", which is a lie about the corpus.",
         "operationId": "research_graph_api_research_graph__document_id__get",
         "parameters": [
           {
@@ -7730,6 +7821,35 @@
               "minimum": 1,
               "title": "Limit",
               "type": "integer"
+            }
+          },
+          {
+            "description": "Traverse only these relations; repeat for several. Omit for every relation.",
+            "in": "query",
+            "name": "relations",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "enum": [
+                      "same_data",
+                      "same_symbol",
+                      "same_strategy",
+                      "same_regime",
+                      "followed_by",
+                      "promoted_to"
+                    ],
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Traverse only these relations; repeat for several. Omit for every relation.",
+              "title": "Relations"
             }
           },
           {
@@ -8463,7 +8583,7 @@
     },
     "/api/research/rag/ask": {
       "post": {
-        "description": "Corrective retrieval: the same corpus, graded before it is offered as an answer.\n\n`/api/research/rag/search` returns what the index ranked closest, ungraded.\nThis routes the query through a bounded plan (both the plan and every tool\ncall land in the audit log), grades what came back, rewrites a mid-band\nquery ONCE from the corpus's own vocabulary and re-queries, and refuses\nbelow the relevance floor with the reason and the number of documents\nsearched. `refused` is a state of its own: it is not `ok` with no matches\n(\"searched, found nothing\") and not `unavailable` (\"could not search\").",
+        "description": "Corrective retrieval: the same corpus, graded before it is offered as an answer.\n\n`/api/research/rag/search` returns what the index ranked closest, ungraded.\nThis routes the query through a bounded plan (both the plan and every tool\ncall land in the audit log), grades what came back, rewrites a mid-band\nquery ONCE from the corpus's own vocabulary and re-queries, and refuses\nbelow the relevance floor with the reason and the number of documents\nsearched. `refused` is a state of its own: it is not `ok` with no matches\n(\"searched, found nothing\") and not `unavailable` (\"could not search\").\n\nTHE ONLY ROUTE IN THIS GATEWAY THAT CAN SPEND MONEY, and so the only one\noutside the order path with a bound in front of it. `research_generate` is\nreached on every graded answer; before `research_quota` there was nothing\nbetween a retry loop and a paid model but the caller's patience. Both halves\nof the bound refuse BEFORE anything is retrieved, and both refuse as\n`ResearchBoundRefusal` \u2014 a shape that cannot be mistaken for this route's\nown `refused` (relevance) or for a generation report's `corpus_silent`\n(the documents do not say). Those two mean the corpus was consulted. This\none means it was not.\n\nThe scope is checked before the rate token is taken, for the reason\n`AskQuota.check` prices before it consumes: a request that was never going\nto run must not spend a token whose absence then refuses the next one for a\nreason that has nothing to do with it.\n\n`quota.record` charges the window with what the call actually cost, read off\nthe same report that becomes the `research_generation` ledger row \u2014 so the\nceiling and the audit trail are computed from one number rather than from\ntwo estimates that can disagree. A report with no token counts is recorded\nas an UNPRICED call, never as a free one.",
         "operationId": "research_rag_ask_api_research_rag_ask_post",
         "parameters": [
           {
@@ -8529,6 +8649,26 @@
               }
             },
             "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResearchBoundRefusal"
+                }
+              }
+            },
+            "description": "Rate or spend bound refused the request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResearchBoundRefusal"
+                }
+              }
+            },
+            "description": "A configured tenant scope could not be applied"
           }
         },
         "summary": "Research Rag Ask",
@@ -8615,7 +8755,7 @@
     },
     "/api/research/rag/search": {
       "post": {
-        "description": "Similarity search over the desk's own backtests, summaries and incidents.\n\nReturns `state: unavailable` when Supabase is not configured \u2014 deliberately\nnot an empty list, which would mean \"searched, found nothing\".\n\nRETRIEVE WIDE, THEN NARROW \u2014 both ends, or neither. `research_stages.wide`\nasks the index for `RERANK_CANDIDATES` when a cross-encoder is configured to\nsort them out again, and for the caller's own `match_count` when one is not.\nWidening without narrowing would buy recall and pay for it in precision on\nthe same request, which is the trade `research_rerank` exists to break; the\ntwo lines belong together and this is the only place they are written.\n\n`research_stages.narrow` rather than `asyncio.to_thread(rerank, ...)` here,\nand the difference is the bulkhead rather than the call. `rerank` is tens of\nmilliseconds of solid CPU and this process also serves the pre-trade risk\nchecks \u2014 research may wait, risk may not. The stage owns a semaphore of two\nover the shared default executor; a second, unbounded path through the same\nexecutor would silently double the occupancy that bound was sized for.\n\n`rerank_state` stays None on any state but `ok`: nothing was retrieved, so\nthe stage was never REACHED \u2014 a different fact from reaching it with no\nmodel configured, which reports \"unconfigured\".",
+        "description": "Similarity search over the desk's own backtests, summaries and incidents.\n\nReturns `state: unavailable` when Supabase is not configured \u2014 deliberately\nnot an empty list, which would mean \"searched, found nothing\".\n\nRETRIEVE WIDE, THEN NARROW \u2014 both ends, or neither. `research_stages.wide`\nasks the index for `RERANK_CANDIDATES` when a cross-encoder is configured to\nsort them out again, and for the caller's own `match_count` when one is not.\nWidening without narrowing would buy recall and pay for it in precision on\nthe same request, which is the trade `research_rerank` exists to break; the\ntwo lines belong together and this is the only place they are written.\n\n`research_stages.narrow` rather than `asyncio.to_thread(rerank, ...)` here,\nand the difference is the bulkhead rather than the call: this process also\nserves the pre-trade risk checks, and research may wait where risk may not.\nThe size of that bound and the measurement behind it belong to the stage\nthat owns the semaphore \u2014 see `research_stages`, and do not restate the\nnumber here, where it went stale once already.\n\n`rerank_state` stays None on any state but `ok`: nothing was retrieved, so\nthe stage was never REACHED \u2014 a different fact from reaching it with no\nmodel configured, which reports \"unconfigured\".\n\nLEDGERED, which it was not until now. `/ask` wrote a plan row, a row per\ntool call and a generation row while this route \u2014 the other half of the\nretrieval traffic \u2014 wrote nothing, so half of what the desk asked its own\ncorpus was invisible to the audit trail. The row goes in on EVERY branch,\n`unavailable` included: \"the index was not configured when this was asked\"\nis exactly the fact a reader reconstructing an afternoon needs, and a\nledger that only records successes is a ledger that cannot be used to\nexplain anything.",
         "operationId": "research_rag_search_api_research_rag_search_post",
         "parameters": [
           {
@@ -8681,6 +8821,26 @@
               }
             },
             "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResearchBoundRefusal"
+                }
+              }
+            },
+            "description": "Rate or spend bound refused the request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResearchBoundRefusal"
+                }
+              }
+            },
+            "description": "A configured tenant scope could not be applied"
           }
         },
         "summary": "Research Rag Search",

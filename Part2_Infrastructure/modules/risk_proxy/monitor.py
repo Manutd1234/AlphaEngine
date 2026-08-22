@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from datetime import datetime
 
 from config import settings
 from modules.risk_proxy.clock import _utcnow
@@ -166,6 +167,12 @@ class MonitorMixin:
                 at=now,
             )
 
+        # The label of the session being CLOSED, taken before the reassignment
+        # below overwrites it. The corpus write at the end of this method is the
+        # only reader; it is captured here rather than there so that a later edit
+        # moving that call cannot silently start summarising the wrong day.
+        closing_session = self.session_date
+
         self.session_date = today
         self.carried_realized_pnl = banked
         for pos in self.positions.values():
@@ -202,6 +209,65 @@ class MonitorMixin:
         # rehydration replay depends on without knowing this code exists.
         self._cancel_working_where(lambda _wo: True, "session rollover", "system")
         self._last_fill_stamp.clear()
+
+        # LAST, and deliberately after every state mutation above. The session
+        # that just closed is now a finished, immutable range of an append-only
+        # log, which is the only condition under which it can be summarised
+        # truthfully — and by standing here the corpus cannot come between the
+        # durable rollover row and the book it describes.
+        self._file_execution_summary(closing_session, now)
+
+    def _file_execution_summary(self, session_date: str, closed_at: datetime) -> None:
+        """Hand the closed session to the research corpus, and never wait for it.
+
+        ``execution_summary`` is declared in the Postgres enum, in the API
+        ``Literal`` and in ``research_graph``'s ``promoted_to`` rule, and until
+        this call existed the only thing in the tree that produced one was
+        ``tools/backfill_research_rag.py``. So a desk that read its own README —
+        which lists session execution summaries as an ingested source — and
+        searched for one got sweeps back, ranked, looking exactly like an answer.
+        This is the seam that makes the claim true on a running desk, because
+        this method is the only place in the process that knows a session has
+        ended and when.
+
+        Best-effort in one direction only, exactly like the decision hooks in
+        ``hooks.py``: a rollover is a trading-state transition and everything
+        that has to happen for it has already happened by the time control gets
+        here. The corpus is an observer. It gets a guard rather than the caller's
+        trust because the alternative once cost this desk a boundary — a
+        rollover that raises leaves ``session_date`` on yesterday, so the monitor
+        retries the WHOLE roll on the next tick and re-banks the carry, and the
+        decision path's copy of the roll would surface an indexing failure as a
+        rejected order.
+
+        ``get_rag`` is imported here rather than at module scope. The risk proxy
+        is imported by the gate-parity harness and by the native-core suite,
+        neither of which has any business dragging in httpx, the card renderers,
+        the graph writer and bm25 to decide whether an order passes; and the
+        research package imports ``config`` and the audit reader itself, so a
+        module-level edge from the trade path into it is a cycle waiting for one
+        more import. ``modules/ml/fit.py`` reaches the corpus the same way for
+        the same reason.
+        """
+        if not self.audit:
+            # No audit log means no rollover row was written and no figures can
+            # be read. A summary here would be an empty card asserting a day of
+            # no trading, which is a different and worse thing than no card.
+            return
+        try:
+            from modules.research_rag import get_rag
+
+            get_rag().on_session_closed(self.audit, session_date, closed_at)
+        except Exception as exc:
+            # Named, not counted. The document that did not get filed is one
+            # specific session, and an operator who knows which one can run the
+            # backfill for it — nothing was written, so nothing blocks that.
+            log.error(
+                "session %s closed but its execution summary could not be handed to "
+                "the research corpus (%s: %s); the rollover stands and the backfill "
+                "can still file it",
+                session_date, type(exc).__name__, exc,
+            )
 
     async def _working_loop(self) -> None:
         while True:

@@ -26,6 +26,7 @@ import pytest
 
 from modules import research_crag as crag
 from modules import research_generate as gen
+from modules import research_generate_prompt as prompt
 
 #: Two documents shaped like the rows retrieval actually returns.
 DOCS = [
@@ -82,6 +83,7 @@ class FakeSdk:
 FAKE_TYPES = SimpleNamespace(
     GenerateContentConfig=lambda **kw: SimpleNamespace(**kw),
     HttpOptions=lambda **kw: SimpleNamespace(**kw),
+    ThinkingConfig=lambda **kw: SimpleNamespace(**kw),
 )
 
 USAGE = SimpleNamespace(prompt_token_count=812, candidates_token_count=96, total_token_count=908)
@@ -251,6 +253,11 @@ class TestCitationsAreVerifiedNotTrusted:
 
 class TestTheContextIsClosed:
     def test_the_instruction_forbids_outside_knowledge_and_invented_figures(self):
+        # `SYSTEM_INSTRUCTION` now lives in `research_generate_prompt` — it is
+        # prompt text, this module was at the 400-line ceiling, and the chart
+        # clause in it needs `CHART_READING`, which is wire protocol. It is
+        # re-exported, so this name and every caller of it are unchanged.
+        assert gen.SYSTEM_INSTRUCTION is prompt.SYSTEM_INSTRUCTION
         text = gen.SYSTEM_INSTRUCTION
         assert "ONLY PERMISSIBLE SOURCE" in text
         assert gen.SILENCE_MARKER in text, (
@@ -269,14 +276,15 @@ class TestTheContextIsClosed:
 
     async def test_a_document_longer_than_the_cap_is_cut_and_the_cut_is_marked(self, model):
         fake = model()
-        long_doc = {"id": "doc-a", "title": "log", "body": "x" * (gen.MAX_DOCUMENT_CHARS + 500)}
+        cap = prompt.MAX_DOCUMENT_CHARS
+        long_doc = {"id": "doc-a", "title": "log", "body": "x" * (cap + 500)}
         await gen.generate("q", [long_doc], 0.9)
         contents = fake.calls[0]["contents"]
         assert "TRUNCATED" in contents, (
             "a silent cut lets the model quote a figure as though it had seen the whole "
             "document; the cut has to be visible to the reader of the prompt"
         )
-        assert "x" * (gen.MAX_DOCUMENT_CHARS + 1) not in contents
+        assert "x" * (cap + 1) not in contents
 
 
 class TestTheCallIsBounded:
@@ -290,6 +298,13 @@ class TestTheCallIsBounded:
             "means the argued value is decoration"
         )
         assert config.temperature == gen.TEMPERATURE
+        assert config.thinking_config.thinking_budget == gen.THINKING_BUDGET == 0, (
+            "the third bound, and the one that is invisible when it is missing. On "
+            "gemini-2.5-flash thinking tokens are charged against `max_output_tokens`, so "
+            "a call that does not carry a budget has an answer ceiling nobody can state: "
+            "MEASURED at 200 tokens with no thinking config, ~190 went to thinking and the "
+            "answer arrived truncated to six usable tokens"
+        )
 
     async def test_a_model_that_does_not_answer_in_time_becomes_a_refusal(self, monkeypatch,
                                                                           model):

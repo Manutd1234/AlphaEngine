@@ -26,6 +26,30 @@
 #                       first query after boot would otherwise pay for a
 #                       download, and CI is network-free by construction.
 #
+# THAT SEEDING NOW HAS A COMMAND, and until it did, this file prescribed a build
+# step that nothing in the tree performed — which is how the re-ranker reached
+# production as a code path with no weights behind it and no test that had ever
+# executed it:
+#
+#   python tools/bench_rerank.py --seed --model-path /models/bge-reranker-base
+#
+# The same call is what CI's opt-in `rerank-real` job makes, so the image build
+# and the job seed through one code path rather than two that can disagree about
+# where the weights go. What it costs, measured cold: 5 files, 21.7 s, 1.05 GiB
+# on disk (`--seed` prints it) — one blob of 1,112,459,588 bytes of fp32 ONNX,
+# which is the whole
+# argument for caching it in CI and for never putting it on a request path.
+#
+# WHAT THE MODEL COSTS PER QUERY is measured now too, by the same tool, and the
+# figure it replaced was out by up to 19x. Twenty pairs — the width
+# `research_rerank.RERANK_CANDIDATES` widens to — took 197 ms of wall clock on
+# short rows and 1,523 ms at the 2,000-character truncation ceiling, burning
+# 1.8 s and 12.6 s of CPU respectively across ~9 of an 18-core box. Load off a
+# seeded directory: 0.45 s, once per process. Run `tools/bench_rerank.py` on the
+# box you intend to deploy on before believing any of those numbers there:
+# onnxruntime sizes its thread pool from the cores it finds, so every one of
+# them is a property of the machine that took it.
+#
 # Pinned to a line rather than floated, for the reason scikit-learn is: a
 # re-ranker that scores differently between releases re-orders what the desk was
 # shown, and the order IS the research result.

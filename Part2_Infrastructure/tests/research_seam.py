@@ -97,6 +97,12 @@ class Corpus:
     can say "near-miss first, better after the rewrite". `widths` records the
     `match_count` each call asked for, which is how the retrieve-wide claim gets
     checked rather than assumed.
+
+    `graph_widths` is the same record for the OTHER arm, and it is separate on
+    purpose: the two arms are widened by different rules — the cross-encoder
+    narrows what `search` returns and nothing narrows what `connected` returns
+    — so one list holding both counts could not tell a correctly widened
+    retrieval from a graph traversal that was widened by accident.
     """
 
     def __init__(self, rounds, *, connected=None, corpus_size=412):
@@ -105,6 +111,7 @@ class Corpus:
         self.corpus_size = corpus_size
         self.queries: list[str] = []
         self.widths: list[int] = []
+        self.graph_widths: list[int] = []
 
     async def search(self, query, match_count=3, kind=None):
         self.queries.append(query)
@@ -117,6 +124,7 @@ class Corpus:
         }
 
     async def connected(self, document_id, match_count=3, max_depth=2):
+        self.graph_widths.append(match_count)
         return {"state": "ok", "connected": list(self.connected_rows)}
 
 

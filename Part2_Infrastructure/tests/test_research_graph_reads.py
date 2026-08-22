@@ -250,7 +250,11 @@ class TestTheReaderAndThePartitionMeetForReal:
 
     async def test_the_partition_reaches_neo4j_as_one_row_per_member(self, graph):
         out = await gr.detect_corpus_communities(FakePostgrest(TRIANGLES), desk_id=DESK, page=2)
-        rows = [row for params in graph.params if "rows" in params for row in params["rows"]]
+        # Filtered to the COMMUNITY rows: the same sweep now writes centrality
+        # scores through the same session, and a bare "every row it sent" would
+        # count each document twice and read as a duplicated partition.
+        rows = [row for params in graph.params if "rows" in params
+                for row in params["rows"] if "community" in row]
         assert sorted(row["id"] for row in rows) == ["a", "b", "c", "x", "y", "z"]
         by_id = {row["id"]: row["community"] for row in rows}
         assert by_id["a"] == by_id["c"] != by_id["x"]

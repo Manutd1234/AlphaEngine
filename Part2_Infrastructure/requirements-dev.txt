@@ -17,6 +17,37 @@ ruff>=0.6
 # made permanent in CI. Python 3.12 is pinned there, so numba has a wheel.
 -r requirements-ml.txt
 vectorbt>=0.26
+# NOT HERE, DELIBERATELY: requirements-rerank.txt. It is the one optional extra
+# this file does not adopt, and the exception needs its reason written down or
+# the next person applies the rule above to it and puts a gigabyte on every push.
+#
+# The rule above — "what the suite tests, so CI runs it rather than skipping it"
+# — was written for scikit-learn and vectorbt, where the package's absence SKIPS
+# tests and the summary still reads green. The cross-encoder is not that shape.
+# Its suite (tests/test_research_rerank.py) drives a fake scorer at
+# `research_rerank._import_cross_encoder` and runs in full with nothing
+# installed, because the property that module lives or dies by is what happens
+# when there is no model. Installing fastembed here would buy no coverage at
+# all: the fake suite would run identically, and the REAL path needs weights,
+# not a package.
+#
+# The weights are what make it different. BAAI/bge-reranker-base is one
+# 1,112,459,588-byte fp32 ONNX blob, ~22 s to fetch from a third-party hub that
+# rate-limits unauthenticated downloads. Hanging that off the job that gates
+# every push would slow everyone's red/green and would let a busy hub turn a
+# good PR red — the exact failure ci.yml's header forbids. So the real model
+# lives in its own opt-in CI job (`rerank-real`), which seeds the weights in a
+# setup step, caches them, and runs tests/test_research_rerank_real.py OFFLINE
+# against that directory, failing if that suite skips. Seed it locally with
+# `python tools/bench_rerank.py --seed --model-path DIR` and export
+# RERANK_TEST_MODEL_PATH=DIR to run the same thing here.
+#
+# One consequence to expect in the count: tests/test_research_rerank_real.py
+# contributes exactly ONE skip, at module level with a reason naming what is
+# missing, on every run that has not opted in. That is deliberate — count the
+# skips, not the passes, and a silent absence would be worse — but it does move
+# the documented "1,719 passed, exactly one skipped" to two skipped.
+#
 # starlette 1.x's TestClient is built on httpx2 and warns on every run that
 # falls back to httpx. The runtime keeps httpx (requirements-core.txt); this is
 # the test client's transport only.

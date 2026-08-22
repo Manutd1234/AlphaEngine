@@ -2,8 +2,10 @@
 
 Postgres remains authoritative. `research_edges` is written by `persist_edges`
 on the document write path and reconciled by `research_reconcile`; this module
-copies that derived state into Neo4j and never the other way. Nothing reads
-Neo4j to answer a request today, and nothing writes to it except this sweep.
+copies that derived state into Neo4j and never the other way. Nothing writes to
+Neo4j except this module, and what it writes is READ BACK by
+`research_graph_read_model` on the request path — which is what makes the graph
+a read model rather than a store nobody consults.
 
 Why a projection and not a second write path
 --------------------------------------------
@@ -30,8 +32,10 @@ needs no second process, no driver and no credentials. What it cannot do is
 community detection: Louvain, Leiden, PageRank. The enterprise GraphRAG pattern
 this desk is built toward asks for "community summaries" and macro-level
 synthesis across disparate documents, and that is a graph-algorithm workload
-rather than a traversal one. Neo4j earns its place there and nowhere else yet,
-which is why this module projects and stops rather than moving the read path.
+rather than a traversal one. Neo4j earns its place there and nowhere else: the
+per-document traversal stays on the CTE, and what moved onto the graph is the
+whole-corpus partition and ranking — computed once by the sweep, written here,
+and served from here instead of being recomputed on every request.
 
 Absence is a state, not a failure
 ---------------------------------
@@ -188,6 +192,22 @@ LABEL_COMMUNITIES = (
 )
 
 
+#: The centrality write, one row per ranked document. Same shape and same
+#: ``RETURN`` as the community write, and for the same reason: ``MATCH`` skips an
+#: id the graph has never seen, so counting the rows SENT would report a corpus
+#: scored that Neo4j does not hold. The RANK is written beside the score because
+#: the order is the product — ``rank_documents`` returns a list rather than a
+#: mapping precisely so nobody quotes one score on its own — and a reader that
+#: has only the score would have to re-derive the ordering the sweep already
+#: knew.
+LABEL_CENTRALITY = (
+    "UNWIND $rows AS row "
+    "MATCH (d:Document {id: row.id}) "
+    "SET d.centrality = row.score, d.centrality_rank = row.rank, d.centrality_sweep = $sweep "
+    "RETURN count(d) AS n"
+)
+
+
 def _unlabelled(reason: str, sweep: str) -> dict[str, Any]:
     """The refusal shape for `project_communities`.
 
@@ -212,6 +232,41 @@ def _matched(result: Any) -> int | None:
         return None
     value = record.get("n") if hasattr(record, "get") else None
     return int(value) if isinstance(value, int) else None
+
+
+def _label(
+    statement: str, rows: list[dict[str, Any]], *, sweep: str, what: str,
+) -> tuple[int | None, str | None]:
+    """One batched label write. Returns (matched, reason); exactly one is meaningful.
+
+    Shared by both label writers rather than copied: the batching, the
+    constraint, the driver close and the "how many did Neo4j actually match"
+    count are properties of writing labels at all, and two copies of them drift
+    the day one learns something the other does not.
+
+    ``(None, None)`` is a real answer and NOT a failure — the write happened and
+    the store did not say how many rows it matched. ``(_, reason)`` is the
+    failure, and the caller wraps the reason in its own refusal shape because
+    "no partition was written" and "no ranking was written" are different facts.
+    """
+    driver, reason = _driver()
+    if driver is None:
+        return None, reason or "no driver"
+
+    labelled: int | None = 0
+    try:
+        with driver.session(database=settings.neo4j_database) as session:
+            # MERGE and MATCH alike scan an unconstrained property, and this may
+            # run on a graph `project` has not touched in this process.
+            session.run(CONSTRAINT)
+            for start in range(0, len(rows), BATCH):
+                matched = _matched(session.run(statement, rows=rows[start:start + BATCH], sweep=sweep))
+                labelled = None if matched is None or labelled is None else labelled + matched
+    except Exception as exc:  # noqa: BLE001 - the reason is the product here
+        return None, f"{type(exc).__name__} labelling {what} in Neo4j: {exc}"
+    finally:
+        driver.close()
+    return labelled, None
 
 
 def project_communities(report: dict[str, Any], *, sweep: str) -> dict[str, Any]:
@@ -245,23 +300,62 @@ def project_communities(report: dict[str, Any], *, sweep: str) -> dict[str, Any]
     rows = [{"id": member, "community": community.get("id")}
             for community in communities for member in (community.get("members") or [])]
 
-    driver, reason = _driver()
-    if driver is None:
-        return _unlabelled(reason or "no driver", sweep)
-
-    labelled: int | None = 0
-    try:
-        with driver.session(database=settings.neo4j_database) as session:
-            # MERGE and MATCH alike scan an unconstrained property, and this may
-            # run on a graph `project` has not touched in this process.
-            session.run(CONSTRAINT)
-            for start in range(0, len(rows), BATCH):
-                matched = _matched(session.run(LABEL_COMMUNITIES, rows=rows[start:start + BATCH], sweep=sweep))
-                labelled = None if matched is None or labelled is None else labelled + matched
-    except Exception as exc:  # noqa: BLE001 - the reason is the product here
-        return _unlabelled(f"{type(exc).__name__} labelling communities in Neo4j: {exc}", sweep)
-    finally:
-        driver.close()
+    labelled, reason = _label(LABEL_COMMUNITIES, rows, sweep=sweep, what="communities")
+    if reason is not None:
+        return _unlabelled(reason, sweep)
 
     return {"projected": True, "reason": None, "sweep": sweep,
             "communities": len(communities), "members": len(rows), "labelled": labelled}
+
+
+def _unscored(reason: str, sweep: str) -> dict[str, Any]:
+    """The refusal shape for `project_centrality`.
+
+    No ``scored`` key, for the reason `_unlabelled` omits ``labelled``: nothing
+    was measured, and a null count sitting in a report is the one somebody later
+    defaults to zero.
+    """
+    return {"projected": False, "reason": reason, "sweep": sweep, "documents": 0}
+
+
+def project_centrality(report: dict[str, Any], *, sweep: str) -> dict[str, Any]:
+    """Write a `research_communities.rank_documents` report onto the projected nodes.
+
+    THE SAME SPLIT AS `project_communities`, and the same argument: PageRank
+    over one reconciliation window is not PageRank over the corpus — mass flows
+    over the edges that are present, so a window's ranking inflates every
+    document the cut spared. Only a caller holding whole-corpus evidence may
+    write these, which is why this takes a finished report rather than an edge
+    list and refuses one that says it could not rank.
+
+    ``sweep`` travels with every score for the reason it travels with every
+    community label: a score is comparable only against the ranking it came
+    from, and an undated one cannot be told from a stale one.
+
+    WHY THESE ARE WRITTEN AT ALL. Until this existed, the centrality route
+    recomputed PageRank per request over a whole-corpus PostgREST read while the
+    projection it could have read sat there holding only community labels. The
+    read half is `research_graph_read_model.centrality_scores`, and these two
+    are a pair: writing scores nothing reads would be the defect this change was
+    made to remove, one field along.
+    """
+    if not report.get("ranked"):
+        return _unscored(
+            f"the centrality report says it could not rank ({report.get('reason')}), so nothing was scored",
+            sweep,
+        )
+    ranking = report.get("ranking") or []
+    rows = [{"id": row.get("id"), "score": row.get("score"), "rank": index}
+            for index, row in enumerate(ranking, start=1)]
+    if any(row["id"] is None or not isinstance(row["score"], int | float) for row in rows):
+        # Refused whole rather than filtered. A row without a numeric score is
+        # not a low-scoring document, and writing the rest would leave a graph
+        # whose ranking is missing documents with nothing saying which.
+        return _unscored("a ranking row carried no id or no numeric score, so nothing was scored", sweep)
+
+    scored, reason = _label(LABEL_CENTRALITY, rows, sweep=sweep, what="centrality")
+    if reason is not None:
+        return _unscored(reason, sweep)
+
+    return {"projected": True, "reason": None, "sweep": sweep,
+            "documents": len(rows), "scored": scored}

@@ -225,13 +225,21 @@ def test_a_mid_band_query_is_rewritten_once_and_requeried(client, corpus):
 def test_the_rewrite_budget_is_one_even_when_the_second_round_is_no_better(client, corpus):
     # The bound is the design. A corrective loop that keeps going is the thing
     # this codebase refused, so the second mid-band grade must END the query.
+    # This WAS `state == "ok"` ("a mid-band second round answers; it does not
+    # refuse"), which pinned the defect: `refused = score < refuse_band` was the
+    # only gate, so ANSWER_BAND decided nothing and a 0.66 came back ok/rewrite,
+    # the middle band living in a field rather than in the control flow. Every
+    # document here reads "rewrite once, re-query, then answer OR REFUSE".
     stub = corpus([MID, MID, STRONG])
     body = ask(client, "crossover sweep results")
 
     assert len(stub.queries) == 2, f"the loop ran {len(stub.queries)} times"
-    assert body["retrievals"] == 2
-    assert body["state"] == "ok", "a mid-band second round answers; it does not refuse"
+    assert body["retrievals"] == 2 and body["state"] == "refused"
     assert body["band"] == "rewrite" and 0.4 <= body["score"] <= 0.8
+    assert body["matches"] == [], "a refusal does not hand back the rows it refused"
+    # A mid-band grade that survived its rewrite is a different finding from a
+    # score under the floor, so the sentence carries the band and what was spent.
+    assert "0.40-0.80 band" in body["refusal"] and body["rewritten_query"] in body["refusal"]
 
 
 def test_a_below_band_result_refuses_and_says_why(client, corpus):
@@ -325,20 +333,22 @@ def test_a_rewrite_puts_its_own_plan_in_the_ledger_too(client, corpus, ledger):
     )
 
 
-def test_a_tool_with_no_executor_is_recorded_as_unsupported(client, corpus, ledger):
-    # Honest rather than silent: the planner routes counts to `structured_runs`,
-    # this gateway has no structured-runs reader, and the always-present hybrid
-    # call answers — which is the router's own third rule doing its job.
+def test_a_tool_that_could_not_produce_a_number_is_recorded_with_its_reason(client, corpus, ledger):
+    # WAS `test_a_tool_with_no_executor_is_recorded_as_unsupported`: counts were routed to
+    # `structured_runs`, no reader existed, and the row said so. `research_structured` is that reader
+    # now, so every name in TOOLS has an arm and "unsupported" is unreachable through the router. The
+    # property it protected is not: an arm that produced no number says so in a NAMED state with a
+    # sentence, in the response AND the ledger, never a silent skip and never a zero read as a count.
     corpus([STRONG])
     query = "how many BTCUSDT ma_crossover drawdown sweep results are recorded"
     body = ask(client, query)
 
-    calls = {c["tool"]: c for c in body["calls"]}
-    assert calls["structured_runs"]["state"] == "unsupported"
-    assert calls["structured_runs"]["detail"]
-    assert body["state"] == "ok", "an unsupported tool must not fail the query"
+    runs = {c["tool"]: c for c in body["calls"]}["structured_runs"]
+    assert runs["state"] == "empty" and runs["rows"] == 0, "it ran, and counted nothing"
+    assert "backtest_runs" in runs["detail"], "the row names the table it counted over"
+    assert body["state"] == "ok", "an arm with no number must not fail the query"
     assert [row["payload"]["state"] for row in ledger("research_tool_call", query)
-            if row["payload"]["tool"] == "structured_runs"] == ["unsupported"]
+            if row["payload"]["tool"] == "structured_runs"] == ["empty"]
 
 
 def test_a_data_hash_query_re_queries_the_bare_token_for_the_lexical_half(client, corpus):

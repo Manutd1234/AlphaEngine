@@ -34,7 +34,13 @@ WHAT IT MEASURED, 2026-08-20
     0.275  refuse   strategies that lost money
 
 The bands separate the fixture's own strong and weak cases, which is the
-property being checked. Two things in that table are worth saying out loud
+property being checked. What `rewrite` COSTS changed after this table was
+measured and the numbers did not: a mid-band case now buys one rewrite and is
+then answered or refused on what that second query returned, where it used to
+be served regardless. So the four `rewrite` rows above are cases whose verdict
+depends on a second retrieval this fixture does not model — the calibration
+they pin is the grade, and `tests/test_research_crag_policy.py` is where the
+verdict is pinned. Two things in that table are worth saying out loud
 rather than leaving for someone to notice later.
 
 **The dense-only cases are understated here, by construction.** "bitcoin

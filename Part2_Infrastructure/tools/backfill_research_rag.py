@@ -19,6 +19,15 @@ backfill improves those documents rather than restating them. ``body`` and the
 vector are always written together, so the stored text never stops describing
 the stored vector.
 
+THREE KINDS NOW, because the third one had no producer at all. Every closed UTC
+session becomes an ``execution_summary`` — the kind the Postgres enum, the API
+``Literal`` and the graph linker's ``promoted_to`` rule have all declared since
+they were written, and that nothing in the tree ever wrote. Its figures are the
+desk's own: ``session_costs`` for the fills, fees and realised slippage cost,
+``equity_snapshots`` for the closing book, the ``orders`` table for the decision
+counts, the strategies traded and the venue mix. See
+``modules/research_ingest_session.py`` for why only CLOSED sessions are emitted.
+
 Backtest CHARTS are deliberately not emitted here. The live path indexes one
 document per chart from the tear sheet's own figures — trades, exposure, the
 buy-and-hold line, the fold table — and the audit log carries none of them. A
@@ -45,6 +54,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from config import settings  # noqa: E402
 from modules.audit import get_audit  # noqa: E402
 from modules.ml.store import MLRunStore  # noqa: E402
+from modules.research_ingest_session import closed_session_documents  # noqa: E402
 from modules.research_rag import (  # noqa: E402
     EMBEDDING_MODEL,
     ResearchRag,
@@ -167,6 +177,30 @@ async def _backfill_ml_runs(rag: ResearchRag, limit: int) -> tuple[int, int]:
         await store.stop()
 
 
+async def _backfill_execution_summaries(rag: ResearchRag, limit: int) -> tuple[int, int]:
+    """Every CLOSED session the audit log brackets, as an ``execution_summary``.
+
+    The scan is printed even when it yields nothing, and the two nothings are
+    printed differently: a desk that has never crossed a session boundary has no
+    summaries to write, and an audit log that could not be read has summaries
+    nobody can see. Reporting the second as the first would say this desk has
+    never traded a full session.
+    """
+    documents, scan = closed_session_documents(get_audit(), limit=limit)
+    if not scan.scanned:
+        print(f"execution summaries: {scan.detail} — none indexed")
+        return 0, 0
+    if not documents:
+        print(f"execution summaries: {scan.detail} — none to index")
+        return 0, 0
+    print(f"{len(documents)} closed sessions in the audit log")
+    written = pending = 0
+    for document in documents:
+        outcome = await _store(rag, document)
+        written, pending = _tally(outcome, written, pending)
+    return written, pending
+
+
 async def backfill(limit: int) -> int:
     rag = get_rag()
     if not rag.enabled:
@@ -177,11 +211,12 @@ async def backfill(limit: int) -> int:
     try:
         sweeps_written, sweeps_pending = await _backfill_backtests(rag, limit)
         runs_written, runs_pending = await _backfill_ml_runs(rag, limit)
+        sessions_written, sessions_pending = await _backfill_execution_summaries(rag, limit)
     finally:
         await rag.stop()
 
-    written = sweeps_written + runs_written
-    pending = sweeps_pending + runs_pending
+    written = sweeps_written + runs_written + sessions_written
+    pending = sweeps_pending + runs_pending + sessions_pending
     print(f"indexed {written} with embeddings, {pending} stored pending (embed outage)")
     return 0
 

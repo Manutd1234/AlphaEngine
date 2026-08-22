@@ -11,7 +11,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi.responses import JSONResponse
 
 from modules import research, research_stages
 from modules.api.deps import trader_identity
@@ -20,6 +21,18 @@ from modules.backtester import run_backtest
 from modules.jobs import get_queue
 from modules.research_crag import ResearchAnswer, answer_from_corpus
 from modules.research_graph_reads import community_report
+from modules.research_graph_relations import GraphRelation
+from modules.research_quota import get_ask_quota
+from modules.research_quota_gate import (
+    ASK_ROUTE,
+    BOUND_RESPONSES,
+    CORRELATION_HEADER,
+    SEARCH_ROUTE,
+    correlated_router,
+    record_search,
+    refusal_response,
+    scope_for,
+)
 from modules.research_rag import EMBEDDING_DIMENSIONS, EMBEDDING_MODEL, get_rag
 from modules.schemas import (
     BacktestRequest,
@@ -34,8 +47,12 @@ from modules.schemas import (
 router = APIRouter(tags=["C · Research"])
 
 
-@router.post("/api/research/rag/search")
-async def research_rag_search(req: ResearchRagSearchRequest, _actor: str = Depends(trader_identity)) -> ResearchRagSearchResponse:
+@router.post(SEARCH_ROUTE, response_model=ResearchRagSearchResponse, responses=BOUND_RESPONSES)
+async def research_rag_search(
+    req: ResearchRagSearchRequest,
+    response: Response,
+    actor: str = Depends(trader_identity),
+) -> ResearchRagSearchResponse | JSONResponse:
     """Similarity search over the desk's own backtests, summaries and incidents.
 
     Returns `state: unavailable` when Supabase is not configured — deliberately
@@ -49,18 +66,36 @@ async def research_rag_search(req: ResearchRagSearchRequest, _actor: str = Depen
     two lines belong together and this is the only place they are written.
 
     `research_stages.narrow` rather than `asyncio.to_thread(rerank, ...)` here,
-    and the difference is the bulkhead rather than the call. `rerank` is tens of
-    milliseconds of solid CPU and this process also serves the pre-trade risk
-    checks — research may wait, risk may not. The stage owns a semaphore of two
-    over the shared default executor; a second, unbounded path through the same
-    executor would silently double the occupancy that bound was sized for.
+    and the difference is the bulkhead rather than the call: this process also
+    serves the pre-trade risk checks, and research may wait where risk may not.
+    The size of that bound and the measurement behind it belong to the stage
+    that owns the semaphore — see `research_stages`, and do not restate the
+    number here, where it went stale once already.
 
     `rerank_state` stays None on any state but `ok`: nothing was retrieved, so
     the stage was never REACHED — a different fact from reaching it with no
     model configured, which reports "unconfigured".
+
+    LEDGERED, which it was not until now. `/ask` wrote a plan row, a row per
+    tool call and a generation row while this route — the other half of the
+    retrieval traffic — wrote nothing, so half of what the desk asked its own
+    corpus was invisible to the audit trail. The row goes in on EVERY branch,
+    `unavailable` included: "the index was not configured when this was asked"
+    is exactly the fact a reader reconstructing an afternoon needs, and a
+    ledger that only records successes is a ledger that cannot be used to
+    explain anything.
     """
-    result = await get_rag().search(
-        req.query, match_count=research_stages.wide(req.match_count), kind=req.kind,
+    rag = get_rag()
+    desk, bound, scope = scope_for((rag.search,))
+    if bound is not None:
+        # Refused rather than served unscoped. A deployment that asked for a
+        # tenant predicate and got a full-corpus read instead is the failure
+        # this whole change exists to close, and it would look identical to a
+        # working one from the outside.
+        return refusal_response(bound, SEARCH_ROUTE, req.query)
+
+    result = await rag.search(
+        req.query, match_count=research_stages.wide(req.match_count), kind=req.kind, **scope,
     )
     if result["state"] == "ok":
         result["matches"], report = await research_stages.narrow(
@@ -68,11 +103,31 @@ async def research_rag_search(req: ResearchRagSearchRequest, _actor: str = Depen
         )
         result["reranked"] = report["reranked"]
         result["rerank_state"] = report["state"]
-    return ResearchRagSearchResponse(**result)
+    correlation = record_search(req.query, {
+        "caller": actor,
+        "match_count": req.match_count,
+        "retrieved_width": research_stages.wide(req.match_count),
+        "kind": req.kind,
+        "state": result["state"],
+        "rows": len(result.get("matches") or []),
+        # Absent, never zero, when the count could not be taken: "3 of 1" and
+        # "3 of unknown" are different rows to read a month later.
+        "corpus_size": result.get("corpus_size"),
+        "reranked": result.get("reranked", False),
+        "rerank_state": result.get("rerank_state"),
+        "desk_id": desk,
+    })
+    if correlation is not None:
+        response.headers[CORRELATION_HEADER] = correlation
+    return ResearchRagSearchResponse(**result, correlation_id=correlation)
 
 
-@router.post("/api/research/rag/ask", response_model=ResearchAnswer)
-async def research_rag_ask(req: ResearchRagSearchRequest, _actor: str = Depends(trader_identity)) -> ResearchAnswer:
+@router.post(ASK_ROUTE, response_model=ResearchAnswer, responses=BOUND_RESPONSES)
+async def research_rag_ask(
+    req: ResearchRagSearchRequest,
+    response: Response,
+    _actor: str = Depends(trader_identity),
+) -> ResearchAnswer | JSONResponse:
     """Corrective retrieval: the same corpus, graded before it is offered as an answer.
 
     `/api/research/rag/search` returns what the index ranked closest, ungraded.
@@ -82,8 +137,47 @@ async def research_rag_ask(req: ResearchRagSearchRequest, _actor: str = Depends(
     below the relevance floor with the reason and the number of documents
     searched. `refused` is a state of its own: it is not `ok` with no matches
     ("searched, found nothing") and not `unavailable` ("could not search").
+
+    THE ONLY ROUTE IN THIS GATEWAY THAT CAN SPEND MONEY, and so the only one
+    outside the order path with a bound in front of it. `research_generate` is
+    reached on every graded answer; before `research_quota` there was nothing
+    between a retry loop and a paid model but the caller's patience. Both halves
+    of the bound refuse BEFORE anything is retrieved, and both refuse as
+    `ResearchBoundRefusal` — a shape that cannot be mistaken for this route's
+    own `refused` (relevance) or for a generation report's `corpus_silent`
+    (the documents do not say). Those two mean the corpus was consulted. This
+    one means it was not.
+
+    The scope is checked before the rate token is taken, for the reason
+    `AskQuota.check` prices before it consumes: a request that was never going
+    to run must not spend a token whose absence then refuses the next one for a
+    reason that has nothing to do with it.
+
+    `quota.record` charges the window with what the call actually cost, read off
+    the same report that becomes the `research_generation` ledger row — so the
+    ceiling and the audit trail are computed from one number rather than from
+    two estimates that can disagree. A report with no token counts is recorded
+    as an UNPRICED call, never as a free one.
     """
-    return await answer_from_corpus(get_rag(), req.query, match_count=req.match_count, kind=req.kind, audit=get_audit())
+    rag = get_rag()
+    _desk, unscopable, scope = scope_for((answer_from_corpus, rag.search))
+    if unscopable is not None:
+        return refusal_response(unscopable, ASK_ROUTE, req.query)
+
+    quota = get_ask_quota()
+    bound = quota.check()
+    if bound is not None:
+        return refusal_response(bound, ASK_ROUTE, req.query, spend=quota.snapshot())
+
+    plan_router, correlation = correlated_router(get_audit())
+    answer = await answer_from_corpus(
+        rag, req.query, match_count=req.match_count, kind=req.kind,
+        router=plan_router, **scope,
+    )
+    quota.record(answer.generation)
+    if correlation is not None:
+        response.headers[CORRELATION_HEADER] = correlation
+    return answer
 
 
 @router.post("/api/research/rag/embed")
@@ -179,6 +273,10 @@ async def research_graph(
     document_id: str,
     max_depth: int = Query(default=2, ge=1, le=4),
     limit: int = Query(default=10, ge=1, le=50),
+    relations: list[GraphRelation] | None = Query(
+        default=None,
+        description="Traverse only these relations; repeat for several. Omit for every relation.",
+    ),
     _actor: str = Depends(trader_identity),
 ) -> ResearchGraphResponse:
     """What is CONNECTED to one research document — the question similarity cannot answer.
@@ -192,8 +290,20 @@ async def research_graph(
 
     Depth is capped at 4 by the SQL function regardless of what is asked for,
     and every row carries the relation and the evidence that reached it.
+
+    `relations` is the CTE filter, reachable at last. `traverse_research_graph`
+    has taken it since the migration and `ResearchRag.connected` has forwarded
+    it since the traversal was written, but no route exposed it — so "what
+    FOLLOWED this run" was answerable by the database, by the client, and by
+    nobody in between. Omitted means every relation, which is what every caller
+    gets today; `?relations=followed_by&relations=promoted_to` narrows it. An
+    empty list never reaches the RPC as an empty array — `connected` leaves the
+    key off — because `relations = '{}'` matches no edge at all and would answer
+    "this document is connected to nothing", which is a lie about the corpus.
     """
-    result = await get_rag().connected(document_id, max_depth=max_depth, match_count=limit)
+    result = await get_rag().connected(
+        document_id, max_depth=max_depth, match_count=limit, relations=relations,
+    )
     return ResearchGraphResponse(**result)
 
 

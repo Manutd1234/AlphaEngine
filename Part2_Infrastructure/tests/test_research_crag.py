@@ -130,3 +130,110 @@ def test_a_grade_is_a_value_not_a_boolean():
     assert 0.0 <= grade.score <= 1.0
     assert grade.band in {"answer", "rewrite", "refuse"}
     assert len(grade.reasons) == 4, "one line per weighted signal"
+
+
+# --------------------------------------------------------------------------- #
+# The fifth signal: the cross-encoder, folded in only when one ran
+# --------------------------------------------------------------------------- #
+class TestTheCrossEncoderScoreIsRead:
+    """The grader read four signals off the retrieval and ignored the fifth.
+
+    `research_rerank` writes ``rerank_score`` onto every row it scored — the
+    one number in the pipeline produced by reading the query and the document
+    TOGETHER — and `grade` never looked at it. It changed a grade only by
+    changing which row happened to be first, which meant the most informative
+    signal available was contributing through a side effect of sorting.
+
+    The other half of this, and the half that must never break: a desk with no
+    re-ranker configured is the DEFAULT deployment, and its numbers may not
+    move by a decimal.
+    """
+
+    def test_a_row_no_cross_encoder_scored_grades_exactly_as_it_always_did(self):
+        grade = ContextGrader().grade("BTCUSDT ma_crossover sweep", [_match()], now=NOW)
+        assert grade.score == pytest.approx(0.963889, abs=5e-7), (
+            "the unreranked arithmetic is 0.40 agreement + 0.25 similarity + "
+            "0.25 overlap + 0.10 recency and nothing else; a fold that touched "
+            "it would move every grade on every desk that never asked for one"
+        )
+        assert len(grade.reasons) == 4, "no fifth signal was read, so none is claimed"
+
+    #: A document both retrievers found, recent and close in the embedding
+    #: space, that happens to share only one of the query's three terms — it
+    #: names neither the symbol nor the strategy in its own words. Vocabulary
+    #: overlap is what drags it under the answer band, and a paraphrase is
+    #: precisely what a cross-encoder is better at than a token count.
+    PARAPHRASE = dict(
+        symbol=None, strategy=None,
+        title="Parameter sweep of the trend rule",
+        body="Twenty-five combinations, deflated.",
+    )
+
+    def test_a_confident_cross_encoder_lifts_a_mid_band_grade_over_the_answer_band(self):
+        grader = ContextGrader()
+        before = grader.grade(
+            "BTCUSDT ma_crossover sweep", [_match(**self.PARAPHRASE)], now=NOW,
+        )
+        after = grader.grade(
+            "BTCUSDT ma_crossover sweep",
+            [_match(**self.PARAPHRASE, rerank_score=4.0)],
+            now=NOW,
+        )
+
+        assert before.band == "rewrite" and after.band == "answer", (
+            "a cross-encoder that read the pair and called it relevant is the "
+            "strongest evidence this pipeline produces; a mid-band grade it is "
+            "confident about is exactly the grade it should decide"
+        )
+        assert after.score > before.score
+
+    def test_a_dismissive_cross_encoder_demotes_a_grade_the_retrieval_liked(self):
+        # It must be able to push DOWN, or it is not a signal, it is a bonus.
+        # A document both retrievers found, recent and full of the query's own
+        # words, that the cross-encoder says does not answer the question, is
+        # the "three cards that look like an answer" case one step further in.
+        grader = ContextGrader()
+        default = grader.grade("BTCUSDT ma_crossover sweep", [_match()], now=NOW)
+        dismissed = grader.grade(
+            "BTCUSDT ma_crossover sweep", [_match(rerank_score=-6.0)], now=NOW,
+        )
+        assert default.band == "answer" and dismissed.band != "answer"
+
+    def test_the_fold_can_never_move_a_grade_by_more_than_its_weight(self):
+        # A quarter, bounded on both sides. The other four signals are read off
+        # the row and a reader can check them; this one is a model's opinion,
+        # so it decides borderline cases and never carries a document alone.
+        grader = ContextGrader()
+        base = grader.grade("BTCUSDT ma_crossover sweep", [_match()], now=NOW).score
+        for logit in (-40.0, -6.0, 0.0, 6.0, 40.0):
+            folded = grader.grade(
+                "BTCUSDT ma_crossover sweep", [_match(rerank_score=logit)], now=NOW,
+            ).score
+            assert abs(folded - base) <= 0.25 + 1e-9, logit
+            assert 0.0 <= folded <= 1.0
+
+    def test_a_null_score_is_not_a_zero_score(self):
+        # `research_rerank` leaves the key ABSENT rather than writing a null,
+        # and this is the belt to that brace: a null that arrived anyway is a
+        # measurement that was not taken, so the grade is the one the four
+        # retrieval signals earned — never a confident dismissal.
+        grader = ContextGrader()
+        absent = grader.grade("BTCUSDT ma_crossover sweep", [_match()], now=NOW)
+        nulled = grader.grade(
+            "BTCUSDT ma_crossover sweep", [_match(rerank_score=None)], now=NOW,
+        )
+        assert nulled.score == absent.score and nulled.reasons == absent.reasons
+
+    def test_the_reason_is_appended_so_the_other_four_keep_their_places(self):
+        grade = ContextGrader().grade(
+            "BTCUSDT ma_crossover sweep", [_match(rerank_score=2.0)], now=NOW,
+        )
+        assert len(grade.reasons) == 5
+        assert "days old" in grade.reasons[3], (
+            "a caller reading reasons[3] for recency must not find a signal "
+            "there that is absent on most deployments"
+        )
+        assert "cross-encoder" in grade.reasons[4] and "88%" in grade.reasons[4], (
+            "the reason must carry the model's own calibrated number, or a "
+            "refusal cannot be argued with"
+        )

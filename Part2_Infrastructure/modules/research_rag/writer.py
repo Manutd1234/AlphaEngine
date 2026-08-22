@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
@@ -21,7 +22,16 @@ import httpx
 from config import settings
 from modules.research_cards import classify_anomaly, render_backtest_documents, render_incident_card, render_ml_card
 from modules.research_graph import persist_edges
+from modules.research_image_ingest import IMAGE_PNG_FIELD, attach_chart_pngs, image_columns
+from modules.research_ingest_delivery import (
+    REASON_ERROR,
+    DeadLetterBook,
+    Delivered,
+    Undelivered,
+    deliver,
+)
 from modules.research_rag.retrieval import EMBEDDING_MODEL, _RetrievalMixin
+from modules.research_rag.session import _SessionIngestMixin
 
 if TYPE_CHECKING:
     from modules.schemas import OrderRequest, RiskDecision
@@ -29,7 +39,7 @@ if TYPE_CHECKING:
 log = logging.getLogger("alphaengine.rag")
 
 
-class ResearchRag(_RetrievalMixin):
+class ResearchRag(_RetrievalMixin, _SessionIngestMixin):
     """Write path + retrieval; a no-op when unconfigured."""
 
     def __init__(self) -> None:
@@ -48,8 +58,15 @@ class ResearchRag(_RetrievalMixin):
         self._pending = 0
         self._failed = 0
         self._dropped = 0
+        self._drop_logged_at = 0.0
+        self._restarts = 0
+        self._dead = DeadLetterBook()
         self._last_matches: list[dict[str, Any]] = []
         self._last_anomaly_at: datetime | None = None
+        # Strong references to the session-summary tasks `_SessionIngestMixin`
+        # schedules. `create_task` keeps only a weak one, so an unheld task can
+        # be collected mid-`await` and its document never appears.
+        self._session_tasks: set[asyncio.Task[None]] = set()
 
     # -- lifecycle --------------------------------------------------------- #
     async def start(self) -> None:
@@ -69,6 +86,11 @@ class ResearchRag(_RetrievalMixin):
         log.info("research RAG started")
 
     async def stop(self) -> None:
+        # A summary still sitting out its settle is re-derivable by the
+        # backfill; a task left pending when the loop closes is a shutdown
+        # warning and nothing else.
+        for task in list(self._session_tasks):
+            task.cancel()
         if self._task:
             self._task.cancel()
             try:
@@ -111,10 +133,53 @@ class ResearchRag(_RetrievalMixin):
             self._loop.call_soon_threadsafe(self._offer, document)
 
     def _offer(self, document: dict[str, Any]) -> None:
+        """Put one document on the queue, and keep the drain alive.
+
+        The overflow used to be a bare counter, readable only by whoever thought
+        to open ``GET /api/research/rag/status``. Nothing in the logs said the
+        corpus had started losing documents, so the first evidence of a stalled
+        drain was a query that could not find a run everybody remembered making.
+        The drop now says so, rate-limited to once a minute the way the order
+        mirror's is — a warning printed once per dropped document during a burst
+        is a warning nobody reads.
+        """
+        self._ensure_drain_alive()
         try:
             self._queue.put_nowait(document)
         except asyncio.QueueFull:
             self._dropped += 1
+            now = time.monotonic()
+            if now - self._drop_logged_at > 60:
+                self._drop_logged_at = now
+                log.warning(
+                    "research index queue full (max %d); %d documents dropped so far, "
+                    "latest %s/%s — nothing is indexing fast enough to keep up",
+                    self._queue.maxsize, self._dropped,
+                    document.get("kind"), document.get("source_ref"),
+                )
+
+    def _ensure_drain_alive(self) -> None:
+        """Revive a drain task that ended, whatever ended it.
+
+        ``_drain`` guards every document, so this should be unreachable — which
+        is exactly why it is here. The failure it insures against has happened
+        once already: an exception escaping the loop killed the task, ``running``
+        went False, and every later submission sat in the queue until the process
+        was restarted, with nothing indexing and nothing saying so. A supervisor
+        on the SUBMIT path costs one comparison per document and needs no second
+        loop to watch the first one.
+        """
+        if self._task is None or not self._task.done() or self._client is None:
+            return
+        if self._loop is None or self._loop.is_closed():
+            return
+        self._restarts += 1
+        log.error(
+            "research index drain had ended (%s); restarting it — restart %d",
+            self._task.exception() if not self._task.cancelled() else "cancelled",
+            self._restarts,
+        )
+        self._task = asyncio.create_task(self._drain(), name="research-rag")
 
     def on_backtest_complete(self, record: Any) -> None:
         """`queue.on_complete` hook — same seam the Telegram push uses.
@@ -131,7 +196,22 @@ class ResearchRag(_RetrievalMixin):
         result = getattr(record, "result", None)
         if result is None:
             return
-        for document in render_backtest_documents(result):
+        # The JOB's finish time, not the render's. `JobQueue` stamps
+        # `finished_at` before it fires the completion hooks, so this is always
+        # present on the live path; a record that somehow lacks one says so
+        # rather than letting the renderer's fallback pass unremarked.
+        finished_at = getattr(record, "finished_at", None)
+        if finished_at is None:
+            log.warning(
+                "backtest %s carried no finish time; the corpus will hold its "
+                "ingest time instead",
+                getattr(record, "job_id", "?"),
+            )
+        # The PNG travels WITH the document — `_index_one` sees a queue entry,
+        # not a result. A no-op unless the image arm is configured.
+        for document in attach_chart_pngs(render_backtest_documents(
+            result, occurred_at=finished_at.isoformat() if finished_at else None
+        ), result):
             self._submit(document)
 
     def on_ml_run_complete(self, run: dict[str, Any]) -> None:
@@ -194,43 +274,81 @@ class ResearchRag(_RetrievalMixin):
         })
 
     async def _drain(self) -> None:
+        """One document at a time, and NO document may end the loop.
+
+        The guard is around the whole of ``_index_one`` on purpose rather than
+        around the insert. The fault that took this task down was not the insert
+        at all: ``embed_many`` catches ``httpx.HTTPError``, an HTML error page
+        served with a 200 by a proxy parses as JSON only in the sense that it
+        raises ``JSONDecodeError``, and that is a ``ValueError`` — so it went
+        past every ``except`` in the package, out of this loop, and killed the
+        task. Narrowing the guard to the exception seen once is how the same
+        outage returns wearing a different exception type.
+
+        ``CancelledError`` is re-raised, not swallowed: ``stop()`` cancels this
+        task and awaits it, and a loop that catches its own cancellation hangs
+        shutdown forever.
+        """
         assert self._client is not None
         while True:
             document = await self._queue.get()
-            retrieve_after = document.pop("_retrieve_after", False)
-            body = document["body"]
-            vector = await self._embed(body)
-            row = {
-                **document,
-                "desk_id": settings.supabase_desk_id,
-                "embedding": vector,
-                "embedding_model": EMBEDDING_MODEL if vector else None,
-                "embedding_status": "ready" if vector else "pending",
-            }
             try:
-                response = await self._client.post(
-                    "/rest/v1/research_documents",
-                    json=row,
-                    headers={"Prefer": "resolution=ignore-duplicates,return=representation"},
-                )
-                if response.status_code < 300:
-                    await persist_edges(self._client, response, desk_id=settings.supabase_desk_id)
-                    if vector:
-                        self._indexed += 1
-                    else:
-                        self._pending += 1
-                else:
-                    self._failed += 1
-            except httpx.HTTPError:
+                await self._index_one(document)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
                 self._failed += 1
-                continue
-            if retrieve_after and vector:
-                matches = await self._match(vector, match_count=3)
-                # The document itself is in the index now; drop self-matches.
-                self._last_matches = [
-                    m for m in matches if m.get("source_ref") != document["source_ref"]
-                ][:3]
+                self._dead.record(
+                    document,
+                    Undelivered(reason=REASON_ERROR, detail=type(exc).__name__, attempts=1),
+                )
+                log.error(
+                    "research document %s/%s not indexed (%s: %s); dead-lettered, "
+                    "the drain continues",
+                    document.get("kind"), document.get("source_ref"),
+                    type(exc).__name__, exc,
+                )
 
+    async def _index_one(self, document: dict[str, Any]) -> None:
+        """Embed, insert, link, and retrieve neighbours for an anomaly card."""
+        assert self._client is not None
+        retrieve_after = document.pop("_retrieve_after", False)
+        vector = await self._embed(document["body"])
+        # The image arm's write half: an instruction to this loop, never a
+        # column. EMPTY unless configured — see `research_image_ingest`.
+        image = await image_columns(document.pop(IMAGE_PNG_FIELD, None))
+        row = {
+            **document,
+            "desk_id": settings.supabase_desk_id,
+            "embedding": vector,
+            "embedding_model": EMBEDDING_MODEL if vector else None,
+            "embedding_status": "ready" if vector else "pending",
+            **image,
+        }
+        outcome = await deliver(self._client, row)
+        if not isinstance(outcome, Delivered):
+            # Counted AND kept. The counter alone said a number of documents had
+            # been lost and never which ones, so there was nothing to replay and
+            # no way to tell a rejected schema from an unreachable corpus.
+            self._failed += 1
+            self._dead.record(document, outcome)
+            log.error(
+                "research document %s/%s gave up after %d attempts (%s: %s); dead-lettered",
+                document.get("kind"), document.get("source_ref"),
+                outcome.attempts, outcome.reason, outcome.detail,
+            )
+            return
+        await persist_edges(self._client, outcome.response, desk_id=settings.supabase_desk_id)
+        if vector:
+            self._indexed += 1
+        else:
+            self._pending += 1
+        if retrieve_after and vector:
+            matches = await self._match(vector, match_count=3)
+            # The document itself is in the index now; drop self-matches.
+            self._last_matches = [
+                m for m in matches if m.get("source_ref") != document["source_ref"]
+            ][:3]
 
     def status(self) -> dict[str, Any]:
         """Counters and the cached anomaly matches — no URL, no key."""
@@ -242,6 +360,13 @@ class ResearchRag(_RetrievalMixin):
             "pending_embeddings": self._pending,
             "failed": self._failed,
             "dropped": self._dropped,
+            # Depth, not just a count of failures: a document that failed is
+            # somewhere, and an operator needs to know there is something to
+            # replay before they can decide to replay it.
+            "dead_lettered": self._dead.depth,
+            "dead_letters_discarded": self._dead.discarded,
+            "dead_letters": self._dead.recent(),
+            "drain_restarts": self._restarts,
             "last_anomaly_at": (
                 self._last_anomaly_at.isoformat() if self._last_anomaly_at else None
             ),

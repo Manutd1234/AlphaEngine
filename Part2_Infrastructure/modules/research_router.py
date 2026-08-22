@@ -9,13 +9,17 @@ needs limits that are structural rather than advisory.
 Four of them, and none is a guideline:
 
 1. **The plan is bounded.** At most ``max_calls`` tool invocations, chosen from
-   a closed registry. There is no loop that can decide to keep going.
+   a closed registry. There is no loop that can decide to keep going. The bound
+   drops SPECULATIVE calls and never the guaranteed one — see
+   `research_router_calls.bound_calls`, which carries the query that proved a
+   plain ``[:max_calls]`` was deleting the fallback it promised.
 2. **Every plan and every call is written to the audit log**, so a session
    replays from the ledger like every other decision this desk makes. The
    router both plans and EXECUTES, because a plan nothing runs is decoration
    and a call nobody recorded is not replayable: `plan` writes the
    ``research_plan`` row, `execute` writes one ``research_tool_call`` row per
-   invocation with what it returned.
+   invocation with what it returned. Every row of one request carries the same
+   ``correlation_id``, generated here — see `_write`.
 3. **There is always a deterministic fallback.** When the planner is
    unavailable, over budget, or returns something the registry does not
    contain, the query runs plain hybrid search — which is today's behaviour and
@@ -32,6 +36,11 @@ It is deterministic, free, and gets the common cases right, which is most of
 what routing is for. `Planner` is a protocol so a model-backed one can be
 substituted; the limits above are enforced by the router, not by the planner,
 so substituting one cannot loosen them.
+
+The shapes (`ToolCall`, `Plan`, `ToolResult`, `Execution`, the tool names) live
+in `research_router_calls` and the four arms in `research_router_exec`, on the
+400-line ceiling's account. They are re-exported here: every existing import of
+``modules.research_router`` still means what it meant.
 """
 
 from __future__ import annotations
@@ -41,22 +50,47 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
-#: The closed set. A planner naming anything else is treated as having failed,
-#: which is what makes an unbounded tool surface impossible rather than
-#: discouraged.
-TOOL_HYBRID = "hybrid_search"
-TOOL_GRAPH = "graph_traverse"
-TOOL_RUNS = "structured_runs"
-TOOL_LEXICAL = "lexical_exact"
-
-TOOLS: frozenset[str] = frozenset({TOOL_HYBRID, TOOL_GRAPH, TOOL_RUNS, TOOL_LEXICAL})
+from modules.research_router_calls import (
+    _DATA_HASH,
+    TOOL_GRAPH,
+    TOOL_HYBRID,
+    TOOL_LEXICAL,
+    TOOL_RUNS,
+    TOOLS,
+    Execution,
+    Plan,
+    ToolCall,
+    ToolResult,
+    bound_calls,
+    exact_token,
+    new_correlation_id,
+)
+from modules.research_router_exec import run_call
 
 log = logging.getLogger("alphaengine.research.router")
 
-#: Eight hex characters is what this desk's data_hash looks like everywhere it
-#: appears, and it is the token a sentence embedder handles worst.
-_DATA_HASH = re.compile(r"\b[0-9a-f]{8}\b")
-_SYMBOL = re.compile(r"\b[A-Z]{2,10}(?:USDT|USD|PERP)?\b")
+#: The shapes moved to `research_router_calls` when this module reached the
+#: file-length ceiling, and they are re-exported here rather than repointed at
+#: their new home: `modules.research_crag`, the route and four test modules all
+#: import them from `modules.research_router`, and a split that renames every
+#: caller's import is a split that gets reverted. Declared in `__all__` so the
+#: re-export is a statement of intent rather than an import lint happens to keep.
+__all__ = [
+    "TOOLS",
+    "TOOL_GRAPH",
+    "TOOL_HYBRID",
+    "TOOL_LEXICAL",
+    "TOOL_RUNS",
+    "Execution",
+    "Plan",
+    "Planner",
+    "ResearchRouter",
+    "RuleBasedPlanner",
+    "ToolCall",
+    "ToolResult",
+    "exact_token",
+]
+
 _CAUSAL = re.compile(r"\b(after|before|caused|led to|followed|because|why)\b", re.I)
 _AGGREGATE = re.compile(r"\b(how many|count|total|best|worst|most|least|since|average)\b", re.I)
 #: "moving average", "exponential average", "weighted average" are STRATEGY
@@ -67,85 +101,13 @@ _AVERAGE_IN_A_STRATEGY_NAME = re.compile(
     r"\b(moving|exponential|weighted|simple|triple|double|rolling)\s+average\b", re.I
 )
 
-
-@dataclass(frozen=True, slots=True)
-class ToolCall:
-    tool: str
-    query: str
-    reason: str
-
-
-@dataclass(frozen=True, slots=True)
-class Plan:
-    calls: tuple[ToolCall, ...]
-    planner: str
-    #: True when the router fell back rather than using the planner's answer.
-    fallback: bool = False
-    fallback_reason: str | None = None
-
-    def as_audit(self) -> dict[str, Any]:
-        """The row the audit log stores. A plan nobody can replay is a plan
-        nobody can review."""
-        return {
-            "planner": self.planner,
-            "fallback": self.fallback,
-            "fallback_reason": self.fallback_reason,
-            "calls": [{"tool": c.tool, "query": c.query, "reason": c.reason} for c in self.calls],
-        }
-
-
-@dataclass(frozen=True, slots=True)
-class ToolResult:
-    """One executed — or deliberately not executed — tool call.
-
-    ``state`` is the tool's own outcome and is never flattened into a boolean:
-    ``ok`` (rows), ``empty`` (ran, returned nothing), ``unavailable`` /
-    ``embed_failed`` (could not run), ``skipped`` (the call needed something
-    this query did not have), ``unsupported`` (no executor on this gateway).
-    The same distinction ``search`` draws between "found nothing" and "could
-    not search", one level down.
-    """
-
-    tool: str
-    reason: str
-    state: str
-    rows: int
-    detail: str | None = None
-
-    def as_audit(self) -> dict[str, Any]:
-        return {
-            "tool": self.tool, "reason": self.reason, "state": self.state,
-            "rows": self.rows, "detail": self.detail,
-        }
-
-
-@dataclass
-class Execution:
-    """What a plan actually returned, merged in the plan's own order.
-
-    The order matters and is the planner's: a data-hash query runs lexical
-    before hybrid, so the exact-token hit is the row CRAG grades as "best".
-    """
-
-    state: str = "ok"
-    matches: list[dict[str, Any]] = field(default_factory=list)
-    connected: list[dict[str, Any]] = field(default_factory=list)
-    corpus_size: int | None = None
-    calls: list[ToolResult] = field(default_factory=list)
-
-
-def exact_token(query: str) -> str | None:
-    """The one token in a query the embedder handles worst, or None.
-
-    A data hash first, then a ticker. This is what ``lexical_exact`` re-queries
-    with: the bare identifier, so the lexical half of the fused index ranks it
-    first instead of ranking three documents that discuss identifiers.
-    """
-    found = _DATA_HASH.search(query)
-    if found:
-        return found.group(0)
-    symbol = _SYMBOL.search(query)
-    return symbol.group(0) if symbol else None
+#: The order the planner emits speculative calls in, and therefore the order the
+#: bound drops them in — weakest last. It is a ladder of how DIRECTLY each arm
+#: answers the question it was chosen for: an exact token either matches or does
+#: not, a count is computed from records, and a traversal is the most
+#: speculative of the three because it needs a seed document it may not get and
+#: can only ever be skipped without one.
+_PRIORITY: dict[str, int] = {TOOL_LEXICAL: 0, TOOL_RUNS: 1, TOOL_GRAPH: 2, TOOL_HYBRID: 3}
 
 
 class Planner(Protocol):
@@ -183,13 +145,18 @@ class RuleBasedPlanner:
 
         # Hybrid always runs. It is the tool that answers when the others find
         # nothing, and a plan that omits it can return empty for a query the
-        # corpus could have answered.
+        # corpus could have answered. `bound_calls` is what makes "always" true
+        # under the bound; before it, a query firing three rules lost this call.
         calls.append(ToolCall(TOOL_HYBRID, query, "always: the general retrieval path"))
 
-        # De-duplicate, keep order, then bound.
+        # De-duplicate keeping the first sighting, sort onto the priority ladder
+        # (stable, so rules that fired for the same tier keep their order), then
+        # bound. The sort exists so that the call the bound drops is the least
+        # direct one rather than whichever rule happened to fire last.
         seen: set[str] = set()
         unique = [c for c in calls if not (c.tool in seen or seen.add(c.tool))]
-        return unique[:max_calls]
+        unique.sort(key=lambda c: _PRIORITY.get(c.tool, len(_PRIORITY)))
+        return bound_calls(unique, max_calls)
 
 
 class ResearchRouter:
@@ -201,33 +168,52 @@ class ResearchRouter:
         *,
         max_calls: int = 3,
         audit: Any | None = None,
+        correlation_id: str | None = None,
     ) -> None:
         if max_calls < 1:
             raise ValueError("max_calls must be at least 1")
         self.planner = planner or RuleBasedPlanner()
         self.max_calls = int(max_calls)
         self.audit = audit
+        #: The id every row this router writes will carry. It arrives one of two
+        #: ways and the difference matters.
+        #:
+        #: PINNED, when the caller mints one before building the router
+        #: (`research_quota_gate.correlated_router` does), the id spans the
+        #: whole request — including the corrective path's SECOND plan, which is
+        #: the same question being retried and not a second question.
+        #:
+        #: MINTED HERE otherwise, once per `plan()`, so a router built directly
+        #: still writes rows that can be tied together. `record_generation` is
+        #: the one row that arrives without a plan in hand and reads this
+        #: attribute; with a pinned id that is exact, and with a minted one it is
+        #: the most recent plan's, which is correct for the production path
+        #: because `answer_from_corpus` builds a router per request.
+        self._pinned_correlation_id = correlation_id
+        self.correlation_id: str | None = correlation_id
 
-    def _fallback(self, query: str, reason: str) -> Plan:
+    def _fallback(self, query: str, reason: str, correlation_id: str) -> Plan:
         return Plan(
             calls=(ToolCall(TOOL_HYBRID, query, "fallback: plain hybrid search"),),
             planner=getattr(self.planner, "name", "unknown"),
             fallback=True,
             fallback_reason=reason,
+            correlation_id=correlation_id,
         )
 
     def plan(self, query: str) -> Plan:
         """A validated, bounded, recorded plan. Never raises."""
         planner_name = getattr(self.planner, "name", "unknown")
+        self.correlation_id = correlation_id = self._pinned_correlation_id or new_correlation_id()
         try:
             proposed = self.planner.plan(query, self.max_calls)
         except Exception as exc:  # noqa: BLE001 — a planner failure is a fallback, not an outage
-            plan = self._fallback(query, f"planner raised {type(exc).__name__}")
+            plan = self._fallback(query, f"planner raised {type(exc).__name__}", correlation_id)
             self._record(query, plan)
             return plan
 
         if not proposed:
-            plan = self._fallback(query, "planner returned no calls")
+            plan = self._fallback(query, "planner returned no calls", correlation_id)
             self._record(query, plan)
             return plan
 
@@ -236,12 +222,14 @@ class ResearchRouter:
             # A planner naming a tool that does not exist is a planner that has
             # stopped being trustworthy for this query. Fall back whole rather
             # than executing the half that happened to be valid.
-            plan = self._fallback(query, f"planner named unknown tools: {sorted(set(unknown))}")
+            plan = self._fallback(
+                query, f"planner named unknown tools: {sorted(set(unknown))}", correlation_id
+            )
             self._record(query, plan)
             return plan
 
-        bounded = tuple(proposed[: self.max_calls])
-        plan = Plan(calls=bounded, planner=planner_name)
+        bounded = tuple(bound_calls(proposed, self.max_calls))
+        plan = Plan(calls=bounded, planner=planner_name, correlation_id=correlation_id)
         self._record(query, plan)
         return plan
 
@@ -262,19 +250,26 @@ class ResearchRouter:
         ran before any retrieval has no document to start from and could only
         ever be skipped. The planner's ordering still decides how the retrieved
         rows are ranked, which is what it was expressing.
+
+        ``self.audit`` is handed to the structured arm as its store, because the
+        ledger this router writes to is the same file ``backtest_runs`` is
+        written to. One handle, no new configuration, and a gateway with no
+        audit log gets a named ``unavailable`` from that arm rather than a crash.
         """
-        execution = Execution()
+        execution = Execution(correlation_id=plan.correlation_id)
         ordered = (
             [c for c in plan.calls if c.tool != TOOL_GRAPH]
             + [c for c in plan.calls if c.tool == TOOL_GRAPH]
         )
         states: list[str] = []
         for call in ordered:
-            result = await self._execute_one(
-                call, rag, execution, match_count=match_count, kind=kind
+            result = await run_call(
+                call, rag, execution, match_count=match_count, kind=kind, store=self.audit
             )
             execution.calls.append(result)
-            self._write("research_tool_call", call.query, result.as_audit())
+            self._write(
+                "research_tool_call", call.query, result.as_audit(), plan.correlation_id
+            )
             if result.state in {"ok", "empty"}:
                 states.append("ok")
             elif result.state not in {"skipped", "unsupported"}:
@@ -285,78 +280,10 @@ class ResearchRouter:
         execution.state = "ok" if "ok" in states else (states[0] if states else "ok")
         return execution
 
-    async def _execute_one(
-        self,
-        call: ToolCall,
-        rag: Any,
-        execution: Execution,
-        *,
-        match_count: int,
-        kind: str | None,
-    ) -> ToolResult:
-        if call.tool == TOOL_GRAPH:
-            return await self._walk(call, rag, execution, match_count=match_count)
-        if call.tool == TOOL_RUNS:
-            # Named rather than hidden. The planner routes counts and extrema
-            # here and this gateway has no structured-runs reader, so the call
-            # is recorded as unsupported and the plan's always-present hybrid
-            # call answers instead — rule 3, working as written.
-            return ToolResult(
-                call.tool, call.reason, "unsupported", 0,
-                "no structured-runs reader on this gateway; hybrid answers instead",
-            )
-        text = call.query if call.tool == TOOL_HYBRID else exact_token(call.query)
-        if not text:
-            return ToolResult(
-                call.tool, call.reason, "skipped", 0, "the query names no exact token"
-            )
-        result = await rag.search(
-            text,
-            match_count=match_count,
-            kind=kind if call.tool == TOOL_HYBRID else None,
-        )
-        state = str(result.get("state") or "unavailable")
-        if state != "ok":
-            return ToolResult(call.tool, call.reason, state, 0, f"retrieval reported {state}")
-        rows = self._merge(execution, result)
-        return ToolResult(call.tool, call.reason, "ok" if rows else "empty", rows)
-
-    async def _walk(
-        self, call: ToolCall, rag: Any, execution: Execution, *, match_count: int
-    ) -> ToolResult:
-        seed = next((m.get("id") for m in execution.matches if m.get("id")), None)
-        if not seed:
-            return ToolResult(
-                call.tool, call.reason, "skipped", 0, "no retrieved document to walk from"
-            )
-        result = await rag.connected(str(seed), match_count=match_count)
-        if result.get("state") != "ok":
-            return ToolResult(
-                call.tool, call.reason, "unavailable", 0, "the graph could not be walked"
-            )
-        rows = list(result.get("connected") or [])
-        execution.connected.extend(rows)
-        return ToolResult(call.tool, call.reason, "ok" if rows else "empty", len(rows))
-
-    @staticmethod
-    def _merge(execution: Execution, result: dict[str, Any]) -> int:
-        """Append this tool's rows, keeping the first sighting of each document."""
-        if execution.corpus_size is None:
-            execution.corpus_size = result.get("corpus_size")
-        seen = {m.get("id") or m.get("source_ref") for m in execution.matches}
-        rows = list(result.get("matches") or [])
-        for row in rows:
-            key = row.get("id") or row.get("source_ref")
-            if key in seen:
-                continue
-            seen.add(key)
-            execution.matches.append(row)
-        return len(rows)
-
     # -- the ledger -------------------------------------------------------- #
     def _record(self, query: str, plan: Plan) -> None:
         """Write the plan to the audit log. Never fails the query."""
-        self._write("research_plan", query, plan.as_audit())
+        self._write("research_plan", query, plan.as_audit(), plan.correlation_id)
 
     def record_generation(self, query: str, report: dict[str, Any]) -> None:
         """One ledger row per generation call actually SPENT. Never raises.
@@ -366,11 +293,19 @@ class ResearchRouter:
         goes looking for, so gating on the answer would delete the expensive half of the ledger.
         The report is copied WHOLE rather than key by key, because reading each key with ``.get``
         would write a null token count wherever the SDK reported none, which is spend read as nothing.
+
+        The correlation id comes from ``self`` rather than from an argument, because the seam that
+        calls this (`research_stages.synthesise`) is handed the router and not the plan. That is
+        correct for the production path, where `answer_from_corpus` builds one router per request;
+        a router shared between concurrent requests would stamp the generation row with whichever
+        plan was made last, so it is written down here rather than discovered later.
         """
         if report.get("model_called"):
-            self._write("research_generation", query, dict(report))
+            self._write("research_generation", query, dict(report), self.correlation_id)
 
-    def _write(self, event: str, query: str, payload: dict[str, Any]) -> None:
+    def _write(
+        self, event: str, query: str, payload: dict[str, Any], correlation_id: str | None = None
+    ) -> None:
         """One row in the ledger, through ``AuditLog``'s ACTUAL signature.
 
         ``record_risk_event`` takes the event name POSITIONALLY. This method
@@ -380,6 +315,12 @@ class ResearchRouter:
         was a test whose fake recorder took ``**kwargs`` — so the fake accepted
         an argument the production object rejects, and "every plan is recorded"
         was true of the fake and false of the desk.
+
+        ``correlation_id`` is stamped FIRST and unconditionally. Before it, the
+        five rows one request writes could only be tied together by timestamp
+        and by the first 200 characters of the query, which is precisely what
+        fails when two desks ask similar questions in the same second — replay
+        interleaved their arms and nothing said so.
         """
         if self.audit is None:
             return
@@ -389,7 +330,7 @@ class ResearchRouter:
                 severity="info",
                 actor="research",
                 detail=query[:200],
-                payload=payload,
+                payload={"correlation_id": correlation_id, **payload},
             )
         except Exception as exc:  # noqa: BLE001 — a ledger that is down must not stop a read
             # Logged, not swallowed. A plan that failed to record is a plan

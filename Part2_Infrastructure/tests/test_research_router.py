@@ -32,6 +32,11 @@ from modules.research_router import (
     ToolCall,
 )
 
+#: The query that proved the bound was dropping the tool the docstring promised
+#: always runs. Written once, used by the tests that pin the fix, because the
+#: defect is a property of THIS query rather than of queries in general.
+TRUNCATION_QUERY = "how many runs since 3f8a9c21"
+
 
 @pytest.fixture
 def audit(tmp_path):
@@ -183,14 +188,82 @@ def test_hybrid_search_is_always_in_the_plan():
 
 
 def test_the_plan_is_deterministic_for_one_query():
+    # The DECISIONS are deterministic; the correlation id is per-request
+    # identity and is the one field that must differ, or it is not identifying
+    # anything. Compared field by field rather than through `as_audit` for
+    # exactly that reason.
     a = ResearchRouter().plan("what else ran on 9f9602c7")
     b = ResearchRouter().plan("what else ran on 9f9602c7")
-    assert a.as_audit() == b.as_audit()
+    assert [(c.tool, c.query, c.reason) for c in a.calls] == [
+        (c.tool, c.query, c.reason) for c in b.calls
+    ]
+    assert (a.planner, a.fallback) == (b.planner, b.fallback)
+    assert a.correlation_id != b.correlation_id
 
 
 def test_the_audit_payload_is_replayable():
     plan = ResearchRouter().plan("why did BTCUSDT fail after 9f9602c7")
     payload = plan.as_audit()
-    assert set(payload) == {"planner", "fallback", "fallback_reason", "calls"}
+    assert set(payload) == {"correlation_id", "planner", "fallback", "fallback_reason", "calls"}
     assert all(set(c) == {"tool", "query", "reason"} for c in payload["calls"])
     assert isinstance(Plan(calls=(), planner="x").as_audit(), dict)
+
+
+# -- the bound may not drop the guarantee ----------------------------------- #
+#
+# Measured on the real planner, not reasoned about: `TRUNCATION_QUERY` fires
+# three rules, proposed ['lexical_exact', 'graph_traverse', 'structured_runs',
+# 'hybrid_search'], and a plain `[:3]` cut the last one — so the module
+# docstring's "Hybrid always runs. It is the tool that answers when the others
+# find nothing" was false for precisely the queries with the most ways to come
+# back empty, and nothing in the ledger said so.
+
+def test_the_bound_drops_a_speculative_tool_never_the_fallback():
+    plan = ResearchRouter(max_calls=3).plan(TRUNCATION_QUERY)
+    tools = [c.tool for c in plan.calls]
+    assert len(tools) == 3, "the bound still bounds"
+    assert TOOL_HYBRID in tools, "the tool that answers when the others find nothing was cut"
+    assert TOOL_LEXICAL in tools and TOOL_RUNS in tools, (
+        "the two arms that answer this query most directly are the ones kept"
+    )
+    assert not plan.fallback, "bounding is not a failure; the plan was valid, just long"
+
+
+def test_the_bound_holds_when_the_planner_itself_puts_the_fallback_last():
+    # The planner is not the only place the bound runs: `ResearchRouter.plan`
+    # truncates whatever a substituted planner returns, and the guarantee has to
+    # survive there too or a model-backed planner reintroduces the defect.
+    class _Verbose:
+        name = "verbose"
+
+        def plan(self, query, max_calls):
+            return [
+                ToolCall(TOOL_LEXICAL, query, "first"),
+                ToolCall(TOOL_GRAPH, query, "second"),
+                ToolCall(TOOL_RUNS, query, "third"),
+                ToolCall(TOOL_HYBRID, query, "last, and truncated away before this"),
+            ]
+
+    plan = ResearchRouter(_Verbose(), max_calls=3).plan("anything")
+    tools = [c.tool for c in plan.calls]
+    assert len(tools) == 3 and TOOL_HYBRID in tools
+
+
+def test_a_bound_of_one_is_the_fallback_alone():
+    assert [c.tool for c in ResearchRouter(max_calls=1).plan(TRUNCATION_QUERY).calls] == [
+        TOOL_HYBRID
+    ]
+
+
+def test_the_bound_does_not_invent_a_fallback_the_planner_left_out():
+    # Removing calls is the bound's job; adding one is not. A planner that
+    # deliberately omitted hybrid is making a claim, and overruling it here
+    # would hide that claim from the ledger.
+    class _NoHybrid:
+        name = "no-hybrid"
+
+        def plan(self, query, max_calls):
+            return [ToolCall(TOOL_LEXICAL, query, "only this") for _ in range(5)]
+
+    plan = ResearchRouter(_NoHybrid(), max_calls=3).plan("9f9602c7")
+    assert [c.tool for c in plan.calls] == [TOOL_LEXICAL] * 3

@@ -35,6 +35,13 @@ not have it. The bound is STRUCTURAL: `answer_from_corpus` is straight-line
 code with one ``if``, not a loop with a counter, so there is no place a third
 attempt could be added by accident.
 
+The middle band DECIDES, and for a long time it did not. `research_crag_policy`
+holds that decision — the one retry and the answer-or-refuse that follows it —
+and its docstring records what the code used to do instead: refuse below the
+floor and answer everything else, with `ANSWER_BAND` read by nobody. A
+mid-band grade that does not clear the answer band after its rewrite now
+refuses, which is what every version of the three lines above has said.
+
 Where this runs
 ---------------
 
@@ -54,8 +61,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from modules import research_stages
-from modules.research_router import Execution, ResearchRouter, ToolResult
+from modules import research_crag_policy, research_crag_signals, research_stages
+from modules.research_router import ResearchRouter, ToolResult
 from modules.schemas import ResearchGraphNeighbour, ResearchRagMatch
 
 #: The two band edges. Named rather than inlined because /thresholds-style
@@ -170,6 +177,15 @@ class ContextGrader:
             + 0.25 * min(1.0, overlap)
             + 0.10 * recency
         )
+
+        # 5. The cross-encoder, WHEN one ran. The four signals above are all
+        #    properties of the retrieval; this is the only one that read the
+        #    query and the document together, and it was being ignored — it
+        #    moved a grade only by changing which row landed first. Folded here
+        #    rather than weighted above because it is CONDITIONAL: a row with
+        #    no `rerank_score` returns this score untouched, so the default
+        #    deployment's numbers do not move by a decimal.
+        score, cross_encoder = research_crag_signals.cross_encoder(best, score)
         score = max(0.0, min(1.0, score))
 
         band = (
@@ -184,6 +200,10 @@ class ContextGrader:
             f"{overlap:.0%} of the query's terms appear in it",
             "recency unknown" if age is None else f"the closest match is {age:.0f} days old",
         )
+        # Appended, never inserted: a caller reading `reasons[3]` for recency
+        # must not find a signal that is absent on most deployments there.
+        if cross_encoder is not None:
+            reasons += (cross_encoder,)
         return Grade(score, band, reasons, score, agreed)
 
     def rewrite(self, query: str, matches: list[dict[str, Any]]) -> str:
@@ -280,28 +300,6 @@ def _views(calls: list[ToolResult]) -> list[ToolCallView]:
     return [ToolCallView(**call.as_audit()) for call in calls]
 
 
-def _refusal(grade: Grade, run: Execution, floor: float) -> str:
-    """Why this refused, in one sentence a reader can act on.
-
-    It has to carry the denominator. "Nothing relevant" over a corpus of four
-    hundred documents is a statement about the query; the same words over a
-    corpus of one are a statement about the corpus, and a refusal that cannot
-    tell the reader which one it is has said nothing.
-    """
-    searched = (
-        f"{run.corpus_size} indexed documents were searched"
-        if run.corpus_size is not None
-        else "the corpus was searched"
-    )
-    return (
-        f"Nothing in this desk's own research is relevant to that: {searched}, and the "
-        f"closest {len(run.matches)} scored {grade.score:.2f} — below the {floor:.2f} "
-        f"relevance floor. " + "; ".join(grade.reasons) + ". This is a refusal on "
-        "relevance: documents came back and none of them answer the question. It is "
-        "not an empty corpus and not a search that failed."
-    )
-
-
 async def answer_from_corpus(
     rag: Any,
     query: str,
@@ -315,11 +313,14 @@ async def answer_from_corpus(
 ) -> ResearchAnswer:
     """Route, retrieve, grade, rewrite ONCE, then answer or refuse.
 
-    The three bands are enforced here and nowhere else:
+    The three bands are enforced here and in `research_crag_policy`, and
+    nowhere else:
 
     * ``> 0.8``   answer.
-    * ``0.4-0.8`` rewrite from the corpus's own vocabulary, re-query, and
-      answer or refuse on what the second round returns. Once.
+    * ``0.4-0.8`` rewrite from the corpus's own vocabulary, re-query, and then
+      answer or refuse ON WHAT THAT SECOND ROUND RETURNED. A mid-band grade
+      that still does not clear the answer band refuses — which is a behaviour
+      change from the version where the middle band decided nothing at all.
     * ``< 0.4``   refuse, with the reason, without spending a second query on a
       result that is not close.
     """
@@ -327,10 +328,16 @@ async def answer_from_corpus(
     router = router or ResearchRouter(audit=audit)
 
     plan = router.plan(query)
-    # WIDE, and narrowed by the cross-encoder below — wide only when one is
-    # configured to narrow it again; `research_stages.wide` holds that trade.
-    run = await router.execute(plan, rag, match_count=research_stages.wide(match_count), kind=kind)
-    calls = list(run.calls)
+    # WIDE for the arm the cross-encoder narrows again, and the caller's own
+    # width for the graph arm, which it never sees. `research_stages` holds
+    # both trades; the router applies one count to every tool, so the second
+    # width reaches the corpus on the handle rather than through the plan.
+    run = await router.execute(
+        plan,
+        research_stages.with_graph_width(rag, match_count),
+        match_count=research_stages.wide(match_count),
+        kind=kind,
+    )
 
     if run.state != "ok" or not run.matches:
         # Two different facts, both passed through as themselves: a state that
@@ -340,57 +347,50 @@ async def answer_from_corpus(
         return ResearchAnswer(
             state=run.state, query=query, retrievals=1, corpus_size=run.corpus_size,
             connected=run.connected, planner=plan.planner, fallback=plan.fallback,
-            calls=_views(calls),
+            calls=_views(list(run.calls)),
         )
 
     # Narrow BEFORE grading: `grade` reads matches[0] as the best match, and
     # re-ranking is what changes which row that is.
     run.matches, rerank_report = await research_stages.narrow(query, run.matches, match_count)
+    served = research_crag_policy.Round(
+        query=query,
+        run=run,
+        grade=grader.grade(query, run.matches, now=now),
+        plan=plan,
+        rerank=rerank_report,
+        calls=list(run.calls),
+    )
 
-    grade = grader.grade(query, run.matches, now=now)
-    answered, rewritten, retrievals = query, None, 1
+    if served.grade.band == "rewrite":
+        # The ONE retry, and the only place a second retrieval can happen.
+        served = await research_crag_policy.rewrite_once(
+            served, rag, router, grader, match_count=match_count, kind=kind, now=now,
+        )
+    # There is no third attempt, and no loop for one to be added to.
 
-    if grade.band == "rewrite":
-        candidate = grader.rewrite(query, run.matches)
-        if candidate != query:
-            # The ONE retry. Re-planned rather than re-run, because the added
-            # tokens are exactly the kind the router routes on — a rewrite that
-            # gained a data hash should reach the lexical tool this time.
-            rewritten, retrievals = candidate, 2
-            retry_plan = router.plan(candidate)
-            retry = await router.execute(retry_plan, rag, match_count=research_stages.wide(match_count), kind=kind)
-            calls += retry.calls
-            if retry.state == "ok" and retry.matches:
-                # The same narrowing, or the comparison below is between a
-                # cross-encoder score and an RRF one — two different scales.
-                retry.matches, retry_rerank = await research_stages.narrow(candidate, retry.matches, match_count)
-                retry_grade = grader.grade(candidate, retry.matches, now=now)
-                # Keep the better round. A rewrite that made things worse is a
-                # rewrite that should not cost the caller its first answer.
-                if retry_grade.score >= grade.score:
-                    answered, run, grade, plan = candidate, retry, retry_grade, retry_plan
-                    rerank_report = retry_rerank
-        # There is no third attempt, and no loop for one to be added to.
-
-    refused = grade.score < grader.refuse_band
+    refused = research_crag_policy.refused(served)
+    grade, run = served.grade, served.run
     # Generation only where CRAG kept the evidence. None means never ATTEMPTED,
     # which is not the fact a report whose verdict is "refused" states.
-    generation = None if refused else await research_stages.synthesise(answered, run.matches, grade.score, router)
+    generation = None if refused else await research_stages.synthesise(
+        served.query, run.matches, grade.score, router,
+    )
     return ResearchAnswer(
         state="refused" if refused else "ok",
-        query=answered,
-        rewritten_query=rewritten,
-        retrievals=retrievals,
+        query=served.query,
+        rewritten_query=served.rewritten,
+        retrievals=served.retrievals,
         matches=[] if refused else run.matches,
         connected=[] if refused else run.connected,
         corpus_size=run.corpus_size,
         score=round(grade.score, 4),
         band=grade.band,
         reasons=list(grade.reasons),
-        refusal=_refusal(grade, run, grader.refuse_band) if refused else None,
-        planner=plan.planner,
-        fallback=plan.fallback,
-        calls=_views(calls),
-        reranked=rerank_report["reranked"], rerank_state=rerank_report["state"],
+        refusal=research_crag_policy.refusal(served, grader) if refused else None,
+        planner=served.plan.planner,
+        fallback=served.plan.fallback,
+        calls=_views(served.calls),
+        reranked=served.rerank["reranked"], rerank_state=served.rerank["state"],
         generation=generation,
     )

@@ -21,15 +21,28 @@ Five fences, each of which refuses rather than warns
    first and, worse, leaves a fluent paragraph that is far harder to throw away
    than one that was never written.
 
-2. **The context is closed.** The instruction states that the supplied
-   documents are the only permissible source and gives the model a structural
-   way to say the corpus is silent. A model falling back on its training data
-   for a figure about THIS desk is undetectable downstream: the sentence reads
-   exactly like a grounded one.
+2. **The context is closed, and the documents are QUOTED as untrusted data.**
+   The instruction states that the supplied documents are the only permissible
+   source and gives the model a structural way to say the corpus is silent. A
+   model falling back on its training data for a figure about THIS desk is
+   undetectable downstream: the sentence reads exactly like a grounded one.
+   Until `research_generate_prompt` the instruction was ALL there was, and the
+   documents were pasted into the user turn verbatim — client-reachable text a
+   blank line away from the rules it was meant to override. Every document line
+   is now quoted, this module's control tokens are made inert inside it, and an
+   instruction-shaped override in a document refuses BEFORE the call.
 
 3. **Figures are quoted, never computed.** No arithmetic, no rounding, no
    annualising. A model that computes is one whose output must be checked
-   against the source anyway, at which point it has saved nobody anything.
+   against the source anyway, at which point it has saved nobody anything. This
+   was prompt text too until `research_generate_figures`; it is now checked the
+   way fence 4 is checked — every number the answer states, other than a
+   citation id, a date, an ordinal or a figure the answer MARKED as read off an
+   attached chart, must appear in a supplied document, and one that does not
+   refuses the answer whole under its own reason. That fourth exemption is the
+   vision one and it is argued at length in `research_generate_figures`: a
+   marker naming a document whose image was not actually sent refuses too, so
+   on a text-only call the exemption cannot be reached at all.
 
 4. **Citations are verified after generation** against the ids actually
    supplied, and one that was not in the context REFUSES the answer whole. The
@@ -38,8 +51,23 @@ Five fences, each of which refuses rather than warns
    and one fabricated citation means the claims around it were not written
    from the documents either.
 
-5. **The call is bounded** by a wall-clock timeout and an output token cap,
-   both named constants below.
+5. **The call is bounded** by a wall-clock timeout, an output token cap and an
+   explicit thinking budget, all named constants below — and a reply the
+   provider says it CUT OFF at that cap is refused under its own name rather
+   than being handed to the fences above, which would read a truncated answer's
+   missing citations as a model that cited nothing. `research_generate_call`
+   holds the measurements.
+
+The chart itself, not only its description
+-------------------------------------------
+
+A chart document's PNG is attached to the call when this process still holds it,
+so the model answers with the picture in front of it and not only the sentence
+`research_chartdoc` wrote about it. An image is EVIDENCE ABOUT a document that
+is already cited — never a source in its own right — and every way it can be
+absent is a named state on the report rather than a silent text-only call that
+lets an answer say "the chart shows". `research_generate_vision` holds that
+argument, the states and the measurements.
 
 Absence is a state, not a failure. An unset ``GEMINI_API_KEY`` is a normal
 deployment, and so is an uninstalled ``google-genai``: ``requirements-genai.txt``
@@ -70,36 +98,75 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import re
 import time
 from typing import Any
 
 from config import settings
-from modules.research_crag import ANSWER_BAND, REFUSE_BAND
+from modules import research_generate_vision as vision
+
+# Re-exported, not merely imported. `research_generate.REFUSE_BAND is
+# research_crag.REFUSE_BAND` is an assertion in this repository — a second copy
+# of 0.4 would let generation refuse at a threshold the grader no longer uses —
+# and `evidence_band` has been this module's public name for the mapping since
+# it was written. Both moved to `research_generate_fences` with the precheck
+# they serve; the names stay here so no caller learns about the split.
+from modules.research_crag import ANSWER_BAND, REFUSE_BAND  # noqa: F401
+from modules.research_generate_call import telemetry, thinking, truncation_refusal
+from modules.research_generate_fences import evidence_band, precheck, verify  # noqa: F401
+from modules.research_generate_figures import figure_refusal
+from modules.research_generate_prompt import (
+    SILENCE_MARKER,
+    SYSTEM_INSTRUCTION,
+    user_turn,
+)
 
 log = logging.getLogger("alphaengine.research_generate")
 
-#: Wall-clock ceiling on one generation, in milliseconds.
+#: Wall-clock ceiling on one TEXT generation, in milliseconds.
 #:
 #: 20s, not 60: this sits behind a request a person is waiting on, and an answer
 #: slower than the reader's patience is one they went elsewhere for. Not 5s
 #: either — a grounded answer over several thousand characters of context
 #: routinely takes longer, and a timeout that fires on healthy calls trains
 #: people to retry, which doubles the spend for the same answer.
+#:
+#: It stays 20s, and a call carrying an IMAGE gets its own larger budget in
+#: `research_generate_vision.VISION_TIMEOUT_MS` instead. Two live multimodal
+#: calls were measured at 20,590 ms and 29,924 ms, so this budget would have
+#: aborted essentially every one of them — but raising THIS number to cover them
+#: would hand the text path, which has never needed more than 20s, a 45s hang
+#: budget as well, so a stalled text call would hold a worker for more than
+#: twice as long for nothing. The bound is paid by the call that needs it.
 TIMEOUT_MS = 20_000
 
 #: Output token ceiling. 1024 is three or four paragraphs with citations — the
 #: length of an answer somebody reads. A cost bound second and a scope bound
 #: first: an unbounded budget invites an essay, and an essay over four retrieved
 #: documents is padding, which is the material ungrounded claims hide in.
+#:
+#: The number did not change when thinking did; what changed is that it now
+#: MEANS what it says. On gemini-2.5-flash thinking tokens are charged against
+#: this cap, so before `THINKING_BUDGET` below was set explicitly the answer's
+#: real ceiling was 1024 minus however much the model chose to think — unknown,
+#: and measured at ~190 of a 200-token budget on one live call, which left six
+#: usable tokens and a truncated sentence.
 MAX_OUTPUT_TOKENS = 1024
 
-#: Per-document context ceiling, in characters. Bounded for the reason the
-#: projection sweep is batched: one pathological document must not fail — or
-#: price — the whole request. The cut is MARKED in the prompt rather than made
-#: silently, because a model that cannot see the end of a table must not quote
-#: a figure as though it had.
-MAX_DOCUMENT_CHARS = 4_000
+#: Thinking tokens allowed. ZERO, explicitly, on every call.
+#:
+#: MEASURED, twice, against the real key: at `max_output_tokens=200` with no
+#: thinking config the answer came back as "The equity curve shows significant
+#: volatility" — 6 output tokens of 491 total, the rest spent thinking. At 300
+#: with `thinking_budget=0` the same question over the same image returned 85
+#: tokens of complete, citation-bearing answer.
+#:
+#: The argument for zero is not only budget. This task is QUOTATION AND
+#: ATTRIBUTION, not reasoning: the fences downstream refuse anything the
+#: documents do not contain, so a model that thinks harder cannot produce a
+#: better answer here — it can only produce a shorter one, because the thinking
+#: comes out of the same cap the answer does. An SDK too old to express the
+#: budget is a named state, not a refusal; see `research_generate_call.thinking`.
+THINKING_BUDGET = 0
 
 #: Deterministic decoding. This is quotation and attribution, not composition;
 #: sampling buys variety in a task where variety means the same question gets
@@ -113,72 +180,14 @@ ANSWERED = "answered"
 CORPUS_SILENT = "corpus_silent"
 REFUSED = "refused"
 
-#: What the model says when the documents do not answer. A token rather than a
-#: phrase so the check is exact: "the corpus does not say" has a hundred
-#: paraphrases, each of which would need recognising, whereas an unmatched
-#: sentinel falls through to the citation fence, which refuses.
-SILENCE_MARKER = "CORPUS_SILENT"
-
-#: The citation form. Prefixed so it cannot be confused with the model's own
-#: bracketed asides, and loose enough to catch a malformed id: an id that does
-#: not match is a fabrication and must REACH the fence, not be skipped by a
-#: pattern too strict to see it.
-_CITATION = re.compile(r"\[doc:([^\]\s]+)\]")
-
-#: The SDK's usage field names, mapped to the ledger's. Read defensively: a
-#: count the SDK did not report is an ABSENT key in the report, never a zero.
-#: Zero prompt tokens is a measurement, and a false one.
-TOKEN_FIELDS: dict[str, str] = {
-    "prompt": "prompt_token_count",
-    "output": "candidates_token_count",
-    "total": "total_token_count",
-}
-
-#: The instruction that closes the context. A constant rather than something
-#: built per call, so the fence a given answer was generated under is a fixed,
-#: diffable object — a prompt assembled from conditionals is one nobody can
-#: state the rules of afterwards.
-SYSTEM_INSTRUCTION = f"""\
-You are answering questions for a quantitative trading desk from that desk's own
-research corpus.
-
-THE SUPPLIED DOCUMENTS ARE THE ONLY PERMISSIBLE SOURCE. You have no other
-knowledge of this desk, its strategies, its trades or its results. Anything not
-in the documents below does not exist for the purposes of this answer.
-
-If the documents do not answer the question, reply with exactly {SILENCE_MARKER}
-and nothing else. That is a CORRECT and expected answer, always preferred to one
-assembled from general knowledge, and you will never be penalised for it.
-
-Every claim you make must cite the document it came from, in the form
-[doc:<id>], using the ids exactly as given. Never cite an id that does not
-appear in the supplied documents.
-
-FIGURES MUST BE QUOTED, NEVER PRODUCED. Every number, date, symbol and parameter
-must appear verbatim in a document. Do not compute, estimate, round, convert,
-annualise, aggregate or otherwise derive a figure — not even one that follows
-trivially from two that are present. If a number the question asks for is not
-written in the documents, say so, and cite nothing for it.
-
-Be brief. Answer the question that was asked and stop.
-"""
-
-
-def evidence_band(score: float | None) -> str | None:
-    """Which CRAG band a graded score falls in, or None when nothing was graded.
-
-    The bands are imported from `research_crag`, never restated. A second copy
-    of 0.4 can drift, and it would drift in the worst direction available:
-    generation refusing at a threshold the grader no longer uses means the
-    desk's stated relevance floor and its real one are different numbers.
-
-    None for an ungraded score, never "refuse". "Nobody graded this" and "this
-    graded badly" are different facts; this module refuses on both, for
-    different reasons the caller can read.
-    """
-    if score is None:
-        return None
-    return "answer" if score > ANSWER_BAND else "refuse" if score < REFUSE_BAND else "rewrite"
+#: `SILENCE_MARKER`, `CITATION`, `SYSTEM_INSTRUCTION` and the per-document
+#: character cap live in `research_generate_prompt`: they are the wire protocol
+#: between the prompt and the fences that read the answer, and the boundary
+#: module has to neutralise the control tokens inside untrusted text. A copy
+#: here would be a copy of exactly the strings a document must not be able to
+#: forge. `SYSTEM_INSTRUCTION` is re-exported rather than re-declared so that
+#: `research_generate.SYSTEM_INSTRUCTION` still resolves for every caller and
+#: test that has ever read it.
 
 
 def _report(
@@ -187,15 +196,22 @@ def _report(
     *,
     answer: str | None = None,
     citations: tuple[str, ...] | list[str] = (),
-    telemetry: dict[str, Any] | None = None,
+    telemetry_: dict[str, Any] | None = None,
+    images: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """The one shape all three verdicts take. Never raises.
 
     ``generated`` is derived from the verdict rather than passed, so there is no
-    call site that can report an answer it did not clear. `telemetry` is present
+    call site that can report an answer it did not clear. `telemetry_` is present
     exactly when a call was spent — including refusals that happen AFTER
     generation, because a call that produced a fabricated citation is precisely
     the one somebody will go looking for later.
+
+    ``images`` is always present and is a LIST OF NAMED STATES, one per chart
+    document that was retrieved. Empty means no chart document came back, which
+    is honest; it never means "an image was skipped and nobody said so". A
+    reader who sees an answer describing a chart can check here whether the
+    model was actually shown one.
     """
     report: dict[str, Any] = {
         "generated": verdict == ANSWERED,
@@ -203,35 +219,12 @@ def _report(
         "reason": reason,
         "answer": answer,
         "citations": list(citations),
-        "model_called": telemetry is not None,
+        "model_called": telemetry_ is not None,
+        "images": list(images or ()),
     }
-    if telemetry is not None:
-        report.update(telemetry)
+    if telemetry_ is not None:
+        report.update(telemetry_)
     return report
-
-
-def _telemetry(response: Any, started: float) -> dict[str, Any]:
-    """Model, latency and token counts — the ledger row, minus the query.
-
-    Never optional. An ungrounded model call nobody can audit afterwards is the
-    exact thing this desk avoids, so latency is recorded even when the call
-    RAISED — the time and the money were still spent.
-
-    Token counts are omitted when the SDK does not report them: an absent key
-    says "not reported", whereas a zero would say "this call used no tokens",
-    which is a measurement and a false one.
-    """
-    telemetry: dict[str, Any] = {
-        "model": settings.gemini_model,
-        "latency_ms": round((time.perf_counter() - started) * 1000, 1),
-        "tokens": {},
-    }
-    usage = getattr(response, "usage_metadata", None)
-    for name, attribute in TOKEN_FIELDS.items():
-        value = getattr(usage, attribute, None)
-        if value is not None:
-            telemetry["tokens"][name] = int(value)
-    return telemetry
 
 
 def _sdk() -> tuple[Any, Any, str | None]:
@@ -254,90 +247,44 @@ def _sdk() -> tuple[Any, Any, str | None]:
     return genai, types, None
 
 
-def _context(documents: list[dict[str, Any]]) -> str:
-    """The documents, each headed by the id the model must cite it as."""
-    blocks = []
-    for doc in documents:
-        body = str(doc.get("body") or "")
-        if len(body) > MAX_DOCUMENT_CHARS:
-            body = body[:MAX_DOCUMENT_CHARS] + (
-                f"\n[TRUNCATED at {MAX_DOCUMENT_CHARS} characters. The rest of this "
-                "document is NOT available to you; do not quote or infer figures from it.]"
-            )
-        fields = " ".join(
-            f"{key}={doc[key]}"
-            for key in ("kind", "symbol", "strategy", "occurred_at")
-            if doc.get(key)
-        )
-        blocks.append(
-            f"[doc:{doc['id']}] {doc.get('title') or '(untitled)'}\n{fields}\n{body}".strip()
-        )
-    return "\n\n---\n\n".join(blocks)
+def budget_ms(attachments: list[vision.Attachment]) -> int:
+    """The wall-clock ceiling this particular call runs under.
+
+    Read as a module global at call time rather than captured, because the
+    timeout is the one bound a test moves to prove the fence exists.
+    """
+    return vision.VISION_TIMEOUT_MS if attachments else TIMEOUT_MS
 
 
-def _prompt(query: str, documents: list[dict[str, Any]]) -> str:
-    return (
-        f"DOCUMENTS\n\n{_context(documents)}\n\n"
-        f"QUESTION\n\n{query}\n\n"
-        f"Answer from the documents above, citing each claim as [doc:<id>]. "
-        f"If they do not answer it, reply with exactly {SILENCE_MARKER}."
-    )
-
-
-async def _call(genai: Any, types: Any, prompt: str) -> Any:
+async def _call(
+    genai: Any, types: Any, prompt: str, attachments: list[vision.Attachment]
+) -> Any:
     """One generation. Every bound this module has is applied here.
 
     The timeout is set on the SDK's HTTP options AND enforced again by
     `asyncio.wait_for` in `generate`: the SDK's covers the request, the outer
     one covers everything else the client may do — a retry loop, a token
-    refresh, a DNS stall — none of which a request budget distinguishes.
+    refresh, a DNS stall — none of which a request budget distinguishes. Both
+    read `budget_ms`, so a multimodal call cannot end up with one of the two
+    bounds set for the text path.
+
+    An SDK with no image `Part` constructor sends the prompt alone; that is a
+    named state the caller records, never an exception and never an unlabelled
+    text-only call.
     """
     client = genai.Client(api_key=settings.gemini_api_key)
+    thinking_config, _ = thinking(types, THINKING_BUDGET)
+    payload, _ = vision.contents(types, prompt, attachments)
     config = types.GenerateContentConfig(
         system_instruction=SYSTEM_INSTRUCTION,
         max_output_tokens=MAX_OUTPUT_TOKENS,
         temperature=TEMPERATURE,
-        http_options=types.HttpOptions(timeout=TIMEOUT_MS),
+        thinking_config=thinking_config,
+        http_options=types.HttpOptions(timeout=budget_ms(attachments)),
     )
     return await client.aio.models.generate_content(
-        model=settings.gemini_model, contents=prompt, config=config
+        model=settings.gemini_model, contents=payload, config=config
     )
-
-
-def _precheck(documents: list[dict[str, Any]], crag_score: float | None) -> str | None:
-    """The fences that must clear BEFORE a model call is spent. Reason, or None."""
-    if not documents:
-        return ("no documents were supplied, so there is nothing to ground an answer in; "
-                "asking the model anyway would be asking it to invent the context")
-    unciteable = [i for i, doc in enumerate(documents) if not doc.get("id")]
-    if unciteable:
-        return (f"the document(s) at position {unciteable} carry no id, so any claim drawn "
-                "from them could neither be cited nor verified")
-    band = evidence_band(crag_score)
-    if band is None:
-        return ("the retrieved context was not graded, so the refusal band could not be "
-                "applied; ungraded context is not evidence worth generating over")
-    if band == "refuse":
-        return (f"the retrieved context graded {crag_score:.2f}, below the {REFUSE_BAND:.2f} "
-                "refusal band, so no model call was made: evidence already judged "
-                "insufficient does not become sufficient by being summarised")
-    return None
-
-
-def _verify(text: str, supplied: set[str]) -> tuple[list[str], str | None]:
-    """Citations that check out, and the reason to refuse if any do not."""
-    cited = list(dict.fromkeys(_CITATION.findall(text)))
-    fabricated = [c for c in cited if c not in supplied]
-    if fabricated:
-        return [], (f"the answer cited {fabricated}, which was not among the documents supplied "
-                    f"({sorted(supplied)}). A citation to an id that was not in the context is a "
-                    "fabrication, and the claims around it were not written from the documents "
-                    "either, so the whole answer is refused rather than flagged")
-    if not cited:
-        return [], ("the answer cited no document, so nothing in it can be traced back to the "
-                    "corpus; an uncited answer is indistinguishable from one written out of the "
-                    f"model's own training data. {SILENCE_MARKER} is the reply for that case")
-    return cited, None
 
 
 async def generate(
@@ -349,16 +296,19 @@ async def generate(
 
     `documents` are mappings carrying at least ``id``; ``title``, ``body``,
     ``kind``, ``symbol``, ``strategy`` and ``occurred_at`` are used when present.
+    A ``kind`` of ``chart`` additionally makes the document a candidate for
+    having its rendered PNG attached to the call — see `research_generate_vision`
+    for where the bytes come from and every named reason they may not.
     `crag_score` is the grade `research_crag` gave the retrieval that produced
     them — None when nothing graded it, which is itself a refusal.
 
     The report always carries ``generated``, ``verdict``, ``reason``, ``answer``,
-    ``citations`` and ``model_called``, and carries ``model``, ``latency_ms`` and
-    ``tokens`` exactly when ``model_called`` is True — a caller writing the
-    ledger row branches on that flag rather than reading a latency of zero for a
-    call that never happened.
+    ``citations``, ``model_called`` and ``images``, and carries ``model``,
+    ``latency_ms`` and ``tokens`` exactly when ``model_called`` is True — a
+    caller writing the ledger row branches on that flag rather than reading a
+    latency of zero for a call that never happened.
     """
-    refusal = _precheck(documents, crag_score)
+    refusal = precheck(documents, crag_score)
     if refusal:
         return _report(REFUSED, refusal)
 
@@ -366,33 +316,75 @@ async def generate(
     if reason:
         return _report(REFUSED, reason)
 
+    attachments, images = vision.reconcile(
+        types, *vision.resolve(documents, model=settings.gemini_model)
+    )
+    prompt = user_turn(query, documents, vision.clause(attachments))
     started = time.perf_counter()
     try:
         response = await asyncio.wait_for(
-            _call(genai, types, _prompt(query, documents)), timeout=TIMEOUT_MS / 1000
+            _call(genai, types, prompt, attachments), timeout=budget_ms(attachments) / 1000
         )
     except TimeoutError:
-        reason = f"the model did not answer within {TIMEOUT_MS} ms, so it was cancelled"
-        return _report(REFUSED, reason, telemetry=_telemetry(None, started))
+        reason = f"the model did not answer within {budget_ms(attachments)} ms, so it was cancelled"
+        return _report(REFUSED, reason, telemetry_=_spent(None, started), images=images)
     except Exception as exc:  # noqa: BLE001 - the reason is the product here
         reason = f"{type(exc).__name__} calling the model: {exc}"
-        return _report(REFUSED, reason, telemetry=_telemetry(None, started))
+        return _report(REFUSED, reason, telemetry_=_spent(None, started), images=images)
 
-    telemetry = _telemetry(response, started)
+    return _judge(response, documents, images, attachments, started)
+
+
+def _spent(response: Any, started: float) -> dict[str, Any]:
+    return telemetry(response, started, model=settings.gemini_model)
+
+
+def _judge(
+    response: Any,
+    documents: list[dict[str, Any]],
+    images: list[dict[str, Any]],
+    attachments: list[vision.Attachment],
+    started: float,
+) -> dict[str, Any]:
+    """Every fence that reads the REPLY, in the order their reasons must be read.
+
+    Truncation goes first, before the text is even checked for emptiness. A
+    reply cut off at the token cap has lost its trailing citations, so fence 4
+    would refuse it as "cited no document" — a true observation and a false
+    explanation, and the reader would go looking at the corpus for a defect that
+    is a number in this file.
+    """
+    spent = _spent(response, started)
+    cut_off = truncation_refusal(response, MAX_OUTPUT_TOKENS)
+    if cut_off:
+        log.warning("research generate: refused a truncated answer")
+        return _report(REFUSED, cut_off, telemetry_=spent, images=images)
+
     text = (getattr(response, "text", None) or "").strip()
     if not text:
-        return _report(REFUSED, "the model returned no text", telemetry=telemetry)
+        return _report(REFUSED, "the model returned no text", telemetry_=spent, images=images)
 
     if text.upper().startswith(SILENCE_MARKER):
         # Not a refusal. The model was asked, it read the documents, and it
         # reported that they do not answer the question — the answer the
         # instruction explicitly asks for, and the one a desk needs to hear.
         silent = "the supplied documents do not answer this question"
-        return _report(CORPUS_SILENT, silent, telemetry=telemetry)
+        return _report(CORPUS_SILENT, silent, telemetry_=spent, images=images)
 
-    citations, ungrounded = _verify(text, {str(doc["id"]) for doc in documents})
+    citations, ungrounded = verify(text, {str(doc["id"]) for doc in documents})
     if ungrounded:
         log.warning("research generate: refused an ungrounded answer (%s)", ungrounded[:80])
-        return _report(REFUSED, ungrounded, telemetry=telemetry)
+        return _report(REFUSED, ungrounded, telemetry_=spent, images=images)
 
-    return _report(ANSWERED, None, answer=text, citations=citations, telemetry=telemetry)
+    # Fence 3, and it is deliberately checked AFTER the citations: an answer
+    # that fabricated an id has already failed for a stronger reason, and
+    # reporting the number as well would put two facts in one `reason`. The
+    # attached set is what was SENT, so a [chart:<id>] marker on a text-only
+    # call refuses here rather than buying an exemption.
+    unquoted = figure_refusal(text, documents, images=frozenset(a.document_id for a in attachments))
+    if unquoted:
+        log.warning("research generate: refused an unquoted figure (%s)", unquoted[:80])
+        return _report(REFUSED, unquoted, telemetry_=spent, images=images)
+
+    return _report(ANSWERED, None, answer=text, citations=citations,
+                   telemetry_=spent, images=images)

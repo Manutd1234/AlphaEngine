@@ -9,6 +9,11 @@ what a stored vector MEANS, and there is no way to detect that from the vector
 itself; the corpus keeps `body` precisely so the two can be compared. Editing
 one of these is a re-index, not a cosmetic change.
 
+One kind's text is deliberately NOT here: ``execution_summary`` is rendered by
+``modules/research_ingest_session.py``, beside the audit reads that gather its
+figures. This file would have crossed the 400-line ceiling to hold it, and a
+card split from the queries that feed it is a card that drifts from them.
+
 `render_backtest_documents` is the one function here that assembles whole
 documents rather than text: one sweep yields the run card AND one document per
 chart it drew, described from the figures the run already computed. Adding
@@ -178,8 +183,19 @@ def _chart_metrics(result: Any) -> dict[str, Any]:
     }
 
 
-def render_backtest_documents(result: Any) -> list[dict[str, Any]]:
+def render_backtest_documents(
+    result: Any, *, occurred_at: str | None = None
+) -> list[dict[str, Any]]:
     """Every document one completed sweep produces, ready for the write queue.
+
+    ``occurred_at`` is THE JOB'S FINISH TIME, passed in by the caller that has
+    it. It used to be ``datetime.now()`` taken here, which is not a lie by much
+    on a healthy desk and is a lie by hours on a queue that has backed up or a
+    sweep that finished during a Supabase outage and was replayed afterwards —
+    and the corpus orders and filters on this column, so "the run before the
+    incident" quietly became "the run indexed before the incident". The backfill
+    tool has always used the audit row's own timestamp; this is the live path
+    catching up with it.
 
     The run card first, then ONE DOCUMENT PER CHART. A chart on this desk is a
     PNG and the corpus indexes text, so the equity curve, the drawdown envelope
@@ -233,7 +249,12 @@ def render_backtest_documents(result: Any) -> list[dict[str, Any]]:
         "symbol": row["symbol"],
         "interval": row["interval"],
         "strategy": row["strategy"],
-        "occurred_at": datetime.now(timezone.utc).isoformat(),
+        # A caller with no finish time to give still has to produce a row —
+        # ``occurred_at`` is NOT NULL in the corpus and a sweep that ran is worth
+        # indexing late rather than not at all. The ingest instant is the honest
+        # answer to "when did the desk learn this", and the caller logs that it
+        # had to be used, so the substitution is never silent.
+        "occurred_at": occurred_at or datetime.now(timezone.utc).isoformat(),
         "title": title,
         "body": body,
         "metrics": {

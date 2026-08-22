@@ -48,20 +48,44 @@ and the µs histogram), the compiled core is nanoseconds, and the network to the
 venue is milliseconds. Nothing here may ever be quoted under a decision-plane
 label, and nothing here may ever be called from one.
 
-Order of magnitude for the batch this module is sized for — twenty (query,
-document) pairs, truncated to ~512 tokens each, on this box's CPU: tens of
-milliseconds, call it 30-80 ms, plus a one-off model load of a second or two on
-the first request after boot. That is an ESTIMATE derived from the model size
-(~110M parameters) and ONNX CPU throughput, not a figure measured here; the eval
-harness is what would turn it into a measurement, the same way
-``RAG_MIN_SIMILARITY`` was measured rather than chosen. Either way it is three
-orders of magnitude away from the decision plane, which is the fact that decides
-where this may be called from.
+What twenty pairs actually cost — measured, not estimated
+---------------------------------------------------------
+
+This paragraph used to read "tens of milliseconds, call it 30-80 ms", declared
+itself an ESTIMATE derived from the parameter count, and said the eval harness
+was what would turn it into a measurement. ``tools/bench_rerank.py`` is that
+harness, it has now been run against the real weights, and the estimate did not
+survive it. Median of seven runs per row, arm64 laptop with 18 cores, Python
+3.12, fastembed 0.7.4 / onnxruntime 1.29.0, weights already on disk:
+
+* twenty pairs of one-line rows (~200 characters each): **197 ms of wall clock
+  and 1,776 ms of CPU**, spread across roughly nine cores.
+* twenty pairs at ``MAX_DOCUMENT_CHARS`` — the length this module's own
+  truncation lets through: **1,523 ms of wall clock and 12,573 ms of CPU**.
+* the model load: **0.45 s** off a seeded directory, not "a second or two". The
+  ~22 s and 1.05 GiB are the one-off SEEDING of that directory, which is the
+  cost ``requirements-rerank.txt`` insists is paid at image build time.
+
+So the old figure was low by 2.5x against the TOP of its own 30-80 ms range on
+the friendliest realistic batch, and by 19x on the batch this module permits.
+The term that dominates is the LENGTH of a document rather than the number of
+them — see ``MAX_DOCUMENT_CHARS``.
+
+The second number in each row is the one that was missing, and it is the one
+that matters to a process that also serves the pre-trade risk checks. A wall
+clock says a re-rank takes a fifth of a second; onnxruntime's intra-op pool
+says that fifth of a second spent 1.8 CPU-seconds across nine cores of an
+eighteen-core box. ``research_stages._RERANK_BULKHEAD`` was sized against the
+wall figure alone and is re-argued there against this one.
+
+Even at 1.5 s it is still three orders of magnitude away from the decision
+plane, which remains the fact that decides where this may be called from.
 
 ``rerank`` is SYNCHRONOUS and CPU-bound, and that is a constraint on the caller
 rather than an oversight. A route that awaits nothing while this runs blocks the
-event loop for those tens of milliseconds, and this process also serves the
-pre-trade risk checks — research may wait, risk may not. Any async caller must
+event loop for a fifth of a second at the short end of the table above and a
+second and a half at the long one, and this process also serves the pre-trade
+risk checks — research may wait, risk may not. Any async caller must
 push it off the loop the way ``modules/research.py::_off_loop`` pushes OpenBB
 (``asyncio.to_thread``, behind a small bulkhead). It is left synchronous here so
 that the choice of executor, timeout and bulkhead belongs to the caller who
@@ -108,11 +132,12 @@ RERANK_MODEL = "BAAI/bge-reranker-base"
 
 #: How wide retrieval should cast the net WHEN re-ranking is on, replacing the
 #: ``match_count=3`` that RRF alone can afford. Twenty is the point where the
-#: recall curve for this corpus has flattened but the CPU bill is still tens of
-#: milliseconds; a hundred would cost five times as much for candidates already
-#: below the relevance floor. This module never widens anything itself — the
-#: constant lives here so the caller that does widen names the same number the
-#: latency estimate above was written for.
+#: recall curve for this corpus has flattened, and it is now also the width the
+#: measured table above was taken at: 197 ms on short rows, 1.5 s on rows at the
+#: truncation ceiling. A hundred would cost five times that for candidates
+#: already below the relevance floor. This module never widens anything itself —
+#: the constant lives here so the caller that does widen names the same number
+#: the measurement was taken at.
 RERANK_CANDIDATES = 20
 
 #: The fields joined to make the document side of the pair, in this order.
@@ -126,6 +151,15 @@ TEXT_FIELDS = ("title", "summary", "body", "symbol", "strategy")
 #: whatever it is given, and ~2,000 characters of English is about that many
 #: tokens — so this cuts text the model would have discarded anyway, and stops
 #: one long backtest body from setting the latency for the whole batch.
+#:
+#: The bench turned that last clause from a plausible claim into the dominant
+#: one. At a fixed width of twenty, this constant IS the latency: 101 ms at 40
+#: characters a row, 193 ms at 200, 412 ms at 500, 1,529 ms at 2,000. Lowering
+#: it is therefore the largest single lever on the cost of this module, and it
+#: is deliberately NOT pulled here — a cut below ~512 tokens starts discarding
+#: text the model would have read, which trades away the precision the whole
+#: module exists to buy. Re-measure with ``tools/bench_rerank.py --lengths``
+#: before moving it, on the box that will run it.
 MAX_DOCUMENT_CHARS = 2_000
 
 #: The key a re-ranked document carries its score under. Absent — not None, not

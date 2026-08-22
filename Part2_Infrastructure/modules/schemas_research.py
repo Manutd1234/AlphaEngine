@@ -134,6 +134,76 @@ class ResearchRagSearchResponse(BaseModel):
     #: Defaulted to None so a response can be built without one; `search` sets
     #: it on EVERY branch, refusals included, so on the wire it is always there.
     bm25: dict[str, Any] | None = None
+    #: The fourth arm's own report — the CLIP image search over chart pixels —
+    #: in `research_image`'s shape, passed through unaltered, for exactly the
+    #: reasons the `bm25` field above states: a second definition of a shape
+    #: that module owns would drift, and a reader holding one report could not
+    #: tell that drift from a result.
+    #:
+    #: This field exists because the arm shipped without it. `search` set an
+    #: `"image"` key on every branch and the response model had no home for it,
+    #: so pydantic dropped it silently on the way to the wire: the arm ran, it
+    #: fused, and no caller could see whether it had contributed, declined or
+    #: never been reached. An arm whose report is unreachable is indistinguish-
+    #: able from an arm that is not there — which is the same defect as an
+    #: empty list standing in for "could not search", one layer out.
+    image: dict[str, Any] | None = None
+    #: Ties this response to the `research_search` row the route wrote in the
+    #: audit ledger, and to the plan/tool-call/generation rows an `/ask` on the
+    #: same id wrote. None means no row was written — the ledger was not
+    #: configured — which is a state, not a missing string to be filled in with
+    #: a plausible one.
+    correlation_id: str | None = None
+
+
+class ResearchBoundRefusal(BaseModel):
+    """A research request refused AT THE DOOR, before anything was searched.
+
+    THREE REFUSALS ALREADY EXIST IN THIS PLANE AND THIS IS NONE OF THEM. The
+    whole reason for a model of its own is that a caller must never have to
+    guess which one it got:
+
+    ``ResearchRagSearchResponse.state == "unavailable"``  the index is not
+        configured — could not search.
+    ``ResearchAnswer.state == "refused"``                 documents came back
+        and none of them are relevant — CRAG's relevance floor.
+    ``generation.verdict == "corpus_silent"``             the model read the
+        documents and reported that they do not answer.
+
+    All three mean the request WAS served. This one means it was not: no
+    retrieval ran, no model was called, and nothing about the corpus has been
+    stated. Folding it into any of the three would tell a reader that the desk's
+    own research has nothing on a subject it may well have plenty on — which is
+    the failure `research_crag`'s refusal text spends a paragraph avoiding.
+
+    Carried on HTTP 429 for the two spend bounds and 503 for the scope one,
+    because "come back later" and "this deployment cannot do that" are different
+    instructions. Never a bare 500: a bound doing its job is not an error.
+    """
+
+    state: Literal["rate_limited", "spend_capped", "scope_unavailable"]
+    #: The route that refused, so a refusal read out of a log names its own door.
+    route: str
+    #: Echoed back unaltered. A caller retrying after the window has to know
+    #: which of its in-flight questions this was.
+    query: str
+    #: One sentence a reader can act on, in `research_quota`'s wording.
+    reason: str
+    #: Seconds until the bound would pass, or None when waiting is not the
+    #: answer — a scope that cannot be applied is a deployment fact, and a
+    #: number here would be a lie with a decimal point on it.
+    retry_after_s: float | None = None
+    #: `AskQuota.snapshot()`, passed through unaltered, or None when the refusal
+    #: had nothing to do with spend. Its own `state` field says whether the
+    #: total is a measurement (`priced`), a floor (`partial` — some calls in the
+    #: window reported no token counts) or absent (`uncapped`). A mapping rather
+    #: than a sub-model for the reason `bm25` is one: a second definition of a
+    #: shape that module owns drifts the day it adds a counter.
+    spend: dict[str, Any] | None = None
+    #: The id the ledger rows for this request carry, when there is one. None
+    #: means the rows carry no id — never a fabricated one, which would send a
+    #: reader looking for rows that do not exist.
+    correlation_id: str | None = None
 
 
 class ResearchRagAnomalyMatch(BaseModel):

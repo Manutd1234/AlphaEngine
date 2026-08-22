@@ -56,9 +56,10 @@ import httpx
 
 from config import settings
 from modules.research_communities import _unavailable as _undetected
-from modules.research_communities import detect_communities
+from modules.research_communities import _unranked, detect_communities, rank_documents
 from modules.research_corpus_reads import _iso
-from modules.research_graph_projection import _unlabelled, project_communities
+from modules.research_graph_offload import centrality_scores, community_labels  # off this loop; it says why
+from modules.research_graph_projection import _unlabelled, _unscored, project_centrality, project_communities
 
 log = logging.getLogger("alphaengine.research_graph_reads")
 
@@ -88,6 +89,25 @@ def _unread(reason: str) -> dict[str, Any]:
     thing this module must not do is partition a fragment.
     """
     return {"read": False, "reason": reason, "edges": [], "pages": 0, "duplicates": 0, "truncated": False}
+
+
+def _not_read(reason: str) -> dict[str, Any]:
+    """`_unread` minus the edge list: the corpus was not read at all, because the graph answered.
+
+    A typed absence rather than a success with zeroed counters — ``read: True,
+    pages: 0`` would say the corpus WAS read and found empty, which is a
+    different and much more alarming fact.
+    """
+    return {k: v for k, v in _unread(reason).items() if k != "edges"}
+
+
+def _stripped(ranking: dict[str, Any]) -> dict[str, Any]:
+    """A centrality report without its score rows: a whole-corpus ranking is a payload.
+
+    Same reason the edge rows are kept out. The rows reach the graph through
+    `project_centrality` and come back through the read model.
+    """
+    return {k: v for k, v in ranking.items() if k != "ranking"}
 
 
 def _after(row: dict[str, Any]) -> str:
@@ -224,6 +244,8 @@ async def detect_corpus_communities(
         # step with the composite report.
         report["detection"] = _undetected(refused)
         report["projection"] = _unlabelled(f"nothing was detected ({refused})", stamp)
+        report["centrality"] = _stripped(_unranked(f"nothing was ranked ({refused})"))
+        report["centrality_projection"] = _unscored(f"nothing was ranked ({refused})", stamp)
         return report
 
     detection = detect_communities(read["edges"])
@@ -232,39 +254,77 @@ async def detect_corpus_communities(
         project_communities(detection, sweep=stamp) if project
         else _unlabelled("the caller asked for a partition only, so no label was written", stamp)
     )
+
+    # Centrality rides the SAME whole-corpus read and the same sweep: it is the
+    # second question this edge list is evidence for, and its route reads the
+    # answer back out of Neo4j — so if nothing here wrote the scores, every
+    # centrality request would recompute PageRank forever against a half-swept graph.
+    partition_only = "the caller asked for a partition only, so nothing was ranked"
+    ranking = rank_documents(read["edges"]) if project else _unranked(partition_only)
+    report["centrality"] = _stripped(ranking)
+    report["centrality_projection"] = (
+        project_centrality(ranking, sweep=stamp) if project
+        else _unscored(partition_only, stamp)
+    )
     return report
 
 
 async def community_report(
     *, desk_id: str | None = None, project: bool = True,
     page: int = PAGE, max_pages: int = MAX_PAGES, sweep: str | None = None,
+    read_model: bool = True,
 ) -> dict[str, Any]:
-    """The entry point a route or a job calls: builds its own corpus client and sweeps.
+    """The entry point a route or a job calls: read the projection, or sweep the corpus.
 
-    An unconfigured corpus is passed through as ``client=None`` rather than
-    branching into a second refusal here — one path, and the reason names the
-    variables that are missing.
+    THE READ MODEL IS TRIED FIRST, which is the whole point of projecting: when
+    Neo4j holds a partition, every caller sees the one the last whole-corpus
+    sweep wrote rather than a fresh Louvain per request over a corpus that has
+    moved. ``read_model=False`` forces the computation for a caller that wants
+    to know what the edges say TODAY.
+
+    Every fall back names its reason in ``read_model`` and marks ``source:
+    "corpus"``: "Neo4j is unset", "the sweep has not run" and "the projection is
+    mid-rebuild" are three different things to fix, and only the first is a
+    normal deployment. An unconfigured corpus is still passed through as
+    ``client=None`` rather than branching into a second refusal here.
     """
+    labels = await community_labels(writing=project, offered=read_model)
+    if labels["detected"]:
+        return {
+            "scope": "communities", "sweep": labels["sweep"], "source": "neo4j",
+            "read": _not_read("the partition came from the Neo4j read model, so the corpus was not read"),
+            "detection": labels, "read_model": labels,
+            # Reading labels is not writing them, and the field that says a
+            # partition reached the graph must not say so when nothing did.
+            "projection": _unlabelled("the labels were READ back; only the sweep writes them", labels["sweep"]),
+            "centrality": _stripped(_unranked("this report is the partition; centrality has its own route")),
+            "centrality_projection": _unscored("nothing was ranked here", labels["sweep"]),
+        }
+
     desk = desk_id or settings.supabase_desk_id
     key = settings.supabase_service_role_key
     if not (settings.supabase_url and key):
-        return await detect_corpus_communities(
+        report = await detect_corpus_communities(
             None, desk_id=desk, sweep=sweep, project=project, page=page, max_pages=max_pages,
         )
-
-    headers = {"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json"}
-    async with httpx.AsyncClient(
-        base_url=settings.supabase_url.rstrip("/"), headers=headers, timeout=settings.supabase_timeout_s,
-    ) as client:
-        return await detect_corpus_communities(
-            client, desk_id=desk, sweep=sweep, project=project, page=page, max_pages=max_pages,
-        )
+    else:
+        headers = {"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+        async with httpx.AsyncClient(
+            base_url=settings.supabase_url.rstrip("/"), headers=headers, timeout=settings.supabase_timeout_s,
+        ) as client:
+            report = await detect_corpus_communities(
+                client, desk_id=desk, sweep=sweep, project=project, page=page, max_pages=max_pages,
+            )
+    report["source"] = "corpus"
+    report["read_model"] = labels
+    return report
 
 
 async def centrality_report(
     *, desk_id: str | None = None, page: int = PAGE, max_pages: int = MAX_PAGES,
+    read_model: bool = True,
 ) -> dict[str, Any]:
-    """PageRank over the whole corpus — the route the communities sweep owes.
+    """PageRank over the whole corpus — from the projection if it holds one, else computed.
 
     The communities route's docstring names the debt: "centrality is owed its
     own route, not a passenger on this one", because it is a second whole-corpus
@@ -272,8 +332,19 @@ async def centrality_report(
     a truncated or failed read ranks nothing, for the same reason a partition
     refuses a fragment: PageRank mass flows over the edges that are present, so
     a missing page quietly inflates every document the cut spared.
+
+    The sweep's scores are read back first, for the reason `community_report`
+    reads its labels back: recomputing a whole-corpus PageRank on a GET is work
+    the projection already did, and two callers a minute apart should not see
+    two different rankings of one corpus. Every fall back names its reason.
     """
-    from modules.research_communities import rank_documents
+    scores = await centrality_scores(offered=read_model)
+    if scores["ranked"]:
+        return {
+            "scope": "centrality", "source": "neo4j", "read_model": scores,
+            "read": _not_read("the ranking came from the Neo4j read model, so the corpus was not read"),
+            "ranking": scores,
+        }
 
     desk = desk_id or settings.supabase_desk_id
     key = settings.supabase_service_role_key
@@ -287,7 +358,7 @@ async def centrality_report(
         ) as client:
             read = await read_all_edges(client, desk_id=desk, page=page, max_pages=max_pages)
 
-    report: dict[str, Any] = {"scope": "centrality",
+    report: dict[str, Any] = {"scope": "centrality", "source": "corpus", "read_model": scores,
                               "read": {k: v for k, v in read.items() if k != "edges"}}
     refused = _refusal(read, page)
     if refused is not None:
@@ -311,6 +382,10 @@ def reconcile_communities(
     and until it existed the Neo4j label write-back was reachable by no
     production caller at all. ``job_id`` becomes the sweep stamp, so every
     label in the graph names the job that wrote it. Defined here rather than in
+    It writes BOTH label sets — the partition and the centrality scores — off
+    one whole-corpus read, because both routes read the projection back and a
+    graph holding one without the other sends half the requests down the
+    fallback path. Defined here rather than in
     ``research_reconcile`` (which re-exports it for the scheduler's name
     resolution) because that module is fenced off from the community machinery:
     a reconciliation tick carries one window's edges, and this is deliberately

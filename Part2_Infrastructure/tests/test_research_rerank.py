@@ -15,6 +15,7 @@ an outage. The first class below is that property, taken from four angles.
 
 from __future__ import annotations
 
+import sys
 from types import SimpleNamespace
 
 import pytest
@@ -139,9 +140,35 @@ class TestTheFallbackKeepsTheFusedOrder:
         assert out["model"] is None, "no model scored these, so none may be named"
 
     def test_a_missing_package_names_the_extras_file(self, monkeypatch):
+        """The REAL `_import_cross_encoder`, with the import genuinely failing.
+
+        This test used to assert nothing on a machine that had the package.
+        It configured a model path, called `rerank`, and expected `unavailable`
+        — which it got only because `fastembed` was absent, so the import in
+        `_import_cross_encoder` raised for environmental reasons. Install
+        `requirements-rerank.txt` and it went red on `failed` instead: the real
+        import succeeded and the load of `/models/bge-reranker-base` then failed,
+        a DIFFERENT state with a different fix. Measured on 2026-08-22 in a venv
+        built from requirements-core + requirements-rerank; found by the CI job
+        that installs the extra and then re-runs this file as a gate.
+
+        `None` in `sys.modules` is what makes the import fail deterministically
+        (Python raises ImportError for a `None` entry), and it is deliberately
+        NOT the "fake package in sys.modules" the module docstring rejects —
+        nothing fake is being SUBSTITUTED here, an import is being made to fail,
+        which is the only way to reach the real function's ImportError branch on
+        a machine where the package is installed. Substituting
+        `_import_cross_encoder` instead, as every other test does, would assert
+        the reason string the test itself supplied.
+        """
         _settings(monkeypatch)
+        monkeypatch.setitem(sys.modules, "fastembed.rerank.cross_encoder", None)
         out = rr.rerank("sharpe", DOCS, top_k=3)
-        assert out["state"] == "unavailable"
+        assert out["state"] == "unavailable", (
+            "an uninstalled package and a model directory that will not load are "
+            "two different states with two different fixes; this must be the "
+            "former whether or not the box happens to have fastembed on it"
+        )
         assert "requirements-rerank.txt" in out["reason"], (
             "the reason must say how to fix it"
         )

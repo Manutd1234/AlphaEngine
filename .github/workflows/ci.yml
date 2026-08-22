@@ -4,6 +4,14 @@
 # falls back to its NumPy engine, and every fixture is committed. So this
 # workflow needs no secrets and no services — only dependency installs reach the
 # network, and a red build means the code broke, never that an exchange was slow.
+#
+# ONE JOB NOW FETCHES A MODEL, and the sentence above is amended rather than
+# quietly falsified. `rerank-real` seeds the cross-encoder's ONNX weights in a
+# SETUP step and then runs its test offline against that directory — which is
+# the same shape as a dependency install (a build-time fetch, never a test-time
+# one), and is precisely what `Part2_Infrastructure/requirements-rerank.txt` has
+# always prescribed: "do it at image build time, never on the request path". It
+# is opt-in and cannot affect the three jobs above; see its own header.
 name: CI
 
 on:
@@ -222,6 +230,134 @@ jobs:
             200)     echo "::error::anon can READ order_blotter — RLS is not deny-by-default"; exit 1 ;;
             *)       echo "::error::unexpected status $code"; exit 1 ;;
           esac
+
+  # ---------------------------------------------------------------------------
+  # The cross-encoder re-ranker, against the REAL weights — opt-in.
+  #
+  # `modules/research_rerank.py` shipped as a code path nothing had executed:
+  # fastembed is an optional extra, RERANK_MODEL_PATH is empty in every normal
+  # deployment, no step anywhere seeded weights, and every test drove a fake
+  # scorer. A fake can prove that the module sorts descending by the numbers it
+  # was handed. It cannot prove that the model gives the RELEVANT document the
+  # higher number, and a cross-encoder wired up backwards passes the whole fake
+  # suite. This job is where that gets proved.
+  #
+  # A SEPARATE JOB, not a step in `gateway`, and the reason is 1.05 GiB. That is
+  # the measured size of BAAI/bge-reranker-base's fp32 ONNX blob (one file of
+  # 1,112,459,588 bytes; ~22 s to fetch cold), on top of installing onnxruntime.
+  # `gateway` is the job that gates every push, and hanging a gigabyte off it
+  # would slow the default red/green for everyone in exchange for exercising an
+  # optional extra that a normal deployment does not configure at all.
+  #
+  # OPT-IN, not on `pull_request`, for the reason in this file's header. The
+  # weights come from a third-party hub that rate-limits unauthenticated
+  # downloads — a PR-gating job that fetched them would go red because a hub was
+  # busy, which is the exact failure the header forbids. `live-smoke` above is
+  # opt-in for the same class of reason. Two ways in: dispatch the workflow, or
+  # put the `rerank` label on a pull request that touches this code, so a
+  # reviewer can ask for it without leaving the PR.
+  #
+  # The weights are CACHED, so only the first run per requirements change pays
+  # the fetch, and the seed step is skipped entirely on a hit.
+  #
+  # requirements-core.txt rather than requirements-dev.txt: this job proves the
+  # re-ranker, not the tree. `gateway` proves the tree, and pulling numba and
+  # scikit-learn in here as well would double the install for nothing.
+  # ---------------------------------------------------------------------------
+  rerank-real:
+    name: Cross-encoder re-ranker (real weights, opt-in)
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.pull_request.labels.*.name, 'rerank')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Part2_Infrastructure
+    env:
+      RERANK_WEIGHTS: ${{ github.workspace }}/.rerank-weights
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            Part2_Infrastructure/requirements-core.txt
+            Part2_Infrastructure/requirements-rerank.txt
+      - run: pip install -r requirements-core.txt -r requirements-rerank.txt
+
+      # Keyed on the pin rather than on the lock: requirements-rerank.txt pins
+      # fastembed to a line precisely because a re-ranker that scores
+      # differently between releases re-orders what the desk was shown, so a
+      # bump to that pin is exactly when these weights must be re-fetched.
+      - name: Cache the cross-encoder weights
+        id: weights
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.RERANK_WEIGHTS }}
+          key: bge-reranker-base-${{ hashFiles('Part2_Infrastructure/requirements-rerank.txt') }}
+
+      # THE ONE NETWORKED STEP IN THIS FILE, and it is setup rather than test.
+      # `tools/bench_rerank.py --seed` is the same call an image build makes, so
+      # CI and the deployment seed the weights through one code path instead of
+      # two that can disagree about where they go.
+      - name: Seed the weights
+        if: steps.weights.outputs.cache-hit != 'true'
+        run: python tools/bench_rerank.py --seed --model-path "$RERANK_WEIGHTS"
+
+      # HF_HUB_OFFLINE is the assertion, not a precaution. "No network at
+      # request time once the model directory is seeded" is the whole argument
+      # for choosing local ONNX over Cohere or Voyage; running the suite with
+      # the hub switched off is what turns that sentence into a test.
+      #
+      # The grep is the other half. A suite that skipped would leave this job
+      # green having proved nothing — the "summary still reads green while the
+      # engine goes untested" failure requirements.txt warns about — so the one
+      # job that exists to run the real model fails if the real model did not
+      # run. Count the skips, not the passes.
+      - name: Real model, offline, against the seeded directory
+        env:
+          RERANK_TEST_MODEL_PATH: ${{ env.RERANK_WEIGHTS }}
+          HF_HUB_OFFLINE: "1"
+        run: |
+          set -o pipefail
+          python -m pytest tests/test_research_rerank_real.py -q -rs 2>&1 \
+            | tee "$RUNNER_TEMP/rerank-real.log"
+          if grep -q "skipped" "$RUNNER_TEMP/rerank-real.log"; then
+            echo "::error::the real-model suite SKIPPED in the job that exists to run it"
+            exit 1
+          fi
+
+      # The mirror of the step above, and it is what protects the other three
+      # jobs. tests/conftest.py blanks RERANK_MODEL_PATH by assignment so that
+      # no suite can ever load ~110M parameters off a directory nobody
+      # mentioned; the opt-in variable is a SECOND name that conftest does not
+      # touch. With it unset, on a runner where the weights are sitting on disk
+      # and fastembed is installed, the real file must still skip and the fake
+      # suite must still pass. If that ever stops being true, the default suite
+      # has started depending on weights.
+      - name: The default suite is still weight-free
+        run: |
+          set -o pipefail
+          python -m pytest tests/test_research_rerank.py tests/test_research_rerank_real.py \
+            -q -rs 2>&1 | tee "$RUNNER_TEMP/rerank-default.log"
+          grep -q "1 skipped" "$RUNNER_TEMP/rerank-default.log" || {
+            echo "::error::the real-model file did not skip with the opt-in unset"
+            exit 1
+          }
+
+      # Publishes the numbers into the job log for THIS runner's core count.
+      # research_rerank's docstring and research_stages._RERANK_BULKHEAD both
+      # quote a measured table taken on an 18-core arm64 laptop; onnxruntime
+      # sizes its intra-op pool from the cores it finds, so those figures are a
+      # property of that machine. This is how the same table gets taken on a
+      # runner, which is the number the bulkhead argument actually needs.
+      - name: Bench the re-ranker on this runner
+        env:
+          HF_HUB_OFFLINE: "1"
+        run: |
+          python tools/bench_rerank.py --model-path "$RERANK_WEIGHTS" \
+            --repeat 3 --concurrency 1,2 --threads 1,2,4
 
   repo-audit:
     name: Committed tree is complete

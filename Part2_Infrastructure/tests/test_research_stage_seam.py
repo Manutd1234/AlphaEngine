@@ -157,9 +157,27 @@ class TestTheRewriteRoundIsRerankedToo:
         # off-topic one, it grades worse than round one, and round one survives.
         # Which is the point — `retry_grade.score >= grade.score` is only
         # meaningful when both numbers came off the same scale.
+        #
+        # WAS `result.matches[0].source_ref == "near-0"`, i.e. round one's rows
+        # were SERVED. That expectation was pinning a defect rather than a
+        # policy: round one here grades 0.7633, which is the middle band, and
+        # `refused = score < refuse_band` was the only gate the code had, so
+        # every mid-band grade came back `state: ok` and ANSWER_BAND decided
+        # nothing at all. `research_crag_policy` now implements the three bands
+        # this repository has always documented — a mid-band round that survives
+        # its one rewrite REFUSES — so the rows are withheld and the kept round
+        # is pinned on the score the grader gave those rows instead.
         result = await answer(Corpus([NEAR, [DECOY, RELEVANT]]), query="crossover sweep")
+        expected = crag.ContextGrader().grade("crossover sweep", NEAR, now=NOW)
+
         assert result.retrievals == 2 and result.query == "crossover sweep"
-        assert result.matches[0].source_ref == "near-0"
+        assert result.score == round(expected.score, 4) and result.band == "rewrite"
+        assert result.state == "refused" and result.matches == []
+        # The retry HAPPENED and the refusal names it, so a reader can tell
+        # "the one rewrite was spent and still did not clear" apart from "no
+        # rewrite was worth spending" — two different findings about the corpus.
+        assert result.rewritten_query == "crossover sweep BTCUSDT ma_crossover"
+        assert result.rewritten_query in result.refusal
 
     async def test_the_report_returned_is_the_kept_rounds(self, reranker):
         # The second round is worse, so round one survives — and so must the
