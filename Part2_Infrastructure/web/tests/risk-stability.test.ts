@@ -154,18 +154,29 @@ describe("neither loss estimate re-simulates on the poll cadence", () => {
   it("the bootstrap request is keyed on the bucket, never the raw equity", () => {
     const source = readSource("components/risk/MonteCarloDistribution.tsx");
     assert.match(source, /equity: equityForRun/);
+    // `driverDefect` joined the list when the degeneracy guard landed — it is
+    // the only addition, and every name the original pinned is still here in
+    // its original order. The point of the assertion is unchanged: the memo
+    // keys on the BUCKET, so a sub-bucket equity tick cannot re-simulate.
     assert.match(
       source,
-      /\[driver, horizonDays, paths, resampler, blockLength, bands, seedOverride, seedUnusable, equityForRun, runNonce\]/,
+      /\[driver, driverDefect, horizonDays, paths, resampler, blockLength, bands, seedOverride, seedUnusable, equityForRun, runNonce\]/,
       "the request memo's dependency list must carry the bucket, not the tick",
     );
+    assert.doesNotMatch(source, /\bequity\b(?![A-Za-z])[^\n]*\]\);/,
+      "the raw equity prop must never appear in the request memo's dependency list");
   });
 
   it("the GBM run is keyed on the bucket too", () => {
     const source = readSource("components/portfolio/OracleVarPanel.tsx");
     assert.match(source, /equity: equityForRun/);
-    assert.match(source, /\[annualVol, equityForRun, horizonDays\]/,
+    // `record` joined the run callback's list when the re-run trend landed; it
+    // is a `useCallback` over exactly the same three inputs, which is why its
+    // own list is asserted too rather than the addition being waved through.
+    assert.match(source, /\[annualVol, equityForRun, horizonDays, record\]/,
       "the run callback re-fires on a model or horizon change, never on an equity tick");
+    assert.match(source, /\[annualVol, equityForRun, horizonDays\],\n\s*\);/,
+      "the trend recorder keys on the same three inputs the run does");
   });
 });
 
@@ -176,7 +187,10 @@ describe("an unusable seed simulates nothing", () => {
     // actually stops the simulation instead of being papered over with the
     // derived seed or with zero.
     const source = readSource("components/risk/MonteCarloDistribution.tsx");
-    assert.match(source, /if \(!driver \|\| driver\.returns\.length === 0 \|\| seedUnusable\) return null;/);
+    // The degeneracy guard joined this condition; the seed refusal it was
+    // written for is still the third clause, unweakened.
+    assert.match(source,
+      /if \(!driver \|\| driver\.returns\.length === 0 \|\| seedUnusable \|\| driverDefect\) return null;/);
     assert.match(source, /seed: seedOverride \?\? driver\.seed/,
       "the derived seed steps in only when the box is empty, never over a typed one");
   });

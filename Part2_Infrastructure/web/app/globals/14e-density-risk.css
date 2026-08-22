@@ -31,10 +31,80 @@
   margin-bottom: var(--space-3);
 }
 
+/* The control's visible name. Raised a rung — --fs-xs to --fs-sm — with the
+   row itself: a 12.5px label over a control that now spans the panel read as a
+   caption that had lost its subject. */
 .risk-horizon > span {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* THE HORIZON SEG TAKES THE ROW IT IS STANDING IN.
+ *
+ * Reported: "fix the monte carlo dates 1d 10d 30d 90d i want it to be bigger,
+ * there is so much space to the right of it." It was accurate. `.seg` is a
+ * shrink-to-fit flex box and `.risk-horizon` is a flex row, so four two-glyph
+ * labels sized the whole control at roughly 180px and left the rest of a
+ * desk-width panel empty — a control governing BOTH loss estimates on this tab
+ * reading as an afterthought hugging the left margin.
+ *
+ * What this does NOT do is restyle `.seg`. Not one property `00-tokens-and-
+ * base.css` declares on `.seg` or `.seg button` is redeclared here — not the
+ * padding, not the font-size, not the border, not the pressed state — because
+ * those rules are being converged elsewhere and a local override would fork
+ * them at exactly one call site. What is set instead is the box the seg
+ * OCCUPIES, which is this row's business and nobody else's: the row becomes a
+ * two-track grid, the seg is told to fill its track, and `.seg button`'s
+ * existing `flex: 1` does the rest — the four segments spread themselves
+ * across the width without a single declaration of theirs being touched.
+ *
+ * HEIGHT IS NOT TOUCHED, and that is a deliberate refusal rather than an
+ * oversight. `12-workspace-standardisation.css` has just converged every
+ * `.seg button` on one 24px floor with the note "the ask was consistent and
+ * NOT bigger", and `15-navigator-and-trailing-layer.css` raises that to 40px
+ * in the coarse-pointer block. Raising it again for this one row would fork a
+ * decision that was made two files up, one week old, on a control twenty-two
+ * components render. The desk's "bigger" is answered by width here; if height
+ * is still wanted it belongs in that convergence, not in this partial.
+ *
+ * The grid is gated at 720px. Below it the row keeps the wrapping flex layout
+ * above, because a phone has no space to the right of anything.
+ */
+@media (min-width: 720px) {
+  .risk-horizon {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: var(--space-3);
+  }
+
+  .risk-horizon > .seg {
+    width: 100%;
+  }
+}
+
+/* What the simulation was asked for, under a refusal to draw it
+   (components/risk/McDegenerateNotice.tsx). Tabular and quiet: it is evidence
+   that the request was honoured, not a figure anyone reads. */
+.mc-degenerate-asked {
+  margin-top: var(--space-2);
+  font-size: var(--fs-2xs);
+}
+
+/* The live book equity both simulation cards stand on, with the bucket their
+   run is holding. Sits under the card's own prose, so it takes the same quiet
+   voice and keeps the ticker from crowding the line above it. */
+.mc-live-equity,
+.oracle-var-live {
+  margin-top: var(--space-2);
+}
+
+/* The Oracle VaR re-run trend (components/risk/OracleVarTrend.tsx). Only the
+   spacing around it: the plot sizes itself from a measured width and the
+   caption is `.sub`, both already styled. */
+.oracle-var-trend {
+  margin-top: var(--space-3);
 }
 
 /* The Monte Carlo card's five parameter controls, inside the card heading.

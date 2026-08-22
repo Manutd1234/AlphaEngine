@@ -85,3 +85,108 @@
     align-items: start;
   }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   The pre-trade gate vector, as a table
+   ══════════════════════════════════════════════════════════════════════════
+
+   WHY THESE RULES ARE NOT IN A MIN-WIDTH BAND, unlike everything above them.
+   The file header's "desk-width packing only" is a rule about DENSITY — about
+   closing seams a phone still needs. These are the layout of a block that was
+   reported broken, and it was broken at desk width first: `.cockpit-checks`
+   packed twelve gates into `repeat(auto-fill, minmax(230px, 1fr))`, which on
+   the reported screenshots wrapped `symbol_whitelist BTCUSDT in the live L2
+   universe or backed by a trusted paper-equity quote` over seven lines in one
+   column while its neighbour held four words, and let the taller row's
+   `duplicate_order client_order_id=` run over `rate_limit 1.0/s observed`.
+   A rule that only applied above 901px would leave the phone rendering the
+   markup it was written for with none of the CSS that makes it legible.
+
+   `.cockpit-checks` itself is untouched on purpose: OrderBlotter still renders
+   that list inside its expanded detail row, where two short columns of a
+   settled order's gates are the right shape and nothing collides. The verdict
+   panel — twelve live gates, four of them carrying a figure against a limit —
+   is a different reading task, so it gets its own selector rather than a
+   change to a class two components share. */
+
+/* The vector is twelve rows deep inside a ticket that already carries a form,
+   so it reads one rung below the panel's --fs-lg. The base `table` rule
+   supplies the mono face, `tabular-nums` and the frame; nothing here restates
+   them. */
+.cockpit-verdict .table-wrap {
+  margin-top: var(--space-3);
+}
+
+.cockpit-gates {
+  font-size: var(--fs-body);
+}
+
+/* A gate name is the row's identity and is never allowed to wrap or clip.
+   `symbol_concentration` is twenty characters and sets the column's width;
+   that is the width the column should be, and it is why this is a table and
+   not a grid of equal fractions. */
+.cockpit-gates tbody th[scope="row"] {
+  font-size: var(--fs-body);
+  white-space: nowrap;
+}
+
+.cockpit-gates__state {
+  text-align: left;
+  white-space: nowrap;
+}
+
+/* Fixed advance so the ticks and crosses form a column rather than sitting
+   wherever their own glyph width leaves them. */
+.cockpit-gates__mark {
+  display: inline-block;
+  width: 1.2em;
+}
+
+.cockpit-gates tbody tr.is-pass .cockpit-gates__mark {
+  color: var(--success-text);
+}
+
+/* Three carriers, and the word is the one that always survives. A failed row
+   is named FAIL in the result column, marked ✗ beside it, and given a rule
+   down its gate name. Forced-colours mode discards box-shadow — that is why
+   the mark and the word are there, and why neither is decoration. */
+.cockpit-gates tbody tr.is-fail {
+  color: var(--critical-text);
+  font-weight: 600;
+}
+
+.cockpit-gates tbody tr.is-fail th[scope="row"] {
+  color: var(--critical-text);
+  box-shadow: inset 2px 0 0 var(--status-critical);
+}
+
+/* Observed is right-aligned by the base `td` rule and the limit is pulled back
+   to the left, so the two sit either side of one column rule and read across
+   it as a comparison instead of as two loose strings. */
+.cockpit-gates__limit {
+  text-align: left;
+}
+
+/* The gates whose detail is a statement rather than a measurement. It spans
+   the observed and limit columns, wraps inside its own width and is never
+   truncated — the longest of them is a sentence about where a symbol's price
+   comes from, and a reader who cannot finish it cannot check the claim. */
+.cockpit-gates__prose {
+  max-width: 42ch;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  /* No font-weight here. A failed row is 600 and its detail is the reason it
+     failed — resetting the weight on this cell would thin the one sentence
+     that must not be skimmed past. */
+  line-height: var(--lh-body);
+}
+
+.cockpit-gates tbody tr.is-pass .cockpit-gates__prose {
+  color: var(--text-secondary);
+}
+
+/* The gate that refused the order, in the verdict's own headline. */
+.cockpit-verdict__gate {
+  color: var(--critical-text);
+}

@@ -196,6 +196,54 @@ describe("one type scale", () => {
   });
 });
 
+describe("one control, one rung", () => {
+  /**
+   * The segmented control had three rungs.
+   *
+   * `.seg button` read --fs-lg, `.research-seg button` --fs-body and the rail
+   * seg --fs-sm, and `.blotter-views__bar .seg button` took --fs-lg back on
+   * top of a private 34px height. Three rungs on one control, on a sheet whose
+   * whole argument is that adjacent rungs are indistinguishable to a reader
+   * and unchoosable by an author.
+   *
+   * Asserted by SELECTOR rather than by value: `.seg button` is declared twice
+   * on purpose — 00 gives the segment its flex behaviour and chip radius, 12
+   * gives it the house size — so a scan for "every --fs-* near a seg" would
+   * read the rung 12 overrides and call it a second size. What must not come
+   * back is a SECOND selector sizing the same control, which is how all three
+   * of the others arrived.
+   *
+   * Scoped to selectors that NAME the seg. Three variant classes hung on a
+   * `.seg` element still declare a size of their own in 07 and 08; all three
+   * are (0,1,1) and declared earlier, so the cascade already resolves them
+   * here, and `seg-metrics.test.ts` pins that ordering rather than this file.
+   */
+  it("no second selector naming the seg sizes it, and the rung is --fs-sm", () => {
+    const sizers = new Map<string, string[]>();
+    for (const match of screenDeclarations.matchAll(/([^{}]*?\bseg[a-z_-]*\b[^{}]*?)\{([^}]*)\}/gim)) {
+      const selector = match[1].trim().replace(/\s+/g, " ");
+      // The toolbar rule that names the seg only to exclude itself from it.
+      if (/:not\([^)]*\.seg/.test(selector)) continue;
+      for (const size of match[2].matchAll(/font-size:\s*var\((--fs-[a-z0-9-]+)\)/g)) {
+        sizers.set(selector, [...(sizers.get(selector) ?? []), size[1]]);
+      }
+    }
+    assert.deepEqual(
+      [...sizers.keys()],
+      [".seg button"],
+      "a second selector sizes the segmented control — that is how it ended up "
+        + "with three rungs. Converge it in app/globals/12-workspace-standardisation.css",
+    );
+    const declared = sizers.get(".seg button") ?? [];
+    assert.ok(declared.length >= 1, "the seg reads no rung at all");
+    assert.equal(
+      declared[declared.length - 1],
+      "--fs-sm",
+      "the rung the cascade actually applies to every seg on every tab",
+    );
+  });
+});
+
 describe("two font stacks", () => {
   it("no font-family outside the sans and mono tokens", () => {
     const offenders: string[] = [];

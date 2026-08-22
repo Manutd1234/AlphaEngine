@@ -25,6 +25,7 @@ import {
 import { fmt } from "@/lib/format";
 import { mcSeedFor } from "@/lib/montecarlo";
 import { emitPrefChange } from "@/lib/pref-sync-bus";
+import { mcDriverDegeneracy } from "@/components/risk/mc-degeneracy";
 import seedRunJson from "@/lib/seed-run.json";
 import { strategyProgress } from "@/lib/strategy-progress";
 import {
@@ -349,9 +350,20 @@ export function useSweepRun({ view }: { view: WorkspaceView }) {
    * failed run, nothing is coming and it has to say so and offer the rerun.
    */
   const sweepIncoming = autoRun && !inspect && !error;
-  /** The Risk tab's terminal distribution resamples exactly what the band did. */
+  /**
+   * The Risk tab's terminal distribution resamples exactly what the band did.
+   *
+   * The guard tests the CONTENT of the returns, not merely that there are some.
+   * `length` alone shipped a non-null driver whose every element was exactly
+   * 0.0 — a combination that never takes a position — and the Risk card then
+   * rendered a fully populated, entirely zero distribution as a measured claim
+   * of safety. `mc-degeneracy.ts` carries the full trace and owns the
+   * predicate; it is imported rather than restated so the source and the card
+   * can never disagree about what counts as degenerate.
+   */
   const mcDriver = useMemo(() => {
     if (!displayedResult?.bestRunReturns?.length || !displayedResult.dataHash) return null;
+    if (mcDriverDegeneracy(displayedResult.bestRunReturns)) return null;
     return {
       returns: displayedResult.bestRunReturns,
       seed: mcSeedFor(displayedResult.dataHash, displayedResult.best.fast, displayedResult.best.slow),

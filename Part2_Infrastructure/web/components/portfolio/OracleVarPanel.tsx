@@ -2,6 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { useMeasuredWidth } from "@/components/chart-kit";
+import NumberTicker from "@/components/common/NumberTicker";
+import OracleVarTrend, {
+  ORACLE_TREND_RESERVE,
+  type OracleVarObservation,
+} from "@/components/risk/OracleVarTrend";
 import StatTile from "@/components/StatTile";
 import { fmt, usd } from "@/lib/format";
 import { gbmTerminalVar99 } from "@/lib/portfolio-risk";
@@ -41,6 +47,18 @@ const ORACLE_DEADLINE_MS = 9000;
 const GBM_EXPECTED_ANNUAL_RETURN = 0.08;
 
 /**
+ * How many re-runs the trend below keeps.
+ *
+ * A cap rather than an unbounded array because this panel stays mounted for as
+ * long as the tab is open and a live book re-runs it on every $1,000 equity
+ * crossing. Forty is roughly a session's worth at that cadence and it is what
+ * the 640-px plot can show as distinguishable marks; beyond it the oldest
+ * point leaves, and the caption's count is the count that is drawn, so the
+ * chart never claims history it has dropped.
+ */
+const TREND_MAX_OBSERVATIONS = 40;
+
+/**
  * A second, independent VaR — computed inside Oracle 23ai rather than in this
  * browser.
  *
@@ -77,6 +95,19 @@ export default function OracleVarPanel({
 }) {
   const [result, setResult] = useState<OracleVarResponse | null>(null);
   const [running, setRunning] = useState(false);
+  /**
+   * Every distinct request this panel has completed, in arrival order.
+   *
+   * The chart below is drawn from this rather than from `result`, because the
+   * user's question was to see the figure MOVE — and a single stat tile cannot
+   * show movement, only its endpoint. Kept in component state and not in a
+   * ref: a new observation must repaint.
+   */
+  const [observations, setObservations] = useState<OracleVarObservation[]>([]);
+  /* The chart is SVG in user units, so it needs a real width. The same
+     observer every other chart in the tree uses; the reserved box below keeps
+     the measuring frame from collapsing the card. */
+  const [chartRef, chartWidth] = useMeasuredWidth<HTMLDivElement>();
 
   // Quantised so a live book repolling every 15s does not re-simulate on every
   // equity tick — the restraint MonteCarloDistribution already credits this
@@ -84,6 +115,49 @@ export default function OracleVarPanel({
   // 99th percentile read at this scale; a card that swapped its figures for a
   // skeleton on each poll did change, visibly, every fifteen seconds.
   const equityForRun = Math.round(equity / 1_000) * 1_000 || equity;
+
+  /**
+   * One completed attempt, folded into the trend.
+   *
+   * Keyed on the INPUTS — equity bucket, volatility, horizon — rather than on
+   * the attempt, so an identical request updates its own point instead of
+   * appending a second observation of one fact. React StrictMode double-invokes
+   * the effect below in development, and without this key the very first thing
+   * the chart would draw is a two-point line built from one run.
+   *
+   * An unavailable answer is recorded too, as a point whose value is `null`.
+   * Dropping it would close the gap and draw a continuous series across a
+   * database that was not answering, which is the same lie as plotting a zero;
+   * the chart breaks its line at nulls and counts them in its caption.
+   */
+  const record = useCallback(
+    (answer: OracleVarResponse) => {
+      if (annualVol === null) return;
+      const point: OracleVarObservation = {
+        key: `${equityForRun}|${annualVol}|${horizonDays}`,
+        at: Date.now(),
+        horizonDays,
+        equity: equityForRun,
+        var99: answer.state === "ok" ? answer.var99 : null,
+        clientVar: answer.state === "ok"
+          ? gbmTerminalVar99(
+              answer.assumptions.equity,
+              answer.assumptions.mu,
+              answer.assumptions.sigma,
+              answer.assumptions.days,
+            )
+          : null,
+      };
+      setObservations((held) => {
+        const at = held.findIndex((o) => o.key === point.key);
+        const next = at === -1 ? [...held, point] : held.map((o, i) => (i === at ? point : o));
+        return next.length > TREND_MAX_OBSERVATIONS
+          ? next.slice(next.length - TREND_MAX_OBSERVATIONS)
+          : next;
+      });
+    },
+    [annualVol, equityForRun, horizonDays],
+  );
 
   const run = useCallback(async () => {
     if (annualVol === null) return;
@@ -117,9 +191,11 @@ export default function OracleVarPanel({
         }),
         signal: controller.signal,
       });
-      setResult((await response.json()) as OracleVarResponse);
+      const answer = (await response.json()) as OracleVarResponse;
+      setResult(answer);
+      record(answer);
     } catch {
-      setResult({
+      const failure: OracleVarResponse = {
         state: "unavailable",
         code: "network",
         // No parametric figure either: the comparison prices the assumptions
@@ -128,12 +204,14 @@ export default function OracleVarPanel({
         error: controller.signal.aborted
           ? `The database did not answer within ${ORACLE_DEADLINE_MS / 1000}s. On Always-Free it may have auto-stopped.`
           : "The request did not complete. The workspace may be offline.",
-      });
+      };
+      setResult(failure);
+      record(failure);
     } finally {
       clearTimeout(timer);
       setRunning(false);
     }
-  }, [annualVol, equityForRun, horizonDays]);
+  }, [annualVol, equityForRun, horizonDays, record]);
 
   // Runs once the volatility input exists, and again when the horizon changes.
   // Not on every equity tick: this spends database CPU, and a VaR that
@@ -256,6 +334,42 @@ export default function OracleVarPanel({
           )
         )}
       </div>
+
+      {/* The figure over time, in its own reserved box.
+
+          Asked for twice by the desk, and the reason is the one this tab was
+          reported for: four stat tiles cannot show a value MOVING, only where
+          it stopped. What moves here is this panel's own re-runs — the live
+          book crossing an equity bucket, the covariance model landing, the
+          horizon changing — so the chart is the live feed the Risk tab was
+          said to be missing, drawn rather than implied.
+
+          Reserved exactly as the tiles above are, and for the same measured
+          reason: this card used to bounce whatever sat below it on every
+          re-run, and adding an unreserved chart would have reintroduced that
+          at a larger amplitude. The box holds its height whether it contains
+          the chart, the measuring frame, or the sentence saying there is not
+          yet a second observation to draw a line between. */}
+      <div ref={chartRef} style={{ minHeight: ORACLE_TREND_RESERVE }}>
+        {chartWidth > 0 && (
+          <OracleVarTrend
+            observations={observations}
+            horizonDays={horizonDays}
+            width={chartWidth}
+          />
+        )}
+      </div>
+
+      {/* The live figure the next run will stand on. The quantisation above is
+          deliberate and stays — this spends database CPU and a VaR
+          re-simulated on every poll is noise — but the card never said so, and
+          a reader watching four figures hold still while the chrome claimed a
+          live-pushed book read the whole tab as disconnected. The book's own
+          equity counts here through the ticker the other book-fed tabs use. */}
+      <p className="sub oracle-var-live num">
+        Book equity <NumberTicker value={equity} format={(value) => usd(value, 0)} />; the next
+        simulation runs when it crosses into the next $1,000.
+      </p>
     </div>
   );
 }

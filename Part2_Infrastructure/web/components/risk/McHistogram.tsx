@@ -11,7 +11,7 @@
  */
 
 import { linearScale, useMeasuredWidth } from "@/components/chart-kit";
-import { usd } from "@/lib/format";
+import { mcUsd } from "@/components/risk/mc-degeneracy";
 import { mcLossConfidences, type McDistributionResult } from "@/lib/mc-distribution";
 
 export default function McHistogram({ result }: { result: McDistributionResult }) {
@@ -58,7 +58,7 @@ export default function McHistogram({ result }: { result: McDistributionResult }
         width="100%"
         height={height + 18}
         role="img"
-        aria-label={`Terminal P&L distribution of ${result.paths.toLocaleString()} paths between ${usd(lo, 0)} and ${usd(hi, 0)}, with P${c50}, P${c95} and P${c99} loss markers`}
+        aria-label={`Terminal P&L distribution of ${result.paths.toLocaleString()} paths between ${mcUsd(lo)} and ${mcUsd(hi)}, with P${c50}, P${c95} and P${c99} loss markers`}
       >
         {bins.counts.map((count, i) => (
           <rect
@@ -100,9 +100,13 @@ export default function McHistogram({ result }: { result: McDistributionResult }
         className="muted num"
         style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--fs-2xs)" }}
       >
-        <span>{usd(lo, 0)}</span>
+        {/* `mcUsd` rather than the bare dollar formatter: an axis end a hair
+            below break-even renders as a sign the figure does not have, on the
+            very label a reader takes the chart's scale from. Same
+            normalisation `pct` already applies to percentage axes. */}
+        <span>{mcUsd(lo)}</span>
         <span>break-even at $0</span>
-        <span>{usd(hi, 0)}</span>
+        <span>{mcUsd(hi)}</span>
       </div>
     </div>
   );

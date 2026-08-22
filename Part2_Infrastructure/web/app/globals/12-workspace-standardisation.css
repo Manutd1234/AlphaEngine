@@ -991,10 +991,6 @@ button.page-insight:hover:not(:disabled) {
   white-space: nowrap;
 }
 
-.workspace-subtabs__actions .seg button {
-  border-radius: 0;
-}
-
 .rail-meta {
   color: var(--text-muted);
   font-size: var(--fs-xs);
@@ -1464,23 +1460,27 @@ button.primary-action:disabled {
   background: var(--surface-2);
 }
 
-.workspace-subtabs__actions .seg {
-  padding: 2px;
-  border-radius: var(--radius-sm);
-}
+/* The segmented control: one size on eight tabs, in a box that cannot move.
 
-.workspace-subtabs__actions .seg button {
+   Four rules sized it and disagreed — 00's `.seg button` (--fs-lg over
+   `button`'s 32px), `.research-seg button` (--fs-body), `.blotter-views__bar
+   .seg button` (34px, a 14px inset) and this rail's own (24px, --fs-sm) — on a
+   control twenty-two components render. The smallest of the four stayed: the
+   ask was consistent and NOT bigger, and 44px at the fingertip is paid once in
+   15's coarse block. The `border-left` is what stops the resize: 00 seams
+   all-but-the-first segment, so segment one's box was a pixel narrower and the
+   raised chip changed width with the side pressed. Every segment carries it
+   now and 00 only paints it — selection is paint, never metrics, which
+   seg-metrics.test.ts holds, and surface, shadow and `aria-pressed` still say
+   "chosen" without colour. */
+.seg button {
   min-height: 24px;
-  padding: 3px 9px;
-  border: 0;
+  padding: 3px var(--space-2);
+  border: 0; border-left: 1px solid transparent;
   background: none;
   color: var(--text-secondary);
   font-size: var(--fs-sm);
 }
-
-/* The rail's own override is gone: this treatment is the base rule now, which
-   is where it should have been. It was the only place in the sheet that had it
-   right. */
 
 .workspace-subtabs__actions button.primary-action {
   border-color: var(--series-1);

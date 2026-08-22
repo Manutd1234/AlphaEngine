@@ -1,6 +1,6 @@
 "use client";
 
-import { tapeSurface } from "@/components/execution/tape-view";
+import { describeOpening, openingSurface, tapeSurface } from "@/components/execution/tape-view";
 import { describeTape, useDeskTape } from "@/lib/use-desk-tape";
 import { formatDuration, usd } from "@/lib/format";
 
@@ -16,9 +16,24 @@ import { formatDuration, usd } from "@/lib/format";
  * Every non-live state renders as a stated reason, never as an empty table. A
  * tape that shows nothing because its channel died looks identical to a quiet
  * desk, and on a trading surface those must never be confusable.
+ *
+ * THE OPENING READ, and why the table gained a column for it. A subscription
+ * delivers only what commits after it is established, so this card used to
+ * open blank for a desk that had traded a minute earlier — a green LIVE badge
+ * over an empty table, which reads as "the desk is quiet". `useDeskTape` now
+ * fetches a bounded page of the same mirror on mount, and every row of it
+ * arrives marked `origin: "opening"`.
+ *
+ * Those rows may not be allowed to pass for streamed ones. The pane split
+ * exists because the blotter is the RECORD and this is the STREAM; a page of
+ * the record silently joining the stream is the tape impersonating the pane
+ * next door. So the origin is a column of words — not a tint, not a border,
+ * which forced colours and a colour-blind reader both lose — read out with
+ * every row, and the sentence under the state line says how many of the rows
+ * on screen came from it.
  */
 export default function DeskTape({ symbol }: { symbol: string }) {
-  const { state, rows, seen } = useDeskTape(symbol);
+  const { state, rows, seen, opening } = useDeskTape(symbol);
   /**
    * The table used to render only while `state === "live"`, so a channel drop
    * replaced every decision already on the tape with the banner — and back
@@ -27,6 +42,12 @@ export default function DeskTape({ symbol }: { symbol: string }) {
    * state is `tapeSurface`, pure so the stability suite can replay the flap.
    */
   const surface = tapeSurface(state, rows.length);
+  /**
+   * A second, independent decision, because there are two ways for this tape to
+   * be missing rows. With rows in hand and a live channel `surface.notice` is
+   * false; a failed opening read still has to speak, and it speaks here.
+   */
+  const readNotice = openingSurface(opening, state);
 
   return (
     <section className="card desk-tape" aria-labelledby="desk-tape-title">
@@ -66,15 +87,24 @@ export default function DeskTape({ symbol }: { symbol: string }) {
           {describeTape(state, rows.length)}
         </p>
       )}
+      {readNotice.notice && (
+        <p className={readNotice.warn ? "banner warn" : "muted"} role="status">
+          {readNotice.warn && <span aria-hidden>! </span>}
+          {describeOpening(opening)}
+        </p>
+      )}
       {surface.table && (
         <div className="table-wrap" tabIndex={0}>
           <table>
             <caption className="sr-only">
-              Decisions streamed from the Postgres mirror since this page opened, newest first.
+              Decisions on the tape for {symbol}, newest first. The origin column says whether a row
+              was watched arriving on the Postgres channel or came from the opening read taken when
+              this pane opened. A dash means the mirror recorded no value in that column.
             </caption>
             <thead>
               <tr>
                 <th scope="col">Time</th>
+                <th scope="col">Origin</th>
                 <th scope="col">Side</th>
                 <th scope="col">Notional</th>
                 <th scope="col">Verdict</th>
@@ -85,7 +115,15 @@ export default function DeskTape({ symbol }: { symbol: string }) {
               {rows.map((row) => (
                 <tr key={row.id} className={row.fresh ? "desk-tape__row is-fresh" : "desk-tape__row"}>
                   <td className="num">{new Date(row.occurredAt).toLocaleTimeString()}</td>
+                  {/* Words, in every row. The tint on a freshly streamed row is
+                      a one-off flash and forced colours strip it, so it can
+                      carry none of this meaning. */}
+                  <td>{row.origin === "stream" ? "streamed" : "opening read"}</td>
                   <td className={row.side === "BUY" ? "pos" : "neg"}>{row.side}</td>
+                  {/* usd() dashes a null rather than printing $0 — the mirror's
+                      notional column is nullable and a refused order can carry
+                      none, and a zero there would claim the desk decided on
+                      nothing. The caption says what the dash means. */}
                   <td className="num">{usd(row.notional, 0)}</td>
                   <td className={row.verdict === "ACCEPTED" ? "pos" : "neg"}>
                     {row.verdict.replaceAll("_", " ").toLowerCase()}

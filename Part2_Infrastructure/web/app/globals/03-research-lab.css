@@ -8,9 +8,9 @@
    ========================================================================== */
 
 /* ---------- shared research primitives ---------- */
-.research-seg button {
-  font-size: var(--fs-body);
-}
+/* `.research-seg button` no longer carries a size. Its --fs-body sat between
+   the bare seg's --fs-lg and the rail seg's --fs-sm, so the same control read
+   at three sizes across the tabs; the house metrics in 12 are the only ones. */
 
 .stability-verdict {
   margin: 4px 0 14px;

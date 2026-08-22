@@ -1,0 +1,224 @@
+"use client";
+
+/**
+ * The Oracle VaR, moving.
+ *
+ * WHAT THIS IS A CHART OF, PRECISELY
+ * ------------------------------------------------------------------------
+ * Not a time series of risk. A series of THIS PANEL'S OWN RE-RUNS: one point
+ * per distinct set of inputs the in-database simulation has been asked for
+ * since the tab was opened. The distinction matters because the figure is a
+ * terminal-value GBM VaR over a forward horizon, and the panel's copy is
+ * careful to keep that apart from the one-day book VaR on the VaR & model
+ * section. A chart that put those on one axis would undo that sentence, so
+ * this one draws only the two figures that ARE comparable — the database's
+ * simulated quantile and the closed form priced on the assumptions the
+ * database echoed back — and the caption says what an observation is.
+ *
+ * WHY ONE POINT PER INPUT SET AND NOT PER RUN
+ * ------------------------------------------------------------------------
+ * The panel re-runs when the volatility model changes, when the horizon
+ * changes, or when the live book crosses into the next $1,000 equity bucket.
+ * React's StrictMode double-invokes effects in development, and a "per run"
+ * series would therefore claim two observations of one fact — a chart
+ * inventing history, which is the failure `EquityCurve` documents for its own
+ * backfill. Keyed on the inputs instead, a repeat of an identical request
+ * updates its own point rather than appending a second one, and the count in
+ * the caption is a count of things actually learned.
+ *
+ * WHY ONLY THE CURRENT HORIZON IS DRAWN
+ * ------------------------------------------------------------------------
+ * A terminal-value VaR over 90 days and one over 1 day are different
+ * measurements, not two readings of the same one; joining them with a line
+ * would draw a jump in risk where only the question changed. Points at other
+ * horizons are kept but not plotted, and the caption says how many are being
+ * held back and why.
+ *
+ * ABSENCE
+ * ------------------------------------------------------------------------
+ * A run that could not compute a figure contributes a point whose value is
+ * `null`. `linePath` breaks at nulls rather than bridging them, so the gap is
+ * drawn as a gap and keeps its width; the foot of the plot carries a tick for
+ * each one and the caption counts them. Nothing is ever plotted at zero to
+ * stand in for a measurement that does not exist.
+ */
+
+import { DEFAULT_MARGIN, extent, linePath, linearScale, ticks, Grid, AnimatedPath } from "@/components/chart-kit";
+import { usd } from "@/lib/format";
+
+/** One completed attempt, whether or not it produced a figure. */
+export interface OracleVarObservation {
+  /**
+   * Identity of the inputs, not of the attempt: `equity|sigma|days`. A repeat
+   * replaces its own point rather than adding one — see the module note.
+   */
+  key: string;
+  at: number;
+  horizonDays: number;
+  /** The quantised equity the simulation actually stood on. */
+  equity: number;
+  /** Null when the database did not answer. Never zero for "unknown". */
+  var99: number | null;
+  /** The closed form over the same echoed assumptions. Null when there are none. */
+  clientVar: number | null;
+}
+
+const HEIGHT = 132;
+/** Height of the not-computed rug at the foot of the plot. */
+const RUG = 5;
+/** The reserved box, so a re-run repaints the chart and never moves the card. */
+export const ORACLE_TREND_RESERVE = 156;
+
+export default function OracleVarTrend({
+  observations,
+  horizonDays,
+  width = 640,
+}: {
+  observations: OracleVarObservation[];
+  horizonDays: number;
+  /** Measured by the caller, which already owns a width observer. */
+  width?: number;
+}) {
+  const shown = observations.filter((o) => o.horizonDays === horizonDays);
+  const held = observations.length - shown.length;
+  const heldNote = held > 0
+    ? ` ${held} more answered a different horizon and are not on one scale with these.`
+    : "";
+  const missing = shown.filter((o) => o.var99 === null).length;
+
+  if (shown.length === 0) {
+    return (
+      <p className="muted">
+        No completed run at the {horizonDays}-day horizon yet, so there is no trend to draw.
+        {heldNote}
+      </p>
+    );
+  }
+
+  // Every attempt at this horizon failed. `extent` falls back to [0, 1] on an
+  // all-null series, which would draw a dollar axis running from $0 to $1 — a
+  // fabricated scale under a chart with no data on it. Reported instead.
+  if (shown.every((o) => o.var99 === null && o.clientVar === null)) {
+    return (
+      <p className="muted">
+        {shown.length} run{shown.length === 1 ? "" : "s"} at the {horizonDays}-day horizon, none of
+        which returned a figure, so there is no scale to draw them on.{heldNote}
+      </p>
+    );
+  }
+
+  const m = DEFAULT_MARGIN;
+  const x0 = m.left;
+  const x1 = Math.max(x0 + 40, width - m.right);
+  const y0 = HEIGHT - m.bottom;
+  const y1 = m.top;
+
+  // Both series enter the extent. A closed form that sits well away from the
+  // simulated quantile is the finding this panel exists to surface, so it must
+  // be on screen rather than clipped to flatter the agreement.
+  const [lo, hi] = extent([...shown.map((o) => o.var99), ...shown.map((o) => o.clientVar)]);
+  const xScale = linearScale(0, Math.max(1, shown.length - 1), x0, x1);
+  const yScale = linearScale(lo, hi, y0, y1);
+
+  const oraclePoints = shown.map((o, i) => ({ x: xScale(i), y: o.var99 === null ? null : yScale(o.var99) }));
+  const clientPoints = shown.map((o, i) => ({ x: xScale(i), y: o.clientVar === null ? null : yScale(o.clientVar) }));
+  const latest = shown[shown.length - 1];
+  // Data identity, never width: `AnimatedPath` replays its draw when this
+  // changes, and keying on a measured width would replay it on every resize.
+  const drawKey = `${shown.length}-${latest.at}`;
+
+  return (
+    <div className="oracle-var-trend">
+      <div className="legend">
+        <span>
+          <i style={{ background: "var(--series-1)" }} aria-hidden /> Simulated in Oracle 23ai
+        </span>
+        <span>
+          <i style={{ background: "var(--text-muted)" }} aria-hidden /> Closed form, dashed
+        </span>
+        {missing > 0 && (
+          <span>
+            <i style={{ background: "var(--critical-text)" }} aria-hidden /> Not computed
+          </span>
+        )}
+      </div>
+      <svg
+        viewBox={`0 0 ${width} ${HEIGHT}`}
+        width="100%"
+        height={HEIGHT}
+        role="img"
+        aria-label={
+          `Terminal-value 99% value-at-risk over a ${horizonDays}-day horizon across `
+          + `${shown.length} re-run${shown.length === 1 ? "" : "s"} of this panel, simulated against `
+          + `the closed form. ${missing} could not be computed. Latest simulated `
+          + `${latest.var99 === null ? "not computed" : usd(latest.var99, 0)}.`
+        }
+      >
+        <Grid yTicks={ticks(lo, hi, 3)} yScale={yScale} x0={x0} x1={x1} format={(v) => usd(v, 0)} />
+
+        {/* The closed form first and dashed, so the simulated line reads on
+            top of it: the panel's question is how far the simulation sits from
+            the analytic answer, and the dash says which one is analytic
+            without relying on the colour to carry it. */}
+        <path
+          d={linePath(clientPoints)}
+          fill="none"
+          stroke="var(--text-muted)"
+          strokeWidth={1}
+          strokeDasharray="4 3"
+        />
+        <AnimatedPath
+          drawKey={drawKey}
+          d={linePath(oraclePoints)}
+          fill="none"
+          stroke="var(--series-1)"
+          strokeWidth={1.75}
+          strokeLinecap="round"
+        />
+
+        {/* Every observation gets a mark, so a single re-run is a point rather
+            than an invisible line of length zero — and so a reader can count
+            the observations on the chart instead of trusting the caption. */}
+        {shown.map((o, i) =>
+          o.var99 === null ? (
+            <line
+              key={o.key}
+              x1={xScale(i)}
+              x2={xScale(i)}
+              y1={y0}
+              y2={y0 - RUG}
+              stroke="var(--critical-text)"
+              strokeWidth={1.5}
+              shapeRendering="crispEdges"
+            >
+              <title>Run {i + 1}: the database did not answer.</title>
+            </line>
+          ) : (
+            <circle
+              key={o.key}
+              cx={xScale(i)}
+              cy={yScale(o.var99)}
+              r={i === shown.length - 1 ? 3.2 : 2}
+              fill="var(--series-1)"
+              stroke="var(--surface-1)"
+              strokeWidth={1.25}
+            >
+              <title>
+                Run {i + 1} on {usd(o.equity, 0)} of equity: {usd(o.var99, 0)}
+              </title>
+            </circle>
+          ),
+        )}
+      </svg>
+      {/* The series says how much history it holds, in words, every time. A
+          two-point line and a forty-point line look the same at a glance and
+          mean very different things. */}
+      <p className="sub num">
+        {shown.length} observation{shown.length === 1 ? "" : "s"} of this panel re-running, oldest
+        left{shown.length === 1 ? "; a line needs two, so the next re-run draws one" : ""}.
+        {missing > 0 && ` ${missing} could not be computed and are drawn as gaps, never as zero.`}
+        {heldNote}
+      </p>
+    </div>
+  );
+}

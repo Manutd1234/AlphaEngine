@@ -22,6 +22,7 @@ import HeadroomBar from "@/components/portfolio/HeadroomBar";
 import OracleVarPanel from "@/components/portfolio/OracleVarPanel";
 import RiskEngine from "@/components/portfolio/RiskEngine";
 import StressTest from "@/components/portfolio/StressTest";
+import BookConcentration from "@/components/risk/BookConcentration";
 import HorizonSeg from "@/components/risk/HorizonSeg";
 import MonteCarloDistribution, { type McDriver } from "@/components/risk/MonteCarloDistribution";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
@@ -234,10 +235,8 @@ export default function RiskWorkspace({
               </table>
             </div>
 
-            <div className="portfolio-concentration">
-              <div><span>Largest share</span><strong className="num">{fmt(book.concentration.largest_share * 100, 1)}%</strong></div>
-              <div><span>Effective positions</span><strong className="num">{fmt(book.concentration.effective_positions, 1)}</strong></div>
-            </div>
+            {/* Counting, not cutting: BookConcentration records why the Risk tab was the one book-fed tab wiring no live motion. */}
+            <BookConcentration largestShare={book.concentration.largest_share} effectivePositions={book.concentration.effective_positions} />
             {/* The derivation, not the number. Both figures above stay visible;
                 what collapses is the explanation of how one of them is computed,
                 which a reader needs once and not on every visit. The summary

@@ -486,8 +486,11 @@
     min-height: 44px;
   }
 
-  /* 40px inside the seg's own 2px frame reaches 44 to the fingertip. */
-  .workspace-subtabs__actions .seg button {
+  /* Every seg, not the rail's alone: 40px inside the seg's own 3px frame and
+     1px border reaches 48 at the fingertip. Named here because the house
+     `.seg button` floor in 12 is 24px and outranks the bare `button` rule
+     above, which is what used to carry the panel segs to 44. */
+  .seg button {
     min-height: 40px;
   }
 
@@ -916,15 +919,12 @@
   margin-bottom: var(--space-3);
 }
 
-/* The three views are the control a reader reaches for; the search box is the
-   one they use occasionally. The seg was the smaller of the two and wrapped
-   "Cancelled & rejected" onto a second line while the box beside it took the
-   whole rest of the row. Sizes swapped: the seg gets room to keep each label
-   on one line, the box takes what it needs and no more. */
+/* The seg wrapped "Cancelled & rejected" onto a second line while the search
+   box beside it took the whole rest of the row, so it was handed 34px, a 14px
+   inset and --fs-lg to win the row back. Only `nowrap` was ever doing that work
+   — this seg is a flex item sized by its own content — and the three private
+   metrics were why Execution's switcher stood taller than every other tab's. */
 .blotter-views__bar .seg button {
-  min-height: 34px;
-  padding-inline: 14px;
-  font-size: var(--fs-lg);
   white-space: nowrap;
 }
 

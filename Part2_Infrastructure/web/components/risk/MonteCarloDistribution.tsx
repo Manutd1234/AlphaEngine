@@ -27,6 +27,7 @@
 
 import { useMemo, useState } from "react";
 
+import McDegenerateNotice from "@/components/risk/McDegenerateNotice";
 import McHistogram from "@/components/risk/McHistogram";
 import McParameterRail, {
   MC_SEED_MAX,
@@ -34,6 +35,8 @@ import McParameterRail, {
   TAIL_CONFIDENCES,
   type McBandChoice,
 } from "@/components/risk/McParameterRail";
+import { mcDriverDegeneracy, mcResultDegeneracy, mcRoundsToZero, mcUsd } from "@/components/risk/mc-degeneracy";
+import NumberTicker from "@/components/common/NumberTicker";
 import StatTile from "@/components/StatTile";
 import { fmt, usd } from "@/lib/format";
 import {
@@ -113,8 +116,17 @@ export default function MonteCarloDistribution({
   // every equity tick — the same restraint OracleVarPanel applies.
   const equityForRun = Math.round(equity / 1_000) * 1_000 || equity;
 
+  /* Whether these drivers can make a distribution at all, decided before a
+     worker is spun up for an answer already known. A winner that never took a
+     position ships returns that are every one of them zero and a driver that
+     is non-null — `mc-degeneracy.ts` carries the trace from
+     `lib/engine/combo.ts`. This is a SECOND branch, not an extension of the
+     null one below: research completed, and what it produced was a winner with
+     nothing to resample. The reader needs that sentence, not "run research". */
+  const driverDefect = useMemo(() => (driver?.returns.length ? mcDriverDegeneracy(driver.returns) : null), [driver]);
+
   const request = useMemo(() => {
-    if (!driver || driver.returns.length === 0 || seedUnusable) return null;
+    if (!driver || driver.returns.length === 0 || seedUnusable || driverDefect) return null;
     const barsPerDay = 24 / hoursPerBar(driver.interval);
     return {
       returns: driver.returns,
@@ -133,7 +145,7 @@ export default function MonteCarloDistribution({
       // action re-runs with identical inputs (and provably identical output).
       nonce: runNonce,
     };
-  }, [driver, horizonDays, paths, resampler, blockLength, bands, seedOverride, seedUnusable, equityForRun, runNonce]);
+  }, [driver, driverDefect, horizonDays, paths, resampler, blockLength, bands, seedOverride, seedUnusable, equityForRun, runNonce]);
 
   const state = useMcDistribution(request);
   const result = state.result;
@@ -142,6 +154,15 @@ export default function MonteCarloDistribution({
   // be printed under a confidence or a resampler it was not computed at.
   const lossBands = result ? mcLossConfidences(result) : ([50, 95, 99] as [number, number, number]);
   const ran = result ? mcResamplerOf(result) : resampler;
+  /* The other half of the guard, over the finished run rather than its inputs:
+     a result whose paths all end at one value has no quantiles, whatever the
+     drivers looked like going in. A guard only on the inputs would cover the
+     one cause anybody has seen so far, and the tiles cannot tell a
+     distribution from a repeated number — which is how five zeroes shipped
+     under a "Within headroom" verdict. */
+  const resultDefect = result ? mcResultDegeneracy(result) : null;
+  // What was asked for, printed under either refusal.
+  const asked = `${paths.toLocaleString()} paths, ${horizonDays}-day horizon, seed ${seedOverride ?? driver?.seed ?? "—"}`;
 
   if (!driver || driver.returns.length === 0) {
     return (
@@ -208,6 +229,18 @@ export default function MonteCarloDistribution({
         <p className="sub">Worker unavailable; chunked fallback, same numbers.</p>
       )}
 
+      {/* The live figure this card stands on, and why it is not the one the
+          simulation ran against. The equity quantisation stays — a 99th
+          percentile redrawn on every 15s poll is noise — but the card never
+          said so, and a reader watching five figures hold still under a
+          "live-pushed" chrome read the tab as disconnected. The silence was
+          the defect, not the restraint. See BookConcentration for the rest. */}
+      <p className="sub mc-live-equity">
+        Book equity <NumberTicker value={equity} format={(value) => usd(value, 0)} /> on the live
+        feed; this run holds the {usd(equityForRun, 0)} bucket and re-simulates when the book
+        crosses into the next $1,000.
+      </p>
+
       {ran === "iid" && (
         <div className="banner warn" role="status">
           <span aria-hidden>▲</span>
@@ -228,6 +261,20 @@ export default function MonteCarloDistribution({
             {driver.seed}.
           </div>
         </div>
+      )}
+
+      {/* No worker was started, so `state` is idle and every branch below is
+          already false; kept as its own guard so that stays true. */}
+      {driverDefect && (
+        <McDegenerateNotice
+          headline={driverDefect.headline}
+          detail={driverDefect.detail}
+          asked={asked}
+          /* Research is the fix here and only here — a different strategy or
+             parameter range is what makes the winner trade. The post-run
+             refusal offers no such button. */
+          onOpenResearch={onOpenResearch}
+        />
       )}
 
       {state.status === "running" && (
@@ -265,19 +312,32 @@ export default function MonteCarloDistribution({
         </div>
       )}
 
-      {state.status === "done" && result && (
+      {/* A completed run whose outcomes never moved. Tiles, histogram and
+          verdict are skipped together — the verdict especially, because
+          "Within headroom. P95 loss $0" is the sentence a trader acts on and
+          it would be safety claimed from a simulation that measured nothing. */}
+      {state.status === "done" && resultDefect && (
+        <McDegenerateNotice
+          headline={resultDefect.headline}
+          detail={resultDefect.detail}
+          asked={asked}
+        />
+      )}
+
+      {state.status === "done" && result && !resultDefect && (
         <>
           <McHistogram result={result} />
 
-          {/* `<StatTile>`, not five hand-typed copies of what it renders. The
-              markup here was character-for-character its output — label div,
-              `num stat-tile__value` with a data-tone, note div — while sibling
-              panels in this same directory imported the component. */}
+          {/* `<StatTile>`, not five hand-typed copies of what it renders.
+              `mcUsd`, never `usd`: the loss figures are negated percentiles, so
+              a break-even quantile is negative zero by construction and the
+              card shipped "P95 LOSS $-0". The tone obeys the same rule, or a
+              figure that has rounded away would still be coloured as a loss. */}
           <div className="tiles stability-tiles">
             <StatTile
               label="Mean outcome"
-              value={usd(result.pnl.mean, 0)}
-              tone={result.pnl.mean < 0 ? "neg" : "pos"}
+              value={mcUsd(result.pnl.mean)}
+              tone={mcRoundsToZero(result.pnl.mean) ? "muted" : result.pnl.mean < 0 ? "neg" : "pos"}
               note={`${fmt(result.probLoss * 100, 1)}% of paths end in loss`}
             />
             {/* Three tiles, one per confidence asked for, each labelled with
@@ -288,15 +348,15 @@ export default function MonteCarloDistribution({
               <StatTile
                 key={lossBands[index]}
                 label={`P${lossBands[index]} loss`}
-                value={usd(loss, 0)}
-                tone="neg"
+                value={mcUsd(loss)}
+                tone={mcRoundsToZero(loss) ? "muted" : "neg"}
                 note={`not exceeded in ${lossBands[index]}% of paths`}
               />
             ))}
             <StatTile
               label="Worst case"
-              value={usd(result.pnl.worst, 0)}
-              tone="neg"
+              value={mcUsd(result.pnl.worst)}
+              tone={mcRoundsToZero(result.pnl.worst) ? "muted" : "neg"}
               note={`single worst of ${result.paths.toLocaleString()} paths`}
             />
           </div>
@@ -313,7 +373,7 @@ export default function MonteCarloDistribution({
                 <strong>
                   {withinHeadroom ? "Within headroom." : "Breaches headroom."}
                 </strong>{" "}
-                P{lossBands[1]} loss {usd(result.loss.p95, 0)} over {horizonDays} days against the{" "}
+                P{lossBands[1]} loss {mcUsd(result.loss.p95)} over {horizonDays} days against the{" "}
                 {usd(cushionUsd, 0)} left in the drawdown-to-halt budget on the Limits tab
                 {withinHeadroom ? "." : " — a tail outcome this size would trip the halt."}{" "}
                 A multi-day loss against today&apos;s budget is a conservative screen.
@@ -328,7 +388,7 @@ export default function MonteCarloDistribution({
               the placeholder, an override as the typed value). Do not re-add
               the sentence. */}
           <span className="sr-only" role="status">
-            Monte Carlo complete: P{lossBands[1]} loss {usd(result.loss.p95, 0)},{" "}
+            Monte Carlo complete: P{lossBands[1]} loss {mcUsd(result.loss.p95)},{" "}
             {withinHeadroom ? "within" : "breaching"} drawdown headroom.
           </span>
         </>
