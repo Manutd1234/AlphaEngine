@@ -22,7 +22,7 @@ os.environ.setdefault("DB_PATH", str(_TMP / "test.duckdb"))
 os.environ.setdefault("ENABLE_MARKET_DATA", "0")
 os.environ.setdefault("TELEGRAM_BOT_TOKEN", "")
 os.environ.setdefault("REQUIRE_AUTH", "0")
-# The research plane's two optional extras, blanked for the same reason as the
+# The research plane's three optional extras, blanked for the same reason as the
 # bot token. `POST /api/research/rag/ask` now calls `research_generate` on every
 # graded answer, so a developer whose `.env` holds a real GEMINI_API_KEY — and
 # who has `requirements-genai.txt` installed — would have `test_research_answer`
@@ -48,8 +48,34 @@ os.environ.setdefault("REQUIRE_AUTH", "0")
 # RERANK_MODEL_PATH goes the same way for the second half of the house rule: a
 # seeded fastembed cache would have the route tests LOAD ~110M parameters off
 # disk, which is "no model downloaded" broken by a directory nobody mentioned.
+#
+# RESEARCH_IMAGE_MODEL_PATH is the THIRD of exactly this kind, and it was owed:
+# `modules/research_image.py` recorded the hole above its own constant and
+# `docs/testing/TESTING.md` recorded it in prose; neither closed it. The CLIP
+# ViT-B/32 pair behind the image arm is ~0.6 GB, six times the re-ranker, so if
+# the ~110M-parameter argument holds for RERANK_MODEL_PATH it holds harder here.
+# It is a refusal and not a consent, which is what puts it in this group:
+# `setdefault` beats only a `.env`, while the shape that actually loads 0.6 GB
+# is an EXPORTED path — the developer who ran `bench_image_retrieval.py --seed`
+# and kept it in their shell. Blanking it outright takes no opt-in away, which
+# is the other half of earning the assignment: `test_research_rerank_real.py`
+# opts in through its own separate RERANK_TEST_MODEL_PATH, deliberately left
+# alone here, and the bench is a tool rather than a test —
+# `tools/bench_image_retrieval_models.py` assigns the variable itself before
+# importing the module.
+#
+# Blanked HERE rather than only in the image suites, which is where it was. Each
+# of the arm's four files patches `research_image.IMAGE_MODEL_PATH` in an
+# autouse fixture, so those four were safe and nothing else was, while any suite
+# driving `/api/research/rag/search` reaches `research_image_arm`. The constant
+# is read off `os.environ` in a module-level assignment at IMPORT, so before the
+# first test module imports the package is the last moment the value is
+# settable: a per-file fixture is structurally too late for every file but its
+# own — the difference between protecting one suite and making the property true
+# of the run.
 os.environ["GEMINI_API_KEY"] = ""
 os.environ["RERANK_MODEL_PATH"] = ""
+os.environ["RESEARCH_IMAGE_MODEL_PATH"] = ""
 # The two research BACKENDS, blanked for the same reason and in the same place.
 #
 # `tests/test_research_contract.py` calls `research_reconcile.run_reconcile`,

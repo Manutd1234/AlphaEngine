@@ -100,13 +100,21 @@ def communities_answer(sweep: str = SWEEP) -> dict[str, Any]:
 
 
 def centrality_answer(sweep: str = SWEEP) -> dict[str, Any]:
+    """One triangle, scored. THREE pairs, not six.
+
+    It said six until the pair count was scoped, and six pairs over three
+    documents is not a graph — three documents admit C(3,2) = 3. The fixture
+    was describing the whole-instance count the served field used to carry,
+    which is the defect itself; a fixture that cannot exist proves nothing
+    about a reader of graphs that can.
+    """
     return {
         "d.centrality AS score": [
             Record(id="a", score=0.4, sweep=sweep),
             Record(id="b", score=0.35, sweep=sweep),
             Record(id="c", score=0.25, sweep=sweep),
         ],
-        "count(DISTINCT": [Record(n=6)],
+        "count(DISTINCT": [Record(n=3)],
     }
 
 

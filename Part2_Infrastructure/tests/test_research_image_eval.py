@@ -29,11 +29,13 @@ invisible until somebody quotes both in a sentence. The values below are
 computed by hand from the TS definitions, not from this Python.
 
 NOTHING HERE LOADS A MODEL. ``fastembed`` is an optional extra, the CLIP pair is
-~0.6 GB and CI is network-free by construction — and the autouse fixture below
-BLANKS ``RESEARCH_IMAGE_MODEL_PATH`` for the same reason ``tests/conftest.py``
-blanks ``RERANK_MODEL_PATH``: a developer whose shell exports a seeded directory
-must not be able to make this suite read 0.6 GB off disk. Seeding weights is
-``--seed``'s job and it is a build step, never a test.
+~0.6 GB and CI is network-free by construction. ``tests/conftest.py`` now blanks
+``RESEARCH_IMAGE_MODEL_PATH`` by assignment beside ``RERANK_MODEL_PATH``, so a
+developer whose shell exports a seeded directory can no longer make ANY suite
+read 0.6 GB off disk — the fixture below used to be the only thing standing
+between this file and that, and is kept for a second, narrower job it is still
+the only thing doing. See its docstring. Seeding weights is ``--seed``'s job and
+it is a build step, never a test.
 """
 
 from __future__ import annotations
@@ -63,10 +65,28 @@ from tools.bench_image_retrieval_metrics import (
 def _no_model(monkeypatch: pytest.MonkeyPatch) -> None:
     """No suite in this tree may reach a real CLIP directory. See the docstring.
 
-    ``monkeypatch.setenv`` restores the original at teardown even though the
-    code under test writes the variable itself, which is the property that makes
-    this safe to apply to every test in the file rather than to the two that
-    obviously need it.
+    KEPT after ``tests/conftest.py`` took over the blanking, because the two do
+    different jobs and only one of them is now redundant. The conftest assigns
+    ``""`` ONCE, at import, which is the right moment for a variable that is only
+    ever read at import — and is therefore no defence against a test that writes
+    the variable DURING the run. The code under test does exactly that:
+    ``tools/bench_image_retrieval_models.load_image_arm`` assigns
+    ``os.environ["RESEARCH_IMAGE_MODEL_PATH"] = model_path`` before its first
+    import, deliberately, and ``TestDegradesWithAReason`` drives it through
+    ``bench.main()`` with a ``--model-path`` that does not exist. Without
+    ``monkeypatch.setenv`` here, that path would outlive the test and be read by
+    whatever ran next — this file's own later tests first, and then, since
+    ``os.environ`` is process-wide, anything in the session that re-reads it. So
+    this is a per-test RESTORE, which is the one thing a module-level assignment
+    structurally cannot be; ``tests/test_research_image_env_policy.py`` pins the
+    conftest half. Measured rather than assumed: calling ``bench.main()`` with
+    ``--model-path /tmp/never-seeded-clip`` outside pytest returns 0, prints
+    "nothing measured", and leaves ``RESEARCH_IMAGE_MODEL_PATH`` set to that
+    path in the interpreter's environment.
+
+    ``setattr`` on the constant stays for the same reason at the other end of
+    the chain: ``load_image_arm`` assigns ``ri.IMAGE_MODEL_PATH`` too, so
+    blanking the environment alone would leave the module configured.
     """
     monkeypatch.setenv("RESEARCH_IMAGE_MODEL_PATH", "")
     monkeypatch.setattr(research_image, "IMAGE_MODEL_PATH", "")

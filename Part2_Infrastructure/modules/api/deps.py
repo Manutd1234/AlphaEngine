@@ -44,7 +44,20 @@ async def trader_identity(
         presented = authorization.removeprefix("Bearer ").strip()
 
     if presented is not None:
-        if hmac.compare_digest(presented, settings.web_api_token):
+        # The emptiness check is not redundant with compare_digest, it is the
+        # whole guard: `hmac.compare_digest("", "")` is True, so a gateway whose
+        # WEB_API_TOKEN is set-but-blank would authenticate an empty header and
+        # hand back `web:token` — a HIGHER actor than the anonymous path this
+        # same request would otherwise take. Blank is reachable without anyone
+        # making a mistake in code: `_env` returns the environment's value when
+        # the key is present, so `WEB_API_TOKEN=` in a .env yields "" rather
+        # than the default, and a secret that failed to interpolate in CI
+        # yields the same. Rejected alternative: raising at startup when the
+        # token is blank. That fails a deployment closed for a variable only
+        # some routes need, and it cannot help a process whose settings are
+        # reloaded — refusing the credential at the point of use is total.
+        expected = settings.web_api_token
+        if expected and hmac.compare_digest(presented, expected):
             return "web:token"
         raise HTTPException(status_code=401, detail="invalid gateway token")
 

@@ -93,14 +93,45 @@ READ_COMMUNITY_RELATIONS = (
     "RETURN a.community AS community, type(r) AS relation, count(r) AS n"
 )
 
-#: Distinct undirected PAIRS, not relationships. ``_build`` collapses parallel
-#: edges into one weighted edge, so ``graph.number_of_edges()`` counts pairs —
-#: and two documents joined by both ``same_symbol`` and ``same_data`` are two
-#: relationships here and one edge there. Counting relationships would report a
-#: bigger graph than the networkx path does under the same field name.
-COUNT_PAIRS = (
+#: Distinct undirected PAIRS, not relationships, AMONG THE NODES THE REPORT IS
+#: ABOUT. ``_build`` collapses parallel edges into one weighted edge, so
+#: ``graph.number_of_edges()`` counts pairs — two documents joined by both
+#: ``same_symbol`` and ``same_data`` are two relationships here and one edge
+#: there — and counting relationships would report a bigger graph than the
+#: networkx path does under the same field name. The scope predicate corrects a
+#: served falsehood: unscoped, this counted every Document pair in the INSTANCE
+#: — nodes no sweep has labelled, and test fixtures MERGEd in by past runs —
+#: while ``documents`` beside it counts labelled nodes only. Live that printed
+#: 44 edges over 7 documents, and 7 documents admit at most C(7,2) = 21 pairs:
+#: two populations served as one graph's two measurements. Scoped it read 8,
+#: and THAT DROP IS THE FIX rather than a loss of edges. Both endpoints are
+#: constrained and the sweep stamps must MATCH, because a pair spanning two
+#: sweeps belongs to neither partition — the argument ``_one_sweep`` makes
+#: about labels, applied to the ties between them. ``a.id <> b.id`` is here
+#: because ``_build`` drops self-loops before counting, so a loop counted as a
+#: pair would break the same parity a second way. The rejected alternative was
+#: the sibling ``READ_COMMUNITY_RELATIONS`` form, ``a.community =
+#: b.community``: that counts INTERNAL ties only, describing the communities
+#: rather than the graph they partition, and ``number_of_edges()`` is the whole
+#: graph.
+_COUNT_PAIRS_IN = (
     "MATCH (a:Document)-[r]->(b:Document) "
+    "WHERE {scope} AND a.id <> b.id "
     "RETURN count(DISTINCT CASE WHEN a.id < b.id THEN [a.id, b.id] ELSE [b.id, a.id] END) AS n"
+)
+
+#: The pairs among the documents this sweep LABELLED — the graph it partitioned.
+COUNT_COMMUNITY_PAIRS = _COUNT_PAIRS_IN.format(
+    scope="a.community IS NOT NULL AND b.community IS NOT NULL "
+          "AND a.community_sweep = b.community_sweep"
+)
+
+#: The pairs among the documents this sweep SCORED. Keyed on the centrality
+#: stamp rather than the community one: the two sweeps are written by different
+#: calls and either can be the older of the pair.
+COUNT_CENTRALITY_PAIRS = _COUNT_PAIRS_IN.format(
+    scope="a.centrality IS NOT NULL AND b.centrality IS NOT NULL "
+          "AND a.centrality_sweep = b.centrality_sweep"
 )
 
 #: The PageRank scores ``project_centrality`` wrote, already in rank order. The
@@ -145,6 +176,27 @@ def _count(result: Any) -> int | None:
         return None
     value = rows[0].get("n")
     return int(value) if isinstance(value, int) else None
+
+
+def _impossible(pairs: int, documents: int) -> str | None:
+    """Why ``pairs`` cannot be an edge count over ``documents`` nodes, or ``None``.
+
+    The arithmetic is total and cheap, and it is what would have caught the
+    unscoped pair count the day it shipped: a count taken over one population
+    and printed beside a size taken over another eventually exceeds what the
+    smaller population can hold, and the report then refutes itself in public.
+    Checked on the RESPONSE, not the query, because it is the served pair of
+    numbers that must cohere however either was obtained — so the next query
+    somebody writes here is checked by this one too.
+    """
+    ceiling = documents * (documents - 1) // 2
+    if pairs <= ceiling:
+        return None
+    return (
+        f"the projection reported {pairs} edges over {documents} documents, and {documents} "
+        f"documents admit at most {ceiling} undirected pairs, so the two were counted over "
+        "different populations and neither can be quoted"
+    )
 
 
 def _one_sweep(rows: list[dict[str, Any]]) -> tuple[str | None, str | None]:
@@ -246,7 +298,7 @@ def community_labels(*, writing: bool = False, offered: bool = True) -> dict[str
         return {
             "communities": _rows(session.run(READ_COMMUNITIES)),
             "relations": _rows(session.run(READ_COMMUNITY_RELATIONS)),
-            "pairs": _count(session.run(COUNT_PAIRS)),
+            "pairs": _count(session.run(COUNT_COMMUNITY_PAIRS)),
         }
 
     answer, reason = _session(_read)
@@ -270,12 +322,16 @@ def community_labels(*, writing: bool = False, offered: bool = True) -> dict[str
         return _undetected(unusable or "the projected labels could not be dated")
 
     communities = _summarise(rows, _tally(relations))
+    documents = sum(row["size"] for row in communities)
+    incoherent = _impossible(pairs, documents)
+    if incoherent is not None:
+        return _undetected(incoherent)
     return {
         "detected": True,
         "reason": None,
         "source": "neo4j",
         "sweep": sweep,
-        "documents": sum(row["size"] for row in communities),
+        "documents": documents,
         "edges": pairs,
         "communities": communities,
         "community_count": len(communities),
@@ -296,7 +352,7 @@ def centrality_scores(*, offered: bool = True) -> dict[str, Any]:
         return _unranked("the caller asked for the corpus computation, so Neo4j was not consulted")
 
     def _read(session: Any) -> dict[str, Any]:
-        return {"scores": _rows(session.run(READ_CENTRALITY)), "pairs": _count(session.run(COUNT_PAIRS))}
+        return {"scores": _rows(session.run(READ_CENTRALITY)), "pairs": _count(session.run(COUNT_CENTRALITY_PAIRS))}
 
     answer, reason = _session(_read)
     if answer is None:
@@ -325,6 +381,9 @@ def centrality_scores(*, offered: bool = True) -> dict[str, Any]:
         # read keeps "the graph holds something this reader cannot price" from
         # being served as a ranking with rows silently missing from it.
         return _unranked("a projected centrality score was not a number, so the ranking was not used")
+    incoherent = _impossible(pairs, len(ranking))
+    if incoherent is not None:
+        return _unranked(incoherent)
     return {
         "ranked": True,
         "reason": None,
