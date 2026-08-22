@@ -38,11 +38,20 @@ stay distinguishable at the call site.
 
 The three optional capabilities all follow the same report shape:
 
-- **Neo4j** (`modules/research_graph_projection.py`): an unset `NEO4J_URI` is
-  the *normal* deployment, and so is an uninstalled driver —
-  `requirements-graph.txt` is optional and the whole suite passes without it.
-  Postgres remains authoritative; the graph is a rebuildable projection, so
-  divergence is a non-event (drop it and re-project).
+- **Neo4j** (`modules/research_graph_projection.py`,
+  `modules/research_graph_read_model.py`): an unset `NEO4J_URI` is the *normal*
+  deployment, and so is an uninstalled driver — `requirements-graph.txt` is
+  optional and the whole suite passes without it. Postgres remains
+  authoritative; the graph is a rebuildable projection, so divergence is a
+  non-event (drop it and re-project). Now that two routes *read* the projection
+  back, the same shape covers the read: every refusal falls back to the
+  in-process computation rather than raising, and `source` says which answered.
+  Two of those refusals are worth naming because they are absences a lazier
+  reader would round to a value — labels from two different sweeps refuse as
+  "mid-rebuild" instead of serving a half-finished partition that looks like a
+  good one, and a metric the graph does not store (modularity, seed, resolution,
+  damping) is **absent** from the report rather than restated from the caller's
+  arguments.
 - **Gemini** (`modules/research_generate.py`): an unset `GEMINI_API_KEY` and
   an uninstalled `google-genai` are both normal; the gateway boots with no
   generation provider at all. When the model *is* present, the module is built
@@ -52,7 +61,28 @@ The three optional capabilities all follow the same report shape:
   reports state `unavailable` — "not configured", "not installed" and "the
   model raised" are three different facts and get three different reports.
   Retrieval falls back to RRF fusion alone rather than pretending it
-  re-ranked.
+  re-ranked. Downstream of it, `modules/research_crag_signals.py` holds the same
+  line at the level of a single number: a row whose `rerank_score` is absent,
+  null, non-numeric or non-finite leaves the grade **untouched to the decimal**
+  and appends no reason line, because a reason that claims a signal nobody read
+  is a fabricated measurement in prose.
+
+Two newer members of the family, both in shapes this section already describes:
+
+- **Delivery to the corpus** (`modules/research_ingest_delivery.py`): a document
+  that cannot be written comes back as a typed `Undelivered(reason, detail,
+  attempts)` over the mirror's closed vocabulary — `auth` deliberately apart
+  from `rejected`, because an expired service-role key is an operator's problem
+  and a rejected row is a developer's — and lands in a bounded dead-letter book
+  that **counts what it discarded**, since a bounded buffer that forgets
+  silently is the same defect as the counter it replaces.
+- **The bound on `/ask`** (`modules/research_quota.py`): a call the provider
+  reports no token counts for is recorded as *unpriced* and the spend window's
+  total is published as a floor (`state: "partial"`) — never completed with an
+  invented average price, which would be a fabricated measurement enforcing a
+  real refusal. Its refusals are also kept typed and separate from the
+  pipeline's own three, because "you are over budget" and "the corpus is
+  silent" are different facts that would otherwise share a 200.
 
 The same shape recurs everywhere: the OpenBB bridge returns `ok: false` with a
 reason, never a 500 (`tests/test_research.py`); the one expected pytest skip
@@ -62,7 +92,20 @@ empty panel says it is empty rather than rendering as though still loading.
 **NOT BUILT**, stated plainly because this document would otherwise imply it:
 multimodal generation. The only place a model writes prose a trader acts on is
 `research_generate`, and it produces grounded text only — it quotes figures
-from supplied documents and never computes, draws or renders anything.
+from supplied documents and never computes, draws or renders anything. The
+reason it waits is a runtime fact, not a plan: the Supabase Edge runtime's
+`Supabase.ai.Session` exposes `gte-small` for text and nothing in its inference
+API takes an image, so there is no vision model to call.
+
+**Also NOT BUILT, and named for the same reason:** the real cross-encoder never
+runs in CI (the weights would need a download and the suite is network-free by
+construction), `execution_summary` documents have no in-process producer (only
+the backfill tool emits them), nothing re-embeds the corpus's `pending` rows
+(no query selects on `embedding_status`), and RLS on `research_documents` is
+still bypassed — what landed is an optional `filter_desk_id` predicate on the
+retrieval RPCs, off by default. Each is written where the code is as well as
+here; the rule this document enforces is that a gap is never rounded up to
+"planned".
 
 ## 3. UI typography: no emoji, no colour-only meaning, no middle dot as a word
 

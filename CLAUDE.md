@@ -30,22 +30,35 @@ extra skip is `tests/test_backtester.py`, "vectorbt not installed", because
 numba has no 3.14 wheel — so the vectorbt engine goes untested and the summary
 line still reads green.
 
-**Count the skips, not the passes.** On 3.12 it is **1,719 passed and exactly
-one skipped** (run on 2026-08-22; `web/lib/test-counts.generated.ts` carries
-the current figure). That one skip is expected and is *not* the vectorbt one —
-it is `tests/test_data_ops_postgrest.py`, which reports honestly that no
-`SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` was in the environment so the
-Postgres backend never ran. The optional research extras
+**Count the skips, not the passes.** On 3.12 it is **2,028 passed and exactly
+TWO skipped** (run on 2026-08-22; `web/lib/test-counts.generated.ts` carries
+the current figure). Both are expected and neither is the vectorbt one:
+
+1. `tests/test_data_ops_postgrest.py` — no `SUPABASE_URL` /
+   `SUPABASE_SERVICE_ROLE_KEY` in the environment, so the Postgres backend
+   never ran.
+2. `tests/test_research_rerank_real.py` — `RERANK_TEST_MODEL_PATH` is unset,
+   so no cross-encoder weights were offered and the real ONNX path was not
+   exercised. Seed them with `python tools/bench_rerank.py --seed --model-path
+   DIR` and export the variable; CI's opt-in `rerank-real` job does exactly
+   that in a setup step.
+
+This count was ONE until 2026-08-22 and this paragraph said so. If you are
+reading a second skip as the wrong-Python alarm, that heuristic moved: the
+wrong-Python signal is specifically the vectorbt skip from
+`tests/test_backtester.py` appearing, whatever the total — read the skip
+REASONS (`pytest -rs`), never the count alone.
+
+The optional research extras
 (`requirements-rerank.txt`, `requirements-genai.txt`, `requirements-graph.txt`)
 add NO skips — their suites install fakes and run without the package. What
 does skip when absent is scikit-learn (`requirements-ml.txt`: five adapter
 tests) and vectorbt (the backtester's parity test); measured 2026-08-22, a venv
 built from `requirements-dev.txt` WITHOUT them read 7 skipped. Both are now in
 `requirements-dev.txt`, so CI and a 3.12 venv built from it print the same
-line. The wrong-Python signal is specifically the vectorbt skip from
-`tests/test_backtester.py` appearing. Build it with `python3.12 -m venv venv` explicitly; the
+line. Build it with `python3.12 -m venv venv` explicitly; the
 default `python3` on a current macOS/Homebrew is 3.14. Two more things the
-1,719 needs:
+2,028 needs:
 `requirements-native.txt` and a built native decision core
 (`python native/decision_core/setup.py build_ext --inplace --build-temp
 build/native`) — `tests/test_decision_core_native.py` and

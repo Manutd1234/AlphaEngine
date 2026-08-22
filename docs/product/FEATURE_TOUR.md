@@ -289,7 +289,7 @@ Queue**. Topology is the runtime map and the context the three deployment units 
 **Readiness** is the gate in front of a release — launch gates, schema state and artifacts —
 and it is separate from CI / CD on purpose: a green pipeline says the code compiles and the
 tests pass, which is not the same claim as "this is safe to ship". CI / CD carries the four
-network-free jobs (**1,719 gateway + 3,883 web + 14 service tests** on 2026-08-22 — each figure is
+network-free jobs (**2,028 gateway + 3,900 web + 14 service tests** on 2026-08-22 — each figure is
 what its own runner prints and `web/lib/test-counts.generated.ts` is where the desk reads it
 from, so re-run rather than trust the sentence), API & Schema the committed OpenAPI contract
 with drift detection, Code & Diffs the repository manifest, Task Queue the engineering-impact
@@ -388,12 +388,20 @@ this order; the list doubles as a checklist for a manual tour:
 11. Oracle ADB — the VaR persistence layer answers.
 12. Supabase — the audit-log mirror answers.
 13. RAG embed — the research-corpus embedding path answers. Retrieval behind it
-    is three-armed (dense pgvector, Postgres FTS, Okapi BM25 — fused by RRF at
-    k=60), cross-encoder re-ranked when `RERANK_MODEL_PATH` is set, graded by
-    the CRAG bands, and — with a `GEMINI_API_KEY` — answered in prose that must
-    cite the documents it was handed or refuse. The derived edge graph is also
+    is **four**-armed (dense pgvector, Postgres FTS, Okapi BM25 and the derived
+    edge graph's own walk — all fused by RRF at the same k=60, because an arm
+    joining on a different constant is a second fusion wearing the first one's
+    name), cross-encoder re-ranked when `RERANK_MODEL_PATH` is set, graded by
+    the CRAG bands — all three of which now decide, so a middling result that
+    its one rewrite does not rescue is refused rather than served — and, with a
+    `GEMINI_API_KEY`, answered in prose that must cite the documents it was
+    handed and quote their figures verbatim, or refuse. That answer route is
+    rate- and spend-bounded, and its refusals are typed so "over budget" can
+    never be read as "the corpus is silent". The derived edge graph is also
     projected into Neo4j (when configured) as a rebuildable read model, with a
-    daily Louvain partition written back as community labels.
+    daily sweep writing back both the Louvain community labels and the PageRank
+    scores; the two graph report routes read those back and fall back to the
+    in-process computation, saying which answered.
 
 **The five-minute ops drill.** `python3 tools/e2e_smoke.py --drill` adds two *mutating but
 reversible* proofs on top of the read-only probes: it simulates a provider outage and asserts

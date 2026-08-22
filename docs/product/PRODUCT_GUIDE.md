@@ -303,9 +303,18 @@ does, and tests hold each behaviour in place:
   research answers report `verdict: refused` with the reason rather than
   generating ungrounded prose; with no `RERANK_MODEL_PATH`, the RRF retrieval
   order stands un-re-ranked; with no Neo4j credentials, the graph read model is
-  simply not projected — Postgres remains authoritative either way
-  (`modules/research_generate.py`, `modules/research_rerank.py`,
-  `modules/research_graph_projection.py`). An auto-stopped Oracle Always-Free
+  simply not projected, and the two graph report routes compute the partition
+  and the ranking in process instead, saying which source answered — Postgres
+  remains authoritative either way, and no request path depends on the graph
+  being up (`modules/research_generate.py`, `modules/research_rerank.py`,
+  `modules/research_graph_projection.py`,
+  `modules/research_graph_read_model.py`).
+- **A refusal that means "the desk is over its budget" is not a refusal that
+  means "the evidence is too weak".** The research answer route carries both,
+  and they never share a shape: a rate or spend refusal is an HTTP 429 with a
+  named state and a `Retry-After`, where every verdict the pipeline itself
+  reaches — `refused`, `corpus_silent`, `unavailable` — arrives with a 200 and
+  means the request *was* served (`modules/research_quota.py`). An auto-stopped Oracle Always-Free
   database makes the VaR panel say "unavailable", and the
   [tour](FEATURE_TOUR.md) documents that sharp edge rather than hiding it.
 - **No invented availability.** The Reliability tab publishes no uptime

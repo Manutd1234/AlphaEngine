@@ -50,21 +50,32 @@ set on purpose, not arrived at by forgetting the build step.
 
 ## 2. Count the skips, not the passes
 
-The suite's health is read off the *skip* count, because the pass count stays
+The suite's health is read off the skip REASONS, because the pass count stays
 plausible under several failure modes. On a correct 3.12 venv the gateway suite
-is **1,719 passed and exactly one skipped** (the figure the tree carries, in
+is **2,028 passed and exactly two skipped** (the figure the tree carries, in
 [`web/lib/test-counts.generated.ts`](../../Part2_Infrastructure/web/lib/test-counts.generated.ts),
-generated 2026-08-21 — re-run the suite rather than trusting either file; the
+generated 2026-08-22 — re-run the suite rather than trusting either file; the
 counts in prose have drifted before, which is why that file is generated).
 
-- **The one expected skip** is `tests/test_data_ops_postgrest.py`, and it is a
-  feature: it reports honestly that no `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY`
-  was in the environment, so the Postgres backend never ran. Absence reported,
-  not papered over.
-- **A second skip is the alarm.** It means the venv is the wrong Python and the
-  vectorbt engine is silently untested (see above).
-- **Zero skips** would mean Supabase credentials leaked into the test
-  environment — also worth investigating, not celebrating.
+Run `venv/bin/python -m pytest -rs` and read what each one says. Both expected
+skips name the thing they did not exercise, which is the whole point of them:
+
+- `tests/test_data_ops_postgrest.py` — no `SUPABASE_URL` /
+  `SUPABASE_SERVICE_ROLE_KEY` in the environment, so the Postgres backend never
+  ran. Absence reported, not papered over.
+- `tests/test_research_rerank_real.py` — `RERANK_TEST_MODEL_PATH` unset, so no
+  cross-encoder weights were offered and the real ONNX path was not exercised.
+  Seed with `python tools/bench_rerank.py --seed --model-path DIR`; CI's opt-in
+  `rerank-real` job does it in a setup step.
+
+**Counting rather than reading is the trap.** This section said "exactly one
+skipped" and "a second skip is the alarm" until 2026-08-22, when the opt-in
+re-ranker test made two correct — so a count alone would now flag a healthy
+tree. The alarm is a NAMED skip that should not be there, above all the
+vectorbt one from `tests/test_backtester.py`, which means the venv is the wrong
+Python and that engine is silently untested. A skip that disappears is worth
+the same attention: `test_data_ops_postgrest.py` going quiet means Supabase
+credentials reached the test environment.
 
 ## 3. Running everything
 
@@ -74,7 +85,7 @@ All from `Part2_Infrastructure` unless stated; web commands from
 | What | Command | Notes |
 |---|---|---|
 | Gateway tests | `venv/bin/python -m pytest` | 102 `test_*.py` suites (`ls`, 2026-08-22), deterministic, no network |
-| Web tests | `npm test` | `node --test` via tsx; 3,883 tests across 838 suites as generated on 2026-08-22 |
+| Web tests | `npm test` | `node --test` via tsx; 3,900 tests across 839 suites as generated on 2026-08-22 |
 | Service tests | `cd OpenBB_Service && python -m pytest` | own `pyproject.toml`, 14 tests |
 | Typecheck | `npm run typecheck` | `tsc --noEmit`, strict |
 | Lint | `venv/bin/python -m ruff check .` | configured in `pyproject.toml`; installed only by `requirements-dev.txt` |

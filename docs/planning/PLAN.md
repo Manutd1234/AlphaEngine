@@ -35,11 +35,38 @@ same spirit: both were fully built and unreachable until
 write turned out to be broken in a way only a real `AuditLog` could reveal —
 the test stand-in accepted a keyword argument the production object rejects.
 
-**Neo4j is live.** `NEO4J_URI` is set in the gateway's environment (a
-`neo4j+s://` Aura instance); the projection MERGEs the derived edges on the
-`reconcile:graph@every=6h` sweep and the seeded Louvain partition runs on
-`reconcile:communities@every=1d` (`modules/research_schedule.py`). Postgres
+**Neo4j is live, and no longer write-only.** `NEO4J_URI` is set in the
+gateway's environment (a `neo4j+s://` Aura instance); the projection MERGEs the
+derived edges on the `reconcile:graph@every=6h` sweep, and
+`reconcile:communities@every=1d` now writes **both** label sets off one
+whole-corpus read — the seeded Louvain partition and the PageRank scores
+(`modules/research_schedule.py`). `modules/research_graph_read_model.py` reads
+them back, and `/communities` and `/centrality` try it before falling back to
+the in-process computation, marking `source: "neo4j" | "corpus"`. Postgres
 stays authoritative — drop the graph and re-project, and drift is a non-event.
+Request-time traversal is still the Postgres CTE, and the algorithms are not run
+inside Neo4j: GDS is not on Aura Free and CI cannot install it, so the read model
+serves what the sweep computed rather than computing something different under
+the same field name.
+
+**Four claims the docs made are now true of the tree, and were not before.**
+An adversarial documentation audit found each of these asserted where the code
+did the opposite, and this pass closed the code side rather than softening the
+prose:
+
+| The claim | What was actually true | What closed it |
+|---|---|---|
+| The corpus is "written through the same bounded-queue discipline as the mirror" | the *queue* matched; the drain made **one** delivery attempt and discarded, where the mirror retried three times with backoff | `modules/research_ingest_delivery.py` — the mirror's own attempt count, curve and reason vocabulary, plus a bounded dead-letter book |
+| Session execution summaries are an ingested source | `execution_summary` was in the enum, the API filter vocabulary and the graph linker's `promoted_to` rule, and **nothing wrote one** | `modules/research_ingest_session.py` — but its only caller is the backfill tool; see §2.5 |
+| Three bands: answer, rewrite, refuse | one band gated anything (`score < refuse_band`); `ANSWER_BAND` was a constructor default nothing read, so a mid-band result was served regardless | `modules/research_crag_policy.py` — a mid-band result that does not clear the band after its one rewrite now refuses. A **behaviour change**, argued in the module rather than softened |
+| "Figures are quoted, never computed" is a fence | it was prompt text; nothing checked | `modules/research_generate_figures.py` — every number the answer states, other than a citation id, a date or an ordinal, must appear character-for-character in a supplied document |
+
+**One claim was corrected in the prose instead**, because the code was right:
+the PRD described PageRank as "seeded". `nx.pagerank` takes no seed and cannot —
+it is deterministic by construction, and its reproducibility comes from the
+canonical node insertion order plus pinned `MAX_ITER`/`TOLERANCE`. Louvain *is*
+seeded and needs to be. Fixing the claim was the correct edit; adding a `seed=`
+argument to make the sentence true would have been the wrong one.
 
 **The anti-twitch machinery landed on the web side.** The value throttle
 (`web/lib/use-throttled-value.ts`, 300 ms), the venue-liveness hysteresis
@@ -55,7 +82,7 @@ product — and empty states and null explanations are barred from folding,
 because "this is withheld because…" reads as broken behind a `<details>`.
 
 **The suite is green and the counts are measured, not remembered.** Gateway
-1,719 passed and exactly one skipped, web 3,883 tests across 838 suites,
+2,028 passed and exactly two skipped, web 3,900 tests across 839 suites,
 OpenBB service 14 — read from `web/lib/test-counts.generated.ts` (printed
 2026-08-21; re-run 2026-08-22 per [`CLAUDE.md`](../../CLAUDE.md), which also
 explains why the *skip count* is the number to watch, not the pass count).
@@ -70,31 +97,44 @@ file nobody re-reads, and this section is only the collection point.
 flowchart LR
     Q["query"] --> W["research_stages.wide<br/>3 → 20 when a re-ranker<br/>is configured"]
     W --> H["hybrid RPC<br/>internal pool: top-50 per arm,<br/>returns match_count rows"]
-    W -. "owed 1: same width applied<br/>to graph_traverse,<br/>nothing narrows those" .-> G["graph arm"]
+    W --> G["graph arm — its OWN width now<br/>(research_stages.graph_width);<br/>owed 1 is closed"]
     H --> B["BM25 re-scores<br/>only the survivors"]
     H -. "owed 3: the 50-row pool<br/>is never offered to BM25" .-> B
     B --> R["cross-encoder narrows<br/>back to top 3"]
-    B -. "owed 2: web/lib/retrieval-eval.ts<br/>still models two arms" .-> E["offline eval"]
+    B -. "owed 2: web/lib/retrieval-eval.ts<br/>still models two arms<br/>— and now FOUR are fused" .-> E["offline eval"]
 ```
 
-### 2.1 `graph_traverse` width narrowing
+### 2.1 `graph_traverse` width narrowing — **closed**
 
-`research_stages.wide` widens retrieval to `RERANK_CANDIDATES` (20) only when
-a cross-encoder is configured to narrow it again. Its docstring names the
-consequence rather than leaving it to be discovered: the router applies **one
-count to every tool in the plan**, so on a re-ranking deployment
-`graph_traverse` also asks for twenty neighbours — and those are a different
-list the cross-encoder never sees, so nothing narrows them. Bounded, and
-recall rather than a wrong answer; the fix is a separate width for the graph
-arm on `ResearchRouter.execute`, "which is owed rather than done"
-(`modules/research_stages.py`).
+`research_stages.wide` widened retrieval to `RERANK_CANDIDATES` (20) only when a
+cross-encoder was configured to narrow it again, and the router applied **one
+count to every tool in the plan** — so on a re-ranking deployment
+`graph_traverse` also asked for twenty neighbours, a different list the
+cross-encoder never saw. Closed twice over: `graph_width()` gives the graph arm
+the caller's own count, because nothing narrows that arm and every row it asks
+for is a row the caller is served; and `with_graph_width()` pins it on the
+corpus handle rather than adding a parameter to `ResearchRouter.execute`, using
+only the public `search`/`connected` protocol `research_crag` already depends on.
+`wide()` itself is now a genuine multiple (×4, floored at 20, ceilinged at 60)
+rather than a constant that happened to equal `RERANK_CANDIDATES` — the
+"widening" that widened nothing above three candidates. Both widths are measured
+**at the corpus** on the real path in `tests/test_research_stage_widths.py`,
+not asserted against the arithmetic that produced them.
+
+What is deliberately left: `wide()` returns the request unchanged above the
+ceiling (`wide(200) == 200`), so a caller asking for more documents than 60 gets
+no widening. Bounding the widening must never narrow the request, and serving 60
+rows as the top 200 is a worse defect than the one being fixed.
 
 ### 2.2 Web retrieval-eval two-arm parity divergence
 
 `web/lib/retrieval-eval.ts` fuses **two** rankings (vector + lexical) against
-the committed golden set; the gateway now fuses **three**
-(`research_bm25.fuse`). The constant is pinned identical on both sides at
-k = 60 — the tree argues in three places (`research_bm25.py` twice,
+the committed golden set; the gateway now fuses **four** — dense, FTS,
+`research_bm25.fuse`, and the graph walk via
+`research_graph_fusion.fuse_graph_matches`, which imports `RRF_K` from
+`research_bm25` precisely so a fourth arm cannot join at a different constant.
+The gap this section named has therefore widened by one arm, not closed. The
+constant is pinned identical on both sides at k = 60 — the tree argues in three places (`research_bm25.py` twice,
 `research_rag/retrieval.py` once) that a third arm joining on a different
 constant is "a second fusion wearing the first one's name" — so the divergence
 is bounded to the missing arm, but the offline evaluator currently ratchets a
@@ -115,7 +155,63 @@ the arm (or return it from the RPC) so BM25's ordering opinion applies before
 truncation, not after. This buys recall only with the ordering model already
 in place — the same argument, in the same direction, as `wide`/`narrow`.
 
-### 2.4 The smaller ledger
+### 2.5 `execution_summary` has a producer but no live caller
+
+The renderer, its figures and its document are built and tested, and
+`tools/backfill_research_rag.py` calls them — so this is not another module
+shipped with no caller, which is the defect §1 exists to catch. But nothing
+emits one **in process**: that needs a hook at the session-rollover site in
+`modules/risk_proxy/`. On a running desk the summaries appear when the backfill
+is run and not before, and every document that says "ingested sources" must say
+so. Owed: the rollover hook, which makes the live path emit one summary per
+closed session the way `on_backtest_complete` emits one per finished sweep.
+
+### 2.6 The dead-letter book is a diagnosis, not a replay queue
+
+A document that survives three delivery attempts is recorded — kind,
+`source_ref`, reason, detail, attempts, timestamp — in a bounded in-memory deque
+that counts what it discarded when full, and `status()` publishes the depth, the
+discards and the recent entries. Deliberately **not** the body: that is the
+embedded text and can be kilobytes. What does not exist: durability across a
+restart, and anything that re-submits from the book. Replaying a dead letter is
+still the backfill tool's job. Related and separate: **nothing re-embeds the
+`pending` rows either** — no query selects on `embedding_status`, and the
+backfill repairs a pending document only as a side effect of re-deriving its
+source row, which never happens at all for a `chart`.
+
+`_ensure_drain_alive()` also fires only on the submit path, so a drain that dies
+while the queue is idle is revived by the next submission rather than
+immediately. A watchdog loop was the rejected alternative: a second task to
+watch the first is one more thing that can die quietly.
+
+### 2.7 Tenancy: the predicate landed, RLS did not
+
+Both retrieval RPCs now take an optional `filter_desk_id`, applied inside the
+candidate CTE before either ranking is taken. Three debts remain, named in the
+migration's own header: **RLS is still bypassed** (the gateway reads with the
+service-role key), **the writer still sets no `user_id`**, and **the scope is
+per-desk, not per-user** — every web request authenticates against one shared
+gateway token, so `trader_identity` resolves to `web:token` / `web:anonymous`
+and there is no per-user identity to key on. `desk_scope()` is where that
+mapping goes the day there is one, and says so.
+
+### 2.8 Structured answers do not reach CRAG or the HTTP `matches` array
+
+`research_structured`'s computed rows live on `Execution.structured` and reach
+the caller through the tool call's `detail`, not through `matches` — because
+`ResearchRagMatch.similarity` is a required float, so a computed row would have
+to carry 0.0 ("not applicable" written as "worst possible"), which would rank the
+one exact answer last and 500 the route if left null. Consequence: CRAG does not
+grade them, and a question whose real answer is a count is graded on the prose
+documents beside it. Owed: one optional field in `research_crag` so a typed
+non-similarity row can travel with the others.
+
+Also unread by the grader: `bm25_rank`. Folding it in means changing `agreement`
+to count a third retriever, which moves the grade on every desk with the BM25 arm
+configured — a calibration change the golden fixture (which records two rankings,
+not three) cannot back. It wants its own change with its own fixture row.
+
+### 2.9 The smaller ledger
 
 - **The scheduler's third arm.** `parse_schedule` and `DataScheduler.submit`
   hardcode replay and backfill; the reconcile cadences live beside them in
@@ -153,7 +249,13 @@ column is authoritative and each entry there argues at ten times this length.
 | Retrieve wide only when something narrows | RRF sees only rank; widening without a re-ranker buys recall and pays for it immediately in precision | a constant somebody flips | `modules/research_stages.py` |
 | Re-rank off the loop, behind a two-slot bulkhead | this process serves pre-trade risk in microseconds; a blocking re-rank is milliseconds on a plane that never reports them | inline call, "measure it later"; also a `wait_for` timeout, which cannot cancel the thread | `modules/research_stages.py` |
 | Neo4j is a projection, never a dual write | drift between an authoritative store and a copy is only detectable if somebody looks; a rebuildable read model makes divergence a non-event | second write path | `modules/research_graph_projection.py` |
-| Louvain/PageRank in-process, seeded, via networkx | Aura Free has no GDS — `gds.louvain.stream` there is procedure-not-found; unseeded Louvain makes "cluster 3" mean nothing a week later | Neo4j GDS; unseeded runs | `modules/research_communities.py` |
+| Louvain/PageRank in-process via networkx; Louvain seeded, PageRank not | Aura Free has no GDS — `gds.louvain.stream` there is procedure-not-found; unseeded Louvain makes "cluster 3" mean nothing a week later. PageRank takes no seed and cannot: it is deterministic by construction, reproducible from the canonical node order plus pinned `MAX_ITER`/`TOLERANCE` | Neo4j GDS; unseeded Louvain; inventing a `seed=` argument for PageRank to make a doc sentence true | `modules/research_communities.py` |
+| The graph walk fused as a fourth arm at the same k = 60 | an arm joining on a different constant is a second fusion wearing the first one's name; `RRF_K` is imported from `research_bm25`, not restated | a graph-specific constant; turning depth into a score ("a two-hop document is half as relevant" is a number nobody measured) | `modules/research_graph_fusion.py` |
+| A mid-band CRAG result refuses after its one rewrite | `ANSWER_BAND` decided nothing, so the documented three bands were one band in code; harsh is the point of a middle band, and the lever is `ContextGrader(answer_band=…)`, now actually wired to a verdict | keep serving it as `state: "ok"`; soften the band in code rather than argue it in the docstring | `modules/research_crag_policy.py` |
+| The cross-encoder's logit folds in via `sigmoid`, weight 0.25 | that is the objective bge-reranker was trained under, so `sigmoid(logit)` is the model's own calibrated relevance; 0.25 is enough to carry a grade across a band edge, never enough for a model's opinion to carry a document alone | min-max normalising the batch — it scores the best candidate 1.0 whether or not it is relevant, re-introducing the failure one layer down | `modules/research_crag_signals.py` |
+| The figure fence exempts dates and clock times | a document writing `2026-03-12` and an answer writing "12 March" are the same fact; a verbatim comparison would refuse legitimate prose. Recorded as a gap rather than left to be discovered | date normalisation now (a bigger piece of work); or dropping the fence because it cannot be complete | `modules/research_generate_figures.py` |
+| The `/ask` bound is inert with no `GEMINI_API_KEY` | a desk that cannot reach a model cannot spend; refusing a free query because a paid one would be expensive is an outage, not a bound — and without it the offline suite would be rate-limited by a cap written for a deployment that spends | a cap that fires regardless; an invented average price so an unpriced provider can still be capped | `modules/research_quota.py` |
+| The ingest drain retries and dead-letters rather than discarding | the queue matched the mirror but the delivery did not; a bounded buffer that forgets silently is the same defect as the counter it replaces, so the book records identity and counts its discards | one attempt then drop (what it did); an unbounded book; storing the body, which is the embedded text | `modules/research_ingest_delivery.py` |
 | Generation refuses before the call, below band | spending the call to dress up weak evidence leaves a fluent paragraph that is far harder to throw away than one never written | generate first, grade after | `modules/research_generate.py` |
 | A fabricated citation refuses the whole answer | a warning beside an answer is a thing readers learn to skip | return it with `grounded: false` | `modules/research_generate.py` |
 | Charts indexed by computed description | every figure a vision model would read off pixels is a number the desk computed to draw the chart; exact beats approximate at zero cost | CLIP/SigLIP image embedding (and the Edge runtime has no vision model anyway) | `modules/research_chartdoc.py` |

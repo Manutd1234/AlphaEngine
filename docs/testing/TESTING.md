@@ -12,8 +12,8 @@ the habits that keep them honest. The four facts that cost an hour each are in
 
 Three suites, three runners, one committed record:
 [`web/lib/test-counts.generated.ts`](../../Part2_Infrastructure/web/lib/test-counts.generated.ts)
-holds what each runner printed on 2026-08-22 — **gateway 1,720 collected (1,719
-passed, 1 skipped)**, **web 3,883 tests across 838 suites**, **service 14** —
+holds what each runner printed on 2026-08-22 — **gateway 2,030 collected (2,028
+passed, 2 skipped)**, **web 3,900 tests across 839 suites**, **service 14** —
 and its own header explains why it exists: the counts were once three
 hand-copied integers in a component, and they drifted three separate times, the
 last time inside a single afternoon.
@@ -86,16 +86,21 @@ flowchart TD
 ## Reading the skips
 
 The skip line is a report, not noise. On Python 3.12 with the native core
-built, the gateway suite is 1,719 passed and **exactly one** skipped:
-`tests/test_data_ops_postgrest.py`, whose skip reason states in full that no
-`SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` was in the environment, so the
-Postgres backend was *not* exercised. That is the house habit of reporting
-absence instead of papering over it, applied to the suite itself.
+built, the gateway suite is 2,028 passed and **exactly two** skipped, each
+stating in full what it did not exercise — the house habit of reporting absence
+instead of papering over it, applied to the suite itself:
 
-- **A second skip is a diagnosis**: on Python 3.14, `tests/test_backtester.py`
+- `tests/test_data_ops_postgrest.py` — no `SUPABASE_URL` /
+  `SUPABASE_SERVICE_ROLE_KEY` was in the environment, so the Postgres backend
+  was *not* exercised.
+- `tests/test_research_rerank_real.py` — `RERANK_TEST_MODEL_PATH` was unset, so
+  no cross-encoder weights were offered and the real ONNX path was *not*
+  exercised. Seed with `python tools/bench_rerank.py --seed --model-path DIR`.
+
+- **An UNEXPECTED skip is a diagnosis**: on Python 3.14, `tests/test_backtester.py`
   skips ("vectorbt not installed", because numba has no 3.14 wheel) and the
-  summary still reads green, one engine lighter. Count the skips, not the
-  passes.
+  summary still reads green, one engine lighter. Read the skip REASONS, not the
+  count — two skips are correct today, and it is WHICH two that matters.
 - **A missing native core is a failure, never a skip.**
   `tests/test_decision_core_native.py` treats an unimportable
   `modules/_decision_core` as a red build unless `DECISION_CORE=python` was set
@@ -168,6 +173,48 @@ corpus, the ONNX cross-encoder, the Gemini SDK), at exactly the boundaries
 those modules document as their own test seams, so the real fallback, real
 fences and real prompt run. Faking one step higher would prove nothing, which
 is the whole argument of the contract file.
+
+### The same doctrine, applied to the newer research suites
+
+The research plane grew a batch of suites written under the rule above — fake
+the outside world at the boundary the module documents, and nothing else. Four
+are worth naming because each one had to resist an easier test that would have
+proved less:
+
+- **The ingest drain** (`tests/test_research_ingest_drain.py`) runs a real
+  `ResearchRag`, a real queue, a real drain, the real `deliver()` and the real
+  `Backoff`; only the corpus is faked, at the HTTP boundary. The retry curve is
+  shortened by moving the delivery module's own constants, **not** by injecting
+  a sleeper — an injected clock would have tested a seam that does not exist in
+  production. The distinction the suite exists to hold: a 503-then-201 must
+  *actually recover*, because a retry that merely delays the funeral passes any
+  test that only counts attempts.
+- **The execution-summary producer** (`tests/test_research_ingest_session.py`)
+  seeds a real `AuditLog` on disk through the gateway's own writers
+  (`record_session_rollover`, `record_order`, `record_equity_snapshot`), because
+  the claim under test is precisely that the figures *already exist*. Every card
+  number is checked against a hand-computed value, and the last test in the file
+  is the wiring one: the backfill tool's own function rendering and storing two
+  documents from that log.
+- **The stage widths** (`tests/test_research_stage_widths.py`) are measured **at
+  the corpus** on the real path — the fake corpus records the width it was asked
+  for — rather than asserted against the arithmetic that produced them. An
+  assertion on `wide(20) == 60` alone would survive the width never reaching the
+  RPC, which is the defect that made this change necessary.
+- **The auth matrix** (`tests/test_research_security_auth.py`) reads its route
+  list from `main.app.openapi()`, so a research route nobody wrote a case for
+  fails the suite. Walking `app.routes` was the rejected reader: this FastAPI
+  version wraps included routers in objects whose `path` is `None`, so that walk
+  returns an empty set and passes every comparison made against it — a guard
+  that cannot fail, which is the tautology the mutation section below exists to
+  catch.
+
+Two constraints these suites work under, both load-bearing and neither
+negotiable: **the real re-ranker weights never run** (they would need a
+download, so `RERANK_MODEL_PATH` is blanked and the ONNX path is exercised
+through a fake cross-encoder at the import seam), and **the `/ask` spend bound
+is inert without `GEMINI_API_KEY`** — which is what stops a cap written for a
+deployment that spends from rate-limiting an offline suite that cannot.
 
 ## Mutation testing, as practised here
 
@@ -279,8 +326,8 @@ measured numbers. By hand, from `Part2_Infrastructure/`:
 
 | Suite | Command | Prerequisites and what green means |
 |---|---|---|
-| Gateway (1,720) | `venv/bin/python -m pytest` (add `-rs` to see skip reasons) | venv named exactly `venv`, Python 3.12, `requirements-dev.txt`, `requirements-native.txt` and the built core (`python native/decision_core/setup.py build_ext --inplace --build-temp build/native`). Expect exactly one skip; see "Reading the skips". |
-| Web (3,883 / 838 suites) | `cd web && npm test` | Node 22, `npm ci`. Runner is `node --import tsx --test tests/*.test.ts` — Node's own runner, no Jest/Vitest, consistent with the no-new-dependencies rule. |
+| Gateway (2,030) | `venv/bin/python -m pytest` (add `-rs` to see skip reasons) | venv named exactly `venv`, Python 3.12, `requirements-dev.txt`, `requirements-native.txt` and the built core (`python native/decision_core/setup.py build_ext --inplace --build-temp build/native`). Expect exactly two skips; see "Reading the skips". |
+| Web (3,900 / 839 suites) | `cd web && npm test` | Node 22, `npm ci`. Runner is `node --import tsx --test tests/*.test.ts` — Node's own runner, no Jest/Vitest, consistent with the no-new-dependencies rule. |
 | Web types | `cd web && npm run typecheck` | There is **no `lint` script** in `web/` — `npm run lint` fails as a missing script, not a broken linter. |
 | Python lint | `venv/bin/python -m ruff check .` | Configured in `pyproject.toml`, installed by `requirements-dev.txt`. |
 | OpenBB service (14) | `cd OpenBB_Service && python -m pytest` | Its own `requirements-dev.txt` (pytest 9.1.1, httpx); stateless, offline. |
@@ -304,6 +351,17 @@ enforcement).
 - **CI never builds the container image** — `tests/test_container_contract.py`
   holds the committed definition to its promises by text analysis, on purpose,
   because CI is network-free.
+- **The cross-encoder's real ONNX weights never run** — `BAAI/bge-reranker-base`
+  would have to be downloaded, and the network-free rule outranks it. What the
+  suite proves is the wiring, the widening arithmetic, the bulkhead and the
+  grader's handling of a score; not the model's quality. Stated as a limit
+  rather than dropped, because "the re-ranker is tested" would be the wrong
+  sentence to leave standing.
+- **No live Neo4j, and therefore no assertion of the exact Cypher.** The graph
+  read model is exercised against a fake driver — the real module, a fake
+  transport — so the queries are pinned by fragment matching only. A syntax
+  error in one of them would surface as a *named fallback reason* rather than a
+  red test: the safe direction, and not proof.
 
 *Related: [`FEATURE_TOUR.md`](../product/FEATURE_TOUR.md) for what the tested system
 does; [`LATENCY_BUDGET.md`](../architecture/LATENCY_BUDGET.md) for the measurement doctrine

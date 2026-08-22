@@ -181,12 +181,14 @@ trusting the counts — they drift, and a number nobody re-measured is a number
 nobody should quote.
 
 ```bash
-# Gateway suite — 1,719 passed, 1 skipped (native core built, Python 3.12).
-# The one skip is test_data_ops_postgrest.py with no Supabase creds in the
-# environment; a SECOND skip means the venv is not 3.12.
+# Gateway suite — 2,028 passed, 2 skipped (native core built, Python 3.12).
+# The two skips are test_data_ops_postgrest.py (no Supabase creds) and
+# test_research_rerank_real.py (no seeded re-ranker weights). Both NAME what
+# was not exercised; read the reasons with -rs, never the count alone.
+
 cd Part2_Infrastructure && venv/bin/python -m pytest
 
-# Web suite — 3,883 passed across 838 suites, no browser needed
+# Web suite — 3,900 passed across 839 suites, no browser needed
 cd Part2_Infrastructure/web && npm test
 
 # Research service — 14 passed

@@ -162,10 +162,10 @@ one-sided formula change fail the other side's suite. The pre-trade arithmetic
 exists a third time in C++. README §12 is the full parity argument.
 
 Test truth, from `web/lib/test-counts.generated.ts` (generated 2026-08-21, the
-only file allowed to carry these numbers): gateway **1,719 passed and exactly
+only file allowed to carry these numbers): gateway **2,028 passed and exactly
 one skipped** (the skip is the Postgres data-ops backend reporting no Supabase
 credentials — expected; a *second* skip means the venv is the wrong Python, per
-CLAUDE.md), web **3,883 tests across 838 suites**, service **14**.
+CLAUDE.md), web **3,900 tests across 839 suites**, service **14**.
 
 ## The desk workspace — eight tabs
 
@@ -203,9 +203,23 @@ so it cannot block, cannot raise past its own frame, and on a full queue
 *counts the drop* rather than waiting. A mirror that can slow an order down has
 become load-bearing; this one is structurally incapable of it. Second, the
 **RAG corpus**: `public.research_documents` under a 384-dim pgvector HNSW
-cosine index, written through the same bounded-queue discipline. RLS is
-deny-by-default, tables are append-only by trigger; the 32 ordered migrations
-live in [`supabase/migrations/`](../../supabase/migrations/). With no
+cosine index, written through the same bounded-queue discipline **and now the
+same delivery discipline**. The queue always matched the mirror's — `put_nowait`,
+drop and count, never blocking a caller — but for a while only the queue did:
+the drain made one delivery attempt and discarded, where the mirror retried
+three times with backoff. `modules/research_ingest_delivery.py` closes that
+with the mirror's own attempt count, curve and reason vocabulary
+(`auth` / `rejected` / `timeout` / `unreachable` / `error`, with `auth` kept
+apart because an expired service-role key is an operator's problem and a
+rejected row is a developer's), and a document that never lands goes to a
+bounded in-memory dead-letter book that reports its depth, its recent entries
+and what it discarded when full through `status()`. It is a diagnosis, **not a
+durable replay queue** — replaying a dead letter is still
+`tools/backfill_research_rag.py`'s job. RLS on this corpus is **still
+bypassed** (the gateway reads with the service-role key); what landed instead
+is an optional `filter_desk_id` predicate on both retrieval RPCs, described
+under the pipeline below. Tables are append-only by trigger; the 33 ordered
+migrations live in [`supabase/migrations/`](../../supabase/migrations/). With no
 `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` configured every mirror method is a
 no-op and every RAG route returns a typed `unavailable` — which is what keeps
 the whole suite green with zero environment.
@@ -213,18 +227,30 @@ the whole suite green with zero environment.
 **Neo4j is a projection, never a second write path.** Postgres owns
 `research_edges`; `modules/research_graph_projection.py` MERGEs that derived
 state into Neo4j on a six-hourly sweep, and a daily sweep partitions the whole
-corpus (Louvain, seeded) and writes community labels back, stamped with the
-sweep that made them (`modules/research_schedule.py`,
-`DEFAULT_RECONCILE_SCHEDULES`). A dual write was the rejected alternative: two
-systems that must agree, with drift only detectable if somebody goes looking.
-Projection makes divergence a non-event — if the graph is wrong, drop it and
-re-project. Neo4j earns its place only for graph-algorithm workloads
-(community detection, PageRank); depth-bounded traversal stays on a Postgres
-recursive CTE (`modules/research_graph.py` — "without a graph database", per
-its own docstring). **Absent** — unset `NEO4J_URI`, or the optional
-`requirements-graph.txt` driver not installed — is the normal deployment: the
-sweep reports a named reason, never an exception, and the whole test suite
-passes without it.
+corpus and writes **both** label sets back off one read — Louvain communities
+on a fixed seed, and PageRank centrality, each stamped with the sweep that made
+them (`modules/research_schedule.py`, `DEFAULT_RECONCILE_SCHEDULES`). A dual
+write was the rejected alternative: two systems that must agree, with drift only
+detectable if somebody goes looking. Projection makes divergence a non-event —
+if the graph is wrong, drop it and re-project.
+
+**It is no longer write-only.** `modules/research_graph_read_model.py` reads
+those labels and scores back, and the `/communities` and `/centrality` routes
+try it first, falling back to the in-process networkx computation and marking
+which one answered (`source: "neo4j" | "corpus"`, with the read model's refusal
+carried whole so the reason is always readable). Nothing is invented on that
+path: modularity, seed, resolution and damping are not in the graph, so they are
+absent rather than restated, and a set of labels written by two different sweeps
+refuses as "mid-rebuild" because community ids are comparable only within one
+sweep. A writer may not read its own output — the sweep itself is forced onto
+the corpus path, because a sweep that read its last partition back would be a
+fixpoint. **Request-time traversal is still Postgres**: `/{document_id}` runs
+the recursive CTE (`modules/research_graph.py` — "without a graph database",
+per its own docstring), and no request path depends on Neo4j being up.
+**Absent** — unset `NEO4J_URI`, or the optional `requirements-graph.txt` driver
+not installed — is the normal deployment: both the sweep and the read model
+report a named reason, never an exception, and the whole test suite passes
+without either.
 
 ## The research (RAG) pipeline — five stages as built
 
@@ -234,73 +260,157 @@ triggers on a precisely-defined execution anomaly — a fill whose *realised*
 slippage exceeds the pre-trade ceiling, a rejection citing slippage or
 drawdown, the breaker engaging — not on vibes, not on every order.
 
+**The numbering below is the code's own** (`modules/research_generate.py` opens
+"Stage 5") and matches [`PRD.md` §3](../planning/PRD.md) exactly. This document
+used to number the cross-encoder "Stage 3" and CRAG "Stage 4" and to omit
+orchestration altogether, which put two numberings on one pipeline and left the
+router unnamed in the architecture map. There is one numbering now, and stage 3
+is orchestration.
+
 ```mermaid
 flowchart TB
     subgraph s1["Stage 1 — ingestion from structured data"]
-        sources["audit log backtest_runs,\nexecution summaries, risk incidents"]
-        cards["modules/research_cards.py\nplain-text cards; body = exact embedded text"]
-        embed["embed-research edge function\ngte-small, 384-dim, unit-normalised"]
-        corpus[("public.research_documents\npgvector HNSW, cosine")]
-        sources --> cards --> embed --> corpus
+        sources["audit log backtest_runs, charts,<br/>ML runs, risk incidents (live);<br/>closed-session execution summaries<br/>(backfill tool only)"]
+        cards["research_cards.py · research_chartdoc.py<br/>research_ingest_session.py<br/>plain-text cards; body = exact embedded text"]
+        writer["research_rag/writer.py + research_ingest_delivery.py<br/>bounded queue, supervised drain,<br/>3 retries then a dead letter"]
+        embed["embed-research edge function<br/>gte-small, 384-dim, unit-normalised"]
+        corpus[("public.research_documents<br/>pgvector HNSW, cosine")]
+        sources --> cards --> writer --> embed --> corpus
     end
 
-    subgraph s2["Stage 2 — hybrid retrieval"]
-        rpc["match_research_documents_hybrid RPC:\ndense cosine + FTS ts_rank_cd,\nfused by RRF, k = 60"]
-        bm25["modules/research_bm25.py — third arm\nOkapi BM25 k1=1.2 b=0.75,\nre-fused at the same k = 60;\nreorders, never adds or drops"]
-        rpc --> bm25
+    subgraph s2["Stage 2 — retrieval, four arms"]
+        rpc["match_research_documents_hybrid RPC:<br/>dense cosine + FTS ts_rank_cd,<br/>fused by RRF, k = 60;<br/>optional filter_desk_id predicate"]
+        bm25["research_bm25.py — third arm<br/>Okapi BM25 k1=1.2 b=0.75,<br/>re-fused at the same k = 60"]
+        gwalk["traverse_research_graph CTE — fourth arm<br/>research_graph_fusion.fuse_graph_matches<br/>joins the walk in at the same k = 60"]
+        rpc --> bm25 --> gwalk
     end
 
-    subgraph s3["Stage 3 — cross-encoder re-rank (OPTIONAL)"]
-        rerank["modules/research_rerank.py\nBGE cross-encoder, ONNX, CPU-only:\nwiden to 20 candidates, keep top 3\noff the event loop, behind a bulkhead"]
+    subgraph s3["Stage 3 — orchestration (built, not LangGraph)"]
+        router["research_router.py<br/>bounded plan over a closed 4-tool registry,<br/>one correlation id, every call in the ledger"]
+        struct["research_structured.py — the structured arm:<br/>counts and extrema over the audit log's<br/>own backtest_runs, never a similarity"]
     end
 
-    subgraph s4["Stage 4 — CRAG grading"]
-        grade["modules/research_crag.py\nscore > 0.8 answer\n0.4-0.8 rewrite once, re-query\nscore < 0.4 refuse, and say why"]
+    subgraph s4["Stage 4 — re-rank (OPTIONAL) + CRAG grading"]
+        rerank["research_rerank.py<br/>BGE cross-encoder, ONNX, CPU-only:<br/>widen ×4 (floor 20, ceiling 60), keep top 3,<br/>off the event loop, behind a bulkhead"]
+        grade["research_crag.py + research_crag_policy.py<br/>≥ 0.8 answer · 0.4–0.8 rewrite once,<br/>then answer or REFUSE · < 0.4 refuse"]
+        rerank --> grade
     end
 
     subgraph s5["Stage 5 — fenced generation (OPTIONAL)"]
-        generate["modules/research_generate.py\nGemini via google-genai; five fences,\nrefusal before the call below the band,\ncitations verified after it"]
+        generate["research_generate.py + _prompt + _figures<br/>Gemini via google-genai; five fences,<br/>four of which refuse in code"]
     end
 
     corpus --> rpc
-    bm25 --> rerank --> grade --> generate
+    router --> rpc
+    router --> gwalk
+    router --> struct
+    gwalk --> rerank
+    grade --> generate
+    generate --> ask["POST /api/research/rag/ask<br/>behind a rate + spend bound"]
 ```
 
 Stage by stage, with what each refuses to do:
 
 1. **Ingestion** (`modules/research_rag/writer.py`, cards from
    `modules/research_cards.py`): renders documents from structure the desk
-   already records — completed backtests with DSR/PBO/`data_hash`, session
-   execution summaries, risk incidents, and one document per chart described
-   from the figures that drew it. `body` stores the exact embedded text, so a
-   renderer change can never silently invalidate stored vectors. An embed
-   outage stores `embedding_status='pending'` — **never a zero vector**, which
-   is equidistant from everything and would rank as "similar" to any query.
-2. **Hybrid retrieval** (`modules/research_rag/retrieval.py`): the
+   already records — completed backtests with DSR/PBO/`data_hash`, one document
+   per chart described from the figures that drew it, fitted ML runs, and risk
+   incidents. `body` stores the exact embedded text, so a renderer change can
+   never silently invalidate stored vectors. An embed outage stores
+   `embedding_status='pending'` — **never a zero vector**, which is equidistant
+   from everything and would rank as "similar" to any query. The drain is
+   supervised: one document at a time inside a broad guard (so a poisoned
+   response dead-letters that document instead of killing the loop), three
+   delivery attempts on the mirror's backoff curve, a bounded dead-letter book
+   for what never lands, and `_ensure_drain_alive()` on the submit path to
+   recreate a task that ended anyway. **Session execution summaries have a
+   producer at last** (`modules/research_ingest_session.py`) — figures read from
+   `session_costs`, `equity_snapshots` and `orders`, only for sessions the
+   desk's own `session_rollover` rows show as closed, every absent figure
+   written "not recorded" rather than zero — but its only caller is
+   `tools/backfill_research_rag.py`. **There is no in-process emission**: on a
+   running desk the summaries appear when the backfill is run and not before.
+2. **Retrieval** (`modules/research_rag/retrieval.py`): the
    `match_research_documents_hybrid` RPC fuses the dense arm and the Postgres FTS arm by
    Reciprocal Rank Fusion at `k = 60`
    (`supabase/migrations/20260810090000_hybrid_research_search.sql`); the BM25
-   arm re-scores only the survivors and re-fuses at the same k, because a third
-   arm joining on a different constant is a second fusion wearing the first
-   one's name. BM25 replaces neither arm: dropping FTS would discard the GIN
-   index that finds candidates at all.
-3. **Re-rank** — *optional*: with `RERANK_MODEL_PATH` set, retrieval widens to
-   20 candidates (`RERANK_CANDIDATES`) and the cross-encoder keeps the top 3.
-   It runs through `asyncio.to_thread` behind a two-slot bulkhead
-   (`modules/research_stages.py`) because this event loop also serves pre-trade
-   risk, whose budget is microseconds.
-4. **CRAG grading** (`modules/research_crag.py`, `ANSWER_BAND = 0.8`,
-   `REFUSE_BAND = 0.4`): deterministic arithmetic over signals already in the
-   retrieval row — not an LLM, which would make the grade a function of a model
-   version. The rewrite is bounded to one retry *structurally* — straight-line
-   code with one `if`, not a loop a third attempt could creep into.
+   arm re-scores only the survivors and re-fuses at the same k, and the graph
+   walk now joins as a **fourth arm** through
+   `research_graph_fusion.fuse_graph_matches` at that same k — because an arm
+   joining on a different constant is a second fusion wearing the first one's
+   name. The graph rank is *position* in the traversal, not a function of depth:
+   "a two-hop document is half as relevant" is a number nobody measured. Rows
+   the walk did not reach carry `graph_rank: None`, never 0, which would read as
+   better than first. BM25 replaces no arm: dropping FTS would discard the GIN
+   index that finds candidates at all. Both RPCs accept an optional
+   `filter_desk_id`, applied inside the candidate CTE **before** either ranking
+   is taken, so a scoped rank is a rank among rows the caller was allowed rather
+   than "rank 4 of everybody"; null means unscoped, never "rows whose owner is
+   null".
+3. **Orchestration** — *built, not LangGraph* (`modules/research_router.py`,
+   `research_router_calls.py`, `research_router_exec.py`): a deterministic
+   rule-based planner picks from a closed four-tool registry — `hybrid_search`,
+   `graph_traverse`, `structured_runs`, `lexical_exact` — and the **router**, not
+   the planner, enforces the four limits, so substituting a model-backed planner
+   later cannot loosen them. The plan is bounded by `bound_calls`, which
+   truncates from the tail of the speculative calls along a named priority
+   ladder and lets the guaranteed `hybrid_search` take the last slot; it removes
+   calls and never invents one. One correlation id stamps the `research_plan`
+   row, every `research_tool_call` row and the `research_generation` row, and it
+   spans both plans of a CRAG rewrite. Each call is wall-clock timed and records
+   what was actually sent — the bare token for `lexical_exact`, which is not the
+   caller's query. `structured_runs` is a real reader now: counts, extrema and
+   means over the audit log's own `backtest_runs`, with NULL metrics excluded
+   from extrema and means and the number excluded reported. Its rows carry **no**
+   `similarity` and stay off the match list, because a required float would have
+   to be written 0.0 — "not applicable" spelled as "worst possible".
+4. **Re-rank** — *optional* — **and CRAG grading**. With `RERANK_MODEL_PATH`
+   set, retrieval widens by a genuine multiple (`wide()`: ×4, floored at
+   `RERANK_CANDIDATES` = 20 and ceilinged at 60, and never below what the caller
+   asked for) and the cross-encoder keeps the top 3, through `asyncio.to_thread`
+   behind a two-slot bulkhead (`modules/research_stages.py`) because this event
+   loop also serves pre-trade risk, whose budget is microseconds. The graph arm
+   has its **own** width now — nothing narrows it, so every row it asks for is a
+   row the caller is served. Then `modules/research_crag.py` grades
+   (`ANSWER_BAND = 0.8`, `REFUSE_BAND = 0.4`): deterministic arithmetic over
+   signals already on the retrieval row — not an LLM, which would make the grade
+   a function of a model version — with the cross-encoder's own logit folded in
+   as a fifth signal at weight 0.25 when a re-ranker ran, and the score left
+   untouched to the decimal when none did. All three bands decide: the rewrite is
+   bounded to one retry *structurally* (straight-line code with one `if`, not a
+   loop a third attempt could creep into), and a mid-band result that still does
+   not clear `ANSWER_BAND` after it **refuses**. That is a behaviour change — it
+   used to be served as `state: "ok"` — and it is what makes `ANSWER_BAND`
+   load-bearing for the first time.
 5. **Generation** — *optional*: below the refuse band the model is never
-   called; the context is closed to the supplied documents; figures are quoted,
-   never computed; a citation not in the context refuses the whole answer; the
-   call is wall-clock- and token-bounded. `corpus_silent` is a correct verdict,
-   not an error. Every model call actually spent lands in the
-   `research_generation` ledger, gated on `model_called` — a refusal that
-   fired after the call still spent the money and still gets its row.
+   called; the context is closed to the supplied documents and every document
+   line is **quoted** as untrusted data, so a body containing this module's own
+   markers arrives visibly quoted rather than as instructions, and an
+   instruction-shaped override refuses **before** the call and spends nothing;
+   figures are quoted, never computed, and that is now a *check* — every number
+   the answer states, other than a citation id, a date or an ordinal, must
+   appear character-for-character in a supplied document; a citation not in the
+   context refuses the whole answer; the call is wall-clock- and token-bounded.
+   `corpus_silent` is a correct verdict, not an error. Every model call actually
+   spent lands in the **`research_generation`** ledger, gated on `model_called` —
+   a refusal that fired after the call still spent the money and still gets its
+   row.
+
+**The bound in front of `/ask`** (`modules/research_quota.py`,
+`research_quota_gate.py`): a token bucket — the gateway's own
+`risk_proxy.rate_limit.TokenBucket`, imported rather than reinvented — plus a
+rolling spend window priced from the token counts the SDK reports. Spend is
+refused *before* a rate token is consumed, so a capped deployment does not also
+drain its bucket. Refusals are typed (`rate_limited`, `spend_capped`,
+`scope_unavailable`) on 429 with `Retry-After`, or 503 — never a bare 500, and
+never confusable with the three refusals that mean the request *was* served
+(`unavailable`, `refused`, `corpus_silent`). Two honesty limits are stated
+rather than hidden: a call the provider reports no token counts for is recorded
+as **unpriced** and the window's total is a floor (`state: "partial"`), never
+filled with an invented average; and the cap **lags by one request**, because
+token counts are only known after a call returns. With no `GEMINI_API_KEY` the
+bound is inert by design — refusing a free query on the grounds that a paid one
+would be expensive is not a bound, it is an outage.
 
 **Which stages are optional, and what absence looks like** — absence is a
 state, not a failure, and each one names itself:
@@ -310,9 +420,11 @@ state, not a failure, and each one names itself:
 | 1 · Ingestion | `SUPABASE_URL` + service-role key | every write is a no-op; search returns typed `unavailable`, never `[]` — "could not search" and "found nothing" are different facts |
 | 2 · Dense + FTS | the same Supabase | as above — one switch for the whole corpus |
 | 2 · BM25 arm | nothing (in-tree, pure Python) | not optional; but when it cannot discriminate, the two-arm order stands unchanged and the report names the reason — declining is not failing |
-| 3 · Re-rank | `RERANK_MODEL_PATH` + `requirements-rerank.txt` | RRF order passes through untouched, retrieval stays at 3 candidates, `rerank_state` says why |
+| 2 · Graph arm | nothing (Postgres CTE) | the fusion declines in the BM25 arm's report shape (`ranked: false` + a named reason) and the retrieved rows survive unchanged — a walk that returned rows and a walk whose rows were never ranked in stay distinguishable |
+| 3 · Orchestration | nothing | always on; `structured_runs` reports `unavailable` with no audit store rather than answering zero |
+| 4 · Re-rank | `RERANK_MODEL_PATH` + `requirements-rerank.txt` | RRF order passes through untouched, retrieval stays at the caller's width, `rerank_state` says why, and the grader's fifth signal is simply not read |
 | 4 · CRAG | nothing | always on — it is the policy over retrieval, not an extra |
-| 5 · Generation | `GEMINI_API_KEY` + `requirements-genai.txt` | every answer reports `verdict: refused` with the reason; the desk runs exactly as before |
+| 5 · Generation | `GEMINI_API_KEY` + `requirements-genai.txt` | every answer reports `verdict: refused` with the reason; the spend bound is inert; the desk runs exactly as before |
 
 ## The Telegram companion
 
@@ -335,10 +447,35 @@ the counts above cannot drift from what the bot dispatches without a red check.
   vision model anywhere in the research path: a chart document is retrievable
   by the text describing the figures that drew it, because the Edge runtime's
   embedding session takes no image.
-- **Nothing reads Neo4j to answer a request today.** The projection exists for
-  the community/centrality reports; the per-document traversal route runs on
-  Postgres. Moving the read path is the deliberate stopping point, not an
-  oversight.
+- **The community and centrality reports now read Neo4j; nothing else does.**
+  Those two routes try the projection first and fall back to the in-process
+  networkx computation, saying which answered. Request-time *traversal* still
+  runs on the Postgres recursive CTE, and no request path depends on the graph
+  being up. The algorithms themselves are **not** run inside Neo4j: Louvain and
+  PageRank live in the GDS library, which the Aura Free tier does not have and
+  CI cannot install, so the read model serves what the sweep computed rather
+  than computing genuinely different things under one field name.
+- **`execution_summary` has no live producer.** The renderer, its figures and
+  its document are built and tested, and `tools/backfill_research_rag.py` calls
+  them — but nothing emits one in process, because that needs a hook at the
+  session-rollover site in `modules/risk_proxy/`. On a running desk the
+  summaries appear when the backfill is run and not before.
+- **The re-ranker's ONNX weights do not run in CI.** `BAAI/bge-reranker-base`
+  would have to be downloaded and this suite is network-free by construction
+  (`tests/conftest.py` blanks `RERANK_MODEL_PATH` deliberately). What CI proves
+  is the wiring and the arithmetic around the model, through a fake
+  cross-encoder at the import seam — not the model.
+- **RLS on the research corpus is still bypassed** and the tenant scope is
+  per-desk, not per-user. The gateway reads with the service-role key and the
+  writer sets no `user_id`; what landed is the `filter_desk_id` predicate the
+  retrieval functions never had. One shared gateway token means there is no
+  per-user identity to key on yet.
+- **No UI consumes `POST /api/research/rag/ask`.** The workspace proxies
+  `/search` (`web/app/api/gateway/research/rag/route.ts`) and the two graph
+  reports; `/ask` is reachable over HTTP, pinned by the generated contract and
+  covered by the auth matrix, but nothing in `web/` calls it. Named because a
+  route with no consumer is the exact defect
+  [`PLAN.md` §1](../planning/PLAN.md) records.
 - **Real order routing is NOT BUILT.** Orders are paper, capped by the
   gateway's own gates; README §9 ("What is deliberately missing") carries the
   full honesty ledger, including what is mocked versus implemented.

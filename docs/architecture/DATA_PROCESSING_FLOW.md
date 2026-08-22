@@ -198,14 +198,16 @@ flowchart TD
     BT -->|"run card + one doc per chart<br/>research_cards.render_backtest_documents"| Q
     ML -->|"ml_run card<br/>research_cards.render_ml_card"| Q
     AN -->|"risk_incident card<br/>research_cards.render_incident_card"| Q
-    Q["bounded asyncio.Queue<br/>research_rag/writer.py — same discipline as the mirror"]
-    Q --> DR["_drain task"]
-    DR --> EF["supabase/functions/embed-research<br/>Supabase.ai gte-small, 384-dim, normalised<br/>service-role only; anon gets 401"]
+    Q["bounded asyncio.Queue<br/>research_rag/writer.py — same discipline as the mirror:<br/>put_nowait, drop and COUNT, never blocks a caller"]
+    Q --> DR["_drain task — one document at a time,<br/>inside a broad guard; _ensure_drain_alive()<br/>recreates a task that ended anyway"]
+    DR --> DEL["research_ingest_delivery.deliver()<br/>3 attempts on the mirror's own backoff<br/>(base 1s, ceiling 30s); auth kept apart<br/>from rejected"]
+    DEL -->|"never landed"| DL["bounded dead-letter book<br/>identity + reason + attempts, NOT the body;<br/>counts what it discarded when full"]
+    DEL --> EF["supabase/functions/embed-research<br/>Supabase.ai gte-small, 384-dim, normalised<br/>service-role only; anon gets 401"]
     EF --> RD[("public.research_documents<br/>body = the exact embedded text<br/>pgvector HNSW, cosine")]
     EF -.->|"embed failure"| PEND["embedding_status='pending'<br/>never a zero vector"]
     RD --> PE["modules/research_graph.persist_edges<br/>one statement per written document"]
     PE --> RE[("public.research_edges<br/>unique (src_id, dst_id, relation)")]
-    BF["tools/backfill_research_rag.py<br/>replays backtest_runs + ml_runs,<br/>re-embeds pending rows"] --> EF
+    BF["tools/backfill_research_rag.py<br/>replays backtest_runs + ml_runs and renders<br/>one execution_summary per CLOSED session;<br/>upserts merge-duplicates — it never<br/>selects on embedding_status"] --> EF
 ```
 
 The rules that make the corpus trustworthy, each with its reason:
@@ -220,7 +222,36 @@ The rules that make the corpus trustworthy, each with its reason:
   never silently invalidate stored vectors.
 - **An embed outage stores `embedding_status='pending'` — never a zero
   vector**, which is equidistant from everything and would rank as "similar"
-  to any query. The backfill tool re-embeds pending rows.
+  to any query. **The backfill tool does not sweep those rows.** It never
+  selects on `embedding_status`; it re-derives every source row it can reach
+  and upserts `merge-duplicates`, so a pending document is rewritten with a
+  fresh embedding as a *side effect* of its source row being re-rendered. A
+  pending document whose source row falls outside `--limit` — or whose kind the
+  backfill does not emit, which is every `chart` — is not repaired by it. A
+  query that selects the pending rows and re-embeds only those does not exist.
+- **A document that cannot be delivered is dead-lettered, not discarded.** The
+  drain retries three times on the same backoff curve
+  [`modules/supabase_mirror.py`](../../Part2_Infrastructure/modules/supabase_mirror.py)
+  uses and keeps its closed reason vocabulary — `auth` deliberately apart from
+  `rejected`, because an expired service-role key is an operator's problem and a
+  rejected row is a developer's. What still never lands goes into a bounded
+  in-memory book that records the failure's *identity* (kind, source_ref,
+  reason, detail, attempts, at) rather than its body — the body is the embedded
+  text and can be kilobytes — and counts what it discarded when full, since a
+  bounded buffer that forgets silently is the same defect as the counter it
+  replaced. `status()` reports the depth, the discards and the recent entries.
+  It is a **diagnosis, not a durable replay queue**: replaying a dead letter is
+  still the backfill tool's job, and nothing re-submits automatically.
+- **The drain supervises itself, weakly and on purpose.** It processes one
+  document at a time inside a broad `except Exception` (re-raising
+  `CancelledError` so `stop()` still works), because the fault that once killed
+  the task was an HTML 502 served as a 200: `embed_many` caught only
+  `httpx.HTTPError` while `response.json()` raised a `ValueError`. And
+  `_ensure_drain_alive()` recreates a task that ended anyway — but only on the
+  submit path, so a drain that dies while the queue is idle is revived by the
+  next submission rather than immediately. A watchdog loop was the rejected
+  alternative: a second task to watch the first is one more thing that can die
+  quietly.
 - **Charts become text documents** — one per chart, with kind `chart` and
   `source_ref` `<job_id>:<chart>`, described from the figures the desk
   computed in order to draw them. No image is embedded: the Edge runtime's
@@ -228,10 +259,22 @@ The rules that make the corpus trustworthy, each with its reason:
 - **Document kinds** — the enum
   ([`supabase/migrations/20260808120400_pgvector_research_documents.sql`](../../supabase/migrations/20260808120400_pgvector_research_documents.sql)
   and its successors) carries `backtest_run`, `chart`, `execution_summary`,
-  `ml_run`, `risk_incident`. **Honest status:** `execution_summary` exists in
-  the enum, the API filter vocabulary
-  ([`modules/schemas_research.py`](../../Part2_Infrastructure/modules/schemas_research.py))
-  and the graph linker, but no production writer emits it today.
+  `ml_run`, `risk_incident`. **Honest status:** `execution_summary` now has a
+  producer — [`modules/research_ingest_session.py`](../../Part2_Infrastructure/modules/research_ingest_session.py)
+  renders one card per closed UTC session from figures that already exist
+  (`session_costs` for fills, notional, fees and realised slippage cost;
+  `equity_history` for the closing book; three grouped selects over `orders` for
+  the decision counts, the strategies traded and the venue mix), with every
+  absent figure written "not recorded" and an unpriced fill turning the slippage
+  cost into an explicit lower bound rather than a number. Closure is read from
+  the desk's **own** record: consecutive `session_rollover` rows in
+  `risk_events` bracket exactly one session, so the current session is never
+  summarised and a desk that was down over a boundary is handled for free.
+  **But its only caller is `tools/backfill_research_rag.py`.** Nothing emits one
+  in process — that needs a hook at the rollover site in
+  `modules/risk_proxy/` — so on a running desk the summaries appear when the
+  backfill is run and not before. The diagram above shows it on the backfill
+  arm for that reason, not on the live one.
 
 Retrieval (three fused arms — pgvector, Postgres FTS, Okapi BM25 in
 [`modules/research_bm25.py`](../../Part2_Infrastructure/modules/research_bm25.py) —
@@ -284,8 +327,23 @@ Postgres stays authoritative; the projection MERGEs, is idempotent, and
 nothing else writes to the graph — so drift is a non-event: drop the graph and
 re-project. A dual write was rejected because two writers are two systems that
 must agree, and drift between an authoritative store and a copy is only
-detectable if somebody goes looking. Nothing reads Neo4j to answer a request
-today. **Absent** `NEO4J_URI`, or with the optional driver
+detectable if somebody goes looking.
+
+**Two routes now read it back.** `GET /api/research/graph/communities` and
+`/centrality` try
+[`modules/research_graph_read_model.py`](../../Part2_Infrastructure/modules/research_graph_read_model.py)
+first and fall back to the in-process networkx computation, marking
+`source: "neo4j" | "corpus"` and carrying the read model's refusal whole so the
+reason is always readable. Nothing is invented there: modularity, seed,
+resolution and damping are not stored in the graph and are absent rather than
+restated, and labels from two different sweeps refuse as "mid-rebuild", because
+community ids are comparable only within one sweep and a half-finished re-label
+is otherwise indistinguishable from a good partition. A writer may not read its
+own output — the sweep itself is forced onto the corpus path, since a sweep that
+read its last partition back would be a fixpoint. **Request-time traversal is
+still Postgres**: `/{document_id}` runs the recursive CTE, and no request path
+depends on the graph being up. **Absent** `NEO4J_URI`, or with the optional
+driver
 (`requirements-graph.txt`) uninstalled, the projection reports a named reason
 in the sweep report — never an exception, never a silent success — and the
 sweep carries on: "could not project" and "there was nothing to project" stay
@@ -315,14 +373,28 @@ The partition itself is
 seeded Louvain over the same derived edges, in-process via networkx — not
 Neo4j GDS, because Louvain and PageRank live in an Enterprise library the Aura
 Free tier does not have, and the obvious next commit after a projection lands
-is one that assumes it does. Determinism is pinned (fixed seed, canonical
-insertion order, communities numbered largest-first) because a community id
-gets cited — though only for a fixed edge set: adding one document can
-legitimately renumber clusters, so cite a community by its members or by
-(sweep, id), never the bare integer. The sweep writes the labels back to
-Neo4j stamped with the job id that made them; the GET route fixes
-`project=False`, because a read that writes would let any crawler, prefetch or
-retry repartition the desk's graph. **Absent** networkx
+is one that assumes it does.
+
+**Louvain is seeded; PageRank is not, and that is not an omission.** Louvain
+visits nodes in a shuffled order and the partition it settles on depends on that
+order, so an unseeded run makes "cluster 3" mean nothing a week later — the seed
+is what buys a citable id. `nx.pagerank` takes no seed at all: it is a
+power-iteration on a fixed matrix, deterministic by construction, and its
+reproducibility comes from the canonical node insertion order plus pinned
+`MAX_ITER` and `TOLERANCE`. Documentation that called it "seeded PageRank" was
+describing an argument the function does not accept. Determinism is pinned on
+both (fixed seed where one exists, canonical insertion order, communities
+numbered largest-first) because a community id gets cited — though only for a
+fixed edge set: adding one document can legitimately renumber clusters, so cite
+a community by its members or by (sweep, id), never the bare integer.
+
+The sweep writes **both** label sets back off the same whole-corpus read — the
+community labels and the centrality scores, each stamped with the job id that
+made them — because without a centrality writer the centrality read path could
+never succeed. The GET routes fix `project=False`, because a read that writes
+would let any crawler, prefetch or retry repartition the desk's graph; the
+corollary is that the sweep is also barred from *reading*, since a sweep that
+read its last partition back would be a fixpoint. **Absent** networkx
 (`requirements-communities.txt`, optional — the normal deployment), the report
 names the reason; an empty edge list is *not* that — it is a successful
 partition of nothing, `detected: True` with zero communities.
@@ -333,11 +405,16 @@ partition of nothing, `detected: True` with zero communities.
 
 | Thing | Status |
 |---|---|
-| `execution_summary` documents | **NOT BUILT** — kind exists in the enum and filters; no writer emits it |
+| `execution_summary` documents | **Built, backfill-only** — the producer (`research_ingest_session.py`) is real, tested and called by `tools/backfill_research_rag.py`; **no in-process emission**, because that needs a hook at the session-rollover site in `modules/risk_proxy/`. On a running desk they appear when the backfill is run |
+| Re-embedding the `pending` rows | **NOT BUILT** — nothing selects on `embedding_status`; the backfill repairs a pending row only as a side effect of re-deriving its source row |
+| Automatic replay of a dead-lettered document | **NOT BUILT** — the book is in-memory, bounded and inspectable through `status()`; nothing re-submits from it |
 | Edge pruning in the reconcile sweep | **NOT BUILT** — rows are never deleted; the rule distinguishing "no longer true" from "not re-derived" is unwritten |
 | `chart_docs` reconcile scope | declared, **unscheduled and unimplemented** — no entry point exists on `research_reconcile`; stale chart text is honestly not assessable |
 | Multimodal / image embedding | **NOT BUILT** — charts are embedded as the text of their own figures; there is no vision model in this path |
-| Neo4j on the request path | projection and label store only; no request reads it today |
+| Neo4j on the request path | **partly** — `/communities` and `/centrality` read the sweep's labels back and fall back to the in-process computation, saying which answered (`source`); request-time *traversal* is still the Postgres CTE, and no request path depends on the graph being up. The algorithms are not run inside Neo4j: GDS is not on Aura Free and cannot be installed in CI |
+| `/api/research/rag/ask` in the UI | **no consumer** — the workspace proxies `/search` only; `/ask` is reachable, contract-pinned and auth-covered, but nothing in `web/` calls it |
+| RLS on `research_documents` | **still bypassed** — the gateway reads with the service-role key and the writer sets no `user_id`. What landed is an optional `filter_desk_id` predicate on both retrieval RPCs, off by default, refusing rather than reading wide when it is on and cannot be applied |
+| The re-ranker's real ONNX weights in CI | **NOT RUN** — they would have to be downloaded and this suite is network-free by construction; the ONNX path is exercised through a fake cross-encoder at the import seam |
 | Supabase absent | mirror and corpus writes are no-ops; retrieval returns typed `unavailable`, never `[]` |
 | Gemini absent | `/api/research/rag/ask` answers `verdict: refused` with the reason |
 | Re-ranker absent | RRF order stands; `rerank_state` says why |
