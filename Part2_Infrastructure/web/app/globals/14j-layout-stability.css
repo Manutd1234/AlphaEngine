@@ -1,0 +1,33 @@
+/* ==========================================================================
+   Layout stability — the desk does not move when its data does.
+
+   Every rule here reserves space for a state that is shorter than the one it
+   replaces. The panels below it scroll in one shell, so a section that shrinks
+   for a second moves the reader's place along with it; the complaint that
+   produced this file was a Risk tab twitching on every Live/Sandbox press.
+
+   Its own partial rather than a paragraph in 06 or 12, both of which are over
+   the file-length ceiling and may not grow (tests/file-size.test.ts). The
+   component-side reserves — the Oracle VaR card's 192px box, the Monte Carlo
+   skeletons, the depth chart's legend in its empty state, the refresh button
+   sized by its widest label — live beside the states they reserve for;
+   tests/layout-stability.test.ts pins each one.
+   ========================================================================== */
+
+/* A locked floor under the three workspaces whose panels are rebuilt by a
+   data event rather than a click: Portfolio and Risk swap their book on the
+   Live/Sandbox toggle and re-fetch the covariance behind it, and Execution's
+   Liquidity and Routing sections fill in as the venue sockets hand over their
+   first ladders. Each of those transitions passes through a shorter state — a
+   skeleton, a "waiting for book…" line, a one-sentence placeholder — and the
+   shell's scroller followed the panel down and back up again: the twitch was
+   the page, not the panel. 420px is under every one of these sections' settled
+   height, so the floor is never visible at rest; it only stops the collapse
+   between two settled states. Attribute selectors on the id the panel already
+   carries, so the dead-CSS budget gains no class. A hidden panel is
+   `display: none` (06) and the floor does not apply to it. */
+.workspace-subtab-panel[data-workspace-id="portfolio"],
+.workspace-subtab-panel[data-workspace-id="risk"],
+.workspace-subtab-panel[data-workspace-id="execution"] {
+  min-height: 420px;
+}

@@ -14,7 +14,7 @@
  * different question from the one `/api/tca` answers.
  */
 
-import { useState } from "react";
+import { memo, useState } from "react";
 
 import { compact } from "@/lib/format";
 import { liveTca, type LiveSnapshot } from "@/lib/livebook";
@@ -22,10 +22,11 @@ import { STRATEGY_LABELS, type SweepResponse } from "@/lib/types";
 import type { Side } from "@/lib/venues";
 
 import RouteEstimate from "./RouteEstimate";
+import { type HideablePanelProps, skipWhileHidden } from "./hidden-panel";
 
 const PROBE_SIZES = [10_000, 50_000, 100_000, 250_000, 1_000_000];
 
-interface RoutingProbeProps {
+interface RoutingProbeProps extends HideablePanelProps {
   symbol: string;
   snap: LiveSnapshot | null;
   dp: number;
@@ -38,7 +39,7 @@ interface RoutingProbeProps {
   onOpenData: () => void;
 }
 
-export default function RoutingProbe({
+function RoutingProbe({
   symbol,
   snap,
   dp,
@@ -308,3 +309,11 @@ export default function RoutingProbe({
     </>
   );
 }
+
+/**
+ * The probe walks both venues' books on every snapshot, which is right while
+ * the Routing section is on screen and wasted three times a second while it
+ * is not. The comparator skips the render while hidden; `active` is read
+ * there and nowhere inside the component.
+ */
+export default memo(RoutingProbe, skipWhileHidden);

@@ -9,7 +9,17 @@
  * is the only caller of.
  *
  * Clicking a level stages a limit in the ticket; nothing here submits anything.
+ *
+ * The snapshot arrives every 300ms — `useLiveBook`'s publish tick is the
+ * desk's shared throttle window, so a venue's ten frames a second coalesce to
+ * one paint here. What this file adds on top is that the paint is confined:
+ * the two ladders are memoised on the levels they draw, and the whole panel is
+ * memoised to skip its render while the Liquidity section is hidden behind
+ * another (`hidden-panel.ts`). The card margins and borders around the chart
+ * never move; only the paths and the level rows inside them change.
  */
+
+import { memo, useMemo } from "react";
 
 import DepthChart from "@/components/DepthChart";
 import StatTile from "@/components/StatTile";
@@ -17,7 +27,9 @@ import { compact, fmt } from "@/lib/format";
 import type { LiveSnapshot } from "@/lib/livebook";
 import type { Side } from "@/lib/venues";
 
-interface LiquidityBookProps {
+import { type HideablePanelProps, skipWhileHidden } from "./hidden-panel";
+
+interface LiquidityBookProps extends HideablePanelProps {
   symbol: string;
   snap: LiveSnapshot | null;
   /** Price decimals for this instrument, decided once by the tab. */
@@ -26,54 +38,81 @@ interface LiquidityBookProps {
   onPriceSelect?: (pick: { side: Side; price: number }) => void;
 }
 
-export default function LiquidityBook({ symbol, snap, dp, onPriceSelect }: LiquidityBookProps) {
-  const ladder = (rows: [number, number][], kind: "bid" | "ask") => {
-    const top = rows.slice(0, 12);
-    let cum = 0;
-    const withCum = top.map(([p, q]) => {
-      cum += p * q;
-      return { p, q, cum };
-    });
-    const max = withCum.at(-1)?.cum ?? 1;
-    const colour = kind === "bid" ? "var(--diverging-pos)" : "var(--diverging-neg)";
-    const rowsOut = kind === "ask" ? [...withCum].reverse() : withCum;
+/** Levels shown per side. The card reserves its height from this count. */
+const LADDER_DEPTH = 12;
 
-    // Lifting an ask is a BUY at that price; hitting a bid is a SELL.
-    const clickSide: Side = kind === "ask" ? "BUY" : "SELL";
+/**
+ * One side of the ladder as rows. Module-level rather than a closure so the
+ * memo below can name exactly what a row depends on — the levels, the side,
+ * the instrument's decimals and the click handler — and nothing else.
+ */
+function ladderRows(
+  rows: [number, number][],
+  kind: "bid" | "ask",
+  symbol: string,
+  dp: number,
+  onPriceSelect?: (pick: { side: Side; price: number }) => void,
+) {
+  const top = rows.slice(0, LADDER_DEPTH);
+  let cum = 0;
+  const withCum = top.map(([p, q]) => {
+    cum += p * q;
+    return { p, q, cum };
+  });
+  const max = withCum.at(-1)?.cum ?? 1;
+  const colour = kind === "bid" ? "var(--diverging-pos)" : "var(--diverging-neg)";
+  const rowsOut = kind === "ask" ? [...withCum].reverse() : withCum;
 
-    return rowsOut.map(({ p, q, cum: c }) => (
-      <button
-        key={`${kind}-${p}`}
-        type="button"
-        className="ladder-row"
-        title="Stage as a limit order in the ticket"
-        aria-label={`${clickSide === "BUY" ? "Buy" : "Sell"} ${symbol} at ${fmt(p, dp)} — stage a limit order in the ticket`}
-        onClick={() => onPriceSelect?.({ side: clickSide, price: p })}
-      >
-        <span
-          aria-hidden
-          style={{
-            position: "absolute",
-            top: 0,
-            bottom: 0,
-            right: 0,
-            width: `${(c / max) * 100}%`,
-            background: colour,
-            /* 0.14 read as ~1.05:1 against the card — a wash nobody saw. */
-            opacity: 0.22,
-            borderRadius: 3,
-          }}
-        />
-        <span style={{ position: "relative", color: colour }}>{fmt(p, dp)}</span>
-        <span style={{ position: "relative", textAlign: "right", color: "var(--text-secondary)" }}>
-          {fmt(q, 4)}
-        </span>
-        <span style={{ position: "relative", textAlign: "right", color: "var(--text-muted)" }}>
-          {compact(c)}
-        </span>
-      </button>
-    ));
-  };
+  // Lifting an ask is a BUY at that price; hitting a bid is a SELL.
+  const clickSide: Side = kind === "ask" ? "BUY" : "SELL";
+
+  return rowsOut.map(({ p, q, cum: c }) => (
+    <button
+      key={`${kind}-${p}`}
+      type="button"
+      className="ladder-row"
+      title="Stage as a limit order in the ticket"
+      aria-label={`${clickSide === "BUY" ? "Buy" : "Sell"} ${symbol} at ${fmt(p, dp)} — stage a limit order in the ticket`}
+      onClick={() => onPriceSelect?.({ side: clickSide, price: p })}
+    >
+      <span
+        aria-hidden
+        style={{
+          position: "absolute",
+          top: 0,
+          bottom: 0,
+          right: 0,
+          width: `${(c / max) * 100}%`,
+          background: colour,
+          /* 0.14 read as ~1.05:1 against the card — a wash nobody saw. */
+          opacity: 0.22,
+          borderRadius: 3,
+        }}
+      />
+      <span style={{ position: "relative", color: colour }}>{fmt(p, dp)}</span>
+      <span style={{ position: "relative", textAlign: "right", color: "var(--text-secondary)" }}>
+        {fmt(q, 4)}
+      </span>
+      <span style={{ position: "relative", textAlign: "right", color: "var(--text-muted)" }}>
+        {compact(c)}
+      </span>
+    </button>
+  ));
+}
+
+function LiquidityBook({ symbol, snap, dp, onPriceSelect }: LiquidityBookProps) {
+  // Keyed on the merged sides, not on the snapshot: the venue list and the
+  // derived tiles change on every publish, the levels only when a book moves.
+  const asks = snap?.merged.asks;
+  const bids = snap?.merged.bids;
+  const askRows = useMemo(
+    () => (asks ? ladderRows(asks, "ask", symbol, dp, onPriceSelect) : null),
+    [asks, symbol, dp, onPriceSelect],
+  );
+  const bidRows = useMemo(
+    () => (bids ? ladderRows(bids, "bid", symbol, dp, onPriceSelect) : null),
+    [bids, symbol, dp, onPriceSelect],
+  );
 
   return (
     <>
@@ -108,7 +147,10 @@ export default function LiquidityBook({ symbol, snap, dp, onPriceSelect }: Liqui
 
       {/* The curve and the ladder are the same book read two ways, so they
           share one baseline: the chart takes the ladder's height instead of
-          sitting 210px tall beside 570px of levels. */}
+          sitting 210px tall beside 570px of levels. The pair stretches to the
+          chart card, and the chart's box is a fixed 430px whether or not a
+          book has arrived — so the row is the same height before the first
+          ladder, during a venue outage and at rest. */}
       <div className="compact-grid-2col liquidity-pair">
         <div className="card">
           <h2>Cumulative depth</h2>
@@ -156,7 +198,7 @@ export default function LiquidityBook({ symbol, snap, dp, onPriceSelect }: Liqui
               <span style={{ textAlign: "right" }}>Size</span>
               <span style={{ textAlign: "right" }}>Cum $</span>
             </div>
-            {snap ? ladder(snap.merged.asks, "ask") : null}
+            {askRows}
             <div
               style={{
                 display: "flex",
@@ -174,7 +216,7 @@ export default function LiquidityBook({ symbol, snap, dp, onPriceSelect }: Liqui
                 spread {fmt(snap?.spreadBps, 2)} bps
               </span>
             </div>
-            {snap ? ladder(snap.merged.bids, "bid") : <div className="muted" style={{ padding: 16, textAlign: "center" }}>waiting for book…</div>}
+            {bidRows ?? <div className="muted" style={{ padding: 16, textAlign: "center" }}>waiting for book…</div>}
           </div>
           <details className="disclosure">
             <summary>Whose levels are these, and in what order?</summary>
@@ -187,3 +229,9 @@ export default function LiquidityBook({ symbol, snap, dp, onPriceSelect }: Liqui
     </>
   );
 }
+
+/**
+ * Skips the render while the section is hidden; shallow-compares while shown.
+ * `active` is read by the comparator and by nothing inside the component.
+ */
+export default memo(LiquidityBook, skipWhileHidden);

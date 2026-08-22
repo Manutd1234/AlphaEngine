@@ -278,7 +278,7 @@ describe("the files this pass rewrote are really being read", () => {
   for (const key of Object.keys(PATHS) as Key[]) {
     it(`${PATHS[key]} loads with content`, () => {
       assert.ok(SOURCE[key].length > 500, `${PATHS[key]} read as ${SOURCE[key].length} bytes`);
-      assert.match(SOURCE[key], /export (default )?function/);
+      assert.match(SOURCE[key], /export (default )?(function|memo\()/);
       assert.ok(flat(key).length > 400, `${PATHS[key]} flattened to nothing`);
       assert.ok(raw(key).length > 500, `${PATHS[key]} collapsed to nothing`);
     });

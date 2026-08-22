@@ -15,7 +15,7 @@
 import { type Level } from "@/lib/venues";
 import { compact, fmt, priceDp } from "@/lib/format";
 import { DEFAULT_MARGIN, Grid, Tooltip, linearScale, ticks, useMeasuredWidth } from "./chart-kit";
-import { useState } from "react";
+import { memo, useState } from "react";
 
 /** Default height. Callers that sit beside a taller panel pass their own so the
  *  pair lands on one baseline instead of leaving a column half empty. */
@@ -56,7 +56,28 @@ function areaFrom(pts: Point[], x: (p: number) => number, y: (c: number) => numb
   return `${line}L${x(last.price).toFixed(2)},${base.toFixed(2)}L${x(pts[0].price).toFixed(2)},${base.toFixed(2)}Z`;
 }
 
-export default function DepthChart({
+/**
+ * The legend is part of the chart's footprint, so it renders in every state.
+ *
+ * The empty state used to draw the `height` box alone, so the first book to
+ * arrive added a legend row above it and pushed the ladder beside it and the
+ * fold below it down by that row — once per symbol change, and again every
+ * time both venues dropped. Same legend, same height, book or no book.
+ */
+const LEGEND = (
+  <div className="legend">
+    <span>
+      <i style={{ background: "var(--diverging-pos)" }} />
+      Cumulative bid depth
+    </span>
+    <span>
+      <i style={{ background: "var(--diverging-neg)" }} />
+      Cumulative ask depth
+    </span>
+  </div>
+);
+
+function DepthChart({
   bids,
   asks,
   mid,
@@ -81,8 +102,11 @@ export default function DepthChart({
 
   if (!bidPts.length || !askPts.length || !mid) {
     return (
-      <div ref={ref} style={{ height, display: "grid", placeItems: "center", color: "var(--text-muted)", fontSize: "var(--fs-xl)" }}>
-        waiting for book…
+      <div ref={ref}>
+        {LEGEND}
+        <div style={{ height, display: "grid", placeItems: "center", color: "var(--text-muted)", fontSize: "var(--fs-xl)" }}>
+          waiting for book…
+        </div>
       </div>
     );
   }
@@ -113,16 +137,7 @@ export default function DepthChart({
 
   return (
     <div ref={ref}>
-      <div className="legend">
-        <span>
-          <i style={{ background: "var(--diverging-pos)" }} />
-          Cumulative bid depth
-        </span>
-        <span>
-          <i style={{ background: "var(--diverging-neg)" }} />
-          Cumulative ask depth
-        </span>
-      </div>
+      {LEGEND}
 
       <svg
         viewBox={`0 0 ${width} ${height}`}
@@ -181,3 +196,12 @@ export default function DepthChart({
     </div>
   );
 }
+
+/**
+ * Memoised so the chart repaints on the book's 300ms cadence and on nothing
+ * else. `bids` and `asks` are fresh arrays on every publish, so a new snapshot
+ * is a new paint — the point of a live chart — while a parent re-rendering for
+ * a reason of its own (a staged limit, a hover elsewhere) leaves the two step
+ * paths exactly where they were.
+ */
+export default memo(DepthChart);

@@ -184,19 +184,26 @@ export default function OracleVarPanel({
         the one-day book VaR on the VaR &amp; model section.
       </p>
 
-      {annualVol === null ? (
-        <p className="muted">
-          Waiting for the covariance model: both figures need its measured volatility.
-        </p>
-      ) : (
-        /* One space-reserving box around every post-model state. The card used
-           to swap a 96px skeleton for a ~190px result on each run, so a horizon
-           change (and, before the equity quantisation above, every book poll)
-           bounced whatever sat below it. The skeleton now fills the same box
-           the tiles and their caption occupy, so a re-run changes the pixels,
-           not the layout. */
-        <div style={{ minHeight: 192 }}>
-          {result === null || running ? (
+      {/* One space-reserving box around EVERY state after the heading, the
+          pre-model one included. The card used to swap a 96px skeleton for a
+          ~190px result on each run, so a horizon change (and, before the
+          equity quantisation above, every book poll) bounced whatever sat
+          below it. The skeleton now fills the same box the tiles and their
+          caption occupy, so a re-run changes the pixels, not the layout.
+
+          The waiting line used to sit OUTSIDE this box. `annualVol` goes null
+          whenever the book changes — the Live/Sandbox toggle swaps the held
+          symbols, the covariance re-fetches, the model is briefly absent — so
+          the card dropped to one sentence and sprang back to 192px a second
+          later, on every toggle. Inside the box, the same sentence costs the
+          same height as the result it precedes. */}
+      <div style={{ minHeight: 192 }}>
+        {annualVol === null ? (
+          <p className="muted">
+            Waiting for the covariance model: both figures need its measured volatility.
+          </p>
+        ) : (
+          result === null || running ? (
             <div className="skeleton" style={{ height: 192 }} />
           ) : result.state === "unavailable" ? (
             <div className="banner warn" role="status">
@@ -246,9 +253,9 @@ export default function OracleVarPanel({
                 {sandbox && " Generated sandbox book, so the equity input is not a real position."}
               </p>
             </>
-          )}
-        </div>
-      )}
+          )
+        )}
+      </div>
     </div>
   );
 }

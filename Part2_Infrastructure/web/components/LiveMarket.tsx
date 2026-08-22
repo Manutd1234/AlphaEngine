@@ -315,12 +315,25 @@ export default function LiveMarket({
       {marketContext}
       {wrappedChildren}
 
+      {/* `active` on both: the panels persist behind `hidden` once visited,
+          and the snapshot arrives every 300ms whichever section is showing.
+          Each panel is memoised to skip its render while hidden (see
+          `execution/hidden-panel.ts`), so the ladder and the probe cost
+          nothing to a reader on the ticket and repaint on the book's cadence
+          only while they are the section on screen. */}
       <WorkspaceSubtabPanel workspaceId="execution" tabId="liquidity" activeId={section}>
-        <LiquidityBook symbol={symbol} snap={snap} dp={dp} onPriceSelect={onPriceSelect} />
+        <LiquidityBook
+          symbol={symbol}
+          snap={snap}
+          dp={dp}
+          onPriceSelect={onPriceSelect}
+          active={section === "liquidity"}
+        />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="execution" tabId="routing" activeId={section}>
         <RoutingProbe
+          active={section === "routing"}
           symbol={symbol}
           snap={snap}
           dp={dp}

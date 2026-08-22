@@ -257,7 +257,7 @@ describe("the files this sweep reads are really being read", () => {
       assert.ok(SOURCE[key].length > 500, `${PATHS[key]} read as ${SOURCE[key].length} bytes`);
       // CockpitChrome exports two named banners rather than a default, so the guard is
       // "this renders something", not "this has a default export".
-      assert.match(SOURCE[key], /export (default )?function/);
+      assert.match(SOURCE[key], /export (default )?(function|memo\()/);
     });
   }
 });

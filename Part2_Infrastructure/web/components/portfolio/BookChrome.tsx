@@ -9,6 +9,8 @@
  * risk tab is precisely where a stale number does the most damage.
  */
 
+import { useState } from "react";
+
 import type { BookView } from "@/lib/use-book";
 import { transportLabel } from "@/lib/use-desk-stream";
 
@@ -156,8 +158,7 @@ export function BookChrome({ view }: { view: BookView }) {
         </div>
       )}
 
-      {/* The sandbox marker stays a full-width block, and only the sandbox
-          marker does.
+      {/* One strip, three readings, one height.
 
           The source controls that used to share this strip moved to the section
           rail (`BookSourceControl`), where they stay reachable while scrolling
@@ -166,8 +167,15 @@ export function BookChrome({ view }: { view: BookView }) {
           pass for as long as the mode is on, at full width, on the notice rail.
           A one-time or shrunken banner is how a generated book gets mistaken for
           a real one after ten minutes of reading, and globals.css says outright
-          that this marker must never be subtle. On the live path there is no
-          strip at all — the refresh time reads from the rail. */}
+          that this marker must never be subtle.
+
+          The live path used to render no strip at all, and that was the jump:
+          pressing Sandbox inserted a 43px block above the rail and pressing
+          Live removed it, so the rail, every panel and the shell's scroll
+          position moved with each press. The live reading now occupies the
+          same slot — the gateway the book comes from and when it last
+          answered, which at desk width the rail's meta slot does not show —
+          so the toggle changes the words in the strip and nothing below it. */}
       {sandbox && (
         <div className="portfolio-statusbar is-sandbox" role="status">
           <div>
@@ -191,7 +199,16 @@ export function BookChrome({ view }: { view: BookView }) {
           </div>
         </div>
       )}
-      <span className="sr-only">{gatewayLabel}</span>
+      {!sandbox && !isStale && (
+        <div className="portfolio-statusbar" role="status">
+          <div>
+            <span className="system-health">
+              <i aria-hidden /> Live book
+            </span>
+            <span className="num">{gatewayLabel}; last refresh {lastRefreshLabel}</span>
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -204,18 +221,51 @@ export function BookChrome({ view }: { view: BookView }) {
  * slot every other tab uses for its own surface-level controls.
  */
 export function BookSourceControl({ view }: { view: BookView }) {
-  const { book, isStale, sandbox, setSandbox, refresh, refreshing, lastSuccessAt } = view;
+  const { book, isStale, sandbox, setSandbox, refresh, lastSuccessAt } = view;
+  /**
+   * The button's own press, not the desk's background refresh.
+   *
+   * This read `view.refreshing`, which every quiet refresh sets — the 15s
+   * poll and, on a live desk, the stream's refetch about once a second. So
+   * the label flipped to "Refreshing…" and the button greyed out on a cadence
+   * nobody had clicked; and because the long label is wider, the Live/Sandbox
+   * control beside it slid left and back with every flip. That was the
+   * twitch on the rail. A background refresh changes no pixel here now: the
+   * pending state is this control's, and only a press sets it.
+   *
+   * Declared above the bail-out with the rest of the hooks, for the reason
+   * `useBook` records: a hook after an early return is the "rendered more
+   * hooks" crash on the first snapshot that arrives.
+   */
+  const [pending, setPending] = useState(false);
   if (!book) return null;
 
   const lastRefreshLabel = (lastSuccessAt ?? new Date(book.as_of)).toLocaleTimeString();
+  // Always rendered, so the row it sits in is the same row in every state.
+  // Words for the two states that have no time to show: a slot that emptied
+  // on the toggle moved the controls beside it on phones, where the rail
+  // actually shows this span.
+  const meta = sandbox
+    ? "generated book"
+    : isStale ? `stale, last good ${lastRefreshLabel}` : lastRefreshLabel;
+  const label = pending
+    ? (isStale ? "Reconnecting…" : "Refreshing…")
+    : (isStale ? "Reconnect" : "Refresh");
+
+  const press = async () => {
+    setPending(true);
+    try {
+      await refresh(true);
+    } finally {
+      setPending(false);
+    }
+  };
 
   return (
     <>
-      {!sandbox && !isStale && (
-        <span className="rail-meta num" title="Last successful gateway refresh">
-          {lastRefreshLabel}
-        </span>
-      )}
+      <span className="rail-meta num" title="Last successful gateway refresh">
+        {meta}
+      </span>
       <div className="seg research-seg" role="group" aria-label="Book source">
         <button type="button" aria-pressed={!sandbox} onClick={() => setSandbox(false)}>
           Live
@@ -224,8 +274,18 @@ export function BookSourceControl({ view }: { view: BookView }) {
           Sandbox
         </button>
       </div>
-      <button onClick={() => void refresh(true)} disabled={refreshing || sandbox}>
-        {refreshing ? (isStale ? "Reconnecting…" : "Refreshing…") : (isStale ? "Reconnect" : "Refresh")}
+      {/* Sized once, by the widest label it can ever show. Both spans share
+          one grid cell; the hidden one is the measure, the visible one is the
+          word. The button therefore has one width in all four states, and the
+          seg beside it has one position. */}
+      <button
+        onClick={() => void press()}
+        disabled={pending || sandbox}
+        aria-busy={pending}
+        style={{ display: "inline-grid", justifyItems: "center", alignItems: "center" }}
+      >
+        <span aria-hidden style={{ gridArea: "1 / 1", visibility: "hidden" }}>Reconnecting…</span>
+        <span style={{ gridArea: "1 / 1" }}>{label}</span>
       </button>
     </>
   );
