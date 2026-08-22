@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-22",
-  "commit": "9eb1ff2",
+  "commit": "1b2e77b",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -474,8 +474,6 @@
     "Part2_Infrastructure/tools/bench_core_attrib.py",
     "Part2_Infrastructure/tools/bench_core_ticks.py",
     "Part2_Infrastructure/tools/bench_decision.py",
-    "Part2_Infrastructure/tools/bench_image_retrieval_corpus.py",
-    "Part2_Infrastructure/tools/bench_image_retrieval_metrics.py",
     "Part2_Infrastructure/tools/bench_preamble.py",
     "Part2_Infrastructure/tools/bench_rerank.py",
     "Part2_Infrastructure/tools/check_repo_complete.sh",
