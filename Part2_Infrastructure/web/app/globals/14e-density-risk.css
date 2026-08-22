@@ -301,6 +301,9 @@
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 480px), 1fr));
     column-gap: var(--space-3);
     align-items: start;
+    /* As in 14f: the panel's stability min-height (14j) plus the grid default
+       `align-content: stretch` would pad the rows apart on a short pane. */
+    align-content: start;
   }
 
   /* Monte Carlo subtab: five StatTiles landed 4 + 1 on the four-track

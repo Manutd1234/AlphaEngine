@@ -361,6 +361,13 @@ export default function WorkspaceHeader({
           className={`system-health system-health-action ${healthNeedsAttention ? "is-warn" : ""}`}
           aria-label={`Open reliability. ${healthLabel}`}
           onClick={onOpenProviderHealth}
+          /* The chip's anti-resize reservation: the widest sentence THIS fleet
+             can produce, drawn as a hidden pseudo-element under the live label
+             (see `.system-health-action::before/::after` in globals). A px
+             floor sized for a hypothetical fleet left ~26px of invisible slack
+             here and tripled the visual gap to the account chip. */
+          data-widest={providersTotal != null ? `${providersTotal}/${providersTotal} providers routable` : undefined}
+          data-widest-short={providersTotal != null ? `${providersTotal}/${providersTotal} providers` : undefined}
         >
           {/* Keyed by snapshot time: each successful poll remounts the dot and
               replays one health-beat ring. Decoration only — the label beside

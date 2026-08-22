@@ -33,32 +33,32 @@ function rung(max: number): string {
   return css.slice(start, end);
 }
 
-const RUNGS = [1880, 1780, 1690, 1500, 1430, 1270, 1190] as const;
+const RUNGS = [1920, 1820, 1720, 1540, 1460, 1300, 1190] as const;
 
 describe("the rungs exist, in priority order, and each takes only what it says", () => {
-  it("rung 1 (≤1880): the Search label and the providers sentence → short form", () => {
-    assert.match(css, /@media \(max-width: 1880px\) \{\n  \.header-command-button__label \{\n    display: none;/);
-    const r = rung(1880);
+  it("rung 1 (≤1920): the Search label and the providers sentence → short form", () => {
+    assert.match(css, /@media \(max-width: 1920px\) \{\n  \.header-command-button__label \{\n    display: none;/);
+    const r = rung(1920);
     assert.match(r, /\.system-health__label \{\n    display: none;/);
     assert.match(r, /\.system-health__label--short \{\n    display: inline;/);
     assert.doesNotMatch(r, /header-settings|latency-chip|telegram/);
   });
 
-  it("rung 2 (≤1780): only the chip's state word", () => {
-    const r = rung(1780);
+  it("rung 2 (≤1820): only the chip's state word", () => {
+    const r = rung(1820);
     assert.match(r, /\.latency-chip__state \{\n    display: none;/);
     assert.doesNotMatch(r, /\.latency-chip__copy|\.latency-chip__core|header-settings/);
   });
 
-  it("rung 3 (≤1690): only the Settings label", () => {
-    const r = rung(1690);
+  it("rung 3 (≤1720): only the Settings label", () => {
+    const r = rung(1720);
     assert.match(r, /\.workspace-header__utility > \.header-anchor > \.header-settings span,/);
     assert.doesNotMatch(r, /latency-chip|system-health|brand-copy/);
   });
 
-  it("rung 4 (≤1630): the data-tier label; rung 5 (≤1580): the Connect label", () => {
-    assert.match(css, /@media \(max-width: 1630px\) \{\n  \.data-tier__label \{\n    display: none;/);
-    assert.match(read("components/header/TelegramCta.tsx"), /max-\[1580px\]:hidden/);
+  it("rung 4 (≤1660): the data-tier label; rung 5 (<1610): the Connect label", () => {
+    assert.match(css, /@media \(max-width: 1660px\) \{\n  \.data-tier__label \{\n    display: none;/);
+    assert.match(read("components/header/TelegramCta.tsx"), /max-\[1610px\]:hidden/);
   });
 
   it("the core annotation is NOT a rung — it adds no width and stays until the chip folds", () => {
@@ -68,21 +68,21 @@ describe("the rungs exist, in priority order, and each takes only what it says",
     assert.match(css, /Not a rung: the core annotation inside the decision chip/);
   });
 
-  it("rung 6 (≤1500): the providers chip to its dot, aria keeps the sentence", () => {
-    const r = rung(1500);
+  it("rung 6 (≤1540): the providers chip to its dot, aria keeps the sentence", () => {
+    const r = rung(1540);
     assert.match(r, /\.system-health-action \{[\s\S]*font-size: 0;/);
     assert.match(read("components/WorkspaceHeader.tsx"), /aria-label=\{`Open reliability\. \$\{healthLabel\}`\}/);
   });
 
-  it("rung 7 (≤1430): brand tagline and tab padding, nothing of the chip", () => {
-    const r = rung(1430);
+  it("rung 7 (≤1460): brand tagline and tab padding, nothing of the chip", () => {
+    const r = rung(1460);
     assert.match(r, /\.brand-copy small \{\n    display: none;/);
     assert.match(r, /\.workspace-tabs button \{\n    padding-inline: 5px;/);
     assert.doesNotMatch(r, /latency-chip/);
   });
 
-  it("rung 8 (≤1270): the decision figure folds to its gauge — last of the chip", () => {
-    assert.match(rung(1270), /\.latency-chip__copy \{\n    display: none;/);
+  it("rung 8 (≤1300): the decision figure folds to its gauge — last of the chip", () => {
+    assert.match(rung(1300), /\.latency-chip__copy \{\n    display: none;/);
   });
 
   it("rung 9 (≤1190): Kill switch and Sign in labels fold to icons that keep their names", () => {
@@ -120,6 +120,18 @@ describe("the essentials are never on the ladder", () => {
     assert.match(header, /<span className="system-health__label">\{healthLabel\}<\/span>/);
     assert.match(header, /<span className="system-health__label--short" aria-hidden>\{healthLabelShort\}<\/span>/);
     assert.match(css, /\.system-health__label--short \{\n  display: none;/);
+  });
+
+  it("the chip's width reservation is the live fleet's own sentence, not a px floor", () => {
+    // The old 180px/129px floors were sized for a "20/20" fleet this
+    // deployment does not run, which read as a phantom gap beside the account
+    // chip. The ghost pseudo-elements reserve exactly what the real total can
+    // produce, and swap to the short form with rung 1 like the label does.
+    const header = read("components/WorkspaceHeader.tsx");
+    assert.match(header, /data-widest=\{providersTotal != null \? `\$\{providersTotal\}\/\$\{providersTotal\} providers routable` : undefined\}/);
+    assert.match(header, /data-widest-short=\{providersTotal != null \? `\$\{providersTotal\}\/\$\{providersTotal\} providers` : undefined\}/);
+    assert.match(css, /\.system-health-action::before,\n\.system-health-action::after \{\n  content: attr\(data-widest\);\n  visibility: hidden;/);
+    assert.doesNotMatch(css, /\.system-health-action \{[^}]*min-width: 1[0-9]{2}px/);
   });
 });
 

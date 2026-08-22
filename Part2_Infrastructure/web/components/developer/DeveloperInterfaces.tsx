@@ -75,10 +75,11 @@ function McBrowserParityCheck() {
     state = {
       label: "Byte-exact",
       /* No truncated digest in this sentence any more. The full sixty-four
-         characters are printed below at --fs-h1 beside the committed ones, and
-         a twelve-character prefix in a pill was the whole reported defect: it
-         is a claim that a digest exists, not a digest a reader can check. */
-      detail: `This browser (${engineWord(run.engine)}) reproduced the committed reference byte for byte; both digests are below.`,
+         characters are printed once below — both sides hash to the same value
+         when the run matches — and a twelve-character prefix in a pill was the
+         whole reported defect: a claim that a digest exists, not a digest a
+         reader can check. */
+      detail: `This browser (${engineWord(run.engine)}) reproduced the committed reference byte for byte; the digest is below.`,
       tone: "good",
     };
   } else {

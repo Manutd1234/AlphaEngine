@@ -158,8 +158,8 @@ describe("the narrow ladder is exactly where it was — the regression guard", (
    * correctly. Update it only with a re-measured row, and say the widths.
    */
   const LADDER = [
-    "@media (max-width: 1880px)",                        // rung 0, the Search word
-    "@media (max-width: 1630px)",                        // rung 4, the "Live data" label
+    "@media (max-width: 1920px)",                        // rung 0, the Search word
+    "@media (max-width: 1660px)",                        // rung 4, the "Live data" label
     "@media (min-width: 1441px)",                        // the wide band added 2026-08-22
     "@media (min-width: 901px)",                         // the nav's left margin
     "@media (max-width: 900px)",                         // the tabs take their own row
@@ -169,12 +169,12 @@ describe("the narrow ladder is exactly where it was — the regression guard", (
     "@media (max-width: 900px)",
     "@media (max-width: 900px)",
     "@media (max-width: 620px)",                         // the switcher goes
-    "@media (min-width: 901px) and (max-width: 1880px)", // rung 1
-    "@media (min-width: 901px) and (max-width: 1780px)", // rung 2
-    "@media (min-width: 901px) and (max-width: 1690px)", // rung 3
-    "@media (min-width: 901px) and (max-width: 1500px)", // rung 6
-    "@media (min-width: 901px) and (max-width: 1430px)", // rung 7
-    "@media (min-width: 901px) and (max-width: 1270px)", // rung 8
+    "@media (min-width: 901px) and (max-width: 1920px)", // rung 1
+    "@media (min-width: 901px) and (max-width: 1820px)", // rung 2
+    "@media (min-width: 901px) and (max-width: 1720px)", // rung 3
+    "@media (min-width: 901px) and (max-width: 1540px)", // rung 6
+    "@media (min-width: 901px) and (max-width: 1460px)", // rung 7
+    "@media (min-width: 901px) and (max-width: 1300px)", // rung 8
     "@media (min-width: 901px) and (max-width: 1190px)", // rung 9
     "@media (max-width: 620px)",
     "@media (pointer: coarse)",
@@ -191,7 +191,7 @@ describe("the narrow ladder is exactly where it was — the regression guard", (
     // what every width up to 1440 still uses, unchanged.
     assert.match(shell, /\n\.header-spacer \{\n  flex: 1;\n\}\n/,
       "the desk spacer no longer grows — every width below 1441 just lost its right alignment");
-    for (const max of [1880, 1780, 1690, 1500, 1430, 1270, 1190]) {
+    for (const max of [1920, 1820, 1720, 1540, 1460, 1300, 1190]) {
       assert.ok(
         headerBlocks.some((block) => block.condition === `@media (min-width: 901px) and (max-width: ${max}px)`),
         `rung ${max} has left the ladder`,

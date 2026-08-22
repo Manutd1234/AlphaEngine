@@ -334,7 +334,7 @@
    distinct shapes for three states. The full sentence is in the aria-label, the
    panel behind the button, and — on any tab reading a generated book — the
    in-page banner that already says the positions do not exist. */
-@media (max-width: 1630px) {
+@media (max-width: 1660px) {
   .data-tier__label {
     display: none;
   }
@@ -700,9 +700,15 @@
   }
 }
 
+/* Each tab hugs its own word. `flex: 1` grew every button to an equal share,
+   so short labels — Risk, Data — sat centred in boxes as wide as Reliability's
+   and the whitespace between adjacent words read as 18px in one place and 40px
+   in the next. Measured at 1724: label gaps [18,18,18,30,40.7,28.7,18]. With
+   the buttons shrink-wrapped the gap is the 2px strip gap plus two 8px pads
+   everywhere, and the strip's own flex: 1 still hands the spare to the row. */
 .workspace-tabs button {
   position: relative;
-  flex: 1;
+  flex: 0 1 auto;
   padding: 6px 8px;
   border: 0;
   border-radius: 6px;
@@ -717,12 +723,15 @@
   font-size: var(--fs-chrome-chip);
 }
 
+/* Inset by the button's own 8px pad, so the underline spans the word itself.
+   The old 14px inset was measured against grown buttons; on a shrink-wrapped
+   "Risk" it would leave a 15px stub narrower than the label above it. */
 .workspace-tabs button::after {
   content: "";
   position: absolute;
-  right: 14px;
+  right: 8px;
   bottom: -1px;
-  left: 14px;
+  left: 8px;
   height: 3px;
   border-radius: 3px 3px 0 0;
   background: transparent;
@@ -756,23 +765,14 @@
   display: none;
 }
 
-/* A floor wide enough for the longest count the sentence can reach, so the
-   chip stops resizing when the count does. Tabular figures above fix
-   "12/12" against "20/20"; they cannot fix "9/20" against "10/20", where a
-   whole glyph appears — 7.77px of it, measured — and every chip to the right
-   of this one moves.
-   180px is the composed button (dot, 7px gap, label, 9px padding either side,
-   1px border) around "20/20 providers routable" at 179.33px, measured in
-   Chrome against the header's own Inter at 12px/600 with tabular figures on.
-   A three-digit total, or a sentence nobody planned for, exceeds it and the
-   chip simply grows: this is a min-width, never a width, and `.system-health`
-   keeps `white-space: nowrap` so nothing wraps into the row's height.
-   Rung 1 re-floors it for the short sentence — see the ladder at the foot of
-   this file — and rungs below 1500px, and the phone rules, pin the button to
-   its dot and override this outright. */
+/* No px floor any more. The old 180px (and rung 1's 129px) reserved for a
+   "20/20" fleet this deployment does not run, so the real "8/8 providers" row
+   carried ~26px of invisible slack and the gap to the account chip read three
+   times the row's 8px. The anti-resize reservation is now the ghost sentence
+   WorkspaceHeader stacks under the live label — see `.system-health__ghost`
+   in 15-navigator-and-trailing-layer.css. */
 .system-health-action {
   min-height: 32px;
-  min-width: 180px;
   padding: 6px 9px;
   border-color: transparent;
   background: transparent;

@@ -15,11 +15,13 @@
  *
  * So this file bans the truncation, and pins the three things that replaced it:
  *
- *   1. THE WHOLE DIGEST, at --fs-h1, grouped in eights, selectable as sixty-four
- *      contiguous characters. The grouping is drawn with margins rather than a
- *      grid `gap` or a literal space, and the reason is a clipboard: grid items
- *      are blockified and copy as eight lines, and a space copies as a value
- *      that compares equal to nothing.
+ *   1. THE WHOLE DIGEST, printed as ONE contiguous sixty-four-character value
+ *      in body mono. A first cut grouped it in eights at --fs-h1, and a reader
+ *      told us how that renders to anyone outside `sha256sum`: eight separate
+ *      short codes, twice over, and no idea which is "the" SHA. One unbroken
+ *      run reads as one hash and copies as exactly what is on screen — and
+ *      when the browser reproduces the reference byte for byte the two sides
+ *      are the SAME value, so it is printed once, naming both producers.
  *   2. THE CHAIN, as a node per artefact and an operation per edge, in the
  *      idiom of `components/research/SignalDAGViewer.tsx`. Every node is a real
  *      file in this repository and the assertions below name them, so a chain
@@ -119,41 +121,48 @@ describe("no digest is shown truncated", () => {
     // The pill says what happened and points at the panel; the digits are in
     // the panel, at a size that can be read.
     const interfaces = rendered(INTERFACES);
-    assert.match(interfaces, /reproduced the committed reference byte for byte; both digests are below\./);
+    assert.match(interfaces, /reproduced the committed reference byte for byte; the digest is below\./);
     assert.doesNotMatch(interfaces, /MC_PARITY_REFERENCE_SHA256/);
   });
 });
 
-describe("the whole digest is legible, grouped and copyable", () => {
+describe("the whole digest is legible as one value, and copyable", () => {
   const digest = rendered(DIGEST);
 
   it("prints all sixty-four characters of the committed digest", () => {
     assert.equal(MC_PARITY_REFERENCE_SHA256.length, 64, "the committed digest is not a SHA-256");
     assert.match(rendered(CHAIN), /hex=\{MC_PARITY_REFERENCE_SHA256\}/);
-    assert.match(digest, /groupDigest\(hex\)\.map/);
+    assert.match(digest, /<code className="num" title=\{hex\} style=\{DIGEST_STYLE\}> \{hex\} <\/code>/);
   });
 
-  it("groups with margins, not with a grid gap or a literal space", () => {
+  it("renders the value contiguous — no grouping, no grid, no literal spaces", () => {
     /**
-     * The clipboard is the whole argument. `display: grid` with `gap` reads
-     * beautifully and copies as eight lines, because grid items are blockified;
-     * a literal space between groups copies as `009be58f 34bb20fb …`, which
-     * compares equal to nothing until someone strips it by hand. Inline spans
-     * with a right margin contribute no characters at all, so the selection is
-     * the sixty-four hex characters and the gaps are still on screen.
+     * A first cut grouped the value in eights, and a reader told us how that
+     * renders to anyone outside `sha256sum` output: eight separate short
+     * codes, and no idea which of them is "the" SHA. One unbroken run reads
+     * as one hash, and it selects, copies and greps as exactly the sixty-four
+     * characters on screen.
      */
-    assert.match(digest, /marginRight: "0\.62em"/);
+    assert.doesNotMatch(digest, /groupDigest|marginRight/);
     assert.doesNotMatch(digest, /gridTemplateColumns/);
     assert.doesNotMatch(digest, /\{" "\}/);
   });
 
-  it("reads its size from the ladder and is big enough to compare by eye", () => {
-    assert.match(digest, /fontSize: "var\(--fs-h1\)"/);
+  it("reads its size from the ladder and wraps rather than scrolls", () => {
+    assert.match(digest, /fontSize: "var\(--fs-md\)"/);
     assert.match(digest, /className="num"/, "the digest is not in the tabular mono of .num");
-    // A `ch`-derived width breaks the value after the fourth group on a wide
-    // card and earlier on a narrow one, rather than pinning one line length.
-    assert.match(digest, /calc\(32ch \+ 2\.6em\)/);
     assert.match(digest, /overflowWrap: "anywhere"/);
+  });
+
+  it("prints one row when the two sides agree, two when they do not", () => {
+    // Byte-exact means the two digests are the same sixty-four characters;
+    // printing both was printing one value twice, and the duplicate is what
+    // made the panel read as a wall of hashes. Every other outcome keeps both
+    // rows, because then the sides genuinely differ and each says why.
+    const chain = rendered(CHAIN);
+    assert.match(chain, /run\.phase === "complete" && run\.matches && !stale && observedHex \? \(/);
+    assert.match(chain, /caption="SHA-256 — committed reference and this browser"/);
+    assert.match(chain, /hash to this same digest, so it is printed once\./);
   });
 
   it("says why when there is no digest, rather than showing an empty box", () => {
@@ -307,11 +316,9 @@ describe("the committed reference is what the panel says it is", () => {
     );
   });
 
-  it("groups sixty-four characters into eight groups of eight", () => {
-    // Pinned as arithmetic rather than as a screenshot: eight groups of eight
-    // is the shape a `sha256sum` reader already knows how to scan.
-    assert.match(rendered(DIGEST), /const GROUP = 8;/);
-    assert.equal(MC_PARITY_REFERENCE_SHA256.length % 8, 0);
+  it("carries the whole sixty-four characters, ungrouped", () => {
+    assert.equal(MC_PARITY_REFERENCE_SHA256.length, 64);
+    assert.doesNotMatch(rendered(DIGEST), /const GROUP/);
   });
 });
 

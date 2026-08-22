@@ -133,8 +133,8 @@ const MEASURE = `
   // The Connect label is a Tailwind arbitrary max-width hidden span, where the
   // breakpoint is a rung. The class is NOT written out here on purpose: Tailwind
   // v4 scans .mjs for class names and cannot tell a comment from markup, so a
-  // literal `max-[` + placeholder + `]:hidden` in this line was extracted as a
-  // real utility and emitted `@media (width < Npx)` into app/tailwind.css —
+  // literal \`max-[\` + placeholder + \`]:hidden\` in this line was extracted as a
+  // real utility and emitted \`@media (width < Npx)\` into app/tailwind.css —
   // invalid CSS, a build warning today and a build failure the moment warnings
   // become fatal. Rejected alternative: a Tailwind ignore comment, which does
   // not exist for source scanning; the scanner takes the file, not the syntax.

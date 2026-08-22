@@ -760,58 +760,61 @@ html:active-view-transition .view-panel {
 /* The header's priority ladder.
 
    `.workspace-header__utility` is `overflow-x: clip`, so a row wider than the
-   viewport does not wrap or scroll — it loses its rightmost controls, and
-   those are Settings and, for a guest, Sign in. Measured on production as a
-   guest (the widest the row gets: "Sign in" is 73px where the signed-in
-   monogram is 32) with the compiled core's annotation in the decision chip,
-   the fully-labelled row needed ~1805px at the previous chrome type, and
-   until this pass nothing collapsed above 1380px: Settings was clipped from
-   1722px down and by 298px at 1381. The band that replaced it folded too
-   much at once — at 1700px the row sat with 250px of empty spacer and its
-   labels already gone — so the rungs are small and each is measured to land
-   just before the next clip. The rungs moved 60px out on 2026-08-17 for the
-   chrome lift (tabs 14px, chips 13px, captions 12px) and came back on
-   2026-08-20 when the chrome returned to 13/12/11, and both times the numbers
-   were measured rather than reasoned about.
+   viewport silently loses its rightmost controls — Settings and, for a guest,
+   Sign in. The rungs are small, each measured to land just before the next
+   clip with scripts/header-ladder-measure.mjs (guest row, the sweep's widest
+   strings injected, 2000 → 1080), re-run for every chrome change.
 
-   The 2026-08-20 sweep, scripts/header-ladder-measure.mjs on the local
-   harness — guest row, widest production strings injected, 2000 → 1080 in
-   2px steps: slack is positive at every width, the row stays one row
-   throughout, and the tightest band bottoms out at 35px of spare (just above
-   rung 3, at 1700). The decision chip measures 34.4px while it carries copy,
-   which is the row's two-line norm and within a tenth of the 34.45px its own
-   comment predicts from the type; below rung 8 the copy folds and the icon
-   sets 36px. The chrome tokens are fixed px, so the Text-size preference
-   cannot move any of this — the --text-size=large run is byte-identical to
-   the default, and that is the proof rather than the claim.
-
-   2026-08-21, the numeric-stability pass: the rungs did not move, and this is
-   the arithmetic that says they did not have to. Two chips changed width.
-   `.latency-chip__state` gained tabular figures and an 87px floor — the sweep
-   already injects "within budget" there, which measures 86.28px with tabular
-   figures against 85.92px without, so the row the rungs were measured on was
-   0.72px narrower than the floor and the band is unchanged for practical
-   purposes. `.system-health-action` gained tabular figures, which cost it
-   6.35px with the long sentence and 6.16px with the short one, plus a floor
-   set to the widest sentence in each band (180px / 129px) so the count can no
-   longer resize it. Only the tabular cost is new width: the floors are the
-   sweep's own injected strings. The tightest band — 35px of spare just above
-   rung 3, where the short sentence is the one on screen — therefore stands at
-   about 29px, still clear. Measured per element in headless Chrome against
-   the header's own Inter rather than re-swept, because the sweep needs a dev
-   server; a full re-sweep is owed the next time a rung actually moves.
+   Re-measured 2026-08-23: the row had grown since the 2026-08-20 sweep and
+   the tail of every band clipped (the reported guest clip at
+   1440/1580/1728/1920). Every rung moved out to the first width its band
+   went negative, rounded up to a ten; the sweep then reads positive slack at
+   every width down to the wrap, and the --text-size=large run is
+   byte-identical — the ladder ignores the Text-size preference.
 
    CrossFlow's rule stands — drop secondary context before letting the
    workspace nav clip — lowest priority first: what the aria-label already
    carries and a glyph already says goes before any word a reader needs; the
    decision figure folds late; the Kill switch and Sign in labels last.
    Settings, the account chip, the kill switch and the tabs themselves never
-   go. Guest and signed-in rows are one structure, so every rung holds for
-   both.
+   go, and guest and signed-in rows are one structure, so every rung holds
+   for both. */
 
-   Rung 1 (≤1880, with the Search label rule near the top of this file): the
-   Search label, and the providers sentence becomes its short form. */
-@media (min-width: 901px) and (max-width: 1880px) {
+/* The providers chip's anti-resize reservation, replacing the old 180px/129px
+   floors. Those were sized for "20/20 providers routable" — a fleet this
+   deployment does not run — so the real "8/8 providers" chip carried ~26px of
+   invisible slack, tripling the visual gap to the account chip. The pseudo
+   ghosts draw the widest sentence the LIVE fleet can produce (WorkspaceHeader
+   writes data-widest / data-widest-short) into the label's grid cell, hidden:
+   the chip cannot resize while the ready count moves, and reserves nothing
+   for counts that cannot occur. No total yet → attributes absent, attr()
+   empty, and the chip is sized by "Checking data plane" alone. */
+.system-health-action {
+  display: inline-grid;
+  grid-template-columns: auto 1fr;
+}
+
+.system-health-action > span,
+.system-health-action::before,
+.system-health-action::after {
+  grid-area: 1 / 2;
+  justify-self: start;
+}
+
+.system-health-action::before,
+.system-health-action::after {
+  content: attr(data-widest);
+  visibility: hidden;
+}
+
+.system-health-action::after {
+  content: attr(data-widest-short);
+  display: none;
+}
+
+/* Rung 1 (≤1920, with the Search label rule in 00-tokens-and-base.css): the
+   Search label, the providers sentence → its short form, the ghost with it. */
+@media (min-width: 901px) and (max-width: 1920px) {
   .system-health__label {
     display: none;
   }
@@ -820,19 +823,18 @@ html:active-view-transition .view-panel {
     display: inline;
   }
 
-  /* The reservation follows the label down. 129px is the same composed button
-     measured around "12/12 providers" (128.05px) — the short sentence at its
-     widest, and the very string the ladder's sweep injects here. Without this
-     the chip would keep the 180px floor the long sentence needs and hand the
-     row 52px it has no use for at these widths. */
-  .system-health-action {
-    min-width: 129px;
+  .system-health-action::before {
+    display: none;
+  }
+
+  .system-health-action::after {
+    display: inline;
   }
 }
 
-/* Rung 2 (≤1780): the decision chip's state word — the dot keeps the tone,
+/* Rung 2 (≤1820): the decision chip's state word — the dot keeps the tone,
    the title keeps the words. */
-@media (min-width: 901px) and (max-width: 1780px) {
+@media (min-width: 901px) and (max-width: 1820px) {
   .latency-chip__state {
     display: none;
   }
@@ -843,8 +845,8 @@ html:active-view-transition .view-panel {
   }
 }
 
-/* Rung 3 (≤1690): the Settings label. */
-@media (min-width: 901px) and (max-width: 1690px) {
+/* Rung 3 (≤1720): the Settings label. */
+@media (min-width: 901px) and (max-width: 1720px) {
   .workspace-header__utility > .header-settings,
   .workspace-header__utility > .header-anchor > .header-settings {
     width: 36px;
@@ -858,18 +860,17 @@ html:active-view-transition .view-panel {
   }
 }
 
-/* Rung 4 (≤1630): the data-tier label — the rule sits with the chip's own
-   comment, above. Rung 5 (≤1580): the Connect / Connected label — the
-   max-[1580px] class in TelegramCta.
+/* Rung 4 (≤1660): the data-tier label — the rule sits with the chip's own
+   comment, above. Rung 5 (<1610): the Connect / Connected label — the
+   max-[1610px] class in TelegramCta.
 
    Not a rung: the core annotation inside the decision chip. Measured, it adds
-   no width — the DECISION P99 caption above it is the wider line of the two —
-   so hiding it would take the nanosecond figure off the row and buy nothing.
-   It stays until the chip's own copy folds (rung 8). */
+   no width — the DECISION P99 caption above it is the wider line — so hiding
+   it buys nothing; it stays until the chip's own copy folds (rung 8). */
 
-/* Rung 6 (≤1500): the providers chip is its dot alone — the count is one tap
+/* Rung 6 (≤1540): the providers chip is its dot alone — the count is one tap
    away in Settings and the panel it opens; the aria-label keeps the sentence. */
-@media (min-width: 901px) and (max-width: 1500px) {
+@media (min-width: 901px) and (max-width: 1540px) {
   .system-health-action {
     width: 44px;
     min-width: 44px;
@@ -886,9 +887,9 @@ html:active-view-transition .view-panel {
   }
 }
 
-/* Rung 7 (≤1430): the brand tagline, the tabs' side padding, and the tab
+/* Rung 7 (≤1460): the brand tagline, the tabs' side padding, and the tab
    labels back to the chip size. */
-@media (min-width: 901px) and (max-width: 1430px) {
+@media (min-width: 901px) and (max-width: 1460px) {
   .brand-copy small {
     display: none;
   }
@@ -902,9 +903,9 @@ html:active-view-transition .view-panel {
   }
 }
 
-/* Rung 8 (≤1270): the decision figure folds to its gauge; the title still
+/* Rung 8 (≤1300): the decision figure folds to its gauge; the title still
    names both planes and the Reliability tab has the numbers. */
-@media (min-width: 901px) and (max-width: 1270px) {
+@media (min-width: 901px) and (max-width: 1300px) {
   .latency-chip__copy {
     display: none;
   }

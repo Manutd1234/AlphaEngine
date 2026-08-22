@@ -12,27 +12,16 @@
  * cannot do the comparison, only believe the sentence that says it was done.
  * The point of a custody surface is that it can be checked rather than trusted.
  *
- * So the full sixty-four characters are printed at --fs-h1, in the tabular
- * mono of `.num`, in eight groups of eight. Grouping is the whole reason a
- * human can compare two hashes by eye at all: an ungrouped run of sixty-four
- * hex characters has no landmarks, and the eye loses its place inside it.
- *
- * THE GROUPING IS DRAWN WITH MARGINS, NOT WITH GAPS OR SPACES, and that is a
- * deliberate rejection of the two obvious alternatives:
- *
- *   - `display: grid` with `gap` reads beautifully and copies wrongly. Grid
- *     items are blockified, so a selection dragged across the whole value comes
- *     out of the clipboard as eight lines. A digest that cannot be pasted into
- *     a `grep` is a digest the reader still cannot check.
- *   - A literal space between groups copies as `009be58f 34bb20fb …`, which
- *     compares equal to nothing until the reader strips it by hand.
- *
- * Inline `<span>`s with a right margin contribute no characters of their own,
- * so the selection is the sixty-four hex characters and nothing else, while the
- * gaps are still on screen. `overflow-wrap: anywhere` plus a `ch`-derived
- * max-width puts the break after the fourth group on a wide card and lets it
- * fall earlier on a narrow one, rather than pinning a line length that only
- * holds at one viewport.
+ * So the full sixty-four characters are printed, in the tabular mono of
+ * `.num`, as ONE CONTIGUOUS VALUE. A first cut grouped it in eights at
+ * --fs-h1, and a reader told us what that renders as to anyone who does not
+ * live in `sha256sum` output: eight separate seven-or-eight-digit codes, twice
+ * over, and no idea which of them is "the" SHA. One unbroken run at body-mono
+ * size is what a hash looks like everywhere else a reader meets one — a
+ * lockfile, a git log, a checksum file — and it selects and pastes as exactly
+ * the sixty-four characters on screen. The caption above it says what it is;
+ * `overflow-wrap: anywhere` lets it wrap on a narrow card instead of forcing a
+ * sideways scroll, since a hash has no whitespace to break at.
  *
  * No CSS was added for any of this. This file does not own the stylesheet, and
  * the layout that matters is expressed inline; the type sizes are read from the
@@ -55,16 +44,6 @@ export type DigestReading =
   | { state: "computing" }
   | { state: "computed"; hex: string }
   | { state: "unavailable"; why: string };
-
-/** Characters per group. Eight groups of eight is the shape `sha256sum` users read. */
-const GROUP = 8;
-
-/** The digest in groups of eight, or the whole string if it is not 64 characters. */
-export function groupDigest(hex: string): string[] {
-  const groups: string[] = [];
-  for (let index = 0; index < hex.length; index += GROUP) groups.push(hex.slice(index, index + GROUP));
-  return groups;
-}
 
 /** Bytes to lower-case hex, the spelling every other leg of this claim uses. */
 function toHex(buffer: ArrayBuffer): string {
@@ -149,15 +128,11 @@ export function firstDifference(a: string, b: string): number | null {
 const DIGEST_STYLE: CSSProperties = {
   display: "block",
   marginTop: "6px",
-  fontSize: "var(--fs-h1)",
+  fontSize: "var(--fs-md)",
   fontWeight: 600,
-  lineHeight: "var(--lh-tight)",
-  /* 32 characters plus the three margins between four groups: on a wide card
-     the fifth group cannot fit and the value breaks into two even lines of
-     four, and on a narrow one it breaks earlier instead of forcing the card to
-     scroll sideways. `anywhere` is what allows the break at all — there is no
-     whitespace inside a hash to break at. */
-  maxWidth: "min(100%, calc(32ch + 2.6em))",
+  lineHeight: "var(--lh-snug)",
+  maxWidth: "100%",
+  /* `anywhere` is what allows a wrap at all — a hash has no whitespace. */
   overflowWrap: "anywhere",
 };
 
@@ -207,12 +182,11 @@ export function CustodyDigestRow({
         </p>
       ) : (
         <>
+          {/* One contiguous value: it selects, copies and greps as the
+              sixty-four characters on screen, and reads as one hash rather
+              than a stack of short codes. */}
           <code className="num" title={hex} style={DIGEST_STYLE}>
-            {groupDigest(hex).map((group, index) => (
-              <span key={group + String(index)} style={{ marginRight: "0.62em" }}>
-                {group}
-              </span>
-            ))}
+            {hex}
           </code>
           <p className="signal-workflow__source" style={{ marginTop: "4px" }}>
             {note}

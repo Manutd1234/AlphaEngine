@@ -64,6 +64,13 @@
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-2) var(--space-3);
+    /* Never stretch. The panel carries a layout-stability min-height (14j),
+       and a grid's default `align-content: stretch` hands any spare height to
+       the auto rows — so on a short pane the switcher's row inflated and the
+       seg stood 107px tall on Holdings, 52px on Standing, 32px on Exit,
+       resizing every time the reader changed pane. Measured over CDP at 1724.
+       `start` leaves the spare at the panel's foot, as block flow always did. */
+    align-content: start;
   }
 
   #portfolio-subpanel-overview > *,

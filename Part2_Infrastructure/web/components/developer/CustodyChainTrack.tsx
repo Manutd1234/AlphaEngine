@@ -140,8 +140,11 @@ export default function CustodyChainTrack({ chain, label }: { chain: CustodyLink
               data-state={link.state}
               onClick={() => setOpen(open === link.id ? null : link.id)}
             >
+              {/* "Step", not "Link": a reader reported the chain unreadable as
+                  "LINK 1 … LINK 5" — link is chain-of-custody jargon; step is
+                  the word for a position in a flow of data. */}
               <span className="signal-workflow__step">
-                Link {index + 1}: {link.role}
+                Step {index + 1}: {link.role}
               </span>
               <strong>{link.artefact}</strong>
               <span className="signal-workflow__meta">

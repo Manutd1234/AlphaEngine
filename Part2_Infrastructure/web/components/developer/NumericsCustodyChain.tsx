@@ -241,6 +241,27 @@ export default function NumericsCustodyChain({ run }: { run: BrowserRun }) {
       <CustodyChainTrack chain={chain} label="Numerics custody chain" />
 
       <div className="signal-workflow__detail" style={{ marginTop: "var(--space-3)" }}>
+        {/* When this browser reproduced the reference byte for byte the two
+            digests are the same sixty-four characters, so printing both was
+            printing one value twice — the reader who asked "why are there so
+            many hashes" was right. One row, naming both producers. Any other
+            outcome — no run yet, a divergence, a stale reference — still gets
+            the two rows, because then the sides genuinely differ and each
+            carries its own reason. */}
+        {run.phase === "complete" && run.matches && !stale && observedHex ? (
+          <CustodyDigestRow
+            caption="SHA-256 — committed reference and this browser"
+            hex={observedHex}
+            glyph={STAGE_GLYPH.ok}
+            word="byte-exact"
+            tint={TINT.ok}
+            note={
+              "One value, sixty-four hexadecimal characters. The committed reference and the bytes this "
+              + `tab produced (${engineWord(run.engine)}) hash to this same digest, so it is printed once.`
+            }
+          />
+        ) : (
+        <>
         <CustodyDigestRow
           caption="Committed in this repository"
           hex={MC_PARITY_REFERENCE_SHA256}
@@ -275,6 +296,8 @@ export default function NumericsCustodyChain({ run }: { run: BrowserRun }) {
                 : (digestAbsenceReason(observed) ?? "Waiting on the Web Crypto digest.")
           }
         />
+        </>
+        )}
       </div>
     </div>
   );

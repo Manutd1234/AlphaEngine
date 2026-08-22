@@ -572,7 +572,7 @@ html {
 
 /* First rung of the header's priority ladder — the full ladder, with the
    measurements behind it, sits under "The header's priority ladder" below. */
-@media (max-width: 1880px) {
+@media (max-width: 1920px) {
   .header-command-button__label {
     display: none;
   }
