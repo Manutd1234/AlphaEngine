@@ -26,6 +26,19 @@ import { type HideablePanelProps, skipWhileHidden } from "./hidden-panel";
 
 const PROBE_SIZES = [10_000, 50_000, 100_000, 250_000, 1_000_000];
 
+type RoutingPane = "routing" | "tca";
+
+/**
+ * Two panes since 2026-08-23, on a reader's report that one card holding the
+ * controls, the what-if constraints, the venue table, the split bar and the
+ * cost tiles read as clutter. Routing is the order and how it would be
+ * split; TCA is what that split costs. Both read the same walk.
+ */
+const ROUTING_PANES: Array<{ id: RoutingPane; label: string; hint: string }> = [
+  { id: "routing", label: "Routing", hint: "The order, the what-if constraints, and how the walk splits it across venues" },
+  { id: "tca", label: "TCA", hint: "What that route costs against the consolidated mid, and the dislocation it finds" },
+];
+
 interface RoutingProbeProps extends HideablePanelProps {
   symbol: string;
   snap: LiveSnapshot | null;
@@ -56,6 +69,7 @@ function RoutingProbe({
   // opts-free and stays on the gateway-parity path.
   const [includedVenues, setIncludedVenues] = useState<string[] | null>(null);
   const [capText, setCapText] = useState("");
+  const [pane, setPane] = useState<RoutingPane>("routing");
   const capBps = Number.isFinite(parseFloat(capText)) ? parseFloat(capText) : undefined;
   /** No consolidated mid means nothing to cap slippage against — named once,
    *  read by the preset seg and the cap input, which must agree about why. */
@@ -93,6 +107,22 @@ function RoutingProbe({
         </div>
       )}
 
+    <div className="seg" role="group" aria-label="Routing view">
+      {ROUTING_PANES.map((option) => (
+        <button
+          key={option.id}
+          type="button"
+          aria-pressed={pane === option.id}
+          title={option.hint}
+          onClick={() => setPane(option.id)}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+
+    {pane === "routing" && (
+    <>
     <div className="card">
       <h2>Execution cost probe</h2>
       {/* "see what it would actually cost" was the h2 above it in a longer
@@ -313,10 +343,38 @@ function RoutingProbe({
           </div>
         </div>
       </div>
-
-
-      <RouteEstimate tca={tca} dp={dp} capBps={capBps} whatIfActive={whatIfActive} />
     </div>
+
+    {/* The walk's split, in its own bordered card under its own heading: the
+        controls above are what a trader operates, this is what they read. */}
+    <div className="card">
+      <div className="section-heading compact">
+        <div>
+          <span className="page-kicker">Route</span>
+          <h2>Venue split</h2>
+        </div>
+      </div>
+      <RouteEstimate tca={tca} dp={dp} capBps={capBps} whatIfActive={whatIfActive} part="route" />
+    </div>
+    </>
+    )}
+
+    {pane === "tca" && (
+    <div className="card">
+      <div className="section-heading compact">
+        <div>
+          <span className="page-kicker">Transaction cost</span>
+          <h2>What this order costs</h2>
+        </div>
+        {/* Which order: the controls live on the other pane, so the cost
+            names its subject rather than assuming the reader remembers. */}
+        <span className="section-note">
+          {side} ${compact(notional)} {symbol}{whatIfActive ? ", with what-if constraints applied" : ""}
+        </span>
+      </div>
+      <RouteEstimate tca={tca} dp={dp} capBps={capBps} whatIfActive={whatIfActive} part="cost" />
+    </div>
+    )}
 
       <details className="card execution-methodology">
         <summary>How the live routing feed works</summary>

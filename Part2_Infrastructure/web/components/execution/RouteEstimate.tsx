@@ -27,12 +27,21 @@ interface RouteEstimateProps {
   capBps?: number;
   /** True when a venue set or a cap is narrowing the estimate. */
   whatIfActive: boolean;
+  /**
+   * Which half of the answer to draw. The probe shows the walk on two panes
+   * since 2026-08-23 — Routing (the per-venue table, the split bar and its
+   * legend) and TCA (the cost tiles and the dislocation strip) — because one
+   * card holding the controls, the split and the cost read as clutter. Both
+   * halves are derived from the same `tca`, so they cannot disagree.
+   */
+  part: "route" | "cost";
 }
 
-export default function RouteEstimate({ tca, dp, capBps, whatIfActive }: RouteEstimateProps) {
+export default function RouteEstimate({ tca, dp, capBps, whatIfActive, part }: RouteEstimateProps) {
   return (
     <>
       {tca ? (
+        part === "route" ? (
         <>
           <div className="table-wrap" tabIndex={0} style={{ marginBottom: 14 }}>
             <table>
@@ -136,7 +145,9 @@ export default function RouteEstimate({ tca, dp, capBps, whatIfActive }: RouteEs
                 : " — the remainder finds no depth on the included venues."}
             </p>
           ) : null}
-
+        </>
+        ) : (
+        <>
           <div className="tiles" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))" }}>
             <StatTile label="Blended VWAP" value={fmt(tca.vwap, dp)} note="aggressive: pay the spread, fill now" />
             <StatTile
@@ -165,6 +176,7 @@ export default function RouteEstimate({ tca, dp, capBps, whatIfActive }: RouteEs
             venuesOnline={tca.perVenue.map((e) => e.venue)}
           />
         </>
+        )
       ) : (
         /* NOT "waiting for a live book on both venues", which is what this
            said and which the code has never required. `liveTca` bails only on

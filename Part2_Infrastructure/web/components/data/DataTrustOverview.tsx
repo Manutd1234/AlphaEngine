@@ -188,7 +188,6 @@ export default function DataTrustOverview({
                 <span className="page-kicker">Decision evidence</span>
                 <h2 id="trust-evidence-heading">What is known now</h2>
               </div>
-              <span className="section-note">missing evidence remains unknown</span>
             </div>
             <div className="data-trust-evidence-grid">
               {trust.evidence.map((item) => (

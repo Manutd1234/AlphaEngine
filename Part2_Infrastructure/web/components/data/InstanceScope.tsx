@@ -30,7 +30,6 @@ export default function InstanceScope({ health }: { health: SystemHealth | null 
           <span className="page-kicker">Measurement scope</span>
           <h2 id="trust-scope-heading">Whose numbers these are</h2>
         </div>
-        <span className="section-note">read from the snapshot, not assumed</span>
       </div>
 
       <div className="data-trust-evidence-grid">

@@ -212,15 +212,17 @@ export default function DataWorkBoard({
         </div>
       </div>
 
+      {/* At rest the scope line is gone (a reader asked, 2026-08-23): the
+          queue-not-ticket-system sentence and the seeded-row count ride in
+          the fold below, and every seeded row still wears its own ‹sample›
+          mark. The two states that are NOT the steady one keep the line. */}
+      {/* Why the controls are dimmed is never folded. */}
+      {source?.kind === "gateway" && readOnly && readOnlyReason && (
+        <p className="data-workboard__scope">{readOnlyReason}</p>
+      )}
+      {source?.kind !== "gateway" && (
       <p className="data-workboard__scope">
-        {source?.kind === "gateway" ? (
-          <>
-            This is a queue, not a ticket system.
-            {source.seeded > 0
-              ? ` ${source.seeded} of these ${source.seeded === 1 ? "is a seeded sample row" : "are seeded sample rows"}, marked ‹sample›.`
-              : ""}
-          </>
-        ) : source?.kind === "local" ? (
+        {source?.kind === "local" ? (
           <>
             The gateway could not be reached ({source.reason}), so this is the last list loaded — or
             the seeded sample if none has — and edits are held in this browser until it answers.
@@ -231,6 +233,7 @@ export default function DataWorkBoard({
         )}
         {readOnly && readOnlyReason ? ` ${readOnlyReason}` : ""}
       </p>
+      )}
 
       {/* Provenance, not a measurement, so it folds. The pill and the
           Persistence tile above already print the gateway, SQLite and the
@@ -243,7 +246,11 @@ export default function DataWorkBoard({
           <summary>How an edit is recorded</summary>
           <p className="sub">
             Persisted on the gateway, {source.count} {source.count === 1 ? "item" : "items"}.
-            Every create and status change is versioned in the gateway&apos;s work-item table;
+            This is a queue, not a ticket system.
+            {source.seeded > 0
+              ? ` ${source.seeded} of these ${source.seeded === 1 ? "is a seeded sample row" : "are seeded sample rows"}, marked ‹sample›.`
+              : ""}
+            {" "}Every create and status change is versioned in the gateway&apos;s work-item table;
             a stale edit is refused rather than overwritten.
           </p>
         </details>
