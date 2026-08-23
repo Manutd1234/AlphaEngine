@@ -52,6 +52,21 @@ class OhlcvCache(AuditStore):
         first = row[0] if row else {}
         return {"rows": int(first.get("rows_") or 0), "first_ts": first.get("first_ts"), "last_ts": first.get("last_ts")}
 
+    def load_ohlcv_range(self, symbol: str, interval: str, from_ts: Any, to_ts: Any,
+                         *, limit: int = 200_000) -> list[dict[str, Any]]:
+        """Bars inside a window, oldest first.
+
+        `load_ohlcv` answers "the newest N", which is what a chart wants and
+        the opposite of what an event study wants: a window around an
+        announcement three years ago is not near the end of the table. Ordered
+        ascending because every reader of this downstream walks time forwards.
+        """
+        return self.query(
+            "SELECT ts, open, high, low, close, volume FROM ohlcv_cache "
+            "WHERE symbol = ? AND interval = ? AND ts >= ? AND ts <= ? ORDER BY ts ASC LIMIT ?",
+            (symbol, interval, from_ts, to_ts, limit),
+        )
+
     def load_ohlcv(self, symbol: str, interval: str, limit: int) -> list[dict[str, Any]]:
         return self.query(
             "SELECT ts, open, high, low, close, volume FROM ohlcv_cache "

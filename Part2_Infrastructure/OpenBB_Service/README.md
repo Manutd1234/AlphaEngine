@@ -23,7 +23,16 @@ GET /api/research/openbb/quote?symbol=AAPL&asset=equity
 GET /api/research/openbb/bars?symbol=AAPL&asset=equity&interval=1d&limit=500
 GET /api/research/openbb/news?symbols=AAPL,MSFT&limit=20&asset=equity
 GET /api/research/openbb/fundamentals?symbol=AAPL
+GET /api/research/openbb/calendar?kind=earnings&start=2026-08-01&end=2026-09-01&limit=50
 ```
+
+`calendar` is the one route that does not go through an `openbb_yfinance`
+fetcher, and the deviation is deliberate: there is no calendar fetcher in that
+package at all, so honouring the rule would mean adding `openbb-fmp` or
+`openbb-nasdaq` to the five-package pin for data the pinned `yfinance` already
+answers. `calendars.py` states the same argument beside the code. Its `timing`
+field — BMO, AMC, TAS, TNS — travels verbatim, because it is the only signal a
+free feed gives about whether a release lands before an open or after a close.
 
 `asset=crypto` on `news` spells each symbol the way YFinance names a pair
 (`BTCUSDT` → `BTC-USD`), as `quote` and `bars` already did; the default is

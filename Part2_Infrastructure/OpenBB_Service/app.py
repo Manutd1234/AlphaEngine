@@ -8,6 +8,7 @@ import re
 import secrets
 from typing import Annotated, Any, Awaitable, Callable
 
+from calendars import earnings_calendar, economic_calendar
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from fastapi.responses import JSONResponse
 from provider import (
@@ -159,6 +160,25 @@ async def openbb_fundamentals(
 ) -> dict[str, Any]:
     normalized = symbol.upper()
     return await _envelope("fundamentals", lambda: fundamentals(normalized))
+
+
+@app.get("/api/research/openbb/calendar", dependencies=AUTH, tags=["OpenBB"])
+async def openbb_calendar(
+    kind: Annotated[str, Query(pattern=r"^(earnings|economic)$")] = "earnings",
+    start: Annotated[str | None, Query(pattern=r"^\d{4}-\d{2}-\d{2}$")] = None,
+    end: Annotated[str | None, Query(pattern=r"^\d{4}-\d{2}-\d{2}$")] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+) -> dict[str, Any]:
+    """Announcements in a window, with their session-placement word intact.
+
+    The `timing` field — BMO, AMC, TAS, TNS — is the only thing a free feed
+    says about whether a release lands before an open or after a close, and an
+    absorption measurement anchored without it is anchored by guesswork. It
+    travels verbatim and is never folded into the timestamp.
+    """
+    if kind == "economic":
+        return await _envelope("calendar", lambda: economic_calendar(start, end, limit))
+    return await _envelope("calendar", lambda: earnings_calendar(start, end, limit))
 
 
 @app.exception_handler(HTTPException)
