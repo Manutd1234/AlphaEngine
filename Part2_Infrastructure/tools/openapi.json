@@ -1185,6 +1185,11 @@
               }
             ],
             "title": "Upper Bound"
+          },
+          "violated_rows": {
+            "default": 0,
+            "title": "Violated Rows",
+            "type": "integer"
           }
         },
         "required": [
@@ -1377,6 +1382,33 @@
       },
       "CoherenceDispersion": {
         "properties": {
+          "band_fraction": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Band Fraction"
+          },
+          "band_note": {
+            "default": "",
+            "title": "Band Note",
+            "type": "string"
+          },
+          "band_width": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Band Width"
+          },
           "crossed": {
             "default": 0,
             "title": "Crossed",

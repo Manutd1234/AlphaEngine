@@ -189,6 +189,7 @@ export interface CoherenceCombo {
   scope?: string;
   ticker: string;
   upper_bound?: string | null;
+  violated_rows?: number;
 }
 
 export interface CoherenceComboLeg {
@@ -226,6 +227,9 @@ export interface CoherenceCompositionRow {
 }
 
 export interface CoherenceDispersion {
+  band_fraction?: string | null;
+  band_note?: string;
+  band_width?: string | null;
   crossed?: number;
   detail?: string;
   highest?: string | null;

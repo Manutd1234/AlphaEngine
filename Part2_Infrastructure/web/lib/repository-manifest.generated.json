@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-23",
-  "commit": "75ea91c",
+  "commit": "98e66fc",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -169,6 +169,7 @@
     "Part2_Infrastructure/modules/coherence/fs/replay.py",
     "Part2_Infrastructure/modules/coherence/fs/store.py",
     "Part2_Infrastructure/modules/coherence/kernel/__init__.py",
+    "Part2_Infrastructure/modules/coherence/kernel/band_usage.py",
     "Part2_Infrastructure/modules/coherence/kernel/bins.py",
     "Part2_Infrastructure/modules/coherence/kernel/book.py",
     "Part2_Infrastructure/modules/coherence/kernel/calibration.py",
@@ -185,6 +186,7 @@
     "Part2_Infrastructure/modules/coherence/kernel/lattice.py",
     "Part2_Infrastructure/modules/coherence/kernel/moments.py",
     "Part2_Infrastructure/modules/coherence/kernel/money.py",
+    "Part2_Infrastructure/modules/coherence/kernel/shrinkage.py",
     "Part2_Infrastructure/modules/coherence/kernel/states.py",
     "Part2_Infrastructure/modules/coherence/recorder.py",
     "Part2_Infrastructure/modules/coherence/scheduler/__init__.py",
@@ -487,6 +489,7 @@
     "Part2_Infrastructure/tests/test_auth_blank_token.py",
     "Part2_Infrastructure/tests/test_backoff.py",
     "Part2_Infrastructure/tests/test_backtester.py",
+    "Part2_Infrastructure/tests/test_coherence_band_usage.py",
     "Part2_Infrastructure/tests/test_coherence_calibration.py",
     "Part2_Infrastructure/tests/test_coherence_costs.py",
     "Part2_Infrastructure/tests/test_coherence_distribution.py",
