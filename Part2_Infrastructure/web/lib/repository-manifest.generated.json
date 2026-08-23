@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-23",
-  "commit": "d48e442",
+  "commit": "ff0b6a6",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -598,6 +598,7 @@
     "Part2_Infrastructure/web/app/globals/14l-work-queues.css",
     "Part2_Infrastructure/web/app/globals/14m-operator-mutations-table.css",
     "Part2_Infrastructure/web/app/globals/14n-research-tabling.css",
+    "Part2_Infrastructure/web/app/globals/14o-header-tabs-surplus.css",
     "Part2_Infrastructure/web/app/globals/15-navigator-and-trailing-layer.css",
     "Part2_Infrastructure/web/app/icon.svg",
     "Part2_Infrastructure/web/app/layout.tsx",
@@ -1346,6 +1347,7 @@
     "Part2_Infrastructure/web/tests/raw-contracts-rest-healthy-bodies.test.ts",
     "Part2_Infrastructure/web/tests/raw-contracts-rest-predicates.test.ts",
     "Part2_Infrastructure/web/tests/raw-contracts.test.ts",
+    "Part2_Infrastructure/web/tests/reader-round-tabs-and-figure-tables.test.ts",
     "Part2_Infrastructure/web/tests/regimes.test.ts",
     "Part2_Infrastructure/web/tests/regressions.test.ts",
     "Part2_Infrastructure/web/tests/reliability-health-route.test.ts",

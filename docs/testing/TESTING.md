@@ -13,8 +13,8 @@ the habits that keep them honest. The four facts that cost an hour each are in
 Three suites, three runners, one committed record:
 [`web/lib/test-counts.generated.ts`](../../Part2_Infrastructure/web/lib/test-counts.generated.ts)
 holds what each runner printed when it was last regenerated on 2026-08-23 —
-**gateway 2,143 collected (2,141 passed, 2 skipped)**, **web 4,438 tests across
-974 suites**, **service 14** — and its own header explains why it exists: the
+**gateway 2,143 collected (2,141 passed, 2 skipped)**, **web 4,449 tests across
+977 suites**, **service 14** — and its own header explains why it exists: the
 counts were once three hand-copied integers in a component, and they drifted
 three separate times, the last time inside a single afternoon.
 
@@ -24,7 +24,7 @@ web 4,008 while the runner read 4,124, then 4,422, because three changes — the
 Remediation pane split, the numerics custody chain and the Developer diagram
 work — each landed with new suites and nobody re-ran the script. The 2026-08-23
 refresh was taken from a clean detached checkout with the native core built
-(`node --import tsx --test tests/*.test.ts`, 300 files in `web/tests/`: 4,436
+(`node --import tsx --test tests/*.test.ts`, 301 files in `web/tests/`: 4,447
 passed, 0 failed, 2 skipped), so the figure describes committed files only.
 
 Nothing is broken, and nothing here should be patched to paper over it. The
@@ -480,7 +480,7 @@ measured numbers. By hand, from `Part2_Infrastructure/`:
 | Suite | Command | Prerequisites and what green means |
 |---|---|---|
 | Gateway (2,037 collected with weights seeded; 2,030 without) | `venv/bin/python -m pytest` (add `-rs` to see skip reasons) | venv named exactly `venv`, Python 3.12, `requirements-dev.txt`, `requirements-native.txt` and the built core (`python native/decision_core/setup.py build_ext --inplace --build-temp build/native`). Expect one skip with the cross-encoder weights seeded and two without; read the reasons, not the count — see "Reading the skips". |
-| Web (4,438 / 974 suites, 2 skipped — measured 2026-08-23; the committed record agrees) | `cd web && npm test` | Node 22, `npm ci`. Runner is `node --import tsx --test tests/*.test.ts` — Node's own runner over 300 files, no Jest/Vitest, consistent with the no-new-dependencies rule. Both skips are cross-ownership debts, not opt-ins; see "The web suite skips two". |
+| Web (4,449 / 977 suites, 2 skipped — measured 2026-08-23; the committed record agrees) | `cd web && npm test` | Node 22, `npm ci`. Runner is `node --import tsx --test tests/*.test.ts` — Node's own runner over 301 files, no Jest/Vitest, consistent with the no-new-dependencies rule. Both skips are cross-ownership debts, not opt-ins; see "The web suite skips two". |
 | Web types | `cd web && npm run typecheck` | There is **no `lint` script** in `web/` — `npm run lint` fails as a missing script, not a broken linter. |
 | Python lint | `venv/bin/python -m ruff check .` | Configured in `pyproject.toml`, installed by `requirements-dev.txt`. |
 | OpenBB service (14) | `cd OpenBB_Service && python -m pytest` | Its own `requirements-dev.txt` (pytest 9.1.1, httpx); stateless, offline. |

@@ -129,7 +129,7 @@ All from `Part2_Infrastructure` unless stated; web commands from
 | What | Command | Notes |
 |---|---|---|
 | Gateway tests | `venv/bin/python -m pytest` | 134 `test_*.py` suites (`ls tests/test_*.py \| wc -l`, 2026-08-23), deterministic, no network |
-| Web tests | `npm test` | `node --test` via tsx; **4,438 tests across 974 suites in 300 files**, measured 2026-08-23 from a clean checkout. Two skips, both cross-ownership debts rather than opt-ins. The committed record agrees; when it stops agreeing, refresh it, see §4.3 |
+| Web tests | `npm test` | `node --test` via tsx; **4,449 tests across 977 suites in 301 files**, measured 2026-08-23 from a clean checkout. Two skips, both cross-ownership debts rather than opt-ins. The committed record agrees; when it stops agreeing, refresh it, see §4.3 |
 | Service tests | `cd OpenBB_Service && python -m pytest` | own `pyproject.toml`, 14 tests |
 | Typecheck | `npm run typecheck` | `tsc --noEmit`, strict |
 | Lint | `venv/bin/python -m ruff check .` | configured in `pyproject.toml`; installed only by `requirements-dev.txt` |
@@ -200,7 +200,7 @@ figures).
 **This gate was red for a week in August**, and it is the worked example of
 why it exists: three changes landed on 2026-08-22 adding suites, none refreshed
 the module, and the committed 4,008 faced a measured 4,124 until the 2026-08-23
-refresh (now 4,438, and it agrees). Nothing was broken —
+refresh (now 4,449, and it agrees). Nothing was broken —
 the gate is doing precisely its job, which is to make "I added tests and forgot"
 a red step rather than a stale number on the Developer tab. Run
 `npm run counts:refresh -- --suite=web` and commit the result. Do not edit the
