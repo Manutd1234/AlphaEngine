@@ -32,6 +32,7 @@ import BooksPane from "@/components/coherence/BooksPane";
 import CertificatePane from "@/components/coherence/CertificatePane";
 import DiffusionPane from "@/components/coherence/DiffusionPane";
 import IndexPane from "@/components/coherence/IndexPane";
+import AblationPane from "@/components/coherence/AblationPane";
 import FeesPane from "@/components/coherence/FeesPane";
 import LessonsPane from "@/components/coherence/LessonsPane";
 import PendingPane from "@/components/coherence/PendingPane";
@@ -149,6 +150,7 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
 
       <WorkspaceSubtabPanel workspaceId="coherence" tabId="fees" activeId={section}>
         <FeesPane active={active && section === "fees"} />
+        <AblationPane active={active && section === "fees"} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="coherence" tabId="index" activeId={section}>

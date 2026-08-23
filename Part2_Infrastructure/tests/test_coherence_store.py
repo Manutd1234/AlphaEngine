@@ -35,6 +35,7 @@ def _rows(ts_ns: int) -> list[BookRow]:
             event_ticker="KXHIGHNY-26AUG23",
             series_ticker="KXHIGHNY",
             exchange_index=0,
+            mutually_exclusive=True,
             book=book,
             source="fixture",
         )

@@ -297,3 +297,38 @@ class CoherenceEpisodes(BaseModel):
     verdict: str = ""
     round_trip_s: str = "0.240"
     notes: list[str] = Field(default_factory=list)
+
+
+class CoherenceAblation(BaseModel):
+    """What one configuration of the model found over the whole tape."""
+
+    name: str
+    description: str
+    observations: int = 0
+    violations: int = 0
+    worth_doing: int = 0
+    gross_total: str = "0"
+    net_total: str = "0"
+    untestable: int = 0
+    notes: list[str] = Field(default_factory=list)
+
+
+class CoherenceReplay(BaseModel):
+    """The ablation harness's answer: which parts of the model change the answer.
+
+    Not a P&L estimate. Replaying an arbitrage engine over its own recorded
+    quotes cannot tell you what it would have earned — it could not have traded
+    against every quote it recorded. What it can tell you is how many
+    opportunities each configuration SEES, and the gap between the naive test
+    and the fee-aware one is the number this project exists to produce.
+    """
+
+    state: str
+    rows: int = 0
+    observations: int = 0
+    first_ts_ns: int = 0
+    last_ts_ns: int = 0
+    span_seconds: str = "0"
+    ablations: list[CoherenceAblation] = Field(default_factory=list)
+    headline: str = ""
+    notes: list[str] = Field(default_factory=list)

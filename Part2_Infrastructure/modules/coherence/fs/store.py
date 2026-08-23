@@ -48,6 +48,7 @@ _DDL: tuple[str, ...] = (
         event_ticker   VARCHAR,
         series_ticker  VARCHAR,
         exchange_index INTEGER,
+        mutually_exclusive BOOLEAN,
         yes_ladder     VARCHAR     NOT NULL,
         no_ladder      VARCHAR     NOT NULL,
         best_yes_bid   DECIMAL(12,6),
@@ -97,6 +98,10 @@ class BookRow:
     event_ticker: str
     series_ticker: str
     exchange_index: int
+    #: The exchange's own exclusivity flag, carried onto the tape because it is
+    #: the licence for "these prices sum to a dollar" and nothing downstream can
+    #: recover it from the ladders.
+    mutually_exclusive: bool
     book: Book
     source: str
 
@@ -136,9 +141,37 @@ class CoherenceStore:
             raise TapeUnavailable(f"coherence tape at {self.db_path.name} could not be opened: {exc}") from exc
         for statement in _DDL:
             conn.execute(statement)
+        self._migrate(conn)
         self._conn = conn
         self._unavailable_reason = None
         return conn
+
+    def _migrate(self, conn: duckdb.DuckDBPyConnection) -> None:
+        """Widen an existing tape rather than rebuilding it.
+
+        Columns added after the first tapes existed are added here, never to
+        the DDL above: a `CREATE TABLE IF NOT EXISTS` does nothing to a table
+        that already exists, so a new column in the DDL would appear on fresh
+        databases and be silently missing on every recorder that has been
+        running — which is the shape of bug that only shows up on the machine
+        with the most history.
+
+        `mutually_exclusive` was added when replay turned out to need it: the
+        flag is the exchange's own assertion that a family's prices sum to a
+        dollar, and without it a replayed tape can test nothing at all.
+        """
+        # `information_schema` rather than `PRAGMA table_info`, which returns
+        # (cid, name, type, ...) — reading column 0 gets the ordinal and the
+        # membership test then always fails, so the ALTER runs every open and
+        # raises on the second one.
+        columns = {
+            row[0]
+            for row in conn.execute(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = 'book_snapshots'"
+            ).fetchall()
+        }
+        if "mutually_exclusive" not in columns:
+            conn.execute("ALTER TABLE book_snapshots ADD COLUMN mutually_exclusive BOOLEAN")
 
     def record_books(self, rows: Sequence[BookRow]) -> int:
         """Append a poll's worth of books. Returns how many landed.
@@ -153,9 +186,9 @@ class CoherenceStore:
             conn.executemany(
                 """
                 INSERT INTO book_snapshots
-                    (ts_ns, ticker, event_ticker, series_ticker, exchange_index,
+                    (ts_ns, ticker, event_ticker, series_ticker, exchange_index, mutually_exclusive,
                      yes_ladder, no_ladder, best_yes_bid, best_no_bid, depth, source)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (
@@ -164,6 +197,7 @@ class CoherenceStore:
                         row.event_ticker,
                         row.series_ticker,
                         row.exchange_index,
+                        row.mutually_exclusive,
                         _ladder_json(row.book.yes_bids),
                         _ladder_json(row.book.no_bids),
                         row.book.best_yes_bid,
@@ -215,7 +249,7 @@ class CoherenceStore:
             conn = self._connect()
             rows = conn.execute(
                 """
-                SELECT ts_ns, ticker, event_ticker, series_ticker, exchange_index,
+                SELECT ts_ns, ticker, event_ticker, series_ticker, exchange_index, mutually_exclusive,
                        yes_ladder, no_ladder, best_yes_bid, best_no_bid, depth, source
                 FROM (
                     SELECT *, ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY ts_ns DESC) AS recency
@@ -229,7 +263,7 @@ class CoherenceStore:
                 (wanted, wanted, int(limit)),
             ).fetchall()
         columns = (
-            "ts_ns", "ticker", "event_ticker", "series_ticker", "exchange_index",
+            "ts_ns", "ticker", "event_ticker", "series_ticker", "exchange_index", "mutually_exclusive",
             "yes_ladder", "no_ladder", "best_yes_bid", "best_no_bid", "depth", "source",
         )
         return [dict(zip(columns, row, strict=True)) for row in rows]

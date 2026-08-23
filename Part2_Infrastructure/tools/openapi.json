@@ -320,6 +320,62 @@
         "title": "CheckResult",
         "type": "object"
       },
+      "CoherenceAblation": {
+        "description": "What one configuration of the model found over the whole tape.",
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "gross_total": {
+            "default": "0",
+            "title": "Gross Total",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "net_total": {
+            "default": "0",
+            "title": "Net Total",
+            "type": "string"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "observations": {
+            "default": 0,
+            "title": "Observations",
+            "type": "integer"
+          },
+          "untestable": {
+            "default": 0,
+            "title": "Untestable",
+            "type": "integer"
+          },
+          "violations": {
+            "default": 0,
+            "title": "Violations",
+            "type": "integer"
+          },
+          "worth_doing": {
+            "default": 0,
+            "title": "Worth Doing",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "description"
+        ],
+        "title": "CoherenceAblation",
+        "type": "object"
+      },
       "CoherenceBookLevel": {
         "description": "One resting level. Both fields are strings; neither is ever null.",
         "properties": {
@@ -1510,6 +1566,64 @@
           "books_written"
         ],
         "title": "CoherenceRecorderStatus",
+        "type": "object"
+      },
+      "CoherenceReplay": {
+        "description": "The ablation harness's answer: which parts of the model change the answer.\n\nNot a P&L estimate. Replaying an arbitrage engine over its own recorded\nquotes cannot tell you what it would have earned \u2014 it could not have traded\nagainst every quote it recorded. What it can tell you is how many\nopportunities each configuration SEES, and the gap between the naive test\nand the fee-aware one is the number this project exists to produce.",
+        "properties": {
+          "ablations": {
+            "items": {
+              "$ref": "#/components/schemas/CoherenceAblation"
+            },
+            "title": "Ablations",
+            "type": "array"
+          },
+          "first_ts_ns": {
+            "default": 0,
+            "title": "First Ts Ns",
+            "type": "integer"
+          },
+          "headline": {
+            "default": "",
+            "title": "Headline",
+            "type": "string"
+          },
+          "last_ts_ns": {
+            "default": 0,
+            "title": "Last Ts Ns",
+            "type": "integer"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "observations": {
+            "default": 0,
+            "title": "Observations",
+            "type": "integer"
+          },
+          "rows": {
+            "default": 0,
+            "title": "Rows",
+            "type": "integer"
+          },
+          "span_seconds": {
+            "default": "0",
+            "title": "Span Seconds",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state"
+        ],
+        "title": "CoherenceReplay",
         "type": "object"
       },
       "CoherenceShardStatus": {
@@ -7770,6 +7884,95 @@
           }
         },
         "summary": "Coherence Index",
+        "tags": [
+          "coherence history"
+        ]
+      }
+    },
+    "/api/coherence/replay": {
+      "get": {
+        "description": "Run the engine over the recorded tape with parts of the model switched off.\n\nThe ablation harness. Its question is not \"how much would this have made\" \u2014\na backtest of an arbitrage engine over its own quotes is close to worthless\nas a P&L estimate, because those quotes are what it would have traded\nagainst and it cannot have traded against all of them.\n\nIts question is which parts of the model change the answer. The gap between\nthe ``no_fees`` row and the ``full`` row is how many opportunities the test\nthat every bot in this space ships with reports and the real one rejects.",
+        "operationId": "coherence_replay_api_coherence_replay_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "since_ts_ns",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Since Ts Ns",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20000,
+              "maximum": 200000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoherenceReplay"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Coherence Replay",
         "tags": [
           "coherence history"
         ]

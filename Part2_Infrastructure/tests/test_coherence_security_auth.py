@@ -36,6 +36,7 @@ ROUTES: dict[str, tuple[str, str, dict | None]] = {
     "GET /api/coherence/fees": ("GET", "/api/coherence/fees?price=0.5000&contracts_fp=1.00&fills=1", None),
     "GET /api/coherence/index": ("GET", "/api/coherence/index?limit=1", None),
     "GET /api/coherence/episodes": ("GET", "/api/coherence/episodes?limit=1", None),
+    "GET /api/coherence/replay": ("GET", "/api/coherence/replay?limit=1", None),
 }
 
 

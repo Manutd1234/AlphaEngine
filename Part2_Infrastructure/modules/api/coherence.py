@@ -21,6 +21,7 @@ from fastapi import APIRouter, Depends, Query
 
 from modules.api.deps import trader_identity
 from modules.coherence import tunables
+from modules.coherence.drivers import kalshi_auth
 from modules.coherence.drivers.kalshi_parse import schema_probe
 from modules.coherence.drivers.kalshi_rest import KalshiClient, KalshiUnavailable
 from modules.coherence.fees_source import schedule_for
@@ -139,17 +140,7 @@ def _solver_status() -> dict[str, Any]:
 
 def _signing_status() -> dict[str, Any]:
     """Whether signed reads are possible. Production reads never need them."""
-    from importlib.util import find_spec
-
-    return {
-        "configured": tunables.signing_configured(),
-        "library": "available" if find_spec("cryptography") is not None else "unavailable",
-        "detail": (
-            "signed demo reads are available"
-            if tunables.signing_configured() and find_spec("cryptography") is not None
-            else "public production reads need no key; signed demo reads are not configured"
-        ),
-    }
+    return kalshi_auth.status()
 
 
 @router.get("/api/coherence/universe", response_model=CoherenceUniverse)

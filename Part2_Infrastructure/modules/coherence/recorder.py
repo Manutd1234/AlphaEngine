@@ -111,6 +111,7 @@ def rows_from(observation: Observation) -> list[BookRow]:
             event_ticker=observation.event.event_ticker,
             series_ticker=observation.event.series_ticker,
             exchange_index=observation.event.exchange_index,
+            mutually_exclusive=observation.event.mutually_exclusive,
             book=item.book,
             source=f"kalshi:{observation.depth}",
         )

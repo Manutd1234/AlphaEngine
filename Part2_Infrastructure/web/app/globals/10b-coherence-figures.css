@@ -169,3 +169,30 @@
   stroke-width: 1.2;
   vector-effect: non-scaling-stroke;
 }
+
+/* ── The ablation bars ───────────────────────────────────────────────────── */
+
+.coh-ablation { height: 120px; }
+
+.coh-ablation__bar { fill: color-mix(in srgb, var(--series-1) 50%, var(--surface-1)); }
+
+/* The naive configuration is marked, not just coloured: it is the one the
+   reader is being asked to distrust, and a hue alone would not say so. */
+.coh-ablation__bar.is-naive {
+  fill: color-mix(in srgb, var(--series-2) 46%, var(--surface-1));
+  stroke: var(--series-2);
+  stroke-width: 0.6;
+  stroke-dasharray: 2 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.coh-ablation__label,
+.coh-ablation__value {
+  fill: var(--text-secondary);
+  font-size: var(--fs-tick);
+  font-variant-numeric: tabular-nums;
+}
+
+.coh-ablation__value { fill: var(--text-primary); font-weight: 640; }
+
+.coh-ablation-pane { display: grid; gap: 12px; min-width: 0; }

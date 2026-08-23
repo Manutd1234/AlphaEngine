@@ -51,6 +51,18 @@ export interface CheckResult {
   passed: boolean;
 }
 
+export interface CoherenceAblation {
+  description: string;
+  gross_total?: string;
+  name: string;
+  net_total?: string;
+  notes?: Array<string>;
+  observations?: number;
+  untestable?: number;
+  violations?: number;
+  worth_doing?: number;
+}
+
 export interface CoherenceBookLevel {
   price: string;
   size: string;
@@ -252,6 +264,18 @@ export interface CoherenceRecorderStatus {
   seconds_since_last_poll?: number | null;
   series_seen?: Array<string>;
   watchlist: Array<string>;
+}
+
+export interface CoherenceReplay {
+  ablations?: Array<CoherenceAblation>;
+  first_ts_ns?: number;
+  headline?: string;
+  last_ts_ns?: number;
+  notes?: Array<string>;
+  observations?: number;
+  rows?: number;
+  span_seconds?: string;
+  state: string;
 }
 
 export interface CoherenceShardStatus {
@@ -1148,6 +1172,7 @@ export interface GatewayOperations {
   "GET /api/coherence/episodes": { response: CoherenceEpisodes };
   "GET /api/coherence/fees": { response: CoherenceFees };
   "GET /api/coherence/index": { response: CoherenceIndexSeries };
+  "GET /api/coherence/replay": { response: CoherenceReplay };
   "GET /api/coherence/status": { response: CoherenceStatus };
   "GET /api/coherence/universe": { response: CoherenceUniverse };
   "GET /api/config": { response: Record<string, unknown> };
@@ -1216,6 +1241,7 @@ export const GATEWAY_CONTRACT_PATHS = [
   "/api/coherence/episodes",
   "/api/coherence/fees",
   "/api/coherence/index",
+  "/api/coherence/replay",
   "/api/coherence/status",
   "/api/coherence/universe",
   "/api/config",

@@ -244,6 +244,30 @@ export interface CoherenceEpisodes {
   notes: string[];
 }
 
+export interface CoherenceAblation {
+  name: string;
+  description: string;
+  observations: number;
+  violations: number;
+  worth_doing: number;
+  gross_total: string;
+  net_total: string;
+  untestable: number;
+  notes: string[];
+}
+
+export interface CoherenceReplay {
+  state: string;
+  rows: number;
+  observations: number;
+  first_ts_ns: number;
+  last_ts_ns: number;
+  span_seconds: string;
+  ablations: CoherenceAblation[];
+  headline: string;
+  notes: string[];
+}
+
 /** The shape a panel gets: the payload, or a named reason there is none. */
 export interface CoherenceLoad<T> {
   data: T | null;
@@ -290,4 +314,8 @@ export function isCoherenceIndexSeries(value: unknown): value is CoherenceIndexS
 
 export function isCoherenceEpisodes(value: unknown): value is CoherenceEpisodes {
   return isRecord(value) && typeof value.state === "string" && Array.isArray(value.episodes);
+}
+
+export function isCoherenceReplay(value: unknown): value is CoherenceReplay {
+  return isRecord(value) && typeof value.state === "string" && Array.isArray(value.ablations);
 }

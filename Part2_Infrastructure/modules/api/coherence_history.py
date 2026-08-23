@@ -21,15 +21,18 @@ from fastapi import APIRouter, Depends, Query
 
 from modules.api.deps import trader_identity
 from modules.coherence.episodes import Episode, survival, verdict_for
+from modules.coherence.fs.replay import rows_from_store
 from modules.coherence.fs.store import TapeUnavailable, get_store
 from modules.coherence.kernel.money import format_dollars
 from modules.coherence.recorder import episode_tracker
+from modules.coherence.syscalls.replay import run
 from modules.schemas import (
     CoherenceEpisode,
     CoherenceEpisodes,
     CoherenceEpisodeSample,
     CoherenceIndexPoint,
     CoherenceIndexSeries,
+    CoherenceReplay,
     CoherenceSurvivalPoint,
 )
 
@@ -157,3 +160,32 @@ def _episode_from(row: dict[str, Any]) -> CoherenceEpisode:
         peak_net_edge_dollars=None if tracked.peak_net_edge is None else format_dollars(tracked.peak_net_edge),
         samples=[CoherenceEpisodeSample(ts_ns=int(s["ts_ns"]), ci=s.get("ci")) for s in samples],
     )
+
+
+@router.get("/api/coherence/replay", response_model=CoherenceReplay)
+async def coherence_replay(
+    since_ts_ns: int = Query(default=0, ge=0),
+    limit: int = Query(default=20_000, ge=1, le=200_000),
+    _actor: str = Depends(trader_identity),
+) -> CoherenceReplay:
+    """Run the engine over the recorded tape with parts of the model switched off.
+
+    The ablation harness. Its question is not "how much would this have made" —
+    a backtest of an arbitrage engine over its own quotes is close to worthless
+    as a P&L estimate, because those quotes are what it would have traded
+    against and it cannot have traded against all of them.
+
+    Its question is which parts of the model change the answer. The gap between
+    the ``no_fees`` row and the ``full`` row is how many opportunities the test
+    that every bot in this space ships with reports and the real one rejects.
+    """
+    try:
+        rows = rows_from_store(get_store(), since_ts_ns=since_ts_ns, limit=limit)
+    except TapeUnavailable as exc:
+        return CoherenceReplay(state="unavailable", notes=[str(exc)])
+    if not rows:
+        return CoherenceReplay(
+            state="empty",
+            notes=["the tape is empty; the recorder writes to it once COHERENCE_POLL_S is set"],
+        )
+    return CoherenceReplay(**run(rows))

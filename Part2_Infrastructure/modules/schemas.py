@@ -26,6 +26,7 @@ from modules.schemas_backtest import BacktestResult as BacktestResult  # noqa: F
 from modules.schemas_backtest import JobStatus as JobStatus  # noqa: F401
 from modules.schemas_backtest import ParamResult as ParamResult  # noqa: F401
 from modules.schemas_backtest import WalkForwardFold as WalkForwardFold  # noqa: F401
+from modules.schemas_coherence import CoherenceAblation as CoherenceAblation  # noqa: F401
 from modules.schemas_coherence import CoherenceBookLevel as CoherenceBookLevel  # noqa: F401
 from modules.schemas_coherence import CoherenceBooks as CoherenceBooks  # noqa: F401
 from modules.schemas_coherence import CoherenceBookView as CoherenceBookView  # noqa: F401
@@ -43,6 +44,7 @@ from modules.schemas_coherence import CoherenceIndexPoint as CoherenceIndexPoint
 from modules.schemas_coherence import CoherenceIndexSeries as CoherenceIndexSeries  # noqa: F401
 from modules.schemas_coherence import CoherenceMarketView as CoherenceMarketView  # noqa: F401
 from modules.schemas_coherence import CoherenceRecorderStatus as CoherenceRecorderStatus  # noqa: F401
+from modules.schemas_coherence import CoherenceReplay as CoherenceReplay  # noqa: F401
 from modules.schemas_coherence import CoherenceShardStatus as CoherenceShardStatus  # noqa: F401
 from modules.schemas_coherence import CoherenceStatus as CoherenceStatus  # noqa: F401
 from modules.schemas_coherence import CoherenceSurvivalPoint as CoherenceSurvivalPoint  # noqa: F401

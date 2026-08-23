@@ -17,6 +17,13 @@ ruff>=0.6
 # made permanent in CI. Python 3.12 is pinned there, so numba has a wheel.
 -r requirements-ml.txt
 vectorbt>=0.26
+# Same rule, applied to the coherence engine's extras. Without cryptography,
+# four signing tests skip — including the only one that signs a real vector and
+# verifies it — so CI would go green for a signer it never ran. scipy comes in
+# through requirements-communities.txt above for a different reason; it is
+# named there too so a change to the communities extra cannot quietly take the
+# coherence solver with it.
+-r requirements-coherence.txt
 # NOT HERE, DELIBERATELY: requirements-rerank.txt. It is the one optional extra
 # this file does not adopt, and the exception needs its reason written down or
 # the next person applies the rule above to it and puts a gigabyte on every push.

@@ -28,13 +28,17 @@ class CommandSpec:
 
 
 COMMAND_SPECS: tuple[CommandSpec, ...] = (
-    # 8 Desk Role Tabs (Explicit Vercel UI Tab mapping with Visual Charts)
+    # 9 Desk Role Tabs (Explicit Vercel UI Tab mapping with Visual Charts)
     CommandSpec("overview", "Overview (All Roles) · System signal & cross-role dashboard + chart", "Tabs", "/overview", "/overview", "_cmd_tab_overview", ("tab_overview", "dashboard")),
     CommandSpec("research", "Research (Quant Researcher) · Strategy sweep & tearsheet + chart", "Tabs", "/research [SYMBOL]", "/research BTCUSDT", "_cmd_tab_research", ("tab_research", "lab")),
     CommandSpec("execution", "Execution (Quant Trader) · Live L2 book & routing + chart", "Tabs", "/execution [SYMBOL]", "/execution BTCUSDT", "_cmd_tab_execution", ("tab_execution", "trade")),
     CommandSpec("data", "Data (Data Engineer) · Quality, freshness & failover + chart", "Tabs", "/data", "/data", "_cmd_tab_data", ("tab_data", "dataeng")),
     CommandSpec("reliability", "Reliability (DevOps/SRE) · Telemetry & latency + chart", "Tabs", "/reliability", "/reliability", "_cmd_tab_reliability", ("tab_reliability", "sre")),
     CommandSpec("developer", "Developer (Quant Developer) · CI/CD, OpenAPI & repo posture + chart", "Tabs", "/developer", "/developer", "_cmd_tab_developer", ("tab_developer", "dev")),
+    # in_menu=False: Telegram caps the / menu at 100 and it is at 99. This is a
+    # read-only research surface rather than a desk role, so it is the entry
+    # that stays off the list rather than pushing one of the eight desks off it.
+    CommandSpec("coherence", "Coherence (Quant Researcher) · Kalshi baskets against the dollar they pay", "Tabs", "/coherence", "/coherence", "_cmd_tab_coherence", ("tab_coherence", "kalshi"), in_menu=False),
 
     # Essentials
     CommandSpec("start", "Essentials · Open the command centre", "Essentials", "/start", "/start", "_cmd_start"),

@@ -35,6 +35,7 @@ from typing import Any, Sequence
 import httpx
 
 from modules.coherence import tunables
+from modules.coherence.drivers import kalshi_auth
 from modules.coherence.scheduler.budget import ReadBudget, get_read_budget
 
 logger = logging.getLogger(__name__)
@@ -99,12 +100,17 @@ class KalshiClient:
         transport: httpx.AsyncBaseTransport | None = None,
         budget: ReadBudget | None = None,
         timeout_s: float | None = None,
+        signed: bool = False,
     ) -> None:
         self.base_url = (base_url or tunables.PUBLIC_BASE_URL).rstrip("/")
         self.failover_url = (failover_url or tunables.PUBLIC_FAILOVER_URL).rstrip("/")
         self._transport = transport
         self._budget = budget or get_read_budget()
         self._timeout_s = float(timeout_s if timeout_s is not None else tunables.REQUEST_TIMEOUT_S)
+        # Off by default, and that is the whole posture: the read path this
+        # engine lives on is public, so a client that signs by habit would fail
+        # closed on production for no benefit.
+        self._signed = signed
 
     async def get(self, path: str, params: Any = None) -> Fetched:
         """One planned, budgeted GET, with the shared host as a failover.
@@ -134,12 +140,18 @@ class KalshiClient:
         raise KalshiUnavailable(last_error)
 
     async def _get_from(self, host: str, path: str, params: Any, token_cost: int) -> Fetched:
+        headers = {"Accept": "application/json"}
+        if self._signed:
+            # Signing is per host: a demo key cannot sign production, and the
+            # signer refuses rather than producing a signature that earns a 401
+            # reading as a credential fault.
+            headers.update(kalshi_auth.sign("GET", f"/trade-api/v2{path.split('?', 1)[0]}", host).as_dict())
         try:
             async with httpx.AsyncClient(
                 timeout=max(0.1, self._timeout_s),
                 follow_redirects=False,
                 transport=self._transport,
-                headers={"Accept": "application/json"},
+                headers=headers,
             ) as client:
                 response = await client.get(f"{host}{path}", params=params)
         except httpx.HTTPError as exc:
@@ -217,6 +229,16 @@ class KalshiClient:
 
     async def series_fee_changes(self) -> Fetched:
         return await self.get("/series/fee_changes", params={"show_historical": "false"})
+
+    async def account_limits(self) -> Fetched:
+        """The real rate tier, and the only read here that needs a key.
+
+        Everything else this client fetches is public. This one is worth the
+        signing machinery because the budgeter is otherwise guessing: it
+        assumes a quarter of the smallest published tier, and this replaces
+        that assumption with the account's actual grant.
+        """
+        return await self.get("/account/limits")
 
     async def event_fee_changes(self, event_ticker: str | None = None, limit: int = 100) -> Fetched:
         params: dict[str, Any] = {"limit": limit}

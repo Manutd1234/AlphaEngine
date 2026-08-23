@@ -121,7 +121,12 @@ class TestSwitchersAndTabs:
 
         tabs = {spec.name for spec in COMMAND_SPECS if spec.category == "Tabs"}
         assert {"portfolio", "risk"} <= tabs
-        assert len(tabs) == 8
+        # One per desk tab. `coherence` is the ninth and the only one kept off
+        # Telegram's `/` menu: that list caps at 100 and sits at 99, and a
+        # read-only research surface is the right thing to leave off it rather
+        # than pushing a desk role off.
+        assert len(tabs) == 9
+        assert {spec.name for spec in COMMAND_SPECS if spec.category == "Tabs" and not spec.in_menu} == {"coherence"}
 
     async def test_bars_now_carries_a_chart_and_switch_rows(self, bot, fake_market_data):
         await bot.handle_update(update("/bars BTCUSDT 1d 5", update_id=6300))

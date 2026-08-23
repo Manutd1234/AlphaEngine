@@ -1,0 +1,50 @@
+# Optional extras for the Kalshi coherence engine.
+#
+# The desk runs, and every test passes, with none of this installed. That is not
+# a courtesy — it is the shape of the subsystem. Kalshi's markets, events,
+# series, trades, fee feeds and exchange status are all public, so the engine's
+# entire read path works with no account and no dependency beyond what the
+# gateway already carries. These two buy strictly more, and both report their
+# own absence rather than degrading quietly.
+#
+#   pip install -r requirements-coherence.txt
+#
+# ── scipy ────────────────────────────────────────────────────────────────────
+# The coherence test as a linear programme, through HiGHS. Without it the
+# closed-form family checks still run and still find Dutch books; they find
+# STRICTLY LESS, because they can only see a violation that falls inside a
+# single constraint row while the programme can assemble a portfolio out of
+# rows nobody wrote down. Every certificate names which engine answered, so a
+# deployment without this reports "coherent as far as the closed-form checks
+# can see" rather than "coherent".
+#
+# Already reachable in CI: requirements-dev.txt pulls requirements-communities.txt,
+# which needs scipy for networkx's PageRank. It is listed again here because the
+# reason is different, and a future change to the communities extra should not
+# silently take the solver with it.
+scipy>=1.11
+
+# ── cryptography ─────────────────────────────────────────────────────────────
+# RSA-PSS request signing, for the handful of Kalshi endpoints that need a key:
+# GET /account/limits for the real rate tier, and the demo environment's
+# portfolio surface. Nothing on the read path needs it.
+#
+# Node's built-in crypto does RSA-PSS with no dependency at all, and the web
+# side would therefore have been free. It is here rather than there because the
+# recorder is Python and lives in the gateway: splitting one venue client
+# across two runtimes to save a dependency would cost more than the dependency.
+cryptography>=42
+
+# ADOPTED into requirements-dev.txt, and the reason is the rule rather than a
+# preference.
+#
+# That file's rule is "what the suite tests, so CI runs it rather than skipping
+# it": adopt an extra when its absence SKIPS tests, leave it out when the suite
+# runs in full against a fake at the seam. The first draft of this header
+# claimed the signer's suite did the latter. Measured, it does not — without
+# cryptography, FOUR tests skip, including the only one that signs a real
+# vector and verifies it against the public key. That is exactly the shape the
+# rule exists for: a green CI run for a signer that never ran.
+#
+# It is a small pure-Python-plus-Rust wheel, not a gigabyte of model weights,
+# so none of the argument that keeps requirements-rerank.txt out applies here.
