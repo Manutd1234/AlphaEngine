@@ -9,7 +9,7 @@
  * by hand — the sweep runs against a built page, not against `lib/sections.ts`
  * — so the count is the only thing standing between a renamed section and a
  * section nobody sweeps. `desk-sweep.mjs` refuses to run when the two disagree,
- * and `tour-truth.test.ts` holds the same 56 against the rails themselves.
+ * and `tour-truth.test.ts` holds the same 59 against the rails themselves.
  */
 
 /** Every rail section, from lib/sections.ts. Kept in sync by hand — a missing
@@ -23,10 +23,10 @@ const TABS = {
   data: ["overview", "feeds", "quality", "incidents", "lineage", "providers", "queue"],
   reliability: ["overview", "planes", "services", "events", "controls"],
   developer: ["overview", "readiness", "quality", "apis", "codebase", "work"],
-  coherence: ["universe", "books", "lattice", "certificate", "fees", "index", "diffusion", "lessons"],
+  coherence: ["universe", "books", "lattice", "certificate", "fees", "index", "combos", "calibration", "diffusion", "shell", "lessons"],
 };
 
-const EXPECTED_SECTIONS = 56;
+const EXPECTED_SECTIONS = 59;
 
 /**
  * The two tabs whose job is to report infrastructure truth.

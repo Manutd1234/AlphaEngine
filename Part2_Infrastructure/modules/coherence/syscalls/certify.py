@@ -40,10 +40,37 @@ def certify(observation: Observation, schedule: FeeSchedule, max_contracts: Deci
         return _with_observation_notes(closed, observation)
 
     if programme.verdict != closed.verdict and "untestable" not in (programme.verdict, closed.verdict):
-        programme.notes.append(
-            f"the closed-form checks said {closed.verdict} and the linear programme said "
-            f"{programme.verdict}; one of them is wrong about this market"
+        # Not every disagreement is a fault, and calling one is how this engine
+        # would report its own thesis as a bug. The two engines answer
+        # different questions: the closed-form family checks ask whether these
+        # prices admit a probability measure, and the linear programme asks
+        # whether a portfolio can be assembled that makes money after the three
+        # fee components. A family quoted at $0.98 for a dollar of payoff fails
+        # the first and passes the second, because the $0.06 gross is $0.12
+        # short once fees are charged — which is the whole point of the cost
+        # model rather than a contradiction in it.
+        gross_only = (
+            closed.verdict == "incoherent"
+            and programme.verdict == "coherent"
+            and closed.net_edge is not None
+            and closed.net_edge <= 0
         )
+        if gross_only:
+            programme.priced_out = True
+            programme.gross_edge = closed.gross_edge
+            programme.net_edge = closed.net_edge
+            programme.notes.append(
+                f"the prices here are incoherent and not tradable: the closed-form checks found a "
+                f"violation worth {closed.gross_edge} gross, which the fee model turns into "
+                f"{closed.net_edge} net, so the programme found no portfolio worth putting on. "
+                "Both engines are right about their own question"
+            )
+        else:
+            programme.notes.append(
+                f"the closed-form checks said {closed.verdict} and the linear programme said "
+                f"{programme.verdict}, and the fee model does not account for the gap; "
+                "one of them is wrong about this market"
+            )
     elif closed.verdict == "incoherent" and programme.verdict == "incoherent":
         programme.notes.append(
             f"the closed-form checks found the same violation directly, worth "

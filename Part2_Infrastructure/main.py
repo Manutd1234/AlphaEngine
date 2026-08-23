@@ -47,6 +47,7 @@ from config import BASE_DIR, settings
 from modules.api import (
     audit_router,
     coherence_history_router,
+    coherence_lab_router,
     coherence_router,
     data_router,
     diffusion_router,
@@ -246,6 +247,7 @@ for _router in (
     research_router,
     audit_router,
     coherence_history_router,
+    coherence_lab_router,
     coherence_router,
     diffusion_router,
     telegram_router,

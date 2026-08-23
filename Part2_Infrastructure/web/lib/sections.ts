@@ -117,7 +117,7 @@ export type DeveloperSection = (typeof DEVELOPER_SECTIONS)[number]["id"];
 export const DEVELOPER_SECTION_IDS =
   DEVELOPER_SECTIONS.map((s) => s.id) as readonly DeveloperSection[];
 
-// Coherence — the Kalshi engine. Eight ids, chosen once: `#coherence/<id>` is a
+// Coherence — the Kalshi engine. Eleven ids, chosen once: `#coherence/<id>` is a
 // public deep link and must keep resolving for as long as the tab exists.
 export const COHERENCE_SECTIONS = [
   { id: "universe", label: "Universe", description: "Watched families & basket totals" },
@@ -126,7 +126,10 @@ export const COHERENCE_SECTIONS = [
   { id: "certificate", label: "Dutch book", description: "Coherence test & its certificate" },
   { id: "fees", label: "Fees", description: "Three-component cost & minimum clip" },
   { id: "index", label: "Coherence index", description: "Pricing efficiency over time" },
+  { id: "combos", label: "Combos", description: "Parlays & the bounds their legs leave" },
+  { id: "calibration", label: "Calibration", description: "Were the prices right, once settled" },
   { id: "diffusion", label: "Diffusion", description: "How fast information is absorbed" },
+  { id: "shell", label: "Shell", description: "The watched universe as a filesystem" },
   { id: "lessons", label: "Lessons", description: "The curriculum & what guards it" },
 ] as const;
 export type CoherenceSection = (typeof COHERENCE_SECTIONS)[number]["id"];

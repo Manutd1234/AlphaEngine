@@ -31,6 +31,7 @@ from __future__ import annotations
 from modules.api.audit import router as audit_router
 from modules.api.coherence import router as coherence_router
 from modules.api.coherence_history import router as coherence_history_router
+from modules.api.coherence_lab import router as coherence_lab_router
 from modules.api.data import router as data_router
 from modules.api.diffusion import router as diffusion_router
 from modules.api.meta import router as meta_router
@@ -43,6 +44,7 @@ from modules.api.telegram import router as telegram_router
 __all__ = [
     "audit_router",
     "coherence_history_router",
+    "coherence_lab_router",
     "coherence_router",
     "diffusion_router",
     "data_router",

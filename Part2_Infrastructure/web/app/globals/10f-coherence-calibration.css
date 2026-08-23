@@ -1,0 +1,330 @@
+/* The reliability diagram and the Murphy decomposition of a Brier score.
+ *
+ * One of four lab partials, split by class family because a single file for the
+ * slice ran past the four-hundred-line ceiling this repository holds every
+ * source file to. The prefixes ARE the cascade order: these load after
+ * `10c-diffusion-figures` and before `11-next-step-footer`, and renaming is how
+ * you reorder, so that a reordering is visible in a directory listing.
+ *
+ * Class families here: coh-calib
+ *
+ * Nothing carries meaning in colour alone. Every state a rule tints is also
+ * marked typographically and named in words by the component that renders it,
+ * which is what keeps these figures legible in forced-colours mode and to a
+ * reader who cannot separate the hues.
+ */
+
+/* ==========================================================================
+   Calibration — were the prices right, once settled.
+
+   Its own fragment rather than more of 10b, for the reason the 14* family
+   exists: several sessions draw on this tab at once and a shared file is a
+   shared conflict. Everything here is scoped to `coh-calib` and reuses the
+   existing figure frame, chips and table furniture from 10a/10b rather than
+   restating them, so the section does not arrive with its own vocabulary.
+
+   Colour assignment is fixed by ROLE and never by rank:
+     --series-1  the measured bands, and the terms that ADD to the score
+     --series-2  the one term that SUBTRACTS, and the engine warning
+     --series-3  the isotonic correction, and the Brier total it lands on
+   A filter or an engine change never repaints anything, so two screenshots of
+   this section are comparable.
+
+   Nothing here carries meaning in colour alone. The waterfall's direction is
+   written under every bar as `+`, `−` or `=`; a bar drawn at the visibility
+   floor is dashed as well as noted in the figure's own missing-data line; a
+   price band nobody quoted carries ◌ under the axis; and the engine banner
+   leads with ▲ or ✓ and a sentence, not with a border colour.
+
+   NO forced-colors block, deliberately. `forced-colors.test.ts` pins the desk
+   at exactly one authoritative block (in 15), and nothing here needs a second:
+   under high contrast every fill may collapse to one colour and the drawing
+   still reads, because the diagonal is dashed where the isotonic step is
+   solid, the floored bars are outlined, and every sign is a glyph.
+   ========================================================================== */
+
+.coh-calib { display: grid; gap: 12px; min-width: 0; }
+
+/* ── The engine banner: which question the numbers below answer ──────────── */
+
+/* Prominent by construction. On the `final_trade` engine the score reads as a
+   near-perfect forecaster and is nothing of the sort, so the caveat sits ABOVE
+   the numbers in the reading order — a footnote is read after the number has
+   already been believed. */
+.coh-calib__engine {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  min-width: 0;
+}
+
+.coh-calib__engine.is-warn { border-left-color: var(--series-2); }
+.coh-calib__engine.is-good { border-left-color: var(--series-3); }
+.coh-calib__engine.is-muted { border-left-color: var(--text-muted); }
+
+.coh-calib__engine-head {
+  margin: 0;
+  font-size: var(--fs-md);
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.coh-calib__engine.is-warn .coh-calib__engine-head span { color: var(--series-2); }
+.coh-calib__engine.is-good .coh-calib__engine-head span { color: var(--series-3); }
+
+.coh-calib__engine-body {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.coh-calib__engine-body code {
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+}
+
+/* ── The headline figures, each with its caveat attached ─────────────────── */
+
+/* The note is inside the <dd>, under the number it qualifies, rather than in a
+   run of prose below the block: a caveat that has to be looked up is a caveat
+   that will not be. */
+.coh-calib__facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.coh-calib__facts > div {
+  display: grid;
+  gap: 3px;
+  align-content: start;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  min-width: 0;
+}
+
+.coh-calib__facts dt {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+.coh-calib__facts dd {
+  margin: 0;
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.coh-calib__figurevalue {
+  font-size: var(--fs-lg);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.coh-calib__caveat {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.coh-calib__figures {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr;
+  min-width: 0;
+}
+
+@media (min-width: 1100px) {
+  .coh-calib__figures { grid-template-columns: 1fr 1fr; }
+}
+
+/* ── The reliability diagram ─────────────────────────────────────────────── */
+
+.coh-calib__axis {
+  stroke: var(--border);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+/* The ten band edges, faint: they are the grid the score was computed on, and
+   the reader needs to see that eight of them are empty. */
+.coh-calib__band {
+  stroke: var(--rule-soft);
+  stroke-width: 0.6;
+  vector-effect: non-scaling-stroke;
+}
+
+.coh-calib__gapmark {
+  fill: var(--text-muted);
+  font-size: var(--fs-tick);
+}
+
+/* A forecaster who quotes the base rate on everything sits exactly on this
+   line: perfectly reliable, and worth nothing. Drawn so the resolution term
+   next door has somewhere to point. */
+.coh-calib__base {
+  stroke: var(--text-secondary);
+  stroke-width: 0.8;
+  stroke-dasharray: 1 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.coh-calib__isotonic {
+  stroke: var(--series-3);
+  stroke-width: 1.6;
+  vector-effect: non-scaling-stroke;
+}
+
+/* The gap each band contributes to the reliability term, drawn as the distance
+   it actually is. */
+.coh-calib__residual {
+  stroke: var(--text-secondary);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.coh-calib__point {
+  fill: color-mix(in srgb, var(--series-1) 62%, var(--surface-1));
+  stroke: var(--series-1);
+  stroke-width: 0.8;
+  vector-effect: non-scaling-stroke;
+}
+
+.coh-calib__count,
+.coh-calib__tick,
+.coh-calib__keytext {
+  fill: var(--text-secondary);
+  font-size: var(--fs-tick);
+  font-variant-numeric: tabular-nums;
+}
+
+.coh-calib__count { fill: var(--text-primary); font-weight: 640; }
+
+/* Drawn last and never occluded: it is the claim under test, and every other
+   mark on the diagram is read against it. Dashed so a point sitting exactly on
+   it still shows through. */
+.coh-calib__perfect {
+  stroke: var(--text-primary);
+  stroke-width: 1.1;
+  stroke-dasharray: 4 3;
+  vector-effect: non-scaling-stroke;
+}
+
+/* ── The Murphy waterfall ────────────────────────────────────────────────── */
+
+.coh-calib__murphy { display: grid; gap: 8px; min-width: 0; }
+
+.coh-calib__zero {
+  stroke: var(--text-primary);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.coh-calib__connector {
+  stroke: var(--text-muted);
+  stroke-width: 0.8;
+  stroke-dasharray: 2 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.coh-calib__bar {
+  stroke-width: 0.6;
+  vector-effect: non-scaling-stroke;
+}
+
+.coh-calib__bar.is-add {
+  fill: color-mix(in srgb, var(--series-1) 52%, var(--surface-1));
+  stroke: var(--series-1);
+}
+
+/* The term that enters with a minus sign. Its direction is written under it as
+   `−` and again in the term list; the colour is the third way of saying it. */
+.coh-calib__bar.is-subtract {
+  fill: color-mix(in srgb, var(--series-2) 48%, var(--surface-1));
+  stroke: var(--series-2);
+}
+
+.coh-calib__bar.is-total {
+  fill: color-mix(in srgb, var(--series-3) 44%, var(--surface-1));
+  stroke: var(--series-3);
+  stroke-width: 1;
+}
+
+/* A bar held at the visibility floor is outlined rather than merely small, so
+   nobody reads its height as a measurement. The figure's missing-data line
+   names which bars these are. */
+.coh-calib__bar.is-floored {
+  fill: none;
+  stroke-dasharray: 2 1.5;
+}
+
+.coh-calib__barlabel,
+.coh-calib__barvalue {
+  fill: var(--text-secondary);
+  font-size: var(--fs-tick);
+  font-variant-numeric: tabular-nums;
+}
+
+.coh-calib__barvalue { fill: var(--text-primary); font-weight: 640; }
+
+/* The four terms in words: what each one is, and which direction is good. A
+   bar chart can show that resolution subtracts; only the words can say that
+   subtracting more of it is the forecaster doing better. */
+.coh-calib__terms {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.coh-calib__terms > div {
+  display: grid;
+  gap: 2px;
+  padding: 6px 8px;
+  border-left: 2px solid var(--rule-soft);
+  min-width: 0;
+}
+
+.coh-calib__terms dt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  font-size: var(--fs-sm);
+  font-weight: 640;
+}
+
+.coh-calib__term-sign {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.coh-calib__term-dir {
+  font-size: var(--fs-xs);
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.coh-calib__terms dd {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.coh-calib__terms dd b {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+/* ── Composition: the selection the score was taken over ─────────────────── */
+
+.coh-calib__composition { display: grid; gap: 8px; min-width: 0; }

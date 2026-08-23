@@ -1,0 +1,79 @@
+"""``settlement`` — what the contract actually resolves against.
+
+A thin syscall over ``drivers/livedata.py``: fetch the published index for a
+watched series, and report the gap between its latest print and the window it
+settles on. The gap is the point. Everything else here is shaping the result so
+a pane can render "not covered" and "could not be read" differently.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from modules.coherence.drivers import livedata
+from modules.coherence.drivers.kalshi_rest import KalshiClient
+
+#: The window a temperature contract settles over, in minutes. Reported beside
+#: the average so the number is never a bare figure with no stated basis.
+SETTLEMENT_WINDOW_MINUTES = 60
+
+
+async def weather(client: KalshiClient, city: str) -> dict[str, Any]:
+    try:
+        index = await livedata.fetch_weather(client, city)
+    except livedata.LiveDataUnavailable as exc:
+        return {"state": exc.kind, "detail": exc.reason, "city": city, "summary": None, "samples": []}
+    summary = livedata.qc_summary(index)
+    summary["window_minutes"] = SETTLEMENT_WINDOW_MINUTES
+    return {
+        "state": "available",
+        "detail": "",
+        "city": index.city,
+        "summary": summary,
+        "samples": [
+            {
+                "ts_ms": sample.ts_ms,
+                "value": str(sample.value),
+                "contributors": sample.contributors,
+                "status": sample.status,
+            }
+            for sample in index.samples
+        ],
+    }
+
+
+async def event_index(client: KalshiClient, event_ticker: str) -> dict[str, Any]:
+    try:
+        index = await livedata.fetch_event_index(client, event_ticker)
+    except livedata.LiveDataUnavailable as exc:
+        return {"state": exc.kind, "detail": exc.reason, "event_ticker": event_ticker, "periods": {}}
+    finest = index.finest
+    return {
+        "state": "available",
+        "detail": (
+            f"the exchange publishes {len(index.candles)} resolution(s) of the settlement variable "
+            "for this event; these are averaged bars, not trade prints"
+        ),
+        "event_ticker": index.event_ticker,
+        "default_range": index.default_range,
+        "finest_period": finest[0] if finest else None,
+        "latest_close": str(index.latest_close) if index.latest_close is not None else None,
+        "periods": {
+            period: [
+                {
+                    "ts_ms": candle.open_ts_ms,
+                    "open": str(candle.open) if candle.open is not None else None,
+                    "high": str(candle.high) if candle.high is not None else None,
+                    "low": str(candle.low) if candle.low is not None else None,
+                    "close": str(candle.close) if candle.close is not None else None,
+                }
+                for candle in candles
+            ]
+            for period, candles in index.candles.items()
+        },
+    }
+
+
+async def reference_rate(client: KalshiClient) -> dict[str, Any]:
+    """Whether the CF Benchmarks passthrough is open to this deployment."""
+    return await livedata.cfbenchmarks_state(client)

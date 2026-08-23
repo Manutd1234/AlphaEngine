@@ -19,13 +19,13 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Literal, Sequence
 
-from modules.coherence.kernel.book import Book
+from modules.coherence.kernel.book import Book, Side
 from modules.coherence.kernel.lattice import Component, EdgeScope
 
 # Which of the spec's families a row belongs to. Carried so a certificate can
 # name the reasoning rather than only the arithmetic, and so a family can be
 # switched off in an ablation without unpicking the matrix.
-Family = Literal["monotone", "additive", "bucket", "density"]
+Family = Literal["monotone", "additive", "bucket", "density", "frechet"]
 
 Direction = Literal["buy", "sell"]
 
@@ -44,6 +44,11 @@ class Leg:
     direction: Direction
     price: Decimal | None
     size_hundredths: int
+    #: Which contract of the market is traded. Defaulted to YES because every
+    #: single-market family reasons in YES terms, and named explicitly by the
+    #: combo family, where a leg is routinely the NO side of its market and an
+    #: order plan that lost that fact would send the opposite trade.
+    side: Side = "yes"
 
 
 @dataclass(frozen=True, slots=True)

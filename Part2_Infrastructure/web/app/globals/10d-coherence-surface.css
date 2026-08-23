@@ -1,0 +1,127 @@
+/* The implied distribution a strike ladder carries, and the stakes it sizes.
+ *
+ * One of four lab partials, split by class family because a single file for the
+ * slice ran past the four-hundred-line ceiling this repository holds every
+ * source file to. The prefixes ARE the cascade order: these load after
+ * `10c-diffusion-figures` and before `11-next-step-footer`, and renaming is how
+ * you reorder, so that a reordering is visible in a directory listing.
+ *
+ * Class families here: coh-surface, coh-kelly
+ *
+ * Nothing carries meaning in colour alone. Every state a rule tints is also
+ * marked typographically and named in words by the component that renders it,
+ * which is what keeps these figures legible in forced-colours mode and to a
+ * reader who cannot separate the hues.
+ */
+
+/*
+ * Coherence — the implied distribution, and the stake sized against it.
+ *
+ * Merge after 10b: these are figures in the same frame that file styles, and
+ * they inherit its one rule — the reference a reader judges against is drawn
+ * OVER the data. Here that is the zero line on the mass chart, because it is
+ * what decides whether a bar is a probability or a quoted contradiction, and
+ * the half line on the survival chart.
+ *
+ * Nothing below carries meaning in colour alone. The negative bars are hatched
+ * AND marked ▽ AND named "negative mass" in text the component draws; the
+ * empty bins are stubs on the axis rather than a paler fill; the capital bar
+ * labels its two parts with ■ and □ beside their words. Strip every hue and
+ * each figure still reads, which is what forced-colors and a reader who cannot
+ * separate the series hues both need.
+ */
+
+/* ── The implied distribution ────────────────────────────────────────────── */
+
+.coh-surface { display: grid; gap: 12px; min-width: 0; }
+
+.coh-surface__axis { stroke: var(--border); stroke-width: 1; vector-effect: non-scaling-stroke; }
+
+/* Steps, not a curve: the exchange quotes nothing between two strikes, so the
+   line is held flat and dropped where a price actually changes it. */
+.coh-surface__step {
+  stroke: var(--series-1);
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+}
+
+.coh-surface__dot { fill: var(--series-1); }
+
+/* A survival that RISES with the strike is a violation, not a wobble, so the
+   mark is drawn in the alert hue and the glyph carries it without the hue. */
+.coh-surface__rise { fill: var(--series-2); font-size: var(--fs-tick); }
+
+.coh-surface__half {
+  stroke: var(--text-secondary);
+  stroke-width: 0.8;
+  stroke-dasharray: 2 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.coh-surface__median { stroke: var(--series-2); stroke-width: 1.1; vector-effect: non-scaling-stroke; }
+
+.coh-surface__tick { fill: var(--text-secondary); font-size: var(--fs-tick); font-variant-numeric: tabular-nums; }
+.coh-surface__value { fill: var(--text-primary); font-size: var(--fs-tick); font-weight: 640; font-variant-numeric: tabular-nums; }
+
+/* ── The mass, bin by bin ────────────────────────────────────────────────── */
+
+.coh-surface__bar { fill: color-mix(in srgb, var(--series-1) 55%, var(--surface-1)); }
+
+/* A bin priced at exactly nothing is drawn as a stub ON the axis. A gap would
+   read as "no bin here"; the truth is "a bin here, and it is worth nothing". */
+.coh-surface__bar-zero { fill: var(--border); }
+
+/* Below the axis, hatched, outlined and dashed. Four signals for one state,
+   because a negative probability is not a small number — it is the quotes
+   contradicting themselves, and it must survive greyscale and high contrast. */
+.coh-surface__bar-negative {
+  stroke: var(--series-2);
+  stroke-width: 0.8;
+  stroke-dasharray: 2 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.coh-surface__hatch-ground { fill: color-mix(in srgb, var(--series-2) 12%, var(--surface-1)); }
+.coh-surface__hatch-line { stroke: var(--series-2); stroke-width: 1.2; }
+
+.coh-surface__down-mark { fill: var(--series-2); font-size: var(--fs-tick); }
+.coh-surface__down-word { fill: var(--series-2); font-size: var(--fs-tick); font-weight: 640; }
+
+/* An unparseable mass is marked, never plotted: a number this desk cannot
+   parse exactly is not a number it will draw at some approximate height. */
+.coh-surface__unread { fill: var(--text-secondary); font-size: var(--fs-tick); }
+
+.coh-surface__moments-note {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+/* ── The stake ───────────────────────────────────────────────────────────── */
+
+.coh-kelly { display: grid; gap: 12px; min-width: 0; }
+
+.coh-kelly__note {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+/* The one block on this pane that is allowed to shout. It exists because
+   "growth-optimal" reads as "riskless" to almost everyone, and the plan beside
+   it can lose money in a state the arbitrage cannot. Bordered rather than
+   filled, so the sentence survives a stylesheet that drops backgrounds. */
+.coh-kelly__warning {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--series-2) 50%, var(--border));
+  border-left-width: 3px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--series-2) 7%, var(--surface-1));
+  font-size: var(--fs-xs);
+  color: var(--text-primary);
+}
+
+.coh-kelly__bar-cash { fill: var(--surface-2); stroke: var(--border); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.coh-kelly__bar-staked { fill: color-mix(in srgb, var(--series-1) 58%, var(--surface-1)); }
+.coh-kelly__bar-label { fill: var(--text-secondary); font-size: var(--fs-tick); font-variant-numeric: tabular-nums; }

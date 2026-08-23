@@ -1,0 +1,192 @@
+/* Parlays drawn against the Frechet band their own legs leave them.
+ *
+ * One of four lab partials, split by class family because a single file for the
+ * slice ran past the four-hundred-line ceiling this repository holds every
+ * source file to. The prefixes ARE the cascade order: these load after
+ * `10c-diffusion-figures` and before `11-next-step-footer`, and renaming is how
+ * you reorder, so that a reordering is visible in a directory listing.
+ *
+ * Class families here: coh-combo
+ *
+ * Nothing carries meaning in colour alone. Every state a rule tints is also
+ * marked typographically and named in words by the component that renders it,
+ * which is what keeps these figures legible in forced-colours mode and to a
+ * reader who cannot separate the hues.
+ */
+
+/* ── Combos: parlays against the Fréchet bands their legs impose ─────────── */
+
+/*
+ * One rule governs the palette here, and it is the pane's whole argument: a
+ * price INSIDE the band is not a good price, it is a price the legs cannot
+ * rule out. So the band fill is a neutral wash rather than a "safe" green, the
+ * two bounds are the loudest marks in the figure — they are what the reader is
+ * asked to judge against, and they are drawn last so nothing occludes them —
+ * and the only saturated colour on the track belongs to a price that has left
+ * the band. Every one of those states also carries a glyph and a word in the
+ * SVG text, so the figure survives forced-colors and a monochrome reader.
+ */
+
+.coh-combos { display: grid; gap: 14px; min-width: 0; }
+
+.coh-combos__lead {
+  margin: 0;
+  font-size: var(--fs-body);
+  line-height: 1.55;
+  color: var(--text-primary);
+}
+
+.coh-combos__rows { display: grid; gap: 10px; min-width: 0; }
+
+/* The band inequality, set as a display line rather than run into the prose:
+   it is the whole claim the pane rests on, and a reader checking a figure
+   against it should not have to find it inside a sentence. */
+.coh-combo__formula {
+  display: block;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-size: var(--fs-xs);
+  overflow-x: auto;
+}
+
+.coh-combo {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-1);
+}
+
+.coh-combo__title {
+  margin: 0;
+  font-size: var(--fs-lg);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.coh-combo__meta,
+.coh-combo__legend,
+.coh-combo__caveat,
+.coh-combo__where,
+.coh-combo__note {
+  margin: 0;
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.coh-combo__legend { overflow-wrap: anywhere; }
+.coh-combo__where { color: var(--text-primary); }
+
+.coh-combo__chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* The ask caveat sits against the dependence chip above it rather than in a
+   footnote, because the chip is the thing it corrects. */
+.coh-combo__caveat { border-left: 2px solid var(--border); padding-left: 8px; }
+
+.coh-combo__legs > summary { font-size: var(--fs-xs); cursor: pointer; }
+.coh-combo__legs > div { margin-top: 6px; }
+
+/* The side a leg has to land on. Uppercased because "no" in running lowercase
+   inside a table of prices is the one word here a reader can skim past, and
+   half of these legs are NO legs. */
+.coh-combo__side {
+  font-size: var(--fs-tick);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.coh-combo__row {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.coh-combo__because {
+  margin: 0;
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+.coh-combo__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  margin: 0;
+}
+
+.coh-combo__facts div { display: grid; gap: 2px; }
+.coh-combo__facts dt { font-size: var(--fs-xs); color: var(--text-secondary); }
+.coh-combo__facts dd { margin: 0; font-variant-numeric: tabular-nums; font-weight: 620; }
+
+/* ── The band figure ─────────────────────────────────────────────────────── */
+
+.coh-combo__track { fill: var(--surface-2); }
+
+/* Neutral, not approving: the band is the set of prices the legs admit, and
+   admitting a price is not endorsing it. */
+.coh-combo__band { fill: color-mix(in srgb, var(--series-1) 26%, var(--surface-1)); }
+
+/* Πpᵢ, drawn quieter than the price. It is a reference point, not a fair
+   value, and a solid rule here would read as one. */
+.coh-combo__ind {
+  stroke: var(--text-secondary);
+  stroke-width: 1;
+  stroke-dasharray: 2 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.coh-combo__ind-mark {
+  fill: none;
+  stroke: var(--text-secondary);
+  stroke-width: 1.2;
+  vector-effect: non-scaling-stroke;
+}
+
+.coh-combo__price {
+  stroke: var(--text-primary);
+  stroke-width: 1.2;
+  vector-effect: non-scaling-stroke;
+}
+
+.coh-combo__price-mark { fill: var(--text-primary); }
+
+/* The bounds: the reference the whole figure is judged against. */
+.coh-combo__edge {
+  stroke: var(--text-primary);
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+}
+
+.coh-combo__bracket {
+  stroke: var(--text-secondary);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.coh-combo__label,
+.coh-combo__axis {
+  fill: var(--text-secondary);
+  font-size: var(--fs-tick);
+  font-variant-numeric: tabular-nums;
+}
+
+.coh-combo__state {
+  fill: var(--text-primary);
+  font-size: var(--fs-tick);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The one saturated state on the track, and the only one that is a mispricing.
+   The ▲ and the words "outside the band" are in the same string, so the colour
+   is the third thing saying it. */
+.coh-combo__state.is-outside { fill: var(--series-2); font-weight: 700; }

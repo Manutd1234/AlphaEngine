@@ -190,6 +190,12 @@ class CoherenceCertificate(BaseModel):
     component_id: str
     series_ticker: str
     exchange_index: int
+    #: The prices admit no probability measure, but no portfolio survives the
+    #: fees. Carried beside ``verdict`` rather than folded into it: reporting
+    #: a family quoted at $0.98 for a dollar as simply "coherent" would state
+    #: something false about the prices in order to say something true about
+    #: the trade, and holding those apart is what this engine is for.
+    priced_out: bool = False
     family: str = ""
     because: str = ""
     scope: str = "same-event"

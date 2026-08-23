@@ -27,10 +27,11 @@ from __future__ import annotations
 
 import json
 import threading
+from contextlib import contextmanager
 from dataclasses import dataclass
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, Iterator, Sequence
 
 import duckdb
 
@@ -334,6 +335,18 @@ class CoherenceStore:
             "opened_ts_ns", "closed_ts_ns", "peak_ci", "peak_net_edge", "samples",
         )
         return [dict(zip(columns, row, strict=True)) for row in rows]
+
+    @contextmanager
+    def connection(self) -> Iterator[duckdb.DuckDBPyConnection]:
+        """The locked connection, for a table this class does not own.
+
+        One connection, one lock: DuckDB gives a second writer an error rather
+        than a queue, so ``corpus.py`` borrows this instead of opening the file
+        again. Not a query escape hatch — callers own their own schema and
+        parameterise their own SQL; nothing here composes SQL from strings.
+        """
+        with self._lock:
+            yield self._connect()
 
     def counts(self) -> dict[str, int]:
         """How much tape there is. The recorder's proof of life."""

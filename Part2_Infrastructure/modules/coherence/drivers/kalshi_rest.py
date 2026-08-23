@@ -127,6 +127,12 @@ class KalshiClient:
                 f"{spend.cost} tokens needed, {spend.tokens_remaining:.1f} available",
             )
         last_error: str = "no host was tried"
+        # The status travels with the reason. Without it the re-raise below
+        # flattened every failure into "unavailable", and a caller could no
+        # longer tell a 400 — the venue saying it does not publish what was
+        # asked for, which is a fact about coverage — from a network fault
+        # worth retrying. `livedata.fetch_weather` reads exactly that.
+        last_status: int | None = None
         for host in (self.base_url, self.failover_url):
             if not host:
                 continue
@@ -136,8 +142,9 @@ class KalshiClient:
                 raise
             except KalshiUnavailable as exc:
                 last_error = exc.reason
+                last_status = exc.status
                 logger.warning("coherence: %s did not serve %s (%s)", _host_only(host), path.split("?")[0], exc.reason)
-        raise KalshiUnavailable(last_error)
+        raise KalshiUnavailable(last_error, status=last_status)
 
     async def _get_from(self, host: str, path: str, params: Any, token_cost: int) -> Fetched:
         headers = {"Accept": "application/json"}
@@ -210,6 +217,35 @@ class KalshiClient:
                 "mve_filter": "exclude",
             },
         )
+
+    async def multivariate_markets(self, status: str = "open", limit: int = 200) -> Fetched:
+        """Combo markets only — the mirror of ``markets``'s ``mve_filter=exclude``.
+
+        These interleave into an ordinary ``/markets`` listing by default, which
+        is why every other read here excludes them: a parlay is a different
+        instrument on a different shard and it would otherwise arrive inside a
+        strike ladder's family and be treated as one of its outcomes.
+        """
+        return await self.get(
+            "/markets",
+            params={"status": status, "limit": min(limit, MAX_MARKETS_PER_PAGE), "mve_filter": "only"},
+        )
+
+    async def multivariate_collections(self, limit: int = 100) -> Fetched:
+        """Which events each combo family draws its legs from. Public."""
+        return await self.get("/multivariate_event_collections", params={"limit": limit})
+
+    async def settled_markets(self, series_ticker: str | None = None, limit: int = 200) -> Fetched:
+        """Markets that have resolved, with the ``result`` field the score needs.
+
+        ``status`` here is the FILTER word ``settled``; the market object's own
+        ``status`` comes back as ``finalized``. Comparing the two is a bug that
+        looks like an empty corpus.
+        """
+        params: dict[str, Any] = {"status": "settled", "limit": min(limit, MAX_MARKETS_PER_PAGE)}
+        if series_ticker:
+            params["series_ticker"] = series_ticker
+        return await self.get("/markets", params=params)
 
     async def orderbooks(self, tickers: Sequence[str]) -> Fetched:
         """Up to 100 books for one request's tokens — the read that scales.

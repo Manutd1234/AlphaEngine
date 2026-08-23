@@ -100,6 +100,10 @@
 @import "./globals/10a-coherence-plane.css";
 @import "./globals/10b-coherence-figures.css";
 @import "./globals/10c-diffusion-figures.css";
+@import "./globals/10d-coherence-surface.css";
+@import "./globals/10e-coherence-combos.css";
+@import "./globals/10f-coherence-calibration.css";
+@import "./globals/10g-coherence-shell.css";
 @import "./globals/11-next-step-footer.css";
 
 /* Workspace standardisation layer — the shared contract for the eight desk

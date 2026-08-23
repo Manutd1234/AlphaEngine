@@ -143,6 +143,14 @@ export interface CoherenceCertificateLeg {
 
 export interface CoherenceCertificate {
   verdict: string;
+  /**
+   * The prices admit no probability measure, but no portfolio survives the
+   * fees. Not folded into `verdict`: a family quoted at $0.98 for a dollar of
+   * payoff IS incoherent, and calling it coherent because the edge is priced
+   * out states something false about the prices to say something true about
+   * the trade.
+   */
+  priced_out?: boolean;
   engine: string;
   component_id: string;
   series_ticker: string;

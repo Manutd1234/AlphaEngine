@@ -1,0 +1,305 @@
+"use client";
+
+/**
+ * A parlay against the band its own legs impose.
+ *
+ * A combo pays $1 only when every leg lands the way the ticker lists, and
+ * Kalshi states those legs in the market metadata, so for once the conjunction
+ * is given rather than inferred. What the legs give is still not a price. Two
+ * probabilities do not determine the probability of both; all they give is
+ * Fréchet's band,
+ *
+ *     max(0, Σpᵢ − (n−1))  ≤  P(all legs)  ≤  min pᵢ
+ *
+ * and the width of that band is the whole subject of this figure. On the read
+ * this component was built against, six parlays carried bands 0.3100 to 0.6650
+ * wide — a third to two thirds of a dollar of room in which the parlay can move
+ * with no leg price moving at all.
+ *
+ * Three things the drawing therefore refuses to say:
+ *
+ * **Inside the band is not "fairly priced".** Every point between the bounds is
+ * consistent with some dependence structure between the legs, and nothing here
+ * can choose between them. The figure marks a position and calls it a position.
+ * Only a price OUTSIDE the band is a mispricing, and that one arrives with a
+ * portfolio that proves it.
+ *
+ * **Independence is a reference point, not a fair value.** Πpᵢ is drawn as a
+ * hollow ring, deliberately quieter than the price marker, because parlay legs
+ * are routinely dependent — four legs of one match, four strikes on one coin —
+ * and independence is a guess about them rather than a measurement of them.
+ *
+ * **The price and the bounds are not read from the same side of the book.** The
+ * bounds are built from each leg's mid; the parlay's own price is almost always
+ * its offer, because across a thousand listed parlays not one carries a bid. So
+ * the basis is printed on the marker itself rather than tucked into a footnote:
+ * a price above Πpᵢ may be nothing but the maker's margin.
+ */
+
+import { DOLLAR_CC, fromCenticents, toCenticents } from "@/lib/coherence/fixed-point";
+import type { CoherenceCombo } from "@/lib/coherence/types-lab";
+import Figure, { FigureEmpty, Plot } from "./Figure";
+
+const HEIGHT = 126;
+const PRICE_LABEL_Y = 14;
+const PRICE_STEM_TOP = 20;
+const EDGE_TOP = 38;
+const TRACK_TOP = 44;
+const TRACK_H = 26;
+const TRACK_BOTTOM = TRACK_TOP + TRACK_H;
+const EDGE_BOTTOM = 78;
+const IND_LABEL_Y = 88;
+const BRACKET_Y = 96;
+const BRACKET_LABEL_Y = 110;
+const AXIS_Y = 122;
+
+/** The fields this figure reads, structurally, so a fixture can be drawn
+ *  without constructing a whole combo. */
+export type BandReading = Pick<
+  CoherenceCombo,
+  | "legs"
+  | "price"
+  | "price_basis"
+  | "lower_bound"
+  | "upper_bound"
+  | "independence"
+  | "band_width"
+  | "inside_band"
+  | "dependence"
+>;
+
+/**
+ * A probability string of unbounded precision, as a 0-to-1 number.
+ *
+ * `toCenticents` refuses anything finer than six decimals and is right to: a
+ * price with nine decimals is not a price any exchange quoted. But
+ * `independence` is Πpᵢ — a product the gateway never rounds, up to twenty-nine
+ * decimals long — and it is a position on a track rather than a price to trade.
+ * So it is parsed here, truncated at a millionth, and used for GEOMETRY. Every
+ * display of it goes through `probLabel`, which prints the ≈ that says so.
+ */
+export function toUnit(raw: string | null | undefined): number | null {
+  if (raw == null) return null;
+  const match = /^(-?)(\d*)(?:\.(\d*))?$/.exec(raw.trim());
+  if (!match) return null;
+  const [, sign, whole, fraction = ""] = match;
+  if (!whole && !fraction) return null;
+  const millionths = Number(`${fraction}000000`.slice(0, 6));
+  const value = Number(whole || "0") + millionths / 1_000_000;
+  return sign === "-" ? -value : value;
+}
+
+/** A probability for display: exact when the wire is exact, ≈ when it is not. */
+export function probLabel(raw: string | null | undefined): string {
+  if (raw == null) return "—";
+  const exact = toCenticents(raw);
+  if (exact != null) return fromCenticents(exact) as string;
+  const unit = toUnit(raw);
+  if (unit == null) return "—";
+  return `≈${fromCenticents(Math.round(unit * DOLLAR_CC)) as string}`;
+}
+
+/**
+ * What the `dependence` field measured, phrased as the comparison it is.
+ *
+ * Deliberately not "positive dependence": the gateway compares one number to
+ * another and the words say which comparison it made. Calling the result a
+ * dependence would assert a property of the legs that nobody quoted.
+ */
+export const DEPENDENCE_WORD: Record<string, string> = {
+  positive: "Priced above independence",
+  negative: "Priced below independence",
+  independent: "Priced exactly at independence",
+  unavailable: "No reading, the parlay is unquoted",
+};
+
+/** The caveat that must travel with every dependence reading on this pane. */
+export function basisCaveat(basis: string): string {
+  if (basis === "ask") {
+    return "Read from the offer, because no one bids for a parlay. The band's bounds come from each leg's mid, so the price and the bounds are not taken from the same side of the book: a parlay priced above Πpᵢ is not evidence of positive dependence, and may be nothing but the maker's margin.";
+  }
+  if (basis === "mid") {
+    return "Read from a mid, which means this parlay is quoted on both sides — rare enough to be worth noting. Even so, a price above Πpᵢ is not evidence of positive dependence on its own: independence is a guess about the legs, not a measurement of them.";
+  }
+  return "Neither side of this parlay's book is quoted, so there is no price to compare with Πpᵢ and no dependence reading at all. The band is still drawn, because the legs bound the parlay whether or not anyone quotes it.";
+}
+
+const clamp = (value: number, low: number, high: number) => Math.min(Math.max(value, low), high);
+
+export default function FrechetBand({ reading }: { reading: BandReading }) {
+  const lower = toCenticents(reading.lower_bound);
+  const upper = toCenticents(reading.upper_bound);
+  const price = toCenticents(reading.price);
+  const bandWidth = toCenticents(reading.band_width);
+  const independence = toUnit(reading.independence);
+  const legCount = reading.legs.length;
+  const caption = `The band ${legCount} legs impose on their parlay, and where it is quoted inside it`;
+
+  if (lower == null || upper == null) {
+    return (
+      <Figure
+        caption={caption}
+        ariaLabel={`No Fréchet band for this ${legCount}-leg parlay`}
+        missing="At least one leg is unquoted on the side this parlay needs, so Σpᵢ and min pᵢ have no value and there is no band to draw. Building a band from the legs that happen to be quoted would narrow it by exactly the ones missing, which is the direction that invents a mispricing."
+      >
+        <FigureEmpty reason="No band — a leg is unquoted on the side the parlay needs." />
+      </Figure>
+    );
+  }
+
+  const loText = fromCenticents(lower) as string;
+  const hiText = fromCenticents(upper) as string;
+  const widthText = bandWidth == null ? "—" : (fromCenticents(bandWidth) as string);
+  // A width the payload did not carry is said in words, never as "— wide".
+  const widthPhrase = bandWidth == null ? "of a width the payload did not carry" : `${widthText} wide`;
+  const indText = probLabel(reading.independence);
+  const priceText = price == null ? "—" : (fromCenticents(price) as string);
+  const inside = reading.inside_band;
+  const mark = inside == null ? "◌" : inside ? "●" : "▲";
+  const word = inside == null ? "no price to place" : inside ? "inside the band" : "outside the band";
+  const basis = reading.price_basis;
+  // How far the price actually lands from Πpᵢ. On four of the five quoted
+  // parlays in the read this was built against it is under three pixels at a
+  // 720px column, which is the finding rather than a rendering problem: an
+  // offer a tick above the independence product is what a maker's margin looks
+  // like, and calling it positive dependence would be reading the spread.
+  const independenceCc = independence == null ? null : Math.round(independence * DOLLAR_CC);
+  const gapCc = price == null || independenceCc == null ? null : Math.abs(price - independenceCc);
+  const coincides = gapCc != null && gapCc <= 100;
+
+  const readingText =
+    price == null
+      ? `These ${legCount} legs bound the parlay to ${loText} on the low side and ${hiText} on the high side, a band ${widthPhrase}, but neither side of its own book is quoted. The band is real and nothing can be traded against it.`
+      : inside
+        ? `${priceText} sits inside the band, which means it is consistent with some dependence between the ${legCount} legs. That is not a statement that it is fairly priced, and not a mispricing: the band is ${widthPhrase}, and on this evidence every price in it is admissible. What is measured here is that the parlay could move ${widthText} with no leg price moving at all.${coincides ? ` The price and the independence ring land ${fromCenticents(gapCc as number)} apart, so the two markers all but coincide on this track — which is what an offer a tick above Πpᵢ looks like, not evidence that the legs are positively dependent.` : ""}`
+        : `${priceText} is outside the band these legs allow (${loText} to ${hiText}). No dependence structure between the legs can produce that price, so it is a Dutch book before fees, and the rows below carry the portfolio that proves it.`;
+
+  const ariaLabel =
+    `A track from zero to one dollar. The band the ${legCount} legs allow runs from ${loText} to ${hiText}, ${widthPhrase}. ` +
+    `Independence sits at ${indText}. ` +
+    (price == null
+      ? "The parlay itself is unquoted, so no price is marked."
+      : `The parlay is quoted at ${priceText} on the ${basis}, ${word}.`);
+
+  return (
+    <Figure caption={caption} ariaLabel={ariaLabel} reading={readingText} missing={basisCaveat(basis)}>
+      <Plot height={HEIGHT}>
+        {(width) => {
+          const scale = (cc: number) => (clamp(cc, 0, DOLLAR_CC) / DOLLAR_CC) * width;
+          const loX = scale(lower);
+          const hiX = scale(upper);
+          const indX = independence == null ? null : scale(Math.round(independence * DOLLAR_CC));
+          const priceX = price == null ? null : scale(price);
+          // Labels are centred on their marker and clamped so the whole string
+          // stays on the canvas. `HALF_GLYPH` is half the advance width of the
+          // 10px tabular figures these labels are set in; over-estimating it
+          // costs a few pixels of drift and under-estimating it clips a price,
+          // so it is rounded up.
+          const HALF_GLYPH = 2.8;
+          const place = (x: number, text: string) => {
+            const half = Math.min(text.length * HALF_GLYPH, width / 2);
+            return clamp(x, half, Math.max(half, width - half));
+          };
+          const indLabel = `○ independence Πpᵢ ${indText}`;
+          const priceLabelText = `${mark} ${priceText} ${basis}, ${word}`;
+          const bracketText =
+            hiX - loX <= 0
+              ? `band ${widthPhrase} — the legs pin this parlay exactly`
+              : `band ${widthPhrase}, ${loText} to ${hiText}`;
+          return (
+            <>
+              <rect x="0" y={TRACK_TOP} width={width} height={TRACK_H} className="coh-combo__track" />
+              <rect
+                x={loX}
+                y={TRACK_TOP}
+                width={Math.max(0, hiX - loX)}
+                height={TRACK_H}
+                className="coh-combo__band"
+              />
+
+              {/* The bracket under the band carries the headline number: how far
+                  the parlay can move with no leg moving. */}
+              <line x1={loX} x2={hiX} y1={BRACKET_Y} y2={BRACKET_Y} className="coh-combo__bracket" />
+              <line x1={loX} x2={loX} y1={BRACKET_Y - 4} y2={BRACKET_Y + 4} className="coh-combo__bracket" />
+              <line x1={hiX} x2={hiX} y1={BRACKET_Y - 4} y2={BRACKET_Y + 4} className="coh-combo__bracket" />
+              <text
+                x={place((loX + hiX) / 2, bracketText)}
+                y={BRACKET_LABEL_Y}
+                textAnchor="middle"
+                className="coh-combo__label"
+              >
+                {bracketText}
+              </text>
+
+              {indX == null ? null : (
+                <>
+                  <line
+                    x1={indX}
+                    x2={indX}
+                    y1={TRACK_TOP}
+                    y2={TRACK_BOTTOM}
+                    className="coh-combo__ind"
+                  />
+                  <circle
+                    cx={indX}
+                    cy={TRACK_TOP + TRACK_H / 2}
+                    r="3.6"
+                    className="coh-combo__ind-mark"
+                  />
+                  <text
+                    x={place(indX, indLabel)}
+                    y={IND_LABEL_Y}
+                    textAnchor="middle"
+                    className="coh-combo__label"
+                  >
+                    {indLabel}
+                  </text>
+                </>
+              )}
+
+              {priceX == null ? (
+                <text x={width / 2} y={PRICE_LABEL_Y} textAnchor="middle" className="coh-combo__state">
+                  ◌ unquoted on both sides, so there is no price to mark
+                </text>
+              ) : (
+                <>
+                  <line
+                    x1={priceX}
+                    x2={priceX}
+                    y1={PRICE_STEM_TOP}
+                    y2={TRACK_BOTTOM}
+                    className="coh-combo__price"
+                  />
+                  <polygon
+                    points={`${priceX - 5},${TRACK_TOP - 9} ${priceX + 5},${TRACK_TOP - 9} ${priceX},${TRACK_TOP}`}
+                    className="coh-combo__price-mark"
+                  />
+                  <text
+                    x={place(priceX, priceLabelText)}
+                    y={PRICE_LABEL_Y}
+                    textAnchor="middle"
+                    className={`coh-combo__state ${inside === false ? "is-outside" : ""}`}
+                  >
+                    {priceLabelText}
+                  </text>
+                </>
+              )}
+
+              {/* The bounds are what the reader is asked to judge against, so
+                  they are drawn last and nothing may occlude them. */}
+              <line x1={loX} x2={loX} y1={EDGE_TOP} y2={EDGE_BOTTOM} className="coh-combo__edge" />
+              <line x1={hiX} x2={hiX} y1={EDGE_TOP} y2={EDGE_BOTTOM} className="coh-combo__edge" />
+
+              <text x="0" y={AXIS_Y} textAnchor="start" className="coh-combo__axis">
+                $0
+              </text>
+              <text x={width} y={AXIS_Y} textAnchor="end" className="coh-combo__axis">
+                $1
+              </text>
+            </>
+          );
+        }}
+      </Plot>
+    </Figure>
+  );
+}

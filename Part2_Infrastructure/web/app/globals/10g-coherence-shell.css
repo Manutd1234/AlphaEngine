@@ -1,0 +1,247 @@
+/* The universe as a filesystem, the settlement index, and maker dispersion.
+ *
+ * One of four lab partials, split by class family because a single file for the
+ * slice ran past the four-hundred-line ceiling this repository holds every
+ * source file to. The prefixes ARE the cascade order: these load after
+ * `10c-diffusion-figures` and before `11-next-step-footer`, and renaming is how
+ * you reorder, so that a reordering is visible in a directory listing.
+ *
+ * Class families here: coh-shell, coh-settle, coh-rfq
+ *
+ * Nothing carries meaning in colour alone. Every state a rule tints is also
+ * marked typographically and named in words by the component that renders it,
+ * which is what keeps these figures legible in forced-colours mode and to a
+ * reader who cannot separate the hues.
+ */
+
+/*
+ * Coherence — the shell, the settlement feed and the maker panel.
+ *
+ * A fragment for merging into the coherence partials (10a is the frame, 10b is
+ * what gets drawn inside it; these three panes want a little of each). Nothing
+ * here invents a font size, a duration or a colour: sizes are --fs-* rungs,
+ * motion is inherited from the base button rule, and every state that has a
+ * colour is also carrying a mark and a word in the markup.
+ *
+ * The same rule as the rest of the tab holds in the settlement figure: the
+ * reference the reader is asked to judge against — the settlement window's
+ * average — is drawn OVER the series, never under it.
+ */
+
+/* ── The shell: the watched universe as a filesystem ─────────────────────── */
+
+.coh-shell,
+.coh-shell__listing,
+.coh-settle,
+.coh-rfq { display: grid; gap: 12px; min-width: 0; }
+
+.coh-shell__crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* Path segments are the interface, so they are quiet: a row of default buttons
+   at 32px each would out-shout the listing they are a heading for. */
+.coh-shell__crumb {
+  padding: 2px 6px;
+  min-height: 0;
+  border: 1px solid transparent;
+  background: none;
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  font-weight: 550;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.coh-shell__crumb:hover:not(:disabled) { border-color: var(--border); color: var(--text-primary); }
+
+/* The segment being read is a label, not a link — clicking it would re-run the
+   read it is already showing. */
+.coh-shell__crumb.is-current {
+  color: var(--text-primary);
+  font-weight: 640;
+  padding: 2px 6px;
+}
+
+.coh-shell__group { display: grid; gap: 6px; min-width: 0; }
+
+.coh-shell__group-head {
+  margin: 0;
+  font-size: var(--fs-2xs);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 640;
+}
+
+.coh-shell__note,
+.coh-shell__detail-line,
+.coh-settle__lead,
+.coh-settle__note,
+.coh-settle__standing,
+.coh-rfq__lead,
+.coh-rfq__note {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.coh-shell__detail-line,
+.coh-settle__lead,
+.coh-rfq__lead { color: var(--text-primary); }
+
+.coh-shell__entries {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+/* An event directory holds a couple of hundred markets. They scroll inside
+   their own box rather than pushing the section — and the page — down or
+   sideways. */
+.coh-shell__entries.is-dense {
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  max-height: 320px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 2px;
+}
+
+.coh-shell__entry { min-width: 0; }
+
+.coh-shell__open {
+  display: grid;
+  gap: 2px 10px;
+  width: 100%;
+  text-align: left;
+  padding: 5px 8px;
+  min-height: 0;
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  background: var(--surface-1);
+  border-radius: var(--radius-sm);
+  min-width: 0;
+}
+
+@media (min-width: 900px) {
+  .coh-shell__entries:not(.is-dense) .coh-shell__open {
+    grid-template-columns: minmax(0, 15rem) 5rem minmax(0, 1fr);
+    align-items: baseline;
+  }
+}
+
+.coh-shell__open:hover:not(:disabled) { background: var(--surface-2); }
+
+.coh-shell__name {
+  font-family: var(--mono);
+  font-weight: 620;
+  overflow-wrap: anywhere;
+}
+
+.coh-shell__kind,
+.coh-shell__detail { color: var(--text-secondary); font-weight: 450; overflow-wrap: anywhere; }
+
+/*
+ * A `cat` body is preformatted: the columns in it are the reading, and
+ * rewrapping them destroys the alignment that makes a mass column a mass
+ * column. It scrolls in both directions inside its own box, which is what
+ * keeps the page body from ever scrolling sideways.
+ */
+.coh-shell__body {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+  white-space: pre;
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 460px;
+  min-width: 0;
+}
+
+/* ── The settlement feed: the index against the average it settles on ────── */
+
+.coh-settle__standing {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+}
+
+/* The window the contract actually settles over, behind everything else. */
+.coh-settle__window {
+  fill: color-mix(in srgb, var(--series-3) 12%, transparent);
+}
+
+.coh-settle__line {
+  stroke: var(--series-1);
+  stroke-width: 1.3;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Solid, full width, and drawn after the series: this is the only line the
+   reader is asked to judge the print against. */
+.coh-settle__avg {
+  stroke: var(--text-primary);
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+}
+
+/* The same average with the flagged minutes removed. Dashed, because it is a
+   second reading of one quantity rather than a second quantity. */
+.coh-settle__avg-clean {
+  stroke: var(--text-secondary);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.coh-settle__avg-label,
+.coh-settle__basis-label {
+  fill: var(--text-primary);
+  font-size: var(--fs-tick);
+  font-variant-numeric: tabular-nums;
+  font-weight: 640;
+}
+
+/* A flagged minute carries a mark as well as a colour: ▲ above the point, and
+   the figure's footnote says what the mark means. */
+.coh-settle__flag {
+  stroke: var(--warning-text);
+  stroke-width: 1;
+  stroke-dasharray: 2 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.coh-settle__flag-mark { fill: var(--warning-text); font-size: var(--fs-tick); }
+
+.coh-settle__dot { fill: var(--series-1); }
+
+.coh-settle__basis {
+  stroke: var(--series-2);
+  stroke-width: 1.2;
+  vector-effect: non-scaling-stroke;
+}
+
+/* ── The maker panel ─────────────────────────────────────────────────────── */
+
+.coh-rfq__state {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  min-width: 0;
+}

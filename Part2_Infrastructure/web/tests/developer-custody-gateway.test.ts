@@ -145,7 +145,7 @@ describe("the chain drawn is the contract in the repository", () => {
     const registered = main.match(/for _router in \(([\s\S]*?)\):/);
     assert.ok(registered, "main.py no longer registers its routers in one loop — the node's text describes one");
     const routers = registered[1].split(",").map((line) => line.trim()).filter(Boolean);
-    assert.equal(routers.length, 11, `the chain's first node says eleven routers; main.py registers ${routers.length}`);
+    assert.equal(routers.length, 12, `the chain's first node says twelve routers; main.py registers ${routers.length}`);
     assert.match(main, /app\.openapi\(\)|FastAPI\(/, "main.py is the application object the exporter imports");
   });
 

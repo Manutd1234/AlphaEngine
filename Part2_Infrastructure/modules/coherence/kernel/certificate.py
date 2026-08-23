@@ -84,6 +84,13 @@ class Certificate:
     net_edge: Decimal | None = None
     rows_tested: int = 0
     rows_untestable: int = 0
+    #: The prices admit no probability measure, but no portfolio survives the
+    #: fees. Distinct from ``coherent`` on purpose: a family quoted at $0.98
+    #: for a dollar of payoff IS incoherent, and reporting it as coherent
+    #: because the edge is priced out states something false about the prices
+    #: in order to say something true about the trade. This engine exists to
+    #: hold those two apart, so it carries both.
+    priced_out: bool = False
     notes: list[str] = field(default_factory=list)
 
     @property
@@ -98,6 +105,7 @@ class Certificate:
     def to_dict(self) -> dict[str, Any]:
         return {
             "verdict": self.verdict,
+            "priced_out": self.priced_out,
             "engine": self.engine,
             "component_id": self.component_id,
             "series_ticker": self.series_ticker,
@@ -143,6 +151,18 @@ class Certificate:
             lines = [f"UNTESTABLE - {self.component_id} - shard {self.exchange_index}"]
             lines += [f"  {note}" for note in self.notes]
             return "\n".join(lines)
+
+        if self.verdict == "coherent" and self.priced_out:
+            return "\n".join(
+                [
+                    f"INCOHERENT BUT NOT TRADABLE - {self.component_id} - "
+                    f"shard {self.exchange_index} - engine {self.engine}",
+                    f"  {self.rows_tested} constraint(s) tested; the prices admit no probability measure,",
+                    "  and no portfolio over them survives the fees.",
+                    *([f"  {self.rows_untestable} could not be tested: a leg was unquoted."] if self.rows_untestable else []),
+                    *[f"  {note}" for note in self.notes],
+                ]
+            )
 
         if self.verdict == "coherent":
             return "\n".join(

@@ -376,6 +376,63 @@
         "title": "CoherenceAblation",
         "type": "object"
       },
+      "CoherenceBin": {
+        "description": "One interval of the axis and the mass the prices put in it.",
+        "properties": {
+          "high": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "High"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "low": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Low"
+          },
+          "mass": {
+            "title": "Mass",
+            "type": "string"
+          },
+          "negative": {
+            "default": false,
+            "title": "Negative",
+            "type": "boolean"
+          },
+          "representative": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Representative"
+          }
+        },
+        "required": [
+          "label",
+          "mass"
+        ],
+        "title": "CoherenceBin",
+        "type": "object"
+      },
       "CoherenceBookLevel": {
         "description": "One resting level. Both fields are strings; neither is ever null.",
         "properties": {
@@ -621,6 +678,160 @@
         "title": "CoherenceBudgetStatus",
         "type": "object"
       },
+      "CoherenceCalibration": {
+        "description": "The Brier score, its decomposition, and what the corpus is made of.",
+        "properties": {
+          "base_rate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Rate"
+          },
+          "bias_slope": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bias Slope"
+          },
+          "binning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Binning"
+          },
+          "bins": {
+            "items": {
+              "$ref": "#/components/schemas/CoherenceReliabilityBin"
+            },
+            "title": "Bins",
+            "type": "array"
+          },
+          "brier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brier"
+          },
+          "composition": {
+            "items": {
+              "$ref": "#/components/schemas/CoherenceCompositionRow"
+            },
+            "title": "Composition",
+            "type": "array"
+          },
+          "count": {
+            "default": 0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "detail": {
+            "default": "",
+            "title": "Detail",
+            "type": "string"
+          },
+          "engine": {
+            "title": "Engine",
+            "type": "string"
+          },
+          "isotonic_map": {
+            "items": {
+              "$ref": "#/components/schemas/CoherenceMapPoint"
+            },
+            "title": "Isotonic Map",
+            "type": "array"
+          },
+          "median_horizon_s": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median Horizon S"
+          },
+          "reliability": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reliability"
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution"
+          },
+          "skill": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skill"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "thin": {
+            "default": true,
+            "title": "Thin",
+            "type": "boolean"
+          },
+          "uncertainty": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uncertainty"
+          }
+        },
+        "required": [
+          "state",
+          "engine"
+        ],
+        "title": "CoherenceCalibration",
+        "type": "object"
+      },
       "CoherenceCertificate": {
         "description": "One coherence result, whether or not it found anything.\n\nProduced on the healthy case too: a detector silent when all is well leaves\na caller unable to tell \"no opportunity\" from \"the feed is down\", and this\nengine's most common \u2014 and correct \u2014 answer is that the market is coherent.",
         "properties": {
@@ -681,6 +892,11 @@
             },
             "title": "Notes",
             "type": "array"
+          },
+          "priced_out": {
+            "default": false,
+            "title": "Priced Out",
+            "type": "boolean"
           },
           "proof": {
             "default": "",
@@ -815,6 +1031,441 @@
           "net_fee"
         ],
         "title": "CoherenceCertificateLeg",
+        "type": "object"
+      },
+      "CoherenceCombo": {
+        "description": "One parlay against the band its legs leave it.",
+        "properties": {
+          "band_position": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Band Position"
+          },
+          "band_width": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Band Width"
+          },
+          "collection_ticker": {
+            "default": "",
+            "title": "Collection Ticker",
+            "type": "string"
+          },
+          "combo_ask": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Combo Ask"
+          },
+          "combo_bid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Combo Bid"
+          },
+          "combo_mid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Combo Mid"
+          },
+          "dependence": {
+            "default": "unavailable",
+            "title": "Dependence",
+            "type": "string"
+          },
+          "detail": {
+            "default": "",
+            "title": "Detail",
+            "type": "string"
+          },
+          "independence": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Independence"
+          },
+          "inside_band": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inside Band"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "legs": {
+            "items": {
+              "$ref": "#/components/schemas/CoherenceComboLeg"
+            },
+            "title": "Legs",
+            "type": "array"
+          },
+          "lower_bound": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lower Bound"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price"
+          },
+          "price_basis": {
+            "default": "unavailable",
+            "title": "Price Basis",
+            "type": "string"
+          },
+          "scope": {
+            "default": "cross-shard",
+            "title": "Scope",
+            "type": "string"
+          },
+          "ticker": {
+            "title": "Ticker",
+            "type": "string"
+          },
+          "upper_bound": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Upper Bound"
+          }
+        },
+        "required": [
+          "ticker",
+          "label"
+        ],
+        "title": "CoherenceCombo",
+        "type": "object"
+      },
+      "CoherenceComboLeg": {
+        "properties": {
+          "buy_cost": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Buy Cost"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "opposite_cost": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opposite Cost"
+          },
+          "probability": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Probability"
+          },
+          "side": {
+            "title": "Side",
+            "type": "string"
+          },
+          "ticker": {
+            "title": "Ticker",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ticker",
+          "label",
+          "side"
+        ],
+        "title": "CoherenceComboLeg",
+        "type": "object"
+      },
+      "CoherenceComboRow": {
+        "description": "A Frechet bound as a testable portfolio.",
+        "properties": {
+          "because": {
+            "title": "Because",
+            "type": "string"
+          },
+          "bound": {
+            "title": "Bound",
+            "type": "string"
+          },
+          "cost": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost"
+          },
+          "legs": {
+            "items": {
+              "$ref": "#/components/schemas/CoherenceComboLeg"
+            },
+            "title": "Legs",
+            "type": "array"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "slack": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slack"
+          },
+          "violated": {
+            "default": false,
+            "title": "Violated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "because",
+          "scope",
+          "bound"
+        ],
+        "title": "CoherenceComboRow",
+        "type": "object"
+      },
+      "CoherenceCombos": {
+        "properties": {
+          "combos": {
+            "items": {
+              "$ref": "#/components/schemas/CoherenceCombo"
+            },
+            "title": "Combos",
+            "type": "array"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "outside_band": {
+            "default": 0,
+            "title": "Outside Band",
+            "type": "integer"
+          },
+          "quoted": {
+            "default": 0,
+            "title": "Quoted",
+            "type": "integer"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/CoherenceComboRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "violations": {
+            "default": 0,
+            "title": "Violations",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "state"
+        ],
+        "title": "CoherenceCombos",
+        "type": "object"
+      },
+      "CoherenceCompositionRow": {
+        "properties": {
+          "count": {
+            "default": 0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "series_ticker": {
+            "title": "Series Ticker",
+            "type": "string"
+          }
+        },
+        "required": [
+          "series_ticker"
+        ],
+        "title": "CoherenceCompositionRow",
+        "type": "object"
+      },
+      "CoherenceDispersion": {
+        "properties": {
+          "crossed": {
+            "default": 0,
+            "title": "Crossed",
+            "type": "integer"
+          },
+          "detail": {
+            "default": "",
+            "title": "Detail",
+            "type": "string"
+          },
+          "highest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Highest"
+          },
+          "lowest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lowest"
+          },
+          "market_ticker": {
+            "title": "Market Ticker",
+            "type": "string"
+          },
+          "median": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median"
+          },
+          "median_width": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median Width"
+          },
+          "quotes": {
+            "default": 0,
+            "title": "Quotes",
+            "type": "integer"
+          },
+          "spread": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spread"
+          },
+          "thin": {
+            "default": true,
+            "title": "Thin",
+            "type": "boolean"
+          },
+          "usable": {
+            "default": 0,
+            "title": "Usable",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "market_ticker"
+        ],
+        "title": "CoherenceDispersion",
         "type": "object"
       },
       "CoherenceEpisode": {
@@ -1355,6 +2006,158 @@
         "title": "CoherenceIndexSeries",
         "type": "object"
       },
+      "CoherenceKelly": {
+        "description": "The log-optimal plan, and the riskless alternative where one exists.",
+        "properties": {
+          "arbitrage_available": {
+            "default": false,
+            "title": "Arbitrage Available",
+            "type": "boolean"
+          },
+          "basket_cost": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Basket Cost"
+          },
+          "cash_fraction": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cash Fraction"
+          },
+          "detail": {
+            "default": "",
+            "title": "Detail",
+            "type": "string"
+          },
+          "engine": {
+            "title": "Engine",
+            "type": "string"
+          },
+          "full_growth_rate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Full Growth Rate"
+          },
+          "growth_rate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Growth Rate"
+          },
+          "reserve_rate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reserve Rate"
+          },
+          "riskless_growth": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Riskless Growth"
+          },
+          "shrinkage": {
+            "default": "0.25",
+            "title": "Shrinkage",
+            "type": "string"
+          },
+          "staked_fraction": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Staked Fraction"
+          },
+          "stakes": {
+            "items": {
+              "$ref": "#/components/schemas/CoherenceStake"
+            },
+            "title": "Stakes",
+            "type": "array"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "worst_case_wealth": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worst Case Wealth"
+          }
+        },
+        "required": [
+          "state",
+          "engine"
+        ],
+        "title": "CoherenceKelly",
+        "type": "object"
+      },
+      "CoherenceMapPoint": {
+        "properties": {
+          "calibrated": {
+            "title": "Calibrated",
+            "type": "string"
+          },
+          "quoted": {
+            "title": "Quoted",
+            "type": "string"
+          },
+          "weight": {
+            "default": 0,
+            "title": "Weight",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "quoted",
+          "calibrated"
+        ],
+        "title": "CoherenceMapPoint",
+        "type": "object"
+      },
       "CoherenceMarketView": {
         "description": "One market as the desk renders it. Every price is a string or absent.",
         "properties": {
@@ -1492,6 +2295,40 @@
         "title": "CoherenceMarketView",
         "type": "object"
       },
+      "CoherenceProbe": {
+        "description": "One reading of the survival function, and the market that gave it.",
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "origin": {
+            "title": "Origin",
+            "type": "string"
+          },
+          "strike": {
+            "title": "Strike",
+            "type": "string"
+          },
+          "survival": {
+            "title": "Survival",
+            "type": "string"
+          },
+          "ticker": {
+            "title": "Ticker",
+            "type": "string"
+          }
+        },
+        "required": [
+          "strike",
+          "survival",
+          "ticker",
+          "label",
+          "origin"
+        ],
+        "title": "CoherenceProbe",
+        "type": "object"
+      },
       "CoherenceRecorderStatus": {
         "description": "What the recorder has done, not what it was configured to do.",
         "properties": {
@@ -1568,6 +2405,67 @@
         "title": "CoherenceRecorderStatus",
         "type": "object"
       },
+      "CoherenceReliabilityBin": {
+        "properties": {
+          "count": {
+            "default": 0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "deviation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deviation"
+          },
+          "high": {
+            "title": "High",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "low": {
+            "title": "Low",
+            "type": "string"
+          },
+          "mean_forecast": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean Forecast"
+          },
+          "outcome_rate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome Rate"
+          }
+        },
+        "required": [
+          "label",
+          "low",
+          "high"
+        ],
+        "title": "CoherenceReliabilityBin",
+        "type": "object"
+      },
       "CoherenceReplay": {
         "description": "The ablation harness's answer: which parts of the model change the answer.\n\nNot a P&L estimate. Replaying an arbitrage engine over its own recorded\nquotes cannot tell you what it would have earned \u2014 it could not have traded\nagainst every quote it recorded. What it can tell you is how many\nopportunities each configuration SEES, and the gap between the naive test\nand the fee-aware one is the number this project exists to produce.",
         "properties": {
@@ -1626,6 +2524,169 @@
         "title": "CoherenceReplay",
         "type": "object"
       },
+      "CoherenceRfqPanel": {
+        "properties": {
+          "detail": {
+            "default": "",
+            "title": "Detail",
+            "type": "string"
+          },
+          "dispersions": {
+            "items": {
+              "$ref": "#/components/schemas/CoherenceDispersion"
+            },
+            "title": "Dispersions",
+            "type": "array"
+          },
+          "open_requests": {
+            "default": 0,
+            "title": "Open Requests",
+            "type": "integer"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state"
+        ],
+        "title": "CoherenceRfqPanel",
+        "type": "object"
+      },
+      "CoherenceSettlementFeed": {
+        "description": "The published index a contract resolves against, and its quality control.",
+        "properties": {
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "config_version": {
+            "default": "",
+            "title": "Config Version",
+            "type": "string"
+          },
+          "contributors_max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contributors Max"
+          },
+          "contributors_min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contributors Min"
+          },
+          "degraded_samples": {
+            "default": 0,
+            "title": "Degraded Samples",
+            "type": "integer"
+          },
+          "detail": {
+            "default": "",
+            "title": "Detail",
+            "type": "string"
+          },
+          "latest_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Value"
+          },
+          "reference_rate_detail": {
+            "default": "",
+            "title": "Reference Rate Detail",
+            "type": "string"
+          },
+          "reference_rate_state": {
+            "default": "unavailable",
+            "title": "Reference Rate State",
+            "type": "string"
+          },
+          "sample_count": {
+            "default": 0,
+            "title": "Sample Count",
+            "type": "integer"
+          },
+          "samples": {
+            "items": {
+              "$ref": "#/components/schemas/CoherenceWeatherSample"
+            },
+            "title": "Samples",
+            "type": "array"
+          },
+          "spot_minus_window": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spot Minus Window"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "window_average": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Window Average"
+          },
+          "window_average_clean": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Window Average Clean"
+          },
+          "window_minutes": {
+            "default": 60,
+            "title": "Window Minutes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "state"
+        ],
+        "title": "CoherenceSettlementFeed",
+        "type": "object"
+      },
       "CoherenceShardStatus": {
         "description": "One exchange instance. Collateral is per shard, so this is a hard gate.",
         "properties": {
@@ -1653,6 +2714,124 @@
           "trading_active"
         ],
         "title": "CoherenceShardStatus",
+        "type": "object"
+      },
+      "CoherenceShell": {
+        "description": "One ``ls`` or one ``cat`` over the watched universe.",
+        "properties": {
+          "body": {
+            "default": "",
+            "title": "Body",
+            "type": "string"
+          },
+          "command": {
+            "default": "ls",
+            "title": "Command",
+            "type": "string"
+          },
+          "detail": {
+            "default": "",
+            "title": "Detail",
+            "type": "string"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/CoherenceShellEntry"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "exists": {
+            "default": true,
+            "title": "Exists",
+            "type": "boolean"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "path"
+        ],
+        "title": "CoherenceShell",
+        "type": "object"
+      },
+      "CoherenceShellEntry": {
+        "properties": {
+          "detail": {
+            "default": "",
+            "title": "Detail",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "kind"
+        ],
+        "title": "CoherenceShellEntry",
+        "type": "object"
+      },
+      "CoherenceStake": {
+        "description": "What to put on one outcome, as a fraction of the bankroll.",
+        "properties": {
+          "admitted": {
+            "default": false,
+            "title": "Admitted",
+            "type": "boolean"
+          },
+          "edge": {
+            "title": "Edge",
+            "type": "string"
+          },
+          "fraction": {
+            "title": "Fraction",
+            "type": "string"
+          },
+          "full_fraction": {
+            "title": "Full Fraction",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "price": {
+            "title": "Price",
+            "type": "string"
+          },
+          "probability": {
+            "title": "Probability",
+            "type": "string"
+          },
+          "ticker": {
+            "title": "Ticker",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ticker",
+          "label",
+          "probability",
+          "price",
+          "edge",
+          "full_fraction",
+          "fraction"
+        ],
+        "title": "CoherenceStake",
         "type": "object"
       },
       "CoherenceStatus": {
@@ -1723,6 +2902,160 @@
         "title": "CoherenceStatus",
         "type": "object"
       },
+      "CoherenceSurface": {
+        "description": "The distribution a family's prices imply, or the reason there is none.",
+        "properties": {
+          "basis": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Basis"
+          },
+          "bins": {
+            "items": {
+              "$ref": "#/components/schemas/CoherenceBin"
+            },
+            "title": "Bins",
+            "type": "array"
+          },
+          "detail": {
+            "default": "",
+            "title": "Detail",
+            "type": "string"
+          },
+          "engine": {
+            "title": "Engine",
+            "type": "string"
+          },
+          "event_ticker": {
+            "default": "",
+            "title": "Event Ticker",
+            "type": "string"
+          },
+          "excess_kurtosis": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Excess Kurtosis"
+          },
+          "mean": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean"
+          },
+          "moments_note": {
+            "default": "",
+            "title": "Moments Note",
+            "type": "string"
+          },
+          "negative_bins": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Negative Bins",
+            "type": "array"
+          },
+          "probes": {
+            "items": {
+              "$ref": "#/components/schemas/CoherenceProbe"
+            },
+            "title": "Probes",
+            "type": "array"
+          },
+          "skewness": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skewness"
+          },
+          "standard_deviation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Standard Deviation"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "tail_mass_high": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tail Mass High"
+          },
+          "tail_mass_low": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tail Mass Low"
+          },
+          "total_mass": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Mass"
+          },
+          "variance": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variance"
+          }
+        },
+        "required": [
+          "state",
+          "engine"
+        ],
+        "title": "CoherenceSurface",
+        "type": "object"
+      },
       "CoherenceSurvivalPoint": {
         "properties": {
           "surviving": {
@@ -1774,6 +3107,34 @@
           "state"
         ],
         "title": "CoherenceUniverse",
+        "type": "object"
+      },
+      "CoherenceWeatherSample": {
+        "properties": {
+          "contributors": {
+            "default": 0,
+            "title": "Contributors",
+            "type": "integer"
+          },
+          "status": {
+            "default": "unknown",
+            "title": "Status",
+            "type": "string"
+          },
+          "ts_ms": {
+            "title": "Ts Ms",
+            "type": "integer"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ts_ms",
+          "value"
+        ],
+        "title": "CoherenceWeatherSample",
         "type": "object"
       },
       "DataBackfillRequest": {
@@ -8189,6 +9550,96 @@
         ]
       }
     },
+    "/api/coherence/calibration": {
+      "get": {
+        "description": "Were the prices right? The Brier score and Murphy's decomposition.\n\nPrefers forecasts from the tape \u2014 a price quoted an hour before close,\nscored against what happened. Falls back to last traded prices only when\nthe tape is too short, and says so in the engine name, because a last trade\nhappens moments before settlement and scores convergence, not foresight.",
+        "operationId": "coherence_calibration_api_coherence_calibration_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "horizon_s",
+            "required": false,
+            "schema": {
+              "default": 3600,
+              "maximum": 604800,
+              "minimum": 0,
+              "title": "Horizon S",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Read settled markets before scoring",
+            "in": "query",
+            "name": "harvest",
+            "required": false,
+            "schema": {
+              "default": true,
+              "description": "Read settled markets before scoring",
+              "title": "Harvest",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoherenceCalibration"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Coherence Calibration",
+        "tags": [
+          "coherence lab"
+        ]
+      }
+    },
     "/api/coherence/certify": {
       "get": {
         "description": "Test one family for coherence, and return the proof either way.\n\nAnswers on the healthy case too. A detector that returns nothing when all\nis well leaves a caller unable to tell \"no opportunity\" from \"the feed is\ndown\", and on this exchange the correct answer is usually that the prices\nare coherent \u2014 which is itself worth showing, because it is the claim the\nengine is making.",
@@ -8275,6 +9726,86 @@
         "summary": "Coherence Certify",
         "tags": [
           "coherence"
+        ]
+      }
+    },
+    "/api/coherence/combos": {
+      "get": {
+        "description": "Parlays against the Fr\u00e9chet band their own legs leave them.\n\nTwo probabilities do not determine the probability of both; they leave a\nband. A price inside it is consistent with some dependence structure and is\nnot a mispricing. A price outside it is a Dutch book, and the row that\nproves it comes back with the reading.",
+        "operationId": "coherence_combos_api_coherence_combos_get",
+        "parameters": [
+          {
+            "description": "How many parlays to fetch books for",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 8,
+              "description": "How many parlays to fetch books for",
+              "maximum": 10,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoherenceCombos"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Coherence Combos",
+        "tags": [
+          "coherence lab"
         ]
       }
     },
@@ -8702,6 +10233,328 @@
         ]
       }
     },
+    "/api/coherence/rfq": {
+      "get": {
+        "description": "What the makers disagree about, where the public book shows nothing.\n\nSigned-only, and on the demo environment usually empty \u2014 makers do not quote\na sandbox. Empty is reported as empty rather than as a quiet market, and an\nunsigned read is reported as no view rather than a worse one.",
+        "operationId": "coherence_rfq_api_coherence_rfq_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoherenceRfqPanel"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Coherence Rfq",
+        "tags": [
+          "coherence lab"
+        ]
+      }
+    },
+    "/api/coherence/settlement": {
+      "get": {
+        "description": "The published index a contract resolves against, and its quality control.\n\nNot the price you watch. A temperature contract settles on an average over a\nwindow, so the gap between the latest reading and that average is basis a\nposition carries whether or not anyone notices it.",
+        "operationId": "coherence_settlement_api_coherence_settlement_get",
+        "parameters": [
+          {
+            "description": "A city the weather index covers",
+            "in": "query",
+            "name": "city",
+            "required": false,
+            "schema": {
+              "default": "miami",
+              "description": "A city the weather index covers",
+              "minLength": 2,
+              "title": "City",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoherenceSettlementFeed"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Coherence Settlement",
+        "tags": [
+          "coherence lab"
+        ]
+      }
+    },
+    "/api/coherence/shell": {
+      "get": {
+        "description": "The watched universe as a filesystem: ``ls`` a path, ``cat`` a reading.\n\nThe tree is the watchlist, not the exchange. Kalshi lists some thirteen\nthousand series; this holds the ones the recorder watches, and the root says\nso rather than presenting a fraction as the whole.",
+        "operationId": "coherence_shell_api_coherence_shell_get",
+        "parameters": [
+          {
+            "description": "A path in the watched universe",
+            "in": "query",
+            "name": "path",
+            "required": false,
+            "schema": {
+              "default": "/",
+              "description": "A path in the watched universe",
+              "title": "Path",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "command",
+            "required": false,
+            "schema": {
+              "default": "ls",
+              "pattern": "^(ls|cat)$",
+              "title": "Command",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoherenceShell"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Coherence Shell",
+        "tags": [
+          "coherence lab"
+        ]
+      }
+    },
+    "/api/coherence/stake": {
+      "get": {
+        "description": "Log-optimal stakes over this family, and the riskless alternative.\n\nSized against the measure the surface draws, not against the raw mids \u2014\nfeeding Kelly the market's own view returns \"stake nothing\" by construction.\nGrowth-optimal is not riskless: where an arbitrage exists, the certain\nreturn is reported beside the risky plan rather than in place of it.",
+        "operationId": "coherence_stake_api_coherence_stake_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "event_ticker",
+            "required": true,
+            "schema": {
+              "minLength": 3,
+              "title": "Event Ticker",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Fraction of full Kelly, in (0, 1]",
+            "in": "query",
+            "name": "shrinkage",
+            "required": false,
+            "schema": {
+              "default": "0.25",
+              "description": "Fraction of full Kelly, in (0, 1]",
+              "title": "Shrinkage",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoherenceKelly"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Coherence Stake",
+        "tags": [
+          "coherence lab"
+        ]
+      }
+    },
     "/api/coherence/status": {
       "get": {
         "description": "Is any of this real right now \u2014 and if not, which part is not.\n\nReads the exchange's own status rather than reporting on our intentions.\nThe schema probe is the load-bearing one: Kalshi removed the integer-cent\nfields in March 2026, and a client written against them parses today's\npayloads into a book of zeros without raising anything. \"Every price is\nzero\" is not a state a reader should have to diagnose from a chart.",
@@ -8765,6 +10618,84 @@
         "summary": "Coherence Status",
         "tags": [
           "coherence"
+        ]
+      }
+    },
+    "/api/coherence/surface": {
+      "get": {
+        "description": "The probability distribution this event's prices imply.\n\nBuilt by differencing the survival function the strike ladder samples: the\nmass between two strikes is what their prices differ by. A negative bin is\na monotonicity violation and is flagged rather than clipped, because it is\nthe same fault the certificate prices.",
+        "operationId": "coherence_surface_api_coherence_surface_get",
+        "parameters": [
+          {
+            "description": "One event's ticker",
+            "in": "query",
+            "name": "event_ticker",
+            "required": true,
+            "schema": {
+              "description": "One event's ticker",
+              "minLength": 3,
+              "title": "Event Ticker",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoherenceSurface"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Coherence Surface",
+        "tags": [
+          "coherence lab"
         ]
       }
     },

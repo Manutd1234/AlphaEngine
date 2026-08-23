@@ -258,7 +258,7 @@ async def coherence_certify(
             verdict="untestable", engine="closed_form", component_id=event_ticker,
             series_ticker="", exchange_index=0, notes=[exc.reason],
         )
-    schedule = await _schedule_for(observation.event.series_ticker, event_ticker)
+    schedule = await schedule_for_event(observation.event.series_ticker, event_ticker)
     certificate = certify(observation, schedule, max_contracts=Decimal(max_contracts))
     payload = certificate.to_dict()
     payload["proof"] = certificate.render_text()
@@ -287,14 +287,14 @@ async def coherence_fees(
             state="unreadable", price=price, contracts=contracts_fp, fills=fills,
             multiplier="1", balance_precision="0.010000", notes=[str(exc)],
         )
-    schedule = await _schedule_for(series or "", "") if series else FeeSchedule(
+    schedule = await schedule_for_event(series or "", "") if series else FeeSchedule(
         taker_rate=tunables.TAKER_RATE, maker_ratio=tunables.MAKER_RATIO,
         balance_precision=tunables.BALANCE_PRECISION,
     )
     return worked_example(parsed_price, size, schedule, fills=fills, basket_prices=[parsed_price, parsed_price])
 
 
-async def _schedule_for(series_ticker: str, event_ticker: str) -> FeeSchedule:
+async def schedule_for_event(series_ticker: str, event_ticker: str) -> FeeSchedule:
     """The live fee schedule, falling back to the published rate on a refusal.
 
     A fee we could not read is reported as the published default rather than

@@ -31,6 +31,12 @@ function verdictChip(certificate: CoherenceCertificate) {
   if (certificate.verdict === "untestable") {
     return { mark: "◌", word: "Not testable", tone: "muted" as const };
   }
+  // The solver found no portfolio worth putting on, but the closed-form
+  // checks found prices that admit no probability measure. Both are true and
+  // they are different claims, so this does not render as "Coherent".
+  if (certificate.priced_out) {
+    return { mark: "▲", word: "Incoherent, but priced out by fees", tone: "warn" as const };
+  }
   return { mark: "●", word: "Coherent", tone: "good" as const };
 }
 
@@ -131,7 +137,18 @@ export default function CertificatePane({
             <StateChip mark="→" word={`Legging tier ${data.tier}`} tone={data.tier > 2 ? "warn" : "muted"} />
           </div>
 
-          {data.verdict === "coherent" ? (
+          {data.verdict === "coherent" && data.priced_out ? (
+            <Figure
+              caption="What the test found"
+              ariaLabel="These prices are incoherent, and the fees remove the edge"
+              reading={`These quotes admit no probability measure — the closed-form checks found a violation worth ${data.gross_edge ?? "—"} gross. The three fee components turn that into ${data.net_edge ?? "—"} net, so the programme found no portfolio worth putting on. Both readings are correct: the prices are wrong and the trade is not there, and this engine exists to keep those apart.`}
+              missing={data.rows_untestable ? `${data.rows_untestable} constraint(s) could not be tested: a leg was unquoted.` : null}
+            >
+              <FigureEmpty reason="Nothing to draw — the violating portfolio loses money once fees are charged." />
+            </Figure>
+          ) : null}
+
+          {data.verdict === "coherent" && !data.priced_out ? (
             <Figure
               caption="What the test found"
               ariaLabel="This family's prices are coherent"

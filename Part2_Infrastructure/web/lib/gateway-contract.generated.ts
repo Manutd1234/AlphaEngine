@@ -63,6 +63,15 @@ export interface CoherenceAblation {
   worth_doing?: number;
 }
 
+export interface CoherenceBin {
+  high?: string | null;
+  label: string;
+  low?: string | null;
+  mass: string;
+  negative?: boolean;
+  representative?: string | null;
+}
+
 export interface CoherenceBookLevel {
   price: string;
   size: string;
@@ -104,6 +113,26 @@ export interface CoherenceBudgetStatus {
   tokens_spent: number;
 }
 
+export interface CoherenceCalibration {
+  base_rate?: string | null;
+  bias_slope?: string | null;
+  binning?: string | null;
+  bins?: Array<CoherenceReliabilityBin>;
+  brier?: string | null;
+  composition?: Array<CoherenceCompositionRow>;
+  count?: number;
+  detail?: string;
+  engine: string;
+  isotonic_map?: Array<CoherenceMapPoint>;
+  median_horizon_s?: number | null;
+  reliability?: string | null;
+  resolution?: string | null;
+  skill?: string | null;
+  state: string;
+  thin?: boolean;
+  uncertainty?: string | null;
+}
+
 export interface CoherenceCertificate {
   because?: string;
   component_id: string;
@@ -114,6 +143,7 @@ export interface CoherenceCertificate {
   legs?: Array<CoherenceCertificateLeg>;
   net_edge?: string | null;
   notes?: Array<string>;
+  priced_out?: boolean;
   proof?: string;
   rows_tested?: number;
   rows_untestable?: number;
@@ -138,6 +168,75 @@ export interface CoherenceCertificateLeg {
   size: string;
   ticker: string;
   trade_fee: string;
+}
+
+export interface CoherenceCombo {
+  band_position?: string | null;
+  band_width?: string | null;
+  collection_ticker?: string;
+  combo_ask?: string | null;
+  combo_bid?: string | null;
+  combo_mid?: string | null;
+  dependence?: string;
+  detail?: string;
+  independence?: string | null;
+  inside_band?: boolean | null;
+  label: string;
+  legs?: Array<CoherenceComboLeg>;
+  lower_bound?: string | null;
+  price?: string | null;
+  price_basis?: string;
+  scope?: string;
+  ticker: string;
+  upper_bound?: string | null;
+}
+
+export interface CoherenceComboLeg {
+  buy_cost?: string | null;
+  label: string;
+  opposite_cost?: string | null;
+  probability?: string | null;
+  side: string;
+  ticker: string;
+}
+
+export interface CoherenceComboRow {
+  because: string;
+  bound: string;
+  cost?: string | null;
+  legs?: Array<CoherenceComboLeg>;
+  scope: string;
+  slack?: string | null;
+  violated?: boolean;
+}
+
+export interface CoherenceCombos {
+  combos?: Array<CoherenceCombo>;
+  notes?: Array<string>;
+  outside_band?: number;
+  quoted?: number;
+  rows?: Array<CoherenceComboRow>;
+  state: string;
+  violations?: number;
+}
+
+export interface CoherenceCompositionRow {
+  count?: number;
+  series_ticker: string;
+}
+
+export interface CoherenceDispersion {
+  crossed?: number;
+  detail?: string;
+  highest?: string | null;
+  lowest?: string | null;
+  market_ticker: string;
+  median?: string | null;
+  median_width?: string | null;
+  quotes?: number;
+  spread?: string | null;
+  thin?: boolean;
+  usable?: number;
 }
 
 export interface CoherenceEpisode {
@@ -234,6 +333,29 @@ export interface CoherenceIndexSeries {
   unmeasurable?: number;
 }
 
+export interface CoherenceKelly {
+  arbitrage_available?: boolean;
+  basket_cost?: string | null;
+  cash_fraction?: string | null;
+  detail?: string;
+  engine: string;
+  full_growth_rate?: string | null;
+  growth_rate?: string | null;
+  reserve_rate?: string | null;
+  riskless_growth?: string | null;
+  shrinkage?: string;
+  staked_fraction?: string | null;
+  stakes?: Array<CoherenceStake>;
+  state: string;
+  worst_case_wealth?: string | null;
+}
+
+export interface CoherenceMapPoint {
+  calibrated: string;
+  quoted: string;
+  weight?: number;
+}
+
 export interface CoherenceMarketView {
   cap_strike?: string | null;
   depth: string;
@@ -253,6 +375,14 @@ export interface CoherenceMarketView {
   yes_sub_title: string;
 }
 
+export interface CoherenceProbe {
+  label: string;
+  origin: string;
+  strike: string;
+  survival: string;
+  ticker: string;
+}
+
 export interface CoherenceRecorderStatus {
   books_written: number;
   configured: boolean;
@@ -264,6 +394,16 @@ export interface CoherenceRecorderStatus {
   seconds_since_last_poll?: number | null;
   series_seen?: Array<string>;
   watchlist: Array<string>;
+}
+
+export interface CoherenceReliabilityBin {
+  count?: number;
+  deviation?: string | null;
+  high: string;
+  label: string;
+  low: string;
+  mean_forecast?: string | null;
+  outcome_rate?: string | null;
 }
 
 export interface CoherenceReplay {
@@ -278,11 +418,64 @@ export interface CoherenceReplay {
   state: string;
 }
 
+export interface CoherenceRfqPanel {
+  detail?: string;
+  dispersions?: Array<CoherenceDispersion>;
+  open_requests?: number;
+  state: string;
+}
+
+export interface CoherenceSettlementFeed {
+  city?: string | null;
+  config_version?: string;
+  contributors_max?: number | null;
+  contributors_min?: number | null;
+  degraded_samples?: number;
+  detail?: string;
+  latest_value?: string | null;
+  reference_rate_detail?: string;
+  reference_rate_state?: string;
+  sample_count?: number;
+  samples?: Array<CoherenceWeatherSample>;
+  spot_minus_window?: string | null;
+  state: string;
+  window_average?: string | null;
+  window_average_clean?: string | null;
+  window_minutes?: number;
+}
+
 export interface CoherenceShardStatus {
   description: string;
   exchange_active: boolean;
   exchange_index: number;
   trading_active: boolean;
+}
+
+export interface CoherenceShell {
+  body?: string;
+  command?: string;
+  detail?: string;
+  entries?: Array<CoherenceShellEntry>;
+  exists?: boolean;
+  path: string;
+  state: string;
+}
+
+export interface CoherenceShellEntry {
+  detail?: string;
+  kind: string;
+  name: string;
+}
+
+export interface CoherenceStake {
+  admitted?: boolean;
+  edge: string;
+  fraction: string;
+  full_fraction: string;
+  label: string;
+  price: string;
+  probability: string;
+  ticker: string;
 }
 
 export interface CoherenceStatus {
@@ -299,6 +492,26 @@ export interface CoherenceStatus {
   tape?: Record<string, unknown>;
 }
 
+export interface CoherenceSurface {
+  basis?: string | null;
+  bins?: Array<CoherenceBin>;
+  detail?: string;
+  engine: string;
+  event_ticker?: string;
+  excess_kurtosis?: string | null;
+  mean?: string | null;
+  moments_note?: string;
+  negative_bins?: Array<string>;
+  probes?: Array<CoherenceProbe>;
+  skewness?: string | null;
+  standard_deviation?: string | null;
+  state: string;
+  tail_mass_high?: string | null;
+  tail_mass_low?: string | null;
+  total_mass?: string | null;
+  variance?: string | null;
+}
+
 export interface CoherenceSurvivalPoint {
   surviving: string;
   t_s: string;
@@ -309,6 +522,13 @@ export interface CoherenceUniverse {
   notes?: Array<string>;
   state: string;
   watchlist?: Array<string>;
+}
+
+export interface CoherenceWeatherSample {
+  contributors?: number;
+  status?: string;
+  ts_ms: number;
+  value: string;
 }
 
 export interface DataBackfillRequest {
@@ -1266,12 +1486,19 @@ export interface GatewayOperations {
   "POST /api/backtest": { request: BacktestRequest; response: Record<string, unknown> };
   "GET /api/book/{symbol}": { response: Array<VenueBook> };
   "GET /api/coherence/books": { response: CoherenceBooks };
+  "GET /api/coherence/calibration": { response: CoherenceCalibration };
   "GET /api/coherence/certify": { response: CoherenceCertificate };
+  "GET /api/coherence/combos": { response: CoherenceCombos };
   "GET /api/coherence/episodes": { response: CoherenceEpisodes };
   "GET /api/coherence/fees": { response: CoherenceFees };
   "GET /api/coherence/index": { response: CoherenceIndexSeries };
   "GET /api/coherence/replay": { response: CoherenceReplay };
+  "GET /api/coherence/rfq": { response: CoherenceRfqPanel };
+  "GET /api/coherence/settlement": { response: CoherenceSettlementFeed };
+  "GET /api/coherence/shell": { response: CoherenceShell };
+  "GET /api/coherence/stake": { response: CoherenceKelly };
   "GET /api/coherence/status": { response: CoherenceStatus };
+  "GET /api/coherence/surface": { response: CoherenceSurface };
   "GET /api/coherence/universe": { response: CoherenceUniverse };
   "GET /api/config": { response: Record<string, unknown> };
   "POST /api/data-quality/escalations/{escalation_id}/ack": { response: EscalationAck };
@@ -1338,12 +1565,19 @@ export const GATEWAY_CONTRACT_PATHS = [
   "/api/backtest",
   "/api/book/{symbol}",
   "/api/coherence/books",
+  "/api/coherence/calibration",
   "/api/coherence/certify",
+  "/api/coherence/combos",
   "/api/coherence/episodes",
   "/api/coherence/fees",
   "/api/coherence/index",
   "/api/coherence/replay",
+  "/api/coherence/rfq",
+  "/api/coherence/settlement",
+  "/api/coherence/shell",
+  "/api/coherence/stake",
   "/api/coherence/status",
+  "/api/coherence/surface",
   "/api/coherence/universe",
   "/api/config",
   "/api/data-quality/escalations/{escalation_id}/ack",

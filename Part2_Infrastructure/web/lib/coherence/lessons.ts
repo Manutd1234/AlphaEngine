@@ -1,5 +1,5 @@
 /**
- * The ten lessons, and the code each one is about.
+ * The fourteen lessons, and the code each one is about.
  *
  * Shaped after `lib/strategy-docs/model.ts`: a summary, the rule as a plain
  * Unicode formula, when it holds, and — mandatory, never a hedge — how it
@@ -139,7 +139,7 @@ export const COHERENCE_LESSONS: CoherenceLesson[] = [
     pane: "lattice",
     guards: ["modules/coherence/kernel/lattice.py"],
     pinnedBy: ["tests/test_coherence_lattice.py"],
-    shipped: false,
+    shipped: true,
   },
   {
     id: "duality",
@@ -184,6 +184,66 @@ export const COHERENCE_LESSONS: CoherenceLesson[] = [
     pane: "index",
     guards: ["modules/coherence/kernel/coherence_index.py"],
     pinnedBy: ["tests/test_coherence_store.py"],
+    shipped: true,
+  },
+  {
+    id: "distribution",
+    title: "A ladder of strikes is a distribution, one subtraction at a time",
+    summary:
+      "A threshold market quotes one point of a survival function. Quote several and the mass between two strikes is what their prices differ by, so a ladder of quotes is an implied probability distribution that nobody had to state.",
+    formula: "pmf(k\u1d62, k\u1d62\u208a\u2081] = S(k\u1d62) \u2212 S(k\u1d62\u208a\u2081)",
+    whenItHolds:
+      "Along any ladder of strikes on one underlying, where two adjacent strikes are both quoted.",
+    whenItFails:
+      "Reading a mean off the chart. The outermost bins are open — mass above the highest strike has no width and no midpoint — so a mean computed by pretending they sit at their bounds is a property of that convention rather than of the market. The moments here are conditional on the interior and say so.",
+    pane: "lattice",
+    guards: ["modules/coherence/kernel/distribution.py", "modules/coherence/kernel/moments.py"],
+    pinnedBy: ["tests/test_coherence_distribution.py"],
+    shipped: true,
+  },
+  {
+    id: "kelly",
+    title: "Growth-optimal is not riskless, and the difference is the trade",
+    summary:
+      "Sizing a family of mutually exclusive contracts is not the scalar Kelly formula repeated. Exactly one outcome pays, so a dollar on one is partly a hedge for the dollar on another, and the log-optimal split has an exact solution over the joint distribution.",
+    formula: "f\u209b = q\u209b \u2212 R\u00b7a\u209b,  R = (1 \u2212 \u03a3q) / (1 \u2212 \u03a3a)",
+    whenItHolds:
+      "Over one mutually exclusive family, priced at what each outcome costs to buy, with the whole family present.",
+    whenItFails:
+      "Mistaking the Kelly plan for the arbitrage. Where a basket costs under a dollar both exist, and they are different portfolios: the Dutch book buys equal contracts and its profit is certain, while Kelly stakes the measure, grows faster and can lose a third of the bankroll on one settlement.",
+    pane: "lattice",
+    guards: ["modules/coherence/kernel/kelly.py"],
+    pinnedBy: ["tests/test_coherence_kelly.py"],
+    shipped: true,
+  },
+  {
+    id: "frechet",
+    title: "Two probabilities do not determine the probability of both",
+    summary:
+      "A parlay pays only when every leg lands, and the exchange states its legs in the market metadata. What the legs pin down is not a price but a band, and the width of that band is how far the parlay can move with no leg moving at all.",
+    formula: "max(0, \u03a3p\u1d62 \u2212 (n\u22121)) \u2264 P(all) \u2264 min p\u1d62",
+    whenItHolds:
+      "For any conjunction whose legs the venue lists, whatever the dependence between them turns out to be.",
+    whenItFails:
+      "Treating the independence product as a fair value. Legs are routinely dependent, and a price above \u03a0p\u1d62 is not evidence of anything on its own; parlays are quoted one-sided, so the reading is taken from the offer and carries the maker's margin with it.",
+    pane: "combos",
+    guards: ["modules/coherence/kernel/frechet.py", "modules/coherence/drivers/kalshi_combos.py"],
+    pinnedBy: ["tests/test_coherence_frechet.py"],
+    shipped: true,
+  },
+  {
+    id: "calibration",
+    title: "Coherent is not correct, and only settled markets can tell you",
+    summary:
+      "A price vector can be perfectly coherent and perfectly wrong, because a Dutch-book test never compares a price to the world. Scoring settled markets splits the error into a part a recalibration can repair and a part that is a property of the question.",
+    formula: "Brier = Reliability \u2212 Resolution + Uncertainty + Binning",
+    whenItHolds:
+      "Over a corpus of forecasts quoted well before close and scored against what actually happened.",
+    whenItFails:
+      "Scoring last traded prices. A last trade happens moments before settlement when the answer is largely known, so it scores near-perfectly and measures how fast the exchange converges rather than whether it saw anything coming. The corpus is also whatever the venue lists most, which is not a sample.",
+    pane: "calibration",
+    guards: ["modules/coherence/kernel/calibration.py", "modules/coherence/fs/corpus.py"],
+    pinnedBy: ["tests/test_coherence_calibration.py"],
     shipped: true,
   },
 ];

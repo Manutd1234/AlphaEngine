@@ -50,7 +50,7 @@ its aria-label and title; HALTED is never folded.
 
 **Where the rail lists below come from.** Every rail in this document is transcribed from
 `Part2_Infrastructure/web/lib/sections.ts`, which is the single definition the rails, the
-command palette, the hash whitelist and "Copy link to this view" all read. **56 sections across
+command palette, the hash whitelist and "Copy link to this view" all read. **59 sections across
 the nine tabs.** Four ids deliberately disagree with their labels, because the deep link came
 first and ids never change: view `live` renders "Execution", section `codex` renders
 "Strategies", section `activity` renders "Blotter", and Risk's section `model` renders "Risk
@@ -386,7 +386,7 @@ committed digest of the gateway's OpenAPI and compares it against the live one.
 not, what is the portfolio that profits whichever way the world goes?
 
 **60 seconds:** rail: **Universe → Books → Lattice → Dutch book → Fees → Coherence index →
-Diffusion → Lessons**. A prediction-market contract pays $1 if an event happens, so its price
+Combos → Calibration → Diffusion → Shell → Lessons**. A prediction-market contract pays $1 if an event happens, so its price
 *is* a probability, and the exchange publishes the logical structure between contracts in its
 own metadata. That makes a whole family of markets one dollar sold in pieces. **Universe**
 prices each watched family against the dollar it pays: buying every outcome of a mutually
@@ -396,11 +396,22 @@ ladders and no asks, because an offer here is a reading of the opposite ladder. 
 drawn beneath them, `yes_ask + no_ask = 1 + spread`, is why the "buy both sides for under a
 dollar" strategy in two of the most-starred bots in this space can never fire.
 
+**Lattice** differences the strike ladder into the probability mass it implies, and sizes that
+measure with a multi-asset Kelly plan whose worst outcome is printed beside its growth rate,
+because log-optimal is not riskless. **Combos** reads Kalshi's parlays against the Fréchet band
+their own legs leave them — two probabilities never determine the probability of both, and the
+band's width is how far the parlay can move with no leg moving at all. **Calibration** scores
+settled markets and splits the Brier score into reliability, resolution, uncertainty and the
+residual the binning leaves. **Shell** walks the watched universe as a filesystem, where the
+shard a market sits on is a directory because crossing that boundary is a real cost.
+
 **What it may not claim.** Nothing on this tab places an order; there is no write route in the
-engine at all, and its own test asserts that. The Lattice, Dutch book, Fees, Coherence index
-and Diffusion sections state what they will show and what has to exist first, rather than
-rendering an empty chart frame — an axis with nothing on it and an axis whose data failed to
-load look identical, and one of those is a fault.
+engine at all, and its own test asserts that. Calibration built from last traded prices scores
+almost perfectly and means nothing about foresight — a last trade happens when the answer is
+already known — and the pane says so beside the number rather than in a footnote. Sections
+without data state what they will show and what has to exist first, rather than rendering an
+empty chart frame: an axis with nothing on it and an axis whose data failed to load look
+identical, and one of those is a fault.
 
 **Read with no keys.** Every price here comes from Kalshi's public endpoints; no API key is
 configured or needed for the read path. The recorder is off unless `COHERENCE_SERIES` and

@@ -33,10 +33,15 @@ import CertificatePane from "@/components/coherence/CertificatePane";
 import DiffusionPane from "@/components/coherence/DiffusionPane";
 import IndexPane from "@/components/coherence/IndexPane";
 import AblationPane from "@/components/coherence/AblationPane";
+import CalibrationPane from "@/components/coherence/CalibrationPane";
+import CombosPane from "@/components/coherence/CombosPane";
 import FeesPane from "@/components/coherence/FeesPane";
 import LessonsPane from "@/components/coherence/LessonsPane";
-import PendingPane from "@/components/coherence/PendingPane";
+import RfqPane from "@/components/coherence/RfqPane";
+import SettlementPane from "@/components/coherence/SettlementPane";
+import ShellPane from "@/components/coherence/ShellPane";
 import StatusPane from "@/components/coherence/StatusPane";
+import SurfacePane from "@/components/coherence/SurfacePane";
 import UniversePane from "@/components/coherence/UniversePane";
 import { COHERENCE_SECTIONS, type CoherenceSection } from "@/lib/sections";
 import { COHERENCE_POLL_MS, useCoherenceRead } from "@/lib/coherence/use-coherence";
@@ -60,7 +65,7 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
     // after, which is inside the deadline but not comfortably. Two answers in
     // about four and a half.
     "/api/gateway/coherence/universe?max_events=2",
-    active && (section === "universe" || section === "certificate"),
+    active && (section === "universe" || section === "certificate" || section === "lattice"),
   );
   const books = useCoherenceRead<CoherenceBooks>("/api/gateway/coherence/books", active && section === "books");
 
@@ -132,20 +137,26 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
 
       <WorkspaceSubtabPanel workspaceId="coherence" tabId="universe" activeId={section}>
         <UniversePane universe={universe.data} error={universe.error} />
+        {/* The settlement feed sits under the universe because it answers the
+            question the universe raises: these families are priced against an
+            outcome, and this is the published variable that outcome is read
+            from — which is not the price anybody watches. */}
+        <SettlementPane active={active && section === "universe"} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="coherence" tabId="books" activeId={section}>
         <BooksPane books={books.data} error={books.error} />
+        {/* Maker dispersion belongs beside the book for the reason it exists: a
+            book shows the most aggressive opinion on one market, and for a
+            combo it shows nothing at all. The RFQ panel is the only place the
+            venue reveals what professionals disagree about. */}
+        <RfqPane active={active && section === "books"} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="coherence" tabId="lattice" activeId={section}>
-        <PendingPane
-          purpose="It will draw the implication graph the exchange publishes — which markets imply which — with the survival function the strike ladder samples and the probability mass each bucket carries."
-          waitingOn={[
-            "Build the lattice from mutual exclusivity, strike ladders, buckets and settlement sources",
-            "Write the constraint families as sparse rows, each carrying the sentence it prints when violated",
-          ]}
-          lessons={["lattice"]}
+        <SurfacePane
+          events={universe.data?.events ?? []}
+          active={active && section === "lattice"}
         />
       </WorkspaceSubtabPanel>
 
@@ -162,8 +173,20 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
         <IndexPane active={active && section === "index"} />
       </WorkspaceSubtabPanel>
 
+      <WorkspaceSubtabPanel workspaceId="coherence" tabId="combos" activeId={section}>
+        <CombosPane active={active && section === "combos"} />
+      </WorkspaceSubtabPanel>
+
+      <WorkspaceSubtabPanel workspaceId="coherence" tabId="calibration" activeId={section}>
+        <CalibrationPane active={active && section === "calibration"} />
+      </WorkspaceSubtabPanel>
+
       <WorkspaceSubtabPanel workspaceId="coherence" tabId="diffusion" activeId={section}>
         <DiffusionPane active={active && section === "diffusion"} />
+      </WorkspaceSubtabPanel>
+
+      <WorkspaceSubtabPanel workspaceId="coherence" tabId="shell" activeId={section}>
+        <ShellPane active={active && section === "shell"} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="coherence" tabId="lessons" activeId={section}>
