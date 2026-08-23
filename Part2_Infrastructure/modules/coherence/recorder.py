@@ -133,7 +133,7 @@ async def poll_once(client: KalshiClient, store: CoherenceStore, state: Recorder
     tracked = state or _STATE
     written = 0
     for series_ticker in tunables.SERIES_WATCHLIST:
-        observations = await observe_series(client, series_ticker)
+        observations = await observe_series(client, series_ticker, max_events=tunables.MAX_EVENTS_PER_SERIES)
         for observation in observations:
             rows = rows_from(observation)
             if not rows:

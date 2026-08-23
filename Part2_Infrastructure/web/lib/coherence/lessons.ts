@@ -168,12 +168,12 @@ export const COHERENCE_LESSONS: CoherenceLesson[] = [
     id: "index",
     title: "Incoherence is measurable, per series, over time",
     summary:
-      "The distance from the quoted price vector to the nearest arbitrage-free measure is a number. Logged per series it becomes a pricing-efficiency record nobody else publishes.",
-    formula: "CI = min ‖p_quoted − q‖₁ over valid probability measures q",
+      "The distance from the quoted price vector to the nearest arbitrage-free one is a number, and it exists on every poll rather than only when a Dutch book appears. Logged per series it becomes a pricing-efficiency record nobody else publishes.",
+    formula: "CI = min ‖p_quoted − q‖₁ over the coherent vectors q",
     whenItHolds:
-      "Wherever the books can be read. An unreadable event has no index, and that is stored as null rather than zero.",
+      "Two families, measured differently. A mutually exclusive basket is constrained by Σq = 1, so the distance is |Σp − 1|. A threshold ladder is constrained by monotonicity — a survival function cannot rise — so the distance is to its isotonic regression.",
     whenItFails:
-      "A zero recorded for an unreadable event reads as perfectly coherent — the most misleading value available — which is why the tape's index column is nullable.",
+      "Measuring only the basket. Crypto ladders carry no exclusivity flag, so an index that handles baskets alone reports null for the entire crypto complex — a recorder writing a column of nulls, on exactly the series a shard-migration study needs.",
     pane: "index",
     guards: ["modules/coherence/kernel/coherence_index.py"],
     pinnedBy: ["tests/test_coherence_store.py"],

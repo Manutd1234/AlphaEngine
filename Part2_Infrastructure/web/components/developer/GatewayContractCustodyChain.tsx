@@ -188,7 +188,7 @@ export function gatewayContractChain(reading: ContractReading, gate: BuildGate):
       state: served ? "ok" : "unknown",
       word: served ? "answered this poll" : "not read this poll",
       detail:
-        "The FastAPI application object, assembled in main.py from ten routers under modules/api/. The same "
+        "The FastAPI application object, assembled in main.py from eleven routers under modules/api/. The same "
         + "process serves this document live at GET /openapi.json, which is what the health route fetches and "
         + "hashes. main.py registers its routers in historical order rather than alphabetically, and records why "
         + "that cannot move the digest by itself: the exporter renders with sorted keys, so if the digest changes "

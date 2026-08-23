@@ -252,7 +252,7 @@ jobs:
           command_timeout: 10m
           # Correction 5 — passed as environment variables, so none of these
           # appears in the VM's process list or shell history.
-          envs: IMAGE,REGISTRY,CONTAINER,VOLUME,PORT,GH_ACTOR,GH_TOKEN,WEB_API_TOKEN,SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,TELEGRAM_BOT_TOKEN,TELEGRAM_ALLOWED_USER_IDS,TELEGRAM_CONTROL_USER_IDS,TELEGRAM_ALERT_CHAT_IDS,TELEGRAM_LINK_SECRET
+          envs: IMAGE,REGISTRY,CONTAINER,VOLUME,PORT,GH_ACTOR,GH_TOKEN,WEB_API_TOKEN,SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,TELEGRAM_BOT_TOKEN,TELEGRAM_ALLOWED_USER_IDS,TELEGRAM_CONTROL_USER_IDS,TELEGRAM_ALERT_CHAT_IDS,TELEGRAM_LINK_SECRET,COHERENCE_SERIES,COHERENCE_POLL_S,COHERENCE_MAX_EVENTS
           script_stop: true
           script: |
             set -euo pipefail
@@ -370,6 +370,33 @@ jobs:
             # with anything that names the cause. Omitting it is fail-closed:
             # Connect refuses and says the secret is missing.
             put TELEGRAM_LINK_SECRET "${TELEGRAM_LINK_SECRET:-}"
+
+            # The Kalshi coherence recorder. Off unless BOTH of the first two
+            # are set, which is why they are written together or not at all.
+            #
+            # WHAT THIS COSTS, measured on the live exchange rather than
+            # estimated: one poll of KXBTCD + KXHIGHNY at COHERENCE_MAX_EVENTS=2
+            # reads 274 books for 90 read tokens and writes about 780 KiB. At
+            # 300s that is 0.23 GB a day and 0.3 tokens per second — well inside
+            # the engine's own self-imposed budget, which is already a quarter
+            # of Kalshi's smallest published tier.
+            #
+            # The tape lands on the SAME named volume as the audit ledger
+            # (DATA_DIR=/app/data, -v ${VOLUME}:/app/data), so it persists
+            # across deploys and it shares space with the one file on this box
+            # that must never run out of room. 0.23 GB/day is the number to
+            # watch; narrow COHERENCE_SERIES or raise COHERENCE_POLL_S to cut it.
+            #
+            # Five-minute resolution is chosen for what this is currently for —
+            # a level comparison of the coherence index either side of the shard
+            # migration — and it is NOT fine enough to measure a dislocation
+            # that lives for seconds. The episode survival curve inherits the
+            # poll interval as its floor and will only ever see violations that
+            # outlast one; that is a real limit of this cadence, not of the
+            # measurement.
+            put COHERENCE_SERIES "${COHERENCE_SERIES:-}"
+            put COHERENCE_POLL_S "${COHERENCE_POLL_S:-}"
+            put COHERENCE_MAX_EVENTS "${COHERENCE_MAX_EVENTS:-}"
             echo "    overlaying $(grep -cE '^[A-Za-z_][A-Za-z0-9_]*=' "$OVERLAY" || true) CI-supplied variable(s)"
 
             # Overlay first (so it wins), then any KEY= line from the preserved
@@ -502,6 +529,20 @@ jobs:
           TELEGRAM_CONTROL_USER_IDS: ${{ secrets.TELEGRAM_CONTROL_USER_IDS }}
           TELEGRAM_ALERT_CHAT_IDS: ${{ secrets.TELEGRAM_ALERT_CHAT_IDS }}
           TELEGRAM_LINK_SECRET: ${{ secrets.TELEGRAM_LINK_SECRET }}
+          # The Kalshi book recorder. Defaults live HERE rather than in a bare
+          # `vars.` reference, because the env-file writer skips an empty value
+          # — a repository variable that was never created would leave the
+          # recorder silently off while this workflow looked like it enabled it.
+          # A repository variable of the same name still overrides.
+          #
+          # KXBTCD is the subject and KXHIGHNY is the control. Crypto events
+          # move to exchange shard 2 on 24 Aug 2026; weather does not move at
+          # all. Recording both means a change in crypto's coherence index
+          # across that boundary can be told apart from a change in the whole
+          # exchange's, which one series alone cannot do.
+          COHERENCE_SERIES: ${{ vars.COHERENCE_SERIES || 'KXBTCD,KXHIGHNY' }}
+          COHERENCE_POLL_S: ${{ vars.COHERENCE_POLL_S || '300' }}
+          COHERENCE_MAX_EVENTS: ${{ vars.COHERENCE_MAX_EVENTS || '2' }}
 
       # -----------------------------------------------------------------------
       # TLS termination (FEAT-077). README has claimed "Caddy — Automatic HTTPS"

@@ -77,6 +77,14 @@ DEMO_PRIVATE_KEY_PATH: Final = os.environ.get("KALSHI_DEMO_PRIVATE_KEY_PATH", ""
 SERIES_WATCHLIST: Final = tuple(s.strip() for s in _env("COHERENCE_SERIES", "").split(",") if s.strip())
 POLL_SECONDS: Final = _env_int("COHERENCE_POLL_S", 0)  # 0 keeps the recorder off
 
+# How many open events per series one poll reads. Bounds the tape, and the tape
+# is what needs bounding: measured on the live exchange, KXBTCD alone carries
+# three open events totalling 318 markets, and recording all of them every
+# twenty-six seconds writes about 1.2 GB a day. A deployed gateway on a modest
+# volume fills up in six weeks and the failure looks like a disk problem rather
+# than like a configuration choice nobody made deliberately.
+MAX_EVENTS_PER_SERIES: Final = _env_int("COHERENCE_MAX_EVENTS", 2)
+
 # ── Budget ───────────────────────────────────────────────────────────────────
 # Kalshi documents token buckets per ACCOUNT and says nothing about keyless
 # traffic. Basic is 200 read tokens/second; a default request costs 10. This
