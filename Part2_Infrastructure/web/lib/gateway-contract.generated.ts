@@ -51,6 +51,126 @@ export interface CheckResult {
   passed: boolean;
 }
 
+export interface CoherenceBookLevel {
+  price: string;
+  size: string;
+}
+
+export interface CoherenceBookView {
+  best_no_ask?: string | null;
+  best_no_bid?: string | null;
+  best_yes_ask?: string | null;
+  best_yes_bid?: string | null;
+  depth: string;
+  identity_one_plus_spread?: string | null;
+  identity_sum?: string | null;
+  no_bids?: Array<CoherenceBookLevel>;
+  source: string;
+  spread?: string | null;
+  ticker: string;
+  ts_ns?: number | null;
+  unquoted_reason?: string | null;
+  yes_asks?: Array<CoherenceBookLevel>;
+  yes_bids?: Array<CoherenceBookLevel>;
+}
+
+export interface CoherenceBooks {
+  books?: Array<CoherenceBookView>;
+  notes?: Array<string>;
+  origin: string;
+  state: string;
+}
+
+export interface CoherenceBudgetStatus {
+  basis: string;
+  burst: number;
+  default_cost: number;
+  published_costs_known: number;
+  refusals: number;
+  tokens_available: number;
+  tokens_per_second: number;
+  tokens_spent: number;
+}
+
+export interface CoherenceEventView {
+  basket_note?: string | null;
+  event_ticker: string;
+  exchange_index: number;
+  markets?: Array<CoherenceMarketView>;
+  mutually_exclusive: boolean;
+  series_ticker: string;
+  settlement_sources?: Array<string>;
+  title: string;
+  yes_ask_total?: string | null;
+  yes_bid_total?: string | null;
+}
+
+export interface CoherenceHostStatus {
+  detail?: string | null;
+  host: string;
+  reachable: boolean;
+}
+
+export interface CoherenceMarketView {
+  cap_strike?: string | null;
+  depth: string;
+  event_ticker: string;
+  exchange_index: number;
+  floor_strike?: string | null;
+  no_ask?: string | null;
+  no_bid?: string | null;
+  price_grid: string;
+  series_ticker: string;
+  spread?: string | null;
+  strike_kind: string;
+  ticker: string;
+  unquoted_reason?: string | null;
+  yes_ask?: string | null;
+  yes_bid?: string | null;
+  yes_sub_title: string;
+}
+
+export interface CoherenceRecorderStatus {
+  books_written: number;
+  configured: boolean;
+  consecutive_failures?: number;
+  last_error?: string | null;
+  poll_seconds: number;
+  polls: number;
+  running: boolean;
+  seconds_since_last_poll?: number | null;
+  series_seen?: Array<string>;
+  watchlist: Array<string>;
+}
+
+export interface CoherenceShardStatus {
+  description: string;
+  exchange_active: boolean;
+  exchange_index: number;
+  trading_active: boolean;
+}
+
+export interface CoherenceStatus {
+  budget: CoherenceBudgetStatus;
+  dry_run?: boolean;
+  hosts?: Array<CoherenceHostStatus>;
+  notes?: Array<string>;
+  recorder: CoherenceRecorderStatus;
+  schema_probe?: Record<string, unknown>;
+  shards?: Array<CoherenceShardStatus>;
+  signing?: Record<string, unknown>;
+  solver?: Record<string, unknown>;
+  state: string;
+  tape?: Record<string, unknown>;
+}
+
+export interface CoherenceUniverse {
+  events?: Array<CoherenceEventView>;
+  notes?: Array<string>;
+  state: string;
+  watchlist?: Array<string>;
+}
+
 export interface DataBackfillRequest {
   from_at: string;
   interval?: "15m" | "1h" | "4h" | "1d";
@@ -907,6 +1027,9 @@ export interface GatewayOperations {
   "GET /api/audit/stats": { response: Record<string, unknown> };
   "POST /api/backtest": { request: BacktestRequest; response: Record<string, unknown> };
   "GET /api/book/{symbol}": { response: Array<VenueBook> };
+  "GET /api/coherence/books": { response: CoherenceBooks };
+  "GET /api/coherence/status": { response: CoherenceStatus };
+  "GET /api/coherence/universe": { response: CoherenceUniverse };
   "GET /api/config": { response: Record<string, unknown> };
   "POST /api/data-quality/escalations/{escalation_id}/ack": { response: EscalationAck };
   "GET /api/data-quality/findings": { response: DataQualityFindingsResponse };
@@ -968,6 +1091,9 @@ export const GATEWAY_CONTRACT_PATHS = [
   "/api/audit/stats",
   "/api/backtest",
   "/api/book/{symbol}",
+  "/api/coherence/books",
+  "/api/coherence/status",
+  "/api/coherence/universe",
   "/api/config",
   "/api/data-quality/escalations/{escalation_id}/ack",
   "/api/data-quality/findings",

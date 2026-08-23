@@ -46,6 +46,7 @@ from fastapi.templating import Jinja2Templates
 from config import BASE_DIR, settings
 from modules.api import (
     audit_router,
+    coherence_router,
     data_router,
     meta_router,
     ml_router,
@@ -56,6 +57,7 @@ from modules.api import (
 )
 from modules.audit import get_audit
 from modules.backtester import VECTORBT_AVAILABLE
+from modules.coherence.recorder import recorder_loop as coherence_recorder_loop
 from modules.data_jobs import on_data_job_complete
 from modules.data_quality import resolve_loop
 from modules.data_scheduler import get_scheduler
@@ -142,6 +144,13 @@ async def lifespan(app: FastAPI):
     # `_resolve_cleared` only runs inside `ingest`, so nothing swept.
     resolve_task = asyncio.create_task(resolve_loop(), name="data-quality-resolve")
 
+    # The Kalshi book recorder. Idle unless COHERENCE_SERIES and
+    # COHERENCE_POLL_S are both set, because a process that starts reaching
+    # for an exchange the moment it boots is not something to enable by
+    # accident. It records whole ladders rather than prices: depth is
+    # forward-only, and a book missed at 14:32 cannot be recovered at 14:33.
+    coherence_task = asyncio.create_task(coherence_recorder_loop(), name="coherence-recorder")
+
     # Time the compiled decision battery once, on a synthetic two-venue book,
     # so the desk's nanosecond figure exists before the first order and after
     # every restart. Core histogram only — the decision (us) histogram waits
@@ -170,6 +179,9 @@ async def lifespan(app: FastAPI):
         resolve_task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await resolve_task
+        coherence_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await coherence_task
         await get_ml_store().stop()
         await bot.stop()
         await rag.stop()
@@ -231,6 +243,7 @@ for _router in (
     risk_router,
     research_router,
     audit_router,
+    coherence_router,
     telegram_router,
 ):
     app.include_router(_router)

@@ -1,0 +1,154 @@
+"""``observe`` — pull one snapshot of the watchlist.
+
+The engine's first verb. Everything downstream reads an ``Observation``, and
+nothing downstream reaches for the network, so a replay of a recorded tape and
+a live poll are the same call with a different driver.
+
+The read is deliberately shaped around Kalshi's economics rather than around
+what is convenient: one bulk orderbook call buys up to a hundred books for a
+single request's tokens, which is the difference between watching fifty markets
+and watching the exchange. The engine's reach is then set by how many tickers
+it can name, not by the rate limit.
+"""
+
+from __future__ import annotations
+
+import logging
+import time
+from dataclasses import dataclass, field
+from typing import Any, Sequence
+
+from modules.coherence.drivers.kalshi_parse import Event, Market, ParseError, parse_event, parse_orderbooks
+from modules.coherence.drivers.kalshi_rest import KalshiClient, KalshiRefused, KalshiUnavailable
+from modules.coherence.kernel.book import Book
+
+logger = logging.getLogger(__name__)
+
+# One bulk call's worth. Kalshi caps the route at 100 tickers.
+BULK_CHUNK = 100
+
+
+@dataclass(frozen=True, slots=True)
+class MarketObservation:
+    """One market and the book it was quoting, with how the book was obtained."""
+
+    market: Market
+    book: Book
+
+    @property
+    def ticker(self) -> str:
+        return self.market.ticker
+
+
+@dataclass(slots=True)
+class Observation:
+    """One poll of one event family.
+
+    ``notes`` carries what went wrong without failing the whole observation: a
+    book that could not be read is one missing market, not a dead poll, and the
+    surface has to be able to say which.
+    """
+
+    ts_ns: int
+    event: Event
+    markets: list[MarketObservation] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
+    depth: str = "full"
+
+    @property
+    def complete(self) -> bool:
+        """True when every open market in the event came back with a book."""
+        return not self.notes and len(self.markets) == len([m for m in self.event.markets if m.is_open])
+
+    def to_summary(self) -> dict[str, Any]:
+        return {
+            "event_ticker": self.event.event_ticker,
+            "series_ticker": self.event.series_ticker,
+            "mutually_exclusive": self.event.mutually_exclusive,
+            "exchange_index": self.event.exchange_index,
+            "markets_observed": len(self.markets),
+            "markets_in_event": len(self.event.markets),
+            "depth": self.depth,
+            "complete": self.complete,
+            "notes": list(self.notes),
+        }
+
+
+async def observe_event(client: KalshiClient, event_ticker: str) -> Observation:
+    """Read one event and every book in it.
+
+    Two calls: the event with its nested markets, then one bulk orderbook call
+    for all of its tickers. On a 401 from the orderbook route — the access
+    Kalshi's own documents disagree about — this falls back to the top-of-book
+    fields on the market objects, which are unambiguously public, and marks the
+    whole observation ``top_of_book`` so that no depth question is answered
+    from data that cannot answer it.
+    """
+    fetched = await client.event(event_ticker, nested=True)
+    try:
+        event = parse_event(fetched.payload)
+    except ParseError as exc:
+        raise KalshiUnavailable(f"{event_ticker} did not parse: {exc}") from exc
+
+    observation = Observation(ts_ns=time.time_ns(), event=event)
+    tradable = [market for market in event.markets if market.is_open]
+    if not tradable:
+        observation.notes.append("no market in this event is currently active")
+        return observation
+
+    try:
+        books = await _bulk_books(client, [market.ticker for market in tradable])
+    except KalshiRefused as exc:
+        observation.depth = "top_of_book"
+        observation.notes.append(
+            f"orderbook route refused an unauthenticated read ({exc.status}); "
+            "using the market object's top of book, which cannot answer a depth question"
+        )
+        observation.markets = [MarketObservation(market=market, book=market.top) for market in tradable]
+        return observation
+
+    for market in tradable:
+        book = books.get(market.ticker)
+        if book is None:
+            observation.notes.append(f"{market.ticker} returned no book")
+            continue
+        observation.markets.append(MarketObservation(market=market, book=book))
+    return observation
+
+
+async def _bulk_books(client: KalshiClient, tickers: Sequence[str]) -> dict[str, Book]:
+    """Every book, in chunks of the route's own limit."""
+    books: dict[str, Book] = {}
+    for start in range(0, len(tickers), BULK_CHUNK):
+        chunk = tickers[start : start + BULK_CHUNK]
+        fetched = await client.orderbooks(chunk)
+        books.update(parse_orderbooks(fetched.payload))
+    return books
+
+
+async def observe_series(client: KalshiClient, series_ticker: str, max_events: int = 12) -> list[Observation]:
+    """Every open event in one series.
+
+    ``max_events`` bounds the walk rather than the data: a series with hundreds
+    of open events would otherwise spend a poll's whole budget on one series and
+    starve the rest of the watchlist. When it bites, the observation says so.
+    """
+    fetched = await client.markets(series_ticker, status="open", limit=1000)
+    event_tickers: list[str] = []
+    for row in fetched.payload.get("markets") or []:
+        event_ticker = str(row.get("event_ticker", ""))
+        if event_ticker and event_ticker not in event_tickers:
+            event_tickers.append(event_ticker)
+
+    observations: list[Observation] = []
+    for event_ticker in event_tickers[:max_events]:
+        try:
+            observations.append(await observe_event(client, event_ticker))
+        except KalshiUnavailable as exc:
+            logger.warning("coherence: %s could not be observed (%s)", event_ticker, exc.reason)
+    if len(event_tickers) > max_events:
+        for observation in observations:
+            observation.notes.append(
+                f"{series_ticker} has {len(event_tickers)} open events; this poll read the first {max_events}"
+            )
+    return observations

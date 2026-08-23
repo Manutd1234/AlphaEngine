@@ -26,6 +26,17 @@ from modules.schemas_backtest import BacktestResult as BacktestResult  # noqa: F
 from modules.schemas_backtest import JobStatus as JobStatus  # noqa: F401
 from modules.schemas_backtest import ParamResult as ParamResult  # noqa: F401
 from modules.schemas_backtest import WalkForwardFold as WalkForwardFold  # noqa: F401
+from modules.schemas_coherence import CoherenceBookLevel as CoherenceBookLevel  # noqa: F401
+from modules.schemas_coherence import CoherenceBooks as CoherenceBooks  # noqa: F401
+from modules.schemas_coherence import CoherenceBookView as CoherenceBookView  # noqa: F401
+from modules.schemas_coherence import CoherenceBudgetStatus as CoherenceBudgetStatus  # noqa: F401
+from modules.schemas_coherence import CoherenceEventView as CoherenceEventView  # noqa: F401
+from modules.schemas_coherence import CoherenceHostStatus as CoherenceHostStatus  # noqa: F401
+from modules.schemas_coherence import CoherenceMarketView as CoherenceMarketView  # noqa: F401
+from modules.schemas_coherence import CoherenceRecorderStatus as CoherenceRecorderStatus  # noqa: F401
+from modules.schemas_coherence import CoherenceShardStatus as CoherenceShardStatus  # noqa: F401
+from modules.schemas_coherence import CoherenceStatus as CoherenceStatus  # noqa: F401
+from modules.schemas_coherence import CoherenceUniverse as CoherenceUniverse  # noqa: F401
 from modules.schemas_data import DataBackfillRequest as DataBackfillRequest  # noqa: F401
 from modules.schemas_data import DataCapability as DataCapability  # noqa: F401
 from modules.schemas_data import DataInterval as DataInterval  # noqa: F401

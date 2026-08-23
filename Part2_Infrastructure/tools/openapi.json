@@ -320,6 +320,707 @@
         "title": "CheckResult",
         "type": "object"
       },
+      "CoherenceBookLevel": {
+        "description": "One resting level. Both fields are strings; neither is ever null.",
+        "properties": {
+          "price": {
+            "title": "Price",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "string"
+          }
+        },
+        "required": [
+          "price",
+          "size"
+        ],
+        "title": "CoherenceBookLevel",
+        "type": "object"
+      },
+      "CoherenceBookView": {
+        "description": "One market's two bid ladders and the asks they imply.\n\n``yes_bids`` and ``no_bids`` are what Kalshi published. ``yes_asks`` is\nderived, and is here so the desk never has to derive it twice.",
+        "properties": {
+          "best_no_ask": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best No Ask"
+          },
+          "best_no_bid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best No Bid"
+          },
+          "best_yes_ask": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best Yes Ask"
+          },
+          "best_yes_bid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best Yes Bid"
+          },
+          "depth": {
+            "title": "Depth",
+            "type": "string"
+          },
+          "identity_one_plus_spread": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Identity One Plus Spread"
+          },
+          "identity_sum": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Identity Sum"
+          },
+          "no_bids": {
+            "items": {
+              "$ref": "#/components/schemas/CoherenceBookLevel"
+            },
+            "title": "No Bids",
+            "type": "array"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "spread": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spread"
+          },
+          "ticker": {
+            "title": "Ticker",
+            "type": "string"
+          },
+          "ts_ns": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ts Ns"
+          },
+          "unquoted_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unquoted Reason"
+          },
+          "yes_asks": {
+            "items": {
+              "$ref": "#/components/schemas/CoherenceBookLevel"
+            },
+            "title": "Yes Asks",
+            "type": "array"
+          },
+          "yes_bids": {
+            "items": {
+              "$ref": "#/components/schemas/CoherenceBookLevel"
+            },
+            "title": "Yes Bids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ticker",
+          "depth",
+          "source"
+        ],
+        "title": "CoherenceBookView",
+        "type": "object"
+      },
+      "CoherenceBooks": {
+        "description": "A page of books, and where they were read from.",
+        "properties": {
+          "books": {
+            "items": {
+              "$ref": "#/components/schemas/CoherenceBookView"
+            },
+            "title": "Books",
+            "type": "array"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "origin": {
+            "title": "Origin",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "origin"
+        ],
+        "title": "CoherenceBooks",
+        "type": "object"
+      },
+      "CoherenceBudgetStatus": {
+        "description": "The client's model of its own read bucket, with the basis for it.",
+        "properties": {
+          "basis": {
+            "title": "Basis",
+            "type": "string"
+          },
+          "burst": {
+            "title": "Burst",
+            "type": "integer"
+          },
+          "default_cost": {
+            "title": "Default Cost",
+            "type": "integer"
+          },
+          "published_costs_known": {
+            "title": "Published Costs Known",
+            "type": "integer"
+          },
+          "refusals": {
+            "title": "Refusals",
+            "type": "integer"
+          },
+          "tokens_available": {
+            "title": "Tokens Available",
+            "type": "number"
+          },
+          "tokens_per_second": {
+            "title": "Tokens Per Second",
+            "type": "integer"
+          },
+          "tokens_spent": {
+            "title": "Tokens Spent",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "tokens_per_second",
+          "burst",
+          "tokens_available",
+          "default_cost",
+          "published_costs_known",
+          "tokens_spent",
+          "refusals",
+          "basis"
+        ],
+        "title": "CoherenceBudgetStatus",
+        "type": "object"
+      },
+      "CoherenceEventView": {
+        "description": "A family of markets that resolve together.",
+        "properties": {
+          "basket_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Basket Note"
+          },
+          "event_ticker": {
+            "title": "Event Ticker",
+            "type": "string"
+          },
+          "exchange_index": {
+            "title": "Exchange Index",
+            "type": "integer"
+          },
+          "markets": {
+            "items": {
+              "$ref": "#/components/schemas/CoherenceMarketView"
+            },
+            "title": "Markets",
+            "type": "array"
+          },
+          "mutually_exclusive": {
+            "title": "Mutually Exclusive",
+            "type": "boolean"
+          },
+          "series_ticker": {
+            "title": "Series Ticker",
+            "type": "string"
+          },
+          "settlement_sources": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Settlement Sources",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "yes_ask_total": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Yes Ask Total"
+          },
+          "yes_bid_total": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Yes Bid Total"
+          }
+        },
+        "required": [
+          "event_ticker",
+          "series_ticker",
+          "title",
+          "mutually_exclusive",
+          "exchange_index"
+        ],
+        "title": "CoherenceEventView",
+        "type": "object"
+      },
+      "CoherenceHostStatus": {
+        "description": "Whether Kalshi answered, and which host did.",
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "host": {
+            "title": "Host",
+            "type": "string"
+          },
+          "reachable": {
+            "title": "Reachable",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "host",
+          "reachable"
+        ],
+        "title": "CoherenceHostStatus",
+        "type": "object"
+      },
+      "CoherenceMarketView": {
+        "description": "One market as the desk renders it. Every price is a string or absent.",
+        "properties": {
+          "cap_strike": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cap Strike"
+          },
+          "depth": {
+            "title": "Depth",
+            "type": "string"
+          },
+          "event_ticker": {
+            "title": "Event Ticker",
+            "type": "string"
+          },
+          "exchange_index": {
+            "title": "Exchange Index",
+            "type": "integer"
+          },
+          "floor_strike": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Floor Strike"
+          },
+          "no_ask": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "No Ask"
+          },
+          "no_bid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "No Bid"
+          },
+          "price_grid": {
+            "title": "Price Grid",
+            "type": "string"
+          },
+          "series_ticker": {
+            "title": "Series Ticker",
+            "type": "string"
+          },
+          "spread": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spread"
+          },
+          "strike_kind": {
+            "title": "Strike Kind",
+            "type": "string"
+          },
+          "ticker": {
+            "title": "Ticker",
+            "type": "string"
+          },
+          "unquoted_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unquoted Reason"
+          },
+          "yes_ask": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Yes Ask"
+          },
+          "yes_bid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Yes Bid"
+          },
+          "yes_sub_title": {
+            "title": "Yes Sub Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ticker",
+          "event_ticker",
+          "series_ticker",
+          "yes_sub_title",
+          "strike_kind",
+          "exchange_index",
+          "price_grid",
+          "depth"
+        ],
+        "title": "CoherenceMarketView",
+        "type": "object"
+      },
+      "CoherenceRecorderStatus": {
+        "description": "What the recorder has done, not what it was configured to do.",
+        "properties": {
+          "books_written": {
+            "title": "Books Written",
+            "type": "integer"
+          },
+          "configured": {
+            "title": "Configured",
+            "type": "boolean"
+          },
+          "consecutive_failures": {
+            "default": 0,
+            "title": "Consecutive Failures",
+            "type": "integer"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "poll_seconds": {
+            "title": "Poll Seconds",
+            "type": "integer"
+          },
+          "polls": {
+            "title": "Polls",
+            "type": "integer"
+          },
+          "running": {
+            "title": "Running",
+            "type": "boolean"
+          },
+          "seconds_since_last_poll": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seconds Since Last Poll"
+          },
+          "series_seen": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Series Seen",
+            "type": "array"
+          },
+          "watchlist": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Watchlist",
+            "type": "array"
+          }
+        },
+        "required": [
+          "running",
+          "configured",
+          "poll_seconds",
+          "watchlist",
+          "polls",
+          "books_written"
+        ],
+        "title": "CoherenceRecorderStatus",
+        "type": "object"
+      },
+      "CoherenceShardStatus": {
+        "description": "One exchange instance. Collateral is per shard, so this is a hard gate.",
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "exchange_active": {
+            "title": "Exchange Active",
+            "type": "boolean"
+          },
+          "exchange_index": {
+            "title": "Exchange Index",
+            "type": "integer"
+          },
+          "trading_active": {
+            "title": "Trading Active",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "exchange_index",
+          "description",
+          "exchange_active",
+          "trading_active"
+        ],
+        "title": "CoherenceShardStatus",
+        "type": "object"
+      },
+      "CoherenceStatus": {
+        "description": "Everything a reader needs to judge whether the rest of the tab is real.",
+        "properties": {
+          "budget": {
+            "$ref": "#/components/schemas/CoherenceBudgetStatus"
+          },
+          "dry_run": {
+            "default": true,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "hosts": {
+            "items": {
+              "$ref": "#/components/schemas/CoherenceHostStatus"
+            },
+            "title": "Hosts",
+            "type": "array"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "recorder": {
+            "$ref": "#/components/schemas/CoherenceRecorderStatus"
+          },
+          "schema_probe": {
+            "additionalProperties": true,
+            "title": "Schema Probe",
+            "type": "object"
+          },
+          "shards": {
+            "items": {
+              "$ref": "#/components/schemas/CoherenceShardStatus"
+            },
+            "title": "Shards",
+            "type": "array"
+          },
+          "signing": {
+            "additionalProperties": true,
+            "title": "Signing",
+            "type": "object"
+          },
+          "solver": {
+            "additionalProperties": true,
+            "title": "Solver",
+            "type": "object"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "tape": {
+            "additionalProperties": true,
+            "title": "Tape",
+            "type": "object"
+          }
+        },
+        "required": [
+          "state",
+          "recorder",
+          "budget"
+        ],
+        "title": "CoherenceStatus",
+        "type": "object"
+      },
+      "CoherenceUniverse": {
+        "description": "The watchlist, as far as it could be read.",
+        "properties": {
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/CoherenceEventView"
+            },
+            "title": "Events",
+            "type": "array"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "watchlist": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Watchlist",
+            "type": "array"
+          }
+        },
+        "required": [
+          "state"
+        ],
+        "title": "CoherenceUniverse",
+        "type": "object"
+      },
       "DataBackfillRequest": {
         "description": "Fetch bars for a date range, contract-check them, merge into the bar cache.",
         "properties": {
@@ -5904,6 +6605,270 @@
         "summary": "Get Book",
         "tags": [
           "A \u00b7 TCA"
+        ]
+      }
+    },
+    "/api/coherence/books": {
+      "get": {
+        "description": "Books, from the tape when it has them and live when it does not.\n\n``origin`` says which, every time. A book read from the tape is as of when\nit was recorded, and a reader deciding anything on a stale ladder deserves\nto know that before they look at the numbers rather than after.",
+        "operationId": "coherence_books_api_coherence_books_get",
+        "parameters": [
+          {
+            "description": "Read one event's books live",
+            "in": "query",
+            "name": "event_ticker",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Read one event's books live",
+              "title": "Event Ticker"
+            }
+          },
+          {
+            "description": "Comma-separated tickers to read from the tape",
+            "in": "query",
+            "name": "tickers",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Comma-separated tickers to read from the tape",
+              "title": "Tickers"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoherenceBooks"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Coherence Books",
+        "tags": [
+          "coherence"
+        ]
+      }
+    },
+    "/api/coherence/status": {
+      "get": {
+        "description": "Is any of this real right now \u2014 and if not, which part is not.\n\nReads the exchange's own status rather than reporting on our intentions.\nThe schema probe is the load-bearing one: Kalshi removed the integer-cent\nfields in March 2026, and a client written against them parses today's\npayloads into a book of zeros without raising anything. \"Every price is\nzero\" is not a state a reader should have to diagnose from a chart.",
+        "operationId": "coherence_status_api_coherence_status_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoherenceStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Coherence Status",
+        "tags": [
+          "coherence"
+        ]
+      }
+    },
+    "/api/coherence/universe": {
+      "get": {
+        "description": "The watched families, priced, with each basket's total stated.\n\nThe basket totals are the engine's thesis in miniature: for a mutually\nexclusive event, buying every outcome buys a guaranteed dollar, so what it\ncosts is a direct reading of whether the family is coherent.",
+        "operationId": "coherence_universe_api_coherence_universe_get",
+        "parameters": [
+          {
+            "description": "One series ticker; defaults to the whole watchlist",
+            "in": "query",
+            "name": "series",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "One series ticker; defaults to the whole watchlist",
+              "title": "Series"
+            }
+          },
+          {
+            "in": "query",
+            "name": "max_events",
+            "required": false,
+            "schema": {
+              "default": 6,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Max Events",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoherenceUniverse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Coherence Universe",
+        "tags": [
+          "coherence"
         ]
       }
     },
