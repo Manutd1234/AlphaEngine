@@ -14,6 +14,13 @@
  */
 
 export interface CoherenceLesson {
+  /**
+   * True only when the SECTION renders this lesson.
+   *
+   * Not "the engine exists" — `lattice` is built, tested and used by the
+   * solver while its pane is still a placeholder, and a reader who opens that
+   * pane after seeing "shipped" has been told something untrue about the tab.
+   */
   id: string;
   title: string;
   summary: string;
@@ -132,7 +139,7 @@ export const COHERENCE_LESSONS: CoherenceLesson[] = [
     pane: "lattice",
     guards: ["modules/coherence/kernel/lattice.py"],
     pinnedBy: ["tests/test_coherence_lattice.py"],
-    shipped: true,
+    shipped: false,
   },
   {
     id: "duality",
