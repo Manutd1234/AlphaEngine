@@ -85,6 +85,12 @@ const OVER_CEILING: Record<string, number> = {
   "components/portfolio/StressTest.tsx": 430,
   "lib/experiments.ts": 429,
   "components/ReliabilityConsole.tsx": 408,
+  // 2026-08-23: the Developer fold ledger gained its sixth entry (the schema
+  // table's "Read here" footnote went behind a summary on a reader's report).
+  // Not split: CLAUDE.md pins the copy guards as one summarised/disclosure
+  // pair per tab, so a second developer disclosure file would break the
+  // convention every other tab follows.
+  "tests/disclosure-developer.test.ts": 408,
   "components/portfolio/WorkingOrders.tsx": 408,
   "components/research/ExperimentHistory.tsx": 408,
   "lib/data-work-queue.ts": 404,

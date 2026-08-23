@@ -235,7 +235,7 @@
 
   /* The chrome tokens: the header row, the ≤900 switcher and the ≤620 bottom
      bar. Fixed px, no --type-step, for the reason above. */
-  --fs-chrome-tab: 13px;
+  --fs-chrome-tab: 14px;
   --fs-chrome-chip: 12px;
   --fs-chrome-caption: 11px;
   --fs-chrome-brand: 16px;
@@ -572,7 +572,7 @@ html {
 
 /* First rung of the header's priority ladder — the full ladder, with the
    measurements behind it, sits under "The header's priority ladder" below. */
-@media (max-width: 1920px) {
+@media (max-width: 1940px) {
   .header-command-button__label {
     display: none;
   }

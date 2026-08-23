@@ -313,25 +313,28 @@
   letter-spacing: 0;
 }
 
-.mutation-map__reasons {
-  display: grid;
-  gap: var(--space-2);
-  margin: 0;
+/* The reasons table shares the matrix's type; its Why column is prose, and
+   it is the column that takes the card's slack — without the width, the
+   vendor row's long absence string handed it all to Count. */
+.mutation-map__reasons th,
+.mutation-map__reasons td {
+  text-align: left;
 }
 
-.mutation-map__reasons dt {
-  display: flex;
-  gap: var(--space-2);
-  align-items: baseline;
+.mutation-map__reasons th[scope="row"] {
+  font-family: var(--sans);
+  font-size: var(--fs-sm);
+  text-transform: none;
+  letter-spacing: 0;
   color: var(--text-primary);
-  font-size: var(--fs-sm);
-  font-weight: 650;
 }
 
-.mutation-map__reasons dd {
-  margin: 0;
+.mutation-map__reasons td:last-child {
+  font-family: var(--sans);
+  white-space: normal;
+  min-width: 26ch;
+  width: 55%;
   color: var(--text-secondary);
-  font-size: var(--fs-sm);
 }
 
 @media (min-width: 1100px) {
@@ -345,10 +348,6 @@
     margin: 0 auto;
   }
 
-  /* Seven reasons stacked is a column of mostly margin at desk width. */
-  .mutation-map__reasons {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 /* ------------------------------------------------------------------ */

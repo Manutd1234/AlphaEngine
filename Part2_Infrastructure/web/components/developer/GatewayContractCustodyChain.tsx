@@ -145,18 +145,16 @@ export function buildGate(mode: string | undefined): BuildGate {
   if (mode === "production") {
     return {
       ran: true,
-      why: "This is a production bundle, and npm run build runs scripts/check-gateway-openapi-digest.mjs in "
-        + "prebuild: a stale digest exits 1 before Next.js starts, so this bundle is one the gate let through. "
-        + "That is an inference from the build, not a hash taken now — next build called directly skips prebuild. "
-        + "To measure it yourself: node scripts/check-gateway-openapi-digest.mjs.",
+      why: "npm run build runs the digest checker in prebuild, so this bundle is one the gate let "
+        + "through — an inference from the build, not a hash taken now. Re-measure with "
+        + "node scripts/check-gateway-openapi-digest.mjs.",
     };
   }
   return {
     ran: false,
     why: "next dev does not run prebuild, so nothing in this session has checked this digest against "
-      + "tools/openapi.json. The sixty-four characters below are what lib/gateway-openapi-digest.generated.ts "
-      + "commits, and nothing more. Run node scripts/check-gateway-openapi-digest.mjs to check them; it prints "
-      + "the digest it computed either way.",
+      + "tools/openapi.json — the value below is the committed one. Verify it with "
+      + "node scripts/check-gateway-openapi-digest.mjs.",
   };
 }
 
@@ -359,9 +357,8 @@ export default function GatewayContractCustodyChain({
                 + `If a route changed on purpose: ${REMEDY} If nothing changed on purpose, the two units are out `
                 + "of step and one of them is deployed from a commit the other has not seen."
               : reading.phase === "match"
-                ? "The document GET /openapi.json served this poll canonicalises to the digest above. It was "
-                  + "hashed on the server by lib/delivery-readiness.ts, so the whole document never reaches this "
-                  + "browser — only these sixty-four characters do."
+                ? "GET /openapi.json as served this poll hashes to the digest above — on the server, in "
+                  + "lib/delivery-readiness.ts, so only these sixty-four characters reach this browser."
                 : reading.phase === "waiting"
                   ? "No health snapshot has landed yet, so nothing has read the live contract in this session."
                   : reading.why

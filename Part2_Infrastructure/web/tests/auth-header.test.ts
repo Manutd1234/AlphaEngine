@@ -53,7 +53,7 @@ describe("the header does not guess while the probe is out", () => {
     // Otherwise the header reflows when the answer lands, which is the CLS
     // this branch exists to prevent.
     const loading = code(chip).slice(code(chip).indexOf('session.status === "loading"'));
-    assert.match(loading.slice(0, 700), /gap-1\.5 rounded-\[9px\] border border-transparent px-2 py-1\.5/);
+    assert.match(loading.slice(0, 700), /gap-1\.5 rounded-\[9px\] border border-transparent px-1.5 py-1\.5/);
   });
 
   it("keeps the unconfigured guard byte-identical", () => {

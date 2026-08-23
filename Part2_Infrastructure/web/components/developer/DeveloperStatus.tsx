@@ -271,8 +271,9 @@ export function SchemaGateTable({ view, compact = false }: { view: SystemHealthV
    * Downgrading a true claim is not the honest move; naming where it was read
    * is.
    *
-   * At rest, never folded: this is a caveat on figures the reader is reading
-   * in the same glance, which the repository distinguishes from methodology.
+   * Folded since 2026-08-23, on a reader's report: the caveat crowded the
+   * figures it annotates, and the State pills already carry the distinction
+   * ("CI gated" against "Exact match") in the same glance.
    */
   return (
     <>
@@ -294,11 +295,17 @@ export function SchemaGateTable({ view, compact = false }: { view: SystemHealthV
         </div>
       ))}
     </div>
-    <p className="muted">
-      <span aria-hidden>◌</span> Read here: only Production schema and Monte Carlo numerics, which
-      resolve from this poll. The three CI gated rows are the verdict of the continuous-integration
-      run for this commit, not a check this deployment repeated.
-    </p>
+    {/* Folded on a reader's report that the table's footnotes crowded the
+        figures. The caveat is one click away and the pills themselves still
+        say "CI gated" against "Exact match", which is the distinction. */}
+    <details className="disclosure">
+      <summary>How to read the State column</summary>
+      <p>
+        Only Production schema and Monte Carlo numerics resolve from this poll. The three CI gated
+        rows are the verdict of the continuous-integration run for this commit, not a check this
+        deployment repeated.
+      </p>
+    </details>
     </>
   );
 }

@@ -96,13 +96,13 @@ function McBrowserParityCheck() {
         <div><span>Numerics custody</span><h2>Parity check in this browser</h2></div>
         <StatusPill state={state} live={requested && simulation.status === "running"} />
       </div>
-      {/* Split along the seam between method and result, and only the method
-          folds. `state.detail` is the result claim in every run state, and
-          before a run it is "Runs entirely in this tab; nothing is uploaded." —
-          the sandbox statement for this card, and the only thing keeping the
-          card from being blank at rest. So it stays on screen; what the three
-          runtimes compare is read once and goes behind the summary. */}
-      <p className="developer-cp-disclosure">{state.detail}</p>
+      {/* Split along the seam between method and result, and only the result
+          shows. `state.detail` is the result claim once a run exists; at rest
+          it is the sandbox statement, which since 2026-08-23 rides only on the
+          pill's title — a reader asked for the line to go, and the chain below
+          already keeps the card from being blank. What the three runtimes
+          compare is read once and goes behind the summary. */}
+      {run.phase !== "idle" && <p className="developer-cp-disclosure">{state.detail}</p>}
       <details className="developer-cp-disclosure disclosure">
         <summary>Which three runtimes have to agree, and on what</summary>
         <p>

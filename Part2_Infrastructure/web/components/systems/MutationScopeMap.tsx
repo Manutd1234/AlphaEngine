@@ -152,30 +152,40 @@ export default function MutationScopeMap(input: MutationScopeInput) {
       </p>
 
       {/* The interaction that teaches what the prose was trying to say: one
-          mutation, all seven answers, each with the reason spelled out. */}
+          mutation, all seven answers, each with the reason spelled out. A
+          table rather than the two-column dl it replaces: a reader reported
+          the dl as scattered bold fragments, and the four facts — store,
+          count, effect, why — line up as columns. */}
       {active ? (
-        <dl className="mutation-map__reasons">
-          {MUTATION_STORES.map((store) => {
-            const cell = active.effects[store.id];
-            const quantity = quantities.find((q) => q.id === store.id);
-            return (
-              <div key={store.id}>
-                <dt>
-                  <span aria-hidden>{EFFECT_STYLE[cell.effect].glyph}</span> {store.label}
-                  <span className="mutation-map__figure">
-                    {quantity?.value ?? `— ${quantity?.absence ?? "not stated"}`}
-                  </span>
-                </dt>
-                <dd>
-                  <strong style={{ color: EFFECT_STYLE[cell.effect].tone }}>
-                    {EFFECT_STYLE[cell.effect].word}
-                  </strong>{" "}
-                  {cell.reason}.
-                </dd>
-              </div>
-            );
-          })}
-        </dl>
+        <div className="table-wrap" tabIndex={0}>
+          <table className="mutation-map__matrix mutation-map__reasons">
+            <thead>
+              <tr>
+                <th scope="col">Store</th>
+                <th scope="col">Count</th>
+                <th scope="col">Effect</th>
+                <th scope="col">Why</th>
+              </tr>
+            </thead>
+            <tbody>
+              {MUTATION_STORES.map((store) => {
+                const cell = active.effects[store.id];
+                const quantity = quantities.find((q) => q.id === store.id);
+                const style = EFFECT_STYLE[cell.effect];
+                return (
+                  <tr key={store.id}>
+                    <th scope="row">{store.label}</th>
+                    <td>{quantity?.value ?? `— ${quantity?.absence ?? "not stated"}`}</td>
+                    <td style={{ color: style.tone }}>
+                      <span aria-hidden>{style.glyph}</span> {style.word}
+                    </td>
+                    <td>{cell.reason}.</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       ) : (
         <p className="muted console-empty">
           No mutation is highlighted. The table above already states all thirty-five answers;

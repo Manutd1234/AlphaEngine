@@ -33,32 +33,32 @@ function rung(max: number): string {
   return css.slice(start, end);
 }
 
-const RUNGS = [1920, 1820, 1720, 1540, 1460, 1300, 1190] as const;
+const RUNGS = [1940, 1840, 1750, 1570, 1490, 1300, 1190] as const;
 
 describe("the rungs exist, in priority order, and each takes only what it says", () => {
-  it("rung 1 (≤1920): the Search label and the providers sentence → short form", () => {
-    assert.match(css, /@media \(max-width: 1920px\) \{\n  \.header-command-button__label \{\n    display: none;/);
-    const r = rung(1920);
+  it("rung 1 (≤1940): the Search label and the providers sentence → short form", () => {
+    assert.match(css, /@media \(max-width: 1940px\) \{\n  \.header-command-button__label \{\n    display: none;/);
+    const r = rung(1940);
     assert.match(r, /\.system-health__label \{\n    display: none;/);
     assert.match(r, /\.system-health__label--short \{\n    display: inline;/);
     assert.doesNotMatch(r, /header-settings|latency-chip|telegram/);
   });
 
-  it("rung 2 (≤1820): only the chip's state word", () => {
-    const r = rung(1820);
+  it("rung 2 (≤1840): only the chip's state word", () => {
+    const r = rung(1840);
     assert.match(r, /\.latency-chip__state \{\n    display: none;/);
     assert.doesNotMatch(r, /\.latency-chip__copy|\.latency-chip__core|header-settings/);
   });
 
-  it("rung 3 (≤1720): only the Settings label", () => {
-    const r = rung(1720);
+  it("rung 3 (≤1750): only the Settings label", () => {
+    const r = rung(1750);
     assert.match(r, /\.workspace-header__utility > \.header-anchor > \.header-settings span,/);
     assert.doesNotMatch(r, /latency-chip|system-health|brand-copy/);
   });
 
-  it("rung 4 (≤1660): the data-tier label; rung 5 (<1610): the Connect label", () => {
-    assert.match(css, /@media \(max-width: 1660px\) \{\n  \.data-tier__label \{\n    display: none;/);
-    assert.match(read("components/header/TelegramCta.tsx"), /max-\[1610px\]:hidden/);
+  it("rung 4 (≤1690): the data-tier label; rung 5 (<1630): the Connect label", () => {
+    assert.match(css, /@media \(max-width: 1690px\) \{\n  \.data-tier__label \{\n    display: none;/);
+    assert.match(read("components/header/TelegramCta.tsx"), /max-\[1630px\]:hidden/);
   });
 
   it("the core annotation is NOT a rung — it adds no width and stays until the chip folds", () => {
@@ -68,14 +68,14 @@ describe("the rungs exist, in priority order, and each takes only what it says",
     assert.match(css, /Not a rung: the core annotation inside the decision chip/);
   });
 
-  it("rung 6 (≤1540): the providers chip to its dot, aria keeps the sentence", () => {
-    const r = rung(1540);
+  it("rung 6 (≤1570): the providers chip to its dot, aria keeps the sentence", () => {
+    const r = rung(1570);
     assert.match(r, /\.system-health-action \{[\s\S]*font-size: 0;/);
     assert.match(read("components/WorkspaceHeader.tsx"), /aria-label=\{`Open reliability\. \$\{healthLabel\}`\}/);
   });
 
-  it("rung 7 (≤1460): brand tagline and tab padding, nothing of the chip", () => {
-    const r = rung(1460);
+  it("rung 7 (≤1490): brand tagline and tab padding, nothing of the chip", () => {
+    const r = rung(1490);
     assert.match(r, /\.brand-copy small \{\n    display: none;/);
     assert.match(r, /\.workspace-tabs button \{\n    padding-inline: 5px;/);
     assert.doesNotMatch(r, /latency-chip/);

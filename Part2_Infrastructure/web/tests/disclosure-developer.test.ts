@@ -154,6 +154,16 @@ const MOVED = [
     why: "the methodology half of the parity paragraph; the result half rides on state.detail and"
       + " stays outside the fold",
   },
+  {
+    file: "components/developer/DeveloperStatus.tsx",
+    summary: "How to read the State column",
+    text:
+      "Only Production schema and Monte Carlo numerics resolve from this poll. The three CI gated "
+      + "rows are the verdict of the continuous-integration run for this commit, not a check this "
+      + "deployment repeated.",
+    why: "folded on a reader's report that the footnote crowded the figures; the State pills"
+      + " themselves still carry the distinction (CI gated against Exact match) in the same glance",
+  },
 ] as const;
 
 /**

@@ -127,7 +127,7 @@ function AccountChip({
     return (
       <span
         aria-hidden
-        className="inline-flex min-h-[32px] items-center gap-1.5 rounded-[9px] border border-transparent px-2 py-1.5"
+        className="inline-flex min-h-[32px] items-center gap-1.5 rounded-[9px] border border-transparent px-1.5 py-1.5"
       >
         <span className="skeleton block h-[14px] w-[14px] rounded-[50%]" />
         <span className="skeleton block h-[11px] w-[39px] max-[520px]:hidden" />
@@ -144,7 +144,7 @@ function AccountChip({
            and an unnamed link is a link a screen reader announces as "link". */
         aria-label="Sign in"
         title="Sign in"
-        className="inline-flex items-center gap-1.5 rounded-[9px] border border-transparent px-2 py-1.5 text-fs-chrome-chip font-semibold text-text-secondary no-underline hover:border-border hover:bg-surface-2"
+        className="inline-flex items-center gap-1.5 rounded-[9px] border border-transparent px-1.5 py-1.5 text-fs-chrome-chip font-semibold text-text-secondary no-underline hover:border-border hover:bg-surface-2"
       >
         <UserRound size={14} aria-hidden />
         <span className="header-signin-label max-[520px]:hidden">Sign in</span>

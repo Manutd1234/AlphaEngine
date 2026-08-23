@@ -17,7 +17,7 @@
  *
  * So this file pins the ARITHMETIC the measurement confirmed, not the spelling:
  *
- *   icon 14 + gap-1.5 6 + bar 39 + px-2 16 + border 2 = 77px
+ *   icon 14 + gap-1.5 6 + bar 39 + px-1.5 12 + border 2 = 73px
  *
  * against the signed-out control's measured 77.3px, and a declared 32px of
  * height against its measured 32px. Every term is asserted separately, so a
@@ -71,19 +71,19 @@ describe("the account placeholder reserves the box it measured", () => {
   });
 
   it("keeps the icon and the gap the control uses, so the arithmetic closes", () => {
-    for (const term of [/h-\[14px\] w-\[14px\]/, /gap-1\.5/, /px-2/]) {
+    for (const term of [/h-\[14px\] w-\[14px\]/, /gap-1\.5/, /px-1\.5/]) {
       assert.match(loadingBranch, term, `the placeholder must keep ${term}`);
     }
-    // 14 + 6 + 39 + 16 + 2 = 77, against the signed-out control's measured 77.3.
-    const icon = 14, gap = 6, bar = 39, padding = 2 * 8, border = 2;
-    assert.equal(icon + gap + bar + padding + border, 77);
+    // 14 + 6 + 39 + 12 + 2 = 73; the control shrank with it when px-2 became px-1.5.
+    const icon = 14, gap = 6, bar = 39, padding = 2 * 6, border = 2;
+    assert.equal(icon + gap + bar + padding + border, 73);
   });
 
   it("reserves for the signed-out control, which is the wider outcome", () => {
     // The signed-in monogram is 32x32 — SMALLER — so reserving it would grow
     // the row by 45px on every signed-out load. Both outcomes are 32px tall,
     // which is why the height fix needs no such trade.
-    assert.match(signedOutBranch, /gap-1\.5 rounded-\[9px\] border border-transparent px-2 py-1\.5/,
+    assert.match(signedOutBranch, /gap-1\.5 rounded-\[9px\] border border-transparent px-1.5 py-1\.5/,
       "the signed-out control must keep the padding the placeholder mirrors");
     assert.match(signedOutBranch, /UserRound size=\{14\}/,
       "the signed-out control must keep the 14px icon the placeholder mirrors");
