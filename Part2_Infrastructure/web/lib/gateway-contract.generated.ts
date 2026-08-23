@@ -379,6 +379,13 @@ export interface CoherenceMarketView {
   yes_sub_title: string;
 }
 
+export interface CoherencePendingMinute {
+  provisional?: string | null;
+  spread?: string | null;
+  stations?: number;
+  ts_ms: number;
+}
+
 export interface CoherenceProbe {
   label: string;
   origin: string;
@@ -436,15 +443,24 @@ export interface CoherenceSettlementFeed {
   contributors_min?: number | null;
   degraded_samples?: number;
   detail?: string;
+  formation_agreed?: number;
+  formation_checked?: number;
+  formation_detail?: string;
+  formation_holds?: boolean;
   latest_value?: string | null;
+  pending?: Array<CoherencePendingMinute>;
+  quorum_gaps?: number;
   reference_rate_detail?: string;
   reference_rate_state?: string;
   sample_count?: number;
   samples?: Array<CoherenceWeatherSample>;
   spot_minus_window?: string | null;
   state: string;
+  stations?: Array<string>;
+  units?: string;
   window_average?: string | null;
   window_average_clean?: string | null;
+  window_is_assumed?: boolean;
   window_minutes?: number;
 }
 

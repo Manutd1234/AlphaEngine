@@ -2327,6 +2327,47 @@
         "title": "CoherenceMarketView",
         "type": "object"
       },
+      "CoherencePendingMinute": {
+        "description": "A minute the stations have reported and the exchange has not published.\n\nThe index is published in two stages: readings arrive, then quality control\ndisposes of them and the value appears. Inside that window the next value is\narithmetic on data already handed over, not a forecast.",
+        "properties": {
+          "provisional": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provisional"
+          },
+          "spread": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spread"
+          },
+          "stations": {
+            "default": 0,
+            "title": "Stations",
+            "type": "integer"
+          },
+          "ts_ms": {
+            "title": "Ts Ms",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ts_ms"
+        ],
+        "title": "CoherencePendingMinute",
+        "type": "object"
+      },
       "CoherenceProbe": {
         "description": "One reading of the survival function, and the market that gave it.",
         "properties": {
@@ -2637,6 +2678,26 @@
             "title": "Detail",
             "type": "string"
           },
+          "formation_agreed": {
+            "default": 0,
+            "title": "Formation Agreed",
+            "type": "integer"
+          },
+          "formation_checked": {
+            "default": 0,
+            "title": "Formation Checked",
+            "type": "integer"
+          },
+          "formation_detail": {
+            "default": "",
+            "title": "Formation Detail",
+            "type": "string"
+          },
+          "formation_holds": {
+            "default": false,
+            "title": "Formation Holds",
+            "type": "boolean"
+          },
           "latest_value": {
             "anyOf": [
               {
@@ -2647,6 +2708,18 @@
               }
             ],
             "title": "Latest Value"
+          },
+          "pending": {
+            "items": {
+              "$ref": "#/components/schemas/CoherencePendingMinute"
+            },
+            "title": "Pending",
+            "type": "array"
+          },
+          "quorum_gaps": {
+            "default": 0,
+            "title": "Quorum Gaps",
+            "type": "integer"
           },
           "reference_rate_detail": {
             "default": "",
@@ -2685,6 +2758,18 @@
             "title": "State",
             "type": "string"
           },
+          "stations": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Stations",
+            "type": "array"
+          },
+          "units": {
+            "default": "",
+            "title": "Units",
+            "type": "string"
+          },
           "window_average": {
             "anyOf": [
               {
@@ -2706,6 +2791,11 @@
               }
             ],
             "title": "Window Average Clean"
+          },
+          "window_is_assumed": {
+            "default": true,
+            "title": "Window Is Assumed",
+            "type": "boolean"
           },
           "window_minutes": {
             "default": 60,

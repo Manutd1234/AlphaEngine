@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-23",
-  "commit": "98e66fc",
+  "commit": "a855165",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -162,6 +162,7 @@
     "Part2_Infrastructure/modules/coherence/drivers/kalshi_rest.py",
     "Part2_Infrastructure/modules/coherence/drivers/livedata.py",
     "Part2_Infrastructure/modules/coherence/drivers/rfq.py",
+    "Part2_Infrastructure/modules/coherence/drivers/weather_qc.py",
     "Part2_Infrastructure/modules/coherence/episodes.py",
     "Part2_Infrastructure/modules/coherence/fees_source.py",
     "Part2_Infrastructure/modules/coherence/fs/__init__.py",
@@ -512,6 +513,7 @@
     "Part2_Infrastructure/tests/test_coherence_security_auth.py",
     "Part2_Infrastructure/tests/test_coherence_shell.py",
     "Part2_Infrastructure/tests/test_coherence_store.py",
+    "Part2_Infrastructure/tests/test_coherence_weather_qc.py",
     "Part2_Infrastructure/tests/test_complexity_debt.py",
     "Part2_Infrastructure/tests/test_container_contract.py",
     "Part2_Infrastructure/tests/test_core_self_measure.py",
