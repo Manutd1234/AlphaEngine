@@ -1,0 +1,95 @@
+/* The server mutations, as a table.
+   ---------------------------------------------------------------------------
+   Five controls, four kinds of fact each: the name, what it touches, what it
+   costs, and the control. As five boxes, each box laid those four out on its
+   own terms — the figure beside the name, the buttons flung right, the cost on
+   a line of its own — so the same kind of fact sat somewhere different on
+   every box and a reader scanning for "which one spends money" read five
+   layouts. A table puts each kind of fact in one column.
+
+   The grammar is the base `table` rule in 00: a frame at --rule, a lattice of
+   --rule-soft hairlines, a tinted band over the header, row headers in body
+   metrics. What is restated here is the two things that rule assumes and this
+   table is not — it is prose, not numerals, so the mono face and nowrap come
+   off; and the Action cell holds the same `.console-action__controls` wrapper
+   the boxes had, because the tone rules for a red Purge and a green Close are
+   descendant selectors on that name (00-tokens-and-base.css).
+
+   Its own partial: 02-systems-console.css, where the boxes live, is over the
+   file-length ceiling, and 14h is at it. After 14h, whose density values for
+   the panel it sits inside. */
+
+.operator-mutations__wrap {
+  overflow-x: auto;
+  /* The boxes carried this margin each; the table carries it once, so the
+     scope disclosure under it keeps the distance it had. */
+  margin-bottom: var(--space-2);
+}
+
+.operator-mutations {
+  min-width: 720px;
+  font-family: var(--sans);
+  font-size: var(--fs-body);
+  white-space: normal;
+}
+
+.operator-mutations th,
+.operator-mutations td {
+  vertical-align: middle;
+  white-space: normal;
+}
+
+.operator-mutations thead th {
+  text-align: left;
+}
+
+.operator-mutations tbody th[scope="row"] {
+  font-size: var(--fs-lg);
+  font-weight: 650;
+}
+
+/* What the control would touch: tabular figures, kept on one line so a count
+   never breaks between its number and its unit. */
+.operator-mutations__figure {
+  color: var(--text-secondary);
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+  white-space: nowrap;
+}
+
+/* The cost column is prose and takes the width the others leave. */
+.operator-mutations__cost {
+  min-width: 220px;
+  text-align: left;
+}
+
+.operator-mutations__cost small {
+  display: block;
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+}
+
+.operator-mutations__cost small + small {
+  margin-top: 4px;
+}
+
+.operator-mutations__action {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.operator-mutations__action .console-action__controls {
+  justify-content: flex-end;
+}
+
+/* The rules 00 applies under 1080px stretch `.console-action__controls` to the
+   full width of its box; in a cell that reads as a control jumping left, so
+   the cell keeps its right edge and the wrap scrolls instead. */
+@media (max-width: 1080px) {
+  .operator-mutations__action .console-action__controls {
+    width: auto;
+    justify-content: flex-end;
+  }
+}

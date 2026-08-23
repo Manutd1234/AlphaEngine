@@ -144,4 +144,8 @@
 /* The Data work card's inner rules and its delete control. After 14g, whose
    card paddings it restates region by region. */
 @import "./globals/14l-work-queues.css";
+
+/* The Reliability panel's server mutations, as a table. After 14h, whose
+   density values for the panel it sits inside. */
+@import "./globals/14m-operator-mutations-table.css";
 @import "./globals/15-navigator-and-trailing-layer.css";
