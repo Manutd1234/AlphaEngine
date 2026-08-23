@@ -1,6 +1,6 @@
 # Plan — where the research plane stands, and what it still owes
 
-*As of 22 August 2026. "Done" below means wired to a production caller and
+*As of 24 August 2026. "Done" below means wired to a production caller and
 proven against the real modules, not merely present in the tree — this
 repository has shipped fully-tested modules with no caller before, and the
 lesson is recorded in §1. The owed items in §2 are not a wishlist: each one is
@@ -57,7 +57,7 @@ prose:
 | The claim | What was actually true | What closed it |
 |---|---|---|
 | The corpus is "written through the same bounded-queue discipline as the mirror" | the *queue* matched; the drain made **one** delivery attempt and discarded, where the mirror retried three times with backoff | `modules/research_ingest_delivery.py` — the mirror's own attempt count, curve and reason vocabulary, plus a bounded dead-letter book |
-| Session execution summaries are an ingested source | `execution_summary` was in the enum, the API filter vocabulary and the graph linker's `promoted_to` rule, and **nothing wrote one** | `modules/research_ingest_session.py` — but its only caller is the backfill tool; see §2.5 |
+| Session execution summaries are an ingested source | `execution_summary` was in the enum, the API filter vocabulary and the graph linker's `promoted_to` rule, and **nothing wrote one** | `modules/research_ingest_session.py` built the document, and `modules/research_rag/session.py` is now the live caller: `RiskGateway._roll_session_if_needed` hands the closed session to `on_session_closed` at the UTC boundary (`modules/risk_proxy/monitor.py:260`). Pinned by `tests/test_research_session_emission.py`, which drives the **rollover site** rather than the producer — a test calling `on_session_closed` directly would pass on a tree where nothing ever reaches it, which is the exact defect being closed |
 | Three bands: answer, rewrite, refuse | one band gated anything (`score < refuse_band`); `ANSWER_BAND` was a constructor default nothing read, so a mid-band result was served regardless | `modules/research_crag_policy.py` — a mid-band result that does not clear the band after its one rewrite now refuses. A **behaviour change**, argued in the module rather than softened |
 | "Figures are quoted, never computed" is a fence | it was prompt text; nothing checked | `modules/research_generate_figures.py` — every number the answer states, other than a citation id, a date or an ordinal, must appear character-for-character in a supplied document |
 
@@ -96,22 +96,28 @@ product — and empty states and null explanations are barred from folding,
 because "this is withheld because…" reads as broken behind a `<details>`.
 
 **The suite is green, and the counts belong to one file rather than to this
-one.** `web/lib/test-counts.generated.ts` carries them and
-[`TESTING.md`](../testing/TESTING.md) explains them — why the gateway has two
-correct pass counts, why the web figure cannot be asserted from inside the
-suite, and why the committed record is currently behind the runner. This
-section used to restate all of it, which made a planning file one of five
-places a number had to be corrected; the count belongs where it is generated,
-and the discipline is unchanged: read the *skip reasons*, never the pass count
-([`WORKFLOW.md` §2](WORKFLOW.md)). The one thing worth stating here is the
-outcome — the gateway, web and service suites are green, with the web suite's
-two skips being cross-ownership debts rather than opt-ins.
+one.** [`web/lib/test-counts.generated.ts`](../../Part2_Infrastructure/web/lib/test-counts.generated.ts)
+carries them and [`TESTING.md`](../testing/TESTING.md) explains them — why the
+gateway has two correct pass counts, why the web figure cannot be asserted from
+inside the suite, and which of the three lines CI actually checks. Only the
+**web** line is checked (`web/scripts/check-test-counts.mjs` refuses any suite
+argument but `web`); the gateway line is a **dated record CI does not gate on**,
+and on 2026-08-24 it is behind the runner. This section used to restate all of
+it, which made a planning file one of five places a number had to be corrected;
+the count belongs where it is generated, and the discipline is unchanged: read
+the *skip reasons*, never the pass count ([`WORKFLOW.md` §2](WORKFLOW.md)). The
+one thing worth stating here is the outcome — the gateway, web and service
+suites are green, with the web suite's two skips being cross-ownership debts
+rather than opt-ins.
 
-### The information-diffusion instrument — **measured, killed, re-armed, killed again**
+### The information-diffusion instrument — **measured, killed, re-armed, killed again, then re-measured out of sample**
 
-Recorded here because a negative result that is not written down gets rebuilt,
-and because the second attempt produced a false positive convincing enough that
-the tool's own verdict function had to be taught to reject it.
+Recorded here because a negative result that is not written down gets rebuilt;
+because the second attempt produced a false positive convincing enough that the
+tool's own verdict function had to be taught to reject it; and because the
+criterion was then replaced outright by an out-of-sample one, which measured the
+question on **62 of 62** meetings per stage rather than on the 26 that cleared a
+noise floor — and returned a **stronger** null, not a softer one.
 
 **What was built.** `modules/coherence/diffusion/` measures how fast a
 timestamped announcement reaches the price, and separately estimates how much
@@ -167,11 +173,15 @@ justify to the decimal gives t = +0.27 (dim 8), −0.20 (dim 10), −2.86 (dim 1
 −1.75 (dim 14) on the release stage; splitting the sample puts the call effect
 entirely in the second half (+0.18 early, −4.89 late).
 
-**So `_verdict` in `tools/diffusion_spectrum.py` now requires stability, not
-just a threshold**, and re-fits at neighbouring widths before it will say
-`predicts`. A verdict function that can be fooled by a hyperparameter is a bug;
-`tests/test_diffusion_verdict.py` pins it with the exact numbers that fooled it.
-The tool run today prints `does_not_predict` with that reason.
+**So `_verdict` in `tools/diffusion_spectrum.py` was taught to require
+stability, not just a threshold**, and re-fits at neighbouring widths before it
+will say `predicts`. A verdict function that can be fooled by a hyperparameter
+is a bug; `tests/test_diffusion_verdict.py` pins it with the exact numbers that
+fooled it. That criterion is still computed and still prints
+`does_not_predict` — but it is no longer the one the verdict turns on. It was
+superseded by out-of-sample scoring, below, for a reason no amount of stability
+checking could fix: an in-sample t on the largest of eight fits is the statistic
+most likely to be an artefact even when it is stable.
 
 **WHY it does not work — the diagnosis, which is worth more than the result.**
 Four questions, asked in order, each answerable:
@@ -210,12 +220,6 @@ reports `inadmissible` and refuses a verdict when it does not — including
 refusing the t = −3.58 false positive above, which was measured through the
 whole-statement latent that fails the gate at −0.52.
 
-**What the null now says.** With a reliable outcome, a working control, a
-representation proven to carry the content, and stability across widths, the
-absence of a text→speed relationship for FOMC statements against crypto is a
-measurement rather than a failure to find one. What moves the price is the
-number, and the number is public. The torch extra remains unwritten.
-
 **The three conditioning diagnostics were then swept, on diagnostics only.**
 Gate R², effective rank and centroid spread are all measured without reference
 to absorption speed, so choosing a representation on them cannot manufacture a
@@ -231,29 +235,122 @@ event refused:
 | decision segment, d=10 | +0.714 | 9.99/10 | 8.52/10 | 61 of 61 |
 | whole statement, any d | −0.22 … −0.61 | — | — | *inadmissible* |
 
-The answer does not move: largest |t| is **1.15** at d=6 on the decision
-segment, **1.47** on guidance. The whole-statement latent fails the gate at
-every width, reproducing the dilution diagnosis exactly.
+The answer does not move: largest in-sample |t| is **1.15** at d=6 on the
+decision segment, **1.47** on guidance. The whole-statement latent fails the
+gate at every width, reproducing the dilution diagnosis exactly.
 
-**Runs are now filed rather than printed.** `modules/coherence/diffusion/
-studies.py` keeps one row per run — its gate, its conditioning diagnostics, its
-regressions and its verdict — and `tools/diffusion_spectrum.py --persist`
-writes it. Refusals are kept: "the encoder was not configured" and "it ran and
-found nothing" are different facts and a ledger of successes cannot tell them
-apart. **The desk reports `DiffusionStudyStore.best()`, not the newest run.**
-"Whoever ran last sets the headline" is a selection rule that rewards
+### The verdict is now scored OUT OF SAMPLE, and the null got stronger
+
+Everything above is in-sample. A largest-of-eight |t| is the statistic most
+likely to be an artefact, and this instrument already carries the scar — the
+t = −3.58 moment cleared a shuffled p of 0.002 and turned out to be a
+hyperparameter. So the criterion the verdict turns on was replaced.
+[`modules/coherence/diffusion/skill.py`](../../Part2_Infrastructure/modules/coherence/diffusion/skill.py)
+is the new one, imported and dispatched by
+[`tools/diffusion_spectrum.py`](../../Part2_Infrastructure/tools/diffusion_spectrum.py)
+and pinned by
+[`tests/test_diffusion_skill.py`](../../Part2_Infrastructure/tests/test_diffusion_skill.py)
+(21 test functions). Four changes, each argued in the module as *not* a choice
+of answer:
+
+1. **The target no longer needs a signal.** `half_life_s` is a fit, and it is
+   fitted only where the terminal move cleared two sigma — **26 of 62** release
+   meetings and **29 of 62** call meetings, so the study was discarding more
+   than half its events while measuring its own dependent variable.
+   `residence_time` is the area above the absorption curve,
+   `∫₀³⁰ (1 − absorbed(t)) dt`, anchored at `absorbed(0) = 0` and joined
+   piecewise-linearly. For an exponential approach that **is** the time
+   constant, so it estimates the same quantity the half-life estimates — but it
+   is a path integral rather than a fit, so it is defined for every measured
+   path: **62 of 62 per stage.**
+2. **A hard gate became a weight.** The terminal move's signal-to-noise is known
+   per row, so a barely-measurable event counts in proportion to how well it is
+   measured instead of being deleted. A two-sigma cut is a weight of one on one
+   side of a line nothing derives.
+3. **The stages are pooled and the policy move is a CONTROL, not a rival.**
+   Release and call were fitted separately, halving n twice. One fit with a call
+   indicator uses both, and the rate move — the one quantity already known to
+   move the price at four standard errors — enters as a baseline term. The
+   question is what the *text* adds to it.
+4. **Scoring is leave-one-MEETING-out.** Folding by row leaks: a meeting
+   contributes a release row and a call row that share one statement, one rate
+   move and one encoder reading, so holding out a row while fitting on its
+   sibling lets the held-out meeting's text into its own prediction — leakage
+   that looks exactly like skill.
+
+**The result, and it is a null.** The absorption clock **is** predictable —
+out-of-sample **R² +0.144** from the stage and the rate move alone, with the
+press conference about **7.0 minutes slower** than the statement — but adding
+the text changes that by **−0.343**, at a shuffled **p of 0.875**. Over a
+declared **3 × 3 grid** of specifications the gain was **negative in all nine
+cells**, including the cell with the largest in-sample |t| of 2.85.
+
+That is a *stronger* null than the one it replaced, not a weaker one. The
+previous version could not distinguish "the text does not predict this" from
+"nothing predicts this, so there was never a question" — which is why
+`skill.verdict` reports **four** outcomes rather than two, and why
+`skill_baseline_r2` must be read before `skill_gain`. Here the baseline is
+positive and out of sample: the clock has real structure, measured on every
+meeting rather than on the half that cleared a noise floor, and the statement's
+information spectrum is not part of that structure.
+
+**Both verdicts are reported, because on this data they disagree.** The tool
+still computes `_verdict` — the in-sample criterion with its stability re-fit at
+neighbouring latent widths, pinned by `tests/test_diffusion_verdict.py` with the
+exact numbers that once fooled it — and prints it as `verdict_in_sample` beside
+the out-of-sample one. The **reported** verdict is the out-of-sample one. Keeping
+the loser visible is the point: a reader who sees only the surviving criterion
+cannot tell that the two methods answer differently.
+
+**Five fields carry it off the tool.** `skill_meetings`, `skill_baseline_r2`,
+`skill_gain`, `skill_shuffled_p` and `skill_stage_minutes` were added to
+`DiffusionStudy` in
+[`modules/schemas_diffusion.py`](../../Part2_Infrastructure/modules/schemas_diffusion.py),
+mirrored on the storage dataclass and its DDL in
+[`studies.py`](../../Part2_Infrastructure/modules/coherence/diffusion/studies.py),
+populated in
+[`findings.py`](../../Part2_Infrastructure/modules/coherence/diffusion/findings.py)
+and surfaced as two rows on
+[`InstrumentTable.tsx`](../../Part2_Infrastructure/web/components/coherence/diffusion/InstrumentTable.tsx).
+Adding those fields is also a worked example of the generated-artefact cascade —
+one pydantic field, three committed artefacts to regenerate
+([`WORKFLOW.md` §4a](WORKFLOW.md)).
+
+**What the null now says.** With a reliable outcome, a working control, a
+representation proven to carry the content, and a criterion that scores on
+meetings the fit never saw, the absence of a text→speed relationship for FOMC
+statements against crypto is a measurement rather than a failure to find one.
+What moves the price is the number, and the number is public. The torch extra
+remains unwritten — there is no `requirements-torch.txt` on this tree.
+
+**Runs are filed rather than printed.**
+[`modules/coherence/diffusion/studies.py`](../../Part2_Infrastructure/modules/coherence/diffusion/studies.py)
+keeps one row per run — its gate, its conditioning diagnostics, its regressions,
+its five `skill_*` fields and its verdict — and `tools/diffusion_spectrum.py
+--persist` writes it. Refusals are kept: "the encoder was not configured" and
+"it ran and found nothing" are different facts and a ledger of successes cannot
+tell them apart. **The desk reports `DiffusionStudyStore.best()`, not the newest
+run.** "Whoever ran last sets the headline" is a selection rule that rewards
 re-running until a number moves, which is the failure the ledger exists to
 prevent; the rule is fixed, stated on the pane, and blind to the outcome —
 highest gate R² among runs whose latent clears rank ≥ 9 and spread ≥ 0.9.
 
-**And it is now on the desk.** `GET /api/research/diffusion/findings` returns
-all fourteen measured relationships, positive and null at the same weight, each
-with its count and a shuffled-pairing null; `#coherence/diffusion →
-Announcements → Findings` draws them on one t axis against the |t| < 2 band and
-tabulates them beside the instrument's own diagnostics. The two rows outside the
-band are the control. Publishing the twelve empty rows is the point: without a
-row the pipeline demonstrably *can* detect, "we found nothing" and "this could
-not have found anything" are the same table.
+**And it is on the desk.** `GET /api/research/diffusion/findings`
+(`modules/api/diffusion.py`) returns every measured relationship, positive and
+null at the same weight, each with its count and a shuffled-pairing null. Six
+rows are computed straight off the ledgers — policy move → response size, policy
+move → absorption speed and dissents → absorption speed, each for both stages —
+and the admissible study's own spectrum regressions are appended on top by
+`_study_rows`, so the total is a function of what that run measured rather than
+a constant. (This section pinned "fourteen" before the list became dynamic; do
+not re-pin a number without re-running the route.) On the desk it is
+`#coherence/diffusion`, whose four in-pane views are **Absorption · Mechanism ·
+Findings · Kalshi episodes** — `DiffusionPane.tsx`'s own `.seg` group, not the
+"Announcements" tab this document used to name. Findings draws them on one t
+axis against the |t| < 2 band and tabulates them beside the instrument's own
+diagnostics; the two rows outside the band are the control. Publishing the empty
+rows is the point: without a row the pipeline demonstrably *can* detect, "we
+found nothing" and "this could not have found anything" are the same table.
 
 ## 2. Open — the owed items
 
@@ -326,16 +423,46 @@ the arm (or return it from the RPC) so BM25's ordering opinion applies before
 truncation, not after. This buys recall only with the ordering model already
 in place — the same argument, in the same direction, as `wide`/`narrow`.
 
-### 2.5 `execution_summary` has a producer but no live caller
+### 2.5 `execution_summary` live emission — **closed**
 
-The renderer, its figures and its document are built and tested, and
-`tools/backfill_research_rag.py` calls them — so this is not another module
-shipped with no caller, which is the defect §1 exists to catch. But nothing
-emits one **in process**: that needs a hook at the session-rollover site in
-`modules/risk_proxy/`. On a running desk the summaries appear when the backfill
-is run and not before, and every document that says "ingested sources" must say
-so. Owed: the rollover hook, which makes the live path emit one summary per
-closed session the way `on_backtest_complete` emits one per finished sweep.
+The renderer, its figures and its document were built, tested and called only by
+`tools/backfill_research_rag.py`, so on a running desk the summaries appeared
+when somebody remembered to run the backfill and not before. The rollover hook
+this section owed has landed:
+[`modules/research_rag/session.py`](../../Part2_Infrastructure/modules/research_rag/session.py)
+is a mixin on `ResearchRag` — the same class, not a second write path — and
+`RiskGateway._roll_session_if_needed` calls its `on_session_closed` at the UTC
+boundary (`modules/risk_proxy/monitor.py:260`). Everything it emits leaves
+through `ResearchRag._submit`, the same bounded queue every other kind uses.
+
+Two properties are worth carrying forward, because both were the reason the hook
+was hard rather than incidental:
+
+- **The rollover does not wait for it.** `_roll_session_if_needed` is called from
+  `submit` and `sweep_working_orders` with the gateway's lock **held**, inside
+  the region `submit` times to produce an order's `latency_ms`. `session_figures`
+  runs four aggregate queries over a whole UTC day of the `orders` table, so
+  doing the work at the call site would put a table scan inside the trading lock
+  and charge it to whichever order happened to be first of a new session. The
+  hook returns after a boolean and a `create_task`; the reading happens later,
+  off the loop rather than merely off the lock, because a scan that blocks the
+  event loop still stalls the breaker and the venue feeds.
+- **A corpus failure changes nothing about the rollover.** A rollover is a
+  trading-state transition; the corpus is an observer, exactly as the decision
+  hooks are.
+
+The seam is pinned by
+[`tests/test_research_session_emission.py`](../../Part2_Infrastructure/tests/test_research_session_emission.py),
+which drives `_roll_session_if_needed` against a real audit log on disk and reads
+the corpus's own bounded queue. It deliberately does **not** call
+`on_session_closed` directly — such a test passes on a tree where the rollover
+site never calls it, which is the defect being closed.
+
+*Why this module is not a method on `writer.py`:* only the 400-line ceiling.
+`writer.py` measures 398 lines and the argument above does not fit in the two
+that are left, and shortening the argument to fit is how the next reader
+"simplifies" the deferral back into a blocking call. The ratchet
+([`WORKFLOW.md` §5](WORKFLOW.md)) forced a split that was worth making.
 
 ### 2.6 The dead-letter book is a diagnosis, not a replay queue
 
@@ -403,14 +530,19 @@ not three) cannot back. It wants its own change with its own fixture row.
 - **`web/lib/test-counts.generated.ts` falls behind the tree** whenever a
   test file lands without a refresh, and CI's "Committed test counts match the
   suite" step then exits 1 (it did for a week: 4,008 committed against 4,124
-  measured, until the 2026-08-23 refresh). The debt is written in the generated file's own header —
-  "Re-run the script after adding tests; nothing regenerates these
-  automatically" — and the fix is `npm run counts:refresh -- --suite=web`, never
-  a hand edit. Indexed here because three separate changes added suites and none
-  of them refreshed it, which is the failure mode the generator exists to make
-  visible rather than one it prevents.
+  measured, until the 2026-08-23 refresh). The debt is written in the generated
+  file's own header — "Re-run the script after adding tests; nothing regenerates
+  these automatically" — and the fix is `npm run counts:refresh -- --suite=web`,
+  never a hand edit. Indexed here because three separate changes added suites and
+  none of them refreshed it, which is the failure mode the generator exists to
+  make visible rather than one it prevents. **The gateway and service lines in
+  that file are not gated at all** — `web/scripts/check-test-counts.mjs` accepts
+  only `web` — so they drift silently, and on 2026-08-24 the gateway line does
+  (2,965 committed against 2,993 measured). Whether that wants a second gate or
+  an explicit "dated record" marker on those two lines is undecided; what is not
+  in doubt is that quoting the gateway figure as a *checked* number is wrong.
 
-### 2.10 The chart-image store: one blocking call, one stale bundle
+### 2.10 The chart-image store: one blocking call
 
 `modules/research_image_store._fetch` is a **synchronous** PostgREST GET and it
 runs on the event loop's thread — the thread that also serves pre-trade risk.
@@ -427,14 +559,13 @@ one line. Until it lands the stall is bounded three ways — a 1,200 ms timeout
 that `0` disables outright, an in-process LRU, and the write path warming the
 same LRU so an ingesting gateway never fetches at all.
 
-Three smaller debts travel with it:
+Two smaller debts travel with it. A third — `supabase/apply_all.generated.sql`
+not carrying `20260822110000_research_chart_images.sql` — is **closed**: the
+bundle was regenerated (`python3 tools/bundle_migrations.py`) and now contains
+the `public.research_chart_images` table, its one-home constraint, its index and
+its RLS grants, so a deployment that applies the bundle rather than
+`supabase db push` no longer gets the image columns without the table.
 
-- **`supabase/apply_all.generated.sql` does not carry
-  `20260822110000_research_chart_images.sql`.** The bundle is regenerated
-  centrally (`python3 tools/bundle_migrations.py`); until it is,
-  `tests/test_migration_bundle.py` has two failures of that one cause, and a
-  deployment that applies the bundle rather than `supabase db push` has the
-  image columns from `20260822100000` and not the table from `20260822110000`.
 - **A third copy of the `{"equity_curve": "equity_curve_png"}` map.** The read
   and write halves of the durable store now share one object by construction —
   `research_generate_vision.CHART_IMAGE_KEYS` *is*
@@ -446,7 +577,7 @@ Three smaller debts travel with it:
   document is one the generator refuses. Closing it needs a `heatmap` `ChartDoc`
   in `research_chartdoc`, which needs the parameter surface off `BacktestResult`.
 
-### 2.11 The image arm's bench is not in CI, and conftest has a matching hole
+### 2.11 The image arm's bench is not in CI
 
 `tools/bench_image_retrieval.py` is wired the way `tools/bench_rerank.py` was
 before CI adopted it: an executable entry point, referenced from
@@ -461,11 +592,17 @@ so it settles "does the picture beat the sentence" and not "what does the
 four-arm ordering do"; and nine queries over seven documents is a small sample,
 whose honest strengthening is more queries rather than another seed.
 
-Separately, and a real hole: **`tests/conftest.py` does not blank
-`RESEARCH_IMAGE_MODEL_PATH`** the way it blanks `RERANK_MODEL_PATH` by
-assignment. A developer who has exported a seeded ~0.6 GB directory can have
-unrelated suites load it through `search`. The bench's own suite blanks it in an
-autouse fixture, so that file is safe either way; the conftest line is owed.
+**The conftest hole this section also carried is closed.**
+`tests/conftest.py` now blanks `RESEARCH_IMAGE_MODEL_PATH` by **assignment**,
+beside `GEMINI_API_KEY` and `RERANK_MODEL_PATH`, and the reasoning is written
+above the three lines: the shape that actually loads 0.6 GB is an *exported*
+path — the developer who ran the bench's `--seed` and kept it in their shell —
+and `setdefault` beats only a `.env`. It had to go in the conftest rather than in
+a per-file fixture because `research_image.IMAGE_MODEL_PATH` is read off
+`os.environ` in a module-level assignment at **import**, so a fixture is
+structurally too late for every file but its own. The arm's four suites each
+patched the constant and were safe; anything driving `/api/research/rag/search`
+reaches `research_image_arm` and was not.
 
 ## 3. Decision log
 
@@ -499,6 +636,8 @@ column is authoritative and each entry there argues at ten times this length.
 | The implied distribution is NOT cross-checked against `forecast_percentile_history` | the endpoint is signed-only — the OpenAPI puts the three `KALSHI-ACCESS-*` headers on it — and this engine holds a demo key by decision, which signs demo and never production. Probed rather than assumed: with documented-valid arguments (`percentiles` in 0-9999, `period_interval` in {0,1,60,1440}, both timestamps) a keyless call returns 400 rather than 401, so the refusal does not even announce itself as an auth failure. The spec's §9.2 cross-check is therefore unbuildable on this deployment, and is recorded here rather than quietly omitted | asking for a production key, which would change what this engine is allowed to do; or shipping the cross-check against demo data, where the percentile history describes a different exchange | `modules/coherence/kernel/distribution.py` |
 | The favourite-longshot slope is reported per series as well as over the corpus | a slope is a statement about how a set of markets is priced, and a fifteen-minute crypto strike is not the same question as a daily temperature bucket — different people, different information. On a synthetic corpus built from two series with opposite bias the aggregate reads 0.9845, which looks like near-perfect calibration, while the halves read 0.916 and 1.038. One number would have hidden both | a single aggregate, which §9.3 explicitly asks not to report alone | `modules/coherence/kernel/calibration.py` |
 | The settlement index's formation rule is tested against every completed minute, not assumed | the published minute appears to be the mean of the stations that cleared quality control, and on that basis the trailing unpublished minutes are computable. "Appears to be" is not a basis for a number someone might trade: if the venue changes how it forms the index, a provisional value under the old rule is worse than no value. The agreement is measured per read — 1,435 of 1,435 today — and where it fails the pane says not to trade it | hardcoding the mean-of-ok-stations rule, which is right today and silent the day it stops being | `modules/coherence/drivers/weather_qc.py` |
+| The diffusion verdict is scored OUT of sample, on a target that needs no signal gate | an in-sample t on the largest of eight univariate fits is the statistic most likely to be an artefact, and this instrument has the scar to prove it (t = −3.58, shuffled p 0.002, and a hyperparameter). Residence time is a path integral rather than a fit, so it is defined on 62 of 62 meetings per stage where `half_life_s` was defined on 26; the rate move enters as a CONTROL rather than as a rival; and folding is by MEETING because both stages share a statement, so a row-wise fold leaks the held-out text into its own prediction | the previous criterion (largest in-sample \|t\| ≥ 2 against `half_life_s`, with a stability re-fit at neighbouring latent widths) — kept and still printed as `verdict_in_sample`, because on this data the two disagree and hiding the loser would hide that; and a non-zero skill floor, rejected because zero is the only threshold that is not a choice | `modules/coherence/diffusion/skill.py`, `tests/test_diffusion_skill.py` |
+| The diffusion findings list is built dynamically, not pinned at a count | the six ledger rows are always computable; the study's spectrum regressions are appended only when the latent cleared the admissibility gate, so a fixed total would have to lie in one direction or the other on every run that refused | a constant fourteen, which is what this document said until the list stopped being one | `modules/coherence/diffusion/findings.py` |
 | Neo4j is a projection, never a dual write | drift between an authoritative store and a copy is only detectable if somebody looks; a rebuildable read model makes divergence a non-event | second write path | `modules/research_graph_projection.py` |
 | Louvain/PageRank in-process via networkx; Louvain seeded, PageRank not | Aura Free has no GDS — `gds.louvain.stream` there is procedure-not-found; unseeded Louvain makes "cluster 3" mean nothing a week later. PageRank takes no seed and cannot: it is deterministic by construction, reproducible from the canonical node order plus pinned `MAX_ITER`/`TOLERANCE` | Neo4j GDS; unseeded Louvain; inventing a `seed=` argument for PageRank to make a doc sentence true | `modules/research_communities.py` |
 | The graph walk fused at the same k = 60 as every other arm (it was the fourth when written; the optional image arm now sits between them, and the constant did not move) | an arm joining on a different constant is a second fusion wearing the first one's name; `RRF_K` is imported from `research_bm25`, not restated | a graph-specific constant; turning depth into a score ("a two-hop document is half as relevant" is a number nobody measured) | `modules/research_graph_fusion.py` |

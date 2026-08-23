@@ -15,7 +15,7 @@ fundamentals. Provider keys (also optional) extend coverage through the
 seven-provider registry — see [Data providers](#data-providers).
 
 The Telegram companion is a separate client — text cards, charts and inline
-keyboards on a phone, 135 commands. The header carries a one-way deep link out
+keyboards on a phone, 136 commands. The header carries a one-way deep link out
 to it (**Connect**), but the web workspace never embeds it and never
 authenticates through it, and the bot never opens or controls this UI.
 
@@ -91,15 +91,14 @@ npm install
 npm run dev        # http://localhost:3000 (Turbopack)
 npm run build      # Turbopack production build
 npm run typecheck  # tsc --noEmit
-npm test           # 4,449 tests across 977 suites — 4,447 passed, 2 skipped, no network
-                   # required (re-measured 2026-08-23 on a clean checkout).
-                   # lib/test-counts.generated.ts is the constant the Developer console
-                   # displays and CI checks against the runner's log; it still records the
-                   # previous refresh (4,008 / 871) and is therefore STALE, which is a CI
-                   # failure waiting on the next push, not a suite failure:
+npm test           # 4,461 passed, 2 skipped, across 980 suites — no network required
+                   # (re-measured 2026-08-24). lib/test-counts.generated.ts is the
+                   # constant the Developer console displays, and CI checks ONLY its
+                   # web line against the runner's log:
                    #   npm run counts:refresh -- --suite=web
                    # The count gate lives outside the suite on purpose — a test that
-                   # asserts the total changes the total.
+                   # asserts the total changes the total. The gateway line in that
+                   # file is a dated record CI does not check; do not read it as one.
 ```
 
 Built on **Next.js 16** with **Turbopack**, which is the default bundler for both
@@ -112,9 +111,12 @@ new dependency tree.
 
 ## What it does
 
-**One tab per desk role** — the workspace has eight tabs: an overview that
-launches into the other seven, and one each for the roles the platform is built
-for.
+**One tab per desk role** — the workspace has **nine** tabs over 59 rail
+sections: an overview that launches into the others, one each for the seven
+roles the platform is built for, and Coherence, a research surface rather than a
+role. `NAV_ITEMS` in `components/WorkspaceHeader.tsx` declares the rail order and
+`lib/sections.ts` declares every section id; those ids are public deep links and
+never change.
 
 | Tab | Role | What it answers |
 | --- | --- | --- |
@@ -125,6 +127,7 @@ for.
 | Data | Data engineer | What needs attention, where did this number come from, and can it be trusted? |
 | Reliability | DevOps / SRE | Is the platform healthy, and which layer broke? |
 | Developer | Quant developer | What is the contract, and what proves it still holds? |
+| Coherence | Quant researcher | Are these prices a probability measure, and what does the failure pay? |
 
 Panels have exactly one home. Where a second role needs a figure — a PM checking
 headroom before adding to a sleeve, an SRE glancing at quarantine during an
@@ -424,6 +427,63 @@ to re-run that single combination and see what it actually did.
 **Walk-forward folds** and the **top-15 table** — the full ranking behind the
 winner, and the in-sample → out-of-sample gap that reveals overfitting.
 
+<a id="coherence-console"></a>
+**Coherence console** — the ninth tab, and the one that is not a desk role.
+A contract paying $1 if an event happens is a probability with a price on it, so
+a family of those prices either admits a probability measure or does not. The
+tab reads Kalshi live, records whole bid ladders rather than prices, and where
+the prices are incoherent it hands back the portfolio that wins in every state.
+Its header states the boundary in the metric strip: **order path = "none"** —
+this engine reads, records and certifies, and it sends nothing.
+
+Eleven rail sections, each splitting its content into in-pane views:
+
+| Section | Views |
+|---|---|
+| Universe | Baskets · Settlement · Formation |
+| Books | Ladder · Identity · Dispersion |
+| Lattice | Distribution · Stake · Whole family |
+| Dutch book | Verdict · Portfolio · Proof |
+| Fees | Worked example · Cost shape · Ablation |
+| Coherence index | Series · Families |
+| Combos | Bands · Parlays · Bounds test · Notes |
+| Calibration | Score · Bands · Corpus |
+| Diffusion | Absorption · Mechanism · Findings · Kalshi episodes |
+| Shell | Tree · Reading · Layout |
+| Lessons | Prices · Structure · Bounds · Record |
+
+**Those in-pane views are `.seg` groups, never a nested `<WorkspaceSubtabs>`,
+and that is a hard rule.** `WorkspaceSubtabs` publishes `--rail-h` onto
+`document.documentElement`; a second instance inside a section would fight the
+first over every sticky offset in the app, which is the failure
+`ReliabilityConsole` already recorded and the reason its Remediation panes are
+`.seg` too. `.seg` is plain CSS in `app/globals/`, styled off `aria-pressed`.
+
+**The polls are gated on the open section and, where it matters, the open
+view** — this tab reads a live exchange, so an idle pane must not spend a round
+trip. The universe read asks for two events per series rather than four
+(`?max_events=2`): four took 10.1 s before the reads were parallelised and 6.4 s
+after, against `callGateway`'s eight-second deadline. The books read stops
+entirely while **Dispersion** is open, because that view's RFQ route is a signed
+private-channel call on a 25-second budget, and `BooksSection` reports its view
+upward for exactly that reason. `FeesSection` holds both of its reads at section
+level and gates each on its view, so `/replay?limit=20000` — the largest read on
+the tab — is issued only on **Ablation**.
+
+**Diffusion's headline is a null, and the table says so in that order.** The
+study asks whether the text of an FOMC statement predicts how fast the market
+absorbs it. `InstrumentTable` renders the target's own row *above* the
+predictor's on purpose: "the clock is predictable at all" (R², out of sample)
+comes first, because if it fails, "the text predicts it" means nothing. As
+measured, the clock **is** predictable — +0.144 R² from the stage and the rate
+move — and the text subtracts from that. Two of the diffusion charts,
+`AbsorptionCurve` and `StageTimeline`, deliberately skip the shared `<Plot>`
+wrapper: it emits `role="presentation"` and would leave them unnamed.
+
+**Not yet covered:** Coherence has no `summarised-*` or `disclosure-*` guard
+pair, where the other eight tabs have both. That is a gap in the copy ratchets,
+not a decision.
+
 ---
 
 ## API
@@ -477,6 +537,19 @@ are configured — the panel reports the refusal, never a figure:
 |---|---|
 | `POST /api/oracle/var` | 99% Value at Risk from an **in-database** GBM Monte Carlo. Deliberately a *second* opinion, not a replacement: `lib/portfolio-risk/` already computes VaR from the covariance model and the Risk tab shows both, because two independent implementations of one quantity is the only cheap check on either. The two are **not interchangeable** and the panel must never present them as one figure with two sources — this is a terminal-value GBM VaR over a horizon, the client-side one is a one-day parametric/historical VaR on the current book. The simulation count is bounded here *and again in PL/SQL*, because a public endpoint that lets a caller choose how much database CPU to spend is a way to take the instance down from an anonymous request |
 | `POST /api/oracle/research` | similarity search over the same research corpus, answered by Oracle 23ai's native `VECTOR` type instead of Supabase pgvector, in the existing `ResearchRagSearchResponse` shape. The query vector comes from the gateway's `/api/research/rag/embed`, so both stores are searched with the *same* embedding model — vectors are comparable only inside one model |
+
+The Coherence group proxies the gateway's Kalshi engine, and every one of them
+is a **read**:
+
+| Endpoint | Returns |
+|---|---|
+| `GET /api/gateway/coherence/status` · `universe` · `books` · `certify` · `fees` · `surface` · `stake` · `combos` · `calibration` · `settlement` · `rfq` · `shell` | The watched families and their basket totals, both bid ladders with the implied offers, the coherence test and its failure certificate, the three-component cost model, the implication lattice and its implied mass, parlay bounds, settled-price calibration, and the universe as a filesystem. `rfq` is the one signed private-channel call and carries a 25-second budget |
+| `GET /api/gateway/coherence/index` · `episodes` · `replay` | Pricing efficiency over time, recorded episodes, and the whole tape the fee ablation runs over — the largest read on the tab, which is why the workspace issues it only on one view |
+| `GET /api/gateway/diffusion/events` · `findings` · `absorption` | The FOMC event ledger, the measured relationships (including the five `skill_*` fields of the out-of-sample verdict) and the absorption curve per stage |
+
+There is deliberately **no** coherence write route on either side. The tab
+certifies and records; it places no orders, and the absence of a mutator is what
+makes that checkable rather than promised.
 
 The systems group backs the [developer console](#systems-console):
 
@@ -586,7 +659,7 @@ web/
 │   ├── globals.css           design tokens (palette, light + dark)
 │   ├── login/page.tsx        optional sign-in — outside the workspace shell
 │   ├── profile/page.tsx      account and security centre — the other one
-│   └── api/                  44 routes (2026-08-22). Re-derive, do not believe:
+│   └── api/                  62 routes (2026-08-24). Re-derive, do not believe:
 │       │                     find app/api -name route.ts | wc -l
 │       │                     This list read 11 for a long time, then 37, each
 │       │                     written when it was true and never rebuilt; every
@@ -605,7 +678,7 @@ web/
 │       ├── favourites/route.ts pinned runs, per identity
 │       ├── auth/             guest · login · logout · session — 4 routes
 │       ├── stream/desk/route.ts  the gateway's server-sent risk state, relayed
-│       ├── gateway/          the risk gateway proxy — 20 routes
+│       ├── gateway/          the risk gateway proxy — 38 routes
 │       │   ├── risk/route.ts   halt · resume · flatten, and the reachability probe
 │       │   ├── orders/         submit · working · [id]/cancel · [id]/replace
 │       │   ├── portfolio/      book, and history
@@ -617,7 +690,12 @@ web/
 │       │   ├── data-quality/escalations/[id]/ack  take an open escalation
 │       │   ├── research/ml/   fit · runs · runs/[runId] — supervised walk-forward
 │       │   ├── research/graph/[id]  what one document is connected to
-│       │   └── research/rag/route.ts  retrieval over the research corpus
+│       │   ├── research/rag/route.ts  retrieval over the research corpus
+│       │   ├── coherence/    status · universe · books · certify · fees · surface ·
+│       │   │                  stake · combos · calibration · settlement · rfq ·
+│       │   │                  shell · index · episodes · replay — 15 read-only
+│       │   │                  proxies; there is no coherence write route
+│       │   └── diffusion/    events · findings · absorption — the FOMC study
 │       ├── oracle/           research · var — 2 routes, optional backend
 │       ├── system/           actions · events · health · inspect — 4 routes
 │       └── telegram/link/route.ts  mints the single-use Connect token
@@ -657,7 +735,8 @@ web/
 │       └── …one adapter per vendor (binance, fmp, tiingo, massive,
 │            alphavantage, firecrawl, openbb)
 ├── components/               charts (hand-rolled SVG), controls, tables
-└── tests/                   4,449 tests across 977 suites (2026-08-23), incl.
+└── tests/                   303 .test.ts files; 4,461 passed and 2 skipped across
+                              980 suites (2026-08-24), incl.
                               cross-engine, risk-engine and gate parity, the
                               design-system ratchets (type-scale, motion, house-rules,
                               dead-css, accent-budget, null-honesty, live-motion,
@@ -666,7 +745,9 @@ web/
                               and the eight-plus-eight per-tab guard suites,
                               summarised-*.test.ts (what each tab's prose must still
                               say) and disclosure-*.test.ts (what it may never stop
-                              saying) — those two may be ADDED to and never weakened
+                              saying) — those two may be ADDED to and never weakened.
+                              Eight pairs for nine tabs: Coherence has neither yet,
+                              which is a gap rather than a decision
 ```
 
 **Why the sweep runs server-side.** Binance's public API is called from the
@@ -680,7 +761,7 @@ the same accounting is two chances to be wrong, so
 `tests/parity.test.ts` replays real Binance bars through the TS engine and
 asserts it reproduces what `Part2_Infrastructure/modules/backtester/` produced
 from identical input — across **all 46 strategies and both directions**, 48
-cases in `tests/fixtures/parity.json` (2026-08-22). Trade counts,
+cases in `tests/fixtures/parity.json` (2026-08-24). Trade counts,
 exposure and turnover must match exactly; return statistics to 1e-6.
 
 That test earned its keep: it caught two real bugs in the port — pandas applies

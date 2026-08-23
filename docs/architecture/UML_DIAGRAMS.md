@@ -1,17 +1,35 @@
-# UML diagrams — the anti-twitch machinery and the research pipeline
+# UML diagrams — the anti-twitch machinery, the research pipeline, the parity pin and the Coherence tab
 
-*Drawn from the tree as of 22 August 2026. Every class, member and constant here
-exists in the named source file; if a diagram disagrees with the code, the code
-is right and this file is stale — fix it here.*
+*Drawn from the tree as of 24 August 2026. Every class, member, file and
+constant here was opened and read on that date; if a diagram disagrees with the
+code, the code is right and this file is stale — fix it here.*
 
-This document is four diagrams and the minimum prose to read them. The
+This document is **six diagrams** and the minimum prose to read them. The
 arguments behind each design live where they always have:
 [`Part2_Infrastructure/README.md`](../../Part2_Infrastructure/README.md)
 (§2 Architecture, §Tech Stack → RAG & ML) is authoritative on the system,
+[`ARCHITECTURE.md`](ARCHITECTURE.md) is the map of units and seams,
+[`DATA_PROCESSING_FLOW.md`](DATA_PROCESSING_FLOW.md) traces a request end to end,
 [`docs/product/FEATURE_TOUR.md`](../product/FEATURE_TOUR.md) walks the surfaces,
 [`docs/architecture/LATENCY_BUDGET.md`](LATENCY_BUDGET.md) owns the three-plane latency
 discipline, and the module docstrings — which argue *why* and name rejected
 alternatives — are the primary source for everything summarised here.
+
+| # | Diagram | Subject |
+|---|---|---|
+| 1 | class | the four anti-twitch classes in `web/lib` |
+| 2 | state | how `DeskShowing` moves under probe outcomes and human choices |
+| 3 | sequence | `POST /api/research/rag/ask`, the corrective retrieval path |
+| 4 | class | which research module imports which |
+| 5 | flow | the gate-parity fixture, and the three implementations pinned to it |
+| 6 | component | the Coherence tab: eleven sections, `.seg` views, one rail |
+
+**A diagram naming a module that no longer exists is a defect.** Every box below
+was checked against the tree in this pass. Two changes to record from it:
+`PendingPane.tsx` was **deleted** and no `.ts`/`.tsx` under `web/` still
+references the name, and `modules/research_rag/` gained `session.py` — the
+in-process `execution_summary` emitter — which is named on its parent's box
+under this file's own convention.
 
 ---
 
@@ -335,12 +353,22 @@ the retrieved rows survive — so it is a decoration the arm can lose, not a
 dependency it needs. Only the research plane's own modules are drawn; the files
 each stage was split into to stay under the 400-line ceiling
 (`research_router_calls` / `_exec`, `research_crag_policy` / `_signals`,
-`research_generate_prompt` / `_figures`, `research_ingest_delivery` /
-`_session`, `research_structured` / `_reads`, `research_graph_read_model`) are
+`research_generate_prompt` / `_figures`, `research_ingest_delivery`,
+`research_structured` / `_reads`, `research_graph_read_model`) are
 named on their parent's box rather than given one each — as are
-`research_image_arm` and `research_image_ingest` on `research_image`, and
-`research_image_store_write` on `research_image_store`. Two arrows to check
-against the tree if this drawing is ever doubted:
+`research_image_arm` and `research_image_ingest` on `research_image`,
+`research_image_store_write` on `research_image_store`, and the `research_rag`
+package's own `retrieval.py` / `arms.py` / `embedding.py` / `writer.py` /
+`session.py` on the `research_rag` box.
+
+`research_ingest_session` is the one exception, and it earns a box of its own
+because it now has **two** callers rather than one: `tools/backfill_research_rag.py`
+for history, and `research_rag/session.py` — a mixin on the same `ResearchRag`
+class the read half lives on — from the risk monitor's UTC rollover, for a
+running desk. Until this pass the live arm did not exist and the module was
+correctly drawn as a tool's dependency. It is not one any more.
+
+Two arrows to check against the tree if this drawing is ever doubted:
 `research_rag.retrieval` imports `image_arm` at module level (it is the query
 side of the fourth arm), and `research_generate` imports
 `research_generate_vision` as `vision`, which in turn imports
@@ -431,10 +459,12 @@ classDiagram
     }
     class research_rag["modules.research_rag (package)"] {
         ResearchRag / get_rag()
-        _RetrievalMixin.search()
-        _RetrievalMixin.connected()
-        apply_bm25()
+        _RetrievalMixin.search() : retrieval.py
+        _RetrievalMixin.connected() : retrieval.py
+        _SessionIngestMixin.on_session_closed() : session.py
+        apply_bm25() : arms.py
         RAG_MIN_SIMILARITY : 0.76
+        SESSION_SUMMARY_SETTLE_S : 5.0
     }
     class research_graph_reads {
         read_all_edges()
@@ -462,6 +492,12 @@ classDiagram
     class research_reconcile {
         re-exports reconcile_communities
     }
+    class research_ingest_session["modules.research_ingest_session"] {
+        closed_session_documents()
+        session_figures()
+        execution_summary_document()
+        every absent figure : "not recorded"
+    }
 
     api_research ..> research_crag : answer_from_corpus
     api_research ..> research_stages : wide / narrow
@@ -482,6 +518,7 @@ classDiagram
 
     research_rag ..> research_bm25 : rank_candidates / fuse
     research_rag ..> research_image : image_arm, LAST and never handed the gte-small vector
+    research_rag ..> research_ingest_session : execution_summary, live from the UTC rollover
     research_generate ..> research_generate_vision : attach the chart as evidence, never a source
     research_generate_vision ..> research_image_store : locate the bytes — LRU, JobRecord, then one GET
     research_graph_reads ..> research_communities : detect_communities, rank_documents
@@ -495,6 +532,7 @@ classDiagram
     note for research_graph_read_model "Binds _driver at IMPORT deliberately, so the\nprojection suites patching research_graph_projection._driver\n(to prove a GET never WRITES) cannot silently\nredirect the read path. Every refusal falls back\nto the in-process computation and says so."
     note for research_image "OFF by default and measured, not hedged:\nCLIP alone scores 0.671 nDCG@3 against the computed\ndescription's 0.687 and 0.747 fused - so ~0.6 GB of\nweights buys +0.06 only in fusion, and the arm is a\nfourth 1/(k+rank) term that can ADD a document and\nnever remove one. No similarity floor: 0.76 was\nmeasured against gte-small's range and a CLIP number\nwould be the unmeasured constant this tree refuses."
     note for research_image_store "One map, two halves, so they cannot disagree -\nresearch_generate_vision.CHART_IMAGE_KEYS IS this\nobject, not a copy. _fetch is a SYNCHRONOUS GET on\nthe event loop's thread; the owed fix is one line in\nresearch_generate.generate (await hydrate). Bounded\nby a 1200 ms cap, an LRU, and the write path warming\nthat same LRU so an ingesting gateway never fetches."
+    note for research_ingest_session "The renderer. Two callers now, not one:\ntools/backfill_research_rag.py for history, and\nresearch_rag/session.py from the risk monitor's UTC\nrollover for the live desk. The live call is DEFERRED\n(a whole day's aggregate over `orders` must not run\ninside the trading lock) and delayed 5s, because\nunique (desk_id, kind, source_ref) plus\nignore-duplicates means the FIRST writer wins and an\nearly summary is a permanent one."
     note for research_quota "Inert with no GEMINI_API_KEY: a desk that cannot\nreach a model cannot spend, and refusing a free\nquery because a paid one would be expensive is an\noutage, not a bound. A call with no token counts is\nrecorded UNPRICED and the window total is a floor -\nnever an invented average price."
 ```
 
@@ -538,3 +576,155 @@ Likewise
 and its comment says the number will move; the eval harness is the named owner
 of turning it from a floor derived from three observed clusters into one that
 is continuously re-measured.
+
+---
+
+## 5. The gate-parity pin — one fixture, three implementations
+
+This is the load-bearing idea of the codebase drawn once. Three runtimes serve
+one desk and none can call the others, so the seventeen-gate battery exists
+three times. Python is the reference; a tool records its verdicts; the other two
+replay them.
+
+```mermaid
+flowchart TB
+    subgraph decl["The declaration"]
+        order["modules/risk_proxy/gates.py<br/>GATE_ORDER — seventeen names,<br/>in evaluation order"]
+    end
+
+    subgraph record["Recording the reference"]
+        maker["tools/make_gate_fixture.py<br/>runs the Python gateway over twenty scenarios"]
+        helper["tools/gate_fixture.py<br/>build_gateway / judge / expected_from —<br/>ONE harness, shared by the recorder and the suite"]
+        fixture[("web/tests/fixtures/gate-parity.json<br/>version 1 · 20 scenarios<br/>accept/reject · gate order ·<br/>observed and limit floats")]
+        maker --> fixture
+        helper --> maker
+    end
+
+    subgraph impls["Three implementations, held to it"]
+        py["modules/risk_proxy/decision.py<br/>the PYTHON REFERENCE"]
+        cpp["native/decision_core/decision_core.cpp<br/>→ modules/_decision_core*.so"]
+        ts["web/lib/blotter/sandbox-desk.ts<br/>createSandboxDesk → judge() — the browser sandbox"]
+    end
+
+    subgraph suites["The suites that fail on drift"]
+        tpy["tests/test_gate_parity.py<br/>BIT-EXACT: same verdict, same order,<br/>same observed and limit numbers"]
+        tcpp["tests/test_decision_core_native.py<br/>BIT-EXACT, forced onto the native engine;<br/>an unimportable .so is a RED BUILD,<br/>not a quiet fall-back"]
+        tts["web/tests/gate-parity.test.ts<br/>NAMES AND ORDER ONLY — and the file<br/>says so, and says why"]
+    end
+
+    order --> helper
+    order --> ts
+    fixture --> tpy --> py
+    fixture --> tcpp --> cpp
+    fixture --> tts --> ts
+
+    note["A break in any of the three is a real parity failure,<br/>never a tolerance to loosen — both Python suites say this<br/>about each other in their own headers."]
+    tpy -.- note
+    tcpp -.- note
+```
+
+**Why the TypeScript half is held to less, and why that is written down.** The
+browser sandbox has no ladder — its slippage is a synthesised function of size,
+seeded by a PRNG — reads its caps off the book rather than settings, and has no
+paper-equity or per-venue routing. Several fixture scenarios are therefore
+structurally inexpressible in it, and asserting their numbers anyway would be
+"a looser test wearing a stricter name". So the suite pins the cross-language
+part — that the mirror walks the same seventeen gates in the same order, never
+silently reordering, dropping or adding one — and states the exclusion in its
+own header. A parity claim that quietly covers less than it sounds like is worse
+than no parity claim at all.
+
+**The same shape, four more times.** `web/tests/parity.test.ts` replays 48
+recorded cases from `tools/make_parity_fixture.py` against the TypeScript
+backtest engine; `web/tests/risk-parity.test.ts` replays
+`tools/make_risk_fixture.py`'s answers against `web/lib/portfolio-risk/`, because
+a trader reading one VaR on a phone and another on a screen is the failure mode
+worth a fixture; `web/tests/venues-parity.test.ts` has **no** fixture and reads
+both sources instead, comparing `web/lib/venues`' `FILL_TOLERANCE` against the
+whole gateway-side `modules/tca_engine` package concatenated — because the
+tolerance moved on the Python side once and the port did not follow; and
+`web/tests/mc-parity.test.ts` pins one Monte Carlo across three runtimes by
+executing the browser worker's own stringified source in Node and comparing it
+to a committed canonical-JSON reference that carries its own SHA-256.
+
+---
+
+## 6. The Coherence tab — component diagram
+
+Eleven rail sections, one `<WorkspaceSubtabs>`, and every sub-view a `.seg`
+button group. The structure is
+[`web/components/CoherenceConsole.tsx`](../../Part2_Infrastructure/web/components/CoherenceConsole.tsx)
+(213 lines) over the eleven ids in
+[`web/lib/sections.ts`](../../Part2_Infrastructure/web/lib/sections.ts).
+
+```mermaid
+flowchart TB
+    console["CoherenceConsole.tsx<br/>PageHead · one WorkspaceSubtabs rail · StatusPane"]
+
+    subgraph reads["The three reads, all gated"]
+        rstatus["/api/gateway/coherence/status<br/>gated on active only"]
+        runiverse["/api/gateway/coherence/universe?max_events=2<br/>gated on active AND section in<br/>universe / certificate / lattice —<br/>NOT on the sub-view, because three sections share it"]
+        rbooks["/api/gateway/coherence/books<br/>gated on active AND section = books<br/>AND booksView != dispersion"]
+    end
+
+    console --> rstatus & runiverse & rbooks
+
+    subgraph sections["Eleven sections — ids are public deep links and never change"]
+        s1["universe → UniverseSection.tsx<br/>.seg Baskets · Settlement · Formation"]
+        s2["books → BooksSection.tsx<br/>.seg Ladder · Identity · Dispersion"]
+        s3["lattice → SurfacePane.tsx<br/>.seg Distribution · Stake · Whole family<br/>→ surface/DistributionView · StakeView · FamilyView"]
+        s4["certificate → CertificatePane.tsx (label: Dutch book)<br/>.seg Verdict · Portfolio · Proof"]
+        s5["fees → FeesSection.tsx<br/>.seg Worked example · Cost shape · Ablation"]
+        s6["index → IndexPane.tsx<br/>.seg Series · Families"]
+        s7["combos → CombosPane.tsx<br/>.seg Bands · Parlays · Bounds test · Notes"]
+        s8["calibration → CalibrationPane.tsx<br/>.seg Score · Bands · Corpus"]
+        s9["diffusion → DiffusionPane.tsx<br/>.seg Absorption · Mechanism · Findings · Kalshi episodes"]
+        s10["shell → ShellPane.tsx<br/>.seg Tree · Reading · Layout"]
+        s11["lessons → LessonsPane.tsx — secondary on the rail<br/>.seg Prices · Structure · Bounds · Record"]
+    end
+
+    console --> s1 & s2 & s3 & s4 & s5 & s6 & s7 & s8 & s9 & s10 & s11
+    runiverse --> s1 & s3 & s4
+    rbooks --> s2
+    s2 -->|"onViewChange — the section tells the console<br/>which view is open, because the READ has to live<br/>where active and section are"| console
+
+    feesreads["FeesSection holds BOTH its reads itself,<br/>each gated on its own view:<br/>the fees query on Worked example / Cost shape,<br/>and /replay?limit=20000 — the largest read on<br/>the tab — only on Ablation"]
+    s5 --> feesreads
+```
+
+**The one hard rule.** A pane is a `.seg` group inside a section, **never** a
+nested `<WorkspaceSubtabs>`. The reason is mechanical rather than aesthetic:
+`WorkspaceSubtabs.tsx` sets `--rail-h` on `document.documentElement`, so a
+second rail instance fights the first over one custom property — a defect
+`ReliabilityConsole` recorded before this tab existed. `.seg` is plain CSS in
+`app/globals/00-tokens-and-base.css` keyed off `aria-pressed`, owns no global,
+and cannot collide.
+
+**Two consequences worth knowing before editing this tab.**
+
+*The read has to live in the console, not in the section.* Only the console
+knows `active` (whether this tab is in front) and `section` (which rail item is
+open). `BooksSection` therefore reports its own view **upward** through
+`onViewChange` so the console can stop polling the exchange while Dispersion is
+open — that view draws no book, and the RFQ panel behind it is a signed
+private-channel call on a longer budget. `FeesSection` takes the opposite
+option, holding both of its reads itself and gating each on its own view,
+because neither is shared with another section.
+
+*Two diffusion charts deliberately skip the tab's shared wrapper.*
+`coherence/diffusion/AbsorptionCurve.tsx` and `StageTimeline.tsx` do not use
+`<Plot>` from `coherence/Figure.tsx`, which thirteen other figures on this tab
+do — `DollarBar`, `FrechetBand`, `IdentityStrip`, `IndexBasisChart`,
+`LessonCoverage`, `MurphyBars`, `PayoffByState`, `PmfChart`,
+`ReliabilityDiagram`, `ShellTree`, `SurvivalChart`, `surface/StakeView` and
+`diffusion/EffectPlot`. The reason is one attribute: that wrapper's `<svg>` carries
+`role="presentation"`, so a figure inside it is not exposed as an image at all —
+correct for a decorative panel, wrong for two charts that *are* the finding.
+Both reach for `components/chart-kit` instead, whose own `<svg>` is `role="img"`
+and can therefore be named. It is an accessibility decision, not an oversight,
+and exactly the kind of thing a component diagram hides unless it is written
+beside it.
+
+**Removed in this pass:** `coherence/PendingPane.tsx`. It is gone from the tree
+and nothing under `web/` references the name, so it is gone from here too rather
+than left in a drawing that still looks plausible.

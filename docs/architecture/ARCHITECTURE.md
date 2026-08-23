@@ -1,6 +1,6 @@
 # AlphaEngine — system architecture
 
-*As of 2026-08-22. Every figure here was read off the tree on that date, with the
+*As of 2026-08-24. Every figure here was read off the tree on that date, with the
 file it came from named beside it. Where this document and
 [`Part2_Infrastructure/README.md`](../../Part2_Infrastructure/README.md) disagree,
 re-read the tree — both stamp their dates, and the tree is right.*
@@ -11,6 +11,16 @@ linked, not restated — the [feature tour](../product/FEATURE_TOUR.md) walks th
 the [latency budget](LATENCY_BUDGET.md) defends every timing number, and the
 README argues each module at length.
 
+**On the numbers in this file.** Three counts in this repository are enforced by
+CI and can be quoted: the web suite's test total
+(`web/scripts/check-test-counts.mjs`), the canonical-JSON SHA-256 of the gateway
+contract (`web/scripts/check-gateway-openapi-digest.mjs`), and the repository
+manifest's file list (`web/scripts/generate-codebase-manifest.mjs --check`).
+Everything else — route counts, section counts, module counts — is a reading
+taken on the stamp date with the file it came from named beside it, so that a
+reader who doubts one can re-take it in a single command. Where a figure moves
+weekly, this document describes the **gate** instead of pinning the number.
+
 ---
 
 ## The shape in one paragraph
@@ -20,15 +30,17 @@ FastAPI **risk gateway** on an always-on OCI VM (Singapore) owns everything that
 must not be forked or forgotten: venue WebSocket subscriptions, the paper
 position book, seventeen defined pre-trade gates (fifteen reachable by any
 single order — README §4), the kill switch, and the DuckDB audit log on a Docker
-volume. A serverless **Next.js desk workspace** on Vercel gives eight roles
-eight tabs and holds no secrets in the browser bundle — its server-side proxy is
-the only path to gateway credentials. A stateless **OpenBB research service**,
-a second Vercel project, serves quotes, bars, news and fundamentals and can
-scale without touching risk state. Supabase Postgres mirrors decisions and hosts
-the research corpus; Neo4j, when present, is a rebuildable projection of graph
-state Postgres already owns. A Telegram companion rides inside the gateway
-process. Nothing optional is load-bearing: every absent credential degrades to a
-named, reported state rather than a crash or a silent zero.
+volume. A serverless **Next.js desk workspace** on Vercel gives nine role tabs
+and holds no secrets in the browser bundle — its server-side proxy is the only
+path to gateway credentials. A stateless **OpenBB research service**, a second
+Vercel project, serves quotes, bars, news and fundamentals and can scale without
+touching risk state. Supabase Postgres mirrors decisions and hosts the research
+corpus; Neo4j Aura, when present, is a rebuildable projection of graph state
+Postgres already owns; an Oracle Autonomous Database answers one in-database VaR
+question the workspace asks directly. A Telegram companion rides inside the
+gateway process, and a Kalshi book recorder rides beside it writing a second,
+separate DuckDB tape. Nothing optional is load-bearing: every absent credential
+degrades to a named, reported state rather than a crash or a silent zero.
 
 ## Three deployment units, one audit log
 
@@ -42,39 +54,47 @@ flowchart TB
     subgraph oci["OCI VM, Singapore — always on"]
         caddy["Caddy sidecar :8443\npinned internal CA (docs/engineering/TLS_FLIP.md)"]
         subgraph gateway["Risk gateway — FastAPI :8000, one process"]
-            main["main.py — routes, auth, lifespan"]
+            main["main.py — app object, lifespan,\nmiddleware order, one exception shape"]
             tca["modules/tca_engine/\nA - L2 ingest, VWAP, routing"]
             risk["modules/risk_proxy/ + modules/_decision_core*.so\nB - gates, kill switch, breaker"]
-            backtest["modules/backtester/ + modules/jobs.py\nC - sweeps, DSR, walk-forward"]
-            telegram["modules/telegram/ — companion\n135 commands, 6 gated controls"]
+            backtest["modules/backtester/ + modules/ml/ + modules/jobs.py\nC - sweeps, DSR, walk-forward, fitted runs"]
+            coh["modules/coherence/ — Kalshi engine\nrecorder loop, certify, no order path"]
+            telegram["modules/telegram/ — companion\n136 command specs, 6 gated controls"]
             mirror["modules/supabase_mirror.py\nbounded queue, best-effort"]
         end
         audit[("DuckDB audit log\nmodules/audit/ — authoritative,\nappend-only, Docker volume")]
+        tape[("DuckDB book tape\nmodules/coherence/fs/store.py\nOFF unless COHERENCE_POLL_S is set")]
+        ops[("SQLite data-ops store\nmodules/data_ops_store.py\nstrict writes, same volume")]
     end
 
     subgraph vercel["Vercel, region sin1 — two serverless projects"]
-        web["web/ — desk workspace\nNext.js, eight tabs"]
+        web["web/ — desk workspace\nNext.js, nine role tabs"]
         openbb["OpenBB_Service/ — stateless\nquotes, bars, news, fundamentals"]
     end
 
     subgraph managed["Managed stores"]
         supabase[("Supabase Postgres\norder_blotter mirror +\nresearch_documents pgvector")]
         neo4j[("Neo4j Aura — OPTIONAL\nrebuildable graph projection")]
+        oracle[("Oracle ADB — OPTIONAL\nin-database Monte Carlo VaR")]
     end
 
     browser["Browser"] -->|"server-side proxy only;\nno secrets in the bundle"| web
     browser -.->|"tick-by-tick L2,\nstraight from the venue"| venues
     tg["Telegram Bot API"] <--> telegram
+    kalshi["Kalshi REST\npublic reads keyless; the RFQ panel is signed"] --> coh
 
     binance --> tca
     bybit --> tca
     web -->|"ALPHAENGINE_GATEWAY_URL"| caddy
     caddy --> main
     web -->|"OPENBB_API_URL"| openbb
-    main --> tca & risk & backtest
+    web -->|"ORACLE_CONN_STRING, thin mode,\npoolMax 2 per lambda"| oracle
+    main --> tca & risk & backtest & coh
     tca --> audit
     risk --> audit
     backtest --> audit
+    coh --> tape
+    main -->|"data-ops family: quality resolve loop,\nscheduler, work queue"| ops
     risk --> mirror
     mirror -->|"never on the order path"| supabase
     supabase -.->|"6h reconcile sweep projects,\nnever the other way"| neo4j
@@ -84,9 +104,25 @@ Why three units and not one: the gateway needs a long-lived process because it
 holds sockets and mutable risk state open; the workspace is serverless because a
 research portal should scale to zero; the OpenBB service is separate so a slow
 Yahoo fetch can never queue behind — or crash beside — the process deciding
-orders. The full argument is README §“Three deployment units”. A fourth tracked
-app, `developer-console/`, is experimental, deployed nowhere, and shares no code
-or data with the three units — it is named so the tree and the docs agree.
+orders. The full argument is README §“Three deployment units”.
+
+**The three-unit rule is enforced in one file and says so about itself.**
+[`.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml) ships
+exactly one of the three — the gateway — and its own header gives the reason:
+the workspace and the OpenBB service are Vercel projects that deploy themselves
+from git, so putting them here would deploy them twice. Its `push` trigger is
+path-filtered to `Part2_Infrastructure/**` *minus* `web/**` and
+`OpenBB_Service/**` for the same reason. The two Vercel projects declare their
+own roots:
+[`web/vercel.json`](../../Part2_Infrastructure/web/vercel.json) and
+[`OpenBB_Service/vercel.json`](../../Part2_Infrastructure/OpenBB_Service/vercel.json).
+
+A fourth tracked app, [`developer-console/`](../../Part2_Infrastructure/developer-console/),
+is experimental, deployed nowhere, and shares no code or data with the three
+units — it is named so the tree and the docs agree. Its own README is explicit
+that the pipeline runs, code diffs and gateway contracts it renders are
+illustrative fixtures labelled as such in the UI; nothing in it reads a live
+system, and it is not part of the assessed deliverable.
 
 The **audit log is the one shared truth**: DuckDB (SQLite fallback), append-only
 by convention enforced in `modules/audit/` — nothing issues UPDATE or DELETE
@@ -126,12 +162,36 @@ consolidated book, a resting-order book, a token bucket and the kill switch. A
 second worker would fork the book and localise the halt — the exact opposite of
 what a kill switch is for.
 
-`main.py` holds only what one file must: auth, lifespan, and the mounting of the
-routers in `modules/api/` (`audit`, `data`, `meta`, `ml`, `research`, `risk`,
-`tca`, `telegram`). The OpenAPI schema is a committed contract: **54 paths
-carrying 56 operations** in `tools/openapi.json` (counted 2026-08-22), whose
-SHA-256 the web build verifies at `prebuild` — two separately deployed units
-asserting their contract before either ships.
+`main.py` holds only what one file must: the application object, the lifespan
+that fixes start-up and shutdown ordering, the middleware stack whose order is
+load-bearing, the console template, and the exception handler that gives every
+error one shape. It stays at *that* path deliberately — `docker/gateway.Dockerfile`
+copies the root modules by name, so a route that moved into a new root package
+would be missing from the image with nothing to catch it before a request
+arrived.
+
+Everything else is a router in [`modules/api/`](../../Part2_Infrastructure/modules/api/),
+one per tag group: `audit`, `coherence`, `coherence_history`, `coherence_lab`,
+`data`, `diffusion`, `meta`, `ml`, `research`, `risk`, `tca`, `telegram`. Read
+off the tree on 2026-08-24 those carry **76 HTTP route decorators** plus **one
+WebSocket** (`/ws/book/{symbol}`, which OpenAPI does not describe), and
+`main.py` adds three console aliases (`/`, `/app`, `/ui`) all marked
+`include_in_schema=False`. The committed contract
+[`tools/openapi.json`](../../Part2_Infrastructure/tools/openapi.json) therefore
+holds **73 paths carrying 76 operations**, OpenAPI 3.1.0.
+
+> **Known stale source comment, flagged rather than fixed here:** `main.py`'s own
+> docstring still says "The fifty-two routes now live in `modules/api/`". That is
+> a comment in code this document does not edit; the count above is the one taken
+> from the decorators.
+
+That contract is a **gate, not a note**. `python tools/export_openapi.py --check`
+runs in CI's `gateway` job, and the web build's `prebuild` step recomputes a
+SHA-256 over the contract's *canonical JSON with sorted keys* — not a file hash,
+so a reformat is not a breach and a reordered key is not a false alarm — and
+compares it against the literal in `web/lib/gateway-openapi-digest.generated.ts`
+(`web/scripts/check-gateway-openapi-digest.mjs`). Two separately deployed units
+assert their contract before either ships.
 
 The modules cluster into the three assessed capabilities plus their supports —
 each argued in depth in README §3–§5, distilled here:
@@ -141,45 +201,116 @@ each argued in depth in README §3–§5, distilled here:
 - **B · Risk** — `modules/risk_proxy/`: the gates, positions, resting book,
   drawdown breaker, kill switch, and the startup core self-measure.
   `modules/decision_core.py` selects the engine
-  (`DECISION_CORE=auto|native|python`); the C++ core is held **bit-exact**
-  against the Python reference by a twenty-scenario fixture
-  (`web/tests/fixtures/gate-parity.json`) — tolerance is for the TypeScript
-  side, not this one.
+  (`DECISION_CORE=auto|native|python`, validated at import — anything else
+  raises); the C++ core is held **bit-exact** against the Python reference by a
+  twenty-scenario fixture (`web/tests/fixtures/gate-parity.json`) — tolerance is
+  for the TypeScript side, not this one, and §"The two-implementation parity
+  argument" below says exactly how much less the TypeScript side is held to.
+  Which engine is live is published on `/health`, `/metrics` and the ops
+  snapshot, so a build that fell back is visible on the desk rather than only in
+  a log line. `deploy.yml` reads that field after the swap and raises a
+  **warning, not a rollback** — and says why in the file: the Python engine is
+  correct and at this book shape marginally faster end to end, so only the
+  nanosecond core figure is missing from the desk, and "bricking a working
+  gateway over a display detail would be the disproportionate response".
 - **C · Research** — `modules/backtester/` (signals, engines, DSR/PSR,
-  walk-forward), `modules/jobs.py` (in-process pool ⇄ Celery when `REDIS_URL`
-  is set — same task callables either way), and the research plane described
+  walk-forward), `modules/ml/` (the supervised runs: two engines behind one
+  contract, purged and embargoed walk-forward splits, and a run that fell back
+  recorded on `ml_runs.engine` rather than hidden), `modules/jobs.py`
+  (in-process pool ⇄ Celery when `REDIS_URL` is set — same task callables
+  either way), and the research plane described below.
+- **The Kalshi coherence engine** — `modules/coherence/`: a fourth capability
+  that shares the process and nothing else. It reads a prediction market, prices
+  mutually exclusive families against the dollar they pay, certifies coherence
+  failures, and records whole book ladders to **its own** DuckDB file. It has no
+  order path at all — `modules/api/coherence.py` opens by saying every route in
+  it is a GET and that this is the design, not a gap. See §"The Coherence plane"
   below.
 - **Supports** — `modules/audit/` (the log), `modules/supabase_mirror.py` (the
   mirror), `modules/portfolio/`, `modules/quant_risk/`, the data-operations
   family (`data_ops_store.py`, `data_quality*.py`, `data_scheduler.py` — where
   their state lives is [`DATA_OPS_BACKEND.md`](DATA_OPS_BACKEND.md)),
-  `modules/operations.py` and `modules/metrics/` for ops, and
-  `modules/schemas.py` — one Pydantic contract shared by API, UI and bot.
-
-The gateway's maths exists twice — Python as the reference, TypeScript for the
-browser — because neither runtime can call the other; parity fixtures make a
-one-sided formula change fail the other side's suite. The pre-trade arithmetic
-exists a third time in C++. README §12 is the full parity argument.
+  `modules/operations.py` and `modules/metrics/` for ops,
+  `modules/single_writer.py` (the `flock(2)` claim that stops a second gateway
+  starting on the same state directory), and `modules/schemas.py` plus its
+  `schemas_*.py` siblings — one Pydantic contract shared by API, UI and bot.
 
 Test truth is deliberately **not** restated here. `web/lib/test-counts.generated.ts`
 is the only file allowed to carry those numbers, and
 [`TESTING.md` §"The counts, and why they are generated"](../testing/TESTING.md)
-is the one document that explains them — including the two facts that make a
+is the one document that explains them — including the three facts that make a
 single figure misleading on its own: the gateway suite has two correct pass
-counts depending on whether the cross-encoder weights are seeded, and the
-committed web figure is a dated measurement that goes stale the moment a suite
-is added (it is stale as this is written). An architecture document quoting a
-count is how five files drifted together last time, so this one links instead.
-The discipline in one line: read the skip **reasons**, not the pass count —
-[`WORKFLOW.md` §2](../planning/WORKFLOW.md) is the short version.
+counts depending on whether the cross-encoder weights are seeded; the committed
+web figure is a dated measurement that goes stale the moment a suite is added;
+and of the two lines in that generated file **only the web one is checked by
+CI** (`web/scripts/check-test-counts.mjs` accepts `suite === "web"` and nothing
+else), so the gateway line is a dated record rather than a gate. An architecture
+document quoting a count is how five files drifted together last time, so this
+one links instead. The discipline in one line: read the skip **reasons**, not
+the pass count — [`WORKFLOW.md` §2](../planning/WORKFLOW.md) is the short
+version.
 
-## The desk workspace — eight tabs
+## Every store, and what each is authoritative for
 
-One client workspace, eight role tabs, every subtab URL-addressable. The tab
+Six stores, six different jobs. The reason they are not one store is that they
+have incompatible write contracts, and a store forced to serve two contracts
+serves neither: a ledger must accept a write it can drop, a work queue must
+raise when a write fails, and a market tape must refuse rather than fork.
+
+| Store | Owner in code | Authoritative for | Contract when it will not open |
+|---|---|---|---|
+| **DuckDB — audit ledger** | [`modules/audit/store.py`](../../Part2_Infrastructure/modules/audit/store.py), assembled as `AuditLog` in `modules/audit/__init__.py` | every paper order and risk decision, TCA snapshots, OHLCV cache, `backtest_runs`, and the `research_plan` / `research_tool_call` / `research_generation` ledger | DuckDB genuinely unavailable → **SQLite fallback**, `backend: "sqlite"`, nothing lost but analytical SQL. Another live process holding the file → `AuditLedgerConflict`, **raised, never fallen back from** |
+| **DuckDB — Kalshi book tape** | [`modules/coherence/fs/store.py`](../../Part2_Infrastructure/modules/coherence/fs/store.py) | whole bid ladders per poll, append-only, `COHERENCE_DB_PATH` or `${DATA_DIR}/coherence.duckdb` | a lock conflict is a **reported state, never a fallback** — a second store recording to a different file would split the tape in two and neither half would be complete |
+| **SQLite — data operations** | [`modules/data_ops_store.py`](../../Part2_Infrastructure/modules/data_ops_store.py) | quality findings, escalations, work items, schedule runs | writes **raise**; `PRAGMA busy_timeout=30000` (`BUSY_TIMEOUT_S = 30.0`) and one process-wide open at a time, both argued in-file against a measured CI flake |
+| **Supabase Postgres** | `modules/research_rag/`, `modules/supabase_mirror.py`, `modules/research_graph.py` | the research corpus and its edges; the `order_blotter` mirror of decisions the audit log already owns | unset credentials → every mirror method is a no-op and every retrieval route returns a typed `unavailable` **state**, never `[]` |
+| **Neo4j Aura** | [`modules/research_graph_projection.py`](../../Part2_Infrastructure/modules/research_graph_projection.py) (write), `modules/research_graph_read_model.py` (read) | **nothing** — it is a one-way projection of `research_edges`, which Postgres owns | unset `NEO4J_URI` or no `requirements-graph.txt` driver → a named reason and `source: "corpus"`; three refusals stay distinguishable (not configured / sweep has not run / mid-rebuild) |
+| **Oracle Autonomous Database** | [`web/lib/oracle/client.ts`](../../Part2_Infrastructure/web/lib/oracle/client.ts), route `web/app/api/oracle/var/route.ts` | one in-database Monte Carlo VaR, surfaced on `#risk/oraclevar` | a typed result, never a throw; nine distinct failure codes from `oracle_not_configured` to `oracle_schema_missing`, none of which carries a credential, hostname or raw ORA text |
+
+Two of those contracts deserve their argument spelled out, because they look
+like inconsistencies and are not.
+
+**The audit log's writers are fire-and-forget on purpose.** `_exec` swallows a
+failed write and `query` returns `[]` — a lost TCA snapshot must never take the
+order path down with it. That is the right contract for *evidence about
+something that already happened* and the wrong one for state a person just
+edited, which is exactly why the data-operations tables are a separate SQLite
+file whose writes raise and whose UPDATE reports whether it hit a row. The
+choice is argued at the top of `modules/data_ops_store.py` and its consequences
+are [`DATA_OPS_BACKEND.md`](DATA_OPS_BACKEND.md).
+
+**A second live writer is prevented twice, and the two layers close different
+holes.** [`modules/single_writer.py`](../../Part2_Infrastructure/modules/single_writer.py)
+takes a POSIX advisory `flock(2)` claim on `data/gateway.writer.lock` in
+`RiskGateway.start()` and holds it for the life of the process; `AuditStore`
+raises `AuditLedgerConflict` on DuckDB's own lock message
+(`_LOCK_CONFLICT_MARKERS = ("conflicting lock is held", "could not set lock on file")`)
+for every *other* way an `AuditLog` gets opened — the Telegram bot, the job
+runner, `tools/`, the tests. Neither makes the gateway multi-process, and
+`single_writer.py` says so about itself rather than overstating: what changes is
+that a second writer now refuses to start and says why, instead of running a
+shadow desk whose kill switch is local, whose token bucket permits N × the
+configured rate, and whose limits are computed against a fraction of the real
+position.
+
+## The desk workspace — nine tabs
+
+One client workspace, nine role tabs, every subtab URL-addressable. The tab
 order is the decision loop itself, and the [feature tour](../product/FEATURE_TOUR.md)
-walks it tab by tab — 47 rail sections pinned to `web/lib/sections.ts` by
-`tour-truth.test.ts`, so the tour cannot drift from the app silently. Ids are
-deep links and never change, which is why three ids disagree with their labels.
+walks it tab by tab.
+
+The rails have **one** definition:
+[`web/lib/sections.ts`](../../Part2_Infrastructure/web/lib/sections.ts), which
+the rails, the command palette, the hash whitelist and "Copy link to this view"
+all read. It holds **59 sections across the nine tabs** (counted 2026-08-24;
+`web/scripts/desk-sweep-plan.mjs` mirrors the same nine tabs by hand and asserts
+`EXPECTED_SECTIONS = 59`, so a section added to one and not the other fails).
+`web/tests/tour-truth.test.ts` pins the [feature tour](../product/FEATURE_TOUR.md)'s
+rail lists to that same file, so the tour cannot drift from the app silently —
+this document is not under that guard, which is why it links rather than
+transcribes. Ids are deep links and never change, which is why four ids disagree
+with their labels: view `live` renders "Execution", section `codex` renders
+"Strategies", `activity` renders "Blotter", and Risk's `model` renders "Risk
+engine".
 
 | Tab | View id (`WorkspaceHeader.tsx`) | Role | The question it answers |
 |---|---|---|---|
@@ -191,14 +322,303 @@ deep links and never change, which is why three ids disagree with their labels.
 | Data | `data` | data engineer | can I trust this data? |
 | Reliability | `reliability` | SRE | is it healthy, and what do I do at 3am? |
 | Developer | `developer` | quant developer | can I change this safely? |
+| Coherence | `coherence` | quant researcher | do these prices admit a probability at all? |
 
-The workspace ships on Next, React, `lucide-react`, `@supabase/supabase-js` and
-`oracledb` — **no other npm dependencies**, enforced by test. Charts are
-hand-rolled SVG; a chart library was the rejected alternative because it would
-change the argument the project makes about itself. The other house rules that
-shape every tab — null never coerced to zero, no colour-only meaning, empty
-results reported rather than hidden — are in [`CLAUDE.md`](../../CLAUDE.md) and
-enforced by the suites it names.
+The workspace's runtime dependency list is six packages —
+`next`, `react`, `react-dom`, `lucide-react`, `@supabase/supabase-js`,
+`oracledb` (`web/package.json`, read 2026-08-24) — and its charts are
+hand-rolled SVG over `components/chart-kit`; a chart library was the rejected
+alternative because it would change the argument the project makes about itself.
+
+**Be precise about how that is held.** No test reads `package.json`'s
+`dependencies` and pins the list; what exists is a per-surface rule enforced
+where it matters — suites such as `web/tests/developer-custody-gateway.test.ts`
+("adds no npm dependency") and `web/tests/oracle-var-trend.test.ts` ("adds no
+dependency and hand-rolls no scale") assert that a named component imports
+nothing but the framework, `node:`, and in-tree paths. So the guarantee is
+"these surfaces added nothing", not "the manifest cannot grow"; saying otherwise
+would be exactly the kind of claim this repository refuses.
+
+The other house rules that shape every tab — null never coerced to zero, no
+colour-only meaning, empty results reported rather than hidden — are in
+[`CLAUDE.md`](../../CLAUDE.md) and enforced by the suites it names. §"The honesty
+doctrine is architecture, not styling" below shows where.
+
+## The Coherence plane — a fourth capability with no order path
+
+The ninth tab is a separate engine that shares the gateway process and almost
+nothing else. It reads Kalshi — a venue where a contract paying $1 if an event
+happens *is* a probability with a price on it — and asks whether a family of
+those prices admits a probability measure at all. Where it does not, the failure
+hands back the portfolio that wins in every state, and that portfolio is the
+certificate.
+
+What it may claim, and the claim is bounded by the code: the exchange is read
+live, the books are shown as Kalshi publishes them, mutually exclusive families
+are priced against the dollar they pay, and the tape is recorded.
+[`modules/api/coherence.py`](../../Part2_Infrastructure/modules/api/coherence.py)
+opens by stating that **every route in it is a GET and there is no write path**,
+"not an oversight to be filled in later"; the tab's own header metric reads
+`Order path — none`.
+
+Three properties make it architecturally distinct rather than just another tab:
+
+- **Its own tape, its own file, its own failure contract.** "Store books, not
+  prices": a current book cannot reconstruct a past one and depth is
+  forward-only, so every poll writes the whole ladder. Sharing the audit
+  ledger's single-writer lock would make a recorder stall look like an audit
+  failure and vice versa, so `modules/coherence/fs/store.py` keeps its own
+  DuckDB file beside it.
+- **The recorder is off unless two variables are set.** `COHERENCE_SERIES` and
+  `COHERENCE_POLL_S` (`modules/coherence/tunables.py`; `POLL_SECONDS = 0` keeps
+  it off), because a process that starts hitting an exchange the moment it boots
+  is not something to enable by accident. `main.py` starts
+  `coherence_recorder_loop` in the lifespan regardless; the loop itself is what
+  declines.
+- **Routes report a `state` discriminator, never an empty payload** — "the
+  watchlist is empty", "Kalshi refused us" and "every basket is coherent" are
+  three different answers and a caller that cannot tell them apart cannot
+  respond to any of them.
+
+Fifteen gateway routes serve it, split across three routers by concern:
+`modules/api/coherence.py` (5 — status, universe, books, certify, fees),
+`modules/api/coherence_history.py` (3 — index, episodes, replay) and
+`modules/api/coherence_lab.py` (7 — surface, stake, combos, calibration,
+settlement, rfq, shell). `modules/api/diffusion.py` adds four more for the
+information-diffusion study.
+
+### Eleven sections, and why none of them is a nested rail
+
+[`web/components/CoherenceConsole.tsx`](../../Part2_Infrastructure/web/components/CoherenceConsole.tsx)
+renders one `<WorkspaceSubtabs>` rail over the eleven ids in
+`COHERENCE_SECTIONS`, and every *sub*-view inside a section is a `.seg` button
+group instead of a second rail. That is a hard rule with a mechanical reason,
+stated in the console's own header: `WorkspaceSubtabs` publishes `--rail-h` onto
+`document.documentElement`, so a second instance fights the first over one
+custom property — a defect `ReliabilityConsole` recorded before this tab
+existed. `.seg` is plain CSS keyed off `aria-pressed`, owns no global, and
+cannot collide.
+
+Components below are relative to
+[`Part2_Infrastructure/web/components/`](../../Part2_Infrastructure/web/components/);
+the `.seg` labels are the button text as it is written in the source, read
+2026-08-24.
+
+| Section id | Rail label | Component | `.seg` views (exact button text) |
+|---|---|---|---|
+| `universe` | Universe | `coherence/UniverseSection.tsx` | Baskets · Settlement · Formation |
+| `books` | Books | `coherence/BooksSection.tsx` | Ladder · Identity · Dispersion |
+| `lattice` | Lattice | `coherence/SurfacePane.tsx` → `surface/{Distribution,Stake,Family}View.tsx` | Distribution · Stake · Whole family |
+| `certificate` | Dutch book | `coherence/CertificatePane.tsx` | Verdict · Portfolio · Proof |
+| `fees` | Fees | `coherence/FeesSection.tsx` | Worked example · Cost shape · Ablation |
+| `index` | Coherence index | `coherence/IndexPane.tsx` | Series · Families |
+| `combos` | Combos | `coherence/CombosPane.tsx` | Bands · Parlays · Bounds test · Notes |
+| `calibration` | Calibration | `coherence/CalibrationPane.tsx` | Score · Bands · Corpus |
+| `diffusion` | Diffusion | `coherence/DiffusionPane.tsx` | Absorption · Mechanism · Findings · Kalshi episodes |
+| `shell` | Shell | `coherence/ShellPane.tsx` | Tree · Reading · Layout |
+| `lessons` | Lessons | `coherence/LessonsPane.tsx` | Prices · Structure · Bounds · Record |
+
+`lessons` is declared `secondary={["lessons"]}` on the rail. The four lesson
+groups come from `web/lib/coherence/lessons.ts`, whose `COHERENCE_LESSONS` holds
+fourteen entries all flagged `shipped: true` — matching the fourteen notebooks
+in `Part2_Infrastructure/notebooks/coherence_lab/`. Read the flag precisely: it
+means *the section renders this lesson*, not *the engine exists*.
+
+**Reads are gated on the open section and, where it pays, on the open view** —
+which is architecture rather than optimisation, because these are live calls to
+a third-party exchange on an eight-second proxy budget. The universe read is
+shared by `universe`, `certificate` and `lattice` (so it is *not* gated on the
+sub-view) and asks for `?max_events=2`: four events took 10.1 s before the reads
+were parallelised and 6.4 s after, against `callGateway`'s **default**
+eight-second deadline — which is why its proxy route
+(`web/app/api/gateway/coherence/universe/route.ts`) raises `timeoutMs` to 25 s
+for this call specifically, and why the browser-side hook gives live reads
+28 s where a tape read gets 9 s (`web/lib/coherence/use-coherence.ts`). The books read stops entirely while **Dispersion** is open, because
+that view draws no book and the RFQ route behind it is a signed private-channel
+call on a 25 s budget — `BooksSection` reports its view upward through
+`onViewChange` precisely so the console, which is where `active` and `section`
+live, can stop polling. `FeesSection` holds both of its reads at section level
+and gates each on its own view, so `/replay?limit=20000` — the largest read on
+the tab — is issued only on **Ablation**.
+
+### The diffusion study, and why its headline is a null
+
+`#coherence/diffusion` surfaces
+[`modules/coherence/diffusion/`](../../Part2_Infrastructure/modules/coherence/diffusion/)
+(29 Python modules, read 2026-08-24), which measures how fast an FOMC statement
+is absorbed into price and asks whether the *text* of the statement predicts
+that speed.
+
+The verdict is now scored **out of sample** by
+`modules/coherence/diffusion/skill.py`, covered by
+`tests/test_diffusion_skill.py`. It replaced a criterion built on the largest of
+eight in-sample univariate |t| values against `half_life_s` — a target fitted
+only where the move cleared two sigma, which is 26 of 62 release meetings. Four
+changes, each argued in the module docstring as *not* a choice of answer: the
+target became `residence_time`, the area above the absorption curve, which for
+an exponential approach **is** the time constant and needs no signal gate, so it
+is defined 62 of 62 per stage; the hard two-sigma cut became a precision weight;
+the two stages are pooled with a call indicator and the policy move enters as a
+**control**, not a rival; and scoring is leave-one-**meeting**-out, because
+folding by row leaks — both stages share a statement.
+
+State the result exactly this way. The absorption clock **is** predictable —
+out-of-sample **R² +0.144** from stage and rate move alone, with the press
+conference about **7.0 minutes slower** than the statement — but adding the text
+changes that by **−0.343** (shuffled **p 0.875**). Over a declared **3×3 grid**
+of specifications the gain was negative in **all nine cells**, including the one
+with the largest in-sample |t| of 2.85. The headline is therefore a **null**,
+and a stronger one than the version it replaced: the clock has real structure,
+and the statement's information spectrum is not part of it.
+
+The instrument table renders the target's own row **above** the predictor's
+(`web/components/coherence/diffusion/InstrumentTable.tsx`) — "The clock is
+predictable at all" first, "The text predicts it" second — for the reason that
+ordering exists: if the first fails, the second means nothing.
+
+## The two-implementation parity argument
+
+This is the idea most worth understanding about the codebase, because it is why
+so much of it exists twice.
+
+**The premise.** Three runtimes serve one desk and none of them can call the
+others. The gateway is a Python process holding sockets and mutable risk state;
+the workspace is a serverless TypeScript function and a browser bundle; the
+Telegram companion is inside the Python process but rendering to a phone. So a
+quantity a trader reads on a screen and the same quantity read on a phone are
+computed by two different programs, and the expensive failure is not a crash —
+it is two plausible numbers that disagree, with nothing flagged.
+
+**The response.** Python is the reference. A tool records its answers into a
+committed fixture, and the other implementation's suite replays that fixture. A
+one-sided formula change then fails the *other* side's tests, which is the only
+mechanism that has ever kept two hand-maintained mirrors in step.
+
+| What exists twice | Reference | Fixture | The suite that replays it |
+|---|---|---|---|
+| The seventeen pre-trade gates | `modules/risk_proxy/` (Python) | `web/tests/fixtures/gate-parity.json` — **20 scenarios**, `version: 1`, written by `tools/make_gate_fixture.py` | `tests/test_gate_parity.py` (the live Python gateway), `tests/test_decision_core_native.py` (the C++ core), `web/tests/gate-parity.test.ts` (the browser sandbox) |
+| The backtest engine | `modules/backtester/` `NumpyEngine` | `web/tests/fixtures/parity.json` — 48 cases over real Binance bars, written by `tools/make_parity_fixture.py` | `web/tests/parity.test.ts` against `web/lib/engine` |
+| The portfolio risk engine | `modules/quant_risk/` | `web/tests/fixtures/risk-parity.json`, written by `tools/make_risk_fixture.py` | `web/tests/risk-parity.test.ts` against `web/lib/portfolio-risk/` |
+| The fill tolerance | `modules/tca_engine/` | *none* — the suite reads **both sources** | `web/tests/venues-parity.test.ts` compares `web/lib/venues`' `FILL_TOLERANCE` against the whole gateway-side package, concatenated |
+| One Monte Carlo simulation | the committed reference itself | `web/lib/mc-parity-reference.generated.ts` — canonical JSON plus its own SHA-256 | `web/tests/mc-parity.test.ts` runs it in Node **and** executes the browser worker's own stringified source |
+| The OHLCV bar contract | `modules/data_jobs.py::check_bars_rows` (backfilled bars) | `web/tests/fixtures/bars-contract-parity.json` — case name, requested count, bars, verdict and the **check ids** | **both** sides read the one fixture: `tests/test_data_jobs.py` on the Python half and `web/tests/contracts-bars.test.ts` on `web/lib/providers/contracts`' `checkBars` — "the discipline `gate-parity.json` applies to the pre-trade arithmetic, applied to the data contract" |
+| The dark palette | — | — | `web/tests/theme-palette-parity.test.ts` pins `@media (prefers-color-scheme: dark)` against `:root[data-theme="dark"]`, two declaration blocks holding one palette |
+
+**The gate battery is the sharpest case, because it exists three times.**
+`GATE_ORDER` in
+[`modules/risk_proxy/gates.py`](../../Part2_Infrastructure/modules/risk_proxy/gates.py)
+declares seventeen names in evaluation order: `kill_switch`, `symbol_halt`,
+`symbol_whitelist`, `paper_execution_model`, `reference_freshness`,
+`duplicate_order`, `rate_limit`, `price_available`, `order_sized`,
+`max_order_notional`, `symbol_concentration`, `gross_exposure`, `price_band`,
+`working_book`, `daily_drawdown`, `reduce_only`, `est_slippage`. The Python
+reference and the compiled C++ core are held to the fixture **bit-exactly** —
+same accept/reject, same gate order, same `observed` and `limit` floats, with a
+divergence naming the gate and the delta.
+
+The TypeScript half is held to **less, deliberately, and the suite says which
+less.** `web/tests/gate-parity.test.ts` asserts that the browser sandbox's
+`judge()` (`web/lib/blotter/sandbox-desk.ts`) walks the same gate names in the
+same order — a cross-language contract — and explicitly does *not* assert the
+numbers, because the sandbox has no ladder (its slippage is a synthesised
+function of size, seeded by a PRNG), reads its caps off the book rather than
+settings, and has no paper equity or per-venue routing. Those scenarios are
+structurally inexpressible in it, and pretending otherwise would be "a looser
+test wearing a stricter name". Naming the boundary is the point: a parity claim
+that quietly covers less than it sounds like is worse than no parity claim.
+
+**The same instinct outside the fixtures.** `POST /api/oracle/var` exists to be
+a *second opinion* on a VaR the workspace already computes client-side, and its
+route file says so — "two independent implementations of the same quantity is
+the only cheap check on either — the same reason the repo carries a
+Python/TypeScript engine parity suite", with the warning that the two numbers
+are **not** interchangeable (a terminal-value GBM VaR over a horizon against a
+one-day parametric VaR on the current book) and must never be presented as one
+figure with two sources. Where the shapes genuinely cannot be compared, the doc
+says so instead of merging them.
+
+Where a mirror is *not* worth maintaining, the code says that too:
+`modules/ml/selection.py` **delegates** deflated-Sharpe and PBO to
+`modules.backtester.overfitting_probability` rather than defining a second
+implementation, on the ground that a research plane with two definitions of
+"deflated Sharpe" has none. Parity is the answer when two runtimes make one
+implementation impossible; it is not an excuse for a second copy inside one.
+
+## The honesty doctrine is architecture, not styling
+
+Three rules recur through this tree, and they are load-bearing in the same sense
+a lock is: each one exists because its violation is *invisible* — it type-checks,
+it renders, and it changes the number somebody decides on.
+
+**1 · Null is never coerced to zero.** [`CLAUDE.md`](../../CLAUDE.md) states it
+as the doctrine this codebase is most alert to: `?? 0` on a nullable metric
+turns "we do not know" into "it is fine". A missing measurement renders as a
+dash and says *why* it is missing.
+
+Enforcement is a suite, not a convention:
+[`web/tests/null-honesty.test.ts`](../../Part2_Infrastructure/web/tests/null-honesty.test.ts)
+scans named components for the specific coercions that already shipped once —
+a beta of 0.00 that invents an exposure (`portfolio/StressTest.tsx` must match
+`p.beta == null ? "β —"`), a p99 of 0 ms that tells a screen reader the system is
+instant (`systems/LatencyTrend.tsx` must say "currently not measured"), and
+`$0` of depth that invents an empty book where there is only an unread one
+(`execution/LiquidityBook.tsx` must match `depthUsdBid == null ? "—"`). It
+strips comments before scanning, because a scan that cannot tell a comment from
+code reads the explanation of the trap as the offence.
+
+The gateway half is the same rule in a different shape. An embed that fails
+stores `embedding_status='pending'` and **never a zero vector** — a zero vector
+is equidistant from everything and would be returned as "similar" to any query
+(`modules/research_rag/retrieval.py`). A document the graph walk did not reach
+carries `graph_rank: None`, never 0, which would read as better than first. A
+row only the image arm found carries `similarity: None`, not 0.0, because it has
+no gte-small similarity to this query and a 0 would read as "measured, and
+terrible". `structured_runs` rows carry **no** `similarity` field at all and
+stay off the match list, because a required float would have to be written 0.0 —
+"not applicable" spelled as "worst possible".
+
+**2 · A withheld value is dashed, with its floor named.** The negative half of
+the rule is not enough on its own: a chart that simply disappears is an absence
+reported as a *state* rather than as a reason, which the doctrine forbids just
+as firmly. So `components/portfolio/RiskEngine.tsx` must not only decline to
+draw a VaR series it cannot compute — `rollingVarSeries` returns null below
+`window + 20` aligned bars — it must name the floor, and the suite asserts the
+prose: `needs 80 daily bars`, split as `60 to fit the first sigma and 20 more to
+score`, "without the split the 80 is a magic number the reader cannot check".
+
+The same shape governs a request that got no answer. `OrderTicket.tsx` carries
+`AbortSignal.timeout(ORDER_TIMEOUT_MS)`, and the suite asserts that the
+browser's deadline **outlasts** the server's `DEFAULT_TIMEOUT_MS` in
+`web/lib/gateway.ts` — if the browser gave up first, a slow-but-real verdict
+would be discarded and reported as a transport failure. On timeout it must say
+the order "may still have been decided" and "Check the blotter before
+resubmitting", because an abort cannot prove the request failed to arrive and
+claiming otherwise invites a blind resubmit.
+
+**3 · A sample floor is a refusal with a denominator, not a silence.** Where a
+statistic is only meaningful above some n, the floor is a named constant and the
+report says which one it missed:
+`modules/coherence/diffusion/skill.py` defines `MIN_MEETINGS = 20` ("out-of-sample
+R² over fewer than this is dominated by which meetings happened to land in the
+fit") and `SKILL_FLOOR = 0.0` ("zero is the honest threshold and the only one
+that is not a choice: below it the text makes predictions worse than not having
+read the text"). CRAG's refusal names the `corpus_size` denominator it was
+refusing against. `RAG_MIN_SIMILARITY = 0.76` is documented as *measured*
+against gte-small's compressed range — and deliberately **not** applied to the
+CLIP arm, because inventing a CLIP number would be exactly the unmeasured
+constant this tree refuses.
+
+**The general form: absence is a state, with a named reason and a typed
+carrier.** `modules/research_graph_projection.py` set the pattern and
+`research_rerank.py`, `research_image.py`, `research_communities.py` and
+`research_graph_read_model.py` all cite it by name — `ranked: False` + `reason`,
+`reranked: False` + `state` + `model`, `detected: False`, `source: "corpus"` —
+never an exception and never a silent success. `web/lib/gateway.ts` is the same
+discipline on the TypeScript side: three ways a gateway URL can be wrong are
+three different statements (`absent`, `invalid`, `loopback`), because conflating
+them is how a typo gets reported as an outage. When this document describes an
+optional capability, it names the refusal shape in the same sentence — that is
+the doctrine made checkable.
 
 ## Where Supabase and Neo4j sit
 
@@ -230,8 +650,18 @@ durable replay queue** — replaying a dead letter is still
 `tools/backfill_research_rag.py`'s job. RLS on this corpus is **still
 bypassed** (the gateway reads with the service-role key); what landed instead
 is an optional `filter_desk_id` predicate on both retrieval RPCs, described
-under the pipeline below. Tables are append-only by trigger; the 35 ordered
-migrations live in [`supabase/migrations/`](../../supabase/migrations/). With no
+under the pipeline below. Tables are append-only by trigger; the **37** ordered
+migrations live in [`supabase/migrations/`](../../supabase/migrations/) (counted
+2026-08-24; the two newest are `20260823120000_diffusion_events.sql` and
+`20260823130000_diffusion_studies.sql`), and
+[`supabase/functions/`](../../supabase/functions/) holds two edge functions,
+`embed-research` and `evaluate-order`. `supabase/apply_all.generated.sql` is the
+paste-the-bundle equivalent and carries all 37; it is regenerated by
+`python3 tools/bundle_migrations.py` and
+[`.github/workflows/schema.yml`](../../.github/workflows/schema.yml) applies DDL
+on `workflow_dispatch` **only** — deliberately never on a code deploy, because
+"DDL that rides a code deploy is how a table gets altered by someone who was
+shipping a CSS change". With no
 `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` configured every mirror method is a
 no-op and every RAG route returns a typed `unavailable` — which is what keeps
 the whole suite green with zero environment.
@@ -501,9 +931,11 @@ state, not a failure, and each one names itself:
 ## The Telegram companion
 
 Optional, and inside the gateway process — not a fourth deployment unit. It is
-a phone-first read surface over the same read models the API serves: **135
-registered commands** (`modules/telegram/registry.py`), of which exactly **6**
-are in the Controls category — `/halt`, `/resume`, `/flatten`, `/reduceonly`,
+a phone-first read surface over the same read models the API serves: **136
+command specs** in `COMMAND_SPECS` (`modules/telegram/registry.py`, counted
+2026-08-24; 99 of them carry `in_menu=True` because Telegram's own `/` menu caps
+at 100, and every spec dispatches either way), of which exactly **6** are in the
+Controls category — `/halt`, `/resume`, `/flatten`, `/reduceonly`,
 `/resetbook`, `/replay` — each requiring membership of
 `TELEGRAM_CONTROL_USER_IDS`, an allow-list separate from the read allow-list
 and empty by default. The bootstrap fails closed: with no allow-list only the
@@ -513,13 +945,17 @@ a placeholder captioned as data. The command tables in README §6 are generated
 from the registry by `tools/telegram_catalogue.py` — never edited by hand — so
 the counts above cannot drift from what the bot dispatches without a red check.
 
-## Not built, and said plainly — and one entry that stopped being true
+## Not built, and said plainly — and the entries that stopped being true
 
-The first bullet is the one worth reading twice. This list's whole job is that a
-gap is never rounded up to "planned"; the mirror of that rule is that a gap
-which has been *closed* is never left standing because the sentence still reads
-well. The multimodal entry is the second case, and it is kept in place with its
-own history rather than quietly deleted.
+This list's whole job is that a gap is never rounded up to "planned"; the mirror
+of that rule is that a gap which has been *closed* is never left standing
+because the sentence still reads well. **Three entries flipped in this pass**
+and each is kept in place with its own history rather than quietly deleted: the
+multimodal one (below), `execution_summary`, which now has an in-process
+producer, and the CLIP model path, which `tests/conftest.py` now blanks. A
+fourth correction is a deletion rather than a flip — the claim that
+`supabase/apply_all.generated.sql` did not yet carry migration `20260822110000`
+was true when written and is not now, so it is gone.
 
 - **Multimodal is now BUILT, in both halves, and both are OFF by default.**
   This entry read "NOT BUILT" until 2026-08-22 and the correction is a change to
@@ -568,12 +1004,12 @@ own history rather than quietly deleted.
   meanwhile the stall is bounded on three sides (a 1,200 ms timeout that 0
   disables outright, an LRU so it is paid once per chart per process, and the
   write path warming that LRU so an ingesting gateway never fetches at all).
-  Two further gaps are named and not closed: `supabase/apply_all.generated.sql`
-  does **not yet carry** `20260822110000`, so the bundle must be regenerated
-  (`python3 tools/bundle_migrations.py`) before that migration reaches a
-  paste-the-bundle deployment; and rows written before the migration report
-  `image_not_stored` with re-indexing named as the fix, because no backfill tool
-  was written for them.
+  One gap remains and one has closed. Still open: rows written before the
+  migration report `image_not_stored` with re-indexing the run named as the fix,
+  because no backfill tool was written for them. **Closed since 2026-08-22:**
+  `supabase/apply_all.generated.sql` now carries `20260822110000` — the bundle
+  holds all 37 migrations — so the sentence that said it did not has been
+  removed rather than left standing because it still read well.
 - **The community and centrality reports now read Neo4j; nothing else does.**
   Those two routes try the projection first and fall back to the in-process
   networkx computation, saying which answered. Request-time *traversal* still
@@ -582,11 +1018,27 @@ own history rather than quietly deleted.
   PageRank live in the GDS library, which the Aura Free tier does not have and
   CI cannot install, so the read model serves what the sweep computed rather
   than computing genuinely different things under one field name.
-- **`execution_summary` has no live producer.** The renderer, its figures and
-  its document are built and tested, and `tools/backfill_research_rag.py` calls
-  them — but nothing emits one in process, because that needs a hook at the
-  session-rollover site in `modules/risk_proxy/`. On a running desk the
-  summaries appear when the backfill is run and not before.
+- **`execution_summary` now HAS a live producer — this entry has flipped, and
+  the flip is a change to the tree, not a softening of the prose.** It read "no
+  live producer" until this pass. `modules/research_rag/session.py` is the
+  in-process caller: the risk monitor's UTC rollover
+  (`modules/risk_proxy/monitor.py`) hands it the session it has just closed, and
+  the document leaves through the **same** bounded queue every other kind uses —
+  there is no second write path. Three details are the design rather than
+  incidental. The work is *deferred*, because `_roll_session_if_needed` is also
+  called from `submit` with the gateway's lock held, and `session_figures` runs
+  four aggregate queries over a whole UTC day of `orders`: doing it at the call
+  site would put a table scan inside the trading lock and charge it to whichever
+  order happened to be first of a new session. It waits
+  `SESSION_SUMMARY_SETTLE_S` (5 s, `RESEARCH_SESSION_SETTLE_S`) because
+  `research_documents` carries `unique (desk_id, kind, source_ref)` and delivery
+  posts `Prefer: resolution=ignore-duplicates`, so the *first* writer wins and
+  an early summary is a permanent one — a wrong summary is worse than a late
+  one, and the ceiling on "late" is the next boundary. And a failure is
+  **logged with the session named, never raised**: the rollover is a
+  trading-state transition, the corpus is an observer, and an operator who knows
+  which session did not file can still run the backfill for it.
+  `tools/backfill_research_rag.py` remains the tool for history.
 - **The re-ranker's ONNX weights do not run in CI — but the opt-in is real and
   has been run.** `BAAI/bge-reranker-base` would have to be downloaded and this
   suite is network-free by construction (`tests/conftest.py` blanks
@@ -595,10 +1047,12 @@ own history rather than quietly deleted.
   model, through a fake cross-encoder at the import seam. Seed the weights with
   `tools/bench_rerank.py --seed --model-path DIR` (1.05 GiB) and
   `tests/test_research_rerank_real.py` runs **eight cases green** against the
-  real cross-encoder — verified, not theoretical. The equivalent hole is still
-  open one arm along: conftest does **not** blank `RESEARCH_IMAGE_MODEL_PATH`
-  the way it blanks `RERANK_MODEL_PATH`, so a developer who has seeded the
-  ~0.6 GB CLIP pair can have unrelated suites load it through `search`.
+  real cross-encoder — verified, not theoretical. **The equivalent hole one arm
+  along has since been closed:** `tests/conftest.py` now blanks
+  `RESEARCH_IMAGE_MODEL_PATH` by assignment beside `RERANK_MODEL_PATH`, so a
+  developer who has seeded the ~0.6 GB CLIP pair can no longer have unrelated
+  suites load it through `search`. The sentence saying otherwise has been
+  removed.
 - **RLS on the research corpus is still bypassed** and the tenant scope is
   per-desk, not per-user. The gateway reads with the service-role key and the
   writer sets no `user_id`; what landed is the `filter_desk_id` predicate the
@@ -610,6 +1064,20 @@ own history rather than quietly deleted.
   covered by the auth matrix, but nothing in `web/` calls it. Named because a
   route with no consumer is the exact defect
   [`PLAN.md` §1](../planning/PLAN.md) records.
+- **The Coherence engine sends nothing, and that is the design.** It sizes
+  orders and renders an order plan; there is no send path in this version.
+  `COHERENCE_DRY_RUN` defaults on and is read and reported so the surface can
+  state it, but turning it off would not be sufficient to trade — the code that
+  would place an order does not exist. Every route in `modules/api/coherence.py`
+  is a GET.
+- **The information-diffusion study's headline is a NULL, and must not be
+  reported otherwise.** The absorption clock *is* predictable out of sample
+  (R² +0.144 from stage and rate move alone, the press conference about 7.0
+  minutes slower than the statement), and adding the statement's information
+  spectrum changes that by −0.343 with a shuffled p of 0.875 — negative in all
+  nine cells of a declared 3×3 grid, including the cell with the largest
+  in-sample |t|. The finding is that the clock has structure and the text is not
+  part of it.
 - **Real order routing is NOT BUILT.** Orders are paper, capped by the
   gateway's own gates; README §9 ("What is deliberately missing") carries the
   full honesty ledger, including what is mocked versus implemented.
@@ -621,8 +1089,12 @@ own history rather than quietly deleted.
 | Question | Document |
 |---|---|
 | What does each tab actually show? | [`docs/product/FEATURE_TOUR.md`](../product/FEATURE_TOUR.md) |
+| What does a request actually touch, hop by hop? | [`docs/architecture/DATA_PROCESSING_FLOW.md`](DATA_PROCESSING_FLOW.md) |
+| The classes and the RAG sequence, drawn | [`docs/architecture/UML_DIAGRAMS.md`](UML_DIAGRAMS.md) |
 | Why is the decision µs and the core ns? | [`docs/architecture/LATENCY_BUDGET.md`](LATENCY_BUDGET.md) |
 | Where does data-ops state live? | [`docs/architecture/DATA_OPS_BACKEND.md`](DATA_OPS_BACKEND.md) |
+| Which library, which version, and what it unlocks | [`docs/planning/TECH_STACK.md`](../planning/TECH_STACK.md) |
+| What the suites actually assert, and their counts | [`docs/testing/TESTING.md`](../testing/TESTING.md) |
 | How does the TLS hop work? | [`docs/engineering/TLS_FLIP.md`](../engineering/TLS_FLIP.md) |
 | The institutional argument, end to end | [`docs/whitepaper/`](../whitepaper/) — Typst source, compiled to PDF; it replaces the legacy `AlphaEngine_Project_Explainer.pdf` |
 | Everything, at length | [`Part2_Infrastructure/README.md`](../../Part2_Infrastructure/README.md) |

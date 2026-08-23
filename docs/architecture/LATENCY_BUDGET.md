@@ -1,12 +1,28 @@
 # Latency budget
 
+*Paths and mechanisms re-checked against the tree on 24 August 2026. **No figure
+below was re-measured on that date** — this pass verified that the code each
+number describes still exists at the path it is cited at, and stamped every
+number with the day it was taken. A latency document that quietly refreshes its
+prose while keeping old numbers is the exact failure its own method section
+exists to prevent.*
+
 Every number here was measured, with the method and the machine stated. Where
-something could not be measured, it says so rather than estimating. The table
-in §2.1 regenerates from `tools/bench_decision.py` and was last regenerated on
-2026-08-20 (the block stamps its own UTC date; that is the one to quote, and it
-is mirrored in `latency-bench.generated.json`); the production figures were read
-off the live `/metrics` on 2026-08-17. Those are two different measurements on two different machines and
-are never merged into one figure.
+something could not be measured, it says so rather than estimating.
+
+**Where each family of numbers comes from, and when:**
+
+| Figures | Source | Measured |
+|---|---|---|
+| The decision and core table in §2.1 | `tools/bench_decision.py`, regenerated in place between `<!-- bench:start -->` markers; mirrored in [`latency-bench.generated.json`](latency-bench.generated.json) | **2026-08-20**, dev Mac, unpinned |
+| The interleaved A/B ladders in §2.1–2.3 | alternating builds at identical flags, per change | 2026-08-19 → 2026-08-20 |
+| The production `/metrics` block in §3 | read off the live gateway | **2026-08-17** |
+| The venue round trips in §2.3 | `tools/colocation_probe.py`, from the OCI VM | 2026-08-19 |
+| The tab-switch and request-count tables in §4 | `web/scripts/tab-switch-measure.mjs`, `request-count-measure.mjs`, production build over CDP at 4× CPU throttle | **2026-08-20**, and they cover **eight** tabs — Coherence is in both harnesses' tab lists now and has never been measured |
+| The research-plane table in §4b | `tools/bench_rerank.py` (median of seven runs) and two live model calls | 2026-08-22 |
+
+Those are different measurements on different machines and are never merged into
+one figure. The block in §2.1 stamps its own UTC date; that is the one to quote.
 
 **The conclusion first.** The desk's own risk decision runs in **13.2 µs** on
 the compiled engine and **25.3 µs** on the Python reference — p50, dev Mac,
@@ -52,10 +68,23 @@ which are polled rather than implying everything is live.
 ## 1. Measurement method, and what it excludes
 
 Timings come from `time.perf_counter_ns()` in-process, recorded into a
-log-linear histogram (`modules/metrics.py`, `observe_decision_latency`) with
-~12 % bucket resolution, and reported as p50 / p99 / p99.9 / p99.99 / max on
-`/metrics`. Never as a mean: the mean of a latency distribution is the one
-statistic that reliably hides the thing being measured.
+log-linear histogram with ~12 % bucket resolution, and reported as
+p50 / p99 / p99.9 / p99.99 / max on `/metrics`. Never as a mean: the mean of a
+latency distribution is the one statistic that reliably hides the thing being
+measured.
+
+`modules/metrics` is a **package**, not the single `metrics.py` older links
+point at. The two observers live in
+[`modules/metrics/decision_latency.py`](../../Part2_Infrastructure/modules/metrics/decision_latency.py)
+— `observe_decision_latency(microseconds)` at `:233` and
+`observe_core_self_test_latency(nanoseconds)` at `:243` — and the exposition
+names are written in `modules/metrics/render.py`, which is where
+`decision_latency_us`, `decision_core_latency_ns`, `decision_samples_total`,
+`decision_engine` and `decision_core_self_test_samples` are emitted. Two
+observers, two units, one place that decides how each is published: that is
+what makes the coding standards' *three latency planes, never blended* rule
+([`CODING_STANDARDS.md`](../engineering/CODING_STANDARDS.md)) checkable rather
+than aspirational.
 
 **What these numbers do not include, and cannot on this hardware.** There is no
 NIC hardware timestamping and no PTP time source on a cloud VM, so every figure
@@ -509,8 +538,12 @@ all twelve served by Bybit**. From the Vercel serverless region the per-call gap
 is larger than from a laptop — five consecutive production probes measured
 Bybit at 9–11 ms against Binance at 77–90 ms, roughly 8×.
 
-**What did not change.** `venues.ts` still walks the merged cross-venue ladder
-by price for execution, and the gateway still streams both feeds. Bybit's spot
+**What did not change.** The `lib/venues/` package still walks the merged
+cross-venue ladder by price for execution — it is a package now
+(`adapters.ts`, `book-maths.ts`, `fill-tolerance.ts`, `index.ts`, `report.ts`,
+`types.ts`), not the single `venues.ts` older links point at, which is exactly
+the split that made `venues-parity.test.ts` read *every* module in it rather
+than one named file — and the gateway still streams both feeds. Bybit's spot
 book is thinner than Binance's on most pairs, so *nearer is not deeper* — this
 is a latency decision about where history is read, not a routing decision about
 where an order should go. Conflating the two is the mistake this whole document
@@ -518,8 +551,8 @@ exists to prevent.
 
 **Two things worth recording because they were both wrong in the repository.**
 
-The first: `venues.ts` carried a comment stating Bybit answered **HTTP 403** to
-every request from the serverless region — a 100 % error rate. That was true
+The first: `lib/venues/types.ts:118` carried a comment stating Bybit answered
+**HTTP 403** to every request from the serverless region — a 100 % error rate. That was true
 when written and is no longer; five consecutive production calls all returned a
 book, faster than Binance every time. The comment has been corrected rather than
 deleted, because a fact that flipped silently once can flip back.
@@ -615,7 +648,15 @@ Separate budget, and much less demanding.
 **Switching tabs was measured on 2026-08-20 and there is nothing to fix.**
 `web/scripts/tab-switch-measure.mjs` drives the production build over CDP at
 4x CPU throttle — so every figure below is roughly four times worse than the
-machine a reader is on:
+machine a reader is on.
+
+**The table has eight rows and the desk has nine tabs.** `tab-switch-measure.mjs`
+now lists `coherence` in its `tabs` array (as `request-count-measure.mjs` does in
+its `TABS`), but that tab was added to the harness *after* this run and **has
+never been measured**. It is left out of the table rather than given a plausible
+row, and it is the one to measure first: it is the only tab whose sections poll
+the live exchange, and its `universe` read carries a 28-second browser deadline
+against every other read's 9 (§4.2).
 
 | tab | click → paint | click → idle | longest task | blocking |
 |---|---|---|---|---|
@@ -628,17 +669,25 @@ machine a reader is on:
 | Developer | 20.4 ms | 72.4 ms | 0 | 0 |
 | Overview | 18.0 ms | 39.7 ms | 0 | 0 |
 
-Seven of the eight tabs produce **no long task at all** and therefore no
-blocking time; the paint lands inside two frames even throttled. The one
+Seven of the eight tabs measured produce **no long task at all** and therefore
+no blocking time; the paint lands inside two frames even throttled. The one
 outlier is Research, whose 68 ms task is the sweep and its charts, and which is
-the only switch on the desk a reader could notice.
+the only measured switch on the desk a reader could notice.
 
 Two things that were assumed to be wrong and are not. Requests per switch,
 measured against the production build by `web/scripts/request-count-measure.mjs`
-on 2026-08-20, are **0–4 with no duplicates** — the browser is not re-fetching a
-tab's data on arrival, because `lib/use-book.ts` and `lib/use-system-health.ts`
-own those polls for every tab that reads them and `workspace-routing.test.ts`
-fails if a panel fetches them itself. And measuring this in `next dev` inflates
+on 2026-08-20 (same eight tabs, same caveat), are **0–4 with no duplicates** —
+the browser is not re-fetching a tab's data on arrival, because
+`lib/use-book.ts` and `lib/use-system-health.ts` own those polls for every tab
+that reads them and
+[`workspace-routing-shared-fetch.test.ts`](../../Part2_Infrastructure/web/tests/workspace-routing-shared-fetch.test.ts)
+fails if a panel fetches them itself. (That file was split out of the
+five-way `workspace-routing-*` family on 2026-08-21; the single
+`workspace-routing.test.ts` older links point at no longer exists. Its own
+header states the reason the rule is worth a suite: *a tab fetching the book
+itself would be a second source of truth, and two tabs quoting different equity
+is worse than one tab holding both* — the desk cannot tell which number to act
+on, and neither is visibly wrong.) And measuring this in `next dev` inflates
 it: `reactStrictMode: true` double-invokes effects, which is where the
 "duplicate request per switch" impression comes from.
 
@@ -689,21 +738,41 @@ run against the production build, and the figures above are the baseline
 anything after this is measured against.
 
 The switch is fast because of a deliberate earlier change, recorded in
-`app/dashboard/page.tsx`: `startTransition` with no `startViewTransition` and no
-smooth scroll. The comment there says the view transition froze painting for
-30–100 ms while React rendered the incoming workspace synchronously. These
+[`web/lib/use-workspace-routing.ts`](../../Part2_Infrastructure/web/lib/use-workspace-routing.ts)
+(it lived in `app/dashboard/page.tsx` until that file was split down to 303
+lines): `startTransition` with no `startViewTransition` and no smooth scroll.
+The comment at `:119` says `document.startViewTransition(() => flushSync(apply))`
+froze painting for 30–100 ms while React rendered the incoming workspace
+synchronously, and that `startTransition` keeps the switch **interruptible** —
+the click paints its own feedback rather than waiting on the incoming tab. These
 numbers are that comment being true.
 
 * **The order book is already optimal.** The browser opens its own WebSocket
-  directly to Binance and Bybit (`web/lib/livebook.ts`), receiving 100 ms depth
-  snapshots and publishing to React at 5 Hz. One hop, no backend. Routing this
-  through the gateway would make it slower, not faster.
+  directly to Binance and Bybit (`web/lib/livebook.ts`, sockets in
+  `web/lib/livebook-socket.ts`): Binance `@depth20@100ms`, a self-contained
+  top-20 snapshot every 100 ms; Bybit `orderbook.50`. One hop, no backend.
+  Routing this through the gateway would make it slower, not faster.
+
+  **The publish rate is no longer 5 Hz and no longer its own number.**
+  `PUBLISH_HZ` is derived as `1000 / THROTTLE_INTERVAL_MS`
+  (`web/lib/use-throttled-value.ts:65`, 300 ms), so it is **≈3.3 Hz** and it
+  moves with the desk's one shared throttle rather than separately. It was a
+  bare `5` — a repaint every 200 ms — and the metric tiles it feeds
+  (consolidated mid, spread, depth, imbalance) visibly twitched at that rate.
+  The publish tick **is** the throttle, leading-and-trailing: a burst coalesces
+  to its latest value rather than queueing, and the final book after a burst
+  stops is published by the next tick rather than being lost. Nothing is layered
+  on top — a second buffer over this one would add a window of latency to a live
+  order book and buy no fewer renders.
 * **Portfolio, P&L and risk are the stale ones**, and the cause is server-side:
-  the gateway re-marks the book every 1 s (`risk_proxy.py`, `_monitor_loop`,
-  `RISK_MONITOR_INTERVAL_S` — it was 5 s, and the tick is arithmetic over an
-  in-memory book, so 1 s costs almost nothing and the breaker trips up to four
-  seconds sooner). The browser polled at 4 s / 5 s / 15 s, which put the worst
-  case at ≈ 16 s with the polls as the floor.
+  the gateway re-marks the book every 1 s. `_monitor_loop` is defined in
+  `modules/risk_proxy/monitor.py:36` and created as a task in
+  `modules/risk_proxy/gateway.py:158` — `risk_proxy` is a **package** now, not
+  the single `risk_proxy.py` older links point at. `RISK_MONITOR_INTERVAL_S` was
+  5 s, and the tick is arithmetic over an in-memory book, so 1 s costs almost
+  nothing and the breaker trips up to four seconds sooner. The browser polled at
+  4 s / 5 s / 15 s, which put the worst case at ≈ 16 s with the polls as the
+  floor.
 * **The fix was ordered, and both halves have now landed.** Tightening the poll
   before the recompute would have delivered the same stale number more often —
   so the recompute was split first (the 1 s above), then the transport. With
@@ -745,6 +814,44 @@ numbers are that comment being true.
 
 Measured from a development machine to the gateway: 21–27 ms total, 9–13 ms TCP
 connect. Vercel serves the web project from `sin1`, the same city as the VM.
+*(Measured 2026-08-20; not re-measured since.)*
+
+### 4.2 The Coherence tab has its own read budget, and it is gated twice
+
+The ninth tab is the one surface on the desk whose reads go **through** the
+gateway **to a live exchange**, so it is budgeted separately from the eight
+measured above. Nothing in this subsection is a timing measurement — these are
+the deadlines and the gating the code declares, re-read on 2026-08-24. The tab
+has never been through `tab-switch-measure.mjs`.
+
+**Two deadlines, because the reads are not alike.**
+`web/lib/coherence/use-coherence.ts` chooses per URL: `DEADLINE_MS = 9_000` for
+anything served from the recorded tape (which answers in milliseconds) and
+`LIVE_READ_DEADLINE_MS = 28_000` for `universe` and `certify`, which read the
+live exchange and take seconds. Its header says why one deadline for both was
+wrong: *the browser gave up on the slow ones while the gateway was still doing
+exactly what it was asked to.* The abort and a dead network are told apart in
+the error text rather than merged into "failed" — "no answer within 28s" is an
+operator's fact, "the desk could not reach its own gateway" is a different one.
+The server side of those routes budgets 25 s (`timeoutMs: 25_000` on
+`app/api/gateway/coherence/{universe,certify,rfq,calibration,combos,settlement,shell}/route.ts`),
+inside the browser's 28.
+
+**The polls are gated on `active` *and* on which `.seg` view is open**, which is
+the part worth copying. `COHERENCE_POLL_MS` is 20 s, and
+`CoherenceConsole.tsx` decides per read:
+
+| Read | Gated on | Why |
+|---|---|---|
+| `/coherence/status` | `active` only | cheap, and every section's chrome quotes it |
+| `/coherence/universe?max_events=2` | `active` **and** section ∈ {`universe`, `certificate`, `lattice`} | shared by three sections, so **not** gated on the sub-view. `max_events=2` is a latency decision with the measurement written beside it: four events took **10.1 s** before the reads were parallelised and **6.4 s** after, against `callGateway`'s 8-second default (`lib/gateway.ts:22`) — inside the deadline but not comfortably. Two answers in about four and a half. |
+| `/coherence/books` | `active`, section `books`, **and** view ≠ `dispersion` | the Dispersion view draws no book, so it does not ask for one — and the RFQ route beside it is a signed private-channel call on the 25 s budget. `BooksSection` reports its view upward through `onViewChange` precisely so the console, which is where `active` and `section` live, can stop the poll |
+| `/coherence/fees?…` | `active` and view ∈ {`example`, `shape`} | held at section level in `FeesSection.tsx` |
+| `/coherence/replay?limit=20000` | `active` and view = `ablation` | the largest read on the tab, and it runs on one view of one section |
+
+The general rule this encodes: **a `.seg` that only changed what was rendered
+would leave every read running.** Reporting the open view upward costs one
+callback and takes the tab's idle cost down to a single 20 s status poll.
 
 ---
 
@@ -797,18 +904,22 @@ inside a model call anyway.
 
 ## 5. Summary
 
-| Hop | Measured | Notes |
-|---|---|---|
-| Risk decision (crypto path, up to 15 of 17 gates) | **12.4 µs** p50 native · 23.1 µs Python | whole `submit()` under the lock, dev Mac, `tools/bench_decision.py`; in-process, excludes kernel and wire. These are the **quiet-machine** readings from the interleaved A/B ladder in §2.3; the generated block in §2.1 reads 13.2 / 25.3 µs on a loaded laptop and is the pair to quote outside this document |
-| Cross-encoder re-rank (research plane) | **197 ms** at short rows · **1,523 ms** at the truncation ceiling | a different plane entirely; §4b, and never quoted under the decision's label |
-| Decision tail | 36.8 µs p99.9 native · 49.2 µs Python | scheduler jitter, not GC |
-| Arithmetic core (inside the decision) | **83 ns** p50 · **84 ns** p99 dev Mac · **320 ns** p50 / 352 ns p99 production VM | C++ battery incl. the routed walk, timed with `steady_clock` inside the engine; p50 and p99 are both 2 ticks of a ~41.67 ns clock — 0.9952 of calls finish inside 2 ticks, which is the figure with the resolution and the one to quote (§2); self-measured at startup, bit-exact vs Python |
-| Market data → gateway | **69.1 ms** RTT | Binance, Tokyo → Singapore; **the constraint** |
-| Order entry → venue | **72.7 ms** origin RTT | Binance; 1.6 ms to the CDN edge, which is not where it matches |
-| Order entry → Bybit | **6.2 ms** origin RTT | the free alternative, measured on the same host |
-| Gateway → browser (dev machine) | 21–27 ms | |
-| Book recompute | 1 s | server-side; the browser polls (4–15 s) are now the observability floor |
-| Browser order book | 100 ms | direct from venue, already optimal |
+**Every row carries the day it was taken.** None was re-measured on 2026-08-24;
+that pass checked the paths, not the numbers.
+
+| Hop | Measured | When | Notes |
+|---|---|---|---|
+| Risk decision (crypto path, up to 15 of 17 gates) | **12.4 µs** p50 native · 23.1 µs Python | 2026-08-20 | whole `submit()` under the lock, dev Mac, `tools/bench_decision.py`; in-process, excludes kernel and wire. These are the **quiet-machine** readings from the interleaved A/B ladder in §2.3; the generated block in §2.1 reads 13.2 / 25.3 µs on a loaded laptop and is the pair to quote outside this document |
+| Cross-encoder re-rank (research plane) | **197 ms** at short rows · **1,523 ms** at the truncation ceiling | 2026-08-22 | a different plane entirely; §4b, and never quoted under the decision's label |
+| Decision tail | 36.8 µs p99.9 native · 49.2 µs Python | 2026-08-20 | scheduler jitter, not GC |
+| Arithmetic core (inside the decision) | **83 ns** p50 · **84 ns** p99 dev Mac · **320 ns** p50 / 352 ns p99 production VM | Mac 2026-08-20 · VM 2026-08-17 | C++ battery incl. the routed walk, timed with `steady_clock` inside the engine; p50 and p99 are both 2 ticks of a ~41.67 ns clock — 0.9952 of calls finish inside 2 ticks, which is the figure with the resolution and the one to quote (§2); self-measured at startup, bit-exact vs Python |
+| Market data → gateway | **69.1 ms** RTT | 2026-08-19 | Binance, Tokyo → Singapore; **the constraint** |
+| Order entry → venue | **72.7 ms** origin RTT | 2026-08-19 | Binance; 1.6 ms to the CDN edge, which is not where it matches |
+| Order entry → Bybit | **6.2 ms** origin RTT | 2026-08-19 | the free alternative, measured on the same host |
+| Gateway → browser (dev machine) | 21–27 ms | 2026-08-20 | |
+| Book recompute | 1 s | declared, not timed | `RISK_MONITOR_INTERVAL_S` in `modules/risk_proxy/monitor.py`; the browser polls (4–15 s) are now the observability floor |
+| Browser order book | 100 ms in · **≈3.3 Hz out** | declared, not timed | Binance `@depth20@100ms` straight to the browser; published to React at `1000 / THROTTLE_INTERVAL_MS` (300 ms), which is the desk's one shared throttle rather than a second number. Already optimal — one hop, no backend |
+| Coherence live reads | 9 s / 28 s browser deadlines, 25 s server budget | declared, not timed | §4.2; the tab has never been through the switch harness |
 
 The honest headline: **the decision is fast, the system is not, and the gap is
 entirely geography.** A sub-microsecond claim about this deployment is true of

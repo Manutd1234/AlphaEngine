@@ -1,6 +1,6 @@
 # PRD — enterprise RAG over the desk's own research
 
-*As of 22 August 2026. Every claim about this repository was read from the tree
+*As of 24 August 2026. Every claim about this repository was read from the tree
 on that date, with the file named beside it. The requirement itself is restated
 from the brief; the delivery record against it is checkable, and where a stage
 is NOT BUILT this document says so plainly rather than rounding it up to
@@ -53,7 +53,7 @@ and each reports its own absence rather than degrading silently:
 ```mermaid
 flowchart TD
     subgraph S1["Stage 1 — ingestion (built)"]
-        AUDIT["backtests, charts, incidents,<br/>ML runs (live) · closed-session<br/>summaries (backfill tool only)"] --> CARDS["modules/research_cards.py<br/>+ research_chartdoc.py<br/>+ research_ingest_session.py<br/>render the exact text embedded"]
+        AUDIT["backtests, charts, incidents, ML runs,<br/>closed-session summaries —<br/>all five written by the live gateway"] --> CARDS["modules/research_cards.py<br/>+ research_chartdoc.py<br/>+ research_ingest_session.py<br/>render the exact text embedded"]
         CARDS --> WRITER["modules/research_rag/writer.py<br/>bounded queue, supervised drain,<br/>3 retries then a dead letter"]
         WRITER --> EMBED["supabase/functions/embed-research<br/>gte-small, 384-dim"]
         EMBED --> PG[("public.research_documents<br/>pgvector HNSW, 5 kinds")]
@@ -112,12 +112,12 @@ it waits — §6).
 
 | Stage | Requirement | Status in this repo | Where |
 |---|---|---|---|
-| 1 | Document ingestion | **Built** — five kinds in the enum. Four (`backtest_run`, `chart`, `ml_run`, `risk_incident`) are written by the live gateway path; the fifth, `execution_summary`, is produced **only by `tools/backfill_research_rag.py`** — the producer is real and tested, but it has no in-process caller (see below). Written through a bounded queue whose drain retries three times and dead-letters what never lands; `body` stores the exact embedded text | `modules/research_rag/writer.py`, `modules/research_ingest_delivery.py`, `modules/research_ingest_session.py`, `modules/research_cards.py`, migrations `20260808120400`, `20260820090600`, `20260820100700` |
+| 1 | Document ingestion | **Built** — five kinds in the enum, and **all five are now written by the live gateway path**. `execution_summary` was the last holdout, produced only by `tools/backfill_research_rag.py`; `modules/research_rag/session.py` is the in-process caller, invoked from `RiskGateway._roll_session_if_needed` at the UTC boundary (`modules/risk_proxy/monitor.py:260`), and the seam — not the producer — is what `tests/test_research_session_emission.py` drives. Everything is written through one bounded queue whose drain retries three times and dead-letters what never lands; `body` stores the exact embedded text | `modules/research_rag/writer.py`, `modules/research_rag/session.py`, `modules/research_ingest_delivery.py`, `modules/research_ingest_session.py`, `modules/research_cards.py`, migrations `20260808120400`, `20260820090600`, `20260820100700` |
 | 1 | External-document parsing | **NOT BUILT** — no PDF/OCR/table parser exists anywhere in this tree | §6 |
 | 1 | Multimodal (chart image) ingestion | **Built, optional — and the substitution still stands as the default.** A chart's PNG is embedded by CLIP `ViT-B/32` into a 512-dim `image_embedding` column at ingest, gated on an operator setting `RESEARCH_IMAGE_MODEL_PATH`; unset, the row sent is byte-for-byte the row sent before the module existed, not even nulls. The computed description remains the primary index and `research_chartdoc`'s argument is unweakened — the measured reason is in §6 | `modules/research_image.py`, `research_image_ingest.py`, `research_chartdoc.py`, migration `20260822100000` |
 | 2 | Vector search | **Built** — pgvector HNSW over gte-small (384-dim, unit-normalised), embedded by a Supabase edge function; similarity floor 0.76, measured not chosen | `modules/research_rag/retrieval.py`, `supabase/functions/embed-research/` |
 | 2 | Sparse search | **Built, twice** — `ts_rank_cd` over a generated tsvector (GIN-indexed, supplies recall) plus an in-process Okapi BM25 arm (k1=1.2, b=0.75) that re-scores candidates; every arm fused by RRF at the same k=60, imported rather than restated so a further arm cannot join on a different constant | `supabase/migrations/20260810090000_hybrid_research_search.sql`, `modules/research_bm25.py` |
-| 2 | Graph retrieval | **Built** — derived edges in Postgres, a recursive-CTE traverse, and an optional Neo4j projection that is now also **read back**: the community and centrality routes try Neo4j first and fall back to the in-process computation, marking `source: "neo4j"` or `"corpus"`. Louvain runs in-process on a fixed seed; **PageRank takes no seed** — networkx's is deterministic by construction, and its reproducibility comes from the canonical node order plus pinned `MAX_ITER`/`TOLERANCE`. The walk's rows are fused into the ranking at the same k = 60 as every other arm, one stage later — in the router's execution rather than inside `search` | `modules/research_graph.py`, `research_graph_projection.py`, `research_graph_read_model.py`, `research_communities.py`, `research_graph_reads.py`, `research_graph_fusion.py` |
+| 2 | Graph retrieval | **Built** — derived edges in Postgres, a recursive-CTE traverse (depth capped at 4 in the migration), and an optional Neo4j Aura projection that is also **read back**: exactly two routes read it, `GET /api/research/graph/communities` and `/centrality`, each marking `source: "neo4j"` or `"corpus"` on the report. Postgres stays authoritative and the projection is one-way — nothing else writes to the graph, asserted in `tests/test_research_graph_projection.py`. Louvain runs in-process on a fixed seed; **PageRank takes no seed** — networkx's is deterministic by construction, and its reproducibility comes from the canonical node order plus pinned `MAX_ITER`/`TOLERANCE`. The walk's rows are fused into the ranking at the same k = 60 as every other arm, one stage later — in the router's execution rather than inside `search` | `modules/research_graph.py`, `research_graph_projection.py`, `research_graph_read_model.py`, `research_communities.py`, `research_graph_reads.py`, `research_graph_fusion.py`, `requirements-graph.txt` |
 | 3 | LangGraph orchestration | **Substituted** — a bounded, deterministic, audit-replayable router; LangGraph itself NOT BUILT. The bound is now enforced by the router (`bound_calls`, a named priority ladder) rather than by slicing the planner's list, so a substituted planner cannot drop the guaranteed `hybrid_search`; one correlation id stamps the plan, every tool call and the generation row | `modules/research_router.py`, `research_router_calls.py`, `research_router_exec.py`, §6 |
 | 4 | Cross-encoder re-ranking | **Built, optional** — `BAAI/bge-reranker-base` via fastembed, ONNX on CPU, off the event loop behind a **one**-slot bulkhead (measured: 197 ms at short rows, 1,523 ms at the truncation ceiling, and a second concurrent slot buys 1.30–1.37× throughput for 1.46–1.54× latency on every request); unconfigured, the RRF order passes through and `rerank_state` says why | `modules/research_rerank.py`, `modules/research_stages.py`, `requirements-rerank.txt`, `tools/bench_rerank.py` |
 | 4 | CRAG evaluation | **Built, and all three bands now decide** — `ANSWER_BAND` (0.8) was a constructor default nothing read; a mid-band retrieval that does not clear it after its one rewrite now **refuses**, where it used to be served with `state: "ok"`. The grader stays arithmetic over fields the RPC already returns — deliberately not a model — with the cross-encoder's own logit folded in as a fifth signal at weight 0.25 when a re-ranker ran, and untouched when none did | `modules/research_crag.py`, `research_crag_policy.py`, `research_crag_signals.py` |
@@ -136,6 +136,39 @@ model, and the ingest path is deterministic, free and replayable
 (`modules/research_graph.py` argues this in full, including the real
 limitation it accepts). That is why an enterprise parsing service has nothing
 to parse here yet.
+
+**Neo4j is real, and no request path depends on it.** This is the row most
+likely to be over-read, so it is stated plainly at each layer. *Database:* an
+Aura instance holding a **one-way, rebuildable projection** of `research_edges`.
+`RELATION_TYPES` maps the six Postgres `research_relation` values to uppercase
+relationship types by name, so a new enum value fails loudly rather than
+projecting an undeclared edge type. *Backend:* the sweep in
+`modules/research_graph_projection.py` writes it; the read model in
+`modules/research_graph_read_model.py` serves what the sweep computed, on the
+two report routes and nowhere else. Request-time traversal is the **Postgres**
+recursive CTE, so dropping the graph costs two reports and no retrieval.
+*Frontend:* **no web surface reads Neo4j directly.** The workspace calls the two
+gateway routes and renders the `source` field they return — which is the honest
+frontend answer, and inventing a frontend dependency to make the stack table
+look symmetrical would be the defect this document exists to avoid.
+
+Three refusals stay distinguishable and must: "Neo4j is not configured", "the
+sweep has not run yet", and "the projection is mid-rebuild". The last exists
+because community ids are stable only for a fixed edge set, so two sweeps' labels
+co-resident do not describe one partition. A writer may also not read its own
+output — `community_labels` refuses when the caller is the sweep that writes
+them, because otherwise the corpus could change daily and the labels never
+would. And four parameters a reader might expect are **deliberately absent** from
+these reports — `seed`, `resolution`, `damping`, `modularity` — because none was
+written to the graph, and a plausible default is the lie.
+
+**The algorithms do not run inside Neo4j, and that is a constraint rather than a
+preference.** GDS is not available on Aura Free — `CALL gds.louvain.stream(...)`
+there is procedure-not-found — so Louvain and PageRank run **in process via
+networkx** (`modules/research_communities.py`, behind `requirements-communities.txt`).
+That is also why that module takes `edges` as an argument rather than a driver:
+it must be runnable with no graph at all, which is what makes `source: "corpus"`
+a real fallback and not a spelling of "unavailable".
 
 **The router fights the rest of the plane, and says so.** Its own docstring
 opens with that admission. The four structural limits — a bounded plan over a
@@ -241,23 +274,36 @@ about the *shape or scale* of a curve and nowhere else.
 
 **Still owed on this path**, and named rather than rounded up: the bench is not
 wired into CI (`.github/workflows/ci.yml` seeds weights for `bench_rerank` and
-would need the same job); `tests/conftest.py` does not blank
-`RESEARCH_IMAGE_MODEL_PATH` the way it blanks `RERANK_MODEL_PATH`;
-`supabase/apply_all.generated.sql` does not yet carry
-`20260822110000_research_chart_images.sql`; the durable store's one PostgREST
-GET still runs on the event loop's thread; the rendered Sharpe heatmap has no
-chart document and so no citable home; and rows written before the migration
-report `image_not_stored` with re-indexing named as the fix, because no backfill
-tool was written for them. All six are collected in
-[`PLAN.md` §2.10–2.11](PLAN.md).
+would need the same job); the durable store's one PostgREST GET still runs on the
+event loop's thread; the rendered Sharpe heatmap has no chart document and so no
+citable home; and rows written before the migration report `image_not_stored`
+with re-indexing named as the fix, because no backfill tool was written for them.
+All four are collected in [`PLAN.md` §2.10–2.11](PLAN.md).
 
-**Live emission of `execution_summary`.** The producer is built, tested and
-called — but by `tools/backfill_research_rag.py`, not by the running gateway.
-Emitting a session summary in process needs a hook at the session-rollover site
-in `modules/risk_proxy/`, which this change did not reach. So on a running desk
-the summaries appear when the backfill is run and not before. Recorded here
-rather than described as "ingested automatically", which is what the docs used
-to imply.
+**Two debts this section listed have since closed, and are recorded as closed
+rather than quietly dropped.** `tests/conftest.py` now blanks
+`RESEARCH_IMAGE_MODEL_PATH` by assignment beside `GEMINI_API_KEY` and
+`RERANK_MODEL_PATH` — it had to be in the conftest and not a fixture, because
+`research_image.IMAGE_MODEL_PATH` is read off `os.environ` at module import. And
+`supabase/apply_all.generated.sql` now carries
+`20260822110000_research_chart_images.sql`, so a deployment applying the bundle
+rather than `supabase db push` gets the table and not only the columns from
+`20260822100000`.
+
+**Live emission of `execution_summary` — no longer NOT BUILT.** For its whole
+first life the producer was built, tested and called only by
+`tools/backfill_research_rag.py`, so a desk that read its own README and searched
+for a session summary got sweeps back, ranked, looking exactly like an answer.
+The hook now exists at the session-rollover site:
+`RiskGateway._roll_session_if_needed` calls `ResearchRag.on_session_closed`
+(`modules/risk_proxy/monitor.py:260` → `modules/research_rag/session.py`), and
+the document leaves through the same bounded queue as every other kind — there is
+no second write path. The work is **deferred**, not done at the boundary: that
+method is also called from `submit` and `sweep_working_orders` with the gateway's
+lock held, and `session_figures` scans a whole UTC day of the `orders` table, so
+the hook returns after a boolean and a `create_task` and the reading happens off
+the loop. A corpus that fails changes nothing about the rollover; the corpus is
+an observer, exactly as the decision hooks are.
 
 **RLS on the research corpus.** The retrieval RPCs now carry an optional
 `filter_desk_id` predicate, which is the half that can be fixed without taking
@@ -267,11 +313,27 @@ is per-desk rather than per-user — every web request authenticates against one
 shared gateway token, so there is no per-user identity to key on yet. The
 migration header names all three debts.
 
-**The re-ranker's ONNX weights do not run in CI.** `BAAI/bge-reranker-base`
-would have to be downloaded, and this suite is network-free by construction
-(`tests/conftest.py` blanks `RERANK_MODEL_PATH` deliberately). The ONNX path is
-exercised only through a fake cross-encoder at the import seam, so what CI
+**The re-ranker's ONNX weights do not run on the CI path that gates a push, and
+that is the precise claim.** The default suite is network-free by construction —
+`tests/conftest.py` blanks `RERANK_MODEL_PATH` by assignment, the ONNX path is
+exercised through a fake cross-encoder at the import seam, and what a green push
 proves is the wiring and the arithmetic around the model, not the model.
+
+The real weights *do* run, in the opt-in `rerank-real` job
+(`.github/workflows/ci.yml`), on `workflow_dispatch` or a PR labelled `rerank`.
+It is a deliberate hole in the network-free rule rather than an exception to it:
+the one networked step is **setup** — `python tools/bench_rerank.py --seed`, the
+same call an image build makes, so CI and the deployment seed through one code
+path instead of two that can disagree — and the suite then runs with
+`HF_HUB_OFFLINE=1` against the seeded directory. Two assertions make the job
+worth having. It **fails if that suite skips**, because a job that exists to run
+the real model and reports green having run nothing is the exact "reads green
+while the engine goes untested" failure this repository keeps finding; and a
+following step re-runs the default suite to prove it still skips with the opt-in
+variable unset, which is what protects the other three jobs from a runner that
+happens to have weights on disk. The weights are cached on the
+`requirements-rerank.txt` pin, not on the lock, because a re-ranker that scores
+differently between releases re-orders what the desk was shown.
 
 **External-document parsing.** Unstructured/Docling-class parsing waits until
 this desk ingests a document it did not write. Today there is none: the corpus
@@ -305,10 +367,12 @@ What "done" means for this feature, all of them checkable today:
   image search at all.
 - The opt-in paths are **verified, not theoretical**. Seeded with
   `tools/bench_rerank.py --seed --model-path DIR` (1.05 GiB),
-  `tests/test_research_rerank_real.py` runs eight cases green against the real
-  ONNX cross-encoder; with real Supabase credentials exported one variable at a
-  time, the live Postgres pass runs eleven green. Neither runs in CI, and CI's
-  green is not evidence that either does.
+  `tests/test_research_rerank_real.py` runs its eight cases green against the
+  real ONNX cross-encoder; with real Supabase credentials exported one variable
+  at a time, `tests/test_data_ops_postgrest.py` runs its eleven green. Neither
+  runs on the four jobs that gate a push — the re-ranker's has an opt-in CI job
+  (`rerank-real`, dispatch or a `rerank` label) and the Postgres one has none —
+  so a green push is not evidence that either ran. Read the skip *reasons*.
 - No fabricated recall: below the refuse band the model is never called; a
   citation not in the supplied context refuses the whole answer; `corpus_silent`
   is a verdict, not an error (`modules/research_generate.py`).
