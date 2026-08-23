@@ -1,4 +1,4 @@
-# NUSSIF Developer Analyst Case Study — Ian Wangsa
+# AlphaEngine - All In One Quant Infrastructure
 
 *Updated 2026-08-24. Every count, path and version below was read off this tree
 or off a runner's own output on that date, and the command that produced it is
