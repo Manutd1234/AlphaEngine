@@ -5,9 +5,15 @@
  *
  * A reader arriving from any other venue expects bids and asks. What they get
  * here is two bid ladders, and the ask they would trade against is a reading of
- * the opposite one. Showing that directly — the two ladders, the implied offers
- * as a ghost above them, and the identity drawn as two bars that land on the
- * same tick — is the difference between knowing the algebra and believing it.
+ * the opposite one. Showing that directly — the two ladders with the implied
+ * offers as a ghost above them on Ladder, and the identity drawn as two bars
+ * that land on the same tick on Identity — is the difference between knowing
+ * the algebra and believing it.
+ *
+ * The two drawings are one view each rather than one column, because a 96px
+ * identity strip read as a footnote to the chart above it. `BooksSection` owns
+ * the switcher; this pane owns the market picker, which rides the ticker
+ * heading so that only one `.seg` ever sits under the view rail.
  */
 
 import { useState } from "react";
@@ -16,7 +22,25 @@ import type { CoherenceBooks, CoherenceBookView } from "@/lib/coherence/types";
 import IdentityStrip from "./IdentityStrip";
 import LadderChart from "./LadderChart";
 
-function BookDetail({ book }: { book: CoherenceBookView }) {
+/** The two views this pane draws. Dispersion is the RFQ half, not a book. */
+export type BookDetailView = "ladder" | "identity";
+
+function BookDetail({ book, view }: { book: CoherenceBookView; view: BookDetailView }) {
+  if (view === "identity") {
+    return (
+      <div className="coh-book">
+        <IdentityStrip
+          yesAsk={book.best_yes_ask}
+          noAsk={book.best_no_ask}
+          spread={book.spread}
+          identitySum={book.identity_sum}
+          identityOnePlusSpread={book.identity_one_plus_spread}
+          unquotedReason={book.unquoted_reason}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="coh-book">
       <dl className="coh-book__facts">
@@ -50,27 +74,26 @@ function BookDetail({ book }: { book: CoherenceBookView }) {
         unquotedReason={book.unquoted_reason}
       />
 
-      <IdentityStrip
-        yesAsk={book.best_yes_ask}
-        noAsk={book.best_no_ask}
-        spread={book.spread}
-        identitySum={book.identity_sum}
-        identityOnePlusSpread={book.identity_one_plus_spread}
-        unquotedReason={book.unquoted_reason}
-      />
-
       {book.depth === "top_of_book" ? (
         <p className="coh-event__note">
-          <span aria-hidden="true">◌</span> This book came from the market object&rsquo;s top-of-book fields because the
-          orderbook route refused an unauthenticated read. It carries one level a side and cannot answer a depth
-          question.
+          <span aria-hidden="true">◌</span> From the market object&rsquo;s top-of-book fields, because the orderbook
+          route refused an unauthenticated read: one level a side, which cannot answer a depth question.
         </p>
       ) : null}
     </div>
   );
 }
 
-export default function BooksPane({ books, error }: { books: CoherenceBooks | null; error: string | null }) {
+export default function BooksPane({
+  books,
+  error,
+  view = "ladder",
+}: {
+  books: CoherenceBooks | null;
+  error: string | null;
+  /** Which drawing to give the screen to. Defaults so a direct render still works. */
+  view?: BookDetailView;
+}) {
   const [selected, setSelected] = useState<string | null>(null);
 
   if (error && !books) {
@@ -94,28 +117,26 @@ export default function BooksPane({ books, error }: { books: CoherenceBooks | nu
   const current = books.books.find((book) => book.ticker === selected) ?? books.books[0];
 
   return (
-    <div className="coh-books">
-      <p className="coh-books__origin">
-        {books.origin === "tape"
-          ? "Read from the recorded tape, newest snapshot per market."
-          : "Read live from the exchange."}
-      </p>
-
-      <div className="seg coh-books__picker" role="group" aria-label="Choose a market">
-        {books.books.map((book) => (
-          <button
-            key={book.ticker}
-            type="button"
-            aria-pressed={book.ticker === current.ticker}
-            onClick={() => setSelected(book.ticker)}
-          >
-            {book.ticker.split("-").slice(-1)[0]}
-          </button>
-        ))}
+    <>
+      {/* The picker belongs to the heading, not to the view rail: two segmented
+          controls stacked one under the other read as one broken rail. */}
+      <div className="coh-event__head">
+        <h4 className="coh-books__ticker">{current.ticker}</h4>
+        <div className="seg coh-books__picker" role="group" aria-label="Choose a market">
+          {books.books.map((book) => (
+            <button
+              key={book.ticker}
+              type="button"
+              aria-pressed={book.ticker === current.ticker}
+              onClick={() => setSelected(book.ticker)}
+            >
+              {book.ticker.split("-").slice(-1)[0]}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <h4 className="coh-books__ticker">{current.ticker}</h4>
-      <BookDetail book={current} />
-    </div>
+      <BookDetail book={current} view={view} />
+    </>
   );
 }

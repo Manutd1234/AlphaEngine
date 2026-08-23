@@ -231,35 +231,22 @@
 .coh-lesson__mechanics summary { font-size: var(--fs-xs); cursor: pointer; }
 .coh-lesson__mechanics ul { margin: 6px 0 0; padding-left: 18px; font-size: var(--fs-xs); }
 
-/* ── Sections whose engine has not shipped ───────────────────────────────── */
-
-.coh-pending { display: grid; gap: 12px; }
-.coh-pending__lead { margin: 0; font-size: var(--fs-body); line-height: 1.5; }
-.coh-pending__cols { display: grid; gap: 12px; grid-template-columns: 1fr; }
-
-@media (min-width: 900px) {
-  .coh-pending__cols { grid-template-columns: 1fr 1fr; }
-}
-
-.coh-pending__cols h4 {
-  margin: 0 0 6px;
-  font-size: var(--fs-2xs);
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 640;
-}
-.coh-pending__steps,
-.coh-pending__lessons { margin: 0; padding-left: 18px; font-size: var(--fs-xs); line-height: 1.5; }
-.coh-pending__steps li,
-.coh-pending__lessons li { margin-bottom: 4px; }
-
 .coh-console__status { border-top: 1px solid var(--border); padding-top: 12px; }
 
 /* ── The certificate, the fee model, and the proof block ─────────────────── */
 
 .coh-certificate,
 .coh-fees { display: grid; gap: 12px; min-width: 0; }
+
+/*
+ * The family picker carries a visible "Family" label, so the label and the
+ * `.seg` have to share a line — as a grid item the label would otherwise
+ * block onto the row above the control it names. The picker takes the
+ * remaining width; `min-width: 0` is what lets it shrink rather than push.
+ */
+.coh-certificate__pick { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.coh-certificate__pick > span { font-size: var(--fs-xs); white-space: nowrap; }
+.coh-certificate__pick > .seg { flex: 1 1 auto; min-width: 0; }
 
 /*
  * The proof is fixed-width because it is the artefact that leaves this

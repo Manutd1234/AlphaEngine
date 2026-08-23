@@ -47,8 +47,14 @@ function plain(cc: number | null): string {
   return text.replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
 }
 
-/** Minutes and hours in UTC, so the label does not depend on the reader's clock. */
-function clock(ms: number): string {
+/**
+ * Minutes and hours in UTC, so the label does not depend on the reader's clock.
+ *
+ * Exported because `IndexPane` draws the same axis labels off the same tape and
+ * had restated these three lines locally rather than call a module-private
+ * helper. One definition, two call sites.
+ */
+export function clock(ms: number): string {
   const at = new Date(ms);
   return `${String(at.getUTCHours()).padStart(2, "0")}:${String(at.getUTCMinutes()).padStart(2, "0")}`;
 }
@@ -147,7 +153,9 @@ export default function IndexBasisChart({
   const reading =
     latest == null || average == null
       ? `The latest reading is ${latestValue ?? "—"} and the ${windowMinutes}-minute average is ${windowAverage ?? "—"}. One of the two is absent, so no basis is drawn — it is not zero.`
-      : `The latest published reading is ${latestValue}; the ${windowMinutes}-minute settlement average is ${windowAverage}. The contract resolves against the average, so a position taken on the latest print carries ${basis ?? plain(latest - average)} of basis in the index's own units.`;
+      : basis == null
+        ? `The latest published reading is ${latestValue}; the ${windowMinutes}-minute settlement average is ${windowAverage}. The contract resolves against the average, but the venue published no basis for this read, so none is drawn — it is not zero.`
+        : `The latest published reading is ${latestValue}; the ${windowMinutes}-minute settlement average is ${windowAverage}. The contract resolves against the average, so a position taken on the latest print carries ${basis} of basis in the index's own units.`;
 
   const notes = [
     points.length > kept.length
@@ -249,7 +257,7 @@ export default function IndexBasisChart({
                   <line x1={right + 6} x2={right + 14} y1={y(latest)} y2={y(latest)} className="coh-settle__basis" />
                   <line x1={right + 6} x2={right + 14} y1={y(average)} y2={y(average)} className="coh-settle__basis" />
                   <text x={right + 18} y={(y(latest) + y(average)) / 2 - 2} className="coh-settle__basis-label">
-                    basis {basis ?? plain(latest - average)}
+                    basis {basis ?? "—"}
                   </text>
                   <text x={right + 18} y={(y(latest) + y(average)) / 2 + 11} className="coh-ladder__tick">
                     latest {latestValue}

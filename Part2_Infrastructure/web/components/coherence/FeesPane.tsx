@@ -13,75 +13,148 @@
  * whole cents, which is why fragmentation is very nearly free and why what it
  * cannot give back — the sub-cent remainder — is what sets a floor under any
  * clip worth trading.
+ *
+ * Two of the section's three views are drawn here, both off the one `fees` read
+ * `FeesSection` owns. The worked-example picker renders INSIDE the worked
+ * example rather than under the section's view rail: two `.seg` controls in a
+ * row read as one broken rail, so the heading and the framing chips stand
+ * between them.
  */
 
-import { useState } from "react";
-
 import type { CoherenceFees } from "@/lib/coherence/types";
-import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import FeeParabola from "./FeeParabola";
-import { StateChip } from "./Figure";
 
-const EXAMPLES = [
+/** One row of the picker: the query it asks, and what it demonstrates. */
+export interface FeeExample {
+  id: string;
+  label: string;
+  price: string;
+  contracts: string;
+  fills: number;
+}
+
+export const EXAMPLES: readonly FeeExample[] = [
   { id: "kalshi", label: "Kalshi's own example", price: "0.3301", contracts: "0.09", fills: 3 },
   { id: "middle", label: "100 contracts at 50c", price: "0.5000", contracts: "100", fills: 1 },
   { id: "tail", label: "100 contracts at 3c", price: "0.0300", contracts: "100", fills: 1 },
   { id: "picked", label: "100 contracts, 40 fills", price: "0.5000", contracts: "100", fills: 40 },
 ];
 
-export default function FeesPane({ active }: { active: boolean }) {
-  const [example, setExample] = useState(EXAMPLES[0]);
-  const query = `price=${example.price}&contracts_fp=${example.contracts}&fills=${example.fills}`;
-  const { data, error } = useCoherenceRead<CoherenceFees>(`/api/gateway/coherence/fees?${query}`, active);
+/** The two views this pane draws. The third — Ablation — is `AblationPane`. */
+export type FeesView = "example" | "shape";
 
-  if (error && !data) {
+const HEADINGS: Record<FeesView, string> = {
+  example: "What one worked position pays, fill by fill",
+  shape: "The cost curve, and the threshold it moves",
+};
+
+/** True when the net fee is larger than the notional it was charged on. */
+export function feesExceedNotional(share: string | null): boolean {
+  return share != null && Number(share) > 1;
+}
+
+export default function FeesPane({
+  fees,
+  error,
+  view,
+  example,
+  onExample,
+}: {
+  /** The worked example as the gateway priced it, or null until it answers. */
+  fees: CoherenceFees | null;
+  error: string | null;
+  view: FeesView;
+  example: FeeExample;
+  onExample: (next: FeeExample) => void;
+}) {
+  const heading = <h4>{HEADINGS[view]}</h4>;
+
+  if (error && !fees) {
     return (
-      <p className="console-empty">
-        <span aria-hidden="true">✕</span> The fee model could not be read: {error}
-      </p>
+      <>
+        {heading}
+        <p className="console-empty">
+          <span aria-hidden="true">✕</span> The fee model could not be read: {error}
+        </p>
+      </>
     );
   }
-  if (!data) return <p className="console-empty muted">Working the example…</p>;
+  if (!fees) {
+    return (
+      <>
+        {heading}
+        <p className="console-empty muted">Working the example…</p>
+      </>
+    );
+  }
 
-  const overNotional = data.net_as_fraction_of_notional && Number(data.net_as_fraction_of_notional) > 1;
+  if (view === "shape") {
+    return (
+      <>
+        {heading}
+        <FeeParabola multiplier={fees.multiplier} feeAwareThreshold={fees.fee_aware_threshold} />
+        {/* This belongs in the figure's own `missing` line. `FeeParabola` takes
+            no `missing` prop and is not this slice's file, so the fact is said
+            here rather than left unsaid. */}
+        <p className="coh-event__note">
+          <span aria-hidden="true">◌</span> The curve is drawn at the taker rate of 0.07 times the series multiplier. It
+          models no maker fee, so a resting order&rsquo;s cost is not on it.
+        </p>
+
+        <dl className="coh-status__facts">
+          <div>
+            <dt>Minimum clip for a 2c edge</dt>
+            <dd>{fees.minimum_clip ?? "—"}</dd>
+          </div>
+          <div>
+            <dt>Balance precision</dt>
+            <dd>{fees.balance_precision}</dd>
+          </div>
+          <div>
+            <dt>Series fee multiplier</dt>
+            <dd>{fees.multiplier}</dd>
+          </div>
+          <div>
+            <dt>Fee-aware no-arbitrage bound</dt>
+            <dd>{fees.fee_aware_threshold ?? "—"}</dd>
+          </div>
+        </dl>
+
+        <p className="coh-event__note">{fees.minimum_clip_note}</p>
+        {fees.notes.map((note, index) => (
+          <p className="coh-event__note" key={`${index}-${note}`}>
+            {note}
+          </p>
+        ))}
+      </>
+    );
+  }
+
+  const overNotional = feesExceedNotional(fees.net_as_fraction_of_notional);
 
   return (
-    <div className="coh-fees">
+    <>
+      {heading}
+
+      {overNotional ? (
+        <p className="coh-event__note">
+          <span aria-hidden="true">▲</span> These fees exceed the position: at this size the rounding component alone is
+          larger than the trade, which is what a minimum clip size exists to prevent.
+        </p>
+      ) : null}
+
       <div className="seg coh-books__picker" role="group" aria-label="Choose a worked example">
         {EXAMPLES.map((item) => (
           <button
             key={item.id}
             type="button"
             aria-pressed={item.id === example.id}
-            onClick={() => setExample(item)}
+            onClick={() => onExample(item)}
           >
             {item.label}
           </button>
         ))}
       </div>
-
-      <div className="coh-status__chips">
-        <StateChip
-          mark={overNotional ? "▲" : "●"}
-          word="Net fee"
-          value={data.total?.net ?? "—"}
-          tone={overNotional ? "critical" : "muted"}
-        />
-        <StateChip mark="◇" word="Notional traded" value={data.total?.notional ?? "—"} tone="muted" />
-        <StateChip
-          mark={overNotional ? "▲" : "◇"}
-          word="Fee as a share of notional"
-          value={data.net_as_fraction_of_notional ?? "—"}
-          tone={overNotional ? "critical" : "muted"}
-        />
-      </div>
-
-      {overNotional ? (
-        <p className="coh-event__note">
-          <span aria-hidden="true">▲</span> The fees on this position exceed the position. At this size the rounding
-          component alone is larger than the trade, which is what a minimum clip size exists to prevent.
-        </p>
-      ) : null}
 
       <div className="table-wrap">
         <table className="coh-table">
@@ -99,7 +172,7 @@ export default function FeesPane({ active }: { active: boolean }) {
             </tr>
           </thead>
           <tbody>
-            {data.per_fill.map((fill, index) => (
+            {fees.per_fill.map((fill, index) => (
               <tr key={`${fill.trade_fee}-${index}`}>
                 <th scope="row">{index + 1}</th>
                 <td className="num">{fill.trade_fee}</td>
@@ -109,47 +182,19 @@ export default function FeesPane({ active }: { active: boolean }) {
                 <td className="num">{fill.notional}</td>
               </tr>
             ))}
-            {data.total ? (
+            {fees.total ? (
               <tr className="coh-table__total">
                 <th scope="row">Total</th>
-                <td className="num">{data.total.trade_fee}</td>
-                <td className="num">{data.total.rounding_fee}</td>
-                <td className="num">{data.total.rebate}</td>
-                <td className="num">{data.total.net}</td>
-                <td className="num">{data.total.notional}</td>
+                <td className="num">{fees.total.trade_fee}</td>
+                <td className="num">{fees.total.rounding_fee}</td>
+                <td className="num">{fees.total.rebate}</td>
+                <td className="num">{fees.total.net}</td>
+                <td className="num">{fees.total.notional}</td>
               </tr>
             ) : null}
           </tbody>
         </table>
       </div>
-
-      <FeeParabola multiplier={data.multiplier} feeAwareThreshold={data.fee_aware_threshold} />
-
-      <dl className="coh-status__facts">
-        <div>
-          <dt>Minimum clip for a 2c edge</dt>
-          <dd>{data.minimum_clip ?? "—"}</dd>
-        </div>
-        <div>
-          <dt>Balance precision</dt>
-          <dd>{data.balance_precision}</dd>
-        </div>
-        <div>
-          <dt>Series fee multiplier</dt>
-          <dd>{data.multiplier}</dd>
-        </div>
-        <div>
-          <dt>Fee-aware no-arbitrage bound</dt>
-          <dd>{data.fee_aware_threshold ?? "—"}</dd>
-        </div>
-      </dl>
-
-      <p className="coh-event__note">{data.minimum_clip_note}</p>
-      {data.notes.map((note, index) => (
-        <p className="coh-event__note" key={`${index}-${note}`}>
-          {note}
-        </p>
-      ))}
-    </div>
+    </>
   );
 }

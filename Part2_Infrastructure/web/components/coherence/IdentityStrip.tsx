@@ -73,6 +73,11 @@ export default function IdentityStrip({
           ? `${fromCenticents(yes)} + ${fromCenticents(no)} = ${identitySum}, and $1 + ${fromCenticents(spreadCc)} = ${identityOnePlusSpread}. The sum of the two asks is always one dollar plus the spread, so it is never below a dollar — the "buy both sides for under $1" branch is unreachable, not merely rare.`
           : `These should be equal and are not (${identitySum} against ${identityOnePlusSpread}). That means the two ladders were read at different instants — a torn snapshot, not an opportunity.`
       }
+      /* Both sides can be quoted and the payload still carry a reason — one
+         side quoted at a single level, or a torn snapshot. Without this the
+         reason was dropped from a figure that looks complete, which is the
+         failure `missing` exists to prevent. */
+      missing={unquotedReason}
     >
       <Plot height={HEIGHT}>
         {(width) => {

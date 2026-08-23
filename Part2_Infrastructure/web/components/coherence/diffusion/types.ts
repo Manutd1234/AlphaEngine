@@ -137,6 +137,19 @@ export interface DiffusionStudy {
   centroid_spread: number | null;
   verdict: string | null;
   verdict_reason: string | null;
+  /** Meetings behind the out-of-sample estimate below. */
+  skill_meetings: number;
+  /**
+   * Out-of-sample R² for the absorption clock from the stage and the rate move
+   * alone. Read first: a text null measured against an unpredictable target is
+   * not a finding about the text.
+   */
+  skill_baseline_r2: number | null;
+  /** What the text adds to that. Negative means reading it made things worse. */
+  skill_gain: number | null;
+  skill_shuffled_p: number | null;
+  /** How much slower the press conference is than the statement, in minutes. */
+  skill_stage_minutes: number | null;
 }
 
 export interface FindingsRead {

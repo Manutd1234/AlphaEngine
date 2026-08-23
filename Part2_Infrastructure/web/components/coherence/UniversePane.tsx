@@ -12,6 +12,11 @@
  * independently. Buying every outcome needs every ask; selling needs every bid.
  * In the tails a market routinely has an ask and no bid, so an event that
  * cannot be sold as a basket can very often still be bought as one.
+ *
+ * `showBaskets` is the section's Baskets view, not a visibility flag for the
+ * whole pane: the failure and unconfigured states below it render on every
+ * view of the section, because a reader looking at the settlement feed while
+ * no series is watched must be told that as well.
  */
 
 import { fromCenticents, sumPrices, verdictForBuy, verdictForSell, VERDICT_MARK, VERDICT_WORD } from "@/lib/coherence/fixed-point";
@@ -67,8 +72,7 @@ function EventCard({ event }: { event: CoherenceEventView }) {
       ) : (
         <p className="coh-event__note">
           <span aria-hidden="true">◌</span> This event is not mutually exclusive, so its prices need not sum to
-          anything and no basket total is drawn. The exchange&rsquo;s own flag decides that, not our arithmetic over the
-          strikes.
+          anything and no basket total is drawn — the exchange&rsquo;s own flag decides that, not our arithmetic.
         </p>
       )}
 
@@ -119,7 +123,14 @@ function describeStrike(kind: string, floor: string | null, cap: string | null):
   return kind;
 }
 
-export default function UniversePane({ universe, error }: { universe: CoherenceUniverse | null; error: string | null }) {
+export interface UniversePaneProps {
+  universe: CoherenceUniverse | null;
+  error: string | null;
+  /** True on the section's Baskets view. The states above it ignore it. */
+  showBaskets: boolean;
+}
+
+export default function UniversePane({ universe, error, showBaskets }: UniversePaneProps) {
   if (error && !universe) {
     return (
       <p className="console-empty">
@@ -145,9 +156,11 @@ export default function UniversePane({ universe, error }: { universe: CoherenceU
       </p>
     );
   }
+  if (!showBaskets) return null;
 
   return (
-    <div className="coh-universe">
+    <>
+      <h4>Baskets: every watched family, priced against the dollar it pays</h4>
       {universe.events.map((event) => (
         <EventCard key={event.event_ticker} event={event} />
       ))}
@@ -158,6 +171,6 @@ export default function UniversePane({ universe, error }: { universe: CoherenceU
           ))}
         </ul>
       ) : null}
-    </div>
+    </>
   );
 }

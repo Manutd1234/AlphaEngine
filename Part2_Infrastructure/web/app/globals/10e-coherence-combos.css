@@ -116,17 +116,6 @@
   color: var(--text-primary);
 }
 
-.coh-combo__facts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 18px;
-  margin: 0;
-}
-
-.coh-combo__facts div { display: grid; gap: 2px; }
-.coh-combo__facts dt { font-size: var(--fs-xs); color: var(--text-secondary); }
-.coh-combo__facts dd { margin: 0; font-variant-numeric: tabular-nums; font-weight: 620; }
-
 /* ── The band figure ─────────────────────────────────────────────────────── */
 
 .coh-combo__track { fill: var(--surface-2); }

@@ -18,6 +18,14 @@
  * here and the samples from an earnings or rate-decision window are the same
  * shape — `lib/coherence/absorption.ts` is the contract — so one estimator runs
  * over both and the comparison between venues is the interesting part.
+ *
+ * One flat switcher, four peers — Absorption, Mechanism, Findings, Kalshi
+ * episodes — rather than a venue control with a three-way control stacked
+ * under it. The venue axis had one branch of arity three and one of arity one,
+ * and a level that exists to hold a single leaf has nothing to switch; two
+ * `.seg` controls in a column read as one broken control. What that level used
+ * to say lives in the sentence above the switcher, where a reader can see it
+ * instead of finding it in a comment.
  */
 
 import { useMeasuredWidth } from "@/components/chart-kit";
@@ -92,68 +100,22 @@ function SurvivalChart({ data }: { data: CoherenceEpisodes }) {
   );
 }
 
-export default function DiffusionPane({ active }: { active: boolean }) {
-  // Two venues, one question. Kalshi answers it about a mispricing the
-  // exchange itself publishes; the announcement arm answers it about news with
-  // a public timestamp. They are the same measurement — how long until the
-  // move is finished — so they share a pane and a switcher rather than
-  // pretending to be two subjects.
-  const [venue, setVenue] = useState<"announcements" | "kalshi">("announcements");
-  const { data, error } = useCoherenceRead<CoherenceEpisodes>(
-    "/api/gateway/coherence/episodes?limit=500",
-    active && venue === "kalshi",
-  );
-  const absorption = useCoherenceRead<AbsorptionRead>(
-    "/api/gateway/diffusion/absorption?limit=400",
-    active && venue === "announcements",
-  );
-
-  const switcher = (
-    <div className="seg" role="group" aria-label="Which venue">
-      <button type="button" aria-pressed={venue === "announcements"}
-              onClick={() => setVenue("announcements")}>
-        Announcements
-      </button>
-      <button type="button" aria-pressed={venue === "kalshi"} onClick={() => setVenue("kalshi")}>
-        Kalshi episodes
-      </button>
-    </div>
-  );
-
-  if (venue === "announcements") {
-    return (
-      <div className="coh-diffusion">
-        {switcher}
-        <InformationDiffusionPane read={absorption.data} error={absorption.error} />
-      </div>
-    );
-  }
-
+/** The Kalshi arm: chips, the survival curve, the episode table and its notes. */
+function KalshiEpisodes({ data, error }: { data: CoherenceEpisodes | null; error: string | null }) {
   if (error && !data) {
     return (
-      <div className="coh-diffusion">
-        {switcher}
-        <p className="console-empty">
-          <span aria-hidden="true">✕</span> Episodes could not be read: {error}
-        </p>
-      </div>
+      <p className="console-empty">
+        <span aria-hidden="true">✕</span> Episodes could not be read: {error}
+      </p>
     );
   }
-  if (!data) {
-    return (
-      <div className="coh-diffusion">
-        {switcher}
-        <p className="console-empty muted">Reading the episodes…</p>
-      </div>
-    );
-  }
+  if (!data) return <p className="console-empty muted">Reading the episodes…</p>;
 
   const samples = episodesToSamples(data.episodes);
   const withHalfLife = samples.filter((sample) => sample.half_life_s != null);
 
   return (
-    <div className="coh-diffusion">
-      {switcher}
+    <>
       <div className="coh-status__chips">
         <StateChip mark="●" word="Closed episodes" value={String(data.episodes.length)} tone="muted" />
         <StateChip mark="◌" word="Still open" value={String(data.open_episodes)} tone="muted" />
@@ -213,6 +175,55 @@ export default function DiffusionPane({ active }: { active: boolean }) {
           decaying. Calling that a half-life of the final interval would invent a decay nobody observed.
         </p>
       ) : null}
+    </>
+  );
+}
+
+export default function DiffusionPane({ active }: { active: boolean }) {
+  const [view, setView] = useState<"absorption" | "mechanism" | "findings" | "kalshi">("absorption");
+  const episodes = useCoherenceRead<CoherenceEpisodes>(
+    "/api/gateway/coherence/episodes?limit=500",
+    active && view === "kalshi",
+  );
+  // Mechanism reads nothing: its drawing is made of two constants. Findings
+  // owns its own read inside `FindingsPane`. So only these two gates live here.
+  const absorption = useCoherenceRead<AbsorptionRead>(
+    "/api/gateway/diffusion/absorption?limit=400",
+    active && view === "absorption",
+  );
+
+  return (
+    <div className="coh-diffusion">
+      <p className="coh-event__note">
+        Both arms measure one thing — how long until the move is finished. Kalshi measures it over a
+        mispricing the exchange itself publishes, the announcement arm over news with a public timestamp.
+      </p>
+
+      <div className="seg" role="group" aria-label="Diffusion view">
+        <button type="button" aria-pressed={view === "absorption"} onClick={() => setView("absorption")}>
+          Absorption
+        </button>
+        <button type="button" aria-pressed={view === "mechanism"} onClick={() => setView("mechanism")}>
+          Mechanism
+        </button>
+        <button type="button" aria-pressed={view === "findings"} onClick={() => setView("findings")}>
+          Findings
+        </button>
+        <button type="button" aria-pressed={view === "kalshi"} onClick={() => setView("kalshi")}>
+          Kalshi episodes
+        </button>
+      </div>
+
+      {view === "kalshi" ? (
+        <KalshiEpisodes data={episodes.data} error={episodes.error} />
+      ) : (
+        <InformationDiffusionPane
+          view={view}
+          read={absorption.data}
+          error={absorption.error}
+          active={active}
+        />
+      )}
     </div>
   );
 }

@@ -15,6 +15,19 @@
  * price response, over sixty-one meetings, at t of about four. The pipeline
  * works. The predictor does not.
  *
+ * THE HEADLINE IS NOW SCORED OUT OF SAMPLE, and the null survived the move.
+ * It used to rest on the largest of eight in-sample regressions against a
+ * half-life that only existed where the move cleared two sigma — 26 of 62
+ * release meetings. `modules/coherence/diffusion/skill.py` replaced that with
+ * a residence time defined for every meeting, precision weights instead of the
+ * gate, both stages pooled, and leave-one-meeting-out scoring against a
+ * baseline that already knows the stage and the rate move. On 57 meetings the
+ * clock is predictable — out-of-sample R² +0.14, and the press conference runs
+ * about seven minutes slower than the statement — and the text subtracts from
+ * that. So the finding is no longer "nothing here predicts anything": it is
+ * that this clock has structure and the statement's spectrum is not part of
+ * it, which is a sharper claim and a falsifiable one.
+ *
  * The calendar strip above it is the other half of the claim. Every stated
  * timestamp was checked against the issuer's own release line, not against a
  * secondary calendar, because an event study with the wrong t-zero measures
@@ -100,7 +113,7 @@ export default function FindingsPane({ active }: { active: boolean }) {
           !measured
             ? null
             : held
-              ? "The two rows outside the band are the positive control: a larger rate change moves the price further. The rows inside it are the ones this instrument was built to find, and it did not find them."
+              ? "The rows outside the band are the positive control; the fold below says why the rows inside it can be read as absent at all."
               : "Nothing clears the band, including the control — so no row below can be read as an absence rather than a broken measurement."
         }
         missing="A row is drawn only where enough meetings carry both quantities; the count is in the table."
@@ -115,18 +128,15 @@ export default function FindingsPane({ active }: { active: boolean }) {
       <FindingsTable findings={data.findings} />
 
       {study ? (
-        <section className="research-subsection" aria-labelledby="diff-instrument-head">
-          <h3 className="research-subhead" id="diff-instrument-head">
-            Was the instrument fit to answer?
-          </h3>
+        <section aria-labelledby="diff-instrument-head">
+          <h4 id="diff-instrument-head">Was the instrument fit to answer?</h4>
           <InstrumentTable study={study} gate={gate} />
-          <p className="research-footnote">
+          <p className="coh-event__note">
             <span aria-hidden="true">→</span> Reported from the {study.segment ?? "whole statement"}{" "}
             against the {study.conditioning === "prior" ? "previous statement" : study.conditioning},
-            at a latent width of {study.latent_dim}. Of the runs on file, the desk shows the one that
-            recovers the known fact best among those that are well conditioned — a rule fixed in
-            advance and blind to absorption speed, so re-running cannot walk the headline towards a
-            result.{" "}
+            at latent width {study.latent_dim}. The desk shows whichever run on file best recovers the
+            known fact among the well conditioned — a rule fixed in advance, blind to absorption
+            speed, so re-running cannot walk the headline towards a result.{" "}
             {study.verdict_reason
               ? `${study.verdict_reason.charAt(0).toUpperCase()}${study.verdict_reason.slice(1)}.`
               : ""}
@@ -138,10 +148,10 @@ export default function FindingsPane({ active }: { active: boolean }) {
         <p className="coh-event__note">
           <span aria-hidden="true">{allVerified ? "✓" : "◌"}</span>{" "}
           {calendar.how.charAt(0).toUpperCase()}{calendar.how.slice(1)} — {calendar.verified}{" "}
-          of {calendar.of}. An event study anchored on a wrong t-zero measures the speed of its own
-          errors, so the hour is checked against the issuer rather than against a second calendar.
-          The {calendar.dissent_votes} dissenting votes across {calendar.dissent_meetings} meetings
-          are counted from the vote line of each statement, not from a summary of it.
+          of {calendar.of}. The hour is checked against the issuer rather than against a second
+          calendar, because an event study anchored on a wrong t-zero measures the speed of its own
+          errors. Its {calendar.dissent_votes} dissenting votes across {calendar.dissent_meetings}{" "}
+          meetings come from the vote line of each statement, not from a summary of it.
         </p>
       ) : null}
 
@@ -149,11 +159,13 @@ export default function FindingsPane({ active }: { active: boolean }) {
         <summary>Why is the predictor reported as absent rather than dropped?</summary>
         <p>
           A measurement that found nothing is only worthless when nobody can tell it apart from a
-          measurement that could not have found anything. The control rows fix that: the same
-          pipeline, the same events, the same standardisation, and a relationship it does detect at
-          four standard errors. So the empty rows are evidence about the market rather than
-          evidence about the code, and deleting them would leave the next reader to spend the same
-          weeks rediscovering it.
+          measurement that could not have found anything. Two things fix that here. The control
+          rows are the same pipeline, the same events and the same standardisation, on a
+          relationship it does detect at four standard errors. And the instrument table reports
+          how well the absorption clock is predicted <em>without</em> the text at all — from the
+          stage and the size of the rate move — so a reader can see the target has structure before
+          reading that the text does not explain it. Deleting the empty rows would leave the next
+          reader to spend the same weeks rediscovering them.
         </p>
       </details>
     </div>

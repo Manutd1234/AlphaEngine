@@ -70,6 +70,12 @@ export function decimalLabel(raw: string | null | undefined, places = 4): string
  * Routed through the centicent reader so a price on this diagram is the same
  * quantity the rest of the tab draws — four decimals, the exchange's own tick.
  */
+/** "3", "3 and 354", "3, 354 and 12" — a comma list with a final "and". */
+function countList(counts: readonly number[]): string {
+  if (counts.length <= 2) return counts.join(" and ");
+  return `${counts.slice(0, -1).join(", ")} and ${counts[counts.length - 1]}`;
+}
+
 export function unitOf(raw: string | null | undefined): number | null {
   const cc = toCenticents(truncateDecimal(raw, 4));
   return cc == null ? null : cc / DOLLAR_CC;
@@ -168,9 +174,9 @@ export default function ReliabilityDiagram({
     <Figure
       caption={`Price against outcome, band by band — ${horizonNote}`}
       ariaLabel={`${points.length} of ${bins.length} price bands carry settled markets; the widest gap between price and outcome is in the ${worst.label} band`}
-      reading={`Each point is one tenth-of-a-dollar band: across the band's ${points
-        .map((point) => point.count)
-        .join(" and ")} settled markets, the horizontal is what they were priced at and the vertical is how often they happened. The dashed diagonal is perfect calibration; the short line from a point to it is that band's contribution to the reliability term. The widest gap here is the ${worst.label} band, priced at ${worst.pricedText} against an outcome rate of ${worst.happenedText}. The number beside a point, and its area, are both how many settled markets fell in that band.${steps.length ? ` The step line is the isotonic correction: the non-decreasing curve that would put these points back on the diagonal.` : ``}`}
+      reading={`Each point is one tenth-of-a-dollar band: the horizontal is what those markets were priced at and the vertical is how often they happened. The bands carry ${countList(
+        points.map((point) => point.count),
+      )} settled markets. The dashed diagonal is perfect calibration; the short line from a point to it is that band's contribution to the reliability term. The widest gap here is the ${worst.label} band, priced at ${worst.pricedText} against an outcome rate of ${worst.happenedText}. The number beside a point, and its area, are both how many settled markets fell in that band.${steps.length ? ` The step line is the isotonic correction: the non-decreasing curve that would put these points back on the diagonal.` : ``}`}
       missing={emptyNote}
     >
       <Plot height={HEIGHT}>

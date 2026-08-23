@@ -19,9 +19,11 @@
  * sub-minute horizons have no free source and stay in the grid as gaps, and
  * every stage that failed the noise floor is counted on the same bar as the
  * ones that passed.
+ *
+ * The switcher lives one level up, in `DiffusionPane`, and hands this pane the
+ * view it should draw. Three of the four views are here; only one of them
+ * needs the absorption ledger, so the other two return before it is examined.
  */
-
-import { useState } from "react";
 
 import Figure, { FigureEmpty, StateChip } from "../Figure";
 import AbsorptionCurve from "./AbsorptionCurve";
@@ -32,6 +34,9 @@ import type { AbsorptionRead, StageRun } from "./types";
 
 const STAGE_TERMINAL_MIN = 30;
 const STAGE_GAP_MIN = 30;
+/** The event table shows the tail of the ledger; its caption states the cap. */
+const RECENT_MEETINGS = 24;
+const STAGE_WORD: Record<string, string> = { release: "statement", call: "press conference" };
 
 function ratio(read: AbsorptionRead): string | null {
   const release = read.stages.find((stage) => stage.stage === "release")?.median_half_life_s;
@@ -50,7 +55,7 @@ function EventTable({ runs }: { runs: StageRun[] }) {
   }
   const rows = [...byEvent.entries()]
     .filter(([, pair]) => pair.release?.signal_state === "ok" || pair.call?.signal_state === "ok")
-    .slice(-24)
+    .slice(-RECENT_MEETINGS)
     .reverse();
 
   if (!rows.length) {
@@ -84,8 +89,8 @@ function EventTable({ runs }: { runs: StageRun[] }) {
     <div className="table-wrap">
       <table className="coh-table">
         <caption className="coh-table__caption">
-          Every meeting with a measured stage, newest first. A blank stage never moved enough to
-          measure, which is a property of the decision rather than of the data.
+          Meetings with a measured stage, newest first, capped at the last {RECENT_MEETINGS}. A blank
+          stage never moved enough to measure, which is a property of the decision rather than of the data.
         </caption>
         <thead>
           <tr>
@@ -124,11 +129,41 @@ function EventTable({ runs }: { runs: StageRun[] }) {
   );
 }
 
-export default function InformationDiffusionPane({ read, error }: {
+export default function InformationDiffusionPane({ view, read, error, active }: {
+  view: "absorption" | "mechanism" | "findings";
   read: AbsorptionRead | null;
   error: string | null;
+  active: boolean;
 }) {
-  const [view, setView] = useState<"absorption" | "findings" | "mechanism">("absorption");
+  // The mechanism drawing is made of the two stage constants and nothing else.
+  // It used to sit behind the absorption read because the venue gate was
+  // shared; flat views let it wait on nothing and fetch nothing.
+  if (view === "mechanism") {
+    return (
+      <div className="diff-pane">
+        <Figure
+          caption="Why a rate decision can be measured twice"
+          ariaLabel={`Two stages ${STAGE_GAP_MIN} minutes apart, each measured over its own ${STAGE_TERMINAL_MIN} minute window`}
+          reading="Both windows are the same length and each is measured from its own start, so a difference between them is a difference in absorption rather than in the grid."
+          missing="Sub-minute horizons are drawn but never measured: no free bar source resolves them."
+        >
+          <StageTimeline gapMinutes={STAGE_GAP_MIN} terminalMinutes={STAGE_TERMINAL_MIN} />
+        </Figure>
+      </div>
+    );
+  }
+
+  // `FindingsPane` owns the findings read and gates it on the `active` it is
+  // handed. This branch is mounted only while the findings view is selected,
+  // so leaving the view ends the poll rather than leaving it running behind a
+  // tab nobody is looking at — which is what a hardcoded `active` used to do.
+  if (view === "findings") {
+    return (
+      <div className="diff-pane">
+        <FindingsPane active={active} />
+      </div>
+    );
+  }
 
   if (error && !read) {
     return (
@@ -149,74 +184,56 @@ export default function InformationDiffusionPane({ read, error }: {
 
   const measured = read.stages.reduce((total, stage) => total + stage.measured, 0);
   const gap = ratio(read);
+  // Named so the bars figure can say which stage has no median and why, in the
+  // one place a reader is already asking it: under the drawing itself.
+  const unresolved = read.stages
+    .filter((stage) => stage.median_half_life_s == null)
+    .map((stage) => `No median half-life for the ${STAGE_WORD[stage.stage] ?? stage.stage}: `
+      + `${stage.reason ?? "the ledger gave no reason"}.`);
 
   return (
     <div className="diff-pane">
-      <div className="seg" role="group" aria-label="Diffusion view">
-        <button type="button" aria-pressed={view === "absorption"} onClick={() => setView("absorption")}>
-          Absorption
-        </button>
-        <button type="button" aria-pressed={view === "findings"} onClick={() => setView("findings")}>
-          Findings
-        </button>
-        <button type="button" aria-pressed={view === "mechanism"} onClick={() => setView("mechanism")}>
-          Mechanism
-        </button>
-      </div>
-
-      {/* The absorption chips belong to the absorption question. On the
-          findings view they would sit above a second chip row about something
-          else, and eight tiles in a line read as one summary of one thing. */}
-      {view === "findings" ? null : (
+      {/* Two chips, not four. "Stages measured" and "Below the floor" were the
+          column sums of the two bars directly below them, so the summary and
+          the drawing were saying one number twice. */}
       <div className="coh-status__chips">
-        <StateChip mark="●" word="Stages measured" value={String(measured)} tone="muted" />
-        <StateChip mark="◌" word="Below the floor"
-                   value={String(read.stages.reduce((t, s) => t + s.no_signal, 0))} tone="muted" />
         <StateChip mark={gap ? "→" : "◌"} word="Conference slower by"
                    value={gap ?? "not yet"} tone={gap ? "warn" : "muted"} />
         <StateChip mark="✓" word="Terminal" value={`${STAGE_TERMINAL_MIN} min, both stages`} tone="muted" />
       </div>
-      )}
 
-      {view === "findings" ? (
-        <FindingsPane active />
-      ) : view === "mechanism" ? (
-        <Figure
-          caption="Why a rate decision can be measured twice"
-          ariaLabel={`Two stages ${STAGE_GAP_MIN} minutes apart, each measured over its own ${STAGE_TERMINAL_MIN} minute window`}
-          reading="Both windows are the same length and each is measured from its own start, so a difference between them is a difference in absorption rather than in the grid."
-          missing="Sub-minute horizons are drawn but never measured: no free bar source resolves them."
-        >
-          <StageTimeline gapMinutes={STAGE_GAP_MIN} terminalMinutes={STAGE_TERMINAL_MIN} />
-        </Figure>
-      ) : (
-        <>
-          <Figure
-            caption="How much of each stage's move had arrived by each horizon"
-            ariaLabel={`Absorbed fraction against horizon for both stages, over ${measured} measured stages`}
-            reading={
-              gap
-                ? `The statement is half absorbed in ${Math.round(read.stages.find((s) => s.stage === "release")!.median_half_life_s!)} seconds and the press conference takes ${gap} as long.`
-                : null
-            }
-            missing={
-              read.horizons.length && read.release_curve[0] == null
-                ? "The first two horizons are drawn as gaps: no free source resolves a move inside one minute."
-                : null
-            }
-          >
-            {read.runs.length ? (
-              <AbsorptionCurve horizons={read.horizons} release={read.release_curve}
-                               call={read.call_curve} stages={read.stages} />
-            ) : (
-              <FigureEmpty reason="No stage has been measured yet." />
-            )}
-          </Figure>
+      <Figure
+        caption="How much of each stage's move had arrived by each horizon"
+        ariaLabel={`Absorbed fraction against horizon for both stages, over ${measured} measured stages`}
+        reading={
+          gap
+            ? `The statement is half absorbed in ${Math.round(read.stages.find((s) => s.stage === "release")!.median_half_life_s!)} seconds and the press conference takes ${gap} as long.`
+            : null
+        }
+        missing={
+          read.horizons.length && read.release_curve[0] == null
+            ? "The first two horizons are drawn as gaps: no free source resolves a move inside one minute."
+            : null
+        }
+      >
+        {read.runs.length ? (
+          <AbsorptionCurve horizons={read.horizons} release={read.release_curve}
+                           call={read.call_curve} stages={read.stages} />
+        ) : (
+          <FigureEmpty reason="No stage has been measured yet." />
+        )}
+      </Figure>
 
-          <StageBars stages={read.stages} />
-          <EventTable runs={read.runs} />
-        </>
-      )}
+      <Figure
+        caption="How many stages cleared the noise floor, and where the ones that did sat against windows with no news in them"
+        ariaLabel={`Two bars for each of ${read.stages.length} stages: measured against refused, and the median percentile against matched windows on prior days at the same clock time`}
+        reading="Most rate decisions move neither stage two pre-event sigmas, so the refused stages are drawn on the same bar and at the same scale rather than left out of the count."
+        missing={unresolved.length ? unresolved.join(" ") : null}
+      >
+        <StageBars stages={read.stages} />
+      </Figure>
+
+      <EventTable runs={read.runs} />
     </div>
   );
 }

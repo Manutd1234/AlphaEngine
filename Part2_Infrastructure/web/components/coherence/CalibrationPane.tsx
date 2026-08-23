@@ -26,11 +26,18 @@
  * `median_horizon_s` — zero, meaning the price was read AT settlement — is
  * printed as the tell rather than buried.
  *
+ * THE BANNER IS NEVER BEHIND A BUTTON. Score, Bands and Corpus are a `.seg`,
+ * never a nested rail — but the caveat invalidates all three, so it stands
+ * above the switcher with the chip row and the pre-render states, and the one
+ * read stays gated on `active` alone: its payload feeds every view AND it.
+ *
  * The composition table is disclosure of the same kind. A corpus is not a
  * random sample of forecasts; it is whatever the watched series happened to
  * settle, and when one ticker is most of it the score is mostly a score of that
  * ticker.
  */
+
+import { useState } from "react";
 
 import { pct } from "@/lib/format";
 import { priceLabel } from "@/lib/coherence/fixed-point";
@@ -69,7 +76,7 @@ function slopeReading(slope: string | null, populated: number, bands: number): s
   const value = statValue(slope);
   if (value == null) return "the engine sent a slope this pane could not read, so it is not shown";
   if (value > 1.02) {
-    return "steeper than the diagonal, which is the classic favourite–longshot shape: longshots are overbet, so they happen LESS often than their price says, and favourites are underbet, so they happen MORE often. The line through those points tilts up harder than the 45°";
+    return "steeper than the diagonal — the 45° line — which is the classic favourite–longshot shape: longshots are overbet, so they happen LESS often than their price says, and favourites are underbet, so they happen MORE often";
   }
   if (value < 0.98) {
     return "flatter than the diagonal — the reverse of the favourite–longshot shape. The outcomes spread less than the prices did, so the prices were more confident than the world turned out to be";
@@ -79,6 +86,9 @@ function slopeReading(slope: string | null, populated: number, bands: number): s
 
 export default function CalibrationPane({ active }: { active: boolean }) {
   const { data, error } = useCoherenceRead<CoherenceCalibration>("/api/gateway/coherence/calibration", active);
+  // One read behind three views. Gated on `active` and never on `view`: the
+  // same payload draws all three AND the banner that stands over them.
+  const [view, setView] = useState<"score" | "bands" | "corpus">("score");
 
   if (error && !data) {
     return (
@@ -147,20 +157,9 @@ export default function CalibrationPane({ active }: { active: boolean }) {
 
   return (
     <div className="coh-calib">
+      {/* The one chip no figure, note or heading below already says. Settled
+          markets, bands quoted and the engine each repeated a neighbour. */}
       <div className="coh-status__chips">
-        <StateChip
-          mark={convergence ? "▲" : forecast ? "✓" : "◌"}
-          word="Engine"
-          value={data.engine}
-          tone={convergence ? "warn" : forecast ? "good" : "muted"}
-        />
-        <StateChip mark="●" word="Settled markets" value={String(data.count)} tone="muted" />
-        <StateChip
-          mark={populated < SLOPE_MINIMUM_BANDS ? "◌" : "●"}
-          word="Bands quoted"
-          value={`${populated} of ${data.bins.length}`}
-          tone={populated < SLOPE_MINIMUM_BANDS ? "warn" : "muted"}
-        />
         <StateChip
           mark={data.thin ? "▲" : "●"}
           word={data.thin ? "Thin sample" : "Sample not flagged thin"}
@@ -170,21 +169,20 @@ export default function CalibrationPane({ active }: { active: boolean }) {
       </div>
 
       <section className={`coh-calib__engine ${convergence ? "is-warn" : forecast ? "is-good" : "is-muted"}`}>
-        <h3 className="coh-calib__engine-head">
+        <h2 className="coh-calib__engine-head">
           <span aria-hidden="true">{convergence ? "▲" : forecast ? "✓" : "◌"}</span>{" "}
           {convergence
             ? "Not a forecast test — these are last traded prices"
             : forecast
               ? "A forecast test — prices quoted before the answer was known"
               : `Unrecognised engine: ${data.engine}`}
-        </h3>
+        </h2>
         {convergence ? (
           <p className="coh-calib__engine-body">
             A last trade happens moments before settlement, when the answer is largely in plain sight, and{" "}
             {horizonText(data.median_horizon_s)}. So the Brier score of {decimalLabel(data.brier, PLACES)} and the
-            skill of {decimalLabel(data.skill, PLACES)} below say how quickly this exchange converges on an answer it
-            can already see. They do not say the market forecasts well, they are not evidence that it does, and they
-            must not be quoted as though they were. Run the score on the <code>tape</code> engine — prices quoted an
+            skill of {decimalLabel(data.skill, PLACES)} below measure how fast this exchange converges, not foresight,
+            and must not be quoted as evidence of it. Run the score on the <code>tape</code> engine — prices quoted an
             hour before close — to ask the forecasting question.
           </p>
         ) : forecast ? (
@@ -202,158 +200,185 @@ export default function CalibrationPane({ active }: { active: boolean }) {
         )}
       </section>
 
-      <dl className="coh-calib__facts">
-        {facts.map((fact) => (
-          <div key={fact.label}>
-            <dt>{fact.label}</dt>
-            <dd>
-              <b className="coh-calib__figurevalue">{fact.value}</b>
-              <span className="coh-calib__caveat">{fact.note}</span>
-            </dd>
+      <div className="seg" role="group" aria-label="Calibration view">
+        <button type="button" aria-pressed={view === "score"} onClick={() => setView("score")}>Score</button>
+        <button type="button" aria-pressed={view === "bands"} onClick={() => setView("bands")}>Bands</button>
+        <button type="button" aria-pressed={view === "corpus"} onClick={() => setView("corpus")}>Corpus</button>
+      </div>
+
+      {view === "score" ? (
+        <>
+          <dl className="coh-calib__facts">
+            {facts.map((fact) => (
+              <div key={fact.label}>
+                <dt>{fact.label}</dt>
+                <dd>
+                  <b className="coh-calib__figurevalue">{fact.value}</b>
+                  <span className="coh-calib__caveat">{fact.note}</span>
+                </dd>
+              </div>
+            ))}
+          </dl>
+
+          <div className="coh-calib__figures">
+            <MurphyBars
+              brier={data.brier}
+              reliability={data.reliability}
+              resolution={data.resolution}
+              uncertainty={data.uncertainty}
+              binning={data.binning}
+              bandCount={data.bins.length}
+            />
           </div>
-        ))}
-      </dl>
+        </>
+      ) : view === "bands" ? (
+        <>
+          <div className="coh-calib__figures">
+            <ReliabilityDiagram
+              bins={data.bins}
+              map={data.isotonic_map}
+              baseRate={data.base_rate}
+              horizonNote={
+                convergence
+                  ? "last traded prices, so the x axis is what the exchange had already converged on"
+                  : horizonText(data.median_horizon_s)
+              }
+            />
+          </div>
 
-      <div className="coh-calib__figures">
-        <ReliabilityDiagram
-          bins={data.bins}
-          map={data.isotonic_map}
-          baseRate={data.base_rate}
-          horizonNote={
-            convergence
-              ? "last traded prices, so the x axis is what the exchange had already converged on"
-              : horizonText(data.median_horizon_s)
-          }
-        />
-        <MurphyBars
-          brier={data.brier}
-          reliability={data.reliability}
-          resolution={data.resolution}
-          uncertainty={data.uncertainty}
-          binning={data.binning}
-          bandCount={data.bins.length}
-        />
-      </div>
-
-      <div className="table-wrap">
-        <table className="coh-table">
-          <caption className="coh-table__caption">
-            Every price band. A band with no settled market has no outcome rate, and its cells are dashed rather than
-            zeroed — nobody quoted there, which is a different fact from nothing happening there.
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">Band</th>
-              <th scope="col" className="num">Settled</th>
-              <th scope="col" className="num">Mean price</th>
-              <th scope="col" className="num">Happened</th>
-              <th scope="col" className="num">Outcome minus price</th>
-              <th scope="col">Reading</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.bins.map((bin) => {
-              const deviation = statValue(bin.deviation);
-              return (
-                <tr key={bin.label}>
-                  <th scope="row">{`${priceLabel(bin.low)} to ${priceLabel(bin.high)}`}</th>
-                  <td className="num">{bin.count}</td>
-                  <td className="num">{decimalLabel(bin.mean_forecast)}</td>
-                  <td className="num">{decimalLabel(bin.outcome_rate)}</td>
-                  <td className="num">{decimalLabel(bin.deviation)}</td>
-                  <td>
-                    {bin.count === 0 ? (
-                      <>
-                        <span aria-hidden="true">◌</span> nobody quoted this band
-                      </>
-                    ) : deviation == null ? (
-                      <>
-                        <span aria-hidden="true">◌</span> no deviation was computed
-                      </>
-                    ) : deviation > 0 ? (
-                      "happened more often than priced"
-                    ) : deviation < 0 ? (
-                      "happened less often than priced"
-                    ) : (
-                      "priced exactly"
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      <section className="coh-calib__composition">
-        <h3 className="coh-calib__engine-head">What was scored, and what that leaves out</h3>
-        <p className="coh-event__note">
-          A corpus is not a random sample of forecasts. These {data.count} markets are whatever the watched series
-          happened to settle over the recorded window, so every number above is a score of THIS mixture and does not
-          carry to the rest of the exchange.
-          {heaviest && corpus > 0
-            ? ` ${heaviest.series_ticker} alone is ${heaviest.count} of ${corpus} (${pct(heaviest.count / corpus)}), so this is mostly a score of that series.`
-            : ""}
-        </p>
-        {data.composition.length ? (
+          <h3 className="research-subhead">Every price band</h3>
           <div className="table-wrap">
             <table className="coh-table">
-              <caption className="coh-table__caption">Which series the settled markets came from</caption>
+              <caption className="coh-table__caption">
+                A band with no settled market has no outcome rate, and its cells are dashed rather than zeroed —
+                nobody quoted there, which is a different fact from nothing happening there.
+              </caption>
               <thead>
                 <tr>
-                  <th scope="col">Series</th>
-                  <th scope="col" className="num">Settled markets</th>
-                  <th scope="col" className="num">Share of the corpus</th>
-                  <th scope="col" className="num">Its own slope</th>
+                  <th scope="col">Band</th>
+                  <th scope="col" className="num">Settled</th>
+                  <th scope="col" className="num">Mean price</th>
+                  <th scope="col" className="num">Happened</th>
+                  <th scope="col" className="num">Outcome minus price</th>
+                  <th scope="col">Reading</th>
                 </tr>
               </thead>
               <tbody>
-                {data.composition.map((row) => {
-                  // The aggregate slope averages series that are not the same
-                  // question, so two of them can point opposite ways and still
-                  // sit at one together. A series without enough settled
-                  // markets to populate three price bands has no slope, and
-                  // gets a dash rather than the corpus figure standing in.
-                  const own = (data.bias_by_series ?? []).find(
-                    (item) => item.series_ticker === row.series_ticker,
-                  );
+                {data.bins.map((bin) => {
+                  const deviation = statValue(bin.deviation);
                   return (
-                    <tr key={row.series_ticker}>
-                      <th scope="row">{row.series_ticker}</th>
-                      <td className="num">{row.count}</td>
-                      <td className="num">{corpus > 0 ? pct(row.count / corpus) : "—"}</td>
-                      <td className="num">{own ? own.slope.slice(0, 6) : "—"}</td>
+                    <tr key={bin.label}>
+                      <th scope="row">{`${priceLabel(bin.low)} to ${priceLabel(bin.high)}`}</th>
+                      <td className="num">{bin.count}</td>
+                      <td className="num">{decimalLabel(bin.mean_forecast)}</td>
+                      <td className="num">{decimalLabel(bin.outcome_rate)}</td>
+                      <td className="num">{decimalLabel(bin.deviation)}</td>
+                      <td>
+                        {bin.count === 0 ? (
+                          <>
+                            <span aria-hidden="true">◌</span> nobody quoted this band
+                          </>
+                        ) : deviation == null ? (
+                          <>
+                            <span aria-hidden="true">◌</span> no deviation was computed
+                          </>
+                        ) : deviation > 0 ? (
+                          "happened more often than priced"
+                        ) : deviation < 0 ? (
+                          "happened less often than priced"
+                        ) : (
+                          "priced exactly"
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
           </div>
-        ) : (
-          <p className="coh-event__note">
-            <span aria-hidden="true">◌</span> The engine did not say which series these markets came from, so the
-            selection behind the score cannot be checked from here.
-          </p>
-        )}
-      </section>
 
-      {data.isotonic_map.length ? (
-        <p className="coh-event__note">
-          The isotonic correction drawn on the diagram is the recalibration this data supports: {data.isotonic_map.length}{" "}
-          step(s), non-decreasing by construction, because a higher price that mapped to a lower probability would make
-          the corrected prices incoherent in exactly the way the rest of this tab tests for. It repairs the reliability
-          term and nothing else; resolution is not recoverable by relabelling prices.
-        </p>
+          {/* The note stands with the line it describes, drawn two blocks
+              above rather than two tables away. */}
+          <h3 className="research-subhead">The isotonic correction</h3>
+          {data.isotonic_map.length ? (
+            <p className="coh-event__note">
+              The correction drawn on the diagram is the recalibration this data supports: {data.isotonic_map.length}{" "}
+              step(s), non-decreasing by construction, because a higher price that mapped to a lower probability would
+              make the corrected prices incoherent in exactly the way the rest of this tab tests for. It repairs the
+              reliability term and nothing else; resolution is not recoverable by relabelling prices.
+            </p>
+          ) : (
+            <p className="coh-event__note">
+              <span aria-hidden="true">◌</span> No isotonic correction was returned, so the diagram carries the raw
+              bands only.
+            </p>
+          )}
+        </>
       ) : (
-        <p className="coh-event__note">
-          <span aria-hidden="true">◌</span> No isotonic correction was returned, so the diagram carries the raw bands
-          only.
-        </p>
-      )}
+        <>
+          <section className="coh-calib__composition">
+            <h3 className="research-subhead">What was scored, and what that leaves out</h3>
+            <p className="coh-event__note">
+              A corpus is not a random sample of forecasts. The {data.count} markets scored here are whatever the
+              watched series happened to settle over the recorded window, so every number on the Score view is a score
+              of THIS mixture and does not carry to the rest of the exchange.
+            </p>
+            {data.composition.length ? (
+              <div className="table-wrap">
+                <table className="coh-table">
+                  {/* The shares divide by the composition total, which need not
+                      be the scored count, so the denominator is named. */}
+                  <caption className="coh-table__caption">
+                    Which series the settled markets came from. This table accounts for {corpus} of the {data.count}{" "}
+                    scored, and every share below is of that {corpus}.
+                    {heaviest && corpus > 0
+                      ? ` ${heaviest.series_ticker} alone is ${heaviest.count} of ${corpus} (${pct(heaviest.count / corpus)}), so this is mostly a score of that series.`
+                      : ""}
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Series</th>
+                      <th scope="col" className="num">Settled markets</th>
+                      <th scope="col" className="num">Share of the corpus</th>
+                      <th scope="col" className="num">Its own slope</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.composition.map((row) => {
+                      // The aggregate slope averages series that are not the same
+                      // question, so two of them can point opposite ways and still
+                      // sit at one together. A series without enough settled
+                      // markets to populate three price bands has no slope, and
+                      // gets a dash rather than the corpus figure standing in.
+                      const own = (data.bias_by_series ?? []).find(
+                        (item) => item.series_ticker === row.series_ticker,
+                      );
+                      return (
+                        <tr key={row.series_ticker}>
+                          <th scope="row">{row.series_ticker}</th>
+                          <td className="num">{row.count}</td>
+                          <td className="num">{corpus > 0 ? pct(row.count / corpus) : "—"}</td>
+                          <td className="num">{own ? own.slope.slice(0, 6) : "—"}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="coh-event__note">
+                <span aria-hidden="true">◌</span> The engine did not say which series these markets came from, so the
+                selection behind the score cannot be checked from here.
+              </p>
+            )}
+          </section>
 
-      <p className="coh-event__note">
-        <span aria-hidden="true">◌</span> What the engine says about this run, in its own words: {data.detail}
-      </p>
+          <h3 className="research-subhead">What the engine says about this run, in its own words</h3>
+          <p className="coh-event__note">
+            <span aria-hidden="true">◌</span> {data.detail}
+          </p>
+        </>
+      )}
     </div>
   );
 }

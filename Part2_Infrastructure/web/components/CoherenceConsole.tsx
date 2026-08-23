@@ -23,26 +23,23 @@
  * `ReliabilityConsole` records.
  */
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import PageHead from "@/components/workspace/PageHead";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
 import FreshnessStamp from "@/components/workspace/FreshnessStamp";
-import BooksPane from "@/components/coherence/BooksPane";
+import BooksSection, { type BooksView } from "@/components/coherence/BooksSection";
 import CertificatePane from "@/components/coherence/CertificatePane";
 import DiffusionPane from "@/components/coherence/DiffusionPane";
 import IndexPane from "@/components/coherence/IndexPane";
-import AblationPane from "@/components/coherence/AblationPane";
 import CalibrationPane from "@/components/coherence/CalibrationPane";
 import CombosPane from "@/components/coherence/CombosPane";
-import FeesPane from "@/components/coherence/FeesPane";
+import FeesSection from "@/components/coherence/FeesSection";
 import LessonsPane from "@/components/coherence/LessonsPane";
-import RfqPane from "@/components/coherence/RfqPane";
-import SettlementPane from "@/components/coherence/SettlementPane";
 import ShellPane from "@/components/coherence/ShellPane";
 import StatusPane from "@/components/coherence/StatusPane";
 import SurfacePane from "@/components/coherence/SurfacePane";
-import UniversePane from "@/components/coherence/UniversePane";
+import UniverseSection from "@/components/coherence/UniverseSection";
 import { COHERENCE_SECTIONS, type CoherenceSection } from "@/lib/sections";
 import { COHERENCE_POLL_MS, useCoherenceRead } from "@/lib/coherence/use-coherence";
 import type { CoherenceBooks, CoherenceStatus, CoherenceUniverse } from "@/lib/coherence/types";
@@ -67,7 +64,15 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
     "/api/gateway/coherence/universe?max_events=2",
     active && (section === "universe" || section === "certificate" || section === "lattice"),
   );
-  const books = useCoherenceRead<CoherenceBooks>("/api/gateway/coherence/books", active && section === "books");
+  // Which of the three book views is open. The read below is the exchange's
+  // book route; the Dispersion view does not draw a book, so it does not ask
+  // for one. `BooksSection` announces the change because the read has to live
+  // up here, where `active` and `section` are.
+  const [booksView, setBooksView] = useState<BooksView>("ladder");
+  const books = useCoherenceRead<CoherenceBooks>(
+    "/api/gateway/coherence/books",
+    active && section === "books" && booksView !== "dispersion",
+  );
 
   const metrics = useMemo(() => {
     const recorder = status.data?.recorder;
@@ -106,12 +111,12 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
     <div className="coherence-plane">
       <PageHead
         kicker="Coherence"
-        title="Kalshi, tested against the probabilities its prices claim"
+        title="Prices as probabilities, tested for coherence"
         description={
           <>
-            A contract paying $1 if an event happens is a probability with a price on it. Where a family of prices
-            admits no probability measure, the portfolio that wins in every state is what the failure hands back. This
-            tab reads the exchange live and records what it saw; nothing here places an order.
+            A contract paying $1 if an event happens is a probability with a price on it. Where a family of those
+            prices admits no probability measure, the failure hands back a portfolio that wins in every state. This tab
+            reads the exchange live and records what it saw; it places no orders.
           </>
         }
         actions={
@@ -136,21 +141,29 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
       />
 
       <WorkspaceSubtabPanel workspaceId="coherence" tabId="universe" activeId={section}>
-        <UniversePane universe={universe.data} error={universe.error} />
-        {/* The settlement feed sits under the universe because it answers the
-            question the universe raises: these families are priced against an
-            outcome, and this is the published variable that outcome is read
-            from — which is not the price anybody watches. */}
-        <SettlementPane active={active && section === "universe"} />
+        {/* The settlement feed is a view of this section rather than a pane
+            stacked under it, because it answers the question the universe
+            raises: these families are priced against an outcome, and this is
+            the published variable that outcome is read from — which is not the
+            price anybody watches. */}
+        <UniverseSection
+          universe={universe.data}
+          error={universe.error}
+          active={active && section === "universe"}
+        />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="coherence" tabId="books" activeId={section}>
-        <BooksPane books={books.data} error={books.error} />
-        {/* Maker dispersion belongs beside the book for the reason it exists: a
-            book shows the most aggressive opinion on one market, and for a
-            combo it shows nothing at all. The RFQ panel is the only place the
-            venue reveals what professionals disagree about. */}
-        <RfqPane active={active && section === "books"} />
+        {/* Maker dispersion is a view of this section for the reason it
+            exists: a book shows the most aggressive opinion on one market, and
+            for a combo it shows nothing at all. The RFQ panel is the only place
+            the venue reveals what professionals disagree about. */}
+        <BooksSection
+          books={books.data}
+          error={books.error}
+          active={active && section === "books"}
+          onViewChange={setBooksView}
+        />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="coherence" tabId="lattice" activeId={section}>
@@ -165,8 +178,7 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="coherence" tabId="fees" activeId={section}>
-        <FeesPane active={active && section === "fees"} />
-        <AblationPane active={active && section === "fees"} />
+        <FeesSection active={active && section === "fees"} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="coherence" tabId="index" activeId={section}>

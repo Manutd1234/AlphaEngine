@@ -80,7 +80,6 @@
 
 .coh-shell__note,
 .coh-shell__detail-line,
-.coh-settle__lead,
 .coh-settle__note,
 .coh-settle__standing,
 .coh-rfq__lead,
@@ -92,7 +91,6 @@
 }
 
 .coh-shell__detail-line,
-.coh-settle__lead,
 .coh-rfq__lead { color: var(--text-primary); }
 
 .coh-shell__entries {

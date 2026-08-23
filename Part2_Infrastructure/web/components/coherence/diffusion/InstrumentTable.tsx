@@ -14,6 +14,14 @@
  * feature whose values all sit within a hundredth of each other cannot predict
  * anything however well each one is estimated, and in a regression that
  * failure is indistinguishable from a true null.
+ *
+ * The fourth requirement is about the TARGET rather than the instrument, and it
+ * is the one this table used to leave out. An absorption clock that nothing
+ * predicts cannot be evidence that the text does not predict it, so the last
+ * two rows report how well the clock is predicted WITHOUT the text — from the
+ * stage and the size of the rate move — and only then what the text adds to
+ * that, scored on meetings the fit never saw. Both stages of a meeting leave
+ * the fit together, so a statement can never help predict its own absorption.
  */
 
 import { fmt } from "@/lib/format";
@@ -59,7 +67,9 @@ export default function InstrumentTable({ study, gate }: {
       <table className="coh-table diff-instrument">
         <caption className="coh-table__caption">
           What had to be true of the instrument before the results above could be read as
-          evidence. Every figure here is measured without reference to absorption speed.
+          evidence. The first four are measured without reference to absorption speed; the last
+          two are the headline itself, scored on meetings the fit never saw, with both stages of a
+          meeting held out together so no statement can help predict its own absorption.
         </caption>
         <thead>
           <tr>
@@ -100,6 +110,30 @@ export default function InstrumentTable({ study, gate }: {
             target="no silent drops"
             met={study.events > 0}
             why="Events refused below the information floor would bias which meetings are tested."
+          />
+          {/* The target's own row. It is deliberately ABOVE the predictor's:
+              a reader who takes the last row as a result about the market has
+              to pass this one first, and if this one fails the last row means
+              nothing at all. */}
+          <Row
+            what="The clock is predictable at all"
+            value={study.skill_baseline_r2 != null
+              ? `R² ${study.skill_baseline_r2 >= 0 ? "+" : ""}${fmt(study.skill_baseline_r2, 3)}`
+              : "—"}
+            target="> 0, out of sample"
+            met={study.skill_baseline_r2 == null ? null : study.skill_baseline_r2 > 0}
+            why="Nothing predicts absorption speed, so no null measured against it is about the text."
+          />
+          <Row
+            what="The text predicts it"
+            value={study.skill_gain != null
+              ? `${study.skill_gain >= 0 ? "+" : ""}${fmt(study.skill_gain, 3)} R²`
+              + (study.skill_shuffled_p != null ? `, p ${fmt(study.skill_shuffled_p, 2)}` : "")
+              : "—"}
+            target="> 0, p < 0.05"
+            met={study.skill_gain == null ? null
+              : study.skill_gain > 0 && (study.skill_shuffled_p ?? 1) < 0.05}
+            why="The statement's information spectrum adds nothing to the stage and the rate move."
           />
         </tbody>
       </table>

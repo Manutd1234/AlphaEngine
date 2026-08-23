@@ -143,10 +143,6 @@
   min-width: 0;
 }
 
-@media (min-width: 1100px) {
-  .coh-calib__figures { grid-template-columns: 1fr 1fr; }
-}
-
 /* ── The reliability diagram ─────────────────────────────────────────────── */
 
 .coh-calib__axis {

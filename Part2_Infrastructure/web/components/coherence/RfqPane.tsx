@@ -62,8 +62,8 @@ function StateExplanation({ panel }: { panel: CoherenceRfqPanel }) {
           it down — a wrong key, a key for another environment, or a host that does not know it.
         </p>
         <p className="coh-rfq__note">
-          The channel answered, so this is a stronger statement than silence: it exists, it is reachable, and this
-          deployment is not admitted to it. Retrying the same credential will produce the same refusal.
+          The channel answered, which is stronger than silence: it exists, it is reachable, and this deployment is
+          not admitted to it. The same credential will be refused again.
           {detail ? ` The gateway says: ${detail}` : ""}
         </p>
       </div>
@@ -141,22 +141,39 @@ function Row({ row }: { row: CoherenceDispersion }) {
 export default function RfqPane({ active }: { active: boolean }) {
   const { data, error } = useCoherenceRead<CoherenceRfqPanel>("/api/gateway/coherence/rfq", active);
 
+  // A co-equal half of the section deserves a title of its own. Without one the
+  // dispersion view opened on a chip row, and a reader arriving from the ladder
+  // had nothing telling them the subject had changed.
+  const heading = <h4 className="coh-event__title">Maker dispersion</h4>;
+
   if (error && !data) {
     return (
-      <p className="console-empty">
-        <span aria-hidden="true">✕</span> The RFQ panel could not be read: {error}. That is this desk failing to reach
-        its own gateway, not the venue answering.
-      </p>
+      <div className="coh-rfq">
+        {heading}
+        <p className="console-empty">
+          <span aria-hidden="true">✕</span> The RFQ panel could not be read: {error}. That is this desk failing to
+          reach its own gateway, not the venue answering.
+        </p>
+      </div>
     );
   }
-  if (!data) return <p className="console-empty muted">Asking what the makers disagree about…</p>;
+  if (!data) {
+    return (
+      <div className="coh-rfq">
+        {heading}
+        <p className="console-empty muted">Asking what the makers disagree about…</p>
+      </div>
+    );
+  }
 
   const available = data.state === "available";
-  const thin = data.dispersions.filter((row) => row.thin).length;
-  const crossed = data.dispersions.reduce((total, row) => total + row.crossed, 0);
 
   return (
     <div className="coh-rfq">
+      {heading}
+
+      {/* Only the chips the table cannot say. The row count, the thin panels and
+          the crossed quotes are the Panel and Crossed columns read twice. */}
       <div className="coh-status__chips">
         <StateChip
           mark={
@@ -176,11 +193,6 @@ export default function RfqPane({ active }: { active: boolean }) {
           tone={available ? "good" : data.state === "refused" ? "critical" : "muted"}
         />
         <StateChip mark="◇" word="Open requests" value={String(data.open_requests)} tone="muted" />
-        <StateChip mark="◇" word="Markets quoted" value={String(data.dispersions.length)} tone="muted" />
-        {available && thin ? <StateChip mark="▲" word="Thin panels" value={String(thin)} tone="warn" /> : null}
-        {available && crossed ? (
-          <StateChip mark="▲" word="Crossed quotes excluded" value={String(crossed)} tone="warn" />
-        ) : null}
       </div>
 
       <StateExplanation panel={data} />
@@ -190,15 +202,12 @@ export default function RfqPane({ active }: { active: boolean }) {
           <div className="table-wrap">
             <table className="coh-table">
               <caption className="coh-table__caption">
-                One row per market a panel answered on. The last two columns are the measurement this channel
-                exists for: the Frechet band is how far the parlay could move with no leg price moving, and the
-                share is how much of that room the makers actually disagree over. A small share means the
-                professionals agree about the dependence even where the legs do not pin it down; a share near one
-                means the legs are the only constraint anyone has. Neither is a mispricing. Both are blank where
-                no combo reading covers the market, because an unmeasured ratio is not a ratio of zero.
-                Spread is the disagreement between makers; median width is one
-                maker&rsquo;s own bid-offer. They are different quantities: a panel that agrees, quoting widely, and a
-                panel that disagrees, quoting tightly, would read the same if only one of them were shown.
+                One row per market a panel answered on. The Frechet band is how far the parlay could move with no
+                leg price moving; the share is how much of that room the makers disagree over. A small share means
+                professionals agree, a share near one means the legs are the only constraint, and neither is a
+                mispricing. Both are blank where no combo reading covers the market: an unmeasured ratio is not a
+                ratio of zero. Spread is the disagreement between makers, median width is one maker&rsquo;s own
+                bid-offer — opposite situations that read the same if only one is shown.
               </caption>
               <thead>
                 <tr>

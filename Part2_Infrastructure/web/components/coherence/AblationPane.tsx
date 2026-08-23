@@ -14,15 +14,32 @@
  * because it could not have traded against every quote it recorded. It can say
  * what each model would have SEEN, and that is the question worth asking of a
  * cost model nobody has ablated.
+ *
+ * The replay itself is read by `FeesSection`, which gates it on this view being
+ * the one on screen: at 20,000 rows it is the largest read on the tab and it
+ * used to run on every visit to Fees, including the two views that never show
+ * it.
  */
 
 import { useMeasuredWidth } from "@/components/chart-kit";
 import type { CoherenceAblation, CoherenceReplay } from "@/lib/coherence/types";
-import { useCoherenceRead } from "@/lib/coherence/use-coherence";
-import Figure, { FigureEmpty, StateChip } from "./Figure";
+import Figure, { FigureEmpty } from "./Figure";
 
 const HEIGHT = 120;
 const ROW_HEIGHT = 22;
+const CAPTION = "Tradable arbitrages found, by how much of the cost model is switched on";
+
+/**
+ * What the replay could not test, and therefore could not draw.
+ *
+ * `untestable` is counted per configuration, so the worst of them is the honest
+ * bound: the chart used to omit these rows without saying it had.
+ */
+function untestableNote(ablations: CoherenceAblation[]): string | null {
+  const worst = ablations.reduce((most, row) => Math.max(most, row.untestable), 0);
+  if (worst === 0) return null;
+  return `Up to ${worst} observation(s) could not be tested in a single configuration and are counted in no bar.`;
+}
 
 function Bars({ ablations }: { ablations: CoherenceAblation[] }) {
   const [plotRef, plotW] = useMeasuredWidth<HTMLDivElement>(720);
@@ -30,15 +47,17 @@ function Bars({ ablations }: { ablations: CoherenceAblation[] }) {
   const naive = ablations.find((row) => row.name === "no_fees");
   const full = ablations.find((row) => row.name === "full");
   const invented = (naive?.worth_doing ?? 0) - (full?.worth_doing ?? 0);
+  const missing = untestableNote(ablations);
 
   if (!ablations.some((row) => row.violations > 0)) {
     return (
       <Figure
-        caption="Tradable arbitrages found, by how much of the cost model is switched on"
-        ariaLabel="No configuration found a violation on this tape"
+        caption={CAPTION}
+        ariaLabel={`Bar chart, ${ablations.length} configurations, no bars drawn`}
         reading="No configuration found a violation on this tape, which is the ordinary answer: real prices on this exchange are usually coherent. The comparison becomes informative once the tape has caught one."
+        missing={missing}
       >
-        <FigureEmpty reason="No violations recorded yet — nothing to separate the models on." />
+        <FigureEmpty reason="Nothing yet to separate the models on." />
       </Figure>
     );
   }
@@ -47,13 +66,14 @@ function Bars({ ablations }: { ablations: CoherenceAblation[] }) {
 
   return (
     <Figure
-      caption="Tradable arbitrages found, by how much of the cost model is switched on"
-      ariaLabel={`Four configurations compared; the naive test finds ${naive?.worth_doing ?? 0} and the full model finds ${full?.worth_doing ?? 0}`}
+      caption={CAPTION}
+      ariaLabel={`${ablations.length} configurations compared; the naive test finds ${naive?.worth_doing ?? 0} and the full model finds ${full?.worth_doing ?? 0}`}
       reading={
         invented > 0
-          ? `Turning the fee model off reports ${invented} more tradable arbitrage(s) than turning it on. Those are not opportunities the engine missed — they are opportunities that do not exist, and a bot without a fee model would have traded every one of them.`
+          ? `Fees off reports ${invented} more tradable arbitrage(s) than fees on. Those are not opportunities the engine missed — they are opportunities that do not exist, and a bot without a fee model would have traded every one.`
           : "The naive and fee-aware tests agree on this tape."
       }
+      missing={missing}
     >
       <div ref={plotRef} style={{ width: "100%" }}>
         <svg viewBox={`0 0 ${plotW} ${height}`} width={plotW} height={height} className="coh-ablation">
@@ -84,53 +104,72 @@ function Bars({ ablations }: { ablations: CoherenceAblation[] }) {
   );
 }
 
-export default function AblationPane({ active }: { active: boolean }) {
-  const { data, error } = useCoherenceRead<CoherenceReplay>("/api/gateway/coherence/replay?limit=20000", active);
+export default function AblationPane({
+  replay,
+  error,
+}: {
+  /** The replayed tape, or null until the gateway answers. */
+  replay: CoherenceReplay | null;
+  error: string | null;
+}) {
+  const heading = <h4>What each cost model would have seen</h4>;
 
-  if (error && !data) {
+  if (error && !replay) {
     return (
-      <p className="console-empty">
-        <span aria-hidden="true">✕</span> The tape could not be replayed: {error}
-      </p>
+      <div className="coh-ablation-pane">
+        {heading}
+        <p className="console-empty">
+          <span aria-hidden="true">✕</span> The tape could not be replayed: {error}
+        </p>
+      </div>
     );
   }
-  if (!data) return <p className="console-empty muted">Replaying the tape…</p>;
-  if (data.state === "empty") {
+  if (!replay) {
     return (
-      <p className="console-empty">
-        <span aria-hidden="true">◌</span> {data.notes[0] ?? "The tape is empty."}
-      </p>
+      <div className="coh-ablation-pane">
+        {heading}
+        <p className="console-empty muted">Replaying the tape…</p>
+      </div>
+    );
+  }
+  if (replay.state === "empty") {
+    return (
+      <div className="coh-ablation-pane">
+        {heading}
+        <p className="console-empty">
+          <span aria-hidden="true">◌</span> {replay.notes[0] ?? "The tape is empty."}
+        </p>
+      </div>
     );
   }
 
   return (
     <div className="coh-ablation-pane">
-      <div className="coh-status__chips">
-        <StateChip mark="●" word="Books replayed" value={String(data.rows)} tone="muted" />
-        <StateChip mark="◇" word="Families tested" value={String(data.observations)} tone="muted" />
-        <StateChip mark="→" word="Tape spans" value={`${data.span_seconds}s`} tone="muted" />
-      </div>
+      {heading}
 
-      <Bars ablations={data.ablations} />
+      <Bars ablations={replay.ablations} />
 
+      {/* The books-replayed and families-tested counts were two chips over this
+          table. They are facts about the tape the caption already introduces,
+          so they are stated once, there. */}
       <div className="table-wrap">
         <table className="coh-table">
           <caption className="coh-table__caption">
-            Every configuration, over the same tape. `worth_doing` counts violations whose net edge survives that
-            configuration&rsquo;s fees.
+            Every configuration, over the same tape — {replay.rows} books replayed, {replay.observations} families
+            tested. <code>worth_doing</code> counts violations whose net edge survives that configuration&rsquo;s fees.
           </caption>
           <thead>
             <tr>
               <th scope="col">Configuration</th>
               <th scope="col">What it models</th>
               <th scope="col" className="num">Violations</th>
-              <th scope="col" className="num">Tradable</th>
+              <th scope="col" className="num"><code>worth_doing</code></th>
               <th scope="col" className="num">Gross</th>
               <th scope="col" className="num">Net</th>
             </tr>
           </thead>
           <tbody>
-            {data.ablations.map((row) => (
+            {replay.ablations.map((row) => (
               <tr key={row.name}>
                 <th scope="row">{row.name}</th>
                 <td>{row.description}</td>
@@ -144,8 +183,8 @@ export default function AblationPane({ active }: { active: boolean }) {
         </table>
       </div>
 
-      <p className="coh-event__note">{data.headline}</p>
-      {data.notes.map((note, index) => (
+      <p className="coh-event__note">{replay.headline}</p>
+      {replay.notes.map((note, index) => (
         <p className="coh-event__note" key={`${index}-${note}`}>
           <span aria-hidden="true">◌</span> {note}
         </p>

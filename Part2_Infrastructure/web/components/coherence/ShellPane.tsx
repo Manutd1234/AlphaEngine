@@ -8,33 +8,66 @@
  * makes two facts unavoidable that a dashboard hides.
  *
  * The first is that where a market lives is a cost. Two events under different
- * shard directories sit on different exchange instances, and a position
- * spanning them cannot be protected by one order group, so the boundary is a
- * real constraint rather than a labelling detail. It is said where the shard
+ * shard directories sit on different exchange instances and a position spanning
+ * them cannot be protected by one order group, so it is said where the shard
  * directories are listed, not in a footnote nobody reaches.
  *
  * The second is that a derived number is a file, and files can be missing.
  * `implied_pmf` is not an attribute an event has; it is computed from its
- * books, and on an event without a strike ladder the computation has no
- * answer. So three outcomes are kept apart here and never collapsed into "no
- * data": a path that does not exist, a file that exists whose reading could
- * not be produced in this read, and a gateway that could not be reached at
- * all. Only the last is worth retrying.
+ * books, and on an event without a strike ladder the computation has no answer.
+ * So four outcomes are kept apart here and never collapsed into "no data": a
+ * path that does not exist, a file whose reading could not be produced in this
+ * read, a directory that is genuinely empty, and a venue that could not be read
+ * at all. The first is never worth reading again, the second can come out of a
+ * later read — the certificate is solved on demand — and the last always is.
+ * The empty directory is the one that had been stating more than it knew: the
+ * gateway answers `state="unavailable"` with `exists` true and no entries on a
+ * venue outage, and rendering that as "this directory is empty" turns a fact
+ * about the read into a fact about the tree. So it is gated on the read having
+ * come back — a listing answers `available`, a file body `ok`.
+ *
+ * Tree and Reading are one read under two commands, so they are a `.seg` and
+ * not two panes: `cat` used to REPLACE the listing, and the only way back was
+ * the breadcrumb, which re-runs `ls` and loses the file. The breadcrumb stays
+ * outside the switcher — it is this surface's command line, setting the path
+ * and, through what it lands on, the command.
+ *
+ * Layout is a third view on that same control, and it reads nothing. The other
+ * two answer one level at a time, so a reader sees shards OR series OR events
+ * and never the shape they came out of — and the shape is where the shard
+ * boundary and the five derived readings live. It is the same at every path, so
+ * the poll is gated on the view not being it; that gate is also why it is the
+ * one view that still answers when the venue does not, and why the switcher is
+ * rendered above the failure branches rather than after them.
  *
  * The tree is the WATCHLIST. Kalshi lists some thirteen thousand series and
  * this holds the handful the recorder is configured to watch; the root says so
- * and the pane repeats it, because a shell that lists a fraction of what
- * exists without saying which fraction is worse than one that refuses.
+ * and the pane repeats it — once. The gateway's root detail and the pane's
+ * footer were the same sentence twice; the footer is kept, as it alone names
+ * COHERENCE_SERIES.
  */
 
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 
 import type { CoherenceShell, CoherenceShellEntry } from "@/lib/coherence/types-lab";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import { StateChip } from "./Figure";
+import ShellTree, { DERIVED_FILES } from "./ShellTree";
 
-/** The five readings an event directory carries beyond its markets. */
-const DERIVED = new Set(["implied_pmf", "survival", "lattice", "certificate", "books"]);
+type ShellView = "tree" | "reading" | "layout";
+
+/** The switcher's options, in the order they are pressed. */
+const VIEWS: ReadonlyArray<[ShellView, string]> = [
+  ["tree", "Tree"],
+  ["reading", "Reading"],
+  ["layout", "Layout"],
+];
+
+const DERIVED = new Set(DERIVED_FILES.map((file) => file.name));
+
+/** The two states that mean the read itself came back — `available` from a listing, `ok` from a file body.
+ *  Anything else, on a payload that still says the path exists, is the venue speaking rather than the path. */
+const READ_OK = new Set(["ok", "available"]);
 
 function segmentsOf(path: string): string[] {
   return path.split("/").filter(Boolean);
@@ -114,9 +147,9 @@ function Listing({ data, onOpen }: { data: CoherenceShell; onOpen: (entry: Coher
           </h4>
           {atShards ? (
             <p className="coh-shell__note">
-              Each directory here is a separate exchange instance. Collateral is held per shard and an order group
-              cannot span two of them, so a basket whose legs sit under different shard directories cannot be
-              protected as one position — crossing this boundary is a real cost, not a naming convention.
+              Each directory is a separate exchange instance. Collateral is held per shard and one order group
+              cannot span two, so legs under different shard directories cannot be protected as a single position:
+              a real cost, not a naming convention.
             </p>
           ) : null}
           <ul className="coh-shell__entries">
@@ -131,8 +164,8 @@ function Listing({ data, onOpen }: { data: CoherenceShell; onOpen: (entry: Coher
         <section className="coh-shell__group">
           <h4 className="coh-shell__group-head">{derived.length} derived readings</h4>
           <p className="coh-shell__note">
-            These are not attributes the event carries; each is computed from the books at the moment it is read, and
-            each can answer that it has no answer. Reading one runs <code>cat</code> on it.
+            Not attributes the event carries: each is computed from the books at read time, and each can answer
+            that it has no answer. Reading one runs <code>cat</code>.
           </p>
           <ul className="coh-shell__entries">
             {derived.map((entry) => (
@@ -164,84 +197,184 @@ function Listing({ data, onOpen }: { data: CoherenceShell; onOpen: (entry: Coher
       ) : null}
 
       {data.entries.length === 0 ? (
-        <p className="coh-shell__note">
-          <span aria-hidden="true">◌</span> This directory is empty. It exists; nothing the recorder watches is
-          currently under it.
-        </p>
+        READ_OK.has(data.state) ? (
+          <p className="coh-shell__note">
+            <span aria-hidden="true">◌</span> This directory is empty. It exists; nothing the recorder watches is
+            currently under it.
+          </p>
+        ) : (
+          <p className="coh-shell__note">
+            <span aria-hidden="true">✕</span> The venue could not be read in this refresh, so nothing was listed.
+            That is an outage and not an empty directory — a statement about the read, not about this path, and the
+            one outcome here worth retrying.
+          </p>
+        )
       ) : null}
     </div>
   );
 }
 
+/** The commands and the derived files, in one place instead of four levels down. */
+function CommandReference() {
+  return (
+    <div className="table-wrap">
+      <table className="coh-table">
+        <caption className="coh-table__caption">
+          The two commands and the five derived readings. A reading with no answer says which kind of no answer it
+          is, because only one kind is worth reading again.
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Name</th>
+            <th scope="col">What it reads</th>
+            <th scope="col">When it has no answer</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row"><code>ls</code></th>
+            <td>A path: the shards, series, events, markets and derived readings under it.</td>
+            <td>A path off the watchlist answers that it does not exist — an answer about the path, not a failed read.</td>
+          </tr>
+          <tr>
+            <th scope="row"><code>cat</code></th>
+            <td>
+              One derived file in an event directory, at <code>/shards/&lt;n&gt;/&lt;series&gt;/&lt;event&gt;/&lt;name&gt;</code>.
+            </td>
+            <td>A listed file whose reading this read could not produce. Only that one is worth reading again.</td>
+          </tr>
+          {DERIVED_FILES.map((file) => (
+            <tr key={file.name}>
+              <th scope="row"><code>{file.name}</code></th>
+              <td>{file.reads}</td>
+              <td>{file.silent}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/** The three views, in one control. It is drawn on the branches that have no
+ *  payload as well as the one that does: Layout needs none, and a reader whose
+ *  venue is unreachable is exactly the reader who wants it. */
+function ViewSwitch({ view, onView }: { view: ShellView; onView: (next: ShellView) => void }) {
+  return (
+    <div className="seg" role="group" aria-label="Shell view">
+      {VIEWS.map(([name, label]) => (
+        <button key={name} type="button" aria-pressed={view === name} onClick={() => onView(name)}>
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Reading({ data, requested }: { data: CoherenceShell; requested: string }) {
+  return (
+    <>
+      {data.command !== "cat" ? (
+        <p className="console-empty muted">Reading {requested}…</p>
+      ) : data.state === "ok" && data.body ? (
+        <pre className="coh-shell__body">{data.body}</pre>
+      ) : data.state === "missing" ? (
+        <p className="console-empty">
+          <span aria-hidden="true">○</span> No file of that name here. The path names nothing to read, so another
+          read returns the same answer.
+        </p>
+      ) : (
+        <p className="console-empty">
+          <span aria-hidden="true">◌</span> The file is listed and this read produced no body: the path exists, the
+          reading does not, in this read. A later read can still produce it.
+        </p>
+      )}
+      <CommandReference />
+    </>
+  );
+}
+
 export default function ShellPane({ active }: { active: boolean }) {
   const [path, setPath] = useState("/");
-  const [command, setCommand] = useState<"ls" | "cat">("ls");
+  const [view, setView] = useState<ShellView>("tree");
+  // One read serves the two views that need one. They are the same URL under a
+  // different command, so the view IS the command: `ls` draws the tree, `cat`
+  // the reading — and Layout, which is the same at every path, asks for neither.
+  const command: "ls" | "cat" = view === "reading" ? "cat" : "ls";
   const url = `/api/gateway/coherence/shell?path=${encodeURIComponent(path)}&command=${command}`;
-  const { data, error } = useCoherenceRead<CoherenceShell>(url, active);
+  const { data, error } = useCoherenceRead<CoherenceShell>(url, active && view !== "layout");
 
   const navigate = (next: string) => {
     setPath(next);
-    setCommand("ls");
+    setView("tree");
   };
 
   const open = (entry: CoherenceShellEntry) => {
-    const next = pathOf([...segmentsOf(data?.path ?? path), entry.name]);
-    setPath(next);
-    setCommand(entry.kind === "dir" ? "ls" : "cat");
+    setPath(pathOf([...segmentsOf(data?.path ?? path), entry.name]));
+    setView(entry.kind === "dir" ? "tree" : "reading");
   };
 
-  if (error && !data) {
-    return (
+  // The switcher, and one thing under it. Every branch below draws it: Layout is
+  // reachable only from there, and the reader who most wants the view that reads
+  // nothing is the one whose venue could not be read.
+  const framed = (body: ReactNode) => (
+    <div className="coh-shell">
+      <ViewSwitch view={view} onView={setView} />
+      {body}
+    </div>
+  );
+
+  if (view === "layout") return framed(<ShellTree />);
+  if (error && !data)
+    return framed(
       <p className="console-empty">
         <span aria-hidden="true">✕</span> The tree could not be read: {error}. That is a gateway failure, not an
         answer about the path.
-      </p>
+      </p>,
     );
-  }
-  if (!data) return <p className="console-empty muted">Listing the watched universe…</p>;
+  if (!data) return framed(<p className="console-empty muted">Listing the watched universe…</p>);
 
   // The root request is `/` and the gateway answers `/shards`, so a mismatch is
-  // only stale-payload evidence away from the root.
-  const stale = path !== "/" && data.path !== path;
+  // only stale-payload evidence away from the root. A command mismatch says the
+  // same thing: the switcher has moved and this answer is the other one.
+  const stale = (path !== "/" && data.path !== path) || data.command !== command;
+  // `/shards` is the root listing's own path and its detail is the footer's sentence in other words. Suppressing it
+  // there leaves every other path's detail, and the outage detail, which is answered at the path as requested.
+  const repeatsFooter = data.command === "ls" && data.path === "/shards" && READ_OK.has(data.state);
 
   return (
     <div className="coh-shell">
+      <ViewSwitch view={view} onView={setView} />
+
       <div className="coh-status__chips">
-        <StateChip mark="●" word="Command" value={`${data.command} ${data.path}`} tone="muted" />
         <StateChip
           mark={data.exists ? "✓" : "○"}
           word={data.exists ? "Path exists" : "No such path"}
           tone={data.exists ? "good" : "warn"}
         />
-        {data.command === "ls" ? (
-          <StateChip mark="◇" word="Entries" value={String(data.entries.length)} tone="muted" />
-        ) : null}
       </div>
 
+      {/* The command line, and it belongs to every view: it sets the path, and through what it lands on, the command. */}
       <Breadcrumb path={data.path} command={data.command} onNavigate={navigate} />
 
       {stale ? (
         <p className="coh-shell__note">
-          <span aria-hidden="true">◌</span> Still showing {data.path} while {path} is read.
+          <span aria-hidden="true">◌</span> Still showing <code>{data.command}</code> {data.path} while <code>{command}</code>{" "}
+          {path} is read.
         </p>
       ) : null}
 
-      {data.detail ? <p className="coh-shell__detail-line">{data.detail}.</p> : null}
+      {data.detail && !repeatsFooter ? <p className="coh-shell__detail-line">{data.detail}.</p> : null}
 
-      {!data.exists ? (
+      {view === "reading" ? (
+        <Reading data={data} requested={path} />
+      ) : data.command !== "ls" ? (
+        <p className="console-empty muted">Listing {path}…</p>
+      ) : !data.exists ? (
         <p className="console-empty">
           <span aria-hidden="true">○</span> No such path: {path}. Nothing is there to read — which is a different
           answer from a read that failed.
         </p>
-      ) : data.command === "cat" ? (
-        data.state === "ok" && data.body ? (
-          <pre className="coh-shell__body">{data.body}</pre>
-        ) : (
-          <p className="console-empty">
-            <span aria-hidden="true">◌</span> The file is listed here and this read produced no body for it. The path
-            exists; the reading does not, in this read.
-          </p>
-        )
       ) : (
         <Listing data={data} onOpen={open} />
       )}

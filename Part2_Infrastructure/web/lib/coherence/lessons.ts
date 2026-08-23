@@ -11,7 +11,47 @@
  * would go red if the lesson stopped being true. That pairing is the point of
  * the catalogue: these are not notes beside the code, they are claims the suite
  * enforces, and `coherence-lessons.test.ts` checks every named file exists.
+ *
+ * `group` is the field the section reads to split itself. Fourteen cards ran to
+ * about 1,700px at desk width, so the pane shows one group at a time — and the
+ * mapping lives here rather than in `LessonsPane`, because a list kept in the
+ * component is a list a fifteenth lesson can be left out of, and a lesson left
+ * out of it renders nowhere at all.
  */
+
+/**
+ * The four readings of the catalogue, in the order the section offers them.
+ *
+ * Shipped-versus-pending is a degenerate cut — every lesson below is shipped —
+ * so the split is by what a lesson is ABOUT. The array is also the type: a
+ * lesson cannot compile without a group, a group cannot exist without an entry
+ * here, and the pane renders one view per entry. Nothing can fall between.
+ */
+export const LESSON_GROUPS = [
+  {
+    id: "prices",
+    label: "Prices",
+    description: "What one quote is, and how it is represented, before any structure is read",
+  },
+  {
+    id: "structure",
+    label: "Structure",
+    description: "The venue's own logical relations, and what falls out of them",
+  },
+  {
+    id: "bounds",
+    label: "Bounds",
+    description: "Where the naive bound is the wrong bound",
+  },
+  {
+    id: "record",
+    label: "Record",
+    description: "What exists only against recorded history rather than one snapshot",
+  },
+] as const;
+
+/** Exactly one per lesson, and only ever one of the four views above. */
+export type LessonGroup = (typeof LESSON_GROUPS)[number]["id"];
 
 export interface CoherenceLesson {
   /**
@@ -30,6 +70,8 @@ export interface CoherenceLesson {
   whenItFails: string;
   /** Where this lesson lives on the tab. */
   pane: string;
+  /** Which of the section's four views carries this lesson. */
+  group: LessonGroup;
   guards: string[];
   pinnedBy: string[];
   /** False until the slice that ships it lands. Shown as pending, never hidden. */
@@ -48,6 +90,7 @@ export const COHERENCE_LESSONS: CoherenceLesson[] = [
     whenItFails:
       "Never as arithmetic — but it appears to fail when the two ladders are read at different instants. A sum below a dollar means a torn snapshot, and a bot that trades on it is trading on its own latency.",
     pane: "books",
+    group: "prices",
     guards: ["modules/coherence/kernel/book.py"],
     pinnedBy: ["tests/test_coherence_lesson_0.py"],
     shipped: true,
@@ -63,6 +106,7 @@ export const COHERENCE_LESSONS: CoherenceLesson[] = [
     whenItFails:
       "A float engine is not slightly wrong. It is right on every case a casual test would try and wrong on the marginal ones, which are the only cases an arbitrage engine looks at.",
     pane: "books",
+    group: "prices",
     guards: ["modules/coherence/kernel/money.py", "modules/coherence/kernel/grid.py"],
     pinnedBy: ["tests/test_coherence_money.py", "tests/test_coherence_grid.py", "tests/test_coherence_no_float.py"],
     shipped: true,
@@ -78,6 +122,7 @@ export const COHERENCE_LESSONS: CoherenceLesson[] = [
     whenItFails:
       "Reading the structure NAME instead of the bands. A client that switches on 'linear_cent' prices every market on the next structure wrong, and the exchange rejects the order rather than correcting it.",
     pane: "books",
+    group: "prices",
     guards: ["modules/coherence/kernel/grid.py"],
     pinnedBy: ["tests/test_coherence_grid.py"],
     shipped: true,
@@ -93,6 +138,7 @@ export const COHERENCE_LESSONS: CoherenceLesson[] = [
     whenItFails:
       "Buckets need not tile. Inferring exclusivity from floor and cap values asserts a claim the venue did not make, and a family with a gap in it has no reason to sum to anything.",
     pane: "universe",
+    group: "structure",
     guards: ["modules/coherence/views.py"],
     pinnedBy: ["tests/test_coherence_observe.py"],
     shipped: true,
@@ -107,6 +153,7 @@ export const COHERENCE_LESSONS: CoherenceLesson[] = [
     whenItFails:
       "A default of zero turns an unquoted tail into a one-cent market with a tight spread, and a basket summed over only its quoted legs understates the cost by exactly the legs it skipped — the direction that invents arbitrage.",
     pane: "universe",
+    group: "structure",
     guards: ["modules/coherence/kernel/book.py", "modules/coherence/views.py"],
     pinnedBy: ["tests/test_coherence_lesson_0.py", "tests/test_coherence_observe.py"],
     shipped: true,
@@ -122,6 +169,7 @@ export const COHERENCE_LESSONS: CoherenceLesson[] = [
     whenItFails:
       "Testing Σ ask < 1.00 is not a conservative approximation of that — it is a different test, and it is wrongest in the middle of the book where the volume is.",
     pane: "fees",
+    group: "bounds",
     guards: ["modules/coherence/kernel/costs.py"],
     pinnedBy: ["tests/test_coherence_costs.py"],
     shipped: true,
@@ -137,6 +185,7 @@ export const COHERENCE_LESSONS: CoherenceLesson[] = [
     whenItFails:
       "Matching markets by title similarity. Two similarly-worded markets can settle on different sources with different cut-offs, and when they resolve differently a hedged position pays zero or two dollars rather than one.",
     pane: "lattice",
+    group: "structure",
     guards: ["modules/coherence/kernel/lattice.py"],
     pinnedBy: ["tests/test_coherence_lattice.py"],
     shipped: true,
@@ -152,6 +201,7 @@ export const COHERENCE_LESSONS: CoherenceLesson[] = [
     whenItFails:
       "A solver answer is only as good as the executability constraints in it. An LP that ignores resting depth, price grids or per-shard collateral returns a portfolio nobody can fill.",
     pane: "certificate",
+    group: "structure",
     guards: ["modules/coherence/kernel/dutchbook.py"],
     pinnedBy: ["tests/test_coherence_dutchbook.py"],
     shipped: true,
@@ -167,6 +217,7 @@ export const COHERENCE_LESSONS: CoherenceLesson[] = [
     whenItFails:
       "Reading a short half-life as 'be faster'. Against commercial detection in tens of milliseconds over REST polling, the edge has to be in structures nobody scans for, not in speed.",
     pane: "diffusion",
+    group: "record",
     guards: ["modules/coherence/episodes.py"],
     pinnedBy: ["tests/test_coherence_episodes.py"],
     shipped: true,
@@ -182,6 +233,7 @@ export const COHERENCE_LESSONS: CoherenceLesson[] = [
     whenItFails:
       "Measuring only the basket. Crypto ladders carry no exclusivity flag, so an index that handles baskets alone reports null for the entire crypto complex — a recorder writing a column of nulls, on exactly the series a shard-migration study needs.",
     pane: "index",
+    group: "record",
     guards: ["modules/coherence/kernel/coherence_index.py"],
     pinnedBy: ["tests/test_coherence_store.py"],
     shipped: true,
@@ -197,6 +249,7 @@ export const COHERENCE_LESSONS: CoherenceLesson[] = [
     whenItFails:
       "Reading a mean off the chart. The outermost bins are open — mass above the highest strike has no width and no midpoint — so a mean computed by pretending they sit at their bounds is a property of that convention rather than of the market. The moments here are conditional on the interior and say so.",
     pane: "lattice",
+    group: "structure",
     guards: ["modules/coherence/kernel/distribution.py", "modules/coherence/kernel/moments.py"],
     pinnedBy: ["tests/test_coherence_distribution.py"],
     shipped: true,
@@ -212,6 +265,7 @@ export const COHERENCE_LESSONS: CoherenceLesson[] = [
     whenItFails:
       "Mistaking the Kelly plan for the arbitrage. Where a basket costs under a dollar both exist, and they are different portfolios: the Dutch book buys equal contracts and its profit is certain, while Kelly stakes the measure, grows faster and can lose a third of the bankroll on one settlement.",
     pane: "lattice",
+    group: "structure",
     guards: ["modules/coherence/kernel/kelly.py"],
     pinnedBy: ["tests/test_coherence_kelly.py"],
     shipped: true,
@@ -227,6 +281,7 @@ export const COHERENCE_LESSONS: CoherenceLesson[] = [
     whenItFails:
       "Treating the independence product as a fair value. Legs are routinely dependent, and a price above \u03a0p\u1d62 is not evidence of anything on its own; parlays are quoted one-sided, so the reading is taken from the offer and carries the maker's margin with it.",
     pane: "combos",
+    group: "bounds",
     guards: ["modules/coherence/kernel/frechet.py", "modules/coherence/drivers/kalshi_combos.py"],
     pinnedBy: ["tests/test_coherence_frechet.py"],
     shipped: true,
@@ -242,6 +297,7 @@ export const COHERENCE_LESSONS: CoherenceLesson[] = [
     whenItFails:
       "Scoring last traded prices. A last trade happens moments before settlement when the answer is largely known, so it scores near-perfectly and measures how fast the exchange converges rather than whether it saw anything coming. The corpus is also whatever the venue lists most, which is not a sample.",
     pane: "calibration",
+    group: "record",
     guards: ["modules/coherence/kernel/calibration.py", "modules/coherence/fs/corpus.py"],
     pinnedBy: ["tests/test_coherence_calibration.py"],
     shipped: true,
