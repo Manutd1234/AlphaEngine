@@ -110,11 +110,11 @@ const OVER_CEILING: Record<string, number> = {
   // to reach a number would put the cascade at risk for nothing. These
   // numbers ratchet the same way every other entry does — they may fall as a
   // section genuinely shrinks or moves, and they may not rise.
-  "app/globals/01-workspace-shell.css": 2209,
+  "app/globals/01-workspace-shell.css": 2192,
   "app/globals/12-workspace-standardisation.css": 2159,
   "app/globals/00-tokens-and-base.css": 1933,
   "app/globals/15-navigator-and-trailing-layer.css": 1481,
-  "app/globals/06-execution-and-desk-panels.css": 1316,
+  "app/globals/06-execution-and-desk-panels.css": 1290,
   "app/globals/07-data-operations.css": 1247,
   "app/globals/02-systems-console.css": 1123,
   "app/globals/08-developer-engineering.css": 1084,
