@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * The ten lessons, each naming the code it is about and the test that holds it.
+ * The lessons, each naming the code it is about and the test that holds it.
  *
  * Rendered from `lib/coherence/lessons.ts` rather than written here, so the
  * catalogue is data one test can walk. The "what breaks it" line is always open
@@ -66,8 +66,10 @@ export default function LessonsPane() {
     <div className="coh-lessons">
       <p className="coh-lessons__intro">
         Each lesson names the module it is about and the test that would go red if it stopped being true. {shipped} of{" "}
-        {COHERENCE_LESSONS.length} are built; the rest are listed because a curriculum that hides what is unfinished
-        cannot be read as a plan.
+        {COHERENCE_LESSONS.length} are built
+        {shipped < COHERENCE_LESSONS.length
+          ? "; the rest are listed because a curriculum that hides what is unfinished cannot be read as a plan."
+          : ", and each one runs as a notebook under notebooks/coherence_lab that executes against these same modules."}
       </p>
       <div className="coh-lessons__grid">
         {COHERENCE_LESSONS.map((lesson) => (

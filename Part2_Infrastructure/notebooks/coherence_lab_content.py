@@ -1,6 +1,6 @@
 """The coherence lab's cell content, in one mapping.
 
-``build_coherence_lab.py`` is mechanical: it reads the ten lessons out of
+``build_coherence_lab.py`` is mechanical: it reads the lessons out of
 ``web/lib/coherence/lessons.ts`` — the same catalogue the web tab renders — and
 turns each one into a notebook. Everything that is specific to a lesson lives
 here instead, so the generator never has to know what a lesson is about.

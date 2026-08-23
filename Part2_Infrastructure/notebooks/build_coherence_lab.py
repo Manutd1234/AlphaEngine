@@ -94,7 +94,7 @@ def _validate(lessons: list[dict[str, Any]]) -> None:
 
 
 def read_lessons() -> list[dict[str, Any]]:
-    """The ten lessons, in catalogue order, from the TypeScript that defines them."""
+    """Every lesson, in catalogue order, from the TypeScript that defines them."""
     if not LESSONS_TS.exists():
         raise SystemExit(f"missing {LESSONS_TS}: the lab is generated from the lesson catalogue, not from prose here")
     text = LESSONS_TS.read_text(encoding="utf-8")
