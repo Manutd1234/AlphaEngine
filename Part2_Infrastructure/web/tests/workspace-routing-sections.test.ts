@@ -37,6 +37,9 @@ import { read, stripNonCode } from "./helpers/workspace-sources";
 const page = read("../app/dashboard/page.tsx");
 const panels = read("../components/workspace/WorkspacePanels.tsx");
 const routingHook = read("../lib/use-workspace-routing.ts");
+// Rail state moved to its own hook when the ninth tab arrived and the routing
+// file reached its length ceiling; the guards below follow the code they guard.
+const railSections = read("../lib/use-rail-sections.ts");
 const researchWorkspace = read("../components/ResearchWorkspace.tsx");
 const header = read("../components/WorkspaceHeader.tsx");
 const subtabs = read("../components/WorkspaceSubtabs.tsx");
@@ -57,6 +60,7 @@ function sectionIdsFor(workspace: string): string[] {
 const dataConsole = read("../components/DataConsole.tsx");
 const reliabilityConsole = read("../components/ReliabilityConsole.tsx");
 const developerConsole = read("../components/DeveloperConsole.tsx");
+const coherenceConsole = read("../components/CoherenceConsole.tsx");
 const dataWorkBoard = ["../components/data/DataWorkBoard.tsx", "../components/data/DataWorkCard.tsx", "../components/data/WorkComposer.tsx", "../components/data/work-board-model.ts"]
   .map((p) => { try { return read(p); } catch { return ""; } }).join("\n");
 const developerWorkQueue = read("../components/developer/DeveloperWorkQueue.tsx");
@@ -87,11 +91,11 @@ describe("dense role workspaces expose accessible feature sections", () => {
     );
   });
 
-  it("Alt+1–8 reads physical key codes and never fires while typing", () => {
+  it("Alt+1–9 reads physical key codes and never fires while typing", () => {
     // macOS Option+digit produces "¡™£…", so an e.key range test never
     // matches — the advertised shortcut was dead on every Mac.
     assert.match(header, /e\.code/);
-    assert.ok(header.includes("Digit[1-8]"), "workspace shortcuts no longer match Digit codes");
+    assert.ok(header.includes("Digit[1-9]"), "workspace shortcuts no longer match Digit codes");
     assert.match(header, /isContentEditable/);
   });
 
@@ -140,7 +144,7 @@ describe("dense role workspaces expose accessible feature sections", () => {
     // `change` table this hook owns, so rail clicks, arrow keys, cross-links,
     // the palette, the tour and Back/Forward all reach the reset.
     for (const workspace of [
-      "overview", "research", "live", "developer", "risk", "portfolio", "data", "reliability",
+      "overview", "research", "live", "developer", "risk", "portfolio", "data", "reliability", "coherence",
     ]) {
       assert.ok(
         routingHook.includes(`${workspace}: bind("${workspace}", set`),
@@ -178,6 +182,7 @@ describe("dense role workspaces expose accessible feature sections", () => {
     expectPanels("DATA", [dataConsole], "data");
     expectPanels("RELIABILITY", [reliabilityConsole], "reliability");
     expectPanels("DEVELOPER", [developerConsole], "developer");
+    expectPanels("COHERENCE", [coherenceConsole], "coherence");
 
     // The board has a native keyboard alternative to dragging and announces
     // moves without stealing focus. Hidden pipeline panels remain mounted, so
@@ -208,7 +213,7 @@ describe("dense role workspaces expose accessible feature sections", () => {
       "hidden pipeline keeps venue sockets open",
     );
     assert.ok(
-      routingHook.includes('useState<DataSection>("overview")'),
+      railSections.includes('useState<DataSection>("overview")'),
       "data must open on trust evidence rather than the sample work queue",
     );
     assert.ok(

@@ -37,22 +37,22 @@ import { emitPrefChange } from "@/lib/pref-sync-bus";
 import { useConsolePrefetch } from "@/lib/use-console-prefetch";
 import { WORKSPACE_LOCATION_KEY } from "@/lib/user-prefs";
 import { DEFAULT_SECTION, followLocation, railSection, type SectionApplier } from "@/lib/workspace-hash";
+import { useRailSections } from "@/lib/use-rail-sections";
 import { buildTourStops } from "@/lib/workspace-tour";
 
 export function useWorkspaceRouting() {
   const [view, setView] = useState<WorkspaceView>("overview");
-  const [overviewSection, setOverviewSection] = useState<OverviewSection>("loop");
-  const [researchSection, setResearchSection] = useState<ResearchSection>("summary");
-  const [executionSection, setExecutionSection] = useState<ExecutionSection>("trade");
-  const [dataSection, setDataSection] = useState<DataSection>("overview");
-  const [reliabilitySection, setReliabilitySection] = useState<ReliabilitySection>("overview");
-  const [developerSection, setDeveloperSection] = useState<DeveloperSection>("overview");
-  // Risk and Portfolio kept these internally, which made them the only two
-  // steppers in the workspace that a link could not address: `#risk/model`
-  // opened the tab on step 1. Lifted here so they route exactly like the other
-  // five — pushed on change, and restored by `readLocation` on back/forward.
-  const [riskSection, setRiskSection] = useState<RiskSection>("limits");
-  const [portfolioSection, setPortfolioSection] = useState<PortfolioSection>("overview");
+  // Rail state, the live-section ref and the applier table live in
+  // `use-rail-sections` — see its header for the seam. Called unconditionally
+  // and first, so the hook count per render is unchanged by the split.
+  const rails = useRailSections();
+  const {
+    overviewSection, researchSection, executionSection, dataSection, reliabilitySection,
+    developerSection, coherenceSection, riskSection, portfolioSection,
+    setOverviewSection, setResearchSection, setExecutionSection, setDataSection,
+    setReliabilitySection, setDeveloperSection, setCoherenceSection, setRiskSection,
+    setPortfolioSection, sectionByViewRef, applier,
+  } = rails;
 
   /**
    * The shell, which is the page's scroll container.
@@ -65,52 +65,9 @@ export function useWorkspaceRouting() {
    */
   const shellRef = useRef<HTMLElement | null>(null);
 
-  /**
-   * Live section per workspace, readable from handlers created once. A ref,
-   * not state, because `navigate` must see the CURRENT section at click time
-   * to write a truthful hash — its useCallback would otherwise capture the
-   * mount-time values forever.
-   */
-  const sectionByViewRef = useRef<Record<WorkspaceView, string>>({ ...DEFAULT_SECTION });
-  /** The visible tab, readable at click time for the same reason. */
+  /** The visible tab, readable at click time for the same reason the sections are. */
   const viewRef = useRef<WorkspaceView>(view);
   viewRef.current = view;
-  sectionByViewRef.current = {
-    overview: overviewSection,
-    research: researchSection,
-    live: executionSection,
-    portfolio: portfolioSection,
-    risk: riskSection,
-    data: dataSection,
-    reliability: reliabilitySection,
-    developer: developerSection,
-  };
-
-  /**
-   * One table, read by both `readLocation` and `openSection`.
-   *
-   * They ask the same question — does this workspace have a section by this
-   * name, and how do I apply it — and answered it in two hand-written switches
-   * before, so a renamed rail could be handled one way by the URL and another
-   * by a cross-link. The setters are stable, so this is built once.
-   */
-  const applier = useMemo<Record<WorkspaceView, SectionApplier>>(() => {
-    const bind = <T extends string>(ids: readonly T[], set: (id: T) => void): SectionApplier =>
-      (section) => {
-        const id = railSection(ids, section);
-        return id === null ? null : () => set(id);
-      };
-    return {
-      overview: bind(OVERVIEW_SECTION_IDS, setOverviewSection),
-      research: bind(RESEARCH_SECTION_IDS, setResearchSection),
-      live: bind(EXECUTION_SECTION_IDS, setExecutionSection),
-      portfolio: bind(PORTFOLIO_SECTION_IDS, setPortfolioSection),
-      risk: bind(RISK_SECTION_IDS, setRiskSection),
-      data: bind(DATA_SECTION_IDS, setDataSection),
-      reliability: bind(RELIABILITY_SECTION_IDS, setReliabilitySection),
-      developer: bind(DEVELOPER_SECTION_IDS, setDeveloperSection),
-    };
-  }, []);
 
   /**
    * Which workspaces the reader has opened this session.
@@ -260,6 +217,7 @@ export function useWorkspaceRouting() {
       research: bind("research", setResearchSection),
       live: bind("live", setExecutionSection),
       developer: bind("developer", setDeveloperSection),
+      coherence: bind("coherence", setCoherenceSection),
       risk: bind("risk", setRiskSection),
       portfolio: bind("portfolio", setPortfolioSection),
       data: bind("data", setDataSection),
@@ -352,7 +310,7 @@ export function useWorkspaceRouting() {
   const tourStops = useMemo(() => buildTourStops({
     navigate, setOverviewSection, setResearchSection, setExecutionSection,
     setPortfolioSection, setRiskSection, setDataSection, setReliabilitySection,
-    setDeveloperSection,
+    setDeveloperSection, setCoherenceSection,
   }), [navigate]);
 
   /**
@@ -381,13 +339,14 @@ export function useWorkspaceRouting() {
   return {
     view, shellRef, visitedViews, navigate, warmView, pushSection, openSection,
     overviewSection, researchSection, executionSection, dataSection,
-    reliabilitySection, developerSection, riskSection, portfolioSection,
+    reliabilitySection, developerSection, coherenceSection, riskSection, portfolioSection,
     setOverviewSection, setResearchSection, setExecutionSection, setDataSection,
-    setReliabilitySection, setDeveloperSection, setRiskSection, setPortfolioSection,
+    setReliabilitySection, setDeveloperSection, setCoherenceSection, setRiskSection, setPortfolioSection,
     changeOverviewSection: change.overview, changeResearchSection: change.research,
     changeExecutionSection: change.live, changeDeveloperSection: change.developer,
     changeRiskSection: change.risk, changePortfolioSection: change.portfolio,
     changeDataSection: change.data, changeReliabilitySection: change.reliability,
+    changeCoherenceSection: change.coherence,
     openRiskSection, openPortfolioSection, openResearchSummary, openLiveLiquidity,
     openReliabilityOverview, openDataOverview, openLoopStage, openReliabilitySection,
     copyLinkToView, tourStops,

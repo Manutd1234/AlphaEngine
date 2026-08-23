@@ -8,10 +8,10 @@
  * that can lose a fact while every line still looks present in the diff.
  *
  * `8d091a3` ("Cut 610 words from the frontend, then put 16 facts back") is the
- * commit this file exists because of. Four of six areas swept in that pass
- * failed a fact-loss verifier, and the three worst losses were all of the same
- * shape: a shortened sentence that reads fluently and no longer carries a
- * number, a negation or the reason a measurement is missing.
+ * commit this file exists because of: four of six areas swept in that pass
+ * failed a fact-loss verifier, and the three worst losses were the same shape —
+ * a shortened sentence that reads fluently and no longer carries a number, a
+ * negation or the reason a measurement is missing.
  *
  * So each rewrite below is pinned three ways:
  *
@@ -38,6 +38,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
+
+import { perWorkspaceTableWords, routingReasons } from "./helpers/next-step-prose";
 import { fileURLToPath } from "node:url";
 
 import { proseNodes, wordsIn } from "./helpers/overview-visible-prose";
@@ -333,19 +335,19 @@ describe("the hero thesis fits the row it is given", () => {
  * measured word count by nine, with nothing on this tab changed. Pulling the
  * table out makes the number below SMALLER and the ceiling on it STRICTER; the
  * reasons are not left unwatched, they are watched by the rule that fits them,
- * two blocks down.
- */
-const routingReasons = [...src("components/common/NextStepFooter.tsx")
-  .matchAll(/^\s*why:\s*"([^"]+)",$/gm)].map((match) => match[1]);
-const reasonWords = routingReasons.reduce((sum, why) => sum + wordsIn(why).length, 0);
+ * two blocks down. `FLOW_MAP`'s ring prose is subtracted for the same reason,
+ * found the same way: the ninth tab moved this count thirteen words with
+ * nothing on this tab changed. */
+const reasons = routingReasons();
+const tableWords = perWorkspaceTableWords(wordsIn); // both per-workspace tables
 
-/** Measured 722 before this sweep and 711 after, across 172 nodes; 572 once the
- *  routing table above is measured separately. It may fall; it may not rise. */
-const WORD_CEILING = 572;
+/** 722 before this sweep, 711 after, 572 once the `why:` table was measured
+ *  apart, 427 once the role ring was too. It may fall; it may not rise. */
+const WORD_CEILING = 427;
 
 describe("the Overview tab's visible prose only gets shorter", () => {
   const nodes = OWNED.flatMap((path) => proseNodes(src(path)));
-  const total = nodes.reduce((sum, node) => sum + wordsIn(node).length, 0) - reasonWords;
+  const total = nodes.reduce((sum, node) => sum + wordsIn(node).length, 0) - tableWords;
 
   it("the scanner found this tab's prose, so the count below means something", () => {
     // A scanner that silently stopped matching would report zero words and
@@ -376,21 +378,21 @@ describe("the Overview tab's visible prose only gets shorter", () => {
     );
     // The floor is the other half of the ratchet: a sweep that got the count
     // down by deleting a paragraph would pass the ceiling and fail here, and
-    // the fact blocks above would fail first.
-    assert.ok(total >= 520, `the tab is down to ${total} visible words — what was deleted?`);
+    // the fact blocks above would fail first. 520 → 375 when the role ring was
+    // subtracted: the same margin against a smaller basis, not a loosening.
+    assert.ok(total >= 375, `the tab is down to ${total} visible words — what was deleted?`);
   });
 
   it("a next step gives its reason in a line, not a paragraph", () => {
-    // The ratchet that replaces counting these as Overview prose, and a
-    // tighter one: it holds per reason rather than in aggregate, so a section
-    // added later still has to earn its words instead of spending the slack
-    // some other entry left. The count floor is what stops the scanner from
-    // passing by matching nothing — the failure mode this whole file opens on.
-    assert.ok(routingReasons.length >= 26,
-      `only ${routingReasons.length} keyed next steps found — the scanner stopped matching`);
+    // The ratchet that replaces counting these as Overview prose, and a tighter
+    // one: it holds per reason rather than in aggregate, so a section added
+    // later earns its words instead of spending slack another entry left. The
+    // floor stops the scanner passing by matching nothing.
+    assert.ok(reasons.length >= 26,
+      `only ${reasons.length} keyed next steps found — the scanner stopped matching`);
     assert.ok(
-      reasonWords <= routingReasons.length * 6,
-      `${reasonWords} words across ${routingReasons.length} reasons averages over six: the `
+      reasons.reduce((sum, why) => sum + wordsIn(why).length, 0) <= reasons.length * 6,
+      `the ${reasons.length} routing reasons average over six words: the `
       + "footer's hint line is one clause saying why the destination follows what was just read",
     );
   });

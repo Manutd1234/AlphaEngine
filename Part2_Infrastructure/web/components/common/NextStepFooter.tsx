@@ -19,6 +19,7 @@
 import { NAV_ITEMS, type WorkspaceView } from "@/components/WorkspaceHeader";
 import {
   DATA_SECTIONS,
+  COHERENCE_SECTIONS,
   DEVELOPER_SECTIONS,
   EXECUTION_SECTIONS,
   OVERVIEW_SECTIONS,
@@ -51,6 +52,7 @@ const SECTIONS_BY_VIEW: Record<WorkspaceView, readonly WorkspaceSectionDef[]> = 
   data: DATA_SECTIONS,
   reliability: RELIABILITY_SECTIONS,
   developer: DEVELOPER_SECTIONS,
+  coherence: COHERENCE_SECTIONS,
 };
 
 /**
@@ -265,6 +267,12 @@ const FLOW_MAP: Record<WorkspaceView, { nextId: WorkspaceView; kicker: string; t
     hint: "Deployment topology, OpenAPI diffs, task queue.",
   },
   developer: {
+    nextId: "coherence",
+    kicker: "Next step for the quant researcher",
+    title: "Test a market against its own probabilities",
+    hint: "Basket totals, book identities, recorded tape.",
+  },
+  coherence: {
     nextId: "overview",
     kicker: "Next step around the decision loop",
     title: "Return to the desk overview",

@@ -37,6 +37,7 @@ export const DEFAULT_SECTION: Record<WorkspaceView, string> = {
   data: "overview",
   reliability: "overview",
   developer: "overview",
+  coherence: "universe",
 };
 
 /**

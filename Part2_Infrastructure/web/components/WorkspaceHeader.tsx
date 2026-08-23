@@ -23,7 +23,8 @@ export type WorkspaceView =
   | "risk"
   | "data"
   | "reliability"
-  | "developer";
+  | "developer"
+  | "coherence";
 
 export const NAV_ITEMS: { id: WorkspaceView; label: string; role: string; accessibleLabel?: string }[] = [
   { id: "overview", label: "Overview", role: "All Roles" },
@@ -34,6 +35,7 @@ export const NAV_ITEMS: { id: WorkspaceView; label: string; role: string; access
   { id: "data", label: "Data", role: "Data", accessibleLabel: "Data operations" },
   { id: "reliability", label: "Reliability", role: "SRE" },
   { id: "developer", label: "Developer", role: "Dev" },
+  { id: "coherence", label: "Coherence", role: "Quant" },
 ];
 
 interface WorkspaceHeaderProps {
@@ -159,7 +161,7 @@ export default function WorkspaceHeader({
       // e.code, not e.key: on macOS Option+digit types "¡™£…" so a key-range
       // test never matches and the advertised Alt+1–8 shortcut silently died
       // on every Mac. Physical-key codes are layout- and modifier-stable.
-      if (e.altKey && !e.ctrlKey && !e.metaKey && /^Digit[1-8]$/.test(e.code)) {
+      if (e.altKey && !e.ctrlKey && !e.metaKey && /^Digit[1-9]$/.test(e.code)) {
         // Never while typing — Alt+digit composes characters in text fields.
         const target = e.target as HTMLElement | null;
         if (target && (target.isContentEditable

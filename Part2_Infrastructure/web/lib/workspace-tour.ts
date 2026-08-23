@@ -12,11 +12,11 @@
 import type { TourStop } from "@/components/header/ShortcutsOverlay";
 import type { WorkspaceView } from "@/components/WorkspaceHeader";
 import type {
-  DataSection, DeveloperSection, ExecutionSection, OverviewSection,
+  CoherenceSection, DataSection, DeveloperSection, ExecutionSection, OverviewSection,
   PortfolioSection, ReliabilitySection, ResearchSection, RiskSection,
 } from "@/lib/sections";
 
-/** What a stop needs from the shell: the tab switch, and the eight rail setters. */
+/** What a stop needs from the shell: the tab switch, and the nine rail setters. */
 export interface TourDeps {
   navigate: (
     next: WorkspaceView,
@@ -31,6 +31,7 @@ export interface TourDeps {
   setDataSection: (section: DataSection) => void;
   setReliabilitySection: (section: ReliabilitySection) => void;
   setDeveloperSection: (section: DeveloperSection) => void;
+  setCoherenceSection: (section: CoherenceSection) => void;
 }
 
 export function buildTourStops(deps: TourDeps): TourStop[] {
@@ -54,5 +55,6 @@ export function buildTourStops(deps: TourDeps): TourStop[] {
     stop("Data → Incidents", "Simulate a provider outage; the incident row, failover graph and consensus react, then self-restore.", "data", "incidents", () => deps.setDataSection("incidents")),
     stop("Reliability → Attention & SLIs", "Fleet-truth p99 and provider circuits; the latency chip in every header resolves here.", "reliability", "overview", () => deps.setReliabilitySection("overview")),
     stop("Developer → API & Schema", "OpenAPI drift against the committed digest, and the Monte Carlo parity check you can run in this browser.", "developer", "apis", () => deps.setDeveloperSection("apis")),
+    stop("Coherence → Universe", "Kalshi families priced against the dollar they pay: what buying every outcome costs, read live from the exchange.", "coherence", "universe", () => deps.setCoherenceSection("universe")),
   ];
 }

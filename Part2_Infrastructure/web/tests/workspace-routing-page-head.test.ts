@@ -37,6 +37,7 @@ const workspaceOverview = read("../components/WorkspaceOverview.tsx");
 const dataConsole = read("../components/DataConsole.tsx");
 const reliabilityConsole = read("../components/ReliabilityConsole.tsx");
 const developerConsole = read("../components/DeveloperConsole.tsx");
+const coherenceConsole = read("../components/CoherenceConsole.tsx");
 
 describe("every tab opens with the same header", () => {
   /**
@@ -57,6 +58,7 @@ describe("every tab opens with the same header", () => {
     ["DataConsole.tsx", dataConsole],
     ["ReliabilityConsole.tsx", reliabilityConsole],
     ["DeveloperConsole.tsx", developerConsole],
+    ["CoherenceConsole.tsx", coherenceConsole],
     ["RiskWorkspace.tsx", riskWorkspace],
     ["PortfolioWorkspace.tsx", portfolioWorkspace],
   ];
@@ -98,7 +100,7 @@ describe("every tab opens with the same header", () => {
     }
   });
 
-  it("each of the eight tabs has exactly one head in its panel", () => {
+  it("each of the nine tabs has exactly one head in its panel", () => {
     /**
      * Two heads on one tab is the scatter this converged out of; zero means a
      * tab opens with no identity at all.
@@ -121,6 +123,7 @@ describe("every tab opens with the same header", () => {
       reliability: reliabilityConsole,
       developer: developerConsole,
       overview: workspaceOverview,
+      coherence: coherenceConsole,
     };
     const HEAD = /<(?:WorkspaceIntro|ConsoleChrome|PageHead)\b/g;
     for (const view of navIds(header)) {

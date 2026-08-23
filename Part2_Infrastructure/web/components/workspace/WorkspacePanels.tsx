@@ -26,7 +26,7 @@ import { BookStatus } from "@/components/portfolio/BookChrome";
 import WorkspaceIntro from "@/components/WorkspaceIntro";
 import WorkspaceSubtabs from "@/components/WorkspaceSubtabs";
 import {
-  DataTab, DeveloperTab, OverviewTab, PortfolioTab, ReliabilityTab, RiskTab,
+  CoherenceTab, DataTab, DeveloperTab, OverviewTab, PortfolioTab, ReliabilityTab, RiskTab,
 } from "@/components/workspace/lazy-panels";
 import type { DeveloperWorkItem } from "@/lib/developer-work";
 import { EXECUTION_SECTIONS } from "@/lib/sections";
@@ -80,10 +80,10 @@ export default function WorkspacePanels({ routing, sweep, desk }: WorkspacePanel
   const {
     view, visitedViews, navigate, openSection,
     overviewSection, researchSection, executionSection, dataSection,
-    reliabilitySection, developerSection, riskSection, portfolioSection,
+    reliabilitySection, developerSection, coherenceSection, riskSection, portfolioSection,
     changeOverviewSection, changeResearchSection, changeExecutionSection,
     changeDeveloperSection, changeRiskSection, changePortfolioSection,
-    changeDataSection, changeReliabilitySection,
+    changeDataSection, changeReliabilitySection, changeCoherenceSection,
     openRiskSection, openPortfolioSection, openResearchSummary, openLiveLiquidity,
     openReliabilityOverview, openDataOverview, openLoopStage,
   } = routing;
@@ -370,6 +370,17 @@ export default function WorkspacePanels({ routing, sweep, desk }: WorkspacePanel
             active={view === "developer"}
           />
           <NextStepFooter currentView="developer" currentSection={developerSection} onNavigate={openSection} />
+        </section>
+      )}
+
+      {(view === "coherence" || visitedViews.current.has("coherence")) && (
+        <section id="panel-coherence" role="tabpanel" aria-labelledby="tab-coherence" className="view-panel" hidden={view !== "coherence"}>
+          <CoherenceTab
+            section={coherenceSection}
+            onSectionChange={changeCoherenceSection}
+            active={view === "coherence"}
+          />
+          <NextStepFooter currentView="coherence" currentSection={coherenceSection} onNavigate={openSection} />
         </section>
       )}
     </>

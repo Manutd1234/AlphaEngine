@@ -30,7 +30,7 @@ On Chromium, tab switches cross-fade under the fixed header via View Transitions
 and always under reduced motion, they cut cleanly.
 
 **The header, on every tab.** One row, one structure for guest and signed-in alike: the brand,
-the eight tabs (13px), and a utility strip whose words are all 12px — the data-tier chip, the
+the nine tabs (13px), and a utility strip whose words are all 12px — the data-tier chip, the
 providers sentence, the **DECISION P99** chip, Connect, the Kill switch, Settings and the account
 chip or Sign in. The decision chip is the one figure on every screen and it headlines the
 gateway's own in-process decision p99 in **microseconds**, with the compiled core's
@@ -50,8 +50,8 @@ its aria-label and title; HALTED is never folded.
 
 **Where the rail lists below come from.** Every rail in this document is transcribed from
 `Part2_Infrastructure/web/lib/sections.ts`, which is the single definition the rails, the
-command palette, the hash whitelist and "Copy link to this view" all read. **48 sections across
-the eight tabs.** Four ids deliberately disagree with their labels, because the deep link came
+command palette, the hash whitelist and "Copy link to this view" all read. **56 sections across
+the nine tabs.** Four ids deliberately disagree with their labels, because the deep link came
 first and ids never change: view `live` renders "Execution", section `codex` renders
 "Strategies", section `activity` renders "Blotter", and Risk's section `model` renders "Risk
 engine" — it was labelled "VaR & model" until the forecast and the chart scoring it were split
@@ -380,6 +380,38 @@ committed digest of the gateway's OpenAPI and compares it against the live one.
 
 ---
 
+## Tab 9 — Coherence (`#coherence`, Alt+9)
+
+**The question it answers:** do Kalshi's quoted prices admit any probability at all, and if
+not, what is the portfolio that profits whichever way the world goes?
+
+**60 seconds:** rail: **Universe → Books → Lattice → Dutch book → Fees → Coherence index →
+Diffusion → Lessons**. A prediction-market contract pays $1 if an event happens, so its price
+*is* a probability, and the exchange publishes the logical structure between contracts in its
+own metadata. That makes a whole family of markets one dollar sold in pieces. **Universe**
+prices each watched family against the dollar it pays: buying every outcome of a mutually
+exclusive event buys a guaranteed $1, so what the pieces cost is a direct reading of whether
+those prices are coherent. **Books** shows the market as Kalshi actually publishes it — two BID
+ladders and no asks, because an offer here is a reading of the opposite ladder. The identity
+drawn beneath them, `yes_ask + no_ask = 1 + spread`, is why the "buy both sides for under a
+dollar" strategy in two of the most-starred bots in this space can never fire.
+
+**What it may not claim.** Nothing on this tab places an order; there is no write route in the
+engine at all, and its own test asserts that. The Lattice, Dutch book, Fees, Coherence index
+and Diffusion sections state what they will show and what has to exist first, rather than
+rendering an empty chart frame — an axis with nothing on it and an axis whose data failed to
+load look identical, and one of those is a fault.
+
+**Read with no keys.** Every price here comes from Kalshi's public endpoints; no API key is
+configured or needed for the read path. The recorder is off unless `COHERENCE_SERIES` and
+`COHERENCE_POLL_S` are both set on the gateway.
+
+**The moment worth showing:** Books — the implied offer ladder drawn as a ghost one spread away
+from the YES bids. It is the ladder you would trade against and the one the exchange never
+sends you.
+
+---
+
 ## Telegram — the companion behind the Connect chip
 
 **The question it answers:** can the desk be read, and stopped, from a phone — without becoming
@@ -399,7 +431,7 @@ and never on the tapped message's author, and a refresh edits the card in place 
 sending another; sixteen matplotlib chart
 generators (series, bars, depth, drawdown, histogram, heatmap, equity, paired bars, gate
 ladder, latency CDF, scatter, multi-series, VaR breach, pipeline, cone, status grid); and eight
-tab commands — `/overview` … `/developer` — that mirror the desk's eight tabs with a chart
+tab commands — `/overview` … `/coherence` — that mirror the desk's nine tabs with a chart
 apiece. `/sli` and `/latency` quote the native core's nanosecond figure beside the decision's
 microseconds — the same two planes the header chip keeps apart.
 

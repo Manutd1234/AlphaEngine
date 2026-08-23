@@ -14,6 +14,7 @@
 
 import {
   DATA_SECTION_IDS,
+  COHERENCE_SECTION_IDS,
   DEVELOPER_SECTION_IDS,
   EXECUTION_SECTION_IDS,
   OVERVIEW_SECTION_IDS,
@@ -33,6 +34,7 @@ export const RAILS: Record<string, readonly string[]> = {
   data: DATA_SECTION_IDS,
   reliability: RELIABILITY_SECTION_IDS,
   developer: DEVELOPER_SECTION_IDS,
+  coherence: COHERENCE_SECTION_IDS,
 };
 
 export function isRealLocation(view: string, section: string): boolean {

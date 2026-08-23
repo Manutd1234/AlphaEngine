@@ -22,6 +22,7 @@ const load = {
   data: () => import("@/components/DataConsole"),
   reliability: () => import("@/components/ReliabilityConsole"),
   developer: () => import("@/components/DeveloperConsole"),
+  coherence: () => import("@/components/CoherenceConsole"),
 };
 
 /** Returns the hover/focus warm-up handler; the idle warm-up runs on its own. */
@@ -45,6 +46,6 @@ export function useConsolePrefetch(): (next: WorkspaceView) => void {
   // has already started the download by the time the click lands. Import is
   // idempotent and cached, so a hover after the idle warm-up costs nothing.
   return useCallback((next: WorkspaceView) => {
-    if (next === "data" || next === "reliability" || next === "developer") void load[next]();
+    if (next === "data" || next === "reliability" || next === "developer" || next === "coherence") void load[next]();
   }, []);
 }

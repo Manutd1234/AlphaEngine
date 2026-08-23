@@ -97,6 +97,7 @@
 @import "./globals/10-developer-control-plane.css";
 
 /* NextStepFooter — decision loop flow. */
+@import "./globals/10a-coherence-plane.css";
 @import "./globals/11-next-step-footer.css";
 
 /* Workspace standardisation layer — the shared contract for the eight desk

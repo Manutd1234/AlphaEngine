@@ -58,6 +58,7 @@ describe("the nav and the render tree describe the same workspace", () => {
       "data",
       "reliability",
       "developer",
+      "coherence",
     ]);
   });
 

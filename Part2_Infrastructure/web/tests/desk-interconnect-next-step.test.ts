@@ -61,7 +61,7 @@ describe("the next step follows what was just read", () => {
     assert.notEqual(start, -1, "the fallback ring is gone");
     const block = footerCode.slice(start, footerCode.indexOf("\n};", start));
     const ring = [...block.matchAll(/^ {2}([a-z]+):\s*\{\s*\n\s*nextId:\s*"([a-z]+)"/gm)];
-    assert.equal(ring.length, 8, "the ring no longer covers all eight workspaces");
+    assert.equal(ring.length, 9, "the ring no longer covers all nine workspaces");
     for (const [, from, to] of ring) {
       assert.ok(RAILS[from], `the ring starts from "${from}", which is not a workspace`);
       assert.ok(RAILS[to], `the ring points at "${to}", which is not a workspace`);
@@ -73,19 +73,19 @@ describe("the next step follows what was just read", () => {
     assert.match(footerCode, /SECTIONS_BY_VIEW\[contextual\.view\]\.find/);
   });
 
-  it("is told which section it is standing on, on all eight views", () => {
-    // The eight footers travelled with the panels they close; a scan left on
-    // page.tsx would find zero of them and report "0 !== 8" — or, had the
+  it("is told which section it is standing on, on all nine views", () => {
+    // The nine footers travelled with the panels they close; a scan left on
+    // page.tsx would find zero of them and report "0 !== 9" — or, had the
     // assertion been a `>= 0`, nothing at all.
     const mounts = [...panelsCode.matchAll(
       /<NextStepFooter currentView="([a-z]+)" currentSection=\{(\w+)\} onNavigate=\{openSection\} \/>/g,
     )];
     assert.equal(
       mounts.length,
-      8,
+      9,
       "a view mounts the footer without telling it where the reader is, so that whole "
         + "workspace falls back to the ring",
     );
-    assert.equal(new Set(mounts.map((match) => match[1])).size, 8);
+    assert.equal(new Set(mounts.map((match) => match[1])).size, 9);
   });
 });

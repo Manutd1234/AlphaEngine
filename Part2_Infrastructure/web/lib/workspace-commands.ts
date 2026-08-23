@@ -30,6 +30,7 @@ import { usd } from "@/lib/format";
 import { RESEARCH_SYMBOLS } from "@/lib/research-symbols";
 import {
   DATA_SECTIONS,
+  COHERENCE_SECTIONS,
   DEVELOPER_SECTIONS,
   EXECUTION_SECTIONS,
   OVERVIEW_SECTIONS,
@@ -38,6 +39,7 @@ import {
   RESEARCH_SECTIONS,
   RISK_SECTIONS,
   type DataSection,
+  type CoherenceSection,
   type DeveloperSection,
   type ExecutionSection,
   type OverviewSection,
@@ -72,6 +74,7 @@ export interface CommandDeps {
   setDataSection: Setter<DataSection>;
   setReliabilitySection: Setter<ReliabilitySection>;
   setDeveloperSection: Setter<DeveloperSection>;
+  setCoherenceSection: Setter<CoherenceSection>;
   updateStrategy: (strategy: Strategy) => void;
   updateSymbol: (symbol: string) => void;
   run: () => void | Promise<unknown>;
@@ -104,7 +107,7 @@ export function buildCommands(d: CommandDeps): Command[] {
   const {
     navigate, setOverviewSection, setResearchSection, setExecutionSection,
     setPortfolioSection, setRiskSection, setDataSection, setReliabilitySection,
-    setDeveloperSection, updateStrategy, updateSymbol, run, pinRun, running,
+    setDeveloperSection, setCoherenceSection, updateStrategy, updateSymbol, run, pinRun, running,
     currentPinned, data, showMcBands, setShowMcBands, setMcRunNonce, side,
     setSide, setNotional, copyLinkToView, setShortcutsOpen, view,
     researchSection, symbol, refreshHealth, reconnectSockets,
@@ -158,6 +161,8 @@ export function buildCommands(d: CommandDeps): Command[] {
   }
   for (const s of DEVELOPER_SECTIONS) {
     section("developer", "Developer", s.id, `${s.label} — ${s.description}`, () => setDeveloperSection(s.id));
+  for (const s of COHERENCE_SECTIONS)
+    section("coherence", "Coherence", s.id, `${s.label} — ${s.description}`, () => setCoherenceSection(s.id));
   }
 
   for (const strategy of Object.keys(STRATEGY_LABELS) as Strategy[]) {

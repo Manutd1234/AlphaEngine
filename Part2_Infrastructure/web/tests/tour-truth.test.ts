@@ -43,7 +43,7 @@ function railOf(workspace: string): { id: string; label: string }[] {
 
 const WORKSPACES = [
   "OVERVIEW", "RESEARCH", "EXECUTION", "PORTFOLIO",
-  "RISK", "DATA", "RELIABILITY", "DEVELOPER",
+  "RISK", "DATA", "RELIABILITY", "DEVELOPER", "COHERENCE",
 ] as const;
 
 /**
@@ -72,7 +72,7 @@ describe("the feature tour names the sections the app actually ships", () => {
 
   it("the section total the tour quotes is the total that exists", () => {
     const total = WORKSPACES.reduce((n, workspace) => n + railOf(workspace).length, 0);
-    assert.equal(total, 48, "the rail count moved; the tour and desk-sweep both quote it");
+    assert.equal(total, 56, "the rail count moved; the tour and desk-sweep both quote it");
     assert.ok(
       plain.includes(`${total} section`),
       `the tour does not state the ${total}-section total`,
@@ -157,6 +157,7 @@ const WORKSPACE_FOR_VIEW: Record<string, string> = {
   data: "DATA",
   reliability: "RELIABILITY",
   developer: "DEVELOPER",
+  coherence: "COHERENCE",
 };
 
 describe("the in-app tour names the sections the app actually ships", () => {
@@ -164,8 +165,8 @@ describe("the in-app tour names the sections the app actually ships", () => {
   const stops = [...page.matchAll(/stop\(\s*"([^"]+)",[\s\S]*?,\s*"([a-z]+)",\s*"([a-z]+)",\s*\(\) =>/g)]
     .map(([, where, view, section]) => ({ where, view, section }));
 
-  it("finds all eight stops", () => {
-    assert.equal(stops.length, 8, "the stop regex stopped matching the tour's shape");
+  it("finds all nine stops", () => {
+    assert.equal(stops.length, 9, "the stop regex stopped matching the tour's shape");
   });
 
   for (const { where, view, section } of stops) {

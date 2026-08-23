@@ -1,0 +1,329 @@
+/*
+ * Coherence — the Kalshi engine's surface.
+ *
+ * Named 10a so it sorts immediately after 10-developer-control-plane and before
+ * 11-next-step-footer: `globals-manifest.test.ts` pins the manifest's order to
+ * `readdirSync().sort()`, and "10a-" sorts after "10-" because '-' (0x2D)
+ * precedes 'a'. The obvious alternative, 14p, would have landed between
+ * 14o-header-tabs-surplus and 15-navigator-and-trailing-layer, whose adjacency
+ * is asserted byte-for-byte by reader-round-tabs-and-figure-tables.
+ *
+ * The tab draws several diagrams making one argument, so the figure furniture
+ * is defined once here and every drawing inherits it. Two rules hold across all
+ * of them:
+ *
+ *   - Nothing means anything by colour alone. Every state that has a colour also
+ *     has a typographic mark and a word, which is what keeps the figures legible
+ *     in Windows High Contrast and to a reader who cannot separate the hues.
+ *   - The dollar reference is the loudest line in any figure that has one. It is
+ *     the only thing the reader is asked to judge against, so it is drawn over
+ *     the data rather than under it.
+ */
+
+.coherence-plane {
+  --coherence-accent: var(--series-3);
+  display: grid;
+  min-width: 0;
+  gap: 14px;
+}
+
+/* ── The shared figure frame ─────────────────────────────────────────────── */
+
+.coh-figure {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  min-width: 0;
+}
+
+.coh-figure__caption {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.coh-figure__plot {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.coh-figure__plot svg {
+  width: 100%;
+  display: block;
+  overflow: visible;
+}
+
+.coh-figure__reading,
+.coh-figure__missing,
+.coh-figure__empty {
+  margin: 0;
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+}
+
+.coh-figure__reading { color: var(--text-primary); }
+.coh-figure__missing,
+.coh-figure__empty { color: var(--text-secondary); }
+
+/* ── State chips: mark, word, value ──────────────────────────────────────── */
+
+.coh-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+}
+
+.coh-chip__mark { font-size: var(--fs-xs); }
+.coh-chip__word { color: var(--text-secondary); }
+.coh-chip__value { font-variant-numeric: tabular-nums; font-weight: 620; }
+
+.coh-chip.is-good { border-color: color-mix(in srgb, var(--series-3) 40%, var(--border)); }
+.coh-chip.is-good .coh-chip__mark { color: var(--series-3); }
+.coh-chip.is-warn { border-color: color-mix(in srgb, var(--warning-text) 40%, var(--border)); }
+.coh-chip.is-warn .coh-chip__mark { color: var(--warning-text); }
+.coh-chip.is-critical { border-color: color-mix(in srgb, var(--series-2) 46%, var(--border)); }
+.coh-chip.is-critical .coh-chip__mark { color: var(--series-2); }
+.coh-chip.is-muted .coh-chip__mark { color: var(--text-secondary); }
+
+/* ── The dollar bar: the basket against the dollar it pays ───────────────── */
+
+.coh-dollarbar { height: 92px; }
+
+.coh-dollarbar__track { fill: var(--surface-2); }
+
+.coh-dollarbar__leg {
+  stroke: var(--surface-1);
+  stroke-width: 0.35;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Three tones cycled so adjacent legs stay distinguishable. The legs are not a
+   category scale — each one is a different outcome of the same event and their
+   identity is in the tooltip, not the hue. */
+.coh-dollarbar__leg.is-leg-1 { fill: color-mix(in srgb, var(--series-1) 62%, var(--surface-1)); }
+.coh-dollarbar__leg.is-leg-2 { fill: color-mix(in srgb, var(--series-1) 40%, var(--surface-1)); }
+.coh-dollarbar__leg.is-leg-3 { fill: color-mix(in srgb, var(--series-1) 22%, var(--surface-1)); }
+
+.coh-dollarbar__dollar {
+  stroke: var(--text-primary);
+  stroke-width: 1.2;
+  vector-effect: non-scaling-stroke;
+}
+
+.coh-dollarbar__dollar-label,
+.coh-dollarbar__total {
+  fill: var(--text-secondary);
+  font-size: var(--fs-tick);
+  font-variant-numeric: tabular-nums;
+}
+
+.coh-dollarbar__total { fill: var(--text-primary); font-weight: 650; }
+.coh-dollarbar__total.is-dutch { fill: var(--series-2); }
+
+/* ── The ladder: two bid stacks and the offers they imply ────────────────── */
+
+.coh-ladder { height: 150px; }
+
+.coh-ladder__axis { stroke: var(--border); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.coh-ladder__yes { fill: color-mix(in srgb, var(--series-1) 55%, var(--surface-1)); }
+.coh-ladder__no { fill: color-mix(in srgb, var(--series-2) 42%, var(--surface-1)); }
+
+/* The implied offers are drawn as a line rather than filled: they are derived
+   from the opposite ladder, not resting orders of their own, and a solid block
+   would claim a queue Kalshi never published. */
+.coh-ladder__implied {
+  stroke: var(--text-primary);
+  stroke-width: 1;
+  stroke-dasharray: 3 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.coh-ladder__mark { stroke: var(--series-1); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.coh-ladder__mark.is-ask { stroke: var(--series-2); }
+.coh-ladder__tick { fill: var(--text-secondary); font-size: var(--fs-tick); font-variant-numeric: tabular-nums; }
+
+/* ── The identity strip: Lesson 0, drawn ─────────────────────────────────── */
+
+.coh-identity { height: 96px; }
+
+.coh-identity__part { stroke: var(--surface-1); stroke-width: 0.3; vector-effect: non-scaling-stroke; }
+.coh-identity__part.is-yes { fill: color-mix(in srgb, var(--series-1) 58%, var(--surface-1)); }
+.coh-identity__part.is-no { fill: color-mix(in srgb, var(--series-2) 44%, var(--surface-1)); }
+.coh-identity__part.is-dollar { fill: color-mix(in srgb, var(--series-3) 34%, var(--surface-1)); }
+.coh-identity__part.is-spread { fill: color-mix(in srgb, var(--text-primary) 26%, var(--surface-1)); }
+
+.coh-identity__dollar { stroke: var(--text-secondary); stroke-width: 0.8; stroke-dasharray: 2 2; vector-effect: non-scaling-stroke; }
+.coh-identity__meet { stroke: var(--text-primary); stroke-width: 1.2; vector-effect: non-scaling-stroke; }
+.coh-identity__label,
+.coh-identity__dollar-label { fill: var(--text-secondary); font-size: var(--fs-tick); }
+
+/* ── Events, books, status, lessons ──────────────────────────────────────── */
+
+.coh-universe,
+.coh-books,
+.coh-status,
+.coh-lessons { display: grid; gap: 12px; min-width: 0; }
+
+.coh-event {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  min-width: 0;
+}
+
+.coh-event__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.coh-event__title { margin: 0; font-size: var(--fs-lg); }
+.coh-event__meta,
+.coh-event__note,
+.coh-books__origin,
+.coh-status__basis,
+.coh-lessons__intro {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.coh-event__chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.coh-event__figures {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 1100px) {
+  .coh-event__figures { grid-template-columns: 1fr 1fr; }
+}
+
+.coh-table { width: 100%; border-collapse: collapse; font-size: var(--fs-xs); }
+.coh-table__caption {
+  caption-side: top;
+  text-align: left;
+  padding-bottom: 6px;
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+}
+.coh-table th,
+.coh-table td { padding: 4px 8px; text-align: left; border-bottom: 1px solid var(--border); }
+.coh-table td.num,
+.coh-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.coh-notes { margin: 0; padding-left: 18px; font-size: var(--fs-xs); color: var(--text-secondary); }
+.coh-notes li { margin-bottom: 3px; }
+
+.coh-book { display: grid; gap: 10px; min-width: 0; }
+.coh-book__facts,
+.coh-status__facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+.coh-book__facts div,
+.coh-status__facts div { display: grid; gap: 2px; }
+.coh-book__facts dt,
+.coh-status__facts dt { font-size: var(--fs-xs); color: var(--text-secondary); }
+.coh-book__facts dd,
+.coh-status__facts dd { margin: 0; font-variant-numeric: tabular-nums; font-weight: 620; }
+
+.coh-books__ticker { margin: 0; font-size: var(--fs-lg); font-variant-numeric: tabular-nums; }
+.coh-books__picker { flex-wrap: wrap; }
+.coh-status__chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* ── The lessons ─────────────────────────────────────────────────────────── */
+
+.coh-lessons__grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 1100px) {
+  .coh-lessons__grid { grid-template-columns: 1fr 1fr; }
+}
+
+.coh-lesson {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  align-content: start;
+}
+
+/* A lesson whose slice has not landed is quieter, never hidden: the gap in the
+   curriculum is information, and a list that shows only finished work cannot be
+   read as a plan. */
+.coh-lesson.is-pending { border-style: dashed; }
+
+.coh-lesson__head { display: flex; gap: 8px; align-items: baseline; justify-content: space-between; }
+/* No font-size of its own: this reaches the base h3/h4 rung the type
+   scale already sets, rather than inventing a fifth in-card head size. */
+.coh-lesson__head h4 { margin: 0; }
+.coh-lesson__state { font-size: var(--fs-xs); color: var(--text-secondary); white-space: nowrap; }
+.coh-lesson__summary { margin: 0; font-size: var(--fs-xs); line-height: 1.5; }
+
+.coh-lesson__formula {
+  display: block;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-size: var(--fs-xs);
+  overflow-x: auto;
+}
+
+.coh-lesson__bounds { display: grid; gap: 6px; margin: 0; }
+.coh-lesson__bounds div { display: grid; gap: 2px; }
+.coh-lesson__bounds dt { font-size: var(--fs-xs); color: var(--text-secondary); font-weight: 620; }
+.coh-lesson__bounds dd { margin: 0; font-size: var(--fs-xs); line-height: 1.45; }
+.coh-lesson__bounds .is-holds dt { color: var(--series-3); }
+.coh-lesson__bounds .is-fails dt { color: var(--series-2); }
+
+.coh-lesson__mechanics summary { font-size: var(--fs-xs); cursor: pointer; }
+.coh-lesson__mechanics ul { margin: 6px 0 0; padding-left: 18px; font-size: var(--fs-xs); }
+
+/* ── Sections whose engine has not shipped ───────────────────────────────── */
+
+.coh-pending { display: grid; gap: 12px; }
+.coh-pending__lead { margin: 0; font-size: var(--fs-body); line-height: 1.5; }
+.coh-pending__cols { display: grid; gap: 12px; grid-template-columns: 1fr; }
+
+@media (min-width: 900px) {
+  .coh-pending__cols { grid-template-columns: 1fr 1fr; }
+}
+
+.coh-pending__cols h4 {
+  margin: 0 0 6px;
+  font-size: var(--fs-2xs);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 640;
+}
+.coh-pending__steps,
+.coh-pending__lessons { margin: 0; padding-left: 18px; font-size: var(--fs-xs); line-height: 1.5; }
+.coh-pending__steps li,
+.coh-pending__lessons li { margin-bottom: 4px; }
+
+.coh-console__status { border-top: 1px solid var(--border); padding-top: 12px; }
