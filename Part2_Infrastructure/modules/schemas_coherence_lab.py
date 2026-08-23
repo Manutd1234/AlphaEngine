@@ -205,6 +205,7 @@ class CoherenceCalibration(BaseModel):
     binning: str | None = None
     skill: str | None = None
     bias_slope: str | None = None
+    bias_by_series: list[CoherenceSeriesBias] = Field(default_factory=list)
     median_horizon_s: int | None = None
     thin: bool = True
     bins: list[CoherenceReliabilityBin] = Field(default_factory=list)
@@ -216,6 +217,18 @@ class CoherenceCalibration(BaseModel):
 class CoherenceCompositionRow(BaseModel):
     series_ticker: str
     count: int = 0
+
+
+class CoherenceSeriesBias(BaseModel):
+    """One series' favourite–longshot slope.
+
+    Reported per series because a single slope over a mixed corpus averages
+    markets that are not the same question, and two halves pointing opposite
+    ways can sit at one together.
+    """
+
+    series_ticker: str
+    slope: str
 
 
 # --------------------------------------------------------------------------- #

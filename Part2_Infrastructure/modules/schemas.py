@@ -63,6 +63,7 @@ from modules.schemas_coherence_lab import CoherencePendingMinute as CoherencePen
 from modules.schemas_coherence_lab import CoherenceProbe as CoherenceProbe  # noqa: F401
 from modules.schemas_coherence_lab import CoherenceReliabilityBin as CoherenceReliabilityBin  # noqa: F401
 from modules.schemas_coherence_lab import CoherenceRfqPanel as CoherenceRfqPanel  # noqa: F401
+from modules.schemas_coherence_lab import CoherenceSeriesBias as CoherenceSeriesBias  # noqa: F401
 from modules.schemas_coherence_lab import CoherenceSettlementFeed as CoherenceSettlementFeed  # noqa: F401
 from modules.schemas_coherence_lab import CoherenceShell as CoherenceShell  # noqa: F401
 from modules.schemas_coherence_lab import CoherenceShellEntry as CoherenceShellEntry  # noqa: F401

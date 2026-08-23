@@ -31,6 +31,7 @@ from modules.schemas import (
     CoherenceProbe,
     CoherenceReliabilityBin,
     CoherenceRfqPanel,
+    CoherenceSeriesBias,
     CoherenceSettlementFeed,
     CoherenceShell,
     CoherenceShellEntry,
@@ -206,6 +207,10 @@ def calibration_view(report: Any, detail: str) -> CoherenceCalibration:
         binning=text(report.binning),
         skill=text(report.skill),
         bias_slope=text(report.bias_slope),
+        bias_by_series=[
+            CoherenceSeriesBias(series_ticker=series, slope=str(slope))
+            for series, slope in report.bias_by_series
+        ],
         median_horizon_s=report.median_horizon_s,
         thin=report.thin,
         bins=[

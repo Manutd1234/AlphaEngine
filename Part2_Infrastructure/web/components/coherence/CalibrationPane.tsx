@@ -304,16 +304,28 @@ export default function CalibrationPane({ active }: { active: boolean }) {
                   <th scope="col">Series</th>
                   <th scope="col" className="num">Settled markets</th>
                   <th scope="col" className="num">Share of the corpus</th>
+                  <th scope="col" className="num">Its own slope</th>
                 </tr>
               </thead>
               <tbody>
-                {data.composition.map((row) => (
-                  <tr key={row.series_ticker}>
-                    <th scope="row">{row.series_ticker}</th>
-                    <td className="num">{row.count}</td>
-                    <td className="num">{corpus > 0 ? pct(row.count / corpus) : "—"}</td>
-                  </tr>
-                ))}
+                {data.composition.map((row) => {
+                  // The aggregate slope averages series that are not the same
+                  // question, so two of them can point opposite ways and still
+                  // sit at one together. A series without enough settled
+                  // markets to populate three price bands has no slope, and
+                  // gets a dash rather than the corpus figure standing in.
+                  const own = (data.bias_by_series ?? []).find(
+                    (item) => item.series_ticker === row.series_ticker,
+                  );
+                  return (
+                    <tr key={row.series_ticker}>
+                      <th scope="row">{row.series_ticker}</th>
+                      <td className="num">{row.count}</td>
+                      <td className="num">{corpus > 0 ? pct(row.count / corpus) : "—"}</td>
+                      <td className="num">{own ? own.slope.slice(0, 6) : "—"}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

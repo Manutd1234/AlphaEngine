@@ -221,3 +221,57 @@ class TestAnEmptyBandIsNotAnEmptyOutcome:
         assert report.bins[0].low == 0
         assert report.bins[-1].high == 1
         assert all(left.high == right.low for left, right in zip(report.bins, report.bins[1:], strict=False))
+
+
+class TestOneSlopeOverAMixedCorpusHidesTwo:
+    """§9.3 asks for the bias by category, and this is why it asks.
+
+    A favourite–longshot slope is a statement about how a set of markets is
+    priced. Averaging a fifteen-minute crypto strike with a daily temperature
+    bucket produces a number that describes neither: they are priced by
+    different people against different information, and their biases can point
+    opposite ways and cancel.
+    """
+
+    @staticmethod
+    def _corpus(series: str, exponent: float, seed: int) -> list[Forecast]:
+        import random
+
+        rng = random.Random(seed)
+        rows: list[Forecast] = []
+        for index in range(400):
+            price = Decimal(rng.randint(5, 95)) / 100
+            rows.append(
+                Forecast(
+                    ticker=f"{series}-{index}",
+                    series_ticker=series,
+                    probability=price,
+                    outcome=rng.random() < float(price) ** exponent,
+                    horizon_s=3600,
+                )
+            )
+        return rows
+
+    def test_two_series_pulling_opposite_ways_are_reported_separately(self):
+        steep = self._corpus("KXSTEEP", 1.4, seed=3)
+        flat = self._corpus("KXFLAT", 0.7, seed=4)
+        report = score(steep + flat, engine="tape")
+
+        by_series = dict(report.bias_by_series)
+        assert set(by_series) == {"KXSTEEP", "KXFLAT"}
+        # The classic favourite–longshot shape is a slope above one; the other
+        # corpus is built to sit below it. The aggregate lands between them.
+        assert by_series["KXSTEEP"] > Decimal(1)
+        assert by_series["KXFLAT"] < Decimal(1)
+        assert report.bias_slope is not None
+        assert by_series["KXFLAT"] < report.bias_slope < by_series["KXSTEEP"]
+
+    def test_a_series_too_thin_for_a_line_is_absent_rather_than_defaulted(self):
+        """Three populated price bands or no slope. Not the corpus figure."""
+        thin = [
+            Forecast("T1", "KXTHIN", Decimal("0.50"), True, 3600),
+            Forecast("T2", "KXTHIN", Decimal("0.50"), False, 3600),
+        ]
+        report = score(self._corpus("KXWIDE", 1.4, seed=5) + thin, engine="tape")
+        assert "KXTHIN" not in dict(report.bias_by_series)
+        assert "KXWIDE" in dict(report.bias_by_series)

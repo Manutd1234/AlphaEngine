@@ -138,6 +138,13 @@ class Report:
     bins: tuple[Bin, ...]
     isotonic_map: tuple[MapPoint, ...]
     bias_slope: Decimal | None
+    #: The same slope per series, for the series with enough settled markets to
+    #: carry one. A single number over a mixed corpus is an average of markets
+    #: that are not the same question — a fifteen-minute crypto strike and a
+    #: daily temperature bucket are priced by different people against different
+    #: information — so one aggregate slope can sit at one while two halves
+    #: point opposite ways. Reported per series so that cannot hide.
+    bias_by_series: tuple[tuple[str, Decimal], ...]
     composition: tuple[tuple[str, int], ...]
     median_horizon_s: int | None
     thin: bool
@@ -270,6 +277,25 @@ def _slope(bins: Sequence[Bin]) -> Decimal | None:
     return numerator / denominator
 
 
+def _slope_by_series(forecasts: Sequence[Forecast], bins: int) -> list[tuple[str, Decimal]]:
+    """The favourite–longshot slope for each series that can carry one.
+
+    A series needs enough settled markets to populate three price bands before
+    a weighted line through them is a measurement rather than an artefact, and
+    ``_slope`` already refuses below that. Series that cannot are simply absent
+    rather than reported at some default.
+    """
+    grouped: dict[str, list[Forecast]] = {}
+    for item in forecasts:
+        grouped.setdefault(item.series_ticker, []).append(item)
+    found: list[tuple[str, Decimal]] = []
+    for series, rows in grouped.items():
+        slope = _slope(_build_bins(rows, bins))
+        if slope is not None:
+            found.append((series, slope))
+    return sorted(found, key=lambda pair: pair[0])
+
+
 def _median_horizon(forecasts: Sequence[Forecast]) -> int:
     horizons = sorted(item.horizon_s for item in forecasts)
     middle = len(horizons) // 2
@@ -291,6 +317,7 @@ def _unavailable(detail: str) -> Report:
         bins=(),
         isotonic_map=(),
         bias_slope=None,
+        bias_by_series=(),
         composition=(),
         median_horizon_s=None,
         thin=True,
@@ -350,6 +377,7 @@ def score(forecasts: Sequence[Forecast], engine: Engine, bins: int = DEFAULT_BIN
         bins=tuple(bands),
         isotonic_map=tuple(isotonic),
         bias_slope=_slope(bands),
+        bias_by_series=tuple(_slope_by_series(rows, bins)),
         composition=composition,
         median_horizon_s=median_horizon,
         thin=len(rows) < THIN_CORPUS,

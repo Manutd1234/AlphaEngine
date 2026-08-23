@@ -182,6 +182,17 @@ export interface CoherenceCompositionRow {
   count: number;
 }
 
+export interface CoherenceSeriesBias {
+  series_ticker: string;
+  /**
+   * The favourite–longshot slope for this series alone. Above one is the
+   * classic shape. Reported per series because one aggregate slope averages
+   * markets that are not the same question, and two halves pointing opposite
+   * ways can sit at one together.
+   */
+  slope: string;
+}
+
 export interface CoherenceCalibration {
   state: string;
   /** "tape" is a real forecast test; "final_trade" scores convergence. */
@@ -196,6 +207,7 @@ export interface CoherenceCalibration {
   binning: string | null;
   skill: string | null;
   bias_slope: string | null;
+  bias_by_series: CoherenceSeriesBias[];
   median_horizon_s: number | null;
   thin: boolean;
   bins: CoherenceReliabilityBin[];
