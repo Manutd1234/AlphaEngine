@@ -867,6 +867,11 @@ export interface DiffusionStudy {
   events?: number;
   latent_dim: number;
   segment?: string | null;
+  skill_baseline_r2?: number | null;
+  skill_gain?: number | null;
+  skill_meetings?: number;
+  skill_shuffled_p?: number | null;
+  skill_stage_minutes?: number | null;
   study_id: string;
   verdict?: string | null;
   verdict_reason?: string | null;

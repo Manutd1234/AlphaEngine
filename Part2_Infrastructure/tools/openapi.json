@@ -5334,6 +5334,55 @@
             ],
             "title": "Segment"
           },
+          "skill_baseline_r2": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skill Baseline R2"
+          },
+          "skill_gain": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skill Gain"
+          },
+          "skill_meetings": {
+            "default": 0,
+            "title": "Skill Meetings",
+            "type": "integer"
+          },
+          "skill_shuffled_p": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skill Shuffled P"
+          },
+          "skill_stage_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skill Stage Minutes"
+          },
           "study_id": {
             "title": "Study Id",
             "type": "string"
