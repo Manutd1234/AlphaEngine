@@ -25,6 +25,7 @@ import { useState } from "react";
 
 import Figure, { FigureEmpty, StateChip } from "../Figure";
 import AbsorptionCurve from "./AbsorptionCurve";
+import FindingsPane from "./FindingsPane";
 import StageBars from "./StageBars";
 import StageTimeline from "./StageTimeline";
 import type { AbsorptionRead, StageRun } from "./types";
@@ -127,7 +128,7 @@ export default function InformationDiffusionPane({ read, error }: {
   read: AbsorptionRead | null;
   error: string | null;
 }) {
-  const [view, setView] = useState<"absorption" | "mechanism">("absorption");
+  const [view, setView] = useState<"absorption" | "findings" | "mechanism">("absorption");
 
   if (error && !read) {
     return (
@@ -155,11 +156,18 @@ export default function InformationDiffusionPane({ read, error }: {
         <button type="button" aria-pressed={view === "absorption"} onClick={() => setView("absorption")}>
           Absorption
         </button>
+        <button type="button" aria-pressed={view === "findings"} onClick={() => setView("findings")}>
+          Findings
+        </button>
         <button type="button" aria-pressed={view === "mechanism"} onClick={() => setView("mechanism")}>
           Mechanism
         </button>
       </div>
 
+      {/* The absorption chips belong to the absorption question. On the
+          findings view they would sit above a second chip row about something
+          else, and eight tiles in a line read as one summary of one thing. */}
+      {view === "findings" ? null : (
       <div className="coh-status__chips">
         <StateChip mark="●" word="Stages measured" value={String(measured)} tone="muted" />
         <StateChip mark="◌" word="Below the floor"
@@ -168,8 +176,11 @@ export default function InformationDiffusionPane({ read, error }: {
                    value={gap ?? "not yet"} tone={gap ? "warn" : "muted"} />
         <StateChip mark="✓" word="Terminal" value={`${STAGE_TERMINAL_MIN} min, both stages`} tone="muted" />
       </div>
+      )}
 
-      {view === "mechanism" ? (
+      {view === "findings" ? (
+        <FindingsPane active />
+      ) : view === "mechanism" ? (
         <Figure
           caption="Why a rate decision can be measured twice"
           ariaLabel={`Two stages ${STAGE_GAP_MIN} minutes apart, each measured over its own ${STAGE_TERMINAL_MIN} minute window`}

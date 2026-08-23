@@ -4400,6 +4400,40 @@
         "title": "DiffusionAbsorptionResponse",
         "type": "object"
       },
+      "DiffusionCalendar": {
+        "description": "How much of the calendar was checked against the issuer.",
+        "properties": {
+          "dissent_meetings": {
+            "default": 0,
+            "title": "Dissent Meetings",
+            "type": "integer"
+          },
+          "dissent_votes": {
+            "default": 0,
+            "title": "Dissent Votes",
+            "type": "integer"
+          },
+          "how": {
+            "title": "How",
+            "type": "string"
+          },
+          "of": {
+            "default": 0,
+            "title": "Of",
+            "type": "integer"
+          },
+          "verified": {
+            "default": 0,
+            "title": "Verified",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "how"
+        ],
+        "title": "DiffusionCalendar",
+        "type": "object"
+      },
       "DiffusionEvent": {
         "description": "One announcement, with both of its stages and the clock that saw them.",
         "properties": {
@@ -4686,6 +4720,234 @@
           "state"
         ],
         "title": "DiffusionEventsResponse",
+        "type": "object"
+      },
+      "DiffusionFinding": {
+        "description": "One measured relationship, with everything needed to judge it.",
+        "properties": {
+          "correlation": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation"
+          },
+          "n": {
+            "title": "N",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "question": {
+            "title": "Question",
+            "type": "string"
+          },
+          "shuffled_p": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shuffled P"
+          },
+          "stage": {
+            "enum": [
+              "release",
+              "call",
+              "both"
+            ],
+            "title": "Stage",
+            "type": "string"
+          },
+          "t_statistic": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T Statistic"
+          },
+          "verdict": {
+            "enum": [
+              "holds",
+              "absent",
+              "not_assessable"
+            ],
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "question",
+          "stage",
+          "n",
+          "verdict"
+        ],
+        "title": "DiffusionFinding",
+        "type": "object"
+      },
+      "DiffusionFindingsResponse": {
+        "properties": {
+          "backend": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Backend"
+          },
+          "calendar": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DiffusionCalendar"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/DiffusionFinding"
+            },
+            "title": "Findings",
+            "type": "array"
+          },
+          "gate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DiffusionGate"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "observed_at": {
+            "format": "date-time",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "state": {
+            "enum": [
+              "ok",
+              "unconfigured",
+              "unavailable",
+              "unreadable"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "study": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DiffusionStudy"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "observed_at",
+          "state"
+        ],
+        "title": "DiffusionFindingsResponse",
+        "type": "object"
+      },
+      "DiffusionGate": {
+        "description": "Whether the text representation may be used to conclude anything.",
+        "properties": {
+          "fact": {
+            "title": "Fact",
+            "type": "string"
+          },
+          "floor": {
+            "title": "Floor",
+            "type": "number"
+          },
+          "r_squared": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "R Squared"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "samples": {
+            "default": 0,
+            "title": "Samples",
+            "type": "integer"
+          },
+          "state": {
+            "enum": [
+              "passed",
+              "failed",
+              "not_assessable"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "floor",
+          "fact"
+        ],
+        "title": "DiffusionGate",
         "type": "object"
       },
       "DiffusionHorizonCell": {
@@ -5021,6 +5283,90 @@
           "stage"
         ],
         "title": "DiffusionStageSummary",
+        "type": "object"
+      },
+      "DiffusionStudy": {
+        "description": "Which run produced the findings, and how well conditioned it was.\n\nCarried beside every result because the same null means opposite things\ndepending on it: a latent that cannot recover a fact written in the\ndocuments, or whose readings all sit on top of each other, produces the\nidentical empty table as a genuine absence.",
+        "properties": {
+          "centroid_spread": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Centroid Spread"
+          },
+          "conditioning": {
+            "title": "Conditioning",
+            "type": "string"
+          },
+          "effective_rank": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective Rank"
+          },
+          "events": {
+            "default": 0,
+            "title": "Events",
+            "type": "integer"
+          },
+          "latent_dim": {
+            "title": "Latent Dim",
+            "type": "integer"
+          },
+          "segment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Segment"
+          },
+          "study_id": {
+            "title": "Study Id",
+            "type": "string"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verdict"
+          },
+          "verdict_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verdict Reason"
+          }
+        },
+        "required": [
+          "study_id",
+          "conditioning",
+          "latent_dim"
+        ],
+        "title": "DiffusionStudy",
         "type": "object"
       },
       "EscalationAck": {
@@ -13064,6 +13410,72 @@
           }
         },
         "summary": "Diffusion Record Stage",
+        "tags": [
+          "diffusion"
+        ]
+      }
+    },
+    "/api/research/diffusion/findings": {
+      "get": {
+        "description": "Every headline relationship this module measured, positive and null alike.\n\nThe nulls sit in the same table as the positive result at the same weight.\nA results surface that shows only what worked is a claim; one that shows\nwhat did not is a result, and the reader can see how many events sit behind\neach row and how often a shuffled pairing did as well.",
+        "operationId": "diffusion_findings_api_research_diffusion_findings_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiffusionFindingsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Diffusion Findings",
         "tags": [
           "diffusion"
         ]

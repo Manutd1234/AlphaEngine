@@ -26,6 +26,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -50,6 +51,10 @@ from modules.coherence.diffusion.spectrum import (  # noqa: E402
     fit_spectrum,
     score_event,
     summarise,
+)
+from modules.coherence.diffusion.studies import (  # noqa: E402
+    DiffusionStudyStore,
+    as_study,
 )
 
 
@@ -202,6 +207,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--limit", type=int, default=400)
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--out", default=None)
+    parser.add_argument("--persist", action="store_true",
+                        help="file the run in the study ledger so the desk can read it")
     return parser
 
 
@@ -209,6 +216,19 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     report = run(args)
     print(summarise_report(report))
+    if args.persist:
+        # The id is the question, not the clock: re-running the same
+        # configuration replaces its row rather than accumulating near-copies
+        # that a reader would have to date-sort to interpret.
+        study_id = (f"{args.conditioning}:{args.segment or 'whole'}"
+                    f":d{args.latent_dim}:s{args.seed}")
+        study = as_study(report, study_id=study_id, latent_dim=args.latent_dim)
+        store = DiffusionStudyStore()
+        try:
+            store.record(study, ran_at=time.time())
+        finally:
+            store.close()
+        print(f"filed study {study_id} ({study.state}, gate {study.gate_state})")
     if args.out:
         Path(args.out).write_text(json.dumps(report, indent=2, default=float))
         print(f"wrote {args.out}")

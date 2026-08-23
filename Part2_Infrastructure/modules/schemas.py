@@ -83,6 +83,7 @@ from modules.schemas_diffusion import DiffusionAbsorptionResponse as DiffusionAb
 from modules.schemas_diffusion import DiffusionEvent as DiffusionEvent  # noqa: F401
 from modules.schemas_diffusion import DiffusionEventResponse as DiffusionEventResponse  # noqa: F401
 from modules.schemas_diffusion import DiffusionEventsResponse as DiffusionEventsResponse  # noqa: F401
+from modules.schemas_diffusion import DiffusionFindingsResponse as DiffusionFindingsResponse  # noqa: F401, E501
 from modules.schemas_diffusion import DiffusionStageRecord as DiffusionStageRecord  # noqa: F401
 from modules.schemas_market import BookLevel as BookLevel  # noqa: F401
 from modules.schemas_market import ExecutionEstimate as ExecutionEstimate  # noqa: F401
@@ -143,6 +144,7 @@ __all__ = [
     "DiffusionEvent",
     "DiffusionEventResponse",
     "DiffusionEventsResponse",
+    "DiffusionFindingsResponse",
     "DiffusionStageRecord",
     "ExecutionEstimate",
     "Fill",

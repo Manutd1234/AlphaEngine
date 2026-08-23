@@ -97,3 +97,55 @@ export function isEventsRead(payload: unknown): payload is EventsRead {
     && typeof (payload as EventsRead).state === "string"
     && Array.isArray((payload as EventsRead).events);
 }
+
+export interface Finding {
+  name: string;
+  question: string;
+  stage: "release" | "call" | "both";
+  n: number;
+  t_statistic: number | null;
+  correlation: number | null;
+  shuffled_p: number | null;
+  verdict: "holds" | "absent" | "not_assessable";
+  note: string | null;
+}
+
+export interface CalendarCheck {
+  verified: number;
+  of: number;
+  how: string;
+  dissent_meetings: number;
+  dissent_votes: number;
+}
+
+export interface GateCheck {
+  state: "passed" | "failed" | "not_assessable";
+  r_squared: number | null;
+  floor: number;
+  samples: number;
+  fact: string;
+  reason: string | null;
+}
+
+export interface DiffusionStudy {
+  study_id: string;
+  conditioning: string;
+  segment: string | null;
+  latent_dim: number;
+  events: number;
+  effective_rank: number | null;
+  centroid_spread: number | null;
+  verdict: string | null;
+  verdict_reason: string | null;
+}
+
+export interface FindingsRead {
+  observed_at: string;
+  state: ReadState;
+  backend: string | null;
+  calendar: CalendarCheck | null;
+  gate: GateCheck | null;
+  study: DiffusionStudy | null;
+  findings: Finding[];
+  reason: string | null;
+}

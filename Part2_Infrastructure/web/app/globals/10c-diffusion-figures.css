@@ -179,3 +179,65 @@
    attrition bar is a hatch rather than a paler fill. Colour is the fastest
    way to tell them apart and never the only way, which is the house rule
    stated as a design constraint rather than as a media query. */
+
+/* ---------------------------------------------------------------------------
+ * Effect plot — every measured relationship on one t axis.
+ *
+ * The band behind the dots is where a shuffled pairing lands about as often as
+ * the real one, so a dot inside it is a null. It is drawn once, at the same
+ * place for every row, which is the only way the nulls and the hit can be
+ * compared by eye. Filled marks hold, hollow marks do not — the hue carries the
+ * stage and never the verdict, so nothing here is colour-only.
+ * ------------------------------------------------------------------------- */
+.diff-effect__band {
+  fill: color-mix(in srgb, var(--text-muted) 9%, transparent);
+  stroke: var(--border);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.diff-effect__bandlabel { fill: var(--text-muted); }
+.diff-effect__row { fill: var(--text-secondary); }
+.diff-effect__tick { fill: var(--text-muted); }
+.diff-effect__value { fill: var(--text-primary); font-weight: 650; }
+
+.diff-effect__zero {
+  stroke: var(--axis);
+  stroke-width: 1;
+}
+
+.diff-effect__axis {
+  stroke: var(--axis);
+  stroke-width: 1;
+}
+
+.diff-effect__stem {
+  stroke: var(--border);
+  stroke-width: 2;
+}
+
+.diff-effect__dot { stroke-width: 2; }
+.diff-effect__dot--release { fill: var(--series-1); stroke: var(--series-1); }
+.diff-effect__dot--call { fill: var(--series-2); stroke: var(--series-2); }
+.diff-effect__dot--absent { fill: var(--surface-1); }
+
+/* The findings table: the verdict column is a word, so it needs no colour. */
+.diff-findings th[scope="row"] { font-weight: 600; }
+
+/* The instrument table's last column is prose, not a figure: it says what
+ * failing that row would have meant, which is the only way a reader who is not
+ * already inside the method can tell a broken measurement from an honest null. */
+.diff-results { display: grid; gap: 12px; min-width: 0; }
+
+/* The instrument table's last column is prose, not a figure: it says what
+ * failing that row would have meant, which is the only way a reader who is not
+ * already inside the method can tell a broken measurement from an honest null.
+ * It wraps rather than widening the table, because a five-column table that
+ * scrolls sideways hides the column that carries the verdict. */
+.diff-instrument { table-layout: fixed; width: 100%; }
+.diff-instrument th[scope="row"] { width: 12rem; }
+.diff-instrument__why {
+  color: var(--text-secondary);
+  white-space: normal;
+  hyphens: auto;
+}

@@ -22,18 +22,24 @@ from fastapi import APIRouter, Depends, Query
 
 from modules.api.deps import trader_identity
 from modules.coherence.diffusion.events import DiffusionEventStore
+from modules.coherence.diffusion.findings import collect as collect_findings
 from modules.coherence.diffusion.runs import AbsorptionRunStore
 from modules.schemas import (
     DiffusionAbsorptionResponse,
     DiffusionEvent,
     DiffusionEventResponse,
     DiffusionEventsResponse,
+    DiffusionFindingsResponse,
     DiffusionStageRecord,
 )
 from modules.schemas_diffusion import (
+    DiffusionCalendar,
+    DiffusionFinding,
+    DiffusionGate,
     DiffusionHorizonCell,
     DiffusionStageRun,
     DiffusionStageSummary,
+    DiffusionStudy,
 )
 
 router = APIRouter(tags=["diffusion"])
@@ -162,6 +168,37 @@ async def diffusion_events(
     return DiffusionEventsResponse(
         observed_at=_now(), state="ok", backend=store.backend, truncated=truncated,
         events=[_event(row) for row in rows],
+    )
+
+
+@router.get("/api/research/diffusion/findings", response_model=DiffusionFindingsResponse)
+async def diffusion_findings(
+    _actor: str = Depends(trader_identity),
+) -> DiffusionFindingsResponse:
+    """Every headline relationship this module measured, positive and null alike.
+
+    The nulls sit in the same table as the positive result at the same weight.
+    A results surface that shows only what worked is a claim; one that shows
+    what did not is a result, and the reader can see how many events sit behind
+    each row and how often a shuffled pairing did as well.
+    """
+    try:
+        gathered = collect_findings()
+    except Exception as exc:  # noqa: BLE001 - the reason is the answer
+        return DiffusionFindingsResponse(observed_at=_now(), state="unavailable", reason=str(exc))
+    return DiffusionFindingsResponse(
+        observed_at=_now(), state="ok", backend=gathered.get("backend"),
+        calendar=DiffusionCalendar(**gathered["calendar"]),
+        gate=DiffusionGate(**gathered["gate"]) if gathered.get("gate") else None,
+        study=DiffusionStudy(**gathered["study"]) if gathered.get("study") else None,
+        findings=[
+            DiffusionFinding(
+                name=row["name"], question=row["question"], stage=row["stage"], n=row["n"],
+                t_statistic=row["t"], correlation=row["r"], shuffled_p=row["p"],
+                verdict=row["verdict"], note=row["note"],
+            )
+            for row in gathered["findings"]
+        ],
     )
 
 

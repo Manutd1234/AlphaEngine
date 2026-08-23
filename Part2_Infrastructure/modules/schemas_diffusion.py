@@ -134,3 +134,70 @@ class DiffusionAbsorptionResponse(BaseModel):
     stages: list[DiffusionStageSummary] = Field(default_factory=list)
     runs: list[DiffusionStageRun] = Field(default_factory=list)
     reason: str | None = None
+
+
+class DiffusionFinding(BaseModel):
+    """One measured relationship, with everything needed to judge it."""
+
+    name: str
+    question: str
+    stage: Literal["release", "call", "both"]
+    n: int
+    #: Null when the sample was too small to fit a slope.
+    t_statistic: float | None = None
+    correlation: float | None = None
+    shuffled_p: float | None = None
+    verdict: Literal["holds", "absent", "not_assessable"]
+    note: str | None = None
+
+
+class DiffusionGate(BaseModel):
+    """Whether the text representation may be used to conclude anything."""
+
+    state: Literal["passed", "failed", "not_assessable"]
+    r_squared: float | None = None
+    floor: float
+    samples: int = 0
+    fact: str
+    reason: str | None = None
+
+
+class DiffusionCalendar(BaseModel):
+    """How much of the calendar was checked against the issuer."""
+
+    verified: int = 0
+    of: int = 0
+    how: str
+    dissent_meetings: int = 0
+    dissent_votes: int = 0
+
+
+class DiffusionStudy(BaseModel):
+    """Which run produced the findings, and how well conditioned it was.
+
+    Carried beside every result because the same null means opposite things
+    depending on it: a latent that cannot recover a fact written in the
+    documents, or whose readings all sit on top of each other, produces the
+    identical empty table as a genuine absence.
+    """
+
+    study_id: str
+    conditioning: str
+    segment: str | None = None
+    latent_dim: int
+    events: int = 0
+    effective_rank: float | None = None
+    centroid_spread: float | None = None
+    verdict: str | None = None
+    verdict_reason: str | None = None
+
+
+class DiffusionFindingsResponse(BaseModel):
+    observed_at: datetime
+    state: ReadState
+    backend: str | None = None
+    calendar: DiffusionCalendar | None = None
+    gate: DiffusionGate | None = None
+    study: DiffusionStudy | None = None
+    findings: list[DiffusionFinding] = Field(default_factory=list)
+    reason: str | None = None

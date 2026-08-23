@@ -735,6 +735,14 @@ export interface DiffusionAbsorptionResponse {
   truncated?: boolean;
 }
 
+export interface DiffusionCalendar {
+  dissent_meetings?: number;
+  dissent_votes?: number;
+  how: string;
+  of?: number;
+  verified?: number;
+}
+
 export interface DiffusionEvent {
   call_at?: string | null;
   call_at_source?: "vendor" | "fed_seed" | "estimated_offset" | "parsed_release" | "recorded" | null;
@@ -770,6 +778,38 @@ export interface DiffusionEventsResponse {
   reason?: string | null;
   state: "ok" | "unconfigured" | "unavailable" | "unreadable";
   truncated?: boolean;
+}
+
+export interface DiffusionFinding {
+  correlation?: number | null;
+  n: number;
+  name: string;
+  note?: string | null;
+  question: string;
+  shuffled_p?: number | null;
+  stage: "release" | "call" | "both";
+  t_statistic?: number | null;
+  verdict: "holds" | "absent" | "not_assessable";
+}
+
+export interface DiffusionFindingsResponse {
+  backend?: string | null;
+  calendar?: DiffusionCalendar | null;
+  findings?: Array<DiffusionFinding>;
+  gate?: DiffusionGate | null;
+  observed_at: string;
+  reason?: string | null;
+  state: "ok" | "unconfigured" | "unavailable" | "unreadable";
+  study?: DiffusionStudy | null;
+}
+
+export interface DiffusionGate {
+  fact: string;
+  floor: number;
+  r_squared?: number | null;
+  reason?: string | null;
+  samples?: number;
+  state: "passed" | "failed" | "not_assessable";
 }
 
 export interface DiffusionHorizonCell {
@@ -818,6 +858,18 @@ export interface DiffusionStageSummary {
   other?: number;
   reason?: string | null;
   stage: "release" | "call";
+}
+
+export interface DiffusionStudy {
+  centroid_spread?: number | null;
+  conditioning: string;
+  effective_rank?: number | null;
+  events?: number;
+  latent_dim: number;
+  segment?: string | null;
+  study_id: string;
+  verdict?: string | null;
+  verdict_reason?: string | null;
 }
 
 export interface EscalationAck {
@@ -1552,6 +1604,7 @@ export interface GatewayOperations {
   "GET /api/research/diffusion/absorption": { response: DiffusionAbsorptionResponse };
   "GET /api/research/diffusion/events": { response: DiffusionEventsResponse };
   "POST /api/research/diffusion/events/{source_ref}/stage": { request: DiffusionStageRecord; response: DiffusionEventResponse };
+  "GET /api/research/diffusion/findings": { response: DiffusionFindingsResponse };
   "GET /api/research/graph/centrality": { response: Record<string, unknown> };
   "GET /api/research/graph/communities": { response: Record<string, unknown> };
   "GET /api/research/graph/{document_id}": { response: ResearchGraphResponse };
@@ -1628,6 +1681,7 @@ export const GATEWAY_CONTRACT_PATHS = [
   "/api/research/diffusion/absorption",
   "/api/research/diffusion/events",
   "/api/research/diffusion/events/{source_ref}/stage",
+  "/api/research/diffusion/findings",
   "/api/research/graph/centrality",
   "/api/research/graph/communities",
   "/api/research/graph/{document_id}",

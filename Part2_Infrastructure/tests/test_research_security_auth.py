@@ -74,6 +74,7 @@ ROUTES: dict[str, tuple[str, str, dict | None]] = {
     "GET /api/research/ml/runs/{run_id}": ("GET", "/api/research/ml/runs/not-a-run", None),
     "GET /api/research/diffusion/events": ("GET", "/api/research/diffusion/events?limit=1", None),
     "GET /api/research/diffusion/absorption": ("GET", "/api/research/diffusion/absorption?limit=1", None),
+    "GET /api/research/diffusion/findings": ("GET", "/api/research/diffusion/findings", None),
     "POST /api/research/diffusion/events/{source_ref}/stage": (
         "POST", "/api/research/diffusion/events/fed:1970-01-01/stage",
         {"at": "1970-01-01T00:30:00Z"},

@@ -49,6 +49,7 @@ export const API_OPERATIONS: readonly ApiOperation[] = [
   { method: "GET", path: "/api/gateway/coherence/shell", purpose: "The watched universe as a filesystem: ls a path, cat a reading", group: "gateway" },
   { method: "GET", path: "/api/gateway/diffusion/events", purpose: "Announcement calendar, both stages and when the desk first saw them", group: "gateway" },
   { method: "GET", path: "/api/gateway/diffusion/absorption", purpose: "Measured absorption paths and half-lives per announcement stage", group: "gateway" },
+  { method: "GET", path: "/api/gateway/diffusion/findings", purpose: "Every relationship the diffusion study measured, positive and null alike", group: "gateway" },
   { method: "GET", path: "/api/gateway/data/quality?limit=100", purpose: "Durable data-quality ledger findings", group: "gateway" },
   { method: "GET", path: "/api/gateway/data/work-items", purpose: "Persisted Data work queue, versioned and audit-logged", group: "gateway" },
   { method: "POST", path: "/api/gateway/data/work-items", purpose: "Create a work item (operator-gated)", group: "gateway" },
