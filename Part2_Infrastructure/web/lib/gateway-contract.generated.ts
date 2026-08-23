@@ -476,6 +476,49 @@ export interface DecisionLatencySnapshot {
   samples: number;
 }
 
+export interface DiffusionEvent {
+  call_at?: string | null;
+  call_at_source?: "vendor" | "fed_seed" | "estimated_offset" | "parsed_release" | "recorded" | null;
+  call_offset_min?: number | null;
+  eps_actual?: number | null;
+  eps_estimate?: number | null;
+  first_seen_at: string;
+  kind: "earnings" | "fomc" | "macro";
+  release_at: string;
+  release_at_source: "vendor" | "fed_seed" | "estimated_offset" | "parsed_release" | "recorded";
+  release_timing?: string | null;
+  revised_count?: number;
+  scheduled?: boolean;
+  source_ref: string;
+  statement_url?: string | null;
+  surprise_pct?: number | null;
+  symbol?: string | null;
+  title: string;
+  verified_at?: string | null;
+}
+
+export interface DiffusionEventResponse {
+  event?: DiffusionEvent | null;
+  observed_at: string;
+  reason?: string | null;
+  state: "ok" | "not_found" | "unconfigured" | "unavailable" | "unreadable";
+}
+
+export interface DiffusionEventsResponse {
+  backend?: string | null;
+  events?: Array<DiffusionEvent>;
+  observed_at: string;
+  reason?: string | null;
+  state: "ok" | "unconfigured" | "unavailable" | "unreadable";
+  truncated?: boolean;
+}
+
+export interface DiffusionStageRecord {
+  at: string;
+  note?: string | null;
+  source?: "recorded" | "parsed_release";
+}
+
 export interface EscalationAck {
   acknowledged_by: string | null;
   escalation_id: number;
@@ -1198,6 +1241,8 @@ export interface GatewayOperations {
   "POST /api/orders/{order_id}/replace": { request: ReplaceRequest; response: RiskDecision };
   "GET /api/portfolio": { response: Record<string, unknown> };
   "GET /api/portfolio/history": { response: Record<string, unknown> };
+  "GET /api/research/diffusion/events": { response: DiffusionEventsResponse };
+  "POST /api/research/diffusion/events/{source_ref}/stage": { request: DiffusionStageRecord; response: DiffusionEventResponse };
   "GET /api/research/graph/centrality": { response: Record<string, unknown> };
   "GET /api/research/graph/communities": { response: Record<string, unknown> };
   "GET /api/research/graph/{document_id}": { response: ResearchGraphResponse };
@@ -1264,6 +1309,8 @@ export const GATEWAY_CONTRACT_PATHS = [
   "/api/orders/{order_id}/replace",
   "/api/portfolio",
   "/api/portfolio/history",
+  "/api/research/diffusion/events",
+  "/api/research/diffusion/events/{source_ref}/stage",
   "/api/research/graph/centrality",
   "/api/research/graph/communities",
   "/api/research/graph/{document_id}",

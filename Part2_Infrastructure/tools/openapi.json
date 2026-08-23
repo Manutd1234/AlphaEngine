@@ -2790,6 +2790,329 @@
         "title": "DecisionLatencySnapshot",
         "type": "object"
       },
+      "DiffusionEvent": {
+        "description": "One announcement, with both of its stages and the clock that saw them.",
+        "properties": {
+          "call_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Call At"
+          },
+          "call_at_source": {
+            "anyOf": [
+              {
+                "enum": [
+                  "vendor",
+                  "fed_seed",
+                  "estimated_offset",
+                  "parsed_release",
+                  "recorded"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Call At Source"
+          },
+          "call_offset_min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Call Offset Min"
+          },
+          "eps_actual": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eps Actual"
+          },
+          "eps_estimate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eps Estimate"
+          },
+          "first_seen_at": {
+            "format": "date-time",
+            "title": "First Seen At",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "earnings",
+              "fomc",
+              "macro"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "release_at": {
+            "format": "date-time",
+            "title": "Release At",
+            "type": "string"
+          },
+          "release_at_source": {
+            "enum": [
+              "vendor",
+              "fed_seed",
+              "estimated_offset",
+              "parsed_release",
+              "recorded"
+            ],
+            "title": "Release At Source",
+            "type": "string"
+          },
+          "release_timing": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Timing"
+          },
+          "revised_count": {
+            "default": 0,
+            "title": "Revised Count",
+            "type": "integer"
+          },
+          "scheduled": {
+            "default": true,
+            "title": "Scheduled",
+            "type": "boolean"
+          },
+          "source_ref": {
+            "title": "Source Ref",
+            "type": "string"
+          },
+          "statement_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Statement Url"
+          },
+          "surprise_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Surprise Pct"
+          },
+          "symbol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Symbol"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "verified_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified At"
+          }
+        },
+        "required": [
+          "source_ref",
+          "kind",
+          "title",
+          "release_at",
+          "release_at_source",
+          "first_seen_at"
+        ],
+        "title": "DiffusionEvent",
+        "type": "object"
+      },
+      "DiffusionEventResponse": {
+        "properties": {
+          "event": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DiffusionEvent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "observed_at": {
+            "format": "date-time",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "state": {
+            "enum": [
+              "ok",
+              "not_found",
+              "unconfigured",
+              "unavailable",
+              "unreadable"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "observed_at",
+          "state"
+        ],
+        "title": "DiffusionEventResponse",
+        "type": "object"
+      },
+      "DiffusionEventsResponse": {
+        "properties": {
+          "backend": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Backend"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/DiffusionEvent"
+            },
+            "title": "Events",
+            "type": "array"
+          },
+          "observed_at": {
+            "format": "date-time",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "state": {
+            "enum": [
+              "ok",
+              "unconfigured",
+              "unavailable",
+              "unreadable"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "truncated": {
+            "default": false,
+            "title": "Truncated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "observed_at",
+          "state"
+        ],
+        "title": "DiffusionEventsResponse",
+        "type": "object"
+      },
+      "DiffusionStageRecord": {
+        "description": "An observed second-stage start, replacing an assumed one.",
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "source": {
+            "default": "recorded",
+            "enum": [
+              "recorded",
+              "parsed_release"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "at"
+        ],
+        "title": "DiffusionStageRecord",
+        "type": "object"
+      },
       "EscalationAck": {
         "description": "What acknowledging an escalation reports back.\n\n`taken` is false for \"already resolved\" and for \"no such escalation\" alike,\nand neither is an error \u2014 both are \"there was nothing to take\". Typing it\non the wire is what stops a generated client having to guess at a bare\ndict, which is what this route returned before.\n\n`acknowledged_by` is a CAPABILITY when the call came from the web \u2014\n`web:token` or `web:anonymous` \u2014 and a real user id only from Telegram.\nNull when nothing was taken, rather than naming a would-be actor.",
         "properties": {
@@ -9971,6 +10294,203 @@
         "summary": "Portfolio History",
         "tags": [
           "B \u00b7 Risk"
+        ]
+      }
+    },
+    "/api/research/diffusion/events": {
+      "get": {
+        "description": "The announcements the desk is watching, oldest first.\n\nAn empty ledger is `state: \"ok\"` with no rows \u2014 the calendar pull has not\nrun \u2014 and is deliberately not the same answer as a store that could not be\nopened. The Events pane renders a different sentence for each.",
+        "operationId": "diffusion_events_api_research_diffusion_events_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(earnings|fomc|macro)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "in": "query",
+            "name": "symbol",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 16,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Symbol"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiffusionEventsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Diffusion Events",
+        "tags": [
+          "diffusion"
+        ]
+      }
+    },
+    "/api/research/diffusion/events/{source_ref}/stage": {
+      "post": {
+        "description": "Replace an assumed second-stage time with an observed one.\n\nThe earnings arm has no free feed for when a conference call starts, so the\nledger carries `release + offset` with `call_at_source:\n\"estimated_offset\"`. This is how that assumption is retired one event at a\ntime; the source it is replaced with travels with it, because a horizon\nmeasured from a guessed start and one measured from a recorded start are\nnot the same measurement.",
+        "operationId": "diffusion_record_stage_api_research_diffusion_events__source_ref__stage_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "source_ref",
+            "required": true,
+            "schema": {
+              "title": "Source Ref",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiffusionStageRecord"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiffusionEventResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Diffusion Record Stage",
+        "tags": [
+          "diffusion"
         ]
       }
     },

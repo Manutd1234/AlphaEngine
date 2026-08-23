@@ -32,6 +32,7 @@ from modules.api.audit import router as audit_router
 from modules.api.coherence import router as coherence_router
 from modules.api.coherence_history import router as coherence_history_router
 from modules.api.data import router as data_router
+from modules.api.diffusion import router as diffusion_router
 from modules.api.meta import router as meta_router
 from modules.api.ml import router as ml_router
 from modules.api.research import router as research_router
@@ -43,6 +44,7 @@ __all__ = [
     "audit_router",
     "coherence_history_router",
     "coherence_router",
+    "diffusion_router",
     "data_router",
     "meta_router",
     "ml_router",

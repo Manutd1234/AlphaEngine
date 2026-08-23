@@ -58,6 +58,10 @@ from modules.schemas_data import DataJobView as DataJobView  # noqa: F401
 from modules.schemas_data import DataReplayRequest as DataReplayRequest  # noqa: F401
 from modules.schemas_data import DataSchedulesResponse as DataSchedulesResponse  # noqa: F401
 from modules.schemas_data import DataScheduleView as DataScheduleView  # noqa: F401
+from modules.schemas_diffusion import DiffusionEvent as DiffusionEvent  # noqa: F401
+from modules.schemas_diffusion import DiffusionEventResponse as DiffusionEventResponse  # noqa: F401
+from modules.schemas_diffusion import DiffusionEventsResponse as DiffusionEventsResponse  # noqa: F401
+from modules.schemas_diffusion import DiffusionStageRecord as DiffusionStageRecord  # noqa: F401
 from modules.schemas_market import BookLevel as BookLevel  # noqa: F401
 from modules.schemas_market import ExecutionEstimate as ExecutionEstimate  # noqa: F401
 from modules.schemas_market import OrderStatus as OrderStatus  # noqa: F401
@@ -108,11 +112,15 @@ __all__ = [
     "DataCapability",
     "DataInterval",
     "DataJobAccepted",
-    "DataJobView",
     "DataJobsResponse",
+    "DataJobView",
     "DataReplayRequest",
-    "DataScheduleView",
     "DataSchedulesResponse",
+    "DataScheduleView",
+    "DiffusionEvent",
+    "DiffusionEventResponse",
+    "DiffusionEventsResponse",
+    "DiffusionStageRecord",
     "ExecutionEstimate",
     "Fill",
     "JobStatus",
@@ -121,8 +129,8 @@ __all__ = [
     "MLFitRequest",
     "MLFoldView",
     "MLRunDetail",
-    "MLRunSummary",
     "MLRunsResponse",
+    "MLRunSummary",
     "OrderAck",
     "OrderEvent",
     "OrderRequest",

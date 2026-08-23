@@ -49,6 +49,7 @@ from modules.api import (
     coherence_history_router,
     coherence_router,
     data_router,
+    diffusion_router,
     meta_router,
     ml_router,
     research_router,
@@ -246,6 +247,7 @@ for _router in (
     audit_router,
     coherence_history_router,
     coherence_router,
+    diffusion_router,
     telegram_router,
 ):
     app.include_router(_router)

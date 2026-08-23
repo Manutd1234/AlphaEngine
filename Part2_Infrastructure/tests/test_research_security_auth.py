@@ -72,11 +72,20 @@ ROUTES: dict[str, tuple[str, str, dict | None]] = {
     "POST /api/research/ml/fit": ("POST", "/api/research/ml/fit", {"symbol": "BTCUSDT"}),
     "GET /api/research/ml/runs": ("GET", "/api/research/ml/runs", None),
     "GET /api/research/ml/runs/{run_id}": ("GET", "/api/research/ml/runs/not-a-run", None),
+    "GET /api/research/diffusion/events": ("GET", "/api/research/diffusion/events?limit=1", None),
+    "POST /api/research/diffusion/events/{source_ref}/stage": (
+        "POST", "/api/research/diffusion/events/fed:1970-01-01/stage",
+        {"at": "1970-01-01T00:30:00Z"},
+    ),
 }
 
 #: Driven for the refusal, never for the acceptance. Submitting a fit is a real
 #: side effect and the claim here is about the door, not the room.
-SIDE_EFFECTING = frozenset({"POST /api/research/ml/fit"})
+SIDE_EFFECTING = frozenset({
+    "POST /api/research/ml/fit",
+    # Records an observed conference-call start against a ledger row.
+    "POST /api/research/diffusion/events/{source_ref}/stage",
+})
 
 
 def deployment(monkeypatch, **overrides) -> None:
