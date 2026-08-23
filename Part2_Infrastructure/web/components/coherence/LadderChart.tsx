@@ -18,6 +18,7 @@
  * and a smooth line would draw liquidity at prices nobody is quoting.
  */
 
+import { useMeasuredWidth } from "@/components/chart-kit";
 import { DOLLAR_CC, fromCenticents, toCenticents } from "@/lib/coherence/fixed-point";
 import Figure, { FigureEmpty } from "./Figure";
 
@@ -79,6 +80,7 @@ function barsFor(pts: Point[], x: (v: number) => number, y: (v: number) => numbe
 }
 
 export default function LadderChart({ yesBids, noBids, yesAsks, caption, unquotedReason }: LadderChartProps) {
+  const [plotRef, plotW] = useMeasuredWidth<HTMLDivElement>(720);
   const yesPoints = points(yesBids, false);
   const askPoints = points(yesAsks, false);
   const noPoints = points(noBids, true);
@@ -99,7 +101,7 @@ export default function LadderChart({ yesBids, noBids, yesAsks, caption, unquote
   const domainHi = Math.min(DOLLAR_CC, hi + pad);
   const maxSize = Math.max(...all.map((p) => p.size), 1);
 
-  const plotWidth = 100 - MARGIN.left - MARGIN.right;
+  const plotWidth = plotW - MARGIN.left - MARGIN.right;
   const base = HEIGHT - MARGIN.bottom;
   const x = (v: number) => MARGIN.left + ((v - domainLo) / Math.max(1, domainHi - domainLo)) * plotWidth;
   const y = (size: number) => base - (size / maxSize) * (base - MARGIN.top);
@@ -119,8 +121,9 @@ export default function LadderChart({ yesBids, noBids, yesAsks, caption, unquote
       }
       missing={unquotedReason}
     >
-      <svg viewBox={`0 0 100 ${HEIGHT}`} preserveAspectRatio="none" className="coh-ladder">
-        <line x1={MARGIN.left} x2={100 - MARGIN.right} y1={base} y2={base} className="coh-ladder__axis" />
+      <div ref={plotRef} style={{ width: "100%" }}>
+        <svg viewBox={`0 0 ${plotW} ${HEIGHT}`} width={plotW} height={HEIGHT} className="coh-ladder">
+        <line x1={MARGIN.left} x2={plotW - MARGIN.right} y1={base} y2={base} className="coh-ladder__axis" />
         {barsFor(noPoints, x, y, base, barWidth).map(({ at, price, size, ...bar }) => (
           <rect key={`no-${at}`} {...bar} className="coh-ladder__no">
             <title>{`NO bid implying YES ${price} for ${size} contracts`}</title>
@@ -141,10 +144,11 @@ export default function LadderChart({ yesBids, noBids, yesAsks, caption, unquote
         <text x={MARGIN.left} y={HEIGHT - 6} className="coh-ladder__tick">
           {fromCenticents(domainLo)}
         </text>
-        <text x={100 - MARGIN.right} y={HEIGHT - 6} textAnchor="end" className="coh-ladder__tick">
+        <text x={plotW - MARGIN.right} y={HEIGHT - 6} textAnchor="end" className="coh-ladder__tick">
           {fromCenticents(domainHi)}
         </text>
-      </svg>
+        </svg>
+      </div>
     </Figure>
   );
 }

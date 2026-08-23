@@ -27,7 +27,7 @@
  */
 
 import { DOLLAR_CC, fromCenticents, toCenticents } from "@/lib/coherence/fixed-point";
-import Figure, { FigureEmpty } from "./Figure";
+import Figure, { FigureEmpty, Plot } from "./Figure";
 
 /** How far above $1 the axis runs. Enough headroom that a wide basket still
  *  fits, small enough that a two-cent overshoot is visible. */
@@ -74,17 +74,16 @@ export default function DollarBar({ legs, direction, caption, missingLeg }: Doll
     );
   }
 
-  const scale = (cc: number) => (Math.min(cc, CEILING_CC) / CEILING_CC) * 100;
-  const dollarX = scale(DOLLAR_CC);
   const overshoot = total - DOLLAR_CC;
   const beatsTheDollar = direction === "buy" ? overshoot < 0 : overshoot > 0;
 
+  // Cumulative in centicents; converted to pixels once the width is known.
   let cursor = 0;
-  const segments = legs.map((leg, index) => {
+  const spans = legs.map((leg, index) => {
     const value = values[index] as number;
     const start = cursor;
     cursor += value;
-    return { label: leg.label, x: scale(start), width: scale(cursor) - scale(start), price: leg.price as string };
+    return { label: leg.label, from: start, to: cursor, price: leg.price as string };
   });
 
   const reading = beatsTheDollar
@@ -97,35 +96,50 @@ export default function DollarBar({ legs, direction, caption, missingLeg }: Doll
 
   return (
     <Figure caption={caption} ariaLabel={ariaLabel} reading={reading}>
-      <svg viewBox={`0 0 100 ${HEIGHT}`} preserveAspectRatio="none" className="coh-dollarbar">
-        <rect x="0" y={BAR_TOP} width="100" height={BAR_HEIGHT} className="coh-dollarbar__track" />
-        {segments.map((segment, index) => (
-          <g key={segment.label}>
-            <rect
-              x={segment.x}
-              y={BAR_TOP}
-              width={Math.max(0, segment.width)}
-              height={BAR_HEIGHT}
-              className={`coh-dollarbar__leg is-leg-${(index % 3) + 1}`}
-            />
-            <title>{`${segment.label}: ${segment.price}`}</title>
-          </g>
-        ))}
-        {/* The dollar line. Drawn last so no leg can cover it: it is the only
-            reference the reader is asked to judge against. */}
-        <line x1={dollarX} x2={dollarX} y1={BAR_TOP - 12} y2={BAR_TOP + BAR_HEIGHT + 12} className="coh-dollarbar__dollar" />
-        <text x={dollarX} y={BAR_TOP - 16} textAnchor="middle" className="coh-dollarbar__dollar-label">
-          $1 payoff
-        </text>
-        <text
-          x={Math.min(scale(total), 96)}
-          y={BAR_TOP + BAR_HEIGHT + 22}
-          textAnchor={scale(total) > 80 ? "end" : "middle"}
-          className={`coh-dollarbar__total ${beatsTheDollar ? "is-dutch" : ""}`}
-        >
-          {fromCenticents(total)}
-        </text>
-      </svg>
+      <Plot height={HEIGHT}>
+        {(width) => {
+          const scale = (cc: number) => (Math.min(cc, CEILING_CC) / CEILING_CC) * width;
+          const dollarX = scale(DOLLAR_CC);
+          const totalX = scale(total);
+          return (
+            <>
+              <rect x="0" y={BAR_TOP} width={width} height={BAR_HEIGHT} className="coh-dollarbar__track" />
+              {spans.map((span, index) => (
+                <g key={span.label}>
+                  <rect
+                    x={scale(span.from)}
+                    y={BAR_TOP}
+                    width={Math.max(0, scale(span.to) - scale(span.from))}
+                    height={BAR_HEIGHT}
+                    className={`coh-dollarbar__leg is-leg-${(index % 3) + 1}`}
+                  />
+                  <title>{`${span.label}: ${span.price}`}</title>
+                </g>
+              ))}
+              {/* The dollar line is drawn last so no leg can cover it: it is the
+                  only reference the reader is asked to judge against. */}
+              <line
+                x1={dollarX}
+                x2={dollarX}
+                y1={BAR_TOP - 12}
+                y2={BAR_TOP + BAR_HEIGHT + 12}
+                className="coh-dollarbar__dollar"
+              />
+              <text x={dollarX} y={BAR_TOP - 16} textAnchor="middle" className="coh-dollarbar__dollar-label">
+                $1 payoff
+              </text>
+              <text
+                x={Math.min(totalX, width - 4)}
+                y={BAR_TOP + BAR_HEIGHT + 22}
+                textAnchor={totalX > width * 0.8 ? "end" : "middle"}
+                className={`coh-dollarbar__total ${beatsTheDollar ? "is-dutch" : ""}`}
+              >
+                {fromCenticents(total)}
+              </text>
+            </>
+          );
+        }}
+      </Plot>
     </Figure>
   );
 }

@@ -161,7 +161,8 @@ export function buildCommands(d: CommandDeps): Command[] {
   }
   for (const s of DEVELOPER_SECTIONS) {
     section("developer", "Developer", s.id, `${s.label} — ${s.description}`, () => setDeveloperSection(s.id));
-  for (const s of COHERENCE_SECTIONS)
+  }
+  for (const s of COHERENCE_SECTIONS) {
     section("coherence", "Coherence", s.id, `${s.label} — ${s.description}`, () => setCoherenceSection(s.id));
   }
 

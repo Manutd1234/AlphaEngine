@@ -116,8 +116,8 @@ export default function StatusPane({ status, error }: { status: CoherenceStatus 
 
       {status.notes.length ? (
         <ul className="coh-notes">
-          {status.notes.map((note) => (
-            <li key={note}>{note}</li>
+          {status.notes.map((note, index) => (
+            <li key={`${index}-${note}`}>{note}</li>
           ))}
         </ul>
       ) : null}

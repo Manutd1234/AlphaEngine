@@ -22,6 +22,13 @@ export async function GET(request: Request) {
   const query = forwarded.toString();
   const result = await callGateway(`/api/coherence/certify${query ? `?${query}` : ""}`, {
     subject: "a coherence certificate",
+    // A deadline that matches what this route does. It reads the live exchange
+    // — two round trips per event family, concurrently — so it is legitimately
+    // slower than a route that serves from a store: measured 4.6s for two
+    // families and 6.4s for four. The shared 8s default cut it off often enough
+    // that the panel sat on a timeout while the same call, made by hand,
+    // returned fine.
+    timeoutMs: 25_000,
     validate: isCoherenceCertificate,
   });
 

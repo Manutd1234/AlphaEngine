@@ -20,6 +20,7 @@
  * over both and the comparison between venues is the interesting part.
  */
 
+import { useMeasuredWidth } from "@/components/chart-kit";
 import { useState } from "react";
 
 import { episodesToSamples } from "@/lib/coherence/absorption";
@@ -33,6 +34,7 @@ const HEIGHT = 160;
 const MARGIN = { top: 12, right: 6, bottom: 22, left: 6 };
 
 function SurvivalChart({ data }: { data: CoherenceEpisodes }) {
+  const [plotRef, plotW] = useMeasuredWidth<HTMLDivElement>(720);
   const points = data.survival.map((point) => ({ t: Number(point.t_s), s: Number(point.surviving) }));
   if (points.length < 2) {
     return (
@@ -47,7 +49,7 @@ function SurvivalChart({ data }: { data: CoherenceEpisodes }) {
   }
 
   const longest = Math.max(...points.map((point) => point.t), 1);
-  const plotWidth = 100 - MARGIN.left - MARGIN.right;
+  const plotWidth = plotW - MARGIN.left - MARGIN.right;
   const base = HEIGHT - MARGIN.bottom;
   const x = (t: number) => MARGIN.left + (t / longest) * plotWidth;
   const y = (s: number) => base - s * (base - MARGIN.top);
@@ -70,9 +72,10 @@ function SurvivalChart({ data }: { data: CoherenceEpisodes }) {
       reading={data.verdict}
       missing={data.median_withheld_reason}
     >
-      <svg viewBox={`0 0 100 ${HEIGHT}`} preserveAspectRatio="none" className="coh-survival">
-        <line x1={MARGIN.left} x2={100 - MARGIN.right} y1={base} y2={base} className="coh-ladder__axis" />
-        <line x1={MARGIN.left} x2={100 - MARGIN.right} y1={y(0.5)} y2={y(0.5)} className="coh-survival__half" />
+      <div ref={plotRef} style={{ width: "100%" }}>
+        <svg viewBox={`0 0 ${plotW} ${HEIGHT}`} width={plotW} height={HEIGHT} className="coh-survival">
+        <line x1={MARGIN.left} x2={plotW - MARGIN.right} y1={base} y2={base} className="coh-ladder__axis" />
+        <line x1={MARGIN.left} x2={plotW - MARGIN.right} y1={y(0.5)} y2={y(0.5)} className="coh-survival__half" />
         <path d={path} className="coh-survival__step" fill="none" />
         {median != null ? (
           <line x1={x(median)} x2={x(median)} y1={MARGIN.top} y2={base} className="coh-survival__median" />
@@ -80,10 +83,11 @@ function SurvivalChart({ data }: { data: CoherenceEpisodes }) {
         <text x={MARGIN.left} y={y(0.5) - 2} className="coh-ladder__tick">
           half still open
         </text>
-        <text x={100 - MARGIN.right} y={HEIGHT - 6} textAnchor="end" className="coh-ladder__tick">
+        <text x={plotW - MARGIN.right} y={HEIGHT - 6} textAnchor="end" className="coh-ladder__tick">
           {longest}s
         </text>
-      </svg>
+        </svg>
+      </div>
     </Figure>
   );
 }

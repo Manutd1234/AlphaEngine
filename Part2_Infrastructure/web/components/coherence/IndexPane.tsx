@@ -14,6 +14,7 @@
  * gaps would claim continuity that was never observed.
  */
 
+import { useMeasuredWidth } from "@/components/chart-kit";
 import { fromCenticents, toCenticents } from "@/lib/coherence/fixed-point";
 import type { CoherenceIndexSeries } from "@/lib/coherence/types";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
@@ -23,6 +24,7 @@ const HEIGHT = 160;
 const MARGIN = { top: 12, right: 4, bottom: 22, left: 4 };
 
 function Chart({ data }: { data: CoherenceIndexSeries }) {
+  const [plotRef, plotW] = useMeasuredWidth<HTMLDivElement>(720);
   const points = data.points.map((point) => ({
     ts: point.ts_ns,
     cc: toCenticents(point.ci),
@@ -51,7 +53,7 @@ function Chart({ data }: { data: CoherenceIndexSeries }) {
   const span = Math.max(1, last - first);
   const peak = Math.max(...measured.map((point) => point.cc as number), 1);
 
-  const plotWidth = 100 - MARGIN.left - MARGIN.right;
+  const plotWidth = plotW - MARGIN.left - MARGIN.right;
   const base = HEIGHT - MARGIN.bottom;
   const x = (ts: number) => MARGIN.left + ((ts - first) / span) * plotWidth;
   const y = (cc: number) => base - (cc / peak) * (base - MARGIN.top);
@@ -81,8 +83,9 @@ function Chart({ data }: { data: CoherenceIndexSeries }) {
           : null
       }
     >
-      <svg viewBox={`0 0 100 ${HEIGHT}`} preserveAspectRatio="none" className="coh-index">
-        <line x1={MARGIN.left} x2={100 - MARGIN.right} y1={base} y2={base} className="coh-ladder__axis" />
+      <div ref={plotRef} style={{ width: "100%" }}>
+        <svg viewBox={`0 0 ${plotW} ${HEIGHT}`} width={plotW} height={HEIGHT} className="coh-index">
+        <line x1={MARGIN.left} x2={plotW - MARGIN.right} y1={base} y2={base} className="coh-ladder__axis" />
         {segments.map((path) => (
           <path key={path.slice(0, 24)} d={path} className="coh-index__line" fill="none" />
         ))}
@@ -92,10 +95,11 @@ function Chart({ data }: { data: CoherenceIndexSeries }) {
         <text x={MARGIN.left} y={HEIGHT - 6} className="coh-ladder__tick">
           oldest
         </text>
-        <text x={100 - MARGIN.right} y={HEIGHT - 6} textAnchor="end" className="coh-ladder__tick">
+        <text x={plotW - MARGIN.right} y={HEIGHT - 6} textAnchor="end" className="coh-ladder__tick">
           newest
         </text>
-      </svg>
+        </svg>
+      </div>
     </Figure>
   );
 }

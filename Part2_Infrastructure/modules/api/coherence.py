@@ -175,7 +175,11 @@ async def coherence_universe(
             notes.append(f"{series_ticker} could not be read: {exc.reason}")
 
     state = "ok" if events else ("unavailable" if notes else "empty")
-    return CoherenceUniverse(state=state, events=events, watchlist=watchlist, notes=notes)
+    # De-duplicated, order kept. Every observation of a series carries that
+    # series' "read the first N events" note, so a two-event read reported the
+    # same sentence twice — noise to a reader, and a duplicate React key to the
+    # list that renders it.
+    return CoherenceUniverse(state=state, events=events, watchlist=watchlist, notes=list(dict.fromkeys(notes)))
 
 
 @router.get("/api/coherence/books", response_model=CoherenceBooks)

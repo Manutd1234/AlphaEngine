@@ -153,8 +153,8 @@ export default function UniversePane({ universe, error }: { universe: CoherenceU
       ))}
       {universe.notes.length ? (
         <ul className="coh-notes">
-          {universe.notes.map((note) => (
-            <li key={note}>{note}</li>
+          {universe.notes.map((note, index) => (
+            <li key={`${index}-${note}`}>{note}</li>
           ))}
         </ul>
       ) : null}

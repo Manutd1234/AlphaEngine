@@ -145,8 +145,8 @@ export default function FeesPane({ active }: { active: boolean }) {
       </dl>
 
       <p className="coh-event__note">{data.minimum_clip_note}</p>
-      {data.notes.map((note) => (
-        <p className="coh-event__note" key={note}>
+      {data.notes.map((note, index) => (
+        <p className="coh-event__note" key={`${index}-${note}`}>
           {note}
         </p>
       ))}

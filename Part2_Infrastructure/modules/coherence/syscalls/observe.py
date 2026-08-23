@@ -13,6 +13,7 @@ it can name, not by the rate limit.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from dataclasses import dataclass, field
@@ -26,6 +27,11 @@ logger = logging.getLogger(__name__)
 
 # One bulk call's worth. Kalshi caps the route at 100 tickers.
 BULK_CHUNK = 100
+
+# How many events of one series are read at once. Three keeps a four-family
+# panel inside the web gateway's eight-second deadline without turning a poll
+# into a burst the exchange sees as a spike.
+CONCURRENT_EVENT_READS = 3
 
 
 @dataclass(frozen=True, slots=True)
@@ -127,11 +133,23 @@ async def _bulk_books(client: KalshiClient, tickers: Sequence[str]) -> dict[str,
 
 
 async def observe_series(client: KalshiClient, series_ticker: str, max_events: int = 12) -> list[Observation]:
-    """Every open event in one series.
+    """Every open event in one series, read concurrently.
 
     ``max_events`` bounds the walk rather than the data: a series with hundreds
     of open events would otherwise spend a poll's whole budget on one series and
     starve the rest of the watchlist. When it bites, the observation says so.
+
+    **The events are read in parallel, and that is a correctness fix rather than
+    a speed-up.** Read serially, each event costs two round trips, and a
+    four-event series took 10.1 seconds against the web gateway's 8-second
+    deadline — so the panel that asks for four families reliably received a
+    timeout and sat on its loading state forever. Wall time is now bounded by
+    the slowest event rather than by their sum.
+
+    The concurrency is bounded, and the bound is not about politeness: the read
+    budget is a token bucket, so an unbounded fan-out does not spend more in
+    total but does spend it in one burst, which is the shape a rate limiter is
+    least forgiving of.
     """
     fetched = await client.markets(series_ticker, status="open", limit=1000)
     event_tickers: list[str] = []
@@ -140,12 +158,20 @@ async def observe_series(client: KalshiClient, series_ticker: str, max_events: i
         if event_ticker and event_ticker not in event_tickers:
             event_tickers.append(event_ticker)
 
-    observations: list[Observation] = []
-    for event_ticker in event_tickers[:max_events]:
-        try:
-            observations.append(await observe_event(client, event_ticker))
-        except KalshiUnavailable as exc:
-            logger.warning("coherence: %s could not be observed (%s)", event_ticker, exc.reason)
+    wanted = event_tickers[:max_events]
+    gate = asyncio.Semaphore(CONCURRENT_EVENT_READS)
+
+    async def read(event_ticker: str) -> Observation | None:
+        async with gate:
+            try:
+                return await observe_event(client, event_ticker)
+            except KalshiUnavailable as exc:
+                logger.warning("coherence: %s could not be observed (%s)", event_ticker, exc.reason)
+                return None
+
+    results = await asyncio.gather(*(read(ticker) for ticker in wanted))
+    observations = [observation for observation in results if observation is not None]
+
     if len(event_tickers) > max_events:
         for observation in observations:
             observation.notes.append(

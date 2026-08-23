@@ -16,6 +16,7 @@
  * cost model nobody has ablated.
  */
 
+import { useMeasuredWidth } from "@/components/chart-kit";
 import type { CoherenceAblation, CoherenceReplay } from "@/lib/coherence/types";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import Figure, { FigureEmpty, StateChip } from "./Figure";
@@ -24,6 +25,7 @@ const HEIGHT = 120;
 const ROW_HEIGHT = 22;
 
 function Bars({ ablations }: { ablations: CoherenceAblation[] }) {
+  const [plotRef, plotW] = useMeasuredWidth<HTMLDivElement>(720);
   const peak = Math.max(...ablations.map((row) => row.worth_doing), 1);
   const naive = ablations.find((row) => row.name === "no_fees");
   const full = ablations.find((row) => row.name === "full");
@@ -53,9 +55,10 @@ function Bars({ ablations }: { ablations: CoherenceAblation[] }) {
           : "The naive and fee-aware tests agree on this tape."
       }
     >
-      <svg viewBox={`0 0 100 ${height}`} preserveAspectRatio="none" className="coh-ablation">
+      <div ref={plotRef} style={{ width: "100%" }}>
+        <svg viewBox={`0 0 ${plotW} ${height}`} width={plotW} height={height} className="coh-ablation">
         {ablations.map((row, index) => {
-          const width = (row.worth_doing / peak) * 62;
+          const width = (row.worth_doing / peak) * (plotW - 140);
           const y = 6 + index * ROW_HEIGHT;
           return (
             <g key={row.name}>
@@ -63,19 +66,20 @@ function Bars({ ablations }: { ablations: CoherenceAblation[] }) {
                 {row.name}
               </text>
               <rect
-                x="30"
+                x="96"
                 y={y}
                 width={Math.max(0.4, width)}
                 height={12}
                 className={`coh-ablation__bar ${row.name === "no_fees" ? "is-naive" : ""}`}
               />
-              <text x={Math.min(94, 31 + width)} y={y + 9} className="coh-ablation__value">
+              <text x={Math.min(plotW - 6, 100 + width)} y={y + 9} className="coh-ablation__value">
                 {row.worth_doing}
               </text>
             </g>
           );
         })}
-      </svg>
+        </svg>
+      </div>
     </Figure>
   );
 }
@@ -141,8 +145,8 @@ export default function AblationPane({ active }: { active: boolean }) {
       </div>
 
       <p className="coh-event__note">{data.headline}</p>
-      {data.notes.map((note) => (
-        <p className="coh-event__note" key={note}>
+      {data.notes.map((note, index) => (
+        <p className="coh-event__note" key={`${index}-${note}`}>
           <span aria-hidden="true">◌</span> {note}
         </p>
       ))}

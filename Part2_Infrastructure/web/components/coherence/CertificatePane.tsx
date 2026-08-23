@@ -162,8 +162,8 @@ export default function CertificatePane({
 
           {data.notes.length ? (
             <ul className="coh-notes">
-              {data.notes.map((note) => (
-                <li key={note}>{note}</li>
+              {data.notes.map((note, index) => (
+                <li key={`${index}-${note}`}>{note}</li>
               ))}
             </ul>
           ) : null}

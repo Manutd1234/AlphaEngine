@@ -17,7 +17,7 @@
  */
 
 import { DOLLAR_CC, fromCenticents, toCenticents } from "@/lib/coherence/fixed-point";
-import Figure, { FigureEmpty } from "./Figure";
+import Figure, { FigureEmpty, Plot } from "./Figure";
 
 const HEIGHT = 96;
 const CEILING_CC = 13_000;
@@ -62,7 +62,6 @@ export default function IdentityStrip({
     );
   }
 
-  const scale = (cc: number) => (Math.min(cc, CEILING_CC) / CEILING_CC) * 100;
   const equal = sum === onePlus;
 
   return (
@@ -75,28 +74,35 @@ export default function IdentityStrip({
           : `These should be equal and are not (${identitySum} against ${identityOnePlusSpread}). That means the two ladders were read at different instants — a torn snapshot, not an opportunity.`
       }
     >
-      <svg viewBox={`0 0 100 ${HEIGHT}`} preserveAspectRatio="none" className="coh-identity">
-        <line x1={scale(DOLLAR_CC)} x2={scale(DOLLAR_CC)} y1="4" y2={HEIGHT - 20} className="coh-identity__dollar" />
-        <text x={scale(DOLLAR_CC)} y={HEIGHT - 8} textAnchor="middle" className="coh-identity__dollar-label">
-          $1
-        </text>
+      <Plot height={HEIGHT}>
+        {(width) => {
+          const scale = (cc: number) => (Math.min(cc, CEILING_CC) / CEILING_CC) * width;
+          return (
+            <>
+              <line x1={scale(DOLLAR_CC)} x2={scale(DOLLAR_CC)} y1="4" y2={HEIGHT - 20} className="coh-identity__dollar" />
+              <text x={scale(DOLLAR_CC)} y={HEIGHT - 8} textAnchor="middle" className="coh-identity__dollar-label">
+                $1
+              </text>
 
-        <rect x="0" y="14" width={scale(yes)} height="18" className="coh-identity__part is-yes" />
-        <rect x={scale(yes)} y="14" width={scale(no)} height="18" className="coh-identity__part is-no" />
-        <text x="1" y="11" className="coh-identity__label">
-          yes ask + no ask
-        </text>
+              <rect x="0" y="14" width={scale(yes)} height="18" className="coh-identity__part is-yes" />
+              <rect x={scale(yes)} y="14" width={scale(no)} height="18" className="coh-identity__part is-no" />
+              <text x="2" y="11" className="coh-identity__label">
+                yes ask + no ask
+              </text>
 
-        <rect x="0" y="46" width={scale(DOLLAR_CC)} height="18" className="coh-identity__part is-dollar" />
-        <rect x={scale(DOLLAR_CC)} y="46" width={scale(spreadCc)} height="18" className="coh-identity__part is-spread" />
-        <text x="1" y="43" className="coh-identity__label">
-          $1 + spread
-        </text>
+              <rect x="0" y="46" width={scale(DOLLAR_CC)} height="18" className="coh-identity__part is-dollar" />
+              <rect x={scale(DOLLAR_CC)} y="46" width={scale(spreadCc)} height="18" className="coh-identity__part is-spread" />
+              <text x="2" y="43" className="coh-identity__label">
+                $1 + spread
+              </text>
 
-        {/* The tick both bars end on. Drawn once, so the equality is a place on
-            the page rather than two numbers a reader has to compare. */}
-        <line x1={scale(sum)} x2={scale(sum)} y1="10" y2="68" className="coh-identity__meet" />
-      </svg>
+              {/* The tick both bars end on, drawn once — the equality is a place
+                  on the page rather than two numbers to compare. */}
+              <line x1={scale(sum)} x2={scale(sum)} y1="10" y2="68" className="coh-identity__meet" />
+            </>
+          );
+        }}
+      </Plot>
     </Figure>
   );
 }

@@ -54,7 +54,12 @@ export interface CoherenceConsoleProps {
 export default function CoherenceConsole({ section, onSectionChange, active = true }: CoherenceConsoleProps) {
   const status = useCoherenceRead<CoherenceStatus>("/api/gateway/coherence/status", active);
   const universe = useCoherenceRead<CoherenceUniverse>(
-    "/api/gateway/coherence/universe?max_events=4",
+    // Two events per watched series, not four. Each event costs two round
+    // trips even read concurrently, and `callGateway` gives up at eight
+    // seconds — four took 10.1s before the reads were parallelised and 6.4s
+    // after, which is inside the deadline but not comfortably. Two answers in
+    // about four and a half.
+    "/api/gateway/coherence/universe?max_events=2",
     active && (section === "universe" || section === "certificate"),
   );
   const books = useCoherenceRead<CoherenceBooks>("/api/gateway/coherence/books", active && section === "books");

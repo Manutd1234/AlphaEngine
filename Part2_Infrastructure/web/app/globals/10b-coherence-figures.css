@@ -15,8 +15,6 @@
 
 /* ── The dollar bar: the basket against the dollar it pays ───────────────── */
 
-.coh-dollarbar { height: 92px; }
-
 .coh-dollarbar__track { fill: var(--surface-2); }
 
 .coh-dollarbar__leg {
@@ -71,8 +69,6 @@
 .coh-ladder__tick { fill: var(--text-secondary); font-size: var(--fs-tick); font-variant-numeric: tabular-nums; }
 
 /* ── The identity strip: Lesson 0, drawn ─────────────────────────────────── */
-
-.coh-identity { height: 96px; }
 
 .coh-identity__part { stroke: var(--surface-1); stroke-width: 0.3; vector-effect: non-scaling-stroke; }
 .coh-identity__part.is-yes { fill: color-mix(in srgb, var(--series-1) 58%, var(--surface-1)); }

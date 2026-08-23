@@ -15,6 +15,7 @@
  * in one shape.
  */
 
+import { useMeasuredWidth } from "@/components/chart-kit";
 import { DOLLAR_CC, fromCenticents, toCenticents } from "@/lib/coherence/fixed-point";
 import Figure from "./Figure";
 
@@ -31,6 +32,7 @@ export default function FeeParabola({
   taker?: number;
   feeAwareThreshold: string | null;
 }) {
+  const [plotRef, plotW] = useMeasuredWidth<HTMLDivElement>(720);
   const mult = Number(multiplier) || 1;
   const rate = mult * taker;
 
@@ -42,7 +44,7 @@ export default function FeeParabola({
   }
   const peak = Math.max(...points.map((point) => point.fee), 1);
 
-  const plotWidth = 100 - MARGIN.left - MARGIN.right;
+  const plotWidth = plotW - MARGIN.left - MARGIN.right;
   const base = HEIGHT - MARGIN.bottom;
   const x = (p: number) => MARGIN.left + p * plotWidth;
   const y = (fee: number) => base - (fee / peak) * (base - MARGIN.top);
@@ -64,8 +66,9 @@ export default function FeeParabola({
           : `The fee peaks at ${fromCenticents(Math.round(peak))} per contract at fifty cents. A basket priced there is only an arbitrage below ${feeAwareThreshold}, not below $1.0000 — the naive test invents opportunities across a ${fromCenticents(gap)} band.`
       }
     >
-      <svg viewBox={`0 0 100 ${HEIGHT}`} preserveAspectRatio="none" className="coh-parabola">
-        <line x1={MARGIN.left} x2={100 - MARGIN.right} y1={base} y2={base} className="coh-ladder__axis" />
+      <div ref={plotRef} style={{ width: "100%" }}>
+        <svg viewBox={`0 0 ${plotW} ${HEIGHT}`} width={plotW} height={HEIGHT} className="coh-parabola">
+        <line x1={MARGIN.left} x2={plotW - MARGIN.right} y1={base} y2={base} className="coh-ladder__axis" />
         <path d={path} className="coh-parabola__curve" fill="none" />
         <line x1={x(0.5)} x2={x(0.5)} y1={y(peak)} y2={base} className="coh-parabola__peak" />
         <text x={x(0.5)} y={y(peak) - 3} textAnchor="middle" className="coh-ladder__tick">
@@ -77,10 +80,11 @@ export default function FeeParabola({
         <text x={x(0.5)} y={HEIGHT - 5} textAnchor="middle" className="coh-ladder__tick">
           $0.50
         </text>
-        <text x={100 - MARGIN.right} y={HEIGHT - 5} textAnchor="end" className="coh-ladder__tick">
+        <text x={plotW - MARGIN.right} y={HEIGHT - 5} textAnchor="end" className="coh-ladder__tick">
           $1.00
         </text>
-      </svg>
+        </svg>
+      </div>
     </Figure>
   );
 }

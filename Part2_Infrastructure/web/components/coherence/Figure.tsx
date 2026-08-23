@@ -23,6 +23,8 @@
 
 import { type ReactNode } from "react";
 
+import { useMeasuredWidth } from "@/components/chart-kit";
+
 export interface FigureProps {
   /** What this figure shows, as a sentence fragment. Always present. */
   caption: string;
@@ -49,6 +51,36 @@ export default function Figure({ caption, reading, missing, ariaLabel, children 
         </p>
       ) : null}
     </figure>
+  );
+}
+
+/**
+ * A plot area that reports its own width in pixels.
+ *
+ * Every chart on this tab used `preserveAspectRatio="none"` over a 0-100
+ * viewBox, which stretches the drawing to the container — and stretches the
+ * TEXT with it. On a 1,400px column the labels came out at fourteen times
+ * their intended width: "$1 payoff" rendered as "$ 1  p a y o f f" and the
+ * basket total beside it was illegible.
+ *
+ * Measuring instead means the viewBox is in real pixels, the aspect ratio is
+ * one, and a label is the size it says it is. This is the idiom `chart-kit`
+ * already uses for the same reason.
+ */
+export function Plot({
+  height,
+  children,
+}: {
+  height: number;
+  children: (width: number) => ReactNode;
+}) {
+  const [ref, width] = useMeasuredWidth<HTMLDivElement>(720);
+  return (
+    <div ref={ref} style={{ width: "100%" }}>
+      <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height} role="presentation">
+        {children(width)}
+      </svg>
+    </div>
   );
 }
 
