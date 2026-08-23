@@ -117,7 +117,7 @@ export const COHERENCE_LESSONS: CoherenceLesson[] = [
     pane: "fees",
     guards: ["modules/coherence/kernel/costs.py"],
     pinnedBy: ["tests/test_coherence_costs.py"],
-    shipped: false,
+    shipped: true,
   },
   {
     id: "lattice",
@@ -132,7 +132,7 @@ export const COHERENCE_LESSONS: CoherenceLesson[] = [
     pane: "lattice",
     guards: ["modules/coherence/kernel/lattice.py"],
     pinnedBy: ["tests/test_coherence_lattice.py"],
-    shipped: false,
+    shipped: true,
   },
   {
     id: "duality",
@@ -147,7 +147,7 @@ export const COHERENCE_LESSONS: CoherenceLesson[] = [
     pane: "certificate",
     guards: ["modules/coherence/kernel/dutchbook.py"],
     pinnedBy: ["tests/test_coherence_dutchbook.py"],
-    shipped: false,
+    shipped: true,
   },
   {
     id: "halflife",

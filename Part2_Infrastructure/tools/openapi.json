@@ -565,6 +565,202 @@
         "title": "CoherenceBudgetStatus",
         "type": "object"
       },
+      "CoherenceCertificate": {
+        "description": "One coherence result, whether or not it found anything.\n\nProduced on the healthy case too: a detector silent when all is well leaves\na caller unable to tell \"no opportunity\" from \"the feed is down\", and this\nengine's most common \u2014 and correct \u2014 answer is that the market is coherent.",
+        "properties": {
+          "because": {
+            "default": "",
+            "title": "Because",
+            "type": "string"
+          },
+          "component_id": {
+            "title": "Component Id",
+            "type": "string"
+          },
+          "engine": {
+            "title": "Engine",
+            "type": "string"
+          },
+          "exchange_index": {
+            "title": "Exchange Index",
+            "type": "integer"
+          },
+          "family": {
+            "default": "",
+            "title": "Family",
+            "type": "string"
+          },
+          "gross_edge": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gross Edge"
+          },
+          "legs": {
+            "items": {
+              "$ref": "#/components/schemas/CoherenceCertificateLeg"
+            },
+            "title": "Legs",
+            "type": "array"
+          },
+          "net_edge": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Net Edge"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "proof": {
+            "default": "",
+            "title": "Proof",
+            "type": "string"
+          },
+          "rows_tested": {
+            "default": 0,
+            "title": "Rows Tested",
+            "type": "integer"
+          },
+          "rows_untestable": {
+            "default": 0,
+            "title": "Rows Untestable",
+            "type": "integer"
+          },
+          "scope": {
+            "default": "same-event",
+            "title": "Scope",
+            "type": "string"
+          },
+          "series_ticker": {
+            "title": "Series Ticker",
+            "type": "string"
+          },
+          "tier": {
+            "default": 1,
+            "title": "Tier",
+            "type": "integer"
+          },
+          "tier_note": {
+            "default": "",
+            "title": "Tier Note",
+            "type": "string"
+          },
+          "total_fees": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Fees"
+          },
+          "verdict": {
+            "title": "Verdict",
+            "type": "string"
+          },
+          "worst_case_payoff": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worst Case Payoff"
+          },
+          "worth_doing": {
+            "default": false,
+            "title": "Worth Doing",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "verdict",
+          "engine",
+          "component_id",
+          "series_ticker",
+          "exchange_index"
+        ],
+        "title": "CoherenceCertificate",
+        "type": "object"
+      },
+      "CoherenceCertificateLeg": {
+        "description": "One order in a proposed portfolio, with its fees broken out.",
+        "properties": {
+          "direction": {
+            "title": "Direction",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "net_fee": {
+            "title": "Net Fee",
+            "type": "string"
+          },
+          "notional": {
+            "title": "Notional",
+            "type": "string"
+          },
+          "price": {
+            "title": "Price",
+            "type": "string"
+          },
+          "rebate": {
+            "title": "Rebate",
+            "type": "string"
+          },
+          "rounding_fee": {
+            "title": "Rounding Fee",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "string"
+          },
+          "ticker": {
+            "title": "Ticker",
+            "type": "string"
+          },
+          "trade_fee": {
+            "title": "Trade Fee",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ticker",
+          "label",
+          "direction",
+          "price",
+          "size",
+          "notional",
+          "trade_fee",
+          "rounding_fee",
+          "rebate",
+          "net_fee"
+        ],
+        "title": "CoherenceCertificateLeg",
+        "type": "object"
+      },
       "CoherenceEventView": {
         "description": "A family of markets that resolve together.",
         "properties": {
@@ -644,6 +840,146 @@
           "exchange_index"
         ],
         "title": "CoherenceEventView",
+        "type": "object"
+      },
+      "CoherenceFeeFill": {
+        "description": "What one fill of a worked example cost, component by component.",
+        "properties": {
+          "net": {
+            "title": "Net",
+            "type": "string"
+          },
+          "notional": {
+            "title": "Notional",
+            "type": "string"
+          },
+          "rebate": {
+            "title": "Rebate",
+            "type": "string"
+          },
+          "rounding_fee": {
+            "title": "Rounding Fee",
+            "type": "string"
+          },
+          "trade_fee": {
+            "title": "Trade Fee",
+            "type": "string"
+          }
+        },
+        "required": [
+          "trade_fee",
+          "rounding_fee",
+          "rebate",
+          "net",
+          "notional"
+        ],
+        "title": "CoherenceFeeFill",
+        "type": "object"
+      },
+      "CoherenceFees": {
+        "description": "The three-component fee, worked through at a price and a size.",
+        "properties": {
+          "balance_precision": {
+            "title": "Balance Precision",
+            "type": "string"
+          },
+          "contracts": {
+            "title": "Contracts",
+            "type": "string"
+          },
+          "fee_aware_threshold": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fee Aware Threshold"
+          },
+          "fills": {
+            "title": "Fills",
+            "type": "integer"
+          },
+          "minimum_clip": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minimum Clip"
+          },
+          "minimum_clip_note": {
+            "default": "",
+            "title": "Minimum Clip Note",
+            "type": "string"
+          },
+          "multiplier": {
+            "title": "Multiplier",
+            "type": "string"
+          },
+          "naive_threshold": {
+            "default": "1.0000",
+            "title": "Naive Threshold",
+            "type": "string"
+          },
+          "net_as_fraction_of_notional": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Net As Fraction Of Notional"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "per_fill": {
+            "items": {
+              "$ref": "#/components/schemas/CoherenceFeeFill"
+            },
+            "title": "Per Fill",
+            "type": "array"
+          },
+          "price": {
+            "title": "Price",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CoherenceFeeFill"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "state",
+          "price",
+          "contracts",
+          "fills",
+          "multiplier",
+          "balance_precision"
+        ],
+        "title": "CoherenceFees",
         "type": "object"
       },
       "CoherenceHostStatus": {
@@ -6705,6 +7041,215 @@
           }
         },
         "summary": "Coherence Books",
+        "tags": [
+          "coherence"
+        ]
+      }
+    },
+    "/api/coherence/certify": {
+      "get": {
+        "description": "Test one family for coherence, and return the proof either way.\n\nAnswers on the healthy case too. A detector that returns nothing when all\nis well leaves a caller unable to tell \"no opportunity\" from \"the feed is\ndown\", and on this exchange the correct answer is usually that the prices\nare coherent \u2014 which is itself worth showing, because it is the claim the\nengine is making.",
+        "operationId": "coherence_certify_api_coherence_certify_get",
+        "parameters": [
+          {
+            "description": "The event family to test",
+            "in": "query",
+            "name": "event_ticker",
+            "required": true,
+            "schema": {
+              "description": "The event family to test",
+              "title": "Event Ticker",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "max_contracts",
+            "required": false,
+            "schema": {
+              "default": 1000,
+              "maximum": 100000,
+              "minimum": 1,
+              "title": "Max Contracts",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoherenceCertificate"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Coherence Certify",
+        "tags": [
+          "coherence"
+        ]
+      }
+    },
+    "/api/coherence/fees": {
+      "get": {
+        "description": "The three-component fee, worked through at a price and a size.\n\nDefaults reproduce Kalshi's own documented example \u2014 0.09 contracts at\n$0.3301 in three lots \u2014 because that is the case where the component\nnobody models is nineteen times larger than the one everybody does.",
+        "operationId": "coherence_fees_api_coherence_fees_get",
+        "parameters": [
+          {
+            "description": "Contract price in dollars",
+            "in": "query",
+            "name": "price",
+            "required": false,
+            "schema": {
+              "default": "0.3301",
+              "description": "Contract price in dollars",
+              "title": "Price",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Contracts, to 0.01",
+            "in": "query",
+            "name": "contracts_fp",
+            "required": false,
+            "schema": {
+              "default": "0.09",
+              "description": "Contracts, to 0.01",
+              "title": "Contracts Fp",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "fills",
+            "required": false,
+            "schema": {
+              "default": 3,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Fills",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Take the fee multiplier from this series",
+            "in": "query",
+            "name": "series",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Take the fee multiplier from this series",
+              "title": "Series"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoherenceFees"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Coherence Fees",
         "tags": [
           "coherence"
         ]

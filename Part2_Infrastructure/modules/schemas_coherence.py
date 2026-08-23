@@ -160,3 +160,77 @@ class CoherenceBooks(BaseModel):
     origin: str
     books: list[CoherenceBookView] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
+
+
+class CoherenceCertificateLeg(BaseModel):
+    """One order in a proposed portfolio, with its fees broken out."""
+
+    ticker: str
+    label: str
+    direction: str
+    price: str
+    size: str
+    notional: str
+    trade_fee: str
+    rounding_fee: str
+    rebate: str
+    net_fee: str
+
+
+class CoherenceCertificate(BaseModel):
+    """One coherence result, whether or not it found anything.
+
+    Produced on the healthy case too: a detector silent when all is well leaves
+    a caller unable to tell "no opportunity" from "the feed is down", and this
+    engine's most common — and correct — answer is that the market is coherent.
+    """
+
+    verdict: str
+    engine: str
+    component_id: str
+    series_ticker: str
+    exchange_index: int
+    family: str = ""
+    because: str = ""
+    scope: str = "same-event"
+    tier: int = 1
+    tier_note: str = ""
+    legs: list[CoherenceCertificateLeg] = Field(default_factory=list)
+    gross_edge: str | None = None
+    worst_case_payoff: str | None = None
+    total_fees: str | None = None
+    net_edge: str | None = None
+    worth_doing: bool = False
+    rows_tested: int = 0
+    rows_untestable: int = 0
+    notes: list[str] = Field(default_factory=list)
+    proof: str = ""
+
+
+class CoherenceFeeFill(BaseModel):
+    """What one fill of a worked example cost, component by component."""
+
+    trade_fee: str
+    rounding_fee: str
+    rebate: str
+    net: str
+    notional: str
+
+
+class CoherenceFees(BaseModel):
+    """The three-component fee, worked through at a price and a size."""
+
+    state: str
+    price: str
+    contracts: str
+    fills: int
+    multiplier: str
+    balance_precision: str
+    per_fill: list[CoherenceFeeFill] = Field(default_factory=list)
+    total: CoherenceFeeFill | None = None
+    net_as_fraction_of_notional: str | None = None
+    minimum_clip: str | None = None
+    minimum_clip_note: str = ""
+    naive_threshold: str = "1.0000"
+    fee_aware_threshold: str | None = None
+    notes: list[str] = Field(default_factory=list)

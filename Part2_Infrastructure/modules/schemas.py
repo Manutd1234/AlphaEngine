@@ -30,7 +30,11 @@ from modules.schemas_coherence import CoherenceBookLevel as CoherenceBookLevel  
 from modules.schemas_coherence import CoherenceBooks as CoherenceBooks  # noqa: F401
 from modules.schemas_coherence import CoherenceBookView as CoherenceBookView  # noqa: F401
 from modules.schemas_coherence import CoherenceBudgetStatus as CoherenceBudgetStatus  # noqa: F401
+from modules.schemas_coherence import CoherenceCertificate as CoherenceCertificate  # noqa: F401
+from modules.schemas_coherence import CoherenceCertificateLeg as CoherenceCertificateLeg  # noqa: F401
 from modules.schemas_coherence import CoherenceEventView as CoherenceEventView  # noqa: F401
+from modules.schemas_coherence import CoherenceFeeFill as CoherenceFeeFill  # noqa: F401
+from modules.schemas_coherence import CoherenceFees as CoherenceFees  # noqa: F401
 from modules.schemas_coherence import CoherenceHostStatus as CoherenceHostStatus  # noqa: F401
 from modules.schemas_coherence import CoherenceMarketView as CoherenceMarketView  # noqa: F401
 from modules.schemas_coherence import CoherenceRecorderStatus as CoherenceRecorderStatus  # noqa: F401

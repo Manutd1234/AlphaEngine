@@ -35,6 +35,8 @@ export const API_OPERATIONS: readonly ApiOperation[] = [
   { method: "GET", path: "/api/gateway/coherence/status", purpose: "Kalshi reachability, schema probe, recorder and read budget", group: "gateway" },
   { method: "GET", path: "/api/gateway/coherence/universe", purpose: "Watched Kalshi families priced against the dollar they pay", group: "gateway" },
   { method: "GET", path: "/api/gateway/coherence/books", purpose: "Two bid ladders per market, from the tape or live", group: "gateway" },
+  { method: "GET", path: "/api/gateway/coherence/certify", purpose: "Coherence test over one family, with its proof either way", group: "gateway" },
+  { method: "GET", path: "/api/gateway/coherence/fees", purpose: "The three-component Kalshi fee, worked through", group: "gateway" },
   { method: "GET", path: "/api/gateway/data/quality?limit=100", purpose: "Durable data-quality ledger findings", group: "gateway" },
   { method: "GET", path: "/api/gateway/data/work-items", purpose: "Persisted Data work queue, versioned and audit-logged", group: "gateway" },
   { method: "POST", path: "/api/gateway/data/work-items", purpose: "Create a work item (operator-gated)", group: "gateway" },

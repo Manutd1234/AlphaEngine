@@ -29,6 +29,8 @@ import PageHead from "@/components/workspace/PageHead";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
 import FreshnessStamp from "@/components/workspace/FreshnessStamp";
 import BooksPane from "@/components/coherence/BooksPane";
+import CertificatePane from "@/components/coherence/CertificatePane";
+import FeesPane from "@/components/coherence/FeesPane";
 import LessonsPane from "@/components/coherence/LessonsPane";
 import PendingPane from "@/components/coherence/PendingPane";
 import StatusPane from "@/components/coherence/StatusPane";
@@ -140,25 +142,11 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="coherence" tabId="certificate" activeId={section}>
-        <PendingPane
-          purpose="It will run the coherence test over a family and show the result: either the implied measure and which market pins it, or the arbitrage portfolio with its legs, its worst-case payoff and its fees."
-          waitingOn={[
-            "Solve the lattice with the closed-form family checks, then with the linear programme",
-            "Render the certificate as a proof a reader can check by hand",
-          ]}
-          lessons={["duality"]}
-        />
+        <CertificatePane events={universe.data?.events ?? []} active={active && section === "certificate"} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="coherence" tabId="fees" activeId={section}>
-        <PendingPane
-          purpose="It will show the three-component fee against the price it is charged at, and the plot this whole project turns on: how many arbitrages the naive test invents that the fee-aware test rejects."
-          waitingOn={[
-            "Implement the trade fee, the rounding fee and the rebate accumulator",
-            "Derive the minimum economically viable clip size from them",
-          ]}
-          lessons={["fees"]}
-        />
+        <FeesPane active={active && section === "fees"} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="coherence" tabId="index" activeId={section}>

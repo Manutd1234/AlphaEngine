@@ -92,6 +92,42 @@ export interface CoherenceBudgetStatus {
   tokens_spent: number;
 }
 
+export interface CoherenceCertificate {
+  because?: string;
+  component_id: string;
+  engine: string;
+  exchange_index: number;
+  family?: string;
+  gross_edge?: string | null;
+  legs?: Array<CoherenceCertificateLeg>;
+  net_edge?: string | null;
+  notes?: Array<string>;
+  proof?: string;
+  rows_tested?: number;
+  rows_untestable?: number;
+  scope?: string;
+  series_ticker: string;
+  tier?: number;
+  tier_note?: string;
+  total_fees?: string | null;
+  verdict: string;
+  worst_case_payoff?: string | null;
+  worth_doing?: boolean;
+}
+
+export interface CoherenceCertificateLeg {
+  direction: string;
+  label: string;
+  net_fee: string;
+  notional: string;
+  price: string;
+  rebate: string;
+  rounding_fee: string;
+  size: string;
+  ticker: string;
+  trade_fee: string;
+}
+
 export interface CoherenceEventView {
   basket_note?: string | null;
   event_ticker: string;
@@ -103,6 +139,31 @@ export interface CoherenceEventView {
   title: string;
   yes_ask_total?: string | null;
   yes_bid_total?: string | null;
+}
+
+export interface CoherenceFeeFill {
+  net: string;
+  notional: string;
+  rebate: string;
+  rounding_fee: string;
+  trade_fee: string;
+}
+
+export interface CoherenceFees {
+  balance_precision: string;
+  contracts: string;
+  fee_aware_threshold?: string | null;
+  fills: number;
+  minimum_clip?: string | null;
+  minimum_clip_note?: string;
+  multiplier: string;
+  naive_threshold?: string;
+  net_as_fraction_of_notional?: string | null;
+  notes?: Array<string>;
+  per_fill?: Array<CoherenceFeeFill>;
+  price: string;
+  state: string;
+  total?: CoherenceFeeFill | null;
 }
 
 export interface CoherenceHostStatus {
@@ -1028,6 +1089,8 @@ export interface GatewayOperations {
   "POST /api/backtest": { request: BacktestRequest; response: Record<string, unknown> };
   "GET /api/book/{symbol}": { response: Array<VenueBook> };
   "GET /api/coherence/books": { response: CoherenceBooks };
+  "GET /api/coherence/certify": { response: CoherenceCertificate };
+  "GET /api/coherence/fees": { response: CoherenceFees };
   "GET /api/coherence/status": { response: CoherenceStatus };
   "GET /api/coherence/universe": { response: CoherenceUniverse };
   "GET /api/config": { response: Record<string, unknown> };
@@ -1092,6 +1155,8 @@ export const GATEWAY_CONTRACT_PATHS = [
   "/api/backtest",
   "/api/book/{symbol}",
   "/api/coherence/books",
+  "/api/coherence/certify",
+  "/api/coherence/fees",
   "/api/coherence/status",
   "/api/coherence/universe",
   "/api/config",

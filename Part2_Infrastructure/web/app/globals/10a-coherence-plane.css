@@ -327,3 +327,48 @@
 .coh-pending__lessons li { margin-bottom: 4px; }
 
 .coh-console__status { border-top: 1px solid var(--border); padding-top: 12px; }
+
+/* ── The certificate, the fee model, and the proof block ─────────────────── */
+
+.coh-certificate,
+.coh-fees { display: grid; gap: 12px; min-width: 0; }
+
+/*
+ * The proof is fixed-width because it is the artefact that leaves this
+ * application: it gets pasted into a message, a notebook or a ticket, and its
+ * columns have to survive that. It scrolls inside its own box rather than
+ * pushing the page sideways.
+ */
+.coh-proof {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.coh-table__total th,
+.coh-table__total td {
+  border-top: 1px solid var(--border);
+  font-weight: 640;
+}
+
+.coh-parabola { height: 150px; }
+
+.coh-parabola__curve {
+  stroke: var(--series-2);
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+}
+
+/* The peak is marked because it is the argument: the fee is largest exactly
+   where the book is busiest, so the naive threshold is wrongest there. */
+.coh-parabola__peak {
+  stroke: var(--text-secondary);
+  stroke-width: 0.8;
+  stroke-dasharray: 2 2;
+  vector-effect: non-scaling-stroke;
+}

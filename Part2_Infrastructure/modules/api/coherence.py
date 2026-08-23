@@ -14,6 +14,7 @@ respond to any of them.
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query
@@ -22,16 +23,23 @@ from modules.api.deps import trader_identity
 from modules.coherence import tunables
 from modules.coherence.drivers.kalshi_parse import schema_probe
 from modules.coherence.drivers.kalshi_rest import KalshiClient, KalshiUnavailable
+from modules.coherence.fees_source import schedule_for
 from modules.coherence.fs.store import TapeUnavailable, get_store
 from modules.coherence.kernel.book import parse_orderbook
+from modules.coherence.kernel.costs import FeeSchedule
+from modules.coherence.kernel.money import MoneyError, parse_dollars, parse_fp
 from modules.coherence.recorder import recorder_state
 from modules.coherence.scheduler.budget import get_read_budget
+from modules.coherence.syscalls.certify import certify
+from modules.coherence.syscalls.fees import worked_example
 from modules.coherence.syscalls.observe import observe_event, observe_series
 from modules.coherence.views import book_view, event_view
 from modules.schemas import (
     CoherenceBooks,
     CoherenceBookView,
     CoherenceBudgetStatus,
+    CoherenceCertificate,
+    CoherenceFees,
     CoherenceRecorderStatus,
     CoherenceStatus,
     CoherenceUniverse,
@@ -232,3 +240,86 @@ def _from_tape(row: dict[str, Any]) -> CoherenceBookView:
         depth=row.get("depth") or "full",
     )
     return book_view(book, source=row.get("source") or "tape", ts_ns=int(row["ts_ns"]))
+
+
+@router.get("/api/coherence/certify", response_model=CoherenceCertificate)
+async def coherence_certify(
+    event_ticker: str = Query(description="The event family to test"),
+    max_contracts: int = Query(default=1000, ge=1, le=100_000),
+    _actor: str = Depends(trader_identity),
+) -> CoherenceCertificate:
+    """Test one family for coherence, and return the proof either way.
+
+    Answers on the healthy case too. A detector that returns nothing when all
+    is well leaves a caller unable to tell "no opportunity" from "the feed is
+    down", and on this exchange the correct answer is usually that the prices
+    are coherent — which is itself worth showing, because it is the claim the
+    engine is making.
+    """
+    try:
+        observation = await observe_event(KalshiClient(), event_ticker)
+    except KalshiUnavailable as exc:
+        return CoherenceCertificate(
+            verdict="untestable", engine="closed_form", component_id=event_ticker,
+            series_ticker="", exchange_index=0, notes=[exc.reason],
+        )
+    schedule = await _schedule_for(observation.event.series_ticker, event_ticker)
+    certificate = certify(observation, schedule, max_contracts=Decimal(max_contracts))
+    payload = certificate.to_dict()
+    payload["proof"] = certificate.render_text()
+    return CoherenceCertificate(**payload)
+
+
+@router.get("/api/coherence/fees", response_model=CoherenceFees)
+async def coherence_fees(
+    price: str = Query(default="0.3301", description="Contract price in dollars"),
+    contracts_fp: str = Query(default="0.09", description="Contracts, to 0.01"),
+    fills: int = Query(default=3, ge=1, le=50),
+    series: str | None = Query(default=None, description="Take the fee multiplier from this series"),
+    _actor: str = Depends(trader_identity),
+) -> CoherenceFees:
+    """The three-component fee, worked through at a price and a size.
+
+    Defaults reproduce Kalshi's own documented example — 0.09 contracts at
+    $0.3301 in three lots — because that is the case where the component
+    nobody models is nineteen times larger than the one everybody does.
+    """
+    try:
+        parsed_price = parse_dollars(price)
+        size = parse_fp(contracts_fp)
+    except MoneyError as exc:
+        return CoherenceFees(
+            state="unreadable", price=price, contracts=contracts_fp, fills=fills,
+            multiplier="1", balance_precision="0.010000", notes=[str(exc)],
+        )
+    schedule = await _schedule_for(series or "", "") if series else FeeSchedule(
+        taker_rate=tunables.TAKER_RATE, maker_ratio=tunables.MAKER_RATIO,
+        balance_precision=tunables.BALANCE_PRECISION,
+    )
+    return worked_example(parsed_price, size, schedule, fills=fills, basket_prices=[parsed_price, parsed_price])
+
+
+async def _schedule_for(series_ticker: str, event_ticker: str) -> FeeSchedule:
+    """The live fee schedule, falling back to the published rate on a refusal.
+
+    A fee we could not read is reported as the published default rather than
+    as zero: zero fees would make every basket look tradable, which is the one
+    direction an error here must never take.
+    """
+    if not series_ticker:
+        return FeeSchedule(
+            taker_rate=tunables.TAKER_RATE, maker_ratio=tunables.MAKER_RATIO,
+            balance_precision=tunables.BALANCE_PRECISION,
+        )
+    client = KalshiClient()
+    series_payload: dict[str, Any] | None = None
+    series_changes: list[dict[str, Any]] = []
+    event_changes: list[dict[str, Any]] = []
+    try:
+        series_payload = (await client.series(series_ticker)).payload
+        series_changes = (await client.series_fee_changes()).payload.get("series_fee_change_arr") or []
+        if event_ticker:
+            event_changes = (await client.event_fee_changes(event_ticker)).payload.get("event_fee_changes") or []
+    except KalshiUnavailable:
+        pass
+    return schedule_for(series_payload, series_changes, event_changes, event_ticker).schedule

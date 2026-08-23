@@ -128,6 +128,67 @@ export interface CoherenceBooks {
   notes: string[];
 }
 
+export interface CoherenceCertificateLeg {
+  ticker: string;
+  label: string;
+  direction: string;
+  price: string;
+  size: string;
+  notional: string;
+  trade_fee: string;
+  rounding_fee: string;
+  rebate: string;
+  net_fee: string;
+}
+
+export interface CoherenceCertificate {
+  verdict: string;
+  engine: string;
+  component_id: string;
+  series_ticker: string;
+  exchange_index: number;
+  family: string;
+  because: string;
+  scope: string;
+  tier: number;
+  tier_note: string;
+  legs: CoherenceCertificateLeg[];
+  gross_edge: string | null;
+  worst_case_payoff: string | null;
+  total_fees: string | null;
+  net_edge: string | null;
+  worth_doing: boolean;
+  rows_tested: number;
+  rows_untestable: number;
+  notes: string[];
+  proof: string;
+}
+
+export interface CoherenceFeeFill {
+  trade_fee: string;
+  rounding_fee: string;
+  rebate: string;
+  net: string;
+  notional: string;
+}
+
+export interface CoherenceFees {
+  state: string;
+  price: string;
+  contracts: string;
+  fills: number;
+  multiplier: string;
+  balance_precision: string;
+  per_fill: CoherenceFeeFill[];
+  total: CoherenceFeeFill | null;
+  net_as_fraction_of_notional: string | null;
+  minimum_clip: string | null;
+  minimum_clip_note: string;
+  naive_threshold: string;
+  fee_aware_threshold: string | null;
+  notes: string[];
+}
+
 /** The shape a panel gets: the payload, or a named reason there is none. */
 export interface CoherenceLoad<T> {
   data: T | null;
@@ -158,4 +219,12 @@ export function isCoherenceUniverse(value: unknown): value is CoherenceUniverse 
 
 export function isCoherenceBooks(value: unknown): value is CoherenceBooks {
   return isRecord(value) && typeof value.state === "string" && Array.isArray(value.books);
+}
+
+export function isCoherenceCertificate(value: unknown): value is CoherenceCertificate {
+  return isRecord(value) && typeof value.verdict === "string" && typeof value.engine === "string";
+}
+
+export function isCoherenceFees(value: unknown): value is CoherenceFees {
+  return isRecord(value) && typeof value.state === "string" && Array.isArray(value.per_fill);
 }
