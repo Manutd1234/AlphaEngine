@@ -156,7 +156,7 @@ class TestBackfill:
             assert request.url.path == "/api/ohlcv"
             assert request.url.params["symbol"] == "AAPL"
             bars = [{"t": start + i * hour, "o": 1, "h": 2, "l": 0.5, "c": 1.5, "v": 10} for i in range(-2, 8)]
-            return httpx.Response(200, json={"data": bars, "provenance": {"provider": "massive"}})
+            return httpx.Response(200, json={"bars": bars, "provenance": {"provider": "massive"}})
 
         params = {
             "symbol": "AAPL", "interval": "1h",

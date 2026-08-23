@@ -210,7 +210,7 @@ def _binance_rows(symbol: str, interval: str, from_ms: int, to_ms: int, max_bars
     return rows
 
 
-def _web_rows(symbol: str, interval: str, from_ms: int, to_ms: int, max_bars: int, client: Any | None) -> tuple[list[tuple[Any, ...]], str | None]:
+def _web_rows(symbol: str, interval: str, from_ms: int, to_ms: int, max_bars: int, client: Any | None) -> tuple[list[tuple[Any, ...]], str | None, int]:
     base = settings.resolved_web_workspace_url
     if not base:
         raise RuntimeError("backfill for an equity needs the workspace — set WEB_WORKSPACE_URL")
@@ -224,20 +224,24 @@ def _web_rows(symbol: str, interval: str, from_ms: int, to_ms: int, max_bars: in
     finally:
         if owned:
             http.close()
-    data = body.get("data") if isinstance(body, dict) else None
+    # `bars` is the key /api/ohlcv returns on both branches. This read `data`
+    # until 2026-08-23 and therefore read nothing, so every equity backfill
+    # filed itself "empty" — indistinguishable from a symbol nobody quotes.
+    # A bar missing a field is DROPPED and counted: `bar.get("o", 0)` used to
+    # turn a bar with no open into a bar that opened at zero.
+    payload = body.get("bars") if isinstance(body, dict) else None
     provider = (body.get("provenance") or {}).get("provider") if isinstance(body, dict) else None
     rows: list[tuple[Any, ...]] = []
-    for bar in data or []:
-        if not isinstance(bar, dict):
-            continue
+    dropped = 0
+    for bar in payload or []:
         try:
-            ts = int(bar["t"])
-        except (KeyError, TypeError, ValueError):
+            row = (int(bar["t"]), *(float(bar[key]) for key in ("o", "h", "l", "c", "v")))
+        except (KeyError, TypeError, ValueError, IndexError):
+            dropped += 1
             continue
-        if ts < from_ms or ts > to_ms:
-            continue
-        rows.append((ts, float(bar.get("o", 0)), float(bar.get("h", 0)), float(bar.get("l", 0)), float(bar.get("c", 0)), float(bar.get("v", 0))))
-    return rows, provider
+        if from_ms <= row[0] <= to_ms:
+            rows.append(row)
+    return rows, provider, dropped
 
 
 def run_backfill(
@@ -257,11 +261,11 @@ def run_backfill(
     if progress:
         progress(0.05, "fetching")
     if is_equity(symbol):
-        rows, provider = _web_rows(symbol, req.interval, from_ms, to_ms, max_bars, client)
+        rows, provider, dropped = _web_rows(symbol, req.interval, from_ms, to_ms, max_bars, client)
         source = "web-registry"
     else:
         rows = _binance_rows(symbol, req.interval, from_ms, to_ms, max_bars, client)
-        provider, source = "binance", "binance"
+        provider, source, dropped = "binance", "binance", 0
     rows.sort(key=lambda r: r[0])
     if progress:
         progress(0.7, f"{len(rows)} rows fetched; checking")
@@ -278,12 +282,12 @@ def run_backfill(
         "from_ms": from_ms,
         "to_ms": to_ms,
         "rows_fetched": len(rows),
+        "rows_dropped": dropped,
         "expected": expected,
         "first_ts": rows[0][0] if rows else None,
         "last_ts": rows[-1][0] if rows else None,
         "contract": contract,
-        # Rows travel back to the gateway hook, which persists them and drops
-        # them from the retained result.
+        # Rows travel back to the hook, which persists and then drops them.
         "rows": rows,
         "finding": {
             "capability": "bars",
