@@ -232,12 +232,12 @@ export default function Controls({
         </button>
       </div>
       <div id="research-experiment-controls" className="experiment-panel__body">
-        <p className="sub experiment-panel__help">
-          {/* Compressed to fit the 310px rail without losing a fact: the
-              trigger for each input type, and how to stop it. */}
-          Sliders re-run the sweep on release, typed fields on blur.
-          Turn <strong>Auto</strong> off on the rail to hold it.
-        </p>
+        <details className="disclosure experiment-panel__help">
+          <summary>When the sweep re-runs</summary>
+          <p className="sub">
+            Sliders re-run the sweep on release, typed fields on blur. Turn Auto off on the rail to hold it.
+          </p>
+        </details>
         <div className="stack">
         <div className="row">
           <div>
