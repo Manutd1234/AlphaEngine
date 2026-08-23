@@ -87,98 +87,117 @@ export default function TearSheet({
         </div>
       </div>
 
-      <div className="research-facts">
-        <span>
-          Best bar <strong className="num pos">{signedPct(tail.bestBar, 2)}</strong>
-        </span>
-        <span>
-          Worst bar <strong className="num neg">{signedPct(tail.worstBar, 2)}</strong>
-        </span>
-        <span>
-          Positive bars{" "}
-          {/* A dash, not 0.0%. With no bars this share is not measurable, and
-              the `: 0` it used to fall back to said the opposite — that every
-              bar was negative. That is the one substitution this codebase is
-              most alert to: it turns "we cannot know" into a finding, and it
-              type-checks all the way through. */}
-          <strong className="num" title={tail.totalBars ? undefined : "No bars in this window"}>
-            {tail.totalBars ? pct(tail.positiveBars / tail.totalBars, 1) : "—"}
-          </strong>
-        </span>
-        <span>
-          Longest losing run <strong className="num">{tail.maxLosingStreak} bars</strong>
-        </span>
-      </div>
-
-      <p className="console-subhead">Monthly returns</p>
-      {/* The grid's construction rule, not one of its cells. Every figure the
-          grid carries stays on screen; what folds is how a month is added up
-          and why the first and last one may cover fewer bars. The words are the
-          heading's old trailing clause, which loses only the em dash that
-          joined it to "Monthly returns". */}
-      <details className="disclosure">
-        <summary>How a calendar month is totalled</summary>
-        <p className="research-note">
-          Compounded within each calendar month, so a partial first or last month is shorter
-          than the rest.
-        </p>
-      </details>
-
-      {years.length === 0 ? (
-        <p className="sub">No completed month in this window.</p>
-      ) : (
+      {/* Four readings off the bar distribution, as a one-row table under a
+          header band — they were a flex row of loose "label value" pairs with
+          an 18px gap and no rule, which the reader saw as a sentence that had
+          lost its commas. A table gives each one a column, a label above it
+          and a frame around the four, in the grammar of every other table on
+          this card. */}
+      <section className="research-facts research-subsection" aria-labelledby="tail-extremes-title">
+        <h3 id="tail-extremes-title" className="research-subhead">Extremes &amp; streaks</h3>
         <div className="table-wrap" tabIndex={0}>
-          <table className="monthly-grid">
+          <table className="facts-table">
             <caption className="sr-only">
-              Strategy return by calendar month and year, with an annual total.
+              The best and worst single bars, the share of positive bars and the longest losing run
             </caption>
             <thead>
               <tr>
-                <th scope="col">Year</th>
-                {MONTHS.map((m) => (
-                  <th scope="col" key={m}>
-                    {m}
-                  </th>
-                ))}
-                <th scope="col">Year</th>
+                <th scope="col">Best bar</th>
+                <th scope="col">Worst bar</th>
+                <th scope="col">Positive bars</th>
+                <th scope="col">Longest losing run</th>
               </tr>
             </thead>
             <tbody>
-              {years.map(({ year, byMonth, total }) => (
-                <tr key={year}>
-                  <td>{year}</td>
-                  {MONTHS.map((label, index) => {
-                    const cell = byMonth[index];
-                    return (
-                      <td key={label} className="monthly-cell">
-                        {cell ? (
-                          <span
-                            title={`${label} ${year}: ${signedPct(cell.return, 2)} over ${cell.bars} bars`}
-                            style={{
-                              // Alpha carries magnitude, hue carries sign, and the
-                              // number itself is always printed — so the cell is
-                              // readable with no colour perception at all.
-                              background:
-                                cell.return >= 0
-                                  ? `color-mix(in srgb, var(--diverging-pos) ${Math.round((Math.abs(cell.return) / absMax) * 55)}%, transparent)`
-                                  : `color-mix(in srgb, var(--diverging-neg) ${Math.round((Math.abs(cell.return) / absMax) * 55)}%, transparent)`,
-                            }}
-                          >
-                            {(cell.return * 100).toFixed(1)}
-                          </span>
-                        ) : (
-                          <span className="muted" aria-label="no observation">—</span>
-                        )}
-                      </td>
-                    );
-                  })}
-                  <td className={total >= 0 ? "pos" : "neg"}>{signedPct(total, 1)}</td>
-                </tr>
-              ))}
+              <tr>
+                <td className="num pos">{signedPct(tail.bestBar, 2)}</td>
+                <td className="num neg">{signedPct(tail.worstBar, 2)}</td>
+                {/* A dash, not 0.0%. With no bars this share is not measurable,
+                    and the `: 0` it used to fall back to said the opposite —
+                    that every bar was negative. That is the one substitution
+                    this codebase is most alert to: it turns "we cannot know"
+                    into a finding, and it type-checks all the way through. */}
+                <td className="num" title={tail.totalBars ? undefined : "No bars in this window"}>
+                  {tail.totalBars ? pct(tail.positiveBars / tail.totalBars, 1) : "—"}
+                </td>
+                <td className="num">{tail.maxLosingStreak} bars</td>
+              </tr>
             </tbody>
           </table>
         </div>
-      )}
+      </section>
+
+      <section className="monthly-returns research-subsection" aria-labelledby="monthly-returns-title">
+        <h3 id="monthly-returns-title" className="research-subhead">Monthly returns</h3>
+        {/* The grid's construction rule, not one of its cells. Every figure the
+            grid carries stays on screen; what folds is how a month is added up
+            and why the first and last one may cover fewer bars. The words are the
+            heading's old trailing clause, which loses only the em dash that
+            joined it to "Monthly returns". */}
+        <details className="disclosure">
+          <summary>How a calendar month is totalled</summary>
+          <p className="research-note">
+            Compounded within each calendar month, so a partial first or last month is shorter
+            than the rest.
+          </p>
+        </details>
+
+        {years.length === 0 ? (
+          <p className="sub">No completed month in this window.</p>
+        ) : (
+          <div className="table-wrap" tabIndex={0}>
+            <table className="monthly-grid">
+              <caption className="sr-only">
+                Strategy return by calendar month and year, with an annual total.
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Year</th>
+                  {MONTHS.map((m) => (
+                    <th scope="col" key={m}>
+                      {m}
+                    </th>
+                  ))}
+                  <th scope="col">Year</th>
+                </tr>
+              </thead>
+              <tbody>
+                {years.map(({ year, byMonth, total }) => (
+                  <tr key={year}>
+                    <td>{year}</td>
+                    {MONTHS.map((label, index) => {
+                      const cell = byMonth[index];
+                      return (
+                        <td key={label} className="monthly-cell">
+                          {cell ? (
+                            <span
+                              title={`${label} ${year}: ${signedPct(cell.return, 2)} over ${cell.bars} bars`}
+                              style={{
+                                // Alpha carries magnitude, hue carries sign, and the
+                                // number itself is always printed — so the cell is
+                                // readable with no colour perception at all.
+                                background:
+                                  cell.return >= 0
+                                    ? `color-mix(in srgb, var(--diverging-pos) ${Math.round((Math.abs(cell.return) / absMax) * 55)}%, transparent)`
+                                    : `color-mix(in srgb, var(--diverging-neg) ${Math.round((Math.abs(cell.return) / absMax) * 55)}%, transparent)`,
+                              }}
+                            >
+                              {(cell.return * 100).toFixed(1)}
+                            </span>
+                          ) : (
+                            <span className="muted" aria-label="no observation">—</span>
+                          )}
+                        </td>
+                      );
+                    })}
+                    <td className={total >= 0 ? "pos" : "neg"}>{signedPct(total, 1)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

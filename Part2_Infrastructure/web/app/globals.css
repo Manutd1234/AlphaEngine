@@ -148,4 +148,9 @@
 /* The Reliability panel's server mutations, as a table. After 14h, whose
    density values for the panel it sits inside. */
 @import "./globals/14m-operator-mutations-table.css";
+
+/* The Research tab's stress windows, tail facts, corpus results and benchmark
+   tiles as tables and framed regions. After 03 and 13, whose retired list and
+   flex-row rules it replaces, and after 12, whose seam rule it relies on. */
+@import "./globals/14n-research-tabling.css";
 @import "./globals/15-navigator-and-trailing-layer.css";

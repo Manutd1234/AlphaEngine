@@ -99,22 +99,36 @@ export default function ConnectedDocuments({ documentId }: { documentId: string 
       )}
 
       {load.status === "done" && load.payload.connected.length > 0 && (
-        <ul className="corpus-connected__list">
-          {load.payload.connected.map((node) => (
-            <li key={node.id}>
-              <span className="corpus-connected__title">{node.title}</span>
-              {/* The relation and its evidence, never the bare word "related".
-                  "same bars, 9f9602c7" is checkable; "related" is not. Commas
-                  rather than middle dots: the separator is a word's job here,
-                  and middle-dot.test.ts holds that at zero. */}
-              <span className="muted">
-                {" "}— {RELATION_LABEL[node.arrived_by] ?? node.arrived_by}
-                {node.evidence ? `, ${node.evidence}` : ""}
-                {node.depth > 1 ? `, ${node.depth} hops away` : ""}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <div className="table-wrap corpus-connected__facts" tabIndex={0}>
+          <table className="corpus-connected__table">
+            <caption className="sr-only">Documents connected to this one, and by what</caption>
+            <thead>
+              <tr>
+                <th scope="col">Document</th>
+                <th scope="col">Kind</th>
+                <th scope="col">Relation</th>
+                <th scope="col">Evidence</th>
+                <th scope="col">Hops</th>
+              </tr>
+            </thead>
+            <tbody>
+              {load.payload.connected.map((node) => (
+                <tr key={node.id}>
+                  <th scope="row" className="corpus-connected__title">{node.title}</th>
+                  <td>{node.kind.replace("_", " ")}</td>
+                  {/* The relation and its evidence, never the bare word
+                      "related" — "same bars" in one column and "9f9602c7" in
+                      the next is checkable; "related" is not. A column each,
+                      so the evidence lines up down the table instead of
+                      trailing each title at a different x. */}
+                  <td>{RELATION_LABEL[node.arrived_by] ?? node.arrived_by}</td>
+                  <td className={node.evidence ? "" : "muted"}>{node.evidence ?? "—"}</td>
+                  <td className="num">{node.depth}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </details>
   );

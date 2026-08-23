@@ -1,0 +1,219 @@
+/* ==========================================================================
+   Research tabling — the Robustness pane and the Lineage corpus drawn as
+   tables and framed regions.
+
+   Three surfaces on the Research tab printed their facts as loose text: the
+   stress windows were a list whose label sat at one end of a line and its
+   reading at the other; the tail card's four bar-level facts were a flex row
+   with no rule and no frame; a corpus search result was a grey block of
+   twenty "Label: value" lines in a pre-wrap paragraph, the values starting
+   wherever the labels ended. Every figure is still on screen; each now has a
+   column, a label and a frame, in the grammar the base `table` rule in 00
+   gives every other table on the desk.
+
+   Its own partial because 03 and 13, which owned the rules this replaces,
+   are over the file-length ceiling and may not grow (tests/file-size.test.ts);
+   the rules they lose are deleted there, not overridden here.
+   ========================================================================== */
+
+/* ---------- a labelled region inside a research card ----------
+   The idiom the desk already uses for a head INSIDE a card (the role map's
+   "subheading" rung: --fs-sm, uppercase, tracked), with the content it
+   introduces directly under it. Both Robustness cards are split into these
+   so the reader can see where one question ends and the next begins. */
+.research-subsection {
+  margin-top: var(--space-4);
+}
+
+.research-subhead {
+  margin: 0 0 var(--space-2);
+  font-size: var(--fs-sm);
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: var(--ls-caps);
+  color: var(--text-secondary);
+}
+
+/* A fold between the head and its table sits flush under the head and keeps
+   a breath above the table, so the three read as one region rather than as
+   a head, a stray line and a table. */
+.research-subsection > .disclosure {
+  margin-top: 0;
+  margin-bottom: var(--space-2);
+}
+
+/* What a dash in the table above means — one sentence under the frame, in
+   the voice of the other research footnotes. */
+.research-footnote {
+  margin: var(--space-2) 0 0;
+  font-size: var(--fs-xs);
+  line-height: var(--lh-body);
+  color: var(--text-muted);
+}
+
+/* ---------- Robustness: the regime table ----------
+   Eight columns in half a row. At the base table's --fs-lg and --space-3
+   cell padding the table measured 653px against a 614px card at 1720px with
+   the setup rail open, so the Bars column was cut at its first letter and
+   the reader saw a table that ended in "B". One rung down and --space-2 of
+   side padding bring it under the card; below that the wrapper scrolls,
+   which is the fallback every table here has. */
+.regime-table {
+  font-size: var(--fs-md);
+}
+
+.regime-table :is(th, td) {
+  padding-left: var(--space-2);
+  padding-right: var(--space-2);
+}
+
+/* ---------- Robustness: stress windows ----------
+   The window's name is the row header and can run long ("2022 crypto crash
+   (Luna/3AC, Apr–Jun)"); it wraps rather than forcing the table to scroll
+   for a label. The five figure columns stay on one line each. The seam rule
+   in 12 still finds `.card > .regime-windows` — the section carries the
+   class the list did — so the card's slack opens under the footnote, not
+   between the table and its own explanation. */
+.regime-windows tbody th[scope="row"] {
+  white-space: normal;
+  min-width: 14rem;
+}
+
+/* ---------- Robustness: extremes & streaks ----------
+   One row of four, each under its own label; left-aligned because the row
+   reads as four facts side by side, not as a column of figures to compare. */
+.facts-table th,
+.facts-table td {
+  width: 25%;
+  text-align: left;
+}
+
+/* ---------- Robustness: monthly returns ----------
+   The grid keeps its opt-out from the inner lattice — each cell is a tinted
+   chip and the tint is the reading — but it gets the frame, the header band
+   and one rule on each side of the month block, so the year column and the
+   compounded total read as the table's edges rather than as two more
+   chips. Its cell size and padding are 03's, tightened there to fit the
+   half-width card. */
+.monthly-grid {
+  border: 1px solid var(--rule);
+}
+
+.monthly-grid th {
+  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+}
+
+.monthly-grid th:first-child,
+.monthly-grid td:first-child,
+.monthly-grid th:nth-last-child(2),
+.monthly-grid td:nth-last-child(2) {
+  border-right: 1px solid var(--rule-soft);
+}
+
+/* ---------- Explain: the factor table ----------
+   Five columns in the same half-width card, and the first carries a name
+   over a sentence. The four figure columns at --fs-lg and --space-3 of side
+   padding left it 185px, so "Buy and hold the instrument. A high loading
+   means the strategy is mostly directional exposure." ran to five lines
+   against a 0.463 on one. One rung down and --space-2 at the sides give
+   the sentence the width back; the figures still sit on their own lines. */
+.factor-table {
+  font-size: var(--fs-md);
+}
+
+.factor-table :is(th, td) {
+  padding-left: var(--space-2);
+  padding-right: var(--space-2);
+}
+
+/* ---------- Lineage: the search row ----------
+   The base `select` rule in 00 is `width: 100%`, and a flex item whose basis
+   is `auto` takes that width — so the index select filled the line and
+   pushed the button under it, and the input above it, three controls in
+   three rows at 1290px. The select is as wide as its longest option. */
+.corpus-search select {
+  width: auto;
+}
+
+.corpus-search button {
+  flex: 0 0 auto;
+}
+
+/* ---------- Lineage: a search result ----------
+   The frame is the list item's; inside it, a header band for the title and
+   its similarity, then the facts table with no frame of its own, then the
+   graph fold. */
+.corpus-results > li {
+  padding: 0;
+  overflow: hidden;
+  background: var(--surface-1);
+}
+
+.corpus-result__head {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--rule);
+  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+}
+
+.corpus-result__facts {
+  margin: 0;
+}
+
+.corpus-result__table {
+  border: 0;
+  font-size: var(--fs-md);
+}
+
+/* Labels in one column at a fixed width, values in the other, and a value
+   wraps — "Venue mix" is a sentence, and the base `td` rule's nowrap would
+   have scrolled the whole card for it. */
+.corpus-result__table tbody th[scope="row"] {
+  width: 15rem;
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+  vertical-align: top;
+}
+
+.corpus-result__table td {
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.corpus-result__prose {
+  color: var(--text-secondary);
+}
+
+/* The paragraph fallback, for a body with no label/value lines in it: the
+   cell carries the table's padding, so the paragraph carries none. */
+.corpus-result__table .corpus-result__body {
+  margin: 0;
+}
+
+/* The graph fold, inside the frame and under the facts. */
+.corpus-connected.disclosure {
+  margin: 0;
+  padding: 0 var(--space-3) var(--space-2);
+  border-top: 1px solid var(--rule-soft);
+}
+
+.corpus-connected__facts {
+  margin-top: var(--space-1);
+}
+
+.corpus-connected__table {
+  font-size: var(--fs-md);
+}
+
+/* Words in every column but the last, so the heads sit over their cells
+   rather than over the right edge; only the hop count is a figure. */
+.corpus-connected__table th:not(:last-child),
+.corpus-connected__table td:not(:last-child) {
+  text-align: left;
+}
+
+.corpus-connected__table tbody th[scope="row"],
+.corpus-connected__table td {
+  font-size: var(--fs-md);
+  white-space: normal;
+}

@@ -123,7 +123,7 @@ export default function FactorPanel({ report }: { report: FactorReport | null })
       )}
 
       <div className="table-wrap" tabIndex={0} style={{ marginTop: "var(--space-3)" }}>
-        <table>
+        <table className="factor-table">
           <caption className="sr-only">
             Factor loadings with t-statistics, p-values and a relative-magnitude bar.
           </caption>

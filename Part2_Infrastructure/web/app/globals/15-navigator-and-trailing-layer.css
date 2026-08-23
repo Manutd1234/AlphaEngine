@@ -880,7 +880,7 @@
   #panel-research :is(
     .section-heading,
     .portfolio-card-heading,
-    .regime-windows-heading,
+    .research-subhead,
     .codex-family__head
   ) {
     break-after: avoid-page;

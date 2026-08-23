@@ -24,7 +24,9 @@
 import { useState } from "react";
 
 import ConnectedDocuments from "@/components/research/ConnectedDocuments";
+import { parseCorpusBody } from "@/lib/corpus-body";
 import { fmt } from "@/lib/format";
+import type { ResearchRagMatch } from "@/lib/research-rag";
 import { SearchBackend, useResearchSearch } from "@/lib/use-research-search";
 
 const EXAMPLES = [
@@ -150,18 +152,78 @@ export default function ResearchCorpus() {
                   {fmt(match.similarity, 3)}
                 </span>
               </div>
-              <div className="corpus-result__meta muted">
-                <span>{match.kind.replace("_", " ")}</span>
-                {match.symbol && <span>, {match.symbol}</span>}
-                {match.strategy && <span>, {match.strategy}</span>}
-                <span>, {new Date(match.occurred_at).toLocaleDateString()}</span>
-              </div>
-              <p className="corpus-result__body">{match.body}</p>
+              <CorpusResultFacts match={match} />
               <ConnectedDocuments documentId={match.id} />
             </li>
           ))}
         </ol>
       )}
     </section>
+  );
+}
+
+/**
+ * One document's facts as a two-column table: what the index knows about it
+ * (kind, instrument, strategy, when) and then the embedded text, one row per
+ * line. The text used to print as a paragraph with its newlines kept, which
+ * was faithful to what the vector saw and unreadable as evidence — twenty
+ * "Label: value" lines in one grey block, the values starting wherever the
+ * labels happened to end. The rows keep the same words in the same order;
+ * `lib/corpus-body.ts` says what is and is not split.
+ *
+ * The paragraph survives for a body that has no such lines at all — a
+ * free-text incident note, say — because forcing prose into a two-column
+ * table would be the inverse mistake.
+ */
+function CorpusResultFacts({ match }: { match: ResearchRagMatch }) {
+  const rows = parseCorpusBody(match.body, match.title);
+  const occurred = new Date(match.occurred_at).toLocaleDateString();
+  return (
+    <div className="table-wrap corpus-result__facts" tabIndex={0}>
+      <table className="corpus-result__table">
+        <caption className="sr-only">What the corpus holds for {match.title}</caption>
+        <tbody>
+          <tr>
+            <th scope="row">Kind</th>
+            <td>{match.kind.replace("_", " ")}</td>
+          </tr>
+          {match.symbol && (
+            <tr>
+              <th scope="row">Instrument</th>
+              <td>{match.symbol}</td>
+            </tr>
+          )}
+          {match.strategy && (
+            <tr>
+              <th scope="row">Strategy</th>
+              <td>{match.strategy}</td>
+            </tr>
+          )}
+          <tr>
+            <th scope="row">Occurred</th>
+            <td>{occurred}</td>
+          </tr>
+          {rows.map((row, index) =>
+            row.label ? (
+              <tr key={index}>
+                <th scope="row">{row.label}</th>
+                <td>{row.value}</td>
+              </tr>
+            ) : (
+              <tr key={index}>
+                <td colSpan={2} className="corpus-result__prose">{row.value}</td>
+              </tr>
+            ),
+          )}
+          {rows.length === 0 && (
+            <tr>
+              <td colSpan={2}>
+                <p className="corpus-result__body">{match.body}</p>
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
   );
 }

@@ -99,18 +99,6 @@
   color: var(--text-muted);
 }
 
-.research-facts {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 18px;
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid var(--grid);
-  font-size: var(--fs-body);
-  color: var(--text-secondary);
-}
-
 /* A closing note is a footnote to the block above it, and a table is now a
    framed block. Twelve pixels left the sentence hanging off the frame's bottom
    edge as though it were one more row; --space-4 puts it outside the table. */
@@ -160,7 +148,10 @@
 .factor-bar {
   position: relative;
   display: block;
-  width: 110px;
+  /* 80, from 110: in the half-width Explain card the four figure columns
+     left the factor column 185px, and every description wrapped to five
+     lines. The bar is a relative reading and loses nothing at 80. */
+  width: 80px;
   height: 6px;
   margin-left: auto;
   border-radius: 3px;
@@ -193,20 +184,26 @@
   border: 0;
 }
 
+/* Fourteen columns in half a row: at --fs-sm with 6px of side padding and
+   a 40px chip floor the grid measured 743px in a 614px card at 1720px, so
+   November and December were off the edge at the width the desk is most
+   often read at. --fs-xs, 3px and a 32px floor bring it inside (614 of
+   614, measured 2026-08-23); the chip still carries "-12.3". The frame,
+   the header band and the two edge rules it wears now are in 14n. */
 .monthly-grid td,
 .monthly-grid th {
-  padding-left: 6px;
-  padding-right: 6px;
-  font-size: var(--fs-sm);
+  padding-left: 3px;
+  padding-right: 3px;
+  font-size: var(--fs-xs);
   border-right: 0;
   background: none;
 }
 
 .monthly-cell > span {
   display: block;
-  padding: 3px 5px;
+  padding: 3px 4px;
   border-radius: 5px;
-  min-width: 40px;
+  min-width: 32px;
 }
 
 /* ---------- promotion gate ---------- */
@@ -482,9 +479,6 @@
   .stability-tiles {
     grid-template-columns: minmax(0, 1fr);
   }
-  .research-facts {
-    gap: 10px;
-  }
 }
 
 /* ---------- stale-context gate ---------- */
@@ -532,39 +526,6 @@
   align-items: flex-start;
   border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--surface-0) 30%, transparent);
-}
-
-/* ---------- regime breakdown ---------- */
-.regime-windows-heading {
-  margin: 14px 0 6px;
-  font-size: var(--fs-sm);
-  font-weight: 700;
-  letter-spacing: var(--ls-caps);
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.regime-windows {
-  margin: 0 0 10px;
-  padding: 0;
-  list-style: none;
-  display: grid;
-  gap: 5px;
-  font-size: var(--fs-body);
-}
-
-.regime-windows li {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 10px;
-  justify-content: space-between;
-  padding: 5px 0;
-  border-bottom: 1px solid var(--grid);
-}
-
-.regime-windows__label {
-  font-weight: 600;
-  color: var(--text-secondary);
 }
 
 /* ---------- chart heading with inline toggle ---------- */

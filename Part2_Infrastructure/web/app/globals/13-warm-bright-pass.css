@@ -755,7 +755,6 @@ button:active:not(:disabled) {
   text-align: right;
   color: var(--text-muted);
 }
-.corpus-result__meta { font-size: var(--fs-xs); margin-top: 2px; }
 .corpus-result__body {
   /* The card text is what was embedded, newlines and all — rendering it as a
      paragraph would collapse the label/value structure the vector saw. */
@@ -769,19 +768,9 @@ button:active:not(:disabled) {
    `.corpus-connected__list` and `.corpus-connected__title` were hooks written
    against a stylesheet that never got them. So its paragraphs fell back to
    inherited body text (the `.sub` rules are `.card > .sub`, a direct child,
-   and this <details> is not a card) and its list lost its markers to the
-   global `padding: 0` reset. */
+   and this <details> is not a card). The list is a table now — 14n. */
 .corpus-connected .sub {
   margin: 0;
-  color: var(--text-secondary);
-  font-size: var(--fs-md);
-}
-
-.corpus-connected__list {
-  display: grid;
-  gap: 4px;
-  margin: 0;
-  padding-left: var(--space-3);
   color: var(--text-secondary);
   font-size: var(--fs-md);
 }

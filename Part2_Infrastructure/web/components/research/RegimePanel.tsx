@@ -66,7 +66,7 @@ export default function RegimePanel({ regimes }: { regimes: RegimeReport }) {
       </div>
 
       <div className="table-wrap" tabIndex={0}>
-        <table>
+        <table className="regime-table">
           <caption className="sr-only">
             Strategy performance conditioned on trend and volatility regimes
           </caption>
@@ -93,27 +93,69 @@ export default function RegimePanel({ regimes }: { regimes: RegimeReport }) {
         </table>
       </div>
 
-      <h3 className="regime-windows-heading">Historical stress windows</h3>
-      <ul className="regime-windows">
-        {regimes.windows.map((w) => (
-          <li key={w.id}>
-            <span className="regime-windows__label">{w.label}</span>
-            {w.covered && w.stat ? (
-              <span className="num">
-                <span className={sign(w.stat.totalReturn)}>{signedPct(w.stat.totalReturn)}</span>
-                {", max DD "}
-                <span className="neg">{pct(w.stat.maxDrawdown, 1)}</span>
-                {`, ${w.stat.bars} bars`}
-              </span>
-            ) : (
-              <span className="muted">
-                not in data window{w.coverage > 0 ? ` (${pct(w.coverage, 0)} overlap)` : ""} — extend the
-                bar count to test it
-              </span>
-            )}
-          </li>
-        ))}
-      </ul>
+      {/* A table, in the same frame as the regime table above it — the
+          windows were a list whose label and reading sat at opposite ends of
+          a line, so three uncovered windows printed the same sentence three
+          times at three different x positions. Each window is now a row with
+          the same columns as a regime (return, drawdown, win, bars), plus how
+          much of the window the loaded bars overlap; an uncovered window keeps
+          its row and dashes its figures, and ONE footnote under the table says
+          what a dash means. "We could not test this" is still evidence, and
+          it is still on screen. */}
+      <section className="regime-windows research-subsection" aria-labelledby="regime-windows-title">
+        <h3 id="regime-windows-title" className="research-subhead">Historical stress windows</h3>
+        <div className="table-wrap" tabIndex={0}>
+          <table>
+            <caption className="sr-only">
+              Strategy performance inside named historical stress windows
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Window</th>
+                <th scope="col">Coverage</th>
+                <th scope="col">Return</th>
+                <th scope="col">Max DD</th>
+                <th scope="col">Win</th>
+                <th scope="col">Bars</th>
+              </tr>
+            </thead>
+            <tbody>
+              {regimes.windows.map((w) => (
+                <tr key={w.id}>
+                  <th scope="row">{w.label}</th>
+                  {w.covered && w.stat ? (
+                    <>
+                      <td className="num">{pct(w.coverage, 0)}</td>
+                      <td className={`num ${sign(w.stat.totalReturn)}`}>
+                        {signedPct(w.stat.totalReturn)}
+                      </td>
+                      <td className="num neg">{pct(w.stat.maxDrawdown, 1)}</td>
+                      <td className="num">{pct(w.stat.winRate, 0)}</td>
+                      <td className="num">{w.stat.bars.toLocaleString()}</td>
+                    </>
+                  ) : (
+                    <>
+                      {/* The overlap is measured even when the window is not
+                          covered — 0% and 12% are different facts — so it is
+                          the one cell an uncovered row still fills. */}
+                      <td className="num muted">{pct(w.coverage, 0)}</td>
+                      <td className="num muted" aria-label="not in data window">—</td>
+                      <td className="num muted" aria-label="not in data window">—</td>
+                      <td className="num muted" aria-label="not in data window">—</td>
+                      <td className="num muted" aria-label="not in data window">—</td>
+                    </>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {regimes.windows.some((w) => !(w.covered && w.stat)) && (
+          <p className="research-footnote">
+            — marks a window outside the loaded bars; extend the bar count to test it.
+          </p>
+        )}
+      </section>
 
       {/* Folded, not dropped. `regimes.note` states one classification method
           and two restrictions on what the table above may be used for — the
