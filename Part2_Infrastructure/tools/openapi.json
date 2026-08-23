@@ -2790,6 +2790,107 @@
         "title": "DecisionLatencySnapshot",
         "type": "object"
       },
+      "DiffusionAbsorptionResponse": {
+        "properties": {
+          "backend": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Backend"
+          },
+          "call_curve": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Call Curve",
+            "type": "array"
+          },
+          "horizons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Horizons",
+            "type": "array"
+          },
+          "observed_at": {
+            "format": "date-time",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "release_curve": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Release Curve",
+            "type": "array"
+          },
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/DiffusionStageRun"
+            },
+            "title": "Runs",
+            "type": "array"
+          },
+          "stages": {
+            "items": {
+              "$ref": "#/components/schemas/DiffusionStageSummary"
+            },
+            "title": "Stages",
+            "type": "array"
+          },
+          "state": {
+            "enum": [
+              "ok",
+              "unconfigured",
+              "unavailable",
+              "unreadable"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "truncated": {
+            "default": false,
+            "title": "Truncated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "observed_at",
+          "state"
+        ],
+        "title": "DiffusionAbsorptionResponse",
+        "type": "object"
+      },
       "DiffusionEvent": {
         "description": "One announcement, with both of its stages and the clock that saw them.",
         "properties": {
@@ -3078,6 +3179,76 @@
         "title": "DiffusionEventsResponse",
         "type": "object"
       },
+      "DiffusionHorizonCell": {
+        "description": "One cell of the horizon table, including the ones that are not numbers.",
+        "properties": {
+          "abnormal_return": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Abnormal Return"
+          },
+          "absorbed": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Absorbed"
+          },
+          "bars": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bars"
+          },
+          "horizon": {
+            "title": "Horizon",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "state": {
+            "enum": [
+              "ok",
+              "pending",
+              "uncaptured",
+              "insufficient",
+              "unavailable"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "horizon",
+          "state"
+        ],
+        "title": "DiffusionHorizonCell",
+        "type": "object"
+      },
       "DiffusionStageRecord": {
         "description": "An observed second-stage start, replacing an assumed one.",
         "properties": {
@@ -3111,6 +3282,236 @@
           "at"
         ],
         "title": "DiffusionStageRecord",
+        "type": "object"
+      },
+      "DiffusionStageRun": {
+        "description": "One measured stage of one announcement on one asset.",
+        "properties": {
+          "cells": {
+            "items": {
+              "$ref": "#/components/schemas/DiffusionHorizonCell"
+            },
+            "title": "Cells",
+            "type": "array"
+          },
+          "control_percentile": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Control Percentile"
+          },
+          "controls_used": {
+            "default": 0,
+            "title": "Controls Used",
+            "type": "integer"
+          },
+          "data_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Hash"
+          },
+          "half_life_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Half Life S"
+          },
+          "half_life_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Half Life State"
+          },
+          "half_life_vol": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Half Life Vol"
+          },
+          "interval": {
+            "title": "Interval",
+            "type": "string"
+          },
+          "market_adjusted": {
+            "default": false,
+            "title": "Market Adjusted",
+            "type": "boolean"
+          },
+          "measured_horizons": {
+            "default": 0,
+            "title": "Measured Horizons",
+            "type": "integer"
+          },
+          "of_horizons": {
+            "default": 0,
+            "title": "Of Horizons",
+            "type": "integer"
+          },
+          "params_version": {
+            "title": "Params Version",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "signal_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signal Reason"
+          },
+          "signal_state": {
+            "enum": [
+              "ok",
+              "no_signal",
+              "insufficient_pre_window",
+              "unavailable"
+            ],
+            "title": "Signal State",
+            "type": "string"
+          },
+          "source_ref": {
+            "title": "Source Ref",
+            "type": "string"
+          },
+          "stage": {
+            "enum": [
+              "release",
+              "call"
+            ],
+            "title": "Stage",
+            "type": "string"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          },
+          "t0": {
+            "format": "date-time",
+            "title": "T0",
+            "type": "string"
+          },
+          "terminal_return": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Terminal Return"
+          }
+        },
+        "required": [
+          "run_id",
+          "source_ref",
+          "symbol",
+          "stage",
+          "interval",
+          "signal_state",
+          "t0",
+          "params_version"
+        ],
+        "title": "DiffusionStageRun",
+        "type": "object"
+      },
+      "DiffusionStageSummary": {
+        "description": "What one stage looks like across every event measured.",
+        "properties": {
+          "measured": {
+            "default": 0,
+            "title": "Measured",
+            "type": "integer"
+          },
+          "median_control_percentile": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median Control Percentile"
+          },
+          "median_half_life_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median Half Life S"
+          },
+          "no_signal": {
+            "default": 0,
+            "title": "No Signal",
+            "type": "integer"
+          },
+          "other": {
+            "default": 0,
+            "title": "Other",
+            "type": "integer"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "stage": {
+            "enum": [
+              "release",
+              "call"
+            ],
+            "title": "Stage",
+            "type": "string"
+          }
+        },
+        "required": [
+          "stage"
+        ],
+        "title": "DiffusionStageSummary",
         "type": "object"
       },
       "EscalationAck": {
@@ -10294,6 +10695,101 @@
         "summary": "Portfolio History",
         "tags": [
           "B \u00b7 Risk"
+        ]
+      }
+    },
+    "/api/research/diffusion/absorption": {
+      "get": {
+        "description": "Every measured stage, the mean decay curve, and the attrition behind it.\n\nThe refusals travel with the measurements. Most FOMC decisions move neither\nstage two pre-event sigmas, so a summary that reported only the stages that\ncleared the floor would describe a quarter of the sample as though it were\nall of it.",
+        "operationId": "diffusion_absorption_api_research_diffusion_absorption_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "maximum": 600,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source_ref",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source Ref"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiffusionAbsorptionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Diffusion Absorption",
+        "tags": [
+          "diffusion"
         ]
       }
     },

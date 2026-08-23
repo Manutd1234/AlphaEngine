@@ -1,0 +1,181 @@
+/* ==========================================================================
+   Information diffusion — the announcement half of the Coherence tab.
+
+   Its own partial rather than more of 10b, for the reason the 14* family
+   exists: two sessions were drawing on this tab at once and a shared file is
+   a shared conflict. Everything here is scoped to the diffusion panes and
+   reuses 10b's axis and tick classes rather than restating them, so the two
+   halves of the tab keep one set of furniture.
+
+   The palette is the desk's three series tokens and the assignment is fixed
+   by ENTITY, never by rank: --series-1 is always the statement, --series-2 is
+   always the press conference, --series-3 stays with Kalshi's survival curve
+   in 10b. A filter that changed which stages were present would otherwise
+   repaint the survivors, and a reader comparing two screenshots would be
+   comparing colours that had moved. The three were run through the six-check
+   validator in both themes before being used here: the worst adjacent pair
+   separates by ΔE 9.5 under protanopia in light and 9.2 under deuteranopia in
+   dark, against a normal-vision floor of 23.4 and 24.0.
+
+   Nothing carries meaning in colour alone. Each series also has a mark in its
+   legend (● statement, ▲ press conference) and each gap carries ◌, which is
+   what forced-colors.test.ts and the house rule require.
+   ========================================================================== */
+
+.diff-pane { display: grid; gap: 12px; min-width: 0; }
+
+/* ---------- the absorption curve ---------- */
+
+.diff-curve__frame,
+.diff-time__frame { min-width: 0; }
+
+/* Broken at gaps rather than bridged. A horizon nobody measured is a hole in
+   the record; a line drawn across it asserts an absorbed fraction that was
+   never read. */
+.diff-curve__release {
+  stroke: var(--series-1);
+  stroke-width: 1.6;
+  vector-effect: non-scaling-stroke;
+}
+
+.diff-curve__call {
+  stroke: var(--series-2);
+  stroke-width: 1.6;
+  stroke-dasharray: 3 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.diff-curve__dot { vector-effect: non-scaling-stroke; }
+.diff-curve__dot--release { fill: var(--series-1); }
+.diff-curve__dot--call { fill: var(--series-2); }
+
+.diff-curve__half {
+  stroke: var(--text-secondary);
+  stroke-width: 0.8;
+  stroke-dasharray: 2 2;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Drawn only when a path overshot its own terminal, which is a real thing a
+   price does and not an error to clip away. */
+.diff-curve__full {
+  stroke: var(--border);
+  stroke-width: 0.8;
+  vector-effect: non-scaling-stroke;
+}
+
+.diff-curve__gap { fill: var(--text-muted); }
+.diff-curve__note { fill: var(--text-secondary); }
+
+.diff-curve__key { font-weight: 650; }
+.diff-curve__key--release { fill: var(--series-1); }
+.diff-curve__key--call { fill: var(--series-2); }
+
+/* ---------- the two-stage timeline ---------- */
+
+.diff-time__axis {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.diff-time__ticklabel { fill: var(--text-muted); }
+
+.diff-time__band {
+  fill: color-mix(in srgb, var(--surface-2) 70%, transparent);
+  stroke: var(--border);
+  stroke-width: 0.6;
+  vector-effect: non-scaling-stroke;
+}
+
+.diff-time__band--release { stroke: color-mix(in srgb, var(--series-1) 55%, var(--border)); }
+.diff-time__band--call { stroke: color-mix(in srgb, var(--series-2) 55%, var(--border)); }
+
+/* A second stage nobody publishes a time for is drawn hollow and dashed. The
+   absence is the point on the earnings arm, so it is drawn rather than left
+   out of the picture. */
+.diff-time__band--unknown {
+  stroke: var(--text-muted);
+  stroke-dasharray: 2 2;
+}
+
+.diff-time__node--release { fill: var(--series-1); }
+.diff-time__node--call { fill: var(--series-2); }
+.diff-time__node--unknown { fill: none; stroke: var(--text-muted); stroke-width: 1; }
+
+.diff-time__tick {
+  stroke: var(--border);
+  stroke-width: 0.6;
+  vector-effect: non-scaling-stroke;
+}
+
+.diff-time__gap {
+  stroke: var(--text-secondary);
+  stroke-width: 0.8;
+  stroke-dasharray: 1 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.diff-time__label { fill: var(--text-secondary); }
+
+/* ---------- attrition and control percentile ---------- */
+
+.diff-bars { display: grid; gap: 10px; }
+
+.diff-bars__row { display: grid; gap: 4px; }
+
+.diff-bars__head {
+  font-size: var(--fs-sm);
+  font-weight: 650;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.diff-bars__count { color: var(--text-secondary); font-weight: 400; }
+
+/* Measured and refused on one track at one scale, because the ratio between
+   them is the reader's first question and two tracks would hide it. */
+.diff-bars__track {
+  display: flex;
+  height: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--rule-soft);
+}
+
+.diff-bars__fill { display: block; height: 100%; }
+.diff-bars__fill--measured { background: color-mix(in srgb, var(--series-1) 70%, transparent); }
+
+/* Hatched, not just paler: in Windows High Contrast both fills collapse to
+   the same colour and the texture is what survives. */
+.diff-bars__fill--refused {
+  background: repeating-linear-gradient(
+    45deg,
+    color-mix(in srgb, var(--text-muted) 26%, transparent),
+    color-mix(in srgb, var(--text-muted) 26%, transparent) 2px,
+    transparent 2px,
+    transparent 5px
+  );
+}
+
+.diff-bars__foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+.diff-bars__percentile { text-align: right; }
+
+/* NO forced-colors block here, and none is needed.
+   `forced-colors.test.ts` pins the desk at exactly one authoritative block
+   (in 15), and that file is at its length ratchet — but the real reason is
+   that nothing here needs one. Under high contrast the two series may be
+   forced to the same colour, and the drawing still reads: the press
+   conference is dashed where the statement is solid, the legend carries ●
+   against ▲, the unmeasured horizons carry ◌, and the refused half of the
+   attrition bar is a hatch rather than a paler fill. Colour is the fastest
+   way to tell them apart and never the only way, which is the house rule
+   stated as a design constraint rather than as a media query. */

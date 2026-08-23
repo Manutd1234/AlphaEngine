@@ -476,6 +476,19 @@ export interface DecisionLatencySnapshot {
   samples: number;
 }
 
+export interface DiffusionAbsorptionResponse {
+  backend?: string | null;
+  call_curve?: Array<number | null>;
+  horizons?: Array<string>;
+  observed_at: string;
+  reason?: string | null;
+  release_curve?: Array<number | null>;
+  runs?: Array<DiffusionStageRun>;
+  stages?: Array<DiffusionStageSummary>;
+  state: "ok" | "unconfigured" | "unavailable" | "unreadable";
+  truncated?: boolean;
+}
+
 export interface DiffusionEvent {
   call_at?: string | null;
   call_at_source?: "vendor" | "fed_seed" | "estimated_offset" | "parsed_release" | "recorded" | null;
@@ -513,10 +526,52 @@ export interface DiffusionEventsResponse {
   truncated?: boolean;
 }
 
+export interface DiffusionHorizonCell {
+  abnormal_return?: number | null;
+  absorbed?: number | null;
+  bars?: number | null;
+  horizon: string;
+  reason?: string | null;
+  state: "ok" | "pending" | "uncaptured" | "insufficient" | "unavailable";
+}
+
 export interface DiffusionStageRecord {
   at: string;
   note?: string | null;
   source?: "recorded" | "parsed_release";
+}
+
+export interface DiffusionStageRun {
+  cells?: Array<DiffusionHorizonCell>;
+  control_percentile?: number | null;
+  controls_used?: number;
+  data_hash?: string | null;
+  half_life_s?: number | null;
+  half_life_state?: string | null;
+  half_life_vol?: number | null;
+  interval: string;
+  market_adjusted?: boolean;
+  measured_horizons?: number;
+  of_horizons?: number;
+  params_version: string;
+  run_id: string;
+  signal_reason?: string | null;
+  signal_state: "ok" | "no_signal" | "insufficient_pre_window" | "unavailable";
+  source_ref: string;
+  stage: "release" | "call";
+  symbol: string;
+  t0: string;
+  terminal_return?: number | null;
+}
+
+export interface DiffusionStageSummary {
+  measured?: number;
+  median_control_percentile?: number | null;
+  median_half_life_s?: number | null;
+  no_signal?: number;
+  other?: number;
+  reason?: string | null;
+  stage: "release" | "call";
 }
 
 export interface EscalationAck {
@@ -1241,6 +1296,7 @@ export interface GatewayOperations {
   "POST /api/orders/{order_id}/replace": { request: ReplaceRequest; response: RiskDecision };
   "GET /api/portfolio": { response: Record<string, unknown> };
   "GET /api/portfolio/history": { response: Record<string, unknown> };
+  "GET /api/research/diffusion/absorption": { response: DiffusionAbsorptionResponse };
   "GET /api/research/diffusion/events": { response: DiffusionEventsResponse };
   "POST /api/research/diffusion/events/{source_ref}/stage": { request: DiffusionStageRecord; response: DiffusionEventResponse };
   "GET /api/research/graph/centrality": { response: Record<string, unknown> };
@@ -1309,6 +1365,7 @@ export const GATEWAY_CONTRACT_PATHS = [
   "/api/orders/{order_id}/replace",
   "/api/portfolio",
   "/api/portfolio/history",
+  "/api/research/diffusion/absorption",
   "/api/research/diffusion/events",
   "/api/research/diffusion/events/{source_ref}/stage",
   "/api/research/graph/centrality",

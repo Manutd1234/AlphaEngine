@@ -72,6 +72,14 @@ const CALLERS: Record<string, Array<{ format: (v: number) => string; points: num
   ],
   "components/portfolio/RiskAdjustedTrend.tsx": [{ format: clock, points: minutely(240) }],
   "components/systems/LatencyTrend.tsx": [{ format: clockDefaultLocale, points: minutely(240) }],
+  // Ordinal over a fixed eight-cell horizon grid, so the widest label is the
+  // three characters of "30m" and the points never grow past eight.
+  "components/coherence/diffusion/AbsorptionCurve.tsx": [
+    {
+      format: (v) => ["1s", "30s", "1m", "2m", "5m", "10m", "15m", "30m"][Math.round(v)] ?? "",
+      points: [0, 1, 2, 3, 4, 5, 6, 7],
+    },
+  ],
 };
 
 /** Plot widths from a phone column to an ultrawide desk pane. */

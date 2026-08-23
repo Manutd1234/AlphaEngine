@@ -14,6 +14,7 @@ about, and a bare list says none of them.
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 from typing import Any
 
@@ -21,11 +22,18 @@ from fastapi import APIRouter, Depends, Query
 
 from modules.api.deps import trader_identity
 from modules.coherence.diffusion.events import DiffusionEventStore
+from modules.coherence.diffusion.runs import AbsorptionRunStore
 from modules.schemas import (
+    DiffusionAbsorptionResponse,
     DiffusionEvent,
     DiffusionEventResponse,
     DiffusionEventsResponse,
     DiffusionStageRecord,
+)
+from modules.schemas_diffusion import (
+    DiffusionHorizonCell,
+    DiffusionStageRun,
+    DiffusionStageSummary,
 )
 
 router = APIRouter(tags=["diffusion"])
@@ -68,6 +76,65 @@ def _store() -> DiffusionEventStore:
     return DiffusionEventStore()
 
 
+def _runs() -> AbsorptionRunStore:
+    return AbsorptionRunStore()
+
+
+def _run(row: dict[str, Any]) -> DiffusionStageRun:
+    cells = [
+        DiffusionHorizonCell(
+            horizon=str(cell.get("horizon")), state=cell.get("state", "unavailable"),
+            abnormal_return=cell.get("abnormal_return"), absorbed=cell.get("absorbed"),
+            bars=cell.get("bars"), reason=cell.get("reason"),
+        )
+        for cell in json.loads(row.get("points_json") or "[]")
+    ]
+    return DiffusionStageRun(
+        run_id=str(row["run_id"]), source_ref=str(row["source_ref"]), symbol=str(row["symbol"]),
+        stage=row["stage"], interval=str(row["interval"]), signal_state=row["signal_state"],
+        signal_reason=row.get("signal_reason"), t0=_stamp(row["t0_ms"]),
+        terminal_return=row.get("terminal_return"), half_life_s=row.get("half_life_s"),
+        half_life_state=row.get("half_life_state"), half_life_vol=row.get("half_life_vol"),
+        control_percentile=row.get("control_percentile"),
+        controls_used=int(row.get("controls_used") or 0),
+        measured_horizons=int(row.get("measured_horizons") or 0),
+        of_horizons=int(row.get("of_horizons") or 0),
+        market_adjusted=bool(row.get("market_adjusted")),
+        data_hash=row.get("data_hash"), params_version=str(row.get("params_version") or ""),
+        cells=cells,
+    )
+
+
+def _median(values: list[float]) -> float | None:
+    if not values:
+        return None
+    ordered = sorted(values)
+    middle = len(ordered) // 2
+    if len(ordered) % 2:
+        return ordered[middle]
+    return (ordered[middle - 1] + ordered[middle]) / 2.0
+
+
+def _curve(runs: list[DiffusionStageRun], stage: str, horizons: list[str]) -> list[float | None]:
+    """Mean absorbed fraction at each horizon, over the stages that measured it.
+
+    A horizon nobody measured is None rather than zero: zero absorbed is a real
+    reading and "we never looked" is not, and a chart that draws the second as
+    the first invents a flat start to every curve.
+    """
+    out: list[float | None] = []
+    for horizon in horizons:
+        seen = [
+            cell.absorbed
+            for run in runs
+            if run.stage == stage and run.signal_state == "ok"
+            for cell in run.cells
+            if cell.horizon == horizon and cell.absorbed is not None
+        ]
+        out.append(sum(seen) / len(seen) if seen else None)
+    return out
+
+
 @router.get("/api/research/diffusion/events", response_model=DiffusionEventsResponse)
 async def diffusion_events(
     kind: str | None = Query(default=None, pattern="^(earnings|fomc|macro)$"),
@@ -95,6 +162,55 @@ async def diffusion_events(
     return DiffusionEventsResponse(
         observed_at=_now(), state="ok", backend=store.backend, truncated=truncated,
         events=[_event(row) for row in rows],
+    )
+
+
+@router.get("/api/research/diffusion/absorption", response_model=DiffusionAbsorptionResponse)
+async def diffusion_absorption(
+    limit: int = Query(default=200, ge=1, le=600),
+    source_ref: str | None = Query(default=None, max_length=64),
+    _actor: str = Depends(trader_identity),
+) -> DiffusionAbsorptionResponse:
+    """Every measured stage, the mean decay curve, and the attrition behind it.
+
+    The refusals travel with the measurements. Most FOMC decisions move neither
+    stage two pre-event sigmas, so a summary that reported only the stages that
+    cleared the floor would describe a quarter of the sample as though it were
+    all of it.
+    """
+    try:
+        ledger = _runs()
+    except Exception as exc:  # noqa: BLE001
+        return DiffusionAbsorptionResponse(observed_at=_now(), state="unavailable", reason=str(exc))
+    try:
+        rows, truncated = ledger.list_runs(limit=limit, source_ref=source_ref)
+    except Exception as exc:  # noqa: BLE001
+        return DiffusionAbsorptionResponse(observed_at=_now(), state="unreadable",
+                                           backend=ledger.backend, reason=str(exc))
+    runs = [_run(row) for row in rows]
+    horizons: list[str] = []
+    for run in runs:
+        for cell in run.cells:
+            if cell.horizon not in horizons:
+                horizons.append(cell.horizon)
+    summaries: list[DiffusionStageSummary] = []
+    for stage in ("release", "call"):
+        stage_runs = [run for run in runs if run.stage == stage]
+        measured = [run for run in stage_runs if run.signal_state == "ok"]
+        summaries.append(DiffusionStageSummary(
+            stage=stage,
+            measured=len(measured),
+            no_signal=sum(1 for run in stage_runs if run.signal_state == "no_signal"),
+            other=sum(1 for run in stage_runs if run.signal_state not in {"ok", "no_signal"}),
+            median_half_life_s=_median([run.half_life_s for run in measured if run.half_life_s]),
+            median_control_percentile=_median(
+                [run.control_percentile for run in measured if run.control_percentile is not None]),
+            reason=None if measured else "no stage of this kind cleared the signal floor",
+        ))
+    return DiffusionAbsorptionResponse(
+        observed_at=_now(), state="ok", backend=ledger.backend, truncated=truncated,
+        horizons=horizons, release_curve=_curve(runs, "release", horizons),
+        call_curve=_curve(runs, "call", horizons), stages=summaries, runs=runs,
     )
 
 

@@ -56,6 +56,13 @@ from modules.coherence.diffusion.phase0 import (  # noqa: E402
     paired_stage_test,
     unpaired_stage_test,
 )
+from modules.coherence.diffusion.report import (  # noqa: E402
+    _params_version,
+    _placebo_summary,
+    _verdict_json,
+    persist,
+    summarise,
+)
 
 _DAY_MS = 86_400_000
 _HORIZON_SECONDS = tuple(h.seconds for h in STAGE_HORIZONS)
@@ -215,6 +222,7 @@ def run(args: argparse.Namespace, *, client: Any | None = None) -> dict[str, Any
     return {
         "arm": args.arm,
         "generated_at_ms": now_ms,
+        "params_version": _params_version(args),
         "calendar_verified": False,
         "calendar_note": ("the FOMC seed has not been checked against federalreserve.gov; "
                           "no number here may be cited until it has"),
@@ -238,121 +246,12 @@ def run(args: argparse.Namespace, *, client: Any | None = None) -> dict[str, Any
     }
 
 
-def _placebo_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
-    """The same measurement on windows with no announcement in them.
-
-    The identification check. If a non-event window at the same clock time on a
-    prior day yields the same ratio between the two stage times, the ratio is a
-    property of the hour rather than of the news, and the finding is an
-    artefact. Reported beside the result rather than in a footnote, because it
-    is the thing that decides whether the result means anything.
-    """
-    out: dict[str, Any] = {}
-    for stage in ("release", "call"):
-        events: list[float] = []
-        controls: list[float] = []
-        percentiles: list[float] = []
-        for row in rows:
-            block = row.get(stage)
-            if not block or block.get("signal_state") != "ok":
-                continue
-            if block.get("half_life_vol"):
-                events.append(float(block["half_life_vol"]))
-            controls.extend(float(value) for value in block.get("placebo_half_life_vol") or [])
-            if block.get("control_percentile") is not None:
-                percentiles.append(float(block["control_percentile"]))
-        out[stage] = {
-            "event_median": float(np.median(events)) if events else None,
-            "event_n": len(events),
-            "placebo_median": float(np.median(controls)) if controls else None,
-            "placebo_n": len(controls),
-            "control_percentile_median": float(np.median(percentiles)) if percentiles else None,
-        }
-    both = out.get("release", {}), out.get("call", {})
-    for name, key in (("event_ratio_call_over_release", "event_median"),
-                      ("placebo_ratio_call_over_release", "placebo_median")):
-        left, right = both[0].get(key), both[1].get(key)
-        out[name] = (right / left) if left and right else None
-    return out
-
-
 def _stage_of(rows: list[dict[str, Any]], pair: StagePair, stage: str) -> float | None:
     for row in rows:
         if row.get("source_ref") == pair.cluster and row.get("asset") == pair.asset:
             block = row.get(stage)
             return None if block is None else block.get("half_life_s")
     return None
-
-
-def _verdict_json(report: Any) -> dict[str, Any]:
-    return {
-        "state": report.state, "clock": report.clock, "verdict": report.verdict,
-        "n_meetings": report.n_clusters, "n_rows": report.n_rows,
-        "min_meetings": report.min_clusters, "reason": report.reason,
-        "median_log_ratio": report.median_log_ratio,
-        "ci_low": report.ci_low, "ci_high": report.ci_high,
-        "sign_test_p": report.sign_test_p,
-        "n_call_slower": report.n_call_slower, "n_release_slower": report.n_release_slower,
-        "n_ties": report.n_ties,
-        "horizons": [
-            {"horizon": delta.horizon, "n_meetings": delta.n_clusters,
-             "median_delta_absorbed": delta.median_delta,
-             "ci_low": delta.ci_low, "ci_high": delta.ci_high}
-            for delta in report.horizons
-        ],
-    }
-
-
-def summarise(report: dict[str, Any]) -> str:
-    lines = [
-        f"arm={report['arm']} interval={report['interval']} symbols={','.join(report['symbols'])}",
-        f"meetings considered: {report['meetings_considered']}  "
-        f"terminal: {report['stage_terminal_min']:g} min  calendar verified: {report['calendar_verified']}",
-    ]
-    gate = report.get("signal_attrition", {})
-    for stage in ("release", "call"):
-        counts = gate.get(stage, {})
-        if counts:
-            lines.append(f"{stage:>7} stages: " + ", ".join(
-                f"{state} {count}" for state, count in sorted(counts.items())))
-    placebo = report.get("placebo") or {}
-    if placebo.get("event_ratio_call_over_release") and placebo.get("placebo_ratio_call_over_release"):
-        lines.append(
-            f"identification: event call/release ratio "
-            f"{placebo['event_ratio_call_over_release']:.2f}x against a placebo ratio of "
-            f"{placebo['placebo_ratio_call_over_release']:.2f}x on non-event windows "
-            f"(n={placebo['release']['placebo_n']} / {placebo['call']['placebo_n']})")
-    for stage in ("release", "call"):
-        block = placebo.get(stage) or {}
-        if block.get("control_percentile_median") is not None:
-            lines.append(
-                f"{stage:>7} sits at control percentile "
-                f"{block['control_percentile_median']:.2f} "
-                f"(0.5 would be indistinguishable from a window with no announcement)")
-    unpaired = report.get("verdict_unpaired_vol_clock")
-    if unpaired and unpaired["state"] == "ok":
-        lines.append(
-            f"unpaired vol clock: {unpaired['verdict']}  release median "
-            f"{unpaired['median_release']:.3g} vs call {unpaired['median_call']:.3g}  "
-            f"log-ratio {unpaired['median_log_ratio']:+.3f} "
-            f"[{unpaired['ci_low']:+.3f}, {unpaired['ci_high']:+.3f}]  "
-            f"n={unpaired['n_meetings']} meetings ({unpaired['n_release']} release, "
-            f"{unpaired['n_call']} call)")
-    elif unpaired:
-        lines.append(f"unpaired vol clock: {unpaired['verdict']} — {unpaired['reason']}")
-    for key in ("verdict_vol_clock", "verdict_wall_clock"):
-        block = report[key]
-        if block["state"] != "ok":
-            lines.append(f"{block['clock']:>5} clock: {block['verdict']} — {block['reason']}")
-            continue
-        lines.append(
-            f"{block['clock']:>5} clock: {block['verdict']}  n={block['n_meetings']} meetings "
-            f"({block['n_rows']} rows)  median log-ratio "
-            f"{block['median_log_ratio']:.3f} [{block['ci_low']:.3f}, {block['ci_high']:.3f}]  "
-            f"sign p={block['sign_test_p']:.4g}  call slower on {block['n_call_slower']}, "
-            f"release slower on {block['n_release_slower']}"
-        )
-    return "\n".join(lines)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -369,6 +268,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--cache-dir", dest="cache_dir", default=None)
     parser.add_argument("--now-ms", dest="now_ms", type=int, default=None)
     parser.add_argument("--out", default=None)
+    parser.add_argument("--persist", action="store_true",
+                        help="write the measured runs into the desk's absorption ledger")
     return parser
 
 
@@ -379,6 +280,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.out:
         Path(args.out).write_text(json.dumps(report, indent=2, default=float))
         print(f"wrote {args.out}")
+    if args.persist:
+        print(f"filed {persist(report)} stage runs into the absorption ledger")
     return 0
 
 

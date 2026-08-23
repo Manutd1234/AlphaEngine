@@ -72,3 +72,65 @@ class DiffusionEventResponse(BaseModel):
     state: Literal["ok", "not_found", "unconfigured", "unavailable", "unreadable"]
     event: DiffusionEvent | None = None
     reason: str | None = None
+
+
+class DiffusionHorizonCell(BaseModel):
+    """One cell of the horizon table, including the ones that are not numbers."""
+
+    horizon: str
+    state: CellState
+    abnormal_return: float | None = None
+    absorbed: float | None = None
+    bars: int | None = None
+    reason: str | None = None
+
+
+class DiffusionStageRun(BaseModel):
+    """One measured stage of one announcement on one asset."""
+
+    run_id: str
+    source_ref: str
+    symbol: str
+    stage: Literal["release", "call"]
+    interval: str
+    signal_state: SignalState
+    signal_reason: str | None = None
+    t0: datetime
+    terminal_return: float | None = None
+    half_life_s: float | None = None
+    half_life_state: str | None = None
+    half_life_vol: float | None = None
+    control_percentile: float | None = None
+    controls_used: int = 0
+    measured_horizons: int = 0
+    of_horizons: int = 0
+    market_adjusted: bool = False
+    data_hash: str | None = None
+    params_version: str
+    cells: list[DiffusionHorizonCell] = Field(default_factory=list)
+
+
+class DiffusionStageSummary(BaseModel):
+    """What one stage looks like across every event measured."""
+
+    stage: Literal["release", "call"]
+    measured: int = 0
+    no_signal: int = 0
+    other: int = 0
+    median_half_life_s: float | None = None
+    median_control_percentile: float | None = None
+    reason: str | None = None
+
+
+class DiffusionAbsorptionResponse(BaseModel):
+    observed_at: datetime
+    state: ReadState
+    backend: str | None = None
+    truncated: bool = False
+    #: Mean absorbed fraction at each horizon, per stage — the decay curve.
+    horizons: list[str] = Field(default_factory=list)
+    release_curve: list[float | None] = Field(default_factory=list)
+    call_curve: list[float | None] = Field(default_factory=list)
+    stages: list[DiffusionStageSummary] = Field(default_factory=list)
+    runs: list[DiffusionStageRun] = Field(default_factory=list)
+    reason: str | None = None

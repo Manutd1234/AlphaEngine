@@ -58,6 +58,7 @@ from modules.schemas_data import DataJobView as DataJobView  # noqa: F401
 from modules.schemas_data import DataReplayRequest as DataReplayRequest  # noqa: F401
 from modules.schemas_data import DataSchedulesResponse as DataSchedulesResponse  # noqa: F401
 from modules.schemas_data import DataScheduleView as DataScheduleView  # noqa: F401
+from modules.schemas_diffusion import DiffusionAbsorptionResponse as DiffusionAbsorptionResponse  # noqa: F401, E501
 from modules.schemas_diffusion import DiffusionEvent as DiffusionEvent  # noqa: F401
 from modules.schemas_diffusion import DiffusionEventResponse as DiffusionEventResponse  # noqa: F401
 from modules.schemas_diffusion import DiffusionEventsResponse as DiffusionEventsResponse  # noqa: F401
@@ -117,6 +118,7 @@ __all__ = [
     "DataReplayRequest",
     "DataSchedulesResponse",
     "DataScheduleView",
+    "DiffusionAbsorptionResponse",
     "DiffusionEvent",
     "DiffusionEventResponse",
     "DiffusionEventsResponse",

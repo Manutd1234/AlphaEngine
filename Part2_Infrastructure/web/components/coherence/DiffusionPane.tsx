@@ -20,10 +20,14 @@
  * over both and the comparison between venues is the interesting part.
  */
 
+import { useState } from "react";
+
 import { episodesToSamples } from "@/lib/coherence/absorption";
 import type { CoherenceEpisodes } from "@/lib/coherence/types";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import Figure, { FigureEmpty, StateChip } from "./Figure";
+import InformationDiffusionPane from "./diffusion/InformationDiffusionPane";
+import type { AbsorptionRead } from "./diffusion/types";
 
 const HEIGHT = 160;
 const MARGIN = { top: 12, right: 6, bottom: 22, left: 6 };
@@ -85,25 +89,67 @@ function SurvivalChart({ data }: { data: CoherenceEpisodes }) {
 }
 
 export default function DiffusionPane({ active }: { active: boolean }) {
+  // Two venues, one question. Kalshi answers it about a mispricing the
+  // exchange itself publishes; the announcement arm answers it about news with
+  // a public timestamp. They are the same measurement — how long until the
+  // move is finished — so they share a pane and a switcher rather than
+  // pretending to be two subjects.
+  const [venue, setVenue] = useState<"announcements" | "kalshi">("announcements");
   const { data, error } = useCoherenceRead<CoherenceEpisodes>(
     "/api/gateway/coherence/episodes?limit=500",
-    active,
+    active && venue === "kalshi",
   );
+  const absorption = useCoherenceRead<AbsorptionRead>(
+    "/api/gateway/diffusion/absorption?limit=400",
+    active && venue === "announcements",
+  );
+
+  const switcher = (
+    <div className="seg" role="group" aria-label="Which venue">
+      <button type="button" aria-pressed={venue === "announcements"}
+              onClick={() => setVenue("announcements")}>
+        Announcements
+      </button>
+      <button type="button" aria-pressed={venue === "kalshi"} onClick={() => setVenue("kalshi")}>
+        Kalshi episodes
+      </button>
+    </div>
+  );
+
+  if (venue === "announcements") {
+    return (
+      <div className="coh-diffusion">
+        {switcher}
+        <InformationDiffusionPane read={absorption.data} error={absorption.error} />
+      </div>
+    );
+  }
 
   if (error && !data) {
     return (
-      <p className="console-empty">
-        <span aria-hidden="true">✕</span> Episodes could not be read: {error}
-      </p>
+      <div className="coh-diffusion">
+        {switcher}
+        <p className="console-empty">
+          <span aria-hidden="true">✕</span> Episodes could not be read: {error}
+        </p>
+      </div>
     );
   }
-  if (!data) return <p className="console-empty muted">Reading the episodes…</p>;
+  if (!data) {
+    return (
+      <div className="coh-diffusion">
+        {switcher}
+        <p className="console-empty muted">Reading the episodes…</p>
+      </div>
+    );
+  }
 
   const samples = episodesToSamples(data.episodes);
   const withHalfLife = samples.filter((sample) => sample.half_life_s != null);
 
   return (
     <div className="coh-diffusion">
+      {switcher}
       <div className="coh-status__chips">
         <StateChip mark="●" word="Closed episodes" value={String(data.episodes.length)} tone="muted" />
         <StateChip mark="◌" word="Still open" value={String(data.open_episodes)} tone="muted" />

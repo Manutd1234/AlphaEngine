@@ -40,6 +40,8 @@ export const API_OPERATIONS: readonly ApiOperation[] = [
   { method: "GET", path: "/api/gateway/coherence/index", purpose: "Coherence index over time, per series", group: "gateway" },
   { method: "GET", path: "/api/gateway/coherence/episodes", purpose: "Violation episodes and their survival curve", group: "gateway" },
   { method: "GET", path: "/api/gateway/coherence/replay", purpose: "Ablation harness: which parts of the cost model change the answer", group: "gateway" },
+  { method: "GET", path: "/api/gateway/diffusion/events", purpose: "Announcement calendar, both stages and when the desk first saw them", group: "gateway" },
+  { method: "GET", path: "/api/gateway/diffusion/absorption", purpose: "Measured absorption paths and half-lives per announcement stage", group: "gateway" },
   { method: "GET", path: "/api/gateway/data/quality?limit=100", purpose: "Durable data-quality ledger findings", group: "gateway" },
   { method: "GET", path: "/api/gateway/data/work-items", purpose: "Persisted Data work queue, versioned and audit-logged", group: "gateway" },
   { method: "POST", path: "/api/gateway/data/work-items", purpose: "Create a work item (operator-gated)", group: "gateway" },
