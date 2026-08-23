@@ -36,7 +36,7 @@ Two parts, in two directories. Start with whichever question you came for.
   everything offline. `web/lib/test-counts.generated.ts` is the dated record the desk displays, and it
   is a week behind this tree — run the suites rather than reading it.
 
-**The headline numbers, measured 2026-08-23:** **2,149 gateway + 4,430 web + 14 service tests**, none
+**The headline numbers, measured 2026-08-23:** **2,149 gateway + 4,438 web + 14 service tests**, none
 needing a network. That gateway figure is the run with the optional cross-encoder weights seeded; CI,
 which seeds nothing, prints **2,141 passed and 2 skipped** — both are green, and
 [`CLAUDE.md` §3](CLAUDE.md) holds the arithmetic that reconciles them rather than picking a favourite.
@@ -293,7 +293,7 @@ earlier date, because they were not re-probed. Full detail (every dependency's
 | **[Caddy](https://caddyserver.com)** | `2.6.2` | Automatic HTTPS in front of the gateway. |
 | **[Oracle Cloud](https://www.oracle.com/cloud/)** | managed | Always-on host, Singapore — region is load-bearing for venue egress. |
 | **[Vercel](https://vercel.com)** | managed | Two serverless projects from one repo; builds are Ed25519-attested against a trust root pinned in reviewed source. |
-| **[GitHub Actions](https://github.com/features/actions)** | managed | Four network-free CI jobs on every push (`gateway`, `openbb-service`, `web`, `repo-audit`): 2,141 gateway + 4,430 web + 14 service tests. Two more are opt-in and never gate a push — `live-smoke` (`workflow_dispatch`, needs Oracle and Supabase secrets) and `rerank-real` (`workflow_dispatch` or a `rerank` label; seeds the 1.05 GiB cross-encoder weights, caches them, and fails if that suite skips). `deploy.yml` ships the gateway (build → GHCR → SSH swap → verify → roll back, and a warning if the container fell back to the Python engine); `openbb-keepalive.yml` and `oracle-keepalive.yml` ping the research service and the Oracle backend on a schedule. |
+| **[GitHub Actions](https://github.com/features/actions)** | managed | Four network-free CI jobs on every push (`gateway`, `openbb-service`, `web`, `repo-audit`): 2,141 gateway + 4,438 web + 14 service tests. Two more are opt-in and never gate a push — `live-smoke` (`workflow_dispatch`, needs Oracle and Supabase secrets) and `rerank-real` (`workflow_dispatch` or a `rerank` label; seeds the 1.05 GiB cross-encoder weights, caches them, and fails if that suite skips). `deploy.yml` ships the gateway (build → GHCR → SSH swap → verify → roll back, and a warning if the container fell back to the Python engine); `openbb-keepalive.yml` and `oracle-keepalive.yml` ping the research service and the Oracle backend on a schedule. |
 
 ### Verify it end to end
 
@@ -311,7 +311,7 @@ From a tree that is already set up:
 cd Part2_Infrastructure
 venv/bin/python -m pytest                            # 2,141 passed, 2 skipped
 venv/bin/python tools/synthetic_probe.py             # book → cost → risk gate → audit; 6/6 steps
-(cd web && npm test)                                 # 4,430 tests across 972 suites
+(cd web && npm test)                                 # 4,438 tests across 974 suites
 (cd OpenBB_Service && ../venv/bin/python -m pytest)  # 14 passed
 ```
 

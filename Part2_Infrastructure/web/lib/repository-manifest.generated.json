@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-23",
-  "commit": "a29f007",
+  "commit": "d48e442",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -597,6 +597,7 @@
     "Part2_Infrastructure/web/app/globals/14k-login-layout-stability.css",
     "Part2_Infrastructure/web/app/globals/14l-work-queues.css",
     "Part2_Infrastructure/web/app/globals/14m-operator-mutations-table.css",
+    "Part2_Infrastructure/web/app/globals/14n-research-tabling.css",
     "Part2_Infrastructure/web/app/globals/15-navigator-and-trailing-layer.css",
     "Part2_Infrastructure/web/app/icon.svg",
     "Part2_Infrastructure/web/app/layout.tsx",
@@ -850,6 +851,7 @@
     "Part2_Infrastructure/web/lib/colormap.ts",
     "Part2_Infrastructure/web/lib/command-score.ts",
     "Part2_Infrastructure/web/lib/complexity.ts",
+    "Part2_Infrastructure/web/lib/corpus-body.ts",
     "Part2_Infrastructure/web/lib/correlation.ts",
     "Part2_Infrastructure/web/lib/data-quality-ledger.ts",
     "Part2_Infrastructure/web/lib/data-tier.ts",
@@ -1134,6 +1136,7 @@
     "Part2_Infrastructure/web/tests/contracts-quotes.test.ts",
     "Part2_Infrastructure/web/tests/contracts-runtime.test.ts",
     "Part2_Infrastructure/web/tests/copy-audit.test.ts",
+    "Part2_Infrastructure/web/tests/corpus-body.test.ts",
     "Part2_Infrastructure/web/tests/covariance-source.test.ts",
     "Part2_Infrastructure/web/tests/data-diagnostics-ui.test.ts",
     "Part2_Infrastructure/web/tests/data-provider-panes.test.ts",

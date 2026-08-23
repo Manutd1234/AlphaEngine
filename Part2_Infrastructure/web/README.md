@@ -91,7 +91,7 @@ npm install
 npm run dev        # http://localhost:3000 (Turbopack)
 npm run build      # Turbopack production build
 npm run typecheck  # tsc --noEmit
-npm test           # 4,430 tests across 972 suites — 4,428 passed, 2 skipped, no network
+npm test           # 4,438 tests across 974 suites — 4,436 passed, 2 skipped, no network
                    # required (re-measured 2026-08-23 on a clean checkout).
                    # lib/test-counts.generated.ts is the constant the Developer console
                    # displays and CI checks against the runner's log; it still records the
@@ -657,7 +657,7 @@ web/
 │       └── …one adapter per vendor (binance, fmp, tiingo, massive,
 │            alphavantage, firecrawl, openbb)
 ├── components/               charts (hand-rolled SVG), controls, tables
-└── tests/                   4,430 tests across 972 suites (2026-08-23), incl.
+└── tests/                   4,438 tests across 974 suites (2026-08-23), incl.
                               cross-engine, risk-engine and gate parity, the
                               design-system ratchets (type-scale, motion, house-rules,
                               dead-css, accent-budget, null-honesty, live-motion,

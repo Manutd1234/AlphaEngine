@@ -284,7 +284,7 @@ gaps column is the argument.
 
 Test counts, measured 2026-08-23: **2,141 gateway passed with 2 skipped** in a
 clean shell, **2,149 passed with 1 skipped** once the optional cross-encoder
-weights are seeded, **4,430 web across 972 suites** (4,428 passed, 2 skipped),
+weights are seeded, **4,438 web across 974 suites** (4,436 passed, 2 skipped),
 **14 service**. `web/lib/test-counts.generated.ts` was refreshed the same day
 and agrees; it will not stay that way without `npm run counts:refresh` after
 every test file. The standing rule outranks every sentence in this file: **never quote a

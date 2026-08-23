@@ -191,7 +191,7 @@ than trusting the counts: a number nobody re-measured is not a measurement.
 
 cd Part2_Infrastructure && venv/bin/python -m pytest
 
-# Web suite — 4,428 passed, 2 skipped, 4,430 across 972 suites; no browser
+# Web suite — 4,436 passed, 2 skipped, 4,438 across 974 suites; no browser
 cd Part2_Infrastructure/web && npm test
 
 # Research service — 14 passed
