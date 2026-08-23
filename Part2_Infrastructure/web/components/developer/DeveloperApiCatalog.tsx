@@ -36,6 +36,7 @@ export const API_OPERATIONS: readonly ApiOperation[] = [
   { method: "GET", path: "/api/gateway/data/work-items", purpose: "Persisted Data work queue, versioned and audit-logged", group: "gateway" },
   { method: "POST", path: "/api/gateway/data/work-items", purpose: "Create a work item (operator-gated)", group: "gateway" },
   { method: "PATCH", path: "/api/gateway/data/work-items/{id}", purpose: "Versioned edit; a stale version returns the current row", group: "gateway" },
+  { method: "DELETE", path: "/api/gateway/data/work-items/{id}", purpose: "Remove a work item for good; the row as it was comes back (operator-gated)", group: "gateway" },
   { method: "GET", path: "/api/gateway/data/jobs?limit=25", purpose: "Recent replay and backfill jobs", group: "gateway" },
   { method: "POST", path: "/api/gateway/data/jobs", purpose: "Submit a replay or backfill job (operator-gated)", group: "gateway" },
   { method: "GET", path: "/api/gateway/data/schedules", purpose: "Configured replay and backfill schedule", group: "gateway" },

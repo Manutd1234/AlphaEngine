@@ -821,19 +821,6 @@ button
   font-size: var(--fs-lg);
 }
 
-/* What the control would touch, beside its name. `margin-right: auto` keeps it
-   with the title rather than letting space-between fling it at the buttons. */
-.console-action__figure {
-  margin-right: auto;
-  padding: 2px 7px;
-  border-radius: var(--radius-pill);
-  background: var(--surface-2);
-  color: var(--text-secondary);
-  font-size: var(--fs-xs);
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-
 .console-action__controls {
   display: flex;
   align-items: center;
