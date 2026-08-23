@@ -45,6 +45,12 @@ from modules.coherence.diffusion.experiment import (  # noqa: E402
     standardised_responses,
 )
 from modules.coherence.diffusion.latent import fit_pca  # noqa: E402
+from modules.coherence.diffusion.runs import AbsorptionRunStore  # noqa: E402
+from modules.coherence.diffusion.skill import (  # noqa: E402
+    absorption_clock,
+    predictive_skill,
+)
+from modules.coherence.diffusion.skill import verdict as skill_verdict  # noqa: E402
 from modules.coherence.diffusion.spectrum import (  # noqa: E402
     FitRefusal,
     centroid_spread,
@@ -120,6 +126,23 @@ def run(args: argparse.Namespace) -> dict[str, object]:
             [pair[0] for pair in pairs], [pair[1] for pair in pairs],
             draws=args.null_draws, seed=args.seed)
 
+    # THE HEADLINE, ASKED OUT OF SAMPLE. Everything above is in-sample and on a
+    # target that only exists where the move cleared two sigma; this is the same
+    # question on every event, with the stage and the rate move as a baseline
+    # rather than as rivals, scored on meetings the fit never saw. It is the
+    # harder test, and it is the one the verdict turns on.
+    runs = AbsorptionRunStore()
+    try:
+        run_rows, _ = runs.list_runs(limit=4_000)
+    finally:
+        runs.close()
+    moments = {ref: [spectrum.alpha_centroid, spectrum.total_nats, spectrum.fine_fraction,
+                     None if spectrum.q75 is None or spectrum.q25 is None
+                     else spectrum.q75 - spectrum.q25]
+               for ref, spectrum in scored.items() if spectrum.state == "ok"}
+    skill = predictive_skill(absorption_clock(run_rows), moments, policy,
+                             draws=args.null_draws, seed=args.seed)
+
     named = [(key, row) for key, row in regressions.items()
              if row.get("state") == "ok" and row.get("t") and "policy_move" not in key]
     strongest_key, strongest = max(named, key=lambda pair: abs(float(pair[1]["t"])),
@@ -139,7 +162,12 @@ def run(args: argparse.Namespace) -> dict[str, object]:
         "events_scored": sum(1 for s in scored.values() if s.state == "ok"),
         "events_refused": sum(1 for s in scored.values() if s.state != "ok"),
         "regressions": regressions,
-        "verdict": (_verdict(strongest, stability) if admissibility.admissible else {
+        "skill": skill,
+        # `_verdict` is kept and still runs: its in-sample answer beside the
+        # out-of-sample one is what shows a reader that the two disagree, which
+        # on this data they do. The reported verdict is the out-of-sample one.
+        "verdict_in_sample": _verdict(strongest, stability),
+        "verdict": (skill_verdict(skill) if admissibility.admissible else {
             "outcome": "inadmissible",
             "reason": ("the representation did not clear the gate, so nothing measured "
                        f"through it is evidence about the text: {admissibility.reason}"),

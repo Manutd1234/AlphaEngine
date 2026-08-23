@@ -48,6 +48,15 @@ class Study:
     gate_samples: int = 0
     effective_rank: float | None = None
     centroid_spread: float | None = None
+    #: The out-of-sample half of the verdict, from `skill.predictive_skill`.
+    #: `skill_baseline_r2` is the one that must be read first: it says whether
+    #: the absorption clock is predictable at all, without which `skill_gain`
+    #: is a null measured against noise.
+    skill_meetings: int = 0
+    skill_baseline_r2: float | None = None
+    skill_gain: float | None = None
+    skill_shuffled_p: float | None = None
+    skill_stage_minutes: float | None = None
     regressions: list[dict[str, Any]] = field(default_factory=list)
 
     def as_row(self, *, desk_id: str, ran_at: float) -> dict[str, Any]:
@@ -60,6 +69,10 @@ class Study:
             "gate_floor": self.gate_floor, "gate_fact": self.gate_fact,
             "gate_reason": self.gate_reason, "gate_samples": self.gate_samples,
             "effective_rank": self.effective_rank, "centroid_spread": self.centroid_spread,
+            "skill_meetings": self.skill_meetings,
+            "skill_baseline_r2": self.skill_baseline_r2, "skill_gain": self.skill_gain,
+            "skill_shuffled_p": self.skill_shuffled_p,
+            "skill_stage_minutes": self.skill_stage_minutes,
             "regressions_json": json.dumps(self.regressions),
         }
 
@@ -88,16 +101,46 @@ class DiffusionStudyStore:
             gate_samples INTEGER NOT NULL DEFAULT 0,
             effective_rank REAL,
             centroid_spread REAL,
+            skill_meetings INTEGER NOT NULL DEFAULT 0,
+            skill_baseline_r2 REAL,
+            skill_gain REAL,
+            skill_shuffled_p REAL,
+            skill_stage_minutes REAL,
             regressions_json TEXT NOT NULL
         )
         """,
         "CREATE INDEX IF NOT EXISTS diffusion_studies_by_time ON diffusion_studies (desk_id, ran_at)",
     ]
 
+    #: Added after the table shipped. `CREATE TABLE IF NOT EXISTS` does nothing
+    #: to a table that already exists, so a column declared only in the DDL is
+    #: present on a fresh database and silently missing on every store that has
+    #: been running. Same shape as `texts.py:70-86`.
+    _COLUMNS = (
+        ("skill_meetings", "INTEGER NOT NULL DEFAULT 0"),
+        ("skill_baseline_r2", "REAL"),
+        ("skill_gain", "REAL"),
+        ("skill_shuffled_p", "REAL"),
+        ("skill_stage_minutes", "REAL"),
+    )
+
     def __init__(self, store: DataOpsStore | None = None, *, desk_id: str = "default") -> None:
         self._store = store if store is not None else get_data_ops_store()
         self._desk_id = desk_id
         self._store.migrate(self._DDL)
+        self._add_late_columns()
+
+    def _add_late_columns(self) -> None:
+        """One ALTER per absent column, on backends that own their own schema."""
+        query = getattr(self._store, "query", None)
+        execute = getattr(self._store, "execute", None)
+        if query is None or execute is None:
+            return  # a backend that manages its own schema, e.g. PostgREST
+        existing = {str(row["name"]).lower()
+                    for row in query("PRAGMA table_info(diffusion_studies)")}
+        for column, sql_type in self._COLUMNS:
+            if column.lower() not in existing:
+                execute(f"ALTER TABLE diffusion_studies ADD COLUMN {column} {sql_type}")
 
     @property
     def backend(self) -> str:
@@ -173,6 +216,7 @@ def as_study(report: dict[str, Any], *, study_id: str, latent_dim: int) -> Study
     gate = report.get("gate") if isinstance(report.get("gate"), dict) else {}
     verdict = report.get("verdict") if isinstance(report.get("verdict"), dict) else {}
     regressions = report.get("regressions") if isinstance(report.get("regressions"), dict) else {}
+    skill = report.get("skill") if isinstance(report.get("skill"), dict) else {}
     return Study(
         study_id=study_id,
         conditioning=str(fit.get("conditioning") or report.get("conditioning") or "unknown"),
@@ -191,6 +235,11 @@ def as_study(report: dict[str, Any], *, study_id: str, latent_dim: int) -> Study
         effective_rank=fit.get("effective_rank_index"),
         centroid_spread=(report.get("centroid_spread") or {}).get("span_over_scale")
         if isinstance(report.get("centroid_spread"), dict) else None,
+        skill_meetings=int(skill.get("meetings") or 0),
+        skill_baseline_r2=skill.get("baseline_r2"),
+        skill_gain=skill.get("gain"),
+        skill_shuffled_p=skill.get("shuffled_p"),
+        skill_stage_minutes=skill.get("stage_minutes"),
         regressions=[{"key": key, **row} for key, row in regressions.items()
                      if isinstance(row, dict)],
     )

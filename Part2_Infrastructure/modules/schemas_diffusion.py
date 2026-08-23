@@ -190,6 +190,18 @@ class DiffusionStudy(BaseModel):
     centroid_spread: float | None = None
     verdict: str | None = None
     verdict_reason: str | None = None
+    #: How well the absorption clock is predicted WITHOUT the text — from the
+    #: stage and the size of the rate move alone, out of sample. Read this
+    #: before `skill_gain`: a null against an unpredictable target is not a
+    #: finding about the text.
+    skill_meetings: int = 0
+    skill_baseline_r2: float | None = None
+    #: What the text adds to that baseline. Negative means the statement's
+    #: information spectrum makes the prediction worse than not reading it.
+    skill_gain: float | None = None
+    skill_shuffled_p: float | None = None
+    #: How much slower the press conference is than the statement, in minutes.
+    skill_stage_minutes: float | None = None
 
 
 class DiffusionFindingsResponse(BaseModel):
