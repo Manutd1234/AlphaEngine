@@ -692,6 +692,13 @@
             ],
             "title": "Base Rate"
           },
+          "bias_by_series": {
+            "items": {
+              "$ref": "#/components/schemas/CoherenceSeriesBias"
+            },
+            "title": "Bias By Series",
+            "type": "array"
+          },
           "bias_slope": {
             "anyOf": [
               {
@@ -2625,6 +2632,25 @@
           "state"
         ],
         "title": "CoherenceRfqPanel",
+        "type": "object"
+      },
+      "CoherenceSeriesBias": {
+        "description": "One series' favourite\u2013longshot slope.\n\nReported per series because a single slope over a mixed corpus averages\nmarkets that are not the same question, and two halves pointing opposite\nways can sit at one together.",
+        "properties": {
+          "series_ticker": {
+            "title": "Series Ticker",
+            "type": "string"
+          },
+          "slope": {
+            "title": "Slope",
+            "type": "string"
+          }
+        },
+        "required": [
+          "series_ticker",
+          "slope"
+        ],
+        "title": "CoherenceSeriesBias",
         "type": "object"
       },
       "CoherenceSettlementFeed": {

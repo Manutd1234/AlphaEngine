@@ -115,6 +115,7 @@ export interface CoherenceBudgetStatus {
 
 export interface CoherenceCalibration {
   base_rate?: string | null;
+  bias_by_series?: Array<CoherenceSeriesBias>;
   bias_slope?: string | null;
   binning?: string | null;
   bins?: Array<CoherenceReliabilityBin>;
@@ -434,6 +435,11 @@ export interface CoherenceRfqPanel {
   dispersions?: Array<CoherenceDispersion>;
   open_requests?: number;
   state: string;
+}
+
+export interface CoherenceSeriesBias {
+  series_ticker: string;
+  slope: string;
 }
 
 export interface CoherenceSettlementFeed {
