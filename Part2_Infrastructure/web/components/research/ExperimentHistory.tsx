@@ -135,7 +135,7 @@ export default function ExperimentHistory({
   }
 
   return (
-    <div className="card">
+    <div className="card experiment-history">
       <div className="section-heading compact">
         <div>
           <span className="page-kicker">Experiment tracker</span>
