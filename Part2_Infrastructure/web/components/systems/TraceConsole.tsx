@@ -6,6 +6,19 @@
  * Server dispatch events and browser wire events remain explicitly tagged. A
  * selectable master list keeps the timeline scannable while the detail pane
  * exposes every structured field without flattening it into an unreadable row.
+ *
+ * ONE CURSOR PER SERVER INSTANCE. The event ring is process-local and the
+ * deployment is serverless, so consecutive polls routinely land on different
+ * instances, each with its own ring and its own sequence space. This used to
+ * rewind to zero and count a "timeline discontinuity" every time that
+ * happened — on Vercel, within a minute of opening the tab, every time, for a
+ * fact about the hosting rather than a hole in the log. The cursor is now a
+ * map keyed by instance: a poll sends the cursor of the instance it expects,
+ * and an answer from a different one is not ingested against the wrong cursor
+ * but re-asked at once with that instance's own. Nothing an instance holds is
+ * skipped, its lines merge by timestamp under keys that already carry the
+ * instance id, and the discontinuity notice is reserved for the one thing it
+ * can still truthfully mean: a ring that advanced past this client's cursor.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -46,7 +59,8 @@ export default function TraceConsole({ pollMs, active, filterRequest }: TraceCon
   const [gaps, setGaps] = useState(0);
   const [connected, setConnected] = useState(true);
   const [paused, setPaused] = useState(false);
-  const serverCursor = useRef(0);
+  /** Per-instance server cursors: instance id → the last seq read from its ring. */
+  const serverCursors = useRef<Map<string, number>>(new Map());
   const browserCursor = useRef(0);
   const instance = useRef<string | null>(null);
   const inFlight = useRef(false);
@@ -63,30 +77,34 @@ export default function TraceConsole({ pollMs, active, filterRequest }: TraceCon
       let remote: TraceEvent[] = [];
       let instanceId = instance.current ?? "unknown";
       try {
-        const response = await fetch(
-          `/api/system/events?since=${serverCursor.current}&limit=250`,
-          { cache: "no-store" },
-        );
-        if (response.ok) {
+        // Two attempts at most: the first with the cursor of the instance we
+        // expect, the second with the cursor of the one that actually answered.
+        // A third instance answering the second attempt is left for the next
+        // tick — its cursor is still in the map, so nothing is lost by waiting.
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+          const expected = instance.current;
+          const since = expected === null ? 0 : (serverCursors.current.get(expected) ?? 0);
+          const response = await fetch(`/api/system/events?since=${since}&limit=250`, { cache: "no-store" });
+          if (!response.ok) {
+            setConnected(false);
+            break;
+          }
           const body = (await response.json()) as EventsResponse;
           instanceId = body.instance ?? "unknown";
-          const switched = instance.current !== null && instance.current !== instanceId;
           instance.current = instanceId;
           setConnected(true);
-
-          if (switched) {
-            // Sequence spaces are instance-local. Rewind rather than ingesting a
-            // page fetched with another instance's cursor and hiding the hole.
-            serverCursor.current = 0;
-            setGaps((count) => count + 1);
-          } else {
-            remote = body.events ?? [];
-            if (remote.length) serverCursor.current = remote[remote.length - 1].seq;
-            else if (body.cursor) serverCursor.current = body.cursor.latest;
-            if (body.dropped) setGaps((count) => count + 1);
+          if (expected !== null && expected !== instanceId) {
+            // Sequence spaces are instance-local: this page was cut with
+            // another instance's cursor. Ask again with this one's.
+            continue;
           }
-        } else {
-          setConnected(false);
+          remote = body.events ?? [];
+          const latest = remote.length ? remote[remote.length - 1].seq : body.cursor?.latest;
+          if (latest !== undefined) serverCursors.current.set(instanceId, latest);
+          // The ring advanced past this client's cursor: lines this instance
+          // held are gone before they were read. That is a real hole.
+          if (body.dropped) setGaps((count) => count + 1);
+          break;
         }
       } catch {
         setConnected(false);
@@ -239,9 +257,8 @@ export default function TraceConsole({ pollMs, active, filterRequest }: TraceCon
 
       {gaps > 0 ? (
         <p className="console-warn console-log-gap" role="status">
-          <span aria-hidden>▲</span> Timeline discontinuity ×{gaps} — either the server ring advanced
-          past this client&apos;s cursor or a poll landed on a different instance. Entries exist that
-          are not on this screen.
+          <span aria-hidden>▲</span> Timeline discontinuity ×{gaps} — a server ring advanced past this
+          client&apos;s cursor, so entries it held were gone before they were read. They are not on this screen.
         </p>
       ) : null}
 

@@ -364,9 +364,9 @@ describe("what was deliberately left alone", () => {
     },
     {
       path: "components/systems/TraceConsole.tsx",
-      why: "'either … or' names two different causes of one gap; collapsing it would assert "
-        + "the wrong one",
-      needle: /either the server ring advanced past this client’s cursor or a poll landed on a different instance/,
+      why: "the notice names its one remaining cause and what it means for the screen; an "
+        + "instance switch is no longer a cause, because the cursor is per instance now",
+      needle: /a server ring advanced past this\s+client’s cursor, so entries it held were gone before they were read/,
     },
     {
       path: "components/systems/QuarantinePanel.tsx",

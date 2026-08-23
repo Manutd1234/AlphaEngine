@@ -23,6 +23,9 @@ MarketDataStatus = Literal["nominal", "degraded", "critical", "disabled"]
 FeedStatus = Literal["up", "degraded", "stale", "down"]
 RiskStatus = Literal["nominal", "reduce_only", "halted"]
 TelegramStatus = Literal["running", "starting", "degraded", "disabled"]
+#: Why a degraded companion is degraded — a kind, never the error text, because
+#: this snapshot is proxied to a public web origin and the text is Telegram's.
+TelegramErrorKind = Literal["transport", "conflict", "api"]
 
 
 class MarketDataSymbolSnapshot(BaseModel):
@@ -90,6 +93,7 @@ class TelegramOperationsSnapshot(BaseModel):
     updates_handled: int
     alerts_sent: int
     last_error_present: bool
+    last_error_kind: TelegramErrorKind | None = None
 
 
 class RouteLatencySnapshot(BaseModel):

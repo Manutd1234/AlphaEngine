@@ -288,7 +288,11 @@ class Settings:
             if c.strip()
         ]
     )
-    # "webhook" | "polling" | "auto". auto => webhook when PUBLIC_URL is https, else polling.
+    # "webhook" | "polling" | "send-only" | "auto". auto => webhook when
+    # PUBLIC_URL is https, else polling. send-only keeps the token for outbound
+    # alerts and never consumes updates — the mode for a second process (a
+    # developer's laptop beside the deployed gateway) that must not contend
+    # with the deployment for the bot's one long poll.
     telegram_mode: str = field(default_factory=lambda: _env("TELEGRAM_MODE", "auto").lower())
     telegram_api_base: str = field(default_factory=lambda: _env("TELEGRAM_API_BASE", "https://api.telegram.org"))
 
@@ -352,7 +356,7 @@ class Settings:
     def resolved_telegram_mode(self) -> str:
         if not self.telegram_enabled:
             return "disabled"
-        if self.telegram_mode in {"webhook", "polling"}:
+        if self.telegram_mode in {"webhook", "polling", "send-only"}:
             return self.telegram_mode
         return "webhook" if self.public_url.startswith("https://") else "polling"
 

@@ -41,6 +41,7 @@ from modules.operations_models import RiskStatus as RiskStatus  # noqa: F401
 from modules.operations_models import RouteLatencyOperationsSnapshot as RouteLatencyOperationsSnapshot  # noqa: F401
 from modules.operations_models import RouteLatencySnapshot as RouteLatencySnapshot  # noqa: F401
 from modules.operations_models import SupabaseMirrorSnapshot as SupabaseMirrorSnapshot  # noqa: F401
+from modules.operations_models import TelegramErrorKind as TelegramErrorKind  # noqa: F401
 from modules.operations_models import TelegramOperationsSnapshot as TelegramOperationsSnapshot  # noqa: F401
 from modules.operations_models import TelegramStatus as TelegramStatus  # noqa: F401
 
@@ -178,6 +179,7 @@ def _telegram_snapshot(raw: dict[str, Any]) -> TelegramOperationsSnapshot:
         status = "degraded"
     else:  # Enabled, no error, no uptime yet: that is starting, not degraded.
         status = "running" if uptime > 0 else "starting"
+    kind = raw.get("last_error_kind")
     return TelegramOperationsSnapshot(
         enabled=enabled,
         mode=str(raw.get("mode") or "disabled"),
@@ -186,6 +188,10 @@ def _telegram_snapshot(raw: dict[str, Any]) -> TelegramOperationsSnapshot:
         updates_handled=int(raw.get("updates_handled") or 0),
         alerts_sent=int(raw.get("alerts_sent") or 0),
         last_error_present=has_error,
+        # Only beside an error, and only one of the three names: an older bot
+        # that does not report a kind leaves it None, which the web reads as
+        # "degraded, reason not classified" rather than as any particular one.
+        last_error_kind=kind if has_error and kind in ("transport", "conflict", "api") else None,
     )
 
 

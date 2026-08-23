@@ -52,6 +52,34 @@ describe("the notification plane is reported without being mistaken for trading"
     assert.match(deriveReliabilityPosture(down(), NOW).paths.notifications.reason, /unaffected/);
   });
 
+  it("names the kind of fault the gateway reports, and never calls a conflict a transport error", () => {
+    // 2026-08-23: two gateways on one token took turns being refused with 409
+    // Conflict, and this sentence called it a transport error for 13 hours.
+    const conflict = deriveReliabilityPosture(withTelegram("degraded", { last_error_present: true, last_error_kind: "conflict" }), NOW);
+    assert.equal(conflict.paths.notifications.status, "degraded");
+    assert.match(conflict.paths.notifications.reason, /409 Conflict/);
+    assert.match(conflict.paths.notifications.reason, /TELEGRAM_MODE=send-only/, "the remedy travels with the diagnosis");
+    assert.doesNotMatch(conflict.paths.notifications.reason, /transport/);
+    assert.match(conflict.paths.notifications.reason, /unaffected/);
+
+    const transport = deriveReliabilityPosture(withTelegram("degraded", { last_error_present: true, last_error_kind: "transport" }), NOW);
+    assert.match(transport.paths.notifications.reason, /transport error/);
+
+    const api = deriveReliabilityPosture(withTelegram("degraded", { last_error_present: true, last_error_kind: "api" }), NOW);
+    assert.match(api.paths.notifications.reason, /Telegram refused/);
+    assert.doesNotMatch(api.paths.notifications.reason, /transport/);
+
+    // A gateway older than the field: degraded, and honestly unclassified.
+    assert.match(down().platform ? deriveReliabilityPosture(down(), NOW).paths.notifications.reason : "", /reports an error on its last call/);
+    assert.doesNotMatch(deriveReliabilityPosture(down(), NOW).paths.notifications.reason, /transport/);
+  });
+
+  it("accepts the kind at the runtime boundary, and refuses a kind it does not know", () => {
+    assert.ok(isGatewayOpsSnapshot(platform({ telegram: { ...platform().telegram, enabled: true, status: "degraded", last_error_present: true, last_error_kind: "conflict" } })));
+    assert.ok(isGatewayOpsSnapshot(platform({ telegram: { ...platform().telegram, last_error_kind: null } })));
+    assert.ok(!isGatewayOpsSnapshot(platform({ telegram: { ...platform().telegram, last_error_kind: "gremlins" as unknown as "api" } })));
+  });
+
   it("calls an enabled bot that has not finished starting starting, not degraded", () => {
     const posture = deriveReliabilityPosture(withTelegram("starting", { uptime_seconds: 0 }), NOW);
     assert.equal(posture.paths.notifications.status, "unknown");

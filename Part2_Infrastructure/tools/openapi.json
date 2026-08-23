@@ -4249,6 +4249,22 @@
             "title": "Enabled",
             "type": "boolean"
           },
+          "last_error_kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "transport",
+                  "conflict",
+                  "api"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error Kind"
+          },
           "last_error_present": {
             "title": "Last Error Present",
             "type": "boolean"

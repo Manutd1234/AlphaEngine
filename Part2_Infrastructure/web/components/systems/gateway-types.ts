@@ -92,6 +92,13 @@ export interface GatewayOpsSnapshot {
     updates_handled: number;
     alerts_sent: number;
     last_error_present: boolean;
+    /**
+     * Why a degraded companion is degraded. "transport": its last call got no
+     * answer. "conflict": Telegram refused getUpdates because another process
+     * holds this token's long poll. "api": Telegram answered, and said no.
+     * Absent or null beside an error on a gateway older than the field.
+     */
+    last_error_kind?: "transport" | "conflict" | "api" | null;
   };
   route_latency: {
     window_seconds: number;

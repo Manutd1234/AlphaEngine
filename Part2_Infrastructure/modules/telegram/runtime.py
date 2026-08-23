@@ -27,7 +27,16 @@ class RuntimeMixin:
         if not self.allowed_user_ids:
             log.warning("TELEGRAM_ALLOWED_USER_IDS is empty; bootstrap commands only")
 
-        await self._register_profile()
+        if self.mode == "send-only":
+            # Outbound only: the alert loops below run, nothing consumes
+            # updates, and the bot's command profile is left to the process
+            # that does. Two long-pollers on one token take turns being
+            # refused with 409 Conflict, and each refusal latches `last_error`
+            # on whichever instance lost — so a second process beside the
+            # deployed gateway runs in this mode, or not at all.
+            log.info("Telegram companion in send-only mode: alerts go out, updates are left to the polling instance")
+        else:
+            await self._register_profile()
 
         if self.mode == "webhook":
             secret = settings.telegram_webhook_secret
@@ -44,7 +53,7 @@ class RuntimeMixin:
                 drop_pending_updates=False,
             )
             log.info("Telegram webhook registration: %s", bool(result.get("ok")))
-        else:
+        elif self.mode == "polling":
             await self.api("deleteWebhook", drop_pending_updates=False)
             self._poll_task = asyncio.create_task(self._poll_loop(), name="telegram-poll")
 
@@ -86,6 +95,17 @@ class RuntimeMixin:
                     for update in data.get("result", []):
                         self._offset = update["update_id"] + 1
                         asyncio.create_task(self.handle_update(update))
+                elif self.last_error_kind == "conflict":
+                    # Another process holds this token's long poll. Retrying
+                    # in a second only takes the poll off it and hands the
+                    # 409 back; wait the full 30s and say what is going on,
+                    # once per refusal rather than once per process.
+                    log.warning(
+                        "Telegram getUpdates refused (409 Conflict): another process is polling this bot; "
+                        "stop it, or run it with TELEGRAM_MODE=send-only",
+                    )
+                    backoff = 30.0
+                    await asyncio.sleep(backoff)
                 else:
                     await asyncio.sleep(backoff)
                     backoff = min(backoff * 2, 30)

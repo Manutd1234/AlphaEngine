@@ -19,6 +19,19 @@ from modules.telegram._common import log
 from modules.telegram.format import _CHAT_SEND_GAP, _GLOBAL_SEND_GAP, _MAX_RETRY_AFTER
 
 
+def _is_poll_conflict(method: str, payload: dict[str, Any]) -> bool:
+    """Telegram's 409 for a second getUpdates consumer on one token.
+
+    The wire says `error_code: 409` and a description beginning "Conflict:".
+    Both are checked — the description alone would also match a 409 on
+    setWebhook, which is a different mistake with a different remedy.
+    """
+    return method == "getUpdates" and (
+        payload.get("error_code") == 409
+        or str(payload.get("description") or "").startswith("Conflict")
+    )
+
+
 class TransportMixin:
     async def _pace(self, chat_id: str | int | None) -> None:
         """Wait out the minimum gap before sending.
@@ -66,6 +79,7 @@ class TransportMixin:
                 payload = response.json()
                 if payload.get("ok"):
                     self.last_error = None  # a success clears the latch; see operations._telegram_snapshot
+                    self.last_error_kind = None
                     return payload
                 retry_after = payload.get("parameters", {}).get("retry_after")
                 if retry_after is not None and attempt < attempts:
@@ -77,11 +91,15 @@ class TransportMixin:
                     continue
                 description = str(payload.get("description") or "Telegram API refused the request")[:180]
                 self.last_error = f"{method}: {description}"
+                # 409 on getUpdates is not the API refusing us; it is Telegram
+                # saying another process already holds this bot's long poll.
+                self.last_error_kind = "conflict" if _is_poll_conflict(method, payload) else "api"
                 log.warning("telegram %s failed: %s", method, description)
                 return payload
             except Exception as exc:  # never include the token-bearing request URL
                 error_kind = type(exc).__name__
                 self.last_error = f"{method}: transport {error_kind}"
+                self.last_error_kind = "transport"
                 log.error("telegram %s transport error (%s)", method, error_kind)
                 return {"ok": False, "description": f"transport {error_kind}"}
         return {"ok": False, "description": "rate limited"}

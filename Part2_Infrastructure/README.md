@@ -1058,6 +1058,19 @@ For webhook delivery, set a stable HTTPS `PUBLIC_URL`, choose
 insecure webhook configuration. Long-polling needs no public endpoint and has
 the same command behaviour.
 
+**One token, one poller.** Telegram hands a bot's updates to exactly one
+`getUpdates` consumer; a second one — a laptop gateway started with the same
+`.env` as the deployment — takes turns with it being refused (`409 Conflict:
+terminated by other getUpdates request`), and each refusal latches
+`last_error` on whichever instance lost, so *both* report the notification
+plane degraded and the desk's Triage list says so. A second process beside
+the deployed gateway therefore runs with `TELEGRAM_MODE=send-only`: it keeps
+the token for outbound alerts and never consumes updates, and the bot's
+commands are answered by the instance that polls. A gateway that does meet
+the 409 names it in its log, waits the full 30 seconds rather than snatching
+the poll back, and reports `last_error_kind: "conflict"` so the web can say
+what is actually wrong.
+
 ### Token rotation
 
 Treat a token pasted into chat, a ticket, a screenshot or a log as compromised.

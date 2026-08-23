@@ -697,6 +697,7 @@ export interface TCAReport {
 export interface TelegramOperationsSnapshot {
   alerts_sent: number;
   enabled: boolean;
+  last_error_kind?: "transport" | "conflict" | "api" | null;
   last_error_present: boolean;
   mode: string;
   status: "running" | "starting" | "degraded" | "disabled";
@@ -916,6 +917,7 @@ export interface GatewayOperations {
   "GET /api/data/schedules": { response: DataSchedulesResponse };
   "GET /api/data/work-items": { response: WorkItemsResponse };
   "POST /api/data/work-items": { request: WorkItemCreate; response: WorkItemView };
+  "DELETE /api/data/work-items/{item_id}": { response: WorkItemView };
   "PATCH /api/data/work-items/{item_id}": { request: WorkItemPatch; response: WorkItemView };
   "GET /api/jobs": { response: Record<string, unknown> };
   "GET /api/jobs/{job_id}": { response: Record<string, unknown> };

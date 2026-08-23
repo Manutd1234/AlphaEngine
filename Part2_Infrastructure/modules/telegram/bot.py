@@ -144,6 +144,11 @@ class TelegramBot(
         self.updates_handled = 0
         self.callbacks_handled = 0
         self.last_error: str | None = None
+        #: What kind of failure `last_error` is, for a reader who may not see
+        #: the text: "transport" (the request never got an answer), "conflict"
+        #: (Telegram refused getUpdates because another process holds the long
+        #: poll for this token), or "api" (Telegram answered, and said no).
+        self.last_error_kind: str | None = None
         self._watch_state: dict[tuple[str, str], bool] = {}
         #: Per-rule breach state for the pushed risk alerts. Edge-triggered like
         #: the liquidity watch above: a rule sitting on its threshold sends one
@@ -240,4 +245,5 @@ class TelegramBot(
             },
             "charts": "real-data-only",
             "last_error": self.last_error,
+            "last_error_kind": self.last_error_kind,
         }

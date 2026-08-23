@@ -141,7 +141,8 @@ function hasValidTelegram(value: unknown): boolean {
     && isNonNegativeNumber(value.uptime_seconds)
     && isNonNegativeInteger(value.updates_handled)
     && isNonNegativeInteger(value.alerts_sent)
-    && isBoolean(value.last_error_present);
+    && isBoolean(value.last_error_present)
+    && (value.last_error_kind == null || isEnum(value.last_error_kind, ["transport", "conflict", "api"] as const));
 }
 
 function isRouteLatency(value: unknown): boolean {
@@ -346,13 +347,38 @@ function notificationsPosture(health: SystemHealth, nowMs: number): PathPosture 
     return { status: "unknown", reason: "The Telegram companion is enabled but has not finished starting." };
   }
   if (telegram.status === "degraded") {
-    return {
-      status: "degraded",
-      reason: "The Telegram companion reports a transport error, so desk alerts may not be delivered. "
-        + "Order routing, pre-trade risk and market data are unaffected.",
-    };
+    return { status: "degraded", reason: `${degradedCompanionReason(telegram.last_error_kind)} Order routing, pre-trade risk and market data are unaffected.` };
   }
   return { status: "nominal", reason: `The Telegram companion is running in ${telegram.mode} mode.` };
+}
+
+/**
+ * What a degraded companion is degraded BY, from the kind the gateway reports.
+ *
+ * This used to say "a transport error" for every kind, and for thirteen hours
+ * on 2026-08-23 that was false: the network was fine and Telegram answered
+ * every call — with 409 Conflict, because a second gateway started from the
+ * same .env was long-polling the same bot. A reader sent to the logs for a
+ * transport fault would not have found one. Each kind now names its own
+ * remedy, and a gateway too old to report a kind gets the honest unclassified
+ * sentence rather than the wrong classified one.
+ */
+function degradedCompanionReason(kind: "transport" | "conflict" | "api" | null | undefined): string {
+  switch (kind) {
+    case "conflict":
+      return "Another process is long-polling this bot with the same token, so Telegram is refusing this "
+        + "gateway's getUpdates (409 Conflict) and commands may be answered elsewhere; alerts still send. "
+        + "Stop the other poller, or run it with TELEGRAM_MODE=send-only.";
+    case "transport":
+      return "The Telegram companion's last call to api.telegram.org got no answer (a transport error), so desk "
+        + "alerts may not be delivered.";
+    case "api":
+      return "Telegram refused the companion's last API call, so desk alerts may not be delivered; the gateway "
+        + "log has the refusal.";
+    default:
+      return "The Telegram companion reports an error on its last call, so desk alerts may not be delivered; "
+        + "the gateway log has the detail.";
+  }
 }
 
 /**
