@@ -46,10 +46,15 @@ describe("one control per capability in the engineering queue", () => {
     assert.match(source, /DEVELOPER_WORK_STATUSES\.map/);
     assert.match(source, /aria-label=\{`Status for \$\{item\.id\}:/);
 
-    // The column the button occupied is gone with it: an empty header cell is a
-    // promise of a control that is no longer there.
+    // The column the button occupied went with it. A fourth column is back
+    // (2026-08-23) for a different control — the per-row Delete the reader
+    // asked for — and it is a real control, not a leftover: the header cell
+    // names it for a screen reader, and every row fills it.
     const head = source.slice(source.indexOf("<thead>"), source.indexOf("</thead>"));
-    assert.equal((head.match(/<th>/g) ?? []).length, 3, "the header still declares a column for the deleted button");
+    assert.equal((head.match(/<th>/g) ?? []).length, 4, "the header declares one column per control");
+    assert.match(head, /<th><span className="sr-only">Actions<\/span><\/th>/);
+    assert.match(source, /aria-label=\{`Delete \$\{item\.id\}`\}/, "each row carries its own Delete");
+    assert.match(source, /removeDeveloperWorkItem\(items, item\.id\)/, "and it removes exactly that row");
   });
 
   it("opens the composer once, and lets the composer carry the kind", () => {

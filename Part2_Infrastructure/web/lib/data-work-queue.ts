@@ -222,7 +222,7 @@ export function fromWire(row: DataWorkItemWire): DataWorkItem {
 
 const DATA_WORK_TIMEOUT_MS = 6_000;
 
-async function withDeadline(input: string, init: RequestInit = {}): Promise<Response> {
+export async function withDeadline(input: string, init: RequestInit = {}): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), DATA_WORK_TIMEOUT_MS);
   try {
@@ -278,7 +278,7 @@ export type DataWorkWrite =
   | { ok: false; code: "conflict"; current: DataWorkItem | null; error: string }
   | { ok: false; code: "not_found" | "rejected" | "unreachable" | "unauthorised"; error: string };
 
-function authHeaders(token: string | null): Record<string, string> {
+export function authHeaders(token: string | null): Record<string, string> {
   return {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),

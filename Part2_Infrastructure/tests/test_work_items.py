@@ -67,6 +67,19 @@ class TestStore:
         assert store.patch("NOPE-001", WorkItemPatch(version=1, status="ready"), actor="a") is None
         assert store.get("NOPE-001") is None
 
+    def test_delete_removes_the_row_and_returns_what_it_said(self):
+        store = WorkItemStore.in_memory(seed=False)
+        item = store.create(WorkItemCreate(kind="ticket", priority="P2", title="Gone soon"), actor="a")
+        store.patch(item.id, WorkItemPatch(version=1, status="ready"), actor="a")
+
+        removed = store.delete(item.id, actor="b")
+        assert removed is not None
+        assert removed.id == item.id and removed.status == "ready" and removed.version == 2
+        assert store.get(item.id) is None and store.count() == 0
+        assert store.delete(item.id, actor="b") is None, "a second delete finds nothing, and is not an error"
+        # The id is not recycled into a different kind of row.
+        assert store.create(WorkItemCreate(kind="ticket", priority="P2", title="Next"), actor="a").id != item.id
+
 
 class TestRoutes:
     @pytest.fixture(scope="class")
@@ -103,3 +116,17 @@ class TestRoutes:
 
         bad = client.post("/api/data/work-items", json={"kind": "epic", "priority": "P2", "title": "x"})
         assert bad.status_code == 422
+
+    def test_delete_returns_the_row_once_then_404(self, client):
+        created = client.post("/api/data/work-items", json={"kind": "bug", "priority": "P3", "title": "Delete me"})
+        item = created.json()
+        count = client.get("/api/data/work-items").json()["count"]
+
+        removed = client.delete(f"/api/data/work-items/{item['id']}")
+        assert removed.status_code == 200, removed.text
+        assert removed.json()["id"] == item["id"] and removed.json()["title"] == "Delete me"
+        assert client.get("/api/data/work-items").json()["count"] == count - 1
+
+        again = client.delete(f"/api/data/work-items/{item['id']}")
+        assert again.status_code == 404
+        assert client.patch(f"/api/data/work-items/{item['id']}", json={"version": 1, "status": "ready"}).status_code == 404

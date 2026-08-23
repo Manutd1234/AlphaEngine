@@ -17,6 +17,11 @@
  *   unauthorised this deployment wants an operator credential for writes.
  *                The optimistic edit is rolled back and the reason shown.
  *
+ * A delete follows the same three outcomes, with one fewer: there is no
+ * conflict case, because a delete quotes no version. A held delete is
+ * replayed like a held move; a 404 on replay means someone else already
+ * removed it, which is the outcome that was asked for.
+ *
  * Nothing here is lost silently, and nothing here claims to be confirmed
  * until the gateway said so.
  */
@@ -24,6 +29,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { DataWorkMutation } from "@/components/data/DataWorkBoard";
+import { deleteDataWorkItem, removeDataWorkItem } from "@/lib/data-work-delete";
 import { usePolling } from "@/lib/use-polling";
 import {
   createDataWorkItem,
@@ -79,6 +85,14 @@ export function useDataWorkQueue(options: { token: string | null; active: boolea
         if (result.ok) {
           // The gateway minted the id; the local placeholder goes.
           list = upsertDataWorkItem(list.filter((i) => i.id !== m.item.id), result.item);
+          replayed += 1;
+        } else if (result.code === "unreachable") {
+          stillHeld.push(write);
+        }
+      } else if (m.type === "delete") {
+        const result = await deleteDataWorkItem(m.item.id, token);
+        if (result.ok || result.code === "not_found") {
+          list = removeDataWorkItem(list, m.item.id);
           replayed += 1;
         } else if (result.code === "unreachable") {
           stillHeld.push(write);
@@ -145,6 +159,24 @@ export function useDataWorkQueue(options: { token: string | null; active: boolea
           // Rejected or unauthorised: roll the optimistic row back and say why.
           setItems((current) => current.filter((i) => i.id !== m.item.id));
           setNotice(`${m.item.id} was not saved: ${result.error}`);
+        }
+        return;
+      }
+      if (mutation.type === "delete") {
+        const m = mutation;
+        const result = await deleteDataWorkItem(m.item.id, token);
+        if (result.ok || result.code === "not_found") {
+          // Gone, or already gone: either way the row the reader removed is not there.
+          setNotice(`${m.item.id} deleted${result.ok ? " on the gateway" : ""}.`);
+          setSource((s) => (s.kind === "gateway" && result.ok ? { ...s, count: Math.max(0, s.count - 1) } : s));
+        } else if (result.code === "unreachable") {
+          setHeld((h) => [...h, { mutation }]);
+          setSource({ kind: "local", reason: result.error });
+          setNotice(`${m.item.id} delete is held locally until the gateway answers.`);
+        } else {
+          // Rejected or unauthorised: the row comes back, and the reason with it.
+          setItems((current) => upsertDataWorkItem(current, m.item));
+          setNotice(`${m.item.id} was not deleted: ${result.error}`);
         }
         return;
       }

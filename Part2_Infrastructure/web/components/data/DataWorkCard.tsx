@@ -17,6 +17,8 @@
  * or never given a due date — prints no timing verdict rather than a neutral one.
  */
 
+import { useState } from "react";
+
 import { KIND_LABEL, STATUS_LABEL, formatAge, slaState } from "@/components/data/work-board-model";
 import { DATA_WORK_STATUSES, type DataWorkItem, type DataWorkStatus } from "@/lib/data-work-queue";
 
@@ -28,13 +30,18 @@ interface DataWorkCardProps {
   justMoved: boolean;
   onArrivalEnd: () => void;
   onStatusChange: (status: DataWorkStatus) => void;
+  /** Remove this card for good. Called once the reader has confirmed on the card. */
+  onDelete: () => void;
   readOnly: boolean;
 }
 
 export default function DataWorkCard({
-  item, now, justMoved, onArrivalEnd, onStatusChange, readOnly,
+  item, now, justMoved, onArrivalEnd, onStatusChange, onDelete, readOnly,
 }: DataWorkCardProps) {
   const sla = slaState(item, now);
+  /** The delete is two presses on the card itself, so a slip on a 30px
+      button next to the status select does not remove a ticket. */
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   return (
     <article
@@ -75,20 +82,46 @@ export default function DataWorkCard({
         {sla && <strong className={`is-${sla.tone}`}>{sla.label}</strong>}
         {!sla && item.status === "resolved" && <strong className="is-good">SLA complete</strong>}
       </div>
-      <label className="data-work-card__status">
-        <span>Status</span>
-        <select
-          id={`data-work-status-${item.id}`}
-          value={item.status}
-          onChange={(event) => onStatusChange(event.target.value as DataWorkStatus)}
-          aria-label={`Status for ${item.id}`}
-          disabled={readOnly}
-        >
-          {DATA_WORK_STATUSES.map((itemStatus) => (
-            <option key={itemStatus} value={itemStatus}>{STATUS_LABEL[itemStatus]}</option>
-          ))}
-        </select>
-      </label>
+      <div className="data-work-card__foot">
+        <label className="data-work-card__status">
+          <span>Status</span>
+          <select
+            id={`data-work-status-${item.id}`}
+            value={item.status}
+            onChange={(event) => onStatusChange(event.target.value as DataWorkStatus)}
+            aria-label={`Status for ${item.id}`}
+            disabled={readOnly}
+          >
+            {DATA_WORK_STATUSES.map((itemStatus) => (
+              <option key={itemStatus} value={itemStatus}>{STATUS_LABEL[itemStatus]}</option>
+            ))}
+          </select>
+        </label>
+        {confirmingDelete ? (
+          <span className="data-work-card__confirm" role="group" aria-label={`Confirm deleting ${item.id}`}>
+            <button
+              type="button"
+              className="is-disruptive"
+              onClick={() => { setConfirmingDelete(false); onDelete(); }}
+              autoFocus
+            >
+              Delete {item.id}
+            </button>
+            <button type="button" onClick={() => setConfirmingDelete(false)}>Keep</button>
+          </span>
+        ) : (
+          <button
+            type="button"
+            className="data-work-card__delete"
+            onClick={() => setConfirmingDelete(true)}
+            disabled={readOnly}
+            aria-label={`Delete ${item.id}`}
+            title={readOnly ? "Writes are refused on this deployment." : `Delete ${item.id}`}
+          >
+            Delete
+          </button>
+        )}
+      </div>
     </article>
   );
 }

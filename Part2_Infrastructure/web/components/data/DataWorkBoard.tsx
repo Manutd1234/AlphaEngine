@@ -13,6 +13,7 @@ import {
   type DataWorkMutation,
   type NewItemDraft,
 } from "@/components/data/work-board-model";
+import { removeDataWorkItem } from "@/lib/data-work-delete";
 import {
   DATA_WORK_KINDS,
   filterAndSortDataWorkItems,
@@ -121,6 +122,15 @@ export default function DataWorkBoard({
     window.requestAnimationFrame(() => {
       document.getElementById(`data-work-status-${item.id}`)?.focus();
     });
+  };
+
+  const remove = (item: DataWorkItem) => {
+    // Optimistic, like a move: the card goes now, and the workspace's hook
+    // brings it back with the reason if the gateway refuses.
+    onItemsChange(removeDataWorkItem(items, item.id));
+    onMutation?.({ type: "delete", item });
+    setAnnouncement(`${item.id} deleted.`);
+    window.requestAnimationFrame(() => addItemButton.current?.focus());
   };
 
   const submitNewItem = (event: FormEvent<HTMLFormElement>) => {
@@ -334,6 +344,7 @@ export default function DataWorkBoard({
                         onArrivalEnd={() =>
                           setJustMoved((current) => (current === item.id ? null : current))}
                         onStatusChange={(status) => move(item, status)}
+                        onDelete={() => remove(item)}
                         readOnly={readOnly}
                       />
                     </li>

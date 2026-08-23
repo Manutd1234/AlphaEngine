@@ -133,6 +133,19 @@ async def patch_work_item(item_id: str, patch: WorkItemPatch, actor: str = Depen
     return updated
 
 
+@router.delete(
+    "/api/data/work-items/{item_id}",
+    response_model=WorkItemView,
+    responses={404: {"description": "unknown item"}},
+)
+async def delete_work_item(item_id: str, actor: str = Depends(trader_identity)) -> WorkItemView:
+    """Remove one item for good; the row as it was comes back, and the audit log keeps it."""
+    removed = get_work_items().delete(item_id, actor=actor)
+    if removed is None:
+        raise HTTPException(status_code=404, detail=f"no work item {item_id}")
+    return removed
+
+
 @router.post("/api/data/replay", response_model=DataJobAccepted)
 async def data_replay(req: DataReplayRequest, actor: str = Depends(trader_identity)) -> DataJobAccepted:
     """Queue a replay: one capability, through the workspace's validated fetch path, cache bypassed."""

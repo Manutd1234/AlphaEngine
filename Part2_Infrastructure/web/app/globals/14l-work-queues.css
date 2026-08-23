@@ -1,0 +1,149 @@
+/* The two work queues: the Data card's inner rules, and the Delete each
+   queue now carries.
+   ---------------------------------------------------------------------------
+   A card used to separate its regions by tint alone: the owner/area pair sat
+   on --surface-2 with no edge, the timing line floated between that and the
+   status row, and only the status row drew a rule. Read quickly, the card was
+   one column of text with two grey patches in it. Each region now has its own
+   hairline — --rule-soft, because these divide fields INSIDE one card, and
+   the card's own --border is the heavier line that divides cards — so the
+   title, the detail, the two fields, the clock and the controls are five
+   things, not one. Same vocabulary as the provenance table in 01: a frame at
+   --rule, a lattice of --rule-soft inside it.
+
+   Its own partial because 07-data-operations.css, where .data-work-card
+   lives, and 08-developer-engineering.css, where the Developer table lives,
+   are both over the file-length ceiling and may not grow. After the density
+   partials, which set the paddings it restates. */
+
+.data-work-card {
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* The first two regions keep the card's old inner padding; a region that
+   draws its own rule above it needs the padding on both sides of that rule. */
+.data-work-card__topline {
+  padding: 7px 8px 4px 9px;
+}
+
+.data-work-card__id {
+  padding: 0 8px 0 9px;
+}
+
+.data-work-card h4 {
+  padding: 2px 8px 0 9px;
+}
+
+.data-work-card > p {
+  padding: 2px 8px 7px 9px;
+}
+
+/* Owner / Area: two cells in one row, with a rule between them and one above,
+   rather than two floating tiles. */
+.data-work-card__meta {
+  gap: 0;
+  margin: 0;
+  border-top: 1px solid var(--rule-soft);
+}
+
+.data-work-card__meta > div {
+  padding: 5px 8px 5px 9px;
+  border-radius: 0;
+  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+}
+
+.data-work-card__meta > div + div {
+  border-left: 1px solid var(--rule-soft);
+}
+
+.data-work-card__timing {
+  padding: 5px 8px 5px 9px;
+  border-top: 1px solid var(--rule-soft);
+}
+
+/* The controls row: the status select and the delete, on one rule. */
+.data-work-card__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 8px;
+  padding: 6px 8px 6px 9px;
+  border-top: 1px solid var(--rule-soft);
+}
+
+.data-work-card__status {
+  flex: 1 1 auto;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.data-work-card__delete,
+.data-work-card__confirm button {
+  min-height: 28px;
+  padding: 4px 9px;
+  font-size: var(--fs-2xs);
+}
+
+/* Quiet until asked, red once it is the live question — the same two tones
+   the operator controls use for a disruptive action. */
+.data-work-card__delete:not(:disabled) {
+  color: var(--text-muted);
+}
+
+.data-work-card__delete:not(:disabled):hover,
+.data-work-card__delete:not(:disabled):focus-visible {
+  border-color: color-mix(in srgb, var(--status-critical) 38%, var(--border));
+  color: var(--critical-text);
+}
+
+.data-work-card__confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.data-work-card__confirm .is-disruptive:not(:disabled) {
+  border-color: color-mix(in srgb, var(--status-critical) 38%, var(--border));
+  background: color-mix(in srgb, var(--status-critical) 6%, var(--surface-1));
+  color: var(--critical-text);
+}
+
+/* The Developer queue's Delete: the same two-press control, in a table cell.
+   The column is the table's last, 128px by the rule in 08, which holds the
+   word and holds the confirmation pair stacked. */
+.developer-work__actions-cell {
+  text-align: right;
+}
+
+.developer-work__delete,
+.developer-work__confirm button {
+  min-height: 28px;
+  padding: 4px 9px;
+  font-size: var(--fs-2xs);
+}
+
+.developer-work__delete:not(:disabled) {
+  color: var(--text-muted);
+}
+
+.developer-work__delete:not(:disabled):hover,
+.developer-work__delete:not(:disabled):focus-visible {
+  border-color: color-mix(in srgb, var(--status-critical) 38%, var(--border));
+  color: var(--critical-text);
+}
+
+.developer-work__confirm {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.developer-work__confirm .is-disruptive:not(:disabled) {
+  border-color: color-mix(in srgb, var(--status-critical) 38%, var(--border));
+  background: color-mix(in srgb, var(--status-critical) 6%, var(--surface-1));
+  color: var(--critical-text);
+}

@@ -23,7 +23,8 @@ import {
 /** What the board asks the workspace to persist; the workspace owns the network. */
 export type DataWorkMutation =
   | { type: "move"; item: DataWorkItem; status: DataWorkStatus }
-  | { type: "create"; item: DataWorkItem };
+  | { type: "create"; item: DataWorkItem }
+  | { type: "delete"; item: DataWorkItem };
 
 export interface NewItemDraft {
   kind: DataWorkKind;

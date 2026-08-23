@@ -14,6 +14,11 @@ export const dynamic = "force-dynamic";
  * show what the row now says rather than pretend its own edit landed.
  * `callGateway` folds every non-2xx into one failure shape, so this route
  * forwards by hand — the 409 body is the whole point.
+ *
+ * DELETE /api/gateway/data/work-items/{id}
+ *
+ * Removes the row for good and returns it as it was. Not versioned: a delete
+ * has nothing to be stale against. The gateway's audit log keeps the row.
  */
 
 const STATUSES = new Set(["intake", "ready", "progress", "resolved"]);
@@ -75,6 +80,61 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
         { status: 409 },
       );
     }
+    if (response.status === 404) {
+      return NextResponse.json({ code: "not_found", error: `No work item ${id} on the gateway.` }, { status: 404 });
+    }
+    if (!response.ok) {
+      const authFailed = response.status === 401 || response.status === 403;
+      return NextResponse.json(
+        {
+          code: authFailed ? "gateway_auth_failed" : "gateway_rejected",
+          error: authFailed ? "The risk gateway rejected this server's credential." : `The risk gateway responded with HTTP ${response.status}.`,
+        },
+        { status: 502 },
+      );
+    }
+    return NextResponse.json(body, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    const timedOut = controller.signal.aborted;
+    return NextResponse.json(
+      {
+        code: timedOut ? "gateway_timeout" : "gateway_unreachable",
+        error: timedOut ? `The gateway did not answer within ${TIMEOUT_MS / 1000}s.` : (error as Error).message,
+      },
+      { status: 504 },
+    );
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export async function DELETE(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const rejection = authorise(request.headers.get("authorization"));
+  if (rejection) {
+    const { status, ...body } = rejection;
+    return NextResponse.json(body, { status });
+  }
+  const { id } = await context.params;
+  if (!ID.test(id)) {
+    return NextResponse.json({ code: "invalid_id", error: "Work item ids look like BUG-091." }, { status: 400 });
+  }
+  const base = gatewayBase();
+  if (!base) {
+    return NextResponse.json(
+      { code: "gateway_not_configured", error: "No risk gateway is configured for this deployment.", status: 503 },
+      { status: 503 },
+    );
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  try {
+    const response = await fetch(new URL(`/api/data/work-items/${encodeURIComponent(id)}`, base), {
+      method: "DELETE",
+      cache: "no-store",
+      signal: controller.signal,
+      headers: gatewayHeaders(),
+    });
+    const body = await response.json().catch(() => null);
     if (response.status === 404) {
       return NextResponse.json({ code: "not_found", error: `No work item ${id} on the gateway.` }, { status: 404 });
     }

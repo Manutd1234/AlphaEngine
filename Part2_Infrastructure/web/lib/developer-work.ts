@@ -254,6 +254,14 @@ export function moveDeveloperWorkItem(
   return items.map((item) => (item.id === id ? { ...item, status } : item));
 }
 
+/** The list without one id, order kept. */
+export function removeDeveloperWorkItem(
+  items: readonly DeveloperWorkItem[],
+  id: string,
+): DeveloperWorkItem[] {
+  return items.filter((item) => item.id !== id);
+}
+
 export function nextDeveloperWorkId(
   kind: DeveloperWorkKind,
   items: readonly DeveloperWorkItem[],

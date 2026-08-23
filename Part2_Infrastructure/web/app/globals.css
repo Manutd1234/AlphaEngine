@@ -140,4 +140,8 @@
    file-length ceiling. After 14j, since it restates that file's split-constant
    idiom and must be able to override it. */
 @import "./globals/14k-login-layout-stability.css";
+
+/* The Data work card's inner rules and its delete control. After 14g, whose
+   card paddings it restates region by region. */
+@import "./globals/14l-work-queues.css";
 @import "./globals/15-navigator-and-trailing-layer.css";

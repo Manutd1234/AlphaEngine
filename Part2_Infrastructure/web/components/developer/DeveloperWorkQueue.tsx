@@ -10,6 +10,7 @@ import {
   filterDeveloperWorkItems,
   moveDeveloperWorkItem,
   nextDeveloperWorkId,
+  removeDeveloperWorkItem,
   type DeveloperWorkItem,
   type DeveloperWorkKind,
   type DeveloperWorkPriority,
@@ -87,6 +88,8 @@ export default function DeveloperWorkQueue({ items, onItemsChange }: DeveloperWo
   const [composerOpen, setComposerOpen] = useState(false);
   const [draft, setDraft] = useState<WorkDraft>(DEFAULT_DRAFT);
   const [announcement, setAnnouncement] = useState("");
+  /** The row whose Delete has been pressed once; a second press removes it. */
+  const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
   const [now] = useState(() => Date.now());
   const newWorkButton = useRef<HTMLButtonElement | null>(null);
 
@@ -108,6 +111,13 @@ export default function DeveloperWorkQueue({ items, onItemsChange }: DeveloperWo
     // was the same sentence read aloud dozens of times per session.
     setAnnouncement(`${item.id} moved to ${STATUS_LABEL[next]}.`);
     window.requestAnimationFrame(() => document.getElementById(`developer-work-status-${item.id}`)?.focus());
+  };
+
+  const remove = (item: DeveloperWorkItem) => {
+    onItemsChange(removeDeveloperWorkItem(items, item.id));
+    setConfirmingDelete(null);
+    setAnnouncement(`${item.id} deleted.`);
+    window.requestAnimationFrame(() => newWorkButton.current?.focus());
   };
 
   const submitNewItem = (event: FormEvent<HTMLFormElement>) => {
@@ -275,6 +285,7 @@ export default function DeveloperWorkQueue({ items, onItemsChange }: DeveloperWo
               <th>Work</th>
               <th>Area / owner</th>
               <th>Status</th>
+              <th><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody>
@@ -324,6 +335,28 @@ export default function DeveloperWorkQueue({ items, onItemsChange }: DeveloperWo
                     {STATUS_META.find((candidate) => candidate.id === item.status)?.description}
                   </small>
                 </td>
+                {/* Delete is two presses on the row, so a slip on a 30px
+                    button does not remove a ticket. The first press turns the
+                    control into the question; Keep puts it back. */}
+                <td className="developer-work__actions-cell">
+                  {confirmingDelete === item.id ? (
+                    <span className="developer-work__confirm" role="group" aria-label={`Confirm deleting ${item.id}`}>
+                      <button type="button" className="is-disruptive" onClick={() => remove(item)} autoFocus>
+                        Delete {item.id}
+                      </button>
+                      <button type="button" onClick={() => setConfirmingDelete(null)}>Keep</button>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="developer-work__delete"
+                      onClick={() => setConfirmingDelete(item.id)}
+                      aria-label={`Delete ${item.id}`}
+                    >
+                      Delete
+                    </button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -336,10 +369,10 @@ export default function DeveloperWorkQueue({ items, onItemsChange }: DeveloperWo
         )}
       </div>
 
-      {/* No reset control. The queue persists in this browser's localStorage
-          and says so two paragraphs above; the seeds return only when storage
-          is empty, and clearing site data is the reset. A destructive control
-          on a sample board would exist only to undo the demo. */}
+      {/* No reset control. The queue persists in this browser's localStorage;
+          the seeds return only when storage is empty, and clearing site data
+          is the reset. Rows are removed one at a time, by the Delete on each,
+          never all at once. */}
       <div className="developer-work__footer">
         <span aria-live="polite">{announcement || `${visibleItems.length} items shown.`}</span>
       </div>

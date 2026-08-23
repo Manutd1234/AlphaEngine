@@ -117,6 +117,9 @@ _DDL = [
     )
     """,
     "CREATE INDEX IF NOT EXISTS ix_work_items_status ON data_work_items(status, priority, opened_at)",
+    # SQLite's stand-in for the Postgres sequence: the highest number ever
+    # handed out per prefix, so a deleted id is never minted again.
+    "CREATE TABLE IF NOT EXISTS data_work_item_ids (prefix TEXT PRIMARY KEY, n INTEGER NOT NULL)",
 ]
 
 # (id, kind, priority, status, title, summary, owner, area, age_minutes, sla_hours)
@@ -285,6 +288,24 @@ class WorkItemStore:
         self._audit("work_item_updated", actor, updated, {"changes": changes, "version": updated.version})
         return updated
 
+    def delete(self, item_id: str, *, actor: str) -> WorkItemView | None:
+        """Remove one row for good. Returns the row as it was, or None for an unknown id.
+
+        Not versioned, deliberately: a delete is the one edit with nothing to
+        be stale against — whatever the row said a moment ago, the caller
+        wants it gone. The audit event keeps what it said.
+        """
+        current = self.get(item_id)
+        if current is None:
+            return None
+        removed = self._store.remove(_TABLE, filters={"id": item_id})
+        if not removed:
+            # Another writer deleted it between the read and the remove;
+            # the outcome the caller asked for is the outcome either way.
+            return None
+        self._audit("work_item_deleted", actor, current, {"version": current.version})
+        return current
+
     def _next_id(self, prefix: str) -> str:
         """One id, allocated so two concurrent creates cannot mint the same one.
 
@@ -297,11 +318,23 @@ class WorkItemStore:
         if self._store.backend == "postgres":
             return str(self._store.rpc("next_work_item_id", {"prefix": prefix}))
         with self._store.transaction() as conn:
+            # The floor is the highest id still in the table; the counter is
+            # the highest ever minted. A delete lowers the first and not the
+            # second, so the number a deleted row carried stays retired — an
+            # audit line that names it keeps naming one thing.
             row = conn.execute(
                 "SELECT MAX(CAST(substr(id, ?) AS INTEGER)) AS n FROM data_work_items WHERE id LIKE ?",
                 (len(prefix) + 2, f"{prefix}-%"),
             ).fetchone()
             largest = int(row["n"] or 0) if row else 0
+            minted = conn.execute("SELECT n FROM data_work_item_ids WHERE prefix = ?", (prefix,)).fetchone()
+            if minted is not None:
+                largest = max(largest, int(minted["n"]))
+            conn.execute(
+                "INSERT INTO data_work_item_ids (prefix, n) VALUES (?, ?) "
+                "ON CONFLICT(prefix) DO UPDATE SET n = excluded.n",
+                (prefix, largest + 1),
+            )
             return f"{prefix}-{largest + 1:03d}"
 
     def _audit(self, event: str, actor: str, item: WorkItemView, payload: dict[str, Any]) -> None:

@@ -20,6 +20,7 @@ const list = read("app/api/gateway/data/work-items/route.ts");
 const patch = read("app/api/gateway/data/work-items/[id]/route.ts");
 const hook = read("lib/use-data-work-queue.ts");
 const lib = read("lib/data-work-queue.ts");
+const del = read("lib/data-work-delete.ts");
 const board = ["components/data/DataWorkBoard.tsx", "components/data/DataWorkCard.tsx", "components/data/WorkComposer.tsx", "components/data/work-board-model.ts"]
   .map((p) => { try { return read(p); } catch { return ""; } }).join("\n");
 const page = read("app/dashboard/page.tsx");
@@ -44,8 +45,19 @@ describe("the work-queue proxies", () => {
     assert.match(patch, /status: 409/);
   });
 
+  it("the DELETE route is gated like the other writes, unversioned, and passes a 404 through", () => {
+    assert.match(patch, /export async function DELETE\(request: NextRequest/);
+    const deleteRoute = patch.slice(patch.indexOf("export async function DELETE"));
+    assert.match(deleteRoute, /const rejection = authorise\(request\.headers\.get\("authorization"\)\);/);
+    assert.match(deleteRoute, /method: "DELETE"/);
+    assert.doesNotMatch(deleteRoute, /version/, "a delete quotes no version: there is nothing for it to be stale against");
+    assert.match(deleteRoute, /response\.status === 404/);
+    assert.match(deleteRoute, /code: "not_found"/);
+  });
+
   it("every gateway hop carries a deadline", () => {
     assert.match(patch, /setTimeout\(\(\) => controller\.abort\(\), TIMEOUT_MS\)/);
+    assert.match(del, /withDeadline\(`\/api\/gateway\/data\/work-items\/\$\{encodeURIComponent\(id\)\}`, \{\s*method: "DELETE"/);
     assert.match(lib, /const DATA_WORK_TIMEOUT_MS = 6_000;/);
     assert.match(lib, /signal: controller\.signal/);
   });
@@ -66,10 +78,25 @@ describe("the hook owns persistence and names each outcome", () => {
     assert.match(hook, /was not saved: \$\{result\.error\}/);
   });
 
+  it("a delete is optimistic on the board, rolled back with its reason, held when unreachable, and settled by a 404", () => {
+    assert.match(board, /onItemsChange\(removeDataWorkItem\(items, item\.id\)\);/);
+    assert.match(board, /onMutation\?\.\(\{ type: "delete", item \}\);/);
+    // Two presses on the card, never one: the first turns the control into the question.
+    assert.match(board, /setConfirmingDelete\(true\)/);
+    assert.match(board, /onClick=\{\(\) => \{ setConfirmingDelete\(false\); onDelete\(\); \}\}/);
+    assert.match(hook, /if \(mutation\.type === "delete"\)/);
+    assert.match(hook, /result\.ok \|\| result\.code === "not_found"/, "already gone is the outcome that was asked for");
+    assert.match(hook, /delete is held locally until the gateway answers/);
+    assert.match(hook, /was not deleted: \$\{result\.error\}/);
+    assert.match(hook, /setItems\(\(current\) => upsertDataWorkItem\(current, m\.item\)\);\s*setNotice\(`\$\{m\.item\.id\} was not deleted/, "the row comes back with the reason");
+  });
+
   it("held writes are replayed after the next successful load, creates re-posted and moves re-patched against the fresh version", () => {
     assert.match(hook, /const replayHeld = useCallback/);
     assert.match(hook, /const merged = await replayHeld\(result\.items\);/);
     assert.match(hook, /patchDataWorkItem\(m\.item\.id, current\.version, \{ status: m\.status \}, token\)/);
+    // A held delete replays too, and a 404 on replay is success: someone else got there first.
+    assert.match(hook, /m\.type === "delete"[\s\S]*?deleteDataWorkItem\(m\.item\.id, token\)[\s\S]*?result\.ok \|\| result\.code === "not_found"/);
   });
 
   it("the board is fed by the hook and never fetches itself", () => {
