@@ -1,0 +1,71 @@
+{
+  "authenticated": false,
+  "body": {
+    "default_cost": 10,
+    "endpoint_costs": [
+      {
+        "cost": 30,
+        "method": "POST",
+        "path": "/trade-api/v2/account/api_usage_level/upgrade"
+      },
+      {
+        "cost": 50,
+        "method": "GET",
+        "path": "/trade-api/v2/cfbenchmarks"
+      },
+      {
+        "cost": 50,
+        "method": "GET",
+        "path": "/trade-api/v2/cfbenchmarks/*endpoint"
+      },
+      {
+        "cost": 2,
+        "method": "POST",
+        "path": "/trade-api/v2/communications/quotes"
+      },
+      {
+        "cost": 2,
+        "method": "DELETE",
+        "path": "/trade-api/v2/communications/quotes/:quote_id"
+      },
+      {
+        "cost": 2,
+        "method": "GET",
+        "path": "/trade-api/v2/communications/quotes/:quote_id"
+      },
+      {
+        "cost": 2,
+        "method": "DELETE",
+        "path": "/trade-api/v2/communications/rfqs/:rfq_id/quotes/:quote_id"
+      },
+      {
+        "cost": 2,
+        "method": "GET",
+        "path": "/trade-api/v2/communications/rfqs/:rfq_id/quotes/:quote_id"
+      },
+      {
+        "cost": 5,
+        "method": "GET",
+        "path": "/trade-api/v2/margin/balance"
+      },
+      {
+        "cost": 2,
+        "method": "DELETE",
+        "path": "/trade-api/v2/portfolio/events/orders/:order_id"
+      },
+      {
+        "cost": 2,
+        "method": "DELETE",
+        "path": "/trade-api/v2/portfolio/events/orders/batched"
+      },
+      {
+        "cost": 2,
+        "method": "GET",
+        "path": "/trade-api/v2/portfolio/orders/:order_id"
+      }
+    ]
+  },
+  "captured_at": "2026-08-23T09:58:40Z",
+  "source": "https://external-api.kalshi.com/trade-api/v2/account/endpoint_costs",
+  "status": 200
+}

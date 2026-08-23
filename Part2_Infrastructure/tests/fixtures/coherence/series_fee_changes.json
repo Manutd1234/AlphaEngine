@@ -1,0 +1,9 @@
+{
+  "authenticated": false,
+  "body": {
+    "series_fee_change_arr": []
+  },
+  "captured_at": "2026-08-23T09:58:48Z",
+  "source": "https://external-api.kalshi.com/trade-api/v2/series/fee_changes?show_historical=false",
+  "status": 200
+}

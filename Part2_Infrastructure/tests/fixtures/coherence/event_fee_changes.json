@@ -1,0 +1,171 @@
+{
+  "authenticated": false,
+  "body": {
+    "cursor": "CgYI_NG41AYSJDRhMDlhZWZmLWJkZWItNGQ5ZS1iODA4LTkzZDNhMWIzMjczNQ",
+    "event_fee_changes": [
+      {
+        "event_ticker": "KXMLBEXTRAS-26AUG252145CINSF",
+        "fee_multiplier_override": 1,
+        "fee_type_override": "quadratic",
+        "id": "e9d52319-8aca-4b55-88c2-d851220342f3",
+        "scheduled_ts": "2026-08-26T01:45:00Z",
+        "series_ticker": "KXMLBEXTRAS"
+      },
+      {
+        "event_ticker": "KXMLBRFI-26AUG252145CINSF",
+        "fee_multiplier_override": 1,
+        "fee_type_override": "quadratic",
+        "id": "2766977e-18bd-4b74-999d-d7eb5610a119",
+        "scheduled_ts": "2026-08-26T01:45:00Z",
+        "series_ticker": "KXMLBRFI"
+      },
+      {
+        "event_ticker": "KXMLBGAME-26AUG252145CINSF",
+        "fee_multiplier_override": 1,
+        "fee_type_override": "quadratic_with_maker_fees",
+        "id": "134ccb1b-67c0-457d-92ac-f40a73933f50",
+        "scheduled_ts": "2026-08-26T01:45:00Z",
+        "series_ticker": "KXMLBGAME"
+      },
+      {
+        "event_ticker": "KXMLBGAME-26AUG252140CHCAZ",
+        "fee_multiplier_override": 1,
+        "fee_type_override": "quadratic_with_maker_fees",
+        "id": "ebcfe12f-2d93-4790-940a-2b8dcbd0a2e2",
+        "scheduled_ts": "2026-08-26T01:40:00Z",
+        "series_ticker": "KXMLBGAME"
+      },
+      {
+        "event_ticker": "KXMLBEXTRAS-26AUG252140PHISEA",
+        "fee_multiplier_override": 1,
+        "fee_type_override": "quadratic",
+        "id": "e27d507e-c91e-4b4b-9bce-fe4a63714dff",
+        "scheduled_ts": "2026-08-26T01:40:00Z",
+        "series_ticker": "KXMLBEXTRAS"
+      },
+      {
+        "event_ticker": "KXMLBEXTRAS-26AUG252140CHCAZ",
+        "fee_multiplier_override": 1,
+        "fee_type_override": "quadratic",
+        "id": "da8ff893-3df3-463d-9d0c-cd02da295832",
+        "scheduled_ts": "2026-08-26T01:40:00Z",
+        "series_ticker": "KXMLBEXTRAS"
+      },
+      {
+        "event_ticker": "KXMLBRFI-26AUG252140CHCAZ",
+        "fee_multiplier_override": 1,
+        "fee_type_override": "quadratic",
+        "id": "c6dace0d-b1b9-411d-a145-81d2c2b3efe7",
+        "scheduled_ts": "2026-08-26T01:40:00Z",
+        "series_ticker": "KXMLBRFI"
+      },
+      {
+        "event_ticker": "KXMLBGAME-26AUG252140MINATH",
+        "fee_multiplier_override": 1,
+        "fee_type_override": "quadratic_with_maker_fees",
+        "id": "c5af8214-359a-47fd-ad6d-0eca8968022d",
+        "scheduled_ts": "2026-08-26T01:40:00Z",
+        "series_ticker": "KXMLBGAME"
+      },
+      {
+        "event_ticker": "KXMLBEXTRAS-26AUG252140PITSD",
+        "fee_multiplier_override": 1,
+        "fee_type_override": "quadratic",
+        "id": "916586c0-8e2b-40ec-ae08-b7c37abf75e3",
+        "scheduled_ts": "2026-08-26T01:40:00Z",
+        "series_ticker": "KXMLBEXTRAS"
+      },
+      {
+        "event_ticker": "KXMLBRFI-26AUG252140PHISEA",
+        "fee_multiplier_override": 1,
+        "fee_type_override": "quadratic",
+        "id": "7f69e65c-2386-455a-91f7-92025863890d",
+        "scheduled_ts": "2026-08-26T01:40:00Z",
+        "series_ticker": "KXMLBRFI"
+      },
+      {
+        "event_ticker": "KXMLBGAME-26AUG252140PITSD",
+        "fee_multiplier_override": 1,
+        "fee_type_override": "quadratic_with_maker_fees",
+        "id": "765012a9-be6b-426d-9ccd-cb9708def30a",
+        "scheduled_ts": "2026-08-26T01:40:00Z",
+        "series_ticker": "KXMLBGAME"
+      },
+      {
+        "event_ticker": "KXMLBRFI-26AUG252140MINATH",
+        "fee_multiplier_override": 1,
+        "fee_type_override": "quadratic",
+        "id": "47932fca-fe1f-43d0-9c48-0576db4fd1ce",
+        "scheduled_ts": "2026-08-26T01:40:00Z",
+        "series_ticker": "KXMLBRFI"
+      },
+      {
+        "event_ticker": "KXMLBEXTRAS-26AUG252140MINATH",
+        "fee_multiplier_override": 1,
+        "fee_type_override": "quadratic",
+        "id": "416ee402-80a6-4382-8c79-8804083776d1",
+        "scheduled_ts": "2026-08-26T01:40:00Z",
+        "series_ticker": "KXMLBEXTRAS"
+      },
+      {
+        "event_ticker": "KXMLBRFI-26AUG252140PITSD",
+        "fee_multiplier_override": 1,
+        "fee_type_override": "quadratic",
+        "id": "1fcb7da2-9cf7-41a4-a077-7de14c81bd4f",
+        "scheduled_ts": "2026-08-26T01:40:00Z",
+        "series_ticker": "KXMLBRFI"
+      },
+      {
+        "event_ticker": "KXMLBGAME-26AUG252140PHISEA",
+        "fee_multiplier_override": 1,
+        "fee_type_override": "quadratic_with_maker_fees",
+        "id": "1e9e61f2-537c-4e77-98ca-9e64eb5dff5b",
+        "scheduled_ts": "2026-08-26T01:40:00Z",
+        "series_ticker": "KXMLBGAME"
+      },
+      {
+        "event_ticker": "KXMLBRFI-26AUG252138CLELAA",
+        "fee_multiplier_override": 1,
+        "fee_type_override": "quadratic",
+        "id": "d098af5a-0ef5-4432-8dff-f2c4ee015ecf",
+        "scheduled_ts": "2026-08-26T01:38:00Z",
+        "series_ticker": "KXMLBRFI"
+      },
+      {
+        "event_ticker": "KXMLBEXTRAS-26AUG252138CLELAA",
+        "fee_multiplier_override": 1,
+        "fee_type_override": "quadratic",
+        "id": "8aa34070-3d5e-4dcd-ac5b-37b18e408efd",
+        "scheduled_ts": "2026-08-26T01:38:00Z",
+        "series_ticker": "KXMLBEXTRAS"
+      },
+      {
+        "event_ticker": "KXMLBGAME-26AUG252138CLELAA",
+        "fee_multiplier_override": 1,
+        "fee_type_override": "quadratic_with_maker_fees",
+        "id": "815e56a5-35dd-4fba-bfcf-c63661b48ec6",
+        "scheduled_ts": "2026-08-26T01:38:00Z",
+        "series_ticker": "KXMLBGAME"
+      },
+      {
+        "event_ticker": "KXMLBEXTRAS-26AUG251945BALSTL",
+        "fee_multiplier_override": 1,
+        "fee_type_override": "quadratic",
+        "id": "f8aaaba5-3ba4-4806-87ce-e422415f1e8b",
+        "scheduled_ts": "2026-08-25T23:45:00Z",
+        "series_ticker": "KXMLBEXTRAS"
+      },
+      {
+        "event_ticker": "KXMLBGAME-26AUG251945BALSTL",
+        "fee_multiplier_override": 1,
+        "fee_type_override": "quadratic_with_maker_fees",
+        "id": "4a09aeff-bdeb-4d9e-b808-93d3a1b32735",
+        "scheduled_ts": "2026-08-25T23:45:00Z",
+        "series_ticker": "KXMLBGAME"
+      }
+    ]
+  },
+  "captured_at": "2026-08-23T09:58:50Z",
+  "source": "https://external-api.kalshi.com/trade-api/v2/events/fee_changes?limit=20",
+  "status": 200
+}

@@ -1,0 +1,17 @@
+{
+  "authenticated": false,
+  "body": {
+    "orderbooks": [
+      {
+        "orderbook_fp": {
+          "no_dollars": [],
+          "yes_dollars": []
+        },
+        "ticker": "KXHIGHNY-26AUG23-T87,KXHIGHNY-26AUG23-T80,KXHIGHNY-26AUG23-B86.5,KXHIGHNY-26AUG23-B84.5,KXHIGHNY-26AUG23-B82.5,KXHIGHNY-26AUG23-B80.5"
+      }
+    ]
+  },
+  "captured_at": "2026-08-23T09:58:56Z",
+  "source": "https://external-api.kalshi.com/trade-api/v2/markets/orderbooks?tickers=KXHIGHNY-26AUG23-T87,KXHIGHNY-26AUG23-T80,KXHIGHNY-26AUG23-B86.5,KXHIGHNY-26AUG23-B84.5,KXHIGHNY-26AUG23-B82.5,KXHIGHNY-26AUG23-B80.5",
+  "status": 200
+}
