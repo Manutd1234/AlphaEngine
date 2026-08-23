@@ -213,6 +213,14 @@ export interface CoherenceWeatherSample {
   status: string;
 }
 
+export interface CoherencePendingMinute {
+  ts_ms: number;
+  /** What the index will read once QC clears, from readings already in hand. */
+  provisional: string | null;
+  spread: string | null;
+  stations: number;
+}
+
 export interface CoherenceSettlementFeed {
   state: string;
   detail: string;
@@ -231,6 +239,22 @@ export interface CoherenceSettlementFeed {
   spot_minus_window: string | null;
   reference_rate_state: string;
   reference_rate_detail: string;
+  units: string;
+  /**
+   * The member stations behind the index, and whether the rule that turns their
+   * readings into the published value still reproduces it. Tested against every
+   * completed minute rather than assumed: a provisional value computed under a
+   * rule that has changed is worse than no provisional value at all.
+   */
+  stations: string[];
+  formation_checked: number;
+  formation_agreed: number;
+  formation_holds: boolean;
+  formation_detail: string;
+  /** Minutes the venue omitted, which are minutes the index was not computed. */
+  quorum_gaps: number;
+  pending: CoherencePendingMinute[];
+  window_is_assumed: boolean;
 }
 
 /* ------------------------------------------------------------------ rfq -- */

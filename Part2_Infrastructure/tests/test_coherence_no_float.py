@@ -102,23 +102,26 @@ def test_the_float_boundary_is_still_only_the_solver_call():
     assert "linprog" in source, f"{FLOAT_BOUNDARY} is exempt because it calls a float solver, and it no longer does"
 
 
-def test_the_guard_catches_a_float_when_one_is_present():
+def test_the_guard_catches_a_float_when_one_is_present(tmp_path):
     """Prove the scanner works, so a silent pass cannot mean a broken scanner.
 
-    Written against a sample rather than a real file: the point is that the
-    tree-walk finds all four shapes, and a fixture is the only way to assert
-    that without putting a float in the kernel to see what happens.
+    Calls ``_offences`` — the function the real check uses — against a written
+    fixture. It used to re-implement the tree-walk inline, which tested a copy
+    of the scanner rather than the scanner: gut ``_offences`` and every kernel
+    file would pass while this still went green, which is the exact failure a
+    self-test exists to rule out.
     """
-    sample = ast.parse("import math\nx: float = 1.5\ny = float('2')\nz = math.sqrt(4)\n")
-    found: list[str] = []
-    for node in ast.walk(sample):
-        if isinstance(node, ast.Constant) and isinstance(node.value, float):
-            found.append("literal")
-        elif isinstance(node, ast.Name) and node.id in FORBIDDEN_NAMES:
-            found.append("name")
-        elif isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
-            if node.value.id in FORBIDDEN_MODULES:
-                found.append("attribute")
-        elif isinstance(node, ast.Import):
-            found.append("import")
-    assert set(found) == {"literal", "name", "attribute", "import"}, f"the scanner missed a shape: {sorted(set(found))}"
+    sample = tmp_path / "offender.py"
+    sample.write_text("import math\nx: float = 1.5\ny = float('2')\nz = math.sqrt(4)\n")
+    found = _offences(sample)
+    assert found, "the scanner found nothing in a file that breaks the rule four ways"
+    joined = " ".join(found)
+    for shape in ("1.5", "float", "math"):
+        assert shape in joined, f"the scanner missed {shape}: {found}"
+
+
+def test_the_guard_passes_a_file_that_keeps_the_rule(tmp_path):
+    """And the other direction, so the scanner is not simply always angry."""
+    clean = tmp_path / "clean.py"
+    clean.write_text("from decimal import Decimal\nx: Decimal = Decimal('1.5')\ny = x * 2\n")
+    assert _offences(clean) == []

@@ -27,6 +27,7 @@ from modules.schemas import (
     CoherenceDispersion,
     CoherenceKelly,
     CoherenceMapPoint,
+    CoherencePendingMinute,
     CoherenceProbe,
     CoherenceReliabilityBin,
     CoherenceRfqPanel,
@@ -257,6 +258,23 @@ def settlement_view(feed: dict[str, Any], reference: dict[str, Any], city: str) 
         spot_minus_window=summary.get("spot_minus_window"),
         reference_rate_state=str(reference.get("state") or "unavailable"),
         reference_rate_detail=str(reference.get("detail") or ""),
+        units=str(summary.get("units") or ""),
+        stations=list(summary.get("stations") or []),
+        formation_checked=int(summary.get("formation_checked") or 0),
+        formation_agreed=int(summary.get("formation_agreed") or 0),
+        formation_holds=bool(summary.get("formation_holds")),
+        formation_detail=str(summary.get("formation_detail") or ""),
+        quorum_gaps=int(summary.get("quorum_gaps") or 0),
+        window_is_assumed=bool(summary.get("window_is_assumed", True)),
+        pending=[
+            CoherencePendingMinute(
+                ts_ms=int(row["ts_ms"]),
+                provisional=row.get("provisional"),
+                spread=row.get("spread"),
+                stations=int(row.get("stations") or 0),
+            )
+            for row in (feed.get("pending") or [])
+        ],
     )
 
 

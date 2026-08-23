@@ -239,8 +239,9 @@ class TestThreeRefusalsThatAreNotTheSameProblem:
 
     @pytest.mark.anyio
     async def test_the_recorded_city_reads_back_through_the_client_whole(self):
-        index = await livedata.fetch_weather(client(200, body(MIAMI)), "Miami")
+        index, raw = await livedata.fetch_weather(client(200, body(MIAMI)), "Miami")
         assert index.city == "miami", "the slug is lowered before the request"
+        assert isinstance(raw, dict), "the raw body comes back so the station layer needs no second read"
         assert len(index.samples) == 1435
 
 

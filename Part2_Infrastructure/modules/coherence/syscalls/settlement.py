@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from modules.coherence.drivers import livedata
+from modules.coherence.drivers import livedata, weather_qc
 from modules.coherence.drivers.kalshi_rest import KalshiClient
 
 #: The window this module averages over, in minutes.
@@ -26,17 +26,40 @@ SETTLEMENT_WINDOW_MINUTES = 60
 
 async def weather(client: KalshiClient, city: str) -> dict[str, Any]:
     try:
-        index = await livedata.fetch_weather(client, city)
+        index, raw = await livedata.fetch_weather(client, city)
     except livedata.LiveDataUnavailable as exc:
         return {"state": exc.kind, "detail": exc.reason, "city": city, "summary": None, "samples": []}
     summary = livedata.qc_summary(index)
     summary["window_minutes"] = SETTLEMENT_WINDOW_MINUTES
     summary["window_is_assumed"] = True
+
+    # The station layer. This is what makes the feed worth reading: the
+    # trailing minutes carry readings the exchange has not yet published an
+    # index for, so the next value is arithmetic rather than a forecast — but
+    # only under a formation rule that is tested here rather than assumed.
+    minutes = weather_qc.parse_detailed(raw)
+    formation = weather_qc.formation_check(minutes)
+    summary["stations"] = sorted({s.station_id for m in minutes for s in m.stations if s.station_id})
+    summary["formation_checked"] = formation.checked
+    summary["formation_agreed"] = formation.agreed
+    summary["formation_holds"] = formation.holds
+    summary["formation_detail"] = formation.detail
+    summary["quorum_gaps"] = weather_qc.quorum_gaps(minutes)
+    pending = [
+        {
+            "ts_ms": minute.ts_ms,
+            "provisional": str(minute.provisional()) if minute.provisional() is not None else None,
+            "spread": str(minute.spread) if minute.spread is not None else None,
+            "stations": len(minute.stations),
+        }
+        for minute in weather_qc.pending_minutes(minutes)
+    ]
     return {
         "state": "available",
         "detail": "",
         "city": index.city,
         "summary": summary,
+        "pending": pending,
         "samples": [
             {
                 "ts_ms": sample.ts_ms,

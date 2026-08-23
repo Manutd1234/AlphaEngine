@@ -230,6 +230,20 @@ class CoherenceWeatherSample(BaseModel):
     status: str = "unknown"
 
 
+class CoherencePendingMinute(BaseModel):
+    """A minute the stations have reported and the exchange has not published.
+
+    The index is published in two stages: readings arrive, then quality control
+    disposes of them and the value appears. Inside that window the next value is
+    arithmetic on data already handed over, not a forecast.
+    """
+
+    ts_ms: int
+    provisional: str | None = None
+    spread: str | None = None
+    stations: int = 0
+
+
 class CoherenceSettlementFeed(BaseModel):
     """The published index a contract resolves against, and its quality control."""
 
@@ -249,6 +263,22 @@ class CoherenceSettlementFeed(BaseModel):
     spot_minus_window: str | None = None
     reference_rate_state: str = "unavailable"
     reference_rate_detail: str = ""
+    units: str = ""
+    #: The member stations behind this index, and whether the rule that turns
+    #: their readings into the published value still reproduces it. Tested
+    #: against every completed minute rather than assumed, because a
+    #: provisional value computed under a rule that has changed is worse than
+    #: no provisional value at all.
+    stations: list[str] = Field(default_factory=list)
+    formation_checked: int = 0
+    formation_agreed: int = 0
+    formation_holds: bool = False
+    formation_detail: str = ""
+    #: Minutes the venue omitted entirely, which are minutes the index was not
+    #: computed — a gap in the series is a fact about the index, not the request.
+    quorum_gaps: int = 0
+    pending: list[CoherencePendingMinute] = Field(default_factory=list)
+    window_is_assumed: bool = True
 
 
 # --------------------------------------------------------------------------- #

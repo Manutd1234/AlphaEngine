@@ -214,11 +214,27 @@ export default function CombosPane({ active }: { active: boolean }) {
   }
   if (!data) return <p className="console-empty muted">Reading the listed parlays…</p>;
   if (data.state !== "available" || !data.combos.length) {
+    // Three different answers used to arrive here as one sentence, with the
+    // gateway's own reason thrown away: the exchange listing no open combos,
+    // the read failing, and a read that worked but fetched no book. They are
+    // not the same finding, and `notes` carries the venue's account of which.
+    const notes = data.notes ?? [];
     return (
-      <p className="console-empty">
-        <span aria-hidden="true">◌</span> No parlay was read on this poll. Each one needs a book call per leg on top of
-        its own, so a read that finds no combo book returns nothing rather than a band built from part of one.
-      </p>
+      <div className="console-empty">
+        <p>
+          <span aria-hidden="true">◌</span>{" "}
+          {data.state !== "available"
+            ? "The parlays could not be read on this poll, so nothing below is a statement about what the exchange is listing."
+            : "The exchange is listing no open parlay whose book this read could reach. Each one needs a book call per leg on top of its own, so a read that finds no combo book returns nothing rather than a band built from part of one."}
+        </p>
+        {notes.length ? (
+          <ul className="coh-notes">
+            {notes.map((note, index) => (
+              <li key={index}>{note}</li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
     );
   }
 

@@ -59,6 +59,7 @@ from modules.schemas_coherence_lab import CoherenceCompositionRow as CoherenceCo
 from modules.schemas_coherence_lab import CoherenceDispersion as CoherenceDispersion  # noqa: F401
 from modules.schemas_coherence_lab import CoherenceKelly as CoherenceKelly  # noqa: F401
 from modules.schemas_coherence_lab import CoherenceMapPoint as CoherenceMapPoint  # noqa: F401
+from modules.schemas_coherence_lab import CoherencePendingMinute as CoherencePendingMinute  # noqa: F401
 from modules.schemas_coherence_lab import CoherenceProbe as CoherenceProbe  # noqa: F401
 from modules.schemas_coherence_lab import CoherenceReliabilityBin as CoherenceReliabilityBin  # noqa: F401
 from modules.schemas_coherence_lab import CoherenceRfqPanel as CoherenceRfqPanel  # noqa: F401

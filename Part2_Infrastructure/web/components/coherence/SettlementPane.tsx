@@ -56,6 +56,71 @@ function ReferenceRate({ state, detail }: { state: string; detail: string }) {
   );
 }
 
+function Formation({ data }: { data: CoherenceSettlementFeed }) {
+  const pending = data.pending ?? [];
+  return (
+    <section className="coh-settle__formation">
+      <h4>How this index is formed, and what it has not published yet</h4>
+      <p className="coh-settle__note">
+        The published minute is the mean of the member stations that cleared quality control. That is a rule this
+        read TESTS rather than assumes: it reproduced the published value on{" "}
+        {data.formation_agreed} of {data.formation_checked} completed minute(s).{" "}
+        {data.formation_holds ? (
+          <>
+            <span aria-hidden="true">●</span> It holds here, so the provisional figures below rest on evidence.
+          </>
+        ) : (
+          <>
+            <span aria-hidden="true">▲</span> It does not hold here, so nothing below should be traded on:{" "}
+            {data.formation_detail}
+          </>
+        )}{" "}
+        {data.stations.length
+          ? `Stations: ${data.stations.join(", ")}.`
+          : "This read carried no per-station detail."}{" "}
+        {data.quorum_gaps > 0
+          ? `${data.quorum_gaps} minute(s) are missing from the series entirely — the venue omits a minute whose quorum failed, so those are minutes the index was not computed rather than minutes it went unreported.`
+          : "No minute is missing from the series, so the average above is over a continuous window."}
+      </p>
+      {pending.length === 0 ? (
+        <p className="coh-settle__note">
+          <span aria-hidden="true">◌</span> No minute is inside the receipt deadline right now, so there is nothing
+          the stations have reported that the exchange has not already published.
+        </p>
+      ) : (
+        <div className="table-wrap">
+          <table className="coh-table">
+            <caption className="coh-table__caption">
+              Minutes the stations have reported and the exchange has not published an index for. The index arrives in
+              two stages, so inside this window the next value is arithmetic on data already handed over rather than a
+              forecast. The spread is how far the stations disagree: a wide one means the mean beside it is a mean of
+              readings that do not agree.
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Minute</th>
+                <th scope="col" className="num">Provisional index</th>
+                <th scope="col" className="num">Station spread</th>
+                <th scope="col" className="num">Stations in</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pending.map((row) => (
+                <tr key={row.ts_ms}>
+                  <th scope="row">{new Date(row.ts_ms).toISOString().slice(11, 16)} UTC</th>
+                  <td className="num">{row.provisional ?? "—"}</td>
+                  <td className="num">{row.spread ?? "—"}</td>
+                  <td className="num">{row.stations}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function SettlementPane({ active }: { active: boolean }) {
   const { data, error } = useCoherenceRead<CoherenceSettlementFeed>(
     `/api/gateway/coherence/settlement?city=${PUBLISHED_CITY}`,
@@ -208,11 +273,12 @@ export default function SettlementPane({ active }: { active: boolean }) {
         </table>
       </div>
 
+      <Formation data={data} />
+
       <p className="coh-settle__note">
-        The feed publishes a number and a configuration version, not a unit, so every figure here is in the index&rsquo;s
-        own units; the configuration names it a temperature index for {data.city ?? PUBLISHED_CITY}. Coverage is one
-        city: a request for any other is answered as not covered rather than with an empty series, so nothing here
-        should be read as venue-wide.
+        Figures are in {data.units || "the index\u2019s own units, which this read did not carry"}, as the feed states
+        them. Coverage is one city: a request for any other is answered as not covered rather than with an empty
+        series, so nothing here should be read as venue-wide.
       </p>
 
       <ReferenceRate state={data.reference_rate_state} detail={data.reference_rate_detail} />

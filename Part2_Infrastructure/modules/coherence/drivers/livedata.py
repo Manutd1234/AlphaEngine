@@ -287,13 +287,23 @@ def parse_event_index(event_ticker: str, payload: dict[str, Any]) -> EventIndex:
     )
 
 
-async def fetch_weather(client: KalshiClient, city: str) -> WeatherIndex:
-    """The published index for one city, or a refusal that names the reason."""
+async def fetch_weather(
+    client: KalshiClient, city: str, detailed: bool = True
+) -> tuple[WeatherIndex, dict[str, Any]]:
+    """The published index for one city, and the raw body it came from.
+
+    Detailed by default. The per-station readings are the point of this feed —
+    they are what makes the trailing, unpublished minutes computable — and the
+    raw payload is returned alongside the parsed index so ``weather_qc`` can
+    read them without a second request.
+    """
     slug = city.strip().lower()
     if not slug:
         raise LiveDataUnavailable("no city was named", kind="not_covered")
     try:
-        fetched: Fetched = await client.get(f"/live_data/weather/{slug}")
+        fetched: Fetched = await client.get(
+            f"/live_data/weather/{slug}", {"detailed": "true"} if detailed else None
+        )
     except KalshiRefused as exc:
         raise LiveDataUnavailable(exc.reason, kind="entitlement_required") from exc
     except KalshiUnavailable as exc:
@@ -301,7 +311,7 @@ async def fetch_weather(client: KalshiClient, city: str) -> WeatherIndex:
         # a fact about coverage rather than a fault to retry.
         kind = "not_covered" if exc.status == 400 else "unavailable"
         raise LiveDataUnavailable(exc.reason, kind=kind) from exc
-    return parse_weather(slug, fetched.payload)
+    return parse_weather(slug, fetched.payload), fetched.payload
 
 
 async def fetch_event_index(client: KalshiClient, event_ticker: str) -> EventIndex:
