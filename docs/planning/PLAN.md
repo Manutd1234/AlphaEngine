@@ -216,6 +216,45 @@ absence of a text→speed relationship for FOMC statements against crypto is a
 measurement rather than a failure to find one. What moves the price is the
 number, and the number is public. The torch extra remains unwritten.
 
+**The three conditioning diagnostics were then swept, on diagnostics only.**
+Gate R², effective rank and centroid spread are all measured without reference
+to absorption speed, so choosing a representation on them cannot manufacture a
+relationship with absorption speed — which is what makes the sweep legitimate
+where a sweep over outcomes would not be. Eighteen configurations
+(conditioning × segment × latent width); two clear every threshold with no
+event refused:
+
+| representation | gate R² | effective rank | centroid spread | scored |
+|---|---|---|---|---|
+| decision segment, d=6 | **+0.742** | 9.99/10 | 9.21/10 | 61 of 61 |
+| guidance segment, d=6 | +0.621 | 9.99/10 | 10.00/10 | 57 of 57 |
+| decision segment, d=10 | +0.714 | 9.99/10 | 8.52/10 | 61 of 61 |
+| whole statement, any d | −0.22 … −0.61 | — | — | *inadmissible* |
+
+The answer does not move: largest |t| is **1.15** at d=6 on the decision
+segment, **1.47** on guidance. The whole-statement latent fails the gate at
+every width, reproducing the dilution diagnosis exactly.
+
+**Runs are now filed rather than printed.** `modules/coherence/diffusion/
+studies.py` keeps one row per run — its gate, its conditioning diagnostics, its
+regressions and its verdict — and `tools/diffusion_spectrum.py --persist`
+writes it. Refusals are kept: "the encoder was not configured" and "it ran and
+found nothing" are different facts and a ledger of successes cannot tell them
+apart. **The desk reports `DiffusionStudyStore.best()`, not the newest run.**
+"Whoever ran last sets the headline" is a selection rule that rewards
+re-running until a number moves, which is the failure the ledger exists to
+prevent; the rule is fixed, stated on the pane, and blind to the outcome —
+highest gate R² among runs whose latent clears rank ≥ 9 and spread ≥ 0.9.
+
+**And it is now on the desk.** `GET /api/research/diffusion/findings` returns
+all fourteen measured relationships, positive and null at the same weight, each
+with its count and a shuffled-pairing null; `#coherence/diffusion →
+Announcements → Findings` draws them on one t axis against the |t| < 2 band and
+tabulates them beside the instrument's own diagnostics. The two rows outside the
+band are the control. Publishing the twelve empty rows is the point: without a
+row the pipeline demonstrably *can* detect, "we found nothing" and "this could
+not have found anything" are the same table.
+
 ## 2. Open — the owed items
 
 Each of these is documented in the module that owes it. That is deliberate:
