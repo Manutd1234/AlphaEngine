@@ -60,6 +60,7 @@ from modules.coherence.diffusion.report import (  # noqa: E402
     _params_version,
     _placebo_summary,
     _verdict_json,
+    calendar_verification,
     persist,
     summarise,
 )
@@ -223,9 +224,7 @@ def run(args: argparse.Namespace, *, client: Any | None = None) -> dict[str, Any
         "arm": args.arm,
         "generated_at_ms": now_ms,
         "params_version": _params_version(args),
-        "calendar_verified": False,
-        "calendar_note": ("the FOMC seed has not been checked against federalreserve.gov; "
-                          "no number here may be cited until it has"),
+        "calendar": _calendar_block(meetings),
         "interval": args.interval,
         "symbols": list(symbols),
         "meetings_considered": len(meetings),
@@ -244,6 +243,18 @@ def run(args: argparse.Namespace, *, client: Any | None = None) -> dict[str, Any
         "verdict_wall_clock": _verdict_json(wall_verdict),
         "rows": rows,
     }
+
+
+def _calendar_block(meetings: list[dict[str, Any]]) -> dict[str, Any]:
+    """Whether the dates behind this report have been checked, and how far."""
+    block = calendar_verification(meetings)
+    block["note"] = (
+        "every meeting's date and hour was confirmed against the issuer's own statement page"
+        if block.get("state") == "ok" and block.get("verified")
+        else "run tools/diffusion_text.py --persist to check these dates against "
+             "federalreserve.gov before citing a number built on them"
+    )
+    return block
 
 
 def _stage_of(rows: list[dict[str, Any]], pair: StagePair, stage: str) -> float | None:

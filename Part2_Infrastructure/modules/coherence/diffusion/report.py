@@ -26,6 +26,39 @@ from modules.coherence.diffusion.absorption import STAGE_HORIZONS
 _HORIZON_LABELS = tuple(horizon.label for horizon in STAGE_HORIZONS)
 
 
+def calendar_verification(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """How many of the meetings in this report have been checked, and against what.
+
+    A report that says `calendar_verified: false` while the verification has in
+    fact been run is as wrong as one that claims verification it never did. The
+    text store holds one row per statement fetched from the issuer's own page,
+    with the release time the page stated; this reads it and reports the count.
+    Missing store, missing rows and disagreeing rows are three different
+    answers.
+    """
+    try:
+        from modules.coherence.diffusion.texts import DiffusionTextStore
+
+        store = DiffusionTextStore()
+    except Exception as exc:  # noqa: BLE001 - the reason is the answer
+        return {"state": "unavailable", "reason": str(exc), "verified": 0, "of": len(rows)}
+    try:
+        confirmed = 0
+        for row in rows:
+            found = store.get(str(row["source_ref"]))
+            if found and found.get("state") == "ok" and found.get("verified_release_time"):
+                confirmed += 1
+    finally:
+        store.close()
+    return {
+        "state": "ok" if confirmed == len(rows) else "partial",
+        "verified": confirmed,
+        "of": len(rows),
+        "how": ("each meeting's statement was fetched from the issuer's own URL and its "
+                "'For release at' line compared with the calendar's hour"),
+    }
+
+
 def persist(report: dict[str, Any], *, store: Any = None) -> int:
     """Write the measured runs into the ledger the desk reads.
 
@@ -141,7 +174,9 @@ def summarise(report: dict[str, Any]) -> str:
     lines = [
         f"arm={report['arm']} interval={report['interval']} symbols={','.join(report['symbols'])}",
         f"meetings considered: {report['meetings_considered']}  "
-        f"terminal: {report['stage_terminal_min']:g} min  calendar verified: {report['calendar_verified']}",
+        f"terminal: {report['stage_terminal_min']:g} min",
+        f"calendar: {report['calendar']['verified']} of {report['calendar']['of']} meetings "
+        f"confirmed against the issuer's own pages",
     ]
     gate = report.get("signal_attrition", {})
     for stage in ("release", "call"):

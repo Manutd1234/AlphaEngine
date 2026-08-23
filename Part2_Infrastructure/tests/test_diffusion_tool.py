@@ -127,9 +127,20 @@ class TestTheVerdictFollowsTheTape:
 
 
 class TestTheReportDoesNotOverclaim:
-    def test_it_says_the_calendar_is_unverified(self, slow_call):
-        assert slow_call["calendar_verified"] is False
-        assert "federalreserve.gov" in slow_call["calendar_note"]
+    def test_it_reports_how_much_of_the_calendar_was_checked(self, slow_call):
+        """The report states a count, not a boolean.
+
+        A single flag cannot distinguish "checked and confirmed" from "checked
+        and half of it disagreed" from "never checked", and the difference
+        decides whether any number here may be cited. The block carries the
+        count, the total, and how the check was made.
+        """
+        block = slow_call["calendar"]
+        assert set(block) >= {"state", "verified", "of", "note"}
+        assert block["of"] == slow_call["meetings_considered"]
+        assert isinstance(block["verified"], int)
+        if block["state"] != "ok":
+            assert "federalreserve.gov" in block["note"]
 
     def test_every_row_carries_the_bars_it_was_computed_over(self, slow_call):
         for row in slow_call["rows"]:
