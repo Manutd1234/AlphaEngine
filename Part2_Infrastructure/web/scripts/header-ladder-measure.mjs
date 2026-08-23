@@ -108,11 +108,15 @@ const MEASURE = `
     const buttons = [...tabs.querySelectorAll(":scope > button, :scope > a")];
     const gap = parseFloat(getComputedStyle(tabs).columnGap || getComputedStyle(tabs).gap || "0") || 0;
     // A flex-grown button's scrollWidth is its grown width; its natural width
-    // is the word inside it plus its own padding.
+    // is the word inside it plus its own padding. The button is a grid since
+    // 2026-08-23 and reports its gap as "normal", which parseFloat reads as
+    // NaN — and NaN times a zero child count is still NaN, which printed the
+    // whole column as null once. Coerce before multiplying.
     const natural = buttons.reduce((sum, b) => {
       const cs = getComputedStyle(b);
       const word = [...b.children].reduce((w, c) => w + c.getBoundingClientRect().width, 0) || b.scrollWidth;
-      return sum + word + parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + parseFloat(cs.columnGap || "0") * Math.max(0, b.children.length - 1);
+      const innerGap = parseFloat(cs.columnGap) || 0;
+      return sum + word + parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + innerGap * Math.max(0, b.children.length - 1);
     }, 0) + gap * Math.max(0, buttons.length - 1);
     tabsSpare = Math.max(0, tabs.clientWidth - natural);
   }

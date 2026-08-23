@@ -153,4 +153,8 @@
    tiles as tables and framed regions. After 03 and 13, whose retired list and
    flex-row rules it replaces, and after 12, whose seam rule it relies on. */
 @import "./globals/14n-research-tabling.css";
+
+/* The header tabs' separation from the chip cluster, paid out of the row's
+   surplus. After 14, whose width ladder it must never widen. */
+@import "./globals/14o-header-tabs-surplus.css";
 @import "./globals/15-navigator-and-trailing-layer.css";

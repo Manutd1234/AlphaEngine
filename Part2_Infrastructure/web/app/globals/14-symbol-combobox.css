@@ -586,13 +586,72 @@ html:active-view-transition .view-panel {
   max-width: none;
 }
 
+/* The six figures as one table (Verdict.tsx says why). The base `table` rule
+   in 00 draws the frame, band and column rules; this adds only what a
+   scoreboard needs that a ledger does not: six EQUAL columns (fixed layout,
+   so a two-line note cannot widen its column at its neighbours' expense),
+   every cell left and free to wrap, labels on the band's baseline so each
+   hugs its figure whether it runs one line or two, and the note in the sans
+   face — a sentence, not a figure. The floor is six of the widest figure a
+   real run prints ("~15.2 yr" is 132px at --fs-figure, plus two 12px pads);
+   under it the wrap scrolls sideways rather than breaking a figure. */
 .verdict-metrics {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 12px;
   margin-top: 18px;
-  padding-top: 16px;
-  border-top: 1px solid var(--grid);
+}
+
+.verdict-table {
+  table-layout: fixed;
+  min-width: 940px;
+}
+
+.verdict-table th,
+.verdict-table td {
+  text-align: left;
+  white-space: normal;
+}
+
+.verdict-table th {
+  vertical-align: bottom;
+  line-height: var(--lh-snug);
+}
+
+.verdict-table td {
+  padding: var(--space-3);
+  vertical-align: top;
+}
+
+.verdict-table .verdict-metric__note {
+  margin-top: 4px;
+  font-family: var(--sans);
+}
+
+/* Versus benchmark (BenchmarkPanel.tsx says why it is a table): a measure per
+   row — name as the row header, figure, reading. The base rules draw the
+   frame, band, column rules and the mono figure column; only the reading
+   departs, being a sentence: sans, note size, muted, left, free to wrap so a
+   long one deepens its row rather than scrolling the card. Only a
+   statistically distinguishable alpha is emphasised — an unconditional
+   highlight teaches the eye that every run has one. A breath above and
+   below: the table sits between two paragraphs and must not read as either. */
+.benchmark-table {
+  margin-block: var(--space-3);
+}
+
+.benchmark-table thead th:last-child {
+  text-align: left;
+}
+
+.benchmark-table__reading {
+  font-family: var(--sans);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-snug);
+  color: var(--text-muted);
+  text-align: left;
+  white-space: normal;
+}
+
+.benchmark-table td.is-emphasis {
+  color: var(--success-text);
 }
 
 .stat-tile__label,

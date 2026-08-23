@@ -32,6 +32,17 @@
  * card from quoting them either — and a second copy of them inside a card
  * headed "versus benchmark" is the precise substitution `lib/types.ts` refuses:
  * the same symbol wearing the word benchmark.
+ *
+ * THE FIGURES ARE A TABLE
+ *
+ * Since 2026-08-23, on a reader's request. The two-by-three `<dl>` it replaces
+ * set each label, figure and reading at three sizes in a cell with no edge,
+ * and because the readings ran one line here and two there, the six cells
+ * bottomed out at four different heights. Now every measure is a row — its
+ * name, its figure, what to make of it — in the same frame, header band and
+ * column rules the factor table beside it already wears. The empty state
+ * keeps the same two rows, dashed, so the shape says which two measurements a
+ * benchmark buys.
  */
 
 import { useState } from "react";
@@ -120,19 +131,33 @@ export default function BenchmarkPanel({ comparison, requested }: BenchmarkPanel
               + "strategy trades, so both are withheld."}
         </p>
 
-        <dl className="benchmark-grid">
-          <div>
-            <dt>Alpha (annualised)</dt>
-            {/* The dash is the measurement's absence, not a value near zero. */}
-            <dd className="num">{fmt(null)}</dd>
-            <small className="muted">What a benchmark would not explain. {cause}</small>
-          </div>
-          <div>
-            <dt>Beta</dt>
-            <dd className="num">{fmt(null)}</dd>
-            <small className="muted">Exposure to a benchmark&rsquo;s own moves. {cause}</small>
-          </div>
-        </dl>
+        <div className="table-wrap" tabIndex={0}>
+          <table className="benchmark-table">
+            <caption className="sr-only">
+              The two measurements a benchmark would add, both withheld.
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Measure</th>
+                <th scope="col">Value</th>
+                <th scope="col">Reading</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">Alpha (annualised)</th>
+                {/* The dash is the measurement's absence, not a value near zero. */}
+                <td className="num">{fmt(null)}</td>
+                <td className="benchmark-table__reading">What a benchmark would not explain. {cause}</td>
+              </tr>
+              <tr>
+                <th scope="row">Beta</th>
+                <td className="num">{fmt(null)}</td>
+                <td className="benchmark-table__reading">Exposure to a benchmark&rsquo;s own moves. {cause}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
         <p className="sub">
           The Summary stat row already answers whether the <em>timing</em> helped. Only a second
@@ -177,55 +202,73 @@ export default function BenchmarkPanel({ comparison, requested }: BenchmarkPanel
         {" "}{comparison.symbol} does not explain — not, on its own, evidence of an edge.
       </p>
 
-      <dl className="benchmark-grid">
-        <div>
-          <dt>Alpha (annualised)</dt>
-          <dd className={`num ${alphaSignificant ? "is-emphasis" : ""}`}>
-            {pct(comparison.alphaAnnualised)}
-          </dd>
-          <small className="muted">
-            t = {fmt(comparison.alphaTStat, 2)}, p = {fmt(comparison.alphaPValue, 3)}
-            {alphaSignificant ? "" : " — not distinguishable from zero"}
-          </small>
-        </div>
-        <div>
-          <dt>Beta</dt>
-          <dd className="num">{fmt(comparison.beta, 2)}</dd>
-          <small className="muted">
-            {/* A beta near zero with a large R² is impossible; a beta near zero
-                with a small one just means the benchmark explains nothing. */}
-            {Math.abs(comparison.beta) < 0.2
-              ? "Moves largely independently of the benchmark."
-              : comparison.beta > 1
-                ? "Amplifies the benchmark's moves."
-                : "Damped relative to the benchmark."}
-          </small>
-        </div>
-        <div>
-          <dt>Correlation</dt>
-          <dd className="num">{fmt(comparison.correlation, 2)}</dd>
-          <small className="muted">R² {pct(comparison.rSquared)} of variance explained</small>
-        </div>
-        <div>
-          <dt>Tracking error</dt>
-          <dd className="num">{pct(comparison.trackingError)}</dd>
-          <small className="muted">
-            {comparison.informationRatio === null
-              ? "Information ratio undefined on a flat active return."
-              : `Information ratio ${fmt(comparison.informationRatio, 2)}`}
-          </small>
-        </div>
-        <div>
-          <dt>{comparison.symbol} return</dt>
-          <dd className="num">{pct(comparison.totalReturn)}</dd>
-          <small className="muted">buy-and-hold, over the aligned window</small>
-        </div>
-        <div>
-          <dt>{comparison.symbol} Sharpe</dt>
-          <dd className="num">{fmt(comparison.sharpe, 2)}</dd>
-          <small className="muted">max drawdown {pct(comparison.maxDrawdown)}</small>
-        </div>
-      </dl>
+      <div className="table-wrap" tabIndex={0}>
+        <table className="benchmark-table">
+          <caption className="sr-only">
+            The regression on {comparison.symbol}: alpha, beta, correlation and tracking error,
+            then {comparison.symbol}&rsquo;s own return and Sharpe over the aligned window.
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Measure</th>
+              <th scope="col">Value</th>
+              <th scope="col">Reading</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Alpha (annualised)</th>
+              {/* Only a statistically distinguishable alpha is emphasised. An
+                  unconditional highlight on the headline number teaches the eye
+                  that every run has one. */}
+              <td className={`num${alphaSignificant ? " is-emphasis" : ""}`}>
+                {pct(comparison.alphaAnnualised)}
+              </td>
+              <td className="benchmark-table__reading">
+                t = {fmt(comparison.alphaTStat, 2)}, p = {fmt(comparison.alphaPValue, 3)}
+                {alphaSignificant ? "" : " — not distinguishable from zero"}
+              </td>
+            </tr>
+            <tr>
+              <th scope="row">Beta</th>
+              <td className="num">{fmt(comparison.beta, 2)}</td>
+              <td className="benchmark-table__reading">
+                {/* A beta near zero with a large R² is impossible; a beta near zero
+                    with a small one just means the benchmark explains nothing. */}
+                {Math.abs(comparison.beta) < 0.2
+                  ? "Moves largely independently of the benchmark."
+                  : comparison.beta > 1
+                    ? "Amplifies the benchmark's moves."
+                    : "Damped relative to the benchmark."}
+              </td>
+            </tr>
+            <tr>
+              <th scope="row">Correlation</th>
+              <td className="num">{fmt(comparison.correlation, 2)}</td>
+              <td className="benchmark-table__reading">R² {pct(comparison.rSquared)} of variance explained</td>
+            </tr>
+            <tr>
+              <th scope="row">Tracking error</th>
+              <td className="num">{pct(comparison.trackingError)}</td>
+              <td className="benchmark-table__reading">
+                {comparison.informationRatio === null
+                  ? "Information ratio undefined on a flat active return."
+                  : `Information ratio ${fmt(comparison.informationRatio, 2)}`}
+              </td>
+            </tr>
+            <tr>
+              <th scope="row">{comparison.symbol} return</th>
+              <td className="num">{pct(comparison.totalReturn)}</td>
+              <td className="benchmark-table__reading">buy-and-hold, over the aligned window</td>
+            </tr>
+            <tr>
+              <th scope="row">{comparison.symbol} Sharpe</th>
+              <td className="num">{fmt(comparison.sharpe, 2)}</td>
+              <td className="benchmark-table__reading">max drawdown {pct(comparison.maxDrawdown)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
       {/* The same jump as the empty state's, kept here because a loaded
           comparison is the most common moment for wanting a different one. */}

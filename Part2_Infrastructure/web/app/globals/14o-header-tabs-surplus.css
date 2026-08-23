@@ -1,0 +1,28 @@
+/* ==========================================================================
+   The header's surplus — what the eight workspace tabs do with the room the
+   row has left over once every chip is painted.
+
+   The tabs themselves grow into it, in 01-workspace-shell.css: each button is
+   `flex: 1 1 auto`, so every one takes the SAME increment of the spare and
+   the word gaps stay even at every width. This partial holds the one rule
+   that keeps the nav from running flush into the chip cluster.
+
+   Its own partial because 01, 12 and 14 — the three homes
+   tab-chrome-metrics.test.ts allows the tabs' box — are all at the
+   file-length ceiling and may not grow (tests/file-size.test.ts). Nothing
+   here is a box metric, which is what lets it live outside those homes.
+   ========================================================================== */
+
+/* Separation from the chip cluster, paid ONLY out of surplus. A padding or a
+   margin on the strip would add to the row's MINIMUM, which the clipping
+   bands cannot pay: the width ladder in 14 was measured with 0px of slack at
+   1700 and 1500 (header-wide-width.test.ts says what a 20px basis cost at
+   1728). A 0-basis pseudo flex item adds nothing to the minimum, and at grow 2
+   beside eight grow-1 buttons it takes a fifth of whatever is spare — 27px at
+   1728, where the buttons share the other four-fifths. Below 900px the strip
+   is `display: none` (14) and the <select> switcher stands in, so there is no
+   narrow case to restate. */
+.workspace-tabs::after {
+  content: "";
+  flex: 2 0 0;
+}

@@ -700,39 +700,34 @@
   }
 }
 
-/* Each tab hugs its own word. `flex: 1` grew every button to an equal share,
-   so short labels — Risk, Data — sat centred in boxes as wide as Reliability's
-   and the whitespace between adjacent words read as 18px in one place and 40px
-   in the next. Measured at 1724: label gaps [18,18,18,30,40.7,28.7,18]. With
-   the buttons shrink-wrapped the gap is the 2px strip gap plus two 8px pads
-   everywhere, and the strip's own flex: 1 still hands the spare to the row. */
+/* Each tab grows from its own word by the SAME increment (basis auto, never 0:
+   `flex: 1` made every button EQUAL and the word gaps [18,18,18,30,40.7,28.7,18]
+   at 1724). Under deficit grow never runs, so the ladder's clips hold. */
 .workspace-tabs button {
-  position: relative;
-  flex: 0 1 auto;
-  padding: 6px 8px;
+  flex: 1 1 auto;
+  padding: 8px 8px;
   border: 0;
   border-radius: 6px;
   background: transparent;
   color: var(--text-secondary);
-  display: flex;
+  display: grid;
+  grid-template-columns: auto;
   align-items: center;
   justify-content: center;
-  gap: 4px;
   text-align: center;
   white-space: nowrap;
   font-size: var(--fs-chrome-chip);
 }
 
-/* Inset by the button's own 8px pad, so the underline spans the word itself.
-   The old 14px inset was measured against grown buttons; on a shrink-wrapped
-   "Risk" it would leave a 15px stub narrower than the label above it. */
+/* The underline spans the word, not the box: a second item in the word's own
+   grid cell, whose track is content-sized (the grid is centred, not stretched).
+   An 8px inset only matched the word while the button hugged it. */
 .workspace-tabs button::after {
   content: "";
-  position: absolute;
-  right: 8px;
-  bottom: -1px;
-  left: 8px;
+  grid-area: 1 / 1;
+  align-self: end;
   height: 3px;
+  margin-bottom: -9px;
   border-radius: 3px 3px 0 0;
   background: transparent;
 }
@@ -755,6 +750,8 @@
      row's primary text, and at the chip size they read as a chip among chips. */
   font-size: var(--fs-chrome-tab);
   font-weight: 680;
+  /* Placed: auto-placement would put the word in a second row, under the bar. */
+  grid-area: 1 / 1;
 }
 
 
