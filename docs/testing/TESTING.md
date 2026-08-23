@@ -28,9 +28,11 @@ tests" below.
 
 One committed record:
 [`web/lib/test-counts.generated.ts`](../../Part2_Infrastructure/web/lib/test-counts.generated.ts)
-holds what each runner printed when it was last regenerated on **2026-08-23** —
-`gateway { total: 2965, passed: 2963, skipped: 2 }`, `web { total: 4463, suites:
-980 }`, `service { total: 24 }`. Its own header explains why it exists: the
+holds what each runner printed when it was last regenerated on **2026-08-24** —
+`gateway { total: 2986, passed: 2984, skipped: 2 }`, `web { total: 4463, suites:
+980 }`, `service { total: 24 }`. The gateway line was regenerated in the **CI
+shape** (`RERANK_TEST_MODEL_PATH=`), because the shape CI runs is the only one a
+reader can reproduce from a clean checkout. Its own header explains why it exists: the
 counts were once three hand-copied integers in a component, and they drifted
 three separate times, the last time inside a single afternoon.
 
@@ -45,7 +47,8 @@ Measured on this tree on **2026-08-24**:
 
 | Suite | Measured | Against the record |
 |---|---|---|
-| Gateway, cross-encoder weights **seeded** | **2,992 passed, 1 skipped** | the record's 2,965/2,963/2 is a dated line CI does not check, and it is behind |
+| Gateway, cross-encoder weights **seeded** | **2,992 passed, 1 skipped** | 2,993 total against the record's 2,986 — the eight-test gap IS the seeding, not drift |
+| Gateway, **CI shape** (`RERANK_TEST_MODEL_PATH=`) | **2,984 passed, 2 skipped** | 2,986 total, exactly the record: refreshed 2026-08-24 in this shape |
 | Web | **4,461 passed, 0 failed, 2 skipped, 980 suites** | 4,461 + 2 = **4,463**, which is exactly the committed total — CI is green on the one line it gates |
 | OpenBB service | **24 passed** | matches |
 

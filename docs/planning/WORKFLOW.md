@@ -119,10 +119,13 @@ carries the committed record, and it is worth knowing exactly how much of it CI
 holds. **Only the web line is gated** — `web/scripts/check-test-counts.mjs`
 refuses any suite argument but `web`, and the `web` job compares it against the
 log the runner just teed. The **gateway** and **service** lines in that file are
-*dated records nothing checks*: on 2026-08-24 the committed gateway figure
-(2,965 total, generated 2026-08-23) is behind a measured 2,993. That is not a
-broken gate; it is a gate that was never claimed. Re-run the suite rather than
-trusting the file, and refresh the file rather than editing it.
+*dated records nothing checks*. Refreshed 2026-08-24 to 2,986 (2,984 passed,
+2 skipped), which is the **CI shape** — no cross-encoder weights seeded. A
+machine with weights measures 2,993 (2,992 passed, 1 skipped); the eight-test
+difference is the shape, not drift, so quote the shape whenever you quote the
+number. That the line agrees today is not a gate; it is a gate that was never
+claimed. Re-run the suite rather than trusting the file, and refresh the file
+rather than editing it.
 [`TESTING.md`](../testing/TESTING.md) is the argument in full.
 
 Run `venv/bin/python -m pytest -rs` and read what each one says. Every expected
@@ -227,9 +230,10 @@ That script **refuses any suite argument but `web`** (`if (suite !== "web" ||
 scripts/check-test-counts.mjs web "$RUNNER_TEMP/web-tests.log"`. So the
 `gateway` and `service` lines in that file are **dated records, not gates**.
 They are still worth committing — the console displays them and a reader
-deserves to know when they were taken — but nothing goes red when they drift,
-and on 2026-08-24 the gateway line does drift: 2,965 committed against 2,993
-measured. Cite it as a record with its date, never as a checked figure.
+deserves to know when they were taken — but nothing goes red when they drift.
+Refreshed 2026-08-24 to 2,986 in the CI shape, against 2,993 on a
+weights-seeded machine — the same suite, two collection shapes. Cite it as a
+record with its date AND its shape, never as a checked figure.
 
 Refresh after adding tests: `npm run counts:refresh` (or `-- --suite=web` to
 re-run only the web suite, which keeps the committed Python figures).

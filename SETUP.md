@@ -266,8 +266,10 @@ directory gets the seeded shape with nothing exported. Force the CI shape with
 `RERANK_TEST_MODEL_PATH= venv/bin/python -m pytest`. Only the **web** line of
 `web/lib/test-counts.generated.ts` is checked in CI
 (`node scripts/check-test-counts.mjs web <log>`), so its gateway line is a dated
-record rather than a gate — on 2026-08-24 it read 2,965 against a measured
-2,992, and that is a stale record, not a failure.
+record rather than a gate. Refreshed 2026-08-24 in the CI shape to 2,986
+(2,984 passed, 2 skipped); a weights-seeded run of the same suite prints 2,993
+(2,992 passed, 1 skipped). If those two disagree with each other, that is the
+shape, not a failure — check which one you are in before calling it stale.
 
 **There is no `lint` script for the web app.** `npm run lint` in `web/` fails as
 a missing script; that is not a broken linter. `package.json` has exactly `dev`,

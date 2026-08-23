@@ -537,10 +537,13 @@ not three) cannot back. It wants its own change with its own fixture row.
   none of them refreshed it, which is the failure mode the generator exists to
   make visible rather than one it prevents. **The gateway and service lines in
   that file are not gated at all** — `web/scripts/check-test-counts.mjs` accepts
-  only `web` — so they drift silently, and on 2026-08-24 the gateway line does
-  (2,965 committed against 2,993 measured). Whether that wants a second gate or
-  an explicit "dated record" marker on those two lines is undecided; what is not
-  in doubt is that quoting the gateway figure as a *checked* number is wrong.
+  only `web` — so they drift silently, and on 2026-08-24 the gateway line had
+  (2,965 committed against a 2,986 CI-shape run). Refreshed the same day. Whether
+  that wants a second gate or an explicit "dated record" marker on those two lines
+  is undecided; what is not in doubt is that quoting the gateway figure as a
+  *checked* number is wrong — and that the figure means nothing without the
+  collection shape beside it, since seeding the cross-encoder weights moves it
+  from 2,986 to 2,993.
 
 ### 2.10 The chart-image store: one blocking call
 
