@@ -271,92 +271,36 @@
   color: var(--text-muted);
 }
 
-.codex-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: var(--space-3);
-}
-
-.codex-card {
-  display: grid;
-  grid-template-rows: 1fr auto;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--surface-2);
-  overflow: hidden;
-}
-
-.codex-card.is-active {
-  border-color: color-mix(in srgb, var(--codex-accent) 70%, var(--border));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--codex-accent) 45%, transparent);
-}
-
-/* The whole face of the card is the select action; the meta row below keeps
-   its own smaller targets. Reset the global button chrome. */
+/* A family is ONE real table since 2026-08-23 (`.codex-table`, 14a). */
+/* The strategy name is the select action, filling its row-head cell. Reset
+   the global button chrome; the row's wash and bar (14a) mark the selection. */
 .codex-card__select {
-  display: grid;
-  gap: 6px;
+  display: block;
+  width: 100%;
   text-align: left;
   border: 0;
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   background: transparent;
-  padding: 12px 12px 8px;
+  padding: 4px 6px;
   min-height: 0;
 }
 
 .codex-card__select:hover:not(:disabled) {
   background: color-mix(in srgb, var(--codex-accent) 7%, transparent);
-  border-color: transparent;
 }
 
 .codex-card__select strong {
-  font-size: var(--fs-xl);
+  font-size: var(--fs-lg);
   color: var(--text-primary);
 }
 
-.codex-card__summary {
-  font-size: var(--fs-md);
+/* Both prose columns at one size and one ink: the half that usually goes
+   unwritten gets equal billing on every row. */
+.codex-card__summary,
+.codex-card__fails {
+  font-size: var(--fs-sm);
   line-height: var(--lh-body);
   color: var(--text-secondary);
-}
-
-/* The half that usually goes unwritten gets equal billing on every card. */
-.codex-card__fails {
-  font-size: var(--fs-body);
-  line-height: var(--lh-body);
-  color: var(--text-muted);
-}
-
-.codex-card__fails em {
-  font-style: normal;
-  font-weight: 650;
-  color: var(--warning-text);
-}
-
-/* Two stacked rows, both starting at the card's text column, and NOT a
-   chip-left / links-right split.
-
-   The split was tried twice and could not hold. Measured: every one of the 46
-   cards carries three or four similar strategies (39 and 7 respectively), the
-   labels run to 25 characters, and the grid track is `minmax(240px, 1fr)`. So
-   the links never fit beside the chip — they wrapped, by a different amount on
-   every card, and `text-align: right` then left each wrapped line ragged down
-   its LEFT edge. That is what reads as "the blue words are not aligned with
-   each other": within a card the lines did not share a left edge, and across
-   the grid the run started at a different x on every card.
-
-   Stacked and left-aligned, the run starts at the same x as the title, the
-   summary and the Fails line above it — on every card, at every width. */
-.codex-card__meta {
-  display: grid;
-  justify-items: start;
-  /* The meta is the card's bottom row, so its content is pinned down; with the
-     links box floored at two lines below, the chip lands on the same line of
-     every card in the row rather than floating with the label lengths. */
-  align-content: end;
-  gap: 4px;
-  padding: 0 12px 10px;
-  font-size: var(--fs-sm);
 }
 
 /* Explored state is glyph + words, never colour alone: ● run / ◌ not yet. */
@@ -373,13 +317,10 @@
 
 /* A packed comma run across the card's full width, left-aligned with
    everything above it. Two lines is the floor, not a cap: at the widths this
-   grid renders (four tracks inside the 1200px shell) three labels and four
-   labels both take two lines, so flooring it there makes the 46 cards one
-   shape. A longer run still grows — a clipped link would be worse than an
-   uneven edge. */
+   grid renders three labels and four labels both take two lines, so flooring
+   it there makes the 46 cards one shape. A longer run still grows — a clipped
+   link would be worse than an uneven edge. */
 .codex-card__similar {
-  align-self: stretch;
-  min-height: calc(2 * var(--fs-xs) * var(--lh-body));
   min-width: 0;
 }
 
@@ -394,7 +335,7 @@
   text-align: left;
   margin-inline-start: 0;
   margin-top: 0;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
 }
 
 @media (max-width: 720px) {

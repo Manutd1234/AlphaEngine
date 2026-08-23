@@ -8,28 +8,65 @@
  * here win over the owners by cascade order alone.
  */
 
-/* ── Strategy codex cards: one hairline per fact ─────────────────────────────
- * Each card face is four stacked facts — name, thesis, failure mode, then the
- * meta row's verdict and alternatives. Hairlines between them let the eye read
- * the SAME row across neighbouring cards (every Fails line sits under a rule),
- * which the bare 6px gap could not do once the summaries wrapped unevenly.
+/* ── Strategy codex: one table per family ───────────────────────────────────
+ * A real <table> since 2026-08-23. The subgrid-aligned tiles this replaces
+ * shared row tracks across a row of cards, and a reader still met seven
+ * grids of uneven tiles; the ask was one shape. Every family now renders the
+ * same five columns at the same widths — `table-layout: fixed` with the
+ * widths declared once on the header cells — one strategy per row, and a
+ * two-line floor on every cell so the seven tables read as one ruled sheet.
+ * A longer sentence still grows its row: a clipped fact is worse than an
+ * uneven rule. The frame, header band and column hairlines are the base
+ * `table` rules in 00; what is declared here is only what a prose table
+ * needs that a figures table does not.
  */
-.codex-card__summary,
-.codex-card__fails {
-  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
-  padding-top: 6px;
+.codex-table {
+  table-layout: fixed;
+  font-family: var(--sans);
+  font-size: var(--fs-sm);
+  font-variant-numeric: normal;
 }
 
-/* Full-width rule: the meta row is state (verdict, alternatives), not doc, and
- * the heavier border marks where the strategy's own description ends. */
-.codex-card__meta {
-  border-top: 1px solid var(--border);
-  padding-top: 8px;
+.codex-table th[scope="col"]:nth-child(1) { width: 17%; }
+.codex-table th[scope="col"]:nth-child(2) { width: 27%; }
+.codex-table th[scope="col"]:nth-child(3) { width: 29%; }
+.codex-table th[scope="col"]:nth-child(4) { width: 8%; }
+
+/* Prose cells wrap; the base `td` is nowrap for figures tables. */
+.codex-table th,
+.codex-table td {
+  text-align: left;
+  vertical-align: top;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
-.codex-card__similar {
-  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
-  padding-top: 4px;
+.codex-table td,
+.codex-table th[scope="row"] {
+  height: calc(2 * var(--fs-sm) * var(--lh-body) + 16px);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+/* The row head holds the select button, so it drops the column-head voice:
+ * no uppercase, no tracking, no band, and it wraps like its neighbours. */
+.codex-table th[scope="row"] {
+  padding: 4px 6px;
+  font-size: var(--fs-sm);
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: normal;
+  background: transparent;
+}
+
+/* The selected strategy: a wash plus an accent bar on its head cell, and
+ * `aria-current` on the button for everyone the wash cannot reach. */
+.codex-table tr.is-active > * {
+  background: color-mix(in srgb, var(--codex-accent) 9%, var(--surface-1));
+}
+
+.codex-table tr.is-active > th {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--codex-accent) 70%, var(--border));
 }
 
 /* ── Codebase snapshot notice ────────────────────────────────────────────────

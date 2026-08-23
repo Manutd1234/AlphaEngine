@@ -334,10 +334,6 @@
     overflow-wrap: anywhere;
   }
 
-  .codex-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
   .codex-family__head {
     flex-wrap: nowrap;
   }
@@ -561,7 +557,7 @@
   .verdict-card,
   .codex-family,
   .codex-monogram,
-  .codex-card,
+  .codex-table,
   .cockpit-verdict,
   .promotion-list > li {
     border-color: CanvasText;
@@ -592,7 +588,7 @@
     border-radius: var(--radius-sm);
   }
 
-  .codex-card.is-active {
+  .codex-table tr.is-active > th {
     outline: 2px solid Highlight;
     outline-offset: -2px;
     box-shadow: none;
@@ -714,7 +710,7 @@
     .verdict-card,
     .verdict-pill,
     .codex-family,
-    .codex-card,
+    .codex-table,
     .corpus-results > li,
     .promotion-list > li,
     .workflow-handoff,
@@ -873,7 +869,7 @@
     .research-corpus,
     .signal-workflow,
     .promotion-list > li,
-    .codex-card,
+    .codex-table tr,
     .corpus-results > li,
     svg
   ) {
@@ -1363,15 +1359,9 @@
    cockpit verdict takes. Nothing here invents a duration — every rule reads
    the ladder, and the ratchets in motion.test.ts hold that. */
 
-/* The house lift as a utility. Hover joins the consolidated lift rule beside
-   the signal-workflow block; this is only the resting transition. Reserved
-   for surfaces that ACT — navigate somewhere or hold the row's control — per
-   the wash doctrine: a lift on an inert card promises a drag the cursor
-   cannot make good on. First caller: the codex strategy cards. */
-.card-interactive {
-  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease),
-    transform var(--dur-fast) var(--ease);
-}
+/* `.card-interactive`, the house lift as a utility, left on 2026-08-23 with
+   its only caller: the codex strategy tiles became table rows, and a row is
+   not a card that lifts. */
 
 /* The generic live halo: any dot fed by a live poll may wear it. The dot is
    decoration by contract — aria-hidden, with the word beside it carrying the

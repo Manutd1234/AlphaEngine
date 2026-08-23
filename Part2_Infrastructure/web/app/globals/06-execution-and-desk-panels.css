@@ -693,58 +693,53 @@
   font-size: var(--fs-md);
 }
 
-/* -- alert feed -- */
+/* -- alert feed: a real table, one event per row -- */
 .cockpit-alert-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
+  font-family: var(--sans);
+  font-size: var(--fs-md);
+  font-variant-numeric: normal;
 }
 
-/* Every row reserves the severity rail, coloured or not. Only the warn and
-   stop rows used to take the 8px indent that makes room for their inset bar,
-   so an info row started eight pixels to the left of the rows above and below
-   it — every column in the grid stepped sideways on one line. */
-.cockpit-alert-list li {
-  display: grid;
-  grid-template-columns: 62px 72px minmax(0, 1fr) auto;
-  align-items: baseline;
-  gap: 10px;
-  padding: 7px 0 7px 8px;
+.cockpit-alert-list th,
+.cockpit-alert-list td {
+  text-align: left;
+  vertical-align: top;
+}
+
+.cockpit-alert-list td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--rule-soft);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* Every row reserves the severity rail on its first cell, coloured or not,
+   so no column steps sideways between an info row and a warn row. The pill
+   beside it carries the word; the rail only underlines it. */
+.cockpit-alert-list td:first-child {
   box-shadow: inset 2px 0 0 transparent;
-  border-bottom: 1px solid var(--grid);
-  font-size: var(--fs-lg);
 }
 
-.cockpit-alert-list li:last-child {
-  border-bottom: 0;
-}
-
-.cockpit-alert-list li.is-stop {
+.cockpit-alert-list tr.is-stop td:first-child {
   box-shadow: inset 2px 0 0 var(--status-critical);
 }
 
-.cockpit-alert-list li.is-warn {
+.cockpit-alert-list tr.is-warn td:first-child {
   box-shadow: inset 2px 0 0 var(--status-warning);
 }
 
-.cockpit-alert-list__time {
-  font-family: var(--mono);
-  font-size: var(--fs-sm);
-  color: var(--text-muted);
-}
-
-.cockpit-alert-list__detail {
-  display: block;
-  color: var(--text-secondary);
-  font-size: var(--fs-md);
-  line-height: var(--lh-body);
-}
-
+.cockpit-alert-list__time,
 .cockpit-alert-list__actor {
   font-family: var(--mono);
   font-size: var(--fs-sm);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.cockpit-alert-list__detail {
+  color: var(--text-secondary);
+  font-size: var(--fs-md);
+  line-height: var(--lh-body);
 }
 
 .toggle {
@@ -763,12 +758,6 @@
   }
   .cockpit-strip__budget {
     grid-column: span 1;
-  }
-  .cockpit-alert-list li {
-    grid-template-columns: 58px 68px minmax(0, 1fr);
-  }
-  .cockpit-alert-list__actor {
-    grid-column: 3;
   }
 }
 

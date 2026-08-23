@@ -102,9 +102,7 @@
    would wash out. The values are identical on purpose and the comment there says
    so; a fourth copy is what this consolidation exists to prevent. */
 .signal-workflow__node:hover:not(:disabled),
-.cross-link-tile:hover,
-.card-interactive:hover:not(:disabled),
-.card-interactive:focus-within {
+.cross-link-tile:hover {
   border-color: color-mix(in srgb, var(--series-1) 45%, var(--border));
   box-shadow: 0 8px 18px -14px color-mix(in srgb, var(--series-1) 70%, transparent);
   transform: translateY(-1px);

@@ -79,7 +79,7 @@ describe("the hook owns persistence and names each outcome", () => {
   });
 
   it("the board reports the source and marks the seeded rows", () => {
-    assert.match(board, /Persisted on the gateway, \$\{source\.count\}/);
+    assert.match(board, /Persisted on the gateway, \{source\.count\}/);
     assert.match(board, /item\.createdBy === "seed" && <small className="muted"> ‹sample›<\/small>/);
     assert.match(board, /disabled=\{readOnly\}/);
   });

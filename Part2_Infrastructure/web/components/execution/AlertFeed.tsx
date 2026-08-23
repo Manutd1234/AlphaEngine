@@ -81,32 +81,52 @@ export default function AlertFeed({ events, source = "live" }: AlertFeedProps) {
               : "No risk events recorded yet — a quiet desk is the good case."}
         </p>
       ) : (
-        <ul className="cockpit-alert-list">
-          {visible.map((event, index) => (
-            <li key={`${event.ts}-${event.event}-${index}`} className={`mount-fade is-${tone(event.severity)}`}>
-              <span className="cockpit-alert-list__time">{time(event.ts)}</span>
-              <span className={`pill pill--${tone(event.severity)}`}>{event.severity}</span>
-              <span className="cockpit-alert-list__event">
-                <strong>{event.event.replace(/_/g, " ")}</strong>
-                {event.symbol ? <span className="muted">, {event.symbol}</span> : null}
-                {event.detail ? <span className="cockpit-alert-list__detail">{event.detail}</span> : null}
-              </span>
-              {/* "system" was a value this component invented. `actor` is
-                  nullable all the way from the gateway's row (parse.ts keeps
-                  it null), and this file's own opening note is that "who
-                  halted this" has a different answer for a human and for the
-                  circuit breaker — so printing "system" over a null answered
-                  that question with a guess, and named the automation, which
-                  is the reading that changes what a trader does next.
-                  Rejected: a bare dash, which every other column on the desk
-                  uses for an absent measurement; the actor is one word and
-                  the space is already there, so the row can say why. */}
-              <span className="muted cockpit-alert-list__actor">
-                {event.actor ?? "actor not recorded"}
-              </span>
-            </li>
-          ))}
-        </ul>
+        // A real table since 2026-08-23, on a reader's request: the grid list
+        // it replaces had no frame, no header and no column rules, so five
+        // facts per row read as a ragged line. `.table-wrap` is focusable so a
+        // keyboard reader can reach the sideways scroll on a narrow screen.
+        <div className="table-wrap" tabIndex={0}>
+          <table className="cockpit-alert-list">
+            <thead>
+              <tr>
+                <th scope="col">Time</th>
+                <th scope="col">Severity</th>
+                <th scope="col">Event</th>
+                <th scope="col">Detail</th>
+                <th scope="col">Actor</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visible.map((event, index) => (
+                <tr key={`${event.ts}-${event.event}-${index}`} className={`mount-fade is-${tone(event.severity)}`}>
+                  <td className="cockpit-alert-list__time">{time(event.ts)}</td>
+                  <td><span className={`pill pill--${tone(event.severity)}`}>{event.severity}</span></td>
+                  <td className="cockpit-alert-list__event">
+                    <strong>{event.event.replace(/_/g, " ")}</strong>
+                    {event.symbol ? <span className="muted">, {event.symbol}</span> : null}
+                  </td>
+                  <td className="cockpit-alert-list__detail">
+                    {event.detail ? event.detail : <span aria-hidden>—</span>}
+                  </td>
+                  {/* "system" was a value this component invented. `actor` is
+                      nullable all the way from the gateway's row (parse.ts
+                      keeps it null), and this file's own opening note is that
+                      "who halted this" has a different answer for a human and
+                      for the circuit breaker — so printing "system" over a
+                      null answered that question with a guess, and named the
+                      automation, which is the reading that changes what a
+                      trader does next. Rejected: a bare dash, which every
+                      other column on the desk uses for an absent measurement;
+                      the actor is one word and the space is already there, so
+                      the row can say why. */}
+                  <td className="cockpit-alert-list__actor">
+                    {event.actor ?? "actor not recorded"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </section>
   );

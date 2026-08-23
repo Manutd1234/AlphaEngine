@@ -123,48 +123,67 @@ export default function StrategyCodex({
                 <small>from this browser&apos;s run log (last 60 runs)</small>
               </span>
             </header>
-            <div className="codex-grid">
-              {strategies.map((strategy) => {
-                const doc = STRATEGY_DOCS[strategy];
-                const state = progressFor(progress, strategy);
-                const explored_ = state.runs > 0;
-                return (
-                  <article
-                    key={strategy}
-                    id={`codex-card-${strategy}`}
-                    className={`codex-card card-interactive${strategy === activeStrategy ? " is-active" : ""}`}
-                  >
-                    <button
-                      type="button"
-                      className="codex-card__select"
-                      onClick={() => onSelect(strategy)}
-                      aria-current={strategy === activeStrategy || undefined}
-                      title={`Select ${STRATEGY_LABELS[strategy]} and open Summary`}
-                    >
-                      <strong>{STRATEGY_LABELS[strategy]}</strong>
-                      <span className="codex-card__summary">{doc.summary}</span>
-                      <span className="codex-card__fails">
-                        <em>Fails:</em> {firstSentence(doc.whenItFails)}
-                      </span>
-                    </button>
-                    <div className="codex-card__meta">
-                      {/* Glyph + word, never colour alone. */}
-                      <span
-                        className="codex-chip"
-                        data-verdict={explored_ ? state.bestVerdict : undefined}
+            {/* One real table per family, the same five columns at the same
+                widths in all seven (14a fixes the layout), one strategy per
+                row. The subgrid-aligned tiles this replaces shared row tracks
+                but still read as seven uneven grids; the ask was one shape.
+                `.table-wrap` is focusable so a keyboard reader can reach the
+                sideways scroll on a narrow screen, the idiom every wide table
+                on the desk uses. */}
+            <div className="table-wrap" tabIndex={0}>
+              <table className="codex-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Strategy</th>
+                    <th scope="col">What it does</th>
+                    <th scope="col">Fails when</th>
+                    <th scope="col">Best result</th>
+                    <th scope="col">Similar</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {strategies.map((strategy) => {
+                    const doc = STRATEGY_DOCS[strategy];
+                    const state = progressFor(progress, strategy);
+                    const explored_ = state.runs > 0;
+                    const active = strategy === activeStrategy;
+                    return (
+                      <tr
+                        key={strategy}
+                        id={`codex-card-${strategy}`}
+                        className={active ? "is-active" : undefined}
                       >
-                        {explored_
-                          ? <><span aria-hidden>●</span> best: {state.bestVerdict?.toUpperCase()}</>
-                          : <><span aria-hidden>◌</span> not yet run</>}
-                      </span>
-                      {doc.similar.length > 0 && (
-                        <span className="codex-card__similar">
-                          {/* One packed run, comma-separated, rather than a
-                              column of one link per row: four similar
-                              strategies spent four rows and left the chip
-                              alone against a ragged blue edge. Commas, not
-                              middle dots — middle-dot.test.ts holds those at
-                              zero outside tabular mono. */}
+                        <th scope="row">
+                          <button
+                            type="button"
+                            className="codex-card__select"
+                            onClick={() => onSelect(strategy)}
+                            aria-current={active || undefined}
+                            title={`Select ${STRATEGY_LABELS[strategy]} and open Summary`}
+                          >
+                            <strong>{STRATEGY_LABELS[strategy]}</strong>
+                          </button>
+                        </th>
+                        <td className="codex-card__summary">{doc.summary}</td>
+                        <td className="codex-card__fails">{firstSentence(doc.whenItFails)}</td>
+                        <td>
+                          {/* Glyph + word, never colour alone. */}
+                          <span
+                            className="codex-chip"
+                            data-verdict={explored_ ? state.bestVerdict : undefined}
+                          >
+                            {explored_
+                              ? <><span aria-hidden>●</span> {state.bestVerdict?.toUpperCase()}</>
+                              : <><span aria-hidden>◌</span> not yet run</>}
+                          </span>
+                        </td>
+                        <td className="codex-card__similar">
+                          {/* A packed comma run. The comma rides INSIDE the
+                              label it follows so it cannot orphan onto a line
+                              of its own; the space between buttons is the
+                              break opportunity. Commas, not middle dots —
+                              middle-dot.test.ts holds those at zero outside
+                              tabular mono. */}
                           {doc.similar.map((s, index) => (
                             <Fragment key={s}>
                               {index > 0 ? " " : null}
@@ -174,24 +193,16 @@ export default function StrategyCodex({
                                 onClick={() => jumpToCard(s)}
                                 title={`Jump to ${STRATEGY_LABELS[s]}`}
                               >
-                                {/* The comma rides INSIDE the label it follows.
-                                    As a separate text node it was a break
-                                    opportunity of its own, and in a column this
-                                    narrow every right-aligned link ends flush
-                                    against the edge — so the comma had nowhere
-                                    to sit and started the next line by itself.
-                                    Glued here it cannot orphan; the space
-                                    between buttons is the break opportunity. */}
                                 {STRATEGY_LABELS[s]}{index < doc.similar.length - 1 ? "," : ""}
                               </button>
                             </Fragment>
                           ))}
-                        </span>
-                      )}
-                    </div>
-                  </article>
-                );
-              })}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </section>
         );

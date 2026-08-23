@@ -170,16 +170,20 @@ export default function DataWorkBoard({
         <div>
           <div className="data-workboard__eyebrow">
             <span className="page-kicker">Operations queue</span>
-            {/* The pill is the honest one-line source. Persisted on the gateway
-                is the steady state; local hold is a disclosed degradation, never
-                a silent one; and a render with no source wired says so. */}
-            <span className="pill">
-              {source?.kind === "gateway"
-                ? `Persisted on the gateway, ${source.count} ${source.count === 1 ? "item" : "items"}`
-                : source?.kind === "local"
+            {/* The pill is the honest one-line source for the two states that
+                are NOT the steady one: local hold is a disclosed degradation,
+                never a silent one, and a render with no source wired says so.
+                The steady state wore a "Persisted on the gateway, N items"
+                pill until 2026-08-23; a reader asked for it to go, and the
+                source now rides in the fold below, one click away, while the
+                count is the list itself and the Open tile in the page head. */}
+            {source?.kind !== "gateway" && (
+              <span className="pill">
+                {source?.kind === "local"
                   ? `Gateway unreachable — edits held locally${pendingWrites ? ` (${pendingWrites} pending)` : ""}`
                   : "Loading the persisted queue"}
-            </span>
+              </span>
+            )}
           </div>
           <h2>Requests, tickets &amp; bugs</h2>
           {/* No sub here: it narrated the sort select, each column's own n/limit
@@ -228,6 +232,7 @@ export default function DataWorkBoard({
         <details className="disclosure">
           <summary>How an edit is recorded</summary>
           <p className="sub">
+            Persisted on the gateway, {source.count} {source.count === 1 ? "item" : "items"}.
             Every create and status change is versioned in the gateway&apos;s work-item table;
             a stale edit is refused rather than overwritten.
           </p>
