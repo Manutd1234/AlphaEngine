@@ -8,17 +8,15 @@
  * exposes every structured field without flattening it into an unreadable row.
  *
  * ONE CURSOR PER SERVER INSTANCE. The event ring is process-local and the
- * deployment is serverless, so consecutive polls routinely land on different
- * instances, each with its own ring and its own sequence space. This used to
- * rewind to zero and count a "timeline discontinuity" every time that
- * happened — on Vercel, within a minute of opening the tab, every time, for a
- * fact about the hosting rather than a hole in the log. The cursor is now a
- * map keyed by instance: a poll sends the cursor of the instance it expects,
- * and an answer from a different one is not ingested against the wrong cursor
- * but re-asked at once with that instance's own. Nothing an instance holds is
- * skipped, its lines merge by timestamp under keys that already carry the
- * instance id, and the discontinuity notice is reserved for the one thing it
- * can still truthfully mean: a ring that advanced past this client's cursor.
+ * deployment is serverless, so consecutive polls routinely answer from
+ * different instances with different sequence spaces. This used to rewind to
+ * zero and count a "timeline discontinuity" each time — on Vercel, within a
+ * minute of opening the tab, for a fact about the hosting rather than a hole
+ * in the log. The cursor is a map keyed by instance now: a poll sends the
+ * cursor of the instance it expects, and an answer from another is re-asked
+ * at once with that instance's own rather than ingested against the wrong
+ * one. Lines merge by timestamp under keys that carry the instance id, and
+ * the notice is reserved for a ring that advanced past this client's cursor.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";

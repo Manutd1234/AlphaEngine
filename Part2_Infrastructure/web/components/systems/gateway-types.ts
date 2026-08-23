@@ -4,7 +4,7 @@
  * Split out of `types.ts` when that file passed the length ceiling.
  * `types.ts` re-exports every name below, so no import path changed.
  *
- * `lib/reliability.ts` holds `isGatewayOpsSnapshot`, the runtime gate that
+ * `lib/reliability-wire.ts` holds `isGatewayOpsSnapshot`, the runtime gate that
  * narrows an unknown payload to `GatewayOpsSnapshot` at the gateway boundary.
  * A required member added here without a matching check there is a snapshot
  * the runtime waves through untyped; a check there with no member here is a
