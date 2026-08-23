@@ -58,20 +58,25 @@ export default function FindingsPane({ active }: { active: boolean }) {
   const calendar = data.calendar;
   const gate = data.gate;
   const study = data.study;
+  // "0 of 0" is not a clean bill of health. A desk that has fetched no
+  // statement has verified nothing, and a tick beside that would be the exact
+  // claim this section exists to avoid making.
+  const allVerified = Boolean(calendar && calendar.of > 0 && calendar.verified === calendar.of);
+  const measured = data.findings.some((row) => row.t_statistic != null);
 
   return (
     <div className="diff-results">
       <div className="coh-status__chips">
         <StateChip
-          mark={calendar && calendar.verified === calendar.of ? "✓" : "◌"}
+          mark={allVerified ? "✓" : "◌"}
           word="Timestamps verified"
-          value={calendar ? `${calendar.verified} of ${calendar.of}` : "not checked"}
-          tone={calendar && calendar.verified === calendar.of ? "good" : "muted"}
+          value={calendar?.of ? `${calendar.verified} of ${calendar.of}` : "nothing fetched yet"}
+          tone={allVerified ? "good" : "muted"}
         />
         <StateChip
           mark="●"
           word="Meetings with a dissent"
-          value={calendar ? String(calendar.dissent_meetings) : "—"}
+          value={calendar?.of ? String(calendar.dissent_meetings) : "—"}
           tone="muted"
         />
         <StateChip mark={held ? "✓" : "◌"} word="Relationships that hold"
@@ -92,13 +97,15 @@ export default function FindingsPane({ active }: { active: boolean }) {
         caption="Every relationship measured, against the band a shuffled pairing would reach"
         ariaLabel={`Dot plot of t statistics for ${data.findings.length} measured relationships, ${held} outside the plus or minus two band`}
         reading={
-          held
-            ? "The two rows outside the band are the positive control: a larger rate change moves the price further. The rows inside it are the ones this instrument was built to find, and it did not find them."
-            : "Nothing clears the band, including the control — so no row below can be read as an absence rather than a broken measurement."
+          !measured
+            ? null
+            : held
+              ? "The two rows outside the band are the positive control: a larger rate change moves the price further. The rows inside it are the ones this instrument was built to find, and it did not find them."
+              : "Nothing clears the band, including the control — so no row below can be read as an absence rather than a broken measurement."
         }
         missing="A row is drawn only where enough meetings carry both quantities; the count is in the table."
       >
-        {data.findings.some((row) => row.t_statistic != null) ? (
+        {measured ? (
           <EffectPlot findings={data.findings} />
         ) : (
           <FigureEmpty reason="No relationship has enough meetings behind it yet." />
@@ -125,6 +132,17 @@ export default function FindingsPane({ active }: { active: boolean }) {
               : ""}
           </p>
         </section>
+      ) : null}
+
+      {calendar?.of ? (
+        <p className="coh-event__note">
+          <span aria-hidden="true">{allVerified ? "✓" : "◌"}</span>{" "}
+          {calendar.how.charAt(0).toUpperCase()}{calendar.how.slice(1)} — {calendar.verified}{" "}
+          of {calendar.of}. An event study anchored on a wrong t-zero measures the speed of its own
+          errors, so the hour is checked against the issuer rather than against a second calendar.
+          The {calendar.dissent_votes} dissenting votes across {calendar.dissent_meetings} meetings
+          are counted from the vote line of each statement, not from a summary of it.
+        </p>
       ) : null}
 
       <details className="disclosure">
