@@ -86,24 +86,29 @@ const QUALITY_PANES: Array<{ id: QualityPane; label: string; hint: string }> = [
 ];
 
 /**
- * Activity, split along the record/stream seam.
+ * Activity, split along the record/stream seam — and the stream split again.
  *
  * The blotter, the decision tape and the alert feed sat in one scroll, and the
  * only thing keeping them straight was order: the tape came after the blotter
  * so the record was read before the stream. A split states the same argument
  * with geometry instead of position. The Blotter pane is the record — every
  * order the desk sent, polled from the gateway's authoritative store, with the
- * resting book beside it. The Tape & alerts pane is the desk happening: the
- * realtime mirror of decisions as Postgres commits them, and what the risk
- * system decided on its own. The seg opens on Blotter for the reason the old
+ * resting book beside it. The stream is the desk happening, and it is two
+ * panes rather than one: the decision tape is the realtime mirror of decisions
+ * as Postgres commits them, and the alert feed is what the risk system decided
+ * on its own. They shared a pane side by side until the alert table, at half a
+ * desk, was cutting "research" and "web:token" mid-word and stacking its event
+ * names two lines deep — a five-column table and a six-column table each need
+ * the width, so each gets it. The seg opens on Blotter for the reason the old
  * ordering existed — reading the stream first invites treating it as the
  * record, which is exactly what a channel that drops silently cannot be.
  */
-type ActivityPane = "blotter" | "tape";
+type ActivityPane = "blotter" | "tape" | "alerts";
 
 const ACTIVITY_PANES: Array<{ id: ActivityPane; label: string; hint: string }> = [
   { id: "blotter", label: "Blotter", hint: "The record: every order sent, what it cost, which gate stopped it, and the resting book" },
-  { id: "tape", label: "Tape & alerts", hint: "The stream: decisions as Postgres commits them, and the alerts risk raised on its own" },
+  { id: "tape", label: "Decision tape", hint: "The stream: decisions as Postgres commits them, watched rather than counted on" },
+  { id: "alerts", label: "Alerts & risk events", hint: "What the gateway decided unasked, and what the Telegram companion pushes" },
 ];
 
 
@@ -337,17 +342,13 @@ export default function ExecutionCockpit({
           />
         )}
 
-        {activityPane === "tape" && (
-          /* One row, not a stack: the tape's five narrow columns and the alert
-             list each sat full-width, one below the other, so reaching the
-             alerts meant scrolling past a screen of mostly empty tape. The
-             same grid the Where pane uses puts them side by side at desk
-             widths and collapses back to the stack below 900px. */
-          <div className="cockpit-grid">
-            <DeskTape symbol={symbol} />
-            <AlertFeed events={effectiveEvents} source={feedSource} />
-          </div>
-        )}
+        {/* Each feed alone, at the panel's full width. They shared one row
+            for a while, to spare the reader a scroll past mostly empty tape
+            to reach the alerts; at half a desk the alert table's actor and
+            event columns broke words, which is a worse cost than a click. */}
+        {activityPane === "tape" && <DeskTape symbol={symbol} />}
+
+        {activityPane === "alerts" && <AlertFeed events={effectiveEvents} source={feedSource} />}
       </WorkspaceSubtabPanel>
     </div>
   );

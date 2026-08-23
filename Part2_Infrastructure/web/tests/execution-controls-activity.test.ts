@@ -39,11 +39,13 @@ describe("Activity is the record and the stream, one seg apart", () => {
    */
   const stripped = code(cockpit);
 
-  it("splits into exactly two panes", () => {
+  it("splits into exactly three panes: the record, then the two streams", () => {
+    // Tape and alerts were one pane, side by side, until the alert table at
+    // half a desk cut "research" and "web:token" mid-word (2026-08-23).
     const block = stripped.slice(stripped.indexOf("const ACTIVITY_PANES"));
     const list = block.slice(0, block.indexOf("];"));
     const ids = [...list.matchAll(/\{ id: "([a-z]+)"/g)].map((m) => m[1]);
-    assert.deepEqual(ids, ["blotter", "tape"]);
+    assert.deepEqual(ids, ["blotter", "tape", "alerts"]);
   });
 
   it("switches with the house `.seg role=group`, never a nested rail", () => {
@@ -77,7 +79,8 @@ describe("Activity is the record and the stream, one seg apart", () => {
 
   it("renders panes conditionally rather than hiding them", () => {
     assert.match(stripped, /activityPane === "blotter" && \(/);
-    assert.match(stripped, /activityPane === "tape" && \(/);
+    assert.match(stripped, /activityPane === "tape" && </);
+    assert.match(stripped, /activityPane === "alerts" && </);
     assert.doesNotMatch(stripped, /hidden=\{activityPane/);
   });
 
@@ -93,19 +96,24 @@ describe("Activity is the record and the stream, one seg apart", () => {
     assert.match(cockpit, /watched,\s*not counted on/);
   });
 
-  it("puts the record in Blotter and both feeds in Tape & alerts", () => {
+  it("puts the record in Blotter, the tape in Decision tape, and the feed in Alerts — each alone, each full width", () => {
     const open = stripped.indexOf('activityPane === "blotter"');
-    const shut = stripped.indexOf('activityPane === "tape"');
-    // Measured, not sliced blind — `indexOf` returning -1 twice would hand
+    const tape = stripped.indexOf('activityPane === "tape"');
+    const alerts = stripped.indexOf('activityPane === "alerts"');
+    // Measured, not sliced blind — `indexOf` returning -1 would hand
     // `doesNotMatch` an empty string and pass without reading anything.
-    assert.ok(open >= 0 && shut > open, "the panes are gone, so nothing was checked");
-    const blotterPane = stripped.slice(open, shut);
-    const tapePane = stripped.slice(shut);
+    assert.ok(open >= 0 && tape > open && alerts > tape, "the panes are gone, so nothing was checked");
+    const blotterPane = stripped.slice(open, tape);
+    const tapePane = stripped.slice(tape, alerts);
+    const alertsPane = stripped.slice(alerts);
     assert.match(blotterPane, /<BlotterViews/);
     assert.doesNotMatch(blotterPane, /<DeskTape|<AlertFeed/);
     assert.match(tapePane, /<DeskTape/);
-    assert.match(tapePane, /<AlertFeed/);
-    assert.doesNotMatch(tapePane, /<BlotterViews/);
+    assert.doesNotMatch(tapePane, /<AlertFeed|<BlotterViews/);
+    assert.match(alertsPane, /<AlertFeed/);
+    assert.doesNotMatch(alertsPane, /<DeskTape|<BlotterViews/);
+    // Neither stream is wrapped in the half-width grid any more.
+    assert.doesNotMatch(tapePane + alertsPane, /cockpit-grid/);
   });
 
   it("keeps the blotter's wiring exactly as it was", () => {

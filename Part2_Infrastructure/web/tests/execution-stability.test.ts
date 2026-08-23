@@ -229,16 +229,19 @@ describe("every cockpit panel is a pure function of the one feed", () => {
 });
 
 // --------------------------------------------------------------------------
-// Scroll economy: the tape and the alert feed share a row at desk widths
+// Width economy: the tape and the alert feed each get the whole panel
 // --------------------------------------------------------------------------
 
-describe("the Tape & alerts pane spends its width", () => {
-  it("pairs the two cards in the grid the Where pane already uses", () => {
-    // Five narrow columns of tape and a four-column alert list each sat
-    // full-width, stacked — a screen of horizontal whitespace and an extra
-    // scroll to reach the alerts. `.cockpit-grid` collapses below 900px, so
-    // narrow screens keep the stack.
+describe("the stream panes spend their width", () => {
+  it("gives each feed the panel alone, never half of it", () => {
+    // They shared `.cockpit-grid` for a while, to spare a scroll past mostly
+    // empty tape. At half a desk the alert table's six columns broke
+    // "research" and "web:token" mid-word and stacked event names two lines
+    // deep (2026-08-23), so the two streams are two panes now, each at full
+    // width, and the reader pays a click instead of reading broken words.
     const cockpit = code(read("components/execution/ExecutionCockpit.tsx"));
-    assert.match(cockpit, /<div className="cockpit-grid">\s*<DeskTape symbol=\{symbol\} \/>\s*<AlertFeed/);
+    assert.match(cockpit, /activityPane === "tape" && <DeskTape symbol=\{symbol\} \/>/);
+    assert.match(cockpit, /activityPane === "alerts" && <AlertFeed events=\{effectiveEvents\} source=\{feedSource\} \/>/);
+    assert.doesNotMatch(cockpit, /<div className="cockpit-grid">\s*<DeskTape/);
   });
 });

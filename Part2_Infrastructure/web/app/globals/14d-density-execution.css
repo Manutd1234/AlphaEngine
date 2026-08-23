@@ -190,3 +190,23 @@
 .cockpit-verdict__gate {
   color: var(--critical-text);
 }
+
+/* The alert list's Time, Actor and Event cells do not break inside a word.
+   06 asks for nowrap on the time and actor cells by class alone
+   (.cockpit-alert-list__time, 0-1-0), after asking every cell to wrap with
+   `overflow-wrap: anywhere` by class-and-element (.cockpit-alert-list td,
+   0-1-1) — so the wrap won on specificity and "16:55:43", "research" and
+   "web:token" broke mid-word at any width the column was squeezed to. Stated
+   at the higher specificity here, since 06 may not grow. The Event cell joins
+   them: "work item deleted" is a name, not prose, and the Detail column is
+   the one that wraps. */
+.cockpit-alert-list td.cockpit-alert-list__time,
+.cockpit-alert-list td.cockpit-alert-list__actor,
+.cockpit-alert-list td.cockpit-alert-list__event {
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
+.cockpit-alert-list td.cockpit-alert-list__detail {
+  width: 100%;
+}
