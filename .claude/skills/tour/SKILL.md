@@ -282,12 +282,12 @@ managers get a Kupiec VaR backtest and a kill switch but no margin or
 liquidation modelling. Point the user at that table rather than reciting it; the
 gaps column is the argument.
 
-Test counts, measured 2026-08-22: **2,091 gateway passed with 2 skipped** in a
-clean shell, **2,099 passed with 1 skipped** once the optional cross-encoder
-weights are seeded, **4,124 web across 899 suites** (4,122 passed, 2 skipped),
-**14 service**. Do not read those off `web/lib/test-counts.generated.ts` today —
-it still carries the previous week's 2,037 / 4,008, and `npm run counts:refresh`
-is owed. The standing rule outranks every sentence in this file: **never quote a
+Test counts, measured 2026-08-23: **2,141 gateway passed with 2 skipped** in a
+clean shell, **2,149 passed with 1 skipped** once the optional cross-encoder
+weights are seeded, **4,430 web across 972 suites** (4,428 passed, 2 skipped),
+**14 service**. `web/lib/test-counts.generated.ts` was refreshed the same day
+and agrees; it will not stay that way without `npm run counts:refresh` after
+every test file. The standing rule outranks every sentence in this file: **never quote a
 test count from prose.** Run the `verify` skill and read the number off the
 output. Every count in this repository has drifted at least once, and prose in
 `Part2_Infrastructure/README.md`, `docs/testing/TESTING.md` and

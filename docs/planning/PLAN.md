@@ -252,9 +252,10 @@ not three) cannot back. It wants its own change with its own fixture row.
 - **`chart_docs` stays unscheduled** — the sweep scope is declared and nothing
   implements it, and a cadence today would file a failed job every six hours
   (`modules/research_schedule.py`).
-- **`web/lib/test-counts.generated.ts` is behind the tree**, so CI's
-  "Committed test counts match the suite" step exits 1 (4,008 committed against
-  4,124 measured). The debt is written in the generated file's own header —
+- **`web/lib/test-counts.generated.ts` falls behind the tree** whenever a
+  test file lands without a refresh, and CI's "Committed test counts match the
+  suite" step then exits 1 (it did for a week: 4,008 committed against 4,124
+  measured, until the 2026-08-23 refresh). The debt is written in the generated file's own header —
   "Re-run the script after adding tests; nothing regenerates these
   automatically" — and the fix is `npm run counts:refresh -- --suite=web`, never
   a hand edit. Indexed here because three separate changes added suites and none

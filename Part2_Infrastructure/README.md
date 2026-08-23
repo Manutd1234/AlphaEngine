@@ -116,7 +116,7 @@ missing (§9 has the detail):
 | **Risk Manager** | *Is the model right, and will the limits hold?* | Kupiec VaR backtest, stress scenarios, reduce-only mode, kill switch | No margin or liquidation modelling |
 | **Data Engineer** | *Can I trust this data?* | Overview-first trust cockpit, provider registry, failover, quote/bars/news/fundamentals contracts, quarantine and lineage, a durable cross-instance quality ledger with rule-based escalation, replay and backfill jobs on a config-driven schedule, a persisted versioned work queue | One gateway process and one SQLite file — durable across restarts and deploys, not replicated across regions; contracts check the normalised shape, not each vendor's raw JSON |
 | **DevOps / SRE** | *Is it healthy, and what do I do at 3am?* | `/health`, `/metrics`, systems console, alert rules, runbook | No log aggregation or distributed tracing |
-| **Quant Developer** | *Can I change this safely?* | Typed contracts, OpenAPI snapshot, parity suites (Python ↔ TypeScript to 1e-4, Python ↔ C++ to the bit), CI, and three suites re-measured today: gateway **2,097 passed / 1 skipped / 2 failed** (both failures the migration-bundle ratchet, §13), web **4,122 passed / 2 skipped**, service **14 passed** (§8 reconciles the gateway figure with the smaller one CI prints without the re-ranker weights) | No generated client, no property-based fuzzing |
+| **Quant Developer** | *Can I change this safely?* | Typed contracts, OpenAPI snapshot, parity suites (Python ↔ TypeScript to 1e-4, Python ↔ C++ to the bit), CI, and three suites re-measured 2026-08-23: gateway **2,141 passed / 2 skipped** (CI's shape; 2,149 / 1 with the re-ranker weights seeded), web **4,428 passed / 2 skipped**, service **14 passed** (§8 reconciles the gateway figure with the smaller one CI prints without the re-ranker weights) | No generated client, no property-based fuzzing |
 
 ### Quant Traders — *"Can I send this, and what will it cost?"*
 
@@ -292,7 +292,7 @@ gateway and its OpenBB adapter to the separate stateless service.
 cd web
 npm install
 npm run dev    # http://localhost:3000
-npm test       # 4,124 tests across 899 suites: 4,122 passed, 2 skipped (2026-08-22)
+npm test       # 4,430 tests across 972 suites: 4,428 passed, 2 skipped (2026-08-23)
 ```
 
 Live-feed endpoints (public, no key):
@@ -2324,7 +2324,7 @@ python tools/bench_image_retrieval.py --model-path DIR
                                           # offline once `--seed --model-path DIR` has fetched the weights
 python tools/synthetic_probe.py           # end-to-end: book → cost → gate → audit
 cd OpenBB_Service && pytest               # 14 stateless service tests
-cd web && npm install && npm test         # 4,124 workspace tests across 899 suites — 4,122 passed,
+cd web && npm install && npm test         # 4,430 workspace tests across 972 suites — 4,428 passed,
                                           # 2 skipped — incl. the parity suites
 bash tools/check_repo_complete.sh         # builds the *committed* tree
 ```
@@ -2349,7 +2349,7 @@ because the commit that lands the work is the commit that should carry them.
 | `web/lib/test-counts.generated.ts` — records 4,008 web tests where the runner prints 4,124, and 2,036 gateway where it prints 2,097 | `web/scripts/check-test-counts.mjs`, the CI step that runs immediately after the web suite | `cd web && npm run counts:refresh` re-measures all three suites; `-- --suite=web` re-measures only the web one. Run it **after** the bundle above, or it records a gateway figure taken while two tests were red |
 | `web/lib/repository-manifest.generated.json` — 32 paths added since it was written | `npm run prebuild`, so `next build` and therefore every Vercel deploy | `cd web && npm run catalog:refresh` |
 
-The web suite itself is green (4,122 passed, 2 skipped) and the count gate lives
+The web suite itself is green (4,428 passed, 2 skipped) and the count gate lives
 *outside* it on purpose: a test that asserts the total changes the total, so the
 check is a CI step reading the runner's own log. That is why a stale count is
 invisible to `npm test` and visible on push.

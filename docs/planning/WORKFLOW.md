@@ -87,17 +87,17 @@ different policies.
 
 The suite's health is read off the skip REASONS, because the pass count stays
 plausible under several failure modes — and because the pass count legitimately
-moves. On a correct 3.12 venv the gateway suite reads **2,036 passed and one
-skipped** with the cross-encoder weights seeded on disk, and **2,028 passed and
-two skipped** without them, which is what CI sees. Both are correct; the
-difference is one opt-in file, not a regression.
+moves. On a correct 3.12 venv the gateway suite reads **2,149 passed and one
+skipped** with the cross-encoder weights seeded on disk, and **2,141 passed and
+two skipped** without them, which is what CI sees (both measured 2026-08-23).
+Both are correct; the difference is one opt-in file, not a regression.
 [`web/lib/test-counts.generated.ts`](../../Part2_Infrastructure/web/lib/test-counts.generated.ts)
-(generated 2026-08-22) carries the seeded figure — 2,037 collected, 2,036
-passed, 1 skipped. Re-run the suite rather than trusting either file; the counts
+(generated 2026-08-23) carries CI's figure — 2,143 collected, 2,141 passed,
+2 skipped. Re-run the suite rather than trusting either file; the counts
 in prose have drifted before, which is why that file is generated — and its own
-web line is behind the tree as this is written, so it is not a substitute for
-running the suite either. [`TESTING.md`](../testing/TESTING.md) is the argument
-in full.
+web line has been behind the tree for a week at a time, so it is not a
+substitute for running the suite either. [`TESTING.md`](../testing/TESTING.md)
+is the argument in full.
 
 Run `venv/bin/python -m pytest -rs` and read what each one says. Every expected
 skip names the thing it did not exercise, which is the whole point of them:
@@ -128,8 +128,8 @@ All from `Part2_Infrastructure` unless stated; web commands from
 
 | What | Command | Notes |
 |---|---|---|
-| Gateway tests | `venv/bin/python -m pytest` | 130 `test_*.py` suites (`ls tests/test_*.py \| wc -l`, 2026-08-22), deterministic, no network |
-| Web tests | `npm test` | `node --test` via tsx; **4,124 tests across 899 suites in 279 files**, measured 2026-08-22. Two skips, both cross-ownership debts rather than opt-ins. The committed record still reads 4,008 — refresh it, see §4.3 |
+| Gateway tests | `venv/bin/python -m pytest` | 134 `test_*.py` suites (`ls tests/test_*.py \| wc -l`, 2026-08-23), deterministic, no network |
+| Web tests | `npm test` | `node --test` via tsx; **4,430 tests across 972 suites in 300 files**, measured 2026-08-23 from a clean checkout. Two skips, both cross-ownership debts rather than opt-ins. The committed record agrees; when it stops agreeing, refresh it, see §4.3 |
 | Service tests | `cd OpenBB_Service && python -m pytest` | own `pyproject.toml`, 14 tests |
 | Typecheck | `npm run typecheck` | `tsc --noEmit`, strict |
 | Lint | `venv/bin/python -m ruff check .` | configured in `pyproject.toml`; installed only by `requirements-dev.txt` |
@@ -197,9 +197,10 @@ committed figure. Refresh after adding tests: `npm run counts:refresh` (or
 `--suite=web` to re-run only the web suite, which keeps the committed Python
 figures).
 
-**This gate is red on the current tree**, and it is the worked example of why
-it exists: three changes landed on 2026-08-22 adding suites, none refreshed the
-module, and the committed 4,008 now faces a measured 4,124. Nothing is broken —
+**This gate was red for a week in August**, and it is the worked example of
+why it exists: three changes landed on 2026-08-22 adding suites, none refreshed
+the module, and the committed 4,008 faced a measured 4,124 until the 2026-08-23
+refresh (now 4,430, and it agrees). Nothing was broken —
 the gate is doing precisely its job, which is to make "I added tests and forgot"
 a red step rather than a stale number on the Developer tab. Run
 `npm run counts:refresh -- --suite=web` and commit the result. Do not edit the

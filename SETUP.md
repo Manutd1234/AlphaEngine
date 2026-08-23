@@ -183,7 +183,7 @@ Every command below was run against this tree on 2026-08-22. Re-run them rather
 than trusting the counts: a number nobody re-measured is not a measurement.
 
 ```bash
-# Gateway suite — 2,091 passed, 2 skipped (native core built, Python 3.12,
+# Gateway suite — 2,141 passed, 2 skipped (native core built, Python 3.12,
 # no .env in Part2_Infrastructure). The two skips are test_data_ops_postgrest.py
 # (no Supabase creds) and test_research_rerank_real.py (no seeded re-ranker
 # weights). Both NAME what was not exercised; read the reasons with -rs, never
@@ -191,7 +191,7 @@ than trusting the counts: a number nobody re-measured is not a measurement.
 
 cd Part2_Infrastructure && venv/bin/python -m pytest
 
-# Web suite — 4,122 passed, 2 skipped, 4,124 across 899 suites; no browser
+# Web suite — 4,428 passed, 2 skipped, 4,430 across 972 suites; no browser
 cd Part2_Infrastructure/web && npm test
 
 # Research service — 14 passed
@@ -224,7 +224,7 @@ SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... \
 **Turning the other skip into passes.** `tests/test_research_rerank_real.py`
 skips at MODULE level, so its eight tests are not collected at all until weights
 exist. Seed them once — about 1.05 GiB, fetched from a third-party hub — and the
-run becomes 2,099 passed, 1 skipped:
+run becomes 2,149 passed, 1 skipped:
 
 ```bash
 cd Part2_Infrastructure
@@ -237,7 +237,7 @@ That is what CI's opt-in `rerank-real` job does. **A `.env` does it too, and
 that surprises people:** `conftest.py` deliberately does not blank
 `RERANK_TEST_MODEL_PATH`, and python-dotenv fills it from
 `Part2_Infrastructure/.env`, so a machine whose deployment file names a weights
-directory prints 2,099 / 1 with nothing exported. Force the CI shape with
+directory prints 2,149 / 1 with nothing exported. Force the CI shape with
 `RERANK_TEST_MODEL_PATH= venv/bin/python -m pytest`. Only the **web** line of
 `web/lib/test-counts.generated.ts` is checked in CI
 (`node scripts/check-test-counts.mjs web <log>`), so its gateway line is a dated

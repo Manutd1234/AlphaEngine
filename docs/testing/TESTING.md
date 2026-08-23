@@ -12,19 +12,20 @@ the habits that keep them honest. The four facts that cost an hour each are in
 
 Three suites, three runners, one committed record:
 [`web/lib/test-counts.generated.ts`](../../Part2_Infrastructure/web/lib/test-counts.generated.ts)
-holds what each runner printed when it was last regenerated on 2026-08-22 —
-**gateway 2,037 collected (2,036 passed, 1 skipped)**, **web 4,008 tests across
-871 suites**, **service 14** — and its own header explains why it exists: the
+holds what each runner printed when it was last regenerated on 2026-08-23 —
+**gateway 2,143 collected (2,141 passed, 2 skipped)**, **web 4,430 tests across
+972 suites**, **service 14** — and its own header explains why it exists: the
 counts were once three hand-copied integers in a component, and they drifted
 three separate times, the last time inside a single afternoon.
 
-**That record is behind the tree as this is written, and the gap is worth more
-than a corrected number.** Three changes landed after the last refresh — the
+**The record agrees with the tree as this is written, and the week it did not
+is worth more than the corrected number.** Through mid-August the record read
+web 4,008 while the runner read 4,124, then 4,422, because three changes — the
 Remediation pane split, the numerics custody chain and the Developer diagram
-work, each with its own new suites — and `npm test` now prints **4,124 tests
-across 899 suites: 4,122 passed, 0 failed, 2 skipped** (measured 2026-08-22,
-`node --import tsx --test tests/*.test.ts`, 279 files in `web/tests/`). So the
-committed web line reads 4,008 and the runner reads 4,124.
+work — each landed with new suites and nobody re-ran the script. The 2026-08-23
+refresh was taken from a clean detached checkout with the native core built
+(`node --import tsx --test tests/*.test.ts`, 300 files in `web/tests/`: 4,428
+passed, 0 failed, 2 skipped), so the figure describes committed files only.
 
 Nothing is broken, and nothing here should be patched to paper over it. The
 generated file is a **measurement with a date**, not a contract, and it goes
@@ -32,16 +33,17 @@ stale by design the moment a suite is added — which is exactly why the check
 lives outside it. What follows from the gap is concrete and belongs in a
 release note rather than a shrug: CI's "Committed test counts match the suite"
 step (`scripts/check-test-counts.mjs web`) compares the two integers and exits
-1, so **this tree fails that step until somebody runs
+1, so **a tree whose record is behind fails that step until somebody runs
 `npm run counts:refresh -- --suite=web` and commits the regenerated module**.
 The refresh is the fix. Editing either number by hand is not — the file says so
 in its first line, and hand-editing it is the original defect the generator was
 written to end.
 
 **The gateway figure has a condition attached, and it is not a discrepancy.**
-That run had the cross-encoder weights seeded on disk. The same tree in CI,
-which has none, prints **2,028 passed and 2 skipped** — seven fewer collected,
-eight fewer passed, one more skip. Both numbers are correct. The whole
+The recorded run is CI's shape, with no cross-encoder weights on disk:
+**2,141 passed and 2 skipped**. The same tree with the weights seeded prints
+**2,149 passed and 1 skipped** — seven more collected, eight more passed, one
+fewer skip (measured 2026-08-23). Both numbers are correct. The whole
 difference is one opt-in: `tests/test_research_rerank_real.py` collects and
 passes its eight cases only when `RERANK_TEST_MODEL_PATH` points at real
 weights, and skips with its reason printed otherwise. A document that picked one
@@ -150,8 +152,8 @@ see is decided by what you have opted into rather than by the tree's health:
 | `tests/test_data_ops_postgrest.py` | no `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` in the environment, so the Postgres backend was *not* exercised | export both — one variable per command, see the trap above — and its live pass runs **eleven tests green** against a real Supabase project |
 | `tests/test_research_rerank_real.py` | `RERANK_TEST_MODEL_PATH` unset, so no cross-encoder weights were offered and the real ONNX path was *not* exercised | seed with `python tools/bench_rerank.py --seed --model-path DIR` (1.05 GiB) and it runs **eight tests green** against the real cross-encoder |
 
-So a bare laptop and CI both read 2,028 passed with two skips; a machine with the
-weights seeded reads 2,036 passed with one. **Neither is "the" healthy number** —
+So a bare laptop and CI both read 2,141 passed with two skips; a machine with the
+weights seeded reads 2,149 passed with one. **Neither is "the" healthy number** —
 what is healthy is that each skip *says what it did not exercise*, which is the
 house habit of reporting absence applied to the suite itself.
 
@@ -478,7 +480,7 @@ measured numbers. By hand, from `Part2_Infrastructure/`:
 | Suite | Command | Prerequisites and what green means |
 |---|---|---|
 | Gateway (2,037 collected with weights seeded; 2,030 without) | `venv/bin/python -m pytest` (add `-rs` to see skip reasons) | venv named exactly `venv`, Python 3.12, `requirements-dev.txt`, `requirements-native.txt` and the built core (`python native/decision_core/setup.py build_ext --inplace --build-temp build/native`). Expect one skip with the cross-encoder weights seeded and two without; read the reasons, not the count — see "Reading the skips". |
-| Web (4,124 / 899 suites, 2 skipped — measured 2026-08-22; the committed record still reads 4,008) | `cd web && npm test` | Node 22, `npm ci`. Runner is `node --import tsx --test tests/*.test.ts` — Node's own runner over 279 files, no Jest/Vitest, consistent with the no-new-dependencies rule. Both skips are cross-ownership debts, not opt-ins; see "The web suite skips two". |
+| Web (4,430 / 972 suites, 2 skipped — measured 2026-08-23; the committed record agrees) | `cd web && npm test` | Node 22, `npm ci`. Runner is `node --import tsx --test tests/*.test.ts` — Node's own runner over 300 files, no Jest/Vitest, consistent with the no-new-dependencies rule. Both skips are cross-ownership debts, not opt-ins; see "The web suite skips two". |
 | Web types | `cd web && npm run typecheck` | There is **no `lint` script** in `web/` — `npm run lint` fails as a missing script, not a broken linter. |
 | Python lint | `venv/bin/python -m ruff check .` | Configured in `pyproject.toml`, installed by `requirements-dev.txt`. |
 | OpenBB service (14) | `cd OpenBB_Service && python -m pytest` | Its own `requirements-dev.txt` (pytest 9.1.1, httpx); stateless, offline. |
