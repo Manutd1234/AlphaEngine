@@ -128,6 +128,37 @@ export interface CoherenceCertificateLeg {
   trade_fee: string;
 }
 
+export interface CoherenceEpisode {
+  closed_ts_ns?: number | null;
+  component_id: string;
+  event_ticker: string;
+  exchange_index: number;
+  family: string;
+  lifetime_s?: string | null;
+  opened_ts_ns: number;
+  peak_ci?: string | null;
+  peak_net_edge_dollars?: string | null;
+  samples?: Array<CoherenceEpisodeSample>;
+  series_ticker: string;
+}
+
+export interface CoherenceEpisodeSample {
+  ci?: string | null;
+  ts_ns: number;
+}
+
+export interface CoherenceEpisodes {
+  episodes?: Array<CoherenceEpisode>;
+  median_s?: string | null;
+  median_withheld_reason?: string | null;
+  notes?: Array<string>;
+  open_episodes?: number;
+  round_trip_s?: string;
+  state: string;
+  survival?: Array<CoherenceSurvivalPoint>;
+  verdict?: string;
+}
+
 export interface CoherenceEventView {
   basket_note?: string | null;
   event_ticker: string;
@@ -170,6 +201,25 @@ export interface CoherenceHostStatus {
   detail?: string | null;
   host: string;
   reachable: boolean;
+}
+
+export interface CoherenceIndexPoint {
+  ci?: string | null;
+  detail?: string | null;
+  engine: string;
+  event_ticker: string;
+  exchange_index: number;
+  series_ticker: string;
+  ts_ns: number;
+}
+
+export interface CoherenceIndexSeries {
+  measured?: number;
+  notes?: Array<string>;
+  points?: Array<CoherenceIndexPoint>;
+  series?: Array<string>;
+  state: string;
+  unmeasurable?: number;
 }
 
 export interface CoherenceMarketView {
@@ -223,6 +273,11 @@ export interface CoherenceStatus {
   solver?: Record<string, unknown>;
   state: string;
   tape?: Record<string, unknown>;
+}
+
+export interface CoherenceSurvivalPoint {
+  surviving: string;
+  t_s: string;
 }
 
 export interface CoherenceUniverse {
@@ -1090,7 +1145,9 @@ export interface GatewayOperations {
   "GET /api/book/{symbol}": { response: Array<VenueBook> };
   "GET /api/coherence/books": { response: CoherenceBooks };
   "GET /api/coherence/certify": { response: CoherenceCertificate };
+  "GET /api/coherence/episodes": { response: CoherenceEpisodes };
   "GET /api/coherence/fees": { response: CoherenceFees };
+  "GET /api/coherence/index": { response: CoherenceIndexSeries };
   "GET /api/coherence/status": { response: CoherenceStatus };
   "GET /api/coherence/universe": { response: CoherenceUniverse };
   "GET /api/config": { response: Record<string, unknown> };
@@ -1156,7 +1213,9 @@ export const GATEWAY_CONTRACT_PATHS = [
   "/api/book/{symbol}",
   "/api/coherence/books",
   "/api/coherence/certify",
+  "/api/coherence/episodes",
   "/api/coherence/fees",
+  "/api/coherence/index",
   "/api/coherence/status",
   "/api/coherence/universe",
   "/api/config",

@@ -761,6 +761,192 @@
         "title": "CoherenceCertificateLeg",
         "type": "object"
       },
+      "CoherenceEpisode": {
+        "description": "One violation, from the poll it appeared on to the poll it stopped.",
+        "properties": {
+          "closed_ts_ns": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closed Ts Ns"
+          },
+          "component_id": {
+            "title": "Component Id",
+            "type": "string"
+          },
+          "event_ticker": {
+            "title": "Event Ticker",
+            "type": "string"
+          },
+          "exchange_index": {
+            "title": "Exchange Index",
+            "type": "integer"
+          },
+          "family": {
+            "title": "Family",
+            "type": "string"
+          },
+          "lifetime_s": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lifetime S"
+          },
+          "opened_ts_ns": {
+            "title": "Opened Ts Ns",
+            "type": "integer"
+          },
+          "peak_ci": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Peak Ci"
+          },
+          "peak_net_edge_dollars": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Peak Net Edge Dollars"
+          },
+          "samples": {
+            "items": {
+              "$ref": "#/components/schemas/CoherenceEpisodeSample"
+            },
+            "title": "Samples",
+            "type": "array"
+          },
+          "series_ticker": {
+            "title": "Series Ticker",
+            "type": "string"
+          }
+        },
+        "required": [
+          "component_id",
+          "series_ticker",
+          "event_ticker",
+          "family",
+          "exchange_index",
+          "opened_ts_ns"
+        ],
+        "title": "CoherenceEpisode",
+        "type": "object"
+      },
+      "CoherenceEpisodeSample": {
+        "properties": {
+          "ci": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ci"
+          },
+          "ts_ns": {
+            "title": "Ts Ns",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ts_ns"
+        ],
+        "title": "CoherenceEpisodeSample",
+        "type": "object"
+      },
+      "CoherenceEpisodes": {
+        "description": "Closed episodes and the survival curve they make.",
+        "properties": {
+          "episodes": {
+            "items": {
+              "$ref": "#/components/schemas/CoherenceEpisode"
+            },
+            "title": "Episodes",
+            "type": "array"
+          },
+          "median_s": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median S"
+          },
+          "median_withheld_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median Withheld Reason"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "open_episodes": {
+            "default": 0,
+            "title": "Open Episodes",
+            "type": "integer"
+          },
+          "round_trip_s": {
+            "default": "0.240",
+            "title": "Round Trip S",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "survival": {
+            "items": {
+              "$ref": "#/components/schemas/CoherenceSurvivalPoint"
+            },
+            "title": "Survival",
+            "type": "array"
+          },
+          "verdict": {
+            "default": "",
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state"
+        ],
+        "title": "CoherenceEpisodes",
+        "type": "object"
+      },
       "CoherenceEventView": {
         "description": "A family of markets that resolve together.",
         "properties": {
@@ -1010,6 +1196,107 @@
           "reachable"
         ],
         "title": "CoherenceHostStatus",
+        "type": "object"
+      },
+      "CoherenceIndexPoint": {
+        "description": "One reading of the index. ci is null when it could not be measured.",
+        "properties": {
+          "ci": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ci"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "engine": {
+            "title": "Engine",
+            "type": "string"
+          },
+          "event_ticker": {
+            "title": "Event Ticker",
+            "type": "string"
+          },
+          "exchange_index": {
+            "title": "Exchange Index",
+            "type": "integer"
+          },
+          "series_ticker": {
+            "title": "Series Ticker",
+            "type": "string"
+          },
+          "ts_ns": {
+            "title": "Ts Ns",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ts_ns",
+          "series_ticker",
+          "event_ticker",
+          "exchange_index",
+          "engine"
+        ],
+        "title": "CoherenceIndexPoint",
+        "type": "object"
+      },
+      "CoherenceIndexSeries": {
+        "description": "The index over time, oldest first so a chart can plot it.",
+        "properties": {
+          "measured": {
+            "default": 0,
+            "title": "Measured",
+            "type": "integer"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/CoherenceIndexPoint"
+            },
+            "title": "Points",
+            "type": "array"
+          },
+          "series": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Series",
+            "type": "array"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "unmeasurable": {
+            "default": 0,
+            "title": "Unmeasurable",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "state"
+        ],
+        "title": "CoherenceIndexSeries",
         "type": "object"
       },
       "CoherenceMarketView": {
@@ -1320,6 +1607,24 @@
           "budget"
         ],
         "title": "CoherenceStatus",
+        "type": "object"
+      },
+      "CoherenceSurvivalPoint": {
+        "properties": {
+          "surviving": {
+            "title": "Surviving",
+            "type": "string"
+          },
+          "t_s": {
+            "title": "T S",
+            "type": "string"
+          }
+        },
+        "required": [
+          "t_s",
+          "surviving"
+        ],
+        "title": "CoherenceSurvivalPoint",
         "type": "object"
       },
       "CoherenceUniverse": {
@@ -7135,6 +7440,114 @@
         ]
       }
     },
+    "/api/coherence/episodes": {
+      "get": {
+        "description": "Violation episodes and the survival curve they make.\n\nThe honest gate on this whole engine, and the diffusion module's event\nsample: each episode is an information arrival with an absorption time\nattached. If the median lifetime is under the round trip, the opportunity\nwas never available.",
+        "operationId": "coherence_episodes_api_coherence_episodes_get",
+        "parameters": [
+          {
+            "description": "One series ticker, or every one recorded",
+            "in": "query",
+            "name": "series",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "One series ticker, or every one recorded",
+              "title": "Series"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 500,
+              "maximum": 5000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Your measured round trip, for the verdict",
+            "in": "query",
+            "name": "round_trip_s",
+            "required": false,
+            "schema": {
+              "default": "0.240",
+              "description": "Your measured round trip, for the verdict",
+              "title": "Round Trip S",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoherenceEpisodes"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Coherence Episodes",
+        "tags": [
+          "coherence history"
+        ]
+      }
+    },
     "/api/coherence/fees": {
       "get": {
         "description": "The three-component fee, worked through at a price and a size.\n\nDefaults reproduce Kalshi's own documented example \u2014 0.09 contracts at\n$0.3301 in three lots \u2014 because that is the case where the component\nnobody models is nineteen times larger than the one everybody does.",
@@ -7252,6 +7665,113 @@
         "summary": "Coherence Fees",
         "tags": [
           "coherence"
+        ]
+      }
+    },
+    "/api/coherence/index": {
+      "get": {
+        "description": "The Coherence Index over time \u2014 how far quotes sit from consistency.\n\nUnmeasurable readings are returned as null rather than dropped. A series\nwhose index is often null is telling you something real about its books\n(one-sided quotes in the tails), and filtering those rows out would turn a\nsparse, honest record into a dense, flattering one.",
+        "operationId": "coherence_index_api_coherence_index_get",
+        "parameters": [
+          {
+            "description": "One series ticker, or every one recorded",
+            "in": "query",
+            "name": "series",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "One series ticker, or every one recorded",
+              "title": "Series"
+            }
+          },
+          {
+            "in": "query",
+            "name": "since_ts_ns",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Since Ts Ns",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 2000,
+              "maximum": 20000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoherenceIndexSeries"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Coherence Index",
+        "tags": [
+          "coherence history"
         ]
       }
     },

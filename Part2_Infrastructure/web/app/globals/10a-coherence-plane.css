@@ -94,78 +94,6 @@
 .coh-chip.is-critical .coh-chip__mark { color: var(--series-2); }
 .coh-chip.is-muted .coh-chip__mark { color: var(--text-secondary); }
 
-/* ── The dollar bar: the basket against the dollar it pays ───────────────── */
-
-.coh-dollarbar { height: 92px; }
-
-.coh-dollarbar__track { fill: var(--surface-2); }
-
-.coh-dollarbar__leg {
-  stroke: var(--surface-1);
-  stroke-width: 0.35;
-  vector-effect: non-scaling-stroke;
-}
-
-/* Three tones cycled so adjacent legs stay distinguishable. The legs are not a
-   category scale — each one is a different outcome of the same event and their
-   identity is in the tooltip, not the hue. */
-.coh-dollarbar__leg.is-leg-1 { fill: color-mix(in srgb, var(--series-1) 62%, var(--surface-1)); }
-.coh-dollarbar__leg.is-leg-2 { fill: color-mix(in srgb, var(--series-1) 40%, var(--surface-1)); }
-.coh-dollarbar__leg.is-leg-3 { fill: color-mix(in srgb, var(--series-1) 22%, var(--surface-1)); }
-
-.coh-dollarbar__dollar {
-  stroke: var(--text-primary);
-  stroke-width: 1.2;
-  vector-effect: non-scaling-stroke;
-}
-
-.coh-dollarbar__dollar-label,
-.coh-dollarbar__total {
-  fill: var(--text-secondary);
-  font-size: var(--fs-tick);
-  font-variant-numeric: tabular-nums;
-}
-
-.coh-dollarbar__total { fill: var(--text-primary); font-weight: 650; }
-.coh-dollarbar__total.is-dutch { fill: var(--series-2); }
-
-/* ── The ladder: two bid stacks and the offers they imply ────────────────── */
-
-.coh-ladder { height: 150px; }
-
-.coh-ladder__axis { stroke: var(--border); stroke-width: 1; vector-effect: non-scaling-stroke; }
-.coh-ladder__yes { fill: color-mix(in srgb, var(--series-1) 55%, var(--surface-1)); }
-.coh-ladder__no { fill: color-mix(in srgb, var(--series-2) 42%, var(--surface-1)); }
-
-/* The implied offers are drawn as a line rather than filled: they are derived
-   from the opposite ladder, not resting orders of their own, and a solid block
-   would claim a queue Kalshi never published. */
-.coh-ladder__implied {
-  stroke: var(--text-primary);
-  stroke-width: 1;
-  stroke-dasharray: 3 2;
-  vector-effect: non-scaling-stroke;
-}
-
-.coh-ladder__mark { stroke: var(--series-1); stroke-width: 1; vector-effect: non-scaling-stroke; }
-.coh-ladder__mark.is-ask { stroke: var(--series-2); }
-.coh-ladder__tick { fill: var(--text-secondary); font-size: var(--fs-tick); font-variant-numeric: tabular-nums; }
-
-/* ── The identity strip: Lesson 0, drawn ─────────────────────────────────── */
-
-.coh-identity { height: 96px; }
-
-.coh-identity__part { stroke: var(--surface-1); stroke-width: 0.3; vector-effect: non-scaling-stroke; }
-.coh-identity__part.is-yes { fill: color-mix(in srgb, var(--series-1) 58%, var(--surface-1)); }
-.coh-identity__part.is-no { fill: color-mix(in srgb, var(--series-2) 44%, var(--surface-1)); }
-.coh-identity__part.is-dollar { fill: color-mix(in srgb, var(--series-3) 34%, var(--surface-1)); }
-.coh-identity__part.is-spread { fill: color-mix(in srgb, var(--text-primary) 26%, var(--surface-1)); }
-
-.coh-identity__dollar { stroke: var(--text-secondary); stroke-width: 0.8; stroke-dasharray: 2 2; vector-effect: non-scaling-stroke; }
-.coh-identity__meet { stroke: var(--text-primary); stroke-width: 1.2; vector-effect: non-scaling-stroke; }
-.coh-identity__label,
-.coh-identity__dollar-label { fill: var(--text-secondary); font-size: var(--fs-tick); }
-
 /* ── Events, books, status, lessons ──────────────────────────────────────── */
 
 .coh-universe,
@@ -354,21 +282,4 @@
 .coh-table__total td {
   border-top: 1px solid var(--border);
   font-weight: 640;
-}
-
-.coh-parabola { height: 150px; }
-
-.coh-parabola__curve {
-  stroke: var(--series-2);
-  stroke-width: 1.4;
-  vector-effect: non-scaling-stroke;
-}
-
-/* The peak is marked because it is the argument: the fee is largest exactly
-   where the book is busiest, so the naive threshold is wrongest there. */
-.coh-parabola__peak {
-  stroke: var(--text-secondary);
-  stroke-width: 0.8;
-  stroke-dasharray: 2 2;
-  vector-effect: non-scaling-stroke;
 }

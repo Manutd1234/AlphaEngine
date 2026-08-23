@@ -162,7 +162,7 @@ export const COHERENCE_LESSONS: CoherenceLesson[] = [
     pane: "diffusion",
     guards: ["modules/coherence/episodes.py"],
     pinnedBy: ["tests/test_coherence_episodes.py"],
-    shipped: false,
+    shipped: true,
   },
   {
     id: "index",
@@ -177,6 +177,6 @@ export const COHERENCE_LESSONS: CoherenceLesson[] = [
     pane: "index",
     guards: ["modules/coherence/kernel/coherence_index.py"],
     pinnedBy: ["tests/test_coherence_store.py"],
-    shipped: false,
+    shipped: true,
   },
 ];

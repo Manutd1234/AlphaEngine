@@ -29,8 +29,13 @@ from typing import Any
 from modules.backoff import Backoff
 from modules.coherence import tunables
 from modules.coherence.drivers.kalshi_rest import KalshiClient, KalshiUnavailable
+from modules.coherence.episodes import EpisodeTracker
 from modules.coherence.fs.store import BookRow, CoherenceStore, TapeUnavailable, get_store
+from modules.coherence.kernel.coherence_index import measure
+from modules.coherence.kernel.costs import FeeSchedule
+from modules.coherence.kernel.lattice import build_component
 from modules.coherence.scheduler.budget import get_read_budget
+from modules.coherence.syscalls.certify import certify
 from modules.coherence.syscalls.observe import Observation, observe_series
 
 logger = logging.getLogger(__name__)
@@ -57,6 +62,7 @@ class RecorderState:
     last_error: str | None = None
     last_error_ts_ns: int | None = None
     consecutive_failures: int = 0
+    episodes_closed: int = 0
     series_seen: set[str] = field(default_factory=set)
 
     def to_dict(self) -> dict[str, Any]:
@@ -73,11 +79,22 @@ class RecorderState:
             ),
             "last_error": self.last_error,
             "consecutive_failures": self.consecutive_failures,
+            "episodes_closed": self.episodes_closed,
             "series_seen": sorted(self.series_seen),
         }
 
 
 _STATE = RecorderState()
+
+#: Episodes span polls, so the tracker outlives any one of them. Process-wide
+#: for the same reason the tape is: two trackers would each see half the polls
+#: and each conclude every violation was shorter than it was.
+_EPISODES = EpisodeTracker()
+
+
+def episode_tracker() -> EpisodeTracker:
+    """The one tracker. Read by the routes, written by the loop."""
+    return _EPISODES
 
 
 def recorder_state() -> RecorderState:
@@ -104,9 +121,13 @@ def rows_from(observation: Observation) -> list[BookRow]:
 async def poll_once(client: KalshiClient, store: CoherenceStore, state: RecorderState | None = None) -> int:
     """One pass over the watchlist. Returns how many books were written.
 
+    Each observation does three things: the books go on the tape, the family is
+    measured for coherence, and any violation episode is opened or closed. All
+    three happen on the same snapshot on purpose — an index computed from a
+    later read than the books it describes is a measurement of two moments.
+
     Separated from the loop so a test, a notebook and the loop all take the
-    same path — and so a single poll can be triggered without starting a
-    background task.
+    same path, and so a single poll can be triggered without a background task.
     """
     tracked = state or _STATE
     written = 0
@@ -118,10 +139,66 @@ async def poll_once(client: KalshiClient, store: CoherenceStore, state: Recorder
                 continue
             written += await asyncio.to_thread(store.record_books, rows)
             tracked.series_seen.add(series_ticker)
+            await _measure(observation, store, tracked)
     tracked.polls += 1
     tracked.books_written += written
     tracked.last_poll_ts_ns = time.time_ns()
     return written
+
+
+async def _measure(observation: Observation, store: CoherenceStore, tracked: RecorderState) -> None:
+    """Index the family and track its violation episode.
+
+    Failures here are recorded and swallowed rather than allowed to stop the
+    poll: the tape is the asset, and losing a book because an index could not
+    be computed would trade the thing that cannot be recovered for the thing
+    that can be recomputed from it later.
+    """
+    component = build_component(observation.event, [item.market for item in observation.markets])
+    books = {item.ticker: item.book for item in observation.markets}
+    reading = measure(component, books)
+    await asyncio.to_thread(
+        store.record_index,
+        observation.ts_ns,
+        component.series_ticker,
+        component.event_ticker,
+        component.exchange_index,
+        reading.ci,
+        reading.engine,
+        reading.detail,
+    )
+
+    certificate = certify(observation, _schedule())
+    violated = certificate.verdict == "incoherent" and certificate.worth_doing
+    closed = _EPISODES.observe(
+        component_id=component.component_id,
+        series_ticker=component.series_ticker,
+        event_ticker=component.event_ticker,
+        exchange_index=component.exchange_index,
+        ts_ns=observation.ts_ns,
+        violated=violated,
+        family=certificate.family,
+        ci=reading.ci,
+        net_edge=certificate.net_edge,
+    )
+    if closed is not None:
+        await asyncio.to_thread(store.record_episode, closed)
+        tracked.episodes_closed += 1
+
+
+def _schedule() -> FeeSchedule:
+    """The fee shape the recorder prices with.
+
+    Read from configuration rather than fetched per poll: the per-series
+    multiplier changes on a schedule measured in days, and spending a read
+    token on it every fifteen seconds would buy nothing. The certify route
+    fetches the live one when a reader asks for a specific family.
+    """
+    return FeeSchedule(
+        taker_rate=tunables.TAKER_RATE,
+        maker_ratio=tunables.MAKER_RATIO,
+        balance_precision=tunables.BALANCE_PRECISION,
+    )
 
 
 async def recorder_loop() -> None:

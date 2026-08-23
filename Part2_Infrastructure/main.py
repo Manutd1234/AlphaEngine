@@ -46,6 +46,7 @@ from fastapi.templating import Jinja2Templates
 from config import BASE_DIR, settings
 from modules.api import (
     audit_router,
+    coherence_history_router,
     coherence_router,
     data_router,
     meta_router,
@@ -243,6 +244,7 @@ for _router in (
     risk_router,
     research_router,
     audit_router,
+    coherence_history_router,
     coherence_router,
     telegram_router,
 ):

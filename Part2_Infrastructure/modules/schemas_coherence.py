@@ -234,3 +234,66 @@ class CoherenceFees(BaseModel):
     naive_threshold: str = "1.0000"
     fee_aware_threshold: str | None = None
     notes: list[str] = Field(default_factory=list)
+
+
+class CoherenceIndexPoint(BaseModel):
+    """One reading of the index. ci is null when it could not be measured."""
+
+    ts_ns: int
+    series_ticker: str
+    event_ticker: str
+    exchange_index: int
+    ci: str | None = None
+    engine: str
+    detail: str | None = None
+
+
+class CoherenceIndexSeries(BaseModel):
+    """The index over time, oldest first so a chart can plot it."""
+
+    state: str
+    points: list[CoherenceIndexPoint] = Field(default_factory=list)
+    series: list[str] = Field(default_factory=list)
+    measured: int = 0
+    unmeasurable: int = 0
+    notes: list[str] = Field(default_factory=list)
+
+
+class CoherenceEpisodeSample(BaseModel):
+    ts_ns: int
+    ci: str | None = None
+
+
+class CoherenceEpisode(BaseModel):
+    """One violation, from the poll it appeared on to the poll it stopped."""
+
+    component_id: str
+    series_ticker: str
+    event_ticker: str
+    family: str
+    exchange_index: int
+    opened_ts_ns: int
+    closed_ts_ns: int | None = None
+    lifetime_s: str | None = None
+    peak_ci: str | None = None
+    peak_net_edge_dollars: str | None = None
+    samples: list[CoherenceEpisodeSample] = Field(default_factory=list)
+
+
+class CoherenceSurvivalPoint(BaseModel):
+    t_s: str
+    surviving: str
+
+
+class CoherenceEpisodes(BaseModel):
+    """Closed episodes and the survival curve they make."""
+
+    state: str
+    episodes: list[CoherenceEpisode] = Field(default_factory=list)
+    open_episodes: int = 0
+    survival: list[CoherenceSurvivalPoint] = Field(default_factory=list)
+    median_s: str | None = None
+    median_withheld_reason: str | None = None
+    verdict: str = ""
+    round_trip_s: str = "0.240"
+    notes: list[str] = Field(default_factory=list)

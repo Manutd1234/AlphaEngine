@@ -189,6 +189,61 @@ export interface CoherenceFees {
   notes: string[];
 }
 
+export interface CoherenceIndexPoint {
+  ts_ns: number;
+  series_ticker: string;
+  event_ticker: string;
+  exchange_index: number;
+  ci: string | null;
+  engine: string;
+  detail: string | null;
+}
+
+export interface CoherenceIndexSeries {
+  state: string;
+  points: CoherenceIndexPoint[];
+  series: string[];
+  measured: number;
+  unmeasurable: number;
+  notes: string[];
+}
+
+export interface CoherenceEpisodeSample {
+  ts_ns: number;
+  ci: string | null;
+}
+
+export interface CoherenceEpisode {
+  component_id: string;
+  series_ticker: string;
+  event_ticker: string;
+  family: string;
+  exchange_index: number;
+  opened_ts_ns: number;
+  closed_ts_ns: number | null;
+  lifetime_s: string | null;
+  peak_ci: string | null;
+  peak_net_edge_dollars: string | null;
+  samples: CoherenceEpisodeSample[];
+}
+
+export interface CoherenceSurvivalPoint {
+  t_s: string;
+  surviving: string;
+}
+
+export interface CoherenceEpisodes {
+  state: string;
+  episodes: CoherenceEpisode[];
+  open_episodes: number;
+  survival: CoherenceSurvivalPoint[];
+  median_s: string | null;
+  median_withheld_reason: string | null;
+  verdict: string;
+  round_trip_s: string;
+  notes: string[];
+}
+
 /** The shape a panel gets: the payload, or a named reason there is none. */
 export interface CoherenceLoad<T> {
   data: T | null;
@@ -227,4 +282,12 @@ export function isCoherenceCertificate(value: unknown): value is CoherenceCertif
 
 export function isCoherenceFees(value: unknown): value is CoherenceFees {
   return isRecord(value) && typeof value.state === "string" && Array.isArray(value.per_fill);
+}
+
+export function isCoherenceIndexSeries(value: unknown): value is CoherenceIndexSeries {
+  return isRecord(value) && typeof value.state === "string" && Array.isArray(value.points);
+}
+
+export function isCoherenceEpisodes(value: unknown): value is CoherenceEpisodes {
+  return isRecord(value) && typeof value.state === "string" && Array.isArray(value.episodes);
 }

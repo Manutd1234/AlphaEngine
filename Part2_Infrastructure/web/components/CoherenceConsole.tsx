@@ -30,6 +30,8 @@ import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSu
 import FreshnessStamp from "@/components/workspace/FreshnessStamp";
 import BooksPane from "@/components/coherence/BooksPane";
 import CertificatePane from "@/components/coherence/CertificatePane";
+import DiffusionPane from "@/components/coherence/DiffusionPane";
+import IndexPane from "@/components/coherence/IndexPane";
 import FeesPane from "@/components/coherence/FeesPane";
 import LessonsPane from "@/components/coherence/LessonsPane";
 import PendingPane from "@/components/coherence/PendingPane";
@@ -150,25 +152,11 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="coherence" tabId="index" activeId={section}>
-        <PendingPane
-          purpose="It will chart the distance from each series' quoted prices to the nearest arbitrage-free measure, over time — a pricing-efficiency record for this exchange that nobody currently publishes."
-          waitingOn={[
-            "Compute the coherence index per event on every poll",
-            "Accumulate enough tape for a series to be comparable with itself",
-          ]}
-          lessons={["index"]}
-        />
+        <IndexPane active={active && section === "index"} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="coherence" tabId="diffusion" activeId={section}>
-        <PendingPane
-          purpose="It will show how fast this market absorbs information: every coherence violation is an episode with a lifetime, and the survival curve of those lifetimes says whether an opportunity is real or is a race already lost."
-          waitingOn={[
-            "Open and close violation episodes as the recorder polls",
-            "Estimate the survival curve and the median half-life per series",
-          ]}
-          lessons={["halflife"]}
-        />
+        <DiffusionPane active={active && section === "diffusion"} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="coherence" tabId="lessons" activeId={section}>

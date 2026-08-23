@@ -253,16 +253,66 @@ class CoherenceStore:
         columns = ("ts_ns", "series_ticker", "event_ticker", "exchange_index", "ci", "engine", "detail")
         return [dict(zip(columns, row, strict=True)) for row in rows]
 
+    def record_episode(self, episode: Any) -> None:
+        """One closed violation episode.
+
+        Written on close rather than on open: an episode with no end has no
+        lifetime, and a half-written row would enter the survival curve as a
+        zero-length violation — biasing the median toward "too fast to trade",
+        which is the direction that would wrongly retire a real opportunity.
+        """
+        row = episode.to_dict()
+        with self._lock:
+            conn = self._connect()
+            conn.execute(
+                """
+                INSERT INTO violation_episodes
+                    (component_id, series_ticker, event_ticker, family, exchange_index,
+                     opened_ts_ns, closed_ts_ns, peak_ci, peak_net_edge, samples)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    row["component_id"], row["series_ticker"], row["event_ticker"], row["family"],
+                    row["exchange_index"], row["opened_ts_ns"], row["closed_ts_ns"],
+                    None if row["peak_ci"] is None else Decimal(row["peak_ci"]),
+                    None if row["peak_net_edge_dollars"] is None else Decimal(row["peak_net_edge_dollars"]),
+                    json.dumps(row["samples"]),
+                ),
+            )
+
+    def episodes(self, series_ticker: str | None = None, limit: int = 500) -> list[dict[str, Any]]:
+        """Closed episodes, newest first."""
+        with self._lock:
+            conn = self._connect()
+            rows = conn.execute(
+                """
+                SELECT component_id, series_ticker, event_ticker, family, exchange_index,
+                       opened_ts_ns, closed_ts_ns, peak_ci, peak_net_edge, samples
+                FROM violation_episodes
+                WHERE ? IS NULL OR series_ticker = ?
+                ORDER BY closed_ts_ns DESC
+                LIMIT ?
+                """,
+                (series_ticker, series_ticker, int(limit)),
+            ).fetchall()
+        columns = (
+            "component_id", "series_ticker", "event_ticker", "family", "exchange_index",
+            "opened_ts_ns", "closed_ts_ns", "peak_ci", "peak_net_edge", "samples",
+        )
+        return [dict(zip(columns, row, strict=True)) for row in rows]
+
     def counts(self) -> dict[str, int]:
         """How much tape there is. The recorder's proof of life."""
         with self._lock:
             conn = self._connect()
             books = conn.execute("SELECT COUNT(*), COUNT(DISTINCT ticker) FROM book_snapshots").fetchone()
             index_rows = conn.execute("SELECT COUNT(*) FROM coherence_index").fetchone()
+            episodes = conn.execute("SELECT COUNT(*) FROM violation_episodes").fetchone()
         return {
             "book_snapshots": int(books[0]),
             "tickers_seen": int(books[1]),
             "coherence_index_rows": int(index_rows[0]),
+            "violation_episodes": int(episodes[0]),
         }
 
     def health(self) -> dict[str, Any]:
