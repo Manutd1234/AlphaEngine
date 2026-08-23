@@ -107,66 +107,78 @@ and the discipline is unchanged: read the *skip reasons*, never the pass count
 outcome — the gateway, web and service suites are green, with the web suite's
 two skips being cross-ownership debts rather than opt-ins.
 
-### The information-diffusion instrument — **measured, and killed on this arm**
+### The information-diffusion instrument — **measured, killed, re-armed, killed again**
 
-Recorded here because a negative result that is not written down gets rebuilt.
+Recorded here because a negative result that is not written down gets rebuilt,
+and because the second attempt produced a false positive convincing enough that
+the tool's own verdict function had to be taught to reject it.
 
-**What was built and what it does.** `modules/coherence/diffusion/` measures how
-fast a timestamped announcement reaches the price, and separately estimates how
-much information one text carries about another as a density over log-SNR — the
-integrand of a diffusion mutual-information bound, whose centroid says at what
-*resolution* a headline explains the body it came from. Both halves are tested
-against known answers: a 2-d correlated Gaussian at 1.2185 nats, a 32-d
-analogue, a jointly Gaussian triple recovering its analytic mutual information,
-conditional independence reading as zero. The calendar behind it is verified —
-62 of 62 FOMC meetings confirmed against federalreserve.gov, date *and* hour.
+**What was built.** `modules/coherence/diffusion/` measures how fast a
+timestamped announcement reaches the price, and separately estimates how much
+information one text carries about another as a density over log-SNR — the
+integrand of a diffusion mutual-information bound, whose shape says at what
+*resolution* one text explains another. Both halves are tested against known
+answers: a 2-d correlated Gaussian at 1.2185 nats, a 32-d analogue, a jointly
+Gaussian triple recovering its analytic mutual information, conditional
+independence reading as zero. The calendar is verified — 62 of 62 FOMC meetings
+confirmed against federalreserve.gov, date *and* hour.
 
-**What survived.** The two-stage absorption difference. Over 62 meetings and two
-crypto assets, the statement is half absorbed in a median 166 seconds and the
-press conference takes 2.87x as long on a volatility clock built from matched
-non-event windows; the 95% interval excludes zero, and the placebo run of the
-identical pipeline on windows with no announcement gives 0.68x, so it is not a
-property of the hour. The statement sits at control percentile 0.00 — faster
-than every matched window with no news in it — and the press conference at 0.50,
-which is to say indistinguishable from an ordinary half hour.
+**The positive control, which the first attempt lacked.** An absorption
+pipeline that cannot detect the obvious is measuring noise, and every null it
+reports is then unfalsifiable. `policy.py` reads the target range out of each
+statement — all four wordings the Committee has used since 2019, including the
+zero-lower-bound "0 to 1/4 percent" that a careless parser drops along with the
+whole pandemic. The size of the policy move predicts the standardised
+thirty-minute response at **t = +3.9 (release)** and **t = +4.5 (call)** over
+61 meetings, shuffled p ≤ 0.001. The machinery works.
 
-**What did not.** The instrument that was supposed to PREDICT that speed. Every
-pre-registered moment of the information spectrum was regressed on the log
-half-life of each stage, with a shuffled-pairing null beside it:
+**What survives as a measurement.** Statement absorbed in a median 166 seconds
+against 2.87× as long for the press conference, on a volatility clock built
+from matched non-event windows; the interval excludes zero, and the placebo run
+of the identical pipeline on windows with no announcement gives 0.68×. The
+statement sits at control percentile 0.00, the press conference at 0.50.
 
-Reproduce with `venv/bin/python tools/diffusion_spectrum.py`, which prints this
-table and its own verdict:
+**What still does not work: predicting SPEED from text.** Three fixes were made
+to the instrument before re-testing, two of them real:
 
-| moment | release (n=26) | call (n=29) |
-|---|---|---|
-| `alpha_centroid` | t +1.01, shuffled p 0.32 | t −0.16, p 0.87 |
-| `total_nats` | t −1.02, p 0.35 | t −0.40, p 0.70 |
-| `fine_fraction` | t +0.80, p 0.43 | t −0.21, p 0.83 |
-| inter-quartile spread | t +1.95, p 0.068 | t +0.39, p 0.70 |
+* The latent is now **whitened**, and the file that refused to whiten was
+  wrong. Its argument was that a direction's place on the resolution axis is
+  set by its log-eigenvalue; the premise is right and the conclusion does not
+  follow, because the information density is a *difference* between the
+  unconditional and conditional spectra and whitening moves only the first.
+  Measured: the whitened spectrum's inter-quartile width is 2.18 against the raw
+  2.42 — the same shape — while effective rank goes from 2.89/8 to 8.00/8. On
+  the real statements, **5.5/10 → 9.9/10**.
+* The conditioning is now the **previous statement** rather than the opening
+  sentences of the same one. The old contrast was partly tautological (the
+  headline is a subset of the body); consecutive FOMC statements are 0.978
+  cosine apart, so the information is in the small differences, which is the
+  Lazy Prices question asked as a spectrum. Centroid spread **1.08 = 10/10** of
+  the sampler's scale.
+* The gate that dropped 62 meetings to 26 was removed for the response tests,
+  because gating on the size of a move and then dividing by it is selection on
+  the denominator.
 
-Nothing reaches |t| = 2. The nearest miss is a SECONDARY moment — the spread of
-the spectrum, not its centroid — at t = 1.95 on 26 events, and its p of 0.068 is
-uncorrected: across the eight tests in the table it is about 0.4. The two stages
-also disagree on sign for three of the four moments, which is what noise looks
-like. The pre-registered criterion was "|t| < 2 on both primary moments → do not
-build the torch slice", so **the torch extra was not written**. There is no
-`requirements-diffusion.txt` and no learned denoiser, and that is the outcome
-rather than an omission.
+With those fixes one moment DID clear the bar — the spread of the density, at
+**t = −2.86 (release)** and **t = −3.58 (call)**, both stages agreeing in sign,
+shuffled p 0.009 and 0.002, and it survived controlling for the policy move
+(t = −2.78, −3.51). It is not real. Re-fitting at latent widths nobody can
+justify to the decimal gives t = +0.27 (dim 8), −0.20 (dim 10), −2.86 (dim 12),
+−1.75 (dim 14) on the release stage; splitting the sample puts the call effect
+entirely in the second half (+0.18 early, −4.89 late).
 
-**What the kill does and does not say.** It says: on FOMC statements against
-crypto absorption, at this sample size, with a 10-dimensional PCA latent over a
-384-d sentence encoder, this instrument does not predict absorption speed. It
-does not say the mechanism is absent. The honest limits are that the two-sigma
-signal gate leaves 26 and 29 usable events of 62; the fitted centroids span only
-6.89 to 7.35, which is little variation to predict with; and the latent's
-effective rank is 5.5 of 10, so the encoder may be the binding constraint rather
-than the estimator. Each of those is a reason to re-run rather than a reason to
-believe.
+**So `_verdict` in `tools/diffusion_spectrum.py` now requires stability, not
+just a threshold**, and re-fits at neighbouring widths before it will say
+`predicts`. A verdict function that can be fooled by a hyperparameter is a bug;
+`tests/test_diffusion_verdict.py` pins it with the exact numbers that fooled it.
+The tool run today prints `does_not_predict` with that reason.
 
-**What is kept.** The absorption measurement, the verified calendar, the text
-channel and the estimator itself — all tested, all shipped, all reachable from
-the Coherence tab's Diffusion section. The estimator is a research dataset with
-known-answer tests rather than a signal, and the section says so.
+**What the kill does and does not say.** Text novelty does not predict
+absorption speed on FOMC statements against crypto, with 61 meetings, a
+well-conditioned latent and a working positive control. It does not say the
+mechanism is absent everywhere: the two-sigma gate still leaves 26 and 29 events
+for the speed regressions specifically, and the earnings arm has not accumulated
+yet. The torch extra remains unwritten.
 
 ## 2. Open — the owed items
 
@@ -403,6 +415,12 @@ column is authoritative and each entry there argues at ten times this length.
 | The exchange's `mutually_exclusive` flag beats our arithmetic over the strikes | cutting the NYC weather family at its strikes gives nine intervals for six markets, three of which no market pays in because the underlying is whole degrees — treated as reachable states they say the basket does not pay a dollar in every future, and the additive constraint quietly stops applying to a family the exchange declares exhaustive | deriving exclusivity from `floor_strike`/`cap_strike`, which asserts a claim the venue never made | `modules/coherence/kernel/states.py` |
 | The book tape is its own DuckDB file, not tables in the audit ledger | the ledger is evidence about decisions and is deliberately fire-and-forget; the tape is high-volume input to later analysis where a gap is a hole in a survival curve, and sharing the single-writer lock would make a recorder stall look like an audit failure | tables inside `modules/audit/` | `modules/coherence/fs/store.py` |
 | The engine sizes and plans orders but has no send path | the detection is the hard part and the tape is the asset; an order route here would be a change to what this subsystem is rather than a method on it, and it should have to argue for itself | a dry-run flag guarding a real send path, which is one boolean away from live | `tests/test_coherence_security_auth.py` asserts the router publishes no non-GET route |
+| Kelly's plan is reported beside the riskless one, never instead of it | where a basket costs under a dollar both exist and they are different portfolios: the Dutch book buys equal contracts for a certain profit, while the log-optimal plan stakes the measure — on a family costing $0.94 it grows at 0.1421 against the arbitrage's certain 0.0619 and can still leave 0.625 of the bankroll. Reporting only the growth rate would let "log-optimal" read as "riskless", which is the one inference this engine must not invite | a single "recommended size"; a `riskless` flag on the plan, which is what the field was first called and was wrong — the flag describes the family, not the plan | `modules/coherence/kernel/kelly.py` |
+| The Murphy decomposition reports a fourth term the textbooks omit | `Brier = Reliability - Resolution + Uncertainty` is exact only for a forecaster quoting a fixed set of probabilities. A market quotes a continuum, so binning into ten bands throws away the variation inside each one and the three terms stop adding to the score. Publishing three terms that do not reconstruct their own total is worse than publishing four | quietly computing the Brier from bin means so the identity closes (it would no longer be the Brier score); shipping the standard three and letting the arithmetic not add up | `modules/coherence/kernel/calibration.py` |
+| A settled market's last price counts only where something actually traded | Kalshi reports `last_price_dollars` as `"0.0000"` for a market that never traded, which is indistinguishable from one that traded at nothing. On settled KXBTCD ladders 175 of 200 markets have never traded, and scoring those as forecasts of "impossible" put 86 markets that resolved YES into the cheapest reliability bin — the curve then claimed contracts priced at half a cent happen a quarter of the time. That is a parser treating silence as a quote | trusting `last_price` as published, which is self-consistent and produces a confident, wrong calibration curve | `modules/coherence/syscalls/calibrate.py` |
+| The Frechet band is read from the offer, and the reading says so | across a thousand listed parlays not one carries a bid — nobody offers to buy a parlay — so a band position that demanded a mid would report nothing about every combo on the exchange. The basis travels with the number because an ask carries the maker's margin, and a dependence called "positive" off an ask may be nothing but the spread | requiring a mid (reports `unavailable` universally); silently substituting the ask (turns a spread into a finding) | `modules/coherence/kernel/frechet.py` |
+| The implied distribution takes the exclusivity flag over the strikes, again | the same precedence `states.py` settled, re-derived after the same bug in a second module: the NYC daily-high family was differenced into three bins off two quoted thresholds and its six exhaustive outcomes were discarded. Two modules independently getting this wrong is the argument for writing the rule down rather than remembering it | reading whichever structure is found first, which is how both bugs happened | `modules/coherence/kernel/distribution.py` |
+| Unquoted markets are skipped from a surface and counted, never priced at zero | a BTC hourly event lists sixty strikes whose far wings nobody offers on; demanding every strike be priced refused a family with forty live strikes in it, reporting "no distribution" for a market that plainly has one. Differencing only ever needs two adjacent quoted strikes | requiring full coverage (refuses real ladders); filling gaps with zero (invents certainty at exactly the strikes nobody would quote) | `modules/coherence/kernel/distribution.py` |
 | Neo4j is a projection, never a dual write | drift between an authoritative store and a copy is only detectable if somebody looks; a rebuildable read model makes divergence a non-event | second write path | `modules/research_graph_projection.py` |
 | Louvain/PageRank in-process via networkx; Louvain seeded, PageRank not | Aura Free has no GDS — `gds.louvain.stream` there is procedure-not-found; unseeded Louvain makes "cluster 3" mean nothing a week later. PageRank takes no seed and cannot: it is deterministic by construction, reproducible from the canonical node order plus pinned `MAX_ITER`/`TOLERANCE` | Neo4j GDS; unseeded Louvain; inventing a `seed=` argument for PageRank to make a doc sentence true | `modules/research_communities.py` |
 | The graph walk fused at the same k = 60 as every other arm (it was the fourth when written; the optional image arm now sits between them, and the constant did not move) | an arm joining on a different constant is a second fusion wearing the first one's name; `RRF_K` is imported from `research_bm25`, not restated | a graph-specific constant; turning depth into a score ("a two-hop document is half as relevant" is a number nobody measured) | `modules/research_graph_fusion.py` |

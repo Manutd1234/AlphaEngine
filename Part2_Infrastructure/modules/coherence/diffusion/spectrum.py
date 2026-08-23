@@ -70,6 +70,7 @@ class SpectrumFit:
     panel_information_nats: float
     floor_nats: float
     shuffled_median_nats: float
+    whitened: bool = True
     params_version: str = ""
 
     @property
@@ -120,6 +121,7 @@ def fit_spectrum(
     headline: np.ndarray,
     *,
     latent_dim: int,
+    whiten: bool = True,
     clip: float = 4.0,
     points: int = 80,
     draws: int = 6,
@@ -133,7 +135,11 @@ def fit_spectrum(
     if body.shape[0] != headline.shape[0]:
         return FitRefusal("the two document sets have different lengths", body.shape[0], latent_dim)
 
-    basis = fit_pca(np.vstack([body, headline]), latent_dim)
+    # Fitted on both channels so they share a space; whitened by the TARGET's
+    # own spread so the target is exactly unit-variance in it. Whitening by the
+    # stack instead leaves the target only approximately unit-variance, which
+    # is how an effective rank of 9.9 turns into 5.6.
+    basis = fit_pca(np.vstack([body, headline]), latent_dim, whiten=whiten, scale_rows=body)
     if isinstance(basis, LatentRefusal):
         return FitRefusal(basis.reason, body.shape[0], latent_dim)
     body_latent = basis.project(body)
@@ -158,7 +164,7 @@ def fit_spectrum(
         basis=basis, unconditional=unconditional, conditional=conditional,
         alpha=alpha, weights=weights, logsnr_loc=loc, logsnr_scale=scale, logsnr_clip=clip,
         events_fitted=body.shape[0], latent_dim=latent_dim,
-        effective_rank=effective_rank(basis.explained_variance),
+        effective_rank=effective_rank(basis.explained_variance), whitened=bool(whiten),
         panel_information_nats=gaussian_information(unconditional, conditional.reference),
         floor_nats=floor,
         shuffled_median_nats=float(np.median(shuffled)) if shuffled.size else 0.0,
@@ -230,9 +236,36 @@ def summarise(fit: SpectrumFit) -> dict[str, Any]:
     return {
         "events_fitted": fit.events_fitted, "latent_dim": fit.latent_dim,
         "effective_rank": fit.effective_rank,
+        "effective_rank_index": round(10.0 * fit.effective_rank / max(fit.latent_dim, 1), 2),
+        "whitened": fit.whitened,
         "logsnr_loc": fit.logsnr_loc, "logsnr_scale": fit.logsnr_scale,
         "logsnr_clip": fit.logsnr_clip,
         "panel_information_nats": fit.panel_information_nats,
         "floor_nats": fit.floor_nats, "shuffled_median_nats": fit.shuffled_median_nats,
         "basis_digest": fit.basis.digest(),
+    }
+
+
+def centroid_spread(centroids: list[float], fit: SpectrumFit) -> dict[str, float | None]:
+    """How far the readings spread across the resolution axis.
+
+    A feature whose values all sit within a hundredth of each other cannot
+    predict anything, however well estimated each one is, and that failure
+    looks exactly like a true null in a regression. So the spread is reported
+    beside every result, in units of the sampler's own scale — which is the
+    only unit that makes it comparable between two fits with different grids.
+
+    The index is on the same nought-to-ten scale as the effective rank: ten
+    means the readings span the sampler's scale or more.
+    """
+    values = [value for value in centroids if value is not None]
+    if len(values) < 2:
+        return {"span": None, "sd": None, "span_over_scale": None, "index": None}
+    span = float(max(values) - min(values))
+    ratio = span / fit.logsnr_scale if fit.logsnr_scale else None
+    return {
+        "span": span,
+        "sd": float(np.std(values, ddof=1)),
+        "span_over_scale": ratio,
+        "index": None if ratio is None else round(min(10.0, 10.0 * ratio), 2),
     }

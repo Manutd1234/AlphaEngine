@@ -28,31 +28,68 @@ def _embeddings(rows: int = 600, dim: int = 64, *, seed: int = 0) -> np.ndarray:
     return rng.standard_normal((rows, dim)) * scale + 3.0
 
 
-class TestTheProjectionIsNotWhitened:
-    def test_the_explained_variances_are_not_all_one(self):
-        basis = fit_pca(_embeddings(), 16)
-        assert not isinstance(basis, LatentRefusal)
-        spread = basis.explained_variance.max() / basis.explained_variance.min()
-        # Whitening makes this exactly 1.0 and every event's centroid identical.
-        # Measured on this construction it is about 8.9; the floor is set well
-        # below that so the test fails on a flattening rather than on a tweak
-        # to the fixture's spectrum.
-        assert spread > 4.0, "the spectrum was flattened; the resolution axis is gone"
+class TestWhiteningIsTheDefaultAndTheReasonIsMeasured:
+    """This file used to refuse whitening, and the refusal was wrong.
 
-    def test_the_projection_preserves_the_scale_of_each_direction(self):
-        basis = fit_pca(_embeddings(), 16)
-        projected = basis.project(_embeddings())
-        measured = projected.var(axis=0, ddof=1)
-        assert np.allclose(measured, basis.explained_variance, rtol=0.05)
+    The argument was that a direction's place on the log-SNR axis is set by
+    its log-eigenvalue, so flattening the spectrum must collapse the
+    measurement. The premise is right and the conclusion does not follow: the
+    information density is a DIFFERENCE between the unconditional and
+    conditional spectra, and whitening moves only the first of them. The
+    density keeps its width and its meaning improves — resolution stops
+    meaning "how much variance this direction has" and starts meaning "how
+    strongly the condition explains it".
+    """
 
-    def test_the_components_are_ordered_by_how_much_they_carry(self):
-        basis = fit_pca(_embeddings(), 12)
+    def test_whitening_makes_the_target_exactly_unit_variance(self):
+        rows = _embeddings()
+        basis = fit_pca(rows, 16, whiten=True)
+        assert basis.whitened
+        assert np.allclose(basis.project(rows).var(axis=0, ddof=1), 1.0, rtol=1e-6)
+
+    def test_that_is_what_takes_the_effective_rank_to_its_ceiling(self):
+        rows = _embeddings()
+        raw = fit_pca(rows, 16, whiten=False)
+        white = fit_pca(rows, 16, whiten=True)
+        # The ceiling is the dimension itself, and only whitening reaches it.
+        # Asserted as a relation rather than against a fixed number, because
+        # how far short the raw basis falls is a property of the fixture; on
+        # the real statement embeddings it is 5.5 of 10.
+        assert effective_rank(white.explained_variance) == pytest.approx(16.0, abs=0.01)
+        assert effective_rank(raw.explained_variance) < effective_rank(white.explained_variance)
+
+    def test_the_divisor_is_taken_from_the_target_not_the_stack(self):
+        """Two channels share a basis; only one of them is being whitened.
+
+        Whitening by the stacked spread leaves the target only approximately
+        unit-variance, which is how an effective rank of 9.9 became 5.6.
+        """
+        rng = np.random.default_rng(2)
+        target = _embeddings(seed=1)
+        other = _embeddings(seed=2) * 3.0 + rng.standard_normal((600, 64))
+        stacked = fit_pca(np.vstack([target, other]), 12, whiten=True)
+        aimed = fit_pca(np.vstack([target, other]), 12, whiten=True, scale_rows=target)
+        assert effective_rank(aimed.project(target).var(axis=0, ddof=1)) > \
+               effective_rank(stacked.project(target).var(axis=0, ddof=1))
+
+    def test_the_divisor_is_frozen_rather_than_recomputed_per_batch(self):
+        rows = _embeddings()
+        basis = fit_pca(rows, 8, whiten=True)
+        half = basis.project(rows[:50])
+        # A basis that re-whitened on what it was handed would send any batch
+        # to unit variance; this one must not, or an event's coordinates would
+        # depend on the events scored beside it.
+        assert not np.allclose(half.var(axis=0, ddof=1), 1.0, rtol=1e-3)
+
+    def test_unwhitened_still_works_and_keeps_its_ordering(self):
+        basis = fit_pca(_embeddings(), 12, whiten=False)
+        assert not basis.whitened
         assert list(basis.explained_variance) == sorted(basis.explained_variance, reverse=True)
 
-    def test_the_mean_is_removed_so_the_latent_is_centred(self):
-        basis = fit_pca(_embeddings(), 8)
-        projected = basis.project(_embeddings())
-        assert np.allclose(projected.mean(axis=0), 0.0, atol=1e-8)
+    def test_the_mean_is_removed_either_way(self):
+        for whiten in (False, True):
+            basis = fit_pca(_embeddings(), 8, whiten=whiten)
+            assert np.allclose(basis.project(_embeddings()).mean(axis=0), 0.0, atol=1e-8)
 
 
 class TestItRefusesRatherThanFittingNoise:
