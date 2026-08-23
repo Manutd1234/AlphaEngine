@@ -148,12 +148,12 @@ export default function DeveloperWorkQueue({ items, onItemsChange }: DeveloperWo
         <div>
           <div className="developer-work__eyebrow">
             <span className="page-kicker">Engineering workflow</span>
-            <span className="pill">Sample data, stored in this browser</span>
           </div>
           <h2>Features, bugs &amp; current tickets</h2>
-          {/* The stored-in-this-browser caveat lives in the pill above and the
-              scope block below — twice is labelling, four times was noise. The
-              lead paragraph that stood here ("capture a change, assign it, and
+          {/* No caveat pill and no scope block: the reader asked for both
+              gone. Where the rows live is still said once, by the Done
+              column's "Closed in this browser" description. The lead
+              paragraph that stood here ("capture a change, assign it, and
               advance it through review") named the composer, the Owner field
               and the status select one row below it; the controls say that
               themselves. */}
@@ -164,12 +164,6 @@ export default function DeveloperWorkQueue({ items, onItemsChange }: DeveloperWo
           <div><span>Active</span><strong className="num"><NumberTicker value={activeItems.length} /></strong></div>
           <div><span>Review</span><strong className="num"><NumberTicker value={awaitingReview.length} /></strong></div>
         </div>
-      </div>
-
-      <div className="developer-work__scope">
-        <strong>What “fix” means here:</strong> a move records workflow state in this browser and
-        syncs nowhere. Changing the repository or closing a real ticket needs an authenticated
-        issue integration and a reviewed source-control change.
       </div>
 
       {/* One action with a three-way parameter, not three actions. Add feature,

@@ -250,7 +250,6 @@ const TAB_FACTS: ReadonlyArray<readonly [string, string]> = [
   // Negations and qualifiers. These carry the whole claim.
   ["not source contents", "what the manifest withholds"],
   ["not execution authority", "the guard rail over a catalogue of pasteable curls"],
-  ["syncs nowhere", "the sandbox declaration on a board of live status selects"],
   ["nothing is uploaded", "the sandbox declaration on the browser parity run"],
   ["passes only when", "custody's precondition"],
   ["not re-measured by this build", "why the test totals carry a date"],
@@ -278,7 +277,6 @@ const TAB_FACTS: ReadonlyArray<readonly [string, string]> = [
   ["newest first", "the ordering of the research runs"],
   ["single-use", "the Telegram token's lifetime"],
   ["a stale version returns the current row", "the versioned-edit contract"],
-  ["Sample data, stored in this browser", "what the queue's rows actually are"],
   ["Off / not configured", "the topology legend, the only place on that card expanding the Off pill"],
   ["Closed in this browser", "where a Done row is closed, and where it is not"],
   ["${job.count} tests", "the unit on the CI bars; without the note they fall back to a bare number"],
@@ -309,12 +307,6 @@ const REFUSED: ReadonlyArray<{ file: string; text: string; reason: string }> = [
     text: "Not a Vercel deployment, so there is no promotion candidate to check.",
     reason: "every word is a token: the negation, the platform, the causal 'so', and the reason the"
       + " gate is unverified rather than failed",
-  },
-  {
-    file: "components/developer/DeveloperWorkQueue.tsx",
-    text: "What “fix” means here:",
-    reason: "'here' is the scope bound; dropping it turns a claim about this board into a claim about"
-      + " what fixing means",
   },
   {
     file: "components/developer/DeveloperPipelines.tsx",

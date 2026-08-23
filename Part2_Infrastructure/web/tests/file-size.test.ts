@@ -90,7 +90,6 @@ const OVER_CEILING: Record<string, number> = {
   // Not split: CLAUDE.md pins the copy guards as one summarised/disclosure
   // pair per tab, so a second developer disclosure file would break the
   // convention every other tab follows.
-  "tests/disclosure-developer.test.ts": 408,
   "components/portfolio/WorkingOrders.tsx": 408,
   "components/research/ExperimentHistory.tsx": 408,
   "lib/data-work-queue.ts": 404,

@@ -106,7 +106,13 @@ describe("the labels say what is now true", () => {
 
   it("the developer queue claims browser storage, not session state", () => {
     assert.ok(!queue.includes("session-only"), "the session-only claim is no longer true");
-    assert.match(queue, /stored in this browser/);
+    // The queue's own caveat pill and scope block were removed at the reader's
+    // request (2026-08-23); the Done column's description is now the one place
+    // on the card that says where a row is closed, and the console's summary
+    // row above the card still says where the rows are stored.
+    assert.match(queue, /Closed in this browser/);
+    assert.ok(!queue.includes("Sample data, stored in this browser"), "the caveat pill is gone");
+    assert.ok(!queue.includes("What “fix” means here"), "the scope block is gone");
     assert.match(console_, /stored in this browser/);
   });
 

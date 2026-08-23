@@ -183,16 +183,6 @@ const VISIBLE = [
       + " belong between a reader and the guard rail for a command they are about to paste.",
   },
   {
-    file: "components/developer/DeveloperWorkQueue.tsx",
-    text:
-      "a move records workflow state in this browser and syncs nowhere. Changing the repository "
-      + "or closing a real ticket needs an authenticated issue integration and a reviewed "
-      + "source-control change.",
-    why: "SANDBOX declaration for a board whose every row carries a status select that fires"
-      + " immediately. The pill above labels the fact; this block is the only place that defines"
-      + " it, and a label with its definition folded away is a label with nothing behind it.",
-  },
-  {
     file: "components/developer/DeveloperOverview.tsx",
     text: "could not be checked at all, so ",
     why: "NULL EXPLANATION for the panel's headline figure. The ring renders readyCount/5 and a"

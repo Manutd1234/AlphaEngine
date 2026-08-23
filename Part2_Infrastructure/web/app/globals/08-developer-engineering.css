@@ -116,8 +116,7 @@
   color: var(--warning-text);
 }
 
-.codebase-explorer__notice,
-.developer-work__scope {
+.codebase-explorer__notice {
   display: flex;
   flex-wrap: wrap;
   gap: 4px 8px;
@@ -131,8 +130,7 @@
   line-height: var(--lh-body);
 }
 
-.codebase-explorer__notice strong,
-.developer-work__scope strong {
+.codebase-explorer__notice strong {
   color: var(--text-primary);
 }
 
@@ -531,11 +529,6 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-}
-
-.developer-work__eyebrow .pill {
-  padding: 2px 7px;
-  font-size: var(--fs-2xs);
 }
 
 .developer-work__actions {
