@@ -1112,73 +1112,69 @@
   font-size: var(--fs-2xs);
 }
 
-/* Four tracks over two rows, not eight equal ones crushed into one.
-   `repeat(auto-fit, minmax(96px, 1fr))` gave every field the same width
-   whatever it held, so a 96px track had to carry "BTCUSDT at 4h", "0 purged, 0
-   embargoed" and "— built without git", and the dd rule below cut all three
-   mid-word. Halving the count doubles the track.
+/* The field grid is drawn as a TABLE, in the grammar the base `table` rule
+   in 00 gives every other table on the desk: an outer frame at --rule, a
+   lattice of --rule-soft hairlines inside it, a tinted label band over each
+   value, and no radius (the frame is square on purpose, like every table
+   frame here). Three columns: the fitted-model capsule carries nine fields,
+   which is a full three-by-three; the sweep capsule carries seven or eight,
+   and its last cell widens to close the row (the two `:last-child` rules
+   below), so the frame never encloses a blank.
 
-   THE ROW GAP WAS THE WRONG HALF OF THE FIX. It was 10px, with a column rule
-   drawn as `border-left` on each cell — so every vertical hairline stopped at
-   the bottom of its own cell and restarted 10px lower, and because the cells
-   were only as tall as their contents, no two of those segments were the same
-   length or started at the same height. Nine fields drew nine unrelated
-   fragments of line. That is the "intersection" a reader sees drifting: there
-   was no grid, only cells that happened to be side by side.
-
-   So the gap is zero and the rules ARE the gutter. Grid stretches every cell in
-   a row to the row's height, so a column rule runs the full height of its row
-   and meets the next row's rule exactly where the two rows meet. An incomplete
-   last row (this list is seven fields on the sweep capsule, nine on the fitted
-   one) simply draws no rules where it has no cells, which is honest: a rule
-   separates two things, and there is nothing there to separate. */
+   Zero gap, and the hairlines are the gutter: a cell draws the rule to its
+   left and above it, the first column and the first row draw neither, and
+   the frame draws the two outer edges. Grid stretches every cell to its row,
+   so every rule runs the full height of its row and meets the next one at a
+   corner rather than drifting past it. `grid-auto-rows: 1fr` makes the rows
+   the same height as each other, which is what makes it read as a table
+   rather than as cells that happen to be adjacent. */
 .research-provenance dl {
   min-width: 0;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
   gap: 0;
-  /* The seam between the capsule's two regions — the claim on the left, the
-     evidence on the right. --rule, because this divides regions; the hairlines
-     inside the grid are --rule-soft, because they divide fields. Two weights,
-     so the reader can see which is the larger division without reading it. */
-  border-left: 1px solid var(--rule);
-  /* --space-2 here plus --space-3 of cell padding is --space-5, which is the
-     capsule's own column gap: the seam sits the same distance from the lead on
-     its left as it does from the first label on its right. */
-  padding-left: var(--space-2);
+  border: 1px solid var(--rule);
+  background: var(--surface-1);
 }
 
 .research-provenance dl > div {
   min-width: 0;
-  /* 1px 10px was written for a layout whose separation came from a row gap.
-     The cell is the separation now, so it needs a cell's padding. */
-  padding: var(--space-2) var(--space-3);
+  padding: 0;
   border-left: 1px solid var(--rule-soft);
   border-top: 1px solid var(--rule-soft);
   display: grid;
-  gap: 2px;
-  /* Labels on one row start at the same y whatever their values wrap to. With
-     the default `stretch` a two-line value pushed its own label down and the
-     row's dt line bent. */
-  align-content: start;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0;
 }
 
-/* The grid's outer edges are not drawn twice: the first cell of each row has
-   the capsule's own seam to its left, and the first row has the capsule's top
-   padding above it. Four-column arithmetic, restated at each breakpoint below
-   that changes the count. */
-.research-provenance dl > div:nth-child(4n + 1) {
+/* The frame draws the outer edges, so the first column and the first row do
+   not draw theirs again. Three-column arithmetic, restated at the breakpoint
+   below that changes the count. */
+.research-provenance dl > div:nth-child(3n + 1) {
   border-left: 0;
 }
 
-/* And the first row loses its cell padding above the label, so the top line of
-   the field grid sits on the same baseline as the kicker across the seam. */
-.research-provenance dl > div:nth-child(-n + 4) {
+.research-provenance dl > div:nth-child(-n + 3) {
   border-top: 0;
-  padding-top: 0;
 }
 
+/* A ragged last row closes to the frame: a cell that opens a row alone spans
+   it, a cell that is second in a row of two takes the rest. */
+.research-provenance dl > div:nth-child(3n + 1):last-child {
+  grid-column: span 3;
+}
+
+.research-provenance dl > div:nth-child(3n + 2):last-child {
+  grid-column: span 2;
+}
+
+/* The label band — the `th` of each cell: same tint, same caps, and the
+   same --rule-soft seam under it that the base rule draws under a header. */
 .research-provenance dt {
+  padding: 4px var(--space-3);
+  border-bottom: 1px solid var(--rule-soft);
+  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
   color: var(--text-muted);
   font-size: var(--fs-2xs);
   font-weight: 750;
@@ -1196,6 +1192,7 @@
    to `code` below. */
 .research-provenance dd {
   min-width: 0;
+  padding: var(--space-2) var(--space-3);
   font-size: var(--fs-sm);
   font-weight: 650;
   line-height: var(--lh-snug);
@@ -1303,46 +1300,37 @@ a.text-action {
   gap: var(--space-4);
 }
 
-.execution-market-strip > label {
-  min-width: 160px;
-  display: grid;
-  grid-template-columns: auto minmax(96px, 1fr);
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--text-muted);
-  font-size: var(--fs-2xs);
-  font-weight: 750;
-  letter-spacing: var(--ls-caps);
-  text-transform: uppercase;
-}
-
-.execution-market-strip select {
-  min-width: 0;
-  padding: 6px 26px 6px 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface-1);
-  color: var(--text-primary);
-  font-family: var(--mono);
-  font-size: var(--fs-body);
-  font-weight: 700;
-}
-
+/* The quotes are a table — frame at --rule, --rule-soft seams, a label band
+   over each figure — in the grammar the base `table` rule in 00 gives every
+   table on the desk. (The `> label` and `select` rules that stood here were
+   dead: the instrument field is SymbolCombobox, a label and an input in a
+   div of their own.) */
 .execution-market-strip dl {
+  flex: 1 1 auto;
   min-width: 0;
   margin: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--space-5);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  border: 1px solid var(--rule);
+  background: var(--surface-1);
 }
 
 .execution-market-strip dl > div {
-  min-width: 88px;
+  min-width: 0;
   display: grid;
-  gap: 2px;
+  grid-template-rows: auto minmax(0, 1fr);
+  border-left: 1px solid var(--rule-soft);
+}
+
+.execution-market-strip dl > div:first-child {
+  border-left: 0;
 }
 
 .execution-market-strip dt {
+  padding: 3px var(--space-3);
+  border-bottom: 1px solid var(--rule-soft);
+  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
   color: var(--text-muted);
   font-size: var(--fs-2xs);
   font-weight: 700;
@@ -1352,6 +1340,7 @@ a.text-action {
 
 .execution-market-strip dd {
   margin: 0;
+  padding: 5px var(--space-3);
   color: var(--text-primary);
   font-size: var(--fs-md);
   font-weight: 700;
@@ -1368,6 +1357,9 @@ a.text-action {
   display: inline-flex;
   align-items: center;
   gap: 7px;
+  padding: 6px var(--space-3);
+  border: 1px solid var(--rule);
+  background: var(--surface-1);
   color: var(--text-secondary);
   font-size: var(--fs-xs);
   font-weight: 650;
@@ -1393,14 +1385,9 @@ a.text-action {
     flex-wrap: wrap;
   }
 
-  .execution-market-strip > label {
-    flex: 1 1 180px;
-  }
-
   .execution-market-strip dl {
     order: 3;
     width: 100%;
-    overflow-x: auto;
   }
 }
 
@@ -2085,17 +2072,9 @@ a.text-action {
   .research-layout .sidebar {
     position: static;
   }
+  /* Stacked, the table sits under the lead; its own frame is the seam. */
   .research-provenance {
     grid-template-columns: minmax(0, 1fr);
-  }
-  /* Stacked, the two regions sit one above the other, so the seam between them
-     turns through ninety degrees with them. A left rule here would be a line
-     down the side of a full-width block, dividing it from nothing. */
-  .research-provenance dl {
-    border-left: 0;
-    border-top: 1px solid var(--rule);
-    padding-left: 0;
-    padding-top: var(--space-3);
   }
 }
 
@@ -2170,17 +2149,24 @@ a.text-action {
   }
   .research-provenance dl {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0;
   }
-  /* Two columns: column 1 is every odd cell, and every cell from the third on
-     now opens a new row and needs the row rule the four-column arithmetic
-     above took away from it. */
+  /* Two columns: the three-column arithmetic above is restated. Column 1 is
+     every odd cell and column 2 every even one; every cell from the third on
+     opens a new row; and only a cell that opens the last row alone spans it. */
+  .research-provenance dl > div:nth-child(even) {
+    border-left: 1px solid var(--rule-soft);
+  }
   .research-provenance dl > div:nth-child(odd) {
     border-left: 0;
   }
   .research-provenance dl > div:nth-child(n + 3) {
     border-top: 1px solid var(--rule-soft);
-    padding-top: var(--space-2);
+  }
+  .research-provenance dl > div:nth-child(even):last-child {
+    grid-column: auto;
+  }
+  .research-provenance dl > div:nth-child(odd):last-child {
+    grid-column: span 2;
   }
   .venue-status {
     width: 100%;
