@@ -173,12 +173,48 @@ just a threshold**, and re-fits at neighbouring widths before it will say
 `tests/test_diffusion_verdict.py` pins it with the exact numbers that fooled it.
 The tool run today prints `does_not_predict` with that reason.
 
-**What the kill does and does not say.** Text novelty does not predict
-absorption speed on FOMC statements against crypto, with 61 meetings, a
-well-conditioned latent and a working positive control. It does not say the
-mechanism is absent everywhere: the two-sigma gate still leaves 26 and 29 events
-for the speed regressions specifically, and the earnings arm has not accumulated
-yet. The torch extra remains unwritten.
+**WHY it does not work — the diagnosis, which is worth more than the result.**
+Four questions, asked in order, each answerable:
+
+1. *Is the outcome measurable?* Yes, and very well. BTC and ETH respond to the
+   same statement, so their half-lives are two measurements of one quantity:
+   they correlate **+0.916** (n=34 paired), a two-asset reliability of 0.956.
+   A predictor could in principle reach r ≈ 0.98. The dependent variable is not
+   the problem.
+2. *Does the pipeline detect anything?* Yes. Policy-move size predicts the
+   standardised response at t = +3.9 and +4.5 over 61 meetings.
+3. *Does the representation encode the subject?* **It did not, and this was the
+   bug.** A whitened twelve-dimensional latent over the WHOLE statement cannot
+   recover the policy move that is literally written in it — out-of-fold
+   R² = **−0.60**, worse than predicting the mean — and classifies hike / hold /
+   cut at 0.84 against a 0.64 majority baseline. Embedding only the sentence
+   that states the target range gives R² = **+0.70** and direction at **1.00**.
+   The cause is dilution, not the encoder: the decision sentence is ~131
+   characters of a ~1,950-character statement, and the other 93% is an economic
+   assessment whose wording moves for its own reasons. The same thing defeats
+   the literal Lazy-Prices word-diff — the fraction of words changed since the
+   previous statement correlates **+0.014** with the size of the policy move,
+   because a 50bp cut can be a two-word edit while a hold arrives with a
+   rewritten paragraph on the labour market.
+4. *With an admissible representation, is the effect there?* **No.** Re-run on
+   the decision sentence, conditioned on the previous one: 24 tests across four
+   latent widths, largest |t| = 1.15, no width-dependent hits. Dissents do not
+   predict it either (t = +0.71, +1.04), nor does the policy move (t = −0.31,
+   −0.47). And out of fold the text adds nothing to the number: |bp| alone
+   gives R² +0.13 / +0.20 for the response, |bp| plus text is worse.
+
+**So `gate.py` exists**, and it is the reusable part. A latent must recover a
+fact known to be stated in the documents, out of fold, before anything measured
+through it counts as evidence about the text. `tools/diffusion_spectrum.py`
+reports `inadmissible` and refuses a verdict when it does not — including
+refusing the t = −3.58 false positive above, which was measured through the
+whole-statement latent that fails the gate at −0.52.
+
+**What the null now says.** With a reliable outcome, a working control, a
+representation proven to carry the content, and stability across widths, the
+absence of a text→speed relationship for FOMC statements against crypto is a
+measurement rather than a failure to find one. What moves the price is the
+number, and the number is public. The torch extra remains unwritten.
 
 ## 2. Open — the owed items
 

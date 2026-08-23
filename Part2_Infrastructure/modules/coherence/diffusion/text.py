@@ -94,6 +94,10 @@ class StatementText:
     release_time: str | None = None
     #: False when the body markers did not match and the whole page was kept.
     body_isolated: bool = True
+    #: The roll call, kept separately because `body_of` cuts the body AT it.
+    #: Dissents are the sharpest discrete signal a statement carries and they
+    #: would otherwise be discarded by the very trim that isolates the prose.
+    vote_line: str | None = None
 
     @property
     def verified(self) -> bool:
@@ -149,17 +153,40 @@ def fetch_statement(source_ref: str, url: str, *, client: Any | None = None,
         if owned:
             http.close()
     released_at = release_time_of(text)
+    vote = vote_line_of(text)
     body, isolated = body_of(text)
     if len(body) < MIN_STATEMENT_CHARS:
         return StatementText(source_ref, url, "too_short", characters=len(body),
                              fetched_at_ms=stamp, release_time=released_at,
-                             body_isolated=isolated,
+                             body_isolated=isolated, vote_line=vote,
                              reason=f"the page yielded {len(body)} characters, below the floor of "
                                     f"{MIN_STATEMENT_CHARS}; it was probably a redirect or a shell")
     return StatementText(source_ref, url, "ok", text=body,
                          sha256=sha256(body.encode("utf-8")).hexdigest(),
                          characters=len(body), fetched_at_ms=stamp,
-                         release_time=released_at, body_isolated=isolated)
+                         release_time=released_at, body_isolated=isolated, vote_line=vote)
+
+
+def vote_line_of(text: str) -> str | None:
+    """The roll call sentence, which the body trim removes.
+
+    `body_of` ends the statement at "Voting for the monetary policy action",
+    which is right for the prose and wrong for the record: who dissented is a
+    fact about the decision, not chrome around it. Captured before the cut.
+    """
+    start = _BODY_END.search(text or "")
+    if not start:
+        return None
+    tail = text[start.start():]
+    # The block is TWO sentences when anyone dissented — "Voting for ... were
+    # <names>." then "Voting against ... were <names>, who preferred ...".
+    # Stopping at the first full stop keeps only the unanimous half and reports
+    # every meeting as unanimous, which is how 62 meetings yielded one dissent.
+    for marker in ("Implementation Note", "Last Update", "\n\n"):
+        cut = tail.find(marker)
+        if cut != -1:
+            tail = tail[:cut]
+    return tail.strip() or None
 
 
 def body_of(text: str) -> tuple[str, bool]:

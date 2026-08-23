@@ -27,6 +27,12 @@ from modules.data_ops_backend import DataOpsStore, get_data_ops_store
 class DiffusionTextStore:
     """Fetched documents, their digests, and the refusals beside them."""
 
+    #: Added after the table shipped. `CREATE TABLE IF NOT EXISTS` does nothing
+    #: to a table that already exists, so a column declared only in the DDL is
+    #: present on a fresh database and silently missing on every store that has
+    #: been running — the trap the recorder hit on `book_snapshots`.
+    _COLUMNS = (("vote_line", "TEXT"),)
+
     _DDL = [
         """
         CREATE TABLE IF NOT EXISTS diffusion_texts (
@@ -43,6 +49,7 @@ class DiffusionTextStore:
             characters INTEGER NOT NULL DEFAULT 0,
             verified_release_time TEXT,
             body_isolated INTEGER NOT NULL DEFAULT 1,
+            vote_line TEXT,
             first_seen_at REAL NOT NULL,
             fetched_at REAL NOT NULL
         )
@@ -54,10 +61,29 @@ class DiffusionTextStore:
         self._store = store if store is not None else get_data_ops_store()
         self._desk_id = desk_id
         self._store.migrate(self._DDL)
+        self._add_late_columns()
 
     @property
     def backend(self) -> str:
         return self._store.backend
+
+    def _add_late_columns(self) -> None:
+        """Columns added after the table shipped, one ALTER each, only if absent.
+
+        `CREATE TABLE IF NOT EXISTS` does nothing to a table that already
+        exists, so a column declared only in the DDL is present on a fresh
+        database and silently missing on every store that has been running.
+        The shape is `data_quality.py:200-206`.
+        """
+        query = getattr(self._store, "query", None)
+        execute = getattr(self._store, "execute", None)
+        if query is None or execute is None:
+            return  # a backend that manages its own schema, e.g. PostgREST
+        existing = {str(row["name"]).lower()
+                    for row in query("PRAGMA table_info(diffusion_texts)")}
+        for column, sql_type in self._COLUMNS:
+            if column.lower() not in existing:
+                execute(f"ALTER TABLE diffusion_texts ADD COLUMN {column} {sql_type}")
 
     def record(self, fetched: StatementText, *, stage: str, source: str, now_ms: float) -> str:
         """Store a document or a refusal. `first_seen_at` is written once."""
@@ -70,6 +96,7 @@ class DiffusionTextStore:
             "characters": int(fetched.characters),
             "verified_release_time": fetched.release_time,
             "body_isolated": 1 if fetched.body_isolated else 0,
+            "vote_line": fetched.vote_line,
             "fetched_at": float(fetched.fetched_at_ms or now_ms),
         }
         if existing is None:
