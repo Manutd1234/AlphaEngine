@@ -19,15 +19,14 @@ disjoint futures at most until the failure probabilities exhaust the space.
 **Both bounds are trades, not inequalities.**
 
 *Upper.* Buy the leg, sell the combo. The pair pays ``1{leg} - 1{all legs}``,
-which is never negative, because the combo cannot pay without the leg paying.
-If the combo bid exceeds the leg ask you are paid to hold a portfolio that can
-only ever pay you more.
+never negative, because the combo cannot pay without the leg paying. A combo bid
+above the leg ask pays you to hold a portfolio that can only pay you more.
 
-*Lower.* Buy the combo and buy the opposite side of every leg. If all legs land,
-the combo pays a dollar and the opposites pay nothing. If ``k >= 1`` legs miss,
-the combo pays nothing and exactly ``k`` opposites pay a dollar each. So the
-portfolio pays at least a dollar in every future, and any total cost below a
-dollar is a Dutch book. This is the spec's three-leg cover, written for n legs.
+*Lower.* Buy the combo and the opposite side of every leg. If all legs land the
+combo pays a dollar and the opposites nothing; if ``k >= 1`` miss, the combo
+pays nothing and exactly ``k`` opposites pay a dollar each. So it pays at least
+a dollar in every future, and any cost below one is a Dutch book — the spec's
+three-leg cover, written for n legs.
 
 **The gap between the bounds is the whole subject.** The legs never determine
 the combo; only the dependence does, and the dependence is not quoted anywhere.

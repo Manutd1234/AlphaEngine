@@ -23,6 +23,7 @@ from decimal import Decimal
 from modules.coherence.kernel import distribution, kelly
 from modules.coherence.kernel.book import Book
 from modules.coherence.kernel.lattice import build_component
+from modules.coherence.kernel.money import DOLLAR
 from modules.coherence.syscalls.observe import Observation
 
 
@@ -36,10 +37,25 @@ def _ask(book: Book | None) -> Decimal | None:
     return book.best_yes_ask if book is not None else None
 
 
+def _half_spread(book: Book | None) -> Decimal:
+    """Half the leg's bid-ask spread — the least its probability can be wrong by.
+
+    A mid is the centre of a spread, not a measurement, so the probability read
+    off it carries at least that much width. Feeding Kelly the mid as though it
+    were exact is the assumption the estimation haircut exists to remove, and on
+    a thinly quoted leg this is most of the apparent edge.
+    """
+    if book is None or book.spread is None:
+        return Decimal(0)
+    half = book.spread / 2
+    return half if half > 0 else Decimal(0)
+
+
 def stake_for(
     observation: Observation,
     surface: distribution.Surface,
     shrinkage: Decimal = kelly.DEFAULT_SHRINKAGE,
+    arbitrage_bound: Decimal = DOLLAR,
 ) -> kelly.Plan:
     """Kelly over this family, sized against the repaired measure.
 
@@ -49,7 +65,11 @@ def stake_for(
     name rather than approximated.
     """
     if surface.engine not in {"named", "bucket"}:
-        return kelly.solve([], shrinkage)
+        return kelly.unsizeable(
+            "this reading is a ladder: its bins are the gaps between markets, so no single "
+            "contract's price is the probability of a bin",
+            shrinkage,
+        )
 
     books = {item.ticker: item.book for item in observation.markets}
     labels = {item.ticker: (item.market.yes_sub_title or item.ticker) for item in observation.markets}
@@ -73,10 +93,22 @@ def stake_for(
             return kelly.solve([], shrinkage)
         mass_by_ticker[item.ticker] = item.mass if item.mass > 0 else Decimal(0)
 
+    # An unquoted member of an exhaustive family makes the family UNSIZEABLE.
+    # It does not make it a smaller family, and the difference is the whole
+    # safety of this path. `kelly.solve` computes its basket cost over what it
+    # is given, so dropping a leg for want of an offer and handing over the
+    # rest lets a partial basket cost under a dollar and be declared a riskless
+    # arbitrage — with a worst-case wealth above one, printed as "cannot lose",
+    # while the outcome that was dropped still carries its share of the mass
+    # and settles YES often enough to take the lot. `constraints.py` already
+    # holds this line for the additive row, where an unquoted leg makes the row
+    # untestable rather than absent; this is the same rule for the same reason.
     candidates: list[kelly.Candidate] = []
+    unbuyable: list[str] = []
     for ticker, mass in mass_by_ticker.items():
         price = _ask(books.get(ticker))
         if price is None or price <= 0:
+            unbuyable.append(labels.get(ticker, ticker))
             continue
         candidates.append(
             kelly.Candidate(
@@ -84,6 +116,16 @@ def stake_for(
                 label=labels.get(ticker, ticker),
                 probability=mass,
                 price=price,
+                uncertainty=_half_spread(books.get(ticker)),
             )
         )
-    return kelly.solve(candidates, shrinkage)
+    if unbuyable:
+        return kelly.unsizeable(
+            f"{len(unbuyable)} outcome(s) of this family are not offered at any price — "
+            + ", ".join(unbuyable[:4])
+            + (" and others" if len(unbuyable) > 4 else "")
+            + ". The family is exhaustive, so one of them will settle YES; sizing the rest as "
+            "though it could not would price a basket that does not cover every future",
+            shrinkage,
+        )
+    return kelly.solve(candidates, shrinkage, arbitrage_bound)

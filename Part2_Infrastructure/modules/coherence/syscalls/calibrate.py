@@ -14,6 +14,7 @@ the tape cannot answer, and they are labelled so in the report itself.
 
 from __future__ import annotations
 
+import calendar
 import time
 from decimal import Decimal
 from typing import Sequence
@@ -60,11 +61,22 @@ def _price(raw: object, volume: object) -> "Decimal | None":
 
 
 def _iso_to_ns(raw: str | None) -> int | None:
+    """A Kalshi timestamp to epoch nanoseconds, read as UTC because it is UTC.
+
+    ``time.mktime`` interprets a struct_time as LOCAL time, and Kalshi's
+    ``close_time`` always carries a Z. Using it shifted every close by the host's
+    UTC offset, which is not a cosmetic error here: ``corpus.tape_forecasts``
+    joins on this timestamp, so on a UTC-4 host it admitted snapshots taken up
+    to four hours AFTER settlement as though they had been quoted an hour
+    before it, and reported the inflated horizon beside them. That horizon is
+    the one number deciding whether the corpus is a forecast test at all.
+
+    ``calendar.timegm`` is the UTC inverse of ``gmtime`` and is what this needs.
+    """
     if not raw:
         return None
-    text = raw.strip().replace("Z", "+00:00")
     try:
-        return int(time.mktime(time.strptime(text[:19], "%Y-%m-%dT%H:%M:%S"))) * 1_000_000_000
+        return calendar.timegm(time.strptime(raw.strip()[:19], "%Y-%m-%dT%H:%M:%S")) * 1_000_000_000
     except (ValueError, OverflowError):
         return None
 

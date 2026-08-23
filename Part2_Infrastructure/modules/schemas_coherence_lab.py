@@ -139,6 +139,12 @@ class CoherenceCombo(BaseModel):
     band_position: str | None = None
     dependence: str = "unavailable"
     inside_band: bool | None = None
+    #: Rows on this parlay whose portfolio actually costs less than it is
+    #: certain to pay. A price outside the band is NOT the same claim: the
+    #: bounds are built from each leg's mid while the parlay is read from its
+    #: offer, so an ask above min(leg mids) proves nothing tradable. Only a
+    #: violated row carries a portfolio, so only this number may say "Dutch book".
+    violated_rows: int = 0
     detail: str = ""
 
 
@@ -252,6 +258,13 @@ class CoherenceSettlementFeed(BaseModel):
 
 class CoherenceDispersion(BaseModel):
     market_ticker: str
+    #: The Frechet band this market's legs leave, and the share of it the
+    #: makers actually disagree over. Null where no combo reading covers this
+    #: market or the panel is too thin — never zero, which would read as
+    #: "the makers agree exactly" rather than "this was not measured".
+    band_width: str | None = None
+    band_fraction: str | None = None
+    band_note: str = ""
     quotes: int = 0
     usable: int = 0
     median: str | None = None

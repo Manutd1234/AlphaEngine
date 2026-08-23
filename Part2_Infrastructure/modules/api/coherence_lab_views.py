@@ -119,6 +119,16 @@ def kelly_view(plan: Any) -> CoherenceKelly:
 
 def combos_view(observation: Any) -> CoherenceCombos:
     by_ticker = {combo.ticker: combo for combo in observation.combos}
+    # A row belongs to the parlay it names as a leg. Counted per combo so a
+    # pane can tell "quoted outside a band built from mids" — which proves
+    # nothing on its own — from "a portfolio here costs less than it pays".
+    violated: dict[str, int] = {}
+    for row in observation.rows:
+        if not row.violated:
+            continue
+        for leg in row.legs:
+            if leg.ticker in by_ticker:
+                violated[leg.ticker] = violated.get(leg.ticker, 0) + 1
     return CoherenceCombos(
         state="available" if observation.readings else "unavailable",
         combos=[
@@ -150,6 +160,7 @@ def combos_view(observation: Any) -> CoherenceCombos:
                 band_position=text(reading.band_position),
                 dependence=reading.dependence,
                 inside_band=reading.inside_band,
+                violated_rows=violated.get(reading.combo_ticker, 0),
                 detail=reading.detail,
             )
             for reading in observation.readings
@@ -249,7 +260,14 @@ def settlement_view(feed: dict[str, Any], reference: dict[str, Any], city: str) 
     )
 
 
-def rfq_view(panel: dict[str, Any]) -> CoherenceRfqPanel:
+def rfq_view(panel: dict[str, Any], usage: dict[str, Any] | None = None) -> CoherenceRfqPanel:
+    """The panel, with each market's disagreement set against its own band.
+
+    ``usage`` maps a market ticker to a ``frechet.BandUsage``. Absent, the
+    band columns come across null and say nothing, which is the honest state
+    when no combo reading covers the market a maker was quoting.
+    """
+    found = usage or {}
     return CoherenceRfqPanel(
         state=str(panel.get("state") or "refused"),
         detail=str(panel.get("detail") or ""),
@@ -267,6 +285,13 @@ def rfq_view(panel: dict[str, Any]) -> CoherenceRfqPanel:
                 crossed=item.crossed,
                 thin=item.thin,
                 detail=item.detail,
+                band_width=text(found[item.market_ticker].band_width)
+                if item.market_ticker in found
+                else None,
+                band_fraction=text(found[item.market_ticker].fraction)
+                if item.market_ticker in found
+                else None,
+                band_note=found[item.market_ticker].detail if item.market_ticker in found else "",
             )
             for item in (panel.get("dispersions") or [])
         ],

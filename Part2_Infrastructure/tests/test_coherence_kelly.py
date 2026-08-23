@@ -18,7 +18,8 @@ from decimal import Decimal
 
 import pytest
 
-from modules.coherence.kernel.kelly import DEFAULT_SHRINKAGE, Candidate, solve
+from modules.coherence.kernel.kelly import DEFAULT_SHRINKAGE, Candidate, solve, unsizeable
+from modules.coherence.kernel.money import DOLLAR
 
 FULL = Decimal(1)
 
@@ -226,3 +227,80 @@ class TestThePlanInMoney:
     def test_the_edge_is_the_measure_minus_the_price(self):
         plan = solve(family([("0.6", "0.50"), ("0.4", "0.50")]), FULL)
         assert [stake.edge for stake in plan.stakes] == [Decimal("0.1"), Decimal("-0.1")]
+
+
+class TestTheThingsThatMakeAPlanSafeToRead:
+    """Two refusals and a haircut, each of which was a real defect first."""
+
+    def test_a_family_with_an_unbuyable_outcome_is_refused_rather_than_sized(self):
+        """An exhaustive family missing a leg is UNSIZEABLE, not smaller.
+
+        Dropping the unquoted outcome and sizing the rest let a partial basket
+        cost under a dollar, which set ``arbitrage_available`` and reported a
+        worst case above one — "cannot lose" — while the outcome that was
+        dropped still carried a quarter of the mass and would take the lot.
+        """
+        plan = unsizeable("one outcome of this family is not offered at any price")
+        assert plan.engine == "unavailable"
+        assert plan.arbitrage_available is False
+        assert plan.basket_cost is None
+        assert plan.worst_case_wealth is None
+        assert "not offered" in plan.detail
+
+    def test_the_arbitrage_threshold_is_the_callers_not_a_hardcoded_dollar(self):
+        """A basket under a dollar is not a profit if the fees come to more.
+
+        ``costs.no_arbitrage_bound`` is the real threshold; this only has to
+        accept it. At a bound below the basket cost the riskless claim goes
+        away entirely, which is the fee model doing its job.
+        """
+        family = [
+            Candidate("A", "a", Decimal("0.5"), Decimal("0.30")),
+            Candidate("B", "b", Decimal("0.3"), Decimal("0.32")),
+            Candidate("C", "c", Decimal("0.2"), Decimal("0.32")),
+        ]
+        gross = solve(family, Decimal(1))
+        assert gross.arbitrage_available is True
+        assert gross.basket_cost == Decimal("0.94")
+
+        after_fees = solve(family, Decimal(1), arbitrage_bound=Decimal("0.93"))
+        assert after_fees.arbitrage_available is False
+        assert after_fees.riskless_growth is None
+
+    def test_the_estimation_haircut_shrinks_every_stake_and_never_raises_one(self):
+        """``q`` read off a mid is an estimate with the spread's width on it.
+
+        The haircut must move the plan toward the market, monotonically. The
+        obvious construction — take the width off each ``q`` and renormalise —
+        does the opposite on a symmetric family: it redistributes mass toward
+        whichever leg had most, and the favourite's stake goes UP. Measured
+        here rather than argued, because that version passed review reading
+        plausibly and was wrong.
+        """
+        sharp = [
+            Candidate("A", "a", Decimal("0.60"), Decimal("0.50")),
+            Candidate("B", "b", Decimal("0.40"), Decimal("0.50")),
+        ]
+        wide = [
+            Candidate("A", "a", Decimal("0.60"), Decimal("0.50"), uncertainty=Decimal("0.02")),
+            Candidate("B", "b", Decimal("0.40"), Decimal("0.50"), uncertainty=Decimal("0.02")),
+        ]
+        base = solve(sharp, Decimal(1))
+        cut = solve(wide, Decimal(1))
+        assert cut.stakes[0].full_fraction < base.stakes[0].full_fraction
+        assert cut.staked_fraction < base.staked_fraction
+
+    def test_spreads_as_wide_as_the_edge_leave_nothing_to_bet_on(self):
+        """At λ = 1 the measure IS the market, so there is no edge to size.
+
+        This is the honest reading of an apparent edge on a barely-quoted
+        market: it is the quoting, and the plan holds cash.
+        """
+        swallowed = [
+            Candidate("A", "a", Decimal("0.60"), Decimal("0.50"), uncertainty=Decimal("0.30")),
+            Candidate("B", "b", Decimal("0.40"), Decimal("0.50"), uncertainty=Decimal("0.30")),
+        ]
+        plan = solve(swallowed, Decimal(1))
+        assert plan.cash_fraction == DOLLAR
+        assert not any(stake.admitted for stake in plan.stakes)
+        assert "toward the market's own" in plan.detail

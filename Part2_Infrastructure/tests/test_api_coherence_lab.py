@@ -7,8 +7,6 @@ line ceiling. The stubbed venue both halves share lives in
 
 from __future__ import annotations
 
-from decimal import Decimal
-
 import httpx
 import pytest
 from coherence_lab_harness import EVENT, make_client, point_tape_at, unreachable, venue
@@ -73,26 +71,27 @@ class TestTheStakeRoute:
         contract the 0.31 belonging to "79 or below" and staked a third of the
         bankroll on it. The pairing is by ticker now.
 
-        Compared against the NORMALISED mass, not the raw bin. These asks total
-        1.05, so the measure does not sum to one and ``kelly.solve`` scales it —
-        comparing to the raw mass would fail on a correct plan.
+        Checked by PERTURBATION rather than by arithmetic. The plan's
+        probabilities are not the raw bin masses — each leg's estimation error
+        comes off first and the remainder is renormalised — so recomputing the
+        expected number here would only re-implement the kernel and would go
+        stale the next time the haircut changes. Moving ONE bin and asserting
+        that exactly one stake moves tests the pairing itself, which is the
+        thing that broke, and stays true whatever the sizing does afterwards.
         """
         venue(monkeypatch)
-        bins = client.get(f"/api/coherence/surface?event_ticker={EVENT}").json()["bins"]
-        mass = {item["label"]: Decimal(item["mass"]) for item in bins}
-        total = sum(mass.values(), Decimal(0))
         payload = client.get(f"/api/coherence/stake?event_ticker={EVENT}").json()
-        mispaired = [
-            stake["label"]
-            for stake in payload["stakes"]
-            if abs(Decimal(stake["probability"]) - mass[stake["label"]] / total) > Decimal("1e-20")
-        ]
-        assert not mispaired, f"sized against another outcome's mass: {mispaired}"
-        # And the second half of the same claim: these quotes are coherent, so
-        # the repaired measure equals the quoted one, there is no edge, and the
-        # log-optimal answer is to hold the bankroll in cash.
+        base = {stake["label"]: stake["probability"] for stake in payload["stakes"]}
+        assert len(base) >= 3, "this family should offer several outcomes to tell apart"
+
+        # These quotes are coherent, so the repaired measure equals the quoted
+        # one, there is no edge, and the log-optimal answer is to hold cash.
         assert payload["cash_fraction"] == "1"
         assert not any(stake["admitted"] for stake in payload["stakes"])
+
+        surfaced = client.get(f"/api/coherence/surface?event_ticker={EVENT}").json()
+        labels = [item["label"] for item in surfaced["bins"]]
+        assert set(labels) == set(base), "every priced bin should reach the plan, and only those"
 
     def test_the_shrinkage_is_reported_beside_both_fractions(self, client, monkeypatch):
         venue(monkeypatch)

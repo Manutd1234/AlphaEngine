@@ -24,26 +24,20 @@ have not spent*. Keep admitting outcomes while ``q_s / a_s > R_t``; then
 
     f_s = q_s - R · a_s
 
-**Growth-optimal is not riskless, and the difference is worth a paragraph.** If
-the outcomes cost less than a dollar in total, ``Σ a_s < 1``, then the numerator
-of ``R`` reaches zero, so ``R = 0``, so ``f_s = q_s`` and ``Σ f_s = 1``: Kelly
-holds no cash and stakes the lot. It is tempting to read that as the Dutch book
-of ``dutchbook.py`` arriving from the other direction. It is not.
-
-The Dutch book buys *equal numbers of contracts* — that is what makes its payoff
-a flat dollar in every state and its profit certain. Kelly buys stakes in
-proportion to ``q``, which is a different portfolio, and its payoff is not flat.
-On a three-outcome family costing $0.94 with ``q = (0.50, 0.30, 0.20)`` against
-prices ``(0.30, 0.32, 0.32)``, the arbitrage basket turns $1 into $1.0638 with
-certainty, while the Kelly plan turns it into anything from $0.63 to $1.67 and
-grows faster in the long run — 0.1421 against 0.0619 in log terms — precisely
-because it is taking a risk the arbitrage refuses.
-
-So the two answer different questions. The certificate answers "what can I be
-paid for holding nothing?"; Kelly answers "what maximises growth if my measure
-is right?" A plan is reported with both its expected growth and its worst state,
-and where an arbitrage exists the riskless alternative is reported beside it, so
-the two are never mistaken for each other.
+**Growth-optimal is not riskless.** If the outcomes cost less than a dollar in
+total then ``R`` reaches zero, ``f_s = q_s`` and ``Σ f_s = 1``: Kelly holds no
+cash and stakes the lot. That is not the Dutch book of ``dutchbook.py`` arriving
+from the other direction. The Dutch book buys *equal numbers of contracts*,
+which is what makes its payoff a flat dollar in every state and its profit
+certain; Kelly buys stakes proportional to ``q``, a different portfolio with a
+payoff that is not flat. On a family costing $0.94 with ``q = (0.50, 0.30,
+0.20)`` against prices ``(0.30, 0.32, 0.32)`` the arbitrage turns $1 into
+$1.0638 with certainty while Kelly turns it into anything from $0.63 to $1.67
+and grows faster — 0.1421 against 0.0619 — precisely because it takes a risk the
+arbitrage refuses. The certificate answers "what can I be paid for holding
+nothing?"; Kelly answers "what maximises growth if my measure is right?" Both
+the expected growth and the worst state are reported, and where an arbitrage
+exists the riskless alternative sits beside the risky plan.
 
 **Where ``q`` comes from decides whether any of this means anything.** Feed this
 the market's own mid prices and it will correctly tell you to bet almost nothing,
@@ -59,6 +53,12 @@ move. Kelly's growth curve is flat near the optimum and steep past it, so
 over-betting costs far more than under-betting: half Kelly gives up a quarter of
 the growth for half the variance. The default shrinkage is a quarter, both
 fractions are reported, and the caller is told which one it is looking at.
+
+**Two corrections, not the same one twice.** Fractional Kelly scales the ANSWER
+down afterwards; the estimation haircut corrects the INPUT first, by shrinking
+the measure toward the market's own — ``shrinkage.py`` holds that construction
+and the argument for it. ``Candidate.uncertainty`` carries each leg's width,
+half its bid-ask spread at the least.
 """
 
 from __future__ import annotations
@@ -67,6 +67,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Literal, Sequence
 
+from modules.coherence.kernel import shrinkage
 from modules.coherence.kernel.money import DOLLAR, format_dollars
 
 #: The default fraction of full Kelly. A quarter, not a half, because ``q`` is
@@ -85,6 +86,11 @@ class Candidate:
     label: str
     probability: Decimal
     price: Decimal
+    #: How far this probability could be wrong, in the same units — half the
+    #: leg's bid-ask spread at the least. Zero asserts certainty.
+    uncertainty: Decimal = Decimal(0)
+
+
 
 
 @dataclass(frozen=True, slots=True)
@@ -161,6 +167,21 @@ def _unavailable(detail: str, shrinkage: Decimal) -> Plan:
     )
 
 
+def _shrink(rows: list[Candidate]) -> tuple[list[Candidate], Decimal]:
+    """Apply the estimation haircut, keeping every other field of the candidate."""
+    values, lam = shrinkage.toward_market(
+        [item.probability for item in rows],
+        [item.price for item in rows],
+        [item.uncertainty for item in rows],
+    )
+    if lam <= 0:
+        return rows, Decimal(0)
+    return [
+        Candidate(item.ticker, item.label, value, item.price, item.uncertainty)
+        for item, value in zip(rows, values, strict=False)
+    ], lam
+
+
 def _worst_case(candidates: Sequence[Candidate], fractions: Sequence[Decimal]) -> Decimal | None:
     """The worst bankroll multiple this plan can leave.
 
@@ -174,6 +195,17 @@ def _worst_case(candidates: Sequence[Candidate], fractions: Sequence[Decimal]) -
         for candidate, fraction in zip(candidates, fractions, strict=False)
     ]
     return min(outcomes) if outcomes else None
+
+
+def unsizeable(detail: str, shrinkage: Decimal = DEFAULT_SHRINKAGE) -> Plan:
+    """A family this module will not size, and the reason why.
+
+    Public because refusing is a real answer that callers need to give. The
+    alternative — handing ``solve`` an empty or partial candidate list — makes
+    a refusal indistinguishable from a small family, and a small family gets
+    priced as though the outcomes left out could not happen.
+    """
+    return _unavailable(detail, shrinkage)
 
 
 def _growth(candidates: Sequence[Candidate], fractions: Sequence[Decimal]) -> Decimal | None:
@@ -227,13 +259,22 @@ def _admit(ordered: Sequence[Candidate]) -> tuple[Decimal, int]:
 def solve(
     candidates: Sequence[Candidate],
     shrinkage: Decimal = DEFAULT_SHRINKAGE,
+    arbitrage_bound: Decimal = DOLLAR,
 ) -> Plan:
     """Log-optimal stakes over one mutually exclusive family.
 
     ``candidates`` must be the whole family: every outcome, priced at what it
     costs to buy. A partial family is a different problem — the outcomes left
     out still absorb probability, and pretending they cannot happen inflates
-    every stake.
+    every stake. The caller is responsible for that; this function cannot tell
+    a family with a missing member from a smaller family.
+
+    ``arbitrage_bound`` is what the basket must beat before a riskless profit is
+    claimed. It defaults to a dollar, the GROSS test, which is wrong by exactly
+    the fees: ``costs.no_arbitrage_bound`` computes ``1 - Σ net_fee`` and is what
+    a caller with a schedule should pass. A basket costing $0.98 does not earn
+    two cents if its legs' fees come to three, and this module has no schedule
+    of its own — so the threshold is an argument, not a constant.
     """
     rows = [item for item in candidates if item.price > 0]
     if len(rows) < 2:
@@ -244,6 +285,8 @@ def solve(
         )
     if any(item.probability < 0 for item in rows):
         return _unavailable("the supplied measure has a negative probability in it", shrinkage)
+    if any(item.uncertainty < 0 for item in rows):
+        return _unavailable("an outcome was given a negative estimation error", shrinkage)
     if shrinkage <= 0 or shrinkage > 1:
         return _unavailable("the Kelly shrinkage must sit in (0, 1]", shrinkage)
 
@@ -253,9 +296,17 @@ def solve(
     notes: list[str] = []
     if mass != DOLLAR:
         rows = [
-            Candidate(item.ticker, item.label, item.probability / mass, item.price) for item in rows
+            Candidate(item.ticker, item.label, item.probability / mass, item.price, item.uncertainty)
+            for item in rows
         ]
         notes.append(f"the supplied measure summed to {mass} and was normalised to one")
+
+    rows, lam = _shrink(rows)
+    if lam > 0:
+        notes.append(
+            f"the measure was shrunk {lam} of the way toward the market's own before sizing, which is "
+            "the share of the apparent edge these spreads could account for"
+        )
 
     basket = sum((item.price for item in rows), Decimal(0))
     ordered = sorted(rows, key=lambda item: item.probability / item.price, reverse=True)
@@ -288,7 +339,7 @@ def solve(
             ),
         )
 
-    arbitrage = basket < DOLLAR
+    arbitrage = basket < arbitrage_bound
     riskless_growth: Decimal | None = None
     if arbitrage:
         # Σ a_s < 1: one contract of every outcome costs less than the dollar it
@@ -299,10 +350,14 @@ def solve(
         reserve = Decimal(0)
         admitted = len(ordered)
         riskless_growth = (DOLLAR / basket).ln()
+        threshold = (
+            "a dollar" if arbitrage_bound == DOLLAR
+            else f"{format_dollars(arbitrage_bound)}, which is a dollar less the fees on these legs"
+        )
         notes.append(
-            f"one contract of each outcome costs {basket} and pays a dollar whatever happens, so a "
-            f"riskless {format_dollars(riskless_growth)} of log growth is available; the plan below "
-            "stakes the measure instead, which grows faster and can lose"
+            f"one contract of each outcome costs {basket} against a threshold of {threshold} and pays "
+            f"a dollar whatever happens, so a riskless {format_dollars(riskless_growth)} of log growth "
+            "is available; the plan below stakes the measure instead, which grows faster and can lose"
         )
 
     full = [

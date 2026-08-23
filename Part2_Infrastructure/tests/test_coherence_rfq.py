@@ -66,16 +66,29 @@ class TestOneMakersAnswerIsAnInterval:
         assert made.estimate == Decimal("0.3400")
         assert made.width == Decimal("0.0600")
 
-    def test_a_one_sided_quote_is_a_point_with_no_width(self):
+    def test_a_one_sided_quote_is_a_bound_rather_than_an_estimate(self):
+        """A bid with no offer says the maker's value is AT LEAST that much.
+
+        It used to be folded into the panel as a point at the bid, which pulls
+        the median toward whichever side happened to be quoted and understates
+        the spread — the one number the panel exists to report. It is a bound,
+        so it has no estimate and no width, and `disperse` counts it out loud.
+        """
         made = panel(quote("q1", "0.3100", None))[0]
-        assert made.estimate == Decimal("0.3100")
+        assert made.implied_low == Decimal("0.3100")
+        assert made.implied_high is None
+        assert made.estimate is None
         assert made.width is None
+        assert made.one_sided
         assert not made.crossed
 
     def test_a_quote_bidding_only_the_no_side_is_read_from_the_other_end(self):
+        """The NO side inverts to a ceiling on the YES value, not to a point."""
         made = panel(quote("q1", None, "0.6300"))[0]
         assert made.implied_low is None
-        assert made.estimate == Decimal("0.3700")
+        assert made.implied_high == Decimal("0.3700")
+        assert made.estimate is None
+        assert made.one_sided
 
     def test_a_bid_of_nothing_is_a_price_rather_than_an_absence(self):
         """Zero is a legal price on this exchange. A contract nobody believes in
@@ -188,10 +201,17 @@ class TestReadingTheChannel:
         assert result["dispersions"] == []
 
     @pytest.mark.anyio
-    async def test_a_server_fault_is_a_refusal_with_the_venues_own_reason(self):
+    async def test_a_server_fault_is_an_outage_rather_than_a_refusal(self):
+        """503 is the venue falling over, not the venue saying no.
+
+        "Refused" is a statement about this deployment's credentials and sends a
+        reader to check a key. An outage is about the network and is worth
+        retrying. Collapsing the two wasted the distinction the state model is
+        for, so a fault that is not an explicit rejection reports `unavailable`.
+        """
         made = client({self.ROUTE_RFQS: (503, {}), self.ROUTE_QUOTES: (503, {})})
         result = await read_panel(made)
-        assert result["state"] == "refused"
+        assert result["state"] == "unavailable"
         assert result["rfqs"] == []
 
     @pytest.mark.anyio

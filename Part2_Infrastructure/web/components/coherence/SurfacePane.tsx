@@ -113,7 +113,7 @@ function moments(surface: CoherenceSurface): Fact[] {
       surface.skewness ? "Positive means the interior mass leans to the low strikes with a long tail up." : absent),
     row("Excess kurtosis", decimalLabel(surface.excess_kurtosis, 4),
       surface.excess_kurtosis ? "Above zero means more mass in the shoulders than a normal of the same width." : absent),
-    row("Interior mass", decimalLabel(surface.total_mass, 4),
+    row("Total quoted mass", decimalLabel(surface.total_mass, 4),
       "What every bin sums to. On a ladder the differences telescope, so this confirms the arithmetic, never the prices."),
     row("Low tail", decimalLabel(surface.tail_mass_low, 4),
       surface.tail_mass_low

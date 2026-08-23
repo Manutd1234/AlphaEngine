@@ -66,6 +66,7 @@ export type BandReading = Pick<
   | "band_width"
   | "inside_band"
   | "dependence"
+  | "violated_rows"
 >;
 
 /**
@@ -127,6 +128,12 @@ export function basisCaveat(basis: string): string {
 const clamp = (value: number, low: number, high: number) => Math.min(Math.max(value, low), high);
 
 export default function FrechetBand({ reading }: { reading: BandReading }) {
+  // Only a violated row proves a trade. `inside_band` compares a price read
+  // from the parlay's OFFER against bounds built from each leg's MID, so a
+  // price outside the band is a mispricing against a mixed-basis bound and not
+  // on its own a Dutch book — capturing the upper bound needs the parlay's BID
+  // above a leg's ASK, and no parlay on this exchange carries a bid.
+  const violatedRows = reading.violated_rows ?? 0;
   const lower = toCenticents(reading.lower_bound);
   const upper = toCenticents(reading.upper_bound);
   const price = toCenticents(reading.price);
@@ -172,7 +179,9 @@ export default function FrechetBand({ reading }: { reading: BandReading }) {
       ? `These ${legCount} legs bound the parlay to ${loText} on the low side and ${hiText} on the high side, a band ${widthPhrase}, but neither side of its own book is quoted. The band is real and nothing can be traded against it.`
       : inside
         ? `${priceText} sits inside the band, which means it is consistent with some dependence between the ${legCount} legs. That is not a statement that it is fairly priced, and not a mispricing: the band is ${widthPhrase}, and on this evidence every price in it is admissible. What is measured here is that the parlay could move ${widthText} with no leg price moving at all.${coincides ? ` The price and the independence ring land ${fromCenticents(gapCc as number)} apart, so the two markers all but coincide on this track — which is what an offer a tick above Πpᵢ looks like, not evidence that the legs are positively dependent.` : ""}`
-        : `${priceText} is outside the band these legs allow (${loText} to ${hiText}). No dependence structure between the legs can produce that price, so it is a Dutch book before fees, and the rows below carry the portfolio that proves it.`;
+        : violatedRows > 0
+          ? `${priceText} is outside the band these legs allow (${loText} to ${hiText}), and ${violatedRows === 1 ? "a portfolio below costs" : `${violatedRows} portfolios below cost`} less than ${violatedRows === 1 ? "it is" : "they are"} certain to pay. That is a Dutch book before fees, and the row carries the legs that prove it.`
+          : `${priceText} is outside the band these legs allow (${loText} to ${hiText}) — but the two numbers are not read from the same side of the book. The bounds come from each leg's mid; the parlay is read from its ${basis}. No portfolio below is violated, so this is a mispricing against a mid-built bound and not a trade: capturing the upper bound needs the parlay BID above a leg's ASK, and nobody bids for a parlay.`;
 
   const ariaLabel =
     `A track from zero to one dollar. The band the ${legCount} legs allow runs from ${loText} to ${hiText}, ${widthPhrase}. ` +

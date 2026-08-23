@@ -51,7 +51,6 @@ from modules.coherence.kernel.bins import (
 )
 from modules.coherence.kernel.book import Book
 from modules.coherence.kernel.lattice import Component, Node
-from modules.coherence.kernel.money import DOLLAR
 
 #: Above this much mass in the unbounded wings, the interior moments are
 #: flagged as describing only part of the distribution. They are still reported:
@@ -213,9 +212,16 @@ def build_surface(component: Component, books: dict[str, Book]) -> Surface:
         mean, variance, skewness, excess, moments_note = _moments(bins)
         outside = (tail_low or Decimal(0)) + (tail_high or Decimal(0))
         if mean is not None:
+            # Measured, never assumed to be a dollar. Only a ladder totals one
+            # by construction — its differences telescope — while a bucket or
+            # named family totals whatever its quotes happen to sum to, so
+            # `1 - tails` there is a fraction of a total the family does not
+            # carry. On the recorded NYC family that printed 0.68 where the
+            # bounded bins hold 0.73 of a quoted 1.05.
+            interior = (total or Decimal(0)) - outside
             moments_note = (
-                "conditional on the outcome landing between the outermost quoted strikes, which "
-                f"holds for {DOLLAR - outside} of the mass; " + moments_note
+                "conditional on the outcome landing between the outermost quoted strikes, which is "
+                f"{interior} of the {total} these quotes carry; " + moments_note
             )
             if outside > TAIL_TOLERANCE:
                 moments_note += (

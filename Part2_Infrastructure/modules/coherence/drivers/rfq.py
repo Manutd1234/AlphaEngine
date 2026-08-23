@@ -22,6 +22,9 @@ flatten:
 
 ``signing_unavailable``   no key configured, or ``cryptography`` not installed
 ``refused``               signed and rejected — wrong key, wrong host, wrong env
+``unavailable``           the channel could not be reached at all: a dead socket,
+                          a 503, an exhausted read budget. Worth retrying, unlike
+                          a refusal, and about the network rather than the key
 ``empty``                 read successfully; the demo environment has no RFQs open
 ``available``             quotes in hand
 
@@ -40,7 +43,7 @@ from typing import Any, Literal, Sequence
 from modules.coherence.drivers.kalshi_rest import KalshiClient, KalshiRefused, KalshiUnavailable
 from modules.coherence.kernel.money import DOLLAR, one_minus
 
-State = Literal["available", "empty", "refused", "signing_unavailable"]
+State = Literal["available", "empty", "refused", "unavailable", "signing_unavailable"]
 
 #: Below this many independent makers a spread is an anecdote. Reported anyway,
 #: flagged as thin, because two disagreeing makers is still more than the public
@@ -55,6 +58,12 @@ def _decimal(value: Any) -> Decimal | None:
         return Decimal(str(value))
     except (InvalidOperation, ValueError):
         return None
+
+
+#: Quote states that still represent a maker's live opinion. Anything else —
+#: cancelled, executed, expired — was a view at some past moment, and averaging
+#: those into a panel measures history rather than disagreement now.
+LIVE_QUOTE_STATES = {"open", "active", "live", ""}
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,6 +83,11 @@ class Quote:
     yes_bid: Decimal | None
     no_bid: Decimal | None
     created_ts: str
+    status: str = ""
+
+    @property
+    def live(self) -> bool:
+        return self.status.strip().lower() in LIVE_QUOTE_STATES
 
     @property
     def implied_low(self) -> Decimal | None:
@@ -85,10 +99,22 @@ class Quote:
 
     @property
     def estimate(self) -> Decimal | None:
+        """The maker's own midpoint, and only when they quoted both sides.
+
+        A one-sided quote is not an estimate of anything: a maker bidding 0.31
+        for YES and offering nothing has said their value is AT LEAST 0.31, not
+        that it is 0.31. Folding that bound into the panel as a point pulls the
+        median toward whichever side happened to be quoted and understates the
+        spread, which is the one number this class exists to report.
+        """
         low, high = self.implied_low, self.implied_high
-        if low is not None and high is not None:
-            return (low + high) / 2
-        return low if low is not None else high
+        if low is None or high is None:
+            return None
+        return (low + high) / 2
+
+    @property
+    def one_sided(self) -> bool:
+        return (self.implied_low is None) != (self.implied_high is None)
 
     @property
     def width(self) -> Decimal | None:
@@ -187,6 +213,7 @@ def parse_quotes(payload: dict[str, Any]) -> list[Quote]:
                 yes_bid=_side(row, "yes_bid"),
                 no_bid=_side(row, "no_bid"),
                 created_ts=str(row.get("created_ts") or row.get("created_time") or ""),
+                status=str(row.get("status") or ""),
             )
         )
     return parsed
@@ -215,8 +242,11 @@ def parse_rfqs(payload: dict[str, Any]) -> list[Rfq]:
 
 def disperse(market_ticker: str, quotes: Sequence[Quote]) -> Dispersion:
     """The panel's disagreement about one market."""
-    rows = [quote for quote in quotes if quote.market_ticker == market_ticker]
+    all_rows = [quote for quote in quotes if quote.market_ticker == market_ticker]
+    rows = [quote for quote in all_rows if quote.live]
+    stale = len(all_rows) - len(rows)
     crossed = [quote for quote in rows if quote.crossed]
+    one_sided = [quote for quote in rows if quote.one_sided]
     usable = [quote for quote in rows if quote.estimate is not None and not quote.crossed]
     estimates = [quote.estimate for quote in usable if quote.estimate is not None]
 
@@ -244,6 +274,16 @@ def disperse(market_ticker: str, quotes: Sequence[Quote]) -> Dispersion:
         notes.append(
             f"{len(crossed)} quote(s) bid over a dollar across both sides and were left out — "
             "the two sides were priced at different moments and are not one view"
+        )
+    if stale:
+        notes.append(
+            f"{stale} quote(s) are cancelled, executed or expired and were left out — a maker's past "
+            "view is not their current disagreement with anyone"
+        )
+    if one_sided:
+        notes.append(
+            f"{len(one_sided)} quote(s) named only one side and were left out — a bid with no offer "
+            "is a bound on a maker's value, not an estimate of it"
         )
     if len(estimates) < THIN_PANEL:
         notes.append("fewer than three makers, so the spread is an anecdote rather than a distribution")
@@ -283,7 +323,12 @@ async def read_panel(client: KalshiClient, limit: int = 50) -> dict[str, Any]:
             "dispersions": [],
         }
     except KalshiUnavailable as exc:
-        return {"state": "refused", "detail": exc.reason, "rfqs": [], "dispersions": []}
+        # A dead socket, a 503 or an exhausted read budget is not a refusal.
+        # "Refused" says the venue answered and said no, which is a fact about
+        # this deployment's credentials; an outage is a fact about the network
+        # and is worth retrying. Reporting the second as the first sends a
+        # reader to check a key that was never the problem.
+        return {"state": "unavailable", "detail": exc.reason, "rfqs": [], "dispersions": []}
 
     rfqs = parse_rfqs(rfq_page.payload)
     quotes = parse_quotes(quote_page.payload)

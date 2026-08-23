@@ -13,8 +13,14 @@ from typing import Any
 from modules.coherence.drivers import livedata
 from modules.coherence.drivers.kalshi_rest import KalshiClient
 
-#: The window a temperature contract settles over, in minutes. Reported beside
-#: the average so the number is never a bare figure with no stated basis.
+#: The window this module averages over, in minutes.
+#:
+#: An ASSUMPTION, not a reading. The weather endpoint publishes a per-minute
+#: series, a config version and its units; it does not publish the averaging
+#: window its contracts settle on, and the rules that do live in each series'
+#: prose. So this is a configured convention, reported as one — the pane labels
+#: the figure with this number rather than implying the venue supplied it, and
+#: a series that settles on a different window will need this to move with it.
 SETTLEMENT_WINDOW_MINUTES = 60
 
 
@@ -25,6 +31,7 @@ async def weather(client: KalshiClient, city: str) -> dict[str, Any]:
         return {"state": exc.kind, "detail": exc.reason, "city": city, "summary": None, "samples": []}
     summary = livedata.qc_summary(index)
     summary["window_minutes"] = SETTLEMENT_WINDOW_MINUTES
+    summary["window_is_assumed"] = True
     return {
         "state": "available",
         "detail": "",

@@ -71,6 +71,16 @@ async def observe_combos(client: KalshiClient, limit: int = MAX_COMBOS_PER_READ)
     result.combos = taken
 
     wanted = [combo.ticker for combo in taken] + leg_tickers(taken)
+    if len(wanted) > 100:
+        # One bulk call takes a hundred tickers. Silently slicing left the legs
+        # past the boundary unquoted, and the reading then reported them as the
+        # venue not quoting them — our truncation wearing the exchange's name.
+        dropped = len(wanted) - 100
+        result.notes.append(
+            f"{len(taken)} parlays need {len(wanted)} books and one bulk call carries a hundred, so "
+            f"{dropped} leg(s) were not fetched; any band missing a leg below is missing it because "
+            "this read stopped, not because the exchange is not quoting it"
+        )
     try:
         books_page = await client.orderbooks(wanted[:100])
         result.books = parse_orderbooks(books_page.payload)

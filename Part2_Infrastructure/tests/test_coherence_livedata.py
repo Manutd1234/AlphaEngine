@@ -136,9 +136,17 @@ class TestWhatTheParserRefusesToInvent:
         index = index_of([sample(0, "80"), {"t": "not-a-stamp", "v": 81.0}])
         assert len(index.samples) == 1
 
-    def test_a_missing_contributor_count_reads_as_none_contributing(self):
+    def test_a_missing_contributor_count_is_unknown_rather_than_zero_stations(self):
+        """Zero stations reporting would mean the index had no input at all.
+
+        The venue not stating a count is a different fact, and rendering the
+        first as the second turns silence into a total feed failure on the
+        pane. It comes through as None, and the contributor range skips it
+        rather than being dragged to zero by it.
+        """
         index = index_of([{"t": 0, "v": 80.0, "status": "normal"}])
-        assert index.samples[0].contributors == 0
+        assert index.samples[0].contributors is None
+        assert index.contributor_range is None
 
     def test_a_payload_with_no_series_at_all_is_an_empty_index_not_an_error(self):
         assert parse_weather("miami", {}).samples == ()

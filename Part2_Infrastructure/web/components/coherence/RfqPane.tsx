@@ -120,6 +120,8 @@ function Row({ row }: { row: CoherenceDispersion }) {
       <td className="num">{row.spread ?? "—"}</td>
       <td className="num">{row.median_width ?? "—"}</td>
       <td className="num">{row.crossed}</td>
+      <td className="num">{row.band_width ?? "—"}</td>
+      <td className="num">{row.band_fraction ?? "—"}</td>
       <td>
         {row.thin ? (
           <span>
@@ -188,7 +190,13 @@ export default function RfqPane({ active }: { active: boolean }) {
           <div className="table-wrap">
             <table className="coh-table">
               <caption className="coh-table__caption">
-                One row per market a panel answered on. Spread is the disagreement between makers; median width is one
+                One row per market a panel answered on. The last two columns are the measurement this channel
+                exists for: the Frechet band is how far the parlay could move with no leg price moving, and the
+                share is how much of that room the makers actually disagree over. A small share means the
+                professionals agree about the dependence even where the legs do not pin it down; a share near one
+                means the legs are the only constraint anyone has. Neither is a mispricing. Both are blank where
+                no combo reading covers the market, because an unmeasured ratio is not a ratio of zero.
+                Spread is the disagreement between makers; median width is one
                 maker&rsquo;s own bid-offer. They are different quantities: a panel that agrees, quoting widely, and a
                 panel that disagrees, quoting tightly, would read the same if only one of them were shown.
               </caption>
@@ -202,6 +210,8 @@ export default function RfqPane({ active }: { active: boolean }) {
                   <th scope="col" className="num">Spread between makers</th>
                   <th scope="col" className="num">Median maker width</th>
                   <th scope="col" className="num">Crossed</th>
+                  <th scope="col" className="num">Band the legs leave</th>
+                  <th scope="col" className="num">Share of it used</th>
                   <th scope="col">Panel</th>
                   <th scope="col">Reading</th>
                 </tr>

@@ -128,6 +128,13 @@ export interface CoherenceCombo {
   band_position: string | null;
   dependence: string;
   inside_band: boolean | null;
+  /**
+   * Rows on this parlay whose portfolio costs less than it is certain to pay.
+   * Distinct from `inside_band`: the bounds come from each leg's mid while the
+   * parlay is read from its offer, so a price outside the band does not on its
+   * own prove a trade. Only this may be called a Dutch book.
+   */
+  violated_rows: number;
   detail: string;
 }
 
@@ -230,6 +237,15 @@ export interface CoherenceSettlementFeed {
 
 export interface CoherenceDispersion {
   market_ticker: string;
+  /**
+   * The Frechet band this market's legs leave, and the share of it the makers
+   * actually disagree over — the §8.4 measurement. Null where no combo reading
+   * covers the market or the panel is too thin: never zero, which would read
+   * as "the makers agree exactly" rather than "this was not measured".
+   */
+  band_width: string | null;
+  band_fraction: string | null;
+  band_note: string;
   quotes: number;
   usable: number;
   median: string | null;

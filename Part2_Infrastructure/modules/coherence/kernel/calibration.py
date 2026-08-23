@@ -38,8 +38,10 @@ reliability then the bands are too wide to conclude anything from.
 
 **Favourite–longshot bias** is the oldest empirical finding in this literature:
 longshots trade above their frequency and favourites below. It shows up as a
-regression of outcome rate on price with a slope below one, and the slope is
-reported with its bin counts because on a thin corpus it is mostly noise.
+regression of outcome rate on price with a slope ABOVE one — the cheap end sits
+below the diagonal and the dear end above it, so the fitted line is steeper than
+the diagonal, not shallower. The slope is reported with its bin counts because
+on a thin corpus it is mostly noise.
 
 **Selection is the hard part, and this module cannot solve it — only report it.**
 A corpus of settled markets is not a sample of forecasts. It over-weights

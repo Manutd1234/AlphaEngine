@@ -29,6 +29,9 @@ from modules.coherence.drivers.kalshi_auth import signing_available
 from modules.coherence.drivers.kalshi_rest import KalshiClient, KalshiUnavailable
 from modules.coherence.drivers.rfq import read_panel
 from modules.coherence.fs.store import TapeUnavailable, get_store
+from modules.coherence.kernel.band_usage import band_usage
+from modules.coherence.kernel.costs import no_arbitrage_bound
+from modules.coherence.kernel.money import DOLLAR
 from modules.coherence.syscalls import calibrate, combos, settlement, shell, surface
 from modules.coherence.syscalls.certify import certify
 from modules.coherence.syscalls.observe import observe_event, observe_series
@@ -83,12 +86,30 @@ async def coherence_stake(
         fraction = Decimal(shrinkage)
     except (InvalidOperation, ValueError):
         return CoherenceKelly(state="unavailable", engine="unavailable", detail="the shrinkage is not a decimal")
+    # `Decimal("NaN")` parses. It then raises InvalidOperation inside the solver
+    # on the first comparison, which reaches the client as a 500 rather than as
+    # a refusal, so the non-finite cases are rejected here where there is still
+    # a sentence to return.
+    if not fraction.is_finite():
+        return CoherenceKelly(
+            state="unavailable", engine="unavailable", detail="the shrinkage must be a finite number"
+        )
     try:
         observation = await observe_event(KalshiClient(), event_ticker)
     except KalshiUnavailable as exc:
         return CoherenceKelly(state="unavailable", engine="unavailable", detail=exc.reason)
     reading = surface.surface_for(observation)
-    return views.kelly_view(surface.stake_for(observation, reading, fraction))
+    # The arbitrage threshold is fee-aware or it is wrong. A basket at $0.98 is
+    # not two cents of riskless profit if the fees on its legs come to three,
+    # and `costs.no_arbitrage_bound` is the test the rest of this engine uses.
+    schedule = await schedule_for_event(observation.event.series_ticker, event_ticker)
+    asks = [
+        item.book.best_yes_ask
+        for item in observation.markets
+        if item.book.best_yes_ask is not None
+    ]
+    bound = no_arbitrage_bound(asks, schedule) if asks else DOLLAR
+    return views.kelly_view(surface.stake_for(observation, reading, fraction, bound))
 
 
 @router.get("/api/coherence/combos", response_model=CoherenceCombos)
@@ -169,7 +190,23 @@ async def coherence_rfq(_actor: str = Depends(trader_identity)) -> CoherenceRfqP
             ),
         )
     panel = await read_panel(KalshiClient(base_url=tunables.DEMO_BASE_URL, signed=True))
-    return views.rfq_view(panel)
+
+    # The measurement §8.4 is actually about: how much of the room the legs
+    # leave do the makers use? Reading the combos costs two calls, so it is
+    # done only when there is a panel to set them against — on a sandbox with
+    # no quotes the join would be two requests to compare nothing.
+    usage: dict[str, Any] = {}
+    if panel.get("dispersions"):
+        spreads = {item.market_ticker: (item.spread, item.usable) for item in panel["dispersions"]}
+        observed = await combos.observe_combos(KalshiClient(), limit=10)
+        for reading in observed.readings:
+            found = spreads.get(reading.combo_ticker)
+            if found is None:
+                continue
+            measured = band_usage(reading, found[0], found[1])
+            if measured is not None:
+                usage[reading.combo_ticker] = measured
+    return views.rfq_view(panel, usage)
 
 
 @router.get("/api/coherence/shell", response_model=CoherenceShell)
@@ -186,21 +223,37 @@ async def coherence_shell(
     """
     client = KalshiClient()
     observations = []
+    refusals: list[str] = []
     for series in tunables.SERIES_WATCHLIST or ():
         try:
             observations.extend(await observe_series(client, series, max_events=tunables.MAX_EVENTS_PER_SERIES))
-        except KalshiUnavailable:
-            continue
+        except KalshiUnavailable as exc:
+            refusals.append(f"{series}: {exc.reason}")
 
     if not observations:
+        # A read that failed and a path that is not there are different answers,
+        # and this route used to give both of them the same one — `exists=False`,
+        # which the pane renders as "no such path". The venue's own reason is
+        # carried through so the reader can tell an outage from an empty tree.
+        if refusals:
+            return CoherenceShell(
+                state="unavailable",
+                path=path,
+                command=command,
+                exists=True,
+                detail=(
+                    "the watched universe could not be read, so this is not a statement about the "
+                    "path: " + "; ".join(refusals[:3])
+                ),
+            )
         return CoherenceShell(
             state="unavailable",
             path=path,
             command=command,
             exists=False,
             detail=(
-                "nothing is on the watchlist, or none of it could be read. COHERENCE_SERIES sets "
-                "which series this tree contains"
+                "nothing is on the watchlist. COHERENCE_SERIES sets which series this tree contains, "
+                "and it is empty here"
             ),
         )
     if command == "cat":

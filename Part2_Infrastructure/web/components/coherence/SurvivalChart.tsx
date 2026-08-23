@@ -122,8 +122,15 @@ export default function SurvivalChart({ surface }: { surface: CoherenceSurface }
   const lo = steps[0].x;
   const hi = steps[steps.length - 1].x;
   const span = Math.max(1, hi - lo);
+  // Three cases, not two. `findIndex` returns -1 when the curve never falls
+  // below a half, and 0 when it is ALREADY below one at the lowest quoted
+  // strike — and those put the median on opposite sides of the ladder. Treating
+  // index 0 as "no crossing" made the figure say the median sat above the
+  // highest strike on a ladder where it sits below the lowest, which is the
+  // reverse of the truth and the kind of sentence a reader acts on.
   const crossing = steps.findIndex((step) => step.s < HALF_CC);
   const median = crossing > 0 ? steps[crossing] : null;
+  const medianBelowRange = crossing === 0;
   const dotRadius = steps.length > 60 ? 1 : 1.9;
 
   return (
@@ -133,7 +140,9 @@ export default function SurvivalChart({ surface }: { surface: CoherenceSurface }
       reading={`Survival runs from ${priceLabel(steps[0].survival)} at ${steps[0].strike} to ${priceLabel(steps[steps.length - 1].survival)} at ${steps[steps.length - 1].strike}.${
         median
           ? ` It first falls below a half between ${steps[crossing - 1].strike} and ${median.strike} — the exchange is not quoting a strike inside that gap, so the crossing is bracketed, not located.`
-          : " It never falls below a half inside the quoted range, so the median sits above the highest strike anyone is quoting."
+          : medianBelowRange
+            ? ` It is already below a half at ${steps[0].strike}, the lowest strike quoted, so the median sits below the quoted range rather than inside it.`
+            : " It never falls below a half inside the quoted range, so the median sits above the highest strike anyone is quoting."
       }`}
       missing={missingLine(surface, unreadable, rises.length)}
     >

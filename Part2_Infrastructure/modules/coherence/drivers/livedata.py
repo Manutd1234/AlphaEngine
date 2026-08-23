@@ -78,7 +78,11 @@ class Sample:
 
     ts_ms: int
     value: Decimal
-    contributors: int
+    #: How many stations fed this minute. ``None`` where the venue did not say,
+    #: which is not the same as zero — zero stations reporting would mean the
+    #: index had no input at all, and rendering an unknown as that reads as a
+    #: total feed failure.
+    contributors: int | None
     status: QcStatus
 
 
@@ -88,6 +92,10 @@ class WeatherIndex:
 
     city: str
     config_version: str
+    #: The venue's own unit for these readings, e.g. "fahrenheit". Carried
+    #: because a bare 88.52 beside a settlement threshold is only meaningful
+    #: with it, and the venue states it rather than leaving it to be assumed.
+    units: str
     samples: tuple[Sample, ...]
 
     @property
@@ -102,7 +110,9 @@ class WeatherIndex:
     def contributor_range(self) -> tuple[int, int] | None:
         if not self.samples:
             return None
-        counts = [sample.contributors for sample in self.samples]
+        counts = [sample.contributors for sample in self.samples if sample.contributors is not None]
+        if not counts:
+            return None
         return min(counts), max(counts)
 
     def window_average(self, minutes: int, include_degraded: bool = True) -> Decimal | None:
@@ -223,13 +233,14 @@ def parse_weather(city: str, payload: dict[str, Any]) -> WeatherIndex:
                 Sample(
                     ts_ms=stamp,
                     value=value,
-                    contributors=int(contributors) if isinstance(contributors, int) else 0,
+                    contributors=int(contributors) if isinstance(contributors, int) else None,
                     status=_qc_status(row.get("status")),
                 )
             )
     return WeatherIndex(
         city=city,
         config_version=str(payload.get("config_version") or ""),
+        units=str(payload.get("units") or ""),
         samples=tuple(sorted(samples, key=lambda sample: sample.ts_ms)),
     )
 
@@ -333,6 +344,7 @@ def qc_summary(index: WeatherIndex) -> dict[str, Any]:
     return {
         "city": index.city,
         "config_version": index.config_version,
+        "units": index.units,
         "samples": len(index.samples),
         "degraded_samples": len(degraded),
         "contributors_min": span[0] if span else None,

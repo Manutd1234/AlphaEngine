@@ -223,7 +223,7 @@ class TestTheMomentsSayWhatTheyAreConditionalOn:
     def test_the_wings_are_reported_beside_the_moments_rather_than_absorbed(self, surface):
         assert surface.tail_mass_low == Decimal("0.1")
         assert surface.tail_mass_high == Decimal("0.1")
-        assert "holds for 0.80 of the mass" in surface.moments_note
+        assert "which is 0.80 of the 1.00 these quotes carry" in surface.moments_note
         assert "unbounded wings" in surface.moments_note
 
     def test_a_thin_wing_does_not_earn_the_warning(self):
