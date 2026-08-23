@@ -107,6 +107,67 @@ and the discipline is unchanged: read the *skip reasons*, never the pass count
 outcome — the gateway, web and service suites are green, with the web suite's
 two skips being cross-ownership debts rather than opt-ins.
 
+### The information-diffusion instrument — **measured, and killed on this arm**
+
+Recorded here because a negative result that is not written down gets rebuilt.
+
+**What was built and what it does.** `modules/coherence/diffusion/` measures how
+fast a timestamped announcement reaches the price, and separately estimates how
+much information one text carries about another as a density over log-SNR — the
+integrand of a diffusion mutual-information bound, whose centroid says at what
+*resolution* a headline explains the body it came from. Both halves are tested
+against known answers: a 2-d correlated Gaussian at 1.2185 nats, a 32-d
+analogue, a jointly Gaussian triple recovering its analytic mutual information,
+conditional independence reading as zero. The calendar behind it is verified —
+62 of 62 FOMC meetings confirmed against federalreserve.gov, date *and* hour.
+
+**What survived.** The two-stage absorption difference. Over 62 meetings and two
+crypto assets, the statement is half absorbed in a median 166 seconds and the
+press conference takes 2.87x as long on a volatility clock built from matched
+non-event windows; the 95% interval excludes zero, and the placebo run of the
+identical pipeline on windows with no announcement gives 0.68x, so it is not a
+property of the hour. The statement sits at control percentile 0.00 — faster
+than every matched window with no news in it — and the press conference at 0.50,
+which is to say indistinguishable from an ordinary half hour.
+
+**What did not.** The instrument that was supposed to PREDICT that speed. Every
+pre-registered moment of the information spectrum was regressed on the log
+half-life of each stage, with a shuffled-pairing null beside it:
+
+Reproduce with `venv/bin/python tools/diffusion_spectrum.py`, which prints this
+table and its own verdict:
+
+| moment | release (n=26) | call (n=29) |
+|---|---|---|
+| `alpha_centroid` | t +1.01, shuffled p 0.32 | t −0.16, p 0.87 |
+| `total_nats` | t −1.02, p 0.35 | t −0.40, p 0.70 |
+| `fine_fraction` | t +0.80, p 0.43 | t −0.21, p 0.83 |
+| inter-quartile spread | t +1.95, p 0.068 | t +0.39, p 0.70 |
+
+Nothing reaches |t| = 2. The nearest miss is a SECONDARY moment — the spread of
+the spectrum, not its centroid — at t = 1.95 on 26 events, and its p of 0.068 is
+uncorrected: across the eight tests in the table it is about 0.4. The two stages
+also disagree on sign for three of the four moments, which is what noise looks
+like. The pre-registered criterion was "|t| < 2 on both primary moments → do not
+build the torch slice", so **the torch extra was not written**. There is no
+`requirements-diffusion.txt` and no learned denoiser, and that is the outcome
+rather than an omission.
+
+**What the kill does and does not say.** It says: on FOMC statements against
+crypto absorption, at this sample size, with a 10-dimensional PCA latent over a
+384-d sentence encoder, this instrument does not predict absorption speed. It
+does not say the mechanism is absent. The honest limits are that the two-sigma
+signal gate leaves 26 and 29 usable events of 62; the fitted centroids span only
+6.89 to 7.35, which is little variation to predict with; and the latent's
+effective rank is 5.5 of 10, so the encoder may be the binding constraint rather
+than the estimator. Each of those is a reason to re-run rather than a reason to
+believe.
+
+**What is kept.** The absorption measurement, the verified calendar, the text
+channel and the estimator itself — all tested, all shipped, all reachable from
+the Coherence tab's Diffusion section. The estimator is a research dataset with
+known-answer tests rather than a signal, and the section says so.
+
 ## 2. Open — the owed items
 
 Each of these is documented in the module that owes it. That is deliberate:

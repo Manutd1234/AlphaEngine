@@ -155,6 +155,75 @@ def loc_scale_from_spectrum(log_eigs: np.ndarray, *, constant: float = 3.0 / np.
     return float(-np.mean(log_eigs)), float(np.sqrt(1.0 + constant * np.var(log_eigs)))
 
 
+@dataclass(frozen=True)
+class ConditionalModel:
+    """The conditional Gaussian as a FROZEN object: means, regression, residual.
+
+    Kept as data rather than as a closure because it has to survive a fit: an
+    instrument that re-estimates itself on the event it is scoring is not an
+    instrument. `denoiser()` builds the callable from the stored pieces, and
+    the pieces are what a version row records.
+    """
+
+    mean_x: np.ndarray
+    mean_c: np.ndarray
+    regression: np.ndarray
+    reference: GaussianRef
+
+    def conditional_mean(self, condition: np.ndarray) -> np.ndarray:
+        """`E[x|c] = m_x + A (c - m_c)`, per row."""
+        return self.mean_x + (np.atleast_2d(condition) - self.mean_c) @ self.regression.T
+
+    def denoiser(self):
+        """The Bayes-optimal epsilon predictor that USES the row's condition."""
+        eigen, basis = np.linalg.eigh(self.reference.covariance)
+        eigen = np.maximum(eigen, 0.0)
+        mean_x = self.mean_x
+
+        def denoise(z: np.ndarray, alpha: np.ndarray, cond: np.ndarray | None = None) -> np.ndarray:
+            share = np.atleast_1d(sigmoid(np.asarray(alpha, dtype=np.float64)))
+            if share.size == 1 and z.shape[0] > 1:
+                share = np.repeat(share, z.shape[0])
+            signal = share[:, None]
+            root = np.sqrt(signal)
+            noise = 1.0 - signal
+            if cond is None:
+                centre = np.broadcast_to(mean_x, z.shape)
+            else:
+                centre = self.conditional_mean(cond)
+                if centre.shape[0] == 1 and z.shape[0] > 1:
+                    centre = np.repeat(centre, z.shape[0], axis=0)
+            rotated = (z - root * centre) @ basis
+            gain = eigen[None, :] / (signal * eigen[None, :] + noise)
+            x_hat = centre + (root * gain * rotated) @ basis.T
+            return (z - root * x_hat) / np.sqrt(noise)
+
+        return denoise
+
+
+def conditional_model(x: np.ndarray, condition: np.ndarray, *, floor: float = MIN_SAMPLES_PER_DIM
+                      ) -> ConditionalModel | Refusal:
+    """Fit `x | c` and keep every piece, so the fit can be frozen and reused."""
+    x = np.atleast_2d(np.asarray(x, dtype=np.float64))
+    condition = np.atleast_2d(np.asarray(condition, dtype=np.float64))
+    joint = gaussian_reference(np.hstack([x, condition]), floor=floor)
+    if isinstance(joint, Refusal):
+        return joint
+    dim = x.shape[1]
+    sigma_xc = joint.covariance[:dim, dim:]
+    sigma_cc = joint.covariance[dim:, dim:]
+    regression = np.linalg.solve(sigma_cc + np.eye(sigma_cc.shape[0]) * 1e-12, sigma_xc.T).T
+    residual = joint.covariance[:dim, :dim] - regression @ sigma_xc.T
+    residual = (residual + residual.T) / 2.0
+    eigenvalues = np.linalg.eigvalsh(residual)
+    floor_value = max(float(np.max(eigenvalues)) * 1e-12, 1e-300)
+    reference = GaussianRef(mean=joint.mean[:dim], covariance=residual,
+                            log_eigs=np.log(np.maximum(eigenvalues, floor_value)),
+                            samples=joint.samples)
+    return ConditionalModel(mean_x=joint.mean[:dim], mean_c=joint.mean[dim:],
+                            regression=regression, reference=reference)
+
+
 def conditional_oracle(x: np.ndarray, condition: np.ndarray, *, floor: float = MIN_SAMPLES_PER_DIM):
     """A denoiser that uses the row's OWN condition, and the reference behind it.
 
