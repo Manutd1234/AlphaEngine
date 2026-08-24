@@ -49,6 +49,7 @@
 import { fromCenticents, sumPrices, verdictForBuy, verdictForSell, VERDICT_MARK, VERDICT_WORD } from "@/lib/coherence/fixed-point";
 import type { CoherenceEventView, CoherenceUniverse } from "@/lib/coherence/types";
 import BasketComposition from "./BasketComposition";
+import BasketSize from "./BasketSize";
 import BasketOverview, { rowsFor } from "./BasketOverview";
 import DollarBar from "./DollarBar";
 import { StateChip } from "./Figure";
@@ -252,6 +253,12 @@ export default function UniversePane({ universe, view, events, error, filtered }
     return (
       <>
         <BasketComposition universe={universe} rows={rows} />
+        {/* Size AFTER composition and BEFORE the dollar axis, which is the
+            order the three questions actually run in: what the watchlist is,
+            how much is on it, and whether its prices admit a probability. The
+            size figures were unbuildable until the venue's own open interest,
+            liquidity and notional value reached the wire on 2026-08-24. */}
+        <BasketSize universe={universe} />
         {/* Size AFTER composition and BEFORE the dollar axis, which is the
             order the three questions actually run in: what the watchlist is,
             how much is on it, and whether its prices admit a probability. The

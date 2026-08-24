@@ -96,6 +96,14 @@ class CoherenceMarketView(BaseModel):
     spread: str | None = None
     depth: str
     unquoted_reason: str | None = None
+    # Size, as the venue published it. Strings for the reason every price here
+    # is a string, and nullable for a different reason: absent means the key
+    # was not sent, while "0.00" means the exchange looked and found nothing.
+    # A desk that renders those the same way invents an empty book.
+    open_interest: str | None = None
+    liquidity: str | None = None
+    volume: str | None = None
+    notional_value: str | None = None
 
 
 class CoherenceEventView(BaseModel):
@@ -111,6 +119,13 @@ class CoherenceEventView(BaseModel):
     yes_ask_total: str | None = None
     yes_bid_total: str | None = None
     basket_note: str | None = None
+    # The family's own size, and the denominator any per-outcome share is read
+    # against. Withheld entirely when one leg has no figure, for the reason
+    # `basket_totals` withholds a price total: a sum over the legs that
+    # answered understates the family by exactly the legs it skipped, and a
+    # share against an understated denominator reads too large.
+    open_interest_total: str | None = None
+    liquidity_total: str | None = None
 
 
 class CoherenceUniverse(BaseModel):

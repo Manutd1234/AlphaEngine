@@ -82,6 +82,11 @@ const FILES = [
   // nothing, which is the failure this suite exists to stop.
   "../components/coherence/BasketComposition.tsx",
   "../components/coherence/PriceHistogram.tsx",
+  // Added with BasketSize on 2026-08-24: the three size figures and the
+  // exposure grid. It renders copy a reader meets — why a total is withheld,
+  // and why a never-traded family's bands show no share — so it joins the scan
+  // in the same change that wrote it.
+  "../components/coherence/BasketSize.tsx",
   "../components/coherence/DollarBar.tsx",
   "../components/coherence/SettlementPane.tsx",
   "../components/coherence/FormationDiagram.tsx",

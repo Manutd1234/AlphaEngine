@@ -76,6 +76,24 @@ export interface CoherenceMarketView {
   spread: string | null;
   depth: string;
   unquoted_reason: string | null;
+  /**
+   * Size, as the venue published it — resting dollars, contracts outstanding,
+   * contracts traded, and what one contract pays.
+   *
+   * Nullable for a different reason than the prices above are. A price is
+   * absent when nobody is quoting; these are absent when the venue stopped
+   * sending the field at all, which is a protocol change. `"0.0000"` is
+   * neither: it is the exchange having looked and found nothing, and a desk
+   * that renders it as a dash hides a measurement.
+   *
+   * They also disagree with each other, legitimately — a market reporting zero
+   * liquidity while carrying open interest and traded volume — so each is read
+   * under its own name and never derived from another.
+   */
+  open_interest: string | null;
+  liquidity: string | null;
+  volume: string | null;
+  notional_value: string | null;
 }
 
 export interface CoherenceEventView {
@@ -89,6 +107,15 @@ export interface CoherenceEventView {
   yes_ask_total: string | null;
   yes_bid_total: string | null;
   basket_note: string | null;
+  /**
+   * The family's own size, and the denominator every per-outcome share is read
+   * against. Withheld entirely when one leg carries no figure, for the reason
+   * the price totals are: a sum over the legs that answered understates the
+   * family by exactly the legs it skipped, and a share against an understated
+   * denominator reads too large.
+   */
+  open_interest_total: string | null;
+  liquidity_total: string | null;
 }
 
 export interface CoherenceUniverse {

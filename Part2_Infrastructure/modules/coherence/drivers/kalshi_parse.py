@@ -70,6 +70,18 @@ class Market:
     exchange_index: int
     yes_sub_title: str
     top: Book
+    # What Kalshi publishes about SIZE, carried as the strings it sent. The
+    # engine's names drop the wire's `_fp` and `_dollars` suffixes because
+    # those describe the encoding, not the quantity.
+    #
+    # `None` means the venue did not send the key, which is a protocol change
+    # and is the case `schema_probe` exists to make loud. It does NOT mean
+    # zero: a settled ladder that never traded reports "0.00" truthfully, and
+    # the two must stay distinguishable all the way to the browser.
+    open_interest: str | None = None
+    liquidity: str | None = None
+    volume: str | None = None
+    notional_value: str | None = None
 
     @property
     def is_open(self) -> bool:
@@ -151,6 +163,20 @@ def _settlement_sources(raw: Any) -> tuple[str, ...]:
     return tuple(sorted(name for name in names if name))
 
 
+def _size(value: Any) -> str | None:
+    """A published size, kept as the string it arrived as.
+
+    Not `_decimal_or_none`: these are carried, compared and rendered as text,
+    and a Decimal round-trip would reformat "0.0000" to "0" — losing the
+    places the venue chose to send and making a measured zero look like a
+    different number than the one published. Anything that is not a non-empty
+    string is absent, never zero.
+    """
+    if isinstance(value, str) and value.strip():
+        return value
+    return None
+
+
 def parse_market(payload: dict[str, Any], series_ticker: str = "") -> Market:
     """One Market object. Raises rather than filling gaps with zeros."""
     missing = [field for field in REQUIRED_MARKET_FIELDS if field not in payload]
@@ -183,6 +209,10 @@ def parse_market(payload: dict[str, Any], series_ticker: str = "") -> Market:
         exchange_index=int(payload.get("exchange_index") or 0),
         yes_sub_title=str(payload.get("yes_sub_title", "")),
         top=top,
+        open_interest=_size(payload.get("open_interest_fp")),
+        liquidity=_size(payload.get("liquidity_dollars")),
+        volume=_size(payload.get("volume_fp")),
+        notional_value=_size(payload.get("notional_value_dollars")),
     )
 
 

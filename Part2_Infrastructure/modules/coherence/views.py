@@ -88,6 +88,15 @@ def market_view(market: Market, book: Book) -> CoherenceMarketView:
         spread=_price(book.spread),
         depth=book.depth,
         unquoted_reason=unquoted_reason(book),
+        # Passed through, never recomputed. These are the venue's own figures
+        # and the desk cites them as such; deriving one from another would
+        # make the tab's numbers ours rather than the exchange's — and they
+        # genuinely disagree, a market reporting zero liquidity while its ask
+        # carries size.
+        open_interest=market.open_interest,
+        liquidity=market.liquidity,
+        volume=market.volume,
+        notional_value=market.notional_value,
     )
 
 
@@ -161,6 +170,27 @@ def _basket_note(
     return "; ".join(parts)
 
 
+def _size_total(observation: Observation, attribute: str) -> str | None:
+    """Sum one published size over a family, or nothing at all.
+
+    A market whose book was never read is as missing as one the venue sent no
+    figure for — both mean this family's total would be short by a leg. Summed
+    as Decimals so the scale the venue chose survives: "0.00" + "0.00" is
+    "0.00", not "0", and the places are part of what was published.
+    """
+    by_ticker = {item.ticker: item.market for item in observation.markets}
+    total = Decimal(0)
+    for market in observation.event.markets:
+        observed = by_ticker.get(market.ticker)
+        if observed is None:
+            return None
+        value = getattr(observed, attribute)
+        if value is None:
+            return None
+        total += Decimal(value)
+    return str(total)
+
+
 def event_view(observation: Observation) -> CoherenceEventView:
     """One observed event, priced and totalled."""
     event: Event = observation.event
@@ -179,6 +209,8 @@ def event_view(observation: Observation) -> CoherenceEventView:
         exchange_index=event.exchange_index,
         settlement_sources=list(event.settlement_sources),
         markets=markets,
+        open_interest_total=_size_total(observation, "open_interest"),
+        liquidity_total=_size_total(observation, "liquidity"),
         yes_ask_total=ask_total,
         yes_bid_total=bid_total,
         basket_note=note,
