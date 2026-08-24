@@ -64,9 +64,12 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
  * the header and the rail, which are constant, and including them would flatter
  * every section by the same amount and hide the differences this is for.
  */
-const MEASURE = `(() => {
-  const panel = document.querySelector('[role="tabpanel"]:not([hidden])')
-    ?? document.querySelector(".coherence-plane");
+const MEASURE = (tab, section) => `(() => {
+  // BY ID, not by ":not([hidden])". Three tabpanels are un-hidden at once — the
+  // tab's own panel, the section's, and Overview's — so "the first visible one"
+  // measured Overview on every row of the first run and reported 0px for the
+  // whole desk.
+  const panel = document.getElementById(${JSON.stringify(`${tab}-subpanel-${section}`)});
   if (!panel) return null;
   const card = panel.querySelector(".console-card") ?? panel;
   const segs = [...card.querySelectorAll(":scope > .seg")];
@@ -89,14 +92,16 @@ const MEASURE = `(() => {
   };
 })()`;
 
-const BUTTONS = (selector) => `(() => {
-  const card = document.querySelector(".console-card");
+const BUTTONS = (tab, section, selector) => `(() => {
+  const panel = document.getElementById(${JSON.stringify(`${tab}-subpanel-${section}`)});
+  const card = panel?.querySelector(".console-card");
   const row = card?.querySelector("${selector}");
   return row ? [...row.querySelectorAll("button")].map((b) => b.textContent.trim()) : [];
 })()`;
 
-const CLICK = (selector, label) => `(() => {
-  const card = document.querySelector(".console-card");
+const CLICK = (tab, section, selector, label) => `(() => {
+  const panel = document.getElementById(${JSON.stringify(`${tab}-subpanel-${section}`)});
+  const card = panel?.querySelector(".console-card");
   const row = card?.querySelector("${selector}");
   const button = row && [...row.querySelectorAll("button")]
     .find((b) => b.textContent.trim() === ${JSON.stringify(label)});
@@ -105,9 +110,22 @@ const CLICK = (selector, label) => `(() => {
   return true;
 })()`;
 
+/**
+ * Click the tab, then the rail. Not `location.hash`.
+ *
+ * The rail reads the hash on mount; assigning to it afterwards moved the URL and
+ * left the rendered section where it was, so the first run reported Universe's
+ * five views for every Prices section. Clicking is also what a reader does.
+ */
 async function openTab(cdp, tab, section) {
-  await cdp.evaluate(`location.hash = ${JSON.stringify(`#${tab}/${section}`)}; true`);
-  await sleep(500);
+  await cdp.evaluate(`document.getElementById(${JSON.stringify(`tab-${tab}`)})?.click(); true`);
+  await sleep(350);
+  const opened = await cdp.evaluate(
+    `(() => { const b = document.getElementById(${JSON.stringify(`${tab}-subtab-${section}`)});`
+    + ` if (!b) return false; b.click(); return true; })()`,
+  );
+  await sleep(700);
+  return opened;
 }
 
 async function main() {
@@ -127,37 +145,45 @@ async function main() {
       width, height: 1000, deviceScaleFactor: 1, mobile: false,
     });
     await cdp.send("Page.navigate", { url: `${ORIGIN}/dashboard` });
-    await sleep(2500);
+    await sleep(1200);
+    // Chrome serves a stale chunk after a rebuild otherwise, which presents as
+    // a desk rendering last week's labels with no error anywhere.
+    await cdp.send("Page.reload", { ignoreCache: true });
+    await sleep(4000);
 
     for (const tab of MEASURED) {
       for (const section of TABS[tab]) {
-        await openTab(cdp, tab, section);
-        const groups = await cdp.evaluate(BUTTONS(":scope > .seg"));
+        const opened = await openTab(cdp, tab, section);
         const key = `${tab}/${section}`;
         report.tabs[key] ??= {};
+        if (!opened) {
+          report.tabs[key][`@${width}`] = { "(rail button not found)": null };
+          continue;
+        }
+        const groups = await cdp.evaluate(BUTTONS(tab, section, ":scope > .seg"));
 
         if (!groups.length) {
-          const measured = await cdp.evaluate(MEASURE);
+          const measured = await cdp.evaluate(MEASURE(tab, section));
           report.tabs[key][`@${width}`] = { "(no control)": measured };
           continue;
         }
 
         const perWidth = {};
         for (const group of groups) {
-          await cdp.evaluate(CLICK(":scope > .seg", group));
-          await sleep(450);
+          await cdp.evaluate(CLICK(tab, section, ":scope > .seg", group));
+          await sleep(500);
           // A grouped section draws its views in a child control; measure each,
           // because a group that is cheap on its first view can be expensive on
           // its third and the point is to find those.
-          const views = await cdp.evaluate(BUTTONS(".coh-views > .seg"));
+          const views = await cdp.evaluate(BUTTONS(tab, section, ".coh-views > .seg"));
           if (!views.length) {
-            perWidth[group] = await cdp.evaluate(MEASURE);
+            perWidth[group] = await cdp.evaluate(MEASURE(tab, section));
             continue;
           }
           for (const view of views) {
-            await cdp.evaluate(CLICK(".coh-views > .seg", view));
-            await sleep(400);
-            perWidth[`${group} — ${view}`] = await cdp.evaluate(MEASURE);
+            await cdp.evaluate(CLICK(tab, section, ".coh-views > .seg", view));
+            await sleep(450);
+            perWidth[`${group} — ${view}`] = await cdp.evaluate(MEASURE(tab, section));
           }
         }
         report.tabs[key][`@${width}`] = perWidth;
