@@ -241,7 +241,7 @@ re-run only the web suite, which keeps the committed Python figures).
 **The web gate was red for a week in August**, and it is the worked example of
 why it exists: three changes landed on 2026-08-22 adding suites, none refreshed
 the module, and the committed 4,008 faced a measured 4,124 until the 2026-08-23
-refresh. It agrees today at 4,463 total (4,461 passed + 2 skipped) across 980
+refresh. It agrees today at 4,487 total (4,485 passed + 2 skipped) across 984
 suites. Nothing was broken — the gate is doing precisely its job, which is to
 make "I added tests and forgot" a red step rather than a stale number on the
 Developer tab. Run `npm run counts:refresh -- --suite=web` and commit the

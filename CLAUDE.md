@@ -82,9 +82,10 @@ run green — ten of them already do without credentials, and the eleventh,
 local ONNX directory.
 
 `web/lib/test-counts.generated.ts` is the desk's copy of all three figures.
-Refreshed 2026-08-23 from a clean checkout with the native core built and no
-`.env`, it reads gateway 2,143 / 2,141 / 2 and web **4,449 tests across 977
-suites** (4,447 passed, 2 skipped, 301 files in `web/tests/`). It goes stale
+Refreshed 2026-08-24 with `RERANK_TEST_MODEL_PATH=` blanked — the CI shape, and
+say the shape whenever you quote the gateway line — it reads gateway
+2,998 / 2,996 / 2 and web **4,487 tests across 984 suites** (4,485 passed, 2
+skipped, 305 `.test.ts` files in `web/tests/`). It goes stale
 the moment a test file lands without `npm run counts:refresh` — it did for a
 week in August, when the tree grew test files faster than anyone re-ran the
 script — and that is not cosmetic: CI's web job runs
@@ -150,10 +151,10 @@ the failure is recognisable when it recurs:
 
 | Artefact | State | Regenerator |
 |---|---|---|
-| `web/lib/repository-manifest.generated.json` | current — 1,486 paths at `ff0b6a6`; when it is behind, `generate-codebase-manifest.mjs --check` reports N added, and `npm run build` stops in `prebuild` | `npm run catalog:refresh` |
-| `web/lib/test-counts.generated.ts` | current — web 4,449 across 977 suites; when it is behind, CI's count step fails the push | `npm run counts:refresh` |
+| `web/lib/repository-manifest.generated.json` | current — 1,770 paths at `ba58a40`; when it is behind, `generate-codebase-manifest.mjs --check` reports N added, and `npm run build` stops in `prebuild` | `npm run catalog:refresh` |
+| `web/lib/test-counts.generated.ts` | current — web 4,487 across 984 suites, refreshed 2026-08-24 in CI shape; when it is behind, CI's count step fails the push | `npm run counts:refresh` |
 | `supabase/apply_all.generated.sql` | regenerated today, and it is green now; it had been missing `20260822110000_research_chart_images.sql`, which failed two tests in `tests/test_migration_bundle.py` | `python3 tools/bundle_migrations.py`, repo root |
-| `web/lib/gateway-openapi-digest.generated.ts` | current — the checker verified `6ed4c2f6…` against `tools/openapi.json` on 2026-08-23 | `python tools/export_openapi.py`, then the digest module |
+| `web/lib/gateway-openapi-digest.generated.ts` | current — the checker verified `a0263f96…` against `tools/openapi.json` on 2026-08-24, after `CoherenceUniverse` gained `categories` | `python tools/export_openapi.py`, then the digest module, then `node --import tsx scripts/generate-gateway-client.ts` |
 
 None of that is a code defect when it recurs; it is the cost of a tree that
 grows faster than the indexes that describe it. Run the refreshes before the
