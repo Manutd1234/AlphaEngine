@@ -115,7 +115,7 @@ missing (§9 has the detail):
 | **Risk Manager** | *Is the model right, and will the limits hold?* | Kupiec VaR backtest, stress scenarios, reduce-only mode, kill switch | No margin or liquidation modelling |
 | **Data Engineer** | *Can I trust this data?* | Overview-first trust cockpit, provider registry, failover, quote/bars/news/fundamentals contracts, quarantine and lineage, a durable cross-instance quality ledger with rule-based escalation, replay and backfill jobs on a config-driven schedule, a persisted versioned work queue | One gateway process and one SQLite file — durable across restarts and deploys, not replicated across regions; contracts check the normalised shape, not each vendor's raw JSON |
 | **DevOps / SRE** | *Is it healthy, and what do I do at 3am?* | `/health`, `/metrics`, systems console, alert rules, runbook | No log aggregation or distributed tracing |
-| **Quant Developer** | *Can I change this safely?* | Typed contracts, OpenAPI snapshot, a generated TypeScript client (`web/lib/gateway-contract.generated.ts`), parity suites (Python ↔ TypeScript to 1e-4, Python ↔ C++ to the bit), CI, and three suites re-measured 2026-08-24: gateway **3,039 passed / 1 skipped** with the re-ranker weights seeded, web **4,670 passed / 2 skipped** across 1,011 suites, service **24 passed** (§8 reconciles that gateway figure with the smaller one CI prints without the weights) | No property-based fuzzing; the desk sweep is the only browser-level check and it is not in CI |
+| **Quant Developer** | *Can I change this safely?* | Typed contracts, OpenAPI snapshot, a generated TypeScript client (`web/lib/gateway-contract.generated.ts`), parity suites (Python ↔ TypeScript to 1e-4, Python ↔ C++ to the bit), CI, and three suites re-measured 2026-08-24: gateway **3,039 passed / 1 skipped** with the re-ranker weights seeded, web **4,728 passed / 2 skipped** across 1,028 suites, service **24 passed** (§8 reconciles that gateway figure with the smaller one CI prints without the weights) | No property-based fuzzing; the desk sweep is the only browser-level check and it is not in CI |
 
 ### Quant Traders — *"Can I send this, and what will it cost?"*
 
@@ -245,7 +245,7 @@ the instance that produced it.
 | Documented tunables | `BacktestRequest` carries bounds *and* descriptions, so `/docs` doubles as the researcher's parameter registry |
 | Confidence that two implementations agree | Python↔TypeScript parity suites for the **backtest engine** and the **risk engine**, both driven by fixtures the Python reference emits; and Python↔C++ parity for the **pre-trade decision** — the twenty-scenario `gate-parity.json` fixture, reproduced bit-for-bit (`tests/test_gate_parity.py`, `tests/test_decision_core_native.py`) |
 | To debug a request without guessing | Pipeline inspector down to raw vendor JSON; bounded trace ring with redaction; `/api/system/inspect` |
-| Tests that run anywhere | 3,039 gateway + 4,670 web + 24 service tests passing (2026-08-24, this working tree), all offline by construction — no network, no fixtures fetched at test time. Each figure is what its runner prints: `venv/bin/python -m pytest`, `(cd web && npm test)`, `venv/bin/python -m pytest OpenBB_Service/tests`. The gateway suite is green with no failures on this tree. `web/lib/test-counts.generated.ts` is the constant the Developer console displays; CI checks **only its web line**, so its gateway figure is a dated record — see §13 |
+| Tests that run anywhere | 3,039 gateway + 4,730 web + 24 service tests passing (2026-08-24, this working tree), all offline by construction — no network, no fixtures fetched at test time. Each figure is what its runner prints: `venv/bin/python -m pytest`, `(cd web && npm test)`, `venv/bin/python -m pytest OpenBB_Service/tests`. The gateway suite is green with no failures on this tree. `web/lib/test-counts.generated.ts` is the constant the Developer console displays; CI checks **only its web line**, so its gateway figure is a dated record — see §13 |
 | A lint gate that catches defects, not style | ruff with bugbear, async and bandit rules; `tsc --strict` on the web tier |
 | To add a provider or an endpoint without breaking things | Uniform `Adapter` interface with declared capabilities; the recipe is in §7 and in `web/README.md` |
 
@@ -291,7 +291,7 @@ gateway and its OpenBB adapter to the separate stateless service.
 cd web
 npm install
 npm run dev    # http://localhost:3000
-npm test       # 4,670 passed, 2 skipped, across 1,011 suites (2026-08-24)
+npm test       # 4,728 passed, 2 skipped, across 1,028 suites (2026-08-24)
 ```
 
 Live-feed endpoints (public, no key):
@@ -2424,7 +2424,7 @@ python tools/bench_image_retrieval.py --model-path DIR
                                           # offline once `--seed --model-path DIR` has fetched the weights
 python tools/synthetic_probe.py           # end-to-end: book → cost → gate → audit; 6/6 steps
 cd OpenBB_Service && pytest               # 24 stateless service tests
-cd web && npm install && npm test         # 4,670 passed, 2 skipped, across 1,011 suites —
+cd web && npm install && npm test         # 4,728 passed, 2 skipped, across 1,028 suites —
                                           # incl. the parity suites
 bash tools/check_repo_complete.sh         # builds the *committed* tree
 ```

@@ -85,8 +85,8 @@ local ONNX directory.
 `web/lib/test-counts.generated.ts` is the desk's copy of all three figures.
 Refreshed 2026-08-24 with `RERANK_TEST_MODEL_PATH=` blanked — the CI shape, and
 say the shape whenever you quote the gateway line — it reads gateway
-3,033 / 3,031 / 2 and web **4,672 tests across 1,011 suites** (4,670 passed, 2
-skipped, 313 `.test.ts` files in `web/tests/`). It goes stale
+3,033 / 3,031 / 2 and web **4,730 tests across 1,028 suites** (4,728 passed, 2
+skipped, 318 `.test.ts` files in `web/tests/`). It goes stale
 the moment a test file lands without `npm run counts:refresh` — it did for a
 week in August, when the tree grew test files faster than anyone re-ran the
 script — and that is not cosmetic: CI's web job runs
@@ -157,7 +157,7 @@ this column, which is exactly why it drifts.
 | Artefact | State | Regenerator |
 |---|---|---|
 | `web/lib/repository-manifest.generated.json` | current — **1,811 paths at `b299741`**, refreshed 2026-08-24 on a tree with nothing uncommitted; when it is behind, `generate-codebase-manifest.mjs --check` reports N added, and `npm run build` stops in `prebuild`. It walks `git ls-files --cached --others`, so refresh it only when the tree is clean or another session's untracked files are recorded as repository paths | `npm run catalog:refresh` |
-| `web/lib/test-counts.generated.ts` | current — web 4,672 across 1,011 suites, refreshed 2026-08-24 in CI shape; when it is behind, CI's count step fails the push | `npm run counts:refresh` |
+| `web/lib/test-counts.generated.ts` | current — web 4,730 across 1,028 suites, refreshed 2026-08-24 in CI shape; when it is behind, CI's count step fails the push | `npm run counts:refresh` |
 | `supabase/apply_all.generated.sql` | current — re-verified 2026-08-24 by regenerating it, which produced no diff, and `tests/test_migration_bundle.py` is green; it had been missing `20260822110000_research_chart_images.sql` on 2026-08-23, which failed two tests in that file | `python3 tools/bundle_migrations.py`, repo root |
 | `web/lib/gateway-openapi-digest.generated.ts` | current — the checker verified **`6e7d9d29…`** against `tools/openapi.json` on 2026-08-24, after the settled-score history route and the market size fields landed in ONE regeneration for two authors. Take the value the checker PRINTS: it is a canonical-JSON sha256 with sorted keys, not a hash of the file | `python tools/export_openapi.py`, then the digest module, then `node --import tsx scripts/generate-gateway-client.ts` |
 

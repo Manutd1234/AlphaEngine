@@ -35,7 +35,7 @@ Two parts, in two directories. Start with whichever question you came for.
   everything offline. `web/lib/test-counts.generated.ts` is the dated record the desk displays; CI
   checks only its **web** line, so run the suites rather than reading its gateway line.
 
-**The headline numbers, measured 2026-08-24:** **3,039 gateway + 4,672 web + 24 service tests**, none
+**The headline numbers, measured 2026-08-24:** **3,039 gateway + 4,730 web + 24 service tests**, none
 needing a network. That gateway figure is the run with the optional cross-encoder weights seeded
 (3,039 passed, 1 skipped); CI seeds nothing, so its run collects fewer items and reports two skips
 instead of one. Both are green, both are correct, and
@@ -93,8 +93,8 @@ the number, which moves. The table above explains *why* each path is where it is
 ├── docker-compose.yml                    one-command always-on gateway (one service, host 8000)
 ├── .github/workflows/                    ci · deploy (gateway CD) · e2e · schema · two keepalives
 ├── Part1_Data_Handling/                  the notebook (ipynb + executed HTML), its builder, its README
-├── Part2_Infrastructure/                 1,650 files — the platform
-│   ├── main.py · config.py · modules/    the FastAPI risk gateway, 313 files. The 17-gate battery
+├── Part2_Infrastructure/                 1,741 tracked files — the platform
+│   ├── main.py · config.py · modules/    the FastAPI risk gateway, 316 files. The 17-gate battery
 │   │                                     is the modules/risk_proxy/ package, the audit log
 │   │                                     modules/audit/, the routes twelve routers in modules/api/
 │   ├── native/decision_core/             the C++ (pybind11) decision core — bit-exact vs Python
@@ -106,8 +106,8 @@ the number, which moves. The table above explains *why* each path is where it is
 │   ├── docs/                             RUNBOOK · GRAPH_RECALL · REFACTOR_RULES · telegram checklist
 │   ├── notebooks/coherence_lab/          14 lesson notebooks behind the Proofs tab's curriculum
 │   ├── web/                              the Next.js desk (1,054 tracked files: app/ · components/ ·
-│   │                                     lib/ · 313 `.test.ts` FILES in the tree, which the
-│   │                                     runner reports as 1,011 suites — different units)
+│   │                                     lib/ · 318 `.test.ts` FILES in the tree, which the
+│   │                                     runner reports as 1,028 suites — different units)
 │   ├── OpenBB_Service/                   the stateless research service (own pyproject, 24 tests)
 │   ├── developer-console/                experimental; not a deployment unit, not assessed
 │   └── templates/                        the gateway's single-file console
@@ -444,7 +444,7 @@ From a tree that is already set up:
 cd Part2_Infrastructure
 venv/bin/python -m pytest                            # 3,039 passed, 1 skipped (weights seeded)
 venv/bin/python tools/synthetic_probe.py             # book → cost → risk gate → audit; 6/6 steps
-(cd web && npm test)                                 # 4,670 passed, 2 skipped, 1,011 suites
+(cd web && npm test)                                 # 4,728 passed, 2 skipped, 1,028 suites
 (cd OpenBB_Service && ../venv/bin/python -m pytest)  # 24 passed
 ```
 

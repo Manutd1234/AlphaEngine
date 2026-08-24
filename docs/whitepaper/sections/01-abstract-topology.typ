@@ -715,7 +715,7 @@ those counts read
 #measured[3,033 gateway tests, 3,031 passed and two skipped][`web/lib/test-counts.generated.ts`,
 generated 2026-08-24 with `RERANK_TEST_MODEL_PATH` blanked --- the CI shape, and
 the shape to state whenever this line is quoted],
-#measured[4,672 web tests across 1,011 suites][same] and
+#measured[4,730 web tests across 1,028 suites][same] and
 #measured[24 service tests][same]. The two gateway skips are the two deliberate
 opt-ins, and each names what it did not exercise: the Postgres data-operations
 backend reporting no credentials in a network-free environment, and the real

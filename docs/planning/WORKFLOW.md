@@ -158,7 +158,7 @@ All from `Part2_Infrastructure` unless stated; web commands from
 | What | Command | Notes |
 |---|---|---|
 | Gateway tests | `venv/bin/python -m pytest` | **189** `test_*.py` files (`ls tests/test_*.py \| wc -l`, 2026-08-24), deterministic, no network. 3,039 passed / 1 skipped with the re-ranker weights seeded; one more skip without them |
-| Web tests | `npm test` | `node --test` via tsx; **4,670 passed, 0 failed, 2 skipped across 1,011 suites** in 313 `*.test.ts` files, measured 2026-08-24 from a clean checkout. Both skips are cross-ownership debts rather than opt-ins. This is the one count CI actually gates; when the committed record stops agreeing, refresh it — see §4.3 |
+| Web tests | `npm test` | `node --test` via tsx; **4,728 passed, 0 failed, 2 skipped across 1,028 suites** in 318 `*.test.ts` files, measured 2026-08-24 from a clean checkout. Both skips are cross-ownership debts rather than opt-ins. This is the one count CI actually gates; when the committed record stops agreeing, refresh it — see §4.3 |
 | Service tests | `cd OpenBB_Service && python -m pytest` | own `pyproject.toml` and its own `requirements-dev.txt`; **24 passed** (2026-08-24) |
 | Typecheck | `npm run typecheck` | `tsc --noEmit`, strict |
 | Lint | `venv/bin/python -m ruff check .` | configured in `pyproject.toml`; installed only by `requirements-dev.txt` |
@@ -241,7 +241,7 @@ re-run only the web suite, which keeps the committed Python figures).
 **The web gate was red for a week in August**, and it is the worked example of
 why it exists: three changes landed on 2026-08-22 adding suites, none refreshed
 the module, and the committed 4,008 faced a measured 4,124 until the 2026-08-23
-refresh. It agrees today at 4,672 total (4,670 passed + 2 skipped) across 1,011
+refresh. It agrees today at 4,730 total (4,728 passed + 2 skipped) across 1,028
 suites. Nothing was broken — the gate is doing precisely its job, which is to
 make "I added tests and forgot" a red step rather than a stale number on the
 Developer tab. Run `npm run counts:refresh -- --suite=web` and commit the
