@@ -37,10 +37,25 @@ export const NAV_ITEMS: { id: WorkspaceView; label: string; role: string; access
   { id: "data", label: "Data", role: "Data", accessibleLabel: "Data operations" },
   { id: "reliability", label: "Reliability", role: "SRE" },
   { id: "developer", label: "Developer", role: "Dev" },
-  // The Kalshi engine reaches the reader as two tabs, in the order the
-  // argument runs: what the venue quotes, then what we prove about it.
-  { id: "markets", label: "Markets", role: "Quant", accessibleLabel: "Prediction markets" },
-  { id: "coherence", label: "Coherence", role: "Quant" },
+  // The Kalshi engine reaches the reader as TWO tabs, in the order the argument
+  // runs: what the exchange quotes, then what this engine proves about it. Ten
+  // destinations, which is the count the priority ladder below is measured
+  // against.
+  //
+  // THE IDS DISAGREE WITH THE LABELS ON PURPOSE, and that is house practice on
+  // this row rather than a mistake to tidy: `live` renders "Execution",
+  // `codex` renders "Strategies", `activity` renders "Blotter". An id is a
+  // public deep link and never changes; a label is what a reader reads. So
+  // `coherence` — the only Kalshi tab id `origin/main` ever published — keeps
+  // every `#coherence/<section>` link in the world resolving natively while
+  // reading "Proofs", and `markets` is reused rather than re-invented because
+  // the tests, the relocation table and the desk sweep already speak it.
+  //
+  // "Quotes" and "Proofs" are six characters each, against "Markets" (7) and
+  // "Coherence" (9): this ten-tab row is NARROWER than the ten-tab row the
+  // header ladder was last measured against.
+  { id: "markets", label: "Quotes", role: "Quant", accessibleLabel: "Prediction market quotes" },
+  { id: "coherence", label: "Proofs", role: "Quant", accessibleLabel: "Prediction market coherence" },
 ];
 
 interface WorkspaceHeaderProps {
