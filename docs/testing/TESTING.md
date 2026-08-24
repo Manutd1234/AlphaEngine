@@ -16,7 +16,7 @@ without it. Three runners, three jobs:
 | Suite | Runner | What it guards that nothing else does |
 |---|---|---|
 | **Gateway** — `Part2_Infrastructure/tests/`, 185 `test_*.py` files | `venv/bin/python -m pytest` | The risk decision and its seventeen gates; the audit ledger's two failure contracts; the research plane's refusals; the **API contract** (`test_openapi_contract.py`) and the **container definition** (`test_container_contract.py`) by text analysis, because CI is network-free; the Python↔C++ parity fixture, bit-exact |
-| **Web** — `Part2_Infrastructure/web/tests/`, 303 `*.test.ts` files | `node --import tsx --test tests/*.test.ts` | Everything the browser re-implements, pinned to Python by fixture; and a family of **structural** suites — file length, dead CSS, the API catalogue, forced colours, British spelling, copy survival, the feature tour — that guard properties no unit test has a natural home for |
+| **Web** — `Part2_Infrastructure/web/tests/`, 313 `*.test.ts` files | `node --import tsx --test tests/*.test.ts` | Everything the browser re-implements, pinned to Python by fixture; and a family of **structural** suites — file length, dead CSS, the API catalogue, forced colours, British spelling, copy survival, the feature tour — that guard properties no unit test has a natural home for |
 | **OpenBB service** — `Part2_Infrastructure/OpenBB_Service/tests/` | `python -m pytest` | The stateless research bridge's own contract, in its own runtime, with its own pinned `requirements.txt` |
 
 The structural half of the web suite is the part worth reading first, because it
@@ -29,8 +29,8 @@ tests" below.
 One committed record:
 [`web/lib/test-counts.generated.ts`](../../Part2_Infrastructure/web/lib/test-counts.generated.ts)
 holds what each runner printed when it was last regenerated on **2026-08-24** —
-`gateway { total: 2998, passed: 2996, skipped: 2 }`, `web { total: 4487, suites:
-980 }`, `service { total: 24 }`. The gateway line was regenerated in the **CI
+`gateway { total: 3033, passed: 3031, skipped: 2 }`, `web { total: 4672, suites:
+1011 }`, `service { total: 24 }`. The gateway line was regenerated in the **CI
 shape** (`RERANK_TEST_MODEL_PATH=`), because the shape CI runs is the only one a
 reader can reproduce from a clean checkout. Its own header explains why it exists: the
 counts were once three hand-copied integers in a component, and they drifted
@@ -47,9 +47,9 @@ Measured on this tree on **2026-08-24**:
 
 | Suite | Measured | Against the record |
 |---|---|---|
-| Gateway, cross-encoder weights **seeded** | **2,992 passed, 1 skipped** | 2,993 total against the record's 2,986 — the eight-test gap IS the seeding, not drift |
-| Gateway, **CI shape** (`RERANK_TEST_MODEL_PATH=`) | **2,984 passed, 2 skipped** | 2,986 total, exactly the record: refreshed 2026-08-24 in this shape |
-| Web | **4,485 passed, 0 failed, 2 skipped, 984 suites** | 4,485 + 2 = **4,487**, which is exactly the committed total — CI is green on the one line it gates |
+| Gateway, cross-encoder weights **seeded** | **3,039 passed, 1 skipped** | 3,040 total against the record's 3,033 — the eight-test gap IS the seeding, not drift |
+| Gateway, **CI shape** (`RERANK_TEST_MODEL_PATH=`) | **3,031 passed, 2 skipped** | 3,033 total, exactly the record: refreshed 2026-08-24 in this shape |
+| Web | **4,670 passed, 0 failed, 2 skipped, 1,011 suites** | 4,670 + 2 = **4,672**, which is exactly the committed total — CI is green on the one line it gates |
 | OpenBB service | **24 passed** | matches |
 
 **The gateway figure has a condition attached, and it is not a discrepancy.**
@@ -895,8 +895,8 @@ measured numbers. By hand, from `Part2_Infrastructure/`:
 
 | Suite | Command | Prerequisites, and what green means |
 |---|---|---|
-| Gateway | `venv/bin/python -m pytest` (add `-rs` to see skip reasons) | venv named exactly `venv`, Python 3.12, `requirements-dev.txt`, `requirements-native.txt` and the built core (`python native/decision_core/setup.py build_ext --inplace --build-temp build/native`). Expect **one** skip with the cross-encoder weights seeded and **two** without; read the reasons, not the count — see "Reading the skips". Measured 2026-08-24, seeded: 2,992 passed, 1 skipped. |
-| Web | `cd web && npm test` | Node 22, `npm ci`. Runner is `node --import tsx --test tests/*.test.ts` — Node's own runner over 303 files, no Jest/Vitest, consistent with the no-new-dependencies rule. Both skips are cross-ownership debts, not opt-ins. Measured 2026-08-24: 4,461 passed, 0 failed, 2 skipped, 980 suites. |
+| Gateway | `venv/bin/python -m pytest` (add `-rs` to see skip reasons) | venv named exactly `venv`, Python 3.12, `requirements-dev.txt`, `requirements-native.txt` and the built core (`python native/decision_core/setup.py build_ext --inplace --build-temp build/native`). Expect **one** skip with the cross-encoder weights seeded and **two** without; read the reasons, not the count — see "Reading the skips". Measured 2026-08-24, seeded: 3,039 passed, 1 skipped. |
+| Web | `cd web && npm test` | Node 22, `npm ci`. Runner is `node --import tsx --test tests/*.test.ts` — Node's own runner over 313 files, no Jest/Vitest, consistent with the no-new-dependencies rule. Both skips are cross-ownership debts, not opt-ins. Measured 2026-08-24: 4,670 passed, 0 failed, 2 skipped, 1,011 suites. |
 | Web types | `cd web && npm run typecheck` | There is **no `lint` script** in `web/` — `npm run lint` fails as a missing script, not a broken linter. |
 | Python lint | `venv/bin/python -m ruff check .` | Configured in `pyproject.toml`, installed by `requirements-dev.txt`. |
 | OpenBB service | `cd OpenBB_Service && python -m pytest` | Its own `requirements-dev.txt`; stateless, offline. Measured 2026-08-24: 24 passed. |

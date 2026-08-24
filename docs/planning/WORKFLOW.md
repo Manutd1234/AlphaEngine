@@ -107,7 +107,7 @@ different policies.
 The suite's health is read off the skip REASONS, because the pass count stays
 plausible under several failure modes — and because the pass count legitimately
 moves. **The gateway has two correct pass counts, not one.** With the
-cross-encoder weights seeded on disk the suite reads **2,992 passed and one
+cross-encoder weights seeded on disk the suite reads **3,039 passed and one
 skipped** (measured 2026-08-24); without them — the shape CI sees on the jobs
 that gate a push — `tests/test_research_rerank_real.py` skips too and the totals
 differ by that one file. Both are correct; the difference is an opt-in, not a
@@ -119,9 +119,9 @@ carries the committed record, and it is worth knowing exactly how much of it CI
 holds. **Only the web line is gated** — `web/scripts/check-test-counts.mjs`
 refuses any suite argument but `web`, and the `web` job compares it against the
 log the runner just teed. The **gateway** and **service** lines in that file are
-*dated records nothing checks*. Refreshed 2026-08-24 to 2,986 (2,984 passed,
+*dated records nothing checks*. Refreshed 2026-08-24 to 3,033 (3,031 passed,
 2 skipped), which is the **CI shape** — no cross-encoder weights seeded. A
-machine with weights measures 2,993 (2,992 passed, 1 skipped); the eight-test
+machine with weights measures 3,040 (3,039 passed, 1 skipped); the eight-test
 difference is the shape, not drift, so quote the shape whenever you quote the
 number. That the line agrees today is not a gate; it is a gate that was never
 claimed. Re-run the suite rather than trusting the file, and refresh the file
@@ -157,8 +157,8 @@ All from `Part2_Infrastructure` unless stated; web commands from
 
 | What | Command | Notes |
 |---|---|---|
-| Gateway tests | `venv/bin/python -m pytest` | **185** `test_*.py` files (`ls tests/test_*.py \| wc -l`, 2026-08-24), deterministic, no network. 2,992 passed / 1 skipped with the re-ranker weights seeded; one more skip without them |
-| Web tests | `npm test` | `node --test` via tsx; **4,461 passed, 0 failed, 2 skipped across 980 suites** in 303 `*.test.ts` files, measured 2026-08-24 from a clean checkout. Both skips are cross-ownership debts rather than opt-ins. This is the one count CI actually gates; when the committed record stops agreeing, refresh it — see §4.3 |
+| Gateway tests | `venv/bin/python -m pytest` | **189** `test_*.py` files (`ls tests/test_*.py \| wc -l`, 2026-08-24), deterministic, no network. 3,039 passed / 1 skipped with the re-ranker weights seeded; one more skip without them |
+| Web tests | `npm test` | `node --test` via tsx; **4,670 passed, 0 failed, 2 skipped across 1,011 suites** in 313 `*.test.ts` files, measured 2026-08-24 from a clean checkout. Both skips are cross-ownership debts rather than opt-ins. This is the one count CI actually gates; when the committed record stops agreeing, refresh it — see §4.3 |
 | Service tests | `cd OpenBB_Service && python -m pytest` | own `pyproject.toml` and its own `requirements-dev.txt`; **24 passed** (2026-08-24) |
 | Typecheck | `npm run typecheck` | `tsc --noEmit`, strict |
 | Lint | `venv/bin/python -m ruff check .` | configured in `pyproject.toml`; installed only by `requirements-dev.txt` |
@@ -231,7 +231,7 @@ scripts/check-test-counts.mjs web "$RUNNER_TEMP/web-tests.log"`. So the
 `gateway` and `service` lines in that file are **dated records, not gates**.
 They are still worth committing — the console displays them and a reader
 deserves to know when they were taken — but nothing goes red when they drift.
-Refreshed 2026-08-24 to 2,986 in the CI shape, against 2,993 on a
+Refreshed 2026-08-24 to 3,033 in the CI shape, against 3,040 on a
 weights-seeded machine — the same suite, two collection shapes. Cite it as a
 record with its date AND its shape, never as a checked figure.
 
@@ -241,7 +241,7 @@ re-run only the web suite, which keeps the committed Python figures).
 **The web gate was red for a week in August**, and it is the worked example of
 why it exists: three changes landed on 2026-08-22 adding suites, none refreshed
 the module, and the committed 4,008 faced a measured 4,124 until the 2026-08-23
-refresh. It agrees today at 4,487 total (4,485 passed + 2 skipped) across 984
+refresh. It agrees today at 4,672 total (4,670 passed + 2 skipped) across 1,011
 suites. Nothing was broken — the gate is doing precisely its job, which is to
 make "I added tests and forgot" a red step rather than a stale number on the
 Developer tab. Run `npm run counts:refresh -- --suite=web` and commit the

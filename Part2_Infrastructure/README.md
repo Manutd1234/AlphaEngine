@@ -115,7 +115,7 @@ missing (§9 has the detail):
 | **Risk Manager** | *Is the model right, and will the limits hold?* | Kupiec VaR backtest, stress scenarios, reduce-only mode, kill switch | No margin or liquidation modelling |
 | **Data Engineer** | *Can I trust this data?* | Overview-first trust cockpit, provider registry, failover, quote/bars/news/fundamentals contracts, quarantine and lineage, a durable cross-instance quality ledger with rule-based escalation, replay and backfill jobs on a config-driven schedule, a persisted versioned work queue | One gateway process and one SQLite file — durable across restarts and deploys, not replicated across regions; contracts check the normalised shape, not each vendor's raw JSON |
 | **DevOps / SRE** | *Is it healthy, and what do I do at 3am?* | `/health`, `/metrics`, systems console, alert rules, runbook | No log aggregation or distributed tracing |
-| **Quant Developer** | *Can I change this safely?* | Typed contracts, OpenAPI snapshot, a generated TypeScript client (`web/lib/gateway-contract.generated.ts`), parity suites (Python ↔ TypeScript to 1e-4, Python ↔ C++ to the bit), CI, and three suites re-measured 2026-08-24: gateway **2,992 passed / 1 skipped** with the re-ranker weights seeded, web **4,461 passed / 2 skipped** across 980 suites, service **24 passed** (§8 reconciles that gateway figure with the smaller one CI prints without the weights) | No property-based fuzzing; the desk sweep is the only browser-level check and it is not in CI |
+| **Quant Developer** | *Can I change this safely?* | Typed contracts, OpenAPI snapshot, a generated TypeScript client (`web/lib/gateway-contract.generated.ts`), parity suites (Python ↔ TypeScript to 1e-4, Python ↔ C++ to the bit), CI, and three suites re-measured 2026-08-24: gateway **3,039 passed / 1 skipped** with the re-ranker weights seeded, web **4,670 passed / 2 skipped** across 1,011 suites, service **24 passed** (§8 reconciles that gateway figure with the smaller one CI prints without the weights) | No property-based fuzzing; the desk sweep is the only browser-level check and it is not in CI |
 
 ### Quant Traders — *"Can I send this, and what will it cost?"*
 
@@ -245,7 +245,7 @@ the instance that produced it.
 | Documented tunables | `BacktestRequest` carries bounds *and* descriptions, so `/docs` doubles as the researcher's parameter registry |
 | Confidence that two implementations agree | Python↔TypeScript parity suites for the **backtest engine** and the **risk engine**, both driven by fixtures the Python reference emits; and Python↔C++ parity for the **pre-trade decision** — the twenty-scenario `gate-parity.json` fixture, reproduced bit-for-bit (`tests/test_gate_parity.py`, `tests/test_decision_core_native.py`) |
 | To debug a request without guessing | Pipeline inspector down to raw vendor JSON; bounded trace ring with redaction; `/api/system/inspect` |
-| Tests that run anywhere | 2,992 gateway + 4,461 web + 24 service tests passing (2026-08-24, this working tree), all offline by construction — no network, no fixtures fetched at test time. Each figure is what its runner prints: `venv/bin/python -m pytest`, `(cd web && npm test)`, `venv/bin/python -m pytest OpenBB_Service/tests`. The gateway suite is green with no failures on this tree. `web/lib/test-counts.generated.ts` is the constant the Developer console displays; CI checks **only its web line**, so its gateway figure is a dated record — see §13 |
+| Tests that run anywhere | 3,039 gateway + 4,670 web + 24 service tests passing (2026-08-24, this working tree), all offline by construction — no network, no fixtures fetched at test time. Each figure is what its runner prints: `venv/bin/python -m pytest`, `(cd web && npm test)`, `venv/bin/python -m pytest OpenBB_Service/tests`. The gateway suite is green with no failures on this tree. `web/lib/test-counts.generated.ts` is the constant the Developer console displays; CI checks **only its web line**, so its gateway figure is a dated record — see §13 |
 | A lint gate that catches defects, not style | ruff with bugbear, async and bandit rules; `tsc --strict` on the web tier |
 | To add a provider or an endpoint without breaking things | Uniform `Adapter` interface with declared capabilities; the recipe is in §7 and in `web/README.md` |
 
@@ -291,7 +291,7 @@ gateway and its OpenBB adapter to the separate stateless service.
 cd web
 npm install
 npm run dev    # http://localhost:3000
-npm test       # 4,461 passed, 2 skipped, across 980 suites (2026-08-24)
+npm test       # 4,670 passed, 2 skipped, across 1,011 suites (2026-08-24)
 ```
 
 Live-feed endpoints (public, no key):
@@ -1610,7 +1610,7 @@ wrong when the vectorbt skip appears, whatever the total.
 
 **On 3.12 this tree prints two different totals, and both are right.** With the
 cross-encoder weights seeded locally, `venv/bin/python -m pytest` reports
-**2,992 passed, 1 skipped** (re-measured 2026-08-24 on this working tree, native
+**3,039 passed, 1 skipped** (re-measured 2026-08-24 on this working tree, native
 core built, no `.env` sourced). Without the weights — which is CI — the real-ONNX
 tests of `tests/test_research_rerank_real.py` collapse into a single skipped item,
 because that file reports its absence at *module* level
@@ -1625,7 +1625,7 @@ in August because `supabase/apply_all.generated.sql` had not been regenerated
 after a migration landed, is green: the bundle carries all 37 migrations
 including the two diffusion tables added on 2026-08-23.
 
-**Do not read 2,992 as the number CI will print.** CI seeds no cross-encoder
+**Do not read 3,039 as the number CI will print.** CI seeds no cross-encoder
 weights, so it collects fewer items and reports two skips where a seeded machine
 reports one. CI also runs the *committed* tree rather than a working copy, so
 re-derive the figure on the commit under test rather than believing a number in
@@ -2414,7 +2414,7 @@ on different iterations and disagree by more than the fixture allows.
 Everything a reviewer needs to check runs offline:
 
 ```bash
-pytest                                    # 2,992 passed / 1 skipped on this working tree, with the
+pytest                                    # 3,039 passed / 1 skipped on this working tree, with the
                                           # re-ranker weights seeded (3.12, native core built); CI
                                           # seeds none and reports two skips over a smaller total — §8
 python tools/bench_decision.py            # regenerates docs/architecture/latency-bench.generated.json
@@ -2424,7 +2424,7 @@ python tools/bench_image_retrieval.py --model-path DIR
                                           # offline once `--seed --model-path DIR` has fetched the weights
 python tools/synthetic_probe.py           # end-to-end: book → cost → gate → audit; 6/6 steps
 cd OpenBB_Service && pytest               # 24 stateless service tests
-cd web && npm install && npm test         # 4,461 passed, 2 skipped, across 980 suites —
+cd web && npm install && npm test         # 4,670 passed, 2 skipped, across 1,011 suites —
                                           # incl. the parity suites
 bash tools/check_repo_complete.sh         # builds the *committed* tree
 ```
@@ -2447,7 +2447,7 @@ authoritative.
 |---|---|---|---|
 | `web/lib/gateway-openapi-digest.generated.ts` | **Gate** — `npm run prebuild`, so `next build` and every Vercel deploy; and `tools/export_openapi.py --check` in CI | `Gateway OpenAPI digest is stale`, exit 1. It is a **canonical-JSON SHA-256 with sorted keys**, not a file hash, so re-ordering the same content does not move it | `python tools/export_openapi.py`, then commit the new digest |
 | `web/lib/repository-manifest.generated.json` | **Gate** — the second half of the same `prebuild` | `Repository manifest is stale (N added…)`, exit 1. It compares **only the file list** from `git ls-files --cached --others --exclude-standard`; `generatedAt` and `commit` change every commit and gating on those would fail every push. Expect it red on any commit that adds a file | `cd web && npm run catalog:refresh` |
-| `web/lib/test-counts.generated.ts` | **Half a gate** — CI runs `check-test-counts.mjs web <log>`, and that script accepts only `suite === "web"` | The web line fails the push. The **gateway and service lines are checked by nothing**: refreshed 2026-08-24 in the CI shape to 2,986 (2,984 passed, 2 skipped), where a weights-seeded run of the same suite prints 2,993 — quote the shape with the number or the two read as a contradiction | `cd web && npm run counts:refresh`, or `-- --suite=web` for the web line alone |
+| `web/lib/test-counts.generated.ts` | **Half a gate** — CI runs `check-test-counts.mjs web <log>`, and that script accepts only `suite === "web"` | The web line fails the push. The **gateway and service lines are checked by nothing**: refreshed 2026-08-24 in the CI shape to 3,033 (3,031 passed, 2 skipped), where a weights-seeded run of the same suite prints 3,040 — quote the shape with the number or the two read as a contradiction | `cd web && npm run counts:refresh`, or `-- --suite=web` for the web line alone |
 | `supabase/apply_all.generated.sql` | **Gate, inside the suite** — `tests/test_migration_bundle.py` reads the *generated* file rather than re-deriving it and checking it agrees with itself | Two red tests naming the migration the bundle omits. Green on this tree: all 37 migrations are in the bundle | `python3 tools/bundle_migrations.py`, from the repository **root** |
 
 Two more are generated and neither is gated:

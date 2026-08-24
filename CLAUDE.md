@@ -35,13 +35,14 @@ reading.** This section is the authoritative arithmetic; `README.md` and
 `SETUP.md` quote the headline and link back here. There are two green gateway
 numbers and both are correct, because two files in the suite are opt-ins that
 skip with a named reason rather than pretending they ran. Re-measured
-2026-08-23 on this tree, after the work-queue delete, the Telegram
-poll-conflict handling and the per-instance trace cursor landed:
+2026-08-24 on this tree, after the Kalshi engine split into Quotes and Proofs,
+the settled-score history landed and the market size fields joined the universe
+read — both shapes run back to back, neither derived from the other:
 
 | Run | Passed | Skipped |
 |---|---|---|
-| CI, and any fresh 3.12 venv with no `.env` | 2,141 | 2 |
-| With re-ranker weights seeded | 2,149 | 1 |
+| CI, and any fresh 3.12 venv with no `.env` | 3,031 | 2 |
+| With re-ranker weights seeded | 3,039 | 1 |
 
 The eight-pass gap is not tests appearing from nowhere. It is the arithmetic of
 a MODULE-level skip:
@@ -54,7 +55,7 @@ a MODULE-level skip:
    collected at all and the file contributes exactly one skip. Seed the weights
    (`python tools/bench_rerank.py --seed --model-path DIR`, ~1.05 GiB) and give
    the variable to the run, and you gain 8 passes and lose 1 skip:
-   2,141 + 8 = 2,149, 2 − 1 = 1. CI's opt-in `rerank-real` job does exactly that
+   3,031 + 8 = 3,039, 2 − 1 = 1. CI's opt-in `rerank-real` job does exactly that
    in a setup step, and it runs on `workflow_dispatch` or a `rerank` label, not
    on every push.
 
@@ -67,7 +68,7 @@ IS the opt-in. `config.py` calls `env_coerce.load_dotenv_if_present()` at
 import, which hands `Part2_Infrastructure/.env` to python-dotenv without
 `override`, filling any variable not already set — so a developer whose `.env`
 carries
-`RERANK_TEST_MODEL_PATH=/path/to/weights` gets the 2,149 / 1 shape with nothing
+`RERANK_TEST_MODEL_PATH=/path/to/weights` gets the 3,039 / 1 shape with nothing
 exported and no flag passed. Measured today: this machine's `.env` line 41 is
 what produced it. Before reporting a gateway count, check whether that file
 names the variable — `grep RERANK_TEST_MODEL_PATH Part2_Infrastructure/.env` —
@@ -84,8 +85,8 @@ local ONNX directory.
 `web/lib/test-counts.generated.ts` is the desk's copy of all three figures.
 Refreshed 2026-08-24 with `RERANK_TEST_MODEL_PATH=` blanked — the CI shape, and
 say the shape whenever you quote the gateway line — it reads gateway
-2,998 / 2,996 / 2 and web **4,487 tests across 984 suites** (4,485 passed, 2
-skipped, 305 `.test.ts` files in `web/tests/`). It goes stale
+3,033 / 3,031 / 2 and web **4,672 tests across 1,011 suites** (4,670 passed, 2
+skipped, 313 `.test.ts` files in `web/tests/`). It goes stale
 the moment a test file lands without `npm run counts:refresh` — it did for a
 week in August, when the tree grew test files faster than anyone re-ran the
 script — and that is not cosmetic: CI's web job runs
@@ -96,8 +97,8 @@ files in it, or the count describes work that is not in the commit.
 Read one thing off that file carefully even when it is fresh: CI checks only its
 WEB figure — `.github/workflows/ci.yml` runs `check-test-counts.mjs web <log>`
 and nothing else — so the gateway line in it is a dated record, not a gated one,
-and it can legitimately differ from what CI prints. The service line is 14
-(measured today: 14 passed).
+and it can legitimately differ from what CI prints. The service line is 24
+(measured today: 24 passed).
 
 If you are reading a second skip as the wrong-Python alarm, that heuristic
 moved: the wrong-Python signal is specifically the vectorbt skip from
@@ -122,7 +123,7 @@ and vectorbt (the backtester's parity test) skip the same way; measured
 skipped. Both are now in `requirements-dev.txt`, so CI and a 3.12 venv built
 from it print the same line. Build it with `python3.12 -m venv venv`
 explicitly; the default `python3` on a current macOS/Homebrew is 3.14. Two more
-things the 2,141 needs: `requirements-native.txt` and a built native decision
+things the 3,031 needs: `requirements-native.txt` and a built native decision
 core (`python native/decision_core/setup.py build_ext --inplace --build-temp
 build/native`) — `tests/test_decision_core_native.py` and
 `tests/test_core_self_measure.py` *fail*, not skip, when `modules/_decision_core`
@@ -152,7 +153,7 @@ the failure is recognisable when it recurs:
 | Artefact | State | Regenerator |
 |---|---|---|
 | `web/lib/repository-manifest.generated.json` | current — 1,770 paths at `ba58a40`; when it is behind, `generate-codebase-manifest.mjs --check` reports N added, and `npm run build` stops in `prebuild` | `npm run catalog:refresh` |
-| `web/lib/test-counts.generated.ts` | current — web 4,487 across 984 suites, refreshed 2026-08-24 in CI shape; when it is behind, CI's count step fails the push | `npm run counts:refresh` |
+| `web/lib/test-counts.generated.ts` | current — web 4,672 across 1,011 suites, refreshed 2026-08-24 in CI shape; when it is behind, CI's count step fails the push | `npm run counts:refresh` |
 | `supabase/apply_all.generated.sql` | regenerated today, and it is green now; it had been missing `20260822110000_research_chart_images.sql`, which failed two tests in `tests/test_migration_bundle.py` | `python3 tools/bundle_migrations.py`, repo root |
 | `web/lib/gateway-openapi-digest.generated.ts` | current — the checker verified `a0263f96…` against `tools/openapi.json` on 2026-08-24, after `CoherenceUniverse` gained `categories` | `python tools/export_openapi.py`, then the digest module, then `node --import tsx scripts/generate-gateway-client.ts` |
 
@@ -361,10 +362,13 @@ docs/                            architecture · engineering · planning ·
 - The institutional whitepaper is Typst source at `docs/whitepaper/` — six
   chapter files under `sections/`, one shell (`main.typ`) and one
   `template.typ`. Compile it with
-  `typst compile docs/whitepaper/main.typ out.pdf`; measured 2026-08-22 it
-  builds clean to **83 A4 pages**. NOT BUILT: no PDF is committed, `typst` is in
-  no requirements file, and no CI job compiles it — so a broken chapter is
-  caught by whoever next runs the command, not by a gate. One Typst trap worth
+  `typst compile docs/whitepaper/main.typ out.pdf`; measured 2026-08-24 it
+  builds clean to **85 A4 pages**. A built PDF IS committed, at the repo root as
+  `AlphaEngine_Institutional_Whitepaper.pdf` — this file said otherwise until
+  2026-08-24 and was wrong. NOT GATED, which is the part that still holds:
+  `typst` is in no requirements file and no CI job compiles it, so a broken
+  chapter is caught by whoever next runs the command, and the committed PDF goes
+  stale silently whenever a chapter changes without a rebuild. One Typst trap worth
   knowing before editing a chapter: `#include` evaluates a file in its own
   scope, so `main.typ`'s `#import "template.typ": *` does NOT reach section
   files. Every chapter that uses `#measured`, `#illustrative` or `#note` carries

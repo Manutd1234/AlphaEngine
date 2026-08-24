@@ -543,7 +543,7 @@ not three) cannot back. It wants its own change with its own fixture row.
   is undecided; what is not in doubt is that quoting the gateway figure as a
   *checked* number is wrong — and that the figure means nothing without the
   collection shape beside it, since seeding the cross-encoder weights moves it
-  from 2,986 to 2,993.
+  from 3,033 to 3,040.
 
 ### 2.10 The chart-image store: one blocking call
 

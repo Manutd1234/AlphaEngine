@@ -1095,7 +1095,7 @@ test count*. So the check runs outside the suite, against the runner's own
 summary line teed to a log file. The committed figures, measured on
 #measured[2026-08-24][`web/lib/test-counts.generated.ts`], are
 #measured[2 998 gateway tests (2 996 passed, 2 skipped), in the CI shape][`web/lib/test-counts.generated.ts`, refreshed with `RERANK_TEST_MODEL_PATH` blanked],
-#measured[4 487 web tests across 984 suites][`web/lib/test-counts.generated.ts`]
+#measured[4 672 web tests across 1 011 suites][`web/lib/test-counts.generated.ts`]
 and #measured[24 service tests][`web/lib/test-counts.generated.ts`]. Only the web
 figure is gated: CI runs `check-test-counts.mjs` with the argument `web` and it
 reads that line alone, so the gateway and service lines beside it are dated

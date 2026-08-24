@@ -858,7 +858,7 @@ total. It is therefore generated, checked from outside, and is a measurement wit
 a date rather than a contract. As of
 #measured("2026-08-24", "web/lib/test-counts.generated.ts") the committed figures
 are gateway #measured("2 998 collected, 2 996 passed, 2 skipped", "web/lib/test-counts.generated.ts, refreshed in the CI shape with RERANK_TEST_MODEL_PATH blanked"),
-web #measured("4 487 tests across 984 suites", "web/lib/test-counts.generated.ts")
+web #measured("4 672 tests across 1 011 suites", "web/lib/test-counts.generated.ts")
 and service #measured("24", "web/lib/test-counts.generated.ts"). The two gateway
 skips are the two opt-ins described below, and the shape belongs with the
 figure: seed the re-ranker weights and the same tree collects eight more tests

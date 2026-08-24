@@ -712,10 +712,10 @@ with its method and machine and refuses to merge two machines into one
 flattering number, and the committed test counts, generated because the prose
 copies had drifted three times before the generator existed. As of this revision
 those counts read
-#measured[2,998 gateway tests, 2,996 passed and two skipped][`web/lib/test-counts.generated.ts`,
+#measured[3,033 gateway tests, 3,031 passed and two skipped][`web/lib/test-counts.generated.ts`,
 generated 2026-08-24 with `RERANK_TEST_MODEL_PATH` blanked --- the CI shape, and
 the shape to state whenever this line is quoted],
-#measured[4,487 web tests across 984 suites][same] and
+#measured[4,672 web tests across 1,011 suites][same] and
 #measured[24 service tests][same]. The two gateway skips are the two deliberate
 opt-ins, and each names what it did not exercise: the Postgres data-operations
 backend reporting no credentials in a network-free environment, and the real

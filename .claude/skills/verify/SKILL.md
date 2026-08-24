@@ -78,8 +78,8 @@ named and both correct:
    eight tests are not collected at all.
 
 That is why there are two green gateway totals and neither is wrong. Measured
-2026-08-23: without the opt-ins **2,141 passed, 2 skipped**; with re-ranker
-weights seeded **2,149 passed, 1 skipped** — 8 passes gained, 1 skip lost.
+2026-08-24: without the opt-ins **3,031 passed, 2 skipped**; with re-ranker
+weights seeded **3,039 passed, 1 skipped** — 8 passes gained, 1 skip lost.
 
 **Check which shape you are in before reporting, because the machine may have
 chosen for you.** `tests/conftest.py` does not blank `RERANK_TEST_MODEL_PATH`,

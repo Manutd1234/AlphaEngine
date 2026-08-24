@@ -212,14 +212,14 @@ The counts below are what the runners printed on 2026-08-24. Re-run them rather
 than trusting the numbers: a figure nobody re-measured is not a measurement.
 
 ```bash
-# Gateway suite — 2,992 passed, 1 skipped, with the cross-encoder weights
+# Gateway suite — 3,039 passed, 1 skipped, with the cross-encoder weights
 # seeded (native core built, Python 3.12, no .env in Part2_Infrastructure).
 # CI seeds nothing and prints a smaller total with two skips instead of one.
 # Both are green. Read the skip REASONS with -rs, never the count alone.
 
 cd Part2_Infrastructure && venv/bin/python -m pytest
 
-# Web suite — 4,461 passed, 2 skipped, across 980 suites; no browser
+# Web suite — 4,670 passed, 2 skipped, across 1,011 suites; no browser
 cd Part2_Infrastructure/web && npm test
 
 # Research service — 24 passed
@@ -267,9 +267,9 @@ directory gets the seeded shape with nothing exported. Force the CI shape with
 `RERANK_TEST_MODEL_PATH= venv/bin/python -m pytest`. Only the **web** line of
 `web/lib/test-counts.generated.ts` is checked in CI
 (`node scripts/check-test-counts.mjs web <log>`), so its gateway line is a dated
-record rather than a gate. Refreshed 2026-08-24 in the CI shape to 2,986
-(2,984 passed, 2 skipped); a weights-seeded run of the same suite prints 2,993
-(2,992 passed, 1 skipped). If those two disagree with each other, that is the
+record rather than a gate. Refreshed 2026-08-24 in the CI shape to 3,033
+(3,031 passed, 2 skipped); a weights-seeded run of the same suite prints 3,040
+(3,039 passed, 1 skipped). If those two disagree with each other, that is the
 shape, not a failure — check which one you are in before calling it stale.
 
 **There is no `lint` script for the web app.** `npm run lint` in `web/` fails as

@@ -35,9 +35,9 @@ Two parts, in two directories. Start with whichever question you came for.
   everything offline. `web/lib/test-counts.generated.ts` is the dated record the desk displays; CI
   checks only its **web** line, so run the suites rather than reading its gateway line.
 
-**The headline numbers, measured 2026-08-24:** **2,992 gateway + 4,461 web + 24 service tests**, none
+**The headline numbers, measured 2026-08-24:** **3,039 gateway + 4,672 web + 24 service tests**, none
 needing a network. That gateway figure is the run with the optional cross-encoder weights seeded
-(2,992 passed, 1 skipped); CI seeds nothing, so its run collects fewer items and reports two skips
+(3,039 passed, 1 skipped); CI seeds nothing, so its run collects fewer items and reports two skips
 instead of one. Both are green, both are correct, and
 [`CLAUDE.md`](CLAUDE.md) holds the arithmetic that reconciles them rather than picking a favourite —
 `pytest -rs` prints the two reasons on any machine. Then: 17 pre-trade gates, 15 of which any order
@@ -105,9 +105,9 @@ the number, which moves. The table above explains *why* each path is where it is
 │   ├── docker/                           the two-stage gateway image (builder compiles the core)
 │   ├── docs/                             RUNBOOK · GRAPH_RECALL · REFACTOR_RULES · telegram checklist
 │   ├── notebooks/coherence_lab/          14 lesson notebooks behind the Proofs tab's curriculum
-│   ├── web/                              the Next.js desk (996 tracked files: app/ · components/ ·
-│   │                                     lib/ · 303 `.test.ts` FILES in the tree, which the
-│   │                                     runner reports as 980 suites — different units)
+│   ├── web/                              the Next.js desk (1,054 tracked files: app/ · components/ ·
+│   │                                     lib/ · 313 `.test.ts` FILES in the tree, which the
+│   │                                     runner reports as 1,011 suites — different units)
 │   ├── OpenBB_Service/                   the stateless research service (own pyproject, 24 tests)
 │   ├── developer-console/                experimental; not a deployment unit, not assessed
 │   └── templates/                        the gateway's single-file console
@@ -442,9 +442,9 @@ From a tree that is already set up:
 
 ```bash
 cd Part2_Infrastructure
-venv/bin/python -m pytest                            # 2,992 passed, 1 skipped (weights seeded)
+venv/bin/python -m pytest                            # 3,039 passed, 1 skipped (weights seeded)
 venv/bin/python tools/synthetic_probe.py             # book → cost → risk gate → audit; 6/6 steps
-(cd web && npm test)                                 # 4,461 passed, 2 skipped, 980 suites
+(cd web && npm test)                                 # 4,670 passed, 2 skipped, 1,011 suites
 (cd OpenBB_Service && ../venv/bin/python -m pytest)  # 24 passed
 ```
 
@@ -454,8 +454,8 @@ its own runner printed on 2026-08-24 (`pytest`'s summary line; `node --test`'s
 `npm run counts:refresh` regenerates. **Read that file carefully even when it is
 fresh:** CI checks only its **web** line, via
 `node scripts/check-test-counts.mjs web <log>`, so the gateway line in it is a
-dated record and not a gate. Refreshed 2026-08-24 in the **CI shape** to 2,986
-(2,984 passed, 2 skipped); a weights-seeded machine prints 2,993 (2,992 passed,
+dated record and not a gate. Refreshed 2026-08-24 in the **CI shape** to 3,033
+(3,031 passed, 2 skipped); a weights-seeded machine prints 3,040 (3,039 passed,
 1 skipped), and that eight-test gap is the seeding rather than staleness.
 
 **Two green gateway numbers, and the difference is opt-in, not drift.** Two

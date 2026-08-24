@@ -310,8 +310,8 @@ managers get a Kupiec VaR backtest and a kill switch but no margin or
 liquidation modelling. Point the user at that table rather than reciting it; the
 gaps column is the argument.
 
-Test counts, measured 2026-08-23: **2,141 gateway passed with 2 skipped** in a
-clean shell, **2,149 passed with 1 skipped** once the optional cross-encoder
+Test counts, measured 2026-08-24: **3,031 gateway passed with 2 skipped** in a
+clean shell, **3,039 passed with 1 skipped** once the optional cross-encoder
 weights are seeded, **4,449 web across 977 suites** (4,447 passed, 2 skipped),
 **14 service**. `web/lib/test-counts.generated.ts` was refreshed the same day
 and agrees; it will not stay that way without `npm run counts:refresh` after
