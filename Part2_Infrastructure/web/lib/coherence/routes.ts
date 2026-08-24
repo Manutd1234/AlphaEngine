@@ -56,6 +56,16 @@ export const combosRoute = (limit = 6) => `${COHERENCE}/combos?limit=${limit}`;
 
 export const calibrationRoute = () => `${COHERENCE}/calibration`;
 
+/**
+ * The settled score OVER TIME, which the snapshot above cannot answer.
+ *
+ * A sibling of `/calibration` rather than a flag on it: that one scores whatever
+ * has settled and returns one moment, this one returns the recorded series. It
+ * is also the cheaper of the two — no harvest, no venue call, just the tape.
+ */
+export const calibrationHistoryRoute = (limit = 2_000) =>
+  `${COHERENCE}/calibration/history?limit=${limit}`;
+
 export const settlementRoute = (city: string) => `${COHERENCE}/settlement?city=${city}`;
 
 export const shellRoute = (path: string, command: "ls" | "cat") =>

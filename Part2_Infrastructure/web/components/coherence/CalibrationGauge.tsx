@@ -1,0 +1,172 @@
+"use client";
+
+/**
+ * The settled score as a verdict, and the three things it refuses to call a pass.
+ *
+ * A GAUGE IS THE MOST DANGEROUS FIGURE ON THIS ENGINE, and it is worth saying
+ * why before the code. It converts a number a reader has to think about into a
+ * position on a dial they do not — and the settled score is exactly the number
+ * that must not be read that way. On the live sample the `final_trade` engine
+ * returns a skill of 0.99935238. Drawn without an argument, that is a needle
+ * almost at the top of the dial. What it measures is how fast this exchange
+ * converges on an answer already in plain sight, moments before settlement. It
+ * is not foresight and it is not a pass.
+ *
+ * So this figure exists only with its refusals built in, and each is a different
+ * way a good-looking number can be untrue:
+ *
+ *   ENGINE   `final_trade` renders as "not a forecast test" whatever the skill.
+ *            `EngineBanner` makes that argument in prose directly above; a gauge
+ *            that ignored it would contradict the thing it sits under.
+ *   THIN     Too few settled markets is WITHHELD, not failed. Absence of
+ *            evidence drawn at the bottom of a dial reads as evidence of
+ *            absence.
+ *   NULL     A skill the engine did not compute declines the needle and says so.
+ *            `?? 0` here would turn "we do not know" into "no better than the
+ *            base rate", which is a real reading on this axis and therefore the
+ *            most misleading value available.
+ *
+ * THE AXIS IS SKILL, AND ZERO IS NOT THE FLOOR. Brier skill is the share of the
+ * question's uncertainty these prices removed: one is perfect, zero is no better
+ * than always quoting the base rate, and BELOW zero is worse than knowing
+ * nothing but the base rate — which is a real outcome and is drawn. A dial that
+ * put zero at the bottom would hide half the range that matters.
+ *
+ * Nothing means anything by colour alone: the verdict is a mark and a word, and
+ * the sub-zero region carries its own label.
+ */
+
+import type { CoherenceCalibration } from "@/lib/coherence/types-lab";
+import Figure from "./Figure";
+import { statValue } from "./ReliabilityDiagram";
+import { useMeasuredWidth } from "@/components/chart-kit";
+
+const HEIGHT = 96;
+const MARGIN = { left: 16, right: 16 };
+/** The drawn range: worse-than-nothing through perfect. */
+const LOW = -0.5;
+const HIGH = 1;
+
+interface Verdict {
+  mark: string;
+  word: string;
+  reading: string;
+  /** False whenever the needle must not be drawn at all. */
+  drawn: boolean;
+}
+
+/**
+ * What this score is allowed to be called, in priority order.
+ *
+ * The engine check comes FIRST and outranks a good number, because it is a
+ * statement about what the number measures rather than about how large it is.
+ */
+export function verdictOf(data: CoherenceCalibration, skill: number | null): Verdict {
+  if (data.engine === "final_trade") {
+    return {
+      mark: "▲",
+      word: "Not a forecast test",
+      reading:
+        "These are last traded prices, read moments before settlement with the answer largely in plain sight. "
+        + "The figure below measures how fast this exchange converges, not whether it saw anything coming, and "
+        + "it cannot be a pass however high it is.",
+      drawn: true,
+    };
+  }
+  if (skill == null) {
+    return {
+      mark: "◌",
+      word: "No score",
+      reading:
+        "The engine did not return a skill, so there is no needle. A zero here would read as “no better than "
+        + "the base rate”, which is a measurement rather than an absence of one.",
+      drawn: false,
+    };
+  }
+  if (data.thin) {
+    return {
+      mark: "◌",
+      word: "Withheld, thin sample",
+      reading:
+        `Too few settled markets to conclude from. The skill is ${skill.toFixed(6)}, and it is drawn faintly `
+        + "rather than as a verdict: a small sample at the top of a dial and a small sample at the bottom are "
+        + "both absence of evidence.",
+      drawn: true,
+    };
+  }
+  if (skill > 0) {
+    return {
+      mark: "✓",
+      word: "Better than the base rate",
+      reading: `These prices removed ${(skill * 100).toFixed(2)}% of the question's uncertainty, scored against what settled.`,
+      drawn: true,
+    };
+  }
+  return {
+    mark: "✕",
+    word: "Worse than knowing nothing",
+    reading:
+      "The prices scored worse than always quoting the base rate would have. Negative skill is a real outcome "
+      + "and is reported rather than floored at zero.",
+    drawn: true,
+  };
+}
+
+export default function CalibrationGauge({ data }: { data: CoherenceCalibration }) {
+  const [plotRef, width] = useMeasuredWidth<HTMLDivElement>(720);
+  const skill = statValue(data.skill);
+  const verdict = verdictOf(data, skill);
+
+  const trackWidth = Math.max(1, width - MARGIN.left - MARGIN.right);
+  const x = (value: number) => MARGIN.left + ((value - LOW) / (HIGH - LOW)) * trackWidth;
+  const clamped = skill == null ? null : Math.min(HIGH, Math.max(LOW, skill));
+
+  return (
+    <Figure
+      caption="The settled score as a verdict, on the axis where zero already means something"
+      ariaLabel={`Brier skill gauge from ${LOW} to ${HIGH}; the verdict is ${verdict.word}`}
+      reading={verdict.reading}
+      missing={
+        skill != null && skill > HIGH
+          ? `The skill is ${skill.toFixed(6)}, past the drawn range, so the needle sits at the end of the track rather than off it.`
+          : "Skill is the share of the question's uncertainty these prices removed. One is perfect; zero is no better than always quoting the base rate; below zero is worse than that."
+      }
+    >
+      <div ref={plotRef} style={{ width: "100%" }}>
+        <svg viewBox={`0 0 ${width} ${HEIGHT}`} width={width} height={HEIGHT}>
+          {/* The sub-zero region, drawn and labelled. It is half the reason the
+              axis is not 0-to-1: worse than the base rate is a real place to be. */}
+          <rect x={x(LOW)} y={30} width={x(0) - x(LOW)} height={20} className="coh-gauge__worse">
+            <title>Worse than always quoting the base rate.</title>
+          </rect>
+          <rect x={x(0)} y={30} width={x(HIGH) - x(0)} height={20} className="coh-gauge__track">
+            <title>Better than the base rate, up to a perfect score at one.</title>
+          </rect>
+
+          <line x1={x(0)} x2={x(0)} y1={24} y2={56} className="coh-gauge__zero">
+            <title>Zero: exactly as good as always quoting the base rate.</title>
+          </line>
+
+          {verdict.drawn && clamped != null ? (
+            <line
+              x1={x(clamped)}
+              x2={x(clamped)}
+              y1={20}
+              y2={60}
+              className={data.thin ? "coh-gauge__needle is-thin" : "coh-gauge__needle"}
+            >
+              <title>{`Skill ${skill?.toFixed(8)} — ${verdict.word}`}</title>
+            </line>
+          ) : null}
+
+          <text x={x(LOW)} y={70} className="coh-form__note">worse than nothing</text>
+          <text x={x(0)} y={22} textAnchor="middle" className="coh-form__note">0</text>
+          <text x={x(HIGH)} y={70} textAnchor="end" className="coh-form__note">perfect</text>
+          <text x={MARGIN.left} y={16} className="coh-svg-note">
+            {verdict.mark} {verdict.word}
+          </text>
+        </svg>
+      </div>
+    </Figure>
+  );
+}

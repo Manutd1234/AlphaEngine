@@ -48,6 +48,8 @@ import { useState } from "react";
 import type { CoherenceCalibration } from "@/lib/coherence/types-lab";
 import CalibrationBands from "./CalibrationBands";
 import CalibrationCorpus from "./CalibrationCorpus";
+import CalibrationGauge from "./CalibrationGauge";
+import CalibrationTrend from "./CalibrationTrend";
 import { EngineBanner, ScoreView, horizonText, scoreFacts } from "./CalibrationScore";
 import { StateChip } from "./Figure";
 import IndexPane from "./IndexPane";
@@ -55,13 +57,17 @@ import IndexPane from "./IndexPane";
 export type CalibrationGroup = "settled" | "time";
 
 type SettledView = "score" | "bands" | "corpus";
-type IndexView = "series" | "families";
+type IndexView = "series" | "families" | "trend";
 type CalibrationView = SettledView | IndexView;
 
 /** Which views each group holds, in the order the reader meets them. */
 export const GROUP_VIEWS: Record<CalibrationGroup, ReadonlyArray<[CalibrationView, string]>> = {
   settled: [["score", "Score"], ["bands", "Bands"], ["corpus", "Corpus"]],
-  time: [["series", "Index series"], ["families", "Index families"]],
+  time: [
+    ["trend", "Score trend"],
+    ["series", "Index series"],
+    ["families", "Index families"],
+  ],
 };
 
 export default function CalibrationGroups({ group, active, data, error }: {
@@ -85,7 +91,18 @@ export default function CalibrationGroups({ group, active, data, error }: {
       </div>
 
       {group === "time" ? (
-        <IndexPane active={active} view={view === "series" ? "series" : "families"} />
+        // Two reads under one group, each gated on the views that draw it — the
+        // section's own discipline, one level down. The group says "over time";
+        // which tape answers that is a property of the view.
+        // The branch IS the gate here, and the compiler proves it: inside the
+        // else, `view` cannot be "trend", so `active && view !== "trend"` is a
+        // conjunction TypeScript reports as always true. An always-true guard
+        // reads like a gate and defends nothing, which is worse than none.
+        view === "trend" ? (
+          <CalibrationTrend active={active} />
+        ) : (
+          <IndexPane active={active} view={view === "series" ? "series" : "families"} />
+        )
       ) : (
         <SettledViews data={data} error={error} view={view as SettledView} />
       )}
@@ -139,7 +156,13 @@ function SettledViews({ data, error, view }: {
       <EngineBanner data={data} />
 
       {view === "score" ? (
-        <ScoreView data={data} facts={scoreFacts(data)} />
+        <>
+          {/* The verdict first, then the six figures it is drawn from. The gauge
+              refuses to call a convergence score or a thin corpus a pass, which
+              is the argument the banner above makes in prose. */}
+          <CalibrationGauge data={data} />
+          <ScoreView data={data} facts={scoreFacts(data)} />
+        </>
       ) : view === "bands" ? (
         <CalibrationBands
           data={data}

@@ -172,3 +172,39 @@
   stroke: var(--warning-text);
   stroke-dasharray: 5 3;
 }
+
+/* ── The settled-score gauge ──────────────────────────────────────────────
+   A track, the region below zero, the zero rule and the needle. Zero is NOT the
+   floor of this axis — it is "no better than always quoting the base rate", and
+   below it is worse than that — so the sub-zero region is painted differently
+   AND labelled in the figure, never distinguished by hue alone. */
+.coherence-plane.proofs-plane .coh-gauge__track {
+  fill: color-mix(in srgb, var(--series-3) 16%, transparent);
+  stroke: var(--border);
+}
+
+.coherence-plane.proofs-plane .coh-gauge__worse {
+  fill: repeating-linear-gradient(0deg, transparent, transparent);
+  fill: color-mix(in srgb, var(--series-2) 14%, transparent);
+  stroke: var(--border);
+}
+
+.coherence-plane.proofs-plane .coh-gauge__zero {
+  stroke: var(--text-secondary);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 2;
+}
+
+/* The needle. `is-thin` is a corpus too small to conclude from: it is drawn
+   FAINTLY rather than moved or hidden, because the figure's own footnote says
+   it is withheld and a reader must still see where the number fell. */
+.coherence-plane.proofs-plane .coh-gauge__needle {
+  stroke: var(--text-primary);
+  stroke-width: 2.5;
+}
+
+.coherence-plane.proofs-plane .coh-gauge__needle.is-thin {
+  stroke: var(--text-secondary);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+}
