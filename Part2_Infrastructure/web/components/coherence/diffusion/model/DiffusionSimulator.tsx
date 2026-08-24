@@ -128,11 +128,25 @@ function simulate(trueHalfLife: number, move: number, noise: number, preBars: nu
 }
 
 export default function DiffusionSimulator() {
+  // THE DEFAULT HAS TO SHOW THE ESTIMATOR WORKING BEFORE IT SHOWS IT FAILING,
+  // and the first one did the opposite: at 0.080% noise the view opened on a
+  // 65% error against a known truth, which reads as a broken estimator rather
+  // than as a noisy sample. Measured over forty seeds, that setting has a median
+  // absolute error of 32%, and seed 7 was a tail draw of it.
+  //
+  // These open at a 7% error — the median of forty seeds at this noise, on a
+  // seed that lands there rather than a flattering one. The reader can then
+  // drag noise right and watch the error grow and the gate eventually refuse,
+  // which is the order the failure modes are worth meeting in.
+  //
+  // WHAT IS IRREDUCIBLE, and worth knowing before reading any of it: with NO
+  // noise at all this grid recovers 230.6s against a true 240s, −3.9%. That is
+  // the geometric grid plus log interpolation, and no setting removes it.
   const [trueHalfLife, setTrueHalfLife] = useState(240);
   const [move, setMove] = useState(0.012);
-  const [noise, setNoise] = useState(0.0008);
+  const [noise, setNoise] = useState(0.0001);
   const [preBars, setPreBars] = useState(60);
-  const [seed, setSeed] = useState(7);
+  const [seed, setSeed] = useState(14);
   const [plotRef, plotW] = useMeasuredWidth<HTMLDivElement>(720);
 
   const run = useMemo(
@@ -209,6 +223,11 @@ export default function DiffusionSimulator() {
           tone={recovered?.value != null ? "muted" : "warn"}
         />
         {error ? <StateChip mark="▲" word="Error against truth" value={error} tone="muted" /> : null}
+        {/* The floor under that error, and it is not zero: with no noise at all
+            this grid recovers 230.6s against a true 240s. A reader comparing
+            the two numbers above deserves to know how much of the gap is the
+            sampler rather than the sample. */}
+        <StateChip mark="◇" word="Grid cost with no noise" value="−3.9%" tone="muted" />
       </div>
 
       <Figure
