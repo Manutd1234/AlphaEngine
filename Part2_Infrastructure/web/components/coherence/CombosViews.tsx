@@ -312,7 +312,29 @@ export function ParlaysView({ combos }: { combos: CoherenceCombo[] }) {
   return (
     <section className="coh-combos__rows">
       <h4 className="console-subhead">{`Each of the ${combos.length} parlays, its band and its legs`}</h4>
-      {combos.map((combo) => <ComboCard key={combo.ticker} combo={combo} />)}
+      <p className="coh-combo__meta">
+        One line per parlay, carrying where its price sits in the band its own legs leave. Open one for the
+        band drawn and the leg-by-leg cost; the Bands view draws all {combos.length} against each other.
+      </p>
+      {/* SIX FULL CARDS WAS 3,567px AT DESK WIDTH — measured, and the longest
+          view on the desk by a factor of nearly two. Each card is a title, a
+          chip row, a band figure, a position sentence and a leg table, and six
+          of them stacked is the scrolling this reader has objected to three
+          times.
+
+          The summary carries the VERDICT — where the price sits in the band —
+          so the folded state is not a list of tickers a reader has to open one
+          by one to search: it is six readings, and the drawing behind each is
+          one press. That is the same trade the fourth review made across this
+          tab, and it is available here because the Bands view already draws all
+          six bands against each other, so the cross-parlay comparison is not
+          what this view is for. */}
+      {combos.map((combo) => (
+        <details className="disclosure" key={combo.ticker}>
+          <summary>{`${combo.ticker} — ${positionSentence(combo)}`}</summary>
+          <ComboCard combo={combo} />
+        </details>
+      ))}
     </section>
   );
 }

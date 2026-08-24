@@ -256,7 +256,7 @@
       "@1440": {
         "(no control)": {
           "stillReading": false,
-          "scrollHeight": 668,
+          "scrollHeight": 693,
           "controlRows": 0,
           "nestedControls": 2,
           "controlHeight": null,
@@ -538,37 +538,24 @@
     },
     "coherence/certificate": {
       "@1440": {
-        "Coherence test — Verdict": {
+        "Coherence test": {
           "stillReading": false,
-          "scrollHeight": 608,
+          "scrollHeight": 251,
           "controlRows": 1,
-          "nestedControls": 2,
+          "nestedControls": 0,
           "controlHeight": 32,
           "buttonHeight": 24,
           "wrapped": false,
-          "figures": 1,
-          "tables": 1,
-          "disclosures": 1,
-          "paragraphs": 2
-        },
-        "Coherence test — Proof": {
-          "stillReading": false,
-          "scrollHeight": 657,
-          "controlRows": 1,
-          "nestedControls": 2,
-          "controlHeight": 32,
-          "buttonHeight": 24,
-          "wrapped": false,
-          "figures": 1,
+          "figures": 0,
           "tables": 0,
-          "disclosures": 1,
+          "disclosures": 0,
           "paragraphs": 2
         },
         "Basket": {
           "stillReading": false,
-          "scrollHeight": 371,
+          "scrollHeight": 251,
           "controlRows": 1,
-          "nestedControls": 1,
+          "nestedControls": 0,
           "controlHeight": 32,
           "buttonHeight": 24,
           "wrapped": false,
@@ -592,7 +579,7 @@
         },
         "Parlays — Parlays": {
           "stillReading": false,
-          "scrollHeight": 3567,
+          "scrollHeight": 827,
           "controlRows": 1,
           "nestedControls": 1,
           "controlHeight": 32,
@@ -600,7 +587,7 @@
           "wrapped": false,
           "figures": 6,
           "tables": 6,
-          "disclosures": 0,
+          "disclosures": 6,
           "paragraphs": 1
         },
         "Parlays — Bounds": {
@@ -659,7 +646,7 @@
         },
         "Parlays — Parlays": {
           "stillReading": false,
-          "scrollHeight": 3664,
+          "scrollHeight": 849,
           "controlRows": 1,
           "nestedControls": 1,
           "controlHeight": 32,
@@ -667,7 +654,7 @@
           "wrapped": false,
           "figures": 6,
           "tables": 6,
-          "disclosures": 0,
+          "disclosures": 6,
           "paragraphs": 1
         },
         "Parlays — Bounds": {

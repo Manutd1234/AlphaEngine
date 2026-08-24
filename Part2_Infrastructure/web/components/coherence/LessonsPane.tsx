@@ -133,6 +133,14 @@ function LessonCard({ lesson }: { lesson: CoherenceLesson }) {
           in the registry draws nothing here — no gap, no placeholder. */}
       <LessonFigure id={lesson.id} />
 
+      {/* BOTH HALVES STAY OPEN, and that was re-tested rather than assumed.
+          The same fold that halved the Model group's formula wall was tried
+          here — keep "what breaks it", hide "when it holds" — and MEASURED at
+          2,198px to 2,109px, four per cent, because the hidden sentence is
+          short and the summary line replacing it costs nearly as much. That is
+          a click and a hidden half bought for nothing, so it was reverted. The
+          height in these views is the summary, the formula and the figure, and
+          hiding any of those would cost the card its subject. */}
       <dl className="coh-lesson__bounds">
         <div className="is-holds">
           <dt>When it holds</dt>
