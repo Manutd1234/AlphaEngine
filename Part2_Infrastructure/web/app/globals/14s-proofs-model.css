@@ -115,3 +115,60 @@
     color-mix(in srgb, var(--text-secondary) 30%, transparent) 3px 6px
   );
 }
+
+/* ── The lesson figures and the episode state diagram ─────────────────────
+   Four lessons make a claim about a SHAPE and carry a small drawing inside the
+   card; the state diagram is a peer view. Both reuse `FormationDiagram`'s text
+   classes, so nothing here sizes type — these are the marks those two need and
+   no existing class covers.
+
+   `.coh-lessonfig` is the plot box inside a lesson card. It gets the card's own
+   surface rather than the figure frame's, because it sits INSIDE a card rather
+   than beside one, and a second bordered box within a bordered box reads as a
+   nesting the content does not have. */
+.coherence-plane.proofs-plane .coh-lessonfig {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.coherence-plane.proofs-plane .coh-lessonfig svg {
+  display: block;
+  overflow: visible;
+}
+
+/* The Fréchet band: an interval, drawn as an interval. Its width is the whole
+   lesson — two marginals bound a joint rather than determining it. */
+.coherence-plane.proofs-plane .coh-lessonfig__band {
+  fill: color-mix(in srgb, var(--series-3) 22%, transparent);
+  stroke: color-mix(in srgb, var(--series-3) 60%, var(--border));
+}
+
+/* The coherent set: the simplex a price vector has to sit on, and the diagonal
+   a calibrated venue sits on. One class because they are the same idea drawn on
+   two axes — the locus of "exactly right". */
+.coherence-plane.proofs-plane .coh-lessonfig__simplex {
+  stroke: var(--text-secondary);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+
+/* A price vector that is NOT on it. Filled rather than outlined so it reads as
+   a position rather than a region, and marked by the dropped line beside it,
+   which is the distance the index measures. */
+.coherence-plane.proofs-plane .coh-lessonfig__off {
+  fill: var(--series-2);
+}
+
+/* The state diagram's boxes. `is-open` is the still-running episode, and it is
+   DASHED as well as tinted: it is the one state with no lifetime, and that has
+   to survive forced colours and a reader who cannot separate the hues. */
+.coherence-plane.proofs-plane .coh-states__box {
+  fill: var(--surface-2);
+  stroke: var(--border);
+}
+
+.coherence-plane.proofs-plane .coh-states__box.is-open {
+  fill: none;
+  stroke: var(--warning-text);
+  stroke-dasharray: 5 3;
+}

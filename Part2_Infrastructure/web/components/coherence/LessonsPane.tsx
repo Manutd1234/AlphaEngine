@@ -45,7 +45,9 @@ import { ENGINE_SECTIONS } from "@/lib/sections";
 
 import { StateChip } from "./Figure";
 import LessonCoverage from "./LessonCoverage";
+import LessonFigure from "./lesson-figures";
 import PaneHead from "./PaneHead";
+import ViolationStates from "./ViolationStates";
 import ValueStrip from "./ValueStrip";
 
 /** The rail's own label, so a card names the section as the reader sees it.
@@ -126,6 +128,11 @@ function LessonCard({ lesson }: { lesson: CoherenceLesson }) {
 
       {lesson.formula ? <code className="coh-lesson__formula">{lesson.formula}</code> : null}
 
+      {/* Four of the fourteen make a claim about a SHAPE, and for those the
+          formula is the part a reader can already read. A lesson with no entry
+          in the registry draws nothing here — no gap, no placeholder. */}
+      <LessonFigure id={lesson.id} />
+
       <dl className="coh-lesson__bounds">
         <div className="is-holds">
           <dt>When it holds</dt>
@@ -166,7 +173,7 @@ function LessonCard({ lesson }: { lesson: CoherenceLesson }) {
 }
 
 export default function LessonsPane() {
-  const [view, setView] = useState<LessonGroup | "coverage">("coverage");
+  const [view, setView] = useState<LessonGroup | "coverage" | "states">("coverage");
   const shipped = COHERENCE_LESSONS.filter((lesson) => lesson.shipped).length;
   const group = LESSON_GROUPS.find((entry) => entry.id === view) ?? LESSON_GROUPS[0];
   const inView = COHERENCE_LESSONS.filter((lesson) => lesson.group === group.id);
@@ -199,6 +206,16 @@ export default function LessonsPane() {
         >
           Coverage
         </button>
+        {/* The vocabulary the whole catalogue is written in. Its own peer rather
+            than a card, because it defines the objects the other views make
+            claims ABOUT — an episode, its peak, its half-life, its lifetime. */}
+        <button
+          type="button"
+          aria-pressed={view === "states"}
+          onClick={() => setView("states")}
+        >
+          Episode states
+        </button>
         {LESSON_GROUPS.map((entry) => (
           <button
             key={entry.id}
@@ -213,6 +230,8 @@ export default function LessonsPane() {
 
       {view === "coverage" ? (
         <LessonCoverage />
+      ) : view === "states" ? (
+        <ViolationStates />
       ) : (
         <section aria-labelledby={`coh-lessons-${group.id}`}>
           <div className="section-heading compact">

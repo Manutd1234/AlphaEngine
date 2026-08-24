@@ -20,6 +20,7 @@ import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { COHERENCE_LESSONS } from "../lib/coherence/lessons";
+import { read } from "./helpers/workspace-sources";
 
 const gatewayRoot = fileURLToPath(new URL("../..", import.meta.url));
 
@@ -115,5 +116,44 @@ describe("every lesson carries its own boundary", () => {
     const ids = COHERENCE_LESSONS.map((lesson) => lesson.id);
     assert.equal(new Set(ids).size, ids.length, "two lessons share an id");
     assert.deepEqual(ids.filter((id) => !/^[a-z]+$/.test(id)), []);
+  });
+});
+
+describe("the curriculum draws what it can, and nothing it cannot", () => {
+  const registry = read("../components/coherence/lesson-figures/index.tsx");
+  const pane = read("../components/coherence/LessonsPane.tsx");
+
+  it("every id in the figure registry is a real lesson", () => {
+    // A figure keyed to an id nobody teaches renders for nobody, and would sit
+    // in the tree looking like coverage.
+    const ids = new Set(COHERENCE_LESSONS.map((lesson) => lesson.id));
+    const keyed = [...registry.matchAll(/^  ([a-z]+): [A-Z]/gm)].map((match) => match[1]);
+    assert.ok(keyed.length >= 4, `only ${keyed.length} lesson figures found — has the registry moved?`);
+    for (const id of keyed) {
+      assert.ok(ids.has(id), `the registry draws a figure for "${id}", which is not a lesson`);
+    }
+  });
+
+  it("a lesson with no figure still renders its card", () => {
+    // The whole reason this is a registry rather than a field on the data: most
+    // lessons make a claim that is a SENTENCE, and a picture of one would be a
+    // picture of an equals sign. A fifteenth lesson must not arrive with a gap.
+    assert.match(registry, /if \(!Drawing\) return null;/,
+      "a lesson with no entry must draw nothing, not a placeholder");
+  });
+
+  it("the figures read nothing, because a lesson is a claim about every poll", () => {
+    assert.doesNotMatch(registry, /useCoherenceRead|Route\(|fetch\(/,
+      "a lesson figure that fetched would illustrate one poll's answer to a question about all of them");
+  });
+
+  it("the episode state machine is a peer view and names the state that has no lifetime", () => {
+    assert.match(pane, /Episode states/);
+    const states = read("../components/coherence/ViolationStates.tsx");
+    assert.match(states, /Still open/);
+    assert.match(states, /a lower bound, not a lifetime/,
+      "the still-open state must say it has no lifetime — it is why the survival curve uses closed episodes only");
+    assert.doesNotMatch(states, /useCoherenceRead|Route\(/,
+      "the state diagram is structural: it draws what the recorder CAN write, not what it has");
   });
 });
