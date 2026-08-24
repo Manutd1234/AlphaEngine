@@ -2,7 +2,7 @@
  * One source for the Kalshi engine's URLs, and a warm plan that cannot drift
  * from it.
  *
- * A section on this tab can now be READ before anyone opens it — the rail warms
+ * A section on this engine can now be READ before anyone opens it — the rail warms
  * it on hover and the console sweeps the rest on idle — which is the fix for
  * seconds of "Reading the exchange…" on every first visit. It also creates a
  * failure mode nothing else here would catch: the URL exists in two places, the
@@ -12,7 +12,13 @@
  *
  * So the URLs are built in `lib/coherence/routes.ts` and nowhere else, and this
  * file holds both halves of that: no pane may spell a gateway path itself, and
- * every section of both rails must have an entry in its console's plan.
+ * every section of both rails must have an entry in its own console's plan.
+ *
+ * TWO CONSOLES AGAIN SINCE 2026-08-24. The engine is Prices (`MarketsConsole`)
+ * and Proofs (`CoherenceConsole`), and the plans are checked separately because
+ * they are separately wrong-able: a section that moves tab has to take its warm
+ * entry with it, and an entry left behind warms a read the console it sits in
+ * can no longer draw.
  *
  * Source-level assertions, like the rest of the routing suites. There is no DOM
  * here and the property worth pinning is structural.
@@ -88,22 +94,92 @@ describe("every section can be warmed before it is opened", () => {
     );
   }
 
-  it("Markets plans a read for each of its sections", () => {
-    const plan = planOf("components/MarketsConsole.tsx");
-    assert.deepEqual(Object.keys(plan).sort(), [...MARKETS_SECTION_IDS].sort());
-    // Every Markets section reads something. None of them is a static page.
-    for (const [id, count] of Object.entries(plan)) {
-      assert.ok(count > 0, `markets/${id} plans no read, but every section here opens one`);
-    }
+  /**
+   * The ids whose warm list is empty ON PURPOSE, and the words that say so.
+   *
+   * `lessons` is the only one, and it has been through three restructures
+   * without changing: it is rendered from `lib/coherence/lessons.ts` and asks
+   * the gateway for nothing at all. `ablation` joined it when the 20,000-row
+   * replay became its own section and left again when the replay went back to
+   * being two views of Fees, so its exemption is a VIEW-level gate the Prices
+   * console explains beside its own `SECTION_READS`.
+   *
+   * The exemption is a table rather than an `if`, and it is STRICTER than a
+   * skip in two ways: an exempt id must plan exactly zero reads, and the
+   * console itself has to carry the reason in prose a reader auditing
+   * `SECTION_READS` will meet. An empty list that is a decision and an empty
+   * list that is an oversight look identical in a diff; these regexes are what
+   * tells them apart.
+   */
+  const UNWARMED: Record<string, RegExp> = {
+    lessons: /asks the gateway for nothing/,
+  };
+
+  /**
+   * The two reads gated on a VIEW rather than on a section, and the words the
+   * Prices console owes each.
+   *
+   * The consolidation demoted eight sections to views, and two of them owned
+   * the two most expensive calls on the engine: the signed RFQ channel (a
+   * private-channel call on a 25-second budget, behind Books → Dispersion) and
+   * `/replay?limit=20000` (behind Fees → Ablation). As sections they were
+   * warmed and gated on the section; as views they must be warmed by nothing
+   * and gated on the view, or a reader who opened Books to look at a ladder
+   * pays for the slowest signed call on the desk. Both sections are on Quotes
+   * since the split, so both reasons are owed by that console — and neither
+   * route may appear in either plan.
+   */
+  const VIEW_GATED: Record<string, { route: string; why: RegExp }> = {
+    rfq: { route: "rfqRoute", why: /25-second gateway budget/ },
+    replay: { route: "replayRoute", why: /largest read on the tab/ },
+  };
+
+  /** Each console, its rail, and the plan that has to match it exactly. */
+  const RAILS: Array<[string, string, readonly string[]]> = [
+    ["Quotes", "components/MarketsConsole.tsx", MARKETS_SECTION_IDS],
+    ["Proofs", "components/CoherenceConsole.tsx", COHERENCE_SECTION_IDS],
+  ];
+
+  for (const [label, file, ids] of RAILS) {
+    it(`${label} plans a read for each section, and says why any is left cold`, () => {
+      const source = read(file);
+      const plan = planOf(file);
+      assert.deepEqual(Object.keys(plan).sort(), [...ids].sort());
+      for (const [id, count] of Object.entries(plan)) {
+        if (id in UNWARMED) {
+          assert.equal(count, 0, `${label}/${id} is on the unwarmed list but plans a read`);
+          assert.match(source, UNWARMED[id], `${label}/${id} warms nothing and never says why`);
+          continue;
+        }
+        assert.ok(count > 0, `${label}/${id} plans no read, so it will still open cold`);
+      }
+    });
+  }
+
+  it("no unwarmed id has quietly stopped being a section", () => {
+    // A stale exemption has to be spent, or removed from the table above.
+    const everywhere = RAILS.flatMap(([, file]) => Object.keys(planOf(file)));
+    assert.deepEqual(
+      Object.keys(UNWARMED).filter((id) => !everywhere.includes(id)),
+      [],
+      "an unwarmed id above is on neither rail any more",
+    );
   });
 
-  it("Coherence plans a read for each of its sections, and says why Lessons has none", () => {
-    const plan = planOf("components/CoherenceConsole.tsx");
-    assert.deepEqual(Object.keys(plan).sort(), [...COHERENCE_SECTION_IDS].sort());
-    assert.equal(plan.lessons, 0, "the curriculum is rendered from a module and asks the gateway for nothing");
-    for (const [id, count] of Object.entries(plan)) {
-      if (id === "lessons") continue;
-      assert.ok(count > 0, `coherence/${id} plans no read, so it will still open cold`);
+  it("the two view-gated reads are warmed by nothing, and the console says why", () => {
+    const prices = read("components/MarketsConsole.tsx");
+    for (const [name, { route, why }] of Object.entries(VIEW_GATED)) {
+      for (const [, file] of RAILS) {
+        const source = read(file);
+        const start = source.indexOf("const SECTION_READS");
+        const plan = source.slice(start, source.indexOf("\n};", start));
+        assert.ok(
+          !plan.includes(route),
+          `${name} is warmed from ${file}'s SECTION_READS, but it is behind a view — warming `
+          + "spends it for every reader who opens the section for something else",
+        );
+      }
+      assert.match(prices, why, `the Prices console never says why ${name} is left to its own view`);
     }
   });
 

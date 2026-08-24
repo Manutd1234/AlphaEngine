@@ -56,12 +56,20 @@ describe("every lesson names code that exists", () => {
   });
 
   it("every lesson lands on a section the engine actually has", async () => {
-    // Both rails. The curriculum spans the whole Kalshi engine, and since the
-    // split on 2026-08-24 that engine is two tabs — six of the fourteen
-    // lessons are about sections Markets now owns.
-    const { COHERENCE_SECTION_IDS, MARKETS_SECTION_IDS } = await import("../lib/sections");
-    const rails: readonly string[] = [...MARKETS_SECTION_IDS, ...COHERENCE_SECTION_IDS];
-    const strays = COHERENCE_LESSONS.filter((lesson) => !rails.includes(lesson.pane));
+    // BOTH rails, because the curriculum spans the whole Kalshi engine and the
+    // engine has been one tab and two tabs twice each on 2026-08-24. This
+    // assertion is what caught the cost of every one of those moves: `kelly`
+    // named `stake`, a section the promotion pass created and the merge turned
+    // back into a view of `lattice`; `index` and `frechet` named two published
+    // sections the consolidation folded into `calibration` and `certificate`.
+    // A lesson may only name a place a reader can reach by URL, so a demoted id
+    // here is a failure rather than a rename.
+    //
+    // `ENGINE_SECTION_IDS` is the concatenation, declared once in
+    // `lib/sections.ts`. Reading one tab's array would pass while half the
+    // curriculum pointed at sections the other tab had carried away.
+    const { ENGINE_SECTION_IDS } = await import("../lib/sections");
+    const strays = COHERENCE_LESSONS.filter((lesson) => !ENGINE_SECTION_IDS.includes(lesson.pane));
     assert.deepEqual(strays.map((lesson) => `${lesson.id} → ${lesson.pane}`), []);
   });
 });
