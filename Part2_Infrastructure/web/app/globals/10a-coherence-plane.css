@@ -222,6 +222,29 @@
 
 .coh-console__status { border-top: 1px solid var(--border); padding-top: 12px; }
 
+/*
+ * The second level of a two-level section: its view switcher and what the view
+ * draws, under the group control that chose them.
+ *
+ * A WRAPPER RATHER THAN A FRAGMENT, and the reason is a selector. `14r` wraps
+ * every section-level switcher on Proofs with `.console-card > .seg` — a CHILD
+ * combinator, picked so a nested seg stays out of it. Returned as a fragment,
+ * a group's view control would be a direct child of the section too: it would
+ * take the wrap treatment meant for the group row, and the two controls would
+ * sit as siblings in the section's own grid, which is the "two `.seg` controls
+ * in a column read as one broken control" that DiffusionPane's header rejected.
+ *
+ * `align-content: start` because the house rule asks it of any grid inside a
+ * subtab panel: spare height would otherwise inflate the rows, which is the
+ * seg-resizes-on-pane-switch bug.
+ */
+.coh-views {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  align-content: start;
+}
+
 /* ── The certificate, the fee model, and the proof block ─────────────────── */
 
 .coh-certificate,

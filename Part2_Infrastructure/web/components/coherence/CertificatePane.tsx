@@ -78,24 +78,26 @@ import type { CoherenceCertificate, CoherenceEventView } from "@/lib/coherence/t
 import { certifyRoute } from "@/lib/coherence/routes";
 import PaneHead from "./PaneHead";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
-import CombosPane, { type ComboView } from "./CombosPane";
-import { ProofView, VerdictView, verdictChip, verdictReading } from "./CertificateViews";
+import CertificateGroups, { GROUP_VIEWS, type CertificateGroup } from "./CertificateGroups";
+import { verdictChip, verdictReading } from "./CertificateViews";
 import FamilyPicker from "./FamilyPicker";
 import { StateChip } from "./Figure";
-import PortfolioPane from "./PortfolioPane";
 
-type CertificateView = "verdict" | "proof" | "certificate" | ComboView;
-
-/** The three views the `combos` read answers; the other three read `certify`. */
-const PARLAY_VIEWS = new Set<CertificateView>(["bands", "parlays", "bounds"]);
-
-const VIEWS: ReadonlyArray<[CertificateView, string]> = [
-  ["verdict", "Verdict"],
-  ["proof", "Proof"],
-  ["certificate", "Certificate"],
-  ["bands", "Bands"],
+/**
+ * The three groups, in reading order, and the labels are the argument.
+ *
+ * "Coherence test" and "Basket" are one `certify` read drawn two ways — is
+ * there a Dutch book, and here is the portfolio that would take it — while
+ * "Parlays" is the second read. A reader moves from the claim to the thing the
+ * claim hands back to the same question asked of the venue's own conjunctions.
+ *
+ * The views inside each are `GROUP_VIEWS` in `CertificateGroups.tsx`, so this
+ * file names the groups once and cannot offer one that holds nothing.
+ */
+const GROUPS: ReadonlyArray<[CertificateGroup, string]> = [
+  ["test", "Coherence test"],
+  ["basket", "Basket"],
   ["parlays", "Parlays"],
-  ["bounds", "Bounds"],
 ];
 
 export default function CertificatePane({
@@ -112,8 +114,10 @@ export default function CertificatePane({
   eventsError?: string | null;
 }) {
   const [selected, setSelected] = useState<string | null>(null);
-  const [view, setView] = useState<CertificateView>("verdict");
-  const onParlays = PARLAY_VIEWS.has(view);
+  const [group, setGroup] = useState<CertificateGroup>("test");
+  // The GROUP is the gate, not the view. Its three parlay views are exactly the
+  // `combos` read, so pressing between two views of one group re-arms nothing.
+  const onParlays = group === "parlays";
   const target = selected ?? events[0]?.event_ticker ?? "";
   const { data, error } = useCoherenceRead<CoherenceCertificate>(
     certifyRoute(target),
@@ -132,24 +136,36 @@ export default function CertificatePane({
     <section className="card console-card coh-certificate" aria-labelledby="coherence-certificate-heading">
       <PaneHead {...head} />
 
-      {/* The switcher is drawn before either branch, and unconditionally: the
-          parlays do not need a family, so a reader who arrives while the
-          universe read is still in flight — or has failed — must still be able
-          to reach Bands. Gating the seg on `events` is how the merge would have
-          made three views unreachable for the slowest seconds of a first
-          visit. */}
-      <div className="seg" role="group" aria-label="Certificate view">
-        {VIEWS.map(([name, label]) => (
-          <button key={name} type="button" aria-pressed={view === name} onClick={() => setView(name)}>
+      {/* Drawn before either branch, and unconditionally: the parlays need no
+          family, so a reader who arrives while the universe read is in flight —
+          or has failed — must still reach them. Gating this on `events` is how
+          the merge made three views unreachable for the slowest seconds of a
+          first visit. Three groups where there were six flat views: the row is
+          a row again, and `GROUP_VIEWS` holds what is inside each. */}
+      <div className="seg" role="group" aria-label="Certificate group">
+        {GROUPS.map(([name, label]) => (
+          <button key={name} type="button" aria-pressed={group === name} onClick={() => setGroup(name)}>
             {label}
           </button>
         ))}
       </div>
 
       {onParlays ? (
-        <div className="coh-combos">
-          <CombosPane active={active && onParlays} view={view as ComboView} />
-        </div>
+        // `key` remounts on a group change so the view resets to the group's
+        // first, rather than an effect rendering the old group's view for a
+        // frame — which here is a frame of a figure drawn from the other read.
+        <CertificateGroups
+          key={group}
+          group={group}
+          // Redundant against the branch that renders it, and kept anyway: the
+          // conjunction is where the gate is READABLE, and it is what
+          // `coherence-sections.test.ts` pins. A gate that holds only because a
+          // branch happens not to mount is a gate nobody can see.
+          active={active && onParlays}
+          data={null}
+          target=""
+          chosen={null}
+        />
       ) : !events.length ? (
         // Three different absences, told apart: a read still in flight looks
         // like reading, a failed read names the failure, and only a read that
@@ -194,16 +210,14 @@ export default function CertificatePane({
               </div>
               <p className="coh-event__note">{verdictReading(data)}</p>
 
-              {view === "certificate" ? (
-                <PortfolioPane
-                  certificate={data}
-                  chosen={events.find((event) => event.event_ticker === target) ?? null}
-                />
-              ) : view === "proof" ? (
-                <ProofView data={data} />
-              ) : (
-                <VerdictView data={data} target={target} />
-              )}
+              <CertificateGroups
+                key={group}
+                group={group}
+                active={active && !onParlays}
+                data={data}
+                target={target}
+                chosen={events.find((event) => event.event_ticker === target) ?? null}
+              />
             </>
           )}
         </>
