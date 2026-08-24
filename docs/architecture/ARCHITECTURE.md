@@ -224,7 +224,7 @@ each argued in depth in README §3–§5, distilled here:
   mutually exclusive families against the dollar they pay, certifies coherence
   failures, and records whole book ladders to **its own** DuckDB file. It has no
   order path at all — `modules/api/coherence.py` opens by saying every route in
-  it is a GET and that this is the design, not a gap. See §"The Coherence plane"
+  it is a GET and that this is the design, not a gap. See §"The coherence plane"
   below.
 - **Supports** — `modules/audit/` (the log), `modules/supabase_mirror.py` (the
   mirror), `modules/portfolio/`, `modules/quant_risk/`, the data-operations
@@ -301,16 +301,19 @@ order is the decision loop itself followed by the Kalshi engine's two, and the
 The rails have **one** definition:
 [`web/lib/sections.ts`](../../Part2_Infrastructure/web/lib/sections.ts), which
 the rails, the command palette, the hash whitelist and "Copy link to this view"
-all read. It holds **59 sections across the ten tabs** (counted 2026-08-24;
+all read. It holds **58 sections across the ten tabs** — 48 on the eight
+decision-loop tabs, 6 on Quotes and 4 on Proofs (counted 2026-08-24;
 `web/scripts/desk-sweep-plan.mjs` mirrors the same ten tabs by hand and asserts
-`EXPECTED_SECTIONS = 59`, so a section added to one and not the other fails).
+`EXPECTED_SECTIONS = 58`, so a section added to one and not the other fails).
 `web/tests/tour-truth.test.ts` pins the [feature tour](../product/FEATURE_TOUR.md)'s
 rail lists to that same file, so the tour cannot drift from the app silently —
 this document is not under that guard, which is why it links rather than
-transcribes. Ids are deep links and never change, which is why four ids disagree
-with their labels: view `live` renders "Execution", section `codex` renders
+transcribes. Ids are deep links and never change, which is why six ids disagree
+with their labels: view `live` renders "Execution", view `markets` renders
+"Quotes", view `coherence` renders "Proofs", section `codex` renders
 "Strategies", `activity` renders "Blotter", and Risk's `model` renders "Risk
-engine".
+engine". The two view ids are the newest: the Kalshi engine was relabelled on
+2026-08-24 and neither id moved.
 
 | Tab | View id (`WorkspaceHeader.tsx`) | Role | The question it answers |
 |---|---|---|---|
@@ -322,8 +325,8 @@ engine".
 | Data | `data` | data engineer | can I trust this data? |
 | Reliability | `reliability` | SRE | is it healthy, and what do I do at 3am? |
 | Developer | `developer` | quant developer | can I change this safely? |
-| Markets | `markets` | quant researcher | what is this exchange quoting, and what does a dollar of it cost? |
-| Coherence | `coherence` | quant researcher | do those prices admit a probability at all? |
+| Quotes | `markets` | quant researcher | what is this exchange quoting, and what does a dollar of it cost? |
+| Proofs | `coherence` | quant researcher | do those prices admit a probability at all? |
 
 The workspace's runtime dependency list is six packages —
 `next`, `react`, `react-dom`, `lucide-react`, `@supabase/supabase-js`,
@@ -345,13 +348,18 @@ colour-only meaning, empty results reported rather than hidden — are in
 [`CLAUDE.md`](../../CLAUDE.md) and enforced by the suites it names. §"The honesty
 doctrine is architecture, not styling" below shows where.
 
-## The Coherence plane — a fourth capability with no order path
+## The coherence plane — a fourth capability with no order path
 
 The last two tabs are one separate engine that shares the gateway process and
-almost nothing else. They were a single eleven-section tab until 2026-08-24;
-splitting them put "what is quoted" on **Markets** and "what is proved" on
-**Coherence**, and the section ids did not move with the split — `#coherence/books`
-still resolves, through `RELOCATED_SECTIONS` in `web/lib/workspace-hash.ts`. It reads Kalshi — a venue where a contract paying $1 if an event
+almost nothing else. They were a single eleven-section tab until 2026-08-24, a
+day on which the engine was restructured six times and came to rest divided by
+what its sections are for: "what is quoted" on **Quotes** (`#markets`) and "what
+is proved" on **Proofs** (`#coherence`). No section id moved with the split —
+`#coherence/books` still resolves, through `RELOCATED_SECTIONS` in
+`web/lib/workspace-hash.ts`, and so does every other link the engine has ever
+published. The plane keeps the name `coherence` throughout the gateway, the
+route group and the component directory; only the two rail labels changed. It
+reads Kalshi — a venue where a contract paying $1 if an event
 happens *is* a probability with a price on it — and asks whether a family of
 those prices admits a probability measure at all. Where it does not, the failure
 hands back the portfolio that wins in every state, and that portfolio is the
@@ -362,8 +370,10 @@ live, the books are shown as Kalshi publishes them, mutually exclusive families
 are priced against the dollar they pay, and the tape is recorded.
 [`modules/api/coherence.py`](../../Part2_Infrastructure/modules/api/coherence.py)
 opens by stating that **every route in it is a GET and there is no write path**,
-"not an oversight to be filled in later"; the tab's own header metric reads
-`Order path — none`.
+"not an oversight to be filled in later"; the Proofs header metric reads
+`Order path — none`. It is stated on that tab alone — a head metric is per-tab
+either way, and Proofs is where a reader meets a certificate that is literally a
+portfolio with legs, quantities and fees on it.
 
 Three properties make it architecturally distinct rather than just another tab:
 
@@ -391,36 +401,50 @@ Fifteen gateway routes serve it, split across three routers by concern:
 settlement, rfq, shell). `modules/api/diffusion.py` adds four more for the
 information-diffusion study.
 
-### Eleven sections, and why none of them is a nested rail
+### Nine sections over two rails, and why none of them is a nested rail
 
+[`web/components/MarketsConsole.tsx`](../../Part2_Infrastructure/web/components/MarketsConsole.tsx)
+and
 [`web/components/CoherenceConsole.tsx`](../../Part2_Infrastructure/web/components/CoherenceConsole.tsx)
-renders one `<WorkspaceSubtabs>` rail over the eleven ids in
-`COHERENCE_SECTIONS`, and every *sub*-view inside a section is a `.seg` button
-group instead of a second rail. That is a hard rule with a mechanical reason,
-stated in the console's own header: `WorkspaceSubtabs` publishes `--rail-h` onto
-`document.documentElement`, so a second instance fights the first over one
-custom property — a defect `ReliabilityConsole` recorded before this tab
-existed. `.seg` is plain CSS keyed off `aria-pressed`, owns no global, and
-cannot collide.
+each render one `<WorkspaceSubtabs>` rail — five ids from `MARKETS_SECTIONS`,
+four from `COHERENCE_SECTIONS` — and every *sub*-view inside a section is a
+`.seg` button group instead of a second rail. That is a hard rule with a
+mechanical reason, stated in the consoles' own headers: `WorkspaceSubtabs`
+publishes `--rail-h` onto `document.documentElement`, so a second instance
+fights the first over one custom property — a defect `ReliabilityConsole`
+recorded before this engine existed. `.seg` is plain CSS keyed off
+`aria-pressed`, owns no global, and cannot collide. One tab is on screen at a
+time, so the two consoles never both publish.
 
 Components below are relative to
 [`Part2_Infrastructure/web/components/`](../../Part2_Infrastructure/web/components/);
 the `.seg` labels are the button text as it is written in the source, read
-2026-08-24.
+2026-08-24 after the split.
 
-| Section id | Rail label | Component | `.seg` views (exact button text) |
-|---|---|---|---|
-| `universe` | Universe | `coherence/UniverseSection.tsx` | Baskets · Settlement · Formation |
-| `books` | Books | `coherence/BooksSection.tsx` | Ladder · Identity · Dispersion |
-| `lattice` | Lattice | `coherence/SurfacePane.tsx` → `surface/{Distribution,Stake,Family}View.tsx` | Distribution · Stake · Whole family |
-| `certificate` | Dutch book | `coherence/CertificatePane.tsx` | Verdict · Portfolio · Proof |
-| `fees` | Fees | `coherence/FeesSection.tsx` | Worked example · Cost shape · Ablation |
-| `index` | Coherence index | `coherence/IndexPane.tsx` | Series · Families |
-| `combos` | Combos | `coherence/CombosPane.tsx` | Bands · Parlays · Bounds test · Notes |
-| `calibration` | Calibration | `coherence/CalibrationPane.tsx` | Score · Bands · Corpus |
-| `diffusion` | Diffusion | `coherence/DiffusionPane.tsx` | Absorption · Mechanism · Findings · Kalshi episodes |
-| `shell` | Shell | `coherence/ShellPane.tsx` | Tree · Reading · Layout |
-| `lessons` | Lessons | `coherence/LessonsPane.tsx` | Prices · Structure · Bounds · Record |
+| Tab | Section id | Rail label | Component | `.seg` views (exact button text) |
+|---|---|---|---|---|
+| Quotes | `universe` | Universe | `coherence/UniverseSection.tsx` → `SettlementPane.tsx` | Baskets · Families · Settlement · Formation · Pending |
+| Quotes | `books` | Books | `coherence/BooksSection.tsx` → `BooksPane.tsx`, `RfqPane.tsx` | Ladder · Identity · Dispersion · Channel |
+| Quotes | `lattice` | Lattice | `coherence/SurfacePane.tsx` → `surface/{Distribution,Stake,Family}View.tsx` | Survival · Mass · Moments · Whole family · Stake (Stake opens a second seg: Plan · Capital · Method) |
+| Quotes | `fees` | Fees | `coherence/FeesSection.tsx` | Worked example · Cost shape · Ablation · Replay table |
+| Quotes | `shell` | Shell | `coherence/ShellPane.tsx` | Tree · Reading · Commands · Layout |
+| Proofs | `certificate` | Dutch book | `coherence/CertificatePane.tsx` → `CombosPane.tsx` | Verdict · Proof · Certificate · Bands · Parlays · Bounds |
+| Proofs | `calibration` | Scorecard | `coherence/CalibrationPane.tsx` → `CalibrationScore.tsx`, `IndexPane.tsx` | Score · Bands · Corpus · Index series · Index families |
+| Proofs | `diffusion` | Diffusion | `coherence/DiffusionPane.tsx` | Absorption · Noise floor · Meetings · Mechanism · Kalshi survival · Kalshi episodes · Findings |
+| Proofs | `lessons` | Lessons | `coherence/LessonsPane.tsx` | Coverage · Prices · Structure · Bounds · Record |
+
+**Two published section ids are views now, and neither link is broken.**
+`combos` was folded into `certificate` — a Fréchet bound test *is* a coherence
+test, run on legs the venue states rather than strikes this engine infers — and
+`index` into `calibration`, relabelled "Scorecard", because "were these prices
+right" measured continuously and measured once settled is one question.
+`RELOCATED_SECTIONS` in `web/lib/workspace-hash.ts` sends both, the six other
+demoted ids, and the five sections that changed tab to whatever carries them
+now — **sixteen entries**, thirteen under `#coherence/` and three under
+`#markets/`, which together cover the **25 distinct locations** this engine has
+ever published. `web/tests/coherence-sections.test.ts` pins the table entry by
+entry and asserts that every id ever shipped as a section resolves somewhere,
+rather than falling through to a rail default.
 
 `lessons` is declared `secondary={["lessons"]}` on the rail. The four lesson
 groups come from `web/lib/coherence/lessons.ts`, whose `COHERENCE_LESSONS` holds
@@ -1068,7 +1092,7 @@ was true when written and is not now, so it is gone.
   covered by the auth matrix, but nothing in `web/` calls it. Named because a
   route with no consumer is the exact defect
   [`PLAN.md` §1](../planning/PLAN.md) records.
-- **The Coherence engine sends nothing, and that is the design.** It sizes
+- **The coherence engine sends nothing, and that is the design.** It sizes
   orders and renders an order plan; there is no send path in this version.
   `COHERENCE_DRY_RUN` defaults on and is read and reported so the surface can
   state it, but turning it off would not be sufficient to trade — the code that

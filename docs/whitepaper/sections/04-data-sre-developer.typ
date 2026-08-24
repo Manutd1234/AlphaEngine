@@ -964,9 +964,9 @@ differently are two things to keep in step; one loader is one.
 
 === The API and WebSocket protocols
 
-The REST surface is #measured[54 paths and 87 schemas][`tools/openapi.json`],
-exported from the running FastAPI application and committed. WebSockets are
-*deliberately outside* that contract --- OpenAPI does not describe them --- and
+The REST surface is #measured[73 paths and 144 schemas][`tools/openapi.json`,
+counted 2026-08-24], exported from the running FastAPI application and
+committed. WebSockets are *deliberately outside* that contract --- OpenAPI does not describe them --- and
 their shapes are pinned by tests instead of by the schema, which the module
 docstring states rather than leaving a reader to infer that the socket was
 forgotten.
@@ -1061,8 +1061,9 @@ database being slow must not be able to slow an order down or to lose one.
 
 === The generated-gate discipline
 
-Three artefacts in this repository are *generated* and then *checked in CI*,
-and the pattern is the same each time: a generator writes a file, a checker
+Seven files in this repository are generated, and three of them are gated by a
+checker that *recomputes the artefact itself*. Those three are the pattern worth
+reading, because it is the same each time: a generator writes a file, a checker
 recomputes it and fails the build on drift, and the file itself carries a header
 saying it must not be hand-edited.
 
@@ -1071,30 +1072,36 @@ saying it must not be hand-edited.
   [Artefact], [Generator], [Checker], [What drift would mean],
   [`gateway-openapi-digest.generated.ts`], [`tools/export_openapi.py`], [`check-gateway-openapi-digest.mjs`], [the web tier's generated client describes a gateway that is no longer deployed],
   [`repository-manifest.generated.json`], [`generate-codebase-manifest.mjs`], [same script, `--check`], [the repository catalogue on the Developer tab lists files that do not exist],
-  [`test-counts.generated.ts`], [`refresh-test-counts.mjs`], [`check-test-counts.mjs`], [the desk quotes a suite size nobody measured],
+  [`test-counts.generated.ts`], [`refresh-test-counts.mjs`], [`check-test-counts.mjs`, on the WEB line only], [the desk quotes a suite size nobody measured],
 )
 
 The OpenAPI gate hashes *canonical* JSON --- keys sorted recursively --- so that
 a re-export which reorders a dictionary does not read as a contract change. The
 committed digest today is
-#measured[`9409bdda…523b`][`web/lib/gateway-openapi-digest.generated.ts`].
+#measured[`a0263f96…0205`][`web/lib/gateway-openapi-digest.generated.ts`, verified
+against `tools/openapi.json` on 2026-08-24].
 
 The manifest gate compares *only the file list*, not the commit or the
 generation date, because those change on every commit by design and gating on
 them would fail every push. It also skips itself, with a message, when git is
 unavailable --- a tarball build has nothing to compare against, and the gate
 holds where drift can actually happen. The current manifest carries
-#measured[1 413 files][`web/lib/repository-manifest.generated.json`] at commit
-`1b2e77b`.
+#measured[1 770 files][`web/lib/repository-manifest.generated.json`] at commit
+`ba58a40`.
 
 The counts gate is the most interesting of the three, because it cannot live
 inside the thing it measures: *a test that checks the test count changes the
 test count*. So the check runs outside the suite, against the runner's own
 summary line teed to a log file. The committed figures, measured on
-#measured[2026-08-22][`web/lib/test-counts.generated.ts`], are
-#measured[2 037 gateway tests (2 036 passed, 1 skipped)][`web/lib/test-counts.generated.ts`],
-#measured[4 008 web tests across 871 suites][`web/lib/test-counts.generated.ts`]
-and #measured[14 service tests][`web/lib/test-counts.generated.ts`]. Nothing
+#measured[2026-08-24][`web/lib/test-counts.generated.ts`], are
+#measured[2 998 gateway tests (2 996 passed, 2 skipped), in the CI shape][`web/lib/test-counts.generated.ts`, refreshed with `RERANK_TEST_MODEL_PATH` blanked],
+#measured[4 487 web tests across 984 suites][`web/lib/test-counts.generated.ts`]
+and #measured[24 service tests][`web/lib/test-counts.generated.ts`]. Only the web
+figure is gated: CI runs `check-test-counts.mjs` with the argument `web` and it
+reads that line alone, so the gateway and service lines beside it are dated
+records rather than contracts, and may legitimately differ from what a
+differently configured run prints --- which is why the gateway figure here is
+quoted with the shape it was taken in. Nothing
 regenerates them automatically, because running three suites inside a production
 build would make every deploy pay for them --- so the header names the date each
 figure was printed, and the desk renders that date beside the number.

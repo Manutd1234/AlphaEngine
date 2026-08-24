@@ -383,11 +383,15 @@ the wrong opening section, and two renames had never reached the document.
 
 Rewriting fixed that day. The test fixes the next one. It reads
 `web/lib/sections.ts` — the single source the rails, the command palette and the
-hash whitelist all read — and asserts, for all **nine** workspaces
-(`OVERVIEW … COHERENCE`):
+hash whitelist all read — and asserts, for all **ten** workspaces
+(`OVERVIEW … MARKETS, COHERENCE` — the last two are the constant names; their
+rail labels read "Quotes" and "Proofs"):
 
 - every rail label appears in the tour;
-- the **total** is 59 *and* the tour states a "59 section" figure in its prose;
+- the **total** is 58 *and* the tour states a "58 section" figure in its prose
+  — the number moved 59 → 65 → 59 → 57 across 2026-08-24 as the Kalshi engine
+  was restructured, and three places quote it: the tour,
+  `scripts/desk-sweep-plan.mjs` and this assertion;
 - no **retired** label (`Codex`, `Activity`, `Telemetry & SLIs`, `VaR & model`)
   is quoted as a rail entry — the direction a rewrite gets wrong, since a
   plausible invented label reads perfectly;
@@ -486,8 +490,11 @@ clean bill of health.
 
 Sixteen web suites — one `summarised-` and one `disclosure-` file for each of
 **eight of the ten tabs** (data, developer, execution, overview, portfolio,
-reliability, research, risk; **Markets and Coherence have neither**, which is a
-real gap and is named here rather than left to be inferred). They exist because copy edits
+reliability, research, risk; **Quotes and Proofs have neither**, which is a
+real gap and is named here rather than left to be inferred — their rendered
+phrases are pinned at exact site counts by `coherence-reading-claims.test.ts`
+and `coherence-proof-claims.test.ts`, but no suite holds a whole sentence of
+theirs byte for byte). They exist because copy edits
 have a failure mode no diff review catches: a shortened sentence that reads
 fluently and no longer carries a number, a negation, or the reason a measurement
 is missing.
@@ -923,11 +930,14 @@ committed.
   the argument the project makes about itself. The workspace's runtime
   dependencies are Next, React, `lucide-react`, `@supabase/supabase-js` and
   `oracledb`, and nothing else.
-- **No `summarised-` or `disclosure-` suite for the Markets or Coherence tabs.**
+- **No `summarised-` or `disclosure-` suite for the Quotes or Proofs tabs.**
   Eight of the ten tabs have both; the Kalshi engine's two have neither. Their
-  copy is currently guarded only by the general suites (`house-rules`,
-  `british-spelling`, `middle-dot`) and by `tour-truth`'s section-label check.
-  Named as a gap, not implied to be covered.
+  copy is guarded by the general suites (`house-rules`, `british-spelling`,
+  `middle-dot`), by `tour-truth`'s section-label check, and by the two claim
+  suites `coherence-reading-claims.test.ts` and `coherence-proof-claims.test.ts`
+  — which pin rendered phrases at exact site counts and cap each lede at one
+  sentence and 200 characters, but do not hold whole sentences. Named as a gap,
+  not implied to be covered.
 - **No DOM, and therefore no layout — every geometry claim is derived, never
   observed.** This is the largest standing limit on the web suite and it is
   easy to miss, because the suites that assert geometry read entirely
@@ -962,13 +972,16 @@ committed.
   dropped and the card falls back to a plain five-row auto grid, so the failure
   mode is the previous layout rather than a broken one.
 
-  The Kalshi engine's eleven `.seg` view switchers, split across Markets and
-  Coherence, are a fifth, and the newest.
-  They are guarded structurally — `seg-metrics.test.ts` holds `.seg`'s metrics
-  and `CoherenceConsole.tsx`'s header records why a nested `<WorkspaceSubtabs>`
-  is forbidden inside a section (a second rail instance fights the first over
-  the `--rail-h` publisher) — but nothing measures how a four-button group wraps
-  in a narrow pane.
+  The Kalshi engine's ten `.seg` view switchers, split across Quotes and Proofs
+  — one per section, plus Lattice's second seg under Stake — are a fifth, and
+  the newest. They are guarded structurally: `seg-metrics.test.ts` holds
+  `.seg`'s metrics, and the consoles' headers record why a nested
+  `<WorkspaceSubtabs>` is forbidden inside a section (a second rail instance
+  fights the first over the `--rail-h` publisher). What nothing measures is how
+  a group **wraps**, and the consolidation of 2026-08-24 made that sharper
+  rather than softer: Dutch book now carries six buttons and Diffusion seven, so
+  the wrap those segs are designed to take in a narrow pane is derived from the
+  stylesheet and has never been observed.
 
   The fix is not a browser-driver dependency — that is the rule above, and it
   is not being traded away for this. It is that **a geometry change is walked

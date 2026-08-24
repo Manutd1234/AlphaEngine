@@ -14,7 +14,7 @@
   title: "AlphaEngine",
   subtitle: "From market signal to governed decision — architecture, mathematics and operations of a quantitative trading desk",
   version: "Revision A",
-  generated: "22 August 2026",
+  generated: "24 August 2026",
 )
 
 #include "sections/01-abstract-topology.typ"

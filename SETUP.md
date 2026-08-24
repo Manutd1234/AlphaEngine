@@ -24,9 +24,10 @@ npm run dev
 
 Open **http://localhost:3000**. You land on a sign-in page that tells you
 accounts are not configured in this deployment and offers one button — **Open
-the workspace**. Click it and you are on the full **nine-tab** desk: Overview,
-Research, Execution, Portfolio, Risk, Data, Reliability, Developer and
-Coherence.
+the workspace**. Click it and you are on the full **ten-tab** desk: Overview,
+Research, Execution, Portfolio, Risk, Data, Reliability, Developer, Prices and
+Proofs. The last two are the Kalshi engine; their URL ids are `#markets` and
+`#coherence`, which is older than their labels and deliberately unchanged.
 
 That is the whole first run. With ten minutes rather than two, the
 [full local stack](#the-full-local-stack) adds the gateway and real data.
@@ -62,7 +63,7 @@ job queue runs in-process unless `REDIS_URL` is set.
 ## The full local stack
 
 Adds the FastAPI risk gateway, so the Portfolio, Risk, Execution, Reliability
-and the Markets/Coherence pair read real state instead of the sandbox.
+and the Prices/Proofs pair read real state instead of the sandbox.
 
 ### ⚠ Read this before you create the virtualenv
 
@@ -294,7 +295,7 @@ which is in `requirements-dev.txt` only.
    skips cleanly when git is unavailable, so a tarball build still works. Expect
    it to be red whenever a file has landed since the last refresh — run on
    2026-08-24 it reported `Repository manifest is stale (3 added, 1 removed)`,
-   naming the three Coherence components added this session and the deleted
+   naming the three `components/coherence/` files added this session and the deleted
    `PendingPane.tsx`. The fix is `npm run catalog:refresh`, never an edit to the
    JSON.
 
@@ -315,7 +316,7 @@ node --import tsx scripts/generate-gateway-client.ts     # 3. lib/gateway-contra
 
 ### Advanced: the desk sweep
 
-`web/scripts/desk-sweep.mjs` drives **all 59 rail sections across all 9 tabs**
+`web/scripts/desk-sweep.mjs` drives **all 57 rail sections across all 10 tabs**
 under six backend fault profiles, using Chrome DevTools Protocol fault
 injection, and asserts no surface can dead-end. It is the only check in the
 repository that puts a browser in front of the desk — `npm test` is plain Node
@@ -336,10 +337,13 @@ cd Part2_Infrastructure/web && node scripts/desk-sweep.mjs
 
 Flags are `--name=value` only — `--profile=gateway-hang --tab=portfolio`; a
 space-separated `--profile gateway-hang` is not parsed. The counts above are
-`EXPECTED_SECTIONS = 59` and the nine-key `TABS` map in
-`web/scripts/desk-sweep-plan.mjs`, which is what the script actually executes;
-`desk-sweep.mjs`'s own header comment still says "47 rail sections across all 8
-tabs" and is stale prose in a source file.
+`EXPECTED_SECTIONS = 57` and the ten-key `TABS` map in
+`web/scripts/desk-sweep-plan.mjs`, which is what the script actually executes.
+Two stale figures live nearby and neither is what runs: `desk-sweep.mjs`'s own
+header comment still says "47 rail sections across all 8 tabs", and the sweep
+walks 57 cells rather than the 65 the 2026-08-24 promotion pass briefly made
+addressable — eight subjects on the Kalshi engine are in-pane views again, and a
+view is not a section the sweep can reach.
 
 *Not run while this file was written; the prerequisites are read off the
 script's own header and argument parser.*

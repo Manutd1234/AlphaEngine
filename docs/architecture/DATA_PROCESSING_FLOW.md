@@ -596,7 +596,8 @@ partition of nothing, `detected: True` with zero communities.
 
 ## 6. The Kalshi tape and one live read, end to end
 
-The Coherence engine is a second data plane inside the same process, and it is
+The coherence engine — the Prices and Proofs tabs — is a second data plane
+inside the same process, and it is
 worth tracing because it degrades differently from everything above: it depends
 on a **third-party exchange answering right now**, and no fallback can invent
 what it would have said.

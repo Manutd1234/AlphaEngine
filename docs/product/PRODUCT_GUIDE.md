@@ -33,8 +33,9 @@ absences with reasons attached, rather than as plausible defaults.
 The tabs are the decision loop made navigable, in the order a desk makes
 decisions: research flows to execution only through a risk gate, the next three
 tabs interrogate the ground the first five stand on, and the last two are one
-self-contained research engine over a different venue — Markets is what that
-venue quotes, Coherence is what the engine proves about it. `Alt+1` through
+self-contained research engine over a different venue — **Quotes** (`#markets`)
+is what that venue quotes, **Proofs** (`#coherence`) is what the engine proves
+about it. `Alt+1` through
 `Alt+9`, then `Alt+0` for the tenth, switch tabs — the listener is in
 [`web/lib/use-tab-shortcuts.ts`](../../Part2_Infrastructure/web/lib/use-tab-shortcuts.ts)
 and keys off `event.code`, because on macOS `Option+digit` types `¡™£` and a
@@ -56,25 +57,30 @@ flowchart LR
         D["Data<br/>#data"] ~~~ Y["Reliability<br/>#reliability"] ~~~ V["Developer<br/>#developer"]
     end
     subgraph venue["A second venue, read only"]
-        C["Coherence<br/>#coherence"]
+        M["Quotes<br/>#markets"] -- "the reading" --> C["Proofs<br/>#coherence"]
     end
     ground -. "provenance of every number upstream" .-> loop
     venue -. "prices as probabilities; no order path" .-> loop
 ```
 
-Four URL ids deliberately disagree with their labels, because deep links came
-first and ids never change: view `live` renders **Execution**, section `codex`
+Six URL ids deliberately disagree with their labels, because deep links came
+first and ids never change: view `live` renders **Execution**, view `markets`
+renders **Quotes**, view `coherence` renders **Proofs**, section `codex`
 renders **Strategies**, section `activity` renders **Blotter**, and Risk's
 section `model` renders **Risk engine**
-(`web/lib/sections.ts`). One whole tab id is legacy the same way: the console
+(`web/lib/sections.ts`). The last two are the newest and the most likely to
+confuse: the Kalshi engine was relabelled on 2026-08-24 and neither id moved, so
+`#coherence/certificate` is still the address of a section now reached by
+clicking "Proofs". One whole tab id is legacy the same way: the console
 used to have a **Systems** tab, and `#systems` still resolves — to Reliability,
 the half that answers "is it up", which is the question someone following a
 saved systems link is most likely asking (`web/lib/workspace-hash.ts`).
 
 The rails below name each tab's sections. They are transcribed from
 `web/lib/sections.ts` — the single definition the rails, the palette, the hash
-whitelist and "Copy link to this view" all read, **59 sections across the nine
-tabs** — so if this file and the app ever disagree, `sections.ts` is right. A
+whitelist and "Copy link to this view" all read, **58 sections across the ten
+tabs** (48 on the eight decision-loop tabs, 6 on Quotes, 4 on Proofs) — so if
+this file and the app ever disagree, `sections.ts` is right. A
 test holds the feature tour to the same file
 (`web/tests/tour-truth.test.ts`); this guide has no such guard, which is why it
 names the source rather than asking to be believed.
@@ -100,11 +106,11 @@ uses (`web/tests/desk-interconnect-role-launcher.test.ts`).
 | DevOps / SRE | SRE | Reliability | Is the platform up, and what degraded first? |
 | Quant Developer | API | Developer | How is this built, and does the running system match the repo? |
 
-Two tabs have no card, for two different reasons. **Overview** is marked *All
-Roles* and is the launcher itself. **Coherence** carries the Quant role in the
-header but is not a stop on the desk's own decision loop — it reads a second
-venue and cannot reach the book — so putting it in the loop's launcher would
-imply a handoff that does not exist.
+Three tabs have no card, for two reasons. **Overview** is marked *All Roles*
+and is the launcher itself. **Quotes** and **Proofs** both carry the Quant role
+in the header but neither is a stop on the desk's own decision loop — they read
+a second venue and cannot reach the book — so putting either in the loop's
+launcher would imply a handoff that does not exist.
 
 ### 1 · Overview — `#overview`
 
@@ -337,7 +343,7 @@ diagram imply otherwise. The Task Queue is labelled sample data and keeps its
 edits in the current browser session (`web/lib/developer-work.ts`) — unlike the
 Data tab's Work Queue, nothing here is persisted, and the label says so.
 
-### 9 · Coherence — `#coherence`
+### 9–10 · Quotes — `#markets` · and Proofs — `#coherence`
 
 **The question:** do a venue's quoted prices admit any probability at all — and
 where they do not, what is the portfolio that profits whichever way the world
@@ -347,34 +353,51 @@ A prediction-market contract pays $1 if an event happens, so its price *is* a
 probability, and Kalshi publishes the logical structure between contracts in its
 own metadata. That makes a whole family of markets one dollar sold in pieces,
 and it makes coherence a testable property rather than a pattern to scan for.
-The page header states the tab in one line — kicker **Coherence**, title
-**"Prices as probabilities, tested for coherence"** — and its fourth metric
-tile is the tab's whole safety statement: **Order path — none**, noted "this
-engine reads, records and certifies; it sends nothing"
-(`web/components/CoherenceConsole.tsx`).
+One engine, two tabs, because the reading and the argument about the reading are
+two questions and a single rail asked a reader to hold both: **Quotes** is what
+the exchange quotes, **Proofs** is what this engine proves about those quotes.
+Each page header states its tab in one line — kicker **Quotes**, title **"The
+exchange as it is quoted"**; kicker **Proofs**, title **"Prices as
+probabilities, tested for coherence"** — and Proofs carries the safety
+statement as a metric tile: **Order path — none**, noted "this engine reads,
+records and certifies; it sends nothing"
+(`web/components/MarketsConsole.tsx`, `web/components/CoherenceConsole.tsx`).
+It is stated once rather than on both tabs, on the tab where a reader has just
+been handed a certificate that is literally a portfolio with legs, quantities
+and fees on it.
 
-**Rail: eleven sections, each with an in-pane view switcher.** Every section
+**The ids are older than the labels and did not move.** `#markets` renders
+"Quotes" and `#coherence` renders "Proofs". `coherence` is the only one of the
+two `origin/main` has ever published, so every `#coherence/<section>` link in
+the world still resolves — the four reading sections that changed tab, and the
+eight ids that stopped being sections altogether, are mapped to their new
+carrier by `RELOCATED_SECTIONS` in `web/lib/workspace-hash.ts` rather than
+falling back to a rail default.
+
+**Rail: nine sections, five on Quotes and four on Proofs.** Every one of them
 splits its content across `.seg` buttons rather than scrolling, and that is a
 hard structural rule rather than a style preference: a nested
 `<WorkspaceSubtabs>` would put a second rail instance in front of the `--rail-h`
 publisher that the first one writes to `document.documentElement`
 (`web/components/WorkspaceSubtabs.tsx`), so the two would fight over the same
 custom property. The section ids are public deep links and never change; the
-view names below are component state and are not addressable.
+view names below are component state and are **not** addressable — not in the
+URL, not in the command palette, and not walked by `web/scripts/desk-sweep.mjs`.
+That is the trade this rail makes on purpose. For one day on 2026-08-24 the
+opposite was tried, and promoting every subject to its own section produced
+seventeen rail entries across the two tabs; nine is what a reader can hold.
 
-| Section | Views | What it answers |
-|---|---|---|
-| **Universe** | Baskets · Settlement · Formation | What does a whole mutually exclusive family cost against the dollar it is certain to pay? Both directions are priced, because buying every outcome needs every ask and selling needs every bid, and in the tails a market routinely has one and not the other. Settlement is the quantity the contract actually resolves against — not the price anybody watches — and Formation is the machinery that produces it. |
-| **Books** | Ladder · Identity · Dispersion | What does the market look like as Kalshi really publishes it? Two bid ladders and no asks: the offer you would trade against is a reading of the opposite ladder. Identity draws `yes_ask + no_ask = 1 + spread`, which is why the "buy both sides for under a dollar" branch is unreachable rather than rare. Dispersion is the request-for-quote channel — the only place several professionals price the same joint probability independently. |
-| **Lattice** | Distribution · Stake · Whole family | What probability measure do these prices imply, and what would it be right to bet? Distribution is the survival function the strikes sample and the mass differencing leaves between them; Stake is the log-optimal plan with its worst outcome printed beside its growth rate; Whole family is every outcome the solver ranked, including the ones it passed over. |
-| **Dutch book** | Verdict · Portfolio · Proof | Do these prices admit a probability measure? The verdict a reader sees almost every time is "coherent", and that is the claim rather than a disappointment — a detector that only spoke when it found something would leave "no opportunity" and "the feed is down" looking identical. When it does find one, the certificate is a fixed-width block a reader can check by hand. |
-| **Fees** | Worked example · Cost shape · Ablation | What does a real position actually pay, and does the cost model change the answer? The defaults reproduce Kalshi's own documented case, where the fee component nobody models is nineteen times the one everybody does. Ablation replays the recorded tape under four cost configurations, including the `no_fees` test every bot in this space ships with. |
-| **Coherence index** | Series · Families | How far from coherent are these quotes over time? The Dutch-book test is binary and almost always says no; this is the continuous version, measured on every poll. Unmeasurable readings are drawn as gaps, never dropped or zeroed. |
-| **Combos** | Bands · Parlays · Bounds test · Notes | What do a parlay's own legs pin down about it? Two probabilities never determine the probability of both, so the legs give a Fréchet band and never a price, and the band's width is how far the parlay can move with no leg moving at all. |
-| **Calibration** | Score · Bands · Corpus | Were the prices right, once settled? The Brier score is split under Murphy's decomposition into reliability, resolution, uncertainty and the residual the binning leaves (`modules/coherence/kernel/calibration.py`). |
-| **Diffusion** | Absorption · Mechanism · Findings · Kalshi episodes | How fast is information absorbed? Two arms of one question: how long a coherence violation survives on Kalshi, and how long a timestamped announcement takes to finish reaching the price. |
-| **Shell** | Tree · Reading · Layout | Where does a market live, and what has actually been derived about it? The universe is walked as a filesystem, because the shard a market sits on is a directory and crossing that boundary is a real cost. |
-| **Lessons** | Prices · Structure · Bounds · Record | What is the curriculum, and what guards each claim? Fourteen lessons rendered from `web/lib/coherence/lessons.ts`, each naming the code it is about and the tests that pin it, matched one-to-one by the fourteen notebooks in `Part2_Infrastructure/notebooks/coherence_lab/`. |
+| Tab | Section | Views | What it answers |
+|---|---|---|---|
+| Quotes | **Universe** | Baskets · Families · Settlement · Formation · Pending | What does a whole mutually exclusive family cost against the dollar it is certain to pay? Both directions are priced, because buying every outcome needs every ask and selling needs every bid, and in the tails a market routinely has one and not the other. Families cuts the universe by Kalshi's own `category`, never by a ticker prefix. Settlement is the published variable a family resolves against — not the price on the screen; Formation is the machinery that produces that number, and Pending draws the station disagreement on the minutes not yet published. |
+| Quotes | **Books** | Ladder · Identity · Dispersion · Channel | What does the market look like as Kalshi really publishes it? Two bid ladders and no asks: every offer is implied. Identity draws `yes_ask + no_ask = 1 + spread`, which is why the "buy both sides for under a dollar" branch is unreachable rather than rare. Dispersion and Channel are the request-for-quote side — what several makers, pricing the same joint probability independently, disagree about, which is the only place the venue reveals it. |
+| Quotes | **Lattice** | Survival · Mass · Moments · Whole family · Stake | What probability measure do these prices imply, and what would it be right to bet? The survival function the strikes sample, the mass differencing leaves between them, the moments that fall out, and every outcome the solver ranked. Stake opens a second `.seg` — Plan · Capital · Method — for the log-optimal plan with its worst outcome printed beside its growth rate, because log-optimal is not riskless. It sizes; it sends nothing. |
+| Quotes | **Fees** | Worked example · Cost shape · Ablation · Replay table | What does a real position actually pay, and does the cost model change the answer? The defaults reproduce Kalshi's own documented case, where the fee component nobody models is nineteen times the one everybody does. Ablation replays the recorded tape under four configurations, including the `no_fees` test every bot in this space ships with, and Replay table is that run row by row. |
+| Quotes | **Shell** | Tree · Reading · Commands · Layout | Where does a market live, and what has actually been derived about it? The universe walked as a filesystem, because the shard a market sits on is a directory and crossing that boundary is a real cost. |
+| Proofs | **Dutch book** | Verdict · Proof · Certificate · Bands · Parlays · Bounds | Do these prices admit a probability measure? The verdict a reader sees almost every time is "coherent", and that is the claim rather than a disappointment — a detector that only spoke when it found something would leave "no opportunity" and "the feed is down" looking identical. Certificate is what a failure hands back: the portfolio that wins in every state, drawn state by state, the constructive half of the theorem. Bands · Parlays · Bounds run the same test on the parlays the venue states — two probabilities never determine the probability of both, so the legs give a Fréchet band and never a price. Absorbed the published section `combos` on 2026-08-24: a Fréchet bound test *is* a coherence test, on legs the exchange states rather than strikes this engine infers. |
+| Proofs | **Scorecard** | Score · Bands · Corpus · Index series · Index families | Were these prices right — once settled, and over time? The Brier score split under Murphy's decomposition into reliability, resolution, uncertainty and the residual the binning leaves (`modules/coherence/kernel/calibration.py`). Index series and Index families are the continuous form of the same question, measured on every poll as the distance to the nearest coherent price vector; unmeasurable readings are drawn as gaps, never dropped or zeroed. Absorbed the published section `index` on 2026-08-24, which had asked a reader to discover that the two were one question. |
+| Proofs | **Diffusion** | Absorption · Noise floor · Meetings · Mechanism · Kalshi survival · Kalshi episodes · Findings | How fast is information absorbed? How long a coherence violation survives on Kalshi, and how long a timestamped announcement takes to finish reaching the price. Findings keeps the out-of-sample verdict apart from the mechanism that produced it. |
+| Proofs | **Lessons** | Coverage · Prices · Structure · Bounds · Record | What is the curriculum, and what guards each claim? Fourteen lessons rendered from `web/lib/coherence/lessons.ts`, each naming the code it is about and the tests that pin it, matched one-to-one by the notebooks in `Part2_Infrastructure/notebooks/coherence_lab/`. Coverage maps the catalogue across both rails at once — a lesson's `pane` is a section id with no tab in it, and half of them are taught on Quotes. |
 
 **Writes it gates:** none, and this is structural rather than a setting. All 15
 `/api/coherence/*` routes are `GET`, and `tests/test_coherence_security_auth.py`
@@ -438,7 +461,7 @@ the second means nothing. The figures above are from the run recorded on
 2026-08-24; re-running the study replaces them, which is the point of storing
 them as fields rather than as prose.
 
-**Read with no keys.** Every price on this tab comes from Kalshi's public
+**Read with no keys.** Every price on both tabs comes from Kalshi's public
 endpoints. The recorder that builds the tape is off unless **both**
 `COHERENCE_SERIES` and `COHERENCE_POLL_S` are set on the gateway
 (`modules/coherence/tunables.py`), and when it is off the sections say what they
@@ -531,9 +554,13 @@ rule and one floor, both enforced by test
 There are eight `disclosure-<tab>.test.ts` files and eight
 `summarised-<tab>.test.ts` files, covering **eight of the ten tabs**: data,
 developer, execution, overview, portfolio, reliability, research and risk.
-Markets and Coherence have neither, which is a real gap in the copy guards
-rather than an exemption — their equivalent floors are argued in the component
-headers and held by the panes' own suites.
+Quotes and Proofs have neither. That is a narrower gap than it looks: their
+rendered phrases are pinned at exact site counts, and their ledes capped at one
+sentence, by `web/tests/coherence-reading-claims.test.ts` and
+`coherence-proof-claims.test.ts`, whose owner lists add up to both rails. What
+those two do not do is pin whole sentences byte for byte the way a
+`summarised-<tab>` pair does, so a fluent rewrite that keeps every pinned claim
+could still lose a qualifier.
 
 ## Honesty as behaviour you can see
 
@@ -615,7 +642,7 @@ L2 feeds carry ladders, not trade prints, so a partial-fill model would report
 an assumption as measured execution. **No margin, financing or liquidation
 modelling** on an unlevered cash book, and **no shared experiment registry** —
 research history is per browser, the gateway's `backtest_runs` table the
-durable record. On Markets and Coherence, **no order path of any kind**, and no
+durable record. On Quotes and Proofs, **no order path of any kind**, and no
 executor: the diffusion arm exists precisely to answer whether one would be
 worth building, and its verdict so far is a null. Each gap, with where it bites
 and why it is not here, is argued in README
@@ -625,9 +652,10 @@ Two capabilities are **planned rather than built**, and are named here so that
 neither reads as shipped. The gateway's OpenAPI digest has the same five-link
 custody shape as the Monte Carlo parity chain but is **not drawn** — it is a
 verdict pill in the Contracts pane, and drawing it needs a second chain array
-and a caller, not new machinery. And neither Markets nor Coherence has **a
-copy-guard test pair** of the kind every other tab carries, so a fluent rewrite
-of their prose would not be caught the way the same rewrite would be on Risk.
+and a caller, not new machinery. And neither Quotes nor Proofs has **a
+copy-guard test pair** of the kind every other tab carries — only the claim
+suites above — so a fluent rewrite of their prose would not be caught the way
+the same rewrite would be on Risk.
 
 ## Where to go next
 

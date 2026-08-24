@@ -18,7 +18,7 @@ something could not be measured, it says so rather than estimating.
 | The interleaved A/B ladders in §2.1–2.3 | alternating builds at identical flags, per change | 2026-08-19 → 2026-08-20 |
 | The production `/metrics` block in §3 | read off the live gateway | **2026-08-17** |
 | The venue round trips in §2.3 | `tools/colocation_probe.py`, from the OCI VM | 2026-08-19 |
-| The tab-switch and request-count tables in §4 | `web/scripts/tab-switch-measure.mjs`, `request-count-measure.mjs`, production build over CDP at 4× CPU throttle | **2026-08-20**, and they cover **eight** tabs — Coherence is in both harnesses' tab lists now and has never been measured |
+| The tab-switch and request-count tables in §4 | `web/scripts/tab-switch-measure.mjs`, `request-count-measure.mjs`, production build over CDP at 4× CPU throttle | **2026-08-20**, and they cover **eight** tabs — Prices (`markets`) and Proofs (`coherence`) are in both harnesses' tab lists now and neither has ever been measured |
 | The research-plane table in §4b | `tools/bench_rerank.py` (median of seven runs) and two live model calls | 2026-08-22 |
 
 Those are different measurements on different machines and are never merged into
@@ -819,11 +819,12 @@ connect. Vercel serves the web project from `sin1`, the same city as the VM.
 
 ### 4.2 The Kalshi engine has its own read budget, and it is gated twice
 
-Markets and Coherence are the surfaces on the desk whose reads go **through**
-the gateway **to a live exchange**, so they are budgeted separately from the
-eight measured above. Nothing in this subsection is a timing measurement —
-these are the deadlines and the gating the code declares, re-read on 2026-08-24.
-Neither tab has been through `tab-switch-measure.mjs`.
+Prices (`#markets`) and Proofs (`#coherence`) are the surfaces on the desk whose
+reads go **through** the gateway **to a live exchange**, so they are budgeted
+separately from the eight measured above. Nothing in this subsection is a timing
+measurement — these are the deadlines and the gating the code declares, re-read
+on 2026-08-24 after the engine was resplit into those two tabs. Neither has been
+through `tab-switch-measure.mjs`.
 
 **A third gate joined the two on 2026-08-24, and it spends budget rather than
 saving it.** Gating a read on its open section is right for the exchange and was
@@ -931,7 +932,7 @@ that pass checked the paths, not the numbers.
 | Gateway → browser (dev machine) | 21–27 ms | 2026-08-20 | |
 | Book recompute | 1 s | declared, not timed | `RISK_MONITOR_INTERVAL_S` in `modules/risk_proxy/monitor.py`; the browser polls (4–15 s) are now the observability floor |
 | Browser order book | 100 ms in · **≈3.3 Hz out** | declared, not timed | Binance `@depth20@100ms` straight to the browser; published to React at `1000 / THROTTLE_INTERVAL_MS` (300 ms), which is the desk's one shared throttle rather than a second number. Already optimal — one hop, no backend |
-| Coherence live reads | 9 s / 28 s browser deadlines, 25 s server budget | declared, not timed | §4.2; the tab has never been through the switch harness |
+| Kalshi engine live reads | 9 s / 28 s browser deadlines, 25 s server budget | declared, not timed | §4.2; neither Prices nor Proofs has been through the switch harness |
 
 The honest headline: **the decision is fast, the system is not, and the gap is
 entirely geography.** A sub-microsecond claim about this deployment is true of

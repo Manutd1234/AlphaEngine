@@ -111,12 +111,14 @@ new dependency tree.
 
 ## What it does
 
-**One tab per desk role** — the workspace has **nine** tabs over 59 rail
+**One tab per desk role** — the workspace has **ten** tabs over 57 rail
 sections: an overview that launches into the others, one each for the seven
-roles the platform is built for, and Coherence, a research surface rather than a
-role. `NAV_ITEMS` in `components/WorkspaceHeader.tsx` declares the rail order and
-`lib/sections.ts` declares every section id; those ids are public deep links and
-never change.
+roles the platform is built for, and Quotes and Proofs, the two halves of a
+research surface rather than a role. `NAV_ITEMS` in
+`components/WorkspaceHeader.tsx` declares the rail order and `lib/sections.ts`
+declares every section id; those ids are public deep links and never change,
+which is why the last two tabs are addressed as `#markets` and `#coherence`
+while reading "Quotes" and "Proofs".
 
 | Tab | Role | What it answers |
 | --- | --- | --- |
@@ -127,7 +129,8 @@ never change.
 | Data | Data engineer | What needs attention, where did this number come from, and can it be trusted? |
 | Reliability | DevOps / SRE | Is the platform healthy, and which layer broke? |
 | Developer | Quant developer | What is the contract, and what proves it still holds? |
-| Coherence | Quant researcher | Are these prices a probability measure, and what does the failure pay? |
+| Prices (`#markets`) | Quant researcher | What is this exchange quoting, and what does a whole dollar of it cost? |
+| Proofs (`#coherence`) | Quant researcher | Are these prices a probability measure, and what does the failure pay? |
 
 Panels have exactly one home. Where a second role needs a figure — a PM checking
 headroom before adding to a sleeve, an SRE glancing at quarantine during an
@@ -428,7 +431,7 @@ to re-run that single combination and see what it actually did.
 winner, and the in-sample → out-of-sample gap that reveals overfitting.
 
 <a id="coherence-console"></a>
-**Markets and Coherence** — the last two tabs, and the ones that are not desk
+**Quotes and Proofs** — the last two tabs, and the ones that are not desk
 roles. A contract paying $1 if an event happens is a probability with a price on
 it, so a family of those prices either admits a probability measure or does not.
 The pair reads Kalshi live, records whole bid ladders rather than prices, and
@@ -436,25 +439,45 @@ where the prices are incoherent it hands back the portfolio that wins in every
 state. Both headers state the boundary in the metric strip: **order path =
 "none"** — this engine reads, records and certifies, and it sends nothing.
 
-They were one eleven-section tab until 2026-08-24. Markets is what the venue
-quotes; Coherence is what the engine proves about it. Section ids did not move
-with the split — `#coherence/books` still resolves, through `RELOCATED_SECTIONS`
-in `lib/workspace-hash.ts`. Eleven rail sections across the two, each splitting
-its content into in-pane views:
+They were one eleven-section tab until 2026-08-24, and that day they were
+restructured six times: split, promoted to seventeen sections, moved across the
+seam, merged back, consolidated to nine, and split again by feature. **Quotes**
+(`#markets`) is what the venue quotes; **Proofs** (`#coherence`) is what the
+engine proves about it. **Nine rail sections across the two**, five and four.
+
+No section id was invented or retired to do it. `#coherence/books` still
+resolves, and so do the eight ids that stopped being sections — including
+`index` and `combos`, both published on `origin/main` — because
+`RELOCATED_SECTIONS` in `lib/workspace-hash.ts` maps each to the tab **and**
+section that now carries it — sixteen entries covering the 25 distinct locations
+this engine has ever published. `coherence-sections.test.ts` pins the table entry
+by entry and asserts that no entry quietly lands on its tab's own rail default,
+which would be indistinguishable from not resolving at all; the three that do
+land on one are exempted by name, because each carrier is simply first in rail
+order.
+
+Every section splits its content across an in-pane `.seg` switcher. A view is
+component state, so it is **not in the URL, not in the command palette, and not
+walked by `scripts/desk-sweep.mjs`** — the cost the promotion pass paid to avoid
+and then paid back, because seventeen addressable sections is a rail nobody can
+read:
 
 | Tab | Section | Views |
 |---|---|---|
-| Markets | Universe | Baskets · Settlement · Formation |
-| Markets | Books | Ladder · Identity · Dispersion |
-| Markets | Lattice | Distribution · Stake · Whole family |
-| Markets | Shell | Tree · Reading · Layout |
-| Coherence | Dutch book | Verdict · Portfolio · Proof |
-| Coherence | Fees | Worked example · Cost shape · Ablation |
-| Coherence | Combos | Bands · Parlays · Bounds test · Notes |
-| Coherence | Coherence index | Series · Families |
-| Coherence | Calibration | Score · Bands · Corpus |
-| Coherence | Diffusion | Absorption · Mechanism · Findings · Kalshi episodes |
-| Coherence | Lessons | Prices · Structure · Bounds · Record |
+| Quotes | Universe | Baskets · Families · Settlement · Formation · Pending |
+| Quotes | Books | Ladder · Identity · Dispersion · Channel |
+| Quotes | Lattice | Survival · Mass · Moments · Whole family · Stake (second seg: Plan · Capital · Method) |
+| Quotes | Fees | Worked example · Cost shape · Ablation · Replay table |
+| Quotes | Shell | Tree · Reading · Commands · Layout |
+| Proofs | Dutch book | Verdict · Proof · Certificate · Bands · Parlays · Bounds |
+| Proofs | Scorecard | Score · Bands · Corpus · Index series · Index families |
+| Proofs | Diffusion | Absorption · Noise floor · Meetings · Mechanism · Kalshi survival · Kalshi episodes · Findings |
+| Proofs | Lessons | Coverage · Prices · Structure · Bounds · Record |
+
+Two of those rows absorbed a whole published section in the consolidation and
+keep it as views: `combos` is now **Dutch book**'s Bands · Parlays · Bounds, and
+`index` is now **Scorecard**'s Index series · Index families. Both were folded
+into the section already answering their question rather than kept beside it.
 
 **Those in-pane views are `.seg` groups, never a nested `<WorkspaceSubtabs>`,
 and that is a hard rule.** `WorkspaceSubtabs` publishes `--rail-h` onto
@@ -464,15 +487,19 @@ first over every sticky offset in the app, which is the failure
 `.seg` too. `.seg` is plain CSS in `app/globals/`, styled off `aria-pressed`.
 
 **The polls are gated on the open section and, where it matters, the open
-view** — this tab reads a live exchange, so an idle pane must not spend a round
+view** — these tabs read a live exchange, so an idle pane must not spend a round
 trip. The universe read asks for two events per series rather than four
 (`?max_events=2`): four took 10.1 s before the reads were parallelised and 6.4 s
-after, against `callGateway`'s eight-second deadline. The books read stops
-entirely while **Dispersion** is open, because that view's RFQ route is a signed
-private-channel call on a 25-second budget, and `BooksSection` reports its view
-upward for exactly that reason. `FeesSection` holds both of its reads at section
-level and gates each on its view, so `/replay?limit=20000` — the largest read on
-the tab — is issued only on **Ablation**.
+after, against `callGateway`'s eight-second deadline; it is shared across
+sections and across both tabs, so it is deliberately *not* gated on the view.
+The books read stops entirely while **Dispersion** or **Channel** is open,
+because the RFQ route behind them is a signed private-channel call on a
+25-second budget and the two must never be in flight together — with Dispersion
+a view again rather than a rail of its own, `BooksSection` says that with one
+predicate over its four views instead of reporting a view upward. `FeesSection`
+holds both of its reads at section level and gates each on its view, so
+`/replay?limit=20000` — the largest read on either tab — is issued only on
+**Ablation** and **Replay table**, and is warmed by nothing.
 
 **Diffusion's headline is a null, and the table says so in that order.** The
 study asks whether the text of an FOMC statement predicts how fast the market
@@ -484,9 +511,13 @@ move — and the text subtracts from that. Two of the diffusion charts,
 `AbsorptionCurve` and `StageTimeline`, deliberately skip the shared `<Plot>`
 wrapper: it emits `role="presentation"` and would leave them unnamed.
 
-**Not yet covered:** neither Markets nor Coherence has a `summarised-*` or
-`disclosure-*` guard pair, where the other eight tabs have both. That is a gap
-in the copy ratchets, not a decision.
+**Not yet covered:** neither Prices nor Proofs has a `summarised-*` or
+`disclosure-*` guard pair, where the other eight tabs have both. Their rendered
+phrases *are* pinned, at exact site counts and with ledes capped at one
+sentence, by `tests/coherence-reading-claims.test.ts` and
+`coherence-proof-claims.test.ts` — whose owner lists together cover both rails —
+but nothing holds a whole sentence byte for byte. That is a gap in the copy
+ratchets, not a decision.
 
 ---
 
@@ -542,8 +573,9 @@ are configured — the panel reports the refusal, never a figure:
 | `POST /api/oracle/var` | 99% Value at Risk from an **in-database** GBM Monte Carlo. Deliberately a *second* opinion, not a replacement: `lib/portfolio-risk/` already computes VaR from the covariance model and the Risk tab shows both, because two independent implementations of one quantity is the only cheap check on either. The two are **not interchangeable** and the panel must never present them as one figure with two sources — this is a terminal-value GBM VaR over a horizon, the client-side one is a one-day parametric/historical VaR on the current book. The simulation count is bounded here *and again in PL/SQL*, because a public endpoint that lets a caller choose how much database CPU to spend is a way to take the instance down from an anonymous request |
 | `POST /api/oracle/research` | similarity search over the same research corpus, answered by Oracle 23ai's native `VECTOR` type instead of Supabase pgvector, in the existing `ResearchRagSearchResponse` shape. The query vector comes from the gateway's `/api/research/rag/embed`, so both stores are searched with the *same* embedding model — vectors are comparable only inside one model |
 
-The Coherence group proxies the gateway's Kalshi engine, and every one of them
-is a **read**:
+The coherence route group proxies the gateway's Kalshi engine — it is named for
+the `coherence` id, which both tabs' routes still sit under — and every one of
+them is a **read**:
 
 | Endpoint | Returns |
 |---|---|
@@ -750,7 +782,7 @@ web/
                               summarised-*.test.ts (what each tab's prose must still
                               say) and disclosure-*.test.ts (what it may never stop
                               saying) — those two may be ADDED to and never weakened.
-                              Eight pairs for ten tabs: Markets and Coherence have
+                              Eight pairs for ten tabs: Quotes and Proofs have
                               neither yet, which is a gap rather than a decision
 ```
 

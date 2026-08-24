@@ -58,7 +58,7 @@ those at length.
 | Document | What it is for |
 |---|---|
 | [`product/PRODUCT_GUIDE.md`](product/PRODUCT_GUIDE.md) | The what-and-why of the workspace: what each tab is for, what a number on screen is allowed to be, what a click is allowed to change. The honesty doctrine in product terms. |
-| [`product/FEATURE_TOUR.md`](product/FEATURE_TOUR.md) | The guided walkthrough, structured as the desk's decision loop across all **nine** tabs and 59 rail sections. Its rail lists are pinned to `web/lib/sections.ts` by a test, so it cannot silently drift from the app — which is why it is the reference when this index and the app disagree. |
+| [`product/FEATURE_TOUR.md`](product/FEATURE_TOUR.md) | The guided walkthrough, structured as the desk's decision loop across all **ten** tabs and 57 rail sections. Its rail lists are pinned to `web/lib/sections.ts` by a test, so it cannot silently drift from the app — which is why it is the reference when this index and the app disagree. |
 
 ## Testing
 

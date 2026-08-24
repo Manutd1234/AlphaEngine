@@ -508,11 +508,14 @@ presented as comparable to a maximum-drawdown figure.
 
 The gateway's OpenAPI schema is a contract between two separately deployed units,
 so it is committed rather than generated at runtime:
-#measured("54 paths carrying 56 operations", "tools/openapi.json") —
-#measured("36 GET, 19 POST, 1 PATCH", "tools/openapi.json") — clustered as
-research (15), data and data-quality (10), risk and orders (11), audit (4),
-portfolio (2), jobs (2), ops (2), telegram (3), and one each for book, tca,
-backtest, config, stream, health and metrics.
+#measured("73 paths carrying 76 operations", "tools/openapi.json, counted 2026-08-24") —
+#measured("54 GET, 20 POST, 1 PATCH, 1 DELETE", "tools/openapi.json") — clustered
+by the tag each router carries: research (15), risk and orders (14), data and
+data-quality (11), the Kalshi coherence lab (7), coherence (5), meta (5),
+audit (4), diffusion (4), coherence history (3), machine-learning research (3),
+telegram (3) and TCA (2). The paths are fewer than the operations because a few
+serve two verbs each --- `/api/orders` submits and lists, `/api/data/work-items`
+creates and lists.
 
 Two of those are deliberately unauthenticated, `/health` and `/metrics`; every
 other route resolves an actor first (`modules/api/meta.py`). The web workspace
@@ -845,7 +848,7 @@ gate that proves it is current.
   [`web/lib/repository-manifest.generated.json`], [`generate-codebase-manifest.mjs`], [`--check` in `prebuild`],
   [`web/lib/gateway-contract.generated.ts`], [`generate-gateway-client.ts`], [typecheck: a route the gateway removed stops compiling],
   [`web/lib/mc-parity-reference.generated.ts`], [`generate-mc-parity.ts`], [the Monte Carlo parity suite],
-  [`supabase/apply_all.generated.sql`], [migration bundle], [`supabase db push` records what it applied],
+  [`supabase/apply_all.generated.sql`], [`tools/bundle_migrations.py`, at the repository root], [`tests/test_migration_bundle.py` fails when the bundle is behind `supabase/migrations/`; the fix is to regenerate it, never to edit the SQL],
   [`docs/architecture/latency-bench.generated.json`], [`tools/bench_decision.py`], [regenerated, never edited; the block stamps its own UTC date],
 )
 
@@ -853,10 +856,14 @@ The test count is the one figure in the repository that *cannot* be asserted
 from inside the thing it measures, since a test that checks the total changes the
 total. It is therefore generated, checked from outside, and is a measurement with
 a date rather than a contract. As of
-#measured("2026-08-22", "web/lib/test-counts.generated.ts") the committed figures
-are gateway #measured("2 037 collected, 2 036 passed, 1 skipped", "web/lib/test-counts.generated.ts"),
-web #measured("4 008 tests across 871 suites", "web/lib/test-counts.generated.ts")
-and service #measured("14", "web/lib/test-counts.generated.ts"). Prose elsewhere
+#measured("2026-08-24", "web/lib/test-counts.generated.ts") the committed figures
+are gateway #measured("2 998 collected, 2 996 passed, 2 skipped", "web/lib/test-counts.generated.ts, refreshed in the CI shape with RERANK_TEST_MODEL_PATH blanked"),
+web #measured("4 487 tests across 984 suites", "web/lib/test-counts.generated.ts")
+and service #measured("24", "web/lib/test-counts.generated.ts"). The two gateway
+skips are the two opt-ins described below, and the shape belongs with the
+figure: seed the re-ranker weights and the same tree collects eight more tests
+and reports one skip instead of two, so a gateway count with no shape stated is
+not yet a measurement. Prose elsewhere
 in the tree still quotes earlier figures, which is exactly what this file exists
 to prevent: never quote a count from a document, including this one. Run the
 suite, or read the generated file.

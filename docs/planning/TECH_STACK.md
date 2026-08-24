@@ -158,31 +158,36 @@ are **62** `route.ts` handlers under `web/app/api/`, **38** of them under
 thin-mode driver never enters a client bundle —
 `tests/deployment-contract-config-surfaces.test.ts` asserts it.
 
-**Nine tabs, fifty-nine rail sections, one source of truth.**
+**Ten tabs, fifty-eight rail sections, one source of truth.**
 [`components/WorkspaceHeader.tsx`](../../Part2_Infrastructure/web/components/WorkspaceHeader.tsx)
 declares `NAV_ITEMS` — Overview (All Roles), Research (Quant), Execution
 (Trader), Portfolio (PM), Risk (Risk), Data (Data), Reliability (SRE),
-Developer (Dev), Coherence (Quant).
+Developer (Dev), Quotes (Quant), Proofs (Quant). The last two are the Kalshi
+engine and their view **ids** are `markets` and `coherence`, older than the
+labels and deliberately unchanged.
 [`lib/sections.ts`](../../Part2_Infrastructure/web/lib/sections.ts) is where the
 rails, the command palette, the hash whitelist and "Copy link to this view" all
-read from: 3 + 9 + 5 + 5 + 8 + 7 + 5 + 6 + 4 + 7 = **59**. Section ids never
-change, because they are public deep links — which is why the Markets/Coherence
-split moved four ids between tabs without changing one of them, and
-`RELOCATED_SECTIONS` in `lib/workspace-hash.ts` is what keeps the old hashes
-resolving.
+read from: 3 + 9 + 5 + 5 + 8 + 7 + 5 + 6 + 5 + 4 = **57**. Section ids never
+change, because they are public deep links — which is why the 2026-08-24
+restructure moved five ids between tabs and demoted eight to in-pane views
+without renaming one of them, and `RELOCATED_SECTIONS` in
+`lib/workspace-hash.ts` is what keeps every old hash resolving.
 [`scripts/desk-sweep-plan.mjs`](../../Part2_Infrastructure/web/scripts/desk-sweep-plan.mjs)
-mirrors the ten tabs by hand and asserts `EXPECTED_SECTIONS = 59`, so a rail
+mirrors the ten tabs by hand and asserts `EXPECTED_SECTIONS = 58`, so a rail
 edited without the sweep being updated fails rather than drifting.
 
 **The Kalshi engine uses in-pane `.seg` switchers, and that is a hard rule.** All
-eleven Markets and Coherence sections split their content into segmented views inside the section —
-Universe (Baskets · Settlement · Formation), Books (Ladder · Identity ·
-Dispersion), Lattice (Distribution · Stake · Whole family), Dutch book (Verdict
-· Portfolio · Proof), Fees (Worked example · Cost shape · Ablation), Coherence
-index (Series · Families), Combos (Bands · Parlays · Bounds test · Notes),
-Calibration (Score · Bands · Corpus), Diffusion (Absorption · Mechanism ·
-Findings · Kalshi episodes), Shell (Tree · Reading · Layout), Lessons (Prices ·
-Structure · Bounds · Record). A nested `<WorkspaceSubtabs>` inside a section is
+nine Quotes and Proofs sections split their content into segmented views inside
+the section — Universe (Baskets · Families · Settlement · Formation · Pending),
+Books (Ladder · Identity · Dispersion · Channel), Lattice (Survival · Mass ·
+Moments · Whole family · Stake, whose Stake view opens a second seg of Plan ·
+Capital · Method), Fees (Worked example · Cost shape · Ablation · Replay table),
+Shell (Tree · Reading · Commands · Layout), Dutch book (Verdict · Proof ·
+Certificate · Bands · Parlays · Bounds), Scorecard (Score · Bands · Corpus ·
+Index series · Index families), Diffusion (Absorption · Noise floor · Meetings ·
+Mechanism · Kalshi survival · Kalshi episodes · Findings), Lessons (Coverage ·
+Prices · Structure · Bounds · Record). A six-view seg is still one seg: Dutch
+book's wraps rather than shrinking its type. A nested `<WorkspaceSubtabs>` inside a section is
 **forbidden**, and the reason is mechanical rather than aesthetic:
 `WorkspaceSubtabs.tsx` sets `--rail-h` on `document.documentElement`, so a
 second rail instance fights the first over the same publisher — as
@@ -191,10 +196,13 @@ second rail instance fights the first over the same publisher — as
 header restates. `.seg` is plain CSS styled off `aria-pressed`
 (`app/globals/00-tokens-and-base.css:1560`), so it publishes nothing.
 
-That split is also what makes the tab's read budget affordable: the section's
-polls are gated on both `active` and the open view, so the RFQ route (a signed
-private-channel call on a 25 s budget) stops entirely while Dispersion is open,
-and `/replay?limit=20000` — the largest read on the tab — runs only on Ablation.
+That structure is also what makes the read budget affordable: polls are gated on
+`active`, on the open section, and — where a view alone is expensive — on the
+open view. The public book read stops entirely while Books shows Dispersion or
+Channel, because the RFQ route behind them is a signed private-channel call on a
+25 s budget and the two must never be in flight together; `/replay?limit=20000`,
+the largest read on either tab, runs only on Fees → Ablation or Replay table and
+is warmed by nothing.
 
 **Styling.** Tailwind CSS `4.3.3` runs **without preflight**, bridged onto the
 hand-written token system. `app/globals.css` is a manifest and nothing else —
@@ -1190,7 +1198,7 @@ for the structural claims above:
 |---|---|
 | Route count | `grep -h "@router\." Part2_Infrastructure/modules/api/*.py \| wc -l`, then subtract the WebSocket |
 | Contract paths / operations | read `Part2_Infrastructure/tools/openapi.json` |
-| Rail sections | `node Part2_Infrastructure/web/scripts/desk-sweep-plan.mjs` — it asserts 59 |
+| Rail sections | `node Part2_Infrastructure/web/scripts/desk-sweep-plan.mjs` — it asserts 57 |
 | The fusion constant | `grep -rn "RRF_K" Part2_Infrastructure/modules/` — one definition, the rest imports |
 | Store paths | `Part2_Infrastructure/config.py` and `modules/coherence/tunables.py` |
 | Requirements extras | `ls Part2_Infrastructure/requirements*.txt` |

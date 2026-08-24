@@ -104,7 +104,7 @@ the number, which moves. The table above explains *why* each path is where it is
 │   │                                     image retrieval)
 │   ├── docker/                           the two-stage gateway image (builder compiles the core)
 │   ├── docs/                             RUNBOOK · GRAPH_RECALL · REFACTOR_RULES · telegram checklist
-│   ├── notebooks/coherence_lab/          14 lesson notebooks behind the Coherence tab's curriculum
+│   ├── notebooks/coherence_lab/          14 lesson notebooks behind the Proofs tab's curriculum
 │   ├── web/                              the Next.js desk (996 tracked files: app/ · components/ ·
 │   │                                     lib/ · 303 `.test.ts` FILES in the tree, which the
 │   │                                     runner reports as 980 suites — different units)
@@ -216,23 +216,31 @@ still retrieves and simply reports `verdict=refused` with the reason, and
 where it is answered, and what is honestly still missing. Researchers, traders,
 portfolio managers, risk managers, data engineers, SREs and developers each have
 surfaces, and all of them reconcile to the same rows. The desk is **ten tabs**
-— those seven roles, an overview that launches into them, and **Markets** and
-**Coherence**, the two halves of the prediction-market engine described below —
-across **59 rail sections**, every id
+— those seven roles, an overview that launches into them, and **Quotes** and
+**Proofs**, the two halves of the prediction-market engine described below —
+across **57 rail sections**, every id
 a public deep link declared once in
 [`web/lib/sections.ts`](Part2_Infrastructure/web/lib/sections.ts).
 
-**Coherence — prices as probabilities, tested for coherence.** A contract paying
-$1 if an event happens is a probability with a price on it. This tab reads
-Kalshi live, records whole bid ladders rather than prices, and tests whether a
-family of those prices admits a probability measure at all; where it does not,
-the failure hands back a portfolio that wins in every state. It places no
-orders, and the header says so. Its eleven sections each split into in-pane
-view switchers (Universe · Books · Lattice · Dutch book · Fees · Coherence index
-· Combos · Calibration · Diffusion · Shell · Lessons), read out of
+**Quotes and Proofs — a venue's quotes, and what follows from them.** A contract
+paying $1 if an event happens is a probability with a price on it. This engine
+reads Kalshi live, records whole bid ladders rather than prices, and tests
+whether a family of those prices admits a probability measure at all; where it
+does not, the failure hands back a portfolio that wins in every state. It places
+no orders, and the header says so. Two tabs, because the reading and the
+argument about the reading are different questions: **Quotes** carries Universe
+· Books · Lattice · Fees · Shell and **Proofs** carries Dutch book · Scorecard ·
+Diffusion · Lessons, read out of
+[`components/MarketsConsole.tsx`](Part2_Infrastructure/web/components/MarketsConsole.tsx)
+and
 [`components/CoherenceConsole.tsx`](Part2_Infrastructure/web/components/CoherenceConsole.tsx).
+The tab **ids** are `markets` and `coherence` and did not change when the labels
+did, so every `#coherence/<section>` link ever published still resolves. Each of
+the nine sections splits its content across an in-pane view switcher; on
+2026-08-24 the opposite was tried for a day, and promoting every subject to its
+own rail entry produced seventeen sections that no reader could hold.
 
-**One result on that tab is a null, and it is stated as one.** The Information
+**One result on Proofs is a null, and it is stated as one.** The Information
 Diffusion study asks whether the text of an FOMC statement predicts how fast the
 market absorbs it. As of this session the verdict is scored **out of sample**
 ([`modules/coherence/diffusion/skill.py`](Part2_Infrastructure/modules/coherence/diffusion/skill.py),
@@ -303,7 +311,7 @@ states what its absence looks like.
 | Component | Version | Role |
 |---|---|---|
 | **[Next.js](https://nextjs.org)** | `16.3.0` | App Router + Turbopack on Vercel (`sin1`); the browser bundle ships zero backend credentials. |
-| **[React](https://react.dev)** | `19.2.8` | One workspace, **nine** URL-addressable role tabs over 59 rail sections. |
+| **[React](https://react.dev)** | `19.2.8` | One workspace, **ten** URL-addressable role tabs over 57 rail sections. |
 | **[TypeScript](https://www.typescriptlang.org)** | `5.9.3` | Strict mode, shared contract types generated from the gateway's own OpenAPI (`lib/gateway-contract.generated.ts`). |
 | **[Tailwind CSS](https://tailwindcss.com)** | `4.3.3` | Utilities over a hand-written token system with a test-enforced AA contrast contract. Charts are hand-rolled SVG — no chart library. |
 | **[Lucide](https://lucide.dev)** | `1.28.0` | The only icon dependency. |

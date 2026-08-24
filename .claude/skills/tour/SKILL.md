@@ -1,6 +1,6 @@
 ---
 name: tour
-description: Walk the AlphaEngine architecture — the three deployment units, the two-implementation parity argument that pins Python against TypeScript, the honesty doctrine (null never coerced to zero, withheld values dashed, sample floors), the eight tabs, and which of the seven quant-desk roles each surface serves. Use whenever the user says explain, walk me through, tour, overview, "how does this work", "what is this", "give me the architecture", "where is X", "why is it built this way", "onboard me", "I am reviewing this repo", or asks about parity, fixtures, the audit log, the gateway proxy, or where a role's questions get answered.
+description: Walk the AlphaEngine architecture — the three deployment units, the two-implementation parity argument that pins Python against TypeScript, the honesty doctrine (null never coerced to zero, withheld values dashed, sample floors), the ten tabs, and which of the seven quant-desk roles each surface serves. Use whenever the user says explain, walk me through, tour, overview, "how does this work", "what is this", "give me the architecture", "where is X", "why is it built this way", "onboard me", "I am reviewing this repo", or asks about parity, fixtures, the audit log, the gateway proxy, or where a role's questions get answered.
 ---
 
 # Tour AlphaEngine
@@ -224,15 +224,21 @@ a language model, which is the surface most likely to invent something.
 
 ---
 
-## 5. Eight tabs, seven roles
+## 5. Ten tabs, seven roles
 
 Tab ids live in `web/components/WorkspaceHeader.tsx`; sections in
 `web/lib/sections.ts`, whose ids never change because they are public deep links
 (`#<view>/<section>`).
 
-Forty-seven sections in total, counted off `lib/sections.ts` on 2026-08-22 and
-confirmed against `scripts/desk-sweep-plan.mjs`, whose `EXPECTED_SECTIONS = 47`
-is mirrored by hand and swept one by one:
+**Fifty-eight sections in total**, counted off `lib/sections.ts` on 2026-08-24
+and confirmed against `scripts/desk-sweep-plan.mjs`, whose
+`EXPECTED_SECTIONS = 57` is mirrored by hand and swept one by one. This figure
+has been wrong here more than once: it read 47 while the ninth and tenth tabs
+were added, then 65 for the hours the Kalshi engine's in-pane views were
+promoted to rail sections. It went 59 → 65 → 59 → 57 in a single day.
+`tour-truth.test.ts` holds it against the rails themselves; nothing holds it
+here, which is how it drifts — re-derive it from `lib/sections.ts` rather than
+quoting this line back:
 
 | Tab id | Label | Role | Sections |
 |---|---|---|---|
@@ -240,25 +246,47 @@ is mirrored by hand and swept one by one:
 | `research` | Research | Quant researcher | summary, parameters, walkforward, attribution, lineage, decision, runs, fitted, codex |
 | `live` | **Execution** | Trader | trade, liquidity, routing, quality, activity |
 | `portfolio` | Portfolio | Portfolio manager | overview, equity, positions, allocation, performance |
-| `risk` | Risk | Risk manager | limits, model, drivers, montecarlo, oraclevar, scenarios, controls |
+| `risk` | Risk | Risk manager | limits, model, diagram, drivers, montecarlo, oraclevar, scenarios, controls |
 | `data` | Data | Data engineer | overview, feeds, quality, incidents, lineage, providers, queue |
 | `reliability` | Reliability | SRE | overview, planes, services, events, controls |
 | `developer` | Developer | Quant developer | overview, readiness, quality, apis, codebase, work |
+| `markets` | **Quotes** | Quant researcher | universe, books, lattice, fees, shell |
+| `coherence` | **Proofs** | Quant researcher | certificate, calibration, diffusion, lessons |
+
+The last two are one Kalshi engine split across two tabs — what the exchange
+quotes, then what the engine proves about it. Their labels are newer than their
+ids and were relabelled from "Markets" and "Coherence" on 2026-08-24 without
+either id moving, so `#coherence/certificate` is still the address of the
+section a reader now reaches by clicking **Proofs**. Four of their sections'
+labels differ from their ids too: `certificate` renders "Dutch book" and
+`calibration` renders "Scorecard" — the latter having absorbed the published
+section `index`, as `certificate` absorbed the published `combos`.
+`RELOCATED_SECTIONS` in `web/lib/workspace-hash.ts` keeps every historical link
+resolving — sixteen entries covering the 25 distinct locations the engine has
+ever published.
 
 **Ids and labels have drifted apart, and that is the design.** Ids are frozen
 because they are public deep links; labels were rewritten as the surfaces
-matured. Counted off `lib/sections.ts` on 2026-08-22, 27 of the 47 ids are not
-a slug of their own label. Most are harmless expansions (`loop` renders
-"Decision loop"). Six would actively mislead someone reasoning from the URL:
-view `live` renders "Execution", `codex` renders "Strategies", `activity`
-renders "Blotter", `planes` renders "Dependencies", `controls` renders
-"Remediation", and `work` renders "Task Queue". Read the file rather than infer
+matured. Most gaps are harmless expansions (`loop` renders "Decision loop"). The ones
+that would actively mislead someone reasoning from the URL are, at the tab
+level, `live` → "Execution", `markets` → "Quotes" and `coherence` → "Proofs";
+and at the section level `codex` → "Strategies", `activity` → "Blotter",
+`model` → "Risk engine", `planes` → "Dependencies", `controls` →
+"Remediation", `work` → "Task Queue", `certificate` → "Dutch book" and
+`calibration` → "Scorecard". Read the file rather than infer
 a label from a hash, and never rename an id to close the gap.
 
 **Sections are addressable; the panes inside them are not.** Several sections
 now split into panes held in component state — Reliability → Remediation opens
 on five (`mutations`, `scope`, `session`, `recovery`, `history`), Developer →
-API & Schema on three (Contracts, Routes, Numerics). No pane is in the hash
+API & Schema on three (Contracts, Routes, Numerics), and every one of the Kalshi
+engine's nine sections is a `.seg` switcher over four to seven views — ten segs
+in all, because Lattice's Stake view opens a second one (Plan, Capital, Method).
+That last case is the one to understand before reading a section count: a view
+is not in the URL, not in the command palette and not walked by
+`scripts/desk-sweep.mjs`, so eight subjects that were rail sections for part of
+2026-08-24 are reachable today only by pressing a button — which is exactly the
+difference between 65 and 57. No pane is in the hash
 whitelist and "Copy link to this view" cannot address one, so a pane rename
 breaks no URL — but five sentences in other tabs point a reader at
 "Reliability → Remediation" for the operator token, and they are right only

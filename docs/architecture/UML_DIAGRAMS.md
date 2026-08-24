@@ -22,7 +22,7 @@ alternatives — are the primary source for everything summarised here.
 | 3 | sequence | `POST /api/research/rag/ask`, the corrective retrieval path |
 | 4 | class | which research module imports which |
 | 5 | flow | the gate-parity fixture, and the three implementations pinned to it |
-| 6 | component | the Kalshi engine: eleven sections over two tabs, `.seg` views, one rail each |
+| 6 | component | the Kalshi engine: nine sections over two tabs (Prices, Proofs), `.seg` views, one rail each |
 
 **A diagram naming a module that no longer exists is a defect.** Every box below
 was checked against the tree in this pass. Two changes to record from it:
@@ -651,28 +651,29 @@ to a committed canonical-JSON reference that carries its own SHA-256.
 
 ## 6. The Kalshi engine — component diagram
 
-Eleven rail sections across **two** tabs since 2026-08-24, one
-`<WorkspaceSubtabs>` each, and every sub-view a `.seg` button group. The
-structure is
+Nine rail sections across **two** tabs — **Quotes** (`#markets`, five) and
+**Proofs** (`#coherence`, four) — one `<WorkspaceSubtabs>` each, and every
+sub-view a `.seg` button group. The structure is
 [`web/components/MarketsConsole.tsx`](../../Part2_Infrastructure/web/components/MarketsConsole.tsx)
-(192 lines) and
+(234 lines) and
 [`web/components/CoherenceConsole.tsx`](../../Part2_Infrastructure/web/components/CoherenceConsole.tsx)
-(202 lines) over the two id arrays in
-[`web/lib/sections.ts`](../../Part2_Infrastructure/web/lib/sections.ts). The ids
-did not change with the split: `RELOCATED_SECTIONS` in
+(216 lines) over the two id arrays in
+[`web/lib/sections.ts`](../../Part2_Infrastructure/web/lib/sections.ts). The tab
+labels are newer than the tab ids and the ids never changed:
+`RELOCATED_SECTIONS` in
 [`web/lib/workspace-hash.ts`](../../Part2_Infrastructure/web/lib/workspace-hash.ts)
-routes the four that changed tab, and a section the named tab still has always
-wins over that table.
+routes the five sections that changed tab and the eight ids that stopped being
+sections, and a section the named tab still has always wins over that table.
 
 ```mermaid
 flowchart TB
-    markets["MarketsConsole.tsx<br/>PageHead · WorkspaceSubtabs rail · StatusPane"]
-    coherence["CoherenceConsole.tsx<br/>PageHead · WorkspaceSubtabs rail · StatusPane"]
+    markets["MarketsConsole.tsx — tab #markets, label Prices<br/>PageHead · WorkspaceSubtabs rail · StatusPane"]
+    coherence["CoherenceConsole.tsx — tab #coherence, label Proofs<br/>PageHead · WorkspaceSubtabs rail · StatusPane"]
 
     subgraph routes["lib/coherence/routes.ts — every gateway URL, built once"]
         rstatus["statusRoute() — gated on active only, on BOTH tabs"]
-        runiverse["universeRoute() — gated on active AND<br/>section in markets:universe / markets:lattice /<br/>coherence:certificate. NOT on the sub-view,<br/>because three sections share it"]
-        rbooks["booksRoute() — gated on active AND<br/>section = books AND booksView != dispersion"]
+        runiverse["universeRoute() — gated on active AND<br/>section in markets:universe / markets:lattice /<br/>coherence:certificate. NOT on the sub-view,<br/>because three sections across two tabs share it"]
+        rbooks["booksRoute() — gated on active AND<br/>section = books AND view not in {dispersion, channel}"]
     end
 
     subgraph warm["The lag fix — lib/coherence/"]
@@ -687,38 +688,44 @@ flowchart TB
     sweep --> cache
     intent --> cache
 
-    subgraph msec["Markets — four sections"]
-        s1["universe → UniverseSection.tsx<br/>.seg Baskets · Settlement · Formation"]
-        s2["books → BooksSection.tsx<br/>.seg Ladder · Identity · Dispersion"]
-        s3["lattice → SurfacePane.tsx<br/>.seg Distribution · Stake · Whole family<br/>→ surface/DistributionView · StakeView · FamilyView"]
-        s10["shell → ShellPane.tsx<br/>.seg Tree · Reading · Layout"]
+    subgraph msec["Prices — five sections"]
+        s1["universe → UniverseSection.tsx → SettlementPane.tsx<br/>.seg Baskets · Families · Settlement · Formation · Pending"]
+        s2["books → BooksSection.tsx → BooksPane.tsx, RfqPane.tsx<br/>.seg Ladder · Identity · Dispersion · Channel"]
+        s3["lattice → SurfacePane.tsx<br/>.seg Survival · Mass · Moments · Whole family · Stake<br/>Stake opens a SECOND seg: Plan · Capital · Method<br/>→ surface/DistributionView · StakeView · FamilyView"]
+        s5["fees → FeesSection.tsx<br/>.seg Worked example · Cost shape · Ablation · Replay table"]
+        s10["shell → ShellPane.tsx<br/>.seg Tree · Reading · Commands · Layout"]
     end
 
-    subgraph csec["Coherence — seven sections"]
-        s4["certificate → CertificatePane.tsx (label: Dutch book)<br/>.seg Verdict · Portfolio · Proof"]
-        s5["fees → FeesSection.tsx<br/>.seg Worked example · Cost shape · Ablation"]
-        s7["combos → CombosPane.tsx<br/>.seg Bands · Parlays · Bounds test · Notes"]
-        s6["index → IndexPane.tsx<br/>.seg Series · Families"]
-        s8["calibration → CalibrationPane.tsx<br/>.seg Score · Bands · Corpus"]
-        s9["diffusion → DiffusionPane.tsx<br/>.seg Absorption · Mechanism · Findings · Kalshi episodes"]
-        s11["lessons → LessonsPane.tsx — secondary on the rail<br/>.seg Prices · Structure · Bounds · Record"]
+    subgraph csec["Proofs — four sections"]
+        s4["certificate → CertificatePane.tsx → CombosPane.tsx (label: Dutch book)<br/>.seg Verdict · Proof · Certificate · Bands · Parlays · Bounds<br/>absorbed the published id combos"]
+        s8["calibration → CalibrationPane.tsx (label: Scorecard)<br/>→ CalibrationScore.tsx, IndexPane.tsx<br/>.seg Score · Bands · Corpus · Index series · Index families<br/>absorbed the published id index"]
+        s9["diffusion → DiffusionPane.tsx<br/>.seg Absorption · Noise floor · Meetings · Mechanism ·<br/>Kalshi survival · Kalshi episodes · Findings"]
+        s11["lessons → LessonsPane.tsx — secondary on the rail<br/>.seg Coverage · Prices · Structure · Bounds · Record"]
     end
 
-    markets --> s1 & s2 & s3 & s10
-    coherence --> s4 & s5 & s7 & s6 & s8 & s9 & s11
+    markets --> s1 & s2 & s3 & s5 & s10
+    coherence --> s4 & s8 & s9 & s11
     runiverse --> s1 & s3 & s4
     rbooks --> s2
-    s2 -->|"onViewChange — the section tells the console<br/>which view is open, because the READ has to live<br/>where active and section are"| markets
+    s2 -->|"ONE predicate over its four views keeps the public<br/>book and the signed RFQ channel from ever being<br/>in flight together — no view reported upward"| s2
 
-    feesreads["FeesSection holds BOTH its reads itself,<br/>each gated on its own view:<br/>the fees query on Worked example / Cost shape,<br/>and replayRoute() — 20,000 rows, the largest read<br/>on either tab — only on Ablation"]
+    feesreads["FeesSection holds BOTH its reads itself,<br/>each gated on its own view:<br/>the fees query on Worked example / Cost shape,<br/>and replayRoute() — 20,000 rows, the largest read<br/>on either tab — only on Ablation / Replay table,<br/>and warmed by nothing"]
     s5 --> feesreads
 ```
+
+**What a `.seg` view costs, since this diagram is where the two kinds of box
+meet.** A section id is a public deep link; a view is component state. A view is
+not in the URL, not in the command palette, and not walked by
+`scripts/desk-sweep.mjs` — which is why the sweep's `EXPECTED_SECTIONS` is 57
+rather than the 65 the 2026-08-24 promotion pass briefly made addressable. The
+one thing it does not cost is a broken link: every id ever published, demoted
+ones included, resolves through `RELOCATED_SECTIONS`.
 
 **The one hard rule.** A pane is a `.seg` group inside a section, **never** a
 nested `<WorkspaceSubtabs>`. The reason is mechanical rather than aesthetic:
 `WorkspaceSubtabs.tsx` sets `--rail-h` on `document.documentElement`, so a
 second rail instance fights the first over one custom property — a defect
-`ReliabilityConsole` recorded before this tab existed. `.seg` is plain CSS in
+`ReliabilityConsole` recorded before this engine existed. `.seg` is plain CSS in
 `app/globals/00-tokens-and-base.css` keyed off `aria-pressed`, owns no global,
 and cannot collide.
 

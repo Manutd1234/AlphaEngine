@@ -272,7 +272,7 @@ a second dialect and the memory of why.
 
 ## 4. The figure frame: caption, drawing, reading, missing
 
-Every diagram on Markets and Coherence is drawn inside one frame —
+Every diagram on Quotes and Proofs is drawn inside one frame —
 [`web/components/coherence/Figure.tsx`](../../Part2_Infrastructure/web/components/coherence/Figure.tsx),
 rendered by **21 components** — and the frame's four parts are the standard:
 
@@ -316,25 +316,69 @@ instance inside a section fights the first over it. `CoherenceConsole.tsx`'s
 header states the rule and cites `ReliabilityConsole` as the place it was
 learned.
 
-This is what the Kalshi engine's eleven sections, across Markets and Coherence, are built on — Universe
-(Baskets · Settlement · Formation), Books (Ladder · Identity · Dispersion),
-Lattice (Distribution · Stake · Whole family), Dutch book (Verdict · Portfolio ·
-Proof), Fees (Worked example · Cost shape · Ablation), Coherence index (Series ·
-Families), Combos (Bands · Parlays · Bounds test · Notes), Calibration (Score ·
-Bands · Corpus), Diffusion (Absorption · Mechanism · Findings · Kalshi
-episodes), Shell (Tree · Reading · Layout) and Lessons (Prices · Structure ·
-Bounds · Record — read from `lib/coherence/lessons.ts::LESSON_GROUPS`, so the
-switcher cannot drift from the curriculum).
+This is what all nine of the Kalshi engine's sections, across **Quotes**
+(`#markets`) and **Proofs** (`#coherence`), are built on — Universe (Baskets ·
+Families · Settlement · Formation · Pending), Books (Ladder · Identity ·
+Dispersion · Channel), Lattice (Survival · Mass · Moments · Whole family ·
+Stake, which opens a second seg of Plan · Capital · Method), Fees (Worked
+example · Cost shape · Ablation · Replay table), Shell (Tree · Reading ·
+Commands · Layout), Dutch book (Verdict · Proof · Certificate · Bands · Parlays
+· Bounds), Scorecard (Score · Bands · Corpus · Index series · Index families),
+Diffusion (Absorption · Noise floor · Meetings · Mechanism · Kalshi survival ·
+Kalshi episodes · Findings) and Lessons (Coverage · Prices · Structure · Bounds
+· Record — the four groups read from
+`lib/coherence/lessons.ts::LESSON_GROUPS`, so the switcher cannot drift from the
+curriculum). A six-view seg is still ONE seg: Dutch book's wraps to a second
+line rather than shrinking its type.
 
-A second convention travels with it, and it is a performance rule rather than a
-layout one: **the open view is reported upward so the console can stop polling
-for the views that do not need it.** `BooksSection` reports its view through
-`onViewChange` precisely so the `books` read stops entirely while Dispersion is
-open (the RFQ route is a signed private-channel call on a 25 s budget), and
-`FeesSection` holds both of its reads at section level, each gated on its view —
-the fees query on Worked example and Cost shape, and `/replay?limit=20000`, the
-largest read on the tab, only on Ablation. A `.seg` that only changed what was
-rendered would leave those reads running.
+**The limit of this control, argued in both directions on 2026-08-24.** A `.seg`
+is the right control for several VIEWS of one subject; it is the wrong control
+for two SUBJECTS. That test still stands, and the test is: write down the
+question each view answers, and if it is not the question the section's other
+views answer, it is a section. In the morning it was applied and six views —
+Settlement, Dispersion, Stake, Certificate, Ablation, Findings — became rail
+sections, because behind an `aria-pressed` button a subject is unreachable by
+URL, invisible on the rail, unnamed in the palette and never walked by
+`desk-sweep.mjs`, which enumerates sections.
+
+**By evening all six were views again, and that is not the rule being
+abandoned.** It is the rule meeting its cost: the promotions took the engine to
+seventeen rail entries across two tabs, and a rail long enough to hold every
+subject is a rail nobody reads. Both halves are true at once — the subjects were
+genuinely distinct, *and* the reader could no longer find any of them. What
+resolved it was not demotion but the second axis: nine sections divided across
+two feature-named tabs, so each rail is short enough to scan while each subject
+still sits under a heading that names it.
+
+So the standard is now two-part. Apply the question test to decide whether a
+view is really a second subject; then check what the rail costs. Where the
+answer is "distinct subject, but the rail cannot afford it", the subject stays a
+view and the section's heading and lede must name it, because the seg label is
+the only place a reader will meet it. Never let a rail grow past what someone
+can hold to avoid writing that sentence.
+
+**What a view gives up, stated once so nobody has to rediscover it.** A view is
+not in the URL, not in the command palette, and not walked by `desk-sweep.mjs`.
+That is why the sweep's `EXPECTED_SECTIONS` is 57 and not the 65 the promotion
+pass briefly produced. **What it does not cost is a broken link:**
+`RELOCATED_SECTIONS` in `lib/workspace-hash.ts` maps every id that stopped being
+a section, and every id that changed tab, to the tab and section that now
+carries it — `index` and `combos` included, both of them published on
+`origin/main`. Demoting a section is a rename in the rail and a redirect in the
+table, never a 404. `coherence-sections.test.ts` drives every link the engine
+has ever shipped to prove it.
+
+A second convention travels with all of this, and it is a performance rule
+rather than a layout one: **an expensive read is gated on the section — or on
+the view, where a view alone is expensive.** The RFQ route (a signed
+private-channel call on a 25 s budget) runs only while Books is showing
+Dispersion or Channel, and `/replay?limit=20000`, the largest read on either
+tab, only on Fees → Ablation or Replay table — which is also the one read the
+rail deliberately does not warm. With Dispersion a view again, `BooksSection`
+expresses that with one predicate over its four views rather than reporting a
+view upward through `onViewChange`, which is the same convention at a different
+granularity rather than a return to the old plumbing. A `.seg` that only changed
+what was rendered would leave those reads running.
 
 ## 6. File length: a 400-line ceiling with a one-way ledger
 
@@ -577,5 +621,6 @@ browser in `web/`, so a rule that is present and correct can still wrap or
 overflow at a width nobody tried. Geometry is therefore **derived, never
 observed**, and a change to it is walked by a human before it ships — see
 [`TESTING.md` §"No DOM, and therefore no layout"](../testing/TESTING.md), which
-names the surfaces currently standing on a derivation, the Coherence tab's
-eleven `.seg` groups among them.
+names the surfaces currently standing on a derivation, the Kalshi engine's ten
+`.seg` groups among them — one per section, plus Lattice's second seg under
+Stake.

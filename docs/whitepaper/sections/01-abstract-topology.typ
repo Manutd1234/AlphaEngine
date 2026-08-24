@@ -72,9 +72,10 @@ discipline is the deliverable.
 
 AlphaEngine is three independently deployable units sharing one append-only
 audit log: a stateful FastAPI *risk gateway* that owns everything which must
-not be forked or forgotten, a serverless Next.js *desk workspace* that gives
-eight roles eight tabs and holds no backend credential in the browser bundle,
-and a stateless *OpenBB research service* that can scale without touching risk
+not be forked or forgotten, a serverless Next.js *desk workspace* whose ten
+tabs give eight desk roles one each and the Kalshi research engine two, and which
+holds no backend credential in the browser bundle, and a stateless
+*OpenBB research service* that can scale without touching risk
 state. Around them sit five datastores of which exactly one is authoritative,
 a Telegram companion inside the gateway process, and a research plane that
 performs semantic recall over the desk's own output.
@@ -290,15 +291,15 @@ into the ledger is a write and every arrow out of it is a view.
  |   Caddy sidecar :8443, pinned internal CA             |<-- Vercel, region sin1
  |        |                                              |   +-------------------
  |   +----v----------------------------------------+     |   | web/ desk workspace
- |   | RISK GATEWAY  --  FastAPI :8000             |     |   |      eight tabs
+ |   | RISK GATEWAY  --  FastAPI :8000             |     |   |      ten tabs
  |   | ONE process, ONE worker, enforced 3 ways    |     |   | OpenBB_Service/
  |   |                                             |     |   |      stateless
- |   |  main.py     auth, lifespan, eight routers  |     |   +-------------------
+ |   |  main.py     auth, lifespan, twelve routers |     |   +-------------------
  |   |  A  TCA      L2 ingest, book, VWAP, routing |     |
  |   |  B  Risk     17 gates, kill switch, breaker |     |
  |   |              + native core (C++), bit-exact |     |
  |   |  C  Backtest sweeps, DSR/PSR, walk-forward  |     |
- |   |  +  Telegram 135 commands, 6 gated controls |     |
+ |   |  +  Telegram 136 commands, 6 gated controls |     |
  |   |  +  Research ingest, RRF fusion, CRAG, gen  |     |
  |   |  +  Mirror   bounded queue, counts its drops|     |
  |   +--------------------+------------------------+     |
@@ -343,32 +344,47 @@ functional requirement and not a latency preference. The process owns the venue
 WebSocket subscriptions, the consolidated book, the paper position book, the
 resting-order book, the token bucket, the kill switch, the seventeen gates and
 the audit log. Its HTTP surface is a committed contract of
-#measured[54 paths carrying 56 operations][`tools/openapi.json`, counted
-2026-08-22] whose SHA-256 the workspace's build verifies before Next.js starts;
+#measured[73 paths carrying 76 operations][`tools/openapi.json`, counted
+2026-08-24] whose SHA-256 the workspace's build verifies before Next.js starts;
 a mismatch fails the build with the reason inline. That is two separately
 deployed units asserting their interface against each other before either ships.
 The Telegram companion rides inside this process rather than forming a fourth
-unit, with #measured[135 registered commands of which exactly six are gated
+unit, with #measured[136 registered commands of which exactly six are gated
 controls][`modules/telegram/registry.py`, tabulated by
-`tools/telegram_catalogue.py`]; each control requires membership of an
-allow-list separate from the read allow-list and empty by default, so the
+`tools/telegram_catalogue.py`, whose `--check` is green on this tree]; each
+control requires membership of an allow-list separate from the read allow-list
+and empty by default, so the
 bootstrap fails closed and the bot cannot open a position.
 
-Note a live divergence. The tech-stack table in the gateway's own README records
-38 paths and 39 operations as of 2026-08-17, counted from the route decorators
-declared in `main.py` at that date; the committed contract counted today carries
-54 and 56. The generated artefact is the figure to quote, and the prose has
-drifted, which is precisely the failure mode that motivated generating these
-counts in the first place.
+Note how a divergence of this kind is resolved, because this document has
+watched one close. The tech-stack table in the gateway's own README recorded 38
+paths and 39 operations as of 2026-08-17, counted from the route decorators
+declared in `main.py` at that date, while the committed contract already carried
+more; the prose had drifted, which is precisely the failure mode that motivated
+counting from the artefact in the first place. That table has since been
+rewritten against the artefact and now states its basis, and gives the
+route-decorator total separately as what it is --- a different count of a
+different thing, since four decorators never reach the schema: the
+`/ws/book/{symbol}` WebSocket, which OpenAPI does not describe, and three HTML
+console routes marked `include_in_schema=False`. Two counts on two stated bases
+is the resolution. One count with no basis was the defect.
 
 === Unit 2: the desk workspace
 
 A Next.js application on serverless infrastructure in the same city as the
-gateway, presenting eight role tabs whose order is the decision loop itself:
-Overview, Research, Execution, Portfolio, Risk, Data, Reliability, Developer.
-Every subtab is URL-addressable, and the navigation rail is pinned to the tour
-documentation by a test so the two cannot drift apart silently. The browser
-bundle holds zero backend credentials; the server-side proxy is the only path to
+gateway, presenting ten tabs. The first eight are the decision loop itself:
+Overview, Research, Execution, Portfolio, Risk, Data, Reliability, Developer. The
+last two are one self-contained research engine over a different venue --- Prices
+for what that venue quotes, Proofs for what the engine proves about it --- and
+they are the reason the count is ten rather than eight. Their URL ids are
+`markets` and `coherence`, older than those labels and deliberately unchanged, so
+every link ever published against them still resolves. Between them the ten
+carry #measured[57 rail sections][`web/lib/sections.ts`, counted 2026-08-24;
+`web/scripts/desk-sweep-plan.mjs` mirrors the same ten tabs by hand and asserts
+the total, so a section added to one and not the other fails]. Every subtab is
+URL-addressable, and the navigation rail is pinned to the tour documentation by a
+test so the two cannot drift apart silently. The browser bundle holds zero
+backend credentials; the server-side proxy is the only path to
 the gateway's address and token, and the one credential that *is* published to
 the browser is an anonymous key whose scope is enforced in Postgres by row-level
 security rather than by client-side filtering, because a client-side filter is a
@@ -381,7 +397,7 @@ portfolio state, no database and no writable runtime dependency. Because it
 holds nothing it scales horizontally without coordination, and because it is a
 separate deployment its cold starts and upstream timeouts are structurally
 incapable of reaching the process that decides orders. Its committed suite is
-#measured[14 tests][`web/lib/test-counts.generated.ts`], which is small because
+#measured[24 tests][`web/lib/test-counts.generated.ts`], which is small because
 the unit is small; a stateless adapter that grew a large suite would be evidence
 that it had stopped being stateless.
 
@@ -614,7 +630,7 @@ response is to drop it and re-project, never to reconcile two writers.
   columns: (0.7fr, 1fr, 0.8fr, 1.3fr),
   [Unit], [Owns], [Scaling], [Dominant failure mode and its containment],
   [Risk gateway (FastAPI, always-on VM)], [Venue subscriptions, consolidated book, position and resting books, seventeen gates, kill switch, token bucket, authoritative ledger, Telegram companion, research plane], [Vertical only. One process, no workers, enforced by container contract test and a `flock(2)` claim], [*Process loss stops order decisions.* Contained by: the ledger surviving on a mounted volume; strict rehydration on restart; a refusal-to-start on a second writer rather than a shadow desk. Not contained by replication, and this is stated rather than implied.],
-  [Desk workspace (Next.js, serverless)], [Eight role tabs, server-side proxy, provider registry with quota budgeting and ranked failover, operator write path behind a token], [Horizontal, scale-to-zero. Holds no risk state], [*Upstream provider failure or a gateway outage.* Contained by: seven typed gateway failure codes that keep "not configured" apart from "unreachable"; keyless crypto surface that works with no gateway at all; per-provider circuit breaking.],
+  [Desk workspace (Next.js, serverless)], [Ten tabs --- eight desk roles and the Kalshi engine's two, server-side proxy, provider registry with quota budgeting and ranked failover, operator write path behind a token], [Horizontal, scale-to-zero. Holds no risk state], [*Upstream provider failure or a gateway outage.* Contained by: seven typed gateway failure codes that keep "not configured" apart from "unreachable"; keyless crypto surface that works with no gateway at all; per-provider circuit breaking.],
   [OpenBB service (FastAPI, serverless)], [Quotes, bars, company news, fundamentals through pinned fetchers], [Horizontal, unconstrained. No state, no database, no writable dependency], [*Cold start or slow upstream.* Contained by separation: it is a different deployment, so its latency cannot queue behind or crash beside the decision process. That separation is the entire reason it is a third unit.],
   [Shared ledger (DuckDB on a volume)], [Orders, risk events, backtest runs, equity snapshots, session rollovers], [Not scaled. Single writer by construction], [*Two writers forking the history.* Contained by raising a ledger conflict instead of falling back to a private SQLite file, behind the advisory lock, behind the container contract.],
 )
@@ -696,10 +712,17 @@ with its method and machine and refuses to merge two machines into one
 flattering number, and the committed test counts, generated because the prose
 copies had drifted three times before the generator existed. As of this revision
 those counts read
-#measured[2,037 gateway tests, 2,036 passed and one skipped][`web/lib/test-counts.generated.ts`,
-generated 2026-08-22],
-#measured[4,008 web tests across 871 suites][same] and
-#measured[14 service tests][same]. The single gateway skip is the Postgres
-data-operations backend reporting no credentials in a network-free environment,
-which is the expected state and says so with its reason rather than passing
-silently.
+#measured[2,998 gateway tests, 2,996 passed and two skipped][`web/lib/test-counts.generated.ts`,
+generated 2026-08-24 with `RERANK_TEST_MODEL_PATH` blanked --- the CI shape, and
+the shape to state whenever this line is quoted],
+#measured[4,487 web tests across 984 suites][same] and
+#measured[24 service tests][same]. The two gateway skips are the two deliberate
+opt-ins, and each names what it did not exercise: the Postgres data-operations
+backend reporting no credentials in a network-free environment, and the real
+cross-encoder re-ranker reporting that no weights were offered. Both are the
+expected state and say so with a reason rather than passing silently. Seeding the
+re-ranker weights moves the same tree by
+#measured[eight passes gained and one skip lost][`tests/test_research_rerank_real.py`,
+which calls `pytest.skip(..., allow_module_level=True)`, so its eight tests are
+not collected at all and the file contributes exactly one skip], which is why a
+gateway figure quoted without its shape is not a measurement.
