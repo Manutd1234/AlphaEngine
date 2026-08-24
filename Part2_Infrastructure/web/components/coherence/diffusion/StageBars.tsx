@@ -22,10 +22,10 @@ const MARK: Record<string, string> = { release: "●", call: "▲" };
 
 function percentileWord(value: number | null): string {
   if (value == null) return "no matched window cleared the floor";
-  if (value <= 0.1) return "faster than nearly every window with no news in it";
-  if (value <= 0.35) return "faster than most windows with no news in it";
-  if (value < 0.65) return "indistinguishable from a window with no news in it";
-  return "slower than most windows with no news in it";
+  if (value <= 0.1) return "faster than nearly every no-news window";
+  if (value <= 0.35) return "faster than most no-news windows";
+  if (value < 0.65) return "indistinguishable from a no-news window";
+  return "slower than most no-news windows";
 }
 
 export default function StageBars({ stages }: { stages: StageSummary[] }) {
@@ -43,10 +43,18 @@ export default function StageBars({ stages }: { stages: StageSummary[] }) {
                 {stage.measured} of {total} stages cleared the noise floor
               </span>
             </div>
+            {/* This bar is HTML rather than SVG, so the hover line every mark
+                on this tab carries is the `title` attribute — the same
+                affordance, the element's own. Added on the fourth review of
+                2026-08-24; the two fills are the same track and the refused
+                one is the half a reader is most likely to misread as absent
+                rather than as counted. */}
             <div className="diff-bars__track" role="img"
                  aria-label={`${WORD[stage.stage]}: ${stage.measured} measured, ${stage.no_signal} below the floor`}>
-              <span className="diff-bars__fill diff-bars__fill--measured" style={{ width: share(stage.measured) }} />
-              <span className="diff-bars__fill diff-bars__fill--refused" style={{ width: share(stage.no_signal + stage.other) }} />
+              <span className="diff-bars__fill diff-bars__fill--measured" style={{ width: share(stage.measured) }}
+                    title={`${WORD[stage.stage]}: ${stage.measured} of ${total} stages cleared the noise floor`} />
+              <span className="diff-bars__fill diff-bars__fill--refused" style={{ width: share(stage.no_signal + stage.other) }}
+                    title={`${WORD[stage.stage]}: ${stage.no_signal} moved too little to measure, ${stage.other} refused for another reason — counted, not dropped`} />
             </div>
             <div className="diff-bars__foot">
               {stage.median_half_life_s != null ? (

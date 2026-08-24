@@ -29,12 +29,12 @@
 
 .coh-combos { display: grid; gap: 14px; min-width: 0; }
 
-.coh-combos__lead {
-  margin: 0;
-  font-size: var(--fs-body);
-  line-height: 1.55;
-  color: var(--text-primary);
-}
+/* `.coh-combos__lead` was deleted on 2026-08-24. It styled one paragraph at the
+   top of the Bands view — "the band's width is how far the parlay can move with
+   no leg price moving at all" — which is the section head's lede in other words
+   and `FrechetBand`'s own `reading` in a third set, with the measured width in
+   it. The paragraph went with the density pass; nothing else ever rendered the
+   class, so the rule went with it rather than waiting to be found dead. */
 
 .coh-combos__rows { display: grid; gap: 10px; min-width: 0; }
 

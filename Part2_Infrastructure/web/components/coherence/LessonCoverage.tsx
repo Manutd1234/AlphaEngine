@@ -4,24 +4,38 @@
  * Which parts of this engine are actually taught, and which are not taught at all.
  *
  * The curriculum shipped as fourteen cards and no picture. A reader could see
- * every lesson and still not see the SHAPE of the thing: that the book pane and
- * the lattice carry three each while six sections carry one, and that two
- * sections carry nothing. Fourteen cards read as broad coverage. They are not.
+ * every lesson and still not see the SHAPE of the thing. Re-derived from the
+ * catalogue on 2026-08-24 after the last of that day's four restructures: over
+ * the engine's NINE sections, Books carries three, Universe, the lattice and
+ * Dutch book two each, Fees, Scorecard and Diffusion one each, and TWO carry
+ * nothing at all — Shell and Lessons itself. Fourteen cards read as broad
+ * coverage; over seventeen sections they were not, and the consolidation is
+ * what changed that reading rather than any lesson being written.
+ *
+ * That paragraph is the only place a count is written down, it is written down
+ * because a banner nobody can check goes stale, and it went stale exactly once:
+ * it claimed "six sections carry one and two carry nothing" over an eleven-id
+ * rail and was still claiming it after the rail became seventeen. Everything
+ * ON SCREEN is computed, so the strip itself could not drift with it.
  *
  * Three decisions, because each is a way this strip could lie:
  *
- * **The columns are the rails, not the lessons.** They come from
- * `MARKETS_SECTIONS` then `COHERENCE_SECTIONS` in rail order, so every section
- * either tab offers gets a column whether or not a lesson names it. Building
- * the columns from the lessons instead would draw only the sections that
- * happen to be taught — a complete-looking picture of a smaller engine, and
- * precisely the omission the figure exists to show.
+ * **The columns are the rail, not the lessons.** They come from
+ * `ENGINE_SECTIONS` in rail order, so every section the engine offers gets a
+ * column whether or not a lesson names it. Building the columns from the lessons
+ * instead would draw only the sections that happen to be taught — a
+ * complete-looking picture of a smaller engine, and precisely the omission the
+ * figure exists to show.
  *
- * BOTH rails, though the strip is drawn on Coherence. The curriculum is about
- * the engine and it always was: three lessons are about the book ladders and
- * three about the lattice, all six of which are Markets sections since the
- * split. Drawing only this tab's seven would report those six as taught
- * nowhere, which is the one thing this figure must never do.
+ * BOTH RAILS, and reading one array is what makes that safe. The engine is two
+ * tabs again since the split of 2026-08-24 — Prices and Proofs — and seven of
+ * the fourteen lessons are taught on the first. A strip built from one tab's
+ * array would silently drop half the curriculum and still look complete, which
+ * is the same failure as building the columns from the lessons. `ENGINE_SECTIONS`
+ * in `lib/sections.ts` is the concatenation, declared once. A lesson whose
+ * `pane` names an id NEITHER rail carries is an orphan, which is why the orphan
+ * branch below is not decoration — `stake`, `index` and `combos` each were one,
+ * and each moved to its carrier in the same change that demoted it.
  *
  * **A section with nothing gets a column, a stub, a mark and the word "none".**
  * Not a gap, not a zero-height bar that reads as a rendering fault. An absence
@@ -39,11 +53,11 @@
  */
 
 import { COHERENCE_LESSONS } from "@/lib/coherence/lessons";
-import { COHERENCE_SECTIONS, MARKETS_SECTIONS } from "@/lib/sections";
+import { ENGINE_SECTIONS } from "@/lib/sections";
 
 import Figure, { FigureEmpty, Plot } from "./Figure";
 
-const CAPTION = "One column per section of Markets then Coherence, in rail order, with one mark per lesson taught there";
+const CAPTION = "One column per section of the engine, in rail order, one mark per lesson taught there";
 
 const MARK_H = 12;
 const MARK_GAP = 4;
@@ -51,9 +65,12 @@ const KEY_Y = 11;
 const COUNT_Y = 30;
 const MARKS_TOP = 38;
 
-/** Room under the axis for the rotated labels. "Coherence index" is the
- *  longest of the eleven, and --fs-tick is 10px, so ~80px of run plus slack. */
-const LABEL_BAND = 92;
+/** Room under the axis for the rotated labels. "Coherence index" is still the
+ *  longest of the seventeen at 15 characters, and the labels sit on the
+ *  diagram ladder's 12px rung since 2026-08-24 (14r), so 15 x 12 x 0.56 =
+ *  ~101px of run plus slack. At the old 10px band of 92 the lift would have
+ *  clipped the two longest labels mid-word. */
+const LABEL_BAND = 112;
 
 /** "Shell and Lessons", "A, B and C" — never a bare comma list in prose. */
 function listOf(names: string[]): string {
@@ -62,15 +79,15 @@ function listOf(names: string[]): string {
 }
 
 export default function LessonCoverage() {
-  const columns = [...MARKETS_SECTIONS, ...COHERENCE_SECTIONS].map((section) => ({
+  const columns = ENGINE_SECTIONS.map((section) => ({
     id: section.id,
     label: section.label,
     lessons: COHERENCE_LESSONS.filter((lesson) => lesson.pane === section.id),
   }));
 
   // A lesson whose `pane` names nothing on the rail would otherwise vanish
-  // between the two lists without either of them looking short. Counted, and
-  // named in `missing` if it ever happens, rather than silently dropped.
+  // without the strip looking short. Counted, and named in `missing` if it ever
+  // happens, rather than silently dropped.
   const orphans = COHERENCE_LESSONS.filter(
     (lesson) => !columns.some((column) => column.id === lesson.pane),
   );
@@ -79,7 +96,7 @@ export default function LessonCoverage() {
   const taught = columns.filter((column) => column.lessons.length > 0);
   const bare = columns.filter((column) => column.lessons.length === 0);
 
-  const ariaLabel = `One column per section of Markets then Coherence in rail order, each a stack of one mark per lesson taught there: ${columns
+  const ariaLabel = `One column per section of the engine, one mark per lesson: ${columns
     .map((column) => `${column.label} ${column.lessons.length || "none"}`)
     .join(", ")}.`;
 
@@ -88,7 +105,7 @@ export default function LessonCoverage() {
       <Figure
         caption={CAPTION}
         ariaLabel="No lessons to place against the section rail"
-        missing={`The rail is intact; it is the catalogue that is empty, so nothing is drawn rather than ${columns.length} empty columns.`}
+        missing={`The rail is intact; the catalogue is empty, so nothing is drawn rather than ${columns.length} empty columns.`}
       >
         <FigureEmpty reason="No lessons in the catalogue to place." />
       </Figure>
@@ -109,7 +126,7 @@ export default function LessonCoverage() {
       )} ${bare.length === 1 ? "carries" : "carry"} none.`
     : `${COHERENCE_LESSONS.length} lessons across all ${columns.length} sections of the engine.`;
 
-  const missing = `Every one of the ${COHERENCE_LESSONS.length} lessons is shipped, so no mark here stands for pending work and nothing is drawn as unbuilt. The strip counts lessons, not depth: a column of one is a section one lesson names, not a smaller section.${orphanNote}`;
+  const missing = `No mark stands for pending work — all ${COHERENCE_LESSONS.length} lessons are shipped. The strip counts lessons, not depth: a column of one is one lesson\u2019s section, not a smaller one.${orphanNote}`;
 
   const tallest = Math.max(1, ...columns.map((column) => column.lessons.length));
   const axisY = MARKS_TOP + tallest * MARK_H + (tallest - 1) * MARK_GAP;
@@ -122,8 +139,10 @@ export default function LessonCoverage() {
           const markW = Math.max(6, Math.min(colW - 10, 26));
           return (
             <>
-              {/* The key, so a mark is not left to be inferred from its stack. */}
-              <text x={0} y={KEY_Y} className="coh-surface__tick">
+              {/* The key, so a mark is not left to be inferred from its stack.
+                  A legend, so it takes the ladder's 13px rung (coh-svg-note,
+                  14r) rather than the column labels' 12. */}
+              <text x={0} y={KEY_Y} className="coh-svg-note">
                 <tspan>▪ one lesson</tspan>
                 <tspan dx={14}>◌ none taught</tspan>
               </text>

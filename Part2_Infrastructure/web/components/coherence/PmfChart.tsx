@@ -63,7 +63,7 @@ export default function PmfChart({ surface }: { surface: CoherenceSurface }) {
   if (!bars.length) {
     return (
       <Figure caption={CAPTION} ariaLabel="No implied distribution: this family priced no intervals" missing={surface.detail}>
-        <FigureEmpty reason="No interval of this family is quoted, so there is no mass to draw." />
+        <FigureEmpty reason="No interval of this family is quoted." />
       </Figure>
     );
   }
@@ -81,9 +81,9 @@ export default function PmfChart({ surface }: { surface: CoherenceSurface }) {
 
   const thinning = labelAll
     ? null
-    : `All ${bars.length} bins are drawn; only the ends and the heaviest are named, because ${bars.length} labels will not fit. None was dropped.`;
+    : `All ${bars.length} bins are drawn; only the ends and the heaviest are named, because ${bars.length} labels will not fit.`;
   const emptyNote = empties.length
-    ? `${empties.length} of ${readable.length} readable bin(s) carry no mass: the strikes either side quote the same survival. Drawn as flat stubs, not as gaps.`
+    ? `${empties.length} of ${readable.length} readable bin(s) carry no mass — strikes either side quote the same survival; drawn as flat stubs, not gaps.`
     : null;
   const unreadableNote = unreadable
     ? `${unreadable} bin(s) carried a mass this desk could not parse exactly, marked ◌ unread rather than drawn as zero.`
@@ -95,8 +95,8 @@ export default function PmfChart({ surface }: { surface: CoherenceSurface }) {
       ariaLabel={`Implied probability mass across ${bars.length} intervals${negatives.length ? `, ${negatives.length} of them negative` : ""}${heaviest ? `, heaviest ${heaviest.label} at ${priceLabel(heaviest.raw)}` : ""}`}
       reading={`${heaviest ? `The heaviest interval is ${heaviest.label} at ${priceLabel(heaviest.raw)}. ` : ""}${
         negatives.length
-          ? `${negatives.length} interval(s) price to LESS than nothing and are drawn below the axis, hatched and marked ▽ negative mass. A negative mass is not a small probability, it is a quoted contradiction: the higher strike is priced as more likely than the lower one.`
-          : "No interval prices to less than nothing, so the quoted ladder is monotone across every pair that was read."
+          ? `${negatives.length} interval(s) price to LESS than nothing and are drawn below the axis, marked ▽. A negative mass is not a small probability, it is a quoted contradiction: the higher strike is priced as more likely than the lower one.`
+          : "No interval prices to less than nothing: the quoted ladder is monotone across every pair read."
       }`}
       missing={[surface.detail, thinning, emptyNote, unreadableNote].filter(Boolean).join(" ")}
     >
@@ -157,7 +157,7 @@ export default function PmfChart({ surface }: { surface: CoherenceSurface }) {
                 if (bar.mass === 0) {
                   return (
                     <rect key={key} x={x} y={base - 1.2} width={barWidth} height={1.2} className="coh-surface__bar-zero">
-                      <title>{`${bar.label}: no mass at all — the two strikes around it are quoted at the same survival`}</title>
+                      <title>{`${bar.label}: no mass — strikes either side quote the same survival`}</title>
                     </rect>
                   );
                 }

@@ -32,11 +32,27 @@
  * timestamp was checked against the issuer's own release line, not against a
  * secondary calendar, because an event study with the wrong t-zero measures
  * the speed of its own errors.
+ *
+ * THREE VIEWS SINCE THE SECOND PASS OF 2026-08-24. The dot plot, the findings
+ * table and the instrument audit stacked to three screens, and they answer
+ * three questions — "what is the shape of the study", "what exactly was
+ * measured", "was the pipeline fit to find anything" — so they are a `.seg`
+ * now, dot plot first because the section's lede is its reading. The chip row
+ * stays above the switcher: all four chips describe the whole study. The
+ * calendar note and the absent-rows disclosure moved into the Instrument view,
+ * which is where the method lives. One read feeds all three, gated on
+ * `active` alone. The seg lives here because this pane is one VIEW of the
+ * Diffusion section since the merge of 2026-08-24 — `DiffusionPane` draws the
+ * section's one head, which is what `coherence-pane-head.test.ts` holds, and
+ * the wrapper that used to give this pane a head of its own is deleted.
  */
+
+import { useState } from "react";
 
 import { findingsRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import Figure, { FigureEmpty, StateChip } from "../Figure";
+import ValueStrip from "../ValueStrip";
 import EffectPlot from "./EffectPlot";
 import FindingsTable from "./FindingsTable";
 import InstrumentTable from "./InstrumentTable";
@@ -50,6 +66,7 @@ const GATE_MARK: Record<GateCheck["state"], string> = {
 
 export default function FindingsPane({ active }: { active: boolean }) {
   const { data, error } = useCoherenceRead<FindingsRead>(findingsRoute(), active);
+  const [view, setView] = useState<"plot" | "table" | "instrument">("plot");
 
   if (error && !data) {
     return (
@@ -63,7 +80,7 @@ export default function FindingsPane({ active }: { active: boolean }) {
     return (
       <p className="console-empty">
         <span aria-hidden="true">◌</span>{" "}
-        {data.reason ?? "Nothing has been measured yet. That is not the same as nothing being there."}
+        {data.reason ?? "Nothing has been measured yet — not the same as nothing being there."}
       </p>
     );
   }
@@ -107,6 +124,19 @@ export default function FindingsPane({ active }: { active: boolean }) {
         />
       </div>
 
+      <div className="seg" role="group" aria-label="Findings view">
+        <button type="button" aria-pressed={view === "plot"} onClick={() => setView("plot")}>
+          Effect plot
+        </button>
+        <button type="button" aria-pressed={view === "table"} onClick={() => setView("table")}>
+          Findings table
+        </button>
+        <button type="button" aria-pressed={view === "instrument"} onClick={() => setView("instrument")}>
+          Instrument
+        </button>
+      </div>
+
+      {view === "plot" ? (
       <Figure
         caption="Every relationship measured, against the band a shuffled pairing would reach"
         ariaLabel={`Dot plot of t statistics for ${data.findings.length} measured relationships, ${held} outside the plus or minus two band`}
@@ -114,10 +144,10 @@ export default function FindingsPane({ active }: { active: boolean }) {
           !measured
             ? null
             : held
-              ? "The rows outside the band are the positive control; the fold below says why the rows inside it can be read as absent at all."
-              : "Nothing clears the band, including the control — so no row below can be read as an absence rather than a broken measurement."
+              ? "The rows outside the band are the control; Instrument says why the rows inside can be read as absent at all."
+              : "Nothing clears the band, the control included — so no row can be read as absence rather than broken measurement."
         }
-        missing="A row is drawn only where enough meetings carry both quantities; the count is in the table."
+        missing="A row is drawn only where enough meetings carry both quantities; the counts are in the table."
       >
         {measured ? (
           <EffectPlot findings={data.findings} />
@@ -125,19 +155,55 @@ export default function FindingsPane({ active }: { active: boolean }) {
           <FigureEmpty reason="No relationship has enough meetings behind it yet." />
         )}
       </Figure>
-
+      ) : view === "table" ? (
+      <>
+      <ValueStrip
+        caption="How many meetings sit behind each verdict"
+        ariaLabel={`Meetings with both quantities for each of ${data.findings.length} relationships`}
+        rows={data.findings.map((row) => ({
+          label: `${row.name} (${row.stage})`,
+          value: row.n,
+          text: String(row.n),
+          title: `${row.name} (${row.stage}): ${row.n} meetings — ${row.question}`,
+        }))}
+      />
       <FindingsTable findings={data.findings} />
-
+      </>
+      ) : (
+      <>
       {study ? (
         <section aria-labelledby="diff-instrument-head">
           <h4 id="diff-instrument-head">Was the instrument fit to answer?</h4>
+          {/* The two out-of-sample rows drawn (third review, 2026-08-24):
+              the target has structure, and what the text adds to it is the
+              headline — both signed, both against zero. */}
+          <ValueStrip
+            caption="Out of sample: the clock without the text, and what the text adds"
+            ariaLabel="Baseline out-of-sample R squared and the text's added R squared, signed"
+            rows={[
+              {
+                label: "Clock without the text",
+                value: study.skill_baseline_r2,
+                text: study.skill_baseline_r2 != null ? `R² ${study.skill_baseline_r2 >= 0 ? "+" : ""}${study.skill_baseline_r2.toFixed(3)}` : "—",
+                title: "Residence time predicted from the stage and the rate move alone, leave-one-meeting-out",
+                noBar: study.skill_baseline_r2 == null ? "not measured" : undefined,
+              },
+              {
+                label: "What the text adds",
+                value: study.skill_gain,
+                text: study.skill_gain != null ? `${study.skill_gain >= 0 ? "+" : ""}${study.skill_gain.toFixed(3)} R²` : "—",
+                title: "What the statement's spectrum adds to that baseline, same held-out meetings",
+                noBar: study.skill_gain == null ? "not measured" : undefined,
+              },
+            ]}
+          />
           <InstrumentTable study={study} gate={gate} />
           <p className="coh-event__note">
             <span aria-hidden="true">→</span> Reported from the {study.segment ?? "whole statement"}{" "}
             against the {study.conditioning === "prior" ? "previous statement" : study.conditioning},
-            at latent width {study.latent_dim}. The desk shows whichever run on file best recovers the
-            known fact among the well conditioned — a rule fixed in advance, blind to absorption
-            speed, so re-running cannot walk the headline towards a result.{" "}
+            at latent width {study.latent_dim}; the desk shows whichever run best recovers the known
+            fact among the well conditioned — a rule fixed in advance, blind to absorption speed, so
+            re-running cannot walk the headline.{" "}
             {study.verdict_reason
               ? `${study.verdict_reason.charAt(0).toUpperCase()}${study.verdict_reason.slice(1)}.`
               : ""}
@@ -149,26 +215,26 @@ export default function FindingsPane({ active }: { active: boolean }) {
         <p className="coh-event__note">
           <span aria-hidden="true">{allVerified ? "✓" : "◌"}</span>{" "}
           {calendar.how.charAt(0).toUpperCase()}{calendar.how.slice(1)} — {calendar.verified}{" "}
-          of {calendar.of}. The hour is checked against the issuer rather than against a second
-          calendar, because an event study anchored on a wrong t-zero measures the speed of its own
-          errors. Its {calendar.dissent_votes} dissenting votes across {calendar.dissent_meetings}{" "}
-          meetings come from the vote line of each statement, not from a summary of it.
+          of {calendar.of}. The hour is checked against the issuer, because an event study anchored
+          on a wrong t-zero measures the speed of its own errors. Its {calendar.dissent_votes}{" "}
+          dissenting votes across {calendar.dissent_meetings} meetings come from each statement's
+          vote line, not a summary.
         </p>
       ) : null}
 
       <details className="disclosure">
-        <summary>Why is the predictor reported as absent rather than dropped?</summary>
+        <summary>Why report the predictor as absent rather than drop it?</summary>
         <p>
-          A measurement that found nothing is only worthless when nobody can tell it apart from a
-          measurement that could not have found anything. Two things fix that here. The control
-          rows are the same pipeline, the same events and the same standardisation, on a
-          relationship it does detect at four standard errors. And the instrument table reports
-          how well the absorption clock is predicted <em>without</em> the text at all — from the
-          stage and the size of the rate move — so a reader can see the target has structure before
-          reading that the text does not explain it. Deleting the empty rows would leave the next
-          reader to spend the same weeks rediscovering them.
+          A null is only worthless when nobody can tell it from a measurement that could not have
+          found anything. Two things fix that here: the control rows are the same pipeline on a
+          relationship it does detect at four standard errors, and the instrument table shows the
+          clock is predictable <em>without</em> the text — the target has structure before the text
+          fails to explain it. Deleting the empty rows would leave the next reader to rediscover
+          them over the same weeks.
         </p>
       </details>
+      </>
+      )}
     </div>
   );
 }

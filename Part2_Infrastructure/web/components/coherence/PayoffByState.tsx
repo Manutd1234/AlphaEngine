@@ -31,6 +31,18 @@
  * **A state that could not be measured is a gap.** If a leg's price or size
  * does not parse, every column that leg touches is a dash, never a zero: zero
  * is a payoff this portfolio might genuinely have, and "unreadable" is not it.
+ *
+ * THE FOOTNOTES WERE CUT BY ABOUT A THIRD ON 2026-08-24 and no claim went with
+ * them. Four of them re-explained a fact the same paragraph had just stated in
+ * other words: that a dash is not a zero, said twice; that these columns are
+ * the state space the engine could reach, said in both branches of the
+ * untestable note; that fees would have come off had a bar been drawn, on a
+ * figure with no bars. What is left is one clause per fact.
+ *
+ * REJECTED: dropping the "no constraint went untested" branch entirely, on the
+ * grounds that a reader does not need to be told nothing is missing. It is the
+ * difference between a figure that checked and a figure that did not, and this
+ * whole component exists to keep those apart — so it stays, at four words.
  */
 
 import { DOLLAR_CC, fromCenticents, toCenticents } from "@/lib/coherence/fixed-point";
@@ -38,13 +50,13 @@ import type { CoherenceCertificate } from "@/lib/coherence/types";
 import Figure, { FigureEmpty, Plot } from "./Figure";
 
 const HEIGHT = 190;
-/** The right margin is a gutter: the two reference lines put their figures
- *  there, where no bar can ever reach them. */
-const MARGIN = { top: 36, right: 86, bottom: 36, left: 8 };
+/** The gutter for the two reference lines' figures, where no bar reaches.
+ *  Sized for "$0 break even": 13 chars x 13px note rung x 0.56 = 95px + 6. */
+const MARGIN = { top: 36, right: 104, bottom: 36, left: 8 };
 const MAX_BAR = 54;
 /** Micro-dollars per centicent. Every amount below is integer micro-dollars. */
 const MICRO_PER_CC = 100;
-const CAPTION = "What the winning portfolio pays in each state this family can settle into, gross and after fees";
+const CAPTION = "What the portfolio pays in each state this family can settle into, gross and after fees";
 
 /** One settlement state: the market that resolves YES in it. */
 export interface PayoffState {
@@ -132,8 +144,8 @@ export default function PayoffByState({
     return (
       <Figure
         caption={CAPTION}
-        ariaLabel="Payoff by settlement state: there is no portfolio and no state space to draw"
-        missing={`${certificate.rows_untestable} constraint(s) could not be tested, and nothing here says what the remaining states are.`}
+        ariaLabel="No portfolio and no state space to draw"
+        missing={`${certificate.rows_untestable} constraint(s) went untested, and nothing here says what the remaining states are.`}
       >
         <FigureEmpty reason="Nothing to draw — this test returned no portfolio, or no state space for it." />
       </Figure>
@@ -144,8 +156,8 @@ export default function PayoffByState({
     return (
       <Figure
         caption={CAPTION}
-        ariaLabel="Payoff by settlement state: the portfolio reaches outside this family, so its states cannot be drawn from this family alone"
-        missing={`${outside.length} of ${certificate.legs.length} legs sit outside this event — the scope is "${certificate.scope}" — so the states this family settles into are not the states the portfolio pays in, and drawing them would show a smaller world than the one the engine priced. ${certificate.rows_untestable} constraint(s) could not be tested either. ${certificate.tier_note}`}
+        ariaLabel="The portfolio reaches outside this family, so its states cannot be drawn from it alone"
+        missing={`${outside.length} of ${certificate.legs.length} legs sit outside this event — scope "${certificate.scope}" — so drawing this family's states would show a smaller world than the engine priced. ${certificate.rows_untestable} constraint(s) went untested. ${certificate.tier_note}`}
       >
         <FigureEmpty reason="No state space — this portfolio spans more than this family's outcomes." />
       </Figure>
@@ -159,8 +171,8 @@ export default function PayoffByState({
     return (
       <Figure
         caption={CAPTION}
-        ariaLabel="Payoff by settlement state: no state could be measured"
-        missing={`No column is drawn: ${unreadable.join(", ") || "a leg"} could not be read, and a state whose payoff is unknown is not a state whose payoff is zero. ${certificate.rows_untestable} constraint(s) could not be tested. Fees would have been subtracted from every column had one been drawn.`}
+        ariaLabel="No state could be measured"
+        missing={`No column is drawn: ${unreadable.join(", ") || "a leg"} could not be read, and an unknown payoff is not a payoff of zero. ${certificate.rows_untestable} constraint(s) went untested.`}
       >
         <FigureEmpty reason="No payoff could be measured — a leg's price or size did not parse." />
       </Figure>
@@ -197,26 +209,27 @@ export default function PayoffByState({
   const afterFees =
     netEdge == null
       ? ""
-      : ` Fees take that to ${certificate.net_edge}, ${netEdge > 0 ? "still above the line" : "below the line: the violation is real and the fees price it out"}.`;
+      : ` Fees take it to ${certificate.net_edge}, ${netEdge > 0 ? "still above the line" : "below the line — the violation is real and the fees price it out"}.`;
   const reading = agrees
     ? clears
-      ? `Every column clears the zero line. The lowest is ${certificate.worst_case_payoff} — the worst-case payoff — so this portfolio pays in every state the engine could test.${afterFees}${certificate.because ? ` The engine's own reason: ${certificate.because}.` : ""}`
-      : `The lowest column is ${certificate.worst_case_payoff} — the worst-case payoff — and it does not clear the zero line, so there is a state this portfolio does not win in.`
-    : `The lowest column drawn is ${money(lowest)}, and the engine reports a worst-case payoff of ${certificate.worst_case_payoff ?? "—"}. Those are different numbers, so the dashed rule and the shortest bar are not the same claim here.`;
+      ? `Every column clears zero; the lowest is ${certificate.worst_case_payoff}, the worst case, so this portfolio pays in every state the engine could test.${afterFees}${certificate.because ? ` ${certificate.because}.` : ""}`
+      : `The lowest column is ${certificate.worst_case_payoff} and does not clear zero, so there is a state this portfolio loses in.`
+    : `The lowest column drawn is ${money(lowest)} against a reported worst case of ${certificate.worst_case_payoff ?? "—"} — different numbers, so the dashed rule and the shortest bar are not one claim.`;
 
+  // One clause per fact, and none of them repeats another: what is absent from
+  // the state space, whether fees are off the bars, which legs are unreadable,
+  // and whether the dashed rule and the shortest bar are the same number.
   const missing = [
     certificate.rows_untestable
-      ? `${certificate.rows_untestable} constraint(s) could not be tested — a leg was unquoted — so the states behind them are not columns here: read this as the state space the engine could reach, never as the whole one.`
-      : "No constraint went untested (rows_untestable is 0), so no state is absent for that reason — but these columns are still only the outcomes this family settles into.",
+      ? `${certificate.rows_untestable} constraint(s) went untested — a leg was unquoted — so these columns are the reachable state space, not the whole one.`
+      : "No constraint went untested.",
     fees == null
-      ? `Fees are NOT drawn: total_fees came back as ${certificate.total_fees ?? "—"}, which this figure could not read at the exchange's precision, so every bar here is gross and nothing has been taken off it.`
-      : `Fees are already subtracted: the dashed block at the top of each column is the ${certificate.total_fees} of total_fees, and the figure above each column is what is left once it comes off.`,
+      ? `Fees are NOT drawn — total_fees (${certificate.total_fees ?? "—"}) did not parse at the exchange's precision — so every bar is gross.`
+      : `The dashed block on each column is ${certificate.total_fees} of fees; the figure above it is what is left.`,
     unreadable.length
-      ? `${unreadable.length} leg(s) could not be read — ${unreadable.join(", ")} — so every state they touch is drawn as a gap with a dash, never as zero.`
+      ? `${unreadable.length} leg(s) could not be read — ${unreadable.join(", ")} — so every state they touch is a dash, never a zero.`
       : "",
-    agrees
-      ? ""
-      : "The dashed rule sits at the engine's worst_case_payoff, not at the shortest bar drawn here.",
+    agrees ? "" : "The dashed rule is the engine's worst case, not the shortest bar here.",
   ]
     .filter(Boolean)
     .join(" ");
@@ -236,7 +249,7 @@ export default function PayoffByState({
   return (
     <Figure
       caption={CAPTION}
-      ariaLabel={`Payoff by settlement state: one column per outcome, ${measured}, each drawn against a zero line with total fees taken off the top and a dashed rule at the worst-case payoff`}
+      ariaLabel={`One column per outcome, ${measured}, fees off the top, a dashed rule at the worst case`}
       reading={reading}
       missing={missing}
     >
@@ -247,12 +260,13 @@ export default function PayoffByState({
           const bar = Math.min(MAX_BAR, slot * 0.62);
           const zeroY = y(0);
           const labelY = HEIGHT - 12;
-          const budget = Math.max(3, Math.floor(slot / 5.4));
+          // 7.28px/char: the 13px label rung (14r) x ~0.56 (was 6.7 at 12px).
+          const budget = Math.max(3, Math.floor(slot / 7.28));
           const gutter = width - MARGIN.right + 6;
-          // Below this a seven-character figure over one column prints through
-          // its neighbour. The numbers stay reachable in each column's title,
-          // and the reading names the one that decides the verdict.
-          const roomForFigures = slot >= 44;
+          // Below this a seven-character figure prints through its neighbour.
+          // Re-derived at 13px: 7 x 7.28 = 50.96, and 54 stood at 1.149 x the
+          // 46.9 it was sized for, so 50.96 x 1.149 = 58.6 -> 59.
+          const roomForFigures = slot >= 59;
           const short = (text: string) =>
             text.length > budget ? `${text.slice(0, budget - 1)}…` : text;
           // When the worst state sits close to zero the two gutter figures land
@@ -272,7 +286,7 @@ export default function PayoffByState({
                   MARGIN.left +
                   legend
                     .slice(0, index)
-                    .reduce((sum, prior) => sum + 14 + (prior.mark ? 16 : 0) + prior.text.length * 5.4, 0);
+                    .reduce((sum, prior) => sum + 14 + (prior.mark ? 16 : 0) + prior.text.length * 6.7, 0);
                 return (
                   <g key={item.text}>
                     {item.mark === "rule" ? (
@@ -302,7 +316,7 @@ export default function PayoffByState({
                 if (column.gross == null) {
                   return (
                     <g key={`${index}-${column.label}`}>
-                      <title>{`${column.label}: not measurable — a leg in this portfolio could not be read`}</title>
+                      <title>{`${column.label}: not measurable — a leg could not be read`}</title>
                       <text
                         x={cx}
                         y={(plotTop + plotBottom) / 2}

@@ -21,13 +21,20 @@
  * ones that passed.
  *
  * The switcher lives one level up, in `DiffusionPane`, and hands this pane the
- * view it should draw. Three of the four views are here; only one of them
- * needs the absorption ledger, so the other two return before it is examined.
+ * view it should draw. FOUR views since the second pass of 2026-08-24:
+ * Absorption (the arm's chips and the curve), Noise floor (the attrition and
+ * control-percentile bars), Meetings (the per-meeting table) and Mechanism
+ * (the two-stage timeline, made of constants). They used to be one stacked
+ * view three screens tall; each is now one figure or one table, per the
+ * review that split them ("i dont want to keep scrolling or squint my eyes").
+ * Three of the four read the same ledger — `DiffusionPane` owns that gate and
+ * shares one read across them — and Mechanism still fetches nothing, so this
+ * pane still takes no `active` prop: it starts nothing that needs gating.
  */
 
 import Figure, { FigureEmpty, StateChip } from "../Figure";
+import ValueStrip from "../ValueStrip";
 import AbsorptionCurve from "./AbsorptionCurve";
-import FindingsPane from "./FindingsPane";
 import StageBars from "./StageBars";
 import StageTimeline from "./StageTimeline";
 import type { AbsorptionRead, StageRun } from "./types";
@@ -85,12 +92,46 @@ function EventTable({ runs }: { runs: StageRun[] }) {
     return <td className="num">{Math.round(run.half_life_s)}s</td>;
   };
 
+  const stripRows = rows.map(([key, pair]) => {
+    const any = pair.release ?? pair.call!;
+    const release = pair.release;
+    const resolved = release?.signal_state === "ok" && release.half_life_s != null;
+    return {
+      label: `${any.source_ref.replace("fed:", "")} ${any.symbol}`,
+      value: resolved ? Math.round(release!.half_life_s!) : null,
+      text: resolved ? `${Math.round(release!.half_life_s!)}s` : "—",
+      title: `${key.replace("fed:", "").replace("|", " ")}: statement ${resolved ? `half in ${Math.round(release!.half_life_s!)}s` : "not measured"}${pair.call?.half_life_s != null ? `, press conference ${Math.round(pair.call.half_life_s)}s` : ""}`,
+      noBar: resolved
+        ? undefined
+        : !release
+          ? "no statement stage"
+          : release.signal_state !== "ok"
+            ? "below the floor"
+            : "not resolved",
+    };
+  });
+
   return (
+    <>
+    {/* The table's decisive column drawn (third review, 2026-08-24): how fast
+        the statement was absorbed, meeting by meeting. */}
+    <ValueStrip
+      caption="Statement half-life, meeting by meeting, newest first"
+      ariaLabel={`Statement half-life in seconds for the last ${rows.length} measured meetings`}
+      rows={stripRows}
+    />
+    {/* Statement half-life per meeting is what the view is for, and the strip
+        draws it, so the four remaining columns go behind a summary (fourth
+        review of 2026-08-24): the press-conference stage, the size of the
+        move, and where it sat against matched windows with no news. Per-row
+        provenance for a reader checking one meeting, not the reading. */}
+    <details className="disclosure">
+      <summary>{`Both stages, the move and the no-news percentile for each meeting, ${rows.length} rows`}</summary>
     <div className="table-wrap">
       <table className="coh-table">
         <caption className="coh-table__caption">
-          Meetings with a measured stage, newest first, capped at the last {RECENT_MEETINGS}. A blank
-          stage never moved enough to measure, which is a property of the decision rather than of the data.
+          Meetings with a measured stage, capped at the last {RECENT_MEETINGS}. A blank stage never
+          moved enough to measure — a property of the decision, not of the data.
         </caption>
         <thead>
           <tr>
@@ -126,14 +167,15 @@ function EventTable({ runs }: { runs: StageRun[] }) {
         </tbody>
       </table>
     </div>
+    </details>
+    </>
   );
 }
 
-export default function InformationDiffusionPane({ view, read, error, active }: {
-  view: "absorption" | "mechanism" | "findings";
+export default function InformationDiffusionPane({ view, read, error }: {
+  view: "absorption" | "floor" | "meetings" | "mechanism";
   read: AbsorptionRead | null;
   error: string | null;
-  active: boolean;
 }) {
   // The mechanism drawing is made of the two stage constants and nothing else.
   // It used to sit behind the absorption read because the venue gate was
@@ -144,23 +186,11 @@ export default function InformationDiffusionPane({ view, read, error, active }: 
         <Figure
           caption="Why a rate decision can be measured twice"
           ariaLabel={`Two stages ${STAGE_GAP_MIN} minutes apart, each measured over its own ${STAGE_TERMINAL_MIN} minute window`}
-          reading="Both windows are the same length and each is measured from its own start, so a difference between them is a difference in absorption rather than in the grid."
+          reading="Both windows are the same length and each is measured from its own start, so a difference between them is a difference in absorption, not in the grid."
           missing="Sub-minute horizons are drawn but never measured: no free bar source resolves them."
         >
           <StageTimeline gapMinutes={STAGE_GAP_MIN} terminalMinutes={STAGE_TERMINAL_MIN} />
         </Figure>
-      </div>
-    );
-  }
-
-  // `FindingsPane` owns the findings read and gates it on the `active` it is
-  // handed. This branch is mounted only while the findings view is selected,
-  // so leaving the view ends the poll rather than leaving it running behind a
-  // tab nobody is looking at — which is what a hardcoded `active` used to do.
-  if (view === "findings") {
-    return (
-      <div className="diff-pane">
-        <FindingsPane active={active} />
       </div>
     );
   }
@@ -177,7 +207,7 @@ export default function InformationDiffusionPane({ view, read, error, active }: 
     return (
       <p className="console-empty">
         <span aria-hidden="true">◌</span>{" "}
-        {read.reason ?? "The absorption ledger is not configured. That is not the same as no events."}
+        {read.reason ?? "The absorption ledger is not configured — not the same as no events."}
       </p>
     );
   }
@@ -191,11 +221,34 @@ export default function InformationDiffusionPane({ view, read, error, active }: 
     .map((stage) => `No median half-life for the ${STAGE_WORD[stage.stage] ?? stage.stage}: `
       + `${stage.reason ?? "the ledger gave no reason"}.`);
 
+  if (view === "floor") {
+    return (
+      <div className="diff-pane">
+        <Figure
+          caption="Stages that cleared the noise floor, and where they sat against windows with no news"
+          ariaLabel={`Two bars for each of ${read.stages.length} stages: measured against refused, and the median percentile against matched no-news windows`}
+          reading="Most rate decisions move neither stage two pre-event sigmas, so refused stages are drawn on the same bar at the same scale."
+          missing={unresolved.length ? unresolved.join(" ") : null}
+        >
+          <StageBars stages={read.stages} />
+        </Figure>
+      </div>
+    );
+  }
+
+  if (view === "meetings") {
+    return (
+      <div className="diff-pane">
+        <EventTable runs={read.runs} />
+      </div>
+    );
+  }
+
   return (
     <div className="diff-pane">
       {/* Two chips, not four. "Stages measured" and "Below the floor" were the
-          column sums of the two bars directly below them, so the summary and
-          the drawing were saying one number twice. */}
+          column sums of the two attrition bars (the Noise floor view), so the
+          summary and the drawing were saying one number twice. */}
       <div className="coh-status__chips">
         <StateChip mark={gap ? "→" : "◌"} word="Conference slower by"
                    value={gap ?? "not yet"} tone={gap ? "warn" : "muted"} />
@@ -207,7 +260,7 @@ export default function InformationDiffusionPane({ view, read, error, active }: 
         ariaLabel={`Absorbed fraction against horizon for both stages, over ${measured} measured stages`}
         reading={
           gap
-            ? `The statement is half absorbed in ${Math.round(read.stages.find((s) => s.stage === "release")!.median_half_life_s!)} seconds and the press conference takes ${gap} as long.`
+            ? `The statement is half absorbed in ${Math.round(read.stages.find((s) => s.stage === "release")!.median_half_life_s!)}s and the press conference takes ${gap} as long.`
             : null
         }
         missing={
@@ -223,17 +276,6 @@ export default function InformationDiffusionPane({ view, read, error, active }: 
           <FigureEmpty reason="No stage has been measured yet." />
         )}
       </Figure>
-
-      <Figure
-        caption="How many stages cleared the noise floor, and where the ones that did sat against windows with no news in them"
-        ariaLabel={`Two bars for each of ${read.stages.length} stages: measured against refused, and the median percentile against matched windows on prior days at the same clock time`}
-        reading="Most rate decisions move neither stage two pre-event sigmas, so the refused stages are drawn on the same bar and at the same scale rather than left out of the count."
-        missing={unresolved.length ? unresolved.join(" ") : null}
-      >
-        <StageBars stages={read.stages} />
-      </Figure>
-
-      <EventTable runs={read.runs} />
     </div>
   );
 }

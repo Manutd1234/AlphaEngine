@@ -60,7 +60,7 @@ export const DERIVED_FILES: ReadonlyArray<{ name: string; reads: string; silent:
   {
     name: "survival",
     reads: "The survival function the strike ladder samples, strike by strike.",
-    silent: "When the event quotes intervals rather than sampling a ladder of strikes: no curve to read off it.",
+    silent: "When the event quotes intervals rather than a ladder of strikes: no curve to read off.",
   },
   {
     name: "lattice",
@@ -70,7 +70,7 @@ export const DERIVED_FILES: ReadonlyArray<{ name: string; reads: string; silent:
   {
     name: "certificate",
     reads: "The coherence test and its proof.",
-    silent: "When none was computed in this read. It is solved on demand, not for every event on every listing.",
+    silent: "When none was computed in this read: it is solved on demand, not for every event listed.",
   },
   {
     name: "books",
@@ -106,15 +106,21 @@ const LEFT = 8;
 const INDENT = 16;
 const TOP = 14;
 const ROW_H = 18;
-/** The air between the two subtrees: the boundary line and its two labels. */
-const BOUNDARY_GAP = 30;
+/** The air between the two subtrees: the boundary line and its two labels.
+ *  38 rather than the 30 the 10px pass used: the words under the line sit at
+ *  the 13px legend rung now, and with the gap at 30 the lower label's baseline
+ *  (boundary + 13) sat 11px above the second shard's first row — inside a 13px
+ *  line's own height. At 38 the boundary is (18 + 38) / 2 = 28px above that
+ *  row, leaving 15px between the two baselines. */
+const BOUNDARY_GAP = 38;
 /** Where the notes and the brace begin — clear of the deepest name, which is
- *  `implied_pmf` at eleven characters of 10px chart type. */
-const NOTE_X = 146;
+ *  `implied_pmf`: eleven characters at the 12px series-label rung is ≈76px
+ *  from x = 72, so the names end near 148 and the notes start past them. */
+const NOTE_X = 168;
 /** Under this the note column and the order-group column would sit on top of
  *  each other, so both are dropped. What goes is annotation: every filename,
  *  the boundary and the words on it stay drawn at every width. */
-const NARROW = 300;
+const NARROW = 340;
 /** Baselines sit three pixels under the line the connectors run on. */
 const MID = 3;
 /** The boundary's own words, indented past the edge that runs from /shards down
@@ -152,26 +158,27 @@ const EDGES = ROWS.flatMap((row, index) =>
 const HEIGHT = rowY(MARKET_BELOW) + 14;
 const BOUNDARY_Y = (rowY(ABOVE - 1) + rowY(ABOVE)) / 2;
 
+/* The caption used to list the hierarchy the drawing draws — /shards holds
+ * shards, a shard holds series, and so on for four more clauses. A figure that
+ * needs its own contents read out in prose is a figure that failed; what a
+ * caption owes a reader is the two conventions the picture cannot state. */
 const CAPTION =
-  "every path in this tree at once: /shards holds shards, a shard holds series, a series holds events, and an " +
-  "event holds its markets beside the five readings derived from them. Directories end in a slash the way ls -F " +
-  "writes them, and the angle brackets are placeholders rather than tickers.";
+  "Directories end in a slash as ls -F writes them, and angle brackets are placeholders, not tickers.";
 
+/* The boundary's consequence lives in the READING and in the drawing's own
+ * label ("one order group cannot cross it"); the aria stops at the line, so
+ * a screen reader is not read the same fact three times. */
 const ARIA =
-  "A four-level tree. /shards holds two shard directories; each shard holds a series, each series an event, and " +
-  "each event holds its markets beside five derived readings named implied_pmf, survival, lattice, certificate " +
-  "and books. A line drawn across the middle separates the two shards, and an order group drawn from a market in " +
-  "one shard to a market in the other is severed at that line and marked with a cross.";
+  "Four levels: /shards, two shard directories, each holding series, events, then markets beside five " +
+  "derived readings — implied_pmf, survival, lattice, certificate, books. A line separates the two shards.";
 
 const READING =
-  "The shard boundary is a collateral boundary, not a naming convention: collateral is held per shard, so the " +
-  "order group drawn across the line cannot exist, and a basket with legs under both shards cannot be protected " +
-  "as a single position.";
+  "The shard boundary is a collateral boundary, not a naming convention: collateral is held per shard, so legs " +
+  "under both shards cannot be protected as one position.";
 
 const MISSING =
   "The tree is the watchlist, not the venue: Kalshi lists some thirteen thousand series and only the ones " +
-  "COHERENCE_SERIES names appear under a shard. Nothing on this drawing was read from the exchange — it is the " +
-  "shape a path has, not how many shards, series, events or markets are watched today: only a listing says that.";
+  "COHERENCE_SERIES names appear under a shard; only a listing says how many are watched today.";
 
 /**
  * The four levels, the five readings, and the line an order group stops at.
@@ -186,7 +193,9 @@ export default function ShellTree() {
           const roomy = width >= NARROW;
           // The order group runs in a column of its own, right of the notes and
           // inside the plot at any width where the notes survive at all.
-          const groupX = Math.max(NOTE_X + 134, width - 56);
+          // Clear of the widest note: "five derived readings" is 21 characters
+          // at the 12px rung, ≈139px from NOTE_X, so 150 keeps a margin.
+          const groupX = Math.max(NOTE_X + 150, width - 56);
           // Clear of `<market>`, the name on both rows the group would join.
           const stubX = xOf(ROWS[MARKET_ABOVE].depth) + 52;
           return (

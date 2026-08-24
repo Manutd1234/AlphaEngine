@@ -1,40 +1,109 @@
 "use client";
 
 /**
- * The distribution a family's prices imply, and what it would be right to bet.
+ * Lattice — the measure a family's prices imply, and nothing about betting it.
  *
- * Three questions about one family, one at a time. A ladder or a bucket family
- * is a probability distribution with prices on it: **Distribution** draws it as
- * the exchange quotes it — the survival function it samples, and the mass
- * differencing leaves between strikes. **Stake** asks what follows: given that
- * measure and those prices, how much of a bankroll does log-optimal growth put
- * on each outcome? **Whole family** is the ranking underneath the plan, every
- * outcome the solver considered rather than only the ones it took.
+ * A ladder or a bucket family is a probability distribution with prices on it.
+ * This section draws it: the survival function the strikes sample, the mass
+ * differencing leaves between them, and the moments of that mass. What follows
+ * from the measure — how much of a bankroll log-optimal growth puts on each
+ * outcome — is the `stake` section, and it is a different read.
  *
- * They are a `.seg` switcher and never a nested `<WorkspaceSubtabs>`, which
- * `CoherenceConsole` explains: a second rail fights the first over `--rail-h`.
- * The family picker sits on the same row as the switcher because the two
- * choose different things — the switcher picks the question, the picker picks
- * the noun — and two segmented controls stacked one above the other read as
- * one control with six options.
+ * THE FIFTH RESTRUCTURE OF 2026-08-24 SPLIT THIS SECTION IN TWO, and the reason
+ * is worth stating plainly rather than being discovered from a diff. This pane
+ * carried five views on one seg and then, on the fifth, a SECOND seg of three —
+ * Plan, Capital, Method — plus a family picker. A reader met three rows of
+ * controls before any drawing, and on the family the section opens on the thing
+ * under them was one grey sentence. The controls were the ugliness; the sentence
+ * was correct. So the bet went to its own section with its own head, and what
+ * is left here is one question, one read and one control row.
  *
- * This shell owns what is true of all three views: the family, the reads, the
- * truncation convention every table on the pane obeys, and the closing note.
- * Nothing here sends an order.
+ * ONE SECTION, ONE READ, and that is now the seam rather than a coincidence.
+ * Lattice reads `/surface`; Stake reads `/stake`. The old arrangement had this
+ * file gating a second read on two of its five views, which is what made "which
+ * views are in flight" a question the section had to answer at all. It no longer
+ * has one to answer.
+ *
+ * WHOLE FAMILY WENT WITH THE BET, against the first sketch of the split, and
+ * measured rather than argued: that view renders `StakeTable` over `/stake`'s
+ * own ranking. Left here it would have kept a `/stake` read on the distribution
+ * section, and on a strike ladder — which is the family this watchlist opens on
+ * — it would have died with no explanation of its own, because `FamilyView`
+ * never reaches the branch that explains a declined solve. It is the fourth view
+ * of Stake.
+ *
+ * THE FOUR PROVENANCE CHIPS ARE A KPI ROW NOW. They rode the Survival view
+ * alone, so pressing Mass or Moments lost the numbers that say what is being
+ * looked at. As a `<dl className="coh-status__facts">` — the plane's own
+ * 140px auto-fit tile grid, already drawn by `StatusPane` and `FeesPane` — they
+ * answer on all three views and cost less height than the chips did.
+ *
+ * The family picker rides the control row on every view, because every view here
+ * is a question ABOUT a family and none is answerable without choosing one. It
+ * is a `.seg` and never a nested `<WorkspaceSubtabs>`: a second rail instance
+ * fights the first over the `--rail-h` publisher, as `ReliabilityConsole`
+ * records.
  */
 
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 
 import type { CoherenceEventView, CoherenceUniverse } from "@/lib/coherence/types";
-import type { CoherenceKelly, CoherenceSurface } from "@/lib/coherence/types-lab";
-import { stakeRoute, surfaceRoute, universeRoute } from "@/lib/coherence/routes";
+import type { CoherenceSurface } from "@/lib/coherence/types-lab";
+import { surfaceRoute, universeRoute } from "@/lib/coherence/routes";
 import PaneHead, { PaneHeadEmpty } from "./PaneHead";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
-import DistributionView from "./surface/DistributionView";
-import FamilyView from "./surface/FamilyView";
-import StakeView from "./surface/StakeView";
+import DistributionView, { decimalLabel } from "./surface/DistributionView";
+import TruncationNote from "./surface/TruncationNote";
 
-type SurfaceQuestion = "distribution" | "stake" | "family";
+/** The three readings of one payload. `stake` and `family` left on the fifth
+ *  2026-08-24 pass, to the section that owns the read they were drawn from. */
+type LatticeView = "survival" | "mass" | "moments";
+const LATTICE_VIEWS: ReadonlyArray<[LatticeView, string]> = [
+  ["survival", "Survival"],
+  ["mass", "Mass"],
+  ["moments", "Moments"],
+];
+
+const HEAD = {
+  kicker: "Lattice",
+  title: "The measure these prices imply",
+  id: "markets-lattice-heading",
+  // No mention of a stake, and that is the split doing its work: the log-optimal
+  // plan is a different section with a head of its own, and a lede that promised
+  // it here would send a reader looking for a view that is not on this control.
+  lede: "A family's quoted strikes are a probability distribution, and this is the mass, the moments and the intervals differencing leaves behind.",
+} as const;
+
+/** One reading of the payload, as a label and a value the dl can print. */
+interface Reading {
+  label: string;
+  value: string;
+}
+
+/**
+ * The six numbers that say what is being looked at, before any drawing.
+ *
+ * Every one is either a count the payload states or a decimal `decimalLabel`
+ * cut; nothing here is derived arithmetic, so nothing here can disagree with
+ * the figures below it. A value the read did not carry prints a dash AND the
+ * reason — `basis` is null when neither side of the book was quoted, and
+ * "no side" alone would read as a side called "no".
+ */
+function readings(surface: CoherenceSurface): Reading[] {
+  return [
+    { label: "Family shape", value: surface.engine === "ladder" ? "strike ladder" : `${surface.engine} family` },
+    { label: "Strikes probed", value: String(surface.probes.length) },
+    { label: "Intervals", value: String(surface.bins.length) },
+    { label: "Priced from", value: surface.basis ?? "— neither side of the book was quoted" },
+    { label: "Total quoted mass", value: decimalLabel(surface.total_mass, 4) },
+    {
+      label: "Negative mass",
+      value: surface.negative_bins.length
+        ? `${surface.negative_bins.length} interval(s)`
+        : "none on this read",
+    },
+  ];
+}
 
 export default function SurfacePane({
   active,
@@ -48,75 +117,55 @@ export default function SurfacePane({
   events?: CoherenceEventView[];
 }) {
   const [picked, setPicked] = useState<string | null>(null);
-  const [view, setView] = useState<SurfaceQuestion>("distribution");
+  const [view, setView] = useState<LatticeView>("survival");
   const universe = useCoherenceRead<CoherenceUniverse>(
     universeRoute(),
     active && !eventTicker && !supplied?.length,
   );
   const events = supplied?.length ? supplied : (universe.data?.events ?? []);
   const target = eventTicker ?? picked ?? events[0]?.event_ticker ?? "";
-  // The surface read is NOT gated on the view. Both stake views branch on
-  // `surface.engine` — a ladder is why the solver declines a family — so the
-  // distribution payload is read whichever question is on screen.
-  const surface = useCoherenceRead<CoherenceSurface>(
-    surfaceRoute(target),
-    active && Boolean(target),
-  );
-  // The stake read IS gated on the view. It is the slower of the two, and a
-  // reader asking only what the distribution is should not pay for a solve
-  // that is not on their screen.
-  const stake = useCoherenceRead<CoherenceKelly>(
-    stakeRoute(target),
-    active && Boolean(target) && view !== "distribution",
-  );
+  const surface = useCoherenceRead<CoherenceSurface>(surfaceRoute(target), active && Boolean(target));
 
   const head = {
-    kicker: "Lattice",
-    title: "The measure these prices imply",
-    id: "markets-lattice-heading",
+    ...HEAD,
     note: `${events.length} ${events.length === 1 ? "family" : "families"} to choose from`,
-    lede: (
-      <>
-        A strike ladder is a probability distribution with prices on it. Distribution draws the one these quotes
-        sample; Stake sizes it, worst case beside the growth rate; Whole family is every outcome the solver ranked.
-      </>
-    ),
   };
 
+  /** The card, labelled by the heading it draws. */
+  const framed = (body: ReactNode) => (
+    <section className="card console-card coh-surface" aria-labelledby="markets-lattice-heading">
+      {body}
+    </section>
+  );
+
   if (!target) {
-    return (
-      <section className="card console-card coh-surface" aria-labelledby="markets-lattice-heading">
-        <PaneHeadEmpty head={head} mark={universe.error ? "✕" : "◌"}>
-          {universe.error
-            ? `No family could be read, so there is no distribution to draw: ${universe.error}`
-            : "Reading the families this engine prices…"}
-        </PaneHeadEmpty>
-      </section>
+    return framed(
+      <PaneHeadEmpty head={head} mark={universe.error ? "✕" : "◌"}>
+        {universe.error
+          ? `No family could be read: ${universe.error}. Universe reads the same list and says what the exchange answered.`
+          : "Reading the watched families…"}
+      </PaneHeadEmpty>,
     );
   }
 
-  return (
-    <section className="card console-card coh-surface" aria-labelledby="markets-lattice-heading">
+  return framed(
+    <>
       <PaneHead {...head} />
-      {/* One row, two controls: the question first, then the family it is asked
-          about. The row is the chip row's flex box rather than a class of its
-          own — `.coh-surface` is a grid, so two segs as its children would
+
+      {/* ONE control row. It is the chip row's flex box rather than a class of
+          its own — `.coh-surface` is a grid, so two segs as its children would
           stack, and a local fix that adds no class leaves dead-CSS untouched. */}
       <div className="coh-status__chips">
         <div className="seg" role="group" aria-label="Which question">
-          <button type="button" aria-pressed={view === "distribution"} onClick={() => setView("distribution")}>
-            Distribution
-          </button>
-          <button type="button" aria-pressed={view === "stake"} onClick={() => setView("stake")}>
-            Stake
-          </button>
-          <button type="button" aria-pressed={view === "family"} onClick={() => setView("family")}>
-            Whole family
-          </button>
+          {LATTICE_VIEWS.map(([name, label]) => (
+            <button key={name} type="button" aria-pressed={view === name} onClick={() => setView(name)}>
+              {label}
+            </button>
+          ))}
         </div>
 
         {!eventTicker && events.length > 1 ? (
-          <div className="seg coh-books__picker" role="group" aria-label="Choose a family to draw">
+          <div className="seg coh-books__picker" role="group" aria-label="Choose a family">
             {events.map((event) => (
               <button key={event.event_ticker} type="button" aria-pressed={event.event_ticker === target} onClick={() => setPicked(event.event_ticker)}>
                 {event.event_ticker}
@@ -128,41 +177,35 @@ export default function SurfacePane({
 
       {surface.error && !surface.data ? (
         <p className="console-empty">
-          <span aria-hidden="true">✕</span> The distribution could not be read: {surface.error}
+          <span aria-hidden="true">✕</span> The distribution could not be read: {surface.error}. That is a gateway
+          failure, not an answer about this family.
         </p>
       ) : !surface.data ? (
-        <p className="console-empty muted">Reading the distribution these prices imply…</p>
+        <p className="console-empty muted">Reading the implied distribution…</p>
       ) : (
         <>
-          {view === "distribution" ? (
-            <DistributionView surface={surface.data} />
-          ) : stake.error && !stake.data ? (
-            <p className="console-empty">
-              <span aria-hidden="true">✕</span> The stake could not be sized: {stake.error}
-            </p>
-          ) : !stake.data ? (
-            <p className="console-empty muted">Sizing the log-optimal stake…</p>
-          ) : view === "stake" ? (
-            <StakeView kelly={stake.data} surface={surface.data} />
+          {/* The KPI row before the drawing, on every view. */}
+          <dl className="coh-status__facts">
+            {readings(surface.data).map((reading) => (
+              <div key={reading.label}>
+                <dt>{reading.label}</dt>
+                <dd>{reading.value}</dd>
+              </div>
+            ))}
+          </dl>
+
+          {surface.data.bins.length ? (
+            <DistributionView surface={surface.data} view={view} />
           ) : (
-            <FamilyView kelly={stake.data} />
+            <p className="console-empty">
+              <span aria-hidden="true">○</span> No interval could be differenced out of {surface.data.event_ticker}:{" "}
+              {surface.data.detail}. Press another family above, or read the quotes themselves on Universe.
+            </p>
           )}
 
-          {/* Outside the switcher because every table in all three views prints
-              the same ellipsis, and a convention stated in one view is a
-              convention the other two readers never see. */}
-          <p className="coh-surface__moments-note">
-            <span aria-hidden="true">◌</span> Values on this pane are shown truncated, never rounded: a trailing
-            ellipsis means digits were cut, not that the number ended there.
-          </p>
-
-          <p className="coh-event__note">
-            A reading of prices, not a forecast: the mass is what one side of each book implies at face value, and the
-            plan is sized against that measure — fed the market&rsquo;s own mids it returns &ldquo;stake
-            nothing&rdquo;. Nothing here places an order.
-          </p>
+          <TruncationNote />
         </>
       )}
-    </section>
+    </>,
   );
 }

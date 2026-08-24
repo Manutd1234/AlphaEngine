@@ -74,7 +74,7 @@ function missingLine(surface: CoherenceSurface, unreadable: number, rises: numbe
     parts.push(`Read from the ${surface.basis} side of each book, so every level is a price someone is showing.`);
   }
   if (unreadable) {
-    parts.push(`${unreadable} probe(s) could not be parsed exactly and were left out rather than rounded in.`);
+    parts.push(`${unreadable} probe(s) could not be parsed exactly and were left out, not rounded in.`);
   }
   if (rises) {
     parts.push(`${rises} step(s) rise with the strike, marked ▲. P(X ≥ k) cannot increase, so those are quoted violations, drawn as they arrived.`);
@@ -86,7 +86,7 @@ export default function SurvivalChart({ surface }: { surface: CoherenceSurface }
   if (surface.engine !== "ladder") {
     const named =
       surface.engine === "unavailable"
-        ? "This family could not be read at all"
+        ? "This family could not be read"
         : `This family is priced as ${surface.engine} intervals, one market per outcome, not as a ladder of thresholds`;
     return (
       <Figure
@@ -109,7 +109,7 @@ export default function SurvivalChart({ surface }: { surface: CoherenceSurface }
         ariaLabel="No survival function: fewer than two strikes are quoted"
         missing={missingLine(surface, unreadable, 0)}
       >
-        <FigureEmpty reason={`${steps.length} strike(s) on this ladder are quoted. A survival function needs at least two.`} />
+        <FigureEmpty reason={`${steps.length} strike(s) quoted — a survival function needs at least two.`} />
       </Figure>
     );
   }
@@ -136,13 +136,13 @@ export default function SurvivalChart({ surface }: { surface: CoherenceSurface }
   return (
     <Figure
       caption={CAPTION}
-      ariaLabel={`Survival function sampled at ${steps.length} strikes, from ${steps[0].strike} at ${priceLabel(steps[0].survival)} down to ${steps[steps.length - 1].strike} at ${priceLabel(steps[steps.length - 1].survival)}`}
+      ariaLabel={`Survival function sampled at ${steps.length} strikes`}
       reading={`Survival runs from ${priceLabel(steps[0].survival)} at ${steps[0].strike} to ${priceLabel(steps[steps.length - 1].survival)} at ${steps[steps.length - 1].strike}.${
         median
           ? ` It first falls below a half between ${steps[crossing - 1].strike} and ${median.strike} — the exchange is not quoting a strike inside that gap, so the crossing is bracketed, not located.`
           : medianBelowRange
             ? ` It is already below a half at ${steps[0].strike}, the lowest strike quoted, so the median sits below the quoted range rather than inside it.`
-            : " It never falls below a half inside the quoted range, so the median sits above the highest strike anyone is quoting."
+            : " It never falls below a half inside the quoted range, so the median sits above the highest quoted strike."
       }`}
       missing={missingLine(surface, unreadable, rises.length)}
     >
@@ -182,7 +182,12 @@ export default function SurvivalChart({ surface }: { surface: CoherenceSurface }
               {median ? (
                 <>
                   <line x1={x(median.x)} x2={x(median.x)} y1={MARGIN.top - 6} y2={base} className="coh-surface__median" />
-                  <text x={x(median.x)} y={MARGIN.top - 8} textAnchor="middle" className="coh-surface__tick">
+                  {/* A reference line's own words, not a tick numeral — the same
+                      distinction DiffusionPane draws for "half still open", so the
+                      two tabs treat identical furniture identically. 13px legend
+                      rung via coh-figure__key (14q); the true ticks around it
+                      ("0.5000", "1.0000", the strike endpoints) stay at the floor. */}
+                  <text x={x(median.x)} y={MARGIN.top - 8} textAnchor="middle" className="coh-figure__key">
                     {`half crossed by ${median.strike}`}
                   </text>
                 </>

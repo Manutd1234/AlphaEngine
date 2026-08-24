@@ -66,10 +66,10 @@ export default function InstrumentTable({ study, gate }: {
     <div className="table-wrap" tabIndex={0}>
       <table className="coh-table diff-instrument">
         <caption className="coh-table__caption">
-          What had to be true of the instrument before the results above could be read as
-          evidence. The first four are measured without reference to absorption speed; the last
-          two are the headline itself, scored on meetings the fit never saw, with both stages of a
-          meeting held out together so no statement can help predict its own absorption.
+          What had to be true before the results above read as evidence. The first four are
+          measured blind to absorption speed; the last two are the headline itself, scored on
+          meetings the fit never saw — both stages held out together, so no statement helps
+          predict its own absorption.
         </caption>
         <thead>
           <tr>
@@ -88,7 +88,7 @@ export default function InstrumentTable({ study, gate }: {
               : "—"}
             target={gate ? `≥ ${fmt(gate.floor, 2)}` : "—"}
             met={gate ? gate.state === "passed" : null}
-            why="The text is encoded in a way that loses what the statement actually said."
+            why="The encoding loses what the statement actually said."
           />
           <Row
             what="Uses its dimensions"

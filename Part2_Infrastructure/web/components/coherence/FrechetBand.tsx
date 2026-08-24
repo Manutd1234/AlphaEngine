@@ -117,12 +117,16 @@ export const DEPENDENCE_WORD: Record<string, string> = {
 /** The caveat that must travel with every dependence reading on this pane. */
 export function basisCaveat(basis: string): string {
   if (basis === "ask") {
-    return "Read from the offer, because no one bids for a parlay. The band's bounds come from each leg's mid, so the price and the bounds are not taken from the same side of the book: a parlay priced above Πpᵢ is not evidence of positive dependence, and may be nothing but the maker's margin.";
+    return "Read from the offer — nobody bids for a parlay — against bounds from leg mids, so a price above Πpᵢ is not evidence of positive dependence: it may be nothing but the maker's margin.";
   }
   if (basis === "mid") {
-    return "Read from a mid, which means this parlay is quoted on both sides — rare enough to be worth noting. Even so, a price above Πpᵢ is not evidence of positive dependence on its own: independence is a guess about the legs, not a measurement of them.";
+    return "Read from a mid — quoted on both sides, rare here. Πpᵢ is still a guess about the legs, not a measurement.";
   }
-  return "Neither side of this parlay's book is quoted, so there is no price to compare with Πpᵢ and no dependence reading at all. The band is still drawn, because the legs bound the parlay whether or not anyone quotes it.";
+  // The band-still-real half of the old wording moved wholly into the
+  // price-null reading, which ALWAYS co-renders with this branch — two
+  // sentences of the same fact, one screen apart, was the duplication the
+  // third review ordered out.
+  return "Neither side of this book is quoted, so there is no price to compare with Πpᵢ and no dependence reading.";
 }
 
 const clamp = (value: number, low: number, high: number) => Math.min(Math.max(value, low), high);
@@ -140,16 +144,18 @@ export default function FrechetBand({ reading }: { reading: BandReading }) {
   const bandWidth = toCenticents(reading.band_width);
   const independence = toUnit(reading.independence);
   const legCount = reading.legs.length;
-  const caption = `The band ${legCount} legs impose on their parlay, and where it is quoted inside it`;
+  const caption = `The band the legs impose, and where the parlay is quoted inside it`;
 
   if (lower == null || upper == null) {
     return (
       <Figure
         caption={caption}
         ariaLabel={`No Fréchet band for this ${legCount}-leg parlay`}
-        missing="At least one leg is unquoted on the side this parlay needs, so Σpᵢ and min pᵢ have no value and there is no band to draw. Building a band from the legs that happen to be quoted would narrow it by exactly the ones missing, which is the direction that invents a mispricing."
+        missing="Σpᵢ and min pᵢ have no value without that leg; a band from the quoted legs alone would be narrowed by exactly the missing ones — the direction that invents a mispricing."
       >
-        <FigureEmpty reason="No band — a leg is unquoted on the side the parlay needs." />
+        {/* The footnote above carries the full why; repeating it in the empty
+            frame was the same sentence twice on one card. */}
+        <FigureEmpty reason="No band — a leg is unquoted." />
       </Figure>
     );
   }
@@ -176,19 +182,25 @@ export default function FrechetBand({ reading }: { reading: BandReading }) {
 
   const readingText =
     price == null
-      ? `These ${legCount} legs bound the parlay to ${loText} on the low side and ${hiText} on the high side, a band ${widthPhrase}, but neither side of its own book is quoted. The band is real and nothing can be traded against it.`
+      // That neither side is quoted is the footnote's sentence (basisCaveat
+      // "unavailable"), co-rendered under this reading.
+      ? `The ${legCount} legs bound the parlay to ${loText} — ${hiText}, ${widthPhrase}: the band is real and nothing can be traded against it.`
       : inside
-        ? `${priceText} sits inside the band, which means it is consistent with some dependence between the ${legCount} legs. That is not a statement that it is fairly priced, and not a mispricing: the band is ${widthPhrase}, and on this evidence every price in it is admissible. What is measured here is that the parlay could move ${widthText} with no leg price moving at all.${coincides ? ` The price and the independence ring land ${fromCenticents(gapCc as number)} apart, so the two markers all but coincide on this track — which is what an offer a tick above Πpᵢ looks like, not evidence that the legs are positively dependent.` : ""}`
+        // "Consistent with some dependence" is the lede's sentence, one screen
+        // up on the same view — the reading keeps only what is per-parlay.
+        ? `${priceText} sits inside a band ${widthPhrase} — neither fairly priced nor mispriced: the parlay could move ${widthText} with no leg price moving at all.${coincides ? ` It lands ${fromCenticents(gapCc as number)} from the independence ring — an offer a tick above Πpᵢ, not positive dependence.` : ""}`
         : violatedRows > 0
-          ? `${priceText} is outside the band these legs allow (${loText} to ${hiText}), and ${violatedRows === 1 ? "a portfolio below costs" : `${violatedRows} portfolios below cost`} less than ${violatedRows === 1 ? "it is" : "they are"} certain to pay. That is a Dutch book before fees, and the row carries the legs that prove it.`
-          : `${priceText} is outside the band these legs allow (${loText} to ${hiText}) — but the two numbers are not read from the same side of the book. The bounds come from each leg's mid; the parlay is read from its ${basis}. No portfolio below is violated, so this is a mispricing against a mid-built bound and not a trade: capturing the upper bound needs the parlay BID above a leg's ASK, and nobody bids for a parlay.`;
+          ? `${priceText} is outside the band (${loText} — ${hiText}), and ${violatedRows === 1 ? "a portfolio below costs" : `${violatedRows} portfolios below cost`} less than ${violatedRows === 1 ? "it is" : "they are"} certain to pay: a Dutch book before fees, with the legs that prove it.`
+          // Which side each figure is read from is the footnote's whole
+          // subject (`basisCaveat`, co-rendered below), so the reading states
+          // the verdict and the one fact the footnote does not carry.
+          : `${priceText} is outside the band (${loText} — ${hiText}), but no portfolio below is violated: a mispricing against a mixed-basis bound, not a trade — capturing the upper bound needs the parlay BID above a leg's ASK.`;
 
   const ariaLabel =
-    `A track from zero to one dollar. The band the ${legCount} legs allow runs from ${loText} to ${hiText}, ${widthPhrase}. ` +
-    `Independence sits at ${indText}. ` +
+    `A $0-to-$1 track: band ${loText} to ${hiText}, ${widthPhrase}; independence at ${indText}; ` +
     (price == null
-      ? "The parlay itself is unquoted, so no price is marked."
-      : `The parlay is quoted at ${priceText} on the ${basis}, ${word}.`);
+      ? "the parlay itself is unquoted, so no price is marked."
+      : `quoted at ${priceText} on the ${basis}, ${word}.`);
 
   return (
     <Figure caption={caption} ariaLabel={ariaLabel} reading={readingText} missing={basisCaveat(basis)}>
@@ -201,10 +213,13 @@ export default function FrechetBand({ reading }: { reading: BandReading }) {
           const priceX = price == null ? null : scale(price);
           // Labels are centred on their marker and clamped so the whole string
           // stays on the canvas. `HALF_GLYPH` is half the advance width of the
-          // 10px tabular figures these labels are set in; over-estimating it
-          // costs a few pixels of drift and under-estimating it clips a price,
-          // so it is rounded up.
-          const HALF_GLYPH = 2.8;
+          // tabular figures these labels are set in — 13px for the price line
+          // and 12px for the bracket and independence labels since the
+          // 2026-08-24 diagram-ladder lift (14r), so 13 x 0.56 / 2 = 3.64 —
+          // over-estimating it costs a few pixels of drift and
+          // under-estimating it clips a price, so it is rounded up and the
+          // louder rung is the one budgeted for.
+          const HALF_GLYPH = 3.7;
           const place = (x: number, text: string) => {
             const half = Math.min(text.length * HALF_GLYPH, width / 2);
             return clamp(x, half, Math.max(half, width - half));
@@ -224,7 +239,9 @@ export default function FrechetBand({ reading }: { reading: BandReading }) {
                 width={Math.max(0, hiX - loX)}
                 height={TRACK_H}
                 className="coh-combo__band"
-              />
+              >
+                <title>{`band ${loText} to ${hiText}`}</title>
+              </rect>
 
               {/* The bracket under the band carries the headline number: how far
                   the parlay can move with no leg moving. */}
@@ -254,7 +271,9 @@ export default function FrechetBand({ reading }: { reading: BandReading }) {
                     cy={TRACK_TOP + TRACK_H / 2}
                     r="3.6"
                     className="coh-combo__ind-mark"
-                  />
+                  >
+                    <title>{`independence ${indText}`}</title>
+                  </circle>
                   <text
                     x={place(indX, indLabel)}
                     y={IND_LABEL_Y}
@@ -268,7 +287,7 @@ export default function FrechetBand({ reading }: { reading: BandReading }) {
 
               {priceX == null ? (
                 <text x={width / 2} y={PRICE_LABEL_Y} textAnchor="middle" className="coh-combo__state">
-                  ◌ unquoted on both sides, so there is no price to mark
+                  ◌ unquoted on both sides — no price to mark
                 </text>
               ) : (
                 <>
@@ -282,7 +301,9 @@ export default function FrechetBand({ reading }: { reading: BandReading }) {
                   <polygon
                     points={`${priceX - 5},${TRACK_TOP - 9} ${priceX + 5},${TRACK_TOP - 9} ${priceX},${TRACK_TOP}`}
                     className="coh-combo__price-mark"
-                  />
+                  >
+                    <title>{`${priceText} on the ${basis}`}</title>
+                  </polygon>
                   <text
                     x={place(priceX, priceLabelText)}
                     y={PRICE_LABEL_Y}

@@ -81,9 +81,8 @@ export default function AbsorptionCurve({ horizons, release, call, stages }: Abs
     <div ref={ref} className="diff-curve__frame">
       <svg viewBox={`0 0 ${Math.max(width, 320)} ${HEIGHT}`} width="100%" height={HEIGHT}
            role="img"
-           aria-label={`Absorbed fraction against horizon for both stages of a rate decision. `
-             + `The statement curve has ${measured(release)} of ${horizons.length} horizons measured, `
-             + `the press conference ${measured(call)}.`}>
+           aria-label={`Absorbed fraction by horizon, both stages: statement ${measured(release)} of `
+             + `${horizons.length} horizons measured, press conference ${measured(call)}.`}>
         <Grid yTicks={yTicks} yScale={yScale} x0={x0} x1={x1} format={(value) => pct(value, 0)} />
 
         {/* Drawn only when a path overshot its own terminal and came back, which
@@ -93,13 +92,23 @@ export default function AbsorptionCurve({ horizons, release, call, stages }: Abs
           <line x1={x0} x2={x1} y1={yScale(1)} y2={yScale(1)} className="diff-curve__full" />
         ) : null}
         <line x1={x0} x2={x1} y1={half} y2={half} className="diff-curve__half" />
-        <text x={x1} y={half - 4} textAnchor="end" fontSize={10} className="diff-curve__note">
+        {/* Reference-line words and the two keys are sized in 14r on the
+            diagram ladder (note and legend at 13, gap marks at 12); only the
+            chart-kit axis numerals stay on the 10px tick floor. */}
+        <text x={x1} y={half - 4} textAnchor="end" className="diff-curve__note">
           half the move
         </text>
 
         <path d={brokenPath(release, xScale, yScale)} className="diff-curve__release" fill="none" />
         <path d={brokenPath(call, xScale, yScale)} className="diff-curve__call" fill="none" />
 
+        {/* A hover line on every dot and every gap mark (fourth review of
+            2026-08-24). The two curves cross and the horizon axis is ordinal,
+            so reading a point off the grid takes two guesses — which stage,
+            and which horizon — and both are in the dot itself now. A gap mark
+            says WHY there is no point rather than leaving the reader to infer
+            zero absorption, which is the misreading this figure is built to
+            refuse. */}
         {horizons.map((horizon, index) => {
           const releaseValue = release[index];
           const callValue = call[index];
@@ -107,15 +116,21 @@ export default function AbsorptionCurve({ horizons, release, call, stages }: Abs
             <g key={horizon}>
               {releaseValue != null ? (
                 <circle cx={xScale(index)} cy={yScale(releaseValue)} r={3}
-                        className="diff-curve__dot diff-curve__dot--release" />
+                        className="diff-curve__dot diff-curve__dot--release">
+                  <title>{`Statement, ${horizon}: ${pct(releaseValue)} of the move arrived`}</title>
+                </circle>
               ) : null}
               {callValue != null ? (
                 <circle cx={xScale(index)} cy={yScale(callValue)} r={3}
-                        className="diff-curve__dot diff-curve__dot--call" />
+                        className="diff-curve__dot diff-curve__dot--call">
+                  <title>{`Press conference, ${horizon}: ${pct(callValue)} of the move arrived`}</title>
+                </circle>
               ) : null}
               {releaseValue == null && callValue == null ? (
-                <text x={xScale(index)} y={y0 - 6} textAnchor="middle" fontSize={10}
-                      className="diff-curve__gap" aria-hidden="true">◌</text>
+                <text x={xScale(index)} y={y0 - 6} textAnchor="middle"
+                      className="diff-curve__gap" aria-hidden="true">◌
+                  <title>{`${horizon}: not measured on either stage — no free bar source resolves it`}</title>
+                </text>
               ) : null}
             </g>
           );
@@ -124,13 +139,13 @@ export default function AbsorptionCurve({ horizons, release, call, stages }: Abs
         <XAxis points={points} y={y0} x0={x0} x1={x1}
                format={(value) => horizons[Math.round(value)] ?? ""} minGap={34} />
 
-        <text x={x0} y={16} fontSize={12} className="diff-curve__key diff-curve__key--release">
+        <text x={x0} y={16} className="diff-curve__key diff-curve__key--release">
           <tspan aria-hidden="true">●</tspan> statement
           {summaryOf("release")?.median_half_life_s
             ? ` — half in ${Math.round(summaryOf("release")!.median_half_life_s!)}s`
             : ""}
         </text>
-        <text x={x0} y={30} fontSize={12} className="diff-curve__key diff-curve__key--call">
+        <text x={x0} y={30} className="diff-curve__key diff-curve__key--call">
           <tspan aria-hidden="true">▲</tspan> press conference
           {summaryOf("call")?.median_half_life_s
             ? ` — half in ${Math.round(summaryOf("call")!.median_half_life_s!)}s`

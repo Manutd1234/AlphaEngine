@@ -1,81 +1,75 @@
 "use client";
 
 /**
- * Fees — one section, three questions, one switcher.
+ * Fees — one section, two views, one read.
  *
- * What a real position pays, what shape that cost has, and what the answer
- * looks like when the cost model is switched off. The three used to stack in
- * one column with no divider. They are one argument in three shapes, so they
- * get a `.seg` rather than a second `<WorkspaceSubtabs>`: a nested rail fights
- * the first over the `--rail-h` publisher, as `CoherenceConsole` records.
+ * What a real position pays, and what shape that cost has. They are one
+ * argument in two shapes, so they get a `.seg` rather than a second
+ * `<WorkspaceSubtabs>`: a nested rail fights the first over the `--rail-h`
+ * publisher, as `CoherenceConsole` records.
  *
- * BOTH READS LIVE HERE, each gated on the view that needs it. The replay is the
- * largest read on this tab — 20,000 rows — and it used to run on every visit to
- * Fees, including the two views that never show it. Holding the reads at this
- * level also means switching view does not throw a payload away and ask the
- * gateway for it again, and it is what lets one chip row above the views state
- * a fact from each.
+ * FOUR VIEWS SINCE THE MERGE OF 2026-08-24, and the round trip is worth
+ * recording. Ablation was the third view of this seg in the morning; the
+ * promotion pass made it the `ablation` rail section, because the tape replayed
+ * under four cost models answers its own question and no URL reached it from
+ * behind a switcher; the merge that afternoon brought it home as two views,
+ * Ablation and Replay table. The split that evening moved this whole section
+ * onto Quotes and left the views alone — what the venue charges is a fact of
+ * the venue, which is that tab's subject. What it keeps from the promotion is the
+ * READ: `AblationPane` owns the 20,000-row replay and gates it on its own two
+ * views, so this file still holds one `useCoherenceRead` rather than the two
+ * and the `framing()` helper it carried when it had to say "not read on this
+ * view" for a chip whose read was gated on a sibling.
  *
- * The section owns which worked example is selected, because that choice is
- * what the fees query is built from; the picker that changes it is drawn inside
- * the worked-example view, where it is the only `.seg` on screen beside this
- * one.
+ * So: one read here, gated on the section, and one chip — the share of notional
+ * the fee comes to, which is the only figure on the section that no table below
+ * states. The picker that chooses the worked example is drawn inside the
+ * worked-example view; the section owns WHICH example is chosen, because that
+ * choice is what the fees query is built from.
  */
 
 import { useState } from "react";
 
-import type { CoherenceFees, CoherenceReplay } from "@/lib/coherence/types";
-import { feesRoute, replayRoute } from "@/lib/coherence/routes";
+import type { CoherenceFees } from "@/lib/coherence/types";
+import { feesRoute } from "@/lib/coherence/routes";
 import PaneHead from "./PaneHead";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
-import AblationPane from "./AblationPane";
+import AblationPane, { type AblationView } from "./AblationPane";
 import FeesPane, { EXAMPLES, feesExceedNotional, type FeeExample, type FeesView } from "./FeesPane";
 import { StateChip } from "./Figure";
 
-/** The pane's own two views, plus the ablation. One list, one source. */
-type View = FeesView | "ablation";
+/** The venue's cost model, then what that cost does to the answer. */
+type SectionView = FeesView | AblationView;
 
-/**
- * The measurement, or the reason this row cannot state it yet.
- *
- * Never a zero and never a bare blank: a gated read has not failed, it has not
- * been asked, and those are different answers.
- */
-function framing(value: string | null, live: boolean, error: string | null): string {
-  if (value != null) return value;
-  if (error) return "the read failed";
-  return live ? "reading…" : "not read on this view";
-}
+/** Which of the four are the replay's, so one predicate gates the 20,000 rows. */
+const REPLAY_VIEWS: ReadonlyArray<SectionView> = ["comparison", "table"];
 
 export default function FeesSection({ active }: { active: boolean }) {
-  const [view, setView] = useState<View>("example");
+  const [view, setView] = useState<SectionView>("example");
   const [example, setExample] = useState<FeeExample>(EXAMPLES[0]);
 
+  const onReplay = REPLAY_VIEWS.includes(view);
+  // Not gated on the view: the chip below is drawn on all four, and this read
+  // is one request against the fee endpoint rather than a tape replay.
   const fees = useCoherenceRead<CoherenceFees>(
     feesRoute(example.price, example.contracts, example.fills),
-    active && (view === "example" || view === "shape"),
-  );
-  const replay = useCoherenceRead<CoherenceReplay>(
-    replayRoute(),
-    active && view === "ablation",
+    active,
   );
 
   const share = fees.data?.net_as_fraction_of_notional ?? null;
   const overNotional = feesExceedNotional(share);
-  const span = replay.data ? `${replay.data.span_seconds}s` : null;
 
   return (
-    <section className="card console-card coh-fees" aria-labelledby="coherence-fees-heading">
+    <section className="card console-card coh-fees" aria-labelledby="markets-fees-heading">
       <PaneHead
         kicker="Fees"
-        title="What a real position pays"
-        id="coherence-fees-heading"
-        note={span ? `replay spans ${span}` : "three-component cost model"}
+        title="What a real position pays, and whether it changes the answer"
+        id="markets-fees-heading"
+        note="three components, charged per fill"
         lede={
           <>
-            Three components, and the one nobody models is the largest: on Kalshi&rsquo;s own documented example the
-            rounding fee is nineteen times the trading fee and the net exceeds the notional traded. Ablation replays
-            the tape under four cost models, <code>no_fees</code> among them.
+            The component nobody models is the largest: on Kalshi&rsquo;s own example the rounding fee is
+            nineteen times the trading fee and the net fee exceeds the notional traded.
           </>
         }
       />
@@ -86,38 +80,32 @@ export default function FeesSection({ active }: { active: boolean }) {
         <button type="button" aria-pressed={view === "shape"} onClick={() => setView("shape")}>
           Cost shape
         </button>
-        <button type="button" aria-pressed={view === "ablation"} onClick={() => setView("ablation")}>
+        <button type="button" aria-pressed={view === "comparison"} onClick={() => setView("comparison")}>
           Ablation
+        </button>
+        <button type="button" aria-pressed={view === "table"} onClick={() => setView("table")}>
+          Replay table
         </button>
       </div>
 
-      {/* One chip row for the section, not one per pane. Of the six chips the
-          two panes carried between them, four restated a cell of a table
-          directly beneath: net fee and notional traded ARE the per-fill Total
-          row, and books replayed and families tested now open the ablation
-          table's caption. What is left is the two facts no table states. */}
+      {/* The one figure neither table states. Its mark carries the warning, so
+          "over the notional" survives colour being stripped. */}
       <div className="coh-status__chips">
         <StateChip
           mark={share == null ? "◌" : overNotional ? "▲" : "◇"}
           word="Fee as a share of notional"
-          value={framing(share, view !== "ablation", fees.error)}
+          value={share ?? (fees.error ? "the read failed" : "reading…")}
           tone={overNotional ? "critical" : "muted"}
-        />
-        <StateChip
-          mark={span == null ? "◌" : "→"}
-          word="Tape spans"
-          value={framing(span, view === "ablation", replay.error)}
-          tone="muted"
         />
       </div>
 
-      {view === "ablation" ? (
-        <AblationPane replay={replay.data} error={replay.error} />
+      {onReplay ? (
+        <AblationPane view={view as AblationView} active={active && onReplay} />
       ) : (
         <FeesPane
           fees={fees.data}
           error={fees.error}
-          view={view}
+          view={view as FeesView}
           example={example}
           onExample={setExample}
         />

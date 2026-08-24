@@ -1,0 +1,329 @@
+/* The Kalshi engine's DIAGRAM ladder, its border containment and its packing.
+ *
+ * THE SEAM BETWEEN THIS FILE AND `14q-markets-density.css` IS CONCERN, NOT TAB,
+ * and it stayed that way through the split of 2026-08-24 rather than reverting
+ * with it. The full argument is in 14q's banner; the short form is that both
+ * consoles draw the same figures, tables and chips out of one component
+ * library, so a per-tab seam means every shared class sized twice and the copy
+ * that is not being edited drifts. The first split had exactly that: this file
+ * was `.proofs-plane`, 14q was `.markets-plane`, and between them they declared
+ * `.coh-table`, `.coh-figure__caption`, `.coh-figure__missing`, the chips,
+ * `.coh-event__meta` and `.coh-svg-note` twice, with `.coh-surface__tick`
+ * disagreeing outright.
+ *
+ *   14q   the prose ladder — reading text, table cells, captions, chips,
+ *         micro-labels, controls. Type that STEPS with the Text-size preference.
+ *   14r   (here) the diagram ladder — SVG text, drawn in user units, which does
+ *         NOT step — plus border containment and desk-width packing.
+ *
+ * Both files scope to `.coherence-plane`, the class BOTH consoles render.
+ *
+ * EACH PARTIAL OWNS EXACTLY ONE TAB CLASS for the rules that can only ever
+ * match on one tab. This file owns `.proofs-plane` and spends it on one thing:
+ * the seg wrap at the foot, whose subject is every section-level switcher on
+ * Proofs — Diffusion's seven views, Dutch book's six, Scorecard's and Lessons'
+ * five — against a Prices rail where no section offers more than five. 14q owns
+ * `.markets-plane` and spends it on the shell surfaces and the universe filter.
+ * Neither file names the other's class.
+ *
+ * NOT every Prices-only selector is scoped that way, and the line is worth
+ * stating: the packing block below re-gaps `.coh-universe`, `.coh-books`,
+ * `.coh-settle`, `.coh-rfq`, `.coh-surface`, `.coh-kelly`, `.coh-shell` and
+ * `.coh-book`, which today only Prices draws. They stay on the shared plane
+ * because they are a RHYTHM the engine keeps, not a fact about which tab a
+ * section sits on — the same eight classes were on the other tab this morning
+ * and a re-scope every time a section moves is how a partial rots. The tab class
+ * is for a rule whose SUBJECT is the tab, and the wrap is the only one here.
+ *
+ * NO SELECTOR STRING APPEARS IN BOTH FILES — the strict form, whatever
+ * properties each declares — and nothing here declares a `font-size` in a
+ * `--fs-*` prose rung: every size below reads one of the two px tokens this
+ * file owns. That is what makes the invariant checkable rather than a promise.
+ * It cost one deletion to hold: 14q used to name `.coh-table td` beside
+ * `.coh-table` for its rung while this file names `th, td` for their padding.
+ * Two concerns, one selector, and this file sorts last. The rung is on
+ * `.coh-table` alone now and the cell inherits it.
+ *
+ * THE TWO PX TOKENS ARE ONE PAIR. The first split had two: `--fs-svg-series` /
+ * `--fs-svg-legend` in 14q and `--fs-diagram-label` / `--fs-diagram-legend`
+ * here, holding one pair of values each — the same ladder under two names, which is
+ * only survivable while two planes never meet. One pair now, declared on the
+ * shared plane so both tabs read it, and the names that survive are the ones
+ * `coherence-density-partial.test.ts` pins.
+ *
+ * Px on purpose and prose rungs never: SVG text is drawn in user units and does
+ * not step with the Text-size preference, so a `var(--fs-body)` here would claim
+ * a stepping relationship the render does not have. `--fs-tick` (10px, in
+ * `:root`) is the ladder's floor and is not redefined — several figures derive
+ * their own label-truncation budgets from its value.
+ *
+ * WHAT STAYS AT THE FLOOR, deliberately: `.coh-ladder__tick` (clock and terminal
+ * numerals), `.coh-calib__tick` (the reliability diagram's 0.0/0.5/1.0), the
+ * diffusion charts' inline tick labels, and `.coh-surface__tick`. The last one
+ * is the merge's one settled disagreement: 14q held it at the floor as a true
+ * axis numeral and this file used to lift it to the label rung. It is drawn
+ * only by `SurvivalChart` and `PmfChart` — the lattice's own axes — so the floor
+ * is right and the lift is gone.
+ */
+
+/* ── The diagram ladder's two moving rungs, as px tokens. ─────────────────
+   13px = series and row labels inside a plot; 14px = chart titles, legends and
+   in-plot scale notes, the loudest furniture the ladder allows. Both values are
+   ones `type-diagram-ladder.test.ts` already sanctions.
+
+   THEY MOVED ON 2026-08-24, 12 -> 13 and 13 -> 14, because a reader said three
+   times that the words inside these figures are too small and the third pass
+   had lifted only PROSE. The ceiling is arithmetic, not taste: reading text on
+   this engine is `--fs-title`, which is 1.0625rem x 16 x --type-step, so
+   14.571 / 17.000 / 20.643px at compact / comfortable / large. Compact binds.
+   The sheet's own separation constant — `type-ladder-presets.test.ts` keeps
+   prose at least 0.5px clear of `--fs-tick` — applied at the top of the ladder
+   gives 14.571 − 0.5 = 14.071px, so 14 is the loudest furniture allowed and
+   the two rungs land one pixel apart, the separation they already had at
+   12/13. REJECTED: 14.5, which clears compact prose by 0.071px and so claims a
+   separation no reader can see; and 15, which is 0.43px ABOVE compact prose
+   and would widen the very inversion `ABOVE_COMPACT_PROSE` exists to shrink.
+   `--fs-tick` did not move with them and could not: `--fs-2xs` at compact is
+   10.714px, the same 0.5px separation caps the tick at 10.214, and the guard
+   requires a whole number — 10 is the only value left. */
+.coherence-plane {
+  --fs-diagram-label: 13px;
+  --fs-diagram-legend: 14px;
+}
+
+/* ── Border conservation. Unconditional: a border must hold at every width. ──
+   The Families screenshot of 2026-08-24 is the bug pattern — a grid child
+   without `min-width: 0` cannot shrink below its mono table's intrinsic width,
+   so an open 188-row outcome table ran under the neighbouring card and the
+   border was not conserved. The chain is always the same: a `.table-wrap`
+   scrolls, but only if the element AROUND it can shrink, and a default
+   `min-width: auto` <details> is sized to the table's intrinsic width.
+   `.table-wrap` itself resolves its own automatic minimum to zero when it IS
+   the grid item; the entry below is the belt for the wrapped cases, and it is
+   cheaper than finding the next one from a screenshot. All widths, never a
+   desk-width packing choice — a one-column phone grid blows out the same way. */
+.coherence-plane :is(
+  .coh-event__outcomes,
+  .coh-combo__legs,
+  .coh-lessons__grid,
+  .coh-lesson,
+  .coh-lesson__mechanics,
+  .table-wrap,
+  .diff-results > section
+) {
+  min-width: 0;
+}
+
+/* ── SVG text, up the diagram ladder. ─────────────────────────────────────
+   Every rule below overrides a `--fs-tick` (or inline 10) declaration from
+   10b–10h or a diffusion component, for text that is NOT a tick numeral. */
+
+/* Series and row labels — the 13px rung. The lattice's bar values and unread
+   marks; the settlement chart's average, basis and flag words; the ablation
+   strip's names and values (PayoffByState and ValueStrip share both classes);
+   the reliability diagram's count and never-quoted marks; the Murphy
+   waterfall's term names and values; the formation chain's box titles and
+   notes; the combo band's row labels and axis words; the effect plot's t values
+   and gap marks; the stage timeline's stage labels. */
+.coherence-plane :is(
+  .coh-axis__label,
+  .coh-identity__label,
+  .coh-kelly__bar-label,
+  .coh-surface__value,
+  .coh-surface__rise,
+  .coh-surface__down-mark,
+  .coh-surface__down-word,
+  .coh-surface__unread,
+  .coh-settle__avg-label,
+  .coh-settle__basis-label,
+  .coh-settle__flag-mark,
+  .coh-ablation__label,
+  .coh-ablation__value,
+  .coh-calib__count,
+  .coh-calib__gapmark,
+  .coh-calib__barlabel,
+  .coh-calib__barvalue,
+  .coh-form__title,
+  .coh-form__note,
+  .coh-combo__label,
+  .coh-combo__axis,
+  .diff-effect__value,
+  .diff-curve__gap,
+  .diff-time__label
+) {
+  font-size: var(--fs-diagram-label);
+}
+
+/* Legends, in-plot scale notes and each figure's one headline mark — the 14px
+   rung. `.coh-form__value` is pinned here rather than to a stepping prose rung
+   because the component's truncation arithmetic is derived from this rung, and
+   `.coh-combo__state` because the band figure's price label carries the verdict
+   word. */
+.coherence-plane :is(
+  .coh-dollarbar__dollar-label,
+  .coh-dollarbar__total,
+  .coh-identity__dollar-label,
+  .coh-calib__keytext,
+  .coh-form__value,
+  .coh-combo__state,
+  .diff-effect__bandlabel,
+  .diff-curve__key,
+  .diff-curve__note
+) {
+  font-size: var(--fs-diagram-legend);
+}
+
+/* Three shared classes for SVG words that used to borrow a tick class and are
+   not ticks. `coh-svg-label` (13px) is an axis TITLE — "price quoted", "how
+   often it happened", "t statistic". `coh-svg-note` (14px) is an in-plot scale
+   or reference note. `coh-figure__key` (14px) is a figure's in-plot key: legend
+   lines, the axis notes over the basket overview, the formation chain's closing
+   line, the settlement window annotation. Fill is declared here because the
+   components no longer inherit it from the tick class they left. */
+.coherence-plane .coh-svg-label {
+  fill: var(--text-secondary);
+  font-size: var(--fs-diagram-label);
+}
+
+.coherence-plane .coh-svg-note {
+  fill: var(--text-secondary);
+  font-size: var(--fs-diagram-legend);
+}
+
+.coherence-plane .coh-figure__key {
+  fill: var(--text-secondary);
+  font-size: var(--fs-diagram-legend);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Packing. Desk width only, so phones keep the single-column flow. ───── */
+
+@media (min-width: 1100px) {
+  /* The plane ran a 14px gap between the head, the rail and every section
+     card, one of only two places on the desk spending 14 where the
+     standardisation layer spends 12. Two gaps per section, nine sections over
+     two tabs, and one rule because both roots carry the shared plane class. */
+  .coherence-plane {
+    gap: var(--space-3);
+  }
+
+  /* Every section on this engine is a 12px grid stacking five to eight
+     children; 8px is the rhythm the standardisation layer gives the rest of
+     the desk (what 14g moved the Data tab onto). Eight of these classes are
+     drawn only by Prices today and they stay on the shared plane anyway — see
+     the banner: this is a rhythm, not a fact about a tab. */
+  .coherence-plane :is(
+    .coh-universe,
+    .coh-books,
+    .coh-settle,
+    .coh-rfq,
+    .coh-surface,
+    .coh-kelly,
+    .coh-shell,
+    .coh-book
+  ) {
+    gap: var(--space-2);
+  }
+
+  /* A cell's own padding, against the row height the type lift adds: the tab
+     reads a rung larger at about the same table height, which is the trade the
+     prose passes were for. */
+  .coherence-plane .coh-table th,
+  .coherence-plane .coh-table td {
+    padding-block: 3px;
+  }
+
+  /* Figure and card interiors. Every figure on this tab is a caption, a drawing
+     and up to two footnotes inside a 1px border; 12px of bottom padding under a
+     footnote that is already a 6px grid gap away from the plot spends the same
+     space twice. */
+  .coherence-plane .coh-figure {
+    padding: var(--space-2) 10px 10px;
+  }
+
+  /* The family card's own stack — chips, one dollar bar, one disclosure — and
+     the lesson card beside it. One rule since the merge: the two used to be a
+     gap here and a padding in the other partial, on the same selector. */
+  .coherence-plane .coh-event {
+    gap: var(--space-2);
+    padding: 10px;
+  }
+
+  .coherence-plane .coh-lesson {
+    padding: 10px;
+  }
+
+  .coherence-plane .coh-combo,
+  .coherence-plane .coh-combo__row {
+    padding: 10px;
+  }
+
+  /* The lesson grid's own gutter, on the 8px rhythm the rest of the desk uses
+     between cards in a grid. */
+  .coherence-plane .coh-lessons__grid {
+    gap: var(--space-2);
+  }
+
+  /* Chip rows are one line of state above the thing they describe. 6px of grid
+     gap plus the section's own 12px left ~18px between a chip row and its
+     figure; the row is part of the figure's frame, not a section of its own. */
+  .coherence-plane .coh-status__chips,
+  .coherence-plane .coh-combo__chips {
+    gap: var(--space-1) 6px;
+  }
+}
+
+/* NO GRID IS DECLARED IN THIS FILE, and the rule it satisfies is the house one:
+   a `display: grid` added to a subtab-panel element needs `align-content: start`
+   or spare height inflates its rows. This partial satisfies it by not applying
+   — it only re-gaps and re-pads grids 10a already declares with that alignment.
+   A ≥1280px `auto-fit` grid on `.coh-universe__families` was here until the
+   consolidation of 2026-08-24 and went with it: since the Families view was
+   split to a picker plus ONE card, that wrapper has held a single child, so
+   `auto-fit` handed it the whole row and the grid packed nothing. What the
+   screenshot bug actually needed is the unconditional `min-width: 0` list
+   above, and that stays. */
+
+/* ── A Proofs section's seg wraps rather than shrinking. ─────────────────────
+   THE ONE RULE IN THIS FILE THAT CARRIES A TAB CLASS, and the reason is that
+   its subject IS the tab: every switcher on Proofs is wider than every
+   switcher on Prices, where no section offers more than five views.
+
+   DIFFUSION IS THE WIDEST CONTROL ON THE DESK — seven views on one `.seg`
+   ("Noise floor", "Kalshi survival", "Kalshi episodes") — and this block said
+   Dutch book's six was, for the whole of 2026-08-24, because the rule was
+   written the hour `combos` folded in and the diffusion seg grew its seventh
+   view in a different pass. Dutch book is second at six, Scorecard and Lessons
+   joint third at five. `.seg button { flex: 1 }` in 00 divides the well
+   equally, so at a narrow card seven labels get about a seventh each and every
+   one of them wraps mid-word.
+
+   NAMED BY THE ROLE, NOT BY THE SECTION, which is the change of the fourth
+   review of 2026-08-24 and the reason the miscount above could happen at all:
+   the old selector listed `.coh-certificate` and `.coh-calib` by hand, so a
+   section that gained a view — or a rail that gained a section, which happened
+   four times that day — kept the squeeze silently. `.console-card > .seg` is
+   every section-level switcher on this tab and nothing else; the child
+   combinator is what keeps Findings' own three-button seg, nested inside
+   `.diff-results`, out of it. This file's own banner argues the same way about
+   the packing block: re-scoping every time a section moves is how a partial
+   rots.
+
+   Wrapping the CONTROL is the fix the reader asked for over shrinking the type:
+   the ladder's rung is the same on all twenty-two segs on the desk
+   (`nav-type-markets-coherence.test.ts` holds it to one selector in 12), and a
+   per-tab size is exactly the defect that suite was written against. So the
+   frame is allowed a second row and each segment is given a floor to wrap AT —
+   `flex-basis` and `flex-wrap` only, no metric property, because a metric here
+   would be the fifth per-tab seg size arriving the way the first four did.
+
+   Unconditional, not behind a width query: a phone is where seven segments are
+   worst, and the packing rules above are desk-width DENSITY choices, which this
+   is not. */
+.coherence-plane.proofs-plane .console-card > .seg {
+  flex-wrap: wrap;
+}
+
+.coherence-plane.proofs-plane .console-card > .seg button {
+  flex: 1 1 7rem;
+}

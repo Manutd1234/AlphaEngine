@@ -41,9 +41,9 @@ export default function FindingsTable({ findings }: { findings: Finding[] }) {
     <div className="table-wrap" tabIndex={0}>
       <table className="coh-table diff-findings">
         <caption className="coh-table__caption">
-          Every relationship measured, whether or not it held. The first two rows are the
-          control: a pipeline that cannot see a bigger rate change produce a bigger move
-          could not report the others as absent.
+          Every relationship measured, held or not. The first two rows are the control: a
+          pipeline that cannot see a bigger rate change produce a bigger move could not call
+          the others absent.
         </caption>
         <thead>
           <tr>

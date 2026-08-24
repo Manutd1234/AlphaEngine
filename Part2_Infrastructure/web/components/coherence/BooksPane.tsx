@@ -14,6 +14,18 @@
  * identity strip read as a footnote to the chart above it. `BooksSection` owns
  * the switcher; this pane owns the market picker, which rides the ticker
  * heading so that only one `.seg` ever sits under the view rail.
+ *
+ * `BookDetailView` is two options and not three since 2026-08-24: maker
+ * dispersion was never a view of a book — a book is one venue's most aggressive
+ * resting order and the RFQ channel is several professionals answering
+ * independently — and it is a VIEW of this section again, drawn by `RfqPane`.
+ *
+ * THE LADDER VIEW OPENS ON ITS DRAWING. Until the fourth pass of 2026-08-24 it
+ * opened on a five-row definition list, three rows of which the chart's reading
+ * prints underneath anyway. The list is folded now, with a summary that names
+ * what is in it; the two facts the drawing cannot carry — the NO bid as the
+ * venue sends it, and whether the read reached past the top of book — are the
+ * reason it is folded rather than deleted.
  */
 
 import { useState } from "react";
@@ -43,43 +55,53 @@ function BookDetail({ book, view }: { book: CoherenceBookView; view: BookDetailV
 
   return (
     <div className="coh-book">
-      <dl className="coh-book__facts">
-        <div>
-          <dt>Best YES bid</dt>
-          <dd>{book.best_yes_bid ?? "—"}</dd>
-        </div>
-        <div>
-          <dt>Best NO bid</dt>
-          <dd>{book.best_no_bid ?? "—"}</dd>
-        </div>
-        <div>
-          <dt>Implied YES ask</dt>
-          <dd>{book.best_yes_ask ?? "—"}</dd>
-        </div>
-        <div>
-          <dt>Spread</dt>
-          <dd>{book.spread ?? "—"}</dd>
-        </div>
-        <div>
-          <dt>Depth read</dt>
-          <dd>{book.depth === "full" ? "full ladder" : "top of book only"}</dd>
-        </div>
-      </dl>
-
+      {/* THE DRAWING FIRST, and the five facts folded under it since the fourth
+          pass of 2026-08-24. The chart's own reading prints the best YES bid,
+          the implied offer and the spread between them — three of the five —
+          so above the chart the list was the same numbers read twice, and a
+          reader met a definition list before they met a book. What the fold
+          keeps is the two the drawing genuinely cannot say: the best NO bid as
+          the venue sends it, and how deep this read reached. */}
       <LadderChart
-        caption="Both bid ladders, and the offers they imply"
+        caption="This market&rsquo;s two ladders"
         yesBids={book.yes_bids}
         noBids={book.no_bids}
         yesAsks={book.yes_asks}
         unquotedReason={book.unquoted_reason}
       />
 
-      {book.depth === "top_of_book" ? (
-        <p className="coh-event__note">
-          <span aria-hidden="true">◌</span> From the market object&rsquo;s top-of-book fields, because the orderbook
-          route refused an unauthenticated read: one level a side, which cannot answer a depth question.
-        </p>
-      ) : null}
+      <details className="disclosure">
+        <summary>The five figures this book was read from, and how deep the read went</summary>
+        <dl className="coh-book__facts">
+          <div>
+            <dt>Best YES bid</dt>
+            <dd>{book.best_yes_bid ?? "—"}</dd>
+          </div>
+          <div>
+            <dt>Best NO bid</dt>
+            <dd>{book.best_no_bid ?? "—"}</dd>
+          </div>
+          <div>
+            <dt>Implied YES ask</dt>
+            <dd>{book.best_yes_ask ?? "—"}</dd>
+          </div>
+          <div>
+            <dt>Spread</dt>
+            <dd>{book.spread ?? "—"}</dd>
+          </div>
+          <div>
+            <dt>Depth read</dt>
+            <dd>{book.depth === "full" ? "full ladder" : "top of book only"}</dd>
+          </div>
+        </dl>
+
+        {book.depth === "top_of_book" ? (
+          <p className="coh-event__note">
+            <span aria-hidden="true">◌</span> One level a side, from the market object&rsquo;s top-of-book fields: the
+            orderbook route refused an unauthenticated read, so depth cannot be answered.
+          </p>
+        ) : null}
+      </details>
     </div>
   );
 }

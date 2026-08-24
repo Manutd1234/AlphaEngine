@@ -8,17 +8,30 @@
  * — folding the failure mode behind a disclosure would leave the confident half
  * on screen and hide the half that stops a reader over-applying it.
  *
- * Fourteen cards ran to about 1,700px at desk width and about 3,300px below
+ * The catalogue ran to about 1,700px at desk width and about 3,300px below
  * 1100px, where the grid drops to one column, so the section shows one group at
  * a time. The cut is `group` on each lesson, never a list in here: a fifteenth
  * lesson added to the data appears in its view without this file changing, and
  * cannot end up in no view at all.
  *
- * The intro and the coverage strip stay outside the switcher. Both are counts
- * of all fourteen, and inside a view they would contradict the cards beside
- * them. The strip is the one thing on this section that is about the shape of
- * the curriculum rather than its contents: it is drawn from `pane`, so a
- * section nobody teaches is a column with a mark in it, not a column missing.
+ * The head's note stays outside the switcher: it counts the WHOLE catalogue.
+ * The coverage strip WAS outside too, for the same argument — until the second
+ * pass of 2026-08-24, when it became the switcher's first view and the
+ * default. What changed is not the argument but the layout it argued against:
+ * outside, the strip stacked a full figure over every group's cards and the
+ * section opened two screens tall, which is the review's exact complaint. As
+ * a PEER view it no longer sits beside cards it could contradict — it is the
+ * only thing on screen, its caption says it maps both rails, and it is the
+ * default because "what does the curriculum cover" is the section's headline
+ * question. It is still drawn from `pane`, so a section nobody teaches is a
+ * column with a mark in it, not a column missing.
+ *
+ * THE FOUR GROUP VIEWS DRAW SOMETHING NOW (fourth review of 2026-08-24, "a
+ * drawing of the numbers in every subtab"). Coverage was the only view here
+ * with a figure and the other four opened on a grid of prose cards;
+ * `GroupPins` below draws the one quantity a group of lessons actually has.
+ * The cards' own path lists stay where they were, behind each card's mechanics
+ * summary — the strip is their reading, not a replacement.
  *
  * A lesson whose slice has not landed is shown as pending rather than omitted.
  * A curriculum that silently lists only what is finished cannot be read as a
@@ -28,15 +41,56 @@
 import { useState } from "react";
 
 import { COHERENCE_LESSONS, LESSON_GROUPS, type CoherenceLesson, type LessonGroup } from "@/lib/coherence/lessons";
-import { COHERENCE_SECTIONS } from "@/lib/sections";
+import { ENGINE_SECTIONS } from "@/lib/sections";
 
 import { StateChip } from "./Figure";
 import LessonCoverage from "./LessonCoverage";
 import PaneHead from "./PaneHead";
+import ValueStrip from "./ValueStrip";
 
-/** The rail's own label, so a card names the section as the reader sees it. */
+/** The rail's own label, so a card names the section as the reader sees it.
+ *  BOTH rails since the split of 2026-08-24: the curriculum spans the engine
+ *  and half the lessons are taught on Quotes, so looking a `pane` up in one
+ *  tab's array would print the raw id for seven of the fourteen. */
 const sectionLabel = (pane: string) =>
-  COHERENCE_SECTIONS.find((section) => section.id === pane)?.label ?? pane;
+  ENGINE_SECTIONS.find((section) => section.id === pane)?.label ?? pane;
+
+/**
+ * How much test surface each lesson in the group rests on.
+ *
+ * Coverage was the only view here with a drawing, and the four GROUP views —
+ * Prices, Structure, Bounds, Record — opened on a grid of prose cards. The
+ * fourth review of 2026-08-24 asked for a drawing of the numbers in every
+ * view, and the only numbers a group of lessons has are the two path lists on
+ * each card: the modules a lesson is about, and the suites that go red if it
+ * stops being true. The second is the one that RANKS — the catalogue's whole
+ * claim is that these are enforced claims rather than notes beside the code,
+ * so "how much would break" is the reading, and it is otherwise reachable only
+ * by opening every card's mechanics disclosure and counting by eye.
+ *
+ * REFUSED: a bar per lesson of its summary's length, its formula's presence,
+ * or shipped-versus-pending. The first two are drawings of the prose rather
+ * than of anything measured, and the third is degenerate here — every lesson
+ * in the catalogue is shipped, so it would be a row of identical bars claiming
+ * to be a finding. A figure has to answer its view's own question or not be
+ * drawn.
+ */
+function GroupPins({ lessons }: { lessons: CoherenceLesson[] }) {
+  return (
+    <ValueStrip
+      caption="How many suites go red if each lesson stops being true"
+      ariaLabel={`Pinning suites for each of the ${lessons.length} lessons in this group`}
+      rows={lessons.map((lesson) => ({
+        label: lesson.title,
+        value: lesson.pinnedBy.length,
+        text: `${lesson.pinnedBy.length} suite(s)`,
+        title: `${lesson.title} — taught in ${sectionLabel(lesson.pane)}, carried by ${lesson.guards.length} module(s), pinned by ${lesson.pinnedBy.join(", ") || "nothing yet"}`,
+        noBar: lesson.pinnedBy.length ? undefined : "not pinned yet",
+      }))}
+      missing="The bar counts SUITES, not assertions: a file that pins one lesson in forty places is one bar. It is a measure of how widely a claim is held, never of how deeply."
+    />
+  );
+}
 
 function PathList({ paths }: { paths: string[] }) {
   return (
@@ -88,6 +142,7 @@ function LessonCard({ lesson }: { lesson: CoherenceLesson }) {
           and a suite were told apart by one word of prose. */}
       <details className="coh-lesson__mechanics">
         <summary>Which code carries this, and which test holds it</summary>
+        <div className="table-wrap">
         <table className="coh-table">
           <tbody>
             <tr>
@@ -104,13 +159,14 @@ function LessonCard({ lesson }: { lesson: CoherenceLesson }) {
             </tr>
           </tbody>
         </table>
+        </div>
       </details>
     </article>
   );
 }
 
 export default function LessonsPane() {
-  const [view, setView] = useState<LessonGroup>("prices");
+  const [view, setView] = useState<LessonGroup | "coverage">("coverage");
   const shipped = COHERENCE_LESSONS.filter((lesson) => lesson.shipped).length;
   const group = LESSON_GROUPS.find((entry) => entry.id === view) ?? LESSON_GROUPS[0];
   const inView = COHERENCE_LESSONS.filter((lesson) => lesson.group === group.id);
@@ -124,22 +180,25 @@ export default function LessonsPane() {
         note={`${shipped} of ${COHERENCE_LESSONS.length} built`}
         lede={
           shipped < COHERENCE_LESSONS.length
-            ? "Each lesson names the module it is about and the test that would go red if it stopped being true. The unbuilt ones are listed because a curriculum hiding unfinished work cannot be read as a plan."
-            : "Each lesson names the module it is about and the test that would go red if it stopped being true, and each runs as a notebook under notebooks/coherence_lab against those same modules."
+            ? "Each lesson names the module it is about and the test that goes red if it stops being true; unbuilt ones are listed because a curriculum hiding unfinished work is not a plan."
+            : "Each lesson names the module it is about and the test that goes red if it stops being true, and each runs as a notebook under notebooks/coherence_lab against the same modules."
         }
       />
 
-      {/* Above the switcher, and deliberately outside it. The strip maps all
-          fourteen lessons onto all eleven sections; drawn inside a view it
-          would show a quarter of the map while looking like the whole of it,
-          the same reason the intro's counts stay out here. */}
-      <LessonCoverage />
-
       {/* One `.seg`, not a nested `<WorkspaceSubtabs>`: a second rail instance
           fights the first over the `--rail-h` publisher, as CoherenceConsole's
-          header records. The groups come from the data, so this control cannot
-          offer a view that holds nothing or omit one that does. */}
+          header records. The group views come from the data, so this control
+          cannot offer a group that holds nothing or omit one that does;
+          Coverage is the one hand-written peer, and it is the map of the
+          whole catalogue rather than another slice of it. */}
       <div className="seg" role="group" aria-label="Lessons view">
+        <button
+          type="button"
+          aria-pressed={view === "coverage"}
+          onClick={() => setView("coverage")}
+        >
+          Coverage
+        </button>
         {LESSON_GROUPS.map((entry) => (
           <button
             key={entry.id}
@@ -152,23 +211,29 @@ export default function LessonsPane() {
         ))}
       </div>
 
-      <section aria-labelledby={`coh-lessons-${group.id}`}>
-        <div className="section-heading compact">
-          <div>
-            <h3 id={`coh-lessons-${group.id}`}>{group.label}</h3>
-            <p className="coh-lessons__intro">{group.description}.</p>
+      {view === "coverage" ? (
+        <LessonCoverage />
+      ) : (
+        <section aria-labelledby={`coh-lessons-${group.id}`}>
+          <div className="section-heading compact">
+            <div>
+              <h3 id={`coh-lessons-${group.id}`}>{group.label}</h3>
+              <p className="coh-lessons__intro">{group.description}.</p>
+            </div>
+            <span className="section-note">
+              {inView.length} of {COHERENCE_LESSONS.length} lessons
+            </span>
           </div>
-          <span className="section-note">
-            {inView.length} of {COHERENCE_LESSONS.length} lessons
-          </span>
-        </div>
 
-        <div className="coh-lessons__grid">
-          {inView.map((lesson) => (
-            <LessonCard key={lesson.id} lesson={lesson} />
-          ))}
-        </div>
-      </section>
+          <GroupPins lessons={inView} />
+
+          <div className="coh-lessons__grid">
+            {inView.map((lesson) => (
+              <LessonCard key={lesson.id} lesson={lesson} />
+            ))}
+          </div>
+        </section>
+      )}
     </section>
   );
 }

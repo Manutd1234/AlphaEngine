@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * The head every section of Markets and Coherence opens with.
+ * The head every section of the Kalshi engine opens with, on both its tabs.
  *
  * The desk has one grammar for the first thing under a subtab rail, and these
  * two tabs were the only ones not speaking it. Measured over Chrome across all
@@ -22,10 +22,14 @@
  * resolves to is the "card title" role in `type-role-map.test.ts`, declared
  * once in the standardisation layer and never restated here.
  *
- * A component rather than eleven copies, unlike the rest of the desk, and for a
- * reason this engine has: its sections are ELEVEN views of one argument across
- * two tabs, so "the same" has to be literally true rather than maintained. It
- * also gives `coherence-pane-head.test.ts` one thing to assert against.
+ * A component rather than nine copies, unlike the rest of the desk, and for a
+ * reason this engine has: its sections are NINE views of one argument split
+ * over two tabs — Quotes reads the venue, Proofs argues about the reading — so
+ * "the same" has to be literally true rather than maintained. It also gives
+ * `coherence-pane-head.test.ts` one thing to assert against, and that suite
+ * derives each head's id from the tab that owns the section: five of the nine
+ * changed prefix on 2026-08-24 when the rail was divided, and a hand-written
+ * prefix would have mislabelled every card that moved.
  *
  * `note` is for what this read cost or covered — a count, a source, a
  * freshness. Never a second sentence of explanation: that is what `lede` is,

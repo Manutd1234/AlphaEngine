@@ -52,6 +52,10 @@
 
 import Figure, { FigureEmpty, Plot } from "./Figure";
 import { decimalLabel, statValue } from "./ReliabilityDiagram";
+// What each term IS — the glossary copy, the cut depth and the ratio helper —
+// lives in murphy-terms.ts since 2026-08-24, when this file stood at 395
+// against the 400-line ratchet. This file keeps what is about the DRAWING.
+import { murphyTerms, placesFor, ratioOf, type Term } from "./murphy-terms";
 
 const HEIGHT = 200;
 const MARGIN = { top: 16, right: 8, bottom: 44, left: 8 };
@@ -61,42 +65,6 @@ const INSET_PLOT = INSET_HEIGHT - INSET_MARGIN.top - INSET_MARGIN.bottom;
 const FLOOR_PX = 2;
 /** Under this, the inset draws nothing and says the term is too small to draw. */
 const SUBPIXEL_PX = 1;
-const MIN_PLACES = 8;
-const MAX_PLACES = 14;
-const EXTRA_PLACES = 2;
-
-/**
- * A cut deep enough that every term still shows significant digits.
- *
- * Read off the wire strings rather than assumed: find the deepest first
- * significant digit among the terms, keep two places past it, and stay between
- * eight and fourteen so the labels remain a number rather than a wall. Eight
- * places suits a Brier of 1e-4 and does not suit a residue an order or two
- * below it, and the depth is not knowable before the numbers arrive.
- */
-function placesFor(raws: (string | null)[]): number {
-  let deepest = MIN_PLACES;
-  for (const raw of raws) {
-    const fraction = /^-?\d*\.(\d*)$/.exec(raw?.trim() ?? "")?.[1] ?? "";
-    const first = fraction.search(/[1-9]/);
-    if (first >= 0) deepest = Math.max(deepest, first + 1 + EXTRA_PLACES);
-  }
-  return Math.min(deepest, MAX_PLACES);
-}
-
-/** How many times the second magnitude goes into the first, as a grouped integer. */
-function ratioOf(large: number, small: number): string {
-  return Math.round(large / small).toLocaleString("en-GB");
-}
-
-interface Term {
-  key: string;
-  name: string;
-  sign: 1 | -1;
-  raw: string | null;
-  direction: string;
-  meaning: string;
-}
 
 export default function MurphyBars({
   brier,
@@ -113,44 +81,7 @@ export default function MurphyBars({
   binning: string | null;
   bandCount: number;
 }) {
-  const terms: Term[] = [
-    {
-      key: "reliability",
-      name: "Reliability",
-      sign: 1,
-      raw: reliability,
-      direction: "lower is better, and zero is perfect",
-      meaning:
-        "The mean squared gap between what a band was priced at and how often it happened. It is the only term a recalibration can repair, because it is the only one that is a property of the prices rather than of the questions.",
-    },
-    {
-      key: "resolution",
-      name: "Resolution",
-      sign: -1,
-      raw: resolution,
-      direction: "higher is better, and it enters with a minus sign",
-      meaning:
-        "How far the bands' outcome rates spread away from the base rate — how much the prices discriminated at all. Quote the base rate on everything and this term is zero: perfectly reliable, and worth nothing. It is the only term that notices.",
-    },
-    {
-      key: "uncertainty",
-      name: "Uncertainty",
-      sign: 1,
-      raw: uncertainty,
-      direction: "not a score, it belongs to the questions",
-      meaning:
-        "base × (1 − base). Nothing the exchange does changes it, and it is why a raw Brier score cannot be carried from one corpus to another: an easier set of questions produces a smaller number for free.",
-    },
-    {
-      key: "binning",
-      name: "Binning",
-      sign: 1,
-      raw: binning,
-      direction: "smaller with finer bands",
-      meaning:
-        `The residue of grouping a continuum of prices into ${bandCount} bands. The engine returns it as whatever the other three leave over, so the identity closes by construction and the number to read is its size, not the fact that it fits.`,
-    },
-  ];
+  const terms: Term[] = murphyTerms(reliability, resolution, uncertainty, binning, bandCount);
 
   const values = terms.map((term) => statValue(term.raw));
   const total = statValue(brier);
@@ -163,7 +94,7 @@ export default function MurphyBars({
         ariaLabel="The decomposition could not be drawn because a term is missing"
         missing={
           missingTerms.length
-            ? `${missingTerms.join(", ")} could not be computed, so the identity cannot be closed. The remaining terms are not drawn on their own: four bars that do not add up to the fifth would look like an answer.`
+            ? `${missingTerms.join(", ")} could not be computed, so the identity cannot be closed; four bars that do not sum to the fifth would look like an answer.`
             : "The Brier score itself is not available, so there is no total for the terms to reconstruct."
         }
       >
@@ -197,7 +128,7 @@ export default function MurphyBars({
   ].filter((bar) => bar.drawn < FLOOR_PX);
   const flooredNames = floored.map((bar) => bar.name).join(", ");
   const floorNote = floored.length
-    ? `${flooredNames} ${floored.length === 1 ? "is" : "are"} drawn at a ${FLOOR_PX}-pixel floor beside Uncertainty, so read the printed number rather than the height. The inset below drops Uncertainty and redraws the other three at a scale of their own.`
+    ? `${flooredNames} ${floored.length === 1 ? "is" : "are"} drawn at a ${FLOOR_PX}-pixel floor beside Uncertainty — read the printed number, not the height. The inset below redraws the other three at their own scale.`
     : null;
 
   const identity = `${cut(reliability)} − ${cut(resolution)} + ${cut(uncertainty)} + ${cut(binning)} = ${cut(brier)}`;
@@ -219,25 +150,25 @@ export default function MurphyBars({
   const smallest = insetBars.reduce((carry, bar) => (Math.abs(bar.value) < Math.abs(carry.value) ? bar : carry));
   const thinNames = insetThin.map((bar) => bar.term.name).join(" and ");
   const insetMissing =
-    `Uncertainty is out: it is base × (1 − base), a property of the questions rather than of the exchange, so no price could have moved it` +
+    `Uncertainty is out — not a score, the glossary says why` +
     (uncertaintyValue > 0 && Math.abs(smallest.value) > 0
-      ? ` — and at ${cut(uncertainty)}, about ${ratioOf(uncertaintyValue, Math.abs(smallest.value))} times ${smallest.term.name}, it is what flattens the waterfall above.`
+      ? ` — and at ${cut(uncertainty)}, about ${ratioOf(uncertaintyValue, Math.abs(smallest.value))} times ${smallest.term.name}, it is what flattens the waterfall.`
       : `, at ${cut(uncertainty)}.`) +
-    ` Nothing here sums to a Brier score; the identity is drawn above and only there.` +
+    ` Nothing here sums to a Brier; the identity closes only above.` +
     (insetThin.length
-      ? ` ${thinNames} ${insetThin.length === 1 ? "stands" : "stand"} under ${SUBPIXEL_PX} pixel even here, so ${insetThin.length === 1 ? "it is" : "they are"} named rather than floored twice.`
+      ? ` ${thinNames} ${insetThin.length === 1 ? "is" : "are"} under a pixel even here, so ${insetThin.length === 1 ? "it is" : "they are"} named, not floored twice.`
       : "");
   const insetReading =
     Math.abs(smallest.value) > 0
-      ? `${biggest.term.name} ${cut(biggest.term.raw)} against ${smallest.term.name} ${cut(smallest.term.raw)} — about ${ratioOf(Math.abs(biggest.value), Math.abs(smallest.value))} to one, the comparison the waterfall cannot carry at any height. Length is a term's size; the sign beside its name is its part in the identity.`
-      : `${smallest.term.name} is zero at every place the engine sent; ${biggest.term.name}, at ${cut(biggest.term.raw)}, is the largest of the three. Length is a term's size; the sign beside its name is its part in the identity.`;
+      ? `${biggest.term.name} ${cut(biggest.term.raw)} against ${smallest.term.name} ${cut(smallest.term.raw)} — about ${ratioOf(Math.abs(biggest.value), Math.abs(smallest.value))} to one, the comparison the waterfall cannot carry.`
+      : `${smallest.term.name} is zero at every place the engine sent; ${biggest.term.name}, at ${cut(biggest.term.raw)}, is the largest of the three.`;
 
   return (
     <div className="coh-calib__murphy">
       <Figure
         caption="Brier = Reliability − Resolution + Uncertainty + Binning, reconstructed"
-        ariaLabel={`A waterfall of four terms landing on a Brier score of ${cut(brier)}; resolution subtracts, the other three add`}
-        reading={`${identity}. Bars are cumulative, truncated to ${places} places and never rounded. The closure is not a check this figure ran — the engine derives Binning as Brier minus the other three — so what the drawing is for is the SIZE of each term. Resolution is the only one that subtracts, and the only one a forecaster quoting the base rate cannot earn.`}
+        ariaLabel={`Four terms landing on a Brier of ${cut(brier)}; resolution subtracts, the rest add`}
+        reading={`${identity}. Bars are cumulative, truncated to ${places} places, never rounded; Binning is derived as Brier minus the other three, so the identity closes by construction and the drawing is for each term\u2019s SIZE.`}
         missing={floorNote}
       >
         <Plot height={HEIGHT}>
@@ -311,10 +242,10 @@ export default function MurphyBars({
 
       {insetMax > 0 ? (
         <Figure
-          caption="Inset — Reliability, Resolution and Binning at their own scale, Uncertainty excluded"
-          ariaLabel={`Three bars scaled against each other rather than against Uncertainty: ${insetBars
+          caption="Inset — the same terms at their own scale, Uncertainty excluded"
+          ariaLabel={`Three bars scaled against each other: ${insetBars
             .map((bar) => `${bar.term.name} ${cut(bar.term.raw)}`)
-            .join(", ")}${insetThin.length ? `; ${thinNames} too small to draw at this scale and named instead` : ""}`}
+            .join(", ")}${insetThin.length ? `; ${thinNames} too small to draw and named instead` : ""}`}
           reading={insetReading}
           missing={insetMissing}
         >
@@ -366,9 +297,9 @@ export default function MurphyBars({
         </Figure>
       ) : (
         <Figure
-          caption="Inset — Reliability, Resolution and Binning at their own scale, Uncertainty excluded"
-          ariaLabel="The three terms other than Uncertainty are all zero, so there is no scale to draw them at"
-          missing="Uncertainty is out because it belongs to the questions, not to the exchange. The three left are zero at every place the engine sent — a measurement, not a gap, and no scale to draw them against."
+          caption="Inset — the same terms at their own scale, Uncertainty excluded"
+          ariaLabel="Reliability, Resolution and Binning are all zero"
+          missing="All three are zero at every place the engine sent — a measurement, not a gap."
         >
           <FigureEmpty reason="Reliability, Resolution and Binning are all zero — nothing to scale them against." />
         </Figure>

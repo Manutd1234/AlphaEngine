@@ -51,13 +51,13 @@ export default function IdentityStrip({
     return (
       <Figure
         caption={caption}
-        ariaLabel="Lesson zero identity: not measurable on this book"
+        ariaLabel="Lesson zero: not measurable on this book"
         missing={
           unquotedReason ??
-          "One side of this book is unquoted, so it has no spread and the identity has no terms. That is an absent quote, not a zero one."
+          "One side of this book is unquoted, so the identity has no terms — an absent quote, not a zero one."
         }
       >
-        <FigureEmpty reason="The identity needs both sides quoted." />
+        <FigureEmpty reason="Both sides must be quoted." />
       </Figure>
     );
   }
@@ -67,11 +67,12 @@ export default function IdentityStrip({
   return (
     <Figure
       caption={caption}
-      ariaLabel={`Two bars of equal length: yes ask plus no ask is ${identitySum}, one dollar plus the spread is ${identityOnePlusSpread}`}
+      // The reading beside the bars carries all four numbers; the aria names the shape.
+      ariaLabel="Two bars of equal length"
       reading={
         equal
-          ? `${fromCenticents(yes)} + ${fromCenticents(no)} = ${identitySum}, and $1 + ${fromCenticents(spreadCc)} = ${identityOnePlusSpread}. The sum of the two asks is always one dollar plus the spread, so it is never below a dollar — the "buy both sides for under $1" branch is unreachable, not merely rare.`
-          : `These should be equal and are not (${identitySum} against ${identityOnePlusSpread}). That means the two ladders were read at different instants — a torn snapshot, not an opportunity.`
+          ? `${fromCenticents(yes)} + ${fromCenticents(no)} = ${identitySum}, and $1 + ${fromCenticents(spreadCc)} = ${identityOnePlusSpread}: the sum of the two asks is never below a dollar — the "buy both sides for under $1" branch is unreachable, not merely rare.`
+          : `These should be equal and are not (${identitySum} against ${identityOnePlusSpread}): the two ladders were read at different instants — a torn snapshot, not an opportunity.`
       }
       /* Both sides can be quoted and the payload still carry a reason — one
          side quoted at a single level, or a torn snapshot. Without this the
@@ -89,14 +90,22 @@ export default function IdentityStrip({
                 $1
               </text>
 
-              <rect x="0" y="14" width={scale(yes)} height="18" className="coh-identity__part is-yes" />
-              <rect x={scale(yes)} y="14" width={scale(no)} height="18" className="coh-identity__part is-no" />
+              <rect x="0" y="14" width={scale(yes)} height="18" className="coh-identity__part is-yes">
+                <title>{`yes ask ${fromCenticents(yes)}`}</title>
+              </rect>
+              <rect x={scale(yes)} y="14" width={scale(no)} height="18" className="coh-identity__part is-no">
+                <title>{`no ask ${fromCenticents(no)}`}</title>
+              </rect>
               <text x="2" y="11" className="coh-identity__label">
                 yes ask + no ask
               </text>
 
-              <rect x="0" y="46" width={scale(DOLLAR_CC)} height="18" className="coh-identity__part is-dollar" />
-              <rect x={scale(DOLLAR_CC)} y="46" width={scale(spreadCc)} height="18" className="coh-identity__part is-spread" />
+              <rect x="0" y="46" width={scale(DOLLAR_CC)} height="18" className="coh-identity__part is-dollar">
+                <title>one dollar</title>
+              </rect>
+              <rect x={scale(DOLLAR_CC)} y="46" width={scale(spreadCc)} height="18" className="coh-identity__part is-spread">
+                <title>{`spread ${fromCenticents(spreadCc)}`}</title>
+              </rect>
               <text x="2" y="43" className="coh-identity__label">
                 $1 + spread
               </text>

@@ -1,0 +1,267 @@
+/* The Kalshi engine's PROSE ladder — words, tables, captions, chips, controls.
+ *
+ * TWO PLANE CLASSES, TWO PARTIALS, AND THE SEAM BETWEEN THEM IS CONCERN RATHER
+ * THAN TAB. That distinction is the whole banner, because it has been settled
+ * the other way twice in one day and the wrong version is the obvious one.
+ *
+ * On 2026-08-24 the Kalshi engine was split, merged and split again. In the
+ * FIRST split this file was scoped `.markets-plane` and `14r` was scoped
+ * `.proofs-plane`, one file per tab, and the two went on to declare a great
+ * many of the same selectors separately — `.coh-table`, `.coh-figure__missing`,
+ * `.coh-figure__caption`, the chips, `.coh-event__meta`, `.coh-svg-note` — in
+ * two scopes, at two sets of values, with `.coh-surface__tick` genuinely
+ * disagreeing. That is a density pass maintained twice, and the merge caught it
+ * only because one plane made the duplicates collide.
+ *
+ * So the cut is by CONCERN and both files scope to `.coherence-plane`, which
+ * BOTH consoles render:
+ *
+ *   14q (here)  the prose ladder — reading text, table cells, captions, chips,
+ *               micro-labels, disclosure summaries, controls. Everything that
+ *               STEPS with the reader's Text-size preference.
+ *   14r         the diagram ladder — SVG text in user units, which does not
+ *               step — plus border containment and desk-width packing.
+ *
+ * Both tabs draw the same figures, tables and chips out of one component
+ * library, so their density pass IS one pass. A per-tab seam would mean every
+ * shared class sized twice again, and the second copy would drift the first
+ * time only one of them was edited.
+ *
+ * EACH PARTIAL STILL OWNS EXACTLY ONE TAB CLASS, for the rules that can only
+ * ever match on one tab. This file owns `.markets-plane` — the Prices console's
+ * second class — and spends it on three groups no Proofs section draws: the
+ * shell surfaces, the universe filter, and the wrap on the two five-view
+ * switchers. 14r owns `.proofs-plane` and uses it for the same wrap on Dutch
+ * book and Scorecard. Neither file may name the other's class. Scoping those
+ * rules is not decoration: an unscoped `.coh-shell__crumb` rung would silently
+ * reach a Proofs section that grew the class later, and nothing would say so.
+ *
+ * NO SELECTOR STRING APPEARS IN BOTH FILES. That is the invariant — the strict
+ * form, whatever properties each declares — and it is what
+ * `rung-single-declaration.test.ts`, `coherence-density-partial.test.ts` and
+ * `markets-sections.test.ts` check between them. It cost one deletion to hold:
+ * `.coherence-plane .coh-table td` was declared here for its rung and again in
+ * 14r for its cell padding, and 14r sorts last. The rung moved onto
+ * `.coh-table` alone (10a sizes the table, never the cell, so the cell
+ * inherits) and 14r keeps `th, td`.
+ *
+ * ONE GENUINE DISAGREEMENT WAS SETTLED rather than merged: this file held
+ * `.coh-surface__tick` at the `--fs-tick` floor as a true axis numeral and 14r
+ * lifted it to the 12px label rung. It is drawn only by `SurvivalChart` and
+ * `PmfChart` — the lattice's own axes, "0.0", "1.0", a terminal price — so the
+ * floor is right and the lift is gone. Every other shared selector agreed on
+ * its value already; they were duplicates, not contradictions.
+ *
+ * WHAT THE RUNGS ARE, from the third review of 2026-08-24 ("increase the body
+ * text size for all tabs in markets and coherance"). The gap was never the
+ * number, it was the ROLE: the other eight tabs' reading prose inherits `body`,
+ * which is `--fs-title` (the "body prose" role in type-role-map.test.ts), and
+ * their table cells inherit the bare `table` rule at `--fs-lg`. This engine
+ * pinned both to `--fs-body`, one to two rungs under every neighbouring tab. So
+ *
+ *   - words a reader READS (figure readings and footnotes, notes, state
+ *     explanations, disclosure summaries) → `--fs-title`, body's own rung;
+ *   - table cells → `--fs-lg`, the bare `table` rule's rung — declared here
+ *     only because deleting the old override would let 10a's `--fs-xs` win;
+ *   - captions, chips, micro-labels over values → `--fs-body`: a caption at
+ *     prose size would out-shout the table it labels.
+ *
+ * REJECTED, so a later pass does not force them
+ * ------------------------------------------------------------------------
+ *   - SIZING anything that names `.seg`. Four suites forbid a second selector
+ *     doing that by name; the record is nav-type-markets-coherence.test.ts. The
+ *     wrap at the foot of this file names the seg and sizes nothing: `flex-wrap`
+ *     and `flex-basis` only, which is exactly the line 14r drew for the Proofs
+ *     switchers and the line `seg-metrics.test.ts` enforces (its METRIC list is
+ *     insets, floors, borders and type — not flex behaviour).
+ *   - `--fs-title` on `.coh-event__meta`, the table captions, the chips or the
+ *     dt micro-labels. They rank UNDER the value or table they label; at prose
+ *     size they read as a second sentence, which is the wordiness the same
+ *     review asked to cut.
+ *   - Prose rungs on the shell's three MONO surfaces (crumb, group head, `cat`
+ *     body). Mono sets wider than the sans beside it; they stay at `--fs-sm`.
+ *     The shell's LISTING rows, though, are the content of the view — mono rows
+ *     scanned in columns, exactly the `table` role — so they read the
+ *     table-cell rung, not a prose one.
+ *   - Touching 10a–10h: at their length ratchet, so the overrides live here.
+ *   - Going back to one file per tab. It is the diff the split makes obvious
+ *     and it is the arrangement this banner exists to refuse.
+ */
+
+/* ------------------------------------------------------------------ */
+/* Table cells — the house "table cell" role                          */
+/* ------------------------------------------------------------------ */
+/* `.coh-table` ALONE, and the deletion of the `td` half is the seam being
+   enforced rather than a shortcut. 10a sizes the TABLE (`--fs-xs`) and never
+   the cell, so a cell inherits whatever the table reads and naming `td` here
+   bought nothing — while 14r has to name `th, td` to pad them, and one
+   selector declared in two files is one selector sized twice with 14r winning
+   in silence. `th` is unnamed on purpose either way, so headers read the
+   desk-wide `th` rule — the house "table header" role, one rung under the
+   cells they label, which is the pairing every other tab's tables have. */
+.coherence-plane .coh-table {
+  font-size: var(--fs-lg);
+}
+
+/* The shell's listing rows: mono rows scanned in columns — the same table-cell
+   role, one rung under prose, as every table body on the desk. Scoped to the
+   Prices plane because Shell is a Prices section and only a Prices section
+   draws this class — see the banner. */
+.coherence-plane.markets-plane .coh-shell__open {
+  font-size: var(--fs-lg);
+}
+
+/* ------------------------------------------------------------------ */
+/* Prose a reader READS — body's own rung                             */
+/* ------------------------------------------------------------------ */
+/* State explanations, notes, figure readings and footnotes, the empty-figure
+   line, lesson summaries, the disclosure summaries that are sentences. Each of
+   these carries an old `--fs-xs` declaration in 10a–10h that would beat plain
+   inheritance, which is why the target is restated rather than the override
+   simply deleted. */
+.coherence-plane :is(
+  .coh-figure__reading,
+  .coh-figure__missing,
+  .coh-figure__empty,
+  .coh-event__note,
+  .coh-notes,
+  .coh-status__basis,
+  .coh-shell__note,
+  .coh-shell__detail-line,
+  .coh-settle__note,
+  .coh-settle__standing,
+  .coh-rfq__lead,
+  .coh-rfq__note,
+  .coh-surface__moments-note,
+  .coh-kelly__note,
+  .coh-kelly__warning,
+  .coh-lessons__intro,
+  .coh-lesson__summary,
+  .coh-lesson__bounds dd,
+  .coh-calib__engine-body,
+  .coh-calib__terms dd,
+  .coh-combo__meta,
+  .coh-combo__legend,
+  .coh-combo__caveat,
+  .coh-combo__where,
+  .coh-combo__note,
+  .coh-combo__because,
+  .diff-bars__foot
+) {
+  font-size: var(--fs-title);
+}
+
+/* Disclosure summaries: a sentence a reader reads before deciding to open it,
+   so it reads the prose rung rather than the furniture one. */
+.coherence-plane :is(
+  .coh-event__outcomes > summary,
+  .coh-combo__legs > summary
+) {
+  font-size: var(--fs-title);
+}
+
+/* ------------------------------------------------------------------ */
+/* Furniture — one rung under the prose it frames                     */
+/* ------------------------------------------------------------------ */
+/* Captions, chips, micro-labels that rank under the value they name, formulas,
+   the proof artefact, the short summaries. The engine banner's <code> is
+   deliberately absent: with no override it reads the desk-wide
+   `.console-card code` rule, as inline code in card prose does everywhere. */
+.coherence-plane :is(
+  .coh-figure__caption,
+  .coh-table__caption,
+  .coh-chip,
+  .coh-chip__mark,
+  .coh-event__meta,
+  .coh-book__facts dt,
+  .coh-status__facts dt,
+  .coh-certificate__pick > span,
+  .coh-lesson__state,
+  .coh-lesson__formula,
+  .coh-lesson__bounds dt,
+  .coh-lesson__mechanics summary,
+  .coh-lesson__mechanics ul,
+  .coh-calib__terms dt,
+  .coh-calib__term-dir,
+  .coh-combo__formula,
+  .coh-combo__side,
+  .coh-proof,
+  .diff-bars__head,
+  .disclosure > summary
+) {
+  font-size: var(--fs-body);
+}
+
+/* ------------------------------------------------------------------ */
+/* Controls that read as words                                        */
+/* ------------------------------------------------------------------ */
+/* The filter's own label is a micro-label over a control; the select joins the
+   desk's control rung — the `button, select` role. Universe is a Prices
+   section, so both rules carry this partial's own tab class. */
+.coherence-plane.markets-plane .coh-universe__filter {
+  font-size: var(--fs-body);
+}
+
+.coherence-plane.markets-plane .coh-universe__filter select {
+  font-size: var(--fs-xl);
+}
+
+/* The three shell surfaces that are MONO blocks, argued in the banner. Prices
+   only, and said in the selector rather than left to be true by accident. */
+.coherence-plane.markets-plane :is(.coh-shell__crumb, .coh-shell__group-head, .coh-shell__body) {
+  font-size: var(--fs-sm);
+}
+
+/* ------------------------------------------------------------------ */
+/* Two control rows wrap rather than shrinking                        */
+/* ------------------------------------------------------------------ */
+/* THE SAME FIX 14r MADE FOR PROOFS, and it belongs here because its subject is
+   this tab. `.seg button { flex: 1 }` in 00 is `flex: 1 1 0%`, so every segment
+   takes an equal share of the control whatever its label is.
+
+   Derived, not observed (CLAUDE.md, fact 6). Two different rows need it and the
+   arithmetic is different for each, so both sums are written out.
+
+   UNIVERSE, five views. At the narrowest card this desk lays out — a 360px
+   viewport less the card's own inset, about 328px — five segments split into
+   62px each after the 3px well and the four 3px seams, and 16px of that is the
+   segment's `var(--space-2)` inset either side. That leaves 46px of text, about
+   5.7 characters at the --fs-body rung's ~8px advance. "Settlement" and
+   "Formation" are 8 to 10 characters with no space in them, so they do not wrap
+   at a word — they wrap mid-word, which is the defect the reader reported on
+   Dutch book.
+
+   THE LATTICE AND THE STAKE, for the FAMILY PICKER rather than for the views.
+   That half of this rule described five lattice views until the fifth
+   restructure of 2026-08-24 divided them: Lattice draws three buttons now and
+   Stake four, and at three shares of 328px each label gets about 89px, roughly
+   11 characters, which holds "Survival" and "Moments" outright. The picker
+   sharing that row is what still needs the wrap, and needs it harder: its
+   labels are event tickers, and `KXBTCD-26AUG2410` is 16 characters — 128px of
+   glyphs plus the 16px inset, so 144px for one button. Two of them beside a
+   three-segment view control cannot each have 144px of a 328px row, so without
+   a floor the ticker breaks mid-word. `flex: 1 1 7rem` is a 112px basis: the
+   row takes what fits and puts the rest on a second line, where a button has
+   the full 328px and 144px of label fits.
+
+   Wrapping the CONTROL is the fix rather than shrinking the type: the rung is
+   the same on all twenty-two segs on the desk and a per-tab size is the exact
+   defect `nav-type-markets-coherence.test.ts` was written against. So the frame
+   gets a second row and each segment a floor to wrap AT — `flex-wrap` and
+   `flex-basis` only, no metric property.
+
+   SCOPED TO THE THREE SECTIONS THAT ASKED, not to the tab. Books, Fees and
+   Shell carry four views and no picker; at four shares each label gets about
+   7.6 characters, which holds every label they draw. Widening this rule to the
+   whole plane would be a layout decision made for sections that did not ask for
+   one. Both rows are `.coh-status__chips` because `.coh-surface` and
+   `.coh-kelly` are grids, so two segs as their children would stack. */
+.coherence-plane.markets-plane .coh-universe > .seg,
+.coherence-plane.markets-plane :is(.coh-surface, .coh-kelly) .coh-status__chips > .seg {
+  flex-wrap: wrap;
+}
+
+.coherence-plane.markets-plane .coh-universe > .seg button,
+.coherence-plane.markets-plane :is(.coh-surface, .coh-kelly) .coh-status__chips > .seg button {
+  flex: 1 1 7rem;
+}

@@ -29,10 +29,19 @@ export interface PendingMinute {
   stations: number;
 }
 
+const CAPTION = "Minutes reported by the stations and not yet published by the exchange";
+
 const ROW_H = 24;
 const TOP = 18;
-const BOTTOM = 20;
+const BOTTOM = 22;
+/** "HH:MM" is five tabular glyphs; at the 13px series-label rung each sets
+ *  under 7.6px, so 38px of text leaves 38px of clearance before the bars.
+ *  Held at 76 through the 2026-08-24 lift: the arithmetic still clears. */
 const LABEL_W = 76;
+/** The right-hand column: "80.6125 from 12" is fifteen glyphs ≈ 114px at the
+ *  13px rung, so 120px keeps the longest live value clear of the bars. The
+ *  old 96px was sized for the same string at 10px. */
+const VALUE_W = 120;
 
 export default function PendingMinutes({ rows, units }: { rows: PendingMinute[]; units: string }) {
   const spreads = rows.map((row) => (row.spread == null ? null : Number(row.spread)));
@@ -43,11 +52,8 @@ export default function PendingMinutes({ rows, units }: { rows: PendingMinute[];
 
   if (!rows.length) {
     return (
-      <Figure
-        caption="Minutes reported by the stations and not yet published by the exchange"
-        ariaLabel="No minute is inside the receipt deadline"
-      >
-        <FigureEmpty reason="No minute is inside the receipt deadline, so there is nothing the stations have reported that the exchange has not already published." />
+      <Figure caption={CAPTION} ariaLabel="No minute is inside the receipt deadline">
+        <FigureEmpty reason="Nothing reported is still unpublished." />
       </Figure>
     );
   }
@@ -59,11 +65,12 @@ export default function PendingMinutes({ rows, units }: { rows: PendingMinute[];
 
   return (
     <Figure
-      caption="Minutes reported by the stations and not yet published by the exchange"
+      caption={CAPTION}
+      /* The legend along the foot of the plot already names the three columns,
+         so this says the one thing it cannot: what a long bar MEANS. */
       reading={
         known.length
-          ? `Bar length is how far the stations disagree, widest ${widest} ${units}. A wide bar means the mean beside `
-            + "it averages readings that do not agree."
+          ? `Widest disagreement ${widest} ${units} — a long bar's provisional mean averages stations that disagree.`
           : null
       }
       missing={unmeasured ? `${unmeasured} of ${rows.length} minutes published no spread, so they carry a dash rather than a zero-length bar.` : null}
@@ -72,7 +79,7 @@ export default function PendingMinutes({ rows, units }: { rows: PendingMinute[];
       <Plot height={height}>
         {(width) => {
           const plotLeft = LABEL_W;
-          const plotWidth = Math.max(40, width - LABEL_W - 96);
+          const plotWidth = Math.max(40, width - LABEL_W - VALUE_W);
           const scale = widest > 0 ? plotWidth / widest : 0;
           return (
             <>
@@ -88,7 +95,9 @@ export default function PendingMinutes({ rows, units }: { rows: PendingMinute[];
                       <rect
                         x={plotLeft} y={y + 4} width={Math.max(1, value * scale)} height={ROW_H - 12}
                         className="coh-pending__spread"
-                      />
+                      >
+                        <title>{`stations ${row.spread} ${units} apart, ${row.stations} reporting`}</title>
+                      </rect>
                     ) : (
                       <text x={plotLeft} y={y + 13} className="coh-axis__label">— no spread published</text>
                     )}
@@ -98,8 +107,8 @@ export default function PendingMinutes({ rows, units }: { rows: PendingMinute[];
                   </g>
                 );
               })}
-              <text x={0} y={height - 6} className="coh-axis__label">
-                Left, the UTC minute; the bar is how far the stations disagree; right, the provisional index and how many reported it
+              <text x={0} y={height - 6} className="coh-figure__key">
+                UTC minute, station disagreement, provisional index, and how many reported
               </text>
             </>
           );

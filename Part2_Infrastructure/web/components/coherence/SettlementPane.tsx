@@ -3,19 +3,35 @@
 /**
  * What the contract actually resolves against, which is not the price you watch.
  *
- * A weather contract on this venue settles on the MEAN of a published index
- * over a window, and the number a screen shows is the latest print of that
- * index. Those are two different quantities and the gap between them —
+ * A weather contract on this venue settles on the MEAN of a published index over
+ * a window, and the number a screen shows is the latest print of that index.
+ * Those are two different quantities and the gap between them —
  * `spot_minus_window` — is the basis a position carries for free.
  *
- * REBUILT 2026-08-24 on the reported complaint: "no figures and a lot of
- * words". Half of that was fair and half was worse than it looked. TODAY'S
- * READING did draw one chart, but the chart sat under a heading and a chip row
- * and above a five-row table of prose, so the reader met three paragraphs of
- * explanation before a number. FORMATION drew nothing at all: it was two tables
- * whose subject is a PIPELINE — stations, quality control, a published minute,
- * a sixty-minute mean — and a table cannot show that the figure a contract
- * settles on is four transformations away from a thermometer.
+ * THREE VIEWS OF UNIVERSE AGAIN, after a few hours as a rail section of its
+ * own. Promotion bought this subject a URL — the only route to it had been a
+ * control the URL does not carry and `desk-sweep.mjs` never pressed — and the
+ * price was a rail entry of its own on an already long rail. That was reversed
+ * the same day and has stayed reversed through the split that followed:
+ * Settlement is a view of Universe, on Quotes, and `#coherence/settlement`
+ * resolves to it through `RELOCATED_SECTIONS` rather than by being a section.
+ * What is not lost with the rail entry is the READ: this pane owns its own
+ * poll, gated on `view` rather than on a section, so leaving Settlement for
+ * Baskets ends the call exactly as leaving the section used to.
+ *
+ * It draws no head. `UniverseSection` draws the one head this section has, and
+ * `coherence-pane-head.test.ts` is what holds that to one per section; the
+ * sentence that used to be this pane's lede is the paragraph below the
+ * switcher, because the claim it makes is the whole point of the subject.
+ *
+ * REBUILT 2026-08-24 on the reported complaint: "no figures and a lot of words".
+ * Half of that was fair and half was worse than it looked. TODAY'S READING did
+ * draw one chart, but the chart sat under a heading and a chip row and above a
+ * five-row table of prose, so the reader met three paragraphs of explanation
+ * before a number. FORMATION drew nothing at all: it was two tables whose
+ * subject is a PIPELINE — stations, quality control, a published minute, a
+ * sixty-minute mean — and a table cannot show that the figure a contract settles
+ * on is four transformations away from a thermometer.
  *
  * So both halves lead with a drawing and the prose is the caption under it.
  * `FormationDiagram` carries the chain and its measurements; `PendingMinutes`
@@ -27,11 +43,21 @@
  * deployment and not measurements: CF Benchmarks is gated on an account
  * ENTITLEMENT rather than on signing, so no demo key opens it and no amount of
  * retrying will; and exactly one city is published, so a request for any other
- * is answered `not_covered` rather than with an empty series.
+ * is answered `not_covered` rather than with an empty series. Each is said once,
+ * in one line — the entitlement fact used to run to three sentences saying the
+ * same thing about retrying.
  *
- * The unreadable states sit outside both views. A feed that could not be read
- * is reported whichever half of it the reader asked for.
+ * The three views are peers on Universe's own switcher rather than a switcher
+ * of their own: two `.seg` controls in a column read as one broken control, and
+ * "Pending" earned its place on the second 2026-08-24 pass — it was the second
+ * drawing on a view that already had one, and it is the one genuinely tradeable
+ * figure the subject produces.
+ *
+ * The lead sentence is drawn on EVERY branch, including the ones with no
+ * payload, so a reader whose feed failed still knows what they were looking at.
  */
+
+import { type ReactNode } from "react";
 
 import { toCenticents } from "@/lib/coherence/fixed-point";
 import type { CoherenceSettlementFeed } from "@/lib/coherence/types-lab";
@@ -43,15 +69,20 @@ import PendingMinutes from "./PendingMinutes";
 import { StateChip } from "./Figure";
 
 /** The one city the venue publishes. Probed, not assumed — see the driver. */
-const PUBLISHED_CITY = "miami";
+export const PUBLISHED_CITY = "miami";
+
+/** Three views since the second 2026-08-24 pass: Formation stacked two figures
+ *  — the chain and the pending-minutes bars — which is one more than a view
+ *  may hold, so the provisional minutes are their own view. Named here and
+ *  imported by `UniverseSection`, which owns which of the five is pressed. */
+export type SettlementView = "reading" | "formation" | "pending";
 
 function ReferenceRate({ state, detail }: { state: string; detail: string }) {
   if (state === "entitlement_required") {
     return (
       <p className="coh-settle__standing">
-        <span aria-hidden="true">○</span> Reference rate withheld: the CF Benchmarks passthrough is gated on an
-        account entitlement, not on request signing, so a demo key does not open it and retrying cannot. A standing
-        property of this deployment, not a fault in this read.
+        <span aria-hidden="true">○</span> Reference rate withheld: the CF Benchmarks passthrough is gated on an account
+        entitlement, not on request signing, so a demo key does not open it and retrying cannot.
       </p>
     );
   }
@@ -91,10 +122,12 @@ function TodayReading({ data }: { data: CoherenceSettlementFeed }) {
       />
 
       {/* The quality control that decides whether the average above means
-          anything, as chips rather than as a five-row table of prose. Each is
-          a measurement; the sentence under them is the only one needed. */}
+          anything, as chips rather than as a five-row table of prose. Each is a
+          measurement, and the chip words carry the verdict, so the sentence
+          that used to restate all four underneath them is gone. */}
+      {/* The city chip is gone: the head's note names the city on every
+          view, and a chip restating the head is the wordiness under review. */}
       <div className="coh-status__chips">
-        <StateChip mark="●" word="City" value={data.city ?? "—"} tone="muted" />
         <StateChip
           mark={data.degraded_samples ? "▲" : "●"}
           word="Flagged minutes"
@@ -103,7 +136,7 @@ function TodayReading({ data }: { data: CoherenceSettlementFeed }) {
         />
         <StateChip
           mark={flagsMatter ? "▲" : "●"}
-          word={flagsMatter ? "Flags move it" : "Flags do not move it"}
+          word={flagsMatter ? "Flags move the settled number" : "Flags do not move it"}
           value={data.window_average_clean ?? "—"}
           tone={flagsMatter ? "warn" : "good"}
         />
@@ -123,14 +156,10 @@ function TodayReading({ data }: { data: CoherenceSettlementFeed }) {
       </div>
 
       <p className="coh-settle__note">
-        Both averages are the same quantity over the same {data.window_minutes}-minute window, once with the flagged
-        minutes and once without;{" "}
+        Both averages are the same {data.window_minutes}-minute mean, once with the flagged minutes and once without
         {data.window_average_clean == null
-          ? "the clean figure is not published for this read, so it is a dash rather than a repeat of the other."
-          : flagsMatter
-            ? "they differ, so today's flags move the number a contract settles on."
-            : "they agree, so today's flags do not move the number a contract settles on."}{" "}
-        A thin minute is one few stations agreed on.
+          ? "; the clean figure is unpublished for this read, so it shows a dash."
+          : "."}
       </p>
     </>
   );
@@ -172,24 +201,40 @@ function Formation({ data }: { data: CoherenceSettlementFeed }) {
         caption="How the settlement index is formed, stage by stage"
         reading={
           data.formation_holds
-            ? `This read reproduced the published value as the mean of its quality-controlled stations on all `
-              + `${data.formation_checked} completed minutes, so the provisional figures below rest on evidence.`
-            : `The rule did not reproduce the published value here, so nothing below should be traded on: ${data.formation_detail}`
+            ? // The mean-of-QC-stations rule is what the stages above draw; the
+              // reading keeps the verdict and the count.
+              `This read reproduced the published value on all ${data.formation_checked} completed minutes; Pending's provisional figures rest on that.`
+            : `The rule did not reproduce the published value here, so nothing on Pending should be traded on: ${data.formation_detail}`
         }
         missing={
           data.quorum_gaps > 0
-            ? `${data.quorum_gaps} minutes are missing from the series. The venue omits a minute whose quorum failed, `
-              + "so these are minutes the index was not computed rather than minutes it went unreported."
+            ? `${data.quorum_gaps} minutes are missing: the venue omits a minute whose quorum failed — `
+              + "not computed rather than unreported."
             : null
         }
       />
 
-      <PendingMinutes rows={data.pending ?? []} units={data.units || "index units"} />
+      {/* The station list is the one measurement on this view the DRAWING
+          cannot carry: SVG text neither wraps nor clips, so `FormationDiagram`
+          elides it at the box edge and five nine-character names become
+          "MIAMI-INT…". Folded here it is complete, counted in its own summary,
+          and it costs the view nothing when nobody asks. */}
+      {data.stations.length ? (
+        <details className="disclosure">
+          <summary>
+            Every station in the mean, {data.stations.length}{" "}
+            {data.stations.length === 1 ? "member" : "members"}
+          </summary>
+          <ul className="coh-notes">
+            {data.stations.map((station) => (
+              <li key={station}>{station}</li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
 
       <p className="coh-settle__note">
-        Figures are in {data.units || "the index’s own units, which this read did not carry"}, as the feed states
-        them. Coverage is one city: any other is answered as not covered rather than with an empty series, so nothing
-        here is venue-wide.
+        Figures are in {data.units || "the index’s own units, which this read did not carry"}. Coverage is one city.
       </p>
 
       <ReferenceRate state={data.reference_rate_state} detail={data.reference_rate_detail} />
@@ -197,59 +242,64 @@ function Formation({ data }: { data: CoherenceSettlementFeed }) {
   );
 }
 
-export interface SettlementPaneProps {
-  /** False while another tab or another section is in front. */
-  active: boolean;
-  /** Which half the section is showing, or null on a view that shows neither. */
-  view: "settlement" | "formation" | null;
+/** The view that answers what the stations have handed over that the exchange
+ *  has not yet published — its own view, because it is the one genuinely
+ *  tradeable figure on the section and it was the second drawing on a view
+ *  that already had one. */
+function Pending({ data }: { data: CoherenceSettlementFeed }) {
+  return <PendingMinutes rows={data.pending ?? []} units={data.units || "index units"} />;
 }
 
-export default function SettlementPane({ active, view }: SettlementPaneProps) {
-  const { data, error } = useCoherenceRead<CoherenceSettlementFeed>(
-    settlementRoute(PUBLISHED_CITY),
-    active && (view === "settlement" || view === "formation"),
+export default function SettlementPane({ view, active }: { view: SettlementView; active: boolean }) {
+  const { data, error } = useCoherenceRead<CoherenceSettlementFeed>(settlementRoute(PUBLISHED_CITY), active);
+
+  /** The lead sentence, then one thing under it. */
+  const framed = (body: ReactNode) => (
+    <div className="coh-settle">
+      <p className="sub">
+        A contract settles on the mean of a published index over a window, never on the price on screen; the gap
+        between the two is basis a position carries for free
+        {data ? ` — ${data.window_minutes}-minute window, ${data.city ?? PUBLISHED_CITY}.` : "."}
+      </p>
+      {body}
+    </div>
   );
 
-  // The Baskets view asks nothing of this feed, so the pane neither polls nor
-  // speaks: a "Reading the index…" line under the baskets would describe a read
-  // that is not happening.
-  if (view === null) return null;
-
   if (error && !data) {
-    return (
+    return framed(
       <p className="console-empty">
         <span aria-hidden="true">✕</span> The settlement feed could not be read: {error}.
-      </p>
+      </p>,
     );
   }
-  if (!data) return <p className="console-empty muted">Reading the index the contract settles on…</p>;
+  if (!data) return framed(<p className="console-empty muted">Reading the settlement index…</p>);
 
   if (data.state === "not_covered") {
-    return (
-      <div className="coh-settle">
+    return framed(
+      <>
         <p className="console-empty">
-          <span aria-hidden="true">○</span> {data.city ?? "That city"} is not covered. The venue publishes this index
-          for one city only and answers any other request by naming the ones it has. {data.detail ? `${data.detail}.` : ""}
+          <span aria-hidden="true">○</span> {data.city ?? "That city"} is not covered: the venue publishes this index
+          for one city and answers any other request by naming the one it has. {data.detail ? `${data.detail}.` : ""}
         </p>
         <ReferenceRate state={data.reference_rate_state} detail={data.reference_rate_detail} />
-      </div>
+      </>,
     );
   }
 
   if (data.state !== "available" || !data.samples.length) {
-    return (
-      <div className="coh-settle">
+    return framed(
+      <>
         <p className="console-empty">
           <span aria-hidden="true">◌</span> No samples in this read ({data.state}). {data.detail ? `${data.detail}.` : ""}
         </p>
         <ReferenceRate state={data.reference_rate_state} detail={data.reference_rate_detail} />
-      </div>
+      </>,
     );
   }
 
-  return (
-    <div className="coh-settle">
-      {view === "settlement" ? <TodayReading data={data} /> : <Formation data={data} />}
+  return framed(
+    <>
+      {view === "reading" ? <TodayReading data={data} /> : view === "formation" ? <Formation data={data} /> : <Pending data={data} />}
       {/* Outside the switch: a refresh that failed left BOTH halves showing the
           previous answer, so both halves say so. */}
       {error ? (
@@ -258,6 +308,6 @@ export default function SettlementPane({ active, view }: SettlementPaneProps) {
           answer.
         </p>
       ) : null}
-    </div>
+    </>,
   );
 }

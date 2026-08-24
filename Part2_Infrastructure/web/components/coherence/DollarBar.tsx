@@ -59,7 +59,7 @@ export default function DollarBar({ legs, direction, caption, missingLeg }: Doll
   const ariaLabel =
     total == null
       ? `${caption}: not measurable, a leg is unquoted`
-      : `${caption}: ${legs.length} legs totalling ${fromCenticents(total)} against a one dollar payoff`;
+      : `${caption}: ${legs.length} legs totalling ${fromCenticents(total)} against a $1 payoff`;
 
   if (total == null) {
     const named = missingLeg ?? legs[absentAt]?.label ?? "one leg";
@@ -67,7 +67,8 @@ export default function DollarBar({ legs, direction, caption, missingLeg }: Doll
       <Figure
         caption={caption}
         ariaLabel={ariaLabel}
-        missing={`${named} is unquoted on this side, so the basket has no total. The legs that are quoted are not drawn: summing only those understates the cost by exactly the ones missing, which is the direction that invents an arbitrage.`}
+        // "The basket has no total" is the empty frame's own line, co-rendered.
+        missing={`${named} is unquoted on this side; a total from the quoted legs alone would understate the cost, which is the direction that invents an arbitrage.`}
       >
         <FigureEmpty reason="No total — one or more legs are unquoted." />
       </Figure>

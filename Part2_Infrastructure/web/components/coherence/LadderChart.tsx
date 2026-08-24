@@ -113,10 +113,14 @@ export default function LadderChart({ yesBids, noBids, yesAsks, caption, unquote
   return (
     <Figure
       caption={caption}
-      ariaLabel={`${caption}: ${yesPoints.length} YES bid levels and ${noPoints.length} NO bid levels, with the implied YES offers derived from the NO side`}
+      // Where the offers come from is the reading's pinned sentence, co-rendered.
+      ariaLabel={`${caption}: ${yesPoints.length} YES bid levels and ${noPoints.length} NO bid levels`}
       reading={
         bestYesBid != null && bestAsk != null
-          ? `Best YES bid ${fromCenticents(bestYesBid)}, best YES offer ${fromCenticents(bestAsk)} — and that offer is the NO ladder read from the other side, not a queue Kalshi publishes.`
+          // "not a queue Kalshi publishes" left this string on 2026-08-24: the
+          // section lede states it once for both views. What stays is the part
+          // only this figure can say, which is where the two numbers sit.
+          ? `Best YES bid ${fromCenticents(bestYesBid)}, best YES offer ${fromCenticents(bestAsk)} — one spread apart; the offer is the NO ladder read from the other side.`
           : null
       }
       missing={unquotedReason}

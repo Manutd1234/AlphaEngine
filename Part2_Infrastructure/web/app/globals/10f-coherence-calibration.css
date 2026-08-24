@@ -88,53 +88,23 @@
   font-size: var(--fs-xs);
 }
 
-/* ── The headline figures, each with its caveat attached ─────────────────── */
+/* ── The headline figures ────────────────────────────────────────────────── */
 
-/* The note is inside the <dd>, under the number it qualifies, rather than in a
-   run of prose below the block: a caveat that has to be looked up is a caveat
-   that will not be. */
-.coh-calib__facts {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 10px;
-  margin: 0;
-}
-
-.coh-calib__facts > div {
-  display: grid;
-  gap: 3px;
-  align-content: start;
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface-1);
-  min-width: 0;
-}
-
-.coh-calib__facts dt {
-  font-size: var(--fs-xs);
-  color: var(--text-secondary);
-}
-
-.coh-calib__facts dd {
-  margin: 0;
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-}
-
-.coh-calib__figurevalue {
-  font-size: var(--fs-lg);
-  font-weight: 650;
-  font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
-}
-
-.coh-calib__caveat {
-  font-size: var(--fs-xs);
-  color: var(--text-secondary);
-  line-height: 1.45;
-}
+/* `.coh-calib__facts`, `.coh-calib__figurevalue` and `.coh-calib__caveat` were
+   deleted on 2026-08-24, all six rules of them.
+ *
+ * They styled the six headline figures as a `<dl>` of bordered cells, each cell
+ * a label, a value and a caveat under it — the argument at the time being that
+ * "a caveat that has to be looked up is a caveat that will not be". Two things
+ * were wrong with it. The cells wrapped to three columns at desk width, so the
+ * reading a reader wanted was wherever the auto-fit grid had put it rather than
+ * beside the number it belongs to; and the caveat those cells carried was the
+ * engine caveat, which the banner above them already states and must state,
+ * because it invalidates all three views rather than two of six cells.
+ *
+ * The six are a `.coh-table` now: one measurement per row, its value in a
+ * tabular column, its reading in the third. `.coh-table` is the tab's own table
+ * grammar and needed no new rule, which is why nothing replaces these. */
 
 .coh-calib__figures {
   display: grid;

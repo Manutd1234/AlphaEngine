@@ -13,6 +13,14 @@
  * threshold below, and the gap between them is the band in which the naive test
  * reports arbitrages that do not exist. That band is the whole project's thesis
  * in one shape.
+ *
+ * WHAT THE CURVE CANNOT SAY IS NOW ITS OWN `missing` LINE. It is drawn at the
+ * TAKER rate and models no maker fee, so a resting order's cost is not on it —
+ * a fact that used to be a `<p className="coh-event__note">` in `FeesPane`,
+ * forty pixels under the figure, with a comment apologising for being there
+ * because this component took no `missing` prop. It takes one now: a footnote
+ * about a drawing belongs inside the frame that draws it, which is the whole
+ * reason `Figure` requires one.
  */
 
 import { useMeasuredWidth } from "@/components/chart-kit";
@@ -29,6 +37,7 @@ export default function FeeParabola({
   feeAwareThreshold,
 }: {
   multiplier: string;
+  /** The taker rate the curve is drawn at. There is no maker curve to draw. */
   taker?: number;
   feeAwareThreshold: string | null;
 }) {
@@ -58,20 +67,26 @@ export default function FeeParabola({
 
   return (
     <Figure
-      caption="The trade fee across the price range, and the threshold it moves"
-      ariaLabel={`The fee per contract peaks at fifty cents at ${fromCenticents(Math.round(peak))} and falls to nearly nothing at both tails`}
+      caption="The trade fee across the price range"
+      ariaLabel="A parabola over the $0 to $1 price range, peaking mid-range"
       reading={
         gap == null
           ? `The fee is ${fromCenticents(Math.round(peak))} per contract at fifty cents and near zero at both tails — it is Bernoulli variance, not a flat percentage.`
           : `The fee peaks at ${fromCenticents(Math.round(peak))} per contract at fifty cents. A basket priced there is only an arbitrage below ${feeAwareThreshold}, not below $1.0000 — the naive test invents opportunities across a ${fromCenticents(gap)} band.`
       }
+      missing={`Drawn at the taker rate of ${taker} times the series multiplier. It models no maker fee, so a resting order's cost is not on this curve.`}
     >
       <div ref={plotRef} style={{ width: "100%" }}>
         <svg viewBox={`0 0 ${plotW} ${HEIGHT}`} width={plotW} height={HEIGHT} className="coh-parabola">
         <line x1={MARGIN.left} x2={plotW - MARGIN.right} y1={base} y2={base} className="coh-ladder__axis" />
-        <path d={path} className="coh-parabola__curve" fill="none" />
+        <path d={path} className="coh-parabola__curve" fill="none">
+          <title>{`rate x C x p x (1 - p) at the ${rate} taker rate`}</title>
+        </path>
         <line x1={x(0.5)} x2={x(0.5)} y1={y(peak)} y2={base} className="coh-parabola__peak" />
-        <text x={x(0.5)} y={y(peak) - 3} textAnchor="middle" className="coh-ladder__tick">
+        {/* The peak figure is the curve's own reading, not a tick: it takes
+            the diagram ladder's 13px note rung (coh-svg-note, 14r) while the
+            three dollar ticks below stay on the 10px tick floor. */}
+        <text x={x(0.5)} y={y(peak) - 3} textAnchor="middle" className="coh-svg-note">
           {fromCenticents(Math.round(peak))} per contract
         </text>
         <text x={MARGIN.left} y={HEIGHT - 5} className="coh-ladder__tick">

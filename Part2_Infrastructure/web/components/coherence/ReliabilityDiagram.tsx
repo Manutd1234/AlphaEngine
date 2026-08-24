@@ -35,7 +35,11 @@ import Figure, { FigureEmpty, Plot } from "./Figure";
 const HEIGHT = 310;
 const MARGIN = { top: 14, right: 10, bottom: 40, left: 36 };
 const MAX_SIDE = 256;
-const KEY_WIDTH = 178;
+/* The key's six entries are set at the 13px legend rung (14r): the longest,
+   "perfect calibration" and "isotonic correction" at 19 characters, run
+   19 x 13 x 0.56 = 138px past the 28px mark offset = 166px, so 200 keeps
+   ~34px of slack. At the old 178 the 13px lift left 12px, one glyph. */
+const KEY_WIDTH = 200;
 const DOT_MIN = 3.5;
 const DOT_MAX = 9;
 
@@ -141,7 +145,7 @@ export default function ReliabilityDiagram({
   const emptyNote = empty.length
     ? `${empty.length} of the ${bins.length} bands were never quoted (${empty
         .map((bin) => bin.label)
-        .join(", ")}) and are marked ◌ under the axis rather than drawn on the floor: nothing settled from those prices, which is not the same claim as an outcome rate of zero.`
+        .join(", ")}) and are marked ◌ under the axis, never drawn on the floor: nothing settled there, which is not a zero outcome rate.`
     : null;
 
   if (!points.length) {
@@ -151,7 +155,7 @@ export default function ReliabilityDiagram({
         ariaLabel="No price band has a settled market in it yet"
         missing={emptyNote}
       >
-        <FigureEmpty reason="No band has a settled market in it yet — there is nothing to place against the diagonal." />
+        <FigureEmpty reason="No band has a settled market yet — nothing to place against the diagonal." />
       </Figure>
     );
   }
@@ -173,10 +177,10 @@ export default function ReliabilityDiagram({
   return (
     <Figure
       caption={`Price against outcome, band by band — ${horizonNote}`}
-      ariaLabel={`${points.length} of ${bins.length} price bands carry settled markets; the widest gap between price and outcome is in the ${worst.label} band`}
-      reading={`Each point is one tenth-of-a-dollar band: the horizontal is what those markets were priced at and the vertical is how often they happened. The bands carry ${countList(
+      ariaLabel={`${points.length} of ${bins.length} price bands carry settled markets; the widest gap is in the ${worst.label} band`}
+      reading={`Each point is one tenth-of-a-dollar band — priced at the horizontal, happening at the vertical, sized and numbered by its ${countList(
         points.map((point) => point.count),
-      )} settled markets. The dashed diagonal is perfect calibration; the short line from a point to it is that band's contribution to the reliability term. The widest gap here is the ${worst.label} band, priced at ${worst.pricedText} against an outcome rate of ${worst.happenedText}. The number beside a point, and its area, are both how many settled markets fell in that band.${steps.length ? ` The step line is the isotonic correction: the non-decreasing curve that would put these points back on the diagonal.` : ``}`}
+      )} settled markets. The widest gap from the dashed diagonal — perfect calibration, and each gap is that band's contribution to the reliability term — is the ${worst.label} band, priced ${worst.pricedText} against ${worst.happenedText}.${steps.length ? ` The step line is the isotonic correction.` : ``}`}
       missing={emptyNote}
     >
       <Plot height={HEIGHT}>
@@ -285,7 +289,10 @@ export default function ReliabilityDiagram({
                   {tick.toFixed(1)}
                 </text>
               ))}
-              <text x={px(0.5)} y={floor + 36} textAnchor="middle" className="coh-calib__tick">
+              {/* Axis TITLES, not tick numerals — they take the diagram
+                  ladder's 12px label rung (coh-svg-label, 14r) while the
+                  0.0/0.5/1.0 ticks above stay on the 10px floor. */}
+              <text x={px(0.5)} y={floor + 36} textAnchor="middle" className="coh-svg-label">
                 price quoted
               </text>
               <text
@@ -293,7 +300,7 @@ export default function ReliabilityDiagram({
                 y={MARGIN.top + side / 2}
                 textAnchor="middle"
                 transform={`rotate(-90 12 ${MARGIN.top + side / 2})`}
-                className="coh-calib__tick"
+                className="coh-svg-label"
               >
                 how often it happened
               </text>

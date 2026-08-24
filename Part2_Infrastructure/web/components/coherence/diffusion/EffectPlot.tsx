@@ -21,8 +21,15 @@ import type { Finding } from "./types";
 
 const ROW = 26;
 const PAD = { top: 22, bottom: 26, right: 46 };
-/** Row labels are the widest thing here, so the gutter is measured, not guessed. */
-const LABEL_SIZE = 10;
+/** Row labels are the widest thing here, so the gutter is measured, not guessed.
+ *  13 is the diagram ladder's series/row-label rung (2026-08-24: it came off
+ *  the 10px tick floor the desk review called too small, then the whole ladder
+ *  lifted 12 → 13 in the same review's third pass); CHAR_PX and the gutter
+ *  derive from it, so the label column widened with the type rather than
+ *  truncating. The 14r token `--fs-diagram-label` holds the same 13 for the
+ *  classes that read CSS; this one is inline because the arithmetic below
+ *  needs the number. */
+const LABEL_SIZE = 13;
 /** Average advance of the UI face at LABEL_SIZE, in pixels per character. */
 const CHAR_PX = LABEL_SIZE * 0.56;
 const GUTTER_MIN = 140;
@@ -62,7 +69,9 @@ export default function EffectPlot({ findings }: { findings: Finding[] }) {
               width={x(THRESHOLD) - x(-THRESHOLD)}
               height={rows.length * ROW + 8}
             />
-            <text className="diff-effect__bandlabel" x={x(0)} y={PAD.top - 12} textAnchor="middle" fontSize={10}>
+            {/* Sized in 14r at the 13px legend rung — the band's words are the
+                figure's whole caveat, not an axis tick. */}
+            <text className="diff-effect__bandlabel" x={x(0)} y={PAD.top - 12} textAnchor="middle">
               chance could do this
             </text>
             <line className="diff-effect__zero" x1={x(0)} x2={x(0)} y1={PAD.top - 8} y2={base} />
@@ -79,12 +88,13 @@ export default function EffectPlot({ findings }: { findings: Finding[] }) {
                 {tick > 0 ? `+${tick}` : tick}
               </text>
             ))}
+            {/* The axis's TITLE, not one of its numerals: 12px label rung via
+                coh-svg-label (14r); the -4…+4 ticks above stay at the floor. */}
             <text
-              className="diff-effect__tick"
+              className="coh-svg-label"
               x={gutter + span}
               y={base + 24}
               textAnchor="end"
-              fontSize={10}
             >
               t statistic
             </text>
@@ -119,7 +129,6 @@ export default function EffectPlot({ findings }: { findings: Finding[] }) {
                     x={x(t) + (t < 0 ? -12 : 12)}
                     y={cy + 4}
                     textAnchor={t < 0 ? "end" : "start"}
-                    fontSize={10}
                   >
                     {t > 0 ? "+" : ""}
                     {t.toFixed(2)}

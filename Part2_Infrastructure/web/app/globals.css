@@ -172,4 +172,19 @@
 /* Rung 10 of the header's priority ladder, and the measurements behind all ten.
    Its own partial because 14, which owns rungs 1-9, is at its length ceiling. */
 @import "./globals/14p-header-ladder-tenth-tab.css";
+
+/* The Kalshi engine's density pass, in two files cut by CONCERN rather than by
+   tab: 14q is the PROSE ladder (reading text, table cells, captions, chips,
+   controls) and 14r is the DIAGRAM ladder (SVG text in user units) plus border
+   containment and ≥1100px packing. Both scope to `.coherence-plane`, which BOTH
+   consoles render — the engine is two tabs again since 2026-08-24 and the cut
+   stayed by concern anyway, because both tabs draw the same figures out of one
+   component library and a per-tab seam means every shared class maintained
+   twice. Each file additionally owns ONE tab class for the rules that can only
+   match one tab: `.markets-plane` in 14q, `.proofs-plane` in 14r. No selector
+   string appears in both files; on the shared plane a duplicate would be sized
+   twice with 14r winning in silence. After 12, whose rungs they override
+   pane-locally; before 15, which stays last. */
+@import "./globals/14q-markets-density.css";
+@import "./globals/14r-coherence-density.css";
 @import "./globals/15-navigator-and-trailing-layer.css";

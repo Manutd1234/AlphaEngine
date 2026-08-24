@@ -8,29 +8,43 @@
  * Kelly does NOT take it. Kelly stakes the measure, a different portfolio: it
  * grows faster and it can lose. So both numbers appear together, in words,
  * whenever the arbitrage is there; "growth-optimal" read as "riskless" is the
- * expensive misreading, and it is why the warning sits in this view rather
- * than beside the whole-family ranking.
+ * expensive misreading, and it is why the warning sits in this view.
+ *
+ * The truncation convention is NOT restated here. `SurfacePane` prints it
+ * once for both of its sections.
+ *
+ * THREE VIEWS — Plan, Capital, Method — since the second 2026-08-24 pass. The
+ * third pass gave Plan and Method their drawings (`StakeBars`, `GrowthBars`):
+ * both opened on a bare table, and the ranked fractions and the growth
+ * comparison are the two most drawable facts on the section. `toRatio` moved
+ * to `StakeBars` with the bars; the warning stays on Plan because it is a
+ * warning about the table under it, and its worst-case figure reappears as
+ * the Method view's own row — the pair the claims test pins at two sites.
+ *
+ * THE FOURTH PASS FOLDED BOTH TABLES. Each view now opens on its drawing and
+ * the table under it is a disclosure that counts its own rows: the bars answer
+ * the view's question and the table is how the answer was reached, which is
+ * the seam this whole pass cut on. Neither table lost a row or a column — the
+ * warning above the Plan fold still names the worst case, so a reader who never
+ * opens anything still meets the number that makes "growth-optimal is not
+ * riskless" true.
+ *
+ * THE DECLINED BRANCH LEFT ON THE FIFTH PASS, to `StakeDeclined`. It printed
+ * one grey line — "No stake was sized: {detail}" — over all three views, which
+ * is what a reader saw first on this desk, because the family the watchlist
+ * opens on is the one the solver refuses by name. An empty state that names the
+ * next action is a section's own answer and not a footnote to this component's
+ * three views, so `StakePane` draws it INSTEAD of these views rather than
+ * inside them, and this file no longer needs the `/surface` payload at all.
  */
 
 import { priceLabel } from "@/lib/coherence/fixed-point";
-import type { CoherenceKelly, CoherenceSurface } from "@/lib/coherence/types-lab";
+import type { CoherenceKelly } from "@/lib/coherence/types-lab";
 import Figure, { FigureEmpty, Plot, StateChip } from "../Figure";
 import { decimalLabel, FactTable, row, type Fact } from "./DistributionView";
+import StakeBars, { GrowthBars, toRatio } from "./StakeBars";
 
 const BAR_HEIGHT = 76;
-
-/**
- * A wire decimal as a plain number, for BAR GEOMETRY only. A Kelly fraction can
- * carry eighteen places, finer than a centicent, so `toCenticents` refuses it
- * and is right to. Pixels are not a quantity a reader checks: six places place
- * a rectangle, and every number a reader READS comes from `decimalLabel`.
- */
-function toRatio(raw: string | null | undefined): number | null {
-  if (raw == null || !/^-?\d*(?:\.\d*)?$/.test(raw.trim()) || !raw.trim()) return null;
-  const [whole, fraction = ""] = raw.trim().split(".");
-  const value = Number(whole || "0") + Number(`0.${fraction.slice(0, 6) || "0"}`);
-  return Number.isFinite(value) ? value : null;
-}
 
 function CapitalBar({ kelly }: { kelly: CoherenceKelly }) {
   const staked = kelly.staked_fraction;
@@ -43,9 +57,10 @@ function CapitalBar({ kelly }: { kelly: CoherenceKelly }) {
       <Figure
         caption={caption}
         ariaLabel="The capital split could not be drawn"
-        missing="The solver returned no split, so nothing is drawn here — an empty bar would read as all cash."
+        missing="The solver returned no split, so nothing is drawn — an empty bar would read as all cash."
       >
-        <FigureEmpty reason="No staked or cash fraction was returned." />
+        {/* The footnote above says why in full; the frame names the absence. */}
+        <FigureEmpty reason="No split came back." />
       </Figure>
     );
   }
@@ -53,16 +68,22 @@ function CapitalBar({ kelly }: { kelly: CoherenceKelly }) {
   return (
     <Figure
       caption={caption}
-      ariaLabel={`Capital split: ${decimalLabel(staked, 4)} staked, ${decimalLabel(cash, 4)} held in cash`}
-      reading={`${decimalLabel(staked, 4)} of the bankroll goes on contracts and ${decimalLabel(cash, 4)} stays in cash. Cash is a position here: it is what the plan holds when no outcome is priced below what the measure says it is worth.`}
+      ariaLabel={`Capital split: ${decimalLabel(staked, 4)} staked, ${decimalLabel(cash, 4)} in cash`}
+      // The two fractions are the bar's own labels, so the reading keeps only
+      // the sentence the numbers do not say.
+      reading="Cash is itself a position, held when no outcome is priced below what the measure says it is worth."
     >
       <Plot height={BAR_HEIGHT}>
         {(width) => {
           const stakedWidth = (stakedWeight / total) * width;
           return (
             <>
-              <rect x={0} y={18} width={width} height={26} className="coh-kelly__bar-cash" />
-              <rect x={0} y={18} width={Math.max(0, stakedWidth)} height={26} className="coh-kelly__bar-staked" />
+              <rect x={0} y={18} width={width} height={26} className="coh-kelly__bar-cash">
+                <title>{`cash ${decimalLabel(cash, 6)}`}</title>
+              </rect>
+              <rect x={0} y={18} width={Math.max(0, stakedWidth)} height={26} className="coh-kelly__bar-staked">
+                <title>{`staked ${decimalLabel(staked, 6)}`}</title>
+              </rect>
               <text x={2} y={12} className="coh-kelly__bar-label">
                 {`■ staked ${decimalLabel(staked, 4)}`}
               </text>
@@ -117,47 +138,64 @@ export function StakeTable({ stakes, caption }: { stakes: CoherenceKelly["stakes
 
 function planFacts(kelly: CoherenceKelly): Fact[] {
   const riskless = !kelly.arbitrage_available
-    ? "No riskless profit is available in these prices, so there is nothing to compare the growth rate against."
+    ? "No riskless profit is available in these prices."
     : kelly.riskless_growth
-      ? "The certain alternative, in the same log units — NOT what the plan above earns: buying equal numbers of every outcome pays a flat dollar whatever happens, and this plan does not do that."
-      : "A riskless profit exists in these prices, but no growth was priced for it here because the plan admits no stake at all.";
+      ? "The certain alternative in the same log units, NOT what the plan above earns."
+      : "A riskless profit exists, but no growth was priced: the plan admits no stake.";
   return [
     row("Staked", decimalLabel(kelly.staked_fraction, 4),
       kelly.staked_fraction ? "Fraction of the bankroll on contracts, after shrinkage." : "The solver returned no staked fraction."),
     row("Cash", decimalLabel(kelly.cash_fraction, 4),
-      kelly.cash_fraction ? "Fraction left unstaked. Holding it is a decision here, not a leftover." : "The solver returned no cash fraction."),
+      kelly.cash_fraction ? "Fraction left unstaked." : "The solver returned no cash fraction."),
     row("Shrinkage", decimalLabel(kelly.shrinkage, 4),
-      "The fraction of full Kelly actually taken. Growth is flat near the optimum and steep past it, so over-betting costs more than under-betting."),
+      "The fraction of full Kelly taken. Growth is flat near the optimum and steep past it, so over-betting costs more than under-betting."),
     row("Growth rate (at risk)", decimalLabel(kelly.growth_rate, 4),
       kelly.growth_rate
-        ? "Expected log growth per resolution IF the measure is right. An average over states, promising nothing about any single one."
-        : "No growth was computed, because no stake was admitted."),
+        ? "Expected log growth per resolution IF the measure is right — an average over states, promising nothing about any one."
+        : "Not computed: no stake was admitted."),
     row("Riskless growth (not this plan)", decimalLabel(kelly.riskless_growth, 4), riskless),
     row("Worst-case wealth", decimalLabel(kelly.worst_case_wealth, 4),
-      "What a dollar becomes in the worst outcome of this family. Below one means this plan loses money in that state — which is the whole difference from an arbitrage."),
+      "What a dollar becomes in the worst outcome. Below one, this plan loses money in that state — the whole difference from an arbitrage."),
     row("Basket cost", decimalLabel(kelly.basket_cost, 4),
-      "One contract of every outcome. Under 1.0000 is the arbitrage condition; the plan above still does not take it."),
+      "One contract of every outcome pays a flat dollar; under 1.0000 is the arbitrage condition."),
   ];
 }
 
-const HEADING = "What a log-optimal plan would stake";
+/** The stake section's three views, driven by `SurfacePane`'s switcher. */
+export type StakeViewName = "plan" | "capital" | "method";
 
-export default function StakeView({ kelly, surface }: { kelly: CoherenceKelly; surface: CoherenceSurface }) {
-  if (kelly.engine === "unavailable") {
+export default function StakeView({
+  kelly,
+  view = "plan",
+}: {
+  kelly: CoherenceKelly;
+  /** Which of the three views to draw. Defaults so a direct render still works. */
+  view?: StakeViewName;
+}) {
+  if (view === "capital") {
     return (
       <div className="coh-kelly">
-        <h4>{HEADING}</h4>
-        <p className="console-empty">
-          <span aria-hidden="true">◌</span> No stake was sized: {kelly.detail}
-        </p>
-        {surface.engine === "ladder" ? (
-          <p className="coh-kelly__note">
-            That refusal is correct rather than a gap. On a strike ladder each market pays in several of the bins the
-            Distribution view draws: a threshold wins in every state the threshold above it wins in, and more. The
-            exclusive-family solver states one market per state, so it declines this family by name rather than
-            approximating one it cannot express.
-          </p>
-        ) : null}
+        <CapitalBar kelly={kelly} />
+      </div>
+    );
+  }
+
+  if (view === "method") {
+    const facts = planFacts(kelly);
+    return (
+      <div className="coh-kelly">
+        <GrowthBars kelly={kelly} />
+        {/* The bars ARE the method's headline — the plan's growth against the
+            certain alternative — and the table is the seven readings that
+            comparison is made of. Folded on the fourth pass of 2026-08-24, with
+            the count in the summary; the third column is what only the table
+            carries, so it is what the summary promises. */}
+        <details className="disclosure">
+          <summary>
+            The {facts.length} readings behind the two bars, and what each lets you say
+          </summary>
+          <FactTable caption="The plan, and the riskless alternative" facts={facts} />
+        </details>
       </div>
     );
   }
@@ -165,38 +203,45 @@ export default function StakeView({ kelly, surface }: { kelly: CoherenceKelly; s
   const admitted = kelly.stakes.filter((stake) => stake.admitted);
   return (
     <div className="coh-kelly">
-      <h4>{HEADING}</h4>
-
-      {/* One chip, not three. Shrinkage is row 3 of the plan table below, and
-          the arbitrage chip said in four words what the warning paragraph and
-          the Basket-cost row each already say in full. */}
+      {/* One chip, not three: shrinkage is a Method row, and an arbitrage chip
+          restated the warning and the Basket-cost row. */}
       <div className="coh-status__chips">
         <StateChip mark="◇" word="Log-optimal over one family" value={`${admitted.length}/${kelly.stakes.length} admitted`} tone="muted" />
       </div>
 
       {kelly.arbitrage_available ? (
         <p className="coh-kelly__warning">
-          <span aria-hidden="true">▲</span> One contract of every outcome costs {decimalLabel(kelly.basket_cost, 4)} and
-          pays a dollar whatever happens, so a riskless profit is on the screen — worth{" "}
-          {decimalLabel(kelly.riskless_growth, 4)} of log growth. <strong>The plan below is not that trade.</strong> The
-          arbitrage buys equal numbers of every outcome, which is what makes its payoff flat and its profit certain.
-          Kelly buys in proportion to the measure instead: a different portfolio, growing faster at{" "}
-          {decimalLabel(kelly.growth_rate, 4)} and able to lose — a dollar becomes{" "}
+          <span aria-hidden="true">▲</span> Riskless profit on screen: every outcome bought together costs{" "}
+          {decimalLabel(kelly.basket_cost, 4)} for a certain dollar, worth {decimalLabel(kelly.riskless_growth, 4)} of
+          log growth. <strong>The plan below is not that trade.</strong> It stakes the measure, not equal numbers of
+          every outcome, so it grows faster at {decimalLabel(kelly.growth_rate, 4)} and can lose — a dollar becomes{" "}
           {decimalLabel(kelly.worst_case_wealth, 4)} in the worst outcome. Growth-optimal is not riskless.
         </p>
       ) : null}
 
       {admitted.length ? (
-        <StakeTable stakes={admitted} caption="Every outcome the plan actually stakes, and what it stakes on it" />
+        <>
+          <StakeBars stakes={admitted} caption="The admitted stakes, as shares of the bankroll" />
+          {/* The bars draw the Stake column and nothing else, which is the
+              ranking a reader came for. Measure, price, edge and full Kelly are
+              how the ranking was arrived at — per-row detail, folded since the
+              fourth pass of 2026-08-24 and counted in its own summary. */}
+          <details className="disclosure">
+            <summary>
+              Every admitted stake with its measure, price, edge and full-Kelly fraction, {admitted.length}{" "}
+              {admitted.length === 1 ? "row" : "rows"}
+            </summary>
+            <StakeTable
+              stakes={admitted}
+              caption="Only the outcomes the plan stakes; the ones it passed over are the Whole family view."
+            />
+          </details>
+        </>
       ) : (
         <p className="coh-kelly__note">
-          <span aria-hidden="true">○</span> No outcome is admitted: {kelly.detail}. That is a result, not a failure —
-          fed prices that already agree with the measure, a log-optimal plan holds cash.
+          <span aria-hidden="true">○</span> No outcome is admitted: {kelly.detail}. That is a result, not a failure.
         </p>
       )}
-
-      <CapitalBar kelly={kelly} />
-      <FactTable caption="The plan, and the riskless alternative beside it" facts={planFacts(kelly)} />
     </div>
   );
 }

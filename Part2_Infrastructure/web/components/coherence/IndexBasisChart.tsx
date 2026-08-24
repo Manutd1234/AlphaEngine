@@ -114,7 +114,7 @@ export default function IndexBasisChart({
         ariaLabel="The published settlement index could not be drawn"
         missing={
           points.length
-            ? `${points.length} sample(s) arrived and ${readable.length} of them parsed as a reading, which is not enough to draw a line. Nothing is drawn rather than a line through one point.`
+            ? `${points.length} sample(s) arrived and ${readable.length} parsed as a reading — not enough for a line; nothing is drawn rather than a line through one point.`
             : null
         }
       >
@@ -152,23 +152,23 @@ export default function IndexBasisChart({
   const basis = spotMinusWindow ?? null;
   const reading =
     latest == null || average == null
-      ? `The latest reading is ${latestValue ?? "—"} and the ${windowMinutes}-minute average is ${windowAverage ?? "—"}. One of the two is absent, so no basis is drawn — it is not zero.`
+      ? `Latest reading ${latestValue ?? "—"}, ${windowMinutes}-minute average ${windowAverage ?? "—"}. One of the two is absent, so no basis is drawn — it is not zero.`
       : basis == null
-        ? `The latest published reading is ${latestValue}; the ${windowMinutes}-minute settlement average is ${windowAverage}. The contract resolves against the average, but the venue published no basis for this read, so none is drawn — it is not zero.`
-        : `The latest published reading is ${latestValue}; the ${windowMinutes}-minute settlement average is ${windowAverage}. The contract resolves against the average, so a position taken on the latest print carries ${basis} of basis in the index's own units.`;
+        ? `Latest reading ${latestValue}, ${windowMinutes}-minute settlement average ${windowAverage}. The venue published no basis for this read, so none is drawn — it is not zero.`
+        : `Latest reading ${latestValue}, ${windowMinutes}-minute settlement average ${windowAverage}: a position on the latest print carries ${basis} of basis in the index's own units.`;
 
   const notes = [
     points.length > kept.length
-      ? `${points.length} per-minute samples thinned to ${kept.length} drawn points: the series is cut into ${bucket}-sample buckets and the highest and lowest reading in each is kept, so no peak is smoothed away.`
-      : `All ${points.length} samples are drawn; no thinning was needed.`,
+      ? `${points.length} per-minute samples thinned to ${kept.length} drawn points: each ${bucket}-sample bucket keeps its highest and lowest reading, so no peak is smoothed away.`
+      : "",
     flagged.length
-      ? `${flagged.length} sample(s) the feed flagged are marked ▲ and are kept whatever bucket they fall in.`
-      : "No sample in this feed is flagged.",
+      ? `${flagged.length} sample(s) the feed flagged are marked ▲ and kept whatever bucket they fall in.`
+      : "",
     drawClean
-      ? "The average excluding flagged minutes is drawn as a second, dashed line: the flags move the number today."
+      ? "A second, dashed line excludes flagged minutes: the flags move the number today."
       : average == null
         ? "No window average was published, so no reference line is drawn."
-        : "The average excluding flagged minutes lands on the same number, so only one reference line is drawn.",
+        : "Excluding flagged minutes lands on the same number, so only one reference line is drawn.",
     points.length - readable.length
       ? `${points.length - readable.length} sample(s) did not parse as a reading and are drawn as gaps in the line, not as zero.`
       : "",
@@ -176,8 +176,10 @@ export default function IndexBasisChart({
 
   return (
     <Figure
-      caption={`The published index over the last ${points.length} minutes, against the ${windowMinutes}-minute average it settles on`}
-      ariaLabel={`A line of the published settlement index across ${points.length} minutes, with the ${windowMinutes}-minute settlement average drawn as a horizontal reference. The latest reading is ${latestValue ?? "absent"} and the average is ${windowAverage ?? "absent"}.`}
+      caption={`The published index over ${points.length} minutes, against the ${windowMinutes}-minute average it settles on`}
+      // The caption above carries the axes and the reading carries both
+      // figures, so the aria describes the one thing left: the marks.
+      ariaLabel="A per-minute line of published readings, with the settlement average drawn as a reference line."
       reading={reading}
       missing={notes.join(" ")}
     >
@@ -212,8 +214,11 @@ export default function IndexBasisChart({
                   it ran past the plot and the final "s" was clipped by the
                   viewBox — the window sits at the newest end of the series, so
                   its label always has the whole chart to its left and nothing
-                  to its right. Observed at 1512px against the live feed. */}
-              <text x={right} y={MARGIN.top - 8} textAnchor="end" className="coh-ladder__tick">
+                  to its right. Observed at 1512px against the live feed.
+                  `coh-figure__key`, not `coh-ladder__tick`: this names what the
+                  shading means — legend-rung furniture (13px), not an axis tick
+                  numeral, and the tick class had left it at the 10px floor. */}
+              <text x={right} y={MARGIN.top - 8} textAnchor="end" className="coh-figure__key">
                 settlement window, last {windowMinutes} minutes
               </text>
 
@@ -264,7 +269,14 @@ export default function IndexBasisChart({
                   <text x={right + 18} y={(y(latest) + y(average)) / 2 - 2} className="coh-settle__basis-label">
                     basis {basis ?? "—"}
                   </text>
-                  <text x={right + 18} y={(y(latest) + y(average)) / 2 + 11} className="coh-ladder__tick">
+                  {/* A series value, so it borrows `coh-axis__label` — the
+                      series-value rung (12px), secondary fill, tabular-nums —
+                      the way ShellTree borrows `coh-ablation__value`. Rejected:
+                      `coh-settle__basis-label`, whose primary fill and 640
+                      weight would put this supporting figure level with the
+                      basis reading it explains; and staying `coh-ladder__tick`,
+                      which is the 10px floor reserved for axis tick numerals. */}
+                  <text x={right + 18} y={(y(latest) + y(average)) / 2 + 11} className="coh-axis__label">
                     latest {latestValue}
                   </text>
                 </>
