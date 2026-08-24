@@ -49,10 +49,28 @@ import { connect } from "./desk-sweep-cdp.mjs";
 import { TABS } from "./desk-sweep-plan.mjs";
 
 const ORIGIN = process.env.MEASURE_ORIGIN ?? "http://127.0.0.1:3100";
-const OUT = fileURLToPath(new URL("../tests/fixtures/section-density.json", import.meta.url));
+const DEFAULT_WIDTHS = "1440,1100";
 /** Desk, and the breakpoint where the engine drops to one column. Override with
- *  `MEASURE_WIDTHS=1440,1100,760` to ask a narrower question without editing this. */
-const WIDTHS = (process.env.MEASURE_WIDTHS ?? "1440,1100").split(",").map(Number);
+ *  `MEASURE_WIDTHS=760` to ask a narrower question without editing this. */
+const REQUESTED = process.env.MEASURE_WIDTHS ?? DEFAULT_WIDTHS;
+const WIDTHS = REQUESTED.split(",").map(Number);
+
+/**
+ * An exploratory run must not overwrite the committed baseline.
+ *
+ * It did once: two `MEASURE_WIDTHS=760` runs replaced the two-width fixture with
+ * a 760-only one, and the next `git add -A` swept it into an unrelated commit —
+ * a baseline silently narrowed to a width nothing else in the repository refers
+ * to. Only the default widths write `section-density.json`; anything else writes
+ * beside it under the widths it measured, which is also more useful, since a
+ * narrow sweep is a different question rather than a newer answer.
+ */
+const OUT = fileURLToPath(new URL(
+  REQUESTED === DEFAULT_WIDTHS
+    ? "../tests/fixtures/section-density.json"
+    : `../tests/fixtures/section-density-${REQUESTED.replace(/,/g, "-")}.json`,
+  import.meta.url,
+));
 
 /** The two tabs this pass is about. The other eight are another sweep's. */
 const MEASURED = ["markets", "coherence"];

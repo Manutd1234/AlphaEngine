@@ -2,14 +2,15 @@
   "origin": "http://127.0.0.1:3100",
   "measuredOn": "2026-08-24",
   "widths": [
-    760
+    1440,
+    1100
   ],
   "tabs": {
     "markets/universe": {
-      "@760": {
+      "@1440": {
         "Baskets": {
           "stillReading": false,
-          "scrollHeight": 1632,
+          "scrollHeight": 1135,
           "controlRows": 1,
           "nestedControls": 0,
           "controlHeight": 32,
@@ -22,7 +23,7 @@
         },
         "Families": {
           "stillReading": false,
-          "scrollHeight": 984,
+          "scrollHeight": 760,
           "controlRows": 1,
           "nestedControls": 1,
           "controlHeight": 32,
@@ -35,7 +36,7 @@
         },
         "Settlement": {
           "stillReading": false,
-          "scrollHeight": 895,
+          "scrollHeight": 688,
           "controlRows": 1,
           "nestedControls": 0,
           "controlHeight": 32,
@@ -48,7 +49,7 @@
         },
         "Formation": {
           "stillReading": false,
-          "scrollHeight": 730,
+          "scrollHeight": 601,
           "controlRows": 1,
           "nestedControls": 0,
           "controlHeight": 32,
@@ -61,7 +62,74 @@
         },
         "Pending": {
           "stillReading": false,
-          "scrollHeight": 505,
+          "scrollHeight": 437,
+          "controlRows": 1,
+          "nestedControls": 0,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 1,
+          "tables": 0,
+          "disclosures": 0,
+          "paragraphs": 1
+        }
+      },
+      "@1100": {
+        "Baskets": {
+          "stillReading": false,
+          "scrollHeight": 1206,
+          "controlRows": 1,
+          "nestedControls": 0,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 1,
+          "tables": 1,
+          "disclosures": 1,
+          "paragraphs": 2
+        },
+        "Families": {
+          "stillReading": false,
+          "scrollHeight": 841,
+          "controlRows": 1,
+          "nestedControls": 1,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 1,
+          "tables": 1,
+          "disclosures": 1,
+          "paragraphs": 1
+        },
+        "Settlement": {
+          "stillReading": false,
+          "scrollHeight": 769,
+          "controlRows": 1,
+          "nestedControls": 0,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 1,
+          "tables": 0,
+          "disclosures": 0,
+          "paragraphs": 1
+        },
+        "Formation": {
+          "stillReading": false,
+          "scrollHeight": 601,
+          "controlRows": 1,
+          "nestedControls": 0,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 1,
+          "tables": 0,
+          "disclosures": 1,
+          "paragraphs": 1
+        },
+        "Pending": {
+          "stillReading": false,
+          "scrollHeight": 413,
           "controlRows": 1,
           "nestedControls": 0,
           "controlHeight": 32,
@@ -75,10 +143,10 @@
       }
     },
     "markets/books": {
-      "@760": {
+      "@1440": {
         "Ladder": {
           "stillReading": false,
-          "scrollHeight": 273,
+          "scrollHeight": 239,
           "controlRows": 1,
           "nestedControls": 0,
           "controlHeight": 32,
@@ -91,7 +159,7 @@
         },
         "Identity": {
           "stillReading": false,
-          "scrollHeight": 273,
+          "scrollHeight": 239,
           "controlRows": 1,
           "nestedControls": 0,
           "controlHeight": 32,
@@ -104,7 +172,7 @@
         },
         "Dispersion": {
           "stillReading": false,
-          "scrollHeight": 384,
+          "scrollHeight": 298,
           "controlRows": 1,
           "nestedControls": 0,
           "controlHeight": 32,
@@ -117,7 +185,61 @@
         },
         "Channel": {
           "stillReading": false,
-          "scrollHeight": 602,
+          "scrollHeight": 506,
+          "controlRows": 1,
+          "nestedControls": 0,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 1,
+          "tables": 1,
+          "disclosures": 1,
+          "paragraphs": 1
+        }
+      },
+      "@1100": {
+        "Ladder": {
+          "stillReading": false,
+          "scrollHeight": 239,
+          "controlRows": 1,
+          "nestedControls": 0,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 0,
+          "tables": 0,
+          "disclosures": 0,
+          "paragraphs": 2
+        },
+        "Identity": {
+          "stillReading": false,
+          "scrollHeight": 239,
+          "controlRows": 1,
+          "nestedControls": 0,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 0,
+          "tables": 0,
+          "disclosures": 0,
+          "paragraphs": 2
+        },
+        "Dispersion": {
+          "stillReading": false,
+          "scrollHeight": 298,
+          "controlRows": 1,
+          "nestedControls": 0,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 0,
+          "tables": 0,
+          "disclosures": 0,
+          "paragraphs": 1
+        },
+        "Channel": {
+          "stillReading": false,
+          "scrollHeight": 506,
           "controlRows": 1,
           "nestedControls": 0,
           "controlHeight": 32,
@@ -131,10 +253,25 @@
       }
     },
     "markets/lattice": {
-      "@760": {
+      "@1440": {
         "(no control)": {
           "stillReading": false,
-          "scrollHeight": 923,
+          "scrollHeight": 693,
+          "controlRows": 0,
+          "nestedControls": 2,
+          "controlHeight": null,
+          "buttonHeight": null,
+          "wrapped": false,
+          "figures": 1,
+          "tables": 0,
+          "disclosures": 0,
+          "paragraphs": 2
+        }
+      },
+      "@1100": {
+        "(no control)": {
+          "stillReading": false,
+          "scrollHeight": 718,
           "controlRows": 0,
           "nestedControls": 2,
           "controlHeight": null,
@@ -148,10 +285,25 @@
       }
     },
     "markets/stake": {
-      "@760": {
+      "@1440": {
         "(no control)": {
           "stillReading": false,
-          "scrollHeight": 772,
+          "scrollHeight": 540,
+          "controlRows": 0,
+          "nestedControls": 3,
+          "controlHeight": null,
+          "buttonHeight": null,
+          "wrapped": false,
+          "figures": 0,
+          "tables": 0,
+          "disclosures": 0,
+          "paragraphs": 1
+        }
+      },
+      "@1100": {
+        "(no control)": {
+          "stillReading": false,
+          "scrollHeight": 562,
           "controlRows": 0,
           "nestedControls": 3,
           "controlHeight": null,
@@ -165,10 +317,10 @@
       }
     },
     "markets/fees": {
-      "@760": {
+      "@1440": {
         "Worked example": {
           "stillReading": false,
-          "scrollHeight": 803,
+          "scrollHeight": 724,
           "controlRows": 2,
           "nestedControls": 0,
           "controlHeight": 32,
@@ -181,7 +333,7 @@
         },
         "Cost shape": {
           "stillReading": false,
-          "scrollHeight": 821,
+          "scrollHeight": 701,
           "controlRows": 1,
           "nestedControls": 0,
           "controlHeight": 32,
@@ -194,7 +346,7 @@
         },
         "Ablation": {
           "stillReading": false,
-          "scrollHeight": 425,
+          "scrollHeight": 353,
           "controlRows": 1,
           "nestedControls": 0,
           "controlHeight": 32,
@@ -207,7 +359,61 @@
         },
         "Replay table": {
           "stillReading": false,
-          "scrollHeight": 425,
+          "scrollHeight": 353,
+          "controlRows": 1,
+          "nestedControls": 0,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 0,
+          "tables": 0,
+          "disclosures": 0,
+          "paragraphs": 1
+        }
+      },
+      "@1100": {
+        "Worked example": {
+          "stillReading": false,
+          "scrollHeight": 746,
+          "controlRows": 2,
+          "nestedControls": 0,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 2,
+          "tables": 1,
+          "disclosures": 1,
+          "paragraphs": 1
+        },
+        "Cost shape": {
+          "stillReading": false,
+          "scrollHeight": 747,
+          "controlRows": 1,
+          "nestedControls": 0,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 1,
+          "tables": 0,
+          "disclosures": 1,
+          "paragraphs": 1
+        },
+        "Ablation": {
+          "stillReading": false,
+          "scrollHeight": 375,
+          "controlRows": 1,
+          "nestedControls": 0,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 0,
+          "tables": 0,
+          "disclosures": 0,
+          "paragraphs": 1
+        },
+        "Replay table": {
+          "stillReading": false,
+          "scrollHeight": 375,
           "controlRows": 1,
           "nestedControls": 0,
           "controlHeight": 32,
@@ -221,10 +427,10 @@
       }
     },
     "markets/shell": {
-      "@760": {
+      "@1440": {
         "Tree": {
           "stillReading": false,
-          "scrollHeight": 511,
+          "scrollHeight": 374,
           "controlRows": 1,
           "nestedControls": 0,
           "controlHeight": 32,
@@ -237,7 +443,7 @@
         },
         "Reading": {
           "stillReading": true,
-          "scrollHeight": 445,
+          "scrollHeight": 371,
           "controlRows": 1,
           "nestedControls": 0,
           "controlHeight": 32,
@@ -250,7 +456,7 @@
         },
         "Commands": {
           "stillReading": false,
-          "scrollHeight": 555,
+          "scrollHeight": 449,
           "controlRows": 1,
           "nestedControls": 0,
           "controlHeight": 32,
@@ -263,7 +469,61 @@
         },
         "Layout": {
           "stillReading": false,
-          "scrollHeight": 709,
+          "scrollHeight": 622,
+          "controlRows": 1,
+          "nestedControls": 0,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 1,
+          "tables": 0,
+          "disclosures": 0,
+          "paragraphs": 1
+        }
+      },
+      "@1100": {
+        "Tree": {
+          "stillReading": false,
+          "scrollHeight": 398,
+          "controlRows": 1,
+          "nestedControls": 0,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 0,
+          "tables": 0,
+          "disclosures": 0,
+          "paragraphs": 2
+        },
+        "Reading": {
+          "stillReading": true,
+          "scrollHeight": 395,
+          "controlRows": 1,
+          "nestedControls": 0,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 0,
+          "tables": 0,
+          "disclosures": 0,
+          "paragraphs": 4
+        },
+        "Commands": {
+          "stillReading": false,
+          "scrollHeight": 449,
+          "controlRows": 1,
+          "nestedControls": 0,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 0,
+          "tables": 1,
+          "disclosures": 0,
+          "paragraphs": 1
+        },
+        "Layout": {
+          "stillReading": false,
+          "scrollHeight": 646,
           "controlRows": 1,
           "nestedControls": 0,
           "controlHeight": 32,
@@ -277,10 +537,10 @@
       }
     },
     "coherence/certificate": {
-      "@760": {
+      "@1440": {
         "Coherence test": {
           "stillReading": false,
-          "scrollHeight": 298,
+          "scrollHeight": 251,
           "controlRows": 1,
           "nestedControls": 0,
           "controlHeight": 32,
@@ -293,7 +553,7 @@
         },
         "Basket": {
           "stillReading": false,
-          "scrollHeight": 298,
+          "scrollHeight": 251,
           "controlRows": 1,
           "nestedControls": 0,
           "controlHeight": 32,
@@ -306,7 +566,7 @@
         },
         "Parlays — Bands": {
           "stillReading": false,
-          "scrollHeight": 1480,
+          "scrollHeight": 1232,
           "controlRows": 1,
           "nestedControls": 1,
           "controlHeight": 32,
@@ -319,7 +579,7 @@
         },
         "Parlays — Parlays": {
           "stillReading": false,
-          "scrollHeight": 1025,
+          "scrollHeight": 827,
           "controlRows": 1,
           "nestedControls": 1,
           "controlHeight": 32,
@@ -332,7 +592,74 @@
         },
         "Parlays — Bounds": {
           "stillReading": false,
-          "scrollHeight": 1050,
+          "scrollHeight": 916,
+          "controlRows": 1,
+          "nestedControls": 1,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 1,
+          "tables": 2,
+          "disclosures": 2,
+          "paragraphs": 1
+        }
+      },
+      "@1100": {
+        "Coherence test": {
+          "stillReading": false,
+          "scrollHeight": 273,
+          "controlRows": 1,
+          "nestedControls": 0,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 0,
+          "tables": 0,
+          "disclosures": 0,
+          "paragraphs": 2
+        },
+        "Basket": {
+          "stillReading": false,
+          "scrollHeight": 273,
+          "controlRows": 1,
+          "nestedControls": 0,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 0,
+          "tables": 0,
+          "disclosures": 0,
+          "paragraphs": 2
+        },
+        "Parlays — Bands": {
+          "stillReading": false,
+          "scrollHeight": 1254,
+          "controlRows": 1,
+          "nestedControls": 1,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 1,
+          "tables": 0,
+          "disclosures": 0,
+          "paragraphs": 1
+        },
+        "Parlays — Parlays": {
+          "stillReading": false,
+          "scrollHeight": 849,
+          "controlRows": 1,
+          "nestedControls": 1,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 6,
+          "tables": 6,
+          "disclosures": 6,
+          "paragraphs": 1
+        },
+        "Parlays — Bounds": {
+          "stillReading": false,
+          "scrollHeight": 938,
           "controlRows": 1,
           "nestedControls": 1,
           "controlHeight": 32,
@@ -346,10 +673,10 @@
       }
     },
     "coherence/calibration": {
-      "@760": {
+      "@1440": {
         "Once settled — Score": {
           "stillReading": false,
-          "scrollHeight": 1479,
+          "scrollHeight": 1212,
           "controlRows": 1,
           "nestedControls": 1,
           "controlHeight": 32,
@@ -362,7 +689,7 @@
         },
         "Once settled — Bands": {
           "stillReading": false,
-          "scrollHeight": 1168,
+          "scrollHeight": 970,
           "controlRows": 1,
           "nestedControls": 1,
           "controlHeight": 32,
@@ -375,7 +702,7 @@
         },
         "Once settled — Corpus": {
           "stillReading": false,
-          "scrollHeight": 963,
+          "scrollHeight": 762,
           "controlRows": 1,
           "nestedControls": 1,
           "controlHeight": 32,
@@ -388,7 +715,7 @@
         },
         "Over time — Score trend": {
           "stillReading": false,
-          "scrollHeight": 339,
+          "scrollHeight": 317,
           "controlRows": 1,
           "nestedControls": 1,
           "controlHeight": 32,
@@ -401,7 +728,7 @@
         },
         "Over time — Index series": {
           "stillReading": false,
-          "scrollHeight": 361,
+          "scrollHeight": 317,
           "controlRows": 1,
           "nestedControls": 1,
           "controlHeight": 32,
@@ -414,7 +741,87 @@
         },
         "Over time — Index families": {
           "stillReading": false,
-          "scrollHeight": 361,
+          "scrollHeight": 317,
+          "controlRows": 1,
+          "nestedControls": 1,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 0,
+          "tables": 0,
+          "disclosures": 0,
+          "paragraphs": 1
+        }
+      },
+      "@1100": {
+        "Once settled — Score": {
+          "stillReading": false,
+          "scrollHeight": 1238,
+          "controlRows": 1,
+          "nestedControls": 1,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 4,
+          "tables": 1,
+          "disclosures": 1,
+          "paragraphs": 1
+        },
+        "Once settled — Bands": {
+          "stillReading": false,
+          "scrollHeight": 1021,
+          "controlRows": 1,
+          "nestedControls": 1,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 2,
+          "tables": 1,
+          "disclosures": 1,
+          "paragraphs": 1
+        },
+        "Once settled — Corpus": {
+          "stillReading": false,
+          "scrollHeight": 812,
+          "controlRows": 1,
+          "nestedControls": 1,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 1,
+          "tables": 1,
+          "disclosures": 1,
+          "paragraphs": 1
+        },
+        "Over time — Score trend": {
+          "stillReading": false,
+          "scrollHeight": 317,
+          "controlRows": 1,
+          "nestedControls": 1,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 0,
+          "tables": 0,
+          "disclosures": 0,
+          "paragraphs": 1
+        },
+        "Over time — Index series": {
+          "stillReading": false,
+          "scrollHeight": 340,
+          "controlRows": 1,
+          "nestedControls": 1,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 0,
+          "tables": 0,
+          "disclosures": 0,
+          "paragraphs": 1
+        },
+        "Over time — Index families": {
+          "stillReading": false,
+          "scrollHeight": 340,
           "controlRows": 1,
           "nestedControls": 1,
           "controlHeight": 32,
@@ -428,10 +835,10 @@
       }
     },
     "coherence/diffusion": {
-      "@760": {
+      "@1440": {
         "Announcement arm — Absorption": {
           "stillReading": false,
-          "scrollHeight": 381,
+          "scrollHeight": 355,
           "controlRows": 1,
           "nestedControls": 1,
           "controlHeight": 32,
@@ -444,7 +851,7 @@
         },
         "Announcement arm — Noise floor": {
           "stillReading": false,
-          "scrollHeight": 834,
+          "scrollHeight": 631,
           "controlRows": 1,
           "nestedControls": 1,
           "controlHeight": 32,
@@ -457,7 +864,7 @@
         },
         "Announcement arm — Meetings": {
           "stillReading": false,
-          "scrollHeight": 317,
+          "scrollHeight": 295,
           "controlRows": 1,
           "nestedControls": 1,
           "controlHeight": 32,
@@ -470,7 +877,7 @@
         },
         "Announcement arm — Mechanism": {
           "stillReading": false,
-          "scrollHeight": 600,
+          "scrollHeight": 525,
           "controlRows": 1,
           "nestedControls": 1,
           "controlHeight": 32,
@@ -483,7 +890,7 @@
         },
         "Kalshi episodes — Survival": {
           "stillReading": false,
-          "scrollHeight": 445,
+          "scrollHeight": 386,
           "controlRows": 1,
           "nestedControls": 1,
           "controlHeight": 32,
@@ -496,7 +903,7 @@
         },
         "Kalshi episodes — Episodes": {
           "stillReading": false,
-          "scrollHeight": 317,
+          "scrollHeight": 295,
           "controlRows": 1,
           "nestedControls": 1,
           "controlHeight": 32,
@@ -509,7 +916,7 @@
         },
         "Model — Measurement": {
           "stillReading": false,
-          "scrollHeight": 2176,
+          "scrollHeight": 1354,
           "controlRows": 1,
           "nestedControls": 1,
           "controlHeight": 32,
@@ -522,7 +929,7 @@
         },
         "Model — Instrument": {
           "stillReading": false,
-          "scrollHeight": 1876,
+          "scrollHeight": 1084,
           "controlRows": 1,
           "nestedControls": 1,
           "controlHeight": 32,
@@ -535,7 +942,7 @@
         },
         "Model — Half-life": {
           "stillReading": false,
-          "scrollHeight": 1161,
+          "scrollHeight": 854,
           "controlRows": 1,
           "nestedControls": 1,
           "controlHeight": 32,
@@ -548,7 +955,7 @@
         },
         "Model — Simulator": {
           "stillReading": false,
-          "scrollHeight": 1140,
+          "scrollHeight": 844,
           "controlRows": 1,
           "nestedControls": 1,
           "controlHeight": 32,
@@ -561,7 +968,7 @@
         },
         "Model — Spectrum": {
           "stillReading": false,
-          "scrollHeight": 1253,
+          "scrollHeight": 889,
           "controlRows": 1,
           "nestedControls": 1,
           "controlHeight": 32,
@@ -574,7 +981,165 @@
         },
         "Findings": {
           "stillReading": false,
-          "scrollHeight": 558,
+          "scrollHeight": 449,
+          "controlRows": 1,
+          "nestedControls": 1,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 1,
+          "tables": 0,
+          "disclosures": 0,
+          "paragraphs": 1
+        }
+      },
+      "@1100": {
+        "Announcement arm — Absorption": {
+          "stillReading": false,
+          "scrollHeight": 355,
+          "controlRows": 1,
+          "nestedControls": 1,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 1,
+          "tables": 0,
+          "disclosures": 0,
+          "paragraphs": 1
+        },
+        "Announcement arm — Noise floor": {
+          "stillReading": false,
+          "scrollHeight": 680,
+          "controlRows": 1,
+          "nestedControls": 1,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 2,
+          "tables": 0,
+          "disclosures": 0,
+          "paragraphs": 1
+        },
+        "Announcement arm — Meetings": {
+          "stillReading": false,
+          "scrollHeight": 295,
+          "controlRows": 1,
+          "nestedControls": 1,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 0,
+          "tables": 0,
+          "disclosures": 0,
+          "paragraphs": 1
+        },
+        "Announcement arm — Mechanism": {
+          "stillReading": false,
+          "scrollHeight": 550,
+          "controlRows": 1,
+          "nestedControls": 1,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 1,
+          "tables": 0,
+          "disclosures": 0,
+          "paragraphs": 1
+        },
+        "Kalshi episodes — Survival": {
+          "stillReading": false,
+          "scrollHeight": 386,
+          "controlRows": 1,
+          "nestedControls": 1,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 1,
+          "tables": 0,
+          "disclosures": 0,
+          "paragraphs": 1
+        },
+        "Kalshi episodes — Episodes": {
+          "stillReading": false,
+          "scrollHeight": 295,
+          "controlRows": 1,
+          "nestedControls": 1,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 0,
+          "tables": 0,
+          "disclosures": 0,
+          "paragraphs": 1
+        },
+        "Model — Measurement": {
+          "stillReading": false,
+          "scrollHeight": 1473,
+          "controlRows": 1,
+          "nestedControls": 1,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 0,
+          "tables": 0,
+          "disclosures": 7,
+          "paragraphs": 1
+        },
+        "Model — Instrument": {
+          "stillReading": false,
+          "scrollHeight": 1182,
+          "controlRows": 1,
+          "nestedControls": 1,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 0,
+          "tables": 0,
+          "disclosures": 6,
+          "paragraphs": 1
+        },
+        "Model — Half-life": {
+          "stillReading": false,
+          "scrollHeight": 879,
+          "controlRows": 1,
+          "nestedControls": 1,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 1,
+          "tables": 0,
+          "disclosures": 0,
+          "paragraphs": 1
+        },
+        "Model — Simulator": {
+          "stillReading": false,
+          "scrollHeight": 869,
+          "controlRows": 1,
+          "nestedControls": 1,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 1,
+          "tables": 0,
+          "disclosures": 0,
+          "paragraphs": 1
+        },
+        "Model — Spectrum": {
+          "stillReading": false,
+          "scrollHeight": 938,
+          "controlRows": 1,
+          "nestedControls": 1,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 1,
+          "tables": 0,
+          "disclosures": 0,
+          "paragraphs": 1
+        },
+        "Findings": {
+          "stillReading": false,
+          "scrollHeight": 449,
           "controlRows": 1,
           "nestedControls": 1,
           "controlHeight": 32,
@@ -588,15 +1153,15 @@
       }
     },
     "coherence/lessons": {
-      "@760": {
+      "@1440": {
         "Coverage": {
           "stillReading": false,
-          "scrollHeight": 605,
+          "scrollHeight": 503,
           "controlRows": 1,
           "nestedControls": 0,
-          "controlHeight": 59,
+          "controlHeight": 32,
           "buttonHeight": 24,
-          "wrapped": true,
+          "wrapped": false,
           "figures": 1,
           "tables": 0,
           "disclosures": 0,
@@ -604,12 +1169,12 @@
         },
         "Episode states": {
           "stillReading": false,
-          "scrollHeight": 670,
+          "scrollHeight": 544,
           "controlRows": 1,
           "nestedControls": 0,
-          "controlHeight": 59,
+          "controlHeight": 32,
           "buttonHeight": 24,
-          "wrapped": true,
+          "wrapped": false,
           "figures": 1,
           "tables": 0,
           "disclosures": 0,
@@ -617,12 +1182,12 @@
         },
         "Quotes": {
           "stillReading": false,
-          "scrollHeight": 1878,
+          "scrollHeight": 1372,
           "controlRows": 1,
           "nestedControls": 0,
-          "controlHeight": 59,
+          "controlHeight": 32,
           "buttonHeight": 24,
-          "wrapped": true,
+          "wrapped": false,
           "figures": 1,
           "tables": 3,
           "disclosures": 0,
@@ -630,12 +1195,12 @@
         },
         "Structure": {
           "stillReading": false,
-          "scrollHeight": 3344,
+          "scrollHeight": 1925,
           "controlRows": 1,
           "nestedControls": 0,
-          "controlHeight": 59,
+          "controlHeight": 32,
           "buttonHeight": 24,
-          "wrapped": true,
+          "wrapped": false,
           "figures": 1,
           "tables": 6,
           "disclosures": 0,
@@ -643,12 +1208,12 @@
         },
         "Bounds": {
           "stillReading": false,
-          "scrollHeight": 1438,
+          "scrollHeight": 937,
           "controlRows": 1,
           "nestedControls": 0,
-          "controlHeight": 59,
+          "controlHeight": 32,
           "buttonHeight": 24,
-          "wrapped": true,
+          "wrapped": false,
           "figures": 1,
           "tables": 2,
           "disclosures": 0,
@@ -656,12 +1221,92 @@
         },
         "Record": {
           "stillReading": false,
-          "scrollHeight": 1927,
+          "scrollHeight": 1422,
           "controlRows": 1,
           "nestedControls": 0,
-          "controlHeight": 59,
+          "controlHeight": 32,
           "buttonHeight": 24,
-          "wrapped": true,
+          "wrapped": false,
+          "figures": 1,
+          "tables": 3,
+          "disclosures": 0,
+          "paragraphs": 1
+        }
+      },
+      "@1100": {
+        "Coverage": {
+          "stillReading": false,
+          "scrollHeight": 550,
+          "controlRows": 1,
+          "nestedControls": 0,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 1,
+          "tables": 0,
+          "disclosures": 0,
+          "paragraphs": 1
+        },
+        "Episode states": {
+          "stillReading": false,
+          "scrollHeight": 590,
+          "controlRows": 1,
+          "nestedControls": 0,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 1,
+          "tables": 0,
+          "disclosures": 0,
+          "paragraphs": 1
+        },
+        "Quotes": {
+          "stillReading": false,
+          "scrollHeight": 1553,
+          "controlRows": 1,
+          "nestedControls": 0,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 1,
+          "tables": 3,
+          "disclosures": 0,
+          "paragraphs": 1
+        },
+        "Structure": {
+          "stillReading": false,
+          "scrollHeight": 2198,
+          "controlRows": 1,
+          "nestedControls": 0,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 1,
+          "tables": 6,
+          "disclosures": 0,
+          "paragraphs": 1
+        },
+        "Bounds": {
+          "stillReading": false,
+          "scrollHeight": 1051,
+          "controlRows": 1,
+          "nestedControls": 0,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 1,
+          "tables": 2,
+          "disclosures": 0,
+          "paragraphs": 1
+        },
+        "Record": {
+          "stillReading": false,
+          "scrollHeight": 1610,
+          "controlRows": 1,
+          "nestedControls": 0,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
           "figures": 1,
           "tables": 3,
           "disclosures": 0,
