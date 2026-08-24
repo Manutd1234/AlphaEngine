@@ -631,11 +631,13 @@ high on someone else's infrastructure is not our risk to take."
 
 ### The read side — `#coherence/universe`, traced
 
-1. `web/components/CoherenceConsole.tsx` calls `useCoherenceRead` for
-   `/api/gateway/coherence/universe?max_events=2`, gated on `active` **and** on
-   the open section being one of `universe`, `certificate` or `lattice`. The tab
-   stays mounted behind `hidden` once visited, so an ungated loop would keep
-   reading Kalshi for a reader three tabs away.
+1. `web/components/MarketsConsole.tsx` calls `useCoherenceRead` for
+   `universeRoute()`, gated on `active` **and** on the open section being
+   `universe` or `lattice`; `CoherenceConsole.tsx` asks for the same URL on
+   `certificate`. The tab stays mounted behind `hidden` once visited, so an
+   ungated loop would keep reading Kalshi for a reader three tabs away. The URL
+   is built in `web/lib/coherence/routes.ts` and nowhere else — see step 2b for
+   what depends on that.
 2. `web/lib/coherence/use-coherence.ts` polls on `COHERENCE_POLL_MS = 20_000` —
    "slow by choice: the exchange publishes no budget for keyless traffic, and
    the questions this tab asks are about seconds, not milliseconds" — through
@@ -644,13 +646,28 @@ high on someone else's infrastructure is not our risk to take."
    go to the exchange, and `DEADLINE_MS = 9_000` for anything served from the
    recorded tape. One deadline for both meant the browser gave up on the slow
    ones while the gateway was still doing exactly what it was asked to.
+2b. The read goes through `web/lib/coherence/read-cache.ts`, which holds one
+   answer per URL and JOINS a read already in flight. Three panes across two
+   tabs share this URL and each used to hold its own in-flight latch, so opening
+   the tab could put three identical live reads on the token bucket above at
+   once. `use-section-warming.ts` also sweeps the rest of the rail on
+   `requestIdleCallback`, one URL every 600 ms — inside the ~5 requests/second
+   the gateway budgets itself — so a section paints on arrival rather than on
+   its first answer. A warmed payload paints only while it is under 100 s old.
 3. `web/app/api/gateway/coherence/universe/route.ts` forwards only `series` and
    `max_events`, raises `callGateway`'s timeout to **25 s** for this route
    specifically, validates the shape with `isCoherenceUniverse`, and answers
    `Cache-Control: no-store` — "a cached order book is a wrong order book".
 4. `modules/api/coherence.py::coherence_universe` reads each watched series
    through `observe_series` and returns a `CoherenceUniverse` carrying a
-   **`state`** discriminator and a de-duplicated `notes` list.
+   **`state`** discriminator, a de-duplicated `notes` list and a
+   **`categories`** map — Kalshi's own `category` per series ticker, which the
+   Universe section's asset filter groups by. `modules/coherence/series_meta.py`
+   reads that once per series for the life of the process: a category is a
+   property of what a contract is about rather than of its state, so re-reading
+   it every twenty seconds would spend a request per series per poll to
+   re-learn a string that cannot have changed. A series the exchange will not
+   categorise is ABSENT from the map and named in `notes`, never defaulted.
 
 ### What comes back when something is missing
 
