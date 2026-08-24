@@ -149,16 +149,43 @@ function ViewSwitch({ view, onView }: { view: ShellView; onView: (next: ShellVie
   );
 }
 
-function Reading({ data, requested }: { data: CoherenceShell; requested: string }) {
+function Reading({ data, requested, loading }: {
+  data: CoherenceShell;
+  requested: string;
+  /** True only while a `cat` is actually in flight. */
+  loading: boolean;
+}) {
   return (
     <>
       {data.command !== "cat" ? (
-        <p className="console-empty muted">Reading {requested}…</p>
+        // FOUR ABSENCES HERE, NOT ONE, and the fourth was rendering as the
+        // first. `cat` on a directory is answered with a LISTING, so this view
+        // sat on "Reading /…" for ever at the root — a settled refusal wearing
+        // a pending state's clothes. Measured: `markets/shell` → Reading was
+        // the only view on either tab that never stopped loading.
+        loading ? (
+          <p className="console-empty muted">Reading {requested}…</p>
+        ) : (
+          <p className="console-empty">
+            <span aria-hidden="true">○</span> {requested} is a directory, and{" "}
+            <code>cat</code> answers for a file — the venue returned its listing instead. Open a file from
+            the Tree, or use Tree to walk here.
+          </p>
+        )
       ) : data.state === "ok" && data.body ? (
         <pre className="coh-shell__body">{data.body}</pre>
       ) : data.state === "missing" ? (
+        // The venue's own reason when it has one, and it usually does: asking to
+        // read `/` answers "a readable file lives at /shards/<n>/<series>/
+        // <event>/<name>", which tells a reader where to go. The generic line
+        // below it said "no file of that name here" about a path that is not a
+        // file name at all, and threw away the more useful sentence the gateway
+        // had already sent.
         <p className="console-empty">
-          <span aria-hidden="true">○</span> No file of that name here: another read returns the same answer.
+          <span aria-hidden="true">○</span>{" "}
+          {data.detail
+            ? `${requested} has no reading: ${data.detail}.`
+            : "No file of that name here: another read returns the same answer."}
         </p>
       ) : (
         <p className="console-empty">
@@ -180,7 +207,7 @@ export default function ShellPane({ active }: { active: boolean }) {
   const url = shellRoute(path, command);
   // Only the two views that answer FROM a read poll: Layout is the same at
   // every path and Commands is reference material, so neither asks.
-  const { data, error } = useCoherenceRead<CoherenceShell>(
+  const { data, error, loading } = useCoherenceRead<CoherenceShell>(
     url,
     active && (view === "tree" || view === "reading"),
   );
@@ -232,7 +259,10 @@ export default function ShellPane({ active }: { active: boolean }) {
   // The root request is `/` and the gateway answers `/shards`, so a mismatch is
   // only stale-payload evidence away from the root. A command mismatch says the
   // same thing: the switcher has moved and this answer is the other one.
-  const stale = (path !== "/" && data.path !== path) || data.command !== command;
+  // `loading` and not merely "the two commands differ": asking to `cat` a
+  // directory is answered with a listing every time, so the command mismatch is
+  // permanent there and this banner claimed a read was under way for ever.
+  const stale = loading && ((path !== "/" && data.path !== path) || data.command !== command);
   // `/shards` is the root listing's own path and its detail is the footer's sentence in other words. Suppressing it
   // there leaves every other path's detail, and the outage detail, which is answered at the path as requested.
   const repeatsFooter = data.command === "ls" && data.path === "/shards" && READ_OK.has(data.state);
@@ -261,7 +291,7 @@ export default function ShellPane({ active }: { active: boolean }) {
       {data.detail && !repeatsFooter ? <p className="coh-shell__detail-line">{data.detail}.</p> : null}
 
       {view === "reading" ? (
-        <Reading data={data} requested={path} />
+        <Reading data={data} requested={path} loading={loading} />
       ) : data.command !== "ls" ? (
         <p className="console-empty muted">Listing {path}…</p>
       ) : !data.exists ? (

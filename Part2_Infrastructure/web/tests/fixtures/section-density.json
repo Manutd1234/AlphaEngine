@@ -62,7 +62,7 @@
         },
         "Pending": {
           "stillReading": false,
-          "scrollHeight": 437,
+          "scrollHeight": 413,
           "controlRows": 1,
           "nestedControls": 0,
           "controlHeight": 32,
@@ -129,7 +129,7 @@
         },
         "Pending": {
           "stillReading": false,
-          "scrollHeight": 413,
+          "scrollHeight": 437,
           "controlRows": 1,
           "nestedControls": 0,
           "controlHeight": 32,
@@ -442,8 +442,8 @@
           "paragraphs": 2
         },
         "Reading": {
-          "stillReading": true,
-          "scrollHeight": 371,
+          "stillReading": false,
+          "scrollHeight": 338,
           "controlRows": 1,
           "nestedControls": 0,
           "controlHeight": 32,
@@ -452,7 +452,7 @@
           "figures": 0,
           "tables": 0,
           "disclosures": 0,
-          "paragraphs": 4
+          "paragraphs": 3
         },
         "Commands": {
           "stillReading": false,
@@ -496,8 +496,8 @@
           "paragraphs": 2
         },
         "Reading": {
-          "stillReading": true,
-          "scrollHeight": 395,
+          "stillReading": false,
+          "scrollHeight": 363,
           "controlRows": 1,
           "nestedControls": 0,
           "controlHeight": 32,
@@ -506,7 +506,7 @@
           "figures": 0,
           "tables": 0,
           "disclosures": 0,
-          "paragraphs": 4
+          "paragraphs": 3
         },
         "Commands": {
           "stillReading": false,
@@ -538,24 +538,37 @@
     },
     "coherence/certificate": {
       "@1440": {
-        "Coherence test": {
+        "Coherence test — Verdict": {
           "stillReading": false,
-          "scrollHeight": 251,
+          "scrollHeight": 608,
           "controlRows": 1,
-          "nestedControls": 0,
+          "nestedControls": 2,
           "controlHeight": 32,
           "buttonHeight": 24,
           "wrapped": false,
-          "figures": 0,
+          "figures": 1,
+          "tables": 1,
+          "disclosures": 1,
+          "paragraphs": 2
+        },
+        "Coherence test — Proof": {
+          "stillReading": false,
+          "scrollHeight": 657,
+          "controlRows": 1,
+          "nestedControls": 2,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 1,
           "tables": 0,
-          "disclosures": 0,
+          "disclosures": 1,
           "paragraphs": 2
         },
         "Basket": {
           "stillReading": false,
-          "scrollHeight": 251,
+          "scrollHeight": 371,
           "controlRows": 1,
-          "nestedControls": 0,
+          "nestedControls": 1,
           "controlHeight": 32,
           "buttonHeight": 24,
           "wrapped": false,
