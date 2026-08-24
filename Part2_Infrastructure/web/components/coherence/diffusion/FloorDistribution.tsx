@@ -94,9 +94,9 @@ export default function FloorDistribution({ runs }: { runs: StageRun[] }) {
       reading="Mass at the left is absorption faster than an ordinary half hour; mass around the middle is a stage that finished no faster than the market finishes anything, whatever its half-life says in seconds."
       missing={
         unranked
-          ? `${unranked} measured stage(s) have no percentile: no matched window cleared the floor, so there was `
-            + "nothing to rank against. They are counted in their own column and kept off the axis — a missing "
-            + "rank is not a rank of zero, which would read as faster than everything."
+          ? `${unranked} measured stage(s) have no percentile: no matched window cleared the floor. They are `
+            + "counted in their own column and kept off the axis, because a missing rank is not a rank of "
+            + "zero — which would read as faster than everything."
           : null
       }
     >

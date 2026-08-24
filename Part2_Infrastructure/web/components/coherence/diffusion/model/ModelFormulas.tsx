@@ -231,8 +231,8 @@ export default function ModelFormulas({ part }: { part: FormulaPart }) {
         {part === "measurement"
           ? "What the estimator computes on a price path: the absorbed fraction, the gate that decides whether there was a move at all, the crossing, and the two fits that are reported but never the verdict."
           : "The instrument built on top of it: a clock that is not made of the event, and the closed-form information spectrum the diffusion study reads."}{" "}
-        Each names the module that is its reference implementation — Python is the reference, and the browser
-        twin is held to it by a fixture that module writes.
+        Each names its reference module; Python is the reference and the browser twin is held to a fixture
+        that module writes.
       </p>
 
       <div className="coh-lessons__grid">

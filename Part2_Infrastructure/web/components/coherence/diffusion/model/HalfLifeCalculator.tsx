@@ -96,9 +96,7 @@ export default function HalfLifeCalculator() {
   return (
     <div className="diff-pane">
       <p className="coh-event__note">
-        The absorbed fraction at each horizon on the study&rsquo;s own grid. Drag a point past a half and the
-        crossing moves; drag the first one past it and the estimator refuses, because a crossing this grid
-        cannot resolve is not a fast absorption.
+        The absorbed fraction at each horizon, on the study&rsquo;s own grid.
       </p>
 
       <div className="coh-model__controls">

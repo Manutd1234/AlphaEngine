@@ -90,9 +90,8 @@ export default function SpectrumExplorer() {
   return (
     <div className="diff-pane">
       <p className="coh-event__note">
-        The unconditional eigenvalues describe the data; the conditional ones describe what is left once the
-        conditioning is known. The gap between them, at each resolution, IS the information — and its area is
-        the total.
+        The unconditional eigenvalues describe the data; the conditional ones what is left once the
+        conditioning is known. The gap between them at each resolution IS the information.
       </p>
 
       <div className="coh-model__controls">
