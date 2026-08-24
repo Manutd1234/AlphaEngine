@@ -50,7 +50,9 @@ import { TABS } from "./desk-sweep-plan.mjs";
 
 const ORIGIN = process.env.MEASURE_ORIGIN ?? "http://127.0.0.1:3100";
 const OUT = fileURLToPath(new URL("../tests/fixtures/section-density.json", import.meta.url));
-const WIDTHS = [1440, 1100];
+/** Desk, and the breakpoint where the engine drops to one column. Override with
+ *  `MEASURE_WIDTHS=1440,1100,760` to ask a narrower question without editing this. */
+const WIDTHS = (process.env.MEASURE_WIDTHS ?? "1440,1100").split(",").map(Number);
 
 /** The two tabs this pass is about. The other eight are another sweep's. */
 const MEASURED = ["markets", "coherence"];

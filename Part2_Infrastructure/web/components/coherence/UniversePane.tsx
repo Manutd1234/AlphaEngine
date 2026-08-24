@@ -257,13 +257,15 @@ export default function UniversePane({ universe, view, events, error, filtered }
             order the three questions actually run in: what the watchlist is,
             how much is on it, and whether its prices admit a probability. The
             size figures were unbuildable until the venue's own open interest,
-            liquidity and notional value reached the wire on 2026-08-24. */}
+            liquidity and notional value reached the wire on 2026-08-24.
+
+            The position was proposed by the session that built the card and is
+            confirmed here rather than inherited: it is the order the section's
+            existing note already argues for, since the rings hold every family
+            and the axis can only draw the ones with a total. Size sits between
+            them because "how much is on it" is a question about the whole
+            watchlist, like the rings, and unlike the axis. */}
         <BasketSize universe={universe} />
-        {/* Size AFTER composition and BEFORE the dollar axis, which is the
-            order the three questions actually run in: what the watchlist is,
-            how much is on it, and whether its prices admit a probability. The
-            size figures were unbuildable until the venue's own open interest,
-            liquidity and notional reached the wire on 2026-08-24. */}
         <BasketOverview
           rows={rows}
           caption="Every watched family against the dollar it pays"
