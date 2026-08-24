@@ -26,6 +26,7 @@ import { useMeasuredWidth } from "@/components/chart-kit";
 import { fromCenticents, toCenticents } from "@/lib/coherence/fixed-point";
 import type { CoherenceIndexPoint, CoherenceIndexSeries } from "@/lib/coherence/types";
 import { indexRoute } from "@/lib/coherence/routes";
+import PaneHead, { PaneHeadEmpty } from "./PaneHead";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import Figure, { FigureEmpty, StateChip } from "./Figure";
 import { clock, thin, type IndexPoint } from "./IndexBasisChart";
@@ -241,25 +242,41 @@ export default function IndexPane({ active }: { active: boolean }) {
   const [view, setView] = useState<"series" | "families">("series");
   const { data, error } = useCoherenceRead<CoherenceIndexSeries>(indexRoute(), active);
 
-  if (error && !data) {
-    return (
-      <p className="console-empty">
-        <span aria-hidden="true">✕</span> The index could not be read: {error}
-      </p>
-    );
-  }
-  if (!data) return <p className="console-empty muted">Reading the index…</p>;
+  // One head object, so the empty states and the drawn one cannot say
+  // different things about which section a reader is standing in.
+  const head = {
+    kicker: "Coherence index",
+    title: "Pricing efficiency over time",
+    id: "coherence-index-heading",
+    note: data ? `${data.points.length} recorded readings` : "recorded tape",
+    lede: (
+      <>
+        The Dutch-book test answers yes or no and almost always says no. This is the continuous version — how far a
+        family&rsquo;s quotes sit from the nearest set admitting a probability, on every poll. Unmeasurable readings
+        are drawn as gaps, never zeroed.
+      </>
+    ),
+  };
+  const framed = (mark: string, body: React.ReactNode) => (
+    <section className="card console-card coh-index-pane" aria-labelledby="coherence-index-heading">
+      <PaneHeadEmpty head={head} mark={mark}>{body}</PaneHeadEmpty>
+    </section>
+  );
+
+  if (error && !data) return framed("✕", <>The index could not be read: {error}</>);
+  if (!data) return framed("◌", "Reading the index…");
   if (data.state === "empty") {
-    return (
-      <p className="console-empty">
-        <span aria-hidden="true">◌</span> {data.notes[0] ?? "Nothing indexed yet."} Set{" "}
-        <code>COHERENCE_SERIES</code> and <code>COHERENCE_POLL_S</code> on the gateway to start recording.
-      </p>
-    );
+    return framed("◌", (
+      <>
+        {data.notes[0] ?? "Nothing indexed yet."} Set <code>COHERENCE_SERIES</code> and{" "}
+        <code>COHERENCE_POLL_S</code> on the gateway to start recording.
+      </>
+    ));
   }
 
   return (
-    <div className="coh-index-pane">
+    <section className="card console-card coh-index-pane" aria-labelledby="coherence-index-heading">
+      <PaneHead {...head} />
       <div className="seg" role="group" aria-label="Index view">
         <button type="button" aria-pressed={view === "series"} onClick={() => setView("series")}>
           Series
@@ -284,12 +301,12 @@ export default function IndexPane({ active }: { active: boolean }) {
 
       {view === "series" ? (
         <>
-          <h4>The index over time</h4>
+          <h4 className="console-subhead">The index over time</h4>
           <Chart data={data} />
         </>
       ) : (
         <>
-          <h4>Readings, family by family</h4>
+          <h4 className="console-subhead">Readings, family by family</h4>
           <FamilyTable data={data} />
           {data.notes.map((note, index) => (
             <p className="coh-event__note" key={`${index}-${note}`}>
@@ -303,6 +320,6 @@ export default function IndexPane({ active }: { active: boolean }) {
           </p>
         </>
       )}
-    </div>
+    </section>
   );
 }

@@ -208,7 +208,12 @@ export default function IndexBasisChart({
                 height={base - MARGIN.top}
                 className="coh-settle__window"
               />
-              <text x={x(windowStart) + 4} y={MARGIN.top - 8} className="coh-ladder__tick">
+              {/* Anchored to the band's RIGHT edge, not its left. Left-anchored
+                  it ran past the plot and the final "s" was clipped by the
+                  viewBox — the window sits at the newest end of the series, so
+                  its label always has the whole chart to its left and nothing
+                  to its right. Observed at 1512px against the live feed. */}
+              <text x={right} y={MARGIN.top - 8} textAnchor="end" className="coh-ladder__tick">
                 settlement window, last {windowMinutes} minutes
               </text>
 

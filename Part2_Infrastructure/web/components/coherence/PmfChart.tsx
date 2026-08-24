@@ -81,12 +81,12 @@ export default function PmfChart({ surface }: { surface: CoherenceSurface }) {
 
   const thinning = labelAll
     ? null
-    : `All ${bars.length} bins are drawn; only the two ends and the heaviest are named, because ${bars.length} names will not fit across this axis. No bin was dropped.`;
+    : `All ${bars.length} bins are drawn; only the ends and the heaviest are named, because ${bars.length} labels will not fit. None was dropped.`;
   const emptyNote = empties.length
-    ? `${empties.length} of ${readable.length} readable bin(s) carry no mass at all — the strikes on either side are quoted at the same survival, so nothing is priced between them. They are drawn as flat stubs on the axis, not as gaps.`
+    ? `${empties.length} of ${readable.length} readable bin(s) carry no mass: the strikes either side quote the same survival. Drawn as flat stubs, not as gaps.`
     : null;
   const unreadableNote = unreadable
-    ? `${unreadable} bin(s) arrived with a mass this desk could not parse exactly; they are marked ◌ unread on the axis rather than drawn as zero.`
+    ? `${unreadable} bin(s) carried a mass this desk could not parse exactly, marked ◌ unread rather than drawn as zero.`
     : null;
 
   return (

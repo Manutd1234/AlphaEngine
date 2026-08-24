@@ -26,6 +26,7 @@ import { useState } from "react";
 
 import type { CoherenceFees, CoherenceReplay } from "@/lib/coherence/types";
 import { feesRoute, replayRoute } from "@/lib/coherence/routes";
+import PaneHead from "./PaneHead";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import AblationPane from "./AblationPane";
 import FeesPane, { EXAMPLES, feesExceedNotional, type FeeExample, type FeesView } from "./FeesPane";
@@ -64,7 +65,20 @@ export default function FeesSection({ active }: { active: boolean }) {
   const span = replay.data ? `${replay.data.span_seconds}s` : null;
 
   return (
-    <div className="coh-fees">
+    <section className="card console-card coh-fees" aria-labelledby="coherence-fees-heading">
+      <PaneHead
+        kicker="Fees"
+        title="What a real position pays"
+        id="coherence-fees-heading"
+        note={span ? `replay spans ${span}` : "three-component cost model"}
+        lede={
+          <>
+            Three components, and the one nobody models is the largest: on Kalshi&rsquo;s own documented example the
+            rounding fee is nineteen times the trading fee and the net exceeds the notional traded. Ablation replays
+            the tape under four cost models, <code>no_fees</code> among them.
+          </>
+        }
+      />
       <div className="seg" role="group" aria-label="Fees view">
         <button type="button" aria-pressed={view === "example"} onClick={() => setView("example")}>
           Worked example
@@ -108,6 +122,6 @@ export default function FeesSection({ active }: { active: boolean }) {
           onExample={setExample}
         />
       )}
-    </div>
+    </section>
   );
 }

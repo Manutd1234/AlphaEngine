@@ -95,6 +95,14 @@ export interface CoherenceUniverse {
   state: string;
   events: CoherenceEventView[];
   watchlist: string[];
+  /**
+   * What each watched series is ABOUT, keyed by series ticker — Kalshi's own
+   * `category` string ("Crypto", "Climate and Weather"), read from
+   * `GET /series/{ticker}` and never inferred from the ticker. A series absent
+   * from this map is one the exchange would not answer for; the surface groups
+   * those as uncategorised and says how many, rather than guessing.
+   */
+  categories: Record<string, string>;
   notes: string[];
 }
 

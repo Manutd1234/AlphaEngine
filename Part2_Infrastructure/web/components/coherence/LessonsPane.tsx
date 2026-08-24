@@ -32,6 +32,7 @@ import { COHERENCE_SECTIONS } from "@/lib/sections";
 
 import { StateChip } from "./Figure";
 import LessonCoverage from "./LessonCoverage";
+import PaneHead from "./PaneHead";
 
 /** The rail's own label, so a card names the section as the reader sees it. */
 const sectionLabel = (pane: string) =>
@@ -53,7 +54,7 @@ function LessonCard({ lesson }: { lesson: CoherenceLesson }) {
   return (
     <article className={`coh-lesson ${lesson.shipped ? "" : "is-pending"}`}>
       <header className="coh-lesson__head">
-        <h4>{lesson.title}</h4>
+        <h4 className="console-subhead">{lesson.title}</h4>
         <span className="coh-lesson__state">
           <span aria-hidden="true">{lesson.shipped ? "✓" : "◌"}</span>{" "}
           {lesson.shipped ? "shipped" : "not built yet"}
@@ -115,14 +116,18 @@ export default function LessonsPane() {
   const inView = COHERENCE_LESSONS.filter((lesson) => lesson.group === group.id);
 
   return (
-    <div className="coh-lessons">
-      <p className="coh-lessons__intro">
-        Each lesson names the module it is about and the test that would go red if it stopped being true. {shipped} of{" "}
-        {COHERENCE_LESSONS.length} are built
-        {shipped < COHERENCE_LESSONS.length
-          ? "; the rest are listed because a curriculum hiding unfinished work cannot be read as a plan."
-          : ", and each runs as a notebook under notebooks/coherence_lab that executes against these same modules."}
-      </p>
+    <section className="card console-card coh-lessons" aria-labelledby="coherence-lessons-heading">
+      <PaneHead
+        kicker="Lessons"
+        title="The curriculum & what guards it"
+        id="coherence-lessons-heading"
+        note={`${shipped} of ${COHERENCE_LESSONS.length} built`}
+        lede={
+          shipped < COHERENCE_LESSONS.length
+            ? "Each lesson names the module it is about and the test that would go red if it stopped being true. The unbuilt ones are listed because a curriculum hiding unfinished work cannot be read as a plan."
+            : "Each lesson names the module it is about and the test that would go red if it stopped being true, and each runs as a notebook under notebooks/coherence_lab against those same modules."
+        }
+      />
 
       {/* Above the switcher, and deliberately outside it. The strip maps all
           fourteen lessons onto all eleven sections; drawn inside a view it
@@ -164,6 +169,6 @@ export default function LessonsPane() {
           ))}
         </div>
       </section>
-    </div>
+    </section>
   );
 }

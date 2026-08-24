@@ -25,6 +25,7 @@ import { useState } from "react";
 
 import type { CoherenceBooks } from "@/lib/coherence/types";
 import BooksPane from "./BooksPane";
+import PaneHead from "./PaneHead";
 import RfqPane from "./RfqPane";
 
 export type BooksView = "ladder" | "identity" | "dispersion";
@@ -50,16 +51,28 @@ export default function BooksSection({ books, error, active, onViewChange }: Boo
   };
 
   return (
-    <div className="coh-books">
-      {/* Provenance first, above the switcher, because it is true of every view
-          and it is what the rest of the section rests on. */}
-      {books ? (
-        <p className="coh-books__origin">
-          {books.origin === "tape"
-            ? "Books read from the recorded tape, newest snapshot per market."
-            : "Books read live from the exchange."}
-        </p>
-      ) : null}
+    <section className="card console-card coh-books" aria-labelledby="markets-books-heading">
+      {/* Provenance rides in the head's note slot, because it is true of every
+          view and it is what the rest of the section rests on — and because a
+          standalone line above the switcher was the shape this tab used
+          instead of a heading. */}
+      <PaneHead
+        kicker="Books"
+        title="Two bid ladders & the offers they imply"
+        id="markets-books-heading"
+        note={books
+          ? books.origin === "tape"
+            ? "recorded tape, newest snapshot per market"
+            : "read live from the exchange"
+          : "reading the exchange"}
+        lede={
+          <>
+            The exchange publishes bids on both sides and no asks at all, so every offer here is implied. Ladder is
+            the book as sent, Identity the sum that follows from it, Dispersion the one channel where several makers
+            price the same probability independently.
+          </>
+        }
+      />
 
       <div className="seg" role="group" aria-label="Books view">
         <button type="button" aria-pressed={view === "ladder"} onClick={() => open("ladder")}>
@@ -81,6 +94,6 @@ export default function BooksSection({ books, error, active, onViewChange }: Boo
       ) : (
         <BooksPane books={books} error={error} view={view} />
       )}
-    </div>
+    </section>
   );
 }

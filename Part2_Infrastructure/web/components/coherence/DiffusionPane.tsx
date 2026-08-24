@@ -34,6 +34,7 @@ import { useState } from "react";
 import { episodesToSamples } from "@/lib/coherence/absorption";
 import type { CoherenceEpisodes } from "@/lib/coherence/types";
 import { absorptionRoute, episodesRoute } from "@/lib/coherence/routes";
+import PaneHead from "./PaneHead";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import Figure, { FigureEmpty, StateChip } from "./Figure";
 import InformationDiffusionPane from "./diffusion/InformationDiffusionPane";
@@ -194,11 +195,20 @@ export default function DiffusionPane({ active }: { active: boolean }) {
   );
 
   return (
-    <div className="coh-diffusion">
-      <p className="coh-event__note">
-        Both arms measure one thing — how long until the move is finished. Kalshi measures it over a
-        mispricing the exchange itself publishes, the announcement arm over news with a public timestamp.
-      </p>
+    <section className="card console-card coh-diffusion" aria-labelledby="coherence-diffusion-heading">
+      <PaneHead
+        kicker="Diffusion"
+        title="How fast information is absorbed"
+        id="coherence-diffusion-heading"
+        note="two arms, one estimator"
+        lede={
+          <>
+            Both arms measure one thing: how long until the move is finished. Kalshi measures it over a mispricing the
+            exchange itself publishes, the announcement arm over news with a public timestamp. If the median lifetime
+            is under the round trip, the opportunity was never available.
+          </>
+        }
+      />
 
       <div className="seg" role="group" aria-label="Diffusion view">
         <button type="button" aria-pressed={view === "absorption"} onClick={() => setView("absorption")}>
@@ -225,6 +235,6 @@ export default function DiffusionPane({ active }: { active: boolean }) {
           active={active}
         />
       )}
-    </div>
+    </section>
   );
 }

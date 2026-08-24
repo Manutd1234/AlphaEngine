@@ -28,6 +28,7 @@ import { useState } from "react";
 import type { CoherenceEventView, CoherenceUniverse } from "@/lib/coherence/types";
 import type { CoherenceKelly, CoherenceSurface } from "@/lib/coherence/types-lab";
 import { stakeRoute, surfaceRoute, universeRoute } from "@/lib/coherence/routes";
+import PaneHead, { PaneHeadEmpty } from "./PaneHead";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import DistributionView from "./surface/DistributionView";
 import FamilyView from "./surface/FamilyView";
@@ -69,19 +70,34 @@ export default function SurfacePane({
     active && Boolean(target) && view !== "distribution",
   );
 
+  const head = {
+    kicker: "Lattice",
+    title: "The measure these prices imply",
+    id: "markets-lattice-heading",
+    note: `${events.length} ${events.length === 1 ? "family" : "families"} to choose from`,
+    lede: (
+      <>
+        A strike ladder is a probability distribution with prices on it. Distribution draws the one these quotes
+        sample; Stake sizes it, worst case beside the growth rate; Whole family is every outcome the solver ranked.
+      </>
+    ),
+  };
+
   if (!target) {
     return (
-      <p className="console-empty">
-        <span aria-hidden="true">◌</span>{" "}
-        {universe.error
-          ? `No family could be read, so there is no distribution to draw: ${universe.error}`
-          : "Reading the families this engine prices…"}
-      </p>
+      <section className="card console-card coh-surface" aria-labelledby="markets-lattice-heading">
+        <PaneHeadEmpty head={head} mark={universe.error ? "✕" : "◌"}>
+          {universe.error
+            ? `No family could be read, so there is no distribution to draw: ${universe.error}`
+            : "Reading the families this engine prices…"}
+        </PaneHeadEmpty>
+      </section>
     );
   }
 
   return (
-    <div className="coh-surface">
+    <section className="card console-card coh-surface" aria-labelledby="markets-lattice-heading">
+      <PaneHead {...head} />
       {/* One row, two controls: the question first, then the family it is asked
           about. The row is the chip row's flex box rather than a class of its
           own — `.coh-surface` is a grid, so two segs as its children would
@@ -141,13 +157,12 @@ export default function SurfacePane({
           </p>
 
           <p className="coh-event__note">
-            This is a reading of prices, not a forecast. The mass is what one side of each book implies if the quotes
-            are taken at face value, and the plan is sized against that measure — fed the market&rsquo;s own mids it
-            correctly returns &ldquo;stake nothing&rdquo;, because there is no edge in quoting a price back at itself.
-            Nothing on this pane places an order, and no stake here has been traded.
+            A reading of prices, not a forecast: the mass is what one side of each book implies at face value, and the
+            plan is sized against that measure — fed the market&rsquo;s own mids it returns &ldquo;stake
+            nothing&rdquo;. Nothing here places an order.
           </p>
         </>
       )}
-    </div>
+    </section>
   );
 }

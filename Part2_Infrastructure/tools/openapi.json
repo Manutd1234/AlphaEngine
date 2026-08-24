@@ -3225,6 +3225,13 @@
       "CoherenceUniverse": {
         "description": "The watchlist, as far as it could be read.",
         "properties": {
+          "categories": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Categories",
+            "type": "object"
+          },
           "events": {
             "items": {
               "$ref": "#/components/schemas/CoherenceEventView"

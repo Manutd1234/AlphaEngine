@@ -31,6 +31,7 @@ from modules.coherence.kernel.costs import FeeSchedule
 from modules.coherence.kernel.money import MoneyError, parse_dollars, parse_fp
 from modules.coherence.recorder import recorder_state
 from modules.coherence.scheduler.budget import get_read_budget
+from modules.coherence.series_meta import categories_for
 from modules.coherence.syscalls.certify import certify
 from modules.coherence.syscalls.fees import worked_example
 from modules.coherence.syscalls.observe import observe_event, observe_series
@@ -175,11 +176,27 @@ async def coherence_universe(
             notes.append(f"{series_ticker} could not be read: {exc.reason}")
 
     state = "ok" if events else ("unavailable" if notes else "empty")
+    # What each series is ABOUT, so the surface can cut the families by asset
+    # rather than by ticker prefix. Read once per series for the life of the
+    # process — a category is a property of the contract, not of its state — so
+    # this costs nothing on any poll after the first and nothing at all for a
+    # watchlist that was already read. Never raises; a series the exchange
+    # would not answer for is simply absent, and the surface says how many.
+    categories = await categories_for(client, [event.series_ticker for event in events])
+    unlabelled = {event.series_ticker for event in events} - set(categories)
+    if unlabelled:
+        notes.append(
+            f"no category published for {', '.join(sorted(unlabelled))}; "
+            "those families are grouped as unlabelled rather than guessed at"
+        )
     # De-duplicated, order kept. Every observation of a series carries that
     # series' "read the first N events" note, so a two-event read reported the
     # same sentence twice — noise to a reader, and a duplicate React key to the
     # list that renders it.
-    return CoherenceUniverse(state=state, events=events, watchlist=watchlist, notes=list(dict.fromkeys(notes)))
+    return CoherenceUniverse(
+        state=state, events=events, watchlist=watchlist,
+        categories=categories, notes=list(dict.fromkeys(notes)),
+    )
 
 
 @router.get("/api/coherence/books", response_model=CoherenceBooks)

@@ -50,6 +50,8 @@
 import { type ReactNode, useState } from "react";
 
 import type { CoherenceShell, CoherenceShellEntry } from "@/lib/coherence/types-lab";
+import CommandReference from "./ShellCommandReference";
+import PaneHead from "./PaneHead";
 import { shellRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import { StateChip } from "./Figure";
@@ -216,50 +218,6 @@ function Listing({ data, onOpen }: { data: CoherenceShell; onOpen: (entry: Coher
 }
 
 /** The commands and the derived files, in one place instead of four levels down. */
-function CommandReference() {
-  return (
-    <div className="table-wrap">
-      <table className="coh-table">
-        <caption className="coh-table__caption">
-          The two commands and the five derived readings. A reading with no answer says which kind of no answer it
-          is, because only one kind is worth reading again.
-        </caption>
-        <thead>
-          <tr>
-            <th scope="col">Name</th>
-            <th scope="col">What it reads</th>
-            <th scope="col">When it has no answer</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <th scope="row"><code>ls</code></th>
-            <td>A path: the shards, series, events, markets and derived readings under it.</td>
-            <td>A path off the watchlist answers that it does not exist — an answer about the path, not a failed read.</td>
-          </tr>
-          <tr>
-            <th scope="row"><code>cat</code></th>
-            <td>
-              One derived file in an event directory, at <code>/shards/&lt;n&gt;/&lt;series&gt;/&lt;event&gt;/&lt;name&gt;</code>.
-            </td>
-            <td>A listed file whose reading this read could not produce. Only that one is worth reading again.</td>
-          </tr>
-          {DERIVED_FILES.map((file) => (
-            <tr key={file.name}>
-              <th scope="row"><code>{file.name}</code></th>
-              <td>{file.reads}</td>
-              <td>{file.silent}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-/** The three views, in one control. It is drawn on the branches that have no
- *  payload as well as the one that does: Layout needs none, and a reader whose
- *  venue is unreachable is exactly the reader who wants it. */
 function ViewSwitch({ view, onView }: { view: ShellView; onView: (next: ShellView) => void }) {
   return (
     <div className="seg" role="group" aria-label="Shell view">
@@ -319,10 +277,23 @@ export default function ShellPane({ active }: { active: boolean }) {
   // reachable only from there, and the reader who most wants the view that reads
   // nothing is the one whose venue could not be read.
   const framed = (body: ReactNode) => (
-    <div className="coh-shell">
+    <section className="card console-card coh-shell" aria-labelledby="markets-shell-heading">
+      <PaneHead
+        kicker="Shell"
+        title="The watched universe as a filesystem"
+        id="markets-shell-heading"
+        note={`ls ${path}`}
+        lede={
+          <>
+            Shards hold series, series hold events, events hold markets — so <code>ls</code> a path and{" "}
+            <code>cat</code> a derived reading. Where a market lives is a cost: two shards are two exchange
+            instances, and one order group cannot span them.
+          </>
+        }
+      />
       <ViewSwitch view={view} onView={setView} />
       {body}
-    </div>
+    </section>
   );
 
   if (view === "layout") return framed(<ShellTree />);
@@ -344,7 +315,20 @@ export default function ShellPane({ active }: { active: boolean }) {
   const repeatsFooter = data.command === "ls" && data.path === "/shards" && READ_OK.has(data.state);
 
   return (
-    <div className="coh-shell">
+    <section className="card console-card coh-shell" aria-labelledby="markets-shell-heading">
+      <PaneHead
+        kicker="Shell"
+        title="The watched universe as a filesystem"
+        id="markets-shell-heading"
+        note={`${data.command} ${data.path}`}
+        lede={
+          <>
+            Shards hold series, series hold events, events hold markets — so <code>ls</code> a path and{" "}
+            <code>cat</code> a derived reading. Where a market lives is a cost: two events under different shard
+            directories sit on different exchange instances and one order group cannot protect a position across them.
+          </>
+        }
+      />
       <ViewSwitch view={view} onView={setView} />
 
       <div className="coh-status__chips">
@@ -389,6 +373,6 @@ export default function ShellPane({ active }: { active: boolean }) {
           <span aria-hidden="true">✕</span> The last refresh failed: {error}. What is above is the previous answer.
         </p>
       ) : null}
-    </div>
+    </section>
   );
 }

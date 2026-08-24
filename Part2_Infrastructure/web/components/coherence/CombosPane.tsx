@@ -34,6 +34,7 @@ import { useState } from "react";
 import type { CoherenceCombo, CoherenceComboLeg, CoherenceComboRow, CoherenceCombos } from "@/lib/coherence/types-lab";
 import { priceLabel, toCenticents } from "@/lib/coherence/fixed-point";
 import { combosRoute } from "@/lib/coherence/routes";
+import PaneHead, { PaneHeadEmpty } from "./PaneHead";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import FrechetBand, { DEPENDENCE_WORD, basisCaveat, probLabel, toUnit } from "./FrechetBand";
 import { StateChip } from "./Figure";
@@ -236,10 +237,8 @@ function BandsView({ combos }: { combos: CoherenceCombo[] }) {
     <section className="coh-combos__rows">
       <h4 className="console-subhead">The bands, and where each price sits</h4>
       <p className="coh-combos__lead">
-        Every price between the bounds is consistent with some dependence, so a price inside the band is neither a
-        mispricing nor a fair value, only a price this evidence cannot rule out. The band&rsquo;s width is how far the
-        parlay can move with no leg price moving at all. Only a price outside the band is a Dutch book, and each one
-        arrives with the portfolio that proves it.
+        The band&rsquo;s width is how far the parlay can move with no leg price moving at all. Only a price OUTSIDE it
+        is a Dutch book, and each one arrives with the portfolio that proves it.
       </p>
       {combos.map((combo) => (
         <div className="coh-combo__row" key={combo.ticker}>
@@ -317,23 +316,29 @@ export default function CombosPane({ active }: { active: boolean }) {
   const [view, setView] = useState<ComboView>("bands");
   const { data, error } = useCoherenceRead<CoherenceCombos>(combosRoute(), active);
 
-  if (error && !data) {
-    return (
-      <p className="console-empty">
-        <span aria-hidden="true">✕</span> The parlays could not be read: {error}
-      </p>
-    );
-  }
-  if (!data) return <p className="console-empty muted">Reading the listed parlays…</p>;
+  const head = {
+    kicker: "Combos",
+    title: "Parlays & the bands their legs leave",
+    id: "coherence-combos-heading",
+    note: data ? `${data.combos.length} with a band, ${data.quoted} quoted` : "listed parlays",
+    lede: "A parlay pays a dollar only when every leg lands. Its legs do not determine that probability, they bound it — and inside the band every price is consistent with some dependence, which nothing here quotes.",
+  };
+  const framed = (mark: string, body: React.ReactNode) => (
+    <section className="card console-card coh-combos" aria-labelledby="coherence-combos-heading">
+      <PaneHeadEmpty head={head} mark={mark}>{body}</PaneHeadEmpty>
+    </section>
+  );
+
+  if (error && !data) return framed("✕", <>The parlays could not be read: {error}</>);
+  if (!data) return framed("◌", "Reading the listed parlays…");
   if (data.state !== "available" || !data.combos.length) {
-    // Three different answers used to arrive here as one sentence, with the
-    // gateway's own reason thrown away: the exchange listing no open combos,
-    // the read failing, and a read that worked but fetched no book. They are
-    // not the same finding, and `notes` carries the venue's account of which.
+    // Three answers used to arrive here as one sentence with the gateway's own
+    // reason thrown away; `notes` carries the venue's account of which.
     const notes = data.notes ?? [];
     return (
-      <div className="console-empty">
-        <p>
+      <section className="card console-card coh-combos" aria-labelledby="coherence-combos-heading">
+        <PaneHead {...head} />
+        <p className="console-empty">
           <span aria-hidden="true">◌</span>{" "}
           {data.state !== "available"
             ? "The parlays could not be read on this poll, so nothing below is a statement about what the exchange is listing."
@@ -346,7 +351,7 @@ export default function CombosPane({ active }: { active: boolean }) {
             ))}
           </ul>
         ) : null}
-      </div>
+      </section>
     );
   }
 
@@ -360,10 +365,8 @@ export default function CombosPane({ active }: { active: boolean }) {
   }, null);
 
   return (
-    <div className="coh-combos">
-      <p className="coh-combos__lead">
-        A parlay pays a dollar only when every leg lands. Its legs do not determine that probability, they bound it.
-      </p>
+    <section className="card console-card coh-combos" aria-labelledby="coherence-combos-heading">
+      <PaneHead {...head} />
       <code className="coh-combo__formula">{FORMULA}</code>
 
       <div className="coh-status__chips">
@@ -391,6 +394,6 @@ export default function CombosPane({ active }: { active: boolean }) {
       ) : (
         <NotesView combos={data.combos} notes={data.notes} />
       )}
-    </div>
+    </section>
   );
 }

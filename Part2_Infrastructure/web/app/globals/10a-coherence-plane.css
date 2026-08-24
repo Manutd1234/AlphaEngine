@@ -122,7 +122,6 @@
 .coh-event__title { margin: 0; font-size: var(--fs-lg); }
 .coh-event__meta,
 .coh-event__note,
-.coh-books__origin,
 .coh-status__basis,
 .coh-lessons__intro {
   margin: 0;
@@ -132,16 +131,6 @@
 }
 
 .coh-event__chips { display: flex; flex-wrap: wrap; gap: 6px; }
-
-.coh-event__figures {
-  display: grid;
-  gap: 10px;
-  grid-template-columns: 1fr;
-}
-
-@media (min-width: 1100px) {
-  .coh-event__figures { grid-template-columns: 1fr 1fr; }
-}
 
 .coh-table { width: 100%; border-collapse: collapse; font-size: var(--fs-xs); }
 .coh-table__caption {

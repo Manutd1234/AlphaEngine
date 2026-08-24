@@ -43,6 +43,7 @@ import { pct } from "@/lib/format";
 import { priceLabel } from "@/lib/coherence/fixed-point";
 import type { CoherenceCalibration } from "@/lib/coherence/types-lab";
 import { calibrationRoute } from "@/lib/coherence/routes";
+import PaneHead from "./PaneHead";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import { StateChip } from "./Figure";
 import MurphyBars from "./MurphyBars";
@@ -157,7 +158,20 @@ export default function CalibrationPane({ active }: { active: boolean }) {
   ];
 
   return (
-    <div className="coh-calib">
+    <section className="card console-card coh-calib" aria-labelledby="coherence-calibration-heading">
+      <PaneHead
+        kicker="Calibration"
+        title="Were the prices right, once settled"
+        id="coherence-calibration-heading"
+        note={data ? `${data.engine} prices` : "settled corpus"}
+        lede={
+          <>
+            Consistency is cheap: a set of quotes can admit a probability measure exactly and still be wrong about the
+            world. This asks the other question — of the contracts priced near a dime, how many paid — and it turns
+            entirely on <code>engine</code>, which says WHEN the price was read.
+          </>
+        }
+      />
       {/* The one chip no figure, note or heading below already says. Settled
           markets, bands quoted and the engine each repeated a neighbour. */}
       <div className="coh-status__chips">
@@ -380,6 +394,6 @@ export default function CalibrationPane({ active }: { active: boolean }) {
           </p>
         </>
       )}
-    </div>
+    </section>
   );
 }

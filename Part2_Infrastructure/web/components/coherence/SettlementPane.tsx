@@ -3,31 +3,31 @@
 /**
  * What the contract actually resolves against, which is not the price you watch.
  *
- * A weather contract on this venue settles on the mean of a published index
+ * A weather contract on this venue settles on the MEAN of a published index
  * over a window, and the number a screen shows is the latest print of that
  * index. Those are two different quantities and the gap between them —
- * `spot_minus_window` — is the basis a position carries for free. The figure
- * draws it as a bracket and states it in its own reading, which is why no lead
- * paragraph restates it three lines above: two copies of one number are two
- * things to keep in agreement, and the drawn one is the one with the evidence
- * beside it.
+ * `spot_minus_window` — is the basis a position carries for free.
  *
- * The pane answers two questions, and they are two views of the section's
- * `.seg` rather than one long scroll. TODAY'S READING is the reading itself:
- * the figure, and the quality-control fields that decide whether the average
- * means anything — how many minutes the feed flagged, how many stations
- * contributed at the thinnest and thickest point, and which QC configuration
- * produced the numbers. The average is shown twice, with and without the
- * flagged minutes, since the only way to find out whether today's flags matter
- * is to see both. FORMATION is the machinery: whether the rule that turns
- * station readings into the published minute still reproduces it, what the
- * stations have reported that the exchange has not published yet, and the two
- * standing facts about the deployment.
+ * REBUILT 2026-08-24 on the reported complaint: "no figures and a lot of
+ * words". Half of that was fair and half was worse than it looked. TODAY'S
+ * READING did draw one chart, but the chart sat under a heading and a chip row
+ * and above a five-row table of prose, so the reader met three paragraphs of
+ * explanation before a number. FORMATION drew nothing at all: it was two tables
+ * whose subject is a PIPELINE — stations, quality control, a published minute,
+ * a sixty-minute mean — and a table cannot show that the figure a contract
+ * settles on is four transformations away from a thermometer.
  *
- * Those two are stated as facts, not errors. CF Benchmarks is gated on an
- * account ENTITLEMENT rather than on signing, so no demo key opens it and no
- * amount of retrying will; and exactly one city is published, so a request for
- * any other is answered `not_covered` rather than with an empty series.
+ * So both halves lead with a drawing and the prose is the caption under it.
+ * `FormationDiagram` carries the chain and its measurements; `PendingMinutes`
+ * draws the station DISAGREEMENT as the bar, because a provisional index built
+ * from readings 3.6 apart is a different object from the same figure built from
+ * readings that agree — and that was a column in a table nobody scanned.
+ *
+ * Two facts are stated rather than drawn, because they are properties of the
+ * deployment and not measurements: CF Benchmarks is gated on an account
+ * ENTITLEMENT rather than on signing, so no demo key opens it and no amount of
+ * retrying will; and exactly one city is published, so a request for any other
+ * is answered `not_covered` rather than with an empty series.
  *
  * The unreadable states sit outside both views. A feed that could not be read
  * is reported whichever half of it the reader asked for.
@@ -37,7 +37,9 @@ import { toCenticents } from "@/lib/coherence/fixed-point";
 import type { CoherenceSettlementFeed } from "@/lib/coherence/types-lab";
 import { settlementRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
+import FormationDiagram, { type FormationStage } from "./FormationDiagram";
 import IndexBasisChart from "./IndexBasisChart";
+import PendingMinutes from "./PendingMinutes";
 import { StateChip } from "./Figure";
 
 /** The one city the venue publishes. Probed, not assumed — see the driver. */
@@ -48,8 +50,8 @@ function ReferenceRate({ state, detail }: { state: string; detail: string }) {
     return (
       <p className="coh-settle__standing">
         <span aria-hidden="true">○</span> Reference rate withheld: the CF Benchmarks passthrough is gated on an
-        account entitlement, not on request signing, so a demo key does not open it and retrying cannot — a standing
-        property of this deployment, not a fault in this read. {detail ? `${detail}.` : ""}
+        account entitlement, not on request signing, so a demo key does not open it and retrying cannot. A standing
+        property of this deployment, not a fault in this read.
       </p>
     );
   }
@@ -67,32 +69,18 @@ function ReferenceRate({ state, detail }: { state: string; detail: string }) {
   );
 }
 
-/** The view that answers what today reads: the figure and its quality control. */
+/** The view that answers what today reads: the figure, then its quality control. */
 function TodayReading({ data }: { data: CoherenceSettlementFeed }) {
   // Compared as exact integers rather than as strings: "87.812" and "87.8120"
   // are the same number and a text comparison would report them as different.
   const average = toCenticents(data.window_average);
   const clean = toCenticents(data.window_average_clean);
   const flagsMatter = average != null && clean != null && average !== clean;
-  const contributors =
-    data.contributors_min == null || data.contributors_max == null
-      ? null
-      : data.contributors_min === data.contributors_max
-        ? `${data.contributors_min} throughout`
-        : `${data.contributors_min} at the thinnest, ${data.contributors_max} at the thickest`;
+  const thin = data.contributors_min != null && data.contributors_max != null
+    && data.contributors_min !== data.contributors_max;
 
   return (
     <>
-      <h4>Today&rsquo;s reading: the average this contract settles against, not its latest print</h4>
-
-      {/* One chip, because the other four each restated something drawn or
-          tabulated within this same view: the average and the flag count are
-          rows of the table below, and the latest print and the basis are the
-          bracket and the label at the right-hand edge of the figure. */}
-      <div className="coh-status__chips">
-        <StateChip mark="●" word="City" value={data.city ?? "—"} tone="muted" />
-      </div>
-
       <IndexBasisChart
         samples={data.samples}
         windowMinutes={data.window_minutes}
@@ -102,168 +90,106 @@ function TodayReading({ data }: { data: CoherenceSettlementFeed }) {
         spotMinusWindow={data.spot_minus_window}
       />
 
-      <div className="table-wrap">
-        <table className="coh-table">
-          <caption className="coh-table__caption">
-            Quality control, as the feed publishes it. The two averages are the same quantity computed over the same
-            window, once with the flagged minutes and once without.
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">Reading</th>
-              <th scope="col" className="num">Value</th>
-              <th scope="col">What it is</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <th scope="row">Window average</th>
-              <td className="num">{data.window_average ?? "—"}</td>
-              <td>Every minute in the {data.window_minutes}-minute window, flagged ones included.</td>
-            </tr>
-            <tr>
-              <th scope="row">Window average, flagged excluded</th>
-              <td className="num">{data.window_average_clean ?? "—"}</td>
-              <td>
-                {data.window_average_clean == null
-                  ? "Not published for this read; a dash, not a repeat of the figure above."
-                  : flagsMatter
-                    ? "Different from the figure above, so the flags move the number today."
-                    : "The same number as above, so the flags do not move it today."}
-              </td>
-            </tr>
-            <tr>
-              <th scope="row">Flagged minutes</th>
-              <td className="num">{data.degraded_samples}</td>
-              <td>Of {data.sample_count} samples in the read, marked ▲ on the chart.</td>
-            </tr>
-            <tr>
-              <th scope="row">Contributing stations</th>
-              <td className="num">
-                {data.contributors_min == null || data.contributors_max == null
-                  ? "—"
-                  : `${data.contributors_min} to ${data.contributors_max}`}
-              </td>
-              <td>{contributors ? `${contributors}; a thin minute is one few stations agreed on.` : "Not published in this read."}</td>
-            </tr>
-            <tr>
-              <th scope="row">QC configuration</th>
-              <td className="num">{data.config_version || "—"}</td>
-              <td>The version of the quality-control rules that produced these flags.</td>
-            </tr>
-          </tbody>
-        </table>
+      {/* The quality control that decides whether the average above means
+          anything, as chips rather than as a five-row table of prose. Each is
+          a measurement; the sentence under them is the only one needed. */}
+      <div className="coh-status__chips">
+        <StateChip mark="●" word="City" value={data.city ?? "—"} tone="muted" />
+        <StateChip
+          mark={data.degraded_samples ? "▲" : "●"}
+          word="Flagged minutes"
+          value={`${data.degraded_samples} of ${data.sample_count}`}
+          tone={data.degraded_samples ? "warn" : "good"}
+        />
+        <StateChip
+          mark={flagsMatter ? "▲" : "●"}
+          word={flagsMatter ? "Flags move it" : "Flags do not move it"}
+          value={data.window_average_clean ?? "—"}
+          tone={flagsMatter ? "warn" : "good"}
+        />
+        <StateChip
+          mark={thin ? "▲" : "●"}
+          word="Stations in"
+          value={
+            data.contributors_min == null || data.contributors_max == null
+              ? "—"
+              : thin
+                ? `${data.contributors_min} to ${data.contributors_max}`
+                : `${data.contributors_min} throughout`
+          }
+          tone={thin ? "warn" : "good"}
+        />
+        <StateChip mark="●" word="QC rules" value={data.config_version || "—"} tone="muted" />
       </div>
+
+      <p className="coh-settle__note">
+        Both averages are the same quantity over the same {data.window_minutes}-minute window, once with the flagged
+        minutes and once without;{" "}
+        {data.window_average_clean == null
+          ? "the clean figure is not published for this read, so it is a dash rather than a repeat of the other."
+          : flagsMatter
+            ? "they differ, so today's flags move the number a contract settles on."
+            : "they agree, so today's flags do not move the number a contract settles on."}{" "}
+        A thin minute is one few stations agreed on.
+      </p>
     </>
   );
 }
 
 /** The view that answers how the number is made, and what is still owed. */
 function Formation({ data }: { data: CoherenceSettlementFeed }) {
-  const pending = data.pending ?? [];
+  const stages: FormationStage[] = [
+    {
+      title: "Stations",
+      value: data.stations.length ? `${data.stations.length} members` : "—",
+      note: data.stations.length ? data.stations.join(" ") : "no per-station detail",
+      holds: data.stations.length ? true : null,
+    },
+    {
+      title: "Quality control",
+      value: data.config_version || "—",
+      note: `${data.degraded_samples} of ${data.sample_count} flagged`,
+      holds: data.config_version ? true : null,
+    },
+    {
+      title: "Published minute",
+      value: `${data.formation_agreed} of ${data.formation_checked}`,
+      note: data.formation_holds ? "rule reproduced" : "rule does not hold",
+      holds: data.formation_holds,
+    },
+    {
+      title: "Settlement window",
+      value: `${data.window_minutes} min`,
+      note: data.quorum_gaps > 0 ? `${data.quorum_gaps} minutes missing` : "continuous, no gaps",
+      holds: data.quorum_gaps > 0 ? false : true,
+    },
+  ];
+
   return (
     <>
-      <h4>Formation: how this index is formed, and what it has not published yet</h4>
+      <FormationDiagram
+        stages={stages}
+        caption="How the settlement index is formed, stage by stage"
+        reading={
+          data.formation_holds
+            ? `This read reproduced the published value as the mean of its quality-controlled stations on all `
+              + `${data.formation_checked} completed minutes, so the provisional figures below rest on evidence.`
+            : `The rule did not reproduce the published value here, so nothing below should be traded on: ${data.formation_detail}`
+        }
+        missing={
+          data.quorum_gaps > 0
+            ? `${data.quorum_gaps} minutes are missing from the series. The venue omits a minute whose quorum failed, `
+              + "so these are minutes the index was not computed rather than minutes it went unreported."
+            : null
+        }
+      />
 
-      {/* Four independent measurements, so four rows rather than one run of
-          prose that welded them together and could only be read in order. */}
-      <div className="table-wrap">
-        <table className="coh-table">
-          <caption className="coh-table__caption">
-            What this read could establish about the machinery behind the published minute.
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">Reading</th>
-              <th scope="col" className="num">Value</th>
-              <th scope="col">What it is</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <th scope="row">Formation rule reproduced</th>
-              <td className="num">
-                {data.formation_agreed} of {data.formation_checked}
-              </td>
-              <td>
-                Completed minute(s) whose published value this read reproduced as the mean of the member stations
-                that cleared quality control — a rule this read tests rather than assumes.
-              </td>
-            </tr>
-            <tr>
-              <th scope="row">Does the rule hold</th>
-              <td className="num">
-                <span aria-hidden="true">{data.formation_holds ? "●" : "▲"}</span>{" "}
-                {data.formation_holds ? "Holds" : "Does not hold"}
-              </td>
-              <td>
-                {data.formation_holds
-                  ? "It holds here, so the provisional figures below rest on evidence."
-                  : `It does not hold here, so nothing below should be traded on: ${data.formation_detail}`}
-              </td>
-            </tr>
-            <tr>
-              <th scope="row">Member stations</th>
-              <td className="num">{data.stations.length || "—"}</td>
-              <td>
-                {data.stations.length
-                  ? `Stations: ${data.stations.join(", ")}.`
-                  : "This read carried no per-station detail."}
-              </td>
-            </tr>
-            <tr>
-              <th scope="row">Minutes missing from the series</th>
-              <td className="num">{data.quorum_gaps}</td>
-              <td>
-                {data.quorum_gaps > 0
-                  ? "The venue omits a minute whose quorum failed, so these are minutes the index was not computed rather than minutes it went unreported."
-                  : "No minute is missing from the series, so the window average is over a continuous window."}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      {pending.length === 0 ? (
-        <p className="coh-settle__note">
-          <span aria-hidden="true">◌</span> No minute is inside the receipt deadline right now, so there is nothing
-          the stations have reported that the exchange has not already published.
-        </p>
-      ) : (
-        <div className="table-wrap">
-          <table className="coh-table">
-            <caption className="coh-table__caption">
-              Minutes the stations have reported and the exchange has not published an index for. The index arrives
-              in two stages, so inside this window the next value is arithmetic on data already handed over rather
-              than a forecast. The spread is how far the stations disagree: a wide one means the mean beside it
-              averages readings that do not agree.
-            </caption>
-            <thead>
-              <tr>
-                <th scope="col">Minute</th>
-                <th scope="col" className="num">Provisional index</th>
-                <th scope="col" className="num">Station spread</th>
-                <th scope="col" className="num">Stations in</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pending.map((row) => (
-                <tr key={row.ts_ms}>
-                  <th scope="row">{new Date(row.ts_ms).toISOString().slice(11, 16)} UTC</th>
-                  <td className="num">{row.provisional ?? "—"}</td>
-                  <td className="num">{row.spread ?? "—"}</td>
-                  <td className="num">{row.stations}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <PendingMinutes rows={data.pending ?? []} units={data.units || "index units"} />
 
       <p className="coh-settle__note">
-        Figures are in {data.units || "the index\u2019s own units, which this read did not carry"}, as the feed states
-        them. Coverage is one city: a request for any other is answered as not covered rather than with an empty
-        series, so nothing here should be read as venue-wide.
+        Figures are in {data.units || "the index’s own units, which this read did not carry"}, as the feed states
+        them. Coverage is one city: any other is answered as not covered rather than with an empty series, so nothing
+        here is venue-wide.
       </p>
 
       <ReferenceRate state={data.reference_rate_state} detail={data.reference_rate_detail} />

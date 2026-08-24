@@ -614,6 +614,23 @@
   .heatmap-cell:focus-visible {
     stroke: CanvasText;
   }
+
+  /* The Kalshi engine's own marks. Each pair is already distinguished by
+     SHAPE — a filled disc against a hollow square, a box outline against an
+     arrow — so High Contrast only has to hand them the user's ink; nothing
+     here is recovering a meaning that colour was carrying alone. */
+  .coh-basket__buy,
+  .coh-pending__spread {
+    fill: currentColor;
+  }
+
+  .coh-basket__sell,
+  .coh-form__box {
+    stroke: currentColor;
+  }
+
+  .coh-form__arrow line { stroke: currentColor; }
+  .coh-form__arrow polygon { fill: currentColor; }
 }
 
 /* Research doubles as its own evidence pack. Printing reveals every Research

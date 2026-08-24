@@ -119,6 +119,11 @@ class CoherenceUniverse(BaseModel):
     state: str
     events: list[CoherenceEventView] = Field(default_factory=list)
     watchlist: list[str] = Field(default_factory=list)
+    # What each watched series is ABOUT, keyed by series ticker — Kalshi's own
+    # `category` ("Crypto", "Climate and Weather"), never inferred from the
+    # ticker. A series missing from this map is one the exchange would not
+    # answer for, which the surface reports rather than filling in.
+    categories: dict[str, str] = Field(default_factory=dict)
     notes: list[str] = Field(default_factory=list)
 
 

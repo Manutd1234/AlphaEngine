@@ -71,13 +71,13 @@ function stepPath(steps: Step[], x: (v: number) => number, y: (v: number) => num
 function missingLine(surface: CoherenceSurface, unreadable: number, rises: number): string {
   const parts = [surface.detail];
   if (surface.basis) {
-    parts.push(`Read from the ${surface.basis} side of each book, so every level here is a price someone is actually showing.`);
+    parts.push(`Read from the ${surface.basis} side of each book, so every level is a price someone is showing.`);
   }
   if (unreadable) {
-    parts.push(`${unreadable} probe(s) arrived with a strike or a survival this desk could not parse exactly and were left out rather than rounded in.`);
+    parts.push(`${unreadable} probe(s) could not be parsed exactly and were left out rather than rounded in.`);
   }
   if (rises) {
-    parts.push(`${rises} step(s) rise with the strike, marked ▲ rising. P(X ≥ k) cannot increase as k increases, so those are quoted violations, drawn as they arrived.`);
+    parts.push(`${rises} step(s) rise with the strike, marked ▲. P(X ≥ k) cannot increase, so those are quoted violations, drawn as they arrived.`);
   }
   return parts.filter(Boolean).join(" ");
 }

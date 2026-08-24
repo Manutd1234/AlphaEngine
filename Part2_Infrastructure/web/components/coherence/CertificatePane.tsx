@@ -33,6 +33,7 @@ import { useState } from "react";
 
 import type { CoherenceCertificate, CoherenceEventView } from "@/lib/coherence/types";
 import { certifyRoute } from "@/lib/coherence/routes";
+import PaneHead, { PaneHeadEmpty } from "./PaneHead";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import DollarBar from "./DollarBar";
 import Figure, { FigureEmpty, StateChip } from "./Figure";
@@ -129,19 +130,35 @@ export default function CertificatePane({
     active && Boolean(target),
   );
 
+  const head = {
+    kicker: "Dutch book",
+    title: "The coherence test & its certificate",
+    id: "coherence-certificate-heading",
+    note: `${events.length} ${events.length === 1 ? "family" : "families"} testable`,
+    lede: (
+      <>
+        The answer is almost always &ldquo;coherent&rdquo;, and that is the claim rather than a disappointment: a
+        detector that spoke only when it found something would leave &ldquo;no opportunity&rdquo; and &ldquo;the feed
+        is down&rdquo; looking identical. Proof is the whole portfolio, checkable by hand.
+      </>
+    ),
+  };
+
   if (!events.length) {
     return (
-      <p className="console-empty">
-        <span aria-hidden="true">◌</span> Nothing to test yet — the Universe section reads the
-        families this engine prices; none has been read.
-      </p>
+      <section className="card console-card coh-certificate" aria-labelledby="coherence-certificate-heading">
+        <PaneHeadEmpty head={head} mark="◌">
+          Nothing to test yet — Markets → Universe reads the families this engine prices, and none has been read.
+        </PaneHeadEmpty>
+      </section>
     );
   }
 
   const chosen = events.find((event) => event.event_ticker === target) ?? events[0];
 
   return (
-    <div className="coh-certificate">
+    <section className="card console-card coh-certificate" aria-labelledby="coherence-certificate-heading">
+      <PaneHead {...head} />
       <div className="coh-certificate__pick">
         <span className="muted">Family</span>
         <div className="seg coh-books__picker" role="group" aria-label="Choose a family to test">
@@ -191,7 +208,7 @@ export default function CertificatePane({
 
           {view === "portfolio" ? (
             <>
-              <h4>Portfolio</h4>
+              <h4 className="console-subhead">Portfolio</h4>
               {data.legs.length ? (
                 <LegTable certificate={data} />
               ) : (
@@ -202,7 +219,7 @@ export default function CertificatePane({
             </>
           ) : view === "proof" ? (
             <>
-              <h4>The proof, as a reader checks it</h4>
+              <h4 className="console-subhead">The proof, as a reader checks it</h4>
               {data.proof ? (
                 <pre className="coh-proof">{data.proof}</pre>
               ) : (
@@ -213,7 +230,7 @@ export default function CertificatePane({
 
               {data.notes.length ? (
                 <>
-                  <h4 id="coh-certificate-notes">What the test noted alongside the proof</h4>
+                  <h4 className="console-subhead" id="coh-certificate-notes">What the test noted alongside the proof</h4>
                   <ul className="coh-notes" aria-labelledby="coh-certificate-notes">
                     {data.notes.map((note, index) => (
                       <li key={`${index}-${note}`}>{note}</li>
@@ -224,7 +241,7 @@ export default function CertificatePane({
             </>
           ) : (
             <>
-              <h4>Verdict</h4>
+              <h4 className="console-subhead">Verdict</h4>
 
               {data.verdict === "coherent" && data.priced_out ? (
                 <Figure
@@ -297,6 +314,6 @@ export default function CertificatePane({
           )}
         </>
       )}
-    </div>
+    </section>
   );
 }

@@ -1,0 +1,150 @@
+/* ==========================================================================
+   The Universe section, rebuilt 2026-08-24 — the watchlist figure, the asset
+   filter, and the outcome table's disclosure.
+
+   Its own partial rather than an addition to 10a: that file holds the whole
+   Kalshi plane and is the one every other pane on both tabs reads, so a change
+   here should not be a change to the shape of a book, a lesson card or the
+   status pane. The reason the section needed rebuilding is in
+   `UniversePane.tsx`'s header — measured against the live exchange, four
+   watched families carry 80, 188, 6 and 6 markets, so the old per-family
+   stack of two bars and a full table put 280 rows of quotes above the fold.
+   ========================================================================== */
+
+/* Switcher and asset filter on one row: they choose different things — the
+   question, and the noun — and stacked they read as one control with six
+   options. Wraps rather than shrinks, because a squeezed <select> truncates
+   the category name, which is the only word in it. */
+.coh-universe__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+/* The desk's own filter grammar — the label beside the control, not above it.
+   Copied from `.data-workboard__sort` deliberately: a reader who has used the
+   work board's Sort should not have to learn a second one here. */
+.coh-universe__filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+/* Two words, and they are the label for the control beside them: wrapped to
+   two lines they read as a heading over it instead. The row already wraps, so
+   at a width where this cannot sit beside the switcher the whole control moves
+   down rather than the words breaking. */
+.coh-universe__filter > span { white-space: nowrap; }
+
+.coh-universe__filter select {
+  font-size: var(--fs-xs);
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  color: var(--text-primary);
+}
+
+/* ── The watchlist figure ───────────────────────────────────────────────── */
+
+/* One class for every string drawn inside the overview's SVG. It reads the
+   same --fs-tick rung the ladder and the identity figures use, so the three
+   charts on this tab do not each have their own idea of what a tick is. */
+.coh-axis__label {
+  fill: var(--text-secondary);
+  font-size: var(--fs-tick);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Buy is a filled disc, sell a hollow square. The pair has to be tellable
+   apart with every hue stripped — a house rule and, in forced-colors, the only
+   thing left. The High Contrast fallbacks for every mark in this file live in
+   the ONE authoritative forced-colors block, in
+   15-navigator-and-trailing-layer.css. Two suites hold that there is exactly
+   one of those and they count the RAW text, so a partial may not open a second
+   — and may not quote the query in a comment either, which is why this
+   sentence spells it out in words. */
+.coh-basket__buy {
+  fill: var(--series-1);
+  stroke: var(--surface-1);
+  stroke-width: 1;
+}
+
+.coh-basket__sell {
+  fill: none;
+  stroke: var(--text-primary);
+  stroke-width: 1.6;
+}
+
+
+/* ── The outcome table's disclosure ─────────────────────────────────────── */
+
+/* Closed it is one line; open it is exactly the table it always was. The
+   summary states the row count, so the cost of opening is known before the
+   click rather than discovered by scrolling. */
+.coh-event__outcomes > summary {
+  cursor: pointer;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  padding: 4px 0;
+}
+
+.coh-event__outcomes > summary:hover { color: var(--text-primary); }
+
+.coh-event__outcomes[open] > summary {
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+/* ── The formation chain ────────────────────────────────────────────────── */
+
+/* One box per transformation. The border is the box; the fill is the surface
+   the card already sits on, so a chain of four does not read as four buttons.
+   `is-broken` is a border weight and a mark, never a hue alone — the ▲ on the
+   title is what carries it in forced-colors. */
+.coh-form__box {
+  fill: var(--surface-2);
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.coh-form__box.is-broken {
+  stroke: var(--series-2);
+  stroke-width: 2;
+}
+
+.coh-form__title {
+  fill: var(--text-primary);
+  font-size: var(--fs-tick);
+  font-weight: 650;
+}
+
+.coh-form__value {
+  fill: var(--text-primary);
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.coh-form__note {
+  fill: var(--text-secondary);
+  font-size: var(--fs-tick);
+}
+
+.coh-form__arrow line { stroke: var(--text-secondary); }
+.coh-form__arrow polygon { fill: var(--text-secondary); }
+
+
+/* ── Pending minutes ────────────────────────────────────────────────────── */
+
+/* The bar is the station DISAGREEMENT, not the value — see the component's
+   header for why that is the length worth drawing. */
+.coh-pending__spread {
+  fill: color-mix(in srgb, var(--series-1) 55%, var(--surface-1));
+  stroke: var(--series-1);
+  stroke-width: 1;
+}
+

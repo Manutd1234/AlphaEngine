@@ -197,7 +197,7 @@ export default function MurphyBars({
   ].filter((bar) => bar.drawn < FLOOR_PX);
   const flooredNames = floored.map((bar) => bar.name).join(", ");
   const floorNote = floored.length
-    ? `${flooredNames} would stand under ${FLOOR_PX} pixels tall beside Uncertainty and ${floored.length === 1 ? "is" : "are"} drawn at a ${FLOOR_PX}-pixel floor instead, so ${floored.length === 1 ? "it is" : "they are"} visible at all. Read the number printed under ${floored.length === 1 ? "that bar" : "those bars"}, not the height. The inset below drops Uncertainty and redraws Reliability, Resolution and Binning at a scale of their own; the Brier bar is not in it, because it is the thing those three add up to.`
+    ? `${flooredNames} ${floored.length === 1 ? "is" : "are"} drawn at a ${FLOOR_PX}-pixel floor beside Uncertainty, so read the printed number rather than the height. The inset below drops Uncertainty and redraws the other three at a scale of their own.`
     : null;
 
   const identity = `${cut(reliability)} − ${cut(resolution)} + ${cut(uncertainty)} + ${cut(binning)} = ${cut(brier)}`;
@@ -219,25 +219,25 @@ export default function MurphyBars({
   const smallest = insetBars.reduce((carry, bar) => (Math.abs(bar.value) < Math.abs(carry.value) ? bar : carry));
   const thinNames = insetThin.map((bar) => bar.term.name).join(" and ");
   const insetMissing =
-    `Uncertainty is excluded from this inset. It is base × (1 − base) — a property of the questions, not of the exchange — so it is the one term here no price could have moved, and it is not a score in its own right` +
+    `Uncertainty is out: it is base × (1 − base), a property of the questions rather than of the exchange, so no price could have moved it` +
     (uncertaintyValue > 0 && Math.abs(smallest.value) > 0
-      ? `. At ${cut(uncertainty)} it is about ${ratioOf(uncertaintyValue, Math.abs(smallest.value))} times ${smallest.term.name}, which is precisely what flattens the waterfall above.`
+      ? ` — and at ${cut(uncertainty)}, about ${ratioOf(uncertaintyValue, Math.abs(smallest.value))} times ${smallest.term.name}, it is what flattens the waterfall above.`
       : `, at ${cut(uncertainty)}.`) +
-    ` Nothing here adds up to a Brier score; the identity is drawn in full above and only there.` +
+    ` Nothing here sums to a Brier score; the identity is drawn above and only there.` +
     (insetThin.length
-      ? ` Even at this scale ${thinNames} ${insetThin.length === 1 ? "stands" : "stand"} under ${SUBPIXEL_PX} pixel, so ${insetThin.length === 1 ? "it is" : "they are"} not drawn at all rather than floored a second time — the printed number beneath ${insetThin.length === 1 ? "it is" : "them is"} the whole measurement.`
+      ? ` ${thinNames} ${insetThin.length === 1 ? "stands" : "stand"} under ${SUBPIXEL_PX} pixel even here, so ${insetThin.length === 1 ? "it is" : "they are"} named rather than floored twice.`
       : "");
   const insetReading =
     Math.abs(smallest.value) > 0
-      ? `${biggest.term.name} is the largest of the three at ${cut(biggest.term.raw)} and ${smallest.term.name} the smallest at ${cut(smallest.term.raw)} — about ${ratioOf(Math.abs(biggest.value), Math.abs(smallest.value))} to one, which is the comparison the waterfall above cannot carry at any height. Bar length here is the size of a term; the sign printed with its name is the part it plays in the identity, and the waterfall is where the signs are drawn.`
-      : `${smallest.term.name} is zero at every place the engine sent, and ${biggest.term.name}, at ${cut(biggest.term.raw)}, is the largest of the three. Bar length here is the size of a term; the sign printed with its name is the part it plays in the identity.`;
+      ? `${biggest.term.name} ${cut(biggest.term.raw)} against ${smallest.term.name} ${cut(smallest.term.raw)} — about ${ratioOf(Math.abs(biggest.value), Math.abs(smallest.value))} to one, the comparison the waterfall cannot carry at any height. Length is a term's size; the sign beside its name is its part in the identity.`
+      : `${smallest.term.name} is zero at every place the engine sent; ${biggest.term.name}, at ${cut(biggest.term.raw)}, is the largest of the three. Length is a term's size; the sign beside its name is its part in the identity.`;
 
   return (
     <div className="coh-calib__murphy">
       <Figure
         caption="Brier = Reliability − Resolution + Uncertainty + Binning, reconstructed"
         ariaLabel={`A waterfall of four terms landing on a Brier score of ${cut(brier)}; resolution subtracts, the other three add`}
-        reading={`${identity}. Each bar starts where the previous one ended, and the line is cut from the engine's decimal strings at ${places} places — truncated, never rounded. The closure is not a check this figure ran: the engine returns Binning as Brier minus the other three, so the four terms reconstruct the score by construction and what the drawing is for is the size of each one. Resolution is the only one that goes down, which is the sign to keep hold of: more resolution is a better score, and it is the one term a forecaster who always quotes the base rate cannot earn.`}
+        reading={`${identity}. Bars are cumulative, truncated to ${places} places and never rounded. The closure is not a check this figure ran — the engine derives Binning as Brier minus the other three — so what the drawing is for is the SIZE of each term. Resolution is the only one that subtracts, and the only one a forecaster quoting the base rate cannot earn.`}
         missing={floorNote}
       >
         <Plot height={HEIGHT}>
@@ -368,7 +368,7 @@ export default function MurphyBars({
         <Figure
           caption="Inset — Reliability, Resolution and Binning at their own scale, Uncertainty excluded"
           ariaLabel="The three terms other than Uncertainty are all zero, so there is no scale to draw them at"
-          missing="Uncertainty is excluded from this inset because it belongs to the questions rather than to the exchange. The three terms that are left are each zero at every place the engine sent, which is a measurement and not a gap — there is simply no scale for them to be drawn against."
+          missing="Uncertainty is out because it belongs to the questions, not to the exchange. The three left are zero at every place the engine sent — a measurement, not a gap, and no scale to draw them against."
         >
           <FigureEmpty reason="Reliability, Resolution and Binning are all zero — nothing to scale them against." />
         </Figure>

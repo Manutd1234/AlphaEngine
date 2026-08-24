@@ -544,6 +544,7 @@ export interface CoherenceSurvivalPoint {
 }
 
 export interface CoherenceUniverse {
+  categories?: Record<string, string>;
   events?: Array<CoherenceEventView>;
   notes?: Array<string>;
   state: string;

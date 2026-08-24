@@ -125,8 +125,8 @@ export default function DistributionView({ surface }: { surface: CoherenceSurfac
 
       <FactTable caption="The moments of the implied distribution, and the mass they are taken over" facts={moments(surface)} />
       <p className="coh-surface__moments-note">
-        <span aria-hidden="true">◌</span> Every moment above is {surface.moments_note}. A row reading
-        &ldquo;Not computed.&rdquo; is one that mass leaves undefined — missing, rather than zero.
+        <span aria-hidden="true">◌</span> Every moment above is {surface.moments_note}. &ldquo;Not
+        computed.&rdquo; means the mass leaves it undefined — missing, never zero.
       </p>
     </>
   );
