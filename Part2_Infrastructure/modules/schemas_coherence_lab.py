@@ -214,6 +214,37 @@ class CoherenceCalibration(BaseModel):
     detail: str = ""
 
 
+class CoherenceCalibrationPoint(BaseModel):
+    """One scoring run, as it was taken. Every figure is nullable.
+
+    A run against a corpus that will not score keeps its nulls and carries
+    ``detail`` as the reason: a zero Brier here is a perfect forecaster at the
+    origin of every chart drawn afterwards. ``engine`` travels with the point
+    because ``tape`` is a forecast test and ``final_trade`` is not, and one line
+    through both would plot foresight and convergence as one measurement.
+    """
+
+    ts_ns: int
+    engine: str
+    markets: int = 0
+    brier: str | None = None
+    skill: str | None = None
+    base_rate: str | None = None
+    uncertainty: str | None = None
+    bias_slope: str | None = None
+    median_horizon_s: int | None = None
+    thin: bool = False
+    detail: str | None = None
+
+
+class CoherenceCalibrationHistory(BaseModel):
+    """The settled score over time, oldest first so a chart can plot it."""
+
+    state: str
+    points: list[CoherenceCalibrationPoint] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
 class CoherenceCompositionRow(BaseModel):
     series_ticker: str
     count: int = 0

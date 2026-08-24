@@ -36,6 +36,9 @@ ROUTES: dict[str, tuple[str, str, dict | None]] = {
     "GET /api/coherence/fees": ("GET", "/api/coherence/fees?price=0.5000&contracts_fp=1.00&fills=1", None),
     "GET /api/coherence/index": ("GET", "/api/coherence/index?limit=1", None),
     "GET /api/coherence/episodes": ("GET", "/api/coherence/episodes?limit=1", None),
+    "GET /api/coherence/calibration/history": (
+        "GET", "/api/coherence/calibration/history?limit=1", None,
+    ),
     "GET /api/coherence/replay": ("GET", "/api/coherence/replay?limit=1", None),
     # The lab routes. Every one is a read as well: the lab computes readings
     # from what the engine already fetched and adds no write path.

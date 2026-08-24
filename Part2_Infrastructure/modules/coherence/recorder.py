@@ -30,11 +30,13 @@ from modules.backoff import Backoff
 from modules.coherence import tunables
 from modules.coherence.drivers.kalshi_rest import KalshiClient, KalshiUnavailable
 from modules.coherence.episodes import EpisodeTracker
+from modules.coherence.fs import calibration_store
 from modules.coherence.fs.store import BookRow, CoherenceStore, TapeUnavailable, get_store
 from modules.coherence.kernel.coherence_index import measure
 from modules.coherence.kernel.costs import FeeSchedule
 from modules.coherence.kernel.lattice import build_component
 from modules.coherence.scheduler.budget import get_read_budget
+from modules.coherence.syscalls import calibrate
 from modules.coherence.syscalls.certify import certify
 from modules.coherence.syscalls.observe import Observation, observe_series
 
@@ -187,6 +189,35 @@ async def _measure(observation: Observation, store: CoherenceStore, tracked: Rec
         tracked.episodes_closed += 1
 
 
+def score_if_due(store: CoherenceStore, now_ns: int | None = None) -> bool:
+    """Take one settled score when the cadence says it is due. Returns whether it wrote.
+
+    THE BOOK POLL IS NOT THE RIGHT CLOCK FOR THIS. Nothing settles in five
+    minutes, so scoring on every poll would write three hundred near-identical
+    rows a day and call it a series. `COHERENCE_CALIBRATION_EVERY_S` is its own
+    cadence and is off unless set.
+
+    IT COSTS NO EXCHANGE READ, and that is why it takes no client. `calibrate.score`
+    is handed the store alone — no harvest — so it scores settlements the tape
+    already holds. A scoring pass that fetched would put a second, slower call
+    inside a loop whose whole budget is spent on books.
+
+    A REFUSAL IS STILL A ROW. On a cold tape nothing has settled and the report
+    comes back with null figures and a reason; writing it is what makes "the
+    recorder was running and the corpus was not ready" distinguishable from a
+    gap in the record.
+    """
+    every = tunables.CALIBRATION_EVERY_SECONDS
+    if every <= 0:
+        return False
+    stamp = time.time_ns() if now_ns is None else now_ns
+    last = calibration_store.last_calibration_ns(store)
+    if last is not None and stamp - last < every * 1_000_000_000:
+        return False
+    calibration_store.record_calibration(store, calibrate.score(store), now_ns=stamp)
+    return True
+
+
 def _schedule() -> FeeSchedule:
     """The fee shape the recorder prices with.
 
@@ -232,6 +263,12 @@ async def recorder_loop() -> None:
                 _STATE.last_error = None
                 backoff = Backoff(base_s=BACKOFF_BASE_S, ceiling_s=BACKOFF_CEILING_S)
                 logger.debug("coherence: wrote %d books", written)
+                # After the books, never instead of them: a scoring pass that
+                # raised would otherwise cost the poll its tape. Threaded for
+                # the reason every other DuckDB write here is — the event loop
+                # is not held by the disk.
+                if await asyncio.to_thread(score_if_due, store):
+                    logger.debug("coherence: recorded a settled score")
                 await asyncio.sleep(tunables.POLL_SECONDS)
             except asyncio.CancelledError:
                 raise

@@ -21,12 +21,15 @@ from fastapi import APIRouter, Depends, Query
 
 from modules.api.deps import trader_identity
 from modules.coherence.episodes import Episode, survival, verdict_for
+from modules.coherence.fs import calibration_store
 from modules.coherence.fs.replay import rows_from_store
 from modules.coherence.fs.store import TapeUnavailable, get_store
 from modules.coherence.kernel.money import format_dollars
 from modules.coherence.recorder import episode_tracker
 from modules.coherence.syscalls.replay import run
 from modules.schemas import (
+    CoherenceCalibrationHistory,
+    CoherenceCalibrationPoint,
     CoherenceEpisode,
     CoherenceEpisodes,
     CoherenceEpisodeSample,
@@ -86,6 +89,58 @@ async def coherence_index(
         measured=measured,
         unmeasurable=len(points) - measured,
     )
+
+
+@router.get("/api/coherence/calibration/history", response_model=CoherenceCalibrationHistory)
+async def coherence_calibration_history(
+    since_ts_ns: int = Query(default=0, ge=0),
+    limit: int = Query(default=2000, ge=1, le=20_000),
+    _actor: str = Depends(trader_identity),
+) -> CoherenceCalibrationHistory:
+    """The settled score over time — the Scorecard's missing time axis.
+
+    ``/api/coherence/calibration`` scores whatever has settled and answers about
+    one moment. It cannot answer the question a reader asks next, which is
+    whether the venue is getting better, so the recorder writes a score on its
+    own slow cadence and this is the tape of them.
+
+    Here rather than beside ``/calibration`` on the lab router because that is
+    the seam the two files already have: the lab answers what is true of the
+    exchange NOW, this module what has been true of it over time.
+
+    Two properties a reader is entitled to and a bare series would hide. The
+    figures are nullable — a run against a corpus that would not score keeps its
+    nulls and its reason, because a zero Brier is a perfect forecaster at the
+    origin of every chart drawn afterwards. And the series accrues FORWARD ONLY:
+    nothing back-fills it, so the first point is where the recorder started and
+    not where the venue did.
+    """
+    try:
+        rows = calibration_store.calibration_history(
+            get_store(), since_ts_ns=since_ts_ns, limit=limit
+        )
+    except TapeUnavailable as exc:
+        return CoherenceCalibrationHistory(state="unavailable", notes=[str(exc)])
+    if not rows:
+        return CoherenceCalibrationHistory(
+            state="empty",
+            notes=[
+                "no score has been recorded yet; the recorder writes one on its own cadence, "
+                "which is off until COHERENCE_CALIBRATION_EVERY_S is set"
+            ],
+        )
+    points = [CoherenceCalibrationPoint(**row) for row in rows]
+    refused = sum(1 for point in points if point.brier is None)
+    notes = [
+        "the series accrues forward only: it begins where the recorder began, "
+        "not where the venue did"
+    ]
+    if refused:
+        notes.append(
+            f"{refused} of {len(points)} runs could not be scored and carry null figures "
+            "with the reason, rather than a zero"
+        )
+    return CoherenceCalibrationHistory(state="ok", points=points, notes=notes)
 
 
 @router.get("/api/coherence/episodes", response_model=CoherenceEpisodes)

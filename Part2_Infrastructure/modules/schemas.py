@@ -51,6 +51,8 @@ from modules.schemas_coherence import CoherenceSurvivalPoint as CoherenceSurviva
 from modules.schemas_coherence import CoherenceUniverse as CoherenceUniverse  # noqa: F401
 from modules.schemas_coherence_lab import CoherenceBin as CoherenceBin  # noqa: F401
 from modules.schemas_coherence_lab import CoherenceCalibration as CoherenceCalibration  # noqa: F401
+from modules.schemas_coherence_lab import CoherenceCalibrationHistory as CoherenceCalibrationHistory  # noqa: F401,E501
+from modules.schemas_coherence_lab import CoherenceCalibrationPoint as CoherenceCalibrationPoint  # noqa: F401,E501
 from modules.schemas_coherence_lab import CoherenceCombo as CoherenceCombo  # noqa: F401
 from modules.schemas_coherence_lab import CoherenceComboLeg as CoherenceComboLeg  # noqa: F401
 from modules.schemas_coherence_lab import CoherenceComboRow as CoherenceComboRow  # noqa: F401

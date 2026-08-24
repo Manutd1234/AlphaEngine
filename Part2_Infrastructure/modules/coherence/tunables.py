@@ -77,6 +77,16 @@ DEMO_PRIVATE_KEY_PATH: Final = os.environ.get("KALSHI_DEMO_PRIVATE_KEY_PATH", ""
 SERIES_WATCHLIST: Final = tuple(s.strip() for s in _env("COHERENCE_SERIES", "").split(",") if s.strip())
 POLL_SECONDS: Final = _env_int("COHERENCE_POLL_S", 0)  # 0 keeps the recorder off
 
+# How often the recorder scores the SETTLED corpus, which is a different
+# question on a different clock. Nothing settles in five minutes, so scoring on
+# every book poll would write three hundred near-identical rows a day and call
+# it a series; the Scorecard's trend wants a point every few hours. Off by
+# default for the reason POLL_SECONDS is: a process that starts doing work the
+# moment it boots is not something to enable by accident. It costs no exchange
+# read whatever it is set to — the score is taken over settlements already on
+# the tape, never over a fresh harvest.
+CALIBRATION_EVERY_SECONDS: Final = _env_int("COHERENCE_CALIBRATION_EVERY_S", 0)
+
 # How many open events per series one poll reads. Bounds the tape, and the tape
 # is what needs bounding: measured on the live exchange, KXBTCD alone carries
 # three open events totalling 318 markets, and recording all of them every
