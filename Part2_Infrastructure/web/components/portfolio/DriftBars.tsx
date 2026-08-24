@@ -38,21 +38,29 @@ import { pct, signedPct, usd } from "@/lib/format";
 import type { RebalanceTrade, TargetWeight } from "@/lib/portfolio-risk";
 
 /**
- * The right margin holds `12.3% → 39.2% capped`, which at 9.5px in the mono
- * face is about 120px. It was 116, so the marker ran past the viewBox and was
- * clipped — the one annotation whose whole job is to say the target was not
- * arrived at freely.
+ * The right margin holds `100.0% → 100.0% capped`, the longest string the
+ * gutter can be asked to draw: 22 glyphs in the mono face. The 2026-08-24
+ * diagram lift moved that annotation off the 10px tick floor — it is words,
+ * not an axis numeral — onto the 12px rung, so the width was re-derived
+ * rather than re-guessed: 22 × 12 × MONO_ADVANCE_EM (0.605) = 159.7px, plus
+ * the 10px offset from `plotRight` = 169.7px. 150 held the same string at
+ * 10px (133.1 + 10 = 143.1) and would now clip it, which is exactly the
+ * defect the old note records.
  */
-const MARGIN = { top: 14, right: 150, bottom: 34, left: 88 };
+const MARGIN = { top: 14, right: 174, bottom: 34, left: 88 };
 const ROW = 26;
 /** Between a bar end and its figure. */
 const LABEL_GAP = 5;
 /**
- * Monospace advance at 10px, near enough. This decides only whether a label
- * fits in the gutter beside its bar, so an approximation is the right tool —
- * measuring text properly would mean a DOM round trip per row per render.
+ * Monospace advance of the drift figure, which is drawn at the 13px series
+ * rung (2026-08-24: it was 12, and this constant still read 6 — the advance
+ * for 10px — so every figure was measured a fifth narrower than it draws).
+ * 13 × MONO_ADVANCE_EM (0.605) = 7.865, rounded up. This decides only whether
+ * a label fits in the gutter beside its bar, so an approximation is the right
+ * tool — measuring text properly would mean a DOM round trip per row per
+ * render — but it must approximate the size that ships.
  */
-const GLYPH = 6;
+const GLYPH = 7.9;
 
 export default function DriftBars({
   targets,
@@ -159,7 +167,7 @@ export default function DriftBars({
 
           return (
             <g key={target.symbol}>
-              <text x={MARGIN.left - 8} y={barY + 9} textAnchor="end" fontSize={13}
+              <text x={MARGIN.left - 8} y={barY + 9} textAnchor="end" fontSize={14}
                 fill="var(--text-secondary)" fontWeight={650}>
                 {target.symbol}
               </text>
@@ -186,7 +194,7 @@ export default function DriftBars({
                 x={placed.x}
                 y={barY + 9.5}
                 textAnchor={placed.anchor}
-                fontSize={12}
+                fontSize={13}
                 fontFamily="var(--mono)"
                 fill={inside ? "var(--text-muted)" : "var(--text-primary)"}
               >
@@ -194,7 +202,7 @@ export default function DriftBars({
               </text>
 
               {/* Right margin: only where the two denominators agree. */}
-              <text x={plotRight + 10} y={barY + 9.5} fontSize={10} fontFamily="var(--mono)"
+              <text x={plotRight + 10} y={barY + 9.5} fontSize={12} fontFamily="var(--mono)"
                 fill="var(--text-muted)">
                 {capBinds
                   ? "—"
@@ -206,24 +214,24 @@ export default function DriftBars({
         })}
 
         {/* The words carry direction, not the hue. */}
-        <text x={MARGIN.left} y={base + 20} fontSize={10} fill="var(--text-secondary)">
+        <text x={MARGIN.left} y={base + 20} fontSize={12} fill="var(--text-secondary)">
           trim
         </text>
-        <text x={plotRight} y={base + 20} textAnchor="end" fontSize={10}
+        <text x={plotRight} y={base + 20} textAnchor="end" fontSize={12}
           fill="var(--text-secondary)">
           add
         </text>
-        <text x={x(0)} y={base + 20} textAnchor="middle" fontSize={10}
+        <text x={x(0)} y={base + 20} textAnchor="middle" fontSize={12}
           fill="var(--text-muted)" fontFamily="var(--mono)">
           on target
         </text>
-        <text x={x(driftBand)} y={MARGIN.top - 6} textAnchor="middle" fontSize={10}
+        <text x={x(driftBand)} y={MARGIN.top - 6} textAnchor="middle" fontSize={12}
           fill="var(--text-muted)" fontFamily="var(--mono)">
           ±{pct(driftBand, 0)} band
         </text>
 
         {unbalancedSum != null && (
-          <text x={x(0)} y={base + 32} textAnchor="middle" fontSize={10}
+          <text x={x(0)} y={base + 32} textAnchor="middle" fontSize={12}
             fill="var(--status-warning)">
             trades withheld — weights sum to {pct(unbalancedSum, 1)}
           </text>

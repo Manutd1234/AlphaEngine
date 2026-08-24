@@ -88,7 +88,7 @@ export default function McHistogram({ result }: { result: McDistributionResult }
               x={x(marker.value)}
               y={height + 14}
               textAnchor="middle"
-              fontSize={10}
+              fontSize={12}
               fill={marker.mildest ? "var(--text-muted)" : "var(--critical-text)"}
             >
               {marker.label}

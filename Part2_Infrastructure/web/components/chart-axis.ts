@@ -45,7 +45,7 @@
 export const MONO_ADVANCE_EM = 0.605;
 
 /** Size of a tick label, in SVG user units. On the inline rung list. */
-export const TICK_FONT_SIZE = 12.5;
+export const TICK_FONT_SIZE = 13;
 
 /** Clear space required between two neighbouring labels — about 1.6 characters. */
 export const LABEL_CLEARANCE = 12;

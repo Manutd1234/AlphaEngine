@@ -143,7 +143,7 @@ export default function SpreadDecomposition({
             const labelRoom = Math.max(0, groupW - LABEL_CLEARANCE);
             const name = fitLabel(venue.venue, labelRoom);
             const subLabel = `${venue.fills} fills`;
-            const subFits = subLabel.length * 10 * MONO_ADVANCE_EM <= labelRoom;
+            const subFits = subLabel.length * 12 * MONO_ADVANCE_EM <= labelRoom;
 
             return (
               <g key={venue.venue}>
@@ -174,7 +174,7 @@ export default function SpreadDecomposition({
                   <title>{`${venue.venue} — realized spread not measured`}</title>
                 </rect>
                 <text x={x0 + barW * 2 + 12 + barW / 2} y={MARGIN.top + plotH * 0.3}
-                  textAnchor="middle" fontSize={10} fill="var(--text-muted)" fontFamily="var(--mono)">
+                  textAnchor="middle" fontSize={12} fill="var(--text-muted)" fontFamily="var(--mono)">
                   n/a
                 </text>
 
@@ -190,7 +190,7 @@ export default function SpreadDecomposition({
                 </text>
                 {subFits && (
                   <text x={x0 + (barW * 3 + 12) / 2} y={base + 29} textAnchor="middle"
-                    fontSize={10} fill="var(--text-muted)" fontFamily="var(--mono)">
+                    fontSize={12} fill="var(--text-muted)" fontFamily="var(--mono)">
                     {subLabel}
                   </text>
                 )}

@@ -224,18 +224,16 @@ const ROLES: Record<string, Role> = {
     ],
   },
   "sub-subtab": {
-    rung: "--fs-sm",
-    why: "The THIRD level of navigation, and the one nobody had audited: a `.seg` pane "
-      + "switcher inside a single panel, under the role tabs and the section rail. It "
-      + "is not in the URL and not in lib/sections.ts, so no routing test reaches it "
-      + "and it was never in this map. Measured across all 48 rail sections on "
-      + "2026-08-23, all 103 visible instances on the eight tabs computed one size and "
-      + "one weight — 11.14 / 13 / 15.79px at compact / comfortable / large, weight "
-      + "550 — so the level was already standardised and this entry is what stops it "
-      + "drifting. One rung under `subtab` on purpose, and it must STEP with the "
-      + "preference like the rail above it rather than take a fixed chrome token: at "
-      + "13 fixed px it would out-shout a 12px subtab for every reader on Compact, "
-      + "which is the inversion this entry's ordering test now forbids.",
+    rung: "--fs-body",
+    why: "The THIRD level of navigation: a `.seg` pane switcher inside one panel, under "
+      + "the role tabs and the section rail. Not in the URL and not in lib/sections.ts, "
+      + "so no routing test reaches it. It read --fs-sm — 11.14 / 13 / 15.79px, one "
+      + "rung under `subtab` — until 2026-08-24 and this ask: \"for markets and "
+      + "coherence subtabs and subsubtabs, standardize the font size to 14\". The ask "
+      + "was two tabs and the change is TEN, because it cannot be two: seg-metrics, "
+      + "tab-chrome-metrics and type-scale each refuse a per-tab seg size by name. Full "
+      + "record in nav-type-markets-coherence.test.ts. It still STEPS with the "
+      + "preference rather than taking a fixed chrome token.",
     anchors: [".seg button"],
   },
   "subtab": {
@@ -350,15 +348,17 @@ describe("the roles stand in the order a reader reads them", () => {
   it("the three navigation levels stand in their own order, at every preset", () => {
     // MEASURED IN CHROME over all 48 rail sections on 2026-08-23, at all three
     // presets, because nothing in this repository can see a pixel: tab 13px
-    // fixed, subtab 12 / 14 / 17, sub-subtab 11.14 / 13 / 15.79. Stated at
-    // step 1 only, for the same reason the prose chain above is — both rungs
-    // multiply the same --type-step. What CANNOT be stated that way is a fixed
-    // rung against a stepping one, which is why the sub-subtab must not reach
-    // for a --fs-chrome-* token and why that is asserted rather than argued.
-    assert.ok(
-      minPx(ROLES["subtab"].rung) > minPx(ROLES["sub-subtab"].rung),
-      "a pane switcher inside a section may not out-shout the rail that opened it",
-    );
+    // fixed, subtab 12 / 14 / 17, sub-subtab 11.14 / 13 / 15.79 — the last of
+    // which became 12 / 14 / 17 on 2026-08-24, on the ask recorded in the
+    // sub-subtab role. Stated at step 1 only, for the same reason the prose
+    // chain above is — both rungs multiply the same --type-step. What CANNOT be
+    // stated that way is a fixed rung against a stepping one, which is why the
+    // sub-subtab must not reach for a --fs-chrome-* token, asserted below.
+    // `>=` since 2026-08-24: the invariant is "does not OUT-SHOUT the rail",
+    // never "is smaller", so a LARGER switcher is still forbidden. Equal is not
+    // out-shouting — the seg is a bordered group with a raised chip in it.
+    assert.ok(minPx(ROLES["subtab"].rung) >= minPx(ROLES["sub-subtab"].rung),
+      "a pane switcher inside a section may not out-shout the rail that opened it");
     for (const role of ["subtab", "sub-subtab"]) {
       assert.match(
         rootBlock,

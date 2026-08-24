@@ -208,7 +208,7 @@ export default function VarBacktestChart({
               x={x1 + 6}
               y={yScale(-points[points.length - 1].var95)}
               dominantBaseline="middle"
-              fontSize={10}
+              fontSize={12}
               fontFamily="var(--mono)"
               fill="var(--diverging-neg)"
             >

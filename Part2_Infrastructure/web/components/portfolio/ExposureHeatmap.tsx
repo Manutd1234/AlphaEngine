@@ -133,7 +133,7 @@ export default function ExposureHeatmap({
 
             return (
               <g key={cell.symbol}>
-                <text x={MARGIN.left - 8} y={barY + 9} textAnchor="end" fontSize={13}
+                <text x={MARGIN.left - 8} y={barY + 9} textAnchor="end" fontSize={14}
                   fill="var(--text-secondary)" fontWeight={650}>
                   {cell.symbol}
                 </text>
@@ -146,7 +146,7 @@ export default function ExposureHeatmap({
                       fill="none" stroke="var(--border)" strokeWidth={1} strokeDasharray="3 3" rx={2}>
                       <title>{`${cell.symbol} — no symbol limit published`}</title>
                     </rect>
-                    <text x={x(0) + 8} y={barY + 9} fontSize={10} fill="var(--text-muted)"
+                    <text x={x(0) + 8} y={barY + 9} fontSize={12} fill="var(--text-muted)"
                       fontFamily="var(--mono)">
                       n/a
                     </text>
@@ -163,18 +163,18 @@ export default function ExposureHeatmap({
                     {u > 1 && (
                       // Clamped for the bar, honest in the text. The caret says
                       // the value ran past the axis rather than stopping at it.
-                      <text x={x(1) + 4} y={barY + 9.5} fontSize={13} fill="var(--status-critical)">
+                      <text x={x(1) + 4} y={barY + 9.5} fontSize={14} fill="var(--status-critical)">
                         ›
                       </text>
                     )}
                   </>
                 )}
 
-                <text x={plotRight + 8} y={barY + 6} fontSize={12.5} fill="var(--text-primary)"
+                <text x={plotRight + 8} y={barY + 6} fontSize={13} fill="var(--text-primary)"
                   fontFamily="var(--mono)">
                   {u == null ? "—" : pct(u, 0)}
                 </text>
-                <text x={plotRight + 8} y={barY + 17} fontSize={10} fill="var(--text-muted)"
+                <text x={plotRight + 8} y={barY + 17} fontSize={12} fill="var(--text-muted)"
                   fontFamily="var(--mono)">
                   {pct(cell.share, 1)} gross
                 </text>
@@ -185,7 +185,7 @@ export default function ExposureHeatmap({
           {/* Hand-placed, not XAxis: that helper drops labels inside `minGap`,
               and a dropped label on a four-mark axis loses the limit. */}
           {AXIS_MARKS.map((mark) => (
-            <text key={mark} x={x(mark)} y={base + 18} textAnchor="middle" fontSize={10}
+            <text key={mark} x={x(mark)} y={base + 18} textAnchor="middle" fontSize={12}
               fill="var(--text-muted)" fontFamily="var(--mono)">
               {mark === 1 ? "limit" : pct(mark, 0)}
             </text>

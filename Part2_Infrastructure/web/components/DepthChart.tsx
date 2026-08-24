@@ -158,7 +158,7 @@ function DepthChart({
 
         {/* the neutral midpoint of the diverging scale */}
         <line x1={x(mid)} x2={x(mid)} y1={y1} y2={y0} stroke="var(--text-muted)" strokeWidth={1} />
-        <text x={x(mid)} y={y1 + 9} textAnchor="middle" fontSize={12} fill="var(--text-muted)" fontFamily="var(--mono)">
+        <text x={x(mid)} y={y1 + 9} textAnchor="middle" fontSize={13} fill="var(--text-muted)" fontFamily="var(--mono)">
           mid {fmt(mid, dp)}
         </text>
 
@@ -169,7 +169,7 @@ function DepthChart({
             x={x(p)}
             y={y0 + 15}
             textAnchor={i === 0 ? "start" : i === 2 ? "end" : "middle"}
-            fontSize={12.5}
+            fontSize={13}
             fill="var(--text-muted)"
             fontFamily="var(--mono)"
           >

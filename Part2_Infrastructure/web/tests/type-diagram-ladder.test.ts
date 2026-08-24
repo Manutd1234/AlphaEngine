@@ -65,29 +65,55 @@ function minPx(token: string): number {
  * Four rungs, smallest first, and the relation is stated at the COMPACT preset
  * because that is where prose is smallest and the inversion is worst:
  *
- *   10    axis ticks and bar labels. Equals --fs-tick, which is the floor of the
- *         whole sheet and the reason `type-ladder-presets.test.ts` keeps prose
- *         at least half a pixel above it.
- *   12    a series label inside the plot.
- *   12.5  a dense series label where 12 collides with its neighbour.
- *   13    a chart's own title or legend, the loudest furniture allowed.
+ *   10    true axis NUMERALS. Equals --fs-tick, which is the floor of the whole
+ *         sheet and the reason `type-ladder-presets.test.ts` keeps prose at
+ *         least half a pixel above it.
+ *   12    words inside a plot that are not a series label: an edge caption, a
+ *         direction word, a missing-value mark, a secondary sub-label.
+ *   13    a series or row label inside the plot, and the roomier charts' own
+ *         axis numerals.
+ *   14    a chart's own title, legend or in-plot note — the loudest furniture
+ *         allowed.
  *   15    one in-chart figure.
  *   25    one donut centre figure, which is a KPI that happens to be drawn in a
  *         circle rather than furniture, and is sanctioned by name in
  *         type-scale.test.ts.
  *
- * MEASURED, AND NOT FIXED HERE: --fs-body at compact is 12px, so the 24 labels
- * at 12.5 and above sit ABOVE reading text for a reader on the smallest setting,
- * which inverts chart furniture against prose. Fixing it means editing 13 chart
- * components, two of which are held by other work in flight, and it moves pixels
- * on every chart on the desk. So it is RATCHETED instead: the count may fall and
- * may not rise, which stops the inversion widening while leaving the repair to a
- * pass that can do all 13 files at once.
+ * THE LADDER MOVED ON 2026-08-24, and the arithmetic is the whole argument. A
+ * reader said three times that the words inside these figures were too small;
+ * three passes had lifted PROSE, which is not what he was reading. So 12 → 13,
+ * 12.5 → 13 and 13 → 14, and the words that had been drawn at the NUMERAL rung
+ * came up to the 12 the labels vacated — a rung is re-tenanted rather than
+ * added, so the ladder keeps its shape and loses its half-pixel step.
+ *
+ * WHAT CAPS IT. Reading prose on this desk is `body { font-size: var(--fs-title) }`
+ * — 1.0625rem × 16 × --type-step, so 14.571 / 17.000 / 20.643px at compact /
+ * comfortable / large. Compact binds, because that is where prose is smallest
+ * and SVG text does not shrink with it. The sheet already owns a separation
+ * constant for exactly this relation, at the other end of the ladder:
+ * `type-ladder-presets.test.ts` requires --fs-2xs at compact to sit ≥ 0.5px
+ * above --fs-tick. Applied at the top, 14.571 − 0.5 = 14.071px, so 14 is the
+ * loudest rung the ladder may hold. REJECTED: 14.5, which clears compact prose
+ * by 0.071px and therefore claims a separation no reader can see; and 15 for
+ * legends, which is 0.43px ABOVE compact reading prose and would deepen the
+ * inversion the ledger below exists to shrink. REJECTED at the floor: 11 for
+ * the numerals — --fs-2xs at compact is 10.714px, the same 0.5px separation
+ * caps --fs-tick at 10.214, and the guard requires a whole number, so 10 is
+ * the only value left and the ladder's floor cannot move at all.
+ *
+ * MEASURED, AND NOT FIXED HERE: --fs-body at compact is 12px — the CAPTION
+ * rung, one under the reading rung, and the stricter of the two references, so
+ * it is kept as the ledger's yardstick rather than re-pointed at --fs-title.
+ * 34 labels now sit above it, up from 24, because 26 sites landed on 13 where
+ * 16 were at 12.5. That is the inversion widening against captions in order to
+ * close it against READING prose, which is the comparison the reader was
+ * making, and it is recorded here rather than argued away. The ratchet still
+ * bites: each count is an exact cap that may fall and may not rise.
  */
-const SVG_LADDER = new Set([10, 12, 12.5, 13, 15, 25]);
+const SVG_LADDER = new Set([10, 12, 13, 14, 15, 25]);
 
 /** Inline sizes above --fs-body at the compact preset, per value. May shrink. */
-const ABOVE_COMPACT_PROSE: Record<string, number> = { "12.5": 16, "13": 6, "15": 1, "25": 1 };
+const ABOVE_COMPACT_PROSE: Record<string, number> = { "13": 26, "14": 6, "15": 1, "25": 1 };
 
 function componentFiles(dir: string): string[] {
   const out: string[] = [];

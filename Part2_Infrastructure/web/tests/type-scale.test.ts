@@ -68,8 +68,20 @@ const CONTENT_RUNGS = RUNGS.filter(
 
 /** Inline SVG sizes the charts may use, in user units (px at 1:1). Ticks at
  *  10 and the donut figure at 25 stay; the reading labels stepped 11 → 12,
- *  11.5 → 12.5, 12 → 13 and 14 → 15 with the 2026-08-17 lift. */
-const INLINE_SIZES = new Set([10, 12, 12.5, 13, 15, 25]);
+ *  11.5 → 12.5, 12 → 13 and 14 → 15 with the 2026-08-17 lift.
+ *
+ *  The 2026-08-24 lift stepped them again — 12 → 13, 12.5 → 13 and 13 → 14 —
+ *  and moved the WORDS that were sitting on the 10 tick rung up to the 12 the
+ *  labels vacated. 12.5 LEAVES the set rather than being kept beside 13: no
+ *  site draws at it any more, and an allow-list that still names a value
+ *  nothing uses is how a half-pixel rung comes back. The floor is unmoved and
+ *  unmovable — `--fs-2xs` at compact is 10.714px and
+ *  `type-ladder-presets.test.ts` requires 0.5px of clearance over `--fs-tick`,
+ *  which caps the tick at 10.214 and requires a whole number. 14 is the top:
+ *  the same 0.5px clearance under compact `--fs-title` (14.571px) puts the
+ *  ceiling at 14.071. REJECTED: 15 for legends, which sits 0.43px ABOVE
+ *  compact reading prose. */
+const INLINE_SIZES = new Set([10, 12, 13, 14, 15, 25]);
 
 /** Off-scale declarations sanctioned above, matched exactly. `100%` is the
  *  root: the browser's own size, which every rem rung is defined against. */
@@ -245,9 +257,17 @@ describe("one control, one rung", () => {
     );
     const declared = sizers.get(".seg button") ?? [];
     assert.ok(declared.length >= 1, "the seg reads no rung at all");
+    // --fs-sm until 2026-08-24, when the reader asked for "markets and coherence
+    // subtabs and subsubtabs, standardize the font size to 14" and the two-tab
+    // override the ask implies was refused by this assertion's own first half
+    // (and by seg-metrics and tab-chrome-metrics). Converging it here is what
+    // those three demand, so the rung moved for all ten tabs and the level
+    // stayed standardised. Still pinned, and still exact: a THIRD value would be
+    // the drift this test was written against. See type-role-map's sub-subtab
+    // role and nav-type-markets-coherence.test.ts for the whole record.
     assert.equal(
       declared[declared.length - 1],
-      "--fs-sm",
+      "--fs-body",
       "the rung the cascade actually applies to every seg on every tab",
     );
   });

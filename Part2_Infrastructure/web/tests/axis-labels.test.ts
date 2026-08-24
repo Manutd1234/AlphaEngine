@@ -358,8 +358,20 @@ describe("the advance width is measured, not guessed", () => {
   });
 
   it("keeps the tick size on the inline rung the axis draws with", () => {
+    // The first assertion is the one that stops the constant being inlined,
+    // and it is untouched. The second is a PIN on the rung, re-pinned from
+    // 12.5 to 13 on 2026-08-24 when the diagram ladder lifted (12 → 13,
+    // 12.5 → 13, 13 → 14) so a reader could read the words inside a figure.
+    // Still an exact equality, because the defect it catches is the constant
+    // drifting off the sanctioned set in type-scale.test.ts, which no longer
+    // contains 12.5 at all.
     const chartKit = readFileSync(join(root, "components/chart-kit.tsx"), "utf8");
     assert.match(chartKit, /fontSize=\{TICK_FONT_SIZE\}/);
-    assert.equal(TICK_FONT_SIZE, 12.5);
+    assert.equal(TICK_FONT_SIZE, 13);
+    // ADDED with the lift: the y-axis grid draws its numerals as a literal on
+    // the same chart, and the two axes must never ship at two sizes. Reading
+    // it here is what makes "they moved together" checkable.
+    assert.match(chartKit, /fontSize=\{13\}/, "the Grid's own tick literal left TICK_FONT_SIZE behind");
+    assert.doesNotMatch(chartKit, /fontSize=\{12\.5\}/, "a 12.5 survived the lift");
   });
 });

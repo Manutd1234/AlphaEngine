@@ -217,7 +217,7 @@ export default function BreakerStateMachine({
               <rect x={node.boxX} y={BOX_Y} width={BOX_W} height={BOX_H} rx={8}
                 fill="var(--surface-2)" stroke={active ? tone : "var(--border)"}
                 strokeWidth={active ? 1.6 : 1} />
-              <text x={node.cx} y={BOX_Y + 22} textAnchor="middle" fontSize={12.5}
+              <text x={node.cx} y={BOX_Y + 22} textAnchor="middle" fontSize={13}
                 fontWeight={750} fill="var(--text-primary)" fontFamily="var(--mono)">
                 {node.label}
               </text>

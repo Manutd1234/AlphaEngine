@@ -124,7 +124,7 @@ export default function MutationScopeDiagram({
               stroke={chosen ? "var(--critical-text)" : "var(--border)"}
               strokeWidth={chosen ? 1.8 : 1}
             />
-            <text x={LEFT_X + 12} y={y + 22} fontSize={12} fontWeight={650} fill="var(--text-primary)">
+            <text x={LEFT_X + 12} y={y + 22} fontSize={13} fontWeight={650} fill="var(--text-primary)">
               {row.short}
             </text>
           </g>
@@ -155,7 +155,7 @@ export default function MutationScopeDiagram({
               strokeWidth={touched ? 1.8 : 1}
               strokeDasharray={outside ? "4 3" : undefined}
             />
-            <text x={RIGHT_X + 10} y={y + 13} fontSize={12} fontWeight={620} fill="var(--text-primary)">
+            <text x={RIGHT_X + 10} y={y + 13} fontSize={13} fontWeight={620} fill="var(--text-primary)">
               {store.short}
             </text>
             {/* A dash and the reason live in the table; the drawing prints the
@@ -175,7 +175,7 @@ export default function MutationScopeDiagram({
                 x={RIGHT_X + RIGHT_W - 9}
                 y={y + 20}
                 textAnchor="end"
-                fontSize={12}
+                fontSize={13}
                 fill={style.tone}
               >
                 {style.glyph}

@@ -113,7 +113,24 @@ const LABELS = [
 
 /** A conservative advance for the 10-unit label face: prose at this size
  *  averages nearer 0.45em, and over-estimating is the safe direction for a
- *  clipping check. */
+ *  clipping check.
+ *
+ *  UNCHANGED BY THE 2026-08-24 DIAGRAM LIFT, and that is a decision rather than
+ *  an oversight. The lift moved 12 → 13, 12.5 → 13 and 13 → 14 across the desk
+ *  and took the WORDS that were sitting on the 10 tick rung up to 12 — but not
+ *  in this drawing, and the arithmetic is why. This is the one figure with a
+ *  hard width floor (`.card > .breaker-machine { min-width: 480px }`), and at
+ *  that floor an outer node has 0.15 × 480 = 72px either side of its anchor.
+ *  A 26-character line at 12 units would be 26 × (5.2 × 12/10) = 162px, half of
+ *  it 81.1px, which is 9.1px past the margin — so WRAP would have to fall to
+ *  23 (23 × 6.24 / 2 = 71.8 ≤ 72), the half-open detail would wrap to three
+ *  lines instead of two, the caption block would grow to four, and CAP_STEP and
+ *  RAIL_Y would both have to move. The edge labels are worse: the gap an edge
+ *  label lives in is 17% of the card, 81.6px at the floor, and "consecutive
+ *  failures" is 20 characters — 98.4px at 12 units on the 0.41em advance the
+ *  component's own note uses, against 82px of room. That is a reflow of the
+ *  drawing, not a numeral edit, so the six 10-unit labels here were left where
+ *  they are and the constant they are measured with is left with them. */
 const CHAR_W = 5.2;
 
 describe("the drawing is given the whole card", () => {
@@ -248,10 +265,39 @@ describe("the labels do not shrink with the drawing", () => {
     const tick = globalsCss.match(/--fs-tick:\s*(\d+)px/);
     assert.ok(tick, "--fs-tick has left the scale");
     assert.equal(Math.min(...sizes), Number(tick![1]), "no label may fall below the tick rung");
-    for (const size of sizes) assert.ok([10, 12, 12.5, 13, 15].includes(size), `${size} is off the inline scale`);
+    // Re-pinned 2026-08-24 with the diagram lift: 12.5 is off the desk's
+    // sanctioned set entirely (type-scale.test.ts) and 14 is on it, so the
+    // whitelist follows rather than keeping a value nothing may draw at. The
+    // drawing itself now uses 10, 13 (the node label, up from 12.5) and 15.
+    for (const size of sizes) assert.ok([10, 12, 13, 14, 15].includes(size), `${size} is off the inline scale`);
     // And no rung is read from the ladder into the drawing, which would make
     // the geometry move with a preference the geometry cannot follow.
     assert.doesNotMatch(drawing, /var\(--fs-/);
+  });
+
+  it("keeps the node label inside its box at the width floor", () => {
+    /**
+     * The lift moved this one label from 12.5 to 13 units, and the box it sits
+     * in is a percentage, so the check has to be done at the floor where the
+     * box is narrowest. BOX_W is 18% of the card, 86.4px at the 480px minimum.
+     * The label is drawn in the mono face — 0.605em covers the whole shipped
+     * stack, the figure `components/chart-axis.ts` derives from the woff2
+     * subsets — so "HALF-OPEN", the longest of the three, sets 9 × 13 × 0.605
+     * = 70.8px. It cleared at 12.5 (68.1px) and it clears at 13.
+     */
+    const boxPercent = Number(machine.match(/const BOX_W = "([\d.]+)%";/)![1]);
+    const labelSize = Number(drawing.match(/fontSize=\{([\d.]+)\}\n\s*fontWeight=\{750\}/)?.[1]
+      ?? machine.match(/fontSize=\{([\d.]+)\}\s*\n\s*fontWeight=\{750\}/)![1]);
+    const labels = [...machine.matchAll(/label: "([A-Z-]+)"/g)].map((m) => m[1]);
+    assert.ok(labels.length === 3, "the three node labels are no longer literals");
+    const box = (boxPercent / 100) * FLOOR;
+    for (const label of labels) {
+      const drawn = label.length * labelSize * 0.605;
+      assert.ok(
+        drawn <= box,
+        `"${label}" sets ${drawn.toFixed(1)}px at ${labelSize} units and its box is ${box.toFixed(1)}px at the ${FLOOR}px floor`,
+      );
+    }
   });
 
   it("does not scale itself back down in the stylesheet either", () => {

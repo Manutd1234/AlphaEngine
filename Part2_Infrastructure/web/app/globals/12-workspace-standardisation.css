@@ -1463,26 +1463,26 @@ button.primary-action:disabled {
   background: var(--surface-2);
 }
 
-/* The segmented control: one size on eight tabs, in a box that cannot move.
+/* The segmented control: ONE size on all ten tabs, in a box that cannot move.
 
    Four rules sized it and disagreed — 00's `.seg button` (--fs-lg over
    `button`'s 32px), `.research-seg button` (--fs-body), `.blotter-views__bar
    .seg button` (34px, a 14px inset) and this rail's own (24px, --fs-sm) — on a
-   control twenty-two components render. The smallest of the four stayed: the
-   ask was consistent and NOT bigger, and 44px at the fingertip is paid once in
-   15's coarse block. The `border-left` is what stops the resize: 00 seams
-   all-but-the-first segment, so segment one's box was a pixel narrower and the
-   raised chip changed width with the side pressed. Every segment carries it
-   now and 00 only paints it — selection is paint, never metrics, which
-   seg-metrics.test.ts holds, and surface, shadow and `aria-pressed` still say
-   "chosen" without colour. */
+   control twenty-two components render. The rung is --fs-body since 2026-08-24
+   ("standardize the font size to 14"), the rail's own rung, so the two
+   navigation levels compute one size; desk-wide because seg-metrics,
+   tab-chrome-metrics and type-scale each refused a scoped override by name.
+   Record in nav-type-markets-coherence.test.ts. `border-left` stops the resize:
+   00 seams all-but-the-first segment, so segment one was a pixel narrower and
+   the chip changed width with the side pressed. Every segment carries it now
+   and 00 only paints it — selection is paint, never metrics. */
 .seg button {
   min-height: 24px;
   padding: 3px var(--space-2);
   border: 0; border-left: 1px solid transparent;
   background: none;
   color: var(--text-secondary);
-  font-size: var(--fs-sm);
+  font-size: var(--fs-body);
 }
 
 .workspace-subtabs__actions button.primary-action {
