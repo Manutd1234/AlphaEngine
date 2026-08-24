@@ -766,11 +766,12 @@ html:active-view-transition .view-panel {
    strings injected, 2000 → 1080), re-run for every chrome change.
 
    Re-measured twice on 2026-08-23 (drift, then the chrome lift to 14px tabs)
-   and AGAIN on 2026-08-24 for the tenth tab, which moved every rung out and
-   added rung 10. Each rung sits at the width the state above it stops fitting,
-   rounded up to a ten; --text-size=large is byte-identical, because the ladder
-   reads the fixed --fs-chrome-* tokens. Rung 10, the ten measured widths and
-   the method are in 14p-header-ladder-tenth-tab.css.
+   and TWICE on 2026-08-24 — first for the tenth tab, then to REORDER it when
+   that pass spent the room on the wrong things. Each rung sits at the width
+   the state above it stops fitting, rounded up to a ten; --text-size=large is
+   byte-identical, because the ladder reads the fixed --fs-chrome-* tokens.
+   Rungs 4 and 11, the eleven measured widths and the method are in
+   14p-header-ladder-tenth-tab.css.
 
    CrossFlow's rule stands — drop secondary context before letting the
    workspace nav clip — lowest priority first: what the aria-label already
@@ -811,7 +812,7 @@ html:active-view-transition .view-panel {
   display: none;
 }
 
-/* Rung 1 (≤1940, with the Search label rule in 00-tokens-and-base.css): the
+/* Rung 1 (≤2040, with the Search label rule in 00-tokens-and-base.css): the
    Search label, the providers sentence → its short form, the ghost with it. */
 @media (min-width: 901px) and (max-width: 2050px) {
   .system-health__label {
@@ -844,8 +845,8 @@ html:active-view-transition .view-panel {
   }
 }
 
-/* Rung 3 (≤1860): the Settings label. */
-@media (min-width: 901px) and (max-width: 1860px) {
+/* Rung 3 (≤1850): the Settings label. */
+@media (min-width: 901px) and (max-width: 1850px) {
   .workspace-header__utility > .header-settings,
   .workspace-header__utility > .header-anchor > .header-settings {
     width: 36px;
@@ -859,17 +860,18 @@ html:active-view-transition .view-panel {
   }
 }
 
-/* Rung 4 (≤1800): the data-tier label — the rule sits with the chip's own
-   comment, above. Rung 5 (<1740): the Connect / Connected label — the
-   max-[1740px] class in TelegramCta.
+/* Rung 5 (≤1720): the data-tier label — the rule sits with the chip's own
+   comment, above. Rung 6 (<1660): the Connect / Connected label — the
+   max-[1660px] class in TelegramCta. Both moved DOWN the ladder on 2026-08-24:
+   they carry WORDS, and the tagline above them carries none.
 
    Not a rung: the core annotation inside the decision chip. Measured, it adds
    no width — the DECISION P99 caption above it is the wider line — so hiding
    it buys nothing; it stays until the chip's own copy folds (rung 8). */
 
-/* Rung 6 (≤1660): the providers chip is its dot alone — the count is one tap
+/* Rung 7 (≤1590): the providers chip is its dot alone — the count is one tap
    away in Settings and the panel it opens; the aria-label keeps the sentence. */
-@media (min-width: 901px) and (max-width: 1660px) {
+@media (min-width: 901px) and (max-width: 1590px) {
   .system-health-action {
     width: 44px;
     min-width: 44px;
@@ -886,13 +888,9 @@ html:active-view-transition .view-panel {
   }
 }
 
-/* Rung 7 (≤1600): the brand tagline, the tabs' side padding, and the tab
-   labels back to the chip size. */
-@media (min-width: 901px) and (max-width: 1600px) {
-  .brand-copy small {
-    display: none;
-  }
-
+/* Rung 8 (≤1520): the tabs' side padding, and the tab labels back to chip
+   size. The brand tagline used to go here too; it is rung 4 now (14p). */
+@media (min-width: 901px) and (max-width: 1520px) {
   .workspace-tabs button {
     padding-inline: 5px;
   }
@@ -902,7 +900,7 @@ html:active-view-transition .view-panel {
   }
 }
 
-/* Rung 8 (≤1380): the decision figure folds to its gauge; the title still
+/* Rung 9 (≤1380): the decision figure folds to its gauge; the title still
    names both planes and the Reliability tab has the numbers. */
 @media (min-width: 901px) and (max-width: 1380px) {
   .latency-chip__copy {
@@ -915,11 +913,11 @@ html:active-view-transition .view-panel {
   }
 }
 
-/* Rung 9 (≤1290): the Kill switch and Sign in labels fold to their icons —
+/* Rung 10 (≤1280): the Kill switch and Sign in labels fold to their icons —
    the same fold the ≤520px rule makes, a rung earlier for the widths between
    the last one-row fit and the wrap. Both controls keep their aria-label and
    title; HALTED is never folded. */
-@media (min-width: 901px) and (max-width: 1290px) {
+@media (min-width: 901px) and (max-width: 1280px) {
   .header-kill-label,
   .header-signin-label {
     display: none;

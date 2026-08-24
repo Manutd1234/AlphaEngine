@@ -1,6 +1,6 @@
 /* ==========================================================================
-   The header's priority ladder, re-measured for the tenth tab — rung 10 and
-   the numbers behind the whole ladder.
+   The header's priority ladder — rungs 4 and 11, and the numbers behind all
+   eleven.
 
    Its own partial because 14-symbol-combobox.css, which owns rungs 1–9, is on
    `tests/file-size.test.ts`'s OVER_CEILING list and the ratchet only turns one
@@ -17,23 +17,48 @@
    clipped 4–31px at each band's TAIL, so the rungs were already 10–30px late
    before the tab arrived and the previous sweep had not caught it.
 
-   HOW THE NEW WIDTHS WERE FOUND. Not by bisecting the bands, which is slow and
+   THEN REORDERED, SAME DAY, BECAUSE THE FIRST PASS SPENT THE ROOM ON THE WRONG
+   THINGS. Moving every rung out bought the row its 74px, but it did it by
+   folding the data-tier label and the Connect / Connected label at 1800 and
+   1740 — so on a 1722px desk the reader lost the word "Live data" and the word
+   "Connect" while the brand tagline, which says nothing the wordmark does not,
+   stayed. That inverts the ladder's own rule: what a glyph already says goes
+   before any word a reader needs. Reported from a 1722px window; the tagline
+   is rung 4 now and those two labels are rungs 5 and 6.
+
+   MEASURED AGAINST THE WIDEST STRINGS, not against what this deployment
+   happens to be saying, and the first attempt at this pass was not. Telegram's
+   label has five values and "Unavailable" is the longest — three characters
+   past "Connected" — so a ladder tuned while the chip read "Telegram" clipped
+   by 1px at 1716 the moment the companion went unreachable. The data tier's
+   two are "Live data" and "Sandbox", so the longer one is already on screen;
+   the providers chip reserves its own widest through the data-widest ghost
+   pseudo and needs no forcing.
+
+   HOW THE WIDTHS WERE FOUND. Not by bisecting the bands, which is slow and
    which is what missed the drift. The viewport was held at 2400 so no rung
    fires from the stylesheet, the row was CLAMPED to a fixed width instead, and
    each rung's rules were applied cumulatively while the overflow was read off.
    That gives what the row needs in each state directly:
 
-     unfolded  2048      after rung 5  1735      after rung 8  1281
-     rung 1    1949      rung 6        1670      rung 9        1171
-     rung 2    1852      rung 7        1594
-     rung 3    1792
-     rung 4    1735   (rung 5 is the Connect label, a Tailwind class)
+     unfolded  2046      after rung 4  1717      after rung 8  1375
+     rung 1    1947      rung 5        1659      rung 9        1277
+     rung 2    1850      rung 6        1583      rung 10       1167
+     rung 3    1790      rung 7        1518      rung 11       1059
 
    Each rung is set at the PREVIOUS figure rounded up to a ten — the width at
-   which the state above it stops fitting — giving 2050, 1950, 1860, 1800,
-   1740, 1660, 1600, 1380, 1290. `tests/header-wide-width.test.ts` holds that
-   list as a snapshot and `tests/header-ladder.test.ts` holds what each rung
-   sheds.
+   which the state above it stops fitting — giving 2050, 1950, 1850, 1790,
+   1720, 1660, 1590, 1520, 1380, 1280, 1170.
+   `tests/header-wide-width.test.ts` holds that list as a snapshot and
+   `tests/header-ladder.test.ts` holds what each rung sheds.
+
+   Read the fourth column against a real desk: at 1722 rungs 1-4 fire and rung
+   5 does not, so the row needs 1717 of its 1722 and BOTH labels are on screen
+   with the providers count beside them. FIVE pixels of headroom against the
+   worst-case string is thin, and it is what the row costs at ten tabs — the
+   next thing that could pay for more is the tabs' own side padding, worth a
+   measured 60px and invisible at 3px a side. It is rung 8 rather than rung 4
+   only because nobody has asked for that trade; ask before making it.
 
    The measurement is a `flex: 1` trap worth recording: `header-spacer` absorbs
    the surplus, so at any width the row FITS the rightmost control is flush
@@ -42,11 +67,24 @@
    that saved nothing.
    ========================================================================== */
 
-/* Rung 10 (≤1170): the wordmark, leaving the α mark alone.
+/* Rung 4 (≤1790): the brand tagline, leaving the wordmark.
 
-   New with the tenth tab, and the reason the table above ends at 1171 rather
+   Promoted here from the tab rung on 2026-08-24. It is the only thing on the
+   row that is pure decoration — "QUANT OPERATING SYSTEM" restates the wordmark
+   beside it and carries no measurement, no state and no destination — and at
+   72px it is worth more than either of the two labels it now outranks. Folding
+   it first is what keeps "Live" and "Connect" on screen at 1722. */
+@media (min-width: 901px) and (max-width: 1790px) {
+  .brand-copy small {
+    display: none;
+  }
+}
+
+/* Rung 11 (≤1170): the wordmark itself, leaving the α mark alone.
+
+   New with the tenth tab, and the reason the table above ends at 1167 rather
    than clipping on down to the switchover: after every other rung has fired
-   the row still needs 1171px, and the <select> switcher does not take over
+   the row still needs 1167px, and the <select> switcher does not take over
    until 900. There had been nothing left to fold across a 260px band.
 
    This is the last thing on the row that is not a control. The mark is still
