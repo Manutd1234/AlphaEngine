@@ -49,23 +49,6 @@ const SECTION_FILES: Record<string, string> = {
   lessons: "../components/coherence/LessonsPane.tsx",
 };
 
-/**
- * The child that owns a two-level section's VIEW control, where there is one.
- *
- * Dutch book's six views were one flat row and the widest switcher on the desk.
- * They are three GROUPS on the section's own seg now — Coherence test, Basket,
- * Parlays — with the views inside the chosen group drawn by the file named
- * here. That is the shape `SurfacePane` has held on the other rail since the
- * Stake fold, and the same argument `FindingsPane`'s exemption makes.
- *
- * Named rather than counted. Raising the expected seg count to two would let
- * ANY section grow a second control in silence; a table says which file is
- * allowed one and pins it to exactly one.
- */
-const VIEW_OWNERS: Record<string, string> = {
-  certificate: "../components/coherence/CertificateGroups.tsx",
-};
-
 describe("the Proofs rail and its panels agree", () => {
   it("the console draws a panel for every rail id, and no id it does not have", () => {
     const drawn = [...console_.matchAll(/<WorkspaceSubtabPanel workspaceId="coherence" tabId="([a-z]+)"/g)]
@@ -272,34 +255,18 @@ describe("exactly one subtab rail on the tab", () => {
     }
   });
 
-  it("each section draws one seg, and a two-level section names the child that owns its views", () => {
-    // ONE seg in the SECTION file, always. What changed is what that control
-    // CARRIES: where a section has more views than a row can hold, the section
-    // seg carries the groups and the child named in VIEW_OWNERS carries the
-    // views. Raw source, because a `.seg` is a class-name STRING and
-    // `stripNonCode` blanks those.
+  it("each section draws exactly one seg", () => {
+    // ONE seg in the SECTION file, always, and that survived the grouping pass
+    // rather than being relaxed by it: where a section has more views than a
+    // row can hold, its seg carries the GROUPS and a child carries the views.
+    // Which child, and that every view is still reachable, is
+    // `coherence-groups.test.ts` — split out when this file reached the ceiling.
+    // Raw source, because a `.seg` is a class-name STRING and `stripNonCode`
+    // blanks those.
     for (const [id, file] of Object.entries(SECTION_FILES)) {
       const segs = (read(file).match(/className="seg[ "]/g) ?? []).length;
       assert.equal(segs, 1, `${id} draws ${segs} .seg groups, expected 1`);
-      const child = VIEW_OWNERS[id];
-      if (!child) continue;
-      const owned = (read(child).match(/className="seg[ "]/g) ?? []).length;
-      assert.equal(owned, 1, `${child} draws ${owned} .seg groups, expected 1`);
     }
-  });
-
-  it("the group control is what gates the slow read, not the view inside it", () => {
-    // The reason the groups fall where they do. Dutch book's two reads are a
-    // 25-second `certify` and a `combos` call that costs a book read per leg,
-    // and the section has always been gated so that opening it pays for one
-    // and never both. The three Parlay views ARE the combos group, so the
-    // group is the gate — derive it from the view again and a reader pressing
-    // between two views of one group re-arms a call that was already answered.
-    const pane = read(SECTION_FILES.certificate);
-    assert.match(pane, /const onParlays = group === "parlays"/,
-      "the parlay gate reads the view again; it is the GROUP that decides which read runs");
-    assert.match(pane, /active && !onParlays/, "the certify call runs while a reader is on the parlays");
-    assert.match(pane, /active=\{active && onParlays\}/, "the combos read is not gated on its group");
   });
 
   it("a folded pane brings no switcher of its own", () => {
@@ -325,29 +292,19 @@ describe("exactly one subtab rail on the tab", () => {
     );
   });
 
-  it("the six-view and five-view switchers name every option", () => {
+  it("the switchers name every option", () => {
     // Pinned by name because these labels are the only route a reader has to
     // the other views of a section — and for `combos` and `index` they are the
     // only route at all, since both stopped being addressable.
-    // Dutch book's labels live across the pair since the grouping: the three
-    // GROUP names on the section, the six VIEW names on the child. Read as one
-    // string so a label may move file without this suite deciding it was
-    // deleted — what is pinned is that a reader can still reach all six.
-    const certificate = read(SECTION_FILES.certificate) + read(VIEW_OWNERS.certificate);
-    assert.match(certificate, /aria-label="Certificate group"/);
-    assert.match(certificate, /aria-label="Certificate view"/);
-    for (const label of ["Coherence test", "Basket", "Parlays"]) {
-      assert.ok(certificate.includes(`"${label}"`), `Dutch book lost its ${label} group`);
-    }
-    for (const label of ["Verdict", "Proof", "Certificate", "Bands", "Parlays", "Bounds"]) {
-      assert.ok(certificate.includes(`"${label}"`), `Dutch book lost its ${label} view`);
-    }
+    // Dutch book's and Diffusion's own labels moved to
+    // `coherence-groups.test.ts` with the two-level contract, which reads each
+    // across its section AND the child that owns the views — checked there
+    // rather than dropped, since a label that moved file is still reachable.
     const calibration = read(SECTION_FILES.calibration);
     assert.match(calibration, /aria-label="Calibration view"/);
     for (const label of ["Score", "Bands", "Corpus", "Index series", "Index families"]) {
       assert.ok(calibration.includes(`"${label}"`), `Scorecard lost its ${label} view`);
     }
-    assert.match(read(SECTION_FILES.diffusion), /aria-label="Diffusion view"/);
   });
 });
 
