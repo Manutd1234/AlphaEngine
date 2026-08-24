@@ -334,7 +334,7 @@
    distinct shapes for three states. The full sentence is in the aria-label, the
    panel behind the button, and — on any tab reading a generated book — the
    in-page banner that already says the positions do not exist. */
-@media (max-width: 1690px) {
+@media (max-width: 1800px) {
   .data-tier__label {
     display: none;
   }

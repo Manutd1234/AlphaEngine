@@ -55,7 +55,7 @@ const measure = async (tab) => {
   return JSON.parse(r.result.value);
 };
 
-const tabs = ["research", "live", "portfolio", "risk", "data", "reliability", "developer", "coherence", "overview"];
+const tabs = ["research", "live", "portfolio", "risk", "data", "reliability", "developer", "markets", "coherence", "overview"];
 console.log("tab           click→paint   click→idle   longest task   blocking");
 for (const tab of tabs) {
   const m = await measure(tab);

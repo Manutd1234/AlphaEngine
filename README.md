@@ -215,9 +215,10 @@ still retrieves and simply reports `verdict=refused` with the reason, and
 *Who this is for* section opens with a coverage matrix: each role's question,
 where it is answered, and what is honestly still missing. Researchers, traders,
 portfolio managers, risk managers, data engineers, SREs and developers each have
-surfaces, and all of them reconcile to the same rows. The desk is **nine tabs**
-— those seven roles, an overview that launches into them, and **Coherence**, the
-prediction-market engine described below — across **59 rail sections**, every id
+surfaces, and all of them reconcile to the same rows. The desk is **ten tabs**
+— those seven roles, an overview that launches into them, and **Markets** and
+**Coherence**, the two halves of the prediction-market engine described below —
+across **59 rail sections**, every id
 a public deep link declared once in
 [`web/lib/sections.ts`](Part2_Infrastructure/web/lib/sections.ts).
 
@@ -515,7 +516,7 @@ Described one line each, and indexed in full — with what each is *for* — in
 | [`docs/planning/TECH_STACK.md`](docs/planning/TECH_STACK.md) | The stack layer by layer, versions read from the tree. |
 | [`docs/planning/WORKFLOW.md`](docs/planning/WORKFLOW.md) | How to work on AlphaEngine without losing an hour to a trap somebody already fell into. |
 | [`docs/product/PRODUCT_GUIDE.md`](docs/product/PRODUCT_GUIDE.md) | What each tab is for, what a number on screen is allowed to be, what a click may change. |
-| [`docs/product/FEATURE_TOUR.md`](docs/product/FEATURE_TOUR.md) | The guided walkthrough of all nine tabs, pinned to `lib/sections.ts` by a test. |
+| [`docs/product/FEATURE_TOUR.md`](docs/product/FEATURE_TOUR.md) | The guided walkthrough of all ten tabs, pinned to `lib/sections.ts` by a test. |
 | [`docs/testing/TESTING.md`](docs/testing/TESTING.md) | The testing philosophy — and the one document in `docs/` allowed to discuss test counts. |
 | [`docs/whitepaper/`](docs/whitepaper/) | The institutional whitepaper: Typst source, six chapters. No PDF is committed (`*.pdf` is gitignored). |
 

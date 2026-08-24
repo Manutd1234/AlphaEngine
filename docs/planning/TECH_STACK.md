@@ -165,14 +165,17 @@ declares `NAV_ITEMS` — Overview (All Roles), Research (Quant), Execution
 Developer (Dev), Coherence (Quant).
 [`lib/sections.ts`](../../Part2_Infrastructure/web/lib/sections.ts) is where the
 rails, the command palette, the hash whitelist and "Copy link to this view" all
-read from: 3 + 9 + 5 + 5 + 8 + 7 + 5 + 6 + 11 = **59**. Section ids never
-change, because they are public deep links.
+read from: 3 + 9 + 5 + 5 + 8 + 7 + 5 + 6 + 4 + 7 = **59**. Section ids never
+change, because they are public deep links — which is why the Markets/Coherence
+split moved four ids between tabs without changing one of them, and
+`RELOCATED_SECTIONS` in `lib/workspace-hash.ts` is what keeps the old hashes
+resolving.
 [`scripts/desk-sweep-plan.mjs`](../../Part2_Infrastructure/web/scripts/desk-sweep-plan.mjs)
-mirrors the nine tabs by hand and asserts `EXPECTED_SECTIONS = 59`, so a rail
+mirrors the ten tabs by hand and asserts `EXPECTED_SECTIONS = 59`, so a rail
 edited without the sweep being updated fails rather than drifting.
 
-**Coherence uses in-pane `.seg` switchers, and that is a hard rule.** All eleven
-Coherence sections split their content into segmented views inside the section —
+**The Kalshi engine uses in-pane `.seg` switchers, and that is a hard rule.** All
+eleven Markets and Coherence sections split their content into segmented views inside the section —
 Universe (Baskets · Settlement · Formation), Books (Ladder · Identity ·
 Dispersion), Lattice (Distribution · Stake · Whole family), Dutch book (Verdict
 · Portfolio · Proof), Fees (Worked example · Cost shape · Ablation), Coherence

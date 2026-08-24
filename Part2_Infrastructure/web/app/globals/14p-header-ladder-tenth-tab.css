@@ -1,0 +1,63 @@
+/* ==========================================================================
+   The header's priority ladder, re-measured for the tenth tab — rung 10 and
+   the numbers behind the whole ladder.
+
+   Its own partial because 14-symbol-combobox.css, which owns rungs 1–9, is on
+   `tests/file-size.test.ts`'s OVER_CEILING list and the ratchet only turns one
+   way. 14o-header-tabs-surplus.css exists for the same reason and says so.
+
+   WHY THE LADDER MOVED. Splitting the Kalshi engine into Markets and Coherence
+   put a tenth button on a strip that was already 763px of a 1728px row, and a
+   ladder of 20–100px folds cannot absorb a whole tab. Driven over Chrome
+   (production build, guest row, `.workspace-header__primary` measured by
+   `scrollWidth - clientWidth`, which is what `overflow-x: clip` actually
+   loses), the ten-tab row clipped continuously from 2040 down to 1500 and in
+   three bands below that: Settings left the row entirely and "Sign in" was cut
+   in half. The nine-tab row — the same build with `#tab-markets` hidden —
+   clipped 4–31px at each band's TAIL, so the rungs were already 10–30px late
+   before the tab arrived and the previous sweep had not caught it.
+
+   HOW THE NEW WIDTHS WERE FOUND. Not by bisecting the bands, which is slow and
+   which is what missed the drift. The viewport was held at 2400 so no rung
+   fires from the stylesheet, the row was CLAMPED to a fixed width instead, and
+   each rung's rules were applied cumulatively while the overflow was read off.
+   That gives what the row needs in each state directly:
+
+     unfolded  2048      after rung 5  1735      after rung 8  1281
+     rung 1    1949      rung 6        1670      rung 9        1171
+     rung 2    1852      rung 7        1594
+     rung 3    1792
+     rung 4    1735   (rung 5 is the Connect label, a Tailwind class)
+
+   Each rung is set at the PREVIOUS figure rounded up to a ten — the width at
+   which the state above it stops fitting — giving 2050, 1950, 1860, 1800,
+   1740, 1660, 1600, 1380, 1290. `tests/header-wide-width.test.ts` holds that
+   list as a snapshot and `tests/header-ladder.test.ts` holds what each rung
+   sheds.
+
+   The measurement is a `flex: 1` trap worth recording: `header-spacer` absorbs
+   the surplus, so at any width the row FITS the rightmost control is flush
+   right and a right-edge measurement reports the viewport back at you. The
+   first attempt at this reported "2400px" nine times and looked like nine rungs
+   that saved nothing.
+   ========================================================================== */
+
+/* Rung 10 (≤1170): the wordmark, leaving the α mark alone.
+
+   New with the tenth tab, and the reason the table above ends at 1171 rather
+   than clipping on down to the switchover: after every other rung has fired
+   the row still needs 1171px, and the <select> switcher does not take over
+   until 900. There had been nothing left to fold across a 260px band.
+
+   This is the last thing on the row that is not a control. The mark is still
+   the button back to Overview and still carries its aria-label, and
+   `BrandLockup` has always had a `markOnly` prop for exactly this — "the
+   header's narrow breakpoints may want it", written before one did. It is the
+   same fold the ≤520px rule in 01-workspace-shell.css already makes, pulled up
+   into the desk band, which is rung 9's pattern too. Measured saving ~140px,
+   so the row clears the 1110 wrap with room. */
+@media (min-width: 901px) and (max-width: 1170px) {
+  .brand-copy {
+    display: none;
+  }
+}

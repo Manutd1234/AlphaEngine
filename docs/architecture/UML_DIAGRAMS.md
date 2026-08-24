@@ -1,4 +1,4 @@
-# UML diagrams — the anti-twitch machinery, the research pipeline, the parity pin and the Coherence tab
+# UML diagrams — the anti-twitch machinery, the research pipeline, the parity pin and the Kalshi engine
 
 *Drawn from the tree as of 24 August 2026. Every class, member, file and
 constant here was opened and read on that date; if a diagram disagrees with the
@@ -22,7 +22,7 @@ alternatives — are the primary source for everything summarised here.
 | 3 | sequence | `POST /api/research/rag/ask`, the corrective retrieval path |
 | 4 | class | which research module imports which |
 | 5 | flow | the gate-parity fixture, and the three implementations pinned to it |
-| 6 | component | the Coherence tab: eleven sections, `.seg` views, one rail |
+| 6 | component | the Kalshi engine: eleven sections over two tabs, `.seg` views, one rail each |
 
 **A diagram naming a module that no longer exists is a defect.** Every box below
 was checked against the tree in this pass. Two changes to record from it:
@@ -649,46 +649,68 @@ to a committed canonical-JSON reference that carries its own SHA-256.
 
 ---
 
-## 6. The Coherence tab — component diagram
+## 6. The Kalshi engine — component diagram
 
-Eleven rail sections, one `<WorkspaceSubtabs>`, and every sub-view a `.seg`
-button group. The structure is
+Eleven rail sections across **two** tabs since 2026-08-24, one
+`<WorkspaceSubtabs>` each, and every sub-view a `.seg` button group. The
+structure is
+[`web/components/MarketsConsole.tsx`](../../Part2_Infrastructure/web/components/MarketsConsole.tsx)
+(192 lines) and
 [`web/components/CoherenceConsole.tsx`](../../Part2_Infrastructure/web/components/CoherenceConsole.tsx)
-(213 lines) over the eleven ids in
-[`web/lib/sections.ts`](../../Part2_Infrastructure/web/lib/sections.ts).
+(202 lines) over the two id arrays in
+[`web/lib/sections.ts`](../../Part2_Infrastructure/web/lib/sections.ts). The ids
+did not change with the split: `RELOCATED_SECTIONS` in
+[`web/lib/workspace-hash.ts`](../../Part2_Infrastructure/web/lib/workspace-hash.ts)
+routes the four that changed tab, and a section the named tab still has always
+wins over that table.
 
 ```mermaid
 flowchart TB
-    console["CoherenceConsole.tsx<br/>PageHead · one WorkspaceSubtabs rail · StatusPane"]
+    markets["MarketsConsole.tsx<br/>PageHead · WorkspaceSubtabs rail · StatusPane"]
+    coherence["CoherenceConsole.tsx<br/>PageHead · WorkspaceSubtabs rail · StatusPane"]
 
-    subgraph reads["The three reads, all gated"]
-        rstatus["/api/gateway/coherence/status<br/>gated on active only"]
-        runiverse["/api/gateway/coherence/universe?max_events=2<br/>gated on active AND section in<br/>universe / certificate / lattice —<br/>NOT on the sub-view, because three sections share it"]
-        rbooks["/api/gateway/coherence/books<br/>gated on active AND section = books<br/>AND booksView != dispersion"]
+    subgraph routes["lib/coherence/routes.ts — every gateway URL, built once"]
+        rstatus["statusRoute() — gated on active only, on BOTH tabs"]
+        runiverse["universeRoute() — gated on active AND<br/>section in markets:universe / markets:lattice /<br/>coherence:certificate. NOT on the sub-view,<br/>because three sections share it"]
+        rbooks["booksRoute() — gated on active AND<br/>section = books AND booksView != dispersion"]
     end
 
-    console --> rstatus & runiverse & rbooks
+    subgraph warm["The lag fix — lib/coherence/"]
+        cache["read-cache.ts<br/>one answer per URL, in-flight reads joined,<br/>a warmed payload paints only under 100 s old"]
+        sweep["use-section-warming.ts<br/>requestIdleCallback, then one URL every 600 ms<br/>— inside the ~5 req/s the gateway budgets itself"]
+        intent["WorkspaceSubtabs onIntent<br/>pointer or focus on a rail tab warms that section"]
+    end
 
-    subgraph sections["Eleven sections — ids are public deep links and never change"]
+    markets --> rstatus & runiverse & rbooks
+    coherence --> rstatus & runiverse
+    routes --> cache
+    sweep --> cache
+    intent --> cache
+
+    subgraph msec["Markets — four sections"]
         s1["universe → UniverseSection.tsx<br/>.seg Baskets · Settlement · Formation"]
         s2["books → BooksSection.tsx<br/>.seg Ladder · Identity · Dispersion"]
         s3["lattice → SurfacePane.tsx<br/>.seg Distribution · Stake · Whole family<br/>→ surface/DistributionView · StakeView · FamilyView"]
+        s10["shell → ShellPane.tsx<br/>.seg Tree · Reading · Layout"]
+    end
+
+    subgraph csec["Coherence — seven sections"]
         s4["certificate → CertificatePane.tsx (label: Dutch book)<br/>.seg Verdict · Portfolio · Proof"]
         s5["fees → FeesSection.tsx<br/>.seg Worked example · Cost shape · Ablation"]
-        s6["index → IndexPane.tsx<br/>.seg Series · Families"]
         s7["combos → CombosPane.tsx<br/>.seg Bands · Parlays · Bounds test · Notes"]
+        s6["index → IndexPane.tsx<br/>.seg Series · Families"]
         s8["calibration → CalibrationPane.tsx<br/>.seg Score · Bands · Corpus"]
         s9["diffusion → DiffusionPane.tsx<br/>.seg Absorption · Mechanism · Findings · Kalshi episodes"]
-        s10["shell → ShellPane.tsx<br/>.seg Tree · Reading · Layout"]
         s11["lessons → LessonsPane.tsx — secondary on the rail<br/>.seg Prices · Structure · Bounds · Record"]
     end
 
-    console --> s1 & s2 & s3 & s4 & s5 & s6 & s7 & s8 & s9 & s10 & s11
+    markets --> s1 & s2 & s3 & s10
+    coherence --> s4 & s5 & s7 & s6 & s8 & s9 & s11
     runiverse --> s1 & s3 & s4
     rbooks --> s2
-    s2 -->|"onViewChange — the section tells the console<br/>which view is open, because the READ has to live<br/>where active and section are"| console
+    s2 -->|"onViewChange — the section tells the console<br/>which view is open, because the READ has to live<br/>where active and section are"| markets
 
-    feesreads["FeesSection holds BOTH its reads itself,<br/>each gated on its own view:<br/>the fees query on Worked example / Cost shape,<br/>and /replay?limit=20000 — the largest read on<br/>the tab — only on Ablation"]
+    feesreads["FeesSection holds BOTH its reads itself,<br/>each gated on its own view:<br/>the fees query on Worked example / Cost shape,<br/>and replayRoute() — 20,000 rows, the largest read<br/>on either tab — only on Ablation"]
     s5 --> feesreads
 ```
 

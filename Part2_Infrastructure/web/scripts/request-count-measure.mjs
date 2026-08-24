@@ -34,7 +34,7 @@ const ORIGIN = process.env.DESK_ORIGIN ?? "http://localhost:3100";
 const IDLE_MS = Number(process.env.IDLE_MS ?? 60_000);
 const SETTLE_MS = 3_000;
 
-const TABS = ["overview", "research", "live", "portfolio", "risk", "data", "reliability", "developer", "coherence"];
+const TABS = ["overview", "research", "live", "portfolio", "risk", "data", "reliability", "developer", "markets", "coherence"];
 
 const target = await (await fetch(`${CDP}/json/new?about:blank`, { method: "PUT" })).json();
 const ws = new WebSocket(target.webSocketDebuggerUrl);

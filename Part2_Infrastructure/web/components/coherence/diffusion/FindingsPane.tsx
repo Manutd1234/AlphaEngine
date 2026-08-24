@@ -34,6 +34,7 @@
  * the speed of its own errors.
  */
 
+import { findingsRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import Figure, { FigureEmpty, StateChip } from "../Figure";
 import EffectPlot from "./EffectPlot";
@@ -48,7 +49,7 @@ const GATE_MARK: Record<GateCheck["state"], string> = {
 };
 
 export default function FindingsPane({ active }: { active: boolean }) {
-  const { data, error } = useCoherenceRead<FindingsRead>("/api/gateway/diffusion/findings", active);
+  const { data, error } = useCoherenceRead<FindingsRead>(findingsRoute(), active);
 
   if (error && !data) {
     return (

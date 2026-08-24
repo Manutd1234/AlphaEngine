@@ -230,7 +230,7 @@ its inference API takes an image. What changed is *where the vision model runs*
   *which direction an order goes* exactly as loud as a filter, on the one screen
   where misreading it sends a wrong-way trade. Held by `accent-budget.test.ts`.
 - **No chrome metric may follow selection.** The three controls a reader might
-  call "subtabs" — the nine role tabs (`.workspace-tabs`), the section rail
+  call "subtabs" — the ten role tabs (`.workspace-tabs`), the section rail
   (`.workspace-subtabs`) and the in-panel pane switcher (`.seg`) — declare one
   metric set each, and no size, padding, border or inset varies with selection,
   hover, focus or a variant class. A control that grows when pressed moves
@@ -272,7 +272,7 @@ a second dialect and the memory of why.
 
 ## 4. The figure frame: caption, drawing, reading, missing
 
-Every diagram on the Coherence tab is drawn inside one frame —
+Every diagram on Markets and Coherence is drawn inside one frame —
 [`web/components/coherence/Figure.tsx`](../../Part2_Infrastructure/web/components/coherence/Figure.tsx),
 rendered by **21 components** — and the frame's four parts are the standard:
 
@@ -316,7 +316,7 @@ instance inside a section fights the first over it. `CoherenceConsole.tsx`'s
 header states the rule and cites `ReliabilityConsole` as the place it was
 learned.
 
-This is what the Coherence tab's eleven sections are built on — Universe
+This is what the Kalshi engine's eleven sections, across Markets and Coherence, are built on — Universe
 (Baskets · Settlement · Formation), Books (Ladder · Identity · Dispersion),
 Lattice (Distribution · Stake · Whole family), Dutch book (Verdict · Portfolio ·
 Proof), Fees (Worked example · Cost shape · Ablation), Coherence index (Series ·

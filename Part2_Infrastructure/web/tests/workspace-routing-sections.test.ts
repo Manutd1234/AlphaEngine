@@ -60,6 +60,7 @@ function sectionIdsFor(workspace: string): string[] {
 const dataConsole = read("../components/DataConsole.tsx");
 const reliabilityConsole = read("../components/ReliabilityConsole.tsx");
 const developerConsole = read("../components/DeveloperConsole.tsx");
+const marketsConsole = read("../components/MarketsConsole.tsx");
 const coherenceConsole = read("../components/CoherenceConsole.tsx");
 const dataWorkBoard = ["../components/data/DataWorkBoard.tsx", "../components/data/DataWorkCard.tsx", "../components/data/WorkComposer.tsx", "../components/data/work-board-model.ts"]
   .map((p) => { try { return read(p); } catch { return ""; } }).join("\n");
@@ -91,12 +92,24 @@ describe("dense role workspaces expose accessible feature sections", () => {
     );
   });
 
-  it("Alt+1–9 reads physical key codes and never fires while typing", () => {
+  it("Alt+1–9 then Alt+0 reads physical key codes and never fires while typing", () => {
     // macOS Option+digit produces "¡™£…", so an e.key range test never
     // matches — the advertised shortcut was dead on every Mac.
-    assert.match(header, /e\.code/);
-    assert.ok(header.includes("Digit[1-9]"), "workspace shortcuts no longer match Digit codes");
-    assert.match(header, /isContentEditable/);
+    //
+    // The listener left WorkspaceHeader.tsx on 2026-08-24, when the tenth tab
+    // pushed that file over its length ceiling. Read where it lives now, and
+    // check the header still calls it: left pointed at the header this would
+    // scan a file that no longer contains what it was written to guard.
+    const tabShortcuts = read("../lib/use-tab-shortcuts.ts");
+    assert.match(header, /useTabShortcuts\(onViewChange\)/, "the header no longer binds the tab shortcuts");
+    assert.match(tabShortcuts, /e\.code/);
+    assert.ok(tabShortcuts.includes("Digit[0-9]"), "workspace shortcuts no longer match Digit codes");
+    assert.match(tabShortcuts, /isContentEditable/);
+    // Ten tabs, nine digits and a zero. The mapping is the part that rots:
+    // a reader pressing Alt+0 must reach the tenth tab, never the first.
+    assert.match(tabShortcuts, /digit === 0 \? 9 : digit - 1/, "Alt+0 no longer names the tenth tab");
+    const palette = read("../lib/workspace-commands.ts");
+    assert.match(palette, /index === 9 \? 0 : index \+ 1/, "the palette advertises an Alt+10 nobody can press");
   });
 
   it("opens each internally scrolled Research section at its own beginning", () => {
@@ -144,7 +157,7 @@ describe("dense role workspaces expose accessible feature sections", () => {
     // `change` table this hook owns, so rail clicks, arrow keys, cross-links,
     // the palette, the tour and Back/Forward all reach the reset.
     for (const workspace of [
-      "overview", "research", "live", "developer", "risk", "portfolio", "data", "reliability", "coherence",
+      "overview", "research", "live", "developer", "risk", "portfolio", "data", "reliability", "markets", "coherence",
     ]) {
       assert.ok(
         routingHook.includes(`${workspace}: bind("${workspace}", set`),
@@ -182,6 +195,7 @@ describe("dense role workspaces expose accessible feature sections", () => {
     expectPanels("DATA", [dataConsole], "data");
     expectPanels("RELIABILITY", [reliabilityConsole], "reliability");
     expectPanels("DEVELOPER", [developerConsole], "developer");
+    expectPanels("MARKETS", [marketsConsole], "markets");
     expectPanels("COHERENCE", [coherenceConsole], "coherence");
 
     // The board has a native keyboard alternative to dragging and announces

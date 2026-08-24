@@ -35,6 +35,7 @@
 
 import { toCenticents } from "@/lib/coherence/fixed-point";
 import type { CoherenceSettlementFeed } from "@/lib/coherence/types-lab";
+import { settlementRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import IndexBasisChart from "./IndexBasisChart";
 import { StateChip } from "./Figure";
@@ -279,7 +280,7 @@ export interface SettlementPaneProps {
 
 export default function SettlementPane({ active, view }: SettlementPaneProps) {
   const { data, error } = useCoherenceRead<CoherenceSettlementFeed>(
-    `/api/gateway/coherence/settlement?city=${PUBLISHED_CITY}`,
+    settlementRoute(PUBLISHED_CITY),
     active && (view === "settlement" || view === "formation"),
   );
 

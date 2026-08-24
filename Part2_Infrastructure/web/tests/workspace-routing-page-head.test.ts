@@ -37,6 +37,7 @@ const workspaceOverview = read("../components/WorkspaceOverview.tsx");
 const dataConsole = read("../components/DataConsole.tsx");
 const reliabilityConsole = read("../components/ReliabilityConsole.tsx");
 const developerConsole = read("../components/DeveloperConsole.tsx");
+const marketsConsole = read("../components/MarketsConsole.tsx");
 const coherenceConsole = read("../components/CoherenceConsole.tsx");
 
 describe("every tab opens with the same header", () => {
@@ -49,7 +50,7 @@ describe("every tab opens with the same header", () => {
    * controls that refresh them. `WorkspaceIntro` and `ConsoleChrome` are thin
    * adapters over it — they exist so the role tabs and the operational consoles
    * keep their own vocabularies (`insights`, `tiles`) without each growing a
-   * second header. What must not happen is a ninth surface drawing its own.
+   * second header. What must not happen is an eleventh surface drawing its own.
    */
   const surfaces: Array<[string, string]> = [
     ["page.tsx", page],
@@ -58,6 +59,7 @@ describe("every tab opens with the same header", () => {
     ["DataConsole.tsx", dataConsole],
     ["ReliabilityConsole.tsx", reliabilityConsole],
     ["DeveloperConsole.tsx", developerConsole],
+    ["MarketsConsole.tsx", marketsConsole],
     ["CoherenceConsole.tsx", coherenceConsole],
     ["RiskWorkspace.tsx", riskWorkspace],
     ["PortfolioWorkspace.tsx", portfolioWorkspace],
@@ -100,7 +102,7 @@ describe("every tab opens with the same header", () => {
     }
   });
 
-  it("each of the nine tabs has exactly one head in its panel", () => {
+  it("each of the ten tabs has exactly one head in its panel", () => {
     /**
      * Two heads on one tab is the scatter this converged out of; zero means a
      * tab opens with no identity at all.
@@ -123,6 +125,7 @@ describe("every tab opens with the same header", () => {
       reliability: reliabilityConsole,
       developer: developerConsole,
       overview: workspaceOverview,
+      markets: marketsConsole,
       coherence: coherenceConsole,
     };
     const HEAD = /<(?:WorkspaceIntro|ConsoleChrome|PageHead)\b/g;

@@ -27,7 +27,7 @@ import { navIds, read } from "./helpers/workspace-sources";
 
 const header = read("../components/WorkspaceHeader.tsx");
 /**
- * The eight `<section role="tabpanel">` elements left `page.tsx` on 2026-08-21
+ * The ten `<section role="tabpanel">` elements left `page.tsx` on 2026-08-21
  * for `components/workspace/WorkspacePanels.tsx`; the shell kept the hooks, the
  * header and `#workspace-content`. Every scan below that looks for a panel — an
  * id, a `view === "x"` branch — reads `panels`, and the ones that look at the
@@ -58,6 +58,7 @@ describe("the nav and the render tree describe the same workspace", () => {
       "data",
       "reliability",
       "developer",
+      "markets",
       "coherence",
     ]);
   });

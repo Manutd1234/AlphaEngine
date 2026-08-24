@@ -42,6 +42,7 @@ import { useState } from "react";
 import { pct } from "@/lib/format";
 import { priceLabel } from "@/lib/coherence/fixed-point";
 import type { CoherenceCalibration } from "@/lib/coherence/types-lab";
+import { calibrationRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import { StateChip } from "./Figure";
 import MurphyBars from "./MurphyBars";
@@ -85,7 +86,7 @@ function slopeReading(slope: string | null, populated: number, bands: number): s
 }
 
 export default function CalibrationPane({ active }: { active: boolean }) {
-  const { data, error } = useCoherenceRead<CoherenceCalibration>("/api/gateway/coherence/calibration", active);
+  const { data, error } = useCoherenceRead<CoherenceCalibration>(calibrationRoute(), active);
   // One read behind three views. Gated on `active` and never on `view`: the
   // same payload draws all three AND the banner that stands over them.
   const [view, setView] = useState<"score" | "bands" | "corpus">("score");

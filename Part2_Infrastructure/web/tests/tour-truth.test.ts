@@ -1,7 +1,7 @@
 /**
  * The feature tour describes a desk that exists.
  *
- * `docs/product/FEATURE_TOUR.md` walks a reader through all eight workspaces and names
+ * `docs/product/FEATURE_TOUR.md` walks a reader through all ten workspaces and names
  * the sections in each rail. Those lists were hand-mirrored from the app, and
  * every one of the eight had drifted: seven whole sections were missing
  * (Lineage, Fill quality, Equity & P&L, Monte Carlo, Feeds & Contracts,
@@ -29,7 +29,7 @@ const read = (relative: string) =>
 
 const sections = read("../lib/sections.ts");
 const tour = read("../../../docs/product/FEATURE_TOUR.md");
-// The eight stops are built in lib/workspace-tour.ts since page.tsx was split.
+// The ten stops are built in lib/workspace-tour.ts since page.tsx was split.
 const page = read("../lib/workspace-tour.ts");
 
 /** Every `{ id, label }` pair of one workspace, in rail order. */
@@ -43,7 +43,7 @@ function railOf(workspace: string): { id: string; label: string }[] {
 
 const WORKSPACES = [
   "OVERVIEW", "RESEARCH", "EXECUTION", "PORTFOLIO",
-  "RISK", "DATA", "RELIABILITY", "DEVELOPER", "COHERENCE",
+  "RISK", "DATA", "RELIABILITY", "DEVELOPER", "MARKETS", "COHERENCE",
 ] as const;
 
 /**
@@ -157,6 +157,7 @@ const WORKSPACE_FOR_VIEW: Record<string, string> = {
   data: "DATA",
   reliability: "RELIABILITY",
   developer: "DEVELOPER",
+  markets: "MARKETS",
   coherence: "COHERENCE",
 };
 
@@ -165,8 +166,8 @@ describe("the in-app tour names the sections the app actually ships", () => {
   const stops = [...page.matchAll(/stop\(\s*"([^"]+)",[\s\S]*?,\s*"([a-z]+)",\s*"([a-z]+)",\s*\(\) =>/g)]
     .map(([, where, view, section]) => ({ where, view, section }));
 
-  it("finds all nine stops", () => {
-    assert.equal(stops.length, 9, "the stop regex stopped matching the tour's shape");
+  it("finds all ten stops", () => {
+    assert.equal(stops.length, 10, "the stop regex stopped matching the tour's shape");
   });
 
   for (const { where, view, section } of stops) {

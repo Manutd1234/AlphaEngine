@@ -485,9 +485,9 @@ clean bill of health.
 ## The copy guards: `summarised-*` and `disclosure-*`
 
 Sixteen web suites — one `summarised-` and one `disclosure-` file for each of
-**eight of the nine tabs** (data, developer, execution, overview, portfolio,
-reliability, research, risk; **Coherence has neither**, which is a real gap and
-is named here rather than left to be inferred). They exist because copy edits
+**eight of the ten tabs** (data, developer, execution, overview, portfolio,
+reliability, research, risk; **Markets and Coherence have neither**, which is a
+real gap and is named here rather than left to be inferred). They exist because copy edits
 have a failure mode no diff review catches: a shortened sentence that reads
 fluently and no longer carries a number, a negation, or the reason a measurement
 is missing.
@@ -923,11 +923,11 @@ committed.
   the argument the project makes about itself. The workspace's runtime
   dependencies are Next, React, `lucide-react`, `@supabase/supabase-js` and
   `oracledb`, and nothing else.
-- **No `summarised-` or `disclosure-` suite for the Coherence tab.** Eight of
-  the nine tabs have both; Coherence has neither. Its copy is currently guarded
-  only by the general suites (`house-rules`, `british-spelling`, `middle-dot`)
-  and by `tour-truth`'s section-label check. Named as a gap, not implied to be
-  covered.
+- **No `summarised-` or `disclosure-` suite for the Markets or Coherence tabs.**
+  Eight of the ten tabs have both; the Kalshi engine's two have neither. Their
+  copy is currently guarded only by the general suites (`house-rules`,
+  `british-spelling`, `middle-dot`) and by `tour-truth`'s section-label check.
+  Named as a gap, not implied to be covered.
 - **No DOM, and therefore no layout — every geometry claim is derived, never
   observed.** This is the largest standing limit on the web suite and it is
   easy to miss, because the suites that assert geometry read entirely
@@ -962,7 +962,8 @@ committed.
   dropped and the card falls back to a plain five-row auto grid, so the failure
   mode is the previous layout rather than a broken one.
 
-  The Coherence tab's eleven `.seg` view switchers are a fifth, and the newest.
+  The Kalshi engine's eleven `.seg` view switchers, split across Markets and
+  Coherence, are a fifth, and the newest.
   They are guarded structurally — `seg-metrics.test.ts` holds `.seg`'s metrics
   and `CoherenceConsole.tsx`'s header records why a nested `<WorkspaceSubtabs>`
   is forbidden inside a section (a second rail instance fights the first over

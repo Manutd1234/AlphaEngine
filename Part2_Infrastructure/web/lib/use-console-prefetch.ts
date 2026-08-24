@@ -1,9 +1,9 @@
 "use client";
 
 /**
- * Warms the three lazily-loaded console chunks.
+ * Warms the lazily-loaded console chunks.
  *
- * Data, Reliability and Developer are the heaviest subtrees on the desk and
+ * Data, Reliability, Developer, Markets and Coherence are the heaviest subtrees on the desk and
  * none of them is needed for first paint, so `page.tsx` loads them with
  * `next/dynamic`. This is the other half of that decision: without it the
  * first click on one of those tabs pays the download, and the loading box —
@@ -22,16 +22,18 @@ const load = {
   data: () => import("@/components/DataConsole"),
   reliability: () => import("@/components/ReliabilityConsole"),
   developer: () => import("@/components/DeveloperConsole"),
+  markets: () => import("@/components/MarketsConsole"),
   coherence: () => import("@/components/CoherenceConsole"),
 };
 
 /** Returns the hover/focus warm-up handler; the idle warm-up runs on its own. */
 export function useConsolePrefetch(): (next: WorkspaceView) => void {
   useEffect(() => {
+    // All five, not the first three. Markets and Coherence were left out when
+    // the Kalshi engine landed, so the one tab whose sections each open a live
+    // exchange read also paid for its own chunk download first.
     const prefetch = () => {
-      void load.data();
-      void load.reliability();
-      void load.developer();
+      for (const warm of Object.values(load)) void warm();
     };
     if ("requestIdleCallback" in window) {
       const handle = window.requestIdleCallback(prefetch, { timeout: 4000 });
@@ -46,6 +48,6 @@ export function useConsolePrefetch(): (next: WorkspaceView) => void {
   // has already started the download by the time the click lands. Import is
   // idempotent and cached, so a hover after the idle warm-up costs nothing.
   return useCallback((next: WorkspaceView) => {
-    if (next === "data" || next === "reliability" || next === "developer" || next === "coherence") void load[next]();
+    if (next in load) void load[next as keyof typeof load]();
   }, []);
 }

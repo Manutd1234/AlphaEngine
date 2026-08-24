@@ -37,7 +37,32 @@ export const DEFAULT_SECTION: Record<WorkspaceView, string> = {
   data: "overview",
   reliability: "overview",
   developer: "overview",
-  coherence: "universe",
+  markets: "universe",
+  coherence: "certificate",
+};
+
+/**
+ * Sections that changed tab, and the tab they went to.
+ *
+ * `LEGACY_VIEWS` above retires a whole workspace; this retires a location
+ * inside one, which the split of the Kalshi engine into Markets and Coherence
+ * needed and nothing before it did. `#coherence/books` was a public deep link
+ * for as long as that rail carried Books, and without this the section is one
+ * `lib/sections` no longer defines for `coherence` — so `readLocation` would
+ * reset it to that tab's default and the reader would land on the Dutch-book
+ * certificate while the URL still said Books. Green, plausible, and wrong.
+ *
+ * Keyed by the workspace the URL names, then by the section it names. A
+ * section the named tab STILL has always wins, so an id that later appears on
+ * both rails resolves to the tab the link actually asked for.
+ */
+export const RELOCATED_SECTIONS: Record<string, Record<string, WorkspaceView>> = {
+  coherence: {
+    universe: "markets",
+    books: "markets",
+    lattice: "markets",
+    shell: "markets",
+  },
 };
 
 /**
@@ -98,14 +123,19 @@ export function followLocation(
     const [workspace, nestedSection] = window.location.hash.slice(1).split("/");
     const hashView = workspace as WorkspaceView;
     if (VIEWS.includes(hashView)) {
-      setView(hashView);
       // Every second-level rail in the workspace is a real location: a link
       // into "walk-forward evidence" survives being sent to someone, and Back
       // steps through sections instead of leaving the tab entirely. A section
-      // this workspace does not have resets to its default rather than
-      // leaving the rail showing something the URL never named.
-      const apply = applier[hashView](nestedSection ?? "")
-        ?? applier[hashView](DEFAULT_SECTION[hashView]);
+      // this workspace does not have is looked up in `RELOCATED_SECTIONS`
+      // first, and only then reset to the tab default — otherwise a link into
+      // a section that merely MOVED lands somewhere nobody named.
+      const own = applier[hashView](nestedSection ?? "");
+      const moved = own ? null : RELOCATED_SECTIONS[workspace]?.[nestedSection ?? ""] ?? null;
+      const landing = moved ?? hashView;
+      setView(landing);
+      const apply = own
+        ?? applier[landing](nestedSection ?? "")
+        ?? applier[landing](DEFAULT_SECTION[landing]);
       apply?.();
     } else if (LEGACY_VIEWS[workspace]) {
       setView(LEGACY_VIEWS[workspace]);

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * The eight panels, and nothing else.
+ * The ten panels, and nothing else.
  *
  * `app/dashboard/page.tsx` is the shell: it runs the hooks, draws the one
  * header every tab shares, and owns the state two or more panels read. This
@@ -26,7 +26,7 @@ import { BookStatus } from "@/components/portfolio/BookChrome";
 import WorkspaceIntro from "@/components/WorkspaceIntro";
 import WorkspaceSubtabs from "@/components/WorkspaceSubtabs";
 import {
-  CoherenceTab, DataTab, DeveloperTab, OverviewTab, PortfolioTab, ReliabilityTab, RiskTab,
+  CoherenceTab, DataTab, DeveloperTab, MarketsTab, OverviewTab, PortfolioTab, ReliabilityTab, RiskTab,
 } from "@/components/workspace/lazy-panels";
 import type { DeveloperWorkItem } from "@/lib/developer-work";
 import { EXECUTION_SECTIONS } from "@/lib/sections";
@@ -80,10 +80,10 @@ export default function WorkspacePanels({ routing, sweep, desk }: WorkspacePanel
   const {
     view, visitedViews, navigate, openSection,
     overviewSection, researchSection, executionSection, dataSection,
-    reliabilitySection, developerSection, coherenceSection, riskSection, portfolioSection,
+    reliabilitySection, developerSection, marketsSection, coherenceSection, riskSection, portfolioSection,
     changeOverviewSection, changeResearchSection, changeExecutionSection,
     changeDeveloperSection, changeRiskSection, changePortfolioSection,
-    changeDataSection, changeReliabilitySection, changeCoherenceSection,
+    changeDataSection, changeReliabilitySection, changeMarketsSection, changeCoherenceSection,
     openRiskSection, openPortfolioSection, openResearchSummary, openLiveLiquidity,
     openReliabilityOverview, openDataOverview, openLoopStage,
   } = routing;
@@ -370,6 +370,17 @@ export default function WorkspacePanels({ routing, sweep, desk }: WorkspacePanel
             active={view === "developer"}
           />
           <NextStepFooter currentView="developer" currentSection={developerSection} onNavigate={openSection} />
+        </section>
+      )}
+
+      {(view === "markets" || visitedViews.current.has("markets")) && (
+        <section id="panel-markets" role="tabpanel" aria-labelledby="tab-markets" className="view-panel" hidden={view !== "markets"}>
+          <MarketsTab
+            section={marketsSection}
+            onSectionChange={changeMarketsSection}
+            active={view === "markets"}
+          />
+          <NextStepFooter currentView="markets" currentSection={marketsSection} onNavigate={openSection} />
         </section>
       )}
 

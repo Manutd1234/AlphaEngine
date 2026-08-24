@@ -650,13 +650,14 @@ Separate budget, and much less demanding.
 4x CPU throttle — so every figure below is roughly four times worse than the
 machine a reader is on.
 
-**The table has eight rows and the desk has nine tabs.** `tab-switch-measure.mjs`
-now lists `coherence` in its `tabs` array (as `request-count-measure.mjs` does in
-its `TABS`), but that tab was added to the harness *after* this run and **has
-never been measured**. It is left out of the table rather than given a plausible
-row, and it is the one to measure first: it is the only tab whose sections poll
-the live exchange, and its `universe` read carries a 28-second browser deadline
-against every other read's 9 (§4.2).
+**The table has eight rows and the desk has ten tabs.** `tab-switch-measure.mjs`
+now lists `markets` and `coherence` in its `tabs` array (as
+`request-count-measure.mjs` does in its `TABS`), but the Kalshi engine was added
+to the harness *after* this run and **has never been measured** — on either side
+of its 2026-08-24 split. Both are left out of the table rather than given
+plausible rows, and they are the ones to measure first: they are the only tabs
+whose sections poll the live exchange, and their `universe` read carries a
+28-second browser deadline against every other read's 9 (§4.2).
 
 | tab | click → paint | click → idle | longest task | blocking |
 |---|---|---|---|---|
@@ -816,13 +817,24 @@ Measured from a development machine to the gateway: 21–27 ms total, 9–13 ms 
 connect. Vercel serves the web project from `sin1`, the same city as the VM.
 *(Measured 2026-08-20; not re-measured since.)*
 
-### 4.2 The Coherence tab has its own read budget, and it is gated twice
+### 4.2 The Kalshi engine has its own read budget, and it is gated twice
 
-The ninth tab is the one surface on the desk whose reads go **through** the
-gateway **to a live exchange**, so it is budgeted separately from the eight
-measured above. Nothing in this subsection is a timing measurement — these are
-the deadlines and the gating the code declares, re-read on 2026-08-24. The tab
-has never been through `tab-switch-measure.mjs`.
+Markets and Coherence are the surfaces on the desk whose reads go **through**
+the gateway **to a live exchange**, so they are budgeted separately from the
+eight measured above. Nothing in this subsection is a timing measurement —
+these are the deadlines and the gating the code declares, re-read on 2026-08-24.
+Neither tab has been through `tab-switch-measure.mjs`.
+
+**A third gate joined the two on 2026-08-24, and it spends budget rather than
+saving it.** Gating a read on its open section is right for the exchange and was
+wrong for the reader: a first visit to a section waited the whole live read. So
+`web/lib/coherence/use-section-warming.ts` sweeps the rest of the rail on
+`requestIdleCallback`, **one URL every 600 ms** — deliberately inside the ~5
+requests/second the gateway budgets itself (`READ_TOKENS_PER_S = 50`, default
+cost 10) — and `read-cache.ts` joins any read already in flight rather than
+duplicating it, which removed a case where three panes sharing the universe read
+each held their own latch. None of this has been timed either; the stagger is
+chosen against the declared token bucket, not measured against it.
 
 **Two deadlines, because the reads are not alike.**
 `web/lib/coherence/use-coherence.ts` chooses per URL: `DEADLINE_MS = 9_000` for

@@ -33,6 +33,7 @@ import { useState } from "react";
 
 import { episodesToSamples } from "@/lib/coherence/absorption";
 import type { CoherenceEpisodes } from "@/lib/coherence/types";
+import { absorptionRoute, episodesRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import Figure, { FigureEmpty, StateChip } from "./Figure";
 import InformationDiffusionPane from "./diffusion/InformationDiffusionPane";
@@ -182,13 +183,13 @@ function KalshiEpisodes({ data, error }: { data: CoherenceEpisodes | null; error
 export default function DiffusionPane({ active }: { active: boolean }) {
   const [view, setView] = useState<"absorption" | "mechanism" | "findings" | "kalshi">("absorption");
   const episodes = useCoherenceRead<CoherenceEpisodes>(
-    "/api/gateway/coherence/episodes?limit=500",
+    episodesRoute(),
     active && view === "kalshi",
   );
   // Mechanism reads nothing: its drawing is made of two constants. Findings
   // owns its own read inside `FindingsPane`. So only these two gates live here.
   const absorption = useCoherenceRead<AbsorptionRead>(
-    "/api/gateway/diffusion/absorption?limit=400",
+    absorptionRoute(),
     active && view === "absorption",
   );
 

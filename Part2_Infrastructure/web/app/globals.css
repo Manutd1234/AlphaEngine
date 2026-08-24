@@ -164,4 +164,8 @@
 /* The header tabs' separation from the chip cluster, paid out of the row's
    surplus. After 14, whose width ladder it must never widen. */
 @import "./globals/14o-header-tabs-surplus.css";
+
+/* Rung 10 of the header's priority ladder, and the measurements behind all ten.
+   Its own partial because 14, which owns rungs 1-9, is at its length ceiling. */
+@import "./globals/14p-header-ladder-tenth-tab.css";
 @import "./globals/15-navigator-and-trailing-layer.css";

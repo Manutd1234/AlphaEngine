@@ -156,10 +156,16 @@ describe("the narrow ladder is exactly where it was — the regression guard", (
    * SHEDS; the failure this list catches is different and quieter — a rung
    * added, retuned or dropped while every surviving rung still reads
    * correctly. Update it only with a re-measured row, and say the widths.
+   *
+   * Re-measured over Chrome on 2026-08-24 for the tenth tab (Markets). Every
+   * rung moved out and one was added; the CSS comment beside the ladder in
+   * `14-symbol-combobox.css` carries the ten widths the row was measured to
+   * need — 2048 unfolded down to 1171 with everything folded — and each rung
+   * sits at the previous figure rounded up to a ten.
    */
   const LADDER = [
-    "@media (max-width: 1940px)",                        // rung 0, the Search word
-    "@media (max-width: 1690px)",                        // rung 4, the "Live data" label
+    "@media (max-width: 2050px)",                        // rung 0, the Search word
+    "@media (max-width: 1800px)",                        // rung 4, the "Live data" label
     "@media (min-width: 1441px)",                        // the wide band added 2026-08-22
     "@media (min-width: 901px)",                         // the nav's left margin
     "@media (max-width: 900px)",                         // the tabs take their own row
@@ -169,13 +175,14 @@ describe("the narrow ladder is exactly where it was — the regression guard", (
     "@media (max-width: 900px)",
     "@media (max-width: 900px)",
     "@media (max-width: 620px)",                         // the switcher goes
-    "@media (min-width: 901px) and (max-width: 1940px)", // rung 1
-    "@media (min-width: 901px) and (max-width: 1840px)", // rung 2
-    "@media (min-width: 901px) and (max-width: 1750px)", // rung 3
-    "@media (min-width: 901px) and (max-width: 1570px)", // rung 6
-    "@media (min-width: 901px) and (max-width: 1490px)", // rung 7
-    "@media (min-width: 901px) and (max-width: 1300px)", // rung 8
-    "@media (min-width: 901px) and (max-width: 1190px)", // rung 9
+    "@media (min-width: 901px) and (max-width: 2050px)", // rung 1
+    "@media (min-width: 901px) and (max-width: 1950px)", // rung 2
+    "@media (min-width: 901px) and (max-width: 1860px)", // rung 3
+    "@media (min-width: 901px) and (max-width: 1660px)", // rung 6
+    "@media (min-width: 901px) and (max-width: 1600px)", // rung 7
+    "@media (min-width: 901px) and (max-width: 1380px)", // rung 8
+    "@media (min-width: 901px) and (max-width: 1290px)", // rung 9
+    "@media (min-width: 901px) and (max-width: 1170px)", // rung 10, new with the tenth tab
     "@media (max-width: 620px)",
     "@media (pointer: coarse)",
     "@media (forced-colors: active)",
@@ -191,7 +198,7 @@ describe("the narrow ladder is exactly where it was — the regression guard", (
     // what every width up to 1440 still uses, unchanged.
     assert.match(shell, /\n\.header-spacer \{\n  flex: 1;\n\}\n/,
       "the desk spacer no longer grows — every width below 1441 just lost its right alignment");
-    for (const max of [1940, 1840, 1750, 1570, 1490, 1300, 1190]) {
+    for (const max of [2050, 1950, 1860, 1660, 1600, 1380, 1290, 1170]) {
       assert.ok(
         headerBlocks.some((block) => block.condition === `@media (min-width: 901px) and (max-width: ${max}px)`),
         `rung ${max} has left the ladder`,

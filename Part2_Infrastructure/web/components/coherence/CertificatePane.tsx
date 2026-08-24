@@ -32,6 +32,7 @@
 import { useState } from "react";
 
 import type { CoherenceCertificate, CoherenceEventView } from "@/lib/coherence/types";
+import { certifyRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import DollarBar from "./DollarBar";
 import Figure, { FigureEmpty, StateChip } from "./Figure";
@@ -124,7 +125,7 @@ export default function CertificatePane({
   const [view, setView] = useState<"verdict" | "portfolio" | "proof">("verdict");
   const target = selected ?? events[0]?.event_ticker ?? "";
   const { data, error } = useCoherenceRead<CoherenceCertificate>(
-    `/api/gateway/coherence/certify?event_ticker=${encodeURIComponent(target)}`,
+    certifyRoute(target),
     active && Boolean(target),
   );
 

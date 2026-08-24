@@ -27,6 +27,7 @@ import { useState } from "react";
 
 import type { CoherenceEventView, CoherenceUniverse } from "@/lib/coherence/types";
 import type { CoherenceKelly, CoherenceSurface } from "@/lib/coherence/types-lab";
+import { stakeRoute, surfaceRoute, universeRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import DistributionView from "./surface/DistributionView";
 import FamilyView from "./surface/FamilyView";
@@ -48,7 +49,7 @@ export default function SurfacePane({
   const [picked, setPicked] = useState<string | null>(null);
   const [view, setView] = useState<SurfaceQuestion>("distribution");
   const universe = useCoherenceRead<CoherenceUniverse>(
-    "/api/gateway/coherence/universe?max_events=2",
+    universeRoute(),
     active && !eventTicker && !supplied?.length,
   );
   const events = supplied?.length ? supplied : (universe.data?.events ?? []);
@@ -57,14 +58,14 @@ export default function SurfacePane({
   // `surface.engine` — a ladder is why the solver declines a family — so the
   // distribution payload is read whichever question is on screen.
   const surface = useCoherenceRead<CoherenceSurface>(
-    `/api/gateway/coherence/surface?event_ticker=${encodeURIComponent(target)}`,
+    surfaceRoute(target),
     active && Boolean(target),
   );
   // The stake read IS gated on the view. It is the slower of the two, and a
   // reader asking only what the distribution is should not pay for a solve
   // that is not on their screen.
   const stake = useCoherenceRead<CoherenceKelly>(
-    `/api/gateway/coherence/stake?event_ticker=${encodeURIComponent(target)}`,
+    stakeRoute(target),
     active && Boolean(target) && view !== "distribution",
   );
 

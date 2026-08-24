@@ -28,6 +28,7 @@ import {
   DATA_SECTION_IDS,
   DEVELOPER_SECTION_IDS,
   EXECUTION_SECTION_IDS,
+  MARKETS_SECTION_IDS,
   OVERVIEW_SECTION_IDS,
   PORTFOLIO_SECTION_IDS,
   RELIABILITY_SECTION_IDS,
@@ -37,6 +38,7 @@ import {
   type DataSection,
   type DeveloperSection,
   type ExecutionSection,
+  type MarketsSection,
   type OverviewSection,
   type PortfolioSection,
   type ReliabilitySection,
@@ -52,6 +54,7 @@ export interface RailSections {
   dataSection: DataSection;
   reliabilitySection: ReliabilitySection;
   developerSection: DeveloperSection;
+  marketsSection: MarketsSection;
   coherenceSection: CoherenceSection;
   riskSection: RiskSection;
   portfolioSection: PortfolioSection;
@@ -61,6 +64,7 @@ export interface RailSections {
   setDataSection: Dispatch<SetStateAction<DataSection>>;
   setReliabilitySection: Dispatch<SetStateAction<ReliabilitySection>>;
   setDeveloperSection: Dispatch<SetStateAction<DeveloperSection>>;
+  setMarketsSection: Dispatch<SetStateAction<MarketsSection>>;
   setCoherenceSection: Dispatch<SetStateAction<CoherenceSection>>;
   setRiskSection: Dispatch<SetStateAction<RiskSection>>;
   setPortfolioSection: Dispatch<SetStateAction<PortfolioSection>>;
@@ -77,7 +81,10 @@ export function useRailSections(): RailSections {
   const [dataSection, setDataSection] = useState<DataSection>("overview");
   const [reliabilitySection, setReliabilitySection] = useState<ReliabilitySection>("overview");
   const [developerSection, setDeveloperSection] = useState<DeveloperSection>("overview");
-  const [coherenceSection, setCoherenceSection] = useState<CoherenceSection>("universe");
+  const [marketsSection, setMarketsSection] = useState<MarketsSection>("universe");
+  // Not "universe" any more: that section is Markets' opening argument now, and
+  // this tab opens on the test it is named for.
+  const [coherenceSection, setCoherenceSection] = useState<CoherenceSection>("certificate");
   // Risk and Portfolio kept these internally, which made them the only two
   // steppers in the workspace that a link could not address: `#risk/model`
   // opened the tab on step 1. Lifted here so they route exactly like the other
@@ -100,6 +107,7 @@ export function useRailSections(): RailSections {
     data: dataSection,
     reliability: reliabilitySection,
     developer: developerSection,
+    markets: marketsSection,
     coherence: coherenceSection,
   };
 
@@ -125,15 +133,16 @@ export function useRailSections(): RailSections {
       data: bind(DATA_SECTION_IDS, setDataSection),
       reliability: bind(RELIABILITY_SECTION_IDS, setReliabilitySection),
       developer: bind(DEVELOPER_SECTION_IDS, setDeveloperSection),
+      markets: bind(MARKETS_SECTION_IDS, setMarketsSection),
       coherence: bind(COHERENCE_SECTION_IDS, setCoherenceSection),
     };
   }, []);
 
   return {
     overviewSection, researchSection, executionSection, dataSection, reliabilitySection,
-    developerSection, coherenceSection, riskSection, portfolioSection,
+    developerSection, marketsSection, coherenceSection, riskSection, portfolioSection,
     setOverviewSection, setResearchSection, setExecutionSection, setDataSection,
-    setReliabilitySection, setDeveloperSection, setCoherenceSection, setRiskSection,
+    setReliabilitySection, setDeveloperSection, setMarketsSection, setCoherenceSection, setRiskSection,
     setPortfolioSection, sectionByViewRef, applier,
   };
 }

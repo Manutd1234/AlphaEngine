@@ -30,7 +30,7 @@ FastAPI **risk gateway** on an always-on OCI VM (Singapore) owns everything that
 must not be forked or forgotten: venue WebSocket subscriptions, the paper
 position book, seventeen defined pre-trade gates (fifteen reachable by any
 single order — README §4), the kill switch, and the DuckDB audit log on a Docker
-volume. A serverless **Next.js desk workspace** on Vercel gives nine role tabs
+volume. A serverless **Next.js desk workspace** on Vercel gives ten role tabs
 and holds no secrets in the browser bundle — its server-side proxy is the only
 path to gateway credentials. A stateless **OpenBB research service**, a second
 Vercel project, serves quotes, bars, news and fundamentals and can scale without
@@ -68,7 +68,7 @@ flowchart TB
     end
 
     subgraph vercel["Vercel, region sin1 — two serverless projects"]
-        web["web/ — desk workspace\nNext.js, nine role tabs"]
+        web["web/ — desk workspace\nNext.js, ten role tabs"]
         openbb["OpenBB_Service/ — stateless\nquotes, bars, news, fundamentals"]
     end
 
@@ -292,17 +292,17 @@ shadow desk whose kill switch is local, whose token bucket permits N × the
 configured rate, and whose limits are computed against a fraction of the real
 position.
 
-## The desk workspace — nine tabs
+## The desk workspace — ten tabs
 
-One client workspace, nine role tabs, every subtab URL-addressable. The tab
-order is the decision loop itself, and the [feature tour](../product/FEATURE_TOUR.md)
-walks it tab by tab.
+One client workspace, ten role tabs, every subtab URL-addressable. The tab
+order is the decision loop itself followed by the Kalshi engine's two, and the
+[feature tour](../product/FEATURE_TOUR.md) walks it tab by tab.
 
 The rails have **one** definition:
 [`web/lib/sections.ts`](../../Part2_Infrastructure/web/lib/sections.ts), which
 the rails, the command palette, the hash whitelist and "Copy link to this view"
-all read. It holds **59 sections across the nine tabs** (counted 2026-08-24;
-`web/scripts/desk-sweep-plan.mjs` mirrors the same nine tabs by hand and asserts
+all read. It holds **59 sections across the ten tabs** (counted 2026-08-24;
+`web/scripts/desk-sweep-plan.mjs` mirrors the same ten tabs by hand and asserts
 `EXPECTED_SECTIONS = 59`, so a section added to one and not the other fails).
 `web/tests/tour-truth.test.ts` pins the [feature tour](../product/FEATURE_TOUR.md)'s
 rail lists to that same file, so the tour cannot drift from the app silently —
@@ -322,7 +322,8 @@ engine".
 | Data | `data` | data engineer | can I trust this data? |
 | Reliability | `reliability` | SRE | is it healthy, and what do I do at 3am? |
 | Developer | `developer` | quant developer | can I change this safely? |
-| Coherence | `coherence` | quant researcher | do these prices admit a probability at all? |
+| Markets | `markets` | quant researcher | what is this exchange quoting, and what does a dollar of it cost? |
+| Coherence | `coherence` | quant researcher | do those prices admit a probability at all? |
 
 The workspace's runtime dependency list is six packages —
 `next`, `react`, `react-dom`, `lucide-react`, `@supabase/supabase-js`,
@@ -346,8 +347,11 @@ doctrine is architecture, not styling" below shows where.
 
 ## The Coherence plane — a fourth capability with no order path
 
-The ninth tab is a separate engine that shares the gateway process and almost
-nothing else. It reads Kalshi — a venue where a contract paying $1 if an event
+The last two tabs are one separate engine that shares the gateway process and
+almost nothing else. They were a single eleven-section tab until 2026-08-24;
+splitting them put "what is quoted" on **Markets** and "what is proved" on
+**Coherence**, and the section ids did not move with the split — `#coherence/books`
+still resolves, through `RELOCATED_SECTIONS` in `web/lib/workspace-hash.ts`. It reads Kalshi — a venue where a contract paying $1 if an event
 happens *is* a probability with a price on it — and asks whether a family of
 those prices admits a probability measure at all. Where it does not, the failure
 hands back the portfolio that wins in every state, and that portfolio is the

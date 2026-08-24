@@ -14,6 +14,7 @@ import DataTierBadge from "@/components/header/DataTierBadge";
 import type { LatencyStats } from "@/components/systems/types";
 import type { DecisionLatencySource } from "@/lib/overview-state";
 import type { Provenance } from "@/lib/data-tier";
+import { useTabShortcuts } from "@/lib/use-tab-shortcuts";
 
 export type WorkspaceView =
   | "overview"
@@ -24,6 +25,7 @@ export type WorkspaceView =
   | "data"
   | "reliability"
   | "developer"
+  | "markets"
   | "coherence";
 
 export const NAV_ITEMS: { id: WorkspaceView; label: string; role: string; accessibleLabel?: string }[] = [
@@ -35,6 +37,9 @@ export const NAV_ITEMS: { id: WorkspaceView; label: string; role: string; access
   { id: "data", label: "Data", role: "Data", accessibleLabel: "Data operations" },
   { id: "reliability", label: "Reliability", role: "SRE" },
   { id: "developer", label: "Developer", role: "Dev" },
+  // The Kalshi engine reaches the reader as two tabs, in the order the
+  // argument runs: what the venue quotes, then what we prove about it.
+  { id: "markets", label: "Markets", role: "Quant", accessibleLabel: "Prediction markets" },
   { id: "coherence", label: "Coherence", role: "Quant" },
 ];
 
@@ -155,29 +160,11 @@ export default function WorkspaceHeader({
   }, []);
 
   // ⌘K lives in `page.tsx` with the dialog it opens — see CommandBar's header
-  // for why the palette cannot render inside this element.
-  useEffect(() => {
-    const onKeyDown = (e: globalThis.KeyboardEvent) => {
-      // e.code, not e.key: on macOS Option+digit types "¡™£…" so a key-range
-      // test never matches and the advertised Alt+1–8 shortcut silently died
-      // on every Mac. Physical-key codes are layout- and modifier-stable.
-      if (e.altKey && !e.ctrlKey && !e.metaKey && /^Digit[1-9]$/.test(e.code)) {
-        // Never while typing — Alt+digit composes characters in text fields.
-        const target = e.target as HTMLElement | null;
-        if (target && (target.isContentEditable
-          || target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT")) {
-          return;
-        }
-        e.preventDefault();
-        const index = Number(e.code.slice(5)) - 1;
-        if (index >= 0 && index < NAV_ITEMS.length) {
-          onViewChange(NAV_ITEMS[index].id);
-        }
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onViewChange]);
+  // for why the palette cannot render inside this element. Alt+1–9 and Alt+0
+  // live in `lib/use-tab-shortcuts.ts` — same reason in reverse: they are
+  // window-level keystrokes that know nothing about this element's boxes, and
+  // the tenth tab pushed this file over its length ceiling.
+  useTabShortcuts(onViewChange);
 
   const onTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;

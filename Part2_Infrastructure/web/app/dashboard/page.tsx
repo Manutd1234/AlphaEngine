@@ -60,7 +60,7 @@ export default function Page() {
   const {
     view, shellRef, navigate, warmView, setExecutionSection, openReliabilitySection,
     setOverviewSection, setResearchSection, setDataSection, setReliabilitySection,
-    setDeveloperSection, setCoherenceSection, setRiskSection, setPortfolioSection, researchSection,
+    setDeveloperSection, setMarketsSection, setCoherenceSection, setRiskSection, setPortfolioSection, researchSection,
     copyLinkToView, tourStops,
   } = routing;
   const sweep = useSweepRun({ view });
@@ -181,7 +181,7 @@ export default function Page() {
 
   /**
    * Everything ⌘K can reach, built where the lists already live. The palette
-   * holds no routing knowledge of its own: all 8 tabs, every rail section,
+   * holds no routing knowledge of its own: all 10 tabs, every rail section,
    * all 46 strategies, every research symbol and the kill switch flow from
    * this one memo. Labels for the five workspaces whose section objects are
    * private mirror their rails verbatim.
@@ -192,7 +192,7 @@ export default function Page() {
   const commands = useMemo<Command[]>(() => buildCommands({
     navigate, setOverviewSection, setResearchSection, setExecutionSection,
     setPortfolioSection, setRiskSection, setDataSection, setReliabilitySection,
-    setDeveloperSection, setCoherenceSection, updateStrategy, updateSymbol, run, pinRun, running,
+    setDeveloperSection, setMarketsSection, setCoherenceSection, updateStrategy, updateSymbol, run, pinRun, running,
     currentPinned, data, showMcBands, setShowMcBands, setMcRunNonce, side,
     setSide, setNotional, copyLinkToView, setShortcutsOpen, view,
     researchSection, focusPortfolioSymbol, symbol: req.symbol,
@@ -204,7 +204,8 @@ export default function Page() {
     req.symbol, researchSection, run, running, showMcBands, side,
     systems.onReconnectSockets, systems.refresh, updateStrategy, updateSymbol, view,
     setOverviewSection, setResearchSection, setExecutionSection, setPortfolioSection,
-    setRiskSection, setDataSection, setReliabilitySection, setDeveloperSection, setCoherenceSection,
+    setRiskSection, setDataSection, setReliabilitySection, setDeveloperSection,
+    setMarketsSection, setCoherenceSection,
   ]);
 
   return (

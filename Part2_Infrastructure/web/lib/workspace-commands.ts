@@ -33,6 +33,7 @@ import {
   COHERENCE_SECTIONS,
   DEVELOPER_SECTIONS,
   EXECUTION_SECTIONS,
+  MARKETS_SECTIONS,
   OVERVIEW_SECTIONS,
   PORTFOLIO_SECTIONS,
   RELIABILITY_SECTIONS,
@@ -42,6 +43,7 @@ import {
   type CoherenceSection,
   type DeveloperSection,
   type ExecutionSection,
+  type MarketsSection,
   type OverviewSection,
   type PortfolioSection,
   type ReliabilitySection,
@@ -74,6 +76,7 @@ export interface CommandDeps {
   setDataSection: Setter<DataSection>;
   setReliabilitySection: Setter<ReliabilitySection>;
   setDeveloperSection: Setter<DeveloperSection>;
+  setMarketsSection: Setter<MarketsSection>;
   setCoherenceSection: Setter<CoherenceSection>;
   updateStrategy: (strategy: Strategy) => void;
   updateSymbol: (symbol: string) => void;
@@ -107,7 +110,7 @@ export function buildCommands(d: CommandDeps): Command[] {
   const {
     navigate, setOverviewSection, setResearchSection, setExecutionSection,
     setPortfolioSection, setRiskSection, setDataSection, setReliabilitySection,
-    setDeveloperSection, setCoherenceSection, updateStrategy, updateSymbol, run, pinRun, running,
+    setDeveloperSection, setMarketsSection, setCoherenceSection, updateStrategy, updateSymbol, run, pinRun, running,
     currentPinned, data, showMcBands, setShowMcBands, setMcRunNonce, side,
     setSide, setNotional, copyLinkToView, setShortcutsOpen, view,
     researchSection, symbol, refreshHealth, reconnectSockets,
@@ -118,7 +121,11 @@ export function buildCommands(d: CommandDeps): Command[] {
     id: `tab-${item.id}`,
     label: `${item.accessibleLabel ?? item.label} — ${item.role}`,
     category: "Workspace",
-    hotkey: `Alt+${index + 1}`,
+    // 1–9 then 0 for the tenth, which is what `WorkspaceHeader`'s listener
+    // binds and what a browser's own tab strip does. `Alt+10` is not a
+    // keystroke, and printing one in the palette would advertise a key nobody
+    // can press.
+    hotkey: `Alt+${index === 9 ? 0 : index + 1}`,
     action: () => navigate(item.id),
   }));
 
@@ -161,6 +168,9 @@ export function buildCommands(d: CommandDeps): Command[] {
   }
   for (const s of DEVELOPER_SECTIONS) {
     section("developer", "Developer", s.id, `${s.label} — ${s.description}`, () => setDeveloperSection(s.id));
+  }
+  for (const s of MARKETS_SECTIONS) {
+    section("markets", "Markets", s.id, `${s.label} — ${s.description}`, () => setMarketsSection(s.id));
   }
   for (const s of COHERENCE_SECTIONS) {
     section("coherence", "Coherence", s.id, `${s.label} — ${s.description}`, () => setCoherenceSection(s.id));

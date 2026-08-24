@@ -14,6 +14,18 @@ interface WorkspaceSubtabsProps<T extends string> {
   tabs: readonly WorkspaceSubtab<T>[];
   activeId: T;
   onChange: (id: T) => void;
+  /**
+   * Fired when a reader looks like they are about to open a section — a
+   * pointer crossing its tab, or focus landing on it.
+   *
+   * The mirror of `WorkspaceHeader`'s `onViewIntent`, and needed for the same
+   * reason one level down: the Kalshi engine's sections each open a live
+   * exchange read that takes seconds, gated on the section being on screen, so
+   * every first visit met a loading line. A hover is several hundred
+   * milliseconds of warning. Optional — a rail whose sections read nothing
+   * passes nothing, and no other rail on the desk has anything to warm.
+   */
+  onIntent?: (id: T) => void;
   /** Surface-level controls that stay reachable while the rail is stuck. */
   actions?: ReactNode;
   /**
@@ -49,6 +61,7 @@ export default function WorkspaceSubtabs<T extends string>({
   tabs,
   activeId,
   onChange,
+  onIntent,
   actions,
   secondary,
   active = true,
@@ -210,6 +223,8 @@ export default function WorkspaceSubtabs<T extends string>({
                   tabIndex={selected ? 0 : -1}
                   title={tab.description}
                   onClick={() => onChange(tab.id)}
+                  onPointerEnter={onIntent ? () => onIntent(tab.id) : undefined}
+                  onFocus={onIntent ? () => onIntent(tab.id) : undefined}
                   onKeyDown={(event) => handleKeyDown(event, index)}
                 >
                   <strong>{tab.label}</strong>

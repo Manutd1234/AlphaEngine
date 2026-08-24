@@ -428,29 +428,33 @@ to re-run that single combination and see what it actually did.
 winner, and the in-sample → out-of-sample gap that reveals overfitting.
 
 <a id="coherence-console"></a>
-**Coherence console** — the ninth tab, and the one that is not a desk role.
-A contract paying $1 if an event happens is a probability with a price on it, so
-a family of those prices either admits a probability measure or does not. The
-tab reads Kalshi live, records whole bid ladders rather than prices, and where
-the prices are incoherent it hands back the portfolio that wins in every state.
-Its header states the boundary in the metric strip: **order path = "none"** —
-this engine reads, records and certifies, and it sends nothing.
+**Markets and Coherence** — the last two tabs, and the ones that are not desk
+roles. A contract paying $1 if an event happens is a probability with a price on
+it, so a family of those prices either admits a probability measure or does not.
+The pair reads Kalshi live, records whole bid ladders rather than prices, and
+where the prices are incoherent it hands back the portfolio that wins in every
+state. Both headers state the boundary in the metric strip: **order path =
+"none"** — this engine reads, records and certifies, and it sends nothing.
 
-Eleven rail sections, each splitting its content into in-pane views:
+They were one eleven-section tab until 2026-08-24. Markets is what the venue
+quotes; Coherence is what the engine proves about it. Section ids did not move
+with the split — `#coherence/books` still resolves, through `RELOCATED_SECTIONS`
+in `lib/workspace-hash.ts`. Eleven rail sections across the two, each splitting
+its content into in-pane views:
 
-| Section | Views |
-|---|---|
-| Universe | Baskets · Settlement · Formation |
-| Books | Ladder · Identity · Dispersion |
-| Lattice | Distribution · Stake · Whole family |
-| Dutch book | Verdict · Portfolio · Proof |
-| Fees | Worked example · Cost shape · Ablation |
-| Coherence index | Series · Families |
-| Combos | Bands · Parlays · Bounds test · Notes |
-| Calibration | Score · Bands · Corpus |
-| Diffusion | Absorption · Mechanism · Findings · Kalshi episodes |
-| Shell | Tree · Reading · Layout |
-| Lessons | Prices · Structure · Bounds · Record |
+| Tab | Section | Views |
+|---|---|---|
+| Markets | Universe | Baskets · Settlement · Formation |
+| Markets | Books | Ladder · Identity · Dispersion |
+| Markets | Lattice | Distribution · Stake · Whole family |
+| Markets | Shell | Tree · Reading · Layout |
+| Coherence | Dutch book | Verdict · Portfolio · Proof |
+| Coherence | Fees | Worked example · Cost shape · Ablation |
+| Coherence | Combos | Bands · Parlays · Bounds test · Notes |
+| Coherence | Coherence index | Series · Families |
+| Coherence | Calibration | Score · Bands · Corpus |
+| Coherence | Diffusion | Absorption · Mechanism · Findings · Kalshi episodes |
+| Coherence | Lessons | Prices · Structure · Bounds · Record |
 
 **Those in-pane views are `.seg` groups, never a nested `<WorkspaceSubtabs>`,
 and that is a hard rule.** `WorkspaceSubtabs` publishes `--rail-h` onto
@@ -480,9 +484,9 @@ move — and the text subtracts from that. Two of the diffusion charts,
 `AbsorptionCurve` and `StageTimeline`, deliberately skip the shared `<Plot>`
 wrapper: it emits `role="presentation"` and would leave them unnamed.
 
-**Not yet covered:** Coherence has no `summarised-*` or `disclosure-*` guard
-pair, where the other eight tabs have both. That is a gap in the copy ratchets,
-not a decision.
+**Not yet covered:** neither Markets nor Coherence has a `summarised-*` or
+`disclosure-*` guard pair, where the other eight tabs have both. That is a gap
+in the copy ratchets, not a decision.
 
 ---
 
@@ -746,8 +750,8 @@ web/
                               summarised-*.test.ts (what each tab's prose must still
                               say) and disclosure-*.test.ts (what it may never stop
                               saying) — those two may be ADDED to and never weakened.
-                              Eight pairs for nine tabs: Coherence has neither yet,
-                              which is a gap rather than a decision
+                              Eight pairs for ten tabs: Markets and Coherence have
+                              neither yet, which is a gap rather than a decision
 ```
 
 **Why the sweep runs server-side.** Binance's public API is called from the

@@ -71,7 +71,15 @@ describe("the tabs grow into the surplus by an equal increment, and nothing else
     // 01, 12 and 14 are all at the file-length ceiling; the rule carries no
     // box metric, which is what lets it live outside the tabs' three homes.
     assert.match(readGlobalsPartial("app/globals/14o-header-tabs-surplus.css"), /\n\.workspace-tabs::after \{/);
-    assert.match(read("app/globals.css"), /14o-header-tabs-surplus\.css";\n@import "\.\/globals\/15-navigator-and-trailing-layer\.css";/, "14o sits right before 15, which must stay last");
+    // 14o comes after 14 and before 15, and 15 stays last. It gained a
+    // neighbour on 2026-08-24 — 14p, the tenth tab's ladder rung — so the
+    // check is the ORDER rather than adjacency, which was only ever a proxy
+    // for it.
+    const globalsCssSource = read("app/globals.css");
+    const order = (name: string) => globalsCssSource.indexOf(`./globals/${name}`);
+    assert.ok(order("14-symbol-combobox.css") < order("14o-header-tabs-surplus.css"), "14o must come after 14");
+    assert.ok(order("14o-header-tabs-surplus.css") < order("15-navigator-and-trailing-layer.css"), "14o must come before 15");
+    assert.match(globalsCssSource, /15-navigator-and-trailing-layer\.css";\s*$/, "15 must stay last");
     // No narrow restatement: below 900 the strip is display: none (14) and the
     // <select> switcher stands in, so a ninth grid cell never exists.
     assert.match(css, /@media \(max-width: 900px\) \{\n  \.workspace-tabs \{\n    display: none;/);

@@ -23,7 +23,8 @@ const TABS = {
   data: ["overview", "feeds", "quality", "incidents", "lineage", "providers", "queue"],
   reliability: ["overview", "planes", "services", "events", "controls"],
   developer: ["overview", "readiness", "quality", "apis", "codebase", "work"],
-  coherence: ["universe", "books", "lattice", "certificate", "fees", "index", "combos", "calibration", "diffusion", "shell", "lessons"],
+  markets: ["universe", "books", "lattice", "shell"],
+  coherence: ["certificate", "fees", "combos", "index", "calibration", "diffusion", "lessons"],
 };
 
 const EXPECTED_SECTIONS = 59;

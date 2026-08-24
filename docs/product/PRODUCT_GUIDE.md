@@ -28,14 +28,15 @@ refuses to claim**. The third is the differentiator. Any dashboard can draw a
 number; this one is built so that the numbers it will not draw are visible as
 absences with reasons attached, rather than as plausible defaults.
 
-## One workspace, nine tabs
+## One workspace, ten tabs
 
 The tabs are the decision loop made navigable, in the order a desk makes
 decisions: research flows to execution only through a risk gate, the next three
-tabs interrogate the ground the first five stand on, and the ninth is a
-self-contained research engine over a different venue. `Alt+1` through `Alt+9`
-switch tabs — the listener is in
-[`web/components/WorkspaceHeader.tsx`](../../Part2_Infrastructure/web/components/WorkspaceHeader.tsx)
+tabs interrogate the ground the first five stand on, and the last two are one
+self-contained research engine over a different venue — Markets is what that
+venue quotes, Coherence is what the engine proves about it. `Alt+1` through
+`Alt+9`, then `Alt+0` for the tenth, switch tabs — the listener is in
+[`web/lib/use-tab-shortcuts.ts`](../../Part2_Infrastructure/web/lib/use-tab-shortcuts.ts)
 and keys off `event.code`, because on macOS `Option+digit` types `¡™£` and a
 key-range test never matches. `⌘K` opens a command palette that fuzzy-matches
 every tab, every rail section, all 46 strategy models and every research symbol;
@@ -113,7 +114,7 @@ imply a handoff that does not exist.
 book snapshots every other tab uses; the pipeline diagram is the loop above with
 each stage a link; the audit trail is every paper order, accounted.
 
-**Writes it gates:** none of its own. The header — identical on all nine tabs —
+**Writes it gates:** none of its own. The header — identical on all ten tabs —
 carries the two controls that follow you everywhere: the kill switch
 (operator-gated, reversible) and the Telegram **Connect** chip.
 
@@ -528,11 +529,11 @@ rule and one floor, both enforced by test
   desk? A formula does not; a limit does.
 
 There are eight `disclosure-<tab>.test.ts` files and eight
-`summarised-<tab>.test.ts` files, covering **eight of the nine tabs**: data,
+`summarised-<tab>.test.ts` files, covering **eight of the ten tabs**: data,
 developer, execution, overview, portfolio, reliability, research and risk.
-Coherence has neither, which is a real gap in the copy guards rather than an
-exemption — its equivalent floors are argued in the component headers and held
-by the panes' own suites.
+Markets and Coherence have neither, which is a real gap in the copy guards
+rather than an exemption — their equivalent floors are argued in the component
+headers and held by the panes' own suites.
 
 ## Honesty as behaviour you can see
 
@@ -614,7 +615,7 @@ L2 feeds carry ladders, not trade prints, so a partial-fill model would report
 an assumption as measured execution. **No margin, financing or liquidation
 modelling** on an unlevered cash book, and **no shared experiment registry** —
 research history is per browser, the gateway's `backtest_runs` table the
-durable record. On the Coherence tab, **no order path of any kind**, and no
+durable record. On Markets and Coherence, **no order path of any kind**, and no
 executor: the diffusion arm exists precisely to answer whether one would be
 worth building, and its verdict so far is a null. Each gap, with where it bites
 and why it is not here, is argued in README
@@ -624,9 +625,9 @@ Two capabilities are **planned rather than built**, and are named here so that
 neither reads as shipped. The gateway's OpenAPI digest has the same five-link
 custody shape as the Monte Carlo parity chain but is **not drawn** — it is a
 verdict pill in the Contracts pane, and drawing it needs a second chain array
-and a caller, not new machinery. And the Coherence tab has **no copy-guard test
-pair** of the kind every other tab carries, so a fluent rewrite of its prose
-would not be caught the way the same rewrite would be on Risk.
+and a caller, not new machinery. And neither Markets nor Coherence has **a
+copy-guard test pair** of the kind every other tab carries, so a fluent rewrite
+of their prose would not be caught the way the same rewrite would be on Risk.
 
 ## Where to go next
 

@@ -62,7 +62,7 @@ job queue runs in-process unless `REDIS_URL` is set.
 ## The full local stack
 
 Adds the FastAPI risk gateway, so the Portfolio, Risk, Execution, Reliability
-and Coherence tabs read real state instead of the sandbox.
+and the Markets/Coherence pair read real state instead of the sandbox.
 
 ### ⚠ Read this before you create the virtualenv
 

@@ -12,11 +12,17 @@
  * visited, so an ungated loop would keep reading Kalshi for a reader who is
  * three tabs away. It is gated on `enabled` too, so a panel that has no
  * watchlist asks for nothing rather than asking and being told nothing.
+ *
+ * Every read goes through `read-cache.ts`, which is where the answer for a URL
+ * lives now rather than in the hook that asked for it. That is what lets a
+ * section paint on arrival instead of on its first answer — see that file for
+ * why a slow read could not simply be made faster.
  */
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 
 import { usePolling } from "@/lib/use-polling";
+import { peek, read, warm } from "./read-cache";
 import type { CoherenceLoad } from "./types";
 
 /** Slow by choice. The exchange publishes no budget for keyless traffic, and
@@ -64,6 +70,17 @@ async function readJson<T>(url: string): Promise<{ data: T | null; error: string
 }
 
 /**
+ * Starts the read for a URL before anyone is looking at it.
+ *
+ * Exported for the two consoles' rail-intent handlers and their idle sweeps.
+ * It is a hint: it reports nothing, it refuses to duplicate a read already in
+ * flight, and it declines entirely when a recent answer is already held.
+ */
+export function warmCoherenceRead(url: string): void {
+  warm(url, readJson);
+}
+
+/**
  * One polled gateway read.
  *
  * Keeps the last good payload while a later poll fails, and reports the failure
@@ -74,28 +91,31 @@ async function readJson<T>(url: string): Promise<{ data: T | null; error: string
 export function useCoherenceRead<T>(url: string, enabled: boolean, pollMs = COHERENCE_POLL_MS): CoherenceLoad<T> & {
   refresh: () => void;
 } {
-  const [state, setState] = useState<CoherenceLoad<T>>({
-    data: null,
-    error: null,
-    loading: enabled,
-    updatedAt: null,
+  // Seeded from whatever the cache already holds for this URL, so a section
+  // warmed on hover opens on its figures rather than on "Reading…". `useState`
+  // takes the initialiser lazily, so this runs on mount and not on every
+  // render; a URL nobody has warmed seeds exactly as it did before.
+  const [state, setState] = useState<CoherenceLoad<T>>(() => {
+    const cached = peek<T>(url);
+    return {
+      data: cached?.data ?? null,
+      error: null,
+      loading: enabled && !cached,
+      updatedAt: cached?.updatedAt ?? null,
+    };
   });
-  const inFlight = useRef(false);
 
+  // The in-flight latch moved to the cache, where it is shared. Three panes
+  // read `universe` and each held its own, so a tab switch could put three
+  // identical live reads on the exchange's token bucket at once.
   const tick = useCallback(async () => {
-    if (inFlight.current) return;
-    inFlight.current = true;
-    try {
-      const { data, error } = await readJson<T>(url);
-      setState((previous) => ({
-        data: data ?? previous.data,
-        error,
-        loading: false,
-        updatedAt: data ? new Date() : previous.updatedAt,
-      }));
-    } finally {
-      inFlight.current = false;
-    }
+    const { data, error } = await read<T>(url, readJson);
+    setState((previous) => ({
+      data: data ?? previous.data,
+      error,
+      loading: false,
+      updatedAt: data ? new Date() : previous.updatedAt,
+    }));
   }, [url]);
 
   // `immediate` is not a nicety here, it is the difference between a working

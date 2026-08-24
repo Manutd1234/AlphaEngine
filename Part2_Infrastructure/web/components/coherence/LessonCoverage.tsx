@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Which parts of this tab are actually taught, and which are not taught at all.
+ * Which parts of this engine are actually taught, and which are not taught at all.
  *
  * The curriculum shipped as fourteen cards and no picture. A reader could see
  * every lesson and still not see the SHAPE of the thing: that the book pane and
@@ -10,12 +10,18 @@
  *
  * Three decisions, because each is a way this strip could lie:
  *
- * **The columns are the rail, not the lessons.** They come from
- * `COHERENCE_SECTIONS` in rail order, so every section the tab offers gets a
- * column whether or not a lesson names it. Building the columns from the
- * lessons instead would draw only the sections that happen to be taught — a
- * complete-looking picture of a smaller tab, and precisely the omission the
- * figure exists to show.
+ * **The columns are the rails, not the lessons.** They come from
+ * `MARKETS_SECTIONS` then `COHERENCE_SECTIONS` in rail order, so every section
+ * either tab offers gets a column whether or not a lesson names it. Building
+ * the columns from the lessons instead would draw only the sections that
+ * happen to be taught — a complete-looking picture of a smaller engine, and
+ * precisely the omission the figure exists to show.
+ *
+ * BOTH rails, though the strip is drawn on Coherence. The curriculum is about
+ * the engine and it always was: three lessons are about the book ladders and
+ * three about the lattice, all six of which are Markets sections since the
+ * split. Drawing only this tab's seven would report those six as taught
+ * nowhere, which is the one thing this figure must never do.
  *
  * **A section with nothing gets a column, a stub, a mark and the word "none".**
  * Not a gap, not a zero-height bar that reads as a rendering fault. An absence
@@ -33,11 +39,11 @@
  */
 
 import { COHERENCE_LESSONS } from "@/lib/coherence/lessons";
-import { COHERENCE_SECTIONS } from "@/lib/sections";
+import { COHERENCE_SECTIONS, MARKETS_SECTIONS } from "@/lib/sections";
 
 import Figure, { FigureEmpty, Plot } from "./Figure";
 
-const CAPTION = "One column per Coherence section, in rail order, with one mark per lesson taught there";
+const CAPTION = "One column per section of Markets then Coherence, in rail order, with one mark per lesson taught there";
 
 const MARK_H = 12;
 const MARK_GAP = 4;
@@ -56,7 +62,7 @@ function listOf(names: string[]): string {
 }
 
 export default function LessonCoverage() {
-  const columns = COHERENCE_SECTIONS.map((section) => ({
+  const columns = [...MARKETS_SECTIONS, ...COHERENCE_SECTIONS].map((section) => ({
     id: section.id,
     label: section.label,
     lessons: COHERENCE_LESSONS.filter((lesson) => lesson.pane === section.id),
@@ -73,7 +79,7 @@ export default function LessonCoverage() {
   const taught = columns.filter((column) => column.lessons.length > 0);
   const bare = columns.filter((column) => column.lessons.length === 0);
 
-  const ariaLabel = `One column per Coherence section in rail order, each a stack of one mark per lesson taught there: ${columns
+  const ariaLabel = `One column per section of Markets then Coherence in rail order, each a stack of one mark per lesson taught there: ${columns
     .map((column) => `${column.label} ${column.lessons.length || "none"}`)
     .join(", ")}.`;
 
@@ -98,10 +104,10 @@ export default function LessonCoverage() {
     : "";
 
   const reading = bare.length
-    ? `${COHERENCE_LESSONS.length} lessons across ${taught.length} of the ${columns.length} Coherence sections. ${listOf(
+    ? `${COHERENCE_LESSONS.length} lessons across ${taught.length} of the engine's ${columns.length} sections. ${listOf(
         bare.map((column) => column.label),
       )} ${bare.length === 1 ? "carries" : "carry"} none.`
-    : `${COHERENCE_LESSONS.length} lessons across all ${columns.length} Coherence sections.`;
+    : `${COHERENCE_LESSONS.length} lessons across all ${columns.length} sections of the engine.`;
 
   const missing = `Every one of the ${COHERENCE_LESSONS.length} lessons is shipped, so no mark here stands for pending work and nothing is drawn as unbuilt. The strip counts lessons, not depth: a column of one is a section one lesson names, not a smaller section.${orphanNote}`;
 

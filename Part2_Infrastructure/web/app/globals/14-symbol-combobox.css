@@ -765,13 +765,12 @@ html:active-view-transition .view-panel {
    clip with scripts/header-ladder-measure.mjs (guest row, the sweep's widest
    strings injected, 2000 → 1080), re-run for every chrome change.
 
-   Re-measured twice on 2026-08-23: first for drift — the row had grown and
-   every band's tail clipped (the reported 1440/1580/1728/1920) — then for
-   the reader-requested chrome lift to 14px tabs. Both times rungs 1–7 moved
-   out to each band's first negative width rounded to a ten (rungs 8–9 hold:
-   below rung 7 the tabs fold back to chip size, absorbing the lift), the
-   sweep read positive slack down to the wrap, and the --text-size=large run
-   was byte-identical — the ladder ignores the Text-size preference.
+   Re-measured twice on 2026-08-23 (drift, then the chrome lift to 14px tabs)
+   and AGAIN on 2026-08-24 for the tenth tab, which moved every rung out and
+   added rung 10. Each rung sits at the width the state above it stops fitting,
+   rounded up to a ten; --text-size=large is byte-identical, because the ladder
+   reads the fixed --fs-chrome-* tokens. Rung 10, the ten measured widths and
+   the method are in 14p-header-ladder-tenth-tab.css.
 
    CrossFlow's rule stands — drop secondary context before letting the
    workspace nav clip — lowest priority first: what the aria-label already
@@ -814,7 +813,7 @@ html:active-view-transition .view-panel {
 
 /* Rung 1 (≤1940, with the Search label rule in 00-tokens-and-base.css): the
    Search label, the providers sentence → its short form, the ghost with it. */
-@media (min-width: 901px) and (max-width: 1940px) {
+@media (min-width: 901px) and (max-width: 2050px) {
   .system-health__label {
     display: none;
   }
@@ -832,9 +831,9 @@ html:active-view-transition .view-panel {
   }
 }
 
-/* Rung 2 (≤1840): the decision chip's state word — the dot keeps the tone,
+/* Rung 2 (≤1950): the decision chip's state word — the dot keeps the tone,
    the title keeps the words. */
-@media (min-width: 901px) and (max-width: 1840px) {
+@media (min-width: 901px) and (max-width: 1950px) {
   .latency-chip__state {
     display: none;
   }
@@ -845,8 +844,8 @@ html:active-view-transition .view-panel {
   }
 }
 
-/* Rung 3 (≤1750): the Settings label. */
-@media (min-width: 901px) and (max-width: 1750px) {
+/* Rung 3 (≤1860): the Settings label. */
+@media (min-width: 901px) and (max-width: 1860px) {
   .workspace-header__utility > .header-settings,
   .workspace-header__utility > .header-anchor > .header-settings {
     width: 36px;
@@ -860,17 +859,17 @@ html:active-view-transition .view-panel {
   }
 }
 
-/* Rung 4 (≤1690): the data-tier label — the rule sits with the chip's own
-   comment, above. Rung 5 (<1630): the Connect / Connected label — the
-   max-[1630px] class in TelegramCta.
+/* Rung 4 (≤1800): the data-tier label — the rule sits with the chip's own
+   comment, above. Rung 5 (<1740): the Connect / Connected label — the
+   max-[1740px] class in TelegramCta.
 
    Not a rung: the core annotation inside the decision chip. Measured, it adds
    no width — the DECISION P99 caption above it is the wider line — so hiding
    it buys nothing; it stays until the chip's own copy folds (rung 8). */
 
-/* Rung 6 (≤1570): the providers chip is its dot alone — the count is one tap
+/* Rung 6 (≤1660): the providers chip is its dot alone — the count is one tap
    away in Settings and the panel it opens; the aria-label keeps the sentence. */
-@media (min-width: 901px) and (max-width: 1570px) {
+@media (min-width: 901px) and (max-width: 1660px) {
   .system-health-action {
     width: 44px;
     min-width: 44px;
@@ -887,9 +886,9 @@ html:active-view-transition .view-panel {
   }
 }
 
-/* Rung 7 (≤1490): the brand tagline, the tabs' side padding, and the tab
+/* Rung 7 (≤1600): the brand tagline, the tabs' side padding, and the tab
    labels back to the chip size. */
-@media (min-width: 901px) and (max-width: 1490px) {
+@media (min-width: 901px) and (max-width: 1600px) {
   .brand-copy small {
     display: none;
   }
@@ -903,9 +902,9 @@ html:active-view-transition .view-panel {
   }
 }
 
-/* Rung 8 (≤1300): the decision figure folds to its gauge; the title still
+/* Rung 8 (≤1380): the decision figure folds to its gauge; the title still
    names both planes and the Reliability tab has the numbers. */
-@media (min-width: 901px) and (max-width: 1300px) {
+@media (min-width: 901px) and (max-width: 1380px) {
   .latency-chip__copy {
     display: none;
   }
@@ -916,16 +915,17 @@ html:active-view-transition .view-panel {
   }
 }
 
-/* Rung 9 (≤1190): the Kill switch and Sign in labels fold to their icons —
+/* Rung 9 (≤1290): the Kill switch and Sign in labels fold to their icons —
    the same fold the ≤520px rule makes, a rung earlier for the widths between
    the last one-row fit and the wrap. Both controls keep their aria-label and
    title; HALTED is never folded. */
-@media (min-width: 901px) and (max-width: 1190px) {
+@media (min-width: 901px) and (max-width: 1290px) {
   .header-kill-label,
   .header-signin-label {
     display: none;
   }
 }
+
 
 /* ══════════════════════════════════════════════════════════════════════════
    Narrow screens and paper — explicit affordances for the dense evidence UI

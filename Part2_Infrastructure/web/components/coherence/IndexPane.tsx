@@ -25,6 +25,7 @@ import { useState } from "react";
 import { useMeasuredWidth } from "@/components/chart-kit";
 import { fromCenticents, toCenticents } from "@/lib/coherence/fixed-point";
 import type { CoherenceIndexPoint, CoherenceIndexSeries } from "@/lib/coherence/types";
+import { indexRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import Figure, { FigureEmpty, StateChip } from "./Figure";
 import { clock, thin, type IndexPoint } from "./IndexBasisChart";
@@ -238,7 +239,7 @@ function Chart({ data }: { data: CoherenceIndexSeries }) {
 
 export default function IndexPane({ active }: { active: boolean }) {
   const [view, setView] = useState<"series" | "families">("series");
-  const { data, error } = useCoherenceRead<CoherenceIndexSeries>("/api/gateway/coherence/index?limit=2000", active);
+  const { data, error } = useCoherenceRead<CoherenceIndexSeries>(indexRoute(), active);
 
   if (error && !data) {
     return (

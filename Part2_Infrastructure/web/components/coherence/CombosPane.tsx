@@ -33,6 +33,7 @@ import { useState } from "react";
 
 import type { CoherenceCombo, CoherenceComboLeg, CoherenceComboRow, CoherenceCombos } from "@/lib/coherence/types-lab";
 import { priceLabel, toCenticents } from "@/lib/coherence/fixed-point";
+import { combosRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import FrechetBand, { DEPENDENCE_WORD, basisCaveat, probLabel, toUnit } from "./FrechetBand";
 import { StateChip } from "./Figure";
@@ -314,7 +315,7 @@ function NotesView({ combos, notes }: { combos: CoherenceCombo[]; notes: string[
 
 export default function CombosPane({ active }: { active: boolean }) {
   const [view, setView] = useState<ComboView>("bands");
-  const { data, error } = useCoherenceRead<CoherenceCombos>("/api/gateway/coherence/combos?limit=6", active);
+  const { data, error } = useCoherenceRead<CoherenceCombos>(combosRoute(), active);
 
   if (error && !data) {
     return (

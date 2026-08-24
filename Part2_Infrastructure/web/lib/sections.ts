@@ -117,19 +117,32 @@ export type DeveloperSection = (typeof DEVELOPER_SECTIONS)[number]["id"];
 export const DEVELOPER_SECTION_IDS =
   DEVELOPER_SECTIONS.map((s) => s.id) as readonly DeveloperSection[];
 
-// Coherence — the Kalshi engine. Eleven ids, chosen once: `#coherence/<id>` is a
-// public deep link and must keep resolving for as long as the tab exists.
-export const COHERENCE_SECTIONS = [
+// Markets — the venue as it is quoted. Split out of the Kalshi engine's one
+// eleven-section rail on 2026-08-24: four sections answer "what is on the
+// exchange right now" and seven answer "what do we prove about it", and a
+// single rail asked a reader to hold both questions at once. The ids do not
+// change — `#coherence/<id>` is a public deep link, and `RELOCATED_SECTIONS`
+// in `lib/workspace-hash.ts` is what keeps the four that moved resolving.
+export const MARKETS_SECTIONS = [
   { id: "universe", label: "Universe", description: "Watched families & basket totals" },
   { id: "books", label: "Books", description: "Two bid ladders & implied offers" },
   { id: "lattice", label: "Lattice", description: "Implication structure & implied mass" },
+  { id: "shell", label: "Shell", description: "The watched universe as a filesystem" },
+] as const;
+export type MarketsSection = (typeof MARKETS_SECTIONS)[number]["id"];
+export const MARKETS_SECTION_IDS =
+  MARKETS_SECTIONS.map((s) => s.id) as readonly MarketsSection[];
+
+// Coherence — what the engine proves about those prices, and the record of it.
+// Seven ids, each chosen once: `#coherence/<id>` is a public deep link and must
+// keep resolving for as long as the tab exists.
+export const COHERENCE_SECTIONS = [
   { id: "certificate", label: "Dutch book", description: "Coherence test & its certificate" },
   { id: "fees", label: "Fees", description: "Three-component cost & minimum clip" },
-  { id: "index", label: "Coherence index", description: "Pricing efficiency over time" },
   { id: "combos", label: "Combos", description: "Parlays & the bounds their legs leave" },
+  { id: "index", label: "Coherence index", description: "Pricing efficiency over time" },
   { id: "calibration", label: "Calibration", description: "Were the prices right, once settled" },
   { id: "diffusion", label: "Diffusion", description: "How fast information is absorbed" },
-  { id: "shell", label: "Shell", description: "The watched universe as a filesystem" },
   { id: "lessons", label: "Lessons", description: "The curriculum & what guards it" },
 ] as const;
 export type CoherenceSection = (typeof COHERENCE_SECTIONS)[number]["id"];

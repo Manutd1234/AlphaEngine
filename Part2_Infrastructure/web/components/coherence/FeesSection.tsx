@@ -25,6 +25,7 @@
 import { useState } from "react";
 
 import type { CoherenceFees, CoherenceReplay } from "@/lib/coherence/types";
+import { feesRoute, replayRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import AblationPane from "./AblationPane";
 import FeesPane, { EXAMPLES, feesExceedNotional, type FeeExample, type FeesView } from "./FeesPane";
@@ -50,11 +51,11 @@ export default function FeesSection({ active }: { active: boolean }) {
   const [example, setExample] = useState<FeeExample>(EXAMPLES[0]);
 
   const fees = useCoherenceRead<CoherenceFees>(
-    `/api/gateway/coherence/fees?price=${example.price}&contracts_fp=${example.contracts}&fills=${example.fills}`,
+    feesRoute(example.price, example.contracts, example.fills),
     active && (view === "example" || view === "shape"),
   );
   const replay = useCoherenceRead<CoherenceReplay>(
-    "/api/gateway/coherence/replay?limit=20000",
+    replayRoute(),
     active && view === "ablation",
   );
 

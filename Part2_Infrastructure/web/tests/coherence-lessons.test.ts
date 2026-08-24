@@ -55,9 +55,13 @@ describe("every lesson names code that exists", () => {
     assert.deepEqual(missing, [], "a shipped lesson points at a suite that is not there");
   });
 
-  it("every lesson lands on a section the tab actually has", async () => {
-    const { COHERENCE_SECTION_IDS } = await import("../lib/sections");
-    const strays = COHERENCE_LESSONS.filter((lesson) => !COHERENCE_SECTION_IDS.includes(lesson.pane as never));
+  it("every lesson lands on a section the engine actually has", async () => {
+    // Both rails. The curriculum spans the whole Kalshi engine, and since the
+    // split on 2026-08-24 that engine is two tabs — six of the fourteen
+    // lessons are about sections Markets now owns.
+    const { COHERENCE_SECTION_IDS, MARKETS_SECTION_IDS } = await import("../lib/sections");
+    const rails: readonly string[] = [...MARKETS_SECTION_IDS, ...COHERENCE_SECTION_IDS];
+    const strays = COHERENCE_LESSONS.filter((lesson) => !rails.includes(lesson.pane));
     assert.deepEqual(strays.map((lesson) => `${lesson.id} → ${lesson.pane}`), []);
   });
 });

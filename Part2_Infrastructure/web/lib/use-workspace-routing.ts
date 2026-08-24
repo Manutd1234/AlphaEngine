@@ -48,9 +48,9 @@ export function useWorkspaceRouting() {
   const rails = useRailSections();
   const {
     overviewSection, researchSection, executionSection, dataSection, reliabilitySection,
-    developerSection, coherenceSection, riskSection, portfolioSection,
+    developerSection, marketsSection, coherenceSection, riskSection, portfolioSection,
     setOverviewSection, setResearchSection, setExecutionSection, setDataSection,
-    setReliabilitySection, setDeveloperSection, setCoherenceSection, setRiskSection,
+    setReliabilitySection, setDeveloperSection, setMarketsSection, setCoherenceSection, setRiskSection,
     setPortfolioSection, sectionByViewRef, applier,
   } = rails;
 
@@ -217,6 +217,7 @@ export function useWorkspaceRouting() {
       research: bind("research", setResearchSection),
       live: bind("live", setExecutionSection),
       developer: bind("developer", setDeveloperSection),
+      markets: bind("markets", setMarketsSection),
       coherence: bind("coherence", setCoherenceSection),
       risk: bind("risk", setRiskSection),
       portfolio: bind("portfolio", setPortfolioSection),
@@ -310,7 +311,7 @@ export function useWorkspaceRouting() {
   const tourStops = useMemo(() => buildTourStops({
     navigate, setOverviewSection, setResearchSection, setExecutionSection,
     setPortfolioSection, setRiskSection, setDataSection, setReliabilitySection,
-    setDeveloperSection, setCoherenceSection,
+    setDeveloperSection, setMarketsSection, setCoherenceSection,
   }), [navigate]);
 
   /**
@@ -331,22 +332,27 @@ export function useWorkspaceRouting() {
       // ignored
     }
     emitPrefChange(WORKSPACE_LOCATION_KEY);
+    // Every rail, including the two the Kalshi engine now spans. Coherence had
+    // been missing from this list since it landed, so a reader who moved only
+    // inside that tab had the move persisted on their next move anywhere else,
+    // or not at all.
   }, [view, overviewSection, researchSection, executionSection, dataSection,
-    reliabilitySection, developerSection, riskSection, portfolioSection]);
+    reliabilitySection, developerSection, marketsSection, coherenceSection,
+    riskSection, portfolioSection]);
 
   // Packed rather than one key per line: this file sits under the same size
   // ceiling page.tsx was split to respect.
   return {
     view, shellRef, visitedViews, navigate, warmView, pushSection, openSection,
     overviewSection, researchSection, executionSection, dataSection,
-    reliabilitySection, developerSection, coherenceSection, riskSection, portfolioSection,
+    reliabilitySection, developerSection, marketsSection, coherenceSection, riskSection, portfolioSection,
     setOverviewSection, setResearchSection, setExecutionSection, setDataSection,
-    setReliabilitySection, setDeveloperSection, setCoherenceSection, setRiskSection, setPortfolioSection,
+    setReliabilitySection, setDeveloperSection, setMarketsSection, setCoherenceSection, setRiskSection, setPortfolioSection,
     changeOverviewSection: change.overview, changeResearchSection: change.research,
     changeExecutionSection: change.live, changeDeveloperSection: change.developer,
     changeRiskSection: change.risk, changePortfolioSection: change.portfolio,
     changeDataSection: change.data, changeReliabilitySection: change.reliability,
-    changeCoherenceSection: change.coherence,
+    changeMarketsSection: change.markets, changeCoherenceSection: change.coherence,
     openRiskSection, openPortfolioSection, openResearchSummary, openLiveLiquidity,
     openReliabilityOverview, openDataOverview, openLoopStage, openReliabilitySection,
     copyLinkToView, tourStops,

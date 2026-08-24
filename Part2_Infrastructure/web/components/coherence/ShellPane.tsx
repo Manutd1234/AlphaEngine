@@ -50,6 +50,7 @@
 import { type ReactNode, useState } from "react";
 
 import type { CoherenceShell, CoherenceShellEntry } from "@/lib/coherence/types-lab";
+import { shellRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import { StateChip } from "./Figure";
 import ShellTree, { DERIVED_FILES } from "./ShellTree";
@@ -301,7 +302,7 @@ export default function ShellPane({ active }: { active: boolean }) {
   // different command, so the view IS the command: `ls` draws the tree, `cat`
   // the reading — and Layout, which is the same at every path, asks for neither.
   const command: "ls" | "cat" = view === "reading" ? "cat" : "ls";
-  const url = `/api/gateway/coherence/shell?path=${encodeURIComponent(path)}&command=${command}`;
+  const url = shellRoute(path, command);
   const { data, error } = useCoherenceRead<CoherenceShell>(url, active && view !== "layout");
 
   const navigate = (next: string) => {

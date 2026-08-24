@@ -22,6 +22,7 @@ import {
   COHERENCE_SECTIONS,
   DEVELOPER_SECTIONS,
   EXECUTION_SECTIONS,
+  MARKETS_SECTIONS,
   OVERVIEW_SECTIONS,
   PORTFOLIO_SECTIONS,
   RELIABILITY_SECTIONS,
@@ -52,6 +53,7 @@ const SECTIONS_BY_VIEW: Record<WorkspaceView, readonly WorkspaceSectionDef[]> = 
   data: DATA_SECTIONS,
   reliability: RELIABILITY_SECTIONS,
   developer: DEVELOPER_SECTIONS,
+  markets: MARKETS_SECTIONS,
   coherence: COHERENCE_SECTIONS,
 };
 
@@ -267,10 +269,16 @@ const FLOW_MAP: Record<WorkspaceView, { nextId: WorkspaceView; kicker: string; t
     hint: "Deployment topology, OpenAPI diffs, task queue.",
   },
   developer: {
+    nextId: "markets",
+    kicker: "Next step for the quant researcher",
+    title: "Read the exchange as it is quoted",
+    hint: "Basket totals, book identities, recorded tape.",
+  },
+  markets: {
     nextId: "coherence",
     kicker: "Next step for the quant researcher",
-    title: "Test a market against its own probabilities",
-    hint: "Basket totals, book identities, recorded tape.",
+    title: "Test those prices against their own probabilities",
+    hint: "Dutch-book certificate, fees, calibration, diffusion.",
   },
   coherence: {
     nextId: "overview",

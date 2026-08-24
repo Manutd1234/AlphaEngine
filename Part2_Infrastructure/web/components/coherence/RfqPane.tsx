@@ -31,6 +31,7 @@
  */
 
 import type { CoherenceDispersion, CoherenceRfqPanel } from "@/lib/coherence/types-lab";
+import { rfqRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import { StateChip } from "./Figure";
 
@@ -139,7 +140,7 @@ function Row({ row }: { row: CoherenceDispersion }) {
 }
 
 export default function RfqPane({ active }: { active: boolean }) {
-  const { data, error } = useCoherenceRead<CoherenceRfqPanel>("/api/gateway/coherence/rfq", active);
+  const { data, error } = useCoherenceRead<CoherenceRfqPanel>(rfqRoute(), active);
 
   // A co-equal half of the section deserves a title of its own. Without one the
   // dispersion view opened on a chip row, and a reader arriving from the ladder
