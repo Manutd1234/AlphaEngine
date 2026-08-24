@@ -839,6 +839,140 @@
         "title": "CoherenceCalibration",
         "type": "object"
       },
+      "CoherenceCalibrationHistory": {
+        "description": "The settled score over time, oldest first so a chart can plot it.",
+        "properties": {
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/CoherenceCalibrationPoint"
+            },
+            "title": "Points",
+            "type": "array"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state"
+        ],
+        "title": "CoherenceCalibrationHistory",
+        "type": "object"
+      },
+      "CoherenceCalibrationPoint": {
+        "description": "One scoring run, as it was taken. Every figure is nullable.\n\nA run against a corpus that will not score keeps its nulls and carries\n``detail`` as the reason: a zero Brier here is a perfect forecaster at the\norigin of every chart drawn afterwards. ``engine`` travels with the point\nbecause ``tape`` is a forecast test and ``final_trade`` is not, and one line\nthrough both would plot foresight and convergence as one measurement.",
+        "properties": {
+          "base_rate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Rate"
+          },
+          "bias_slope": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bias Slope"
+          },
+          "brier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brier"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "engine": {
+            "title": "Engine",
+            "type": "string"
+          },
+          "markets": {
+            "default": 0,
+            "title": "Markets",
+            "type": "integer"
+          },
+          "median_horizon_s": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median Horizon S"
+          },
+          "skill": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skill"
+          },
+          "thin": {
+            "default": false,
+            "title": "Thin",
+            "type": "boolean"
+          },
+          "ts_ns": {
+            "title": "Ts Ns",
+            "type": "integer"
+          },
+          "uncertainty": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uncertainty"
+          }
+        },
+        "required": [
+          "ts_ns",
+          "engine"
+        ],
+        "title": "CoherenceCalibrationPoint",
+        "type": "object"
+      },
       "CoherenceCertificate": {
         "description": "One coherence result, whether or not it found anything.\n\nProduced on the healthy case too: a detector silent when all is well leaves\na caller unable to tell \"no opportunity\" from \"the feed is down\", and this\nengine's most common \u2014 and correct \u2014 answer is that the market is coherent.",
         "properties": {
@@ -1715,6 +1849,17 @@
             "title": "Exchange Index",
             "type": "integer"
           },
+          "liquidity_total": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Liquidity Total"
+          },
           "markets": {
             "items": {
               "$ref": "#/components/schemas/CoherenceMarketView"
@@ -1725,6 +1870,17 @@
           "mutually_exclusive": {
             "title": "Mutually Exclusive",
             "type": "boolean"
+          },
+          "open_interest_total": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Open Interest Total"
           },
           "series_ticker": {
             "title": "Series Ticker",
@@ -2234,6 +2390,17 @@
             ],
             "title": "Floor Strike"
           },
+          "liquidity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Liquidity"
+          },
           "no_ask": {
             "anyOf": [
               {
@@ -2255,6 +2422,28 @@
               }
             ],
             "title": "No Bid"
+          },
+          "notional_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notional Value"
+          },
+          "open_interest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Open Interest"
           },
           "price_grid": {
             "title": "Price Grid",
@@ -2293,6 +2482,17 @@
               }
             ],
             "title": "Unquoted Reason"
+          },
+          "volume": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volume"
           },
           "yes_ask": {
             "anyOf": [
@@ -10187,6 +10387,95 @@
         "summary": "Coherence Calibration",
         "tags": [
           "coherence lab"
+        ]
+      }
+    },
+    "/api/coherence/calibration/history": {
+      "get": {
+        "description": "The settled score over time \u2014 the Scorecard's missing time axis.\n\n``/api/coherence/calibration`` scores whatever has settled and answers about\none moment. It cannot answer the question a reader asks next, which is\nwhether the venue is getting better, so the recorder writes a score on its\nown slow cadence and this is the tape of them.\n\nHere rather than beside ``/calibration`` on the lab router because that is\nthe seam the two files already have: the lab answers what is true of the\nexchange NOW, this module what has been true of it over time.\n\nTwo properties a reader is entitled to and a bare series would hide. The\nfigures are nullable \u2014 a run against a corpus that would not score keeps its\nnulls and its reason, because a zero Brier is a perfect forecaster at the\norigin of every chart drawn afterwards. And the series accrues FORWARD ONLY:\nnothing back-fills it, so the first point is where the recorder started and\nnot where the venue did.",
+        "operationId": "coherence_calibration_history_api_coherence_calibration_history_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "since_ts_ns",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Since Ts Ns",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 2000,
+              "maximum": 20000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoherenceCalibrationHistory"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Coherence Calibration History",
+        "tags": [
+          "coherence history"
         ]
       }
     },

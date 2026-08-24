@@ -337,6 +337,47 @@ export function isCoherenceCalibration(value: unknown): value is CoherenceCalibr
   return isRecord(value) && typeof value.state === "string" && Array.isArray(value.bins);
 }
 
+/* ---------------------------------------------- calibration over time -- */
+
+/**
+ * One scoring run, as it was taken.
+ *
+ * Every figure is nullable and stays that way. A run against a corpus that
+ * would not score keeps its nulls and carries `detail` as the reason: a zero
+ * Brier here is a perfect forecaster at the origin of every chart drawn
+ * afterwards, which is the coercion this codebase is most alert to.
+ *
+ * `engine` travels with the point rather than with the series, because a
+ * history can carry both: `tape` is a forecast test and `final_trade` is not,
+ * and one line through the two would plot foresight and convergence as one
+ * measurement. `CalibrationScore`'s banner is the whole argument.
+ */
+export interface CoherenceCalibrationPoint {
+  ts_ns: number;
+  engine: string;
+  markets: number;
+  brier: string | null;
+  skill: string | null;
+  base_rate: string | null;
+  uncertainty: string | null;
+  bias_slope: string | null;
+  median_horizon_s: number | null;
+  thin: boolean;
+  detail: string | null;
+}
+
+/** The settled score over time, oldest first. Accrues forward only: the series
+ *  begins where the recorder began, and the figure has to say so. */
+export interface CoherenceCalibrationHistory {
+  state: string;
+  points: CoherenceCalibrationPoint[];
+  notes: string[];
+}
+
+export function isCoherenceCalibrationHistory(value: unknown): value is CoherenceCalibrationHistory {
+  return isRecord(value) && typeof value.state === "string" && Array.isArray(value.points);
+}
+
 export function isCoherenceSettlementFeed(value: unknown): value is CoherenceSettlementFeed {
   return isRecord(value) && typeof value.state === "string" && Array.isArray(value.samples);
 }

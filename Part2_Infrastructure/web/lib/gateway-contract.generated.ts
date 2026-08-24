@@ -134,6 +134,26 @@ export interface CoherenceCalibration {
   uncertainty?: string | null;
 }
 
+export interface CoherenceCalibrationHistory {
+  notes?: Array<string>;
+  points?: Array<CoherenceCalibrationPoint>;
+  state: string;
+}
+
+export interface CoherenceCalibrationPoint {
+  base_rate?: string | null;
+  bias_slope?: string | null;
+  brier?: string | null;
+  detail?: string | null;
+  engine: string;
+  markets?: number;
+  median_horizon_s?: number | null;
+  skill?: string | null;
+  thin?: boolean;
+  ts_ns: number;
+  uncertainty?: string | null;
+}
+
 export interface CoherenceCertificate {
   because?: string;
   component_id: string;
@@ -279,8 +299,10 @@ export interface CoherenceEventView {
   basket_note?: string | null;
   event_ticker: string;
   exchange_index: number;
+  liquidity_total?: string | null;
   markets?: Array<CoherenceMarketView>;
   mutually_exclusive: boolean;
+  open_interest_total?: string | null;
   series_ticker: string;
   settlement_sources?: Array<string>;
   title: string;
@@ -367,14 +389,18 @@ export interface CoherenceMarketView {
   event_ticker: string;
   exchange_index: number;
   floor_strike?: string | null;
+  liquidity?: string | null;
   no_ask?: string | null;
   no_bid?: string | null;
+  notional_value?: string | null;
+  open_interest?: string | null;
   price_grid: string;
   series_ticker: string;
   spread?: string | null;
   strike_kind: string;
   ticker: string;
   unquoted_reason?: string | null;
+  volume?: string | null;
   yes_ask?: string | null;
   yes_bid?: string | null;
   yes_sub_title: string;
@@ -1571,6 +1597,7 @@ export interface GatewayOperations {
   "GET /api/book/{symbol}": { response: Array<VenueBook> };
   "GET /api/coherence/books": { response: CoherenceBooks };
   "GET /api/coherence/calibration": { response: CoherenceCalibration };
+  "GET /api/coherence/calibration/history": { response: CoherenceCalibrationHistory };
   "GET /api/coherence/certify": { response: CoherenceCertificate };
   "GET /api/coherence/combos": { response: CoherenceCombos };
   "GET /api/coherence/episodes": { response: CoherenceEpisodes };
@@ -1651,6 +1678,7 @@ export const GATEWAY_CONTRACT_PATHS = [
   "/api/book/{symbol}",
   "/api/coherence/books",
   "/api/coherence/calibration",
+  "/api/coherence/calibration/history",
   "/api/coherence/certify",
   "/api/coherence/combos",
   "/api/coherence/episodes",
