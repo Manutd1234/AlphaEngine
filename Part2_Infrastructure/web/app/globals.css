@@ -187,4 +187,8 @@
    pane-locally; before 15, which stays last. */
 @import "./globals/14q-markets-density.css";
 @import "./globals/14r-coherence-density.css";
+/* The Proofs tab's Model group — the control grid for its calculators and the
+   three SVG marks its figures add. Neither ladder, which is why it is not in
+   14q or 14r; after them, before 15, which stays last. */
+@import "./globals/14s-proofs-model.css";
 @import "./globals/15-navigator-and-trailing-layer.css";

@@ -87,6 +87,7 @@ import type { AbsorptionRead } from "./diffusion/types";
 const GROUPS: ReadonlyArray<[DiffusionGroup, string]> = [
   ["arm", "Announcement arm"],
   ["episodes", "Kalshi episodes"],
+  ["model", "Model"],
   ["findings", "Findings"],
 ];
 
@@ -102,6 +103,8 @@ export default function DiffusionPane({ active }: { active: boolean }) {
   // needs no gate of its own and a fourth group for one figure would put the
   // switcher back where this pass found it.
   const absorption = useCoherenceRead<AbsorptionRead>(absorptionRoute(), active && group === "arm");
+  // The Model group reads nothing at all — every view in it computes in the
+  // browser from `lib/coherence/diffusion-model`, which is the point it makes.
 
   return (
     <section className="card console-card coh-diffusion" aria-labelledby="coherence-diffusion-heading">

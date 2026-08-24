@@ -47,13 +47,18 @@ import type { CoherenceEpisodes } from "@/lib/coherence/types";
 import FindingsPane from "./FindingsPane";
 import InformationDiffusionPane from "./InformationDiffusionPane";
 import KalshiArm from "./KalshiArm";
+import DiffusionSimulator from "./model/DiffusionSimulator";
+import HalfLifeCalculator from "./model/HalfLifeCalculator";
+import ModelFormulas from "./model/ModelFormulas";
+import SpectrumExplorer from "./model/SpectrumExplorer";
 import type { AbsorptionRead } from "./types";
 
-export type DiffusionGroup = "arm" | "episodes" | "findings";
+export type DiffusionGroup = "arm" | "episodes" | "model" | "findings";
 
 type ArmView = "absorption" | "floor" | "meetings" | "mechanism";
 type EpisodeView = "survival" | "episodes";
-type DiffusionView = ArmView | EpisodeView | "findings";
+type ModelView = "formulas" | "halflife" | "simulator" | "spectrum";
+type DiffusionView = ArmView | EpisodeView | ModelView | "findings";
 
 /**
  * Which views each group holds, in the order the reader meets them.
@@ -70,6 +75,12 @@ export const GROUP_VIEWS: Record<DiffusionGroup, ReadonlyArray<[DiffusionView, s
     ["mechanism", "Mechanism"],
   ],
   episodes: [["survival", "Survival"], ["episodes", "Episodes"]],
+  model: [
+    ["formulas", "Formulas"],
+    ["halflife", "Half-life"],
+    ["simulator", "Simulator"],
+    ["spectrum", "Spectrum"],
+  ],
   findings: [["findings", "Findings"]],
 };
 
@@ -97,7 +108,15 @@ export default function DiffusionGroups({ group, active, absorption, episodes }:
         </div>
       ) : null}
 
-      {group === "findings" ? (
+      {group === "model" ? (
+        // Reads NOTHING. `gaussian.py` argues the closed form exists so the
+        // instrument ships before the model does; a gateway call here would
+        // contradict the thing the group is demonstrating.
+        view === "formulas" ? <ModelFormulas />
+          : view === "halflife" ? <HalfLifeCalculator />
+            : view === "simulator" ? <DiffusionSimulator />
+              : <SpectrumExplorer />
+      ) : group === "findings" ? (
         <>
           {/* The verdict the study returned, said once, here. It is a sentence
               a reader has to meet before the dot plot means anything. */}

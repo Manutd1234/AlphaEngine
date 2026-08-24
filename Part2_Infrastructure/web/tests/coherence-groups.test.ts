@@ -93,8 +93,11 @@ const SECTIONS: Record<string, TwoLevel> = {
     // Seven views on one row was the widest control on the desk, and `14r` said
     // so at its wrap rule. The three groups are the three READS: the absorption
     // ledger, the episode tape, and the study that gates its own.
-    groups: ["Announcement arm", "Kalshi episodes", "Findings"],
-    views: ["Absorption", "Noise floor", "Meetings", "Mechanism", "Survival", "Episodes"],
+    groups: ["Announcement arm", "Kalshi episodes", "Model", "Findings"],
+    views: [
+      "Absorption", "Noise floor", "Meetings", "Mechanism", "Survival", "Episodes",
+      "Formulas", "Half-life", "Simulator", "Spectrum",
+    ],
     gate: /const onEpisodes = group === "episodes"/,
     gated: [/active && onEpisodes/, /active && group === "arm"/],
   },

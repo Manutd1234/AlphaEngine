@@ -1,0 +1,72 @@
+/* The Proofs tab's Model group: its control grid and the three marks it draws.
+ *
+ * A NEW PARTIAL RATHER THAN A FEW LINES IN 14r, and the reason is that file's
+ * own banner: 14q owns the PROSE ladder, 14r owns the DIAGRAM ladder plus border
+ * containment and packing, and no selector string appears in both. What is here
+ * is neither ladder — it is a control grid and three SVG marks that belong to
+ * one group of one section — so it goes in a file of its own rather than
+ * widening the definition of either.
+ *
+ * IMPORTED AFTER 14r AND BEFORE 15, which stays last. Named 14s because 14n and
+ * 14o were taken by another session and 14q/14r by the density pass; the
+ * manifest test pins the order to `readdirSync().sort()`, so the letter is the
+ * position.
+ *
+ * IT SIZES NOTHING. There is no `font-size` in this file at all. The controls are
+ * `label` and `input[type="range"]`, styled once desk-wide in
+ * `00-tokens-and-base.css`, and the `.field` span carries the label rung the
+ * rest of the desk uses. A rung here would be the fifth per-tab size arriving
+ * the way the first four did — locally, reasonably, and invisibly to the tab
+ * next door — which is the defect `seg-metrics`, `type-scale`, `type-role-map`
+ * and `nav-type-markets-coherence` all refuse by name.
+ *
+ * NOTHING MEANS ANYTHING BY COLOUR ALONE. The true decay is dashed as well as
+ * tinted, and every mark in these figures carries a `<title>`; the simulator's
+ * verdict is a chip with a typographic mark and a word beside it. That is what
+ * `forced-colors.test.ts` and the house rule require.
+ */
+
+/* ── The control grid ─────────────────────────────────────────────────────
+   One column on a phone, two from the desk breakpoint the rest of this engine
+   uses. `align-content: start` because the house rule asks it of any grid inside
+   a subtab panel: spare height would otherwise inflate the rows, which is the
+   seg-resizes-on-pane-switch bug. */
+.coherence-plane.proofs-plane .coh-model__controls {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-2) var(--space-3);
+  align-content: start;
+  min-width: 0;
+}
+
+@media (min-width: 1100px) {
+  .coherence-plane.proofs-plane .coh-model__controls {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ── The three marks the model figures add ────────────────────────────────
+   Each is a mark these figures draw that no existing class covers: a measured
+   point on the absorbed curve, the decay a simulated path was drawn FROM, and
+   the area under the information density whose size is the figure's subject. */
+
+.coherence-plane.proofs-plane .coh-model__point {
+  fill: var(--series-3);
+}
+
+/* Dashed as well as tinted: this is the ground truth behind a noisy path, and a
+   reader who cannot separate the two hues still has to be able to tell which
+   line is the one that was drawn from a formula. */
+.coherence-plane.proofs-plane .coh-model__truth {
+  stroke: var(--text-secondary);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+
+/* The area IS the reading — its size is I(x;c) — so it is filled rather than
+   left as a line with a number beside it. Kept faint so the curve over it
+   stays the thing being read. */
+.coherence-plane.proofs-plane .coh-model__area {
+  fill: color-mix(in srgb, var(--series-3) 18%, transparent);
+  stroke: none;
+}
