@@ -1,0 +1,406 @@
+{
+  "note": "Python is the reference. Regenerate with tools/export_diffusion_parity.py; never loosen the suite's tolerance instead.",
+  "half_life": [
+    {
+      "name": "ok, interpolated between two grid points",
+      "x": [
+        60.0,
+        120.0,
+        300.0,
+        600.0,
+        900.0,
+        1800.0
+      ],
+      "absorbed": [
+        0.1,
+        0.3,
+        0.55,
+        0.7,
+        0.85,
+        1.0
+      ],
+      "expect": {
+        "state": "ok",
+        "value": 249.76596222056196,
+        "lower": 120.0,
+        "upper": 300.0
+      }
+    },
+    {
+      "name": "ok, an overshoot that comes back is not clipped",
+      "x": [
+        60.0,
+        120.0,
+        300.0,
+        600.0,
+        900.0,
+        1800.0
+      ],
+      "absorbed": [
+        0.2,
+        0.6,
+        1.3,
+        0.9,
+        0.95,
+        1.0
+      ],
+      "expect": {
+        "state": "ok",
+        "value": 100.90756983044577,
+        "lower": 60.0,
+        "upper": 120.0
+      }
+    },
+    {
+      "name": "at_or_before_first: already past the level at the first horizon",
+      "x": [
+        60.0,
+        120.0,
+        300.0,
+        600.0,
+        900.0,
+        1800.0
+      ],
+      "absorbed": [
+        0.6,
+        0.7,
+        0.8,
+        0.9,
+        0.95,
+        1.0
+      ],
+      "expect": {
+        "state": "at_or_before_first",
+        "value": 60.0,
+        "lower": null,
+        "upper": 60.0
+      }
+    },
+    {
+      "name": "never_reached: the path never got to half inside the window",
+      "x": [
+        60.0,
+        120.0,
+        300.0,
+        600.0,
+        900.0,
+        1800.0
+      ],
+      "absorbed": [
+        0.01,
+        0.05,
+        0.1,
+        0.2,
+        0.3,
+        0.4
+      ],
+      "expect": {
+        "state": "never_reached",
+        "value": null,
+        "lower": 1800.0,
+        "upper": null
+      }
+    },
+    {
+      "name": "too_few_points: one measured horizon is not a curve",
+      "x": [
+        600.0
+      ],
+      "absorbed": [
+        0.8
+      ],
+      "expect": {
+        "state": "too_few_points",
+        "value": null,
+        "lower": null,
+        "upper": null
+      }
+    },
+    {
+      "name": "a flat pair across the crossing takes the later horizon",
+      "x": [
+        60.0,
+        120.0,
+        300.0,
+        600.0,
+        900.0,
+        1800.0
+      ],
+      "absorbed": [
+        0.1,
+        0.2,
+        0.5,
+        0.5,
+        0.8,
+        1.0
+      ],
+      "expect": {
+        "state": "ok",
+        "value": 299.99999999999994,
+        "lower": 120.0,
+        "upper": 300.0
+      }
+    }
+  ],
+  "fits": [
+    {
+      "name": "a clean exponential decay",
+      "seconds": [
+        60.0,
+        120.0,
+        300.0,
+        600.0,
+        900.0,
+        1800.0
+      ],
+      "absorbed": [
+        0.2,
+        0.36,
+        0.63,
+        0.86,
+        0.95,
+        0.99
+      ],
+      "expect": {
+        "exponential": {
+          "model": "exponential",
+          "half_life": 177.3981962456962,
+          "terminal_unpriced_fraction": 0.05,
+          "sse": 0.0033104331688011595,
+          "n_points": 6,
+          "overshoot_points": 0
+        },
+        "power": {
+          "model": "power",
+          "half_life": 139.1273324214231,
+          "sse": 0.43111721127128405,
+          "n_points": 6,
+          "overshoot_points": 0
+        }
+      }
+    },
+    {
+      "name": "a slow decay that leaves an asymptote",
+      "seconds": [
+        60.0,
+        120.0,
+        300.0,
+        600.0,
+        900.0,
+        1800.0
+      ],
+      "absorbed": [
+        0.1,
+        0.18,
+        0.32,
+        0.45,
+        0.52,
+        0.6
+      ],
+      "expect": {
+        "exponential": {
+          "model": "exponential",
+          "half_life": 321.329101380338,
+          "terminal_unpriced_fraction": 0.4,
+          "sse": 0.0004898731015588525,
+          "n_points": 6,
+          "overshoot_points": 0
+        },
+        "power": {
+          "model": "power",
+          "half_life": 821.7875699942279,
+          "sse": 0.0047121229015419375,
+          "n_points": 6,
+          "overshoot_points": 0
+        }
+      }
+    },
+    {
+      "name": "fewer than three horizons refuses both fits",
+      "seconds": [
+        60.0,
+        120.0
+      ],
+      "absorbed": [
+        0.3,
+        0.6
+      ],
+      "expect": {
+        "exponential": {
+          "model": "none",
+          "half_life": null,
+          "terminal_unpriced_fraction": null,
+          "sse": null,
+          "n_points": 2,
+          "overshoot_points": 0
+        },
+        "power": {
+          "model": "none",
+          "half_life": null,
+          "sse": null,
+          "n_points": 2,
+          "overshoot_points": 0
+        }
+      }
+    }
+  ],
+  "spectrum": [
+    {
+      "name": "a spectrum with mass at coarse resolution",
+      "alpha": [
+        -6.0,
+        -3.0,
+        -1.0,
+        0.0,
+        1.0,
+        3.0,
+        6.0
+      ],
+      "log_lambda": [
+        1.6,
+        0.4,
+        -0.9
+      ],
+      "log_mu": [
+        0.7,
+        -0.1,
+        -1.2
+      ],
+      "expect": {
+        "mmse_unconditional": [
+          0.01681944570379586,
+          0.2867948375188426,
+          1.1301084743629979,
+          1.7197565426213726,
+          2.2580246556941748,
+          2.8486559122390323,
+          2.9917811963211616
+        ],
+        "density": [
+          0.0044343833493129346,
+          0.06889529493481364,
+          0.1775303038250447,
+          0.17253637071558203,
+          0.12568720773259168,
+          0.03339378081780331,
+          0.0019525634293049432
+        ],
+        "information_nats": 0.8500000000000001,
+        "entropy_nats": 4.806815599614018,
+        "sigmoid": [
+          0.0024726231566347743,
+          0.04742587317756678,
+          0.2689414213699951,
+          0.5,
+          0.7310585786300049,
+          0.9525741268224334,
+          0.9975273768433653
+        ]
+      }
+    },
+    {
+      "name": "a spectrum with mass at fine resolution",
+      "alpha": [
+        -6.0,
+        -3.0,
+        -1.0,
+        0.0,
+        1.0,
+        3.0,
+        6.0
+      ],
+      "log_lambda": [
+        2.2,
+        1.1,
+        0.3
+      ],
+      "log_mu": [
+        2.0,
+        0.6,
+        -0.8
+      ],
+      "expect": {
+        "mmse_unconditional": [
+          0.03260761958782579,
+          0.5031073492923819,
+          1.6253161988097917,
+          2.2249521332870916,
+          2.6375724390501816,
+          2.942640012456472,
+          2.9970680582150075
+        ],
+        "density": [
+          0.004506300215966366,
+          0.06455598024616696,
+          0.17554710769587545,
+          0.19423661510551316,
+          0.15157296489067296,
+          0.03784017303865417,
+          0.0021241135976766135
+        ],
+        "information_nats": 0.9,
+        "entropy_nats": 6.056815599614018,
+        "sigmoid": [
+          0.0024726231566347743,
+          0.04742587317756678,
+          0.2689414213699951,
+          0.5,
+          0.7310585786300049,
+          0.9525741268224334,
+          0.9975273768433653
+        ]
+      }
+    },
+    {
+      "name": "no conditioning information: the spectrum is flat zero",
+      "alpha": [
+        -6.0,
+        -3.0,
+        -1.0,
+        0.0,
+        1.0,
+        3.0,
+        6.0
+      ],
+      "log_lambda": [
+        1.0,
+        0.2
+      ],
+      "log_mu": [
+        1.0,
+        0.2
+      ],
+      "expect": {
+        "mmse_unconditional": [
+          0.00971126724899328,
+          0.1765270979209863,
+          0.8100255188723875,
+          1.2808925759424827,
+          1.6493218614768999,
+          1.9428480672411441,
+          1.9970636284165495
+        ],
+        "density": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "information_nats": 0.0,
+        "entropy_nats": 3.4378770664093454,
+        "sigmoid": [
+          0.0024726231566347743,
+          0.04742587317756678,
+          0.2689414213699951,
+          0.5,
+          0.7310585786300049,
+          0.9525741268224334,
+          0.9975273768433653
+        ]
+      }
+    }
+  ]
+}
