@@ -76,6 +76,8 @@ os.environ.setdefault("REQUIRE_AUTH", "0")
 os.environ["GEMINI_API_KEY"] = ""
 os.environ["RERANK_MODEL_PATH"] = ""
 os.environ["RESEARCH_IMAGE_MODEL_PATH"] = ""
+# A fourth: harvest pages per series, so a two-series `.env` doubles a count.
+os.environ["COHERENCE_SERIES"] = ""
 # The two research BACKENDS, blanked for the same reason and in the same place.
 #
 # `tests/test_research_contract.py` calls `research_reconcile.run_reconcile`,
