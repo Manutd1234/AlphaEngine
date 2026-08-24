@@ -57,7 +57,7 @@ export type DiffusionGroup = "arm" | "episodes" | "model" | "findings";
 
 type ArmView = "absorption" | "floor" | "meetings" | "mechanism";
 type EpisodeView = "survival" | "episodes";
-type ModelView = "formulas" | "halflife" | "simulator" | "spectrum";
+type ModelView = "measurement" | "instrument" | "halflife" | "simulator" | "spectrum";
 type DiffusionView = ArmView | EpisodeView | ModelView | "findings";
 
 /**
@@ -76,7 +76,8 @@ export const GROUP_VIEWS: Record<DiffusionGroup, ReadonlyArray<[DiffusionView, s
   ],
   episodes: [["survival", "Survival"], ["episodes", "Episodes"]],
   model: [
-    ["formulas", "Formulas"],
+    ["measurement", "Measurement"],
+    ["instrument", "Instrument"],
     ["halflife", "Half-life"],
     ["simulator", "Simulator"],
     ["spectrum", "Spectrum"],
@@ -112,7 +113,7 @@ export default function DiffusionGroups({ group, active, absorption, episodes }:
         // Reads NOTHING. `gaussian.py` argues the closed form exists so the
         // instrument ships before the model does; a gateway call here would
         // contradict the thing the group is demonstrating.
-        view === "formulas" ? <ModelFormulas />
+        view === "measurement" || view === "instrument" ? <ModelFormulas part={view} />
           : view === "halflife" ? <HalfLifeCalculator />
             : view === "simulator" ? <DiffusionSimulator />
               : <SpectrumExplorer />

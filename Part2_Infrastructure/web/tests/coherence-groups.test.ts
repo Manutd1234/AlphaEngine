@@ -96,7 +96,7 @@ const SECTIONS: Record<string, TwoLevel> = {
     groups: ["Announcement arm", "Kalshi episodes", "Model", "Findings"],
     views: [
       "Absorption", "Noise floor", "Meetings", "Mechanism", "Survival", "Episodes",
-      "Formulas", "Half-life", "Simulator", "Spectrum",
+      "Measurement", "Instrument", "Half-life", "Simulator", "Spectrum",
     ],
     gate: /const onEpisodes = group === "episodes"/,
     gated: [/active && onEpisodes/, /active && group === "arm"/],

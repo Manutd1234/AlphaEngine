@@ -32,8 +32,12 @@
  * trust. `diffusion-model-views.test.ts` asserts each path is a real module.
  */
 
+/** Which half of the model a formula belongs to. */
+export type FormulaPart = "measurement" | "instrument";
+
 interface ModelFormula {
   id: string;
+  part: FormulaPart;
   title: string;
   summary: string;
   formula: string;
@@ -49,6 +53,7 @@ interface ModelFormula {
 const FORMULAS: readonly ModelFormula[] = [
   {
     id: "absorbed",
+    part: "measurement",
     title: "The absorbed fraction",
     summary:
       "How much of the move this stage eventually produced had already happened by each horizon. The denominator is the move at one terminal, the same number of minutes from each stage's own t₀.",
@@ -60,6 +65,7 @@ const FORMULAS: readonly ModelFormula[] = [
   },
   {
     id: "overshoot",
+    part: "measurement",
     title: "The denominator is never clipped",
     summary:
       "A path that overshoots and comes back has an absorbed fraction above one somewhere, and it is recorded that way.",
@@ -71,6 +77,7 @@ const FORMULAS: readonly ModelFormula[] = [
   },
   {
     id: "floor",
+    part: "measurement",
     title: "The noise floor",
     summary:
       "A stage is only measured if its terminal move clears the pre-event volatility by a stated multiple. σ is the standard deviation of pre-event bar returns, scaled to the terminal horizon.",
@@ -82,6 +89,7 @@ const FORMULAS: readonly ModelFormula[] = [
   },
   {
     id: "halflife",
+    part: "measurement",
     title: "The half-life crossing",
     summary:
       "The first horizon at which the absorbed fraction reaches a half, interpolated between the two grid points that bracket it.",
@@ -93,6 +101,7 @@ const FORMULAS: readonly ModelFormula[] = [
   },
   {
     id: "states",
+    part: "measurement",
     title: "When there is no crossing",
     summary:
       "Three of the four outcomes are refusals, and each names itself rather than returning a number.",
@@ -104,6 +113,7 @@ const FORMULAS: readonly ModelFormula[] = [
   },
   {
     id: "exponential",
+    part: "measurement",
     title: "The exponential fit",
     summary:
       "A decay in the unpriced fraction u = 1 − absorbed, with an asymptote chosen from a grid. Reported because the shape is interesting; never the number a verdict turns on.",
@@ -115,6 +125,7 @@ const FORMULAS: readonly ModelFormula[] = [
   },
   {
     id: "power",
+    part: "measurement",
     title: "The power-law alternative",
     summary:
       "The same curve read as a power law, scored in the same space so the two are comparable.",
@@ -126,6 +137,7 @@ const FORMULAS: readonly ModelFormula[] = [
   },
   {
     id: "clock",
+    part: "instrument",
     title: "The volatility clock",
     summary:
       "A horizon's position measured in the variance that matched no-news windows had accumulated by then, rather than in wall-clock seconds.",
@@ -137,6 +149,7 @@ const FORMULAS: readonly ModelFormula[] = [
   },
   {
     id: "percentile",
+    part: "instrument",
     title: "The control percentile",
     summary:
       "Where a stage sat against matched windows on prior days at the same clock time. 0.0 is faster than every one of them; 0.5 is indistinguishable from an ordinary half hour.",
@@ -148,6 +161,7 @@ const FORMULAS: readonly ModelFormula[] = [
   },
   {
     id: "mmse",
+    part: "instrument",
     title: "The Gaussian null",
     summary:
       "The denoising error of a Gaussian fitted to the same covariance, in closed form. A model that cannot beat this curve has learned nothing.",
@@ -159,6 +173,7 @@ const FORMULAS: readonly ModelFormula[] = [
   },
   {
     id: "spectrum",
+    part: "instrument",
     title: "The information spectrum",
     summary:
       "A density over resolution rather than a total. Mass at low α means the conditioning explains structure that survives heavy noise — the coarse, headline-shaped part; mass at high α means detail that appears only once the noise is nearly gone.",
@@ -170,6 +185,7 @@ const FORMULAS: readonly ModelFormula[] = [
   },
   {
     id: "identity",
+    part: "instrument",
     title: "The identity the spectrum satisfies",
     summary:
       "The spectrum's integral over the whole log-SNR axis is exactly the mutual information — which is why this can be drawn with no network, no training and no torch.",
@@ -181,6 +197,7 @@ const FORMULAS: readonly ModelFormula[] = [
   },
   {
     id: "skill",
+    part: "instrument",
     title: "Out-of-sample skill",
     summary:
       "How much of the absorption clock is predictable, split into what the stage and the rate move alone give, and what reading the text adds to that.",
@@ -192,17 +209,34 @@ const FORMULAS: readonly ModelFormula[] = [
   },
 ];
 
-export default function ModelFormulas() {
+/**
+ * Two views rather than one, and the measurement is why.
+ *
+ * All thirteen on one view came to 2,724px at desk width and 3,142px at 1100 —
+ * four times the next largest view on the tab and the longest thing on the desk,
+ * measured by `scripts/section-density-measure.mjs` on its first run. Folding the
+ * confident half of each card into a disclosure took it to 2,065px, which is
+ * better and still the longest.
+ *
+ * So it splits where the model splits: what the estimator MEASURES on a price
+ * path, and the INSTRUMENT built on top of it. Seven cards and six, each landing
+ * in the range every other view on this tab occupies. The same move as the
+ * grouping slices — a control is cheaper than a scroll.
+ */
+export default function ModelFormulas({ part }: { part: FormulaPart }) {
+  const shown = FORMULAS.filter((entry) => entry.part === part);
   return (
     <>
       <p className="coh-event__note">
-        Every expression the two arms compute, the assumption it rests on, and the module that is its
-        reference implementation — Python is the reference and the browser twin is held to it by a fixture
-        that module writes.
+        {part === "measurement"
+          ? "What the estimator computes on a price path: the absorbed fraction, the gate that decides whether there was a move at all, the crossing, and the two fits that are reported but never the verdict."
+          : "The instrument built on top of it: a clock that is not made of the event, and the closed-form information spectrum the diffusion study reads."}{" "}
+        Each names the module that is its reference implementation — Python is the reference, and the browser
+        twin is held to it by a fixture that module writes.
       </p>
 
       <div className="coh-lessons__grid">
-        {FORMULAS.map((entry) => (
+        {shown.map((entry) => (
           <article className="coh-lesson" key={entry.id}>
             <header className="coh-lesson__head">
               <h4 className="console-subhead">{entry.title}</h4>
@@ -211,20 +245,34 @@ export default function ModelFormulas() {
               </span>
             </header>
 
-            <p className="coh-lesson__summary">{entry.summary}</p>
-
             <code className="coh-lesson__formula">{entry.formula}</code>
 
+            {/* THE BOUNDARY STAYS OPEN AND THE CONFIDENT HALF FOLDS, which is
+                the exact inverse of the usual disclosure and is what
+                `LessonsPane`'s rule actually asks for. That header refuses to
+                hide "what breaks it", because folding the failure mode leaves
+                the confident half on screen and hides the half that stops a
+                reader over-applying the claim. Hiding the confident half is
+                therefore the move that argument PERMITS — and it is the one
+                this view needed: measured at 2,724px with everything open, it
+                was the longest thing on the desk by a factor of four. */}
             <dl className="coh-lesson__bounds">
-              <div className="is-holds">
-                <dt>When it holds</dt>
-                <dd>{entry.holds}</dd>
-              </div>
               <div className="is-fails">
                 <dt>What breaks it</dt>
                 <dd>{entry.breaks}</dd>
               </div>
             </dl>
+
+            <details className="disclosure">
+              <summary>What it measures, and when it holds</summary>
+              <p className="coh-lesson__summary">{entry.summary}</p>
+              <dl className="coh-lesson__bounds">
+                <div className="is-holds">
+                  <dt>When it holds</dt>
+                  <dd>{entry.holds}</dd>
+                </div>
+              </dl>
+            </details>
           </article>
         ))}
       </div>

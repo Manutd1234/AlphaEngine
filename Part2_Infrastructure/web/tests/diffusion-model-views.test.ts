@@ -59,7 +59,7 @@ const sources = new Map(MODEL_FILES.map((file) => [file, read(file)] as const));
 describe("the Model group is offered and is reachable", () => {
   it("the group's four views are named on the switcher", () => {
     const groups = read("../components/coherence/diffusion/DiffusionGroups.tsx");
-    for (const label of ["Formulas", "Half-life", "Simulator", "Spectrum"]) {
+    for (const label of ["Measurement", "Instrument", "Half-life", "Simulator", "Spectrum"]) {
       assert.ok(groups.includes(`"${label}"`), `the Model group lost its ${label} view`);
     }
   });

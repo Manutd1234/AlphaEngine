@@ -848,8 +848,8 @@
           "disclosures": 0,
           "paragraphs": 1
         },
-        "Model — Formulas": {
-          "scrollHeight": 2724,
+        "Model — Measurement": {
+          "scrollHeight": 1354,
           "controlRows": 1,
           "nestedControls": 1,
           "controlHeight": 32,
@@ -857,7 +857,19 @@
           "wrapped": false,
           "figures": 0,
           "tables": 0,
-          "disclosures": 0,
+          "disclosures": 7,
+          "paragraphs": 1
+        },
+        "Model — Instrument": {
+          "scrollHeight": 1084,
+          "controlRows": 1,
+          "nestedControls": 1,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 0,
+          "tables": 0,
+          "disclosures": 6,
           "paragraphs": 1
         },
         "Model — Half-life": {
@@ -982,8 +994,8 @@
           "disclosures": 0,
           "paragraphs": 1
         },
-        "Model — Formulas": {
-          "scrollHeight": 3142,
+        "Model — Measurement": {
+          "scrollHeight": 1473,
           "controlRows": 1,
           "nestedControls": 1,
           "controlHeight": 32,
@@ -991,7 +1003,19 @@
           "wrapped": false,
           "figures": 0,
           "tables": 0,
-          "disclosures": 0,
+          "disclosures": 7,
+          "paragraphs": 1
+        },
+        "Model — Instrument": {
+          "scrollHeight": 1182,
+          "controlRows": 1,
+          "nestedControls": 1,
+          "controlHeight": 32,
+          "buttonHeight": 24,
+          "wrapped": false,
+          "figures": 0,
+          "tables": 0,
+          "disclosures": 6,
           "paragraphs": 1
         },
         "Model — Half-life": {

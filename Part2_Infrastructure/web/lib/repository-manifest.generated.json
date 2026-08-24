@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-24",
-  "commit": "affed13",
+  "commit": "34191da",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -1556,6 +1556,7 @@
     "Part2_Infrastructure/web/tests/fixtures/raw/tiingo/unauthenticated.json",
     "Part2_Infrastructure/web/tests/fixtures/retrieval-golden.json",
     "Part2_Infrastructure/web/tests/fixtures/risk-parity.json",
+    "Part2_Infrastructure/web/tests/fixtures/section-density.json",
     "Part2_Infrastructure/web/tests/forced-colors.test.ts",
     "Part2_Infrastructure/web/tests/format.test.ts",
     "Part2_Infrastructure/web/tests/gate-parity.test.ts",
