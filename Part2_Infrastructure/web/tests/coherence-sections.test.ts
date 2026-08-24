@@ -292,18 +292,21 @@ describe("exactly one subtab rail on the tab", () => {
     );
   });
 
-  it("the switchers name every option", () => {
-    // Pinned by name because these labels are the only route a reader has to
-    // the other views of a section — and for `combos` and `index` they are the
-    // only route at all, since both stopped being addressable.
-    // Dutch book's and Diffusion's own labels moved to
-    // `coherence-groups.test.ts` with the two-level contract, which reads each
-    // across its section AND the child that owns the views — checked there
-    // rather than dropped, since a label that moved file is still reachable.
-    const calibration = read(SECTION_FILES.calibration);
-    assert.match(calibration, /aria-label="Calibration view"/);
-    for (const label of ["Score", "Bands", "Corpus", "Index series", "Index families"]) {
-      assert.ok(calibration.includes(`"${label}"`), `Scorecard lost its ${label} view`);
+  it("the view labels are guarded, and it is coherence-groups that guards them", () => {
+    // This assertion used to list every option of every switcher. All four
+    // sections are two-level now, so a label lives on the section OR on the
+    // child that owns its views, and reading only the section file reports a
+    // label as deleted the moment it moves. `coherence-groups.test.ts` reads
+    // each pair and pins the same labels; what is left here is the check that
+    // it is still doing so, since a guard that quietly stopped covering a
+    // section is the failure this file exists to prevent.
+    const groups = read("../tests/coherence-groups.test.ts");
+    for (const id of Object.keys(SECTION_FILES)) {
+      if (id === "lessons") continue;
+      assert.ok(
+        new RegExp(`^  ${id}: \\{`, "m").test(groups),
+        `${id} has no entry in coherence-groups.test.ts, so its view labels are guarded by nothing`,
+      );
     }
   });
 });

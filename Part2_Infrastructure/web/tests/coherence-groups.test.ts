@@ -98,6 +98,20 @@ const SECTIONS: Record<string, TwoLevel> = {
     gate: /const onEpisodes = group === "episodes"/,
     gated: [/active && onEpisodes/, /active && group === "arm"/],
   },
+  calibration: {
+    pane: "../components/coherence/CalibrationPane.tsx",
+    child: "../components/coherence/CalibrationGroups.tsx",
+    groupLabel: "Calibration group",
+    viewLabel: "Calibration view",
+    // Two groups, and they are the two questions the section was folded from:
+    // was the price right ONCE SETTLED, and how far from coherent OVER TIME.
+    // Two sections used to ask a reader to discover they were one; two groups
+    // say it on the control.
+    groups: ["Once settled", "Over time"],
+    views: ["Score", "Bands", "Corpus", "Index series", "Index families"],
+    gate: /const onIndex = group === "time"/,
+    gated: [/active && !onIndex/, /active=\{active && onIndex\}/],
+  },
 };
 
 describe("a crowded section splits its switcher into two levels", () => {
@@ -146,6 +160,25 @@ describe("a crowded section splits its switcher into two levels", () => {
           + "or a reader pressing between two views of one group re-arms a call already answered",
         );
         for (const gated of section.gated) assert.match(pane, gated);
+      });
+
+      it("the engine banner stands over the settled group only", () => {
+        // The whole settled half turns on one field a reader will not think to
+        // check: `engine` says WHEN the price was read, and `final_trade` scores
+        // a price quoted moments before settlement. That caveat invalidates
+        // Score, Bands and Corpus and says nothing about the index, which is a
+        // distance between live quotes scored against nothing. Hoisting it over
+        // both groups would put "these are not forecasts" above a figure making
+        // no forecast claim; burying it per-view loses the SHAPE of the claim,
+        // which is that it invalidates the whole half rather than two rows.
+        if (id !== "calibration") return;
+        const child = read(section.child);
+        assert.match(child, /EngineBanner/, "the banner is not drawn by the group that owns the settled views");
+        assert.doesNotMatch(
+          read(section.pane),
+          /<EngineBanner/,
+          "the banner is drawn above the group control again, so it stands over the index too",
+        );
       });
 
       it("neither file is over the ceiling, since splitting is what bought the level", () => {

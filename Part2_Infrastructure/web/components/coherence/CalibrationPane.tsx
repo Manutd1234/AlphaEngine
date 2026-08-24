@@ -77,32 +77,29 @@ import type { CoherenceCalibration } from "@/lib/coherence/types-lab";
 import { calibrationRoute } from "@/lib/coherence/routes";
 import PaneHead from "./PaneHead";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
-import CalibrationBands from "./CalibrationBands";
-import CalibrationCorpus from "./CalibrationCorpus";
-import { EngineBanner, ScoreView, horizonText, scoreFacts } from "./CalibrationScore";
-import { StateChip } from "./Figure";
-import IndexPane from "./IndexPane";
+import CalibrationGroups, { type CalibrationGroup } from "./CalibrationGroups";
 
-type CalibrationView = "score" | "bands" | "corpus" | "series" | "families";
-
-/** The two views the index read answers; the other three read the corpus. */
-const INDEX_VIEWS = new Set<CalibrationView>(["series", "families"]);
-
-const VIEWS: ReadonlyArray<[CalibrationView, string]> = [
-  ["score", "Score"],
-  ["bands", "Bands"],
-  ["corpus", "Corpus"],
-  ["series", "Index series"],
-  ["families", "Index families"],
+/**
+ * Two groups, and the labels are the two questions rather than two nouns.
+ *
+ * The fold of 2026-08-24 put the coherence index into this section because both
+ * halves answer "were these prices right" — the index continuously, calibration
+ * once settled. Five flat segments then asked a reader to notice that Score and
+ * Index families were not peers. "Once settled" and "Over time" say it on the
+ * control, which is the thing a fold owes the reader it saved a section from.
+ */
+const GROUPS: ReadonlyArray<[CalibrationGroup, string]> = [
+  ["settled", "Once settled"],
+  ["time", "Over time"],
 ];
 
 export default function CalibrationPane({ active }: { active: boolean }) {
-  const [view, setView] = useState<CalibrationView>("score");
-  const onIndex = INDEX_VIEWS.has(view);
-  const { data, error } = useCoherenceRead<CoherenceCalibration>(
-    calibrationRoute(),
-    active && !onIndex,
-  );
+  const [group, setGroup] = useState<CalibrationGroup>("settled");
+  // The GROUP is the gate: each is exactly one read, so a reader scoring the
+  // settled corpus never pays for the tape, and moving between two views of one
+  // group re-arms nothing.
+  const onIndex = group === "time";
+  const { data, error } = useCoherenceRead<CoherenceCalibration>(calibrationRoute(), active && !onIndex);
 
   const head = {
     kicker: "Scorecard",
@@ -122,82 +119,32 @@ export default function CalibrationPane({ active }: { active: boolean }) {
     <section className="card console-card coh-calib" aria-labelledby="coherence-calibration-heading">
       <PaneHead {...head} />
 
-      <div className="seg" role="group" aria-label="Calibration view">
-        {VIEWS.map(([name, label]) => (
-          <button key={name} type="button" aria-pressed={view === name} onClick={() => setView(name)}>
+      {/* Drawn before either branch, unconditionally: the index needs no settled
+          corpus, so a reader who arrives while that read is in flight — or has
+          failed — must still be able to reach it. Gating this on `data` is how a
+          fold makes two views unreachable for the slowest seconds of a visit. */}
+      <div className="seg" role="group" aria-label="Calibration group">
+        {GROUPS.map(([name, label]) => (
+          <button key={name} type="button" aria-pressed={group === name} onClick={() => setGroup(name)}>
             {label}
           </button>
         ))}
       </div>
 
+      {/* `key` remounts on a group change so the view resets to the group's
+          first. The engine banner travels with the settled group rather than
+          standing above this control — it invalidates those three views and says
+          nothing about a distance between live quotes.
+
+          Two branches rather than one element with ternary props, and the
+          repetition is deliberate: each conjunction is where its gate is
+          READABLE, and a gate that holds only because a prop happened to be
+          null is a gate nobody can see. `CertificatePane` reads the same way. */}
       {onIndex ? (
-        <IndexPane active={active && onIndex} view={view === "series" ? "series" : "families"} />
+        <CalibrationGroups key={group} group={group} active={active && onIndex} data={null} error={null} />
       ) : (
-        <SettledViews data={data} error={error} view={view} />
+        <CalibrationGroups key={group} group={group} active={active && !onIndex} data={data} error={error} />
       )}
     </section>
-  );
-}
-
-/**
- * The three settled views, with the four different absences told apart.
- *
- * A read still in flight looks like reading, a failed read names the failure,
- * a gateway that answered "nothing has settled" says so in its own words, and
- * only then does a number appear. Collapsing any pair of those into one line is
- * how "we do not know" starts reading as "it is fine".
- */
-function SettledViews({ data, error, view }: {
-  data: CoherenceCalibration | null;
-  error: string | null;
-  view: CalibrationView;
-}) {
-  if (error && !data) {
-    return (
-      <p className="console-empty">
-        <span aria-hidden="true">✕</span> The settled corpus could not be read: {error}
-      </p>
-    );
-  }
-  if (!data) return <p className="console-empty muted">Scoring the settled markets…</p>;
-  if (data.state !== "available") {
-    return (
-      <p className="console-empty">
-        <span aria-hidden="true">◌</span>{" "}
-        {data.detail || "Nothing has settled yet, so there is nothing to score."}
-      </p>
-    );
-  }
-
-  return (
-    <>
-      {/* The one chip no figure, note or heading below already says. Settled
-          markets, bands quoted and the engine each repeated a neighbour. */}
-      <div className="coh-status__chips">
-        <StateChip
-          mark={data.thin ? "▲" : "●"}
-          word={data.thin ? "Thin sample" : "Not flagged thin"}
-          value={data.thin ? "too few to conclude from" : null}
-          tone={data.thin ? "warn" : "muted"}
-        />
-      </div>
-
-      <EngineBanner data={data} />
-
-      {view === "score" ? (
-        <ScoreView data={data} facts={scoreFacts(data)} />
-      ) : view === "bands" ? (
-        <CalibrationBands
-          data={data}
-          horizonNote={
-            data.engine === "final_trade"
-              ? "last traded prices, so the x axis is what the exchange had already converged on"
-              : horizonText(data.median_horizon_s)
-          }
-        />
-      ) : (
-        <CalibrationCorpus data={data} />
-      )}
-    </>
   );
 }
