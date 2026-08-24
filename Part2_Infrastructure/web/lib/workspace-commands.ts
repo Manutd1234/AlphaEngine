@@ -170,10 +170,13 @@ export function buildCommands(d: CommandDeps): Command[] {
     section("developer", "Developer", s.id, `${s.label} — ${s.description}`, () => setDeveloperSection(s.id));
   }
   for (const s of MARKETS_SECTIONS) {
-    section("markets", "Markets", s.id, `${s.label} — ${s.description}`, () => setMarketsSection(s.id));
+    // "Quotes", not "Markets": a palette category is a LABEL a reader reads,
+    // and the id it navigates to is deliberately the older word. Same for
+    // Proofs below — see NAV_ITEMS.
+    section("markets", "Quotes", s.id, `${s.label} — ${s.description}`, () => setMarketsSection(s.id));
   }
   for (const s of COHERENCE_SECTIONS) {
-    section("coherence", "Coherence", s.id, `${s.label} — ${s.description}`, () => setCoherenceSection(s.id));
+    section("coherence", "Proofs", s.id, `${s.label} — ${s.description}`, () => setCoherenceSection(s.id));
   }
 
   for (const strategy of Object.keys(STRATEGY_LABELS) as Strategy[]) {

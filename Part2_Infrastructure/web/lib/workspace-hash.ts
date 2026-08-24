@@ -18,6 +18,12 @@ export const VIEWS: WorkspaceView[] = NAV_ITEMS.map((item) => item.id);
  * The console used to be one "Systems" tab. Anyone holding a link to it lands on
  * reliability, which is the half that answers "is it up" — the question someone
  * following a saved systems link is most likely asking.
+ *
+ * `markets` left this table on 2026-08-24 and came back the same day as a live
+ * tab, which is the whole reason ids are never invented lightly: it was retired
+ * here for the hours the Kalshi engine was one tab, and reusing the id rather
+ * than minting a third one means the retirement simply ended. Nothing else has
+ * ever been retired.
  */
 export const LEGACY_VIEWS: Record<string, WorkspaceView> = {
   systems: "reliability",
@@ -37,31 +43,97 @@ export const DEFAULT_SECTION: Record<WorkspaceView, string> = {
   data: "overview",
   reliability: "overview",
   developer: "overview",
+  // Prices opens on the reading everything else follows from, which is also
+  // where the one-tab engine always opened. Proofs opens on the test it is
+  // named for — `universe` is not on that rail at all any more.
   markets: "universe",
   coherence: "certificate",
 };
 
 /**
- * Sections that changed tab, and the tab they went to.
+ * Every id a URL may still name that is no longer a section of the tab it names,
+ * and the tab AND section that carry it now.
  *
- * `LEGACY_VIEWS` above retires a whole workspace; this retires a location
- * inside one, which the split of the Kalshi engine into Markets and Coherence
- * needed and nothing before it did. `#coherence/books` was a public deep link
- * for as long as that rail carried Books, and without this the section is one
- * `lib/sections` no longer defines for `coherence` — so `readLocation` would
- * reset it to that tab's default and the reader would land on the Dutch-book
- * certificate while the URL still said Books. Green, plausible, and wrong.
+ * THIS TABLE IS THE COST OF FIVE RESTRUCTURES IN ONE DAY, paid once so that no
+ * link ever paid it. It has been a cross-tab table (the split), a same-tab one
+ * (`DEMOTED_SECTIONS`, after the merge), and is cross-tab again now that the
+ * ten sections are divided over Prices and Proofs. Every version answered the
+ * same question and only this one answers it in full: a hash names a workspace
+ * AND a section, and after the split of 2026-08-24 an id can lose either.
  *
- * Keyed by the workspace the URL names, then by the section it names. A
- * section the named tab STILL has always wins, so an id that later appears on
- * both rails resolves to the tab the link actually asked for.
+ * THREE KINDS OF ENTRY LIVE HERE, and the third is why a same-tab table would
+ * not do:
+ *
+ *  1. IDS THAT STOPPED BEING SECTIONS. Seven of them: `settlement`,
+ *     `dispersion`, `portfolio`, `ablation` and `findings` were rail sections
+ *     for a few hours during the promotion pass, and `index` and `combos` were
+ *     PUBLISHED on `origin/main` before the consolidation folded them into the
+ *     sections that answer the same question. A view is component state and is
+ *     not addressable (CLAUDE.md says so), so without this a link lands on a
+ *     rail default while the URL still says Settlement — green, plausible, and
+ *     wrong. `stake` was an eighth and is not one any more: the fifth
+ *     restructure gave it its own rail entry back, so its only remaining
+ *     entry is a tab move.
+ *  2. IDS THAT MOVED TAB. `universe`, `books`, `lattice`, `stake`, `fees` and
+ *     `shell` are Prices sections now, and `#coherence/universe` is a link
+ *     `origin/main` published. It must cross to the `markets` workspace, not 404 and not open
+ *     Proofs on its default.
+ *  3. IDS THAT DID BOTH. `settlement` under `#coherence/` has to become
+ *     `markets/universe`: its section is gone AND its tab changed. Two lookups
+ *     would have to agree; one table cannot disagree with itself.
+ *
+ * WHAT THIS CANNOT DO, recorded because it is the cost the reader accepted
+ * rather than an oversight: it resolves to a SECTION and stops there. The view
+ * inside is component state with no name in the URL, so `#coherence/combos`
+ * opens Dutch book on its own landing view rather than on Parlays. Naming a
+ * view in the hash would need every console to accept an initial view;
+ * addressability is exactly what the consolidation spent.
+ *
+ * Keyed by the workspace the URL NAMES, then by the id it names. A section the
+ * named rail STILL has always wins, so an entry here can never shadow a live
+ * id; `readLocation` only consults it after that rail has said no.
  */
-export const RELOCATED_SECTIONS: Record<string, Record<string, WorkspaceView>> = {
+export interface RelocatedSection {
+  readonly view: WorkspaceView;
+  readonly section: string;
+}
+
+export const RELOCATED_SECTIONS: Record<string, Record<string, RelocatedSection>> = {
   coherence: {
-    universe: "markets",
-    books: "markets",
-    lattice: "markets",
-    shell: "markets",
+    // Moved tab: five reading sections are Prices now. Four of the five were
+    // published under `#coherence/`.
+    universe: { view: "markets", section: "universe" },
+    books: { view: "markets", section: "books" },
+    lattice: { view: "markets", section: "lattice" },
+    fees: { view: "markets", section: "fees" },
+    shell: { view: "markets", section: "shell" },
+    // Stopped being sections AND changed tab with their carrier.
+    settlement: { view: "markets", section: "universe" },
+    dispersion: { view: "markets", section: "books" },
+    ablation: { view: "markets", section: "fees" },
+    // `stake` moved tab and is a SECTION again, so this entry points at the
+    // section that carries the subject rather than at the one that briefly
+    // absorbed it. It stays in the table because the URL still names the old
+    // tab: `#coherence/stake` has to reach `markets/stake`.
+    stake: { view: "markets", section: "stake" },
+    // Stopped being sections; their carrier stayed on this tab.
+    portfolio: { view: "coherence", section: "certificate" },
+    combos: { view: "coherence", section: "certificate" },
+    index: { view: "coherence", section: "calibration" },
+    findings: { view: "coherence", section: "diffusion" },
+  },
+  // The promotion pass gave the `markets` tab two sections it no longer has.
+  // Unpushed and alive for hours, but the ids cost two lines and a link made
+  // that morning is still a link someone made.
+  //
+  // `markets/stake` was the third and its entry is RETIRED rather than
+  // re-pointed: `stake` is on this rail again, `readLocation` asks the rail
+  // before it asks this table, so the entry could never be reached — and an
+  // entry that cannot be reached is a lookup table claiming a move that was
+  // undone.
+  markets: {
+    settlement: { view: "markets", section: "universe" },
+    dispersion: { view: "markets", section: "books" },
   },
 };
 
@@ -121,25 +193,42 @@ export function followLocation(
 ): () => void {
   const readLocation = () => {
     const [workspace, nestedSection] = window.location.hash.slice(1).split("/");
-    const hashView = workspace as WorkspaceView;
-    if (VIEWS.includes(hashView)) {
-      // Every second-level rail in the workspace is a real location: a link
-      // into "walk-forward evidence" survives being sent to someone, and Back
-      // steps through sections instead of leaving the tab entirely. A section
-      // this workspace does not have is looked up in `RELOCATED_SECTIONS`
-      // first, and only then reset to the tab default — otherwise a link into
-      // a section that merely MOVED lands somewhere nobody named.
-      const own = applier[hashView](nestedSection ?? "");
-      const moved = own ? null : RELOCATED_SECTIONS[workspace]?.[nestedSection ?? ""] ?? null;
-      const landing = moved ?? hashView;
-      setView(landing);
-      const apply = own
-        ?? applier[landing](nestedSection ?? "")
-        ?? applier[landing](DEFAULT_SECTION[landing]);
-      apply?.();
-    } else if (LEGACY_VIEWS[workspace]) {
-      setView(LEGACY_VIEWS[workspace]);
+    const named = nestedSection ?? "";
+    // A retired workspace resolves to the tab that absorbed it BEFORE the
+    // section is read, so a retired hash keeps its section instead of being a
+    // bare tab switch. `LEGACY_VIEWS` used to set the view and drop whatever
+    // followed the slash.
+    const hashView = VIEWS.includes(workspace as WorkspaceView)
+      ? (workspace as WorkspaceView)
+      : LEGACY_VIEWS[workspace] ?? null;
+    if (!hashView) return;
+    // Every second-level rail in the workspace is a real location: a link into
+    // "walk-forward evidence" survives being sent to someone, and Back steps
+    // through sections instead of leaving the tab entirely. THREE TRIES, IN
+    // THIS ORDER, and the order is the whole contract — asked before the rail,
+    // the table could shadow a live id; asked after the default, it would never
+    // run:
+    //
+    //   1. the id the rail the hash NAMED still has;
+    //   2. the tab and section that CARRY a relocated id, which since the split
+    //      of 2026-08-24 may be a different tab — so this branch sets the view
+    //      as well, and it is the only one that can;
+    //   3. the named tab's own default.
+    const onRail = applier[hashView](named);
+    if (onRail) {
+      setView(hashView);
+      onRail();
+      return;
     }
+    const moved = RELOCATED_SECTIONS[hashView]?.[named];
+    const relocated = moved ? applier[moved.view](moved.section) : null;
+    if (moved && relocated) {
+      setView(moved.view);
+      relocated();
+      return;
+    }
+    setView(hashView);
+    applier[hashView](DEFAULT_SECTION[hashView])?.();
   };
   restoreRememberedLocation();
   readLocation();

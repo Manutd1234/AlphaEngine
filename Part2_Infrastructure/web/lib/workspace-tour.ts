@@ -1,7 +1,12 @@
 /**
- * The eight-stop reviewer tour — one stop per workspace, in decision-loop
+ * The ten-stop reviewer tour — one stop per workspace, in decision-loop
  * order, each landing on a full `#view/section` deep link with the one moment
  * worth showing named. Rendered by the "?" overlay.
+ *
+ * The last two stops carry the Kalshi engine's split: the tab NAMES here are
+ * "Quotes" and "Proofs" while the view ids stay `markets` and `coherence`,
+ * because `tour-truth.test.ts` reads the stop's tab name against the workspace
+ * it navigates to and an id is not a name a reader can find on the row.
  *
  * Built here for the same reason `buildCommands` is: it is a list, not a
  * render, and `tests/tour-truth.test.ts` checks every stop's label against the
@@ -56,7 +61,7 @@ export function buildTourStops(deps: TourDeps): TourStop[] {
     stop("Data → Incidents", "Simulate a provider outage; the incident row, failover graph and consensus react, then self-restore.", "data", "incidents", () => deps.setDataSection("incidents")),
     stop("Reliability → Attention & SLIs", "Fleet-truth p99 and provider circuits; the latency chip in every header resolves here.", "reliability", "overview", () => deps.setReliabilitySection("overview")),
     stop("Developer → API & Schema", "OpenAPI drift against the committed digest, and the Monte Carlo parity check you can run in this browser.", "developer", "apis", () => deps.setDeveloperSection("apis")),
-    stop("Markets → Universe", "Kalshi families priced against the dollar they pay: what buying every outcome costs, read live from the exchange.", "markets", "universe", () => deps.setMarketsSection("universe")),
-    stop("Coherence → Dutch book", "The same families put to the de Finetti test: coherent, or a portfolio that wins in every state — with the certificate either way.", "coherence", "certificate", () => deps.setCoherenceSection("certificate")),
+    stop("Quotes → Universe", "Kalshi families priced against the dollar they pay: what buying every outcome costs, read live from the exchange.", "markets", "universe", () => deps.setMarketsSection("universe")),
+    stop("Proofs → Dutch book", "The same families put to the de Finetti test: coherent, or a portfolio that wins in every state — with the certificate either way.", "coherence", "certificate", () => deps.setCoherenceSection("certificate")),
   ];
 }

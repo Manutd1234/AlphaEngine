@@ -82,8 +82,10 @@ export function useRailSections(): RailSections {
   const [reliabilitySection, setReliabilitySection] = useState<ReliabilitySection>("overview");
   const [developerSection, setDeveloperSection] = useState<DeveloperSection>("overview");
   const [marketsSection, setMarketsSection] = useState<MarketsSection>("universe");
-  // Not "universe" any more: that section is Markets' opening argument now, and
-  // this tab opens on the test it is named for.
+  // Not "universe" any more: that section is on the Prices rail, and this tab
+  // (`coherence`, labelled "Proofs") opens on the test it is named for. The
+  // two states below are per-TAB, so a reader who moves inside Prices and
+  // comes back to Proofs finds the section they left rather than a default.
   const [coherenceSection, setCoherenceSection] = useState<CoherenceSection>("certificate");
   // Risk and Portfolio kept these internally, which made them the only two
   // steppers in the workspace that a link could not address: `#risk/model`

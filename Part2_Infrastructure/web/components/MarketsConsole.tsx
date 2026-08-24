@@ -1,39 +1,77 @@
 "use client";
 
 /**
- * Markets — the Kalshi venue as it is quoted, before anything is proved about it.
+ * Prices — the Kalshi venue as it is quoted, before anything is proved about it.
  *
  * A contract that pays a dollar if an event happens is a probability with a
- * price on it. This tab is the reading: which families the engine watches and
+ * price on it. This tab is the READING: which families the engine watches and
  * what a whole dollar of one costs, the two bid ladders the exchange really
- * publishes, the implication structure between the outcomes, and the same
- * universe walked as a filesystem. What follows FROM those prices — the
- * de Finetti test, the cost model, the index, the settled scorecard — is the
- * Coherence tab, which is the other half of one argument split on 2026-08-24
- * because eleven sections asked a reader to hold two questions at once.
+ * sends, the measure a strike ladder implies and what to stake on it, what the
+ * venue charges for touching any of it, and the same universe walked as a
+ * filesystem. What FOLLOWS from those prices — the de Finetti test, the settled
+ * scorecard, the absorption study — is the Proofs tab.
  *
- * It reads and records; it places no orders, and there is no send path in this
- * version.
+ * THE TAB ID IS `markets` AND THE LABEL IS "Quotes", which is house practice on
+ * this row rather than drift: `live` renders "Execution", `activity` renders
+ * "Blotter". The id is reused rather than re-minted because the relocation
+ * table, the desk sweep and this suite already speak it.
+ *
+ * FIFTH RESTRUCTURE OF ONE DAY, AND THE HISTORY IS WORTH ONE PARAGRAPH so the
+ * next reader does not re-derive it. 2026-08-24 went: one tab of eleven (what
+ * `origin/main` publishes) → Markets + Coherence → seventeen sections, when six
+ * in-pane `.seg` views were promoted to rails → back to one tab → consolidated
+ * to nine → these two tabs → and then Stake back out of the lattice, which is
+ * the only move of the five that ADDED a section. It is not the consolidation
+ * being unpicked: consolidating merged sections that asked one question, and
+ * this splits one that was asking two — what measure the quotes imply, and what
+ * to bet against it — over two reads, with a second control row as the cost of
+ * pretending otherwise. Six here answer "what is it quoted at".
+ *
+ * WHAT A `.seg` VIEW GIVES UP, said once for the whole engine: it is not in the
+ * URL, not in the command palette, and not walked by `scripts/desk-sweep.mjs`.
+ * Three of this tab's sections carry a subject that used to be addressable —
+ * Settlement, Dispersion, Ablation — and `RELOCATED_SECTIONS` in
+ * `lib/workspace-hash.ts` is what keeps every link to them resolving: it lands
+ * on the SECTION that carries the subject, on THIS tab, and the view inside is
+ * component state no hash can name. Stake was a fourth and is a section again,
+ * so its entry is a tab move now rather than a demotion.
  *
  * Panes are `.seg` groups inside a section, never a nested `<WorkspaceSubtabs>`
  * — a second rail instance fights the first over the `--rail-h` publisher, as
- * `ReliabilityConsole` records.
+ * `ReliabilityConsole` records. A section with five views is still one seg.
+ *
+ * NO "ORDER PATH" METRIC HERE, and its absence is a decision. The engine reads,
+ * records and certifies and there is no send path in this version; that is one
+ * claim about one engine and it is made ONCE, on Proofs, where a reader meets a
+ * certificate that is literally a portfolio with legs and fees on it. Repeating
+ * it over a page of quotes would be the third telling of a fact the reader has
+ * already been given — exactly what this pass was asked to stop.
+ *
+ * TWO PLANE CLASSES ON THE ROOT. `.coherence-plane` is the engine's shared
+ * ladder — both tabs draw the same figures, tables and chips out of the same
+ * component library, so their density pass is one pass. `.markets-plane` is
+ * this tab's own, and it exists so a rule that can only ever match here says so
+ * in its selector instead of floating over a plane where its class never
+ * appears. `14q-markets-density.css` owns this pair; `14r` owns the other.
  */
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 
 import PageHead from "@/components/workspace/PageHead";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
 import FreshnessStamp from "@/components/workspace/FreshnessStamp";
-import BooksSection, { type BooksView } from "@/components/coherence/BooksSection";
+import BooksSection from "@/components/coherence/BooksSection";
+import FeesSection from "@/components/coherence/FeesSection";
+import { EXAMPLES } from "@/components/coherence/FeesPane";
 import ShellPane from "@/components/coherence/ShellPane";
 import StatusPane from "@/components/coherence/StatusPane";
+import StakePane from "@/components/coherence/StakePane";
 import SurfacePane from "@/components/coherence/SurfacePane";
 import UniverseSection from "@/components/coherence/UniverseSection";
 import { MARKETS_SECTIONS, type MarketsSection } from "@/lib/sections";
-import { booksRoute, shellRoute, statusRoute, universeRoute } from "@/lib/coherence/routes";
+import { booksRoute, feesRoute, shellRoute, statusRoute, universeRoute } from "@/lib/coherence/routes";
 import { COHERENCE_POLL_MS, useCoherenceRead, warmCoherenceRead } from "@/lib/coherence/use-coherence";
-import type { CoherenceBooks, CoherenceStatus, CoherenceUniverse } from "@/lib/coherence/types";
+import type { CoherenceStatus, CoherenceUniverse } from "@/lib/coherence/types";
 import { useSectionWarming } from "@/lib/coherence/use-section-warming";
 
 export { type MarketsSection } from "@/lib/sections";
@@ -41,15 +79,42 @@ export { type MarketsSection } from "@/lib/sections";
 /**
  * What each section asks the gateway for the moment it opens.
  *
- * Only the reads a section makes with no choice from the reader — the surface
- * and stake reads name a family the reader picks, and warming one guesses at
- * an answer rather than at a question. Built from `lib/coherence/routes` so a
- * query string cannot drift between the pane that asks and the rail that warms.
+ * The view a section OPENS on, not every view it has, and that distinction does
+ * real work on this tab. Fees warms the worked example because that is what a
+ * reader lands on; it does NOT warm the replay behind its Ablation view. The
+ * lattice and the stake warm the UNIVERSE instead of their own reads, because
+ * `/surface` and `/stake` both name a family the reader has not picked yet —
+ * warming one would guess at an answer rather than at a question, and spend the
+ * exchange's token bucket on a family nobody selected. They are the same entry
+ * for the same reason, not a copy: the universe read is what both pickers are
+ * built from, and `read-cache.ts` answers the second from the first.
+ *
+ * TWO READS ARE DELIBERATELY ABSENT, and they are listed rather than left to be
+ * noticed, because an empty entry that is a decision and one that is an
+ * oversight look identical in a diff:
+ *
+ *   - The RFQ channel, behind Books → Dispersion and Books → Channel. It is a
+ *     SIGNED private-channel call on a 25-second gateway budget. As a rail
+ *     section it was warmed, and that was right: opening the section was the
+ *     only thing a reader could do with it. As one of four views it is not —
+ *     warming would spend the desk's slowest signed call for every reader who
+ *     came to look at a ladder.
+ *   - `/replay?limit=20000`, behind Fees → Ablation and Fees → Replay table.
+ *     The largest read on the tab, warmed by NOTHING, for the same reason it
+ *     never was: the point of warming is to spend a read early, not to spend
+ *     one nobody wanted.
+ *
+ * Each is gated on its VIEW where it is read, beside the read rather than from
+ * up here at a distance, so leaving the view ends the call. Built from
+ * `lib/coherence/routes` so a query string cannot drift between the pane that
+ * asks and the rail that warms.
  */
 const SECTION_READS: Record<MarketsSection, readonly string[]> = {
   universe: [universeRoute()],
   books: [booksRoute()],
   lattice: [universeRoute()],
+  stake: [universeRoute()],
+  fees: [feesRoute(EXAMPLES[0].price, EXAMPLES[0].contracts, EXAMPLES[0].fills)],
   shell: [shellRoute("/", "ls")],
 };
 
@@ -62,18 +127,17 @@ export interface MarketsConsoleProps {
 
 export default function MarketsConsole({ section, onSectionChange, active = true }: MarketsConsoleProps) {
   const status = useCoherenceRead<CoherenceStatus>(statusRoute(), active);
+  // Three sections here share this one read — the baskets, the lattice's family
+  // picker and the stake's — and the Proofs tab's certificate shares it across
+  // the tab boundary, because `read-cache.ts` holds one answer per URL. It is
+  // the slowest read on the engine (a 28-second browser deadline), so it is
+  // asked for once and cached rather than once per pane. Stake needs it for a
+  // second reason the other two do not have: its declined branch names WHICH
+  // families the solver can take, and the exchange's mutually-exclusive flag
+  // for every watched family is on this payload and nowhere else.
   const universe = useCoherenceRead<CoherenceUniverse>(
     universeRoute(),
-    active && (section === "universe" || section === "lattice"),
-  );
-  // Which of the three book views is open. The read below is the exchange's
-  // book route; the Dispersion view does not draw a book, so it does not ask
-  // for one. `BooksSection` announces the change because the read has to live
-  // up here, where `active` and `section` are.
-  const [booksView, setBooksView] = useState<BooksView>("ladder");
-  const books = useCoherenceRead<CoherenceBooks>(
-    booksRoute(),
-    active && section === "books" && booksView !== "dispersion",
+    active && (section === "universe" || section === "lattice" || section === "stake"),
   );
 
   useSectionWarming(SECTION_READS, active);
@@ -98,11 +162,6 @@ export default function MarketsConsole({ section, onSectionChange, active = true
         note: recorder?.configured ? `every ${recorder.poll_seconds}s` : "recorder not configured",
         mono: true,
       },
-      {
-        label: "Order path",
-        value: "none",
-        note: "this engine reads, records and certifies; it sends nothing",
-      },
     ];
   }, [status.data, universe.data]);
 
@@ -115,17 +174,11 @@ export default function MarketsConsole({ section, onSectionChange, active = true
   }, []);
 
   return (
-    <div className="coherence-plane">
+    <div className="coherence-plane markets-plane">
       <PageHead
-        kicker="Markets"
+        kicker="Quotes"
         title="The exchange as it is quoted"
-        description={
-          <>
-            A contract paying $1 if an event happens is a probability with a price on it. These are the families this
-            engine watches, the ladders behind them and the structure between their outcomes, read live and recorded.
-            Whether those prices admit a probability at all is the Coherence tab.
-          </>
-        }
+        description="A contract paying $1 is a probability with a price on it, and these are the families, ladders and costs it is quoted at."
         actions={
           <FreshnessStamp updatedAt={status.updatedAt} pollMs={COHERENCE_POLL_MS} paused={!active} transport="poll" />
         }
@@ -139,7 +192,7 @@ export default function MarketsConsole({ section, onSectionChange, active = true
 
       <WorkspaceSubtabs
         workspaceId="markets"
-        label="Markets sections"
+        label="Prices sections"
         tabs={MARKETS_SECTIONS}
         activeId={section}
         onChange={openSection}
@@ -148,11 +201,10 @@ export default function MarketsConsole({ section, onSectionChange, active = true
       />
 
       <WorkspaceSubtabPanel workspaceId="markets" tabId="universe" activeId={section}>
-        {/* The settlement feed is a view of this section rather than a pane
-            stacked under it, because it answers the question the universe
-            raises: these families are priced against an outcome, and this is
-            the published variable that outcome is read from — which is not the
-            price anybody watches. */}
+        {/* Settlement is a VIEW of this section, and the reason it ever was one
+            still holds: these families are priced against an outcome, and the
+            published variable that outcome is read from is the next question
+            the baskets raise, not a different subject. */}
         <UniverseSection
           universe={universe.data}
           error={universe.error}
@@ -161,23 +213,33 @@ export default function MarketsConsole({ section, onSectionChange, active = true
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="markets" tabId="books" activeId={section}>
-        {/* Maker dispersion is a view of this section for the reason it
-            exists: a book shows the most aggressive opinion on one market, and
-            for a combo it shows nothing at all. The RFQ panel is the only place
-            the venue reveals what professionals disagree about. */}
-        <BooksSection
-          books={books.data}
-          error={books.error}
-          active={active && section === "books"}
-          onViewChange={setBooksView}
-        />
+        {/* Dispersion rides here: a book is one venue's most aggressive resting
+            order and the RFQ channel is several professionals pricing the same
+            event independently, which is the second half of "what is this
+            quoted at" rather than a subject of its own. Both reads live inside
+            the section because only the VIEW can say which may be in flight. */}
+        <BooksSection active={active && section === "books"} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="markets" tabId="lattice" activeId={section}>
-        <SurfacePane
-          events={universe.data?.events ?? []}
-          active={active && section === "lattice"}
-        />
+        <SurfacePane events={universe.data?.events ?? []} active={active && section === "lattice"} />
+      </WorkspaceSubtabPanel>
+
+      <WorkspaceSubtabPanel workspaceId="markets" tabId="stake" activeId={section}>
+        {/* The bet, back on the rail after one day as a view. As a view it
+            needed a second `.seg` under the lattice's, which put three rows of
+            controls over the one answer a reader came for; as a section it has
+            one read, one control row and an empty state that names what to
+            press when the solver declines the family. */}
+        <StakePane events={universe.data?.events ?? []} active={active && section === "stake"} />
+      </WorkspaceSubtabPanel>
+
+      <WorkspaceSubtabPanel workspaceId="markets" tabId="fees" activeId={section}>
+        {/* Ablation is a view of Fees rather than a section: what the venue
+            charges is a fact of the venue, and whether that cost changes the
+            ANSWER is the same question one step on — which is what the tape
+            replayed under four cost models measures. */}
+        <FeesSection active={active && section === "fees"} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="markets" tabId="shell" activeId={section}>

@@ -1,32 +1,51 @@
 "use client";
 
 /**
- * Coherence — Kalshi's prices, tested against the probabilities they claim.
+ * Proofs — what this engine proves about the prices the exchange quotes.
  *
- * The Markets tab is the reading: which families are watched, what their
- * ladders say, what structure holds between their outcomes. This tab is what
- * follows from it. Where a family of prices admits no probability measure, the
- * failure hands back a portfolio that wins in every state — so the engine does
- * not scan for arbitrage shapes, it tests for coherence and reports what the
- * failure certificate is. Then it asks the harder questions the certificate
- * cannot: what the cost model does to the edge, how far from coherent the
- * venue sits over time, whether the prices were right once settled, and how
- * fast anything gets absorbed at all.
+ * Four sections, one argument. The de Finetti test and the portfolio its
+ * failure hands back; whether the prices were right at all, once settled and
+ * over time; how fast anything the market did not know is absorbed; and the
+ * curriculum that says which of those claims rests on which line of the kernel.
+ * The READING those four argue about — the families, the ladders, the implied
+ * measure, the fee model, the filesystem — is the Quotes tab.
  *
- * The two tabs were one eleven-section rail until 2026-08-24, which asked a
- * reader to hold "what is quoted" and "what is proved" at the same time. The
- * ids did not move with the split: `#coherence/books` is a public deep link
- * and `RELOCATED_SECTIONS` in `lib/workspace-hash.ts` is what keeps the four
- * that changed tab resolving.
+ * THE TAB ID IS `coherence` AND THE LABEL IS "Proofs". The id is not a typo to
+ * tidy: `coherence` is the ONLY Kalshi tab id `origin/main` has ever published,
+ * so keeping it means every `#coherence/<section>` link that exists in the world
+ * still resolves natively, and it stays on the half that carries the proof. Ids
+ * disagreeing with labels is the row's own practice — `codex` renders
+ * "Strategies", `model` renders "Risk engine".
  *
- * What it may claim today: the exchange is read live, the families are priced
- * against the dollar they pay, and the tape is being recorded. What it may not
- * claim: that anything has been solved, sized or traded. There is no send path
- * in this version.
+ * WHY THIS SPLIT, AFTER THREE OTHERS THE SAME DAY. 2026-08-24 went: one tab of
+ * eleven → Markets + Coherence → seventeen sections, when six in-pane `.seg`
+ * views were promoted to rails → back to one tab → consolidated to nine → these
+ * two. The consolidation is the part every later move kept, and it is why this
+ * rail is four rather than seven: `combos` folded into the Dutch book because
+ * the Fréchet bounds test IS a coherence test on a conjunction the venue states,
+ * and `index` folded into the scorecard because a distance measured on every
+ * poll and a score taken once settled are one question asked twice.
+ *
+ * BOTH FOLDS SPENT A PUBLISHED ID, which is the expensive part and the reason
+ * `RELOCATED_SECTIONS` in `lib/workspace-hash.ts` is not a courtesy: a view is
+ * not in the URL, not in the command palette and not walked by
+ * `scripts/desk-sweep.mjs`, so `#coherence/combos` and `#coherence/index` are
+ * migrated to the SECTION that carries each. They land on the section; which
+ * view opens is component state no hash can name. The same table sends the five
+ * reading ids — universe, books, lattice, fees, shell — across to `markets`,
+ * because those were published under `#coherence/` too.
  *
  * Panes are `.seg` groups inside a section, never a nested `<WorkspaceSubtabs>`
  * — a second rail instance fights the first over the `--rail-h` publisher, as
- * `ReliabilityConsole` records.
+ * `ReliabilityConsole` records. Dutch book's SIX views are still one seg, and
+ * `14r` lets that control wrap rather than shrinking its type.
+ *
+ * TWO PLANE CLASSES ON THE ROOT. `.coherence-plane` is the engine's shared
+ * ladder — both tabs draw the same figures, tables and chips out of one
+ * component library, so their density pass is one pass and lives in two files
+ * cut by CONCERN: `14q` the prose ladder, `14r` (this tab's owner) the diagram
+ * ladder and the packing. `.proofs-plane` is this tab's own, so a rule that can
+ * only ever match here says so in its selector.
  */
 
 import { useCallback, useMemo } from "react";
@@ -34,47 +53,45 @@ import { useCallback, useMemo } from "react";
 import PageHead from "@/components/workspace/PageHead";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
 import FreshnessStamp from "@/components/workspace/FreshnessStamp";
+import CalibrationPane from "@/components/coherence/CalibrationPane";
 import CertificatePane from "@/components/coherence/CertificatePane";
 import DiffusionPane from "@/components/coherence/DiffusionPane";
-import { EXAMPLES } from "@/components/coherence/FeesPane";
-import IndexPane from "@/components/coherence/IndexPane";
-import CalibrationPane from "@/components/coherence/CalibrationPane";
-import CombosPane from "@/components/coherence/CombosPane";
-import FeesSection from "@/components/coherence/FeesSection";
 import LessonsPane from "@/components/coherence/LessonsPane";
 import StatusPane from "@/components/coherence/StatusPane";
 import { COHERENCE_SECTIONS, type CoherenceSection } from "@/lib/sections";
-import {
-  absorptionRoute, calibrationRoute, combosRoute, feesRoute, indexRoute, statusRoute, universeRoute,
-} from "@/lib/coherence/routes";
+import { absorptionRoute, calibrationRoute, statusRoute, universeRoute } from "@/lib/coherence/routes";
 import { COHERENCE_POLL_MS, useCoherenceRead, warmCoherenceRead } from "@/lib/coherence/use-coherence";
-import { useSectionWarming } from "@/lib/coherence/use-section-warming";
 import type { CoherenceStatus, CoherenceUniverse } from "@/lib/coherence/types";
+import { useSectionWarming } from "@/lib/coherence/use-section-warming";
 
 export { type CoherenceSection } from "@/lib/sections";
 
 /**
  * What each section asks the gateway for the moment it opens.
  *
- * The view each section OPENS on, not every view it has: Fees warms the worked
- * example because that is what a reader lands on, and not the 20,000-row
- * replay behind Ablation, which is the largest read on the desk and is gated
- * on its own view for that reason. Sections whose read names a family the
- * reader picks — the certificate is solved per event — warm the universe
- * instead, which is the read that has to answer before a family can be chosen.
+ * The view a section OPENS on, not every view it has. Dutch book warms the
+ * UNIVERSE rather than its own `certify` call, because certify names a family
+ * the reader has not chosen yet: warming it would guess at an answer rather
+ * than at a question. That read is shared with the Quotes tab's baskets and
+ * lattice — `read-cache.ts` holds one answer per URL, so it crosses the tab
+ * boundary for free.
  *
- * Built from `lib/coherence/routes` so a query string cannot drift between the
- * pane that asks for it and the rail that warms it.
+ * ONE ENTRY IS EMPTY ON PURPOSE. `lessons` is rendered from
+ * `lib/coherence/lessons.ts` and asks the gateway for nothing at all, so there
+ * is nothing to warm. It is stated here rather than left to be noticed, because
+ * an empty list that is a decision and one that is an oversight look identical
+ * in a diff.
+ *
+ * The two expensive reads this engine gates on a VIEW rather than a section —
+ * the signed RFQ channel and the 20,000-row replay — are both on the Quotes
+ * tab and are argued beside `MarketsConsole`'s own plan. Neither appears here,
+ * and neither should: warming a read from a tab that cannot draw it would spend
+ * it for nobody.
  */
 const SECTION_READS: Record<CoherenceSection, readonly string[]> = {
   certificate: [universeRoute()],
-  fees: [feesRoute(EXAMPLES[0].price, EXAMPLES[0].contracts, EXAMPLES[0].fills)],
-  combos: [combosRoute()],
-  index: [indexRoute()],
   calibration: [calibrationRoute()],
   diffusion: [absorptionRoute()],
-  // The curriculum is rendered from `lib/coherence/lessons.ts`; it asks the
-  // gateway for nothing, so there is nothing to warm.
   lessons: [],
 };
 
@@ -87,13 +104,12 @@ export interface CoherenceConsoleProps {
 
 export default function CoherenceConsole({ section, onSectionChange, active = true }: CoherenceConsoleProps) {
   const status = useCoherenceRead<CoherenceStatus>(statusRoute(), active);
-  // The certificate is solved per family, so the families have to be read here
-  // even though Markets is where they are drawn. The shared cache means this
-  // costs nothing when a reader arrives from that tab.
-  const universe = useCoherenceRead<CoherenceUniverse>(
-    universeRoute(),
-    active && section === "certificate",
-  );
+  const universe = useCoherenceRead<CoherenceUniverse>(universeRoute(), active && section === "certificate");
+  // "Has not answered either way" rather than the hook's own `loading`, which
+  // is false-until-mount-with-enabled and misses the section-switch case: a
+  // reader landing on the certificate mid-flight must see reading, not "none
+  // has been read".
+  const familiesPending = !universe.data && !universe.error;
 
   useSectionWarming(SECTION_READS, active);
 
@@ -106,16 +122,20 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
         note: status.data?.hosts[0]?.host ?? "not yet asked",
       },
       {
-        label: "Families testable",
+        label: "Families priced",
         value: universe.data ? String(universe.data.events.length) : "—",
         note: universe.data ? "mutually exclusive baskets read live" : "not read on this section",
       },
       {
         label: "Solver",
         value: solver?.engine ?? "—",
-        note: solver?.engine ? "the engine the certificate is produced by" : "not reported in this read",
+        note: solver?.engine ? "which engine produced the certificate" : "not reported in this read",
         mono: true,
       },
+      // Said ONCE on the whole engine, and said here: this is the tab where a
+      // reader meets a certificate that is literally a portfolio with legs,
+      // quantities and fees on it, so it is the tab where "and then it is
+      // traded" is the reachable misreading. Quotes repeats none of it.
       {
         label: "Order path",
         value: "none",
@@ -133,17 +153,11 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
   }, []);
 
   return (
-    <div className="coherence-plane">
+    <div className="coherence-plane proofs-plane">
       <PageHead
-        kicker="Coherence"
+        kicker="Proofs"
         title="Prices as probabilities, tested for coherence"
-        description={
-          <>
-            Where a family of prices admits no probability measure, the failure hands back a portfolio that wins in
-            every state. This tab is that test and what survives it: the certificate, the cost that eats the edge, the
-            distance from coherent over time, and whether the prices were right once settled.
-          </>
-        }
+        description="A family of contracts admitting no probability measure hands back a basket that wins in every state, and this is the test."
         actions={
           <FreshnessStamp updatedAt={status.updatedAt} pollMs={COHERENCE_POLL_MS} paused={!active} transport="poll" />
         }
@@ -157,7 +171,7 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
 
       <WorkspaceSubtabs
         workspaceId="coherence"
-        label="Coherence sections"
+        label="Proofs sections"
         tabs={COHERENCE_SECTIONS}
         activeId={section}
         onChange={openSection}
@@ -167,22 +181,22 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
       />
 
       <WorkspaceSubtabPanel workspaceId="coherence" tabId="certificate" activeId={section}>
-        <CertificatePane events={universe.data?.events ?? []} active={active && section === "certificate"} />
-      </WorkspaceSubtabPanel>
-
-      <WorkspaceSubtabPanel workspaceId="coherence" tabId="fees" activeId={section}>
-        <FeesSection active={active && section === "fees"} />
-      </WorkspaceSubtabPanel>
-
-      <WorkspaceSubtabPanel workspaceId="coherence" tabId="combos" activeId={section}>
-        <CombosPane active={active && section === "combos"} />
-      </WorkspaceSubtabPanel>
-
-      <WorkspaceSubtabPanel workspaceId="coherence" tabId="index" activeId={section}>
-        <IndexPane active={active && section === "index"} />
+        {/* Bands, Parlays and Bounds ride here: the Fréchet test is the same
+            coherence test run on a conjunction the venue states rather than on
+            strikes this engine reads a measure off. */}
+        <CertificatePane
+          events={universe.data?.events ?? []}
+          active={active && section === "certificate"}
+          eventsPending={familiesPending}
+          eventsError={universe.error}
+        />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="coherence" tabId="calibration" activeId={section}>
+        {/* The coherence index is two views of this section: a distance
+            measured on every poll and a score taken once settled both answer
+            "were these prices right", and the index read is gated on its own
+            two views so a reader scoring the corpus never pays for the tape. */}
         <CalibrationPane active={active && section === "calibration"} />
       </WorkspaceSubtabPanel>
 

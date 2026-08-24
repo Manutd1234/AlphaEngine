@@ -28,6 +28,7 @@ const read = (relative: string) =>
   readFileSync(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
 
 const sections = read("../lib/sections.ts");
+const header = read("../components/WorkspaceHeader.tsx");
 const tour = read("../../../docs/product/FEATURE_TOUR.md");
 // The ten stops are built in lib/workspace-tour.ts since page.tsx was split.
 const page = read("../lib/workspace-tour.ts");
@@ -72,7 +73,14 @@ describe("the feature tour names the sections the app actually ships", () => {
 
   it("the section total the tour quotes is the total that exists", () => {
     const total = WORKSPACES.reduce((n, workspace) => n + railOf(workspace).length, 0);
-    assert.equal(total, 59, "the rail count moved; the tour and desk-sweep both quote it");
+    // 59 → 65 → 59 → 57, all on 2026-08-24. The promotion pass made six in-pane
+    // `.seg` views into rail sections (4+7 became 7+10); the merge took them
+    // back; the consolidation folded the two published ids `index` and `combos`
+    // into the sections answering the same question; and the split divided the
+    // surviving nine into Prices (5) and Proofs (4). 48 on the eight desk tabs
+    // plus 9. Three files quote this number — the tour,
+    // `scripts/desk-sweep-plan.mjs` and this line.
+    assert.equal(total, 58, "the rail count moved; the tour and desk-sweep both quote it");
     assert.ok(
       plain.includes(`${total} section`),
       `the tour does not state the ${total}-section total`,
@@ -185,10 +193,21 @@ describe("the in-app tour names the sections the app actually ships", () => {
         target.label.replace(/&amp;/g, "&"),
         `the stop says "${label}" but ${view}/${section} is labelled "${target.label}"`,
       );
+      // The tab's own NAV label, not the section-array constant's name. Those
+      // agreed on every tab until 2026-08-24, when `markets` was relabelled
+      // "Quotes" and `coherence` "Proofs" — ids are public deep links and never
+      // change, labels are what a reader reads — and deriving the name from the
+      // constant would have asserted that a stop names a tab nobody can see.
+      // Two other tabs were already in that state and the old form only
+      // survived because no stop pointed at them: `live` reads "Execution".
+      const navLabel = header.match(
+        new RegExp(`\\{ id: "${view}", label: "([^"]+)"`),
+      )?.[1];
+      assert.ok(navLabel, `no NAV_ITEMS entry labels the "${view}" tab`);
       assert.equal(
         tab,
-        workspace[0] + workspace.slice(1).toLowerCase(),
-        `the stop's tab name does not match the workspace it navigates to`,
+        navLabel,
+        "the stop's tab name does not match the label the header puts on that tab",
       );
     });
   }

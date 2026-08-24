@@ -272,13 +272,13 @@ const FLOW_MAP: Record<WorkspaceView, { nextId: WorkspaceView; kicker: string; t
     nextId: "markets",
     kicker: "Next step for the quant researcher",
     title: "Read the exchange as it is quoted",
-    hint: "Basket totals, book identities, recorded tape.",
+    hint: "Basket totals, book identities, the fee model, recorded tape.",
   },
   markets: {
     nextId: "coherence",
     kicker: "Next step for the quant researcher",
     title: "Test those prices against their own probabilities",
-    hint: "Dutch-book certificate, fees, calibration, diffusion.",
+    hint: "Dutch-book certificate, settled scorecard, absorption.",
   },
   coherence: {
     nextId: "overview",
