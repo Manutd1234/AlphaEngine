@@ -1,4 +1,4 @@
-/* The Proofs tab's Model group: its control grid and the three marks it draws.
+/* The Proofs tab: the Model group's controls and marks, and the floor histogram.
  *
  * A NEW PARTIAL RATHER THAN A FEW LINES IN 14r, and the reason is that file's
  * own banner: 14q owns the PROSE ladder, 14r owns the DIAGRAM ladder plus border
@@ -69,4 +69,49 @@
 .coherence-plane.proofs-plane .coh-model__area {
   fill: color-mix(in srgb, var(--series-3) 18%, transparent);
   stroke: none;
+}
+
+/* ── The noise-floor distribution ─────────────────────────────────────────
+   Ten percentile buckets per stage, plus a column for runs that could not be
+   ranked at all. HTML rather than SVG, like `StageBars` beside it, so each bar's
+   hover line is the element's own `title` — the same affordance every mark on
+   this tab carries, spelt the way an HTML bar spells it.
+
+   `align-items: flex-end` because a bucket's height IS its count: the bars grow
+   from the axis, and a bucket with nothing in it is a gap on the floor rather
+   than a bar of zero height floating in the middle. */
+.coherence-plane.proofs-plane .coh-floor__buckets {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 64px;
+  min-width: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.coherence-plane.proofs-plane .coh-floor__bucket {
+  flex: 1 1 0;
+  min-height: 1px;
+  background: color-mix(in srgb, var(--series-3) 55%, transparent);
+  border-radius: 1px 1px 0 0;
+}
+
+/* The half-way bucket is the reading — it is where a stage is indistinguishable
+   from an ordinary half hour — so it is marked by an EDGE rather than by hue
+   alone, which keeps it legible in forced colours. */
+.coherence-plane.proofs-plane .coh-floor__bucket.is-middle {
+  outline: 1px dashed var(--text-secondary);
+  outline-offset: -1px;
+}
+
+/* Runs with no percentile: kept off the axis and drawn apart from it, because a
+   missing rank is not a rank of zero. The gap is what says so. */
+.coherence-plane.proofs-plane .coh-floor__bucket.is-unranked {
+  flex: 0 0 14px;
+  margin-left: 8px;
+  background: repeating-linear-gradient(
+    45deg,
+    var(--surface-2) 0 3px,
+    color-mix(in srgb, var(--text-secondary) 30%, transparent) 3px 6px
+  );
 }

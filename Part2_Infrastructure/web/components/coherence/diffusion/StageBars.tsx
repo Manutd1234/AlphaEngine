@@ -20,7 +20,11 @@ import type { StageSummary } from "./types";
 const WORD: Record<string, string> = { release: "Statement", call: "Press conference" };
 const MARK: Record<string, string> = { release: "●", call: "▲" };
 
-function percentileWord(value: number | null): string {
+/** The vocabulary for the control-percentile axis, owned here and shared.
+ *  `FloorDistribution` draws the same axis as a distribution and imports this
+ *  rather than writing a second set of words — two figures describing one
+ *  number differently is how an axis stops meaning one thing. */
+export function percentileWord(value: number | null): string {
   if (value == null) return "no matched window cleared the floor";
   if (value <= 0.1) return "faster than nearly every no-news window";
   if (value <= 0.35) return "faster than most no-news windows";

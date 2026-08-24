@@ -35,6 +35,7 @@
 import Figure, { FigureEmpty, StateChip } from "../Figure";
 import ValueStrip from "../ValueStrip";
 import AbsorptionCurve from "./AbsorptionCurve";
+import FloorDistribution from "./FloorDistribution";
 import StageBars from "./StageBars";
 import StageTimeline from "./StageTimeline";
 import type { AbsorptionRead, StageRun } from "./types";
@@ -232,6 +233,12 @@ export default function InformationDiffusionPane({ view, read, error }: {
         >
           <StageBars stages={read.stages} />
         </Figure>
+
+        {/* The two bars above are aggregates; this is the distribution behind
+            the second of them. Same field, already on the wire, drawn per run
+            rather than per stage — because "indistinguishable from an ordinary
+            half hour" is a claim about a shape, and a median cannot show one. */}
+        <FloorDistribution runs={read.runs} />
       </div>
     );
   }
