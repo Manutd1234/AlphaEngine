@@ -58,6 +58,48 @@ const MEASURED = ["markets", "coherence"];
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
+ * Wait for a view to STOP being a loading state before measuring it.
+ *
+ * The first baseline measured Universe's Baskets at 239px with no figures, and
+ * that number was a lie of timing rather than of geometry: the universe read is
+ * a live call on a 28-second deadline, and the probe measured the pane while it
+ * still said "Reading the families this engine prices…". Every data-backed view
+ * on both tabs was understated the same way.
+ *
+ * So: poll until the panel's height has been unchanged twice in a row AND no
+ * `.console-empty.muted` — this engine's "still reading" line, as opposed to its
+ * failed and answered-with-nothing lines, which are settled states worth
+ * measuring — remains on screen. Give up after `budget` and record what is
+ * there, flagged, rather than blocking the sweep on one slow venue call.
+ */
+async function settle(cdp, tab, section, budget = 9000) {
+  const id = JSON.stringify(`${tab}-subpanel-${section}`);
+  let previous = -1;
+  let stable = 0;
+  const started = Date.now();
+  while (Date.now() - started < budget) {
+    const state = await cdp.evaluate(`(() => {
+      const panel = document.getElementById(${id});
+      if (!panel) return null;
+      return {
+        height: Math.round(panel.scrollHeight),
+        loading: !!panel.querySelector(".console-empty.muted"),
+      };
+    })()`);
+    if (!state) return { settled: false, reason: "panel missing" };
+    if (!state.loading && state.height === previous) {
+      stable += 1;
+      if (stable >= 2) return { settled: true };
+    } else {
+      stable = 0;
+    }
+    previous = state.height;
+    await sleep(300);
+  }
+  return { settled: false, reason: `still reading after ${budget}ms` };
+}
+
+/**
  * What one view looks like, measured in the page rather than derived from source.
  *
  * `scrollHeight` of the panel rather than of the document: the document carries
@@ -77,6 +119,7 @@ const MEASURE = (tab, section) => `(() => {
   const row = segs[0];
   const button = row?.querySelector("button");
   return {
+    stillReading: !!card.querySelector(".console-empty.muted"),
     scrollHeight: Math.round(panel.scrollHeight),
     controlRows: segs.length,
     nestedControls: nested,
@@ -124,7 +167,7 @@ async function openTab(cdp, tab, section) {
     `(() => { const b = document.getElementById(${JSON.stringify(`${tab}-subtab-${section}`)});`
     + ` if (!b) return false; b.click(); return true; })()`,
   );
-  await sleep(700);
+  await sleep(400);
   return opened;
 }
 
@@ -163,6 +206,7 @@ async function main() {
         const groups = await cdp.evaluate(BUTTONS(tab, section, ":scope > .seg"));
 
         if (!groups.length) {
+          await settle(cdp, tab, section);
           const measured = await cdp.evaluate(MEASURE(tab, section));
           report.tabs[key][`@${width}`] = { "(no control)": measured };
           continue;
@@ -171,7 +215,8 @@ async function main() {
         const perWidth = {};
         for (const group of groups) {
           await cdp.evaluate(CLICK(tab, section, ":scope > .seg", group));
-          await sleep(500);
+          await sleep(250);
+          await settle(cdp, tab, section);
           // A grouped section draws its views in a child control; measure each,
           // because a group that is cheap on its first view can be expensive on
           // its third and the point is to find those.
@@ -182,7 +227,8 @@ async function main() {
           }
           for (const view of views) {
             await cdp.evaluate(CLICK(tab, section, ".coh-views > .seg", view));
-            await sleep(450);
+            await sleep(250);
+            await settle(cdp, tab, section);
             perWidth[`${group} — ${view}`] = await cdp.evaluate(MEASURE(tab, section));
           }
         }
@@ -203,7 +249,8 @@ async function main() {
           `${key.padEnd(22)} ${width.padEnd(7)} ${String(view).padEnd(34)} `
           + `${String(m.scrollHeight).padStart(6)}px  segs ${m.controlRows}+${m.nestedControls}  `
           + `${m.wrapped ? "WRAPPED" : "one row"}  `
-          + `fig ${m.figures} tab ${m.tables} det ${m.disclosures} p ${m.paragraphs}`,
+          + `fig ${m.figures} tab ${m.tables} det ${m.disclosures} p ${m.paragraphs}`
+          + `${m.stillReading ? "  STILL READING" : ""}`,
         );
       }
     }
