@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-25",
-  "commit": "f1f0026",
+  "commit": "0752c46",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -196,6 +196,7 @@
     "Part2_Infrastructure/modules/coherence/kernel/money.py",
     "Part2_Infrastructure/modules/coherence/kernel/shrinkage.py",
     "Part2_Infrastructure/modules/coherence/kernel/states.py",
+    "Part2_Infrastructure/modules/coherence/latency.py",
     "Part2_Infrastructure/modules/coherence/recorder.py",
     "Part2_Infrastructure/modules/coherence/scheduler/__init__.py",
     "Part2_Infrastructure/modules/coherence/scheduler/budget.py",
@@ -525,6 +526,7 @@
     "Part2_Infrastructure/tests/test_coherence_no_float.py",
     "Part2_Infrastructure/tests/test_coherence_observe.py",
     "Part2_Infrastructure/tests/test_coherence_rfq.py",
+    "Part2_Infrastructure/tests/test_coherence_round_trip.py",
     "Part2_Infrastructure/tests/test_coherence_security_auth.py",
     "Part2_Infrastructure/tests/test_coherence_series_meta.py",
     "Part2_Infrastructure/tests/test_coherence_shell.py",
@@ -1618,6 +1620,7 @@
     "Part2_Infrastructure/web/tests/engine-hook-order.test.ts",
     "Part2_Infrastructure/web/tests/engine-linreg.test.ts",
     "Part2_Infrastructure/web/tests/engine-opens-on-a-drawing.test.ts",
+    "Part2_Infrastructure/web/tests/engine-svg-text-rung.test.ts",
     "Part2_Infrastructure/web/tests/execution-controls-activity.test.ts",
     "Part2_Infrastructure/web/tests/execution-controls-blotter-filter.test.ts",
     "Part2_Infrastructure/web/tests/execution-controls-exports.test.ts",
