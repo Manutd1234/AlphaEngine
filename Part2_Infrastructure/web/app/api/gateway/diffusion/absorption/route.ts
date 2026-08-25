@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { callGateway, failureBody } from "@/lib/gateway";
+import { isAbsorptionRead, type AbsorptionRead } from "@/components/coherence/diffusion/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,12 +20,11 @@ export async function GET(request: Request) {
     if (value) forwarded.set(key, value);
   }
   const query = forwarded.toString();
-  const result = await callGateway<{ state: string }>(
+  const result = await callGateway<AbsorptionRead>(
     `/api/research/diffusion/absorption${query ? `?${query}` : ""}`,
     {
       subject: "measured absorption paths for timestamped announcements",
-      validate: (payload) =>
-        typeof payload === "object" && payload !== null && typeof (payload as { state?: unknown }).state === "string",
+      validate: isAbsorptionRead,
     },
   );
 

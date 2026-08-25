@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { callGateway, failureBody } from "@/lib/gateway";
+import { isFindingsRead, type FindingsRead } from "@/components/coherence/diffusion/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,12 +20,11 @@ export async function GET(request: Request) {
     if (value) forwarded.set(key, value);
   }
   const query = forwarded.toString();
-  const result = await callGateway<{ state: string }>(
+  const result = await callGateway<FindingsRead>(
     `/api/research/diffusion/findings${query ? `?${query}` : ""}`,
     {
       subject: "the measured relationships, positive and null alike",
-      validate: (payload) =>
-        typeof payload === "object" && payload !== null && typeof (payload as { state?: unknown }).state === "string",
+      validate: isFindingsRead,
     },
   );
 

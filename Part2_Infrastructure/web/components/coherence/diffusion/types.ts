@@ -86,16 +86,51 @@ export interface EventsRead {
   reason: string | null;
 }
 
+/**
+ * The four members of `ReadState`, as a runtime set.
+ *
+ * `typeof state === "string"` — which is what these guards and all three proxy
+ * routes asserted until 2026-08-26 — accepts any string, so a state RENAMED on
+ * the Python side arrives intact and every `state === "ok"` comparison in the
+ * panes silently takes its else-branch. That reads as "nothing here" rather
+ * than as a mismatch, which is the one sentence this field exists to prevent.
+ *
+ * Tightened rather than left open because the vocabulary is closed by
+ * convention here: `DiffusionEventResponse` needed a fifth member and was
+ * given its OWN Literal (`schemas_diffusion.py:72`) instead of growing
+ * `ReadState`. A new read state is therefore a new type, not a new member, and
+ * failing loudly on an unrecognised one costs nothing a forward-compatible
+ * change would have wanted.
+ */
+const READ_STATES: readonly string[] = ["ok", "unconfigured", "unavailable", "unreadable"];
+
+export function isReadState(value: unknown): value is ReadState {
+  return typeof value === "string" && READ_STATES.includes(value);
+}
+
 export function isAbsorptionRead(payload: unknown): payload is AbsorptionRead {
   return typeof payload === "object" && payload !== null
-    && typeof (payload as AbsorptionRead).state === "string"
+    && isReadState((payload as AbsorptionRead).state)
     && Array.isArray((payload as AbsorptionRead).runs);
 }
 
 export function isEventsRead(payload: unknown): payload is EventsRead {
   return typeof payload === "object" && payload !== null
-    && typeof (payload as EventsRead).state === "string"
+    && isReadState((payload as EventsRead).state)
     && Array.isArray((payload as EventsRead).events);
+}
+
+/**
+ * The third read, which had no guard at all until the routes were wired to
+ * these. `findings` carries `Field(default_factory=list)` on the Python side
+ * (`schemas_diffusion.py:213`), so it is present on every state including
+ * `unconfigured` — checking it is safe for an unconfigured store, not just an
+ * `ok` one.
+ */
+export function isFindingsRead(payload: unknown): payload is FindingsRead {
+  return typeof payload === "object" && payload !== null
+    && isReadState((payload as FindingsRead).state)
+    && Array.isArray((payload as FindingsRead).findings);
 }
 
 export interface Finding {
