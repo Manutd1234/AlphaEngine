@@ -1,40 +1,24 @@
 "use client";
 
 /**
- * Whether anything else on this tab can be believed right now.
+ * The two things about this engine's state that are too wide for the head.
  *
- * Placed first among the panes because every other figure here is an argument
- * about live prices, and an argument built on a stale tape or a schema we no
- * longer parse is worse than no argument. The schema probe is the load-bearing
- * check: Kalshi removed its integer-cent fields in March 2026, and a client
- * written against them parses today's payloads into a book of zeros without
- * raising anything at all. "Every price is zero" should not be something a
- * reader has to diagnose from a chart.
+ * The chips and the four metrics moved into `EngineStatePanel`, which renders
+ * in the page head's right slot — the reader asked for them "in the top right
+ * corner where there is a lot of space". What is left here is what could not
+ * go with them, and neither is a leftover:
+ *
+ * THE SHARD TABLE is four columns and has to be able to APPEAR. A halted shard
+ * is a status, `13-warm-bright-pass.css` sets the rule that a status may never
+ * be hidden, and the fold below opens itself the moment one stops trading.
+ * There is no room in a header box for a table that must be free to unfold.
+ *
+ * THE GATEWAY'S NOTES are unbounded wire prose. They are provenance for the
+ * read, they belong below it, and their count is in the summary so an empty
+ * fold and a fold hiding four are not the same shape.
  */
 
-import { groupDigits } from "@/lib/coherence/universe-metrics";
 import type { CoherenceStatus } from "@/lib/coherence/types";
-import { StateChip } from "./Figure";
-
-function schemaTone(schema: unknown): "good" | "warn" | "critical" | "muted" {
-  if (schema === "fp-2026") return "good";
-  if (schema === "unavailable") return "muted";
-  return "critical";
-}
-
-/**
- * A whole count for display, grouped.
- *
- * These are the largest bare figures on the engine — 33866 snapshots, 2428
- * markets, 23510 tokens — and they were printed as unbroken digit runs a reader
- * has to count with a fingertip to tell thirty-three thousand from three
- * hundred thousand. `groupDigits` is presentational and provably so: it moves
- * no digit and rounds nothing, which matters on a tab whose numeric contract is
- * "truncated, never rounded".
- */
-function count(value: number | null | undefined): string {
-  return value == null ? "0" : groupDigits(String(value));
-}
 
 export default function StatusPane({ status, error }: { status: CoherenceStatus | null; error: string | null }) {
   if (error && !status) {
@@ -46,9 +30,6 @@ export default function StatusPane({ status, error }: { status: CoherenceStatus 
   }
   if (!status) return <p className="console-empty muted">Asking the engine how it is…</p>;
 
-  const schema = String((status.schema_probe as { schema?: string }).schema ?? "unavailable");
-  const recorder = status.recorder;
-  const tape = status.tape as { state?: string; book_snapshots?: number; tickers_seen?: number };
   // A shard is only routine when BOTH are true: the exchange can be up while
   // trading on that shard is halted, and it is the second that stops a family
   // being executable.
@@ -56,27 +37,6 @@ export default function StatusPane({ status, error }: { status: CoherenceStatus 
 
   return (
     <div className="coh-status">
-      <div className="coh-status__chips">
-        <StateChip
-          mark={status.hosts.some((host) => host.reachable) ? "●" : "✕"}
-          word={status.hosts.some((host) => host.reachable) ? "Exchange reachable" : "Exchange unreachable"}
-          value={status.hosts[0]?.host ?? null}
-          tone={status.hosts.some((host) => host.reachable) ? "good" : "critical"}
-        />
-        <StateChip
-          mark={schema === "fp-2026" ? "✓" : "▲"}
-          word={schema === "fp-2026" ? "Fixed-point schema" : `Schema ${schema}`}
-          tone={schemaTone(schema)}
-        />
-        <StateChip
-          mark={recorder.running ? "●" : "○"}
-          word={recorder.running ? "Recorder running" : recorder.configured ? "Recorder idle" : "Recorder off"}
-          value={recorder.polls ? `${recorder.books_written} books` : null}
-          tone={recorder.running ? "good" : recorder.configured ? "warn" : "muted"}
-        />
-        <StateChip mark="✓" word="Read only" value={status.dry_run ? "no order path" : "dry run off"} tone="muted" />
-      </div>
-
       {/* FOLDED 2026-08-25, AND IT OPENS ITSELF. This table renders under every
           section of the tab and is four rows of routine truth, so it is
           furniture — but `13-warm-bright-pass.css` sets the rule that a STATUS
@@ -118,57 +78,6 @@ export default function StatusPane({ status, error }: { status: CoherenceStatus 
         </table>
       </div>
       </details>
-
-      {/* Boxed, the way Universe's tiles are on the other tab (14t, and 14u for
-          this one). They were bare rows at the foot of the tab with a bordered
-          figure above and nothing around them, so the eye had no edge to tell
-          one metric from the next. */}
-      <dl className="coh-status__facts coh-facts--boxed">
-        <div>
-          <dt>Recorded so far</dt>
-          <dd>
-            {tape.state === "ok"
-              ? `${count(tape.book_snapshots)} snapshots across ${count(tape.tickers_seen)} markets`
-              : "—"}
-          </dd>
-        </div>
-        <div>
-          <dt>Last poll</dt>
-          <dd>
-            {recorder.seconds_since_last_poll == null
-              ? "— the recorder has not polled yet"
-              : `${recorder.seconds_since_last_poll}s ago`}
-          </dd>
-        </div>
-        <div>
-          <dt>Read budget</dt>
-          <dd>
-            {count(status.budget.tokens_per_second)} tokens per second, {count(status.budget.tokens_spent)} spent
-          </dd>
-          {/* The basis WAS a bare gateway string in its own paragraph below the
-              list, with a full stop appended and no label — a reader met a
-              sentence about token buckets with nothing saying what it was about
-              or which figure it explained. It is provenance for this row, so it
-              sits under this row.
-
-              FOLDED once the tiles gained frames (14u, 2026-08-25). These four
-              are a 140px auto-fit grid whose items stretch to the tallest row,
-              and this one carried a whole gateway sentence where its three
-              neighbours carry a figure — so boxing them made one tile three
-              times the height of the rest and the row read as broken. The
-              sentence is provenance, which is what a fold is for. */}
-          <dd className="coh-status__basis">
-            <details className="disclosure">
-              <summary>How this budget was chosen</summary>
-              {status.budget.basis}
-            </details>
-          </dd>
-        </div>
-        <div>
-          <dt>Coherence solver</dt>
-          <dd>{String((status.solver as { linear_programme?: string }).linear_programme ?? "unknown")}</dd>
-        </div>
-      </dl>
 
       {/* The gateway's own notes: unbounded, unlabelled and rendered raw until
           2026-08-25, at the foot of every section on the tab. Folded, with the

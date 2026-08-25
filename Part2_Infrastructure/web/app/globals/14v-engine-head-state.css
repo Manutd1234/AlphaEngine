@@ -1,0 +1,146 @@
+/* ==========================================================================
+   The engine's read-state, in the page head's right slot. 2026-08-25.
+
+   "Format the recorded so far, polling, real budget and coherence solver in a
+   table and move it to the top right corner where there is a lot of space",
+   and the same for the status chip row.
+
+   SCOPED `.coherence-plane`, NOT `.proofs-plane`, and that is the one thing to
+   get right in this file. `EngineStatePanel` renders in BOTH engine consoles —
+   Proofs and Quotes — so a tab-scoped rule would style half the desk and leave
+   the other half bare. `plane-scope.test.ts` does not catch this direction: it
+   asks whether a plane-scoped rule has a render site reachable from that
+   console, and this one does, so a `.proofs-plane` scope would pass green while
+   Quotes rendered an unstyled panel.
+
+   ITS OWN PARTIAL, and the two obvious homes are both wrong. `14u` is the
+   Proofs tab's layout and keeps the one-tab-class-per-partial convention that
+   `14q`/`14r`/`14t` also keep; putting a two-plane rule in it breaks the thing
+   the convention is for. `10a-coherence-plane.css` is the right SCOPE and has
+   sixteen lines before it crosses the 400 ceiling, which this does not fit in —
+   and the house rule is to split rather than shave.
+
+   NO `font-size` ANYWHERE IN THIS FILE. Every element here already reads a rung
+   through `14q`'s prose and furniture lists and `13`'s disclosure summary rule,
+   so declaring one would be a second declaration for a selector that already
+   has one — which `rung-single-declaration.test.ts` refuses, and rightly.
+
+   Imported after 14u and before 15, which stays last.
+   ========================================================================== */
+
+/* The head's row 1 bottom-aligns its two items, which is right for a pill and
+   wrong for a block: a 200px panel beside an `<h1>` would drop the title to the
+   foot of the line and open a band of white above it. Both engine tabs carry a
+   block there now, so both top out. */
+.coherence-plane .page-heading {
+  align-items: flex-start;
+}
+
+.coherence-plane .page-heading__actions {
+  align-items: flex-start;
+}
+
+.coherence-plane .coh-headstate {
+  display: grid;
+  gap: var(--space-2);
+  min-inline-size: 0;
+}
+
+/* A FIXED WIDTH, BECAUSE SOMETHING IN HERE TICKS. `FreshnessStamp` re-renders
+   every second and its string changes length — "59s ago" to "1m ago", "9:59" to
+   "10:00" — and `.page-heading__actions` is `flex: 0 0 auto`, so a
+   content-sized panel would move its own left edge once a minute beside a
+   title that is not moving. This is the rule shape `page-status-book.test.ts`
+   pins for the Portfolio strip, for exactly this reason: a `ch` reservation,
+   `max-width: 100%` so it collapses rather than overflowing, and no `nowrap`,
+   `ellipsis` or `overflow: hidden` — the panel wraps, it never clips.
+
+   `ch` rather than `px` so the reservation steps with the reader's Text-size
+   preference exactly as the content inside it does. */
+.coherence-plane .page-heading__actions .coh-headstate {
+  width: 62ch;
+  max-width: 100%;
+  margin-bottom: 0;
+}
+
+/* Four label-and-figure pairs, bordered into a table — which is what the reader
+   asked for and what `.cockpit-strip--compact .cockpit-strip__metrics` already
+   does with the same `<dl>` markup two directories away. Two columns rather
+   than that file's four: this sits in a 62ch column, not across a card. */
+.coherence-plane .coh-facts--tabled {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--surface-1);
+}
+
+.coherence-plane .coh-facts--tabled > div {
+  display: grid;
+  gap: 0;
+  min-inline-size: 0;
+  border-left: 1px solid var(--rule-soft);
+}
+
+.coherence-plane .coh-facts--tabled > div:nth-child(odd) {
+  border-left: 0;
+}
+
+.coherence-plane .coh-facts--tabled > div:nth-child(n + 3) {
+  border-top: 1px solid var(--rule-soft);
+}
+
+.coherence-plane .coh-facts--tabled dt {
+  padding: 3px var(--space-3);
+  border-bottom: 1px solid var(--rule-soft);
+  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+}
+
+.coherence-plane .coh-facts--tabled dd {
+  margin: 0;
+  padding: 4px var(--space-3);
+  overflow-wrap: anywhere;
+}
+
+/* A fold inside a table cell must not wear the grammar of a fold between
+   sections: `13-warm-bright-pass.css` gives `.disclosure` a hairline and a top
+   margin, which inside a bordered cell reads as a second row rule. */
+.coherence-plane .coh-facts--tabled details.disclosure {
+  margin-top: 0;
+  border-top: 0;
+  padding-top: 0;
+}
+
+.coherence-plane .coh-headstate__note {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+/* Below the head's own column breakpoint the panel is no longer beside
+   anything, so the reservation becomes the whole width rather than a column
+   inside it. */
+@media (max-width: 1120px) {
+  .coherence-plane .page-heading__actions,
+  .coherence-plane .page-heading__actions .coh-headstate {
+    width: 100%;
+  }
+}
+
+/* Two columns of label-and-figure inside a phone's width is four cells of three
+   characters each. One column, and the vertical rules become horizontal ones. */
+@media (max-width: 620px) {
+  .coherence-plane .coh-facts--tabled {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .coherence-plane .coh-facts--tabled > div {
+    border-left: 0;
+  }
+
+  .coherence-plane .coh-facts--tabled > div + div {
+    border-top: 1px solid var(--rule-soft);
+  }
+}

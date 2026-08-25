@@ -201,4 +201,8 @@
    rather than a ladder one, which is why it is not in 14r or 14s; 14t is the
    same file for the other tab. After 14t, before 15, which stays last. */
 @import "./globals/14u-proofs-layout.css";
+/* The engine's read-state panel in the page head's right slot, for BOTH engine
+   tabs — which is why it is scoped `.coherence-plane` and is not in 14t or 14u,
+   each of which owns one tab class. It declares no `font-size` at all. */
+@import "./globals/14v-engine-head-state.css";
 @import "./globals/15-navigator-and-trailing-layer.css";

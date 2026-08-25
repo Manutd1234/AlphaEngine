@@ -52,7 +52,7 @@ import { useCallback, useMemo, useState } from "react";
 
 import PageHead from "@/components/workspace/PageHead";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
-import FreshnessStamp from "@/components/workspace/FreshnessStamp";
+import EngineStatePanel from "@/components/coherence/EngineStatePanel";
 import BasketSection from "@/components/coherence/BasketSection";
 import CalibrationPane from "@/components/coherence/CalibrationPane";
 import CertificatePane from "@/components/coherence/CertificatePane";
@@ -148,43 +148,28 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
 
   useSectionWarming(SECTION_READS, active);
 
-  const metrics = useMemo(() => {
-    const solver = status.data?.solver as { engine?: string } | undefined;
-    return [
-      {
-        label: "Exchange",
-        value: status.data?.hosts.some((host) => host.reachable) ? "reachable" : "—",
-        // NOT the hostname. The status strip at the foot of this tab carries it
-        // beside the same reachability state, and one figure printed twice on
-        // one screen is a reader checking whether they are two measurements.
-        // What the header needs from this tile is the thing the strip cannot
-        // say from below the fold: whether the answer above it is live.
-        note: status.data
-          ? `${status.data.hosts.length} ${status.data.hosts.length === 1 ? "host" : "hosts"} asked on every poll`
-          : "not yet asked",
-      },
+  // ONE TILE LEFT, and the other three retired into `EngineStatePanel` on
+  // 2026-08-25 rather than being deleted. Three of the four said exactly what
+  // three of the status chips say — Exchange/reachable, Solver/highs and Order
+  // path/none — and the chips now sit twenty pixels away in the same head. The
+  // Exchange tile's own comment argued the other side of this: it withheld the
+  // hostname BECAUSE the strip at the foot carried it, and "one figure printed
+  // twice on one screen is a reader checking whether they are two
+  // measurements". Moving the strip up is what inverted that argument.
+  //
+  // `Families priced` stays because it is not a status figure at all. It counts
+  // what the UNIVERSE read returned, which is a property of the families rather
+  // than of the engine reading them, and no chip carries it.
+  const metrics = useMemo(
+    () => [
       {
         label: "Families priced",
         value: universe.data ? String(universe.data.events.length) : "—",
         note: universe.data ? "mutually exclusive baskets read live" : "not read on this section",
       },
-      {
-        label: "Solver",
-        value: solver?.engine ?? "—",
-        note: solver?.engine ? "which engine produced the certificate" : "not reported in this read",
-        mono: true,
-      },
-      // Said ONCE on the whole engine, and said here: this is the tab where a
-      // reader meets a certificate that is literally a portfolio with legs,
-      // quantities and fees on it, so it is the tab where "and then it is
-      // traded" is the reachable misreading. Quotes repeats none of it.
-      {
-        label: "Order path",
-        value: "none",
-        note: "this engine reads, records and certifies; it sends nothing",
-      },
-    ];
-  }, [status.data, universe.data]);
+    ],
+    [universe.data],
+  );
 
   const openSection = (next: CoherenceSection) => {
     onSectionChange(next);
@@ -201,7 +186,18 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
         title="Prices as probabilities, tested for coherence"
         description="A family of contracts admitting no probability measure hands back a basket that wins in every state, and this is the test."
         actions={
-          <FreshnessStamp updatedAt={status.updatedAt} pollMs={COHERENCE_POLL_MS} paused={!active} transport="poll" />
+          <EngineStatePanel
+            status={status.data}
+            error={status.error}
+            updatedAt={status.updatedAt}
+            pollMs={COHERENCE_POLL_MS}
+            paused={!active}
+            // Said ONCE on the whole engine, and said by this tab: it is where
+            // a reader meets a certificate that is literally a portfolio with
+            // legs, quantities and fees on it, so it is the tab where "and then
+            // it is traded" is the reachable misreading. Quotes passes nothing.
+            readOnlyNote="this engine reads, records and certifies; it sends nothing"
+          />
         }
         metrics={metrics}
         status={

@@ -156,22 +156,6 @@
   background: color-mix(in srgb, var(--series-1) 6%, transparent);
 }
 
-/* The status strip's tiles get a frame, the way Universe's did. They were bare
-   `<dl>` rows at the foot of the tab with a bordered figure above and nothing
-   around them, so the eye had no edge to tell one metric from the next.
-   A MODIFIER on the plane's own 140px auto-fit grid, never a second grid, so
-   the tiles keep their column behaviour and only gain a border. */
-.coherence-plane.proofs-plane .coh-facts--boxed {
-  gap: var(--space-2);
-}
-
-.coherence-plane.proofs-plane .coh-facts--boxed > div {
-  padding: var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--surface-1);
-}
-
 /* ── Marks the three new figures needed ───────────────────────────────────
 
    Same vocabulary as the rest of the engine: a track is what a quantity is

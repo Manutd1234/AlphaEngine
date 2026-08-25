@@ -59,7 +59,7 @@ import { useCallback, useMemo } from "react";
 
 import PageHead from "@/components/workspace/PageHead";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
-import FreshnessStamp from "@/components/workspace/FreshnessStamp";
+import EngineStatePanel from "@/components/coherence/EngineStatePanel";
 import BooksSection from "@/components/coherence/BooksSection";
 import FeesSection from "@/components/coherence/FeesSection";
 import { EXAMPLES } from "@/components/coherence/FeesPane";
@@ -155,28 +155,21 @@ export default function MarketsConsole({ section, onSectionChange, active = true
 
   useSectionWarming(SECTION_READS, active);
 
-  const metrics = useMemo(() => {
-    const recorder = status.data?.recorder;
-    const tape = status.data?.tape as { book_snapshots?: number } | undefined;
-    return [
-      {
-        label: "Exchange",
-        value: status.data?.hosts.some((host) => host.reachable) ? "reachable" : "—",
-        note: status.data?.hosts[0]?.host ?? "not yet asked",
-      },
+  // ONE TILE LEFT, for the reason written out in `CoherenceConsole`. `Exchange`
+  // and `Books recorded` said what the status chip and the "Recorded so far"
+  // metric say, and both now sit in `EngineStatePanel` in this same head — the
+  // Exchange tile even printed the hostname a second time, which is the shape
+  // the Proofs tile was deliberately avoiding from the other direction.
+  const metrics = useMemo(
+    () => [
       {
         label: "Families priced",
         value: universe.data ? String(universe.data.events.length) : "—",
         note: universe.data ? "mutually exclusive baskets read live" : "not read on this section",
       },
-      {
-        label: "Books recorded",
-        value: tape?.book_snapshots != null ? String(tape.book_snapshots) : "—",
-        note: recorder?.configured ? `every ${recorder.poll_seconds}s` : "recorder not configured",
-        mono: true,
-      },
-    ];
-  }, [status.data, universe.data]);
+    ],
+    [universe.data],
+  );
 
   const openSection = (next: MarketsSection) => {
     onSectionChange(next);
@@ -193,7 +186,13 @@ export default function MarketsConsole({ section, onSectionChange, active = true
         title="The exchange as it is quoted"
         description="A contract paying $1 is a probability with a price on it, and these are the families, ladders and costs it is quoted at."
         actions={
-          <FreshnessStamp updatedAt={status.updatedAt} pollMs={COHERENCE_POLL_MS} paused={!active} transport="poll" />
+          <EngineStatePanel
+            status={status.data}
+            error={status.error}
+            updatedAt={status.updatedAt}
+            pollMs={COHERENCE_POLL_MS}
+            paused={!active}
+          />
         }
         metrics={metrics}
         status={
