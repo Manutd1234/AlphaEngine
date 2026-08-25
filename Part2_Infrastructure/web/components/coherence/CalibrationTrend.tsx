@@ -33,6 +33,7 @@ import { calibrationHistoryRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import Figure, { Plot, StateChip } from "./Figure";
 import MeasurabilityStrip from "./MeasurabilityStrip";
+import CorpusHistory from "./CorpusHistory";
 import SectionVerdict from "./SectionVerdict";
 
 const HEIGHT = 170;
@@ -111,6 +112,13 @@ export default function CalibrationTrend({ active }: { active: boolean }) {
           }))}
           reading={`All ${points.length} recorded runs declined to score — the recorder is running against a corpus that will not score, which is not the same as a gap in the record.`}
         />
+        {/* NO SKILL DOES NOT MEAN NO RECORD. This branch used to end here, and
+            on this deployment it is the branch that runs: 38 runs, skill null
+            on every one. The same payload still carries Brier, base rate,
+            uncertainty and the median horizon on 16 of them and a market count
+            on all 38 — five measures that were on the wire while the view drew
+            none of them. */}
+        <CorpusHistory data={data} skillDrawnAbove={false} />
       </>
     );
   }
@@ -160,7 +168,11 @@ export default function CalibrationTrend({ active }: { active: boolean }) {
         reading={
           engines.length > 1
             ? "Two engines in one series: the line between them is not a trend, because a forecast test and a convergence test are not one measurement."
-            : "Zero is no better than always quoting the base rate; one is perfect."
+            // NOT the scale: the rule at zero already carries "no better than
+            // the base rate" as an in-plot label, and the gauge on Scorecard
+            // owns the range. What the drawing cannot say is what the quantity
+            // IS, which is one identity.
+            : "Skill = 1 − Brier / Uncertainty, so a run scores above zero only by beating the base rate on its own corpus."
         }
         notes={[
           "The series accrues forward only: nothing back-fills it, so the first point is where the recorder started rather than where the venue did.",
@@ -208,6 +220,13 @@ export default function CalibrationTrend({ active }: { active: boolean }) {
           )}
         </Plot>
       </Figure>
+
+      {/* THE OTHER SIX MEASURES, from the same payload. This route ships seven
+          figures per run and this component drew one of them; the rest were on
+          the wire the whole time. Skill stays the headline above and is in the
+          panel's readout rather than its lanes, so the comparison is available
+          and the claim is still made once. */}
+      <CorpusHistory data={data} skillDrawnAbove />
     </>
   );
 }

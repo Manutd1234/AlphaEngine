@@ -37,6 +37,8 @@ import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import { ProofView, VerdictView, verdictReading } from "./CertificateViews";
 import { verdictChip } from "./certificate-verdict";
 import FamilyChoice, { type FamilySectionProps } from "./FamilyChoice";
+import BasketWhatIf from "./BasketWhatIf";
+import LadderPrices from "./LadderPrices";
 import { StateChip } from "./Figure";
 import SectionVerdict from "./SectionVerdict";
 import { useState } from "react";
@@ -63,6 +65,12 @@ export default function CertificatePane({
   );
   // The answer on screen must be about the family named above it.
   const answer: CoherenceCertificate | null = data && data.component_id === target ? data : null;
+  // THE PRICES THE VERDICT IS ABOUT. This section argued that a family's quotes
+  // do or do not admit a probability measure and drew none of them — 574px, the
+  // thinnest on the tab — while the universe read it already warms carries every
+  // leg's two sides, its strike and its open interest. No new route: this is the
+  // payload the family picker above is already built from.
+  const chosen = events.find((event) => event.event_ticker === target) ?? null;
 
   return (
     <section className="card console-card coh-certificate" aria-labelledby="coherence-certificate-heading">
@@ -130,6 +138,23 @@ export default function CertificatePane({
             ) : null}
 
             {view === "proof" ? <ProofView data={answer} /> : <VerdictView data={answer} target={target} />}
+          </>
+        ) : null}
+
+        {/* NOT INSIDE THE BLOCK ABOVE, and that is the point. These prices come
+            from the universe read, not from the certificate: they are what the
+            test is ABOUT, not something it returns. Gated on `answer` they
+            vanished exactly when they were most wanted — a 188-strike family
+            takes seconds to certify, and for those seconds the section showed a
+            spinner and nothing else while the whole book sat in memory.
+
+            Verdict only: on Proof the subject is the certificate itself. */}
+        {view === "verdict" && chosen ? (
+          <>
+            <LadderPrices event={chosen} />
+            {/* The prices, then what they cost as a set. In that order because
+                the second is a reading OF the first. */}
+            <BasketWhatIf event={chosen} />
           </>
         ) : null}
       </FamilyChoice>

@@ -35,6 +35,7 @@ import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import Figure, { FigureEmpty, StateChip } from "./Figure";
 import { clock, thin, type IndexPoint } from "./IndexBasisChart";
 import IndexFamilies from "./IndexFamilies";
+import IndexSeriesChart from "./IndexSeriesChart";
 import MeasurabilityStrip from "./MeasurabilityStrip";
 import SectionVerdict from "./SectionVerdict";
 import ValueStrip from "./ValueStrip";
@@ -72,141 +73,19 @@ function whyUnmeasurable(points: CoherenceIndexPoint[]): string {
   return named.join("; ");
 }
 
+/**
+ * ONE LANE PER SERIES, since 2026-08-26.
+ *
+ * This was ~135 lines that mapped every point to `{ts, cc}` and dropped
+ * `series_ticker`, `event_ticker` and `engine` before drawing one pooled line.
+ * Measured against the live tape, that line joined two series, twenty-five
+ * families and three estimators, so almost every segment of it crossed a
+ * boundary of one kind or another — it had the shape of a time series and the
+ * content of a scatter in poll order. `IndexSeriesChart` draws the series apart
+ * and states in its notes what is still pooled inside them.
+ */
 function Chart({ data }: { data: CoherenceIndexSeries }) {
-  const [plotRef, plotW] = useMeasuredWidth<HTMLDivElement>(720);
-  const points: IndexPoint[] = data.points.map((point) => ({
-    ts: point.ts_ns,
-    cc: toCenticents(point.ci),
-    // Nothing on this tape is feed-flagged; the field belongs to `thin`, which
-    // keeps a flagged sample whatever bucket it falls in.
-    flagged: false,
-  }));
-  const measured = points.filter((point) => point.cc != null);
-  const why = whyUnmeasurable(data.points);
-
-  if (!measured.length) {
-    return (
-      <Figure
-        caption="Distance from the nearest coherent price vector"
-        ariaLabel="No index reading could be measured"
-        missing={
-          data.points.length
-            ? `All ${data.points.length} readings were unmeasurable — every family had a market quoted on one side only, and a one-sided quote overstates the probability by half the spread.${
-                why ? ` Recorded reasons: ${why}.` : ""
-              }`
-            : null
-        }
-      >
-        <FigureEmpty reason="Nothing measurable recorded yet." />
-      </Figure>
-    );
-  }
-
-  // ~2,000 polls into a ~700px plot is more readings than pixels. Thinned by
-  // keeping the extremes of each bucket, never every nth point, so a spike
-  // survives; `thin` also keeps every gap whatever bucket it lands in.
-  const { kept, bucket } = thin(points);
-
-  const first = points[0].ts;
-  const last = points[points.length - 1].ts;
-  const span = Math.max(1, last - first);
-  const peak = Math.max(...measured.map((point) => point.cc as number), 1);
-
-  const plotWidth = plotW - MARGIN.left - MARGIN.right;
-  const base = HEIGHT - MARGIN.bottom;
-  const x = (ts: number) => MARGIN.left + ((ts - first) / span) * plotWidth;
-  const y = (cc: number) => base - (cc / peak) * (base - MARGIN.top);
-
-  // Broken at gaps, never bridged: an unmeasurable poll is a hole in the
-  // record, and a line drawn through it asserts a reading nobody took.
-  //
-  // Each unbroken run carries its own hover line (fourth review of
-  // 2026-08-24). The segments ARE the marks here — the gaps between them are
-  // the figure's subject — so a title per run says how long the record was
-  // continuous and how far it climbed, which is what the eye cannot take off
-  // a line whose y scale is one number in the corner.
-  const segments: Array<{ d: string; from: number; to: number; count: number; peak: number }> = [];
-  let current: { d: string; from: number; to: number; count: number; peak: number } | null = null;
-  for (const point of kept) {
-    if (point.cc == null) {
-      if (current) segments.push(current);
-      current = null;
-      continue;
-    }
-    if (current) {
-      current.d += `L${x(point.ts).toFixed(2)},${y(point.cc).toFixed(2)}`;
-      current.to = point.ts;
-      current.count += 1;
-      current.peak = Math.max(current.peak, point.cc);
-    } else {
-      current = {
-        d: `M${x(point.ts).toFixed(2)},${y(point.cc).toFixed(2)}`,
-        from: point.ts,
-        to: point.ts,
-        count: 1,
-        peak: point.cc,
-      };
-    }
-  }
-  if (current) segments.push(current);
-
-  const notes = [
-    // The claim this figure exists to make, and the one place on the tab that
-    // makes it. It was a free-standing paragraph under both views until
-    // 2026-08-25; it belongs to the drawing whose gaps it explains.
-    "A poll that could not be measured is drawn as a gap, never as a zero and never dropped: a line closed over "
-    + "one would claim continuity nobody observed.",
-    data.unmeasurable
-      ? `${data.unmeasurable} of ${data.points.length} readings could not be measured and are drawn as gaps.`
-      : "",
-    why ? `Recorded reasons: ${why}.` : "",
-    kept.length < points.length
-      ? `${points.length} readings thinned to ${kept.length} drawn, keeping each ${bucket}-reading bucket\u2019s extremes: no peak smoothed away, no gap closed.`
-      : "",
-  ].filter(Boolean);
-
-  return (
-    <Figure
-      caption="Distance from the nearest coherent price vector, over time"
-      ariaLabel={`${measured.length} measured readings, peaking at ${fromCenticents(peak)}`}
-      reading={`Peak ${fromCenticents(peak)}; zero is prices that admit a probability exactly.`}
-      notes={notes}
-    >
-      <div ref={plotRef} style={{ width: "100%" }}>
-        <svg viewBox={`0 0 ${plotW} ${HEIGHT}`} width={plotW} height={HEIGHT} className="coh-index">
-        <line x1={MARGIN.left} x2={plotW - MARGIN.right} y1={base} y2={base} className="coh-ladder__axis" />
-        {segments.map((segment) => (
-          // `from` rather than the path data, so a resize does not replay the
-          // draw-in, and `pathLength={1}` so one dash rule fits any length.
-          <path
-            key={segment.from}
-            d={segment.d}
-            className="coh-index__line chart-draw"
-            fill="none"
-            pathLength={1}
-          >
-            <title>
-              {`${segment.count} unbroken readings, ${clock(segment.from / NS_PER_MS)} to ${clock(segment.to / NS_PER_MS)} UTC, peaking at ${fromCenticents(segment.peak)}`}
-            </title>
-          </path>
-        ))}
-        {/* The peak value IS this chart's y scale — there is no y axis — so it
-            is an in-plot scale note on the diagram ladder's 13px rung
-            (coh-svg-note, 14r), while the two clock labels stay tick numerals
-            at the 10px floor. */}
-        <text x={MARGIN.left} y={MARGIN.top - 2} className="coh-svg-note">
-          {fromCenticents(peak)}
-        </text>
-        <text x={MARGIN.left} y={HEIGHT - 6} className="coh-ladder__tick">
-          {clock(first / NS_PER_MS)} UTC
-        </text>
-        <text x={plotW - MARGIN.right} y={HEIGHT - 6} textAnchor="end" className="coh-ladder__tick">
-          {clock(last / NS_PER_MS)} UTC
-        </text>
-        </svg>
-      </div>
-    </Figure>
-  );
+  return <IndexSeriesChart points={data.points} />;
 }
 
 export default function IndexPane({ active, view }: {

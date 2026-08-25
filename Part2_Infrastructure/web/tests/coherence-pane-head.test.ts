@@ -88,6 +88,7 @@ const OWNERS: Record<string, { file: string; tab: string }> = {
   portfolio: { file: "components/coherence/BasketSection.tsx", tab: "coherence" },
   combos: { file: "components/coherence/CombosSection.tsx", tab: "coherence" },
   calibration: { file: "components/coherence/CalibrationPane.tsx", tab: "coherence" },
+  corpus: { file: "components/coherence/CorpusSection.tsx", tab: "coherence" },
   // The Scorecard split on 2026-08-25 and the coherence index is a section
   // again, under the id it was published with.
   index: { file: "components/coherence/IndexSection.tsx", tab: "coherence" },

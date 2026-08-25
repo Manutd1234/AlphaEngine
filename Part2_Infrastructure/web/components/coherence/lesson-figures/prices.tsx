@@ -24,15 +24,29 @@ export function Grid() {
     { from: 0.95, to: 0.99, step: 0.005 },
   ];
   const x = (p: number) => 16 + p * (WIDTH - 32);
-  const ticks: number[] = [];
+  const ticks: Array<{ p: number; step: number }> = [];
   for (const band of bands) {
-    for (let p = band.from; p <= band.to + 1e-9; p += band.step) ticks.push(p);
+    for (let p = band.from; p <= band.to + 1e-9; p += band.step) ticks.push({ p, step: band.step });
   }
   return (
     <Frame label="A price ruler whose steps are finer at both ends than in the middle">
-      <line x1={x(0)} x2={x(1)} y1={y} y2={y} className="coh-form__arrow" />
-      {ticks.map((p, i) => (
-        <line key={i} x1={x(p)} x2={x(p)} y1={y - 6} y2={y + 6} className="coh-lessonfig__tick" />
+      <line x1={x(0)} x2={x(1)} y1={y} y2={y} className="coh-form__arrow">
+        <title>
+          The whole quotable range, $0.01 to $0.99. A price outside it is not a cheap price — it is a
+          price the venue will not accept, which is why an order built from a model&rsquo;s continuous
+          output has to be snapped to this ruler before it is sent.
+        </title>
+      </line>
+      {ticks.map((tick, i) => (
+        <line key={i} x1={x(tick.p)} x2={x(tick.p)} y1={y - 6} y2={y + 6} className="coh-lessonfig__tick">
+          <title>
+            {`A quotable price at ${tick.p.toFixed(3)}. The step here is ${tick.step.toFixed(3)} — `
+             + `${tick.step < 0.01
+                ? "the fine grid the venue uses near the ends of the range"
+                : "the coarse grid it uses through the middle"}`
+             + ". One number called \u201ctick size\u201d prices every market on the next structure wrong."}
+          </title>
+        </line>
       ))}
       <text x={x(0)} y={y + 22} className="coh-form__note">$0.01</text>
       <text x={x(1)} y={y + 22} textAnchor="end" className="coh-form__note">$0.99</text>
@@ -66,9 +80,23 @@ export function Absence() {
             <text x={12} y={y + 4} className="coh-form__note">{row.label}</text>
             <line x1={110} x2={WIDTH - 16} y1={y} y2={y} className="coh-lessonfig__track" />
             {row.drawn ? (
-              <circle cx={110} cy={y} r={5} className="coh-lessonfig__mark" />
+              <circle cx={110} cy={y} r={5} className="coh-lessonfig__mark">
+                <title>
+                  A market quoted at zero. Somebody has looked and offered nothing, which is a
+                  measurement: zero is a legal price on this venue and it means the market is worthless,
+                  not unknown.
+                </title>
+              </circle>
             ) : (
-              <text x={110} y={y + 4} className="coh-form__note">◌ —</text>
+              <text x={110} y={y + 4} className="coh-form__note">
+                ◌ —
+                <title>
+                  A market with no quote at all. Nobody is resting on this side, so the price is
+                  UNKNOWN. Totalling it as zero turns &ldquo;we do not know&rdquo; into &ldquo;it is
+                  worthless&rdquo;, and every sum built on it is understated by exactly the legs that
+                  were never priced.
+                </title>
+              </text>
             )}
           </g>
         );
@@ -105,12 +133,35 @@ export function Book() {
   const at = (cents: number) => left + (cents / 100) * span;
   return (
     <Frame label="Two bid ladders growing toward each other from opposite ends of a dollar, with the spread as the gap between them">
-      <rect x={left} y={40} width={span} height={20} className="coh-lessonfig__track" />
-      <rect x={left} y={40} width={at(42) - left} height={20} className="coh-lessonfig__slice" />
-      <rect x={at(45)} y={40} width={left + span - at(45)} height={20} className="coh-lessonfig__slice is-loud" />
+      <rect x={left} y={40} width={span} height={20} className="coh-lessonfig__track">
+        <title>
+          One dollar, measured from both ends. A binary market pays exactly $1 to one side, so the two
+          bid ladders are two claims on the same dollar and the bar is the dollar itself.
+        </title>
+      </rect>
+      <rect x={left} y={40} width={at(42) - left} height={20} className="coh-lessonfig__slice">
+        <title>
+          The YES bid ladder, resting to 42. This is what a YES buyer will pay — and the NO side&rsquo;s
+          offer is its far end: a NO ask of 58 IS this ladder read from the other direction, at
+          1 &minus; 0.42.
+        </title>
+      </rect>
+      <rect x={at(45)} y={40} width={left + span - at(45)} height={20} className="coh-lessonfig__slice is-loud">
+        <title>
+          The NO bid ladder, resting to 55, measured from the opposite end. The YES ask of 45 is its far
+          end, at 1 &minus; 0.55. Neither ask is quoted by anyone: both are readings of the other
+          side&rsquo;s bids.
+        </title>
+      </rect>
       <text x={at(21)} y={54} textAnchor="middle" className="coh-lessonfig__tick">YES bid 42</text>
       <text x={at(72)} y={54} textAnchor="middle" className="coh-lessonfig__tick">NO bid 55</text>
-      <line x1={at(42)} x2={at(45)} y1={32} y2={32} className="coh-lessonfig__mark-line" />
+      <line x1={at(42)} x2={at(45)} y1={32} y2={32} className="coh-lessonfig__mark-line">
+        <title>
+          The spread, three cents. The two ladders cannot overlap, so the two asks cannot sum to less
+          than a dollar: 45 + 58 = 103. A snapshot showing them summing BELOW one has been torn — the
+          ladders were read at different instants — and a bot trading on it is trading its own latency.
+        </title>
+      </line>
       <text x={at(43.5)} y={26} textAnchor="middle" className="coh-form__note">spread</text>
       <text x={left} y={HEIGHT - 8} className="coh-form__note">
         the asks are the far ends: 45 + 58 = a dollar and the spread, never less

@@ -56,6 +56,7 @@ const SECTION_FILES: Record<string, string> = {
   portfolio: "../components/coherence/BasketSection.tsx",
   combos: "../components/coherence/CombosSection.tsx",
   calibration: "../components/coherence/CalibrationPane.tsx",
+  corpus: "../components/coherence/CorpusSection.tsx",
   index: "../components/coherence/IndexSection.tsx",
   lessons: "../components/coherence/LessonsPane.tsx",
 };
@@ -181,8 +182,9 @@ describe("exactly one subtab rail on the tab", () => {
     const ONE_LEVEL: Record<string, readonly string[]> = {
       certificate: ["Verdict", "Proof"],
       combos: ["Bands", "Parlays", "Bounds"],
-      calibration: ["Score", "Bands", "Corpus"],
-      index: ["Score trend", "By poll", "By family"],
+      calibration: ["Score", "Bands"],
+      corpus: ["Composition", "Score trend"],
+      index: ["By poll", "By family"],
       portfolio: [],
       lessons: [],
     };

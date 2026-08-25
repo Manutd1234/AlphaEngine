@@ -1,0 +1,212 @@
+/**
+ * Proofs readouts — the three figures added on 2026-08-26.
+ *
+ * A new partial rather than more of `10b`, which had reached 404 lines: the
+ * ceiling is enforced on both sides and the ratchet only turns one way, so the
+ * rule is split rather than trim.
+ *
+ * What stayed in `10b` is everything belonging to `.coh-plot` itself — the
+ * focus ring, the live region, the readout card, the selection cursor and the
+ * crosshair rule — because that is the plot's own chrome and every figure on
+ * the tab inherits it. What moved here is the three figures added alongside
+ * those readouts, each drawn by exactly one component.
+ *
+ * Unscoped `.coh-*`, matching `10b`'s convention rather than inventing a second
+ * one: these names are namespaced by their prefix already.
+ */
+
+/* ── The settled record as a panel of measures ──────────────────────────────
+   Six lanes over one run axis, each scaled to its own range. The label carries
+   the measure, the right-hand figure carries its last value, and the lane rule
+   under each row is what keeps a row with one gap reading as a row rather than
+   as an empty band. */
+.coh-corpushist__label {
+  font-size: var(--fs-diagram-label);
+  fill: var(--text-secondary);
+}
+
+.coh-corpushist__last {
+  font-size: var(--fs-diagram-label);
+  fill: var(--text-primary);
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A row whose measure never moved. Named rather than left to look broken: a
+   flat line and a line with no data are the same picture otherwise. */
+.coh-corpushist__flat {
+  font-size: var(--fs-diagram-label);
+  fill: var(--text-muted);
+}
+
+.coh-corpushist__tick {
+  font-size: var(--fs-diagram-label);
+  fill: var(--text-muted);
+  font-family: var(--mono);
+}
+
+.coh-corpushist__base {
+  stroke: var(--border);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.coh-corpushist__line {
+  stroke: var(--series-1);
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.coh-corpushist__dot { fill: var(--series-1); }
+
+/* ── The index tape, one lane per series ────────────────────────────────────
+   The lane name and its peak sit ABOVE the track rather than in a gutter: the
+   x axis here is time and runs the full width, so a left-hand label column
+   would take width from the only axis that carries information. */
+.coh-indexlane__name {
+  font-size: var(--fs-diagram-label);
+  fill: var(--text-primary);
+  font-family: var(--mono);
+}
+
+.coh-indexlane__meta {
+  font-size: var(--fs-diagram-label);
+  fill: var(--text-muted);
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Both sides of every leg, on one dollar axis ────────────────────────────
+   The bid is filled and the ask hollow, so the pair reads as one book without
+   colour carrying it: in forced colours both survive as shapes. A ringed mark
+   is a leg whose SIZE is unknown — the venue stopped sending open interest —
+   and is deliberately unlike a leg holding nothing, which is a small filled
+   mark and a real measurement. */
+.coh-ladderprice__grid {
+  stroke: var(--border);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.coh-ladderprice__tick {
+  font-size: var(--fs-diagram-label);
+  fill: var(--text-muted);
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The gap between the two sides IS the spread, so it is drawn, not implied. */
+.coh-ladderprice__spread {
+  stroke: var(--text-muted);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.coh-ladderprice__bid { fill: var(--series-1); }
+
+.coh-ladderprice__ask {
+  fill: var(--surface-1);
+  stroke: var(--series-2);
+  stroke-width: 1.2;
+  vector-effect: non-scaling-stroke;
+}
+
+.coh-ladderprice__bid.is-unsized,
+.coh-ladderprice__ask.is-unsized {
+  fill: none;
+  stroke: var(--text-muted);
+  stroke-dasharray: 1.5 1.5;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+/* ── Buy every outcome: the basket against the dollar it pays ───────────────
+   The tab's one operated figure. The leg blocks alternate tone rather than
+   carrying a hue each: six named colours would be a legend nobody reads, and
+   the boundary between two blocks is the only thing a reader needs to see. */
+.coh-whatif__leg {
+  fill: var(--series-1);
+  opacity: 0.85;
+  stroke: var(--surface-1);
+  stroke-width: 1;
+}
+
+.coh-whatif__leg.is-alt { opacity: 0.55; }
+
+/* The dollar the set is CERTAIN to pay — the only line here that is not a
+   price, so it is dashed and full height where the blocks are solid. */
+.coh-whatif__dollar {
+  stroke: var(--text-primary);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.coh-whatif__total {
+  font-size: var(--fs-diagram-legend);
+  fill: var(--text-primary);
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* Same shape as the diffusion model's slider stack, deliberately: a reader who
+   has operated one figure on this engine has operated both. */
+.coh-whatif__controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-2) var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.coh-whatif__controls label {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.coh-whatif__controls .field {
+  font-size: var(--fs-diagram-label);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.coh-whatif__reset {
+  justify-self: start;
+  align-self: end;
+  font-size: var(--fs-diagram-label);
+}
+
+/* An isotonic knot, sized by the settled markets it was fitted on. Hollow, so
+   it reads as a joint on the step line rather than as another band's dot —
+   the two carry different quantities and must not look alike. */
+.coh-calib__knot {
+  fill: var(--surface-1);
+  stroke: var(--series-3, var(--text-secondary));
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+}
+
+/* A parlay quoted on BOTH sides: the gap between them is the spread, drawn as
+   an object rather than left as the distance between two rules. Hatched, so it
+   survives forced colours as texture and cannot be read as the band it sits
+   inside. */
+.coh-combo__spread {
+  fill: url(#diff-hatch);
+  stroke: var(--text-secondary);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+/* The lesson diagram's frame. It exists only to give the live region a parent
+   that is NOT the `role="img"` svg — a reading inside that subtree is drawn and
+   never announced. `position: relative` so the visually-hidden region is
+   positioned against the figure rather than the page. */
+.coh-lessonfig__frame {
+  position: relative;
+  min-width: 0;
+}

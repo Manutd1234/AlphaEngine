@@ -264,9 +264,12 @@ describe("the head is one sentence per section", () => {
    *  Four until 2026-08-25, when Dutch book's three groups became three
    *  sections. `combos` is among them, which retires the note above about it
    *  heading nothing — it heads `CombosSection` now, and its link resolves on
-   *  the rail rather than through the relocation table. */
+   *  the rail rather than through the relocation table.
+   *
+   *  Seven since later the same day: `corpus` left Scorecard, taking the score
+   *  trend from the index with it. */
   const PROVED = [
-    "certificate", "portfolio", "combos", "calibration", "index", "lessons",
+    "certificate", "portfolio", "combos", "calibration", "corpus", "index", "lessons",
     // The Diffusion tab's seven, headed by the proof suite.
     "arm", "meetings", "episodes", "model", "instrument", "sandbox", "findings",
   ];

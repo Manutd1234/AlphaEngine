@@ -30,6 +30,8 @@ import { read, stripNonCode } from "./helpers/workspace-sources";
 
 const hook = read("../lib/coherence/use-mark-readout.ts");
 const figure = read("../components/coherence/Figure.tsx");
+const sharedHook = read("../lib/coherence/use-shared-x-readout.ts");
+const history = read("../components/coherence/CorpusHistory.tsx");
 
 describe("the plot is one keyboard instrument, not one per mark", () => {
   it("takes a single tab stop", () => {
@@ -164,5 +166,149 @@ describe("what it does to the accessibility tree", () => {
     // One tab stop has to show that it holds focus. `:focus-visible` rather
     // than `:focus`: a pointer user who clicked a mark did not ask for a ring.
     assert.match(globalsCss, /\.coh-plot svg:focus-visible \{[^}]*outline:/);
+  });
+});
+
+describe("a mark can be chosen, and only where a figure asked for that", () => {
+  it("renders no click handler on a plot nobody can select from", () => {
+    // The whole point of the opt-in. A plot that carried `onClick`
+    // unconditionally would give every mark on the tab a pressable
+    // affordance that silently did nothing — worse than no affordance,
+    // because it invites the press.
+    assert.match(stripNonCode(hook), /\.\.\.\(onSelect \? \{ onClick \} : \{\}\)/,
+      "the click handler is not conditional on onSelect, so every plot is pressable");
+  });
+
+  it("leaves the tab stop exactly as it was", () => {
+    // Selection must not buy itself a second tab stop, or a figure of six
+    // parlays costs six presses to skip again — the rule this hook was
+    // written to hold. `selectable` reaches the CLASS, never `tabIndex`.
+    assert.match(figure, /tabIndex=\{interactive \? 0 : undefined\}/);
+    const svg = figure.slice(figure.indexOf("<svg"), figure.indexOf("</svg>"));
+    assert.doesNotMatch(svg, /tabIndex=\{[^}]*selectable/,
+      "selectable reaches tabIndex, so a selectable plot is a different tab stop");
+  });
+
+  it("selects the FOCUSED mark on Enter and Space, never a guessed one", () => {
+    // Read from the handler body, not from `stripNonCode`: these are string
+    // comparisons, which stripping blanks — the same trap the Escape
+    // assertion above documents.
+    const handler = hook.slice(hook.indexOf("const onKeyDown"));
+    const body = handler.slice(0, handler.indexOf("}, ["));
+    assert.match(body, /event\.key === "Enter"/, "Enter does not select");
+    assert.match(body, /event\.key === " "/, "Space does not select");
+    // The second half is the load-bearing one. Without `focusIndex !== null`,
+    // Enter on arrival fires on whichever mark happens to be first, which is
+    // the tab order choosing for the reader instead of the reader choosing.
+    assert.match(body, /focusIndex !== null/,
+      "Enter fires without a focused mark, so arrival selects mark zero");
+  });
+
+  it("hands out the walk's own index rather than traversing again", () => {
+    // Two traversals would be two ideas of what the marks are, and they would
+    // disagree the first time a figure gained one. `select` reads
+    // `marks.current` — the list the arrow walk and the readout already use.
+    const select = hook.slice(hook.indexOf("const select = useCallback"));
+    const body = select.slice(0, select.indexOf("}, ["));
+    assert.match(body, /marks\.current\.length \? marks\.current : collect\(\)/,
+      "select builds its own mark list");
+    assert.match(body, /selectRef\.current\?\.\(index\)/);
+  });
+
+  it("shows the mark it just chose, so a click is never a dead control", () => {
+    // A handler that fires and changes nothing visible reads as broken. The
+    // chosen mark becomes the focused one and says its own words, which is
+    // exactly what the arrow walk does — one behaviour, two ways in.
+    const select = hook.slice(hook.indexOf("const select = useCallback"));
+    const body = select.slice(0, select.indexOf("}, ["));
+    assert.match(body, /setFocusIndex\(index\)/);
+    assert.match(body, /show\(found\[index\]\)/);
+  });
+
+  it("asks the markup the same mark question the hook does", () => {
+    // The hook's mark test is "carries its own `<title>` child"; the cursor's
+    // is `:has(> title)`. Written as two different tests they would drift, and
+    // the drift would be a pointer cursor over something unselectable — or
+    // none over something selectable.
+    assert.match(globalsCss, /\.coh-plot\.is-selectable svg :has\(> title\) \{ cursor: pointer; \}/,
+      "the selectable cursor rule is missing or no longer keys on a title child");
+    assert.match(hook, /if \(child\.tagName\.toLowerCase\(\) === "title"\)/,
+      "the hook no longer defines a mark as an element with a title child");
+  });
+});
+
+describe("a figure read ACROSS one axis, rather than mark by mark", () => {
+  it("takes its axis as a function of the measured width, not as constants", () => {
+    // The axis a shared-x figure reads is one the FIGURE lays out: a label
+    // gutter reserved from measured glyph advances, and whatever track is left.
+    // Neither is known until the plot has been measured. Passing constants is
+    // not a style choice — it puts the crosshair on a position the drawing
+    // never used, and the picture gives no sign that it has. Cost me a build:
+    // `x0: 0, x1: 1` read every pointer position as out of range.
+    assert.match(figure, /sharedX\?: \(width: number\) => SharedX;/,
+      "sharedX is not a function of the measured width");
+    assert.match(figure, /const axis = sharedX \? sharedX\(width\) : undefined;/);
+  });
+
+  it("draws the lanes and reads the crosshair through ONE geometry", () => {
+    // Two derivations of the same axis disagree the first time either changes,
+    // and a readout naming a value at the wrong run looks exactly like a
+    // readout naming it at the right one.
+    assert.match(history, /^function geometry\(width: number, labels: readonly string\[\]\)/m,
+      "the panel no longer has one shared geometry function");
+    const callers = (history.match(/geometry\(width,/g) ?? []).length;
+    assert.equal(callers, 2, `geometry() is called ${callers} times; the lanes and the crosshair are the two`);
+  });
+
+  it("says something on arrival, which is the defect the mark readout exists to end", () => {
+    // Measured 2026-08-26: focus landed, tabIndex was 0, arrows worked, and the
+    // live region was empty until the first press — a reader is told nothing
+    // and has to guess that arrows do something.
+    //
+    // NATIVE focusin, for the reason the other hook measured: React's synthetic
+    // onFocus does not fire on an `<svg>`.
+    // ANCHORED TO THE LINE START, and that is the whole assertion. Written
+    // unanchored it passed against `// svg.addEventListener("focusin", onIn);`
+    // — commenting the handler out left text the regex still matched, so the
+    // guard was green with the behaviour deleted. Proved red before being
+    // believed, which is the only reason it is written this way.
+    assert.match(sharedHook, /^\s*svg\.addEventListener\("focusin", onIn\);$/m,
+      "arrival is not handled, so tabbing to the figure says nothing");
+    // WHICH END is the caller's, and the default is "last" so no caller written
+    // before the field changed behaviour. It was hard-coded until a peer
+    // pointed out that a strike ladder arrives at the far tail — thinnest mass,
+    // least informative end — because a record of runs in time wanted "now".
+    assert.match(sharedHook, /arriveAt\?: "first" \| "last";/,
+      "the arrival end is no longer the caller's to choose");
+    assert.match(sharedHook, /arriveRef\.current === "first" \? 0 : countRef\.current - 1/,
+      "arrival no longer honours arriveAt, or no longer defaults to the last position");
+    // BOTH SITES, counted. The default is written twice — once as the ref's
+    // initial value and once as the per-render assignment — and a `match` on
+    // the pair passed with ONE of them flipped, because the other still
+    // satisfied it. Proved vacuous by mutation before this replaced it: a
+    // caller arriving at the wrong end on first render and the right one after
+    // is worse than either, and it read green.
+    const defaults = sharedHook.match(/shared\?\.arriveAt \?\? "last"/g) ?? [];
+    assert.equal(defaults.length, 2,
+      `the arrival default is written ${defaults.length} times as "last"; the ref's initial value and `
+        + "its per-render assignment must agree, or the first render arrives at a different end");
+  });
+
+  it("speaks prose to the live region, not the tooltip's two columns", () => {
+    // "Brier 0.000115 skill 0.99929" read aloud runs two numbers together with
+    // nothing between them, and the unit is the only thing telling them apart.
+    const body = sharedHook.slice(sharedHook.indexOf("announce:"));
+    assert.match(body.slice(0, 300), /\.join\(", "\)/,
+      "the spoken reading no longer separates its measures");
+  });
+
+  it("shows an unwritten measure as a dash, never as a zero", () => {
+    // 22 of the 38 recorded runs carry nulls with a reason. A card reading 0
+    // for those would turn "the recorder declined" into "the score was zero".
+    assert.match(history, /value === null \? "—" : m\.show\(value\)/,
+      "the readout no longer distinguishes an unwritten measure from a zero one");
+    // And a measure null on EVERY run gets no lane at all, because an empty
+    // lane reads as a measure that came back zero.
+    assert.match(history, /const drawn = lanes\.filter\(\(m\) => points\.some\(\(p\) => m\.at\(p\) !== null\)\)/);
   });
 });

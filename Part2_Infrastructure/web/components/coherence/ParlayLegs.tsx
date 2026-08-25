@@ -84,7 +84,7 @@ export default function ParlayLegs({ combos }: { combos: CoherenceCombo[] }) {
         blind
           ? `${blind} of ${rows.length} parlays carry a leg with no implied p: the side the parlay needs is unquoted, so Πpᵢ has no value and neither do that parlay's bounds. A missing quote, never a probability of zero.`
           : "Every leg of every parlay is quoted on the side its parlay needs, so no band in this read is missing an end.",
-        "Implied p is the MID of the side the parlay needs, which is what both bounds are built from. The parlay itself is read from its offer, so a price above the ticks is not on its own evidence of anything about the legs.",
+        "Both bounds are built from leg MIDS; the parlay itself is read from its offer, so a price above the ticks is not on its own evidence of anything about the legs.",
       ]}
     >
       <Plot height={height}>

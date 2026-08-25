@@ -16,30 +16,28 @@
  * time series about the present, and it is the series nobody publishes for this
  * exchange.
  *
- * TWO READS UNDER ONE SECTION, each gated on the views that draw it — the trend
- * comes from the calibration history and the two index views from the index
- * series, so a reader on the trend never pays for the tape. That is the same
- * discipline every section on this rail keeps; it is only unusual here because
- * the section carries two rather than one, and they answer the same question
- * about two different clocks.
+ * ONE READ SINCE 2026-08-25, AND ONE CLOCK. This section used to carry the
+ * score trend as well, which read the calibration HISTORY — the settled past —
+ * beside two views reading the index series, the unsettled present. Two clocks
+ * under one label, gated apart but still filed together, and this header used
+ * to say so. The trend is a reading of the settled corpus over time, so it went
+ * to `corpus`, beside the corpus it describes.
  */
 
 import { useState } from "react";
 
-import CalibrationTrend from "./CalibrationTrend";
 import IndexPane from "./IndexPane";
 import PaneHead from "./PaneHead";
 
-type IndexView = "trend" | "series" | "families";
+type IndexView = "series" | "families";
 
 const VIEWS: ReadonlyArray<[IndexView, string]> = [
-  ["trend", "Score trend"],
   ["series", "By poll"],
   ["families", "By family"],
 ];
 
 export default function IndexSection({ active }: { active: boolean }) {
-  const [view, setView] = useState<IndexView>("trend");
+  const [view, setView] = useState<IndexView>("series");
 
   return (
     <section className="card console-card coh-calib" aria-labelledby="coherence-index-heading">
@@ -48,7 +46,7 @@ export default function IndexSection({ active }: { active: boolean }) {
         title="How far these prices sit from admitting a probability"
         id="coherence-index-heading"
         note="measured every poll, on markets that have not settled"
-        lede="Zero is prices that admit a probability exactly; the distance above it is how much the quotes contradict themselves."
+        lede="Zero is prices that admit a probability exactly; above it is ‖p − q‖₁ to the nearest coherent vector."
       />
 
       {/* The control row is pinned (`14u`), so a reader deep in the body can
@@ -64,15 +62,7 @@ export default function IndexSection({ active }: { active: boolean }) {
         </div>
       </div>
 
-      {/* The branch IS the gate, and the compiler proves it: inside the else,
-          `view` cannot be "trend", so a conjunction guarding on it would be one
-          TypeScript reports as always true. An always-true guard reads like a
-          gate and defends nothing, which is worse than having none. */}
-      {view === "trend" ? (
-        <CalibrationTrend active={active} />
-      ) : (
-        <IndexPane active={active} view={view === "series" ? "series" : "families"} />
-      )}
+      <IndexPane active={active} view={view} />
     </section>
   );
 }

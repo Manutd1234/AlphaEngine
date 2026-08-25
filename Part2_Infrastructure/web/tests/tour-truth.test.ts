@@ -101,7 +101,7 @@ describe("the feature tour names the sections the app actually ships", () => {
     //
     // Three files quote this number — the tour, `scripts/desk-sweep-plan.mjs`
     // and this line.
-    assert.equal(total, 69, "the rail count moved; the tour and desk-sweep both quote it");
+    assert.equal(total, 70, "the rail count moved; the tour and desk-sweep both quote it");
     assert.ok(
       plain.includes(`${total} section`),
       `the tour does not state the ${total}-section total`,

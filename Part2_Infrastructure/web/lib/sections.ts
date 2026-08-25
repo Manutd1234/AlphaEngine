@@ -264,6 +264,7 @@ export const COHERENCE_SECTIONS = [
   { id: "portfolio", label: "Basket", description: "The portfolio the test hands back, and what it pays" },
   { id: "combos", label: "Parlays", description: "The venue's conjunctions against the bounds their legs impose" },
   { id: "calibration", label: "Scorecard", description: "Were the prices right, on what has settled" },
+  { id: "corpus", label: "Corpus", description: "What that score was computed on, and how it accrued" },
   { id: "index", label: "Coherence index", description: "How far the quotes sit from admitting a probability, per poll" },
   { id: "lessons", label: "Lessons", description: "The curriculum & what guards it" },
 ] as const;

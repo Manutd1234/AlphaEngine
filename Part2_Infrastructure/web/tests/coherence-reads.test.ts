@@ -39,6 +39,7 @@ const SECTION_FILES: Record<string, string> = {
   portfolio: "../components/coherence/BasketSection.tsx",
   combos: "../components/coherence/CombosSection.tsx",
   calibration: "../components/coherence/CalibrationPane.tsx",
+  corpus: "../components/coherence/CorpusSection.tsx",
   index: "../components/coherence/IndexSection.tsx",
   lessons: "../components/coherence/LessonsPane.tsx",
 };
@@ -114,13 +115,23 @@ describe("the reads are gated by section, and the folded reads by view", () => {
     assert.doesNotMatch(scorecard, /indexRoute|calibrationHistoryRoute/,
       "the Scorecard reads an index tape it does not draw");
 
-    // The index section reads NOTHING at the section level: its two reads live
-    // in the two components that draw them, each gated on the view. A section
-    // holding a read for a view it may never open is the cost the group level
-    // used to pay.
+    // ONE READ EACH SINCE 2026-08-25. The index section used to carry the score
+    // trend, which read the calibration HISTORY — the settled past — beside two
+    // views reading the unsettled index tape. Two clocks, one label. The trend
+    // moved to `corpus`, and what is pinned now is that the index cannot reach
+    // the settled reads at all.
     const index = read(SECTION_FILES.index);
-    assert.match(index, /view === "trend" \? \(/,
-      "the index section no longer branches its two reads by view");
+    assert.doesNotMatch(index, /calibrationRoute|calibrationHistoryRoute/,
+      "the index section reads a settled corpus it does not draw");
+
+    // Corpus is the section that now branches two reads by view — and unlike
+    // the index, its two describe ONE subject: what the settled sample is made
+    // of, and how it grew. The gate is the same discipline either way.
+    const corpus = read(SECTION_FILES.corpus);
+    assert.match(corpus, /active && view === "composition"/,
+      "the corpus section no longer gates its settled read on the view that draws it");
+    assert.match(corpus, /view === "trend" \? \(/,
+      "the corpus section no longer branches its two reads by view");
   });
 });
 

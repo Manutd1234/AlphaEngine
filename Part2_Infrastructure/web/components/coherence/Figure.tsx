@@ -23,7 +23,8 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
-import { useMeasuredWidth } from "@/components/chart-kit";
+import { Tooltip, useMeasuredWidth } from "@/components/chart-kit";
+import { useSharedXReadout, type SharedX } from "@/lib/coherence/use-shared-x-readout";
 import { DIAGRAM_LABEL_PX, advancePx, truncateMiddle } from "@/lib/coherence/label-metrics";
 import { useMarkReadout, type MarkReadout } from "@/lib/coherence/use-mark-readout";
 
@@ -130,6 +131,8 @@ export default function Figure({ caption, reading, missing, notes, ariaLabel, ch
 export function Plot({
   height,
   minWidth = 0,
+  onSelect,
+  sharedX,
   children,
 }: {
   height: number;
@@ -142,11 +145,50 @@ export function Plot({
    * this existed.
    */
   minWidth?: number;
+  /**
+   * Called with the index of a mark the reader chose, in document order — the
+   * same order the arrow walk uses, so a figure can map an index back to its
+   * own row without keeping a parallel list.
+   *
+   * OPT-IN, because most figures on this tab are read rather than operated. A
+   * plot without this renders no click handler at all, so a reader never meets
+   * a mark that looks pressable and is not.
+   */
+  onSelect?: (index: number) => void;
+  /**
+   * For a figure whose facts share one x and differ down the y.
+   *
+   * The mark readout answers "what is this shape". A panel of measures over one
+   * axis is asked a different question — "what were ALL of these, at this
+   * point" — and a per-mark readout cannot answer it, because it positions a
+   * single `getBBox` and shows one fact. Passing this swaps the readout for an
+   * index-over-shared-x one; the tab stop, the four gestures and the live
+   * region are identical, so the two feel like one instrument.
+   *
+   * A FUNCTION OF THE MEASURED WIDTH, not a value, because the axis it reads
+   * across is one the figure lays out — a label gutter reserved from measured
+   * glyph advances, a track that is whatever is left. The caller cannot know
+   * either until the plot has been measured, and passing constants instead is
+   * how the crosshair ends up reading a position the drawing never uses.
+   */
+  sharedX?: (width: number) => SharedX;
   children: (width: number) => ReactNode;
 }) {
   const [ref, measured] = useMeasuredWidth<HTMLDivElement>(720);
   const width = Math.max(measured, minWidth);
-  const { svgRef, readout, interactive, announce, handlers } = useMarkReadout(height);
+  // Both hooks run every render — they must, they are hooks — and the figure
+  // uses one of them. A figure carries per-mark titles or a shared axis, never
+  // both, so there is no case where the unused one has anything to say.
+  const marks = useMarkReadout(height, onSelect);
+  const axis = sharedX ? sharedX(width) : undefined;
+  const shared = useSharedXReadout(axis);
+  // The svg needs ONE ref, and which hook owns it depends on which readout is
+  // in use: each binds its own native `focusin`, because React's synthetic
+  // focus does not fire on an `<svg>` — measured, not assumed.
+  const { selectable } = marks;
+  const svgRef = axis ? shared.svgRef : marks.svgRef;
+  const { interactive, announce, handlers } = axis ? shared : marks;
+  const readout = axis ? null : marks.readout;
   const publish = useContext(AnnounceContext);
   // In an effect, not during render. Calling a PARENT's setter while a child is
   // rendering is the one thing React refuses outright — "cannot update a
@@ -156,7 +198,11 @@ export function Plot({
   useEffect(() => { publish?.(announce); }, [publish, announce]);
 
   return (
-    <div ref={ref} className={`coh-plot${minWidth ? " is-floored" : ""}`} style={{ width: "100%" }}>
+    <div
+      ref={ref}
+      className={`coh-plot${minWidth ? " is-floored" : ""}${selectable ? " is-selectable" : ""}`}
+      style={{ width: "100%" }}
+    >
       <svg
         ref={svgRef}
         viewBox={`0 0 ${width} ${height}`}
@@ -185,6 +231,15 @@ export function Plot({
         </defs>
         {children(width)}
         {readout ? <Readout {...readout} chartWidth={width} /> : null}
+        {axis && shared.reading && shared.index !== null ? (
+          <SharedXReadout
+            at={axis.x0 + ((axis.x1 - axis.x0) * shared.index) / Math.max(1, axis.count - 1)}
+            height={height}
+            width={axis.width ?? 200}
+            chartWidth={width}
+            reading={shared.reading}
+          />
+        ) : null}
       </svg>
       {/* Only when this plot is NOT inside a Figure. Inside one — which is every
           caller on the engine — the figure renders the region outside its own
@@ -223,7 +278,7 @@ export function Plot({
  * sentence is still announced to a screen reader, which reads `announce` and
  * not this.
  */
-function Readout({ text, x, y, chartWidth }: MarkReadout & { chartWidth: number }) {
+export function Readout({ text, x, y, chartWidth }: MarkReadout & { chartWidth: number }) {
   const width = Math.min(chartWidth - 8, advancePx(text, READOUT_PX) + 20);
   const shown = truncateMiddle(text, width - 20, READOUT_PX);
   const left = Math.min(Math.max(x - width / 2, 4), Math.max(4, chartWidth - width - 4));
@@ -280,5 +335,29 @@ export function StateChip({
           now, and the hover has the whole of it. */}
       {value ? <span className="coh-chip__value" title={value}>{value}</span> : null}
     </span>
+  );
+}
+
+/**
+ * The rule and the card, for a figure read across one axis.
+ *
+ * The rule is what makes the card honest: a tooltip clamped away from the edge
+ * sits somewhere other than the position it describes, and without a mark on
+ * the axis a reader near the end of the series cannot tell which point they
+ * are being told about. `Tooltip` does the clamping and the card; this adds the
+ * one line that says where.
+ */
+function SharedXReadout({ at, height, width, chartWidth, reading }: {
+  at: number;
+  height: number;
+  width: number;
+  chartWidth: number;
+  reading: { title: string; rows: Array<{ label: string; value: string; color?: string }> };
+}) {
+  return (
+    <g pointerEvents="none">
+      <line x1={at} x2={at} y1={0} y2={height} className="coh-plot__crosshair" />
+      <Tooltip x={at} width={width} chartWidth={chartWidth} title={reading.title} rows={reading.rows} />
+    </g>
   );
 }

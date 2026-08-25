@@ -107,8 +107,6 @@
 .coh-index-pane,
 .coh-diffusion { display: grid; gap: 12px; min-width: 0; }
 
-.coh-index { height: 160px; }
-
 /* Broken at gaps rather than bridged: an unmeasurable poll is a hole in the
    record, and a line drawn through it asserts a reading nobody took. */
 .coh-index__line {
@@ -189,6 +187,21 @@
    drawing sideways instead of squeezing its geometry into the column. */
 .coh-plot.is-floored { overflow-x: auto; }
 
+/* A plot whose marks can be CHOSEN, not merely read. Only the marks take the
+   pointer cursor — a plot is mostly empty space, and pointing at the gap
+   between two marks is not an offer to select anything.
+
+   `:has(> title)` IS the mark test, and it is the same one the hook makes: an
+   element is a mark when it carries its own `<title>` child. Writing the test
+   twice in two languages would let the drawing and the cursor disagree the
+   first time a figure gained a mark, so this asks the markup the same question.
+
+   WHERE `:has()` IS UNSUPPORTED the declaration is dropped and the cursor stays
+   default. Selection still works — by click and by Enter on the focused mark —
+   so what degrades is the invitation, never the ability. Same bargain as the
+   `subgrid` card in 14i. */
+.coh-plot.is-selectable svg :has(> title) { cursor: pointer; }
+
 .coh-plot__live {
   position: absolute;
   width: 1px;
@@ -214,6 +227,19 @@
  * meaning, because that is what it paints away — and this plate carries none.
  * The words on it are the meaning, and they are text.
  */
+/* The rule under a shared-x readout. Its job is to say WHERE the card is
+   describing: `Tooltip` clamps itself away from the edge, so near the end of a
+   series the card and the point it names are not in the same place, and without
+   this a reader is told a number and left to guess which run it belongs to.
+
+   Hairline and muted on purpose — it is a pointer, not a series. */
+.coh-plot__crosshair {
+  stroke: var(--text-secondary);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  shape-rendering: crispEdges;
+}
+
 .coh-plot__readout rect {
   fill: var(--surface-1);
   stroke: var(--border);

@@ -85,10 +85,10 @@ function slopeReading(slope: string | null, populated: number, bands: number): s
   const value = statValue(slope);
   if (value == null) return "the engine sent a slope this pane could not read, so it is not shown";
   if (value > 1.02) {
-    return "steeper than the diagonal — the favourite–longshot shape: longshots overbet, happening less often than their price says, favourites the reverse";
+    return "steeper than 1 — favourite–longshot bias: longshots overbet, favourites underbet";
   }
   if (value < 0.98) {
-    return "flatter than the diagonal — the reverse shape: the prices were more confident than the world turned out to be";
+    return "flatter than 1 — the reverse: prices more confident than the world turned out to be";
   }
   return "indistinguishable from 1 at two decimals — the shape a well calibrated venue has";
 }

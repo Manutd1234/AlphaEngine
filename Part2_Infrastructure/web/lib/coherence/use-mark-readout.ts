@@ -26,6 +26,21 @@
  * elements carrying a `<title>`, collected in document order, and a figure gets
  * the behaviour by having done nothing.
  *
+ * SELECTION RIDES THE SAME INDEX, and is opt-in. `Heatmap` is the desk's only
+ * selectable figure and this hook already took its NAVIGATION half — one
+ * instrument, arrows to walk, Escape to let go. It never took the other half:
+ * `onClick` reaching a handler with the row that was chosen. A figure that
+ * passes `onSelect` gets it here, over the mark list that already exists, so
+ * choosing a mark is the walk's own index handed out rather than a second
+ * traversal with its own idea of what the marks are.
+ *
+ * Enter and Space act on the FOCUSED mark, never on a guessed one: a keyboard
+ * reader who has not walked to a mark yet has selected nothing, and firing on
+ * the first mark because it happens to be first would be the tab order
+ * choosing for them. Pointer selection resolves the mark under the cursor by
+ * the same upward walk `onPointerMove` uses, so the mark that speaks is the
+ * mark that is chosen.
+ *
  * WHAT IT DOES NOT TOUCH: the `<svg>` keeps `role="presentation"` and the
  * wrapper keeps `role="img"` with the figure's one-sentence description. A
  * `role="img"` subtree is presentational to assistive technology, so the marks
@@ -52,7 +67,7 @@ function titleOf(element: Element): string | null {
   return null;
 }
 
-export function useMarkReadout(height: number) {
+export function useMarkReadout(height: number, onSelect?: (index: number) => void) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [readout, setReadout] = useState<MarkReadout | null>(null);
   const [focusIndex, setFocusIndex] = useState<number | null>(null);
@@ -66,6 +81,10 @@ export function useMarkReadout(height: number) {
   const focusIndexRef = useRef<number | null>(null);
   const stepRef = useRef<(delta: number | "first" | "last") => void>(() => {});
   const clearRef = useRef<() => void>(() => {});
+  // Same reason as `stepRef`: the listener effect binds once, and a caller that
+  // rebuilds its handler every render must still reach the current one.
+  const selectRef = useRef(onSelect);
+  selectRef.current = onSelect;
 
   /**
    * The marks, in document order.
@@ -168,13 +187,50 @@ export function useMarkReadout(height: number) {
   }, [collect, focusIndex, show]);
   stepRef.current = step;
 
+  /**
+   * Hand out the index of a mark, and leave the readout showing it.
+   *
+   * Showing it matters: a click that fires a handler and changes nothing
+   * visible on the figure reads as a dead control, so the chosen mark becomes
+   * the focused one and says its own words, exactly as the arrow walk does.
+   */
+  const select = useCallback((index: number) => {
+    const found = marks.current.length ? marks.current : collect();
+    if (index < 0 || index >= found.length) return;
+    setFocusIndex(index);
+    show(found[index]);
+    selectRef.current?.(index);
+  }, [collect, show]);
+
+  const onClick = useCallback((event: React.MouseEvent<SVGSVGElement>) => {
+    // The same upward walk `onPointerMove` does, so a click and a hover resolve
+    // to one mark rather than to two nearly-equal answers.
+    let node = event.target as Element | null;
+    while (node && node !== event.currentTarget) {
+      if (titleOf(node)) {
+        const found = marks.current.length ? marks.current : collect();
+        const index = found.indexOf(node);
+        if (index >= 0) select(index);
+        return;
+      }
+      node = node.parentElement;
+    }
+  }, [collect, select]);
+
   const onKeyDown = useCallback((event: React.KeyboardEvent<SVGSVGElement>) => {
     const moves: Record<string, number | "first" | "last"> = {
       ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1, Home: "first", End: "last",
     };
     if (event.key in moves) { event.preventDefault(); step(moves[event.key]); return; }
     if (event.key === "Escape") { event.preventDefault(); clear(); }
-  }, [step, clear]);
+    // Only when this plot is selectable AND a mark is focused. Without the
+    // second test, Enter on arrival would choose whichever mark the tab order
+    // put first, which is the reader being chosen for.
+    if ((event.key === "Enter" || event.key === " ") && selectRef.current && focusIndex !== null) {
+      event.preventDefault();
+      select(focusIndex);
+    }
+  }, [step, clear, select, focusIndex]);
 
   return {
     svgRef,
@@ -182,10 +238,15 @@ export function useMarkReadout(height: number) {
     interactive,
     /** Spoken by a live region OUTSIDE the `role="img"` wrapper. */
     announce: readout?.text ?? "",
+    /** True only where a caller passed `onSelect` AND there is a mark to choose. */
+    selectable: Boolean(onSelect) && interactive,
     handlers: {
       onPointerMove,
       onPointerLeave: clear,
       onKeyDown,
+      // Absent unless the figure asked to be selectable: a plot nobody can
+      // choose from must not carry a click handler that silently does nothing.
+      ...(onSelect ? { onClick } : {}),
       // No `onFocus`/`onBlur` here — see the native listener effect above.
     },
   };

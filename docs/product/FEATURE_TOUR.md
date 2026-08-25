@@ -63,7 +63,7 @@ its aria-label and title; HALTED is never folded.
 
 **Where the rail lists below come from.** Every rail in this document is transcribed from
 `Part2_Infrastructure/web/lib/sections.ts`, which is the single definition the rails, the
-command palette, the hash whitelist and "Copy link to this view" all read. **69 sections across
+command palette, the hash whitelist and "Copy link to this view" all read. **70 sections across
 the eleven tabs** — 48 on the eight decision-loop tabs, 8 on Quotes, 6 on Proofs and 7 on
 Diffusion — a total
 `web/scripts/desk-sweep-plan.mjs` mirrors by hand as `EXPECTED_SECTIONS = 69` and the tour test
@@ -548,22 +548,29 @@ is literally a portfolio with legs, quantities and fees on it.
 relocation table are described under Tab 9 and apply here unchanged, as does the note on what a
 `.seg` view gives up.
 
-**60 seconds:** rail: **Coherence test → Basket → Parlays → Scorecard → Coherence index → Lessons**.
-Six sections, Lessons carried as secondary because it is reference material rather than a step.
+**60 seconds:** rail: **Coherence test → Basket → Parlays → Scorecard → Corpus → Coherence index → Lessons**.
+Seven sections, Lessons carried as secondary because it is reference material rather than a step.
 The first three were one section, "Dutch book", until 2026-08-25: three groups over six views
 over a family picker, which is three rows of chrome before any drawing. They are three questions
 — is there a Dutch book, what portfolio does that hand back, and the same test on the venue's own
 parlays — so they are three sections, each one read and one control row. Both restored ids were
 already published, so the split shortened the relocation table rather than lengthening it.
-**Scorecard** still absorbs a published section and keeps it as views: `index` folds into it.
+**Corpus** was the seventh, added 2026-08-25. Scorecard was answering two questions — were the
+prices right, and what were they right ABOUT — and at 2,273px it was the tallest thing on the tab.
+The second question decides whether the first means anything, because a Brier score is a score of
+whatever settled: a corpus that is 81% one series scores that series under the whole exchange's
+name. It also took **Score trend** from Coherence index, which had been reading the settled
+history beside two views reading the unsettled tape — two clocks under one label, which that
+section's own header admitted. Every section on this rail is now one question.
 
 | Section | Views | What it answers |
 |---|---|---|
 | **Coherence test** | Verdict · Proof | Do these prices admit a probability measure? Almost always yes — and that is the CLAIM, not a disappointment: a detector that spoke only when it found something would leave "no opportunity" and "the feed is down" looking identical. Which is why the verdict now reports the programme's own margin, the signed figure it was read off, rather than four money rows that are correctly empty whenever no portfolio exists. **Proof** is the whole certificate in a fixed-width block you can check by hand or paste elsewhere, because "arbitrage, 3.2 cents" is not evidence. |
 | **Basket** | one view | The portfolio the test hands back, drawn state by state — the constructive half of the theorem and the reason this engine tests for coherence instead of scanning for arbitrage shapes. Where no measure fits a family's prices, duality returns the basket that wins in every state, so the certificate of infeasibility IS the trade. Every leg carries all three fee components, because a gross edge is not an answer. |
 | **Parlays** | Bands · Parlays · Bounds | The same test run on the parlays the venue states rather than on a family's strikes: two probabilities never determine the probability of both, so the legs give a Fréchet band and never a price, and the band's width is how far the parlay can move with no leg moving at all. It takes no family picker, and that is the structural reason it is its own section: a parlay is a listing the exchange publishes, not a family this engine chooses. |
-| **Scorecard** | Score · Bands · Corpus · Index series · Index families | Were these prices right — once settled, and over time? The Brier score is split under Murphy's decomposition — reliability, resolution, uncertainty, and the residual the binning leaves (`modules/coherence/kernel/calibration.py`); **Corpus** is the composition, because a corpus is whatever the watched series happened to settle. **Index series** and **Index families** are the continuous form of the same question, measured every poll as the distance to the nearest coherent price vector — the series nobody publishes for this exchange. Unmeasurable readings are drawn as gaps, never dropped or zeroed, because a line closing over them would claim continuity nobody observed. The two used to be separate sections and asked a reader to discover that they were one question. |
-| **Coherence index** | Score trend · By poll · By family | How far do these prices sit from admitting a probability, right now? The Scorecard scores a SETTLED corpus against what paid; this measures the L1 distance from the quoted price vector to the nearest one summing to a dollar, on every poll, on markets that have not settled and may never. One is a verdict about the past and the other a time series about the present — they shared a section for a day on the argument that both ask "were these prices right", which is a question rather than a subject. Unmeasurable readings are drawn as gaps, never dropped or zeroed, because a line closing over them would claim continuity nobody observed. |
+| **Scorecard** | Score · Bands | Were these prices right — once settled, and over time? The Brier score is split under Murphy's decomposition — reliability, resolution, uncertainty, and the residual the binning leaves (`modules/coherence/kernel/calibration.py`); What the score was taken OVER is next door, in Corpus. |
+| **Corpus** | Composition · Score trend | What was that score computed on, and how did it accrue? A Brier score is a score of whatever happened to settle, so the mixture decides what the figure next door is a figure about — the composition names each series' share and its own favourite–longshot slope, and refuses to let the aggregate stand in for a series, because the aggregate averages series that are not the same question. **Score trend** is the settled score as it was recorded, accruing forward only: nothing back-fills it, so the first point is where the recorder started rather than where the venue did. Runs that could not be scored are drawn as gaps, never as zeroes. |
+| **Coherence index** | By poll · By family | How far do these prices sit from admitting a probability, right now? The Scorecard scores a SETTLED corpus against what paid; this measures the L1 distance from the quoted price vector to the nearest one summing to a dollar, on every poll, on markets that have not settled and may never. One is a verdict about the past and the other a time series about the present — they shared a section for a day on the argument that both ask "were these prices right", which is a question rather than a subject. The score trend moved to Corpus on 2026-08-25 for the same reason in reverse: it reads the settled history, so it belongs beside the settled corpus rather than beside a live distance. Unmeasurable readings are drawn as gaps, never dropped or zeroed, because a line closing over them would claim continuity nobody observed. |
 | **Lessons** | Coverage · Prices · Structure · Bounds · Record | What is the curriculum, and what guards each claim? Fourteen lessons rendered from `lib/coherence/lessons.ts`, each naming the code it is about and the tests that pin it, matched one-to-one by the notebooks in `Part2_Infrastructure/notebooks/coherence_lab/`. **Coverage** is the map of the catalogue against both rails at once — a lesson's `pane` is a section id with no tab inside it, and half of them are taught on Quotes. |
 
 **Reads are gated on the open section *and*, where a view alone is expensive, on the open view.**

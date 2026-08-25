@@ -71,7 +71,8 @@ export function murphyTerms(
       raw: reliability,
       direction: "lower is better; zero is perfect",
       meaning:
-        "The mean squared gap between what a band was priced at and how often it happened — the only term a recalibration can repair, being the only property of the prices.",
+        "Σ nₖ(fₖ − oₖ)² / N. The only term a recalibration repairs — the only one that is a property of "
+        + "the prices rather than of the questions.",
     },
     {
       key: "resolution",
@@ -80,7 +81,8 @@ export function murphyTerms(
       raw: resolution,
       direction: "higher is better; it enters with a minus sign",
       meaning:
-        "How far the bands' outcome rates spread from the base rate — how much the prices discriminated. Quote the base rate everywhere and this is zero: perfectly reliable, worth nothing, and only this term notices.",
+        "Σ nₖ(oₖ − o)² / N against the base rate o. Quote it everywhere and this is zero: perfectly "
+        + "reliable, worth nothing, and only this term notices.",
     },
     {
       key: "uncertainty",
@@ -89,7 +91,8 @@ export function murphyTerms(
       raw: uncertainty,
       direction: "not a score, it belongs to the questions",
       meaning:
-        "base × (1 − base). Nothing the exchange does changes it — why a raw Brier cannot be carried between corpora: easier questions produce a smaller number for free.",
+        "o(1 − o). Unchanged by anything the exchange does — why a raw Brier does not carry between "
+        + "corpora: easier questions give a smaller number for free.",
     },
     {
       key: "binning",

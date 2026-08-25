@@ -31,10 +31,15 @@ import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import CalibrationSettled, { type SettledView } from "./CalibrationSettled";
 import PaneHead from "./PaneHead";
 
+// TWO VIEWS, NOT THREE. `corpus` moved to its own section on 2026-08-25: what
+// the score was computed on is a different question from what the score is,
+// and this section was the tallest on the tab at 2,273px carrying both.
+// `SettledView` keeps the third member because `CorpusSection` renders the
+// same shell with it — the chips, the horizon and the four absences are corpus
+// facts as much as score facts, and drawing them twice would be two answers.
 const VIEWS: ReadonlyArray<[SettledView, string]> = [
   ["score", "Score"],
   ["bands", "Bands"],
-  ["corpus", "Corpus"],
 ];
 
 export default function CalibrationPane({ active }: { active: boolean }) {

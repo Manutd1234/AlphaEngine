@@ -115,6 +115,7 @@ const OWNERS: Record<string, string> = {
   portfolio: "components/coherence/BasketSection.tsx",
   combos: "components/coherence/CombosSection.tsx",
   calibration: "components/coherence/CalibrationPane.tsx",
+  corpus: "components/coherence/CorpusSection.tsx",
   index: "components/coherence/IndexSection.tsx",
   lessons: "components/coherence/LessonsPane.tsx",
   // Diffusion is the eleventh TAB as of 2026-08-25. Its seven sections are

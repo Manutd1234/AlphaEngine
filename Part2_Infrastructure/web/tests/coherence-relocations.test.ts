@@ -195,6 +195,9 @@ describe("every location the engine has ever published still resolves", () => {
     const everShipped = [
       ...COHERENCE_SECTION_IDS,
       "settlement", "dispersion", "stake", "portfolio", "ablation", "findings", "index", "combos",
+      // `corpus` was never published before 2026-08-25, so it has no relocation
+      // entry — it is here because everything on the rail must resolve.
+      "corpus",
       // `diffusion` WAS a section id under `#coherence/` before it became a
       // tab, so a link naming it resolves like any other retired section.
       "diffusion",

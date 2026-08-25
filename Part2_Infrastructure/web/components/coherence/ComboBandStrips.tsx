@@ -43,10 +43,22 @@ export default function ComboBandStrips({ combos }: { combos: CoherenceCombo[] }
     independence: toCenticents(combo.independence),
     width: combo.band_width,
     inside: combo.inside_band,
+    // THE PARLAY'S OWN BOOK. `combo_bid`, `combo_ask` and `combo_mid` are on
+    // the wire and appeared NOWHERE in this repository — the strip drew
+    // `price`, which is whichever of them the basis names, as a single rule.
+    // Where both sides are quoted the two are a SPREAD, and a spread is a
+    // different object from a price: it says what the parlay could be entered
+    // AND left at. Live on this deployment every bid is null, so what this
+    // draws today is one mark and a note saying so — which is itself the
+    // reading, because "nobody bids for a parlay" is the claim `FrechetBand`
+    // makes in prose and nothing on the tab has ever shown.
+    bid: toCenticents(combo.combo_bid),
+    ask: toCenticents(combo.combo_ask),
   }));
   const axisY = TOP + rows.length * ROW_H + AXIS_GAP;
   const height = axisY + 16;
   const unpriced = rows.filter((row) => row.lo == null || row.hi == null).length;
+  const twoSided = rows.filter((row) => row.bid != null && row.ask != null).length;
 
   return (
     <Figure
@@ -56,9 +68,16 @@ export default function ComboBandStrips({ combos }: { combos: CoherenceCombo[] }
           ? `${row.ticker}: no band`
           : `${row.ticker}: ${fromCenticents(row.lo)} to ${fromCenticents(row.hi)}, price ${row.price == null ? "unquoted" : fromCenticents(row.price)}`)
         .join(". ")}
-      missing={unpriced
-        ? `${unpriced} of ${rows.length} parlays have no band: a leg is unquoted on the side the parlay needs.`
-        : null}
+      missing={[
+        unpriced
+          ? `${unpriced} of ${rows.length} parlays have no band: a leg is unquoted on the side the parlay needs.`
+          : "",
+        twoSided
+          ? `${twoSided} of ${rows.length} parlays are quoted on both sides; those rows draw a spread rather`
+            + " than a single price."
+          : `No parlay in this read is quoted on both sides, so every price mark here is one side of a book`
+            + " — there is no spread to draw, which is not the same as a spread of nothing.",
+      ].filter(Boolean).join(" ") || null}
     >
       <Plot height={height}>
         {(width) => {
@@ -98,10 +117,21 @@ export default function ComboBandStrips({ combos }: { combos: CoherenceCombo[] }
                         <title>{`independence Πpᵢ would put this at ${fromCenticents(row.independence)} — a guess about the legs, never a fair value`}</title>
                       </circle>
                     ) : null}
+                    {/* Where both sides are quoted, the gap between them is
+                        the spread and is drawn as one; where only one is, the
+                        single rule stands as it always has. Never a bar from a
+                        quoted side to a missing one — that would draw a spread
+                        reaching to a price nobody has offered. */}
+                    {row.bid != null && row.ask != null ? (
+                      <rect x={x(row.bid)} y={y + 11} width={Math.max(1, x(row.ask) - x(row.bid))} height={10}
+                            className="coh-combo__spread">
+                        <title>{`book ${fromCenticents(row.bid)} bid, ${fromCenticents(row.ask)} ask`}</title>
+                      </rect>
+                    ) : null}
                     {row.price != null ? (
                       <line x1={x(row.price)} x2={x(row.price)} y1={y + 5} y2={y + 27}
                             className="coh-combo__price">
-                        <title>{`price ${fromCenticents(row.price)}${row.inside == null ? "" : row.inside ? ", inside the band" : ", outside the band"}`}</title>
+                        <title>{`price ${fromCenticents(row.price)}${row.inside == null ? "" : row.inside ? ", inside the band" : ", outside the band"}${row.bid == null ? ", one side of the book only — no bid" : ""}`}</title>
                       </line>
                     ) : null}
                   </g>

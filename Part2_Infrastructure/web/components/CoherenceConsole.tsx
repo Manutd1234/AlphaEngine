@@ -57,6 +57,7 @@ import BasketSection from "@/components/coherence/BasketSection";
 import CalibrationPane from "@/components/coherence/CalibrationPane";
 import CertificatePane from "@/components/coherence/CertificatePane";
 import CombosSection from "@/components/coherence/CombosSection";
+import CorpusSection from "@/components/coherence/CorpusSection";
 import IndexSection from "@/components/coherence/IndexSection";
 import LessonsPane from "@/components/coherence/LessonsPane";
 import StatusPane from "@/components/coherence/StatusPane";
@@ -101,17 +102,15 @@ const SECTION_READS: Record<CoherenceSection, readonly string[]> = {
   // to guess at. `certify` stays unwarmed for exactly the opposite reason.
   combos: [combosRoute()],
   calibration: [calibrationRoute()],
-  // WARMS BOTH, since 2026-08-25. This entry read `[]` and argued that the
-  // section has TWO reads — the calibration history behind Score trend, the
-  // index series behind the other two — so warming it would have to pick one,
-  // and picking is guessing at the view a reader wants.
-  //
-  // That argument assumed warming costs something. It does not, here: both are
-  // DuckDB-only and were measured at 1.63ms and 2.98ms, so warming BOTH costs
-  // about five milliseconds and there is no choice left to guess at. They were
-  // the only two reads on the tab already fast enough to need no warming and
-  // the only two still showing a spinner for want of it.
-  index: [indexRoute(), calibrationHistoryRoute()],
+  // Two reads, one subject. Composition is the settled read this section shares
+  // with Scorecard — the cache holds one answer per URL, so the second costs
+  // nothing — and the trend is the history behind it. Both were measured under
+  // 3ms, so warming both spends about five milliseconds and leaves no choice to
+  // guess at.
+  corpus: [calibrationRoute(), calibrationHistoryRoute()],
+  // ONE READ SINCE THE SCORE TREND LEFT for `corpus`. This warmed the history
+  // too, because the section drew it; it no longer does.
+  index: [indexRoute()],
   lessons: [],
 };
 
@@ -236,11 +235,13 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="coherence" tabId="calibration" activeId={section}>
-        {/* The coherence index is two views of this section: a distance
-            measured on every poll and a score taken once settled both answer
-            "were these prices right", and the index read is gated on its own
-            two views so a reader scoring the corpus never pays for the tape. */}
         <CalibrationPane active={active && section === "calibration"} />
+      </WorkspaceSubtabPanel>
+
+      {/* What that score was computed on, and how it accrued — the question
+          Scorecard carried as a third view and `index` as a first one. */}
+      <WorkspaceSubtabPanel workspaceId="coherence" tabId="corpus" activeId={section}>
+        <CorpusSection active={active && section === "corpus"} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="coherence" tabId="index" activeId={section}>

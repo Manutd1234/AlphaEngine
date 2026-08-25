@@ -164,6 +164,7 @@ export default function ReliabilityDiagram({
 
   const base = unitOf(baseRate);
   const heaviest = Math.max(...points.map((point) => point.count), 1);
+  const heaviestKnot = Math.max(...steps.map((step) => step.weight), 1);
   const worst = points.reduce((carry, point) =>
     Math.abs(point.happened - point.priced) > Math.abs(carry.happened - carry.priced) ? point : carry,
   );
@@ -185,7 +186,7 @@ export default function ReliabilityDiagram({
       // without being told; that it is that band's contribution to the
       // reliability term — the quantity the Murphy waterfall then decomposes —
       // is a fact about the arithmetic, not about the picture.
-      reading={`Each gap from the diagonal is that band's contribution to the reliability term.${steps.length ? " The step line is the isotonic correction." : ""}`}
+      reading={`Each gap from the diagonal is that band's contribution to the reliability term.${steps.length ? ` The step line is the isotonic correction; its knots are sized by the settled markets each was fitted on${steps.some((step) => step.weight === 1) ? ", and one of them rests on a single observation" : ""}.` : ""}`}
       missing={emptyNote}
     >
       <Plot height={HEIGHT}>
@@ -251,6 +252,29 @@ export default function ReliabilityDiagram({
 
               {isotonic ? <path d={isotonic} className="coh-calib__isotonic" fill="none" /> : null}
 
+              {/* HOW MUCH EACH STEP RESTS ON. `weight` was read into `steps`
+                  and then never encoded, so a step fitted on 178 settled
+                  markets and one fitted on a SINGLE market were the same
+                  corner of the same line. Measured on the live corpus, that is
+                  exactly the spread: 178, 1, 92. A correction whose middle knot
+                  is one observation is not the same claim as one whose knots
+                  are hundreds, and the drawing said nothing either way. */}
+              {steps.map((step, index) => (
+                <g key={`knot-${index}`}>
+                  <title>
+                    {`Isotonic knot: quoted ${step.x.toFixed(4)} maps to ${step.y.toFixed(4)}, fitted on `
+                     + `${step.weight} settled market${step.weight === 1 ? "" : "s"}`
+                     + `${step.weight === 1 ? " — a single observation" : ""}`}
+                  </title>
+                  <circle
+                    cx={px(step.x)}
+                    cy={py(step.y)}
+                    r={DOT_MIN + (DOT_MAX - DOT_MIN) * Math.sqrt(step.weight / heaviestKnot)}
+                    className="coh-calib__knot"
+                  />
+                </g>
+              ))}
+
               {points.map((point) => (
                 <line
                   key={`residual-${point.label}`}
@@ -267,7 +291,11 @@ export default function ReliabilityDiagram({
                 const anchorRight = px(point.priced) + r + 6 > left + side - 24;
                 return (
                   <g key={`point-${point.label}`}>
-                    <title>{`${point.label}: ${point.count} settled market(s), priced ${point.pricedText}, happened ${point.happenedText}`}</title>
+                    {/* The residual line already DRAWS the gap; this is the
+                        number for it, which lived only in the table beside the
+                        figure. A reader walking the marks was told the two
+                        prices and left to subtract. */}
+                    <title>{`${point.label}: ${point.count} settled market(s), priced ${point.pricedText}, happened ${point.happenedText}, gap ${(point.happened - point.priced >= 0 ? "+" : "")}${(point.happened - point.priced).toFixed(4)}`}</title>
                     <circle cx={px(point.priced)} cy={py(point.happened)} r={r} className="coh-calib__point" />
                     <text
                       x={anchorRight ? px(point.priced) - r - 4 : px(point.priced) + r + 4}

@@ -23,16 +23,32 @@ export function Basket() {
   let run = 0;
   return (
     <Frame label="A dollar split into four outcome prices that total less than the dollar">
-      <rect x={left} y={34} width={span} height={20} className="coh-lessonfig__track" />
+      <rect x={left} y={34} width={span} height={20} className="coh-lessonfig__track">
+        <title>
+          The dollar the family is certain to pay. Exactly one outcome settles, so the set pays $1
+          whatever happens — which is why the sum of the pieces is a test and not an estimate.
+        </title>
+      </rect>
       {parts.map((part, i) => {
         const from = run;
         run += part;
         return (
           <rect key={i} x={x(from)} y={34} width={part * span} height={20}
-                className="coh-lessonfig__slice" />
+                className="coh-lessonfig__slice">
+            <title>
+              {`Outcome ${i + 1}, priced ${part.toFixed(2)}. Its width is its price, so the four widths `
+               + "together are what buying the whole family costs."}
+            </title>
+          </rect>
         );
       })}
-      <line x1={x(1)} x2={x(1)} y1={26} y2={62} className="coh-lessonfig__rule" />
+      <line x1={x(1)} x2={x(1)} y1={26} y2={62} className="coh-lessonfig__rule">
+        <title>
+          {`Where the pieces would end if they cost exactly what they pay. They stop short of it at `
+           + `${total.toFixed(2)}, so the gap is ${(1 - total).toFixed(2)} of guaranteed profit — buy `
+           + "every outcome, own the dollar. That gap is the Dutch book this engine exists to find."}
+        </title>
+      </line>
       <text x={x(1)} y={22} textAnchor="end" className="coh-form__note">$1 pays</text>
       <text x={x(total)} y={72} textAnchor="middle" className="coh-form__note">
         the pieces cost {total.toFixed(2)}
@@ -62,8 +78,17 @@ export function Lattice() {
   const cy = HEIGHT / 2;
   return (
     <Frame label="Three nested thresholds, each contained in the one below it, with their prices">
-      {rings.map((ring) => (
-        <circle key={ring.label} cx={cx} cy={cy} r={ring.r} className="coh-lessonfig__ring" />
+      {rings.map((ring, i) => (
+        <circle key={ring.label} cx={cx} cy={cy} r={ring.r} className="coh-lessonfig__ring">
+          <title>
+            {`Finishing ${ring.label}, priced ${ring.p}. `
+             + (i === 0
+               ? "The widest set: every outcome the tighter thresholds contain is inside this one too."
+               : `Contained in ${rings[i - 1].label}, so it can never be dearer than ${rings[i - 1].p} — `
+                 + "implication IS containment, and a price that broke the order would be a monotonicity "
+                 + "violation the venue published against itself.")}
+          </title>
+        </circle>
       ))}
       {rings.map((ring, i) => (
         <text key={ring.label} x={118} y={26 + i * 22} className="coh-form__note">
@@ -98,19 +123,35 @@ export function Duality() {
   const scale = 0.36;
   return (
     <Frame label="Three state bars all above a zero rule, with the shortest of them marked as the guaranteed profit">
-      <line x1={left} x2={left} y1={16} y2={78} className="coh-lessonfig__rule" />
+      <line x1={left} x2={left} y1={16} y2={78} className="coh-lessonfig__rule">
+        <title>Zero. A bar reaching left of this would be a state the portfolio loses in.</title>
+      </line>
       <text x={left - 4} y={14} textAnchor="end" className="coh-lessonfig__tick">0</text>
       {states.map((value, index) => (
         <g key={index}>
           <rect x={left} y={20 + index * 18} width={(value / scale) * span} height={12}
-                className={value === worst ? "coh-lessonfig__slice is-loud" : "coh-lessonfig__slice"} />
+                className={value === worst ? "coh-lessonfig__slice is-loud" : "coh-lessonfig__slice"}>
+            <title>
+              {`State s${index + 1}: the portfolio pays ${value.toFixed(2)} net of what it cost. `
+               + (value === worst
+                 ? "The WORST state, and the one the whole programme is about — t* is this bar's length."
+                 : "Above the worst, so it is not what the guarantee is measured on.")}
+            </title>
+          </rect>
           <text x={left - 6} y={30 + index * 18} textAnchor="end" className="coh-lessonfig__tick">
             {`s${index + 1}`}
           </text>
         </g>
       ))}
       <line x1={left + (worst / scale) * span} x2={left + (worst / scale) * span} y1={16} y2={78}
-            className="coh-lessonfig__mark-line" />
+            className="coh-lessonfig__mark-line">
+        <title>
+          {`t* = ${worst.toFixed(2)}, the profit in the worst state rather than in some state. It touches `
+           + "the SHORTEST bar, never the average of them, and it sits above zero — so every state pays "
+           + "and the least generous one still pays this much. Maximising it is what makes the answer a "
+           + "certificate rather than a hopeful trade."}
+        </title>
+      </line>
       <text x={left + (worst / scale) * span + 4} y={14} className="coh-form__note">t*</text>
       <text x={left} y={HEIGHT - 6} className="coh-form__note">
         the worst state still pays, so the portfolio is the proof
@@ -146,12 +187,25 @@ export function Distribution() {
         className="coh-lessonfig__curve"
       />
       {quotes.map((p, i) => (
-        <circle key={i} cx={left + i * step + step / 2} cy={y(p)} r={3} className="coh-lessonfig__mark" />
+        <circle key={i} cx={left + i * step + step / 2} cy={y(p)} r={3} className="coh-lessonfig__mark">
+          <title>
+            {`Strike k${i + 1}, quoted ${p.toFixed(2)}. This is S(k${i + 1}) — the chance of finishing `
+             + "ABOVE it — which is what the exchange publishes. It never publishes the mass between two "
+             + "strikes; that is a subtraction anyone can do and almost nobody does."}
+          </title>
+        </circle>
       ))}
       <line x1={left + step + step / 2} x2={left + step + step / 2} y1={y(quotes[1])} y2={y(quotes[2])}
             className="coh-lessonfig__mark-line" />
       <rect x={left + step + step / 2} y={y(quotes[2])} width={step} height={(quotes[1] - quotes[2]) * 40}
-            className="coh-lessonfig__slice is-loud" />
+            className="coh-lessonfig__slice is-loud">
+        <title>
+          {`The implied mass between k₂ and k₃: ${quotes[1].toFixed(2)} − ${quotes[2].toFixed(2)} = `
+           + `${(quotes[1] - quotes[2]).toFixed(2)}. One subtraction, and the quoted ladder becomes a `
+           + "distribution. Only one bar is drawn on purpose — four would make this a picture of a "
+           + "distribution, which a reader has seen, instead of a picture of the OPERATION."}
+        </title>
+      </rect>
       <text x={left + step + step / 2 + 4} y={y(quotes[1]) - 4} className="coh-form__note">
         S(k₂) − S(k₃)
       </text>

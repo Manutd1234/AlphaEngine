@@ -37,9 +37,8 @@
  */
 
 import type { CoherenceCalibration } from "@/lib/coherence/types-lab";
-import Figure from "./Figure";
+import Figure, { Plot } from "./Figure";
 import { statValue } from "./ReliabilityDiagram";
-import { useMeasuredWidth } from "@/components/chart-kit";
 
 const HEIGHT = 96;
 const MARGIN = { left: 16, right: 16 };
@@ -109,12 +108,9 @@ export function verdictOf(data: CoherenceCalibration, skill: number | null): Ver
 }
 
 export default function CalibrationGauge({ data }: { data: CoherenceCalibration }) {
-  const [plotRef, width] = useMeasuredWidth<HTMLDivElement>(720);
   const skill = statValue(data.skill);
   const verdict = verdictOf(data, skill);
 
-  const trackWidth = Math.max(1, width - MARGIN.left - MARGIN.right);
-  const x = (value: number) => MARGIN.left + ((value - LOW) / (HIGH - LOW)) * trackWidth;
   const clamped = skill == null ? null : Math.min(HIGH, Math.max(LOW, skill));
 
   return (
@@ -125,15 +121,28 @@ export default function CalibrationGauge({ data }: { data: CoherenceCalibration 
       missing={
         skill != null && skill > HIGH
           ? `The skill is ${skill.toFixed(6)}, past the drawn range, so the needle sits at the end of the track rather than off it.`
-          : "Skill is the share of the question's uncertainty these prices removed."
+          : "Skill = 1 − Brier / Uncertainty: the share of the questions’ own variance these prices removed."
       }
       notes={[
         "One is perfect, zero is no better than always quoting the base rate, and below zero is worse than that — "
         + "which is why the axis is not nought-to-one and the sub-zero region is drawn.",
       ]}
     >
-      <div ref={plotRef} style={{ width: "100%" }}>
-        <svg viewBox={`0 0 ${width} ${HEIGHT}`} width={width} height={HEIGHT}>
+      {/* INSIDE `Plot` SINCE 2026-08-26. This measured its own width and drew
+          into a bare `<svg>`, which meant its four facts — including the
+          needle's own verdict — were `<title>` tooltips: reachable with a
+          mouse and by nothing else. Not from a keyboard, not on a touch
+          screen, not through a screen reader. `Plot` walks them, speaks them
+          into the live region `Figure` already renders outside its
+          `role="img"`, and costs this file its own measurement code. */}
+      <Plot height={HEIGHT}>
+        {(width) => {
+          // The scale belongs to the measured width, so it is built where the
+          // width is known rather than closed over from outside it.
+          const trackWidth = Math.max(1, width - MARGIN.left - MARGIN.right);
+          const x = (value: number) => MARGIN.left + ((value - LOW) / (HIGH - LOW)) * trackWidth;
+          return (
+          <>
           {/* The sub-zero region, drawn and labelled. It is half the reason the
               axis is not 0-to-1: worse than the base rate is a real place to be. */}
           <rect x={x(LOW)} y={30} width={x(0) - x(LOW)} height={20} className="coh-gauge__worse">
@@ -165,8 +174,10 @@ export default function CalibrationGauge({ data }: { data: CoherenceCalibration 
           <text x={MARGIN.left} y={16} className="coh-svg-note">
             {verdict.mark} {verdict.word}
           </text>
-        </svg>
-      </div>
+          </>
+          );
+        }}
+      </Plot>
     </Figure>
   );
 }
