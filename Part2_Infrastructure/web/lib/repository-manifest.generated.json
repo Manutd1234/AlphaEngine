@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-25",
-  "commit": "9bb81ae",
+  "commit": "e05bb73",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -869,6 +869,7 @@
     "Part2_Infrastructure/web/components/coherence/CombosSection.tsx",
     "Part2_Infrastructure/web/components/coherence/CombosViews.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/AbsorptionCurve.tsx",
+    "Part2_Infrastructure/web/components/coherence/diffusion/AbsorptionGate.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/ArmSection.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/EffectPlot.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/EpisodesSection.tsx",
@@ -879,6 +880,7 @@
     "Part2_Infrastructure/web/components/coherence/diffusion/InformationDiffusionPane.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/InstrumentTable.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/KalshiArm.tsx",
+    "Part2_Infrastructure/web/components/coherence/diffusion/MeetingTable.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/model/DiffusionSimulator.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/model/HalfLifeCalculator.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/model/ModelFormulas.tsx",
@@ -1680,6 +1682,7 @@
     "Part2_Infrastructure/web/tests/paper-equity-order.test.ts",
     "Part2_Infrastructure/web/tests/paper-order-default.test.ts",
     "Part2_Infrastructure/web/tests/parity.test.ts",
+    "Part2_Infrastructure/web/tests/plane-scope.test.ts",
     "Part2_Infrastructure/web/tests/pnl-attribution-degradation.test.ts",
     "Part2_Infrastructure/web/tests/pnl-attribution-market-leg.test.ts",
     "Part2_Infrastructure/web/tests/pnl-attribution-negative-zero.test.ts",

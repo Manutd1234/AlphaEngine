@@ -34,6 +34,11 @@ import { read } from "./helpers/workspace-sources";
 
 const distribution = read("../components/coherence/diffusion/FloorDistribution.tsx");
 const arm = read("../components/coherence/diffusion/InformationDiffusionPane.tsx");
+// The per-meeting strip and its table left the pane on 2026-08-25, when the
+// four-view arm was split so `meetings` could become a section of its own. The
+// caption below is pinned against the file that DRAWS it, not against the file
+// that used to.
+const meetings = read("../components/coherence/diffusion/MeetingTable.tsx");
 const types = read("../components/coherence/diffusion/types.ts");
 
 describe("the noise floor shows its distribution, not only two medians", () => {
@@ -76,7 +81,7 @@ describe("the noise floor shows its distribution, not only two medians", () => {
 describe("the two figures that are not drawn are recorded as decisions", () => {
   it("no half-life histogram, because Meetings already draws that column", () => {
     assert.match(
-      arm,
+      meetings,
       /Statement half-life, meeting by meeting/,
       "the Meetings strip is the half-life spread; if it went, the histogram argument changes",
     );
