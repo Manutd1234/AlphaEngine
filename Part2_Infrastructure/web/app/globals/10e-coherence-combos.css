@@ -70,7 +70,6 @@
 .coh-combo__meta,
 .coh-combo__legend,
 .coh-combo__caveat,
-.coh-combo__where,
 .coh-combo__note {
   margin: 0;
   font-size: var(--fs-xs);
@@ -78,8 +77,12 @@
   color: var(--text-secondary);
 }
 
+/* `.coh-combo__where` went on 2026-08-25 with the position sentence it styled.
+   The band position is a column of the Parlays table now, and the judgement the
+   sentence carried — a location, never a verdict — is on that table's caption.
+   `dead-css.test.ts` holds the unreferenced count at a baseline and its
+   prescribed fix is to delete the rule, not to keep it warm. */
 .coh-combo__legend { overflow-wrap: anywhere; }
-.coh-combo__where { color: var(--text-primary); }
 
 .coh-combo__chips { display: flex; flex-wrap: wrap; gap: 6px; }
 

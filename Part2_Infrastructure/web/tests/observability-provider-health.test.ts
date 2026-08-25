@@ -129,8 +129,18 @@ describe("a simulated outage is visibly deliberate and cannot outlive the operat
   it("expires on its own", () => {
     clearAllOutages();
     // Below the 10s floor, so the clamp is what is being checked too.
+    //
+    // MEASURED FROM A CLOCK READ *BEFORE* THE CALL, and that is the whole fix.
+    // `simulateOutage` sets `expiresAt = Date.now() + bounded`, so comparing it
+    // against a SECOND `Date.now()` taken afterwards asks the two reads to land
+    // in the same millisecond: any elapsed tick makes the difference 9,999 and
+    // the assertion fails. Green in isolation, red about one run in six under
+    // full-suite load, which is the shape of flake that gets a real guard
+    // deleted for being noisy. Not weakened — `before` is the earliest instant
+    // the call could have read, so the floor is still asserted exactly.
+    const before = Date.now();
     const record = simulateOutage("primary", 1_000);
-    assert.ok(record.expiresAt - Date.now() >= 10_000, "the ttl floor did not apply");
+    assert.ok(record.expiresAt - before >= 10_000, "the ttl floor did not apply");
     assert.equal(activeOutages().length, 1);
     clearAllOutages();
     assert.equal(activeOutages().length, 0);

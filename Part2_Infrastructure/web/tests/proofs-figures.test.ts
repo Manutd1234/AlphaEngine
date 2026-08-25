@@ -1,5 +1,5 @@
 /**
- * The six figures the Proofs tab gained on 2026-08-25, one per section.
+ * What the 2026-08-25 Proofs pass added: six figures, and one table.
  *
  * "Revamp all sections of the Proofs tab, add more diagrams for each subtab
  *  pls. reduce the number of words by summarising."
@@ -27,6 +27,13 @@
  *  - A HALF-LIFE OR SUMMARY-LENGTH BAR on the Lessons cards. Both are drawings
  *    of the prose rather than of anything measured. `GroupPins` draws the two
  *    quantities a lesson actually has and pins the ratio between them.
+ *
+ * THE TABLE IS HERE TOO, and the file is named for figures because that is what
+ * five of its six subjects are. "Reformat parlays as a table with proper
+ * headings, rows and columns" was a separate ask against the same view, landed
+ * in the same pass, and the two are one contract: the view opens on the figure
+ * and the table is what follows it. Splitting them across two files would put
+ * half of one view's shape somewhere a reader of the other half would not look.
  *
  * DERIVED, NEVER OBSERVED. `npm test` has no DOM (CLAUDE.md, fact 6). This
  * proves the wiring and the refusals; whether the six READ as figures wants a
@@ -200,5 +207,80 @@ describe("the guards this file replaces are gone rather than duplicated", () => 
       "the banner paragraph is back; the caveat belongs on the horizon axis");
     assert.match(read(FIGURES.HorizonAxis.file), /Not a forecast test/,
       "the caveat did not survive the move to a figure");
+  });
+});
+
+describe("the Parlays view is a table, and its columns are measurements", () => {
+  const source = read("../components/coherence/CombosViews.tsx");
+
+  /**
+   * The ParlaysView function alone, not the file.
+   *
+   * EVERY ASSERTION BELOW IS SCOPED TO THIS, and that is not tidiness: the file
+   * also holds `LegTable`, which draws a `coh-table` of its own, and `NotesView`,
+   * which keeps its own `<details>`. Both of the first two assertions written
+   * here were file-scoped and both were VACUOUS — replacing the view's whole
+   * table with a `<div>` left `LegTable`'s behind and the rule stayed green.
+   * Found by mutating the source, which is the only thing that ever finds this.
+   */
+  const view = source.slice(
+    source.indexOf("export function ParlaysView("),
+    source.indexOf("export function NotesView("),
+  );
+
+  it("locates the view, so nothing below is asserted against an empty string", () => {
+    assert.ok(view.length > 400, "ParlaysView was not found — every rule below would pass vacuously");
+  });
+
+  it("draws a table with a head, and one row per parlay", () => {
+    // The ask, pinned: it was six folded cards, so comparing two parlays' band
+    // widths meant opening two folds and holding a number in your head.
+    assert.match(view, /<table className="coh-table">/, "the Parlays view has no table");
+    for (const column of ["Parlay", "Legs", "Lower bound", "Upper bound", "Band width", "Price", "In band"]) {
+      assert.ok(
+        view.includes(`<th scope="col"${column === "Parlay" ? "" : ' className="num"'}>${column}</th>`),
+        `the table lost its ${column} column`,
+      );
+    }
+    assert.match(view, /combos\.map\(\(combo\) => \{/, "the rows are no longer one per parlay");
+  });
+
+  it("no column restates the sign of the column beside it", () => {
+    // The defect `copy-audit` cost the Scorecard's band table a column for:
+    // a cell reading "inside the band" beside a cell reading "43%" is the sign
+    // of its neighbour, written out once per row. The verdict is a MARK on the
+    // row header, and the caption is what says how to read it.
+    assert.doesNotMatch(
+      view,
+      /<th scope="col">\s*(Reading|Verdict|Position)\s*<\/th>/,
+      "a prose verdict column is back; the mark on the row header carries it",
+    );
+    assert.match(source, /function positionMark\(/, "the row header lost its mark");
+    assert.match(view, /positionMark\(combo\)/, "the row header no longer draws the mark");
+  });
+
+  it("the caption carries the key, and the claim the sentence used to", () => {
+    // Three marks with no key is meaning by shape alone. And the judgement the
+    // deleted position sentence carried — that outside the band is the only
+    // mispricing on this view — is the one thing a reader could get backwards.
+    assert.match(view, /● inside the band its legs impose, ▲ outside it/,
+      "the caption no longer says what the marks mean");
+    assert.match(view, /the only reading on this view that is a mispricing/,
+      "the mispricing distinction went with the position sentence rather than moving to the caption");
+  });
+
+  it("the cards were trimmed and folded, not deleted", () => {
+    // The band drawn and the legs priced are the two things a cell cannot be,
+    // so they stay — behind ONE disclosure rather than six summaries. This is
+    // also what keeps `FrechetBand` a rendered component: it has exactly one
+    // render site in the tree and it is inside that fold.
+    assert.match(view, /<details className="disclosure">/, "the per-parlay detail is not folded");
+    assert.equal(
+      (view.match(/<details className="disclosure">/g) ?? []).length, 1,
+      "the six per-parlay folds are back; the table is what replaced them",
+    );
+    assert.match(source, /<FrechetBand reading=\{combo\} \/>/,
+      "the per-parlay band figure is gone, and with it FrechetBand's only render site");
+    assert.match(source, /<LegTable combo=\{combo\} \/>/, "the per-leg costs are gone");
   });
 });

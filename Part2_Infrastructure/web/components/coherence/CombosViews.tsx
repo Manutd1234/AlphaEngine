@@ -26,35 +26,25 @@
  * portfolio proves it.
  */
 
-import type { CoherenceCombo, CoherenceComboLeg, CoherenceComboRow } from "@/lib/coherence/types-lab";
+import type { CoherenceCombo } from "@/lib/coherence/types-lab";
 import { priceLabel } from "@/lib/coherence/fixed-point";
 import ComboBandStrips from "./ComboBandStrips";
 import ParlayLegs from "./ParlayLegs";
 import FrechetBand, { DEPENDENCE_WORD, basisCaveat, probLabel, toUnit } from "./FrechetBand";
-import { DIAGRAM_LABEL_PX, gutterFor, truncateMiddle } from "@/lib/coherence/label-metrics";
-import Figure, { Plot, StateChip } from "./Figure";
+import { StateChip } from "./Figure";
 
-/** One dumbbell row. 30 was the bespoke strip's; 26 fits more rows on screen
- *  now that every tested row is drawn rather than only the violated ones. */
-const ROW_H = 26;
 
 /** Said on the card whose Πpᵢ is missing, and once under Notes. Never both. */
 const NO_INDEPENDENCE =
   "a leg is unquoted on the side the parlay needs, so Πpᵢ has no value and neither do the bounds — a missing quote, not a probability of zero.";
 
-/** Where in the band a price sits, as prose. A location, never a verdict. */
-function positionSentence(combo: CoherenceCombo): string {
-  const position = toUnit(combo.band_position);
-  if (position == null) {
-    return combo.price == null
-      ? "Unquoted on both sides."
-      : "The band has no width, so there is no fraction to take.";
-  }
-  if (position < 0 || position > 1) {
-    return "Outside the band — the only reading on this pane that is a mispricing.";
-  }
-  return `${Math.round(position * 100)}% of the way from lower bound to upper: a location, not a verdict.`;
-}
+/* `positionSentence` went with the six fold summaries it was written for
+   (2026-08-25). It phrased the band position as prose — "43% of the way from
+   lower bound to upper: a location, not a verdict" — six times, once per
+   summary. The position is a COLUMN now, and the location-not-a-verdict
+   judgement it carried is on the table's caption, said once for all six rows.
+   The "outside the band is the only mispricing here" claim went with it, to
+   the same caption. */
 
 function LegTable({ combo }: { combo: CoherenceCombo }) {
   const unpriced = combo.legs.filter((leg) => leg.probability == null).length;
@@ -132,21 +122,28 @@ function ComboChips({ combo }: { combo: CoherenceCombo }) {
   );
 }
 
+/**
+ * What a row of the table cannot hold: the band drawn, and the legs priced.
+ *
+ * TRIMMED WHEN THE VIEW BECAME A TABLE (2026-08-25, "reformat parlays as a
+ * table with proper headings, rows and columns"). It carried a title, a meta
+ * line, the legend, a chip row, the band figure, a position sentence and the
+ * leg table — and five of those seven are now COLUMNS, read down rather than
+ * hunted for across six cards. What is left is the two things a cell cannot
+ * be: a drawing, and a table of its own.
+ *
+ * The legend stays because it is the only place a reader learns what the
+ * parlay actually SAYS; the ticker above it is an identifier, not a sentence.
+ */
 function ComboCard({ combo }: { combo: CoherenceCombo }) {
   return (
     <article className="coh-combo">
       <h5 className="coh-combo__title">{combo.ticker}</h5>
-      <p className="coh-combo__meta">
-        {`${combo.legs.length} legs, ${combo.scope}, listed in ${combo.collection_ticker || "no collection"}`}
-      </p>
       <p className="coh-combo__legend">{combo.label}</p>
-
-      <ComboChips combo={combo} />
       {/* Neither the ask caveat nor the unquoted-leg caveat repeats here:
           FrechetBand's missing line and the leg table's own note carry them
           on this card, and NO_INDEPENDENCE stays on the Notes view. */}
       <FrechetBand reading={combo} />
-      <p className="coh-combo__where">{positionSentence(combo)}</p>
       <LegTable combo={combo} />
     </article>
   );
@@ -166,47 +163,110 @@ export function BandsView({ combos }: { combos: CoherenceCombo[] }) {
   );
 }
 
+/**
+ * Where each parlay's price sits, as a mark. The key is on the table's caption.
+ *
+ * A MARK AND NOT A "READING" COLUMN, which is the distinction `copy-audit`
+ * draws and the one the Scorecard's band table lost a column to: a cell reading
+ * "inside the band" beside a cell reading "43%" is the sign of its neighbour
+ * written out eleven times. The mark rides on the row's own header instead, so
+ * the columns are measurements and nothing else, and the caption says what the
+ * three marks mean — once, for all six rows.
+ */
+function positionMark(combo: CoherenceCombo): string {
+  if (combo.inside_band == null) return "◌";
+  return combo.inside_band ? "●" : "▲";
+}
+
 export function ParlaysView({ combos }: { combos: CoherenceCombo[] }) {
+  const unquoted = combos.filter((combo) => combo.inside_band == null).length;
+
   return (
     <section className="coh-combos__rows">
-      {/* NO HEADING AND NO INSTRUCTION HERE, as of 2026-08-25. The `<h4>` said
-          "Each of the N parlays, its band and its legs" directly under a seg
-          button reading "Parlays" — the control names the view, and a heading
-          that repeats a control is the shape `copy-audit` calls a tab
-          description paraphrasing its own rail. The paragraph under it was
-          worse: "Open one for the band drawn… the Bands view draws all N
-          against each other" is a reader being told what the two things they
-          can already see and press will do. Each summary carries its own
-          verdict, which is the thing that actually helps them choose. */}
-      {/* THE VIEW'S OWN DRAWING, 2026-08-25, and what deleted its exemption in
+      {/* THE VIEW'S OWN DRAWING, and what deleted its exemption in
           `engine-opens-on-a-drawing.test.ts`. That exemption said a figure here
           would be the same six bands the Bands view already draws together, and
           it was right about BANDS — so this is not one. It is the legs, at their
-          implied p, which is what both bounds are built from and what every card
-          below keeps behind a `<details>`. A reader can now see why one parlay's
-          band is tight and another's runs half the dollar without opening six
-          tables. */}
+          implied p, which is what both bounds are built from. */}
       <ParlayLegs combos={combos} />
 
-      {/* SIX FULL CARDS WAS 3,567px AT DESK WIDTH — measured, and the longest
-          view on the desk by a factor of nearly two. Each card is a title, a
-          chip row, a band figure, a position sentence and a leg table, and six
-          of them stacked is the scrolling this reader has objected to three
-          times.
+      {/* A TABLE, 2026-08-25: "reformat parlays as a table with proper headings,
+          rows and columns". It was six folded cards, each a title, a meta line,
+          a legend, a chip row, a band figure, a position sentence and a leg
+          table — so comparing two parlays' band widths meant opening two folds
+          and holding one number in your head. Six of the seven facts on a card
+          are one measurement each, which is what a column is for; they are read
+          DOWN now.
 
-          The summary carries the VERDICT — where the price sits in the band —
-          so the folded state is not a list of tickers a reader has to open one
-          by one to search: it is six readings, and the drawing behind each is
-          one press. That is the same trade the fourth review made across this
-          tab, and it is available here because the Bands view already draws all
-          six bands against each other, so the cross-parlay comparison is not
-          what this view is for. */}
-      {combos.map((combo) => (
-        <details className="disclosure" key={combo.ticker}>
-          <summary>{`${combo.ticker} — ${positionSentence(combo)}`}</summary>
-          <ComboCard combo={combo} />
-        </details>
-      ))}
+          What a cell cannot be — the band drawn, and the legs priced — is the
+          one fold below, which is where the cards went rather than away. */}
+      <div className="table-wrap">
+        <table className="coh-table">
+          <caption className="coh-table__caption">
+            One row per listed parlay, worst position first. ● inside the band its legs impose, ▲ outside it —
+            the only reading on this view that is a mispricing — ◌ unquoted, so there is no position to take.
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Parlay</th>
+              <th scope="col" className="num">Legs</th>
+              <th scope="col" className="num">Lower bound</th>
+              <th scope="col" className="num">Upper bound</th>
+              <th scope="col" className="num">Band width</th>
+              <th scope="col" className="num">Price</th>
+              <th scope="col" className="num">In band</th>
+            </tr>
+          </thead>
+          <tbody>
+            {combos.map((combo) => {
+              const position = toUnit(combo.band_position);
+              return (
+                <tr key={combo.ticker}>
+                  {/* The ticker whole, in the row header. `ParlayLegs` above
+                      truncates its labels to a measured gutter; a table cell
+                      wraps instead, so this is the one place the full ticker
+                      is readable without a hover. */}
+                  <th scope="row">
+                    <span aria-hidden="true">{positionMark(combo)}</span> {combo.ticker}
+                  </th>
+                  <td className="num">{combo.legs.length}</td>
+                  <td className="num">{probLabel(combo.lower_bound)}</td>
+                  <td className="num">{probLabel(combo.upper_bound)}</td>
+                  <td className="num">{probLabel(combo.band_width)}</td>
+                  <td className="num">{probLabel(combo.price)}</td>
+                  {/* A LOCATION, NEVER A VERDICT — the failure mode this whole
+                      section is built around. A price inside its band is not
+                      "fairly priced": every price between the two bounds is
+                      consistent with some dependence between the legs, and
+                      nothing on this exchange quotes dependence. */}
+                  <td className="num">
+                    {position == null ? "—" : `${Math.round(position * 100)}%`}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {unquoted ? (
+        <p className="coh-combo__meta">
+          {`${unquoted} of ${combos.length} parlays are unquoted on a side they need, so they have no band and no position.`}
+        </p>
+      ) : null}
+
+      {/* SIX FULL CARDS WAS 3,567px AT DESK WIDTH — measured, and the longest
+          view on the desk by a factor of nearly two. The cards are trimmed to
+          the two things the table cannot hold and folded into ONE disclosure
+          rather than six: six summaries were six lines of chrome above the
+          content, and the table above now carries the verdict they existed to
+          preview. Nothing was removed. */}
+      <details className="disclosure">
+        <summary>
+          {`Each parlay's band drawn, and what every leg costs, ${combos.length} ${combos.length === 1 ? "parlay" : "parlays"}`}
+        </summary>
+        {combos.map((combo) => <ComboCard combo={combo} key={combo.ticker} />)}
+      </details>
     </section>
   );
 }

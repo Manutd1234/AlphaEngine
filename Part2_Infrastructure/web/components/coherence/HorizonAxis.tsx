@@ -100,6 +100,14 @@ export function horizonVerdict(engine: string): Verdict {
 export default function HorizonAxis({ data }: { data: CoherenceCalibration }) {
   const verdict = horizonVerdict(data.engine);
   const seconds = data.median_horizon_s;
+  // GEOMETRY ONLY, and said because it reads exactly like the coercion this
+  // codebase is most alert to. A null horizon is NOT drawn as zero seconds: the
+  // mark is withheld entirely below and `missing` says the engine did not record
+  // one. This `?? 0` only decides how wide the axis is, and `Math.max` makes it
+  // the default hour — the same span an unrecorded horizon would get from any
+  // other arm. A peer found the real version of this bug in `StatusPane`'s
+  // `count()`, where a null budget printed "0 tokens per second" and a working
+  // engine read as a stopped one.
   const span = Math.max(HOUR_S, (seconds ?? 0) * 1.2);
 
   return (
