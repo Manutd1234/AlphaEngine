@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-25",
-  "commit": "e40848c",
+  "commit": "81b22da",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -510,6 +510,7 @@
     "Part2_Infrastructure/tests/test_coherence_distribution.py",
     "Part2_Infrastructure/tests/test_coherence_dutchbook.py",
     "Part2_Infrastructure/tests/test_coherence_episodes.py",
+    "Part2_Infrastructure/tests/test_coherence_fee_curve.py",
     "Part2_Infrastructure/tests/test_coherence_frechet.py",
     "Part2_Infrastructure/tests/test_coherence_grid.py",
     "Part2_Infrastructure/tests/test_coherence_index.py",
@@ -741,6 +742,7 @@
     "Part2_Infrastructure/web/app/api/gateway/coherence/certify/route.ts",
     "Part2_Infrastructure/web/app/api/gateway/coherence/combos/route.ts",
     "Part2_Infrastructure/web/app/api/gateway/coherence/episodes/route.ts",
+    "Part2_Infrastructure/web/app/api/gateway/coherence/fees/curve/route.ts",
     "Part2_Infrastructure/web/app/api/gateway/coherence/fees/route.ts",
     "Part2_Infrastructure/web/app/api/gateway/coherence/index/route.ts",
     "Part2_Infrastructure/web/app/api/gateway/coherence/replay/route.ts",
@@ -926,6 +928,7 @@
     "Part2_Infrastructure/web/components/coherence/EngineStatePanel.tsx",
     "Part2_Infrastructure/web/components/coherence/FamilyChoice.tsx",
     "Part2_Infrastructure/web/components/coherence/FamilyPicker.tsx",
+    "Part2_Infrastructure/web/components/coherence/FeeCurve.tsx",
     "Part2_Infrastructure/web/components/coherence/FeeParabola.tsx",
     "Part2_Infrastructure/web/components/coherence/FeesPane.tsx",
     "Part2_Infrastructure/web/components/coherence/FeesSection.tsx",
