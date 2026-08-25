@@ -37,23 +37,20 @@ const CONSOLES = [
 
 describe("the read-state sits in the head, once", () => {
   it("both engine consoles put the top bar in one box", () => {
-    // THE PANEL SPLIT IN TWO on 2026-08-25, because the reader asked for the
-    // table "below the header on the left side" and for the whole thing to read
-    // as "one nice box for the top bar" — on both engine tabs.
+    // THE PANEL WENT BACK INTO ONE SLOT on 2026-08-26, and the reason is a
+    // reader looking at the result of the last move: "move the entire stuff in
+    // the attachment to the empty space at the top right which i have circled".
     //
-    // `PageHead` returns a FRAGMENT, its `<header>` then its `children`, so the
-    // box has to wrap the ELEMENT: that is what puts the title, the chips and
-    // the table inside one frame. The chips keep the head's right slot, where
-    // the previous assertion wanted the whole panel, and the table goes in
-    // `children`, which renders after `</header>` and before the section rail.
+    // The 2026-08-25 shape split it — chips in `PageHead`'s `actions`, the facts
+    // table in its `children`, which render after `</header>` and therefore at
+    // the head's full width. That is what left the head's right half empty, and
+    // it is what this reunites: both halves ride `actions` now, and the head's
+    // right slot is a COLUMN rather than a full-width row.
     //
-    // The optional `.coh-headlive` wrapper survives and is still spelled out
-    // rather than allowed as `<div[^>]*>`: Markets puts its poll controls under
-    // the chips, and the point of naming it is that any OTHER component slipped
-    // in front still fails.
-    // BOTH consoles again. This loop was narrowed to Proofs for one commit
-    // while `MarketsConsole.tsx` was being rewritten in another session, with a
-    // note to widen it back the moment that file landed. It has.
+    // `.coh-headlive` is spelled out rather than allowed as `<div[^>]*>`, and
+    // BOTH consoles carry it now: it is `display: contents`, so it costs no box,
+    // and naming it is what makes "any OTHER component slipped in front still
+    // fails" true of the regex rather than only of this comment.
     for (const file of CONSOLES) {
       const source = strip(read(file));
       assert.match(source, /<div className="coh-topbar">\s*<PageHead/,
@@ -61,14 +58,32 @@ describe("the read-state sits in the head, once", () => {
       // `\s*`, not `[\s\S]{0,400}?`. The wildcard was carried in while the two
       // consoles were being edited in parallel and it quietly gave up the
       // property the comment above claims: four hundred arbitrary characters
-      // is room for a whole component, so "any OTHER component slipped in
-      // front still fails" was no longer true of the regex asserting it.
-      // Neither console needs it — Proofs opens `actions={` directly on the
-      // chips and Markets on the named wrapper, and both are whitespace away.
-      assert.match(source, /actions=\{\s*(?:<div className="coh-headlive">\s*)?<EngineChips/,
-        `${file} does not put the chip row in PageHead's right slot`);
-      assert.match(source, /<EngineStatePanel[\s\S]*?<\/PageHead>/,
-        `${file} does not pass the facts table as PageHead children, so it cannot sit under the title`);
+      // is room for a whole component.
+      assert.match(source, /actions=\{\s*<div className="coh-headlive">\s*<EngineChips/,
+        `${file} does not open its head's right slot on the chip row`);
+
+      // THE PANEL IS IN `actions`, AND THE OLD ASSERTION COULD NOT SEE THE
+      // DIFFERENCE. It read `/<EngineStatePanel[\s\S]*?<\/PageHead>/` under the
+      // message "does not pass the facts table as PageHead children" — but a
+      // panel inside `actions={…}` is also before `</PageHead>`, so the regex
+      // would have passed either shape. It measured nothing. Bounded to the
+      // slot itself now, and paired with the closing check below so the two
+      // together can only be satisfied by one arrangement.
+      // `status=\{$` — the outer prop opens a multi-line ternary and so ends its
+      // line. Without the anchor the lazy match stops at the FIRST `status={`
+      // it meets, which is `status={status.data}` on `EngineChips` itself, and
+      // the slot then excludes everything after the chips — including the very
+      // component this is looking for.
+      const slot = source.match(/actions=\{([\s\S]*?)\n\s*status=\{$/m);
+      assert.ok(slot, `${file} declares no actions slot before its status pill`);
+      assert.match(slot[1], /<EngineStatePanel/,
+        `${file} does not put the facts table in the head's right slot beside the chips`);
+
+      // `PageHead` takes no children on either engine tab any more, which is the
+      // other half of the same claim: nothing renders after `</header>` and
+      // before the rail, so nothing is full-width by accident.
+      assert.doesNotMatch(source, /<\/PageHead>/,
+        `${file} still passes PageHead children, which render at the head's full width`);
     }
   });
 
@@ -206,6 +221,63 @@ describe("a ticking clock cannot reflow the heading row", () => {
     assert.ok(breaks, "nothing forces the recorder row onto its own line");
     assert.doesNotMatch(breaks.selector, /page-heading__actions\s*>/,
       "a child combinator under `display: contents` matches nothing — the rows then wrap by luck");
+  });
+
+  it("the head's right slot is a column, not a row of its own", () => {
+    // WHAT IAN CIRCLED. `.page-heading__copy` is capped at 58ch above 1121px, so
+    // the head has roughly a thousand pixels of free width to the right of the
+    // title — and `flex: 1 1 100%` on this slot was what stopped anything ever
+    // reaching it. A basis of 100% is a full-width ROW by definition, whatever
+    // is in it, so the check is on the basis rather than on the contents.
+    //
+    // The floor is a real number and not a round one: the chips' two declared
+    // groups measure about 620px (venue) and 826px (desk, including a 49ch
+    // stamp), so a slot that can be squeezed under ~30rem puts a chip on a line
+    // of its own and the arithmetic in `14v`'s comment stops holding.
+    const slots = rules.filter((rule) =>
+      rule.selector.trim() === ".coherence-plane .page-heading__actions");
+    assert.equal(slots.length, 1, "the actions slot is declared more than once");
+    const basis = slots[0].body.match(/flex:\s*([^;]+)/);
+    assert.ok(basis, "the actions slot declares no flex, so it is sized by the base sheet");
+    assert.doesNotMatch(basis[1], /100%/,
+      "a 100% basis is a full-width row; the head's right half stays empty behind it");
+    assert.match(basis[1], /\d+rem/,
+      "the slot needs a basis in rem so it steps with the reader's Text-size preference");
+
+    // AND THE TABLE TAKES A LINE INSIDE THAT COLUMN. It is a flex item of the
+    // slot now, beside two chip rows that are themselves flex items — without
+    // its own full-width basis it would try to sit BESIDE a chip row and the
+    // five metrics would be squeezed into whatever the chips left.
+    // EXACT SELECTOR, NOT `.includes`. `14v`'s 1120px block carries
+    // `.coherence-plane .page-heading__actions, .coherence-plane
+    // .page-heading__actions .coh-headstate { width: 100% }` — a comma list that
+    // an `.includes` lookup matches, and it is declared FIRST, so `.find`
+    // returned the media-query rule and asserted against `width: 100%`. Same
+    // trap the comment at the head of this block records for the slot itself.
+    const tables = rules.filter((rule) =>
+      rule.selector.trim() === ".coherence-plane .page-heading__actions .coh-headstate");
+    assert.equal(tables.length, 1,
+      "the facts table's line rule is missing or declared more than once");
+    assert.match(tables[0].body, /flex:\s*0 0 100%/,
+      "the facts table shares a line with a chip row instead of taking its own");
+  });
+
+  it("the facts table is a grid about its shape, not about five", () => {
+    // `grid-auto-flow: column` was right while the table spanned the whole head:
+    // five metrics across ~1,450px is 290px a cell. In a ~1,000px column it is
+    // 200px, and "63,930 snapshots across 4,126 markets" wraps four lines deep.
+    //
+    // `auto-fit` over a `minmax` floor keeps the property the flow rule was
+    // chosen for — the rule is about the SHAPE, so a sixth metric joins it
+    // rather than silently starting a second row under a rule that says five —
+    // while letting the column decide how many fit.
+    const grid = rules.find((rule) =>
+      rule.selector.trim() === ".coherence-plane .coh-facts--tabled");
+    assert.ok(grid, "the facts table declares no grid");
+    assert.doesNotMatch(grid.body, /grid-auto-flow:\s*column/,
+      "five in a row does not fit the head's right column; it fitted the head's full width");
+    assert.match(grid.body, /repeat\(auto-fit,\s*minmax\(/,
+      "the table needs a shape rule, not a count: auto-fit over a floor");
   });
 
   it("the panel wraps rather than clipping", () => {

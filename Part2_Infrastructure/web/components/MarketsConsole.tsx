@@ -223,10 +223,17 @@ export default function MarketsConsole({ section, onSectionChange, active = true
         title="The exchange as it is quoted"
         description="A contract paying $1 is a probability with a price on it, and these are the families, ladders and costs it is quoted at."
         actions={
-          /* One COLUMN in the head's right slot: the engine's own state, then
-             the reader's hold on it. A wrapper because `.page-heading__actions`
-             is a `flex-end` row — two children there sit side by side, and the
-             panel's 62ch would push the controls off the head. */
+          /* One COLUMN in the head's right slot: what the venue is doing, the
+             reader's hold on it, then what this engine has read. A wrapper
+             because `.page-heading__actions` is a flex row — bare children there
+             sit side by side — and `display: contents` (14w) is what makes each
+             of these a flex item of the slot with a line of its own.
+
+             THE FACTS TABLE JOINED THEM on 2026-08-26. It used to be `PageHead`
+             children, which render after `</header>` and therefore at the head's
+             full width, leaving the head's own right half empty. Same change on
+             Proofs, same commit: the layout is `.coherence-plane`-scoped, so one
+             console moving alone would style itself and leave the other bare. */
           <div className="coh-headlive">
             <EngineChips
               status={status.data}
@@ -242,6 +249,11 @@ export default function MarketsConsole({ section, onSectionChange, active = true
               onPause={setPaused}
               onReadNow={() => setRearming(true)}
             />
+            <EngineStatePanel
+              status={status.data}
+              error={status.error}
+              familiesPriced={universe.data ? `${universe.data.events.length} read live` : null}
+            />
           </div>
         }
         status={
@@ -249,13 +261,7 @@ export default function MarketsConsole({ section, onSectionChange, active = true
             ? { label: status.data.state === "ok" ? "Reading the exchange" : status.data.state, tone: status.data.state === "ok" ? "good" : "warn" }
             : undefined
         }
-      >
-        <EngineStatePanel
-          status={status.data}
-          error={status.error}
-          familiesPriced={universe.data ? `${universe.data.events.length} read live` : null}
-        />
-      </PageHead>
+      />
       </div>
 
       <WorkspaceSubtabs

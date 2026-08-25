@@ -126,10 +126,22 @@
   justify-content: flex-end;
 }
 
-/* The facts table, under the title and on the left, which is where the reader
-   put it. It spans the box now: five metrics on ONE row need the width, and
-   capping it at 62ch is what forced the two-column, three-row shape the reader
-   asked to be rid of. */
+/* The facts table, and it is IN the head's right slot now rather than under the
+   title. It spans that slot: nothing caps it, because the slot is already the
+   cap — `14v` gives the slot a `30rem` floor and lets it take what the 58ch copy
+   column does not want.
+
+   A LINE OF ITS OWN INSIDE THE SLOT, which is what the basis buys. The wrappers
+   above are `display: contents`, so the table is a flex item of
+   `.page-heading__actions` exactly like the two chip rows are — and without a
+   full-width basis it would try to sit BESIDE the desk row, squeezing five
+   metrics into whatever a 49ch stamp left. Same declaration and the same reason
+   as `.coh-headchips__desk` and `.coh-live` above; the three of them are what
+   make the slot read as a column of rows rather than as a row that wrapped. */
+.coherence-plane .page-heading__actions .coh-headstate {
+  flex: 0 0 100%;
+}
+
 .coherence-plane .coh-topbar .coh-headstate {
   max-inline-size: none;
 }

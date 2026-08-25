@@ -158,39 +158,51 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
 
   return (
     <div className="coherence-plane proofs-plane">
-      {/* ONE BOX FOR THE TOP BAR. `PageHead` returns a fragment — its
-          `<header>` and then its `children` — so wrapping the element wraps
-          both, and the title, the chips and the facts table end up inside one
-          frame instead of three loose rows. The chips ride the heading's own
-          right-hand slot; the table goes in `children`, which renders after
-          `</header>` and before the section rail, so everything below shifts
-          down rather than the table squeezing in beside the title. */}
+      {/* ONE BOX FOR THE TOP BAR, AND THE STATE IN ITS RIGHT-HAND COLUMN.
+          `PageHead` returns a fragment — its `<header>` and then its `children`
+          — so wrapping the element is what puts the title and the engine's
+          read-state inside one frame.
+
+          BOTH HALVES RIDE `actions` NOW. They were split on 2026-08-25, chips
+          here and the facts table in `children`; but `children` renders after
+          `</header>`, so the table was full-width by construction and the head's
+          right half stayed empty. The reader was looking at that empty half:
+          "move the entire stuff in the attachment to the empty space at the top
+          right which i have circled". So the slot stops being a full-width row
+          and becomes a column, and the table joins the chips inside it.
+
+          `.coh-headlive` is `display: contents` (14w), so the wrapper costs no
+          box and its children are flex items of the slot itself — which is what
+          lets the two chip rows and the table each take their own line. Markets
+          has always carried this wrapper for its poll controls; Proofs carries
+          it now so the two heads are one shape. */}
       <div className="coh-topbar">
         <PageHead
           kicker="Proofs"
           title="Prices as probabilities, tested for coherence"
           description="A family of contracts admitting no probability measure hands back a basket that wins in every state, and this is the test."
           actions={
-            <EngineChips
-              status={status.data}
-              error={status.error}
-              updatedAt={status.updatedAt}
-              pollMs={COHERENCE_POLL_MS}
-              paused={!active}
-            />
+            <div className="coh-headlive">
+              <EngineChips
+                status={status.data}
+                error={status.error}
+                updatedAt={status.updatedAt}
+                pollMs={COHERENCE_POLL_MS}
+                paused={!active}
+              />
+              <EngineStatePanel
+                status={status.data}
+                error={status.error}
+                familiesPriced={universe.data ? `${universe.data.events.length} read live` : null}
+              />
+            </div>
           }
           status={
             status.data
               ? { label: status.data.state === "ok" ? "Reading the exchange" : status.data.state, tone: status.data.state === "ok" ? "good" : "warn" }
               : undefined
           }
-        >
-          <EngineStatePanel
-            status={status.data}
-            error={status.error}
-            familiesPriced={universe.data ? `${universe.data.events.length} read live` : null}
-          />
-        </PageHead>
+        />
       </div>
 
       <WorkspaceSubtabs

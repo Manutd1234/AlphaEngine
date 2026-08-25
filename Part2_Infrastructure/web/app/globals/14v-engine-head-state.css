@@ -63,19 +63,42 @@
   flex-wrap: wrap;
   justify-content: flex-start;
   row-gap: var(--space-2);
-  /* A ROW OF ITS OWN, always, and the arithmetic is what decides it. The four
-     chips and the freshness stamp come to about 1,346px together, and the head
-     is 1,526px wide at a 1600 viewport with the copy column asking 380px at its
-     smallest — so all five on one line BESIDE the title needs 1,726px and never
-     fits. The ask is that they share a row, so the row is the head's own width.
+  /* A COLUMN, NOT A ROW OF ITS OWN, since 2026-08-26 — and the same arithmetic
+     that made it a row is what lets it be a column.
+
+     THE MEASUREMENT, unchanged and still the reason: the four chips and the
+     freshness stamp come to about 1,346px together, and the head is 1,526px
+     wide at a 1600 viewport with the copy column asking 380px at its smallest.
+     All five on ONE LINE beside the title needs 1,726px and never fits. That is
+     what put this slot on `flex: 1 1 100%` — its own full-width row.
+
+     BUT IT NEVER HAD TO BE ONE LINE. `.page-heading__copy` is capped at 58ch
+     above 1121px (`12-workspace-standardisation`), which is about 500px, so the
+     head has roughly a thousand pixels to the right of the title — and the chips
+     are already TWO declared groups, venue and desk, that wrap into their own
+     rows (`14w`). Venue measures about 620px and desk about 826px including the
+     49ch stamp, so both fit in a thousand with room left. What was full-width
+     was never the chips; it was the slot they sat in.
+
+     The reader was looking at the space that left: "move the entire stuff in the
+     attachment to the empty space at the top right which i have circled".
+
+     `30rem` is a FLOOR and not a width — `flex-grow: 1` takes whatever the copy
+     column does not want, so the slot is about a thousand pixels at 1600 and
+     shrinks with the head. The floor is where the arithmetic above stops
+     holding: under 30rem the desk row can no longer carry a 49ch stamp beside
+     two chips, and a chip lands on a line of its own. In `rem` rather than `px`
+     so it steps with the reader's Text-size preference exactly as the stamp's
+     own `ch` reservation does.
 
      `flex: 0 0 auto` (the base sheet) grew this slot to fit its content and
      never gave room back, so `max-width: 100%` on the chip row was measuring
      100% of a box already sized to the chips: no constraint, nothing wrapped,
      and at 1440 the top bar measured 1,400px wide against a scrollWidth of
      1,543 — 143px of content past its own card. The document never scrolled,
-     which is why a page-level check called that clean. */
-  flex: 1 1 100%;
+     which is why a page-level check called that clean. Measure `.coh-topbar`
+     with `scrollWidth - clientWidth`, never the document. */
+  flex: 1 1 30rem;
   min-width: 0;
 }
 
@@ -96,31 +119,49 @@
    asked for and what `.cockpit-strip--compact .cockpit-strip__metrics` already
    does with the same `<dl>` markup two directories away. Two columns rather
    than that file's four: this sits in a 62ch column, not across a card. */
-/* ONE ROW, EVERY METRIC, since 2026-08-25. It was two columns, which put the
-   five metrics on three rows — "Recorded so far / Last poll", then "Read
-   budget / Coherence solver", then "Families priced" alone across the bottom —
-   and the reader asked for the last three "to the right of the table, the table
-   should be one row".
+/* AS MANY COLUMNS AS THE BOX HAS ROOM FOR, since 2026-08-26.
 
-   `grid-auto-flow: column` rather than `repeat(5, …)`, so the rule is about the
-   SHAPE and not about how many metrics there happen to be: a sixth would join
-   the row instead of silently starting a second one under a rule that says
-   five. That also retires three sibling selectors below — the odd/even border
-   resets and the odd-last-child span were all arithmetic about two columns.
+   It was `grid-auto-flow: column` — every metric on one row — and that was right
+   while the table spanned the whole head: five across about 1,450px is 290px a
+   cell, which holds "63,930 snapshots across 4,126 markets" on two lines. The
+   table now sits in the head's right column, about a thousand pixels, and five
+   across that is 200px a cell: the same figure wraps four lines deep and the
+   panel becomes taller than the title beside it.
 
-   `minmax(0, 1fr)` and not `auto`: equal columns, and the `0` floor is what
-   lets a long figure wrap inside its cell instead of widening the track and
-   pushing the row past the box. */
+   THE PROPERTY THE FLOW RULE WAS CHOSEN FOR IS KEPT, and it is the reason this
+   is `auto-fit` over a floor rather than `repeat(3, …)`: the rule is about the
+   SHAPE and not about how many metrics there happen to be, so a sixth joins the
+   flow instead of silently starting a second row under a rule that says five.
+   What changes is who decides the count — the column's width rather than the
+   author. Three at a thousand pixels, two at seven hundred, one on a phone,
+   without a breakpoint for any of them.
+
+   `minmax(16rem, 1fr)` and not `minmax(0, …)`: the `0` floor was right for a
+   fixed count, where the track could not grow past its share anyway. Under
+   `auto-fit` a zero floor packs as many columns as there are metrics and puts us
+   back where we started, so the floor is the narrowest cell a two-clause figure
+   is still readable in. */
 .coherence-plane .coh-facts--tabled {
   display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(0, 1fr);
-  gap: 0;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  /* THE GAPS ARE THE RULES, and this is what a wrapping table costs. A border
+     on each cell worked while the table was one declared row: `border-left` on
+     every cell and `:first-child { border-left: 0 }` drew four verticals and no
+     stray edge. Under `auto-fit` there is no first child of a ROW — the second
+     row's leading cell is `:nth-child(4)` at three columns and `:nth-child(3)`
+     at two, and neither is a selector, because the count is the viewport's to
+     decide.
+
+     A 1px gap over a ruled background draws every divider the grid actually
+     has, in both directions, at whatever count it wrapped to. The cells paint
+     their own surface back over it. Nothing here knows how many columns there
+     are, which is the property the old rule could not have. */
+  gap: 1px;
   margin: 0;
   border: 1px solid var(--rule);
   border-radius: var(--radius-md);
   overflow: hidden;
-  background: var(--surface-1);
+  background: var(--rule-soft);
 }
 
 .coherence-plane .coh-facts--tabled > div {
@@ -131,11 +172,8 @@
   grid-template-rows: auto 1fr;
   gap: 0;
   min-inline-size: 0;
-  border-left: 1px solid var(--rule-soft);
-}
-
-.coherence-plane .coh-facts--tabled > div:first-child {
-  border-left: 0;
+  /* Over the ruled background above, so only the 1px gaps show through. */
+  background: var(--surface-1);
 }
 
 .coherence-plane .coh-facts--tabled dt {
@@ -194,18 +232,10 @@
   }
 }
 
-/* Two columns of label-and-figure inside a phone's width is four cells of three
-   characters each. One column, and the vertical rules become horizontal ones. */
-@media (max-width: 620px) {
-  .coherence-plane .coh-facts--tabled {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .coherence-plane .coh-facts--tabled > div {
-    border-left: 0;
-  }
-
-  .coherence-plane .coh-facts--tabled > div + div {
-    border-top: 1px solid var(--rule-soft);
-  }
-}
+/* NO PHONE RULE ANY MORE, and its absence is the point rather than an omission.
+   This block forced one column below 620px and turned the vertical rules into
+   horizontal ones, because a fixed count cannot notice that four cells of three
+   characters do not read. `minmax(16rem, 1fr)` notices: at 620px there is room
+   for one track and `auto-fit` lays one, and the gap-drawn rules are already
+   horizontal because that is where the grid put them. Two rules deleted rather
+   than two rules kept in agreement with a third. */
