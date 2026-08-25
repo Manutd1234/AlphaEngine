@@ -216,6 +216,22 @@ export default function DiffusionSimulator() {
             the two numbers above deserves to know how much of the gap is the
             sampler rather than the sample. */}
         <StateChip mark="◇" word="Grid cost with no noise" value="−3.9%" tone="muted" />
+        {run.signal === "ok" && exponential ? (
+          <StateChip
+            mark="◇"
+            word="Exponential fit"
+            value={`${exponential.halfLife == null ? "declined" : `${Math.round(exponential.halfLife)}s`}, SSE ${exponential.sse?.toFixed(4) ?? "—"}`}
+            tone="muted"
+          />
+        ) : null}
+        {run.signal === "ok" && power ? (
+          <StateChip
+            mark="◇"
+            word="Power fit"
+            value={`${power.halfLife == null ? "declined" : `${Math.round(power.halfLife)}s`}, SSE ${power.sse?.toFixed(4) ?? "—"}`}
+            tone="muted"
+          />
+        ) : null}
       </div>
 
       <Figure
@@ -229,12 +245,15 @@ export default function DiffusionSimulator() {
                 : "It declines to name a crossing on this grid.")
             : `The gate refused: ${run.reason}. No absorbed fraction is computed, because there is no move to divide by.`
         }
+        // THE TWO FITS ARE VALUES, so they are chips above the figure rather
+        // than a sentence under it. They were a `missing` footnote, which is
+        // the slot for what a drawing CANNOT show — putting two numbers and
+        // their residuals there read as an afterthought and buried the one
+        // thing worth saying about them, which is what this line now says.
         missing={
           run.signal === "ok" && exponential && power
-            ? `Exponential fit ${exponential.halfLife == null ? "declined" : `${Math.round(exponential.halfLife)}s`} `
-              + `(SSE ${exponential.sse?.toFixed(4) ?? "—"}), power fit `
-              + `${power.halfLife == null ? "declined" : `${Math.round(power.halfLife)}s`} `
-              + `(SSE ${power.sse?.toFixed(4) ?? "—"}). Both are reported and neither is the verdict.`
+            ? "Neither parametric fit is the verdict: the half-life above is the non-parametric crossing, "
+              + "and either fit can manufacture a difference the data does not contain."
             : null
         }
       >

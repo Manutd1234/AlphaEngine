@@ -44,10 +44,10 @@ import MeetingsSection from "@/components/coherence/diffusion/MeetingsSection";
 import ModelSection from "@/components/coherence/diffusion/ModelSection";
 import SandboxSection from "@/components/coherence/diffusion/SandboxSection";
 import { DIFFUSION_SECTIONS, type DiffusionSection } from "@/lib/sections";
-import { absorptionRoute, episodesRoute, findingsRoute, statusRoute } from "@/lib/coherence/routes";
+import { absorptionRoute, episodesRoute, findingsRoute, indexRoute, statusRoute } from "@/lib/coherence/routes";
 import { COHERENCE_POLL_MS, useCoherenceRead, warmCoherenceRead } from "@/lib/coherence/use-coherence";
 import type { AbsorptionRead } from "@/components/coherence/diffusion/types";
-import type { CoherenceEpisodes, CoherenceStatus } from "@/lib/coherence/types";
+import type { CoherenceEpisodes, CoherenceIndexSeries, CoherenceStatus } from "@/lib/coherence/types";
 import { useSectionWarming } from "@/lib/coherence/use-section-warming";
 
 export { type DiffusionSection } from "@/lib/sections";
@@ -78,7 +78,7 @@ export { type DiffusionSection } from "@/lib/sections";
 const SECTION_READS: Record<DiffusionSection, readonly string[]> = {
   arm: [absorptionRoute()],
   meetings: [absorptionRoute()],
-  episodes: [episodesRoute(), statusRoute()],
+  episodes: [episodesRoute(), statusRoute(), indexRoute()],
   model: [],
   instrument: [],
   sandbox: [],
@@ -102,6 +102,9 @@ export default function DiffusionConsole({ section, onSectionChange, active = tr
   // case on most deployments, and "nothing has closed yet" is a report rather
   // than an absence only if the watch behind it can be counted.
   const status = useCoherenceRead<CoherenceStatus>(statusRoute(), active && section === "episodes");
+  // The coherence index is the PRECURSOR the episode ledger is downstream of:
+  // live where that ledger is empty, and the honest answer to why it is empty.
+  const index = useCoherenceRead<CoherenceIndexSeries>(indexRoute(), active && section === "episodes");
 
   useSectionWarming(SECTION_READS, active);
 
@@ -166,7 +169,7 @@ export default function DiffusionConsole({ section, onSectionChange, active = tr
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="diffusion" tabId="episodes" activeId={section}>
-        <EpisodesSection data={episodes.data} error={episodes.error} status={status.data} />
+        <EpisodesSection data={episodes.data} error={episodes.error} status={status.data} index={index.data} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="diffusion" tabId="model" activeId={section}>

@@ -73,7 +73,6 @@ function MeetingsBody({ view, data, error }: {
           caption="Why a rate decision can be measured twice"
           ariaLabel={`Two stages ${STAGE_GAP_MIN} minutes apart, each measured over its own ${STAGE_TERMINAL_MIN} minute window`}
           reading="Both windows are the same length and each is measured from its own start, so a difference between them is a difference in absorption, not in the grid."
-          missing="Sub-minute horizons are drawn but never measured: no free bar source resolves them."
         >
           <StageTimeline gapMinutes={STAGE_GAP_MIN} terminalMinutes={STAGE_TERMINAL_MIN} />
         </Figure>

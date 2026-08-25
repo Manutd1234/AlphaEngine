@@ -56,3 +56,73 @@
   vector-effect: non-scaling-stroke;
 }
 
+
+/* ── The observable window on the episode watch ───────────────────────────
+   RESTORED 2026-08-25 after being deleted by accident: a disclosure-rung edit
+   replaced the block these sat inside, and the component kept rendering the
+   classes. With no fill rule an SVG `<rect>` paints BLACK, so the whole figure
+   came out as a black slab with the labels invisible inside it.
+
+   `dead-css.test.ts` cannot see this and is not meant to: it catches a class
+   with no render site, and this was the inverse — a render site with no class.
+
+   Each region carries a MARK and a WORD on the drawing as well as a fill,
+   because a reader who cannot separate three tints still has to tell "never
+   available" from "would be recorded". The fills only rank them. */
+.diff-watch__band { stroke: none; }
+.diff-watch__band--gone { fill: color-mix(in srgb, var(--text-secondary) 14%, transparent); }
+.diff-watch__band--blind { fill: color-mix(in srgb, var(--series-2) 12%, transparent); }
+.diff-watch__band--seen { fill: color-mix(in srgb, var(--series-1) 14%, transparent); }
+
+/* ── A footnote that reads as a footnote ──────────────────────────────────
+   `.coh-figure__missing` is the slot for what a drawing could not include, and
+   `14q` puts it on the READING rung across the whole plane — so it arrived at
+   the same size and weight as the takeaway above it, opening with a `◌` that
+   read as a bullet in a list of one. Three separate reports of it feeling "out
+   of place".
+
+   It is the same words at the footnote rung now, with a hairline separating it
+   from the reading it qualifies. The mark stays: it is the house's status
+   vocabulary and `forced-colors.test.ts` wants meaning carried by something
+   other than colour — it is just no longer the loudest thing in the figure. */
+.coherence-plane.diffusion-plane .coh-figure__missing {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  margin-top: var(--space-1);
+  padding-top: var(--space-1);
+  border-top: 1px solid var(--grid);
+}
+
+/* ── Every card's rows on the same lines ──────────────────────────────────
+   THE PROBLEM, reported as "some boxes are higher, some are lower". Each card
+   is five rows — heading, expression, figure, what-breaks-it, the fold — and
+   each row was sized by its OWN content, so a one-line formula next to a
+   two-line one pushed everything below it out of step and the folds ended up
+   at five different heights across a row of three.
+
+   `subgrid` is the house answer and `14i-density-developer.css` is the
+   precedent: it puts three node cards on one set of five row lines for exactly
+   this complaint. The rows are declared by the grid and every card opts into
+   them, so the tallest expression in a row sets the expression row for all of
+   them and every fold starts on the same line.
+
+   Where subgrid is unsupported the declaration is dropped and the cards fall
+   back to the five auto rows they have today — the old layout rather than a
+   broken one. Chrome 117+, Safari 16+, Firefox 71+.
+
+   The hairline above the boundary is what makes the alignment legible: without
+   a rule at the row line, three cards agreeing is invisible. */
+@supports (grid-template-rows: subgrid) {
+  .coherence-plane.diffusion-plane .coh-lessons__grid { grid-auto-rows: auto; }
+
+  .coherence-plane.diffusion-plane .coh-lesson {
+    grid-row: span 5;
+    grid-template-rows: subgrid;
+    align-content: stretch;
+  }
+}
+
+.coherence-plane.diffusion-plane .coh-lesson > .coh-lesson__bounds {
+  border-top: 1px solid var(--grid);
+  padding-top: var(--space-2);
+}

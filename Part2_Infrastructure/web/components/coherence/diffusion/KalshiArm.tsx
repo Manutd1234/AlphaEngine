@@ -23,8 +23,9 @@
  */
 
 import { episodesToSamples } from "@/lib/coherence/absorption";
-import type { CoherenceEpisodes, CoherenceStatus } from "@/lib/coherence/types";
+import type { CoherenceEpisodes, CoherenceIndexSeries, CoherenceStatus } from "@/lib/coherence/types";
 import Figure, { FigureEmpty, Plot, StateChip } from "../Figure";
+import EpisodeTape from "./EpisodeTape";
 import EpisodeWatch from "./EpisodeWatch";
 import ValueStrip from "../ValueStrip";
 
@@ -131,12 +132,14 @@ function SurvivalChart({ data }: { data: CoherenceEpisodes }) {
 
 /** The Kalshi arm, one view at a time: the survival curve under its chips, or
  *  the episode table with its half-life note. One `episodes` read feeds both. */
-export default function KalshiArm({ data, error, view, status }: {
+export default function KalshiArm({ data, error, view, status, index }: {
   data: CoherenceEpisodes | null;
   error: string | null;
   view: "survival" | "episodes";
   /** The recorder behind the tape; drawn when the tape has nothing closed. */
   status: CoherenceStatus | null;
+  /** The coherence index the episode ledger is downstream of. */
+  index: CoherenceIndexSeries | null;
 }) {
   if (error && !data) {
     return (
@@ -151,11 +154,17 @@ export default function KalshiArm({ data, error, view, status }: {
   const withHalfLife = samples.filter((sample) => sample.half_life_s != null);
 
   // NOTHING CLOSED IS THE LIVE CASE, and it is a property of the tape rather
-  // than of the view, so both views draw the watch rather than one drawing a
-  // curve of nothing and the other a sentence. `EpisodeWatch` claims no
-  // lifetime and draws no episode: it reports what the recorder is doing and
-  // the window an episode has to outlive to be seen at all.
-  if (!data.episodes.length) return <EpisodeWatch data={data} status={status} />;
+  // than of the view. Both views used to fall through to the SAME watch figure
+  // when the tape was empty, which is two buttons for one drawing — a broken
+  // control. They answer different questions and now draw different things
+  // even with nothing closed: Survival reports the watch and the window an
+  // episode must outlive to be seen at all, Episodes reports the coherence
+  // index the episode ledger is downstream of, which is live.
+  if (!data.episodes.length) {
+    return view === "survival"
+      ? <EpisodeWatch data={data} status={status} />
+      : <EpisodeTape points={index?.points ?? []} series={index?.series ?? []} />;
+  }
 
   if (view === "survival") {
     return (

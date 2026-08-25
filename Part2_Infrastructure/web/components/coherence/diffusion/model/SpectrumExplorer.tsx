@@ -127,7 +127,12 @@ export default function SpectrumExplorer() {
               ? `Mass sits at LOW α (centroid ${centroid.toFixed(2)}): the conditioning explains structure that survives heavy noise — the coarse, headline-shaped part.`
               : `Mass sits at HIGH α (centroid ${centroid?.toFixed(2)}): the conditioning explains detail that only appears once the noise is nearly gone.`
         }
-        missing="Whitening the latent would send every log λ to zero, collapse this curve to one bump at α = 0 and destroy the resolution axis the instrument reads. Drag the three unconditional sliders together to see it happen — it is the natural thing to reach for and it deletes the measurement."
+        // Cut from three clauses to one. It carried the mechanism, an
+        // instruction and a judgement; the mechanism is the only part a reader
+        // cannot get from the drawing, and the instruction ("drag the three
+        // sliders together") described a thing the sliders right above it
+        // already invite.
+        missing="Whitening the latent sends every log λ to zero and collapses this curve to one bump at α = 0, which deletes the resolution axis the instrument reads."
       >
         <Plot height={HEIGHT}>
           {(plotW) => {

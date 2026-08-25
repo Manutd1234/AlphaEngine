@@ -11,7 +11,7 @@
 
 import { memo, useState } from "react";
 
-import type { CoherenceEpisodes, CoherenceStatus } from "@/lib/coherence/types";
+import type { CoherenceEpisodes, CoherenceIndexSeries, CoherenceStatus } from "@/lib/coherence/types";
 import PaneHead from "../PaneHead";
 import KalshiArm from "./KalshiArm";
 
@@ -22,11 +22,13 @@ const VIEWS: ReadonlyArray<[EpisodeView, string]> = [
   ["episodes", "Episodes"],
 ];
 
-function EpisodesSection({ data, error, status }: {
+function EpisodesSection({ data, error, status, index }: {
   data: CoherenceEpisodes | null;
   error: string | null;
   /** The recorder behind the tape, so an empty tape can report its watch. */
   status: CoherenceStatus | null;
+  /** The index the episode ledger is downstream of, for the Episodes view. */
+  index: CoherenceIndexSeries | null;
 }) {
   const [view, setView] = useState<EpisodeView>("survival");
   return (
@@ -45,7 +47,7 @@ function EpisodesSection({ data, error, status }: {
           </button>
         ))}
       </div>
-      <KalshiArm data={data} error={error} view={view} status={status} />
+      <KalshiArm data={data} error={error} view={view} status={status} index={index} />
     </section>
   );
 }

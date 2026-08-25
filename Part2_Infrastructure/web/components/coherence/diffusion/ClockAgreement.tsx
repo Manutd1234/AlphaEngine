@@ -26,7 +26,17 @@
 import Figure, { FigureEmpty, Plot } from "../Figure";
 import type { StageRun } from "./types";
 
-const HEIGHT = 240;
+/**
+ * Tall enough to aim at one line.
+ *
+ * 240 put 89 ranks into 176px of plot — two pixels a rank, so the lines were a
+ * hatch rather than 89 things a reader could tell apart, and hitting the one
+ * you wanted with a pointer was luck. 520 gives about five pixels a rank. The
+ * figure is taller than a screenful of the card and that is the right trade:
+ * this view exists to be read line by line, and a reader who wants the headline
+ * has it in the sentence underneath.
+ */
+const HEIGHT = 520;
 const MARGIN = { top: 40, right: 24, bottom: 24, left: 24 };
 
 interface Ranked {
@@ -130,7 +140,13 @@ export default function ClockAgreement({ runs }: { runs: StageRun[] }) {
                   // much room there is: a slopegraph reads by ANGLE, so a pair
                   // stretched across a desk-width pane makes every line nearly
                   // horizontal and a rank change look like no change at all.
-                  const span = Math.max(60, Math.min(panelWidth - 108, 210));
+                  // Wider than it was, for the same reason. A slopegraph reads
+                  // by angle, so the cap exists to stop the lines going flat
+                  // across a desk-width pane — but at this height 480px keeps the
+                  // angles and makes each line a longer thing to aim at. It
+                  // also closes most of the dead gap the two panels had
+                  // between them at the old cap.
+                  const span = Math.max(60, Math.min(panelWidth - 72, 480));
                   const left = origin + (panelWidth - span) / 2;
                   const right = left + span;
                   const y = (rank: number) =>

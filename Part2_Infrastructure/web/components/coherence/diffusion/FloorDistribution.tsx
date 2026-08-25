@@ -92,11 +92,20 @@ export default function FloorDistribution({ runs }: { runs: StageRun[] }) {
       caption="Where each measured stage sat against matched windows with no news"
       ariaLabel={`Distribution of control percentiles in ${BUCKETS} buckets for ${stages.length} stages over ${measured} ranked runs`}
       reading="Mass at the left is absorption faster than an ordinary half hour; mass around the middle is a stage that finished no faster than the market finishes anything, whatever its half-life says in seconds."
+      // LEADS WITH THE RATIO, because the ratio is the caveat. This used to
+      // open "70 measured stages have no percentile", which gives a reader no
+      // way to tell whether 70 is most of them or a handful — on the live
+      // ledger it is 70 of 89, so the histogram above is drawn from 19 runs and
+      // a reader who missed that is reading a distribution of the wrong thing.
+      //
+      // The sentence that followed it explained the IMPLEMENTATION — why an
+      // unranked run is kept off the axis rather than bucketed at zero — which
+      // is a decision about the code rather than a fact about the data, and it
+      // now lives in the comment on that column instead.
       missing={
         unranked
-          ? `${unranked} measured stage(s) have no percentile: no matched window cleared the floor. They are `
-            + "counted in their own column and kept off the axis, because a missing rank is not a rank of "
-            + "zero — which would read as faster than everything."
+          ? `Only ${measured} of ${measured + unranked} measured stages are ranked here: the rest had no `
+            + "matched window clear the floor, so they sit in the column off the axis rather than at zero."
           : null
       }
     >
@@ -106,7 +115,12 @@ export default function FloorDistribution({ runs }: { runs: StageRun[] }) {
             <div className="diff-bars__head">
               <span aria-hidden="true">{MARK[row.stage]}</span> {WORD[row.stage] ?? row.stage}
               <span className="diff-bars__count">
-                {row.ranked} ranked{row.unranked ? `, ${row.unranked} without a percentile` : ""}
+                {/* "11 of 42 ranked" rather than "11 ranked, 31 without a
+                    percentile": the long form was CLIPPED at desk width — the
+                    head is a flex row and the right-hand text had nowhere to
+                    go, so it lost the word that made it mean anything. Same two
+                    numbers, and the denominator is the more useful of them. */}
+                {row.ranked} of {row.ranked + row.unranked} ranked
               </span>
             </div>
 
@@ -136,7 +150,7 @@ export default function FloorDistribution({ runs }: { runs: StageRun[] }) {
             <div className="diff-bars__foot">
               <span className="coh-svg-note">0.0 faster</span>
               <span className="coh-svg-note">0.5 indistinguishable</span>
-              <span className="coh-svg-note">"1.0 slower"</span>
+              <span className="coh-svg-note">1.0 slower</span>
             </div>
           </div>
         ))}
