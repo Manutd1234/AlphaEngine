@@ -36,6 +36,13 @@
  *     --headless=new --remote-debugging-port=9222 --user-data-dir=/tmp/ae-measure &
  *   node scripts/section-density-measure.mjs
  *
+ * IT NAVIGATES FRESH AT EACH WIDTH RATHER THAN RESIZING, and that is load
+ * bearing rather than incidental. Resizing an already-rendered page reports
+ * overflow a real load at the same width does not have — b9 measured 27 clipping
+ * widths by resizing and none by navigating, and both were true measurements of
+ * different things. If this is ever changed to resize for speed, the report has
+ * to say which of the two it is measuring.
+ *
  * NOT PART OF ANY SUITE, deliberately: it needs a server and a browser, and a
  * test that silently skips when its prerequisites are missing is a test nobody
  * notices has stopped running. It writes a baseline JSON that a later pass can
@@ -76,6 +83,33 @@ const OUT = fileURLToPath(new URL(
 const MEASURED = ["markets", "coherence"];
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Wait for the real typeface, and check it APPLIED rather than merely loaded.
+ *
+ * The desk loads Inter through `next/font` with `system-ui` behind it in the
+ * stack, so a width measured during font swap is a width measured in SF Pro —
+ * different advances, different wrapping, every number resting on a precondition
+ * nobody checked. Found by developer-analyst-b9 while re-running the header
+ * ladder, after noticing its own figures had been taken without this.
+ *
+ * Three states, not two, and the third is the one that matters: the face can be
+ * LOADED and still not be what the element is painted in. `document.fonts.ready`
+ * says the swap is over, `fonts.check` says the face arrived, and
+ * `getComputedStyle(...).fontFamily` says it is the one in use. This is the same
+ * distinction as hydrated-versus-attached, which cost this session a retracted
+ * bug report on the same evening.
+ *
+ * Reported rather than enforced: a run in the fallback face is still a
+ * measurement of something, and a sweep that threw would lose the whole table
+ * over one slow font. The field says which face the numbers are in.
+ */
+async function fontState(cdp) {
+  return cdp.evaluate(`document.fonts.ready.then(() => JSON.stringify({
+    loaded: document.fonts.check("14px Inter"),
+    applied: getComputedStyle(document.body).fontFamily.split(",")[0].replace(/["']/g, "").trim(),
+  }))`);
+}
 
 /**
  * Wait for a view to STOP being a loading state before measuring it.
@@ -229,6 +263,19 @@ async function main() {
     // a desk rendering last week's labels with no error anywhere.
     await cdp.send("Page.reload", { ignoreCache: true });
     await sleep(4000);
+    // Preconditions, checked rather than assumed. Three separate things have
+    // been silently false in this harness in one evening: a control that never
+    // applied, a selector that matched nothing and defaulted, and a font that
+    // might not have been the font.
+    const font = JSON.parse(await fontState(cdp));
+    report.font ??= {};
+    report.font[`@${width}`] = font;
+    if (!font.loaded || font.applied !== "Inter") {
+      console.warn(
+        `  ! @${width} measured in ${font.applied} (Inter loaded: ${font.loaded}) — `
+        + "widths in a fallback face are not comparable with widths in Inter",
+      );
+    }
 
     for (const tab of MEASURED) {
       for (const section of TABS[tab]) {
