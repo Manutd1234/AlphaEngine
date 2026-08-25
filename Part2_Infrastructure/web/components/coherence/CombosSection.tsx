@@ -44,7 +44,7 @@ export default function CombosSection({ active }: { active: boolean }) {
         title="The bounds a parlay's own legs impose on it"
         id="coherence-combos-heading"
         note="one band per parlay, from the legs the venue lists"
-        lede="Two probabilities do not determine the probability of both: they bound it."
+        lede="Two marginals do not determine a joint — the Fréchet–Hoeffding inequalities say they bound it."
       />
 
       {/* The control row is pinned (`14u`), so a reader deep in the body can

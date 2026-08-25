@@ -75,7 +75,7 @@ export default function CertificatePane({
     <section className="card console-card coh-certificate" aria-labelledby="coherence-certificate-heading">
       <PaneHead
         kicker="Coherence test"
-        title="Whether these prices admit a probability"
+        title="Whether these prices admit a probability measure"
         id="coherence-certificate-heading"
         note="one test per family"
         lede="The usual answer is “coherent”, and that is the claim: a detector that spoke only on a hit would leave “no opportunity” and “the feed is down” identical."

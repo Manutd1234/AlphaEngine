@@ -55,8 +55,8 @@ export default function CalibrationPane({ active }: { active: boolean }) {
         note={data ? `${data.engine} prices` : "the settled corpus"}
         lede={
           <>
-            Quotes can admit a probability exactly and still be wrong about the world, so this asks the other
-            question: of the contracts priced near a dime, how many paid?
+            A price vector can be arbitrage-free and still be wrong about the world, so this scores
+            calibration instead: of the contracts priced near a dime, how many paid?
           </>
         }
       />
