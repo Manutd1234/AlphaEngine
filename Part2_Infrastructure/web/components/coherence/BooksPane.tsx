@@ -12,8 +12,17 @@
  *
  * The two drawings are one view each rather than one column, because a 96px
  * identity strip read as a footnote to the chart above it. `BooksSection` owns
- * the switcher; this pane owns the market picker, which rides the ticker
- * heading so that only one `.seg` ever sits under the view rail.
+ * the switcher AND, since 2026-08-25, the market picker: a picker names the
+ * SUBJECT every view is a question about, and drawn down here it sat on a row
+ * of its own under the switcher, so Books opened on three rows of chrome where
+ * every other section on the tab opens on one.
+ *
+ * WHAT STAYED HERE IS THE FALLBACK, and the split is the point. The section
+ * holds which ticker was CHOSEN; this pane resolves which book is DRAWN,
+ * because only the read knows what came back. A repoll that drops the chosen
+ * market must fall to the first book rather than to a blank card, and a
+ * section that resolved it from up there would be resolving against a payload
+ * it does not hold.
  *
  * `BookDetailView` is two options and not three since 2026-08-24: maker
  * dispersion was never a view of a book — a book is one venue's most aggressive
@@ -28,11 +37,8 @@
  * reason it is folded rather than deleted.
  */
 
-import { useState } from "react";
-
 import type { CoherenceBooks, CoherenceBookView } from "@/lib/coherence/types";
 import IdentityStrip from "./IdentityStrip";
-import MarketPicker from "./MarketPicker";
 import LadderChart from "./LadderChart";
 
 /** The two views this pane draws. Dispersion is the RFQ half, not a book. */
@@ -111,14 +117,15 @@ export default function BooksPane({
   books,
   error,
   view = "ladder",
+  selected = null,
 }: {
   books: CoherenceBooks | null;
   error: string | null;
   /** Which drawing to give the screen to. Defaults so a direct render still works. */
   view?: BookDetailView;
+  /** The ticker the section's picker chose, or null for "whichever came first". */
+  selected?: string | null;
 }) {
-  const [selected, setSelected] = useState<string | null>(null);
-
   if (error && !books) {
     return (
       <p className="console-empty">
@@ -139,28 +146,5 @@ export default function BooksPane({
 
   const current = books.books.find((book) => book.ticker === selected) ?? books.books[0];
 
-  return (
-    <>
-      {/* The picker belongs to the heading, not to the view rail: two controls
-          stacked one under the other read as one broken rail. It is a filtered
-          listbox rather than a `.seg` since 2026-08-25 — one button per market
-          is around a hundred and ninety buttons on this watchlist, which filled
-          the card before any book was drawn. `MarketPicker`'s header has the
-          argument. */}
-      <div className="coh-event__head">
-        <h4 className="coh-books__ticker">{current.ticker}</h4>
-        <MarketPicker
-          options={books.books.map((book) => ({
-            ticker: book.ticker,
-            unquotedReason: book.unquoted_reason,
-          }))}
-          selected={current.ticker}
-          onSelect={setSelected}
-          label="Choose a market"
-        />
-      </div>
-
-      <BookDetail book={current} view={view} />
-    </>
-  );
+  return <BookDetail book={current} view={view} />;
 }

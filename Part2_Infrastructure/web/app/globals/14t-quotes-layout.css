@@ -219,6 +219,25 @@
   background: var(--surface-1);
 }
 
+/* A SECTION WITH ONE READING DOES NOT GET A 1,520px BOX, and this is a defect
+   the shared frame introduced rather than one it inherited. `.coh-status__facts`
+   is `repeat(auto-fit, minmax(140px, 1fr))`, which is right for the four and six
+   tile rows Universe, Lattice and Stake draw and wrong for the ONE Fees has:
+   auto-fit collapses the empty tracks and stretches the survivor, so "Fee as a
+   share of notional / 0.3464" spanned the whole card and read as a banner rather
+   than as a measurement.
+
+   Measured in Chrome at 1600px on 2026-08-25: the lone tile came out 1,520px
+   wide against 253px for each of the lattice's six.
+
+   `:only-child` rather than a second grid, so nothing changes for a row that has
+   more than one tile — which is every other section on the tab. 22rem is the
+   width the longest single label the tab has ("Worst case, one dollar becomes")
+   sets in without wrapping, so the cap is a measurement rather than a taste. */
+.coherence-plane.markets-plane .coh-facts--boxed > div:only-child {
+  max-width: 22rem;
+}
+
 /* ── The exposure table reads as rows ───────────────────────────────────
 
    Zebra striping was asked for; a hover band and a rule per row is the desk's

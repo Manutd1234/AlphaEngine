@@ -51,6 +51,7 @@ import { useState } from "react";
 
 import RfqPane, { type RfqView } from "./RfqPane";
 import PaneHead from "./PaneHead";
+import SectionFrame from "./SectionFrame";
 
 /** The panel itself, then the channel that did or did not carry it. */
 const VIEWS: ReadonlyArray<[RfqView, string]> = [
@@ -62,24 +63,24 @@ export default function MakersSection({ active }: { active: boolean }) {
   const [view, setView] = useState<RfqView>("quotes");
 
   return (
-    <section className="card console-card coh-makers" aria-labelledby="markets-dispersion-heading">
-      <PaneHead
-        kicker="Makers"
-        title="What independent makers say about one event"
-        id="markets-dispersion-heading"
-        note="a signed channel, read only when this section is open"
-        lede="A book publishes the most aggressive opinion on an event rather than the typical one, and this is the only place the venue exposes several professionals answering separately."
-      />
-
-      <div className="seg" role="group" aria-label="Makers view">
-        {VIEWS.map(([name, label]) => (
-          <button key={name} type="button" aria-pressed={view === name} onClick={() => setView(name)}>
-            {label}
-          </button>
-        ))}
-      </div>
-
+    <SectionFrame
+      className="coh-makers"
+      aria-labelledby="markets-dispersion-heading"
+      head={
+        <PaneHead
+          kicker="Makers"
+          title="What independent makers say about one event"
+          id="markets-dispersion-heading"
+          note="a signed channel, read only when this section is open"
+          lede="A book publishes the most aggressive opinion on an event rather than the typical one, and this is the only place the venue exposes several professionals answering separately."
+        />
+      }
+      views={VIEWS}
+      view={view}
+      onView={setView}
+      viewsLabel="Makers view"
+    >
       <RfqPane view={view} active={active} />
-    </section>
+    </SectionFrame>
   );
 }

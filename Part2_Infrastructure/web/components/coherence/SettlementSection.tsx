@@ -50,6 +50,7 @@ import { useState } from "react";
 
 import SettlementPane, { type SettlementView } from "./SettlementPane";
 import PaneHead from "./PaneHead";
+import SectionFrame from "./SectionFrame";
 
 /** The three views, in the order they are pressed. */
 const VIEWS: ReadonlyArray<[SettlementView, string]> = [
@@ -62,24 +63,24 @@ export default function SettlementSection({ active }: { active: boolean }) {
   const [view, setView] = useState<SettlementView>("reading");
 
   return (
-    <section className="card console-card coh-settle-section" aria-labelledby="markets-settlement-heading">
-      <PaneHead
-        kicker="Settlement"
-        title="What these contracts actually resolve against"
-        id="markets-settlement-heading"
-        note="one published index, read per minute"
-        lede="A contract settles on the mean of a published index over a window, never on the price on screen, and the gap between the two is basis a position carries for free."
-      />
-
-      <div className="seg" role="group" aria-label="Settlement view">
-        {VIEWS.map(([name, label]) => (
-          <button key={name} type="button" aria-pressed={view === name} onClick={() => setView(name)}>
-            {label}
-          </button>
-        ))}
-      </div>
-
+    <SectionFrame
+      className="coh-settle-section"
+      aria-labelledby="markets-settlement-heading"
+      head={
+        <PaneHead
+          kicker="Settlement"
+          title="What these contracts actually resolve against"
+          id="markets-settlement-heading"
+          note="one published index, read per minute"
+          lede="A contract settles on the mean of a published index over a window, never on the price on screen, and the gap between the two is basis a position carries for free."
+        />
+      }
+      views={VIEWS}
+      view={view}
+      onView={setView}
+      viewsLabel="Settlement view"
+    >
       <SettlementPane view={view} active={active} />
-    </section>
+    </SectionFrame>
   );
 }

@@ -68,10 +68,12 @@ import { type ReactNode, useState } from "react";
 
 import type { CoherenceShell, CoherenceShellEntry } from "@/lib/coherence/types-lab";
 import CommandReference from "./ShellCommandReference";
+import type { Reading } from "./KpiRow";
 import PaneHead from "./PaneHead";
+import SectionFrame from "./SectionFrame";
+import { Breadcrumb, levelOf, pathOf, segmentsOf } from "./ShellPath";
 import { shellRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
-import { StateChip } from "./Figure";
 import ShellListing, { READ_OK } from "./ShellListing";
 import ShellReadings from "./ShellReadings";
 import ShellTree from "./ShellTree";
@@ -111,93 +113,7 @@ const VIEWS: ReadonlyArray<[ShellView, string]> = [
   ["commands", "Commands"],
 ];
 
-/**
- * What the path a reader is standing on IS, in words.
- *
- * The breadcrumb says `/ shards / 0 / KXBTCD` and a reader who has not read the
- * Map cannot tell whether `0` is a shard, a series or a ticker — the segments
- * are the venue's own names and none of them carries its own kind. Depth does,
- * because the grammar is fixed: `/shards/<n>/<series>/<event>/<name>`.
- *
- * Written out rather than indexed off a list so the last entry can say what it
- * says: below an event the names are the five derived readings, and a reader
- * who has arrived there is looking at a computed file rather than at anything
- * the exchange published.
- */
-const LEVEL: readonly string[] = [
-  "the watched universe",
-  "every exchange instance the watchlist touches",
-  "one exchange instance, and one collateral pool",
-  "one series",
-  "one event, and the readings derived from it",
-  "one derived reading",
-];
-
-function levelOf(path: string): string {
-  const depth = segmentsOf(path).length;
-  return LEVEL[Math.min(depth, LEVEL.length - 1)];
-}
-
-function segmentsOf(path: string): string[] {
-  return path.split("/").filter(Boolean);
-}
-
-function pathOf(segments: string[]): string {
-  return `/${segments.join("/")}`;
-}
-
-function Breadcrumb({
-  path,
-  command,
-  onNavigate,
-}: {
-  path: string;
-  command: string;
-  onNavigate: (next: string) => void;
-}) {
-  const segments = segmentsOf(path);
-  // On a `cat` the last segment is the file being read, so it is a label
-  // rather than a link: clicking it would re-run the read it is already showing.
-  const last = command === "cat" ? segments.length - 1 : -1;
-  return (
-    <nav className="coh-shell__crumbs" aria-label="Current path">
-      <button type="button" className="coh-shell__crumb" onClick={() => onNavigate("/")}>
-        /
-      </button>
-      {segments.map((segment, index) =>
-        index === last ? (
-          <span key={`${segment}-${index}`} className="coh-shell__crumb is-current">
-            {segment}
-          </span>
-        ) : (
-          <button
-            key={`${segment}-${index}`}
-            type="button"
-            className="coh-shell__crumb"
-            onClick={() => onNavigate(pathOf(segments.slice(0, index + 1)))}
-          >
-            {segment}
-          </button>
-        ),
-      )}
-    </nav>
-  );
-}
-
-/** The commands and the derived files, in one place instead of four levels down. */
-function ViewSwitch({ view, onView }: { view: ShellView; onView: (next: ShellView) => void }) {
-  return (
-    <div className="seg" role="group" aria-label="Shell view">
-      {VIEWS.map(([name, label]) => (
-        <button key={name} type="button" aria-pressed={view === name} onClick={() => onView(name)}>
-          {label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function Reading({ data, requested, loading }: {
+function FileReading({ data, requested, loading }: {
   data: CoherenceShell;
   requested: string;
   /** True only while a `cat` is actually in flight. */
@@ -282,30 +198,67 @@ export default function ShellPane({ active }: { active: boolean }) {
     setView(entry.kind === "dir" ? "tree" : "reading");
   };
 
-  // The head, the switcher, and one thing under them. Every branch draws the
-  // switcher: Layout is reachable only from there, and the reader who most wants
-  // the view that reads nothing is the one whose venue could not be read.
-  const framed = (note: string, body: ReactNode) => (
-    <section className="card console-card coh-shell" aria-labelledby="markets-shell-heading">
-      <PaneHead
-        kicker="Shell"
-        title="The watched universe as a filesystem"
-        id="markets-shell-heading"
-        note={note}
-        lede={
-          <>
-            Every watched market has an address, and where it sits decides both which collateral pool can
-            protect it and which derived readings it can answer.
-          </>
-        }
-      />
-      <ViewSwitch view={view} onView={setView} />
+  /**
+   * The head, the one control row, and one thing under them.
+   *
+   * EVERY BRANCH DRAWS THE SWITCHER, which is why it is a helper rather than
+   * four copies: Map is reachable only from there, and the reader who most
+   * wants the view that reads nothing is the one whose venue could not be read.
+   *
+   * THE BREADCRUMB IS THE SUBJECT, and putting it in the frame's subject slot
+   * is the one thing this section gained from the frame. It is not chrome and
+   * it is not a view — it names the PATH every view here is a question about,
+   * exactly as the family picker names the family on Lattice and Stake. Drawn
+   * inside the body it sat on a row of its own under the switcher, with a chip
+   * row under that, so Shell opened on three rows before its first listing
+   * while the four sections above it opened on one.
+   *
+   * It is absent on the two views that read nothing: Map draws the same shape
+   * at every path and Commands is the vocabulary, so a path control on either
+   * would offer to change something neither view is looking at.
+   */
+  const framed = (
+    note: string,
+    body: ReactNode,
+    subject?: ReactNode,
+    kpis?: Reading[],
+  ) => (
+    <SectionFrame
+      className="coh-shell"
+      aria-labelledby="markets-shell-heading"
+      head={
+        <PaneHead
+          kicker="Shell"
+          title="The watched universe as a filesystem"
+          id="markets-shell-heading"
+          note={note}
+          lede={
+            <>
+              Every watched market has an address, and where it sits decides both which collateral pool can
+              protect it and which derived readings it can answer.
+            </>
+          }
+        />
+      }
+      views={VIEWS}
+      view={view}
+      onView={setView}
+      viewsLabel="Shell view"
+      subject={subject}
+      kpis={kpis}
+      kpiSource="this listing"
+    >
       {body}
-    </section>
+    </SectionFrame>
   );
 
   if (view === "layout") return framed("every path at once", <ShellTree />);
   if (view === "commands") return framed("every command it answers", <CommandReference />);
+
+  const crumbs = (
+    <Breadcrumb path={data?.path ?? path} command={data?.command ?? command} onNavigate={navigate} />
+  );
+
   if (error && !data)
     return framed(
       `${command} ${path}`,
@@ -313,8 +266,10 @@ export default function ShellPane({ active }: { active: boolean }) {
         <span aria-hidden="true">✕</span> The tree could not be read: {error}. That is a gateway failure, not an
         answer about the path.
       </p>,
+      crumbs,
     );
-  if (!data) return framed(`${command} ${path}`, <p className="console-empty muted">Listing the watched universe…</p>);
+  if (!data)
+    return framed(`${command} ${path}`, <p className="console-empty muted">Listing the watched universe…</p>, crumbs);
 
   // The root request is `/` and the gateway answers `/shards`, so a mismatch is
   // only stale-payload evidence away from the root. A command mismatch says the
@@ -327,32 +282,31 @@ export default function ShellPane({ active }: { active: boolean }) {
   // there leaves every other path's detail, and the outage detail, which is answered at the path as requested.
   const repeatsFooter = data.command === "ls" && data.path === "/shards" && READ_OK.has(data.state);
 
+  /**
+   * What this read answered about the path, as the row every other section
+   * answers in.
+   *
+   * The two facts were a `StateChip` and a loose sentence — "✓ Path exists" in
+   * a pill, then "You are looking at one series." in prose a line below. They
+   * are the same kind of thing as `Strikes probed` on the lattice: what this
+   * read found. The kind mark stays in the value rather than in a tone, so the
+   * answer survives colour being stripped.
+   */
+  const kpis: Reading[] = [
+    {
+      label: "Path",
+      value: `${data.exists ? "✓" : "○"} ${data.exists ? "exists" : "no such path"}`,
+    },
+    // The segments are the venue's own names and none of them says its own
+    // kind, so a reader who has not studied the Map cannot tell a shard from a
+    // series from a ticker by looking. Depth can, and this is the tile that
+    // spends it.
+    { label: "You are looking at", value: levelOf(data.path) },
+  ];
+
   return framed(
     `${data.command} ${data.path}`,
     <>
-      <div className="coh-status__chips">
-        <StateChip
-          mark={data.exists ? "✓" : "○"}
-          word={data.exists ? "Path exists" : "No such path"}
-          tone={data.exists ? "good" : "warn"}
-        />
-      </div>
-
-      {/* The command line, and it belongs to every view: it sets the path, and through what it lands on, the command. */}
-      <Breadcrumb path={data.path} command={data.command} onNavigate={navigate} />
-
-      {/* What that path IS. The segments are the venue's own names and none of
-          them says its own kind, so a reader who has not studied the Map cannot
-          tell a shard from a series from a ticker by looking. Depth can, and
-          this is the one sentence that spends it.
-
-          `.coh-shell__detail-line` rather than a class of its own: that rule is
-          already the pane's "what this read is" voice — note size, primary
-          colour — and it is what the gateway's own detail prints in, one line
-          below. A new class would need a rule in 10g and a rung in the type
-          ladder to say the same thing twice. */}
-      <p className="coh-shell__detail-line">You are looking at {levelOf(data.path)}.</p>
-
       {stale ? (
         <p className="coh-shell__note">
           <span aria-hidden="true">◌</span> Still showing <code>{data.command}</code> {data.path} while <code>{command}</code>{" "}
@@ -363,7 +317,7 @@ export default function ShellPane({ active }: { active: boolean }) {
       {data.detail && !repeatsFooter ? <p className="coh-shell__detail-line">{data.detail}.</p> : null}
 
       {view === "reading" ? (
-        <Reading data={data} requested={path} loading={loading} />
+        <FileReading data={data} requested={path} loading={loading} />
       ) : data.command !== "ls" ? (
         <p className="console-empty muted">Listing {path}…</p>
       ) : !data.exists ? (
@@ -385,5 +339,7 @@ export default function ShellPane({ active }: { active: boolean }) {
         </p>
       ) : null}
     </>,
+    crumbs,
+    kpis,
   );
 }

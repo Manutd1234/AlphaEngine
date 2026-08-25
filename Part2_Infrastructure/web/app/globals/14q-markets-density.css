@@ -135,6 +135,11 @@
   .coh-surface__moments-note,
   .coh-kelly__note,
   .coh-kelly__warning,
+  /* The KPI row's withheld line, 2026-08-25. It names the readings this
+     read did not return, so it is prose a reader READS and not a label —
+     the same rung as `.coh-kelly__note`, which is the sentence it was
+     generalised out of. */
+  .coh-kpi__withheld,
   .coh-lessons__intro,
   .coh-lesson__summary,
   .coh-lesson__bounds dd,
@@ -164,6 +169,10 @@
   .coh-event__meta,
   .coh-book__facts dt,
   .coh-status__facts dt,
+  /* Beside `dt` deliberately: a tile's caveat ranks under its figure the
+     same way the tile's label does, and putting it a rung higher would
+     make the qualification louder than the number. */
+  .coh-kpi__note,
   .coh-family > span.muted,
   .coh-lesson__state,
   .coh-lesson__formula,

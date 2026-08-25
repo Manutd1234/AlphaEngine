@@ -96,36 +96,45 @@ describe("exactly one subtab rail on the tab", () => {
     }
   });
 
-  it("each section draws only the switchers its subject needs", () => {
-    // The count is the assertion, and the consolidation is what makes it
-    // interesting: a section that absorbed a demoted one FLATTENS its views
-    // into the existing switcher rather than stacking a second under it.
-    // Universe went from two options to five, Books from two to four, Fees from
-    // two to four — and each still draws ONE seg.
+  it("no section builds a switcher of its own; the frame builds the only one", () => {
+    // THE WHOLE HISTORY OF THIS ASSERTION IS A COUNT SHRINKING, AND ON
+    // 2026-08-25 IT REACHED ZERO. It began as "at most three segs per section"
+    // while `SurfacePane` carried a view seg, a stake seg and a family picker;
+    // the consolidation took it to one per section with no exception; and the
+    // shared `SectionFrame` takes it to none, because the switcher is the
+    // frame's and every section passes it a `views` list instead of markup.
     //
-    // `SurfacePane` used to be the exception at THREE — the view seg, a second
-    // seg for the stake's Plan/Capital/Method, and the family picker — and the
-    // exception is what the reader saw: "there are too many subtabs for lattice".
-    // Splitting `stake` back onto the rail took it to TWO, and the shared
-    // `FamilyPicker` takes it to ONE: "there are 4 subtabs for 4 families when
-    // we can use a dropdown instead". A picker was never a view switcher — it
-    // chooses the subject every view is a question about — and drawing it as a
-    // row of pills said otherwise in the only vocabulary a reader has.
-    //
-    // So ONE seg per section is now the rule with no exception, and a second
-    // one appearing is a control that has been given the switcher's shape
-    // without the switcher's meaning.
+    // THAT IS STRICTLY STRONGER THAN THE COUNT IT REPLACES, and the reason is
+    // worth stating because a count going to zero looks like a guard being
+    // retired. "Exactly one `.seg` per file" could be satisfied by DELETING a
+    // switcher as easily as by keeping the rule — a section that lost its views
+    // passed. "Zero here, one in the frame, and every section hands the frame a
+    // views list" cannot be: the three clauses have to agree, and the second
+    // half of this suite pins the LABEL each list carries, so a deleted
+    // switcher fails there.
     //
     // Raw source, because a `.seg` is a class-name STRING and `stripNonCode`
     // blanks those.
-    const expected: Record<string, number> = {
-      universe: 1, settlement: 1, books: 1, dispersion: 1,
-      lattice: 1, stake: 1, fees: 1, shell: 1,
-    };
-    for (const [id, count] of Object.entries(expected)) {
-      const segs = (read(SECTION_FILES[id]).match(/className="seg[ "]/g) ?? []).length;
-      assert.equal(segs, count, `${id} draws ${segs} .seg groups, expected ${count}`);
+    for (const [id, file] of Object.entries(SECTION_FILES)) {
+      assert.equal(
+        (read(file).match(/className="seg[ "]/g) ?? []).length, 0,
+        `${id} hand-builds a switcher again; the row belongs to SectionFrame, which is the `
+        + "one place a section can have exactly one of them",
+      );
+      assert.match(stripNonCode(read(file)), /<SectionFrame\b/,
+        `${id} does not render the shared frame, so nothing holds its control row to one`);
     }
+  });
+
+  it("and the frame draws exactly one, only when there is a choice", () => {
+    const frame = read("../components/coherence/SectionFrame.tsx");
+    assert.equal((frame.match(/className="seg[ "]/g) ?? []).length, 1,
+      "SectionFrame draws more than one switcher, which is the defect it was written to make impossible");
+    // One option is not a choice. A section down to a single view must draw no
+    // control at all rather than a row with one pressed button in it — the same
+    // rule `UniverseSection` applies to its own asset filter.
+    assert.match(stripNonCode(frame), /views\.length > 1/,
+      "the frame draws a switcher for a single view; one option is not a choice");
   });
 
   it("the sections that choose a family use the shared control, not one of their own", () => {
@@ -168,21 +177,30 @@ describe("exactly one subtab rail on the tab", () => {
     // Pinned by name because these labels are the only route a reader has to
     // the other views of a section, and a rename that silently drops one leaves
     // the view unreachable exactly the way an unaddressable pane id does.
-    assert.match(read(SECTION_FILES.universe), /aria-label="Universe view"/);
-    assert.match(read(SECTION_FILES.settlement), /aria-label="Settlement view"/);
-    assert.match(read(SECTION_FILES.books), /aria-label="Books view"/);
-    assert.match(read(SECTION_FILES.dispersion), /aria-label="Makers view"/);
-    assert.match(read(SECTION_FILES.lattice), /aria-label="Which question"/);
+    //
+    // A `viewsLabel` PROP now, not an `aria-label` attribute: the switcher is
+    // `SectionFrame`'s and the name is what the section tells it to call the
+    // row. The string still lives in the section file, which is the property
+    // being defended — a reader looking for what a section's views are called
+    // finds it in the section, and the frame spends it on the `role="group"`.
+    assert.match(read(SECTION_FILES.universe), /viewsLabel="Universe view"/);
+    assert.match(read(SECTION_FILES.settlement), /viewsLabel="Settlement view"/);
+    assert.match(read(SECTION_FILES.books), /viewsLabel="Books view"/);
+    assert.match(read(SECTION_FILES.dispersion), /viewsLabel="Makers view"/);
+    assert.match(read(SECTION_FILES.lattice), /viewsLabel="Which question"/);
     // The picker's accessible name is a `label` PROP now, not an attribute:
     // `FamilyPicker` spends it on both the button and the listbox, so it is one
     // string in the section and two in the rendered control.
     assert.match(read(SECTION_FILES.lattice), /label="Choose a family"/);
     // The stake's switcher keeps the name it had as the lattice's second seg,
     // because it names the same three readings of the same one answer.
-    assert.match(read(SECTION_FILES.stake), /aria-label="Stake view"/);
+    assert.match(read(SECTION_FILES.stake), /viewsLabel="Stake view"/);
     assert.match(read(SECTION_FILES.stake), /label="Choose a family"/);
-    assert.match(read(SECTION_FILES.fees), /aria-label="Fees view"/);
-    assert.match(read(SECTION_FILES.shell), /aria-label="Shell view"/);
+    assert.match(read(SECTION_FILES.fees), /viewsLabel="Fees view"/);
+    assert.match(read(SECTION_FILES.shell), /viewsLabel="Shell view"/);
+    // And the frame spends it. Without this the eight strings above could all
+    // be present and reach no accessible name at all.
+    assert.match(read("../components/coherence/SectionFrame.tsx"), /aria-label=\{viewsLabel\}/);
   });
 });
 

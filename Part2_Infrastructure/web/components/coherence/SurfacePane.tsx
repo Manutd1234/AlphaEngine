@@ -36,7 +36,11 @@
  * alone, so pressing Mass or Moments lost the numbers that say what is being
  * looked at. As a `<dl className="coh-status__facts">` — the plane's own
  * 140px auto-fit tile grid, already drawn by `StatusPane` and `FeesPane` — they
- * answer on all three views and cost less height than the chips did.
+ * answer on all three views and cost less height than the chips did. Since
+ * 2026-08-25 the row is `SectionFrame`'s `KpiRow`, which is the same grid
+ * boxed, and the dash-for-a-missing-basis is a WITHHELD reading rather than a
+ * value beginning with a dash: "— neither side of the book was quoted" printed
+ * in a tabular figure slot is a sentence pretending to be a number.
  *
  * The family picker rides the control row on every view, because every view here
  * is a question ABOUT a family and none is answerable without choosing one. It
@@ -56,13 +60,15 @@
  * would be a figure borrowed from a read this section never makes.
  */
 
-import { type ReactNode, useState } from "react";
+import { useState } from "react";
 
 import type { CoherenceEventView, CoherenceUniverse } from "@/lib/coherence/types";
 import type { CoherenceSurface } from "@/lib/coherence/types-lab";
 import { surfaceRoute, universeRoute } from "@/lib/coherence/routes";
 import FamilyPicker from "./FamilyPicker";
+import type { Reading } from "./KpiRow";
 import PaneHead, { PaneHeadEmpty } from "./PaneHead";
+import SectionFrame from "./SectionFrame";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import DistributionView, { decimalLabel } from "./surface/DistributionView";
 import TruncationNote from "./surface/TruncationNote";
@@ -86,28 +92,27 @@ const HEAD = {
   lede: "A family's quoted strikes are a probability distribution, and this is the mass, the moments and the intervals differencing leaves behind.",
 } as const;
 
-/** One reading of the payload, as a label and a value the dl can print. */
-interface Reading {
-  label: string;
-  value: string;
-}
-
 /**
  * The six numbers that say what is being looked at, before any drawing.
  *
  * Every one is either a count the payload states or a decimal `decimalLabel`
  * cut; nothing here is derived arithmetic, so nothing here can disagree with
- * the figures below it. A value the read did not carry prints a dash AND the
- * reason — `basis` is null when neither side of the book was quoted, and
- * "no side" alone would read as a side called "no".
+ * the figures below it. A value the read did not carry is `null` WITH its own
+ * reason — `basis` is null when neither side of the book was quoted, and "no
+ * side" alone would read as a side called "no".
  */
 function readings(surface: CoherenceSurface): Reading[] {
+  const mass = decimalLabel(surface.total_mass, 4);
   return [
     { label: "Family shape", value: surface.engine === "ladder" ? "strike ladder" : `${surface.engine} family` },
     { label: "Strikes probed", value: String(surface.probes.length) },
     { label: "Intervals", value: String(surface.bins.length) },
-    { label: "Priced from", value: surface.basis ?? "— neither side of the book was quoted" },
-    { label: "Total quoted mass", value: decimalLabel(surface.total_mass, 4) },
+    {
+      label: "Priced from",
+      value: surface.basis ?? null,
+      withheld: "neither side of the book was quoted",
+    },
+    { label: "Total quoted mass", value: mass === "—" ? null : mass },
     {
       label: "Negative mass",
       value: surface.negative_bins.length
@@ -143,49 +148,44 @@ export default function SurfacePane({
     note: `${events.length} ${events.length === 1 ? "family" : "families"} to choose from`,
   };
 
-  /** The card, labelled by the heading it draws. */
-  const framed = (body: ReactNode) => (
-    <section className="card console-card coh-surface" aria-labelledby="markets-lattice-heading">
-      {body}
-    </section>
-  );
+  const kpis = surface.data ? readings(surface.data) : undefined;
 
   if (!target) {
-    return framed(
-      <PaneHeadEmpty head={head} mark={universe.error ? "✕" : "◌"}>
-        {universe.error
-          ? `No family could be read: ${universe.error}. Universe reads the same list and says what the exchange answered.`
-          : "Reading the watched families…"}
-      </PaneHeadEmpty>,
+    return (
+      <SectionFrame
+        className="coh-surface"
+        aria-labelledby="markets-lattice-heading"
+        head={
+          <PaneHeadEmpty head={head} mark={universe.error ? "✕" : "◌"}>
+            {universe.error
+              ? `No family could be read: ${universe.error}. Universe reads the same list and says what the exchange answered.`
+              : "Reading the watched families…"}
+          </PaneHeadEmpty>
+        }
+      />
     );
   }
 
-  return framed(
-    <>
-      <PaneHead {...head} />
-
-      {/* ONE control row. It is the chip row's flex box rather than a class of
-          its own — `.coh-surface` is a grid, so two segs as its children would
-          stack, and a local fix that adds no class leaves dead-CSS untouched. */}
-      <div className="coh-status__chips">
-        <div className="seg" role="group" aria-label="Which question">
-          {LATTICE_VIEWS.map(([name, label]) => (
-            <button key={name} type="button" aria-pressed={view === name} onClick={() => setView(name)}>
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {!eventTicker && events.length > 1 ? (
-          <FamilyPicker
-            options={events.map((event) => ({ ticker: event.event_ticker, shard: event.exchange_index }))}
-            selected={target}
-            onSelect={setPicked}
-            label="Choose a family"
-          />
-        ) : null}
-      </div>
-
+  return (
+    <SectionFrame
+      className="coh-surface"
+      aria-labelledby="markets-lattice-heading"
+      head={<PaneHead {...head} />}
+      views={LATTICE_VIEWS}
+      view={view}
+      onView={setView}
+      viewsLabel="Which question"
+      subject={!eventTicker && events.length > 1 ? (
+        <FamilyPicker
+          options={events.map((event) => ({ ticker: event.event_ticker, shard: event.exchange_index }))}
+          selected={target}
+          onSelect={setPicked}
+          label="Choose a family"
+        />
+      ) : null}
+      kpis={kpis}
+      kpiSource="this read of the family"
+    >
       {surface.error && !surface.data ? (
         <p className="console-empty">
           <span aria-hidden="true">✕</span> The distribution could not be read: {surface.error}. That is a gateway
@@ -193,30 +193,20 @@ export default function SurfacePane({
         </p>
       ) : !surface.data ? (
         <p className="console-empty muted">Reading the implied distribution…</p>
+      ) : surface.data.bins.length ? (
+        <>
+          <DistributionView surface={surface.data} view={view} />
+          <TruncationNote />
+        </>
       ) : (
         <>
-          {/* The KPI row before the drawing, on every view. */}
-          <dl className="coh-status__facts">
-            {readings(surface.data).map((reading) => (
-              <div key={reading.label}>
-                <dt>{reading.label}</dt>
-                <dd>{reading.value}</dd>
-              </div>
-            ))}
-          </dl>
-
-          {surface.data.bins.length ? (
-            <DistributionView surface={surface.data} view={view} />
-          ) : (
-            <p className="console-empty">
-              <span aria-hidden="true">○</span> No interval could be differenced out of {surface.data.event_ticker}:{" "}
-              {surface.data.detail}. Press another family above, or read the quotes themselves on Universe.
-            </p>
-          )}
-
+          <p className="console-empty">
+            <span aria-hidden="true">○</span> No interval could be differenced out of {surface.data.event_ticker}:{" "}
+            {surface.data.detail}. Press another family above, or read the quotes themselves on Universe.
+          </p>
           <TruncationNote />
         </>
       )}
-    </>,
+    </SectionFrame>
   );
 }

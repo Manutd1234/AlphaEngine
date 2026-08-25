@@ -27,24 +27,38 @@
  * explanation of its own, because `FamilyView` never reaches the branch that
  * explains a declined solve.
  *
- * THE KPI ROW IS THE PLAN'S OWN SIX NUMBERS, above the switcher, so a reader who
- * lands on Capital is told no less than one who lands on Plan. A reading the
- * solve did not return is left OFF the row and named in one footnote — missing,
- * never zero, and named once rather than six dashes each carrying the same
- * sentence.
+ * THE KPI ROW IS THE PLAN'S OWN SIX NUMBERS, so a reader who lands on Capital
+ * is told no less than one who lands on Plan. A reading the solve did not
+ * return is left OFF the row and named in one footnote — missing, never zero,
+ * and named once rather than six dashes each carrying the same sentence.
+ *
+ * THAT RULE IS `KpiRow`'S NOW, and this section is where it was written. It was
+ * implemented here by hand — split the readings on the dash `decimalLabel`
+ * returns, draw the ones that survived, name the rest in one sentence — and
+ * seven other sections did not have it. Generalising it changed nothing on
+ * this section and gave it to all eight; what this file keeps is the shape of
+ * the argument in its header, because the next author to meet a null here will
+ * meet it in a component with no reason attached.
+ *
+ * THE ROW SITS UNDER THE CONTROL ROW rather than above it, which is the one
+ * thing the frame moved. It read "above the switcher" here and below it on
+ * Lattice and Fees, and a reader moving between three sections that answer the
+ * same question about the same family met the numbers in two different places.
  *
  * "Growth-optimal is not riskless" is NOT in the lede. It is where `StakeView`'s
  * warning ends, beside the two numbers that make it true; here it would be the
  * slogan twice and the evidence once.
  */
 
-import { type ReactNode, useState } from "react";
+import { useState } from "react";
 
 import type { CoherenceEventView, CoherenceUniverse } from "@/lib/coherence/types";
 import type { CoherenceKelly } from "@/lib/coherence/types-lab";
 import { stakeRoute, universeRoute } from "@/lib/coherence/routes";
 import FamilyPicker from "./FamilyPicker";
+import type { Reading } from "./KpiRow";
 import PaneHead, { PaneHeadEmpty } from "./PaneHead";
+import SectionFrame from "./SectionFrame";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import { decimalLabel } from "./surface/DistributionView";
 import FamilyView from "./surface/FamilyView";
@@ -74,27 +88,29 @@ const HEAD = {
   lede: "Given the measure a family's prices imply, this is the share of a bankroll each outcome earns and what is left in cash.",
 } as const;
 
-interface Reading {
-  label: string;
-  value: string;
-}
-
 /**
  * The six readings the section answers in, before any drawing.
  *
- * `decimalLabel` returns a dash for a value the solve did not carry, and the
- * caller splits on that rather than printing six dashes with six copies of the
- * same reason — the shape `MassSplitBar` already uses for an uncomputed tail.
+ * `decimalLabel` returns a dash for a value the solve did not carry, and that
+ * dash is mapped to `null` here rather than printed: `KpiRow` leaves a null off
+ * the tiles and names it once underneath, which is the rule this section wrote
+ * and eight now share. Printing six dashes with six copies of the same reason
+ * is the shape it replaced — and `MassSplitBar` uses the same one for an
+ * uncomputed tail.
  */
 function readings(kelly: CoherenceKelly): Reading[] {
   const admitted = kelly.stakes.filter((stake) => stake.admitted).length;
+  const figure = (raw: string | null | undefined) => {
+    const cut = decimalLabel(raw, 4);
+    return cut === "—" ? null : cut;
+  };
   return [
     { label: "Admitted stakes", value: `${admitted} of ${kelly.stakes.length}` },
-    { label: "Staked", value: decimalLabel(kelly.staked_fraction, 4) },
-    { label: "Cash", value: decimalLabel(kelly.cash_fraction, 4) },
-    { label: "Growth rate", value: decimalLabel(kelly.growth_rate, 4) },
-    { label: "Worst case, one dollar becomes", value: decimalLabel(kelly.worst_case_wealth, 4) },
-    { label: "Basket cost", value: decimalLabel(kelly.basket_cost, 4) },
+    { label: "Staked", value: figure(kelly.staked_fraction) },
+    { label: "Cash", value: figure(kelly.cash_fraction) },
+    { label: "Growth rate", value: figure(kelly.growth_rate) },
+    { label: "Worst case, one dollar becomes", value: figure(kelly.worst_case_wealth) },
+    { label: "Basket cost", value: figure(kelly.basket_cost) },
   ];
 }
 
@@ -124,56 +140,52 @@ export default function StakePane({
     note: `${events.length} ${events.length === 1 ? "family" : "families"} to choose from`,
   };
 
-  const framed = (body: ReactNode) => (
-    <section className="card console-card coh-kelly" aria-labelledby="markets-stake-heading">
-      {body}
-    </section>
-  );
+  const kelly = stake.data;
 
   if (!target) {
-    return framed(
-      <PaneHeadEmpty head={head} mark={universe.error ? "✕" : "◌"}>
-        {universe.error
-          ? `No family could be read: ${universe.error}. Universe reads the same list and says what the exchange answered.`
-          : "Reading the watched families…"}
-      </PaneHeadEmpty>,
+    return (
+      <SectionFrame
+        className="coh-kelly"
+        aria-labelledby="markets-stake-heading"
+        head={
+          <PaneHeadEmpty head={head} mark={universe.error ? "✕" : "◌"}>
+            {universe.error
+              ? `No family could be read: ${universe.error}. Universe reads the same list and says what the exchange answered.`
+              : "Reading the watched families…"}
+          </PaneHeadEmpty>
+        }
+      />
     );
   }
 
-  const kelly = stake.data;
-  const known = kelly ? readings(kelly).filter((reading) => reading.value !== "—") : [];
-  const withheld = kelly ? readings(kelly).filter((reading) => reading.value === "—") : [];
+  // The row is drawn only for a solve that RETURNED one. A declined solve has
+  // no plan to answer in, and six withheld labels over `StakeDeclined` would
+  // read as a plan the solver nearly made.
+  const kpis = kelly && kelly.engine !== "unavailable" ? readings(kelly) : undefined;
 
-  return framed(
-    <>
-      <PaneHead {...head} />
-
-      {/* ONE control row, and the whole point of the split: the view switcher
-          and the family picker share it, and nothing stacks under either.
-          `.coh-status__chips` is the flex box rather than a class of its own —
-          `.coh-kelly` is a grid, so two controls as its children would stack.
-          The picker is `FamilyPicker`'s listbox now: four tickers as pills was
-          a second row at any ordinary width, and a second row is the defect
-          this section was split out of the lattice to remove. */}
-      <div className="coh-status__chips">
-        <div className="seg" role="group" aria-label="Stake view">
-          {STAKE_VIEWS.map(([name, label]) => (
-            <button key={name} type="button" aria-pressed={view === name} onClick={() => setView(name)}>
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {!eventTicker && events.length > 1 ? (
-          <FamilyPicker
-            options={events.map((event) => ({ ticker: event.event_ticker, shard: event.exchange_index }))}
-            selected={target}
-            onSelect={setPicked}
-            label="Choose a family"
-          />
-        ) : null}
-      </div>
-
+  return (
+    <SectionFrame
+      className="coh-kelly"
+      aria-labelledby="markets-stake-heading"
+      head={<PaneHead {...head} />}
+      views={STAKE_VIEWS}
+      view={view}
+      onView={setView}
+      viewsLabel="Stake view"
+      subject={!eventTicker && events.length > 1 ? (
+        /* `FamilyPicker`'s listbox and not a row of pills: four tickers as
+           pills was a second row at any ordinary width, and a second row is
+           the defect this section was split out of the lattice to remove. */
+        <FamilyPicker
+          options={events.map((event) => ({ ticker: event.event_ticker, shard: event.exchange_index }))}
+          selected={target}
+          onSelect={setPicked}
+          label="Choose a family"
+        />
+      ) : null}
+      kpis={kpis}
+      kpiSource="this solve"
+    >
       {stake.error && !kelly ? (
         <p className="console-empty">
           <span aria-hidden="true">✕</span> The stake could not be sized: {stake.error}. That is a gateway failure,
@@ -185,23 +197,6 @@ export default function StakePane({
         <StakeDeclined kelly={kelly} target={target} events={events} onSelect={setPicked} />
       ) : (
         <>
-          <dl className="coh-status__facts">
-            {known.map((reading) => (
-              <div key={reading.label}>
-                <dt>{reading.label}</dt>
-                <dd>{reading.value}</dd>
-              </div>
-            ))}
-          </dl>
-
-          {withheld.length ? (
-            <p className="coh-kelly__note">
-              <span aria-hidden="true">◌</span> {withheld.map((reading) => reading.label.toLowerCase()).join(", ")}{" "}
-              {withheld.length === 1 ? "was" : "were"} not returned by this solve, so {withheld.length === 1 ? "it is" : "they are"}{" "}
-              left off the row above rather than shown as zero.
-            </p>
-          ) : null}
-
           {view === "family" ? <FamilyView kelly={kelly} /> : <StakeView kelly={kelly} view={view} />}
 
           <p className="coh-kelly__note">
@@ -211,6 +206,6 @@ export default function StakePane({
           <TruncationNote />
         </>
       )}
-    </>,
+    </SectionFrame>
   );
 }

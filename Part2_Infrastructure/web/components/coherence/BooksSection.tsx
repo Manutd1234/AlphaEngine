@@ -34,7 +34,23 @@
  *
  * The switcher is a `.seg` and never a nested `<WorkspaceSubtabs>`: a second
  * rail instance fights the first over the `--rail-h` publisher, as
- * `ReliabilityConsole`'s header comment records. Two views, one seg.
+ * `ReliabilityConsole`'s header comment records. Two views, one seg — and
+ * since 2026-08-25 the seg is `SectionFrame`'s rather than this file's.
+ *
+ * THE MARKET PICKER CAME UP HERE WITH THE FRAME, out of `BooksPane`, and the
+ * move is what the frame is for. A picker is the SUBJECT every view of a
+ * section is a question about, and this one was drawn inside the pane on a
+ * `.coh-event__head` row of its own — so Books opened on a heading, then a
+ * control, then a drawing, where Lattice and Stake opened on one row holding
+ * both. Same two controls, three rows against two, and a reader moving down
+ * the rail met the difference rather than the reason for it.
+ *
+ * The SELECTION comes with it, because a picker whose state lives in the pane
+ * cannot be drawn by the section. `BooksPane` keeps the FALLBACK — the first
+ * book when nothing is chosen, or when a repoll drops the chosen ticker — for
+ * the reason `UniverseSection` keeps its own: the resolved subject has to
+ * survive a read that no longer carries it, and only the pane knows what came
+ * back.
  */
 
 import { useState } from "react";
@@ -43,10 +59,19 @@ import type { CoherenceBooks } from "@/lib/coherence/types";
 import { booksRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import BooksPane, { type BookDetailView } from "./BooksPane";
+import MarketPicker from "./MarketPicker";
 import PaneHead from "./PaneHead";
+import SectionFrame from "./SectionFrame";
+
+/** The two views, in the order they are pressed. */
+const VIEWS: ReadonlyArray<[BookDetailView, string]> = [
+  ["ladder", "Ladder"],
+  ["identity", "Identity"],
+];
 
 export default function BooksSection({ active }: { active: boolean }) {
   const [view, setView] = useState<BookDetailView>("ladder");
+  const [selected, setSelected] = useState<string | null>(null);
   // ONE read, gated on the section. The `!onChannel` half of this gate went
   // with the channel on 2026-08-25: while the RFQ panel was two of this
   // section's four views, a predicate here had to keep a signed 25-second
@@ -55,32 +80,54 @@ export default function BooksSection({ active }: { active: boolean }) {
   // no second read here to be exclusive with.
   const books = useCoherenceRead<CoherenceBooks>(booksRoute(), active);
 
+  const books_ = books.data?.books ?? [];
+  // The resolved subject, agreed with the pane rather than guessed at: the
+  // picker has to show the ticker the drawing is actually of, and after a
+  // repoll that dropped the chosen market they are not the same string.
+  const current = books_.find((book) => book.ticker === selected)?.ticker ?? books_[0]?.ticker ?? "";
+
   return (
-    <section className="card console-card coh-books" aria-labelledby="markets-books-heading">
-      {/* Provenance rides in the head's note slot, because it is true of both
-          book views and it is what the rest of the section rests on. */}
-      <PaneHead
-        kicker="Books"
-        title="Two bid ladders & the offers they imply"
-        id="markets-books-heading"
-        note={books.data
-          ? books.data.origin === "tape"
-            ? "recorded tape, newest snapshot per market"
-            : "read live from the exchange"
-          : "reading the exchange"}
-        lede="Kalshi sends YES bids and NO bids and no asks at all, so every offer on this section is read off the opposite ladder."
-      />
-
-      <div className="seg" role="group" aria-label="Books view">
-        <button type="button" aria-pressed={view === "ladder"} onClick={() => setView("ladder")}>
-          Ladder
-        </button>
-        <button type="button" aria-pressed={view === "identity"} onClick={() => setView("identity")}>
-          Identity
-        </button>
-      </div>
-
-      <BooksPane books={books.data} error={books.error} view={view} />
-    </section>
+    <SectionFrame
+      className="coh-books"
+      aria-labelledby="markets-books-heading"
+      head={
+        /* Provenance rides in the head's note slot, because it is true of both
+           book views and it is what the rest of the section rests on. */
+        <PaneHead
+          kicker="Books"
+          title="Two bid ladders & the offers they imply"
+          id="markets-books-heading"
+          note={books.data
+            ? books.data.origin === "tape"
+              ? "recorded tape, newest snapshot per market"
+              : "read live from the exchange"
+            : "reading the exchange"}
+          lede="Kalshi sends YES bids and NO bids and no asks at all, so every offer on this section is read off the opposite ladder."
+        />
+      }
+      views={VIEWS}
+      view={view}
+      onView={setView}
+      viewsLabel="Books view"
+      subject={books_.length > 1 ? (
+        /* A filtered listbox and not a `.seg`: one button per market is around
+           a hundred and ninety buttons on this watchlist, which filled the card
+           before any book was drawn. `MarketPicker`'s header has the argument. */
+        <MarketPicker
+          options={books_.map((book) => ({ ticker: book.ticker, unquotedReason: book.unquoted_reason }))}
+          selected={current}
+          onSelect={setSelected}
+          label="Choose a market"
+        />
+      ) : current ? (
+        /* One book is no choice, so there is no control — but the ticker is not
+           chrome, it is WHICH market the drawing below is of, and the picker was
+           the only thing saying it. A watchlist that opens one market would
+           otherwise draw an unattributed ladder. */
+        <span className="coh-books__ticker">{current}</span>
+      ) : null}
+    >
+      <BooksPane books={books.data} error={books.error} view={view} selected={selected} />
+    </SectionFrame>
   );
 }

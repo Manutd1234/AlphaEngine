@@ -1,0 +1,93 @@
+/* ==========================================================================
+   The Markets section frame, 2026-08-25.
+
+   `SectionFrame` gives every section on the tab one order — head, one control
+   row, the numbers, the drawings, the folded prose — and this is the three
+   rules that order needs. Everything else it draws is a class the plane
+   already paints: `.seg`, `.coh-status__facts`, `.coh-facts--boxed`,
+   `.disclosure`.
+
+   ITS OWN PARTIAL, and each of the three files it is not says why. `10a` is
+   the whole Kalshi plane, read by both tabs, and a frame only the Markets
+   sections mount does not belong in it. `14q` is the PROSE ladder and nothing
+   else — `markets-sections.test.ts` refuses it a box, a media query or
+   anything that is not a font size off the scale — so the two rungs the frame
+   needs are declared THERE and the boxes here, which is the same concern seam
+   14q and 14r already have. `14t` is the Quotes controls partial and would
+   have been the natural home, except that it is at 282 of the 400-line ceiling
+   and this is a new object rather than another control.
+
+   Sorted 14x rather than 14w: a peer session has 14w. Imported after 14v and
+   before 15, which stays last.
+   ========================================================================== */
+
+/* ── One rhythm, on eight sections ──────────────────────────────────────
+
+   The same `display: grid; gap: 12px; min-width: 0` that `.coh-universe`,
+   `.coh-books`, `.coh-surface`, `.coh-kelly`, `.coh-shell`, `.coh-settle` and
+   `.coh-rfq` each declare separately across three partials. Declared once here
+   because it is now a property of the FRAME rather than of seven coincidences,
+   and the seven stay where they are: `.coh-status` and `.coh-lessons` share
+   two of those rules on the Proofs plane, so deleting them is a Proofs change
+   and this is not one. Same value in both places, so the cascade is silent
+   either way — what is gained is that a ninth section inherits the rhythm
+   instead of copying it. */
+.coh-section {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* ── The one control row ────────────────────────────────────────────────
+
+   View switcher left, subject picker right, and never a second row. That was
+   already the rule and it was kept by hand in five different boxes — the chip
+   row on Lattice, Stake and Fees; `.coh-universe__controls` on Universe; a
+   bare `.seg` on the other four. Fees kept it in two.
+
+   `space-between` and not `gap` alone, because the two halves answer different
+   questions: the switcher chooses a VIEW of one subject and the picker chooses
+   the SUBJECT every view is about. Pushed apart, a reader can tell which is
+   which without reading either. Below the width that holds both, the subject
+   drops to its own line by itself — which is a wrap, not a second row, and the
+   difference is that nothing above it moves. */
+.coh-section__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+/* The right-hand half. A group rather than a bare child so a section carrying
+   two halves of one choice — the Universe asset filter narrowing the family
+   picker's options — keeps them together against the right edge instead of
+   having `space-between` deal them across the row. */
+.coh-section__subject {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+/* ── The KPI row's two sentences ────────────────────────────────────────
+
+   No font-size here: both rungs are declared in `14q-markets-density.css`,
+   which owns the prose ladder for this plane. The withheld line is prose a
+   reader reads and sits on the prose rung; the per-tile note ranks under the
+   figure it qualifies and sits on the furniture rung, beside `dt`.
+
+   `--text-secondary` on both, and that is the point of them: neither is a
+   measurement. `.coh-kpi__withheld` names what the read did NOT return, and a
+   figure printed at full contrast beside figures that exist is how a dash
+   becomes a zero in a reader's memory. */
+.coh-kpi__note {
+  margin: 2px 0 0;
+  color: var(--text-secondary);
+}
+
+.coh-kpi__withheld {
+  margin: 0;
+  color: var(--text-secondary);
+}
