@@ -62,6 +62,7 @@ from modules.audit import get_audit
 from modules.backtester import VECTORBT_AVAILABLE
 from modules.coherence.drivers.kalshi_rest import close_pool as close_kalshi_pool
 from modules.coherence.recorder import recorder_loop as coherence_recorder_loop
+from modules.coherence.warm import warm_loop as coherence_warm_loop
 from modules.data_jobs import on_data_job_complete
 from modules.data_quality import resolve_loop
 from modules.data_scheduler import get_scheduler
@@ -155,6 +156,14 @@ async def lifespan(app: FastAPI):
     # forward-only, and a book missed at 14:32 cannot be recovered at 14:33.
     coherence_task = asyncio.create_task(coherence_recorder_loop(), name="coherence-recorder")
 
+    # The warm snapshot. A sibling of the recorder rather than a job inside it,
+    # because the two want different clocks and different failures: the tape is
+    # an asset and a gap in it costs more than a retry, so the recorder backs
+    # off to five minutes; a desk on a five-minute-old snapshot is a slow desk,
+    # so this one keeps its cadence and reports the failure instead. Idle unless
+    # COHERENCE_WARM_S is set, for the same reason the recorder is.
+    warm_task = asyncio.create_task(coherence_warm_loop(), name="coherence-warm")
+
     # Time the compiled decision battery once, on a synthetic two-venue book,
     # so the desk's nanosecond figure exists before the first order and after
     # every restart. Core histogram only — the decision (us) histogram waits
@@ -186,6 +195,9 @@ async def lifespan(app: FastAPI):
         coherence_task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await coherence_task
+        warm_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await warm_task
         # After the recorder is cancelled, not before: closing the pool out from
         # under an in-flight book read would surface as a transport failure and
         # be recorded as a venue fault.

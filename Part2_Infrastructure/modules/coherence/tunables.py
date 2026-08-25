@@ -121,6 +121,24 @@ REQUEST_TIMEOUT_S: Final = _env_decimal("COHERENCE_REQUEST_TIMEOUT_S", "20")
 # — a change published inside the window is applied late, by up to this long.
 FEE_META_TTL_S: Final = _env_int("COHERENCE_FEE_META_TTL_S", 3600)
 
+# ── The warm snapshot ────────────────────────────────────────────────────────
+# How often to precompute the reads the desk asks for, so a request never waits
+# on the venue. Zero keeps it off, and off is the default for the reason
+# POLL_SECONDS is: a fresh clone with no keys and no watchlist must not start
+# reaching for an exchange on boot.
+#
+# The trade this buys, stated plainly because the desk has to show it: reads
+# answer in milliseconds and the data is as fresh as this cadence, never fresher.
+# The age pill reads the snapshot's own `observed_at`, so what a reader sees is
+# the age of the BOOK rather than the age of the request.
+WARM_SECONDS: Final = _env_int("COHERENCE_WARM_S", 0)
+
+# When a precomputed answer stops being worth serving. Zero means three times
+# the cadence — long enough that one missed pass does not send every read back
+# to the venue, short enough that a refresher which died an hour ago stops
+# answering. A derived default rather than a magic number.
+WARM_MAX_AGE_S: Final = _env_int("COHERENCE_WARM_MAX_AGE_S", 0)
+
 # ── Fees ─────────────────────────────────────────────────────────────────────
 # The published general taker rate and the maker ratio. Both are starting
 # hypotheses: the per-series `fee_multiplier` scales them, per-event overrides

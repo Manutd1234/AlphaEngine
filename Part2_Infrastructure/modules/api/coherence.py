@@ -21,11 +21,10 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query
 
 from modules.api.deps import trader_identity
-from modules.coherence import fee_meta, tunables
+from modules.coherence import fee_meta, tunables, warm
 from modules.coherence.drivers import kalshi_auth
 from modules.coherence.drivers.kalshi_parse import schema_probe
 from modules.coherence.drivers.kalshi_rest import KalshiClient, KalshiUnavailable
-from modules.coherence.fees_source import schedule_for
 from modules.coherence.fs.store import TapeUnavailable, get_store
 from modules.coherence.kernel.book import parse_orderbook
 from modules.coherence.kernel.costs import FeeSchedule
@@ -164,6 +163,10 @@ async def coherence_universe(
             watchlist=[],
             notes=["no series is being watched; set COHERENCE_SERIES or pass ?series="],
         )
+
+    held = warm.snapshot_for("universe", max_events=max_events)
+    if held is not None:
+        return held.value.model_copy(update={"observed_at": held.taken_at_ns})
 
     client = KalshiClient()
     events = []
@@ -319,6 +322,13 @@ async def coherence_certify(
     are coherent — which is itself worth showing, because it is the claim the
     engine is making.
     """
+    # THE SNAPSHOT FIRST, and a miss is not an error. An off-watchlist family, a
+    # cold process or a deployment with the refresher off all fall through to
+    # the live read below and answer exactly as they did before this existed.
+    held = warm.snapshot_for("certify", event_ticker=event_ticker, max_contracts=max_contracts)
+    if held is not None:
+        return held.value.model_copy(update={"observed_at": held.taken_at_ns})
+
     try:
         observation = await observe_event(KalshiClient(), event_ticker)
     except KalshiUnavailable as exc:
@@ -326,7 +336,7 @@ async def coherence_certify(
             verdict="untestable", engine="closed_form", component_id=event_ticker,
             series_ticker="", exchange_index=0, notes=[exc.reason],
         )
-    schedule = await schedule_for_event(observation.event.series_ticker, event_ticker)
+    schedule = await fee_meta.schedule_for_event(observation.event.series_ticker, event_ticker)
     certificate = certify(observation, schedule, max_contracts=Decimal(max_contracts))
     payload = certificate.to_dict()
     payload["proof"] = certificate.render_text()
@@ -355,35 +365,8 @@ async def coherence_fees(
             state="unreadable", price=price, contracts=contracts_fp, fills=fills,
             multiplier="1", balance_precision="0.010000", notes=[str(exc)],
         )
-    schedule = await schedule_for_event(series or "", "") if series else FeeSchedule(
+    schedule = await fee_meta.schedule_for_event(series or "", "") if series else FeeSchedule(
         taker_rate=tunables.TAKER_RATE, maker_ratio=tunables.MAKER_RATIO,
         balance_precision=tunables.BALANCE_PRECISION,
     )
     return worked_example(parsed_price, size, schedule, fills=fills, basket_prices=[parsed_price, parsed_price])
-
-
-async def schedule_for_event(series_ticker: str, event_ticker: str) -> FeeSchedule:
-    """The live fee schedule, falling back to the published rate on a refusal.
-
-    A fee we could not read is reported as the published default rather than
-    as zero: zero fees would make every basket look tradable, which is the one
-    direction an error here must never take.
-    """
-    if not series_ticker:
-        return FeeSchedule(
-            taker_rate=tunables.TAKER_RATE, maker_ratio=tunables.MAKER_RATIO,
-            balance_precision=tunables.BALANCE_PRECISION,
-        )
-    # THREE READS IN SERIES, ON EVERY CERTIFICATE, until 2026-08-25 — measured
-    # at 2.0 to 2.2 seconds of a 4.4-second certify, or about fifty-five per
-    # cent of it. All three fetch documents that move on a schedule of days,
-    # one of them takes no argument at all, and one was already being fetched
-    # and cached by `series_meta` a few files away. `fee_meta` holds them and
-    # runs whatever is still cold concurrently; `schedule_for` still computes
-    # the verdict fresh against the clock, which is the part that must not be
-    # cached. Refusals are not cached, so a bad minute does not become an hour
-    # of the published default.
-    series_payload, series_changes, event_changes = await fee_meta.documents_for(
-        KalshiClient(), series_ticker, event_ticker,
-    )
-    return schedule_for(series_payload, series_changes, event_changes, event_ticker).schedule

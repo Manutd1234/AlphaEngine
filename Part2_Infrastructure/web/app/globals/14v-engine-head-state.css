@@ -38,6 +38,11 @@
 
 .coherence-plane .page-heading__actions {
   align-items: flex-start;
+  /* Right even when it wraps. `justify-content: space-between` on the head
+     only separates items that share a line — once the panel wraps to its own,
+     at about 1200px, it is the only item there and lands left. Measured: its
+     right edge was 865px inside a head whose own right edge was 1180. */
+  margin-left: auto;
 }
 
 .coherence-plane .coh-headstate {
@@ -126,6 +131,31 @@
   .coherence-plane .page-heading__actions,
   .coherence-plane .page-heading__actions .coh-headstate {
     width: 100%;
+  }
+
+  /* A COLUMN THAT WRAPS MAKES A SECOND COLUMN, which is the one thing about
+     this head that a source read will not tell you. Below 1120px
+     `.page-heading` becomes `flex-direction: column` and keeps
+     `flex-wrap: wrap`, and `.page-heading__insights` carries `flex: 0 0 100%`
+     — in a column that basis is a HEIGHT, so the metrics row asks for the full
+     height of the head and wraps sideways into a second column beside it.
+
+     Measured at 900px before this rule: the head's `scrollWidth` was 1732
+     against a client width of 860, with the insights row starting 872px to the
+     right of its own container. Nothing scrolled the page, so a page-level
+     overflow check could not see it, and the pills were short enough before
+     this panel arrived that the first column never filled.
+
+     `align-items: stretch` gives every item the head's width back — the
+     row-mode `flex-start` above is what a tall right-hand block needs and a
+     stacked column does not — and `flex-basis: auto` lets the metrics row be
+     as tall as its content instead of as tall as the head. */
+  .coherence-plane .page-heading {
+    align-items: stretch;
+  }
+
+  .coherence-plane .page-heading__insights {
+    flex-basis: auto;
   }
 }
 

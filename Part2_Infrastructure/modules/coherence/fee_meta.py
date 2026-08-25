@@ -38,6 +38,8 @@ from typing import Any
 
 from modules.coherence import tunables
 from modules.coherence.drivers.kalshi_rest import KalshiClient, KalshiUnavailable
+from modules.coherence.fees_source import schedule_for
+from modules.coherence.kernel.costs import FeeSchedule
 
 logger = logging.getLogger(__name__)
 
@@ -126,3 +128,30 @@ def forget_fee_meta() -> None:
     _SERIES.clear()
     _EVENT_CHANGES.clear()
     _SERIES_CHANGES = None
+
+
+async def schedule_for_event(series_ticker: str, event_ticker: str) -> FeeSchedule:
+    """The live fee schedule, falling back to the published rate on a refusal.
+
+    A fee we could not read is reported as the published default rather than
+    as zero: zero fees would make every basket look tradable, which is the one
+    direction an error here must never take.
+    """
+    if not series_ticker:
+        return FeeSchedule(
+            taker_rate=tunables.TAKER_RATE, maker_ratio=tunables.MAKER_RATIO,
+            balance_precision=tunables.BALANCE_PRECISION,
+        )
+    # THREE READS IN SERIES, ON EVERY CERTIFICATE, until 2026-08-25 — measured
+    # at 2.0 to 2.2 seconds of a 4.4-second certify, or about fifty-five per
+    # cent of it. All three fetch documents that move on a schedule of days,
+    # one of them takes no argument at all, and one was already being fetched
+    # and cached by `series_meta` a few files away. `fee_meta` holds them and
+    # runs whatever is still cold concurrently; `schedule_for` still computes
+    # the verdict fresh against the clock, which is the part that must not be
+    # cached. Refusals are not cached, so a bad minute does not become an hour
+    # of the published default.
+    series_payload, series_changes, event_changes = await documents_for(
+        KalshiClient(), series_ticker, event_ticker,
+    )
+    return schedule_for(series_payload, series_changes, event_changes, event_ticker).schedule

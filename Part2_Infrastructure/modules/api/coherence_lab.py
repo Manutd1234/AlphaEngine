@@ -22,9 +22,8 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query
 
 from modules.api import coherence_lab_views as views
-from modules.api.coherence import schedule_for_event
 from modules.api.deps import trader_identity
-from modules.coherence import tunables
+from modules.coherence import fee_meta, tunables
 from modules.coherence.drivers.kalshi_auth import signing_available
 from modules.coherence.drivers.kalshi_rest import KalshiClient, KalshiUnavailable
 from modules.coherence.drivers.rfq import read_panel
@@ -102,7 +101,7 @@ async def coherence_stake(
     # The arbitrage threshold is fee-aware or it is wrong. A basket at $0.98 is
     # not two cents of riskless profit if the fees on its legs come to three,
     # and `costs.no_arbitrage_bound` is the test the rest of this engine uses.
-    schedule = await schedule_for_event(observation.event.series_ticker, event_ticker)
+    schedule = await fee_meta.schedule_for_event(observation.event.series_ticker, event_ticker)
     asks = [
         item.book.best_yes_ask
         for item in observation.markets
@@ -277,5 +276,5 @@ async def _certificate_for(observations: list[Any], path: str) -> Any:
     observation = next((item for item in observations if item.event.event_ticker == parts[3]), None)
     if observation is None:
         return None
-    schedule = await schedule_for_event(observation.event.series_ticker, observation.event.event_ticker)
+    schedule = await fee_meta.schedule_for_event(observation.event.series_ticker, observation.event.event_ticker)
     return certify(observation, schedule)

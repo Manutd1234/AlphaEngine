@@ -1045,6 +1045,17 @@
             "title": "Notes",
             "type": "array"
           },
+          "observed_at": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed At"
+          },
           "priced_out": {
             "default": false,
             "title": "Priced Out",
@@ -3456,6 +3467,17 @@
             },
             "title": "Notes",
             "type": "array"
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed At"
           },
           "state": {
             "title": "State",

@@ -1624,6 +1624,7 @@
     "notes": [
       "orderbook route refused an unauthenticated read (401); using the market object's top of book, which cannot answer a depth question"
     ],
+    "observed_at": null,
     "state": "ok",
     "watchlist": [
       "KXBTCD",

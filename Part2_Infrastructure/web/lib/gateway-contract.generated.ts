@@ -165,6 +165,7 @@ export interface CoherenceCertificate {
   margin?: string | null;
   net_edge?: string | null;
   notes?: Array<string>;
+  observed_at?: number | null;
   priced_out?: boolean;
   proof?: string;
   rows_tested?: number;
@@ -574,6 +575,7 @@ export interface CoherenceUniverse {
   categories?: Record<string, string>;
   events?: Array<CoherenceEventView>;
   notes?: Array<string>;
+  observed_at?: number | null;
   state: string;
   watchlist?: Array<string>;
 }
