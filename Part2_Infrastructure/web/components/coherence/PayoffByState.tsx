@@ -198,38 +198,41 @@ export default function PayoffByState({
   const y = (value: number) =>
     plotBottom - ((value - domainLo) / (domainHi - domainLo)) * (plotBottom - plotTop);
 
-  // Gross clearing the line is not the same claim as the trade being worth
-  // putting on, and this figure draws the gross. Saying "pays in every state"
-  // without the net beside it is how a reader walks away with the naive
-  // reading the whole fee model exists to reject.
-  // The sign is read off net_edge itself rather than off `worth_doing`, so the
-  // sentence cannot end up claiming the opposite of the figure printed beside
-  // it if those two ever disagree on the wire.
+  // Gross clearing the line is not the trade being worth putting on, and this
+  // figure draws the gross: "pays in every state" without the net beside it is
+  // the naive reading the fee model exists to reject. The sign comes off
+  // `net_edge` rather than `worth_doing`, so the sentence cannot contradict the
+  // figure printed beside it if those two ever disagree on the wire.
   const netEdge = toMicros(certificate.net_edge);
   const afterFees =
     netEdge == null
       ? ""
       : ` Fees take it to ${certificate.net_edge}, ${netEdge > 0 ? "still above the line" : "below the line — the violation is real and the fees price it out"}.`;
+  // The JUDGEMENT, not the geometry. This opened by reciting the drawing —
+  // "every column clears zero; the lowest is X" — to a reader looking straight
+  // at it. What survives is what bars against a rule cannot say. The third
+  // branch stays whole: it exists because two marks that LOOK like one claim
+  // are two different numbers, which no arrangement of marks can convey.
   const reading = agrees
     ? clears
-      ? `Every column clears zero; the lowest is ${certificate.worst_case_payoff}, the worst case, so this portfolio pays in every state the engine could test.${afterFees}${certificate.because ? ` ${certificate.because}.` : ""}`
-      : `The lowest column is ${certificate.worst_case_payoff} and does not clear zero, so there is a state this portfolio loses in.`
+      ? `This portfolio pays in every state the engine could test.${afterFees}${certificate.because ? ` ${certificate.because}.` : ""}`
+      : "There is a state this portfolio loses in."
     : `The lowest column drawn is ${money(lowest)} against a reported worst case of ${certificate.worst_case_payoff ?? "—"} — different numbers, so the dashed rule and the shortest bar are not one claim.`;
 
-  // One clause per fact, and none of them repeats another: what is absent from
-  // the state space, whether fees are off the bars, which legs are unreadable,
-  // and whether the dashed rule and the shortest bar are the same number.
+  // One clause per fact, none repeating another.
   const missing = [
     certificate.rows_untestable
       ? `${certificate.rows_untestable} constraint(s) went untested — a leg was unquoted — so these columns are the reachable state space, not the whole one.`
       : "No constraint went untested.",
     fees == null
       ? `Fees are NOT drawn — total_fees (${certificate.total_fees ?? "—"}) did not parse at the exchange's precision — so every bar is gross.`
-      : `The dashed block on each column is ${certificate.total_fees} of fees; the figure above it is what is left.`,
+      // Drawn on every column and named in the key as "fees, subtracted".
+      : "",
     unreadable.length
       ? `${unreadable.length} leg(s) could not be read — ${unreadable.join(", ")} — so every state they touch is a dash, never a zero.`
       : "",
-    agrees ? "" : "The dashed rule is the engine's worst case, not the shortest bar here.",
+    // Dropped: the reading's third branch says this, with both numbers in it.
+
   ]
     .filter(Boolean)
     .join(" ");

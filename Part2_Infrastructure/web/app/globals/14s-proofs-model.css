@@ -208,3 +208,70 @@
   stroke-width: 1.5;
   stroke-dasharray: 3 3;
 }
+
+/* ── The six lesson figures added on 2026-08-25 ──────────────────────────── */
+
+/*
+ * The registry went from four drawings to ten, and these are the marks the six
+ * new ones needed. Same vocabulary as the four above: a track is what a
+ * quantity is measured against, a slice is a share of it, a rule is the line a
+ * reader judges by, and anything loud is the one thing the lesson is about.
+ */
+
+/* What a quantity is drawn against — a dollar, a range, an axis. Recessive by
+   design: it is the container, never the reading. */
+.coherence-plane.proofs-plane .coh-lessonfig__track {
+  fill: var(--surface-2);
+  stroke: var(--border);
+}
+
+/* A share of that track. The fee bar's `is-loud` slice is the rounding
+   component, which is the entire point of that lesson — it is the largest and
+   it is the one nobody models. */
+.coherence-plane.proofs-plane .coh-lessonfig__slice {
+  fill: color-mix(in srgb, var(--series-1) 32%, transparent);
+  stroke: color-mix(in srgb, var(--series-1) 55%, var(--border));
+}
+
+.coherence-plane.proofs-plane .coh-lessonfig__slice.is-loud {
+  fill: color-mix(in srgb, var(--series-2) 34%, transparent);
+  stroke: color-mix(in srgb, var(--series-2) 62%, var(--border));
+}
+
+/* The uneven price ruler's ticks. Hairlines: their SPACING is the lesson, so
+   any weight on the tick itself competes with the thing being read. */
+.coherence-plane.proofs-plane .coh-lessonfig__tick {
+  stroke: var(--axis);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+/* Nested implication. No fill — containment is what is being shown, and a
+   filled ring would occlude the ones inside it. */
+.coherence-plane.proofs-plane .coh-lessonfig__ring {
+  fill: none;
+  stroke: color-mix(in srgb, var(--series-1) 55%, var(--border));
+}
+
+/* A decay. */
+.coherence-plane.proofs-plane .coh-lessonfig__curve {
+  fill: none;
+  stroke: var(--series-1);
+  stroke-width: 2;
+}
+
+/* The reference a reader judges against — the dollar line, the half line.
+   Drawn last in every figure that has one, so nothing occludes it. */
+.coherence-plane.proofs-plane .coh-lessonfig__rule {
+  stroke: var(--text-secondary);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+
+/* A position on a track: a quoted zero, and the round trip that lands late. */
+.coherence-plane.proofs-plane .coh-lessonfig__mark { fill: var(--series-1); }
+
+.coherence-plane.proofs-plane .coh-lessonfig__mark-line {
+  stroke: var(--series-2);
+  stroke-width: 2;
+}

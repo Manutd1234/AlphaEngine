@@ -265,11 +265,16 @@ export default function InformationDiffusionPane({ view, read, error }: {
       <Figure
         caption="How much of each stage's move had arrived by each horizon"
         ariaLabel={`Absorbed fraction against horizon for both stages, over ${measured} measured stages`}
-        reading={
-          gap
-            ? `The statement is half absorbed in ${Math.round(read.stages.find((s) => s.stage === "release")!.median_half_life_s!)}s and the press conference takes ${gap} as long.`
-            : null
-        }
+        // NO READING as of 2026-08-25. It said "the statement is half absorbed
+        // in Ns and the press conference takes 4.4x as long" — which is the
+        // chip above the figure ("Conference slower by 4.4x") and both curve
+        // keys ("half in 166s", "half in 728s") read back to someone looking at
+        // all three. Third telling of one comparison, on one screen.
+        //
+        // What the drawing genuinely cannot say is in `missing` below: WHY the
+        // first two horizons are gaps. That is a fact about the sources, not
+        // about the shape.
+        reading={null}
         missing={
           read.horizons.length && read.release_curve[0] == null
             ? "The first two horizons are drawn as gaps: no free source resolves a move inside one minute."

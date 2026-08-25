@@ -35,6 +35,7 @@
 
 import type { CoherenceCertificate } from "@/lib/coherence/types";
 import { statValue } from "./ReliabilityDiagram";
+import MarginAxis from "./MarginAxis";
 import ValueStrip, { type StripRow } from "./ValueStrip";
 
 export function verdictChip(certificate: CoherenceCertificate) {
@@ -85,15 +86,21 @@ const ARITHMETIC: ReadonlyArray<{
   of: (certificate: CoherenceCertificate) => string;
   decides: string;
 }> = [
-  { label: "Gross edge", of: (c) => c.gross_edge ?? "—", decides: "Before any fee, from the closed-form checks." },
+  { label: "Gross edge", of: (c) => c.gross_edge ?? "—", decides: "From the closed-form checks, before any fee." },
   { label: "Total fees", of: (c) => c.total_fees ?? "—", decides: "All three components, per fill, every leg." },
-  { label: "Net edge", of: (c) => c.net_edge ?? "—", decides: "Gross minus fees. Only a positive one is a trade." },
+  // "Gross minus fees" went on 2026-08-25: the strip above draws gross, then
+  // fees entering negative, then net, so the subtraction is the picture. What
+  // is left is the decision the number carries, which no bar can say.
+  { label: "Net edge", of: (c) => c.net_edge ?? "—", decides: "Only a positive one is a trade." },
   {
     label: "Worst-case payoff",
     of: (c) => c.worst_case_payoff ?? "—",
     decides: "The least this basket pays in any testable state.",
   },
-  { label: "Constraints tested", of: (c) => String(c.rows_tested), decides: "Rows the solver evaluated." },
+  // No third column on this row. "Rows the solver evaluated" is the row's own
+  // label in different words, which is the shape `copy-audit` calls a note
+  // repeating the figure beside it.
+  { label: "Constraints tested", of: (c) => String(c.rows_tested), decides: "" },
   {
     label: "Untestable",
     of: (c) => String(c.rows_untestable),
@@ -113,7 +120,11 @@ function moneyRows(certificate: CoherenceCertificate): StripRow[] {
       label,
       value: value == null ? null : subtracted ? -value : value,
       text: raw ?? "—",
-      title: raw == null ? `${label}: not reported` : `${label}: ${raw}${subtracted ? ", subtracted" : ""}`,
+      // The bar prints its own label and value, so the hover adds only what the
+      // drawing cannot show: which side of the sum this row sits on.
+      title: raw == null
+        ? `${label} was not reported`
+        : subtracted ? `${label}, subtracted from the gross` : `${label}`,
       noBar: raw == null ? "not reported" : undefined,
     };
   };
@@ -126,14 +137,30 @@ function moneyRows(certificate: CoherenceCertificate): StripRow[] {
 }
 
 export function VerdictView({ data, target }: { data: CoherenceCertificate; target: string }) {
+  const money = moneyRows(data);
+  // Every one of the four describes a portfolio, so on the common answer — no
+  // portfolio exists — all four are correctly absent. Drawing an axis of four
+  // dashes is what made this view read as broken.
+  const anyMoney = money.some((row) => row.value != null);
+
   return (
     <>
-      <ValueStrip
-        caption="The verdict's money rows, signed, against the zero rule — fees enter negative"
-        ariaLabel={`Gross edge, fees, net edge and worst-case payoff for ${data.family || target} on one signed axis`}
-        rows={moneyRows(data)}
-        missing="The two count rows are in the table behind the summary; a count is not an amount."
-      />
+      {/* THE LEAD IS THE MARGIN, not the money. What the programme decided on
+          is its own optimum, which exists on every solve; the money rows are
+          the arithmetic of a portfolio that usually does not exist. Leading
+          with them meant the headline figure of the headline view said
+          "not reported" four times on the answer a reader sees almost every
+          time. */}
+      <MarginAxis margin={data.margin} verdict={data.verdict} engine={data.engine} pricedOut={Boolean(data.priced_out)} />
+
+      {anyMoney ? (
+        <ValueStrip
+          caption="The portfolio's money rows, signed, against the zero rule — fees enter negative"
+          ariaLabel={`Gross edge, fees, net edge and worst-case payoff for ${data.family || target} on one signed axis`}
+          rows={money}
+          missing="The two count rows decline a bar: a count is not an amount."
+        />
+      ) : null}
       {/* THE TABLE MOVED BEHIND A SUMMARY on the fourth review of 2026-08-24
           ("use dropdowns, hide, summarise, remove but keep the details"), and
           what makes that safe is the strip above it: the four money rows are
@@ -181,17 +208,20 @@ export function ProofView({ data }: { data: CoherenceCertificate }) {
         caption="What the proof covers: rows evaluated against rows skipped as unquotable"
         ariaLabel={`${data.rows_tested} constraints tested, ${data.rows_untestable} untestable`}
         rows={[
+          // Each bar is labelled and prints its own count, so the hover carries
+          // only what the bar cannot: what the two words MEAN. "Untestable" in
+          // particular reads as a pass unless something says it is a skip.
           {
             label: "Tested",
             value: data.rows_tested,
             text: String(data.rows_tested),
-            title: `${data.rows_tested} constraint(s) the solver evaluated`,
+            title: "one inequality per state the family can settle into",
           },
           {
             label: "Untestable",
             value: data.rows_untestable,
             text: String(data.rows_untestable),
-            title: `${data.rows_untestable} row(s) skipped — a leg was unquoted`,
+            title: "skipped because a leg was unquoted — not passed",
           },
         ]}
       />

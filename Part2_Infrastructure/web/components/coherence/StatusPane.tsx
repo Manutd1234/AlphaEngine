@@ -105,14 +105,18 @@ export default function StatusPane({ status, error }: { status: CoherenceStatus 
           <dd>
             {status.budget.tokens_per_second} tokens per second, {status.budget.tokens_spent} spent
           </dd>
+          {/* The basis WAS a bare gateway string in its own paragraph below the
+              list, with a full stop appended and no label — a reader met a
+              sentence about token buckets with nothing saying what it was about
+              or which figure it explained. It is provenance for this row, so it
+              sits under this row. */}
+          <dd className="coh-status__basis">{status.budget.basis}.</dd>
         </div>
         <div>
           <dt>Coherence solver</dt>
           <dd>{String((status.solver as { linear_programme?: string }).linear_programme ?? "unknown")}</dd>
         </div>
       </dl>
-
-      <p className="coh-status__basis">{status.budget.basis}.</p>
 
       {status.notes.length ? (
         <ul className="coh-notes">

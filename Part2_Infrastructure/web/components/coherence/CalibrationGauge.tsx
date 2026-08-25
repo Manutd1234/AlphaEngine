@@ -66,10 +66,13 @@ export function verdictOf(data: CoherenceCalibration, skill: number | null): Ver
     return {
       mark: "▲",
       word: "Not a forecast test",
-      reading:
-        "These are last traded prices, read moments before settlement with the answer largely in plain sight. "
-        + "The figure below measures how fast this exchange converges, not whether it saw anything coming, and "
-        + "it cannot be a pass however high it is.",
+      // The banner above this gauge makes the last-traded-prices argument in
+      // full, and `CalibrationScore`'s own header records that the caveat is
+      // said ONCE, there. This was it said a second time forty lines below, on
+      // the same view, in the same words. What is left is the conclusion the
+      // dial itself has to carry, since a reader can arrive at a needle without
+      // having read the banner.
+      reading: "Convergence speed, not foresight — however high the needle goes.",
       drawn: true,
     };
   }

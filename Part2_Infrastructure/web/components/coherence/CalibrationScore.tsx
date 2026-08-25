@@ -103,12 +103,17 @@ export function scoreFacts(data: CoherenceCalibration): Fact[] {
     {
       label: "Skill against the base rate",
       value: decimalLabel(data.skill, PLACES),
-      note: "The share of the question's uncertainty these prices removed. Negative is worse than knowing nothing.",
+      // No note. `CalibrationGauge` defines this scale in full — one is
+      // perfect, zero is the base rate, below zero is worse than knowing
+      // nothing — and it is drawn immediately above this table on the same
+      // view. Said here it was the second of four tellings on one tab.
+      note: "",
     },
     {
       label: "Base rate",
       value: decimalLabel(data.base_rate),
-      note: `How often YES happened across all ${data.count} settled markets.`,
+      // "across all N settled markets" is row five of this same table.
+      note: "How often YES happened.",
     },
     {
       label: "Favourite–longshot slope",
@@ -118,12 +123,16 @@ export function scoreFacts(data: CoherenceCalibration): Fact[] {
     {
       label: "Settled markets scored",
       value: String(data.count),
-      note: `${populated} of ${data.bins.length} price bands carry at least one.`,
+      // The band coverage is the Bands view's own eleven-row table, drawn as a
+      // strip beside it. A count of populated bands under a count of markets
+      // is two different questions sharing a row.
+      note: "",
     },
     {
       label: "Median horizon",
       value: data.median_horizon_s == null ? "—" : `${data.median_horizon_s}s`,
-      note: "How far ahead of the answer these prices were standing; the banner reads it.",
+      // "the banner reads it" was a pointer at something four lines up.
+      note: "How far ahead of the answer these prices were standing.",
     },
   ];
 }
@@ -207,14 +216,25 @@ export function ScoreView({ data, facts }: { data: CoherenceCalibration; facts: 
       />
       <div className="table-wrap">
         <table className="coh-table">
+          {/* "The banner above says which are forecast scores" went on
+              2026-08-25 — it was a pointer at something on the same screen, and
+              the third time this view mentioned the banner. What is left is the
+              fact the numbers themselves cannot carry: they are truncated, not
+              rounded, so a figure that looks like a tie is not one. */}
           <caption className="coh-table__caption">
-            The six headline figures, truncated at {PLACES} places, never rounded. The banner above says which
-            are forecast scores.
+            The six headline figures, truncated at {PLACES} places, never rounded.
           </caption>
           <thead>
             <tr>
               <th scope="col">Measure</th>
               <th scope="col" className="num">Value</th>
+              {/* Kept, unlike the Bands table's "Reading" column, and the
+                  difference is what the cells hold. That one restated the SIGN
+                  of the number beside it, eleven times. These are definitions —
+                  what a Brier score measures, why "untestable" is a skip — and
+                  the rows whose notes DID restate their own figure now carry
+                  none rather than the column being dropped from under the ones
+                  that teach. */}
               <th scope="col">What it reads</th>
             </tr>
           </thead>

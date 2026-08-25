@@ -29,16 +29,11 @@
 
 import type { ReactNode } from "react";
 
-const WIDTH = 260;
-const HEIGHT = 96;
-
-function Frame({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} width="100%" height={HEIGHT} role="img" aria-label={label}>
-      {children}
-    </svg>
-  );
-}
+import { Frame, HEIGHT, WIDTH } from "./frame";
+import { Fees } from "./bounds";
+import { Absence, Grid } from "./prices";
+import { HalfLife } from "./record";
+import { Basket, Lattice } from "./structure";
 
 /**
  * Fréchet: two marginals do not determine a joint, they BOUND it.
@@ -172,12 +167,36 @@ function Calibration() {
   );
 }
 
-/** Lesson id to figure. A lesson absent from this map draws no figure at all. */
+/**
+ * Lesson id to figure. A lesson absent from this map draws no figure at all.
+ *
+ * NINE of fourteen as of 2026-08-25, from four. The four it had were the four
+ * whose shape is a coordinate geometry — a band, a growth path, a simplex, a
+ * slope — and the five added are the ones whose claim is a PROPORTION or a
+ * CONTAINMENT, which a picture carries better than a sentence: an uneven price
+ * ruler, a quoted zero beside a missing quote, a dollar sold in pieces that do
+ * not total it, three nested thresholds, a fee bar whose rounding component
+ * dwarfs the trading one, and a decay curve with a round trip landing after
+ * its half.
+ *
+ * The remaining five are unfigured on purpose rather than pending. `book` and
+ * `duality` are drawn in full elsewhere on the engine — `IdentityStrip` and
+ * `PayoffByState` — and a second, smaller copy would be the same claim made
+ * twice; `index`, `distribution` and `absence`'s siblings are readings rather
+ * than shapes, and a diagram of a reading is a chart with invented numbers in
+ * it. `LessonFigure` returns null for all five, which is the honest outcome.
+ */
 export const LESSON_FIGURES: Record<string, () => ReactNode> = {
   frechet: Frechet,
   kelly: Kelly,
   fixedpoint: FixedPoint,
   calibration: Calibration,
+  grid: Grid,
+  absence: Absence,
+  basket: Basket,
+  lattice: Lattice,
+  fees: Fees,
+  halflife: HalfLife,
 };
 
 export default function LessonFigure({ id }: { id: string }) {

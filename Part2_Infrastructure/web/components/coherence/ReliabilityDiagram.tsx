@@ -74,12 +74,6 @@ export function decimalLabel(raw: string | null | undefined, places = 4): string
  * Routed through the centicent reader so a price on this diagram is the same
  * quantity the rest of the tab draws — four decimals, the exchange's own tick.
  */
-/** "3", "3 and 354", "3, 354 and 12" — a comma list with a final "and". */
-function countList(counts: readonly number[]): string {
-  if (counts.length <= 2) return counts.join(" and ");
-  return `${counts.slice(0, -1).join(", ")} and ${counts[counts.length - 1]}`;
-}
-
 export function unitOf(raw: string | null | undefined): number | null {
   const cc = toCenticents(truncateDecimal(raw, 4));
   return cc == null ? null : cc / DOLLAR_CC;
@@ -178,9 +172,20 @@ export default function ReliabilityDiagram({
     <Figure
       caption={`Price against outcome, band by band — ${horizonNote}`}
       ariaLabel={`${points.length} of ${bins.length} price bands carry settled markets; the widest gap is in the ${worst.label} band`}
-      reading={`Each point is one tenth-of-a-dollar band — priced at the horizontal, happening at the vertical, sized and numbered by its ${countList(
-        points.map((point) => point.count),
-      )} settled markets. The widest gap from the dashed diagonal — perfect calibration, and each gap is that band's contribution to the reliability term — is the ${worst.label} band, priced ${worst.pricedText} against ${worst.happenedText}.${steps.length ? ` The step line is the isotonic correction.` : ``}`}
+      // WHAT WENT, 2026-08-25. "Priced at the horizontal, happening at the
+      // vertical" is the two axis labels; "sized and numbered by its N settled
+      // markets" is the dot, which is sized and has its count printed beside
+      // it; "the widest gap is the X band, priced Y against Z" is the visibly
+      // widest dot with both figures already on it; and "the step line is the
+      // isotonic correction" is the key. Five clauses describing the drawing to
+      // someone looking at it.
+      //
+      // What survives is the one thing the geometry cannot state: what a gap
+      // MEANS. A reader can see which band is furthest from the diagonal
+      // without being told; that it is that band's contribution to the
+      // reliability term — the quantity the Murphy waterfall then decomposes —
+      // is a fact about the arithmetic, not about the picture.
+      reading={`Each gap from the diagonal is that band's contribution to the reliability term.${steps.length ? " The step line is the isotonic correction." : ""}`}
       missing={emptyNote}
     >
       <Plot height={HEIGHT}>

@@ -87,7 +87,6 @@ export default function CalibrationBands({
               <th scope="col" className="num">Mean price</th>
               <th scope="col" className="num">Happened</th>
               <th scope="col" className="num">Outcome minus price</th>
-              <th scope="col">Reading</th>
             </tr>
           </thead>
           <tbody>
@@ -99,24 +98,15 @@ export default function CalibrationBands({
                   <td className="num">{bin.count}</td>
                   <td className="num">{decimalLabel(bin.mean_forecast)}</td>
                   <td className="num">{decimalLabel(bin.outcome_rate)}</td>
+                  {/* THE "READING" COLUMN WENT ON 2026-08-25, all five
+                      branches. Three of them — "happened more often than
+                      priced", "less often", "priced exactly" — are the SIGN of
+                      the cell immediately to their left, which is signed, and
+                      which the strip above the table draws against zero. The
+                      other two restated an empty `Settled` cell and a dashed
+                      deviation, both of which the strip already declines a bar
+                      for and names its reason under. Eleven rows of it. */}
                   <td className="num">{decimalLabel(bin.deviation)}</td>
-                  <td>
-                    {bin.count === 0 ? (
-                      <>
-                        <span aria-hidden="true">◌</span> nobody quoted this band
-                      </>
-                    ) : deviation == null ? (
-                      <>
-                        <span aria-hidden="true">◌</span> no deviation was computed
-                      </>
-                    ) : deviation > 0 ? (
-                      "happened more often than priced"
-                    ) : deviation < 0 ? (
-                      "happened less often than priced"
-                    ) : (
-                      "priced exactly"
-                    )}
-                  </td>
                 </tr>
               );
             })}

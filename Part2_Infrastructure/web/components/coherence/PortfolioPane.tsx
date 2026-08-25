@@ -39,6 +39,7 @@
  */
 
 import type { CoherenceCertificate, CoherenceEventView } from "@/lib/coherence/types";
+import MarginAxis from "./MarginAxis";
 import PayoffByState from "./PayoffByState";
 import { statValue } from "./ReliabilityDiagram";
 import ValueStrip from "./ValueStrip";
@@ -67,14 +68,17 @@ function LegTable({ certificate }: { certificate: CoherenceCertificate }) {
         label: leg.label || leg.ticker,
         value: statValue(leg.net_fee),
         text: leg.net_fee,
-        title: `${leg.label || leg.ticker}: ${leg.direction} ${leg.size} at ${leg.price}, net fee ${leg.net_fee}`,
+        // Direction, size, price and net fee are four VISIBLE columns of the
+        // leg table below. The hover carries the one thing the bar cannot: why
+        // this leg is in the basket at all.
+        title: `${leg.direction === "buy" ? "bought" : "sold"} so the basket pays in every state`,
         noBar: statValue(leg.net_fee) == null ? "not readable" : undefined,
       }))}
     />
     <div className="table-wrap">
       <table className="coh-table">
         <caption className="coh-table__caption">
-          At the exchange&rsquo;s own precision; the total row is the arithmetic the verdict is read off.
+          At the exchange&rsquo;s own precision.
         </caption>
         <thead>
           <tr>
@@ -125,20 +129,40 @@ export default function PortfolioPane({ certificate, chosen }: {
   chosen: CoherenceEventView | null;
 }) {
   if (!certificate.legs.length) {
+    // NOT A SENTENCE ON ITS OWN ANY MORE. This is the answer on the common
+    // path — the exchange is almost always coherent, so the solver almost
+    // always hands back nothing — and a rail section whose usual state is one
+    // line of absence is a dead end the desk sweep would be right to flag.
+    //
+    // What the solver DID conclude is its own optimum, and the gateway reports
+    // it on every solve now. So the section opens on how far the best available
+    // basket fell short, and the sentence explains the drawing rather than
+    // standing in for one.
     return (
-      <p className="console-empty">
-        <span aria-hidden="true">◌</span> No portfolio — these quotes admit a probability, so the solver had nothing
-        to hand back; Verdict carries the finding.
-      </p>
+      <>
+        <MarginAxis
+          margin={certificate.margin}
+          verdict={certificate.verdict}
+          engine={certificate.engine}
+          pricedOut={Boolean(certificate.priced_out)}
+        />
+        <p className="console-empty">
+          <span aria-hidden="true">◌</span> No basket to price: no portfolio of these quotes pays more than it
+          costs in every state, which is what the margin above measures.
+        </p>
+      </>
     );
   }
 
   return (
     <>
-      <p className="sub">
-        Where no probability measure fits a family&rsquo;s prices, duality hands back the basket that wins in every
-        state — so the certificate of infeasibility IS the trade.
-      </p>
+      {/* The duality claim — the certificate of infeasibility IS the trade —
+          moved up to `BasketSection`'s lede on 2026-08-25, when this pane's
+          group became a section again and got a head of its own to carry it.
+          It is the same sentence in the same reading position, one element
+          higher; repeating it here would be a reader meeting it twice on one
+          screen. `coherence-proof-claims.test.ts` still counts two places for
+          it, and the other is the tab's own description. */}
 
       {/* Gated on a mutually exclusive family because one state per market is
           the only state space this side can rebuild without re-deriving the

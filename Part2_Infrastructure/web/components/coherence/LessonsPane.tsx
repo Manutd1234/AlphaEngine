@@ -85,7 +85,7 @@ function GroupPins({ lessons }: { lessons: CoherenceLesson[] }) {
       rows={lessons.map((lesson) => ({
         label: lesson.title,
         value: lesson.pinnedBy.length,
-        text: `${lesson.pinnedBy.length} suite(s)`,
+        text: `${lesson.pinnedBy.length} ${lesson.pinnedBy.length === 1 ? "suite" : "suites"}`,
         title: `${lesson.title} — taught in ${sectionLabel(lesson.pane)}, carried by ${lesson.guards.length} module(s), pinned by ${lesson.pinnedBy.join(", ") || "nothing yet"}`,
         noBar: lesson.pinnedBy.length ? undefined : "not pinned yet",
       }))}
