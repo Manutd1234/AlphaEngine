@@ -889,10 +889,10 @@ html:active-view-transition .view-panel {
 }
 
 /* Rung 8 (≤1520): the tabs' side padding, and the tab labels back to chip
-   size. The brand tagline used to go here too; it is rung 4 now (14p). */
+   size. 4px and not 5px since the eleventh tab; 14p has the measurement. */
 @media (min-width: 901px) and (max-width: 1520px) {
   .workspace-tabs button {
-    padding-inline: 5px;
+    padding-inline: 4px;
   }
 
   .workspace-tabs button span {

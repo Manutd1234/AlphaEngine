@@ -60,6 +60,58 @@
    measured 60px and invisible at 3px a side. It is rung 8 rather than rung 4
    only because nobody has asked for that trade; ask before making it.
 
+   ────────────────────────────────────────────────────────────────────────
+   THE ELEVENTH TAB ARRIVED, AND THE TRADE ABOVE IS THE ONE THAT PAID FOR IT.
+   ────────────────────────────────────────────────────────────────────────
+
+   2026-08-25: a Diffusion tab was added to `lib/workspace-nav.ts` and the
+   ladder was NOT re-measured, which the repository's own note says to do on any
+   change that widens this row. Five pixels of headroom does not survive a
+   nine-character label.
+
+   WHAT IT ACTUALLY BROKE, and it is worse than two bad widths. Swept 2100 → 910
+   in 10px steps against `.workspace-header__primary`'s
+   `scrollWidth - clientWidth`, the row clipped at TWENTY-SEVEN widths — 1 to
+   31px, at the TAIL of every single rung's band:
+
+     2070 2060 | 1970 1960 | 1870 1860 | 1810 1800 | 1740 1730 | 1680 1670 1660
+     1620 1610 1600 | 1560 1550 1540 1530 | 1400 1390 | 1310 1300 1290 | 1190 1180
+
+   Every rung was ~10-30px late, because each fires at the width where the state
+   above it stopped fitting on a row that is now one tab wider. The reader met it
+   at 1728 — a MacBook Pro 16" — where the settings gear was cut in half.
+
+   WHY NOT MOVE THE RUNGS. Because moving eleven rungs out means folding eleven
+   things ~30px EARLIER, and the instruction was "make it big enough for everyone
+   to know what is going on". Every rung from 1 to 7 sheds a WORD. Paying for a
+   tab with the reader's vocabulary is the trade this ladder's own ordering rule
+   already refuses.
+
+   SO THE PADDING PAID, WHICH IS WHAT THE PARAGRAPH ABOVE RESERVED IT FOR. The
+   base inline pad goes 8px → 6px (`01-workspace-shell.css`), and rung 8's goes
+   5px → 4px. Eleven tabs at 4px a side is 44px at the wide end and 22px at the
+   narrow end, and it hides nothing at any width: no word, no label, no font
+   size — the type scale is untouched and rung 8's own font-size step is where
+   it was. Re-swept 2100 → 910 with both values in place: **no clipping at any
+   width**. The same sweep with only the base pad changed still clipped at seven
+   narrow widths, which is why rung 8 moved too.
+
+   WHAT WAS MEASURED AND REJECTED. Giving the word "Settings" back — the reader
+   asked why it was "hidden" — costs more than the padding buys: restoring
+   `.header-settings span` down to 1721 re-clipped six widths (1820-1800,
+   1750-1730), and down to 1591 re-clipped fourteen. Rung 3 stays where it is
+   and the gear stays a glyph, which is the ladder's own rule holding rather
+   than being overridden.
+
+   NO RUNG WIDTH MOVED in this pass, so `RUNGS` in `header-ladder.test.ts` and
+   the snapshot in `header-wide-width.test.ts` are untouched. Two value pins
+   moved with the measurement: rung 8's `padding-inline` and the base
+   `padding: 8px 8px` that `reader-round-tabs-and-figure-tables.test.ts` holds.
+
+   AND THE HEADROOM IS SPENT. A TWELFTH tab has nothing left to take: the
+   padding was the last thing on this row that could be given up without costing
+   a reader a word. The next tab needs the row to stop being one row.
+
    The measurement is a `flex: 1` trap worth recording: `header-spacer` absorbs
    the surplus, so at any width the row FITS the rightmost control is flush
    right and a right-edge measurement reports the viewport back at you. The

@@ -701,11 +701,11 @@
 }
 
 /* Each tab grows from its own word by the SAME increment (basis auto, never 0:
-   `flex: 1` made every button EQUAL and the word gaps [18,18,18,30,40.7,28.7,18]
-   at 1724). Under deficit grow never runs, so the ladder's clips hold. */
+   `flex: 1` made every button EQUAL, gaps [18,18,18,30,40.7,28.7,18] at 1724).
+   Grow never runs under deficit. Inline pad 6px since the 11th tab — see 14p. */
 .workspace-tabs button {
   flex: 1 1 auto;
-  padding: 8px 8px;
+  padding: 8px 6px;
   border: 0;
   border-radius: 6px;
   background: transparent;

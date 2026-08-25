@@ -108,7 +108,15 @@ describe("the rungs exist, in priority order, and each takes only what it says",
 
   it("rung 8 (≤1520): tab padding and tab type, nothing of the chip", () => {
     const r = rung(1520);
-    assert.match(r, /\.workspace-tabs button \{\n    padding-inline: 5px;/);
+    // 4px since the eleventh tab, down from 5px. The reason it is a value and
+    // not a rung MOVE is the whole of that pass: every rung from 1 to 7 sheds a
+    // WORD, so paying for a tab by firing them ~30px earlier spends the
+    // reader's vocabulary, and the instruction was the opposite. The tabs' own
+    // side padding is the one thing on this row that can be given up without
+    // costing anybody a word, and 14p reserved it for exactly this. Swept
+    // 2100 → 910 in 10px steps: no clipping at any width with 6px/4px, and
+    // seven narrow widths still clipping with only the base pad changed.
+    assert.match(r, /\.workspace-tabs button \{\n    padding-inline: 4px;/);
     assert.doesNotMatch(r, /latency-chip/);
     assert.doesNotMatch(r, /\.brand-copy small/, "the tagline is rung 4 now, not this one");
   });

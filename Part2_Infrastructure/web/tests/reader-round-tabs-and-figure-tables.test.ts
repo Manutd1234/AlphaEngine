@@ -54,8 +54,16 @@ describe("the tabs grow into the surplus by an equal increment, and nothing else
     assert.doesNotMatch(button, /flex: 1;|flex: 1 1 0/);
   });
 
-  it("adds nothing to the row's minimum: the inline pad the ladder was measured at stays 8px", () => {
-    assert.match(button, /padding: 8px 8px;/);
+  it("adds nothing to the row's minimum: the inline pad the ladder is measured at", () => {
+    // 6px since 2026-08-25, when an eleventh nav tab pushed the row past its
+    // width at twenty-seven separate viewport widths and the settings control
+    // was cut in half on a 16" MacBook. The FIRST half of this assertion is the
+    // one that matters and it is unchanged: nothing here may ADD to the row's
+    // minimum. Taking 2px off each side SUBTRACTS 44px from it, which is the
+    // direction this test was written to protect, and it hides nothing — the
+    // type scale, the labels and every rung width are untouched. 14p carries
+    // the sweep.
+    assert.match(button, /padding: 8px 6px;/);
     for (const property of ["min-width", "width", "margin"]) {
       assert.doesNotMatch(button, new RegExp(`(^|[;\\s])${property}:`), `${property} on a tab widens the row's minimum`);
     }
