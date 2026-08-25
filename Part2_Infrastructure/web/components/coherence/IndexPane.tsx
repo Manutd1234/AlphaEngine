@@ -45,8 +45,12 @@ import Figure, { FigureEmpty, StateChip } from "./Figure";
 import { clock, thin, type IndexPoint } from "./IndexBasisChart";
 import ValueStrip from "./ValueStrip";
 
-const HEIGHT = 160;
-const MARGIN = { top: 12, right: 4, bottom: 22, left: 4 };
+const HEIGHT = 168;
+// `top` clears the 14px `coh-svg-note` rung the peak label draws at
+// (`MARGIN.top - 2`): at 12 the baseline was y=10 and the ascender was cut
+// by the viewBox. Same defect as `SurvivalChart` and `FeeParabola`, found by
+// the same guard. HEIGHT grows by the same eight so the plot is unchanged.
+const MARGIN = { top: 20, right: 4, bottom: 22, left: 4 };
 
 /** The tape stores nanoseconds; a clock label wants milliseconds. */
 const NS_PER_MS = 1_000_000;

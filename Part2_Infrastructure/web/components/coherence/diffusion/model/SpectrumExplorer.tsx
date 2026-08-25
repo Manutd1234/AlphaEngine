@@ -44,8 +44,11 @@ import Figure from "../../Figure";
 import { StateChip } from "../../Figure";
 import { useMeasuredWidth } from "@/components/chart-kit";
 
-const HEIGHT = 200;
-const MARGIN = { top: 16, right: 12, bottom: 26, left: 40 };
+const HEIGHT = 206;
+// `top` clears the 14px `coh-svg-note` rung the resolution note draws at
+// (`MARGIN.top - 4`): at 16 the baseline was y=12 and the ascender was cut.
+// Same defect and same guard as the two Quotes figures.
+const MARGIN = { top: 22, right: 12, bottom: 26, left: 40 };
 /** Wide enough that the tails contribute nothing at these eigenvalues. */
 const ALPHA_LOW = -12;
 const ALPHA_HIGH = 12;

@@ -21,11 +21,27 @@
  */
 
 import { DOLLAR_CC, priceLabel, toCenticents } from "@/lib/coherence/fixed-point";
+import { DIAGRAM_LEGEND_PX, advancePx } from "@/lib/coherence/label-metrics";
 import type { CoherenceSurface } from "@/lib/coherence/types-lab";
 import Figure, { FigureEmpty, Plot } from "./Figure";
 
-const HEIGHT = 178;
-const MARGIN = { top: 16, right: 12, bottom: 30, left: 12 };
+const HEIGHT = 188;
+/**
+ * `top` is 26 and not 16, and the ten pixels are load-bearing.
+ *
+ * The median's reference line carries its own words — "half crossed by 80299.99"
+ * — drawn ABOVE the plot at `MARGIN.top - 8` on the 14px `--fs-diagram-legend`
+ * rung. At a top of 16 that put the baseline at y=8, and a 14px face has about
+ * eleven pixels of ascender above its baseline, so the text was drawn from y=-3
+ * and the viewBox cut its top third off. Screenshotted by the reader on Lattice
+ * and reproduced here at 1440px.
+ *
+ * The rule the number comes from: any text drawn above the plot needs a baseline
+ * of at least its own font size, so `MARGIN.top` must clear the rung it draws at
+ * plus whatever offset the caller subtracts. 26 − 8 = 18 against a 14px rung.
+ * `HEIGHT` grows by the same ten so the plot area itself is unchanged.
+ */
+const MARGIN = { top: 26, right: 12, bottom: 30, left: 12 };
 const HALF_CC = DOLLAR_CC / 2;
 const CAPTION = "The survival function, P(X ≥ k), at every strike the exchange quotes";
 
@@ -79,7 +95,15 @@ function missingLine(surface: CoherenceSurface, unreadable: number, rises: numbe
   if (rises) {
     parts.push(`${rises} step(s) rise with the strike, marked ▲. P(X ≥ k) cannot increase, so those are quoted violations, drawn as they arrived.`);
   }
-  return parts.filter(Boolean).join(" ");
+  // Each part is a SENTENCE, so each ends in a stop before they are joined.
+  // `surface.detail` arrives from the gateway without one, and the join used to
+  // hand the reader "…not a probability of zero Read from the bid side of each
+  // book", which is two sentences welded at a capital letter. Adding the stop
+  // here rather than at the source keeps the gateway's string its own.
+  return parts
+    .filter(Boolean)
+    .map((part) => (/[.!?]$/.test(part!.trim()) ? part!.trim() : `${part!.trim()}.`))
+    .join(" ");
 }
 
 export default function SurvivalChart({ surface }: { surface: CoherenceSurface }) {
@@ -187,9 +211,26 @@ export default function SurvivalChart({ surface }: { surface: CoherenceSurface }
                       two tabs treat identical furniture identically. 13px legend
                       rung via coh-figure__key (14q); the true ticks around it
                       ("0.5000", "1.0000", the strike endpoints) stay at the floor. */}
-                  <text x={x(median.x)} y={MARGIN.top - 8} textAnchor="middle" className="coh-figure__key">
-                    {`half crossed by ${median.strike}`}
-                  </text>
+                  {/* Clamped to the plot on both sides. `textAnchor="middle"`
+                      centres the words on the line, and the median sits at the
+                      right-hand end of most ladders this desk watches — so half
+                      the label was drawn past the viewBox and disappeared. The
+                      width comes from `advancePx`, which is measured rather
+                      than assumed; the old figures in this engine were out by
+                      up to 20%. */}
+                  {(() => {
+                    const words = `half crossed by ${median.strike}`;
+                    const half = advancePx(words, DIAGRAM_LEGEND_PX) / 2;
+                    const at = Math.min(
+                      Math.max(x(median.x), MARGIN.left + half),
+                      Math.max(MARGIN.left + half, width - MARGIN.right - half),
+                    );
+                    return (
+                      <text x={at} y={MARGIN.top - 8} textAnchor="middle" className="coh-figure__key">
+                        {words}
+                      </text>
+                    );
+                  })()}
                 </>
               ) : null}
               <text x={MARGIN.left} y={MARGIN.top - 4} className="coh-surface__tick">

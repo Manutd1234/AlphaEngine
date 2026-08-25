@@ -27,8 +27,23 @@ import { useMeasuredWidth } from "@/components/chart-kit";
 import { DOLLAR_CC, fromCenticents, toCenticents } from "@/lib/coherence/fixed-point";
 import Figure from "./Figure";
 
-const HEIGHT = 150;
-const MARGIN = { top: 12, right: 4, bottom: 20, left: 4 };
+const HEIGHT = 164;
+/**
+ * `top` is 26 and not 12, for the defect the reader screenshotted on Fees.
+ *
+ * The peak carries its own words — "0.0175 per contract" — drawn at
+ * `y(peak) - 3`, and `y(peak)` IS `MARGIN.top` by construction, since the peak
+ * is what the scale is normalised to. At a top of 12 the baseline was y=9 on
+ * the 14px `--fs-svg-note` rung, and a 14px face has about eleven pixels of
+ * ascender, so the reading was drawn from y=-2 and the viewBox cut its top off.
+ * "Cost shape" was one of the two figures named in "the diagrams are cut off".
+ *
+ * Same rule as `SurvivalChart`: text above the plot needs a baseline of at
+ * least its own font size, so `MARGIN.top` clears the rung plus the caller's
+ * offset. 26 − 3 = 23 against a 14px rung. `HEIGHT` grows by the same fourteen
+ * so the curve keeps the plot area it had.
+ */
+const MARGIN = { top: 26, right: 4, bottom: 20, left: 4 };
 const SAMPLES = 49;
 
 export default function FeeParabola({
@@ -86,7 +101,15 @@ export default function FeeParabola({
         {/* The peak figure is the curve's own reading, not a tick: it takes
             the diagram ladder's 13px note rung (coh-svg-note, 14r) while the
             three dollar ticks below stay on the 10px tick floor. */}
-        <text x={x(0.5)} y={y(peak) - 3} textAnchor="middle" className="coh-svg-note">
+        {/* `MARGIN.top - 3` and not `y(peak) - 3`, although the two are the same
+            number: `y` normalises the scale to the peak, so `y(peak)` IS
+            `MARGIN.top` by construction. Written the long way the arithmetic
+            that decides whether this label fits was invisible — to a reader and
+            to `coherence-figure-margins.test.ts`, which reads the margin a
+            label is offset from and could not see one here. That is how a
+            clipped label survived on the figure the reader screenshotted while
+            a guard written for exactly this defect passed. */}
+        <text x={x(0.5)} y={MARGIN.top - 3} textAnchor="middle" className="coh-svg-note">
           {fromCenticents(Math.round(peak))} per contract
         </text>
         <text x={MARGIN.left} y={HEIGHT - 5} className="coh-ladder__tick">
