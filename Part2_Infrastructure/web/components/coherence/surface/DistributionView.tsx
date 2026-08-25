@@ -35,6 +35,7 @@
 import type { CoherenceSurface } from "@/lib/coherence/types-lab";
 import Figure, { FigureEmpty, Plot } from "../Figure";
 import { toUnit } from "../FrechetBand";
+import MomentsShape from "./MomentsShape";
 import PmfChart from "../PmfChart";
 import SurvivalChart from "../SurvivalChart";
 
@@ -211,8 +212,30 @@ export default function DistributionView({ surface, view }: { surface: Coherence
   if (view === "moments") {
     return (
       <>
+        {/* THE SHAPE FIRST, since 2026-08-25 and "add more diagrams and
+            summarise the words". Every one of the four moments is a statement
+            about a shape, and the shape is in the payload — so it is drawn, with
+            each moment marked on it as the thing it says. The table that used to
+            open this view spent its third column telling a reader what its
+            second column meant, which is a glossary rather than a reading. */}
+        <MomentsShape
+          surface={surface}
+          meanLabel={decimalLabel(surface.mean, 4)}
+          sdLabel={decimalLabel(surface.standard_deviation, 4)}
+        />
         <MassSplitBar surface={surface} />
-        <FactTable caption="The moments of the implied distribution" facts={moments(surface)} />
+        {/* The numbers and their definitions both fold. The figure above states
+            all four in words a reader does not have to be taught; what the table
+            alone carries is the exact value and the term it belongs to, which is
+            what a reader opens a fold for. */}
+        <details className="disclosure">
+          <summary>The four moments as figures, and what each term means</summary>
+          <FactTable caption="The moments of the implied distribution" facts={moments(surface)} />
+          <p className="coh-surface__moments-note">
+            <span aria-hidden="true">◌</span> Every moment above is {surface.moments_note}. &ldquo;Not
+            computed.&rdquo; means the mass leaves it undefined — missing, never zero.
+          </p>
+        </details>
         <details className="disclosure">
           <summary>The three mass readings the bar splits, 3 rows and what each excludes</summary>
           <FactTable
@@ -220,10 +243,6 @@ export default function DistributionView({ surface, view }: { surface: Coherence
             facts={massReadings(surface)}
           />
         </details>
-        <p className="coh-surface__moments-note">
-          <span aria-hidden="true">◌</span> Every moment above is {surface.moments_note}. &ldquo;Not
-          computed.&rdquo; means the mass leaves it undefined — missing, never zero.
-        </p>
       </>
     );
   }

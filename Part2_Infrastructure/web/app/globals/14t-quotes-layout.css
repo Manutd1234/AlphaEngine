@@ -169,3 +169,23 @@
   margin: 4px 0 0;
   color: var(--text-secondary);
 }
+
+/* ── The moments silhouette ─────────────────────────────────────────────
+
+   `MomentsShape` draws the quoted mass as a filled outline so the four moments
+   can be marked ON the shape they describe rather than listed in a table whose
+   third column explains its second. The fill is deliberately quiet: the mean
+   line, the standard-deviation band and the tail word are the marks a reader is
+   meant to read, and a saturated silhouette under them would compete with all
+   three. `--series-1` at low alpha is the same treatment the settlement chart
+   gives its window band, which is the other figure on this tab that shades a
+   REGION rather than drawing a series.
+
+   Here rather than in 10d, which is the shared surface partial both tabs read:
+   this figure is drawn on one view of one Quotes section. */
+.coh-surface__shape {
+  fill: color-mix(in srgb, var(--series-1) 22%, transparent);
+  stroke: var(--series-1);
+  stroke-width: 1;
+  stroke-linejoin: round;
+}
