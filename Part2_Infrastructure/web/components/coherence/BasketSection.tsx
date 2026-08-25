@@ -30,6 +30,7 @@ import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import { verdictChip } from "./certificate-verdict";
 import FamilyChoice, { type FamilySectionProps } from "./FamilyChoice";
 import { StateChip } from "./Figure";
+import BasketWhatIf from "./BasketWhatIf";
 import PortfolioPane from "./PortfolioPane";
 import SectionVerdict from "./SectionVerdict";
 
@@ -98,6 +99,15 @@ export default function BasketSection({
             </>
           ) : null}
         </SectionVerdict>
+
+        {/* NOT GATED ON `answer`, and that is the point of drawing it here.
+            The certificate takes seconds on a 188-strike family; the QUOTES it
+            is about are already in memory, off the universe read the picker
+            above is built from. Gated, the one operated figure on this tab
+            vanished exactly while a reader was waiting for something to look
+            at. `BasketWhatIf` moved here from the Coherence test on 2026-08-26:
+            it is the cost of a cover, which is this section's subject. */}
+        {chosen ? <BasketWhatIf event={chosen} /> : null}
 
         {answer ? <PortfolioPane certificate={answer} chosen={chosen} /> : null}
       </FamilyChoice>

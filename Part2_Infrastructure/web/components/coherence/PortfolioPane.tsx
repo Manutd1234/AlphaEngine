@@ -39,7 +39,7 @@
  */
 
 import type { CoherenceCertificate, CoherenceEventView } from "@/lib/coherence/types";
-import MarginAxis from "./MarginAxis";
+import ShortfallScale from "./ShortfallScale";
 import PayoffByState from "./PayoffByState";
 import { statValue } from "./ReliabilityDiagram";
 import StateCoverage, { type CoverageState } from "./StateCoverage";
@@ -158,11 +158,16 @@ export default function PortfolioPane({ certificate, chosen }: {
             portfolio does. The sentence that used to stand in for a drawing
             here is now one clause under two of them. */}
         <div className="coh-figpair">
-          <MarginAxis
+          {/* NOT `MarginAxis`, which stays on the Coherence test's verdict view
+              where it answers a yes/no beside the check ladder. Here the
+              question is HOW FAR, and on the answer this branch exists for —
+              no basket, because the family is coherent — a linear axis puts the
+              optimum, the threshold and zero on one pixel. That is the straight
+              line the reader reported. */}
+          <ShortfallScale
             margin={certificate.margin}
             verdict={certificate.verdict}
             engine={certificate.engine}
-            pricedOut={Boolean(certificate.priced_out)}
           />
           <StateCoverage certificate={certificate} states={states} exact={exact} />
         </div>

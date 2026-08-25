@@ -48,7 +48,7 @@
  * only ever match here says so in its selector.
  */
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import PageHead from "@/components/workspace/PageHead";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
@@ -63,7 +63,8 @@ import LessonsPane from "@/components/coherence/LessonsPane";
 import StatusPane from "@/components/coherence/StatusPane";
 import { COHERENCE_SECTIONS, type CoherenceSection } from "@/lib/sections";
 import {
-  calibrationHistoryRoute, calibrationRoute, combosRoute, indexRoute, statusRoute, universeRoute,
+  calibrationHistoryRoute, calibrationRoute, certifyRoute, combosRoute, indexRoute, statusRoute,
+  universeRoute,
 } from "@/lib/coherence/routes";
 import { COHERENCE_POLL_MS, useCoherenceRead, warmCoherenceRead } from "@/lib/coherence/use-coherence";
 import type { CoherenceStatus, CoherenceUniverse } from "@/lib/coherence/types";
@@ -155,6 +156,28 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
   const warmSection = useCallback((next: CoherenceSection) => {
     for (const url of SECTION_READS[next]) warmCoherenceRead(url);
   }, []);
+
+  /**
+   * Start the certificate as soon as a family is known, rather than when a
+   * section that reads it is opened.
+   *
+   * WHY IT IS NOT IN `SECTION_READS`. The static warm plan runs before a reader
+   * has chosen anything, and `certifyRoute` needs a family — warming one there
+   * would be the tab picking a family on the reader's behalf, which is the rule
+   * `coherence-reads` holds that block to. This is different: the family is
+   * already decided, by the reader or by the universe read that just landed, so
+   * there is nothing left to guess.
+   *
+   * WHAT IT BUYS. Two sections read this URL and neither can ask for it until
+   * `target` exists, because `target` is derived from the universe answer — so
+   * the chain is universe, then derive, then certify, strictly in series, and
+   * a reader who opens Basket or Parlays first pays the whole of it again when
+   * they reach the test. One warm and the read-cache answers all of them.
+   */
+  useEffect(() => {
+    if (!active || !target) return;
+    warmCoherenceRead(certifyRoute(target));
+  }, [active, target]);
 
   return (
     <div className="coherence-plane proofs-plane">

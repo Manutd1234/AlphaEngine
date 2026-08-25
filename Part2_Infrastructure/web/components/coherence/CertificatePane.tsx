@@ -37,7 +37,6 @@ import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import { ProofView, VerdictView, verdictReading } from "./CertificateViews";
 import { verdictChip } from "./certificate-verdict";
 import FamilyChoice, { type FamilySectionProps } from "./FamilyChoice";
-import BasketWhatIf from "./BasketWhatIf";
 import LadderPrices from "./LadderPrices";
 import { StateChip } from "./Figure";
 import SectionVerdict from "./SectionVerdict";
@@ -151,14 +150,14 @@ export default function CertificatePane({
             spinner and nothing else while the whole book sat in memory.
 
             Verdict only: on Proof the subject is the certificate itself. */}
-        {view === "verdict" && chosen ? (
-          <>
-            <LadderPrices event={chosen} />
-            {/* The prices, then what they cost as a set. In that order because
-                the second is a reading OF the first. */}
-            <BasketWhatIf event={chosen} />
-          </>
-        ) : null}
+        {/* THE PRICES THE VERDICT IS ABOUT, and only those. `BasketWhatIf` was
+            drawn here too until 2026-08-26 and has moved to Basket, which is
+            the section it names: it is the operated figure of what a cover
+            COSTS, and Basket is where a reader goes for the portfolio rather
+            than for the verdict. It also left this section with two figures
+            about prices and Basket with two that degenerate on the ordinary
+            answer, which is the imbalance the reader saw. */}
+        {view === "verdict" && chosen ? <LadderPrices event={chosen} /> : null}
       </FamilyChoice>
     </section>
   );

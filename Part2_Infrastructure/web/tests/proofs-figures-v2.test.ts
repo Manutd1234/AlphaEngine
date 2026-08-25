@@ -43,6 +43,11 @@ const FIGURES: Record<string, { file: string; drawnIn: string; replaces: string 
     drawnIn: "../components/coherence/CertificateViews.tsx",
     replaces: "a two-row ValueStrip of rows tested against rows skipped",
   },
+  ShortfallScale: {
+    file: "../components/coherence/ShortfallScale.tsx",
+    drawnIn: "../components/coherence/PortfolioPane.tsx",
+    replaces: "a linear margin axis whose mark sat on its own threshold",
+  },
 };
 
 describe("the figures that replace a drawn scalar", () => {

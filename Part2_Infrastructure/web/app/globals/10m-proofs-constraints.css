@@ -132,3 +132,62 @@
   fill: var(--text-secondary);
   font-size: var(--fs-tick);
 }
+
+/* ── The decade scale ───────────────────────────────────────────────────────
+   Four magnitudes on a logarithmic axis, drawn for the Basket section because
+   a linear one put three of them on the same pixel. Lollipops rather than bars:
+   the quantity is a POSITION on a scale, and a bar from an origin that is only
+   an origin by convention invites reading its length as the figure. */
+
+.coh-decade__rule {
+  stroke: var(--grid);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.coh-decade__under {
+  fill: url(#diff-hatch);
+  stroke: var(--border);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.coh-decade__stem {
+  stroke: var(--rule);
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+}
+
+.coh-decade__stem.is-subject {
+  stroke: color-mix(in srgb, var(--series-1) 55%, var(--surface-1));
+  stroke-width: 2;
+}
+
+.coh-decade__dot { fill: var(--text-secondary); }
+.coh-decade__dot.is-subject { fill: var(--series-1); }
+/* The one state where the answer is a trade rather than a margin. It also
+   carries a word — the figure's reading names it — so the colour is not the
+   only thing saying so. */
+.coh-decade__dot.is-clearing { fill: var(--status-critical); }
+
+.coh-decade__label {
+  fill: var(--text-secondary);
+  font-size: var(--fs-diagram-label);
+}
+
+.coh-decade__value {
+  fill: var(--text-primary);
+  font-size: var(--fs-diagram-label);
+  font-variant-numeric: tabular-nums;
+}
+
+.coh-decade__withheld {
+  fill: var(--text-muted);
+  font-size: var(--fs-diagram-label);
+}
+
+.coh-decade__tick {
+  fill: var(--text-secondary);
+  font-size: var(--fs-tick);
+  font-variant-numeric: tabular-nums;
+}

@@ -76,6 +76,12 @@ const DRAWINGS = [
   // every inequality has left, sorted. Verified to open on a drawing itself by
   // the LOCAL table at the foot of this file.
   "ConstraintLadder",
+  // Basket, 2026-08-26. It replaced `MarginAxis` on the no-legs branch — the
+  // ordinary answer, where a linear axis puts an optimum of -0.000000, a
+  // threshold of 0.0001 and zero on the same pixel and the figure is one
+  // horizontal rule. Four magnitudes on a decade scale instead. `MarginAxis`
+  // keeps the Coherence test's verdict view, where the question is a yes/no.
+  "ShortfallScale",
 ];
 
 /**
@@ -376,6 +382,7 @@ describe("every Proofs view opens on a drawing", () => {
       InstrumentFit: "../components/coherence/diffusion/InstrumentFit.tsx#InstrumentFit",
       MeetingCalendar: "../components/coherence/diffusion/MeetingCalendar.tsx#MeetingCalendar",
       ConstraintLadder: "../components/coherence/ConstraintLadder.tsx#ConstraintLadder",
+      ShortfallScale: "../components/coherence/ShortfallScale.tsx#ShortfallScale",
     };
     for (const [name, at] of Object.entries(LOCAL)) {
       const [file, fn] = at.split("#");

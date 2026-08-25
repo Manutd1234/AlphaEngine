@@ -72,6 +72,11 @@ const RUNG: Record<string, number> = {
   "diff-time__label": DIAGRAM_LABEL_PX,
   "coh-surface__tick": TICK_PX,
   "coh-ladder__tick": TICK_PX,
+  // The decade scale's axis words, added 2026-08-26 with `ShortfallScale`. The
+  // one it draws above `MARGIN.top` is the label for the band that holds
+  // anything under a tick — it moved there because under the band it shared a
+  // baseline with the first decade tick and the two printed over each other.
+  "coh-decade__tick": TICK_PX,
 };
 
 function figures(dir: string): string[] {
