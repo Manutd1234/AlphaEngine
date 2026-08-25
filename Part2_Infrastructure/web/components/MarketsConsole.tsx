@@ -274,7 +274,11 @@ export default function MarketsConsole({ section, onSectionChange, active = true
             are priced against an outcome, and the variable that outcome is read
             from is the next question the baskets raise — but the NEXT question
             is a different question, and a switcher holds views of one. */}
-        <UniverseSection universe={universe.data} error={universe.error} />
+        {/* The read's own stamp, threaded from here because the read is. Every
+            other section owns its `useCoherenceRead` and gets `updatedAt` with
+            the payload; this one is handed the data, so it has to be handed the
+            moment too or its tape would append a point per render. */}
+        <UniverseSection universe={universe.data} error={universe.error} updatedAt={universe.updatedAt} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="markets" tabId="settlement" activeId={section}>

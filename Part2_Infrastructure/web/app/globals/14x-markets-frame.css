@@ -123,3 +123,64 @@
 }
 
 
+/* ── The live tape ──────────────────────────────────────────────────────
+
+   `LiveTape` draws what THIS browser has watched happen since the tab opened —
+   the one figure on the engine whose time axis is not the gateway's recorded
+   tape. Five marks, and each borrows a treatment the plane already paints
+   rather than inventing one.
+
+   THE SIZES READ THE DIAGRAM LADDER AND DECLARE NO RUNG. `--fs-diagram-label`
+   and `--fs-tick` are declared in `14r-coherence-density.css`, which owns that
+   ladder for this plane; spending them here is reading it, and a `13px` or a
+   `--fs-body` in their place would be a second authority for one measurement.
+   SVG text is drawn in user units and does not step with the reader's Text-size
+   preference, which is why these are the px tokens and never a prose rung. */
+.coh-tape__line {
+  fill: none;
+  stroke: var(--series-1);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+/* The newest reading. "What is it now" is the first question a live figure is
+   asked, and a line's right-hand end is not obviously the answer once the tape
+   has breaks in it. */
+.coh-tape__latest {
+  fill: var(--series-1);
+  stroke: var(--surface-1);
+  stroke-width: 1.5;
+}
+
+/* The line the reader judges against — a dollar, a zero, a window mean. Drawn
+   OVER the series like every reference on this tab, so it is dashed rather than
+   heavy: it must be legible across the data without hiding it. */
+.coh-tape__reference {
+  stroke: var(--text-primary);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.coh-tape__reference-label {
+  fill: var(--text-primary);
+  font-size: var(--fs-tick);
+}
+
+.coh-tape__grid {
+  stroke: var(--grid);
+  stroke-width: 1;
+}
+
+/* True axis numerals, so the ladder's floor rather than its label rung — the
+   same reading `.coh-surface__tick` settled on for the lattice's own axes. */
+.coh-tape__tick {
+  fill: var(--text-secondary);
+  font-size: var(--fs-tick);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The right-hand end label ("now") is anchored to the plot's right edge, so it
+   hangs left of it rather than overrunning the viewBox — the clipping this
+   engine has spent two passes removing from its label gutters. */
+.coh-tape__tick--end { text-anchor: end; }

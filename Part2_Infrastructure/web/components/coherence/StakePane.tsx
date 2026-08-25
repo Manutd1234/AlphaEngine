@@ -57,6 +57,9 @@ import type { CoherenceKelly } from "@/lib/coherence/types-lab";
 import { stakeRoute, universeRoute } from "@/lib/coherence/routes";
 import FamilyPicker from "./FamilyPicker";
 import type { Reading } from "./KpiRow";
+import LiveTape from "./LiveTape";
+import { toUnit } from "./FrechetBand";
+import { useLiveSeries } from "@/lib/coherence/use-live-series";
 import PaneHead, { PaneHeadEmpty } from "./PaneHead";
 import SectionFrame from "./SectionFrame";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
@@ -163,6 +166,17 @@ export default function StakePane({
   // read as a plan the solver nearly made.
   const kpis = kelly && kelly.engine !== "unavailable" ? readings(kelly) : undefined;
 
+  /* The growth rate over time, keyed by family. Zero is the reference and it is
+     the whole reading: a log-optimal plan whose growth rate is zero is the
+     solver saying "stake nothing", which is what it says on the market's own
+     mids — so a series that lifts off the line is the moment the quotes stopped
+     being a fair game, and that moment is invisible in any one poll. */
+  const growthTape = useLiveSeries(
+    `stake:${target}:growth`,
+    stake.updatedAt,
+    kelly && kelly.engine !== "unavailable" ? toUnit(kelly.growth_rate) : null,
+  );
+
   return (
     <SectionFrame
       className="coh-kelly"
@@ -198,6 +212,14 @@ export default function StakePane({
       ) : (
         <>
           {view === "family" ? <FamilyView kelly={kelly} /> : <StakeView kelly={kelly} view={view} />}
+
+          <LiveTape
+            points={growthTape}
+            caption="What log-optimal growth has been worth, poll by poll"
+            ariaLabel="The plan's growth rate over the polls seen since this tab opened"
+            reference={{ value: 0, label: "stake nothing" }}
+            reading="On the market's own mids the solver returns zero; a reading off that line is the moment these quotes stopped being a fair game."
+          />
 
           <p className="coh-kelly__note">
             A reading of prices and not a forecast: fed the market&rsquo;s own mids, the solver returns

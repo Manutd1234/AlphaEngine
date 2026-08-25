@@ -67,6 +67,9 @@ import type { CoherenceSurface } from "@/lib/coherence/types-lab";
 import { surfaceRoute, universeRoute } from "@/lib/coherence/routes";
 import FamilyPicker from "./FamilyPicker";
 import type { Reading } from "./KpiRow";
+import LiveTape from "./LiveTape";
+import { toUnit } from "./FrechetBand";
+import { useLiveSeries } from "@/lib/coherence/use-live-series";
 import PaneHead, { PaneHeadEmpty } from "./PaneHead";
 import SectionFrame from "./SectionFrame";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
@@ -150,6 +153,20 @@ export default function SurfacePane({
 
   const kpis = surface.data ? readings(surface.data) : undefined;
 
+  /* The quoted mass over time, keyed by the FAMILY, so switching families
+     starts a new series rather than welding a step between two distributions
+     and calling it a move. Total mass is the one figure on this section that a
+     reader has a reference for — a measure that admits a probability sums to
+     one — and whether it is drifting away from that is a question no snapshot
+     can answer. `toUnit` and not `toCenticents`: this is a position on a track
+     rather than a price to trade, which is the distinction that helper exists
+     for. */
+  const massTape = useLiveSeries(
+    `lattice:${target}:mass`,
+    surface.updatedAt,
+    surface.data ? toUnit(surface.data.total_mass) : null,
+  );
+
   if (!target) {
     return (
       <SectionFrame
@@ -196,6 +213,13 @@ export default function SurfacePane({
       ) : surface.data.bins.length ? (
         <>
           <DistributionView surface={surface.data} view={view} />
+          <LiveTape
+            points={massTape}
+            caption="The mass these quotes imply, poll by poll"
+            ariaLabel="Total quoted mass over the polls seen since this tab opened"
+            reference={{ value: 1, label: "a probability sums to 1" }}
+            reading="A measure that admits a probability sums to one; the distance from that line is what differencing left over or short."
+          />
           <TruncationNote />
         </>
       ) : (

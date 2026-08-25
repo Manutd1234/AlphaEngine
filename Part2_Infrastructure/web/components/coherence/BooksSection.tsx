@@ -59,6 +59,9 @@ import type { CoherenceBooks } from "@/lib/coherence/types";
 import { booksRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import BooksPane, { type BookDetailView } from "./BooksPane";
+import LiveTape from "./LiveTape";
+import { toUnit } from "./FrechetBand";
+import { useLiveSeries } from "@/lib/coherence/use-live-series";
 import MarketPicker from "./MarketPicker";
 import PaneHead from "./PaneHead";
 import SectionFrame from "./SectionFrame";
@@ -85,6 +88,19 @@ export default function BooksSection({ active }: { active: boolean }) {
   // picker has to show the ticker the drawing is actually of, and after a
   // repoll that dropped the chosen market they are not the same string.
   const current = books_.find((book) => book.ticker === selected)?.ticker ?? books_[0]?.ticker ?? "";
+  const drawn = books_.find((book) => book.ticker === current) ?? null;
+
+  /* The best YES bid over time, keyed by the MARKET. The bid and not the
+     implied ask, because the bid is what the venue actually sends — the ask on
+     every other figure here is read off the opposite ladder, and a tape of a
+     derived number would put two inferences between the reader and the venue.
+     No reference line: a price has no level it ought to be at, which is exactly
+     what distinguishes this section from the baskets. */
+  const bidTape = useLiveSeries(
+    `books:${current}:bid`,
+    books.updatedAt,
+    drawn ? toUnit(drawn.best_yes_bid) : null,
+  );
 
   return (
     <SectionFrame
@@ -128,6 +144,15 @@ export default function BooksSection({ active }: { active: boolean }) {
       ) : null}
     >
       <BooksPane books={books.data} error={books.error} view={view} selected={selected} />
+
+      {current ? (
+        <LiveTape
+          points={bidTape}
+          caption={`What ${current} has been bid, poll by poll`}
+          ariaLabel="The best YES bid over the polls seen since this tab opened"
+          reading="The bid as the venue sends it; every offer on this section is read off the opposite ladder, so this is the one price here that is not an inference."
+        />
+      ) : null}
     </SectionFrame>
   );
 }

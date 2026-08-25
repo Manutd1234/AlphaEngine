@@ -65,6 +65,10 @@ import { useMemo, useState } from "react";
 
 import type { CoherenceUniverse } from "@/lib/coherence/types";
 import FamilyPicker from "./FamilyPicker";
+import LiveTape from "./LiveTape";
+import { toUnit } from "./FrechetBand";
+import { fromCenticents, sumPrices } from "@/lib/coherence/fixed-point";
+import { useLiveSeries } from "@/lib/coherence/use-live-series";
 import PaneHead from "./PaneHead";
 import SectionFrame from "./SectionFrame";
 import UniversePane, { type UniverseView } from "./UniversePane";
@@ -84,9 +88,16 @@ export interface UniverseSectionProps {
   /** The shared universe read, passed straight through from the console. */
   universe: CoherenceUniverse | null;
   error: string | null;
+  /**
+   * When that read landed. Threaded from the console because the READ is:
+   * every other section on the tab owns its own `useCoherenceRead` and takes
+   * `updatedAt` off it, and without the moment this section's tape could not
+   * tell a poll from a re-render.
+   */
+  updatedAt?: Date | null;
 }
 
-export default function UniverseSection({ universe, error }: UniverseSectionProps) {
+export default function UniverseSection({ universe, error, updatedAt = null }: UniverseSectionProps) {
   const [view, setView] = useState<UniverseView>("baskets");
   const [category, setCategory] = useState<string>(ALL);
   const [picked, setPicked] = useState<string | null>(null);
@@ -117,6 +128,19 @@ export default function UniverseSection({ universe, error }: UniverseSectionProp
   // falls back to the first family of the new set instead of a blank card.
   const family = shown.find((event) => event.event_ticker === picked) ?? shown[0] ?? null;
 
+  /* What a whole dollar of THIS family costs, poll by poll, against the dollar
+     it pays. It is the tab's opening question given a time axis: a basket at
+     1.0600 is a fact about this instant, and whether it has been there all
+     afternoon or crossed a minute ago is what decides whether it is worth
+     anything — and no figure on the engine could answer it.
+     Keyed by the family, so choosing another starts a new series rather than
+     drawing a step between two watchlists. Only on Families: the Baskets view
+     compares every family at once and has no single number to plot. */
+  const basketTape = useLiveSeries(
+    `universe:${family?.event_ticker ?? ""}:ask`,
+    updatedAt,
+    family ? toUnit(fromCenticents(sumPrices(family.markets.map((market) => market.yes_ask)))) : null,
+  );
   /* The subject, and it is TWO halves of one choice rather than two decisions:
      the filter narrows the picker's options and the picker chooses one of them.
      Drawn at all only when there is something to choose — one option is no
@@ -197,6 +221,17 @@ export default function UniverseSection({ universe, error }: UniverseSectionProp
         error={error}
         filtered={view === "families" && category !== ALL}
       />
+
+      {view === "families" && family ? (
+        <LiveTape
+          points={basketTape}
+          caption={`What a whole dollar of ${family.event_ticker} has cost, poll by poll`}
+          ariaLabel="The cost of buying every outcome, over the polls seen since this tab opened"
+          reference={{ value: 1, label: "the dollar it pays" }}
+          reading="Above the line, buying every outcome costs more than the dollar the family pays out; below it, the whole basket is on offer for less than it settles at."
+          missing="Every leg has to be quoted for a total to exist, so a poll where one outcome lost its ask is a break rather than a cheaper basket."
+        />
+      ) : null}
     </SectionFrame>
   );
 }

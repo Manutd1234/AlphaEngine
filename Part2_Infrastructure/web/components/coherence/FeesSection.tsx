@@ -46,6 +46,9 @@ import { useState } from "react";
 
 import type { CoherenceFees } from "@/lib/coherence/types";
 import { feesRoute } from "@/lib/coherence/routes";
+import LiveTape from "./LiveTape";
+import { toUnit } from "./FrechetBand";
+import { useLiveSeries } from "@/lib/coherence/use-live-series";
 import PaneHead from "./PaneHead";
 import SectionFrame from "./SectionFrame";
 import type { Reading } from "./KpiRow";
@@ -81,6 +84,14 @@ export default function FeesSection({ active }: { active: boolean }) {
 
   const share = fees.data?.net_as_fraction_of_notional ?? null;
   const overNotional = feesExceedNotional(share);
+
+  /* The fee share over time, keyed by the WORKED EXAMPLE, because changing the
+     example changes the question — a series that stepped from one example to
+     another would draw the reader's own click as a move in the market. The
+     reference is 1: the section's whole claim is that the net fee can exceed
+     the notional traded, and a line at the notional is what makes "exceeds"
+     something a reader can see rather than something they are told. */
+  const shareTape = useLiveSeries(`fees:${example.id}:share`, fees.updatedAt, toUnit(share));
 
   /* The one figure neither table states, and it is answered on all four views
      because the read is one request against the fee endpoint rather than a tape
@@ -150,6 +161,14 @@ export default function FeesSection({ active }: { active: boolean }) {
       ) : (
         <FeesPane fees={fees.data} error={fees.error} view={view as FeesView} />
       )}
+
+      <LiveTape
+        points={shareTape}
+        caption={`What ${example.label.toLowerCase()} has cost as a share of its notional, poll by poll`}
+        ariaLabel="The fee as a share of notional over the polls seen since this tab opened"
+        reference={{ value: 1, label: "the notional traded" }}
+        reading="Above the line the fee is larger than the position it is charged on, which is the claim this section opens with."
+      />
     </SectionFrame>
   );
 }
