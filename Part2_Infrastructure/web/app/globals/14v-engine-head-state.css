@@ -62,9 +62,25 @@
    asked for and what `.cockpit-strip--compact .cockpit-strip__metrics` already
    does with the same `<dl>` markup two directories away. Two columns rather
    than that file's four: this sits in a 62ch column, not across a card. */
+/* ONE ROW, EVERY METRIC, since 2026-08-25. It was two columns, which put the
+   five metrics on three rows — "Recorded so far / Last poll", then "Read
+   budget / Coherence solver", then "Families priced" alone across the bottom —
+   and the reader asked for the last three "to the right of the table, the table
+   should be one row".
+
+   `grid-auto-flow: column` rather than `repeat(5, …)`, so the rule is about the
+   SHAPE and not about how many metrics there happen to be: a sixth would join
+   the row instead of silently starting a second one under a rule that says
+   five. That also retires three sibling selectors below — the odd/even border
+   resets and the odd-last-child span were all arithmetic about two columns.
+
+   `minmax(0, 1fr)` and not `auto`: equal columns, and the `0` floor is what
+   lets a long figure wrap inside its cell instead of widening the track and
+   pushing the row past the box. */
 .coherence-plane .coh-facts--tabled {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   gap: 0;
   margin: 0;
   border: 1px solid var(--rule);
@@ -75,23 +91,17 @@
 
 .coherence-plane .coh-facts--tabled > div {
   display: grid;
+  /* The label row and the figure row, so every cell's rule lines up with its
+     neighbours' whatever length the figures are. Without it a cell whose label
+     wraps sets its own divider a line lower than the rest of the row. */
+  grid-template-rows: auto 1fr;
   gap: 0;
   min-inline-size: 0;
   border-left: 1px solid var(--rule-soft);
 }
 
-.coherence-plane .coh-facts--tabled > div:nth-child(odd) {
+.coherence-plane .coh-facts--tabled > div:first-child {
   border-left: 0;
-}
-
-.coherence-plane .coh-facts--tabled > div:nth-child(n + 3) {
-  border-top: 1px solid var(--rule-soft);
-}
-
-/* An odd last cell spans, rather than leaving a hole beside it. Five facts in
-   two columns is what put `Families priced` on a row of its own. */
-.coherence-plane .coh-facts--tabled > div:last-child:nth-child(odd) {
-  grid-column: 1 / -1;
 }
 
 .coherence-plane .coh-facts--tabled dt {

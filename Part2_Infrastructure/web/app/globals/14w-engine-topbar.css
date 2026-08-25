@@ -39,29 +39,65 @@
   border-bottom: 1px solid var(--grid);
 }
 
-/* The chips column: still in the heading's `flex-end` row, still holding the
-   clock. `FreshnessStamp` re-renders every second and its string changes
-   length, and `.page-heading__actions` is `flex: 0 0 auto` — so without a
-   reservation the whole row's left edge would move once a minute beside a
-   title that is not moving. Same rule shape `page-status-book.test.ts` pins for
-   the Portfolio strip, and for the same reason: a `ch` width so it steps with
-   the reader's Text-size preference, `max-width: 100%` so it collapses rather
-   than overflowing, and no `nowrap`/`ellipsis`/`overflow: hidden` — it wraps,
-   it never clips. */
+/* ONE LINE: the four chips and the clock, since 2026-08-25.
+
+   It was a 34ch column, so the chips wrapped one per line and the stamp sat
+   under them — five stacked rows in a head with an empty middle. The reader
+   asked for them "in one row and make it one line with the updated line in one
+   row". The head has the width: the title column is `flex: 1` beside an actions
+   slot that takes only what it needs, and at every width this desk is used at
+   the middle of that row was blank.
+
+   THE RESERVATION MOVED TO THE THING THAT ACTUALLY TICKS rather than being
+   dropped. The 34ch existed because `FreshnessStamp` re-renders every second
+   and its string changes length — and in a `flex-end` row a box that grows and
+   shrinks drags everything left of it once a second. Reserving the whole column
+   fixed that by making the column too narrow to hold one line, which is the
+   defect the reader is reporting. Reserving the STAMP fixes it at the source:
+   the chips are static, the clock is pinned, and nothing moves.
+
+   `max-width: 100%` so the row collapses rather than overflowing, and no
+   `nowrap`/`ellipsis`/`overflow: hidden` — it wraps, it never clips. */
 .coherence-plane .page-heading__actions .coh-headchips {
-  display: grid;
-  gap: var(--space-1);
-  justify-items: end;
-  width: 34ch;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
   max-width: 100%;
   margin-bottom: 0;
 }
 
+/* The pin, and the number is a MEASUREMENT — the first value written here was
+   43ch and it was a guess wearing a measurement's clothes, 16px short of the
+   live rendering it claimed to cover.
+
+   Taken in Chrome at 1600px on 2026-08-25 by sampling the stamp's own box every
+   five seconds across both states, with `1ch` measured in the same element
+   (7.8844px at this rung) so the answer could be stated in `ch` honestly:
+
+     running   354.6px = 44.97ch   "Updated 22:17:09 12s ago; every 20 s; polled"
+     paused    384.6px = 48.78ch   "Updated 22:18:13 20s ago; polling paused; polled"
+
+   PAUSED IS THE WIDE ONE, which is the part counting characters off a screenshot
+   would have missed: "polling paused" is four characters longer than "every
+   20 s", and a reservation measured only while the desk was polling would have
+   let the row jump the moment a reader pressed Pause. 49ch, rounded up from the
+   widest of the two.
+
+   `ch` and not `px` so it steps with the reader's Text-size preference exactly
+   as the digits inside it do. */
+.coherence-plane .coh-headchips .freshness-stamp {
+  min-width: 49ch;
+  justify-content: flex-end;
+}
+
 /* The facts table, under the title and on the left, which is where the reader
-   put it. `max-inline-size` rather than a column: five metrics across the full
-   width of a 1640px desk would set each label a long way from its figure. */
+   put it. It spans the box now: five metrics on ONE row need the width, and
+   capping it at 62ch is what forced the two-column, three-row shape the reader
+   asked to be rid of. */
 .coherence-plane .coh-topbar .coh-headstate {
-  max-inline-size: 62ch;
+  max-inline-size: none;
 }
 
 @media (max-width: 1120px) {

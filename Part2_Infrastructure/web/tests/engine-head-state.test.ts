@@ -134,22 +134,43 @@ describe("a ticking clock cannot reflow the heading row", () => {
 
   const reservation = rules.find((rule) =>
     rule.selector.includes(".page-heading__actions .coh-headchips"));
+  // THE RESERVATION MOVED ONTO THE THING THAT TICKS on 2026-08-25, and this is
+  // the selector that now carries it.
+  const clock = rules.find((rule) =>
+    rule.selector.includes(".coh-headchips .freshness-stamp"));
 
-  it("the panel reserves its width in ch", () => {
-    // `FreshnessStamp` re-renders every second inside this box and its string
-    // changes length. `.page-heading__actions` is `flex: 0 0 auto`, so a
-    // content-sized panel would move its own left edge once a minute beside a
-    // title that is not moving. Same rule shape `page-status-book.test.ts` pins
-    // for the Portfolio strip, and for the same reason.
-    assert.ok(reservation, "the panel declares no width, so it breathes with the clock");
-    assert.match(reservation.body, /width:\s*\d+ch/,
+  it("the clock reserves its width in ch", () => {
+    // `FreshnessStamp` re-renders every second and its string changes length,
+    // and it sits in a `flex-end` row — so a content-sized stamp drags every
+    // chip left of it once a second, beside a title that is not moving. Same
+    // rule shape `page-status-book.test.ts` pins for the Portfolio strip.
+    //
+    // IT USED TO BE PINNED ON THE WHOLE CHIPS COLUMN, at 34ch, and that is why
+    // this assertion moved rather than relaxed: a column narrow enough to be
+    // stable was too narrow to hold the four chips and the clock on one line,
+    // so they stacked five deep. Pinning the clock is the same guarantee at the
+    // source — the chips are static, the only thing that changes width is
+    // fixed, and nothing moves. Asserting it HERE rather than on the column is
+    // what stops the fix being undone by dropping the width altogether.
+    assert.ok(clock, "nothing reserves the clock's width, so it breathes and drags the chips with it");
+    assert.match(clock.body, /min-width:\s*\d+ch/,
       "a ch reservation steps with the reader's Text-size preference; px does not");
+  });
+
+  it("and the row it sits in collapses rather than overflowing", () => {
+    assert.ok(reservation, "the chips row declares no rule at all");
     assert.match(reservation.body, /max-width:\s*100%/,
-      "without this the reservation overflows the moment the head goes to one column");
+      "without this the row overflows the moment the head goes to one column");
+    assert.doesNotMatch(reservation.body, /width:\s*\d+ch/,
+      "a fixed width on the COLUMN is what forced the chips to stack; the clock carries the reservation now");
   });
 
   it("the panel wraps rather than clipping", () => {
     assert.ok(reservation);
+    // The CLOCK is exempt from `nowrap` and always was: `.freshness-stamp` sets
+    // it in `13-warm-bright-pass.css` because a timestamp broken across two
+    // lines is unreadable, and a reserved width means it never needs to wrap.
+    // What may not clip is the row, which is where a chip would be lost.
     for (const banned of [/white-space:\s*nowrap/, /text-overflow:\s*ellipsis/, /overflow:\s*hidden/]) {
       assert.doesNotMatch(reservation.body, banned,
         "a fixed box that also clips hides the figure instead of wrapping it");
