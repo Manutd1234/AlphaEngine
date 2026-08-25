@@ -34,7 +34,26 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { read } from "./helpers/workspace-sources";
+
+const WEB = fileURLToPath(new URL("..", import.meta.url));
+
+function filesUnder(dir: string, match: RegExp): string[] {
+  const out: string[] = [];
+  const walk = (at: string) => {
+    for (const entry of readdirSync(at)) {
+      const path = join(at, entry);
+      if (statSync(path).isDirectory()) walk(path);
+      else if (match.test(entry)) out.push(path);
+    }
+  };
+  walk(join(WEB, dir));
+  return out;
+}
 
 /** Field names per `export interface`, with comments and nested braces handled. */
 function interfaces(source: string): Map<string, Set<string>> {
@@ -112,5 +131,114 @@ describe("every hand-written wire type answers to the published contract", () =>
     }
     assert.deepEqual(invented, [],
       `the desk's types declare these and the gateway sends no such field:\n  ${invented.join("\n  ")}`);
+  });
+});
+
+
+/**
+ * The wire modules whose guards the proxy routes are supposed to call.
+ *
+ * Scoped to the wire types rather than the whole tree: an unused predicate in a
+ * view module is a tidiness question, and this one is a correctness question.
+ */
+const GUARD_MODULES = [
+  "lib/coherence/types.ts",
+  "lib/coherence/types-lab.ts",
+  "components/coherence/diffusion/types.ts",
+];
+
+describe("a guard that exists is a guard that is called", () => {
+  it("leaves no wire guard uncalled", () => {
+    // THE DEFECT THIS IS FOR, and it is not hypothetical. `isAbsorptionRead`
+    // and `isEventsRead` sat in the diffusion types with no caller anywhere in
+    // the tree, while the three diffusion routes carried a SECOND, WEAKER copy
+    // inline — one that asked only that `state` was a string. The duplicate was
+    // not the first mistake; the orphan was. A guard nobody calls is a guard
+    // nobody maintains, and the next person to need one writes a worse one
+    // rather than finding it. Wired up by `developer-analyst-7c` at 0ea701c;
+    // this is what would have caught it a week earlier.
+    const sources = [
+      ...filesUnder("lib", /\.tsx?$/),
+      ...filesUnder("components", /\.tsx?$/),
+      ...filesUnder("app", /\.tsx?$/),
+    ].map((path) => [path, readFileSync(path, "utf8")] as const);
+
+    const orphans: string[] = [];
+    for (const module of GUARD_MODULES) {
+      const declared = readFileSync(join(WEB, module), "utf8");
+      for (const match of declared.matchAll(/export function (is[A-Z]\w*)/g)) {
+        const guard = match[1];
+        // A guard used only by its SIBLINGS in the same module is called —
+        // `isReadState` is the worked example, composed into `isAbsorptionRead`
+        // and its two neighbours and exported for its own sake. So the
+        // declaring file counts too, by occurrences beyond the declaration
+        // itself rather than by presence.
+        const own = (declared.match(new RegExp(`\\b${guard}\\b`, "g")) ?? []).length;
+        const elsewhere = sources.some(([path, text]) =>
+          !path.endsWith(module) && new RegExp(`\\b${guard}\\b`).test(text));
+        if (own <= 1 && !elsewhere) orphans.push(`${guard} (${module})`);
+      }
+    }
+    assert.deepEqual(orphans, [],
+      `these wire guards are declared and called by nothing, so the next route to need one will write a weaker copy:\n  ${orphans.join("\n  ")}`);
+  });
+});
+
+/**
+ * Routes that hand-roll a validator instead of naming one, as of 2026-08-26.
+ *
+ * A RATCHET THAT ONLY SHRINKS, in the shape `file-size.test.ts` uses. It is not
+ * a ban: for a payload with no named guard, an inline predicate is the honest
+ * thing to write, and seventeen of these sit in four other sessions' areas. What
+ * it forbids is a NEW one, and what it records is the debt — because the
+ * diffusion three showed what an inline copy becomes once a named guard for the
+ * same payload exists somewhere else.
+ */
+const INLINE_VALIDATORS = [
+  "app/api/gateway/audit/route.ts",
+  "app/api/gateway/data-quality/escalations/[id]/ack/route.ts",
+  "app/api/gateway/data/jobs/route.ts",
+  "app/api/gateway/data/quality/route.ts",
+  "app/api/gateway/data/schedules/route.ts",
+  "app/api/gateway/data/work-items/route.ts",
+  "app/api/gateway/jobs/[jobId]/route.ts",
+  "app/api/gateway/orders/[id]/cancel/route.ts",
+  "app/api/gateway/orders/[id]/replace/route.ts",
+  "app/api/gateway/orders/route.ts",
+  "app/api/gateway/orders/working/route.ts",
+  "app/api/gateway/portfolio/history/route.ts",
+  "app/api/gateway/research/graph/[id]/route.ts",
+  "app/api/gateway/research/ml/fit/route.ts",
+  "app/api/gateway/research/ml/runs/[runId]/route.ts",
+  "app/api/gateway/research/ml/runs/route.ts",
+  "app/api/oracle/research/route.ts",
+];
+
+describe("a validated route names its guard", () => {
+  it("grows no new hand-rolled validator", () => {
+    const routes = filesUnder("app/api", /^route\.ts$/);
+    const inline = routes
+      .filter((path) => {
+        const text = readFileSync(path, "utf8");
+        return text.includes("callGateway") && text.includes("validate:") && !/validate: is[A-Z]/.test(text);
+      })
+      .map((path) => path.slice(WEB.length).replace(/^\/+/, ""))
+      .sort();
+    const added = inline.filter((path) => !INLINE_VALIDATORS.includes(path));
+    assert.deepEqual(added, [],
+      `these routes hand-roll a validator; name it, so a second copy cannot drift from the first:\n  ${added.join("\n  ")}`);
+  });
+
+  it("keeps the list honest — an entry that named its guard must leave", () => {
+    // The other half of a ratchet, and the half people forget: an allow-list
+    // that never shrinks stops describing the tree and starts excusing it.
+    const routes = filesUnder("app/api", /^route\.ts$/).map((p) => p.slice(WEB.length).replace(/^\/+/, ""));
+    const stale = INLINE_VALIDATORS.filter((entry) => {
+      if (!routes.includes(entry)) return true;
+      const text = readFileSync(join(WEB, entry), "utf8");
+      return !text.includes("validate:") || /validate: is[A-Z]/.test(text);
+    });
+    assert.deepEqual(stale, [],
+      `these no longer hand-roll a validator and must be removed from INLINE_VALIDATORS:\n  ${stale.join("\n  ")}`);
   });
 });
