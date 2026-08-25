@@ -230,3 +230,54 @@ six-chip row, so it reported "no drawing" for a view that had one.
 
 Final suite: **4,880 tests across 1,055 suites, 0 failed.** Gateway: **3,049
 passed, 2 skipped** in CI shape, ruff clean.
+
+## 8. Layout and render, measured 2026-08-25
+
+A brief asserted jagged grids and UI-thread lag. Both were measured before
+either was changed, on a production build in headless Chrome.
+
+**Layout: already symmetrical, except two tables.** Every section card at 1600
+and 1280 — `w=1560, border=1px, radius=14px, pad=11/16, bg=#fff`; every seg,
+head and lede at `x=37`; every formula-grid row already equal height. What was
+wrong was column strategy:
+
+    meetings   auto  -> fixed    179·124·313·417·238·253      -> 254·127·254·254·254·381
+    findings   auto  -> fixed    658·139·118·108·124·176·202  -> 381·127·127·127·127·254·381
+    instrument fixed (unchanged) 305 x5
+
+Worst-to-narrowest went 3.4x and 6.1x to 3.0x on both. The widest column is
+measured rather than judged: the longest relationship name on the live ledger is
+38 characters, so three twelfths (~53 characters of room) rather than four.
+
+**Render: already inside the frame budget.** At 4x CPU throttle —
+
+    slider input -> committed   p50 0.2ms   max 1.8ms
+    pointermove over 89 marks   p50 0.0ms   max 0.6ms
+    JSON.parse of 404KB         1.5ms
+    long tasks over 6s idle     none
+
+**What was actually redundant.** Three polls 20s apart: 404,325 bytes each,
+byte-identical apart from `observed_at`, each handed on as a fresh object.
+Keeping the identity and memoising the sections saves **~1.9ms of script per
+poll**, measured back to back with only that check toggled.
+
+A first estimate of 14ms did not survive a control and is recorded here because
+the mistake is instructive: it came from comparing a polling section against a
+non-polling one and attributing the difference to the poll, when most of it was
+the freshness clock ticking once a second on both. React writes nothing to the
+DOM when output matches — zero mutations in every section subtree across a poll,
+with the check on and off — so what a memo boundary saves is reconciliation,
+not paint.
+
+`absorptionBand` also went to a single pass: **8.0x fewer inner iterations**
+(2,688 -> 336 and 3,008 -> 376), output identical element by element.
+
+**The tab is now in the desk's own harnesses**, which had never included it:
+
+    tab-switch (4x CPU)   click->paint 18.5ms   click->idle 20.3ms
+                          longest task 0ms      blocking 0ms
+    request-count         3 requests per switch, no duplicates
+
+For context on the same run: `coherence` paints in 18.1ms and `research` carries
+a 76ms long task with 26ms of blocking. Diffusion is the lightest of the three
+engine tabs on requests — `markets` 6, `coherence` 7.
