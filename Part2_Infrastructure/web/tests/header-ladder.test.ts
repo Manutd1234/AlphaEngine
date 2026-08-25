@@ -33,51 +33,60 @@ function rung(max: number): string {
   return css.slice(start, end);
 }
 
-// Re-measured 2026-08-24 for the tenth tab, then REORDERED the same day: the
-// first pass folded the data-tier and Connect labels at 1800 and 1740, so a
-// 1722px desk lost the words "Live" and "Connect" while the brand tagline —
-// which says nothing the wordmark does not — stayed. The tagline is rung 4 now.
-// Each width is where the state above it stops fitting, rounded up to a ten,
-// measured with the WIDEST string each chip can show — Telegram's five labels
-// top out at "Unavailable", three characters past "Connected", and a ladder
-// tuned while that chip happened to read "Telegram" clipped by a pixel at 1716
-// the moment the companion went unreachable. 14p carries the eleven figures.
-const RUNGS = [2050, 1950, 1850, 1790, 1590, 1520, 1380, 1280, 1170] as const;
+// RE-DERIVED 2026-08-25, WHEN THE TABS TOOK THEIR OWN LINE, and the list got
+// SHORTER rather than longer — which is the whole point of the change.
+//
+// Eleven tabs and eight controls could not share one 1728px line: the reader
+// met a settings control cut in half, and restoring even the word "Settings"
+// re-clipped the row at 1800, 1740 and 1728. So the strip is `flex-basis: 100%`
+// now and the ladder measures against LINE 1 alone — brand plus the cluster —
+// which needs about 1361px unfolded instead of 2046. Every rung falls with it.
+//
+// Rungs 8 to 11 are RETIRED, not loosened. Re-derived against line 1 they land
+// at 890, 810, 650 and 540, inside their own `min-width: 901px` floor — blocks
+// that could never match. What they folded still folds below the desk band
+// (`01:2081-2100`, `01:2125-2131`, and `max-[520px]:hidden` in the components),
+// and the tab metrics go back to the 8px/14px they were designed at.
+//
+// Each width is still where the state above it stops fitting, rounded up to a
+// ten, measured with the WIDEST string each chip can show. 14p carries the
+// derivation and the before/after.
+const RUNGS = [1380, 1280, 1180, 1120, 960] as const;
 
 describe("the rungs exist, in priority order, and each takes only what it says", () => {
-  it("rung 1 (≤2050): the Search label and the providers sentence → short form", () => {
-    assert.match(css, /@media \(max-width: 2050px\) \{\n  \.header-command-button__label \{\n    display: none;/);
-    const r = rung(2050);
+  it("rung 1 (≤1380): the Search label and the providers sentence → short form", () => {
+    assert.match(css, /@media \(max-width: 1380px\) \{\n  \.header-command-button__label \{\n    display: none;/);
+    const r = rung(1380);
     assert.match(r, /\.system-health__label \{\n    display: none;/);
     assert.match(r, /\.system-health__label--short \{\n    display: inline;/);
     assert.doesNotMatch(r, /header-settings|latency-chip|telegram/);
   });
 
-  it("rung 2 (≤1950): only the chip's state word", () => {
-    const r = rung(1950);
+  it("rung 2 (≤1280): only the chip's state word", () => {
+    const r = rung(1280);
     assert.match(r, /\.latency-chip__state \{\n    display: none;/);
     assert.doesNotMatch(r, /\.latency-chip__copy|\.latency-chip__core|header-settings/);
   });
 
-  it("rung 3 (≤1850): only the Settings label", () => {
-    const r = rung(1850);
+  it("rung 3 (≤1180): only the Settings label", () => {
+    const r = rung(1180);
     assert.match(r, /\.workspace-header__utility > \.header-anchor > \.header-settings span,/);
     assert.doesNotMatch(r, /latency-chip|system-health|brand-copy/);
   });
 
-  it("rung 4 (≤1790): the brand tagline, and nothing that carries a word", () => {
+  it("rung 4 (≤1120): the brand tagline, and nothing that carries a word", () => {
     // The promotion this ladder was reordered for. It is the only thing on the
     // row that is pure decoration, and at a measured 72px it outweighs either
     // of the two labels below it — which is what keeps both on a 1722px desk.
-    const r = rung(1790);
+    const r = rung(1120);
     assert.match(r, /\.brand-copy small \{\n    display: none;/);
     assert.doesNotMatch(r, /data-tier|telegram|system-health|latency-chip|workspace-tabs/,
       "rung 4 took something that carries a word; only the tagline may go this early");
   });
 
-  it("rung 5 (≤1720): the data-tier label; rung 6 (<1660): the Connect label", () => {
-    assert.match(css, /@media \(max-width: 1720px\) \{\n  \.data-tier__label \{\n    display: none;/);
-    assert.match(read("components/header/TelegramCta.tsx"), /max-\[1660px\]:hidden/);
+  it("rung 5 (≤1050): the data-tier label; rung 6 (<990): the Connect label", () => {
+    assert.match(css, /@media \(max-width: 1050px\) \{\n  \.data-tier__label \{\n    display: none;/);
+    assert.match(read("components/header/TelegramCta.tsx"), /max-\[990px\]:hidden/);
   });
 
   it("both of those fold AFTER the tagline, so a 1722px desk keeps their words", () => {
@@ -85,12 +94,13 @@ describe("the rungs exist, in priority order, and each takes only what it says",
     // tagline's rung fires and neither label's does. If a later edit pushes
     // rung 4 below either of them, that reader loses "Live" and "Connect"
     // again and no other assertion here would notice.
-    const tagline = 1790;
+    const tagline = 1120;
     const dataTier = Number(/@media \(max-width: (\d+)px\) \{\n  \.data-tier__label/.exec(css)?.[1]);
     const connect = Number(/max-\[(\d+)px\]:hidden/.exec(read("components/header/TelegramCta.tsx"))?.[1]);
     assert.ok(dataTier < tagline, `the data-tier label (${dataTier}) folds at or above the tagline (${tagline})`);
     assert.ok(connect < tagline, `the Connect label (${connect}) folds at or above the tagline (${tagline})`);
-    assert.ok(dataTier < 1722 && connect < 1722, "a 1722px desk folds one of the two labels");
+    // A 1728px desk now folds NEITHER — that is what the second line bought.
+    assert.ok(dataTier < 1728 && connect < 1728, "a 1728px desk still folds one of the two labels");
   });
 
   it("the core annotation is NOT a rung — it adds no width and stays until the chip folds", () => {
@@ -100,60 +110,52 @@ describe("the rungs exist, in priority order, and each takes only what it says",
     assert.match(css, /Not a rung: the core annotation inside the decision chip/);
   });
 
-  it("rung 7 (≤1590): the providers chip to its dot, aria keeps the sentence", () => {
-    const r = rung(1590);
+  it("rung 7 (≤960): the providers chip to its dot, aria keeps the sentence", () => {
+    const r = rung(960);
     assert.match(r, /\.system-health-action \{[\s\S]*font-size: 0;/);
     assert.match(read("components/WorkspaceHeader.tsx"), /aria-label=\{`Open reliability\. \$\{healthLabel\}`\}/);
   });
 
-  it("rung 8 (≤1520): tab padding and tab type, nothing of the chip", () => {
-    const r = rung(1520);
-    // 4px since the eleventh tab, down from 5px. The reason it is a value and
-    // not a rung MOVE is the whole of that pass: every rung from 1 to 7 sheds a
-    // WORD, so paying for a tab by firing them ~30px earlier spends the
-    // reader's vocabulary, and the instruction was the opposite. The tabs' own
-    // side padding is the one thing on this row that can be given up without
-    // costing anybody a word, and 14p reserved it for exactly this. Swept
-    // 2100 → 910 in 10px steps: no clipping at any width with 6px/4px, and
-    // seven narrow widths still clipping with only the base pad changed.
-    assert.match(r, /\.workspace-tabs button \{\n    padding-inline: 4px;/);
-    assert.doesNotMatch(r, /latency-chip/);
-    assert.doesNotMatch(r, /\.brand-copy small/, "the tagline is rung 4 now, not this one");
-  });
+  it("rungs 8 to 11 are retired, and what they folded still folds below the desk band", () => {
+    // THEY WERE NOT LOOSENED, THEY STOPPED BEING REACHABLE. Re-derived against
+    // a line 1 that no longer carries eleven tabs, rung 8's tab metrics land at
+    // 890, rung 9's p99 figure at 810, rung 10's kill and sign-in words at 650
+    // and rung 11's wordmark at 540 — every one inside its own
+    // `min-width: 901px` floor, i.e. a block that could never match. A rung
+    // that cannot fire is a rule claiming a fold that does not happen, so they
+    // are deleted rather than moved, which is the same close-out the relocation
+    // table gives an id that is a section again.
+    // Checked by what they FOLDED, not by the widths they used to sit at —
+    // 1380, 1280 and 1170 are live rung widths again on the new ladder, so a
+    // width-based check here would contradict itself and pass or fail for the
+    // wrong reason. What must be true is that nothing on the ladder does these
+    // four things any more.
+    const everyRung = RUNGS.map(rung).join("\n");
+    assert.doesNotMatch(everyRung, /\.workspace-tabs button \{\n    padding-inline:/,
+      "a rung folds the tabs' padding again; two rows means they keep their designed metrics");
+    assert.doesNotMatch(everyRung, /\.workspace-tabs button span \{\n    font-size:/,
+      "a rung shrinks the tab type again");
+    assert.doesNotMatch(everyRung, /\.latency-chip__copy \{\n    display: none/,
+      "a rung folds the p99 figure again");
+    assert.doesNotMatch(everyRung, /\.header-kill-label,\n  \.header-signin-label \{\n    display: none/,
+      "a rung folds the kill and sign-in words again");
+    assert.doesNotMatch(everyRung, /\.brand-copy \{\n    display: none/,
+      "a rung folds the wordmark again");
 
-  it("rung 9 (≤1380): the decision figure folds to its gauge — last of the chip", () => {
-    assert.match(rung(1380), /\.latency-chip__copy \{\n    display: none;/);
-  });
+    // Nothing they did is lost. Each still happens where a viewport genuinely
+    // cannot hold it, below the band this ladder covers.
+    assert.match(css, /@media \(max-width: 720px\)/, "the latency internals no longer fold at all");
+    assert.match(css, /@media \(max-width: 520px\)/, "the wordmark no longer folds at all");
+    assert.match(read("components/header/KillSwitchControl.tsx") + read("components/header/AccountChip.tsx"),
+      /max-\[520px\]:hidden/, "the kill and sign-in words no longer fold at all");
 
-  it("rung 10 (≤1280): Kill switch and Sign in labels fold to icons that keep their names", () => {
-    const r = rung(1280);
-    assert.match(r, /\.header-kill-label,\n  \.header-signin-label \{\n    display: none;/);
-    const kill = read("components/header/KillSwitchControl.tsx");
-    assert.match(kill, /aria-label=\{halted \? "Trading is halted — open the resume control" : "Open the kill switch"\}/);
-    assert.match(kill, /className=\{halted \? undefined : "header-kill-label max-\[520px\]:hidden"\}/);
-    const account = read("components/header/AccountChip.tsx");
-    assert.match(account, /aria-label="Sign in"/);
-    assert.match(account, /className="header-signin-label max-\[520px\]:hidden"/);
-  });
-
-  it("rung 11 (≤1170): the wordmark, leaving the mark that is still the button", () => {
-    // The last thing on the row that is not a control, and the only rung that
-    // touches the brand at desk width. The mark keeps the click target and the
-    // label; this is the ≤520px fold pulled up, as rung 9's is.
-    const r = rung(1170);
-    assert.match(r, /\.brand-copy \{\n    display: none;/);
-    assert.doesNotMatch(r, /\.brand-mark|\.workspace-tabs/, "rung 10 took the mark or the tabs, not just the words");
-    assert.match(read("components/common/BrandLockup.tsx"), /aria-label=\{label\}|label=/);
-  });
-
-  it("the row wraps at 1110, where even the icons no longer fit on one row", () => {
-    assert.match(css, /@media \(max-width: 1110px\) \{\n  \.workspace-header__utility \{\n    flex-wrap: wrap;/);
-  });
-
-  it("the rungs descend — no rung is wider than the one before it", () => {
-    for (let i = 1; i < RUNGS.length; i++) assert.ok(RUNGS[i] < RUNGS[i - 1]);
+    // And the tabs have their designed metrics back: the 6px/4px inline pad was
+    // a stopgap bought for a single row that no longer exists.
+    assert.match(css, /\.workspace-tabs button \{[^}]*padding: 8px 8px;/,
+      "the tabs are still on the eleventh tab's emergency padding");
   });
 });
+
 
 describe("the essentials are never on the ladder", () => {
   it("no rung hides Settings, the account chip, the kill switch button or the tabs", () => {

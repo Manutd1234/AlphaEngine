@@ -814,7 +814,7 @@ html:active-view-transition .view-panel {
 
 /* Rung 1 (≤2040, with the Search label rule in 00-tokens-and-base.css): the
    Search label, the providers sentence → its short form, the ghost with it. */
-@media (min-width: 901px) and (max-width: 2050px) {
+@media (min-width: 901px) and (max-width: 1380px) {
   .system-health__label {
     display: none;
   }
@@ -834,7 +834,7 @@ html:active-view-transition .view-panel {
 
 /* Rung 2 (≤1950): the decision chip's state word — the dot keeps the tone,
    the title keeps the words. */
-@media (min-width: 901px) and (max-width: 1950px) {
+@media (min-width: 901px) and (max-width: 1280px) {
   .latency-chip__state {
     display: none;
   }
@@ -846,7 +846,7 @@ html:active-view-transition .view-panel {
 }
 
 /* Rung 3 (≤1850): the Settings label. */
-@media (min-width: 901px) and (max-width: 1850px) {
+@media (min-width: 901px) and (max-width: 1180px) {
   .workspace-header__utility > .header-settings,
   .workspace-header__utility > .header-anchor > .header-settings {
     width: 36px;
@@ -871,7 +871,7 @@ html:active-view-transition .view-panel {
 
 /* Rung 7 (≤1590): the providers chip is its dot alone — the count is one tap
    away in Settings and the panel it opens; the aria-label keeps the sentence. */
-@media (min-width: 901px) and (max-width: 1590px) {
+@media (min-width: 901px) and (max-width: 960px) {
   .system-health-action {
     width: 44px;
     min-width: 44px;
@@ -888,42 +888,22 @@ html:active-view-transition .view-panel {
   }
 }
 
-/* Rung 8 (≤1520): the tabs' side padding, and the tab labels back to chip
-   size. 4px and not 5px since the eleventh tab; 14p has the measurement. */
-@media (min-width: 901px) and (max-width: 1520px) {
-  .workspace-tabs button {
-    padding-inline: 4px;
-  }
 
-  .workspace-tabs button span {
-    font-size: var(--fs-chrome-chip);
-  }
-}
 
-/* Rung 9 (≤1380): the decision figure folds to its gauge; the title still
-   names both planes and the Reliability tab has the numbers. */
-@media (min-width: 901px) and (max-width: 1380px) {
-  .latency-chip__copy {
-    display: none;
-  }
 
-  .latency-chip {
-    grid-template-columns: auto;
-    padding: 5px;
-  }
-}
 
-/* Rung 10 (≤1280): the Kill switch and Sign in labels fold to their icons —
-   the same fold the ≤520px rule makes, a rung earlier for the widths between
-   the last one-row fit and the wrap. Both controls keep their aria-label and
-   title; HALTED is never folded. */
-@media (min-width: 901px) and (max-width: 1280px) {
-  .header-kill-label,
-  .header-signin-label {
-    display: none;
-  }
-}
+/* Rungs 8, 9 and 10 RETIRED on 2026-08-25, when the tabs took their own line.
 
+   They folded the tab padding and type (≤1520), the p99 figure (≤1380) and the
+   Kill switch / Sign in words (≤1280). Re-derived against a line 1 that no
+   longer carries eleven tabs they land at 890, 810 and 650 — inside their own
+   `min-width: 901px` floor, i.e. blocks that could never match, which is why
+   they are deleted rather than moved. 14p has the derivation.
+
+   Nothing they did is lost below the desk band: the tab metrics return to the
+   8px/14px they were designed at, the latency internals still fold at
+   `01:2081-2100` (≤720), and the kill and sign-in words still fold on
+   `max-[520px]:hidden` in their own components. */
 
 /* ══════════════════════════════════════════════════════════════════════════
    Narrow screens and paper — explicit affordances for the dense evidence UI
