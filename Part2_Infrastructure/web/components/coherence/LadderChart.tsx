@@ -16,11 +16,33 @@
  *
  * Steps, not a curve: resting size is piecewise constant between price levels,
  * and a smooth line would draw liquidity at prices nobody is quoting.
+ *
+ * IT DRAWS THROUGH `Plot` SINCE 2026-08-25, AND UNTIL THEN IT WAS THE ONE
+ * FIGURE ON THE TAB A KEYBOARD COULD NOT READ. Every bar already carried a
+ * `<title>` — the price and the size — and a `<title>` is a native tooltip:
+ * reachable with a mouse and by nothing else. It never appears on a touch
+ * screen and never appears from a keyboard, which is precisely the exclusion
+ * `use-mark-readout` was written to end. This file drew into a raw `<svg>`
+ * over `useMeasuredWidth`, so it got none of that instrument; twenty-five
+ * other figures on this engine got it by having done nothing.
+ *
+ * Swapping the wrapper is the whole change. `Plot` collects the elements
+ * carrying a `<title>` in document order, gives the plot ONE tab stop, walks
+ * the marks with arrow keys, and hands the focused mark's words to the
+ * `Figure` to speak in a live region — one keyboard instrument, not one tab
+ * stop per level, which on a full ladder would be dozens.
+ *
+ * WHAT THE TITLES SAY GREW WITH IT. A level's own size is what the bar
+ * already draws; what a reader asks a ladder is how much is resting AT OR
+ * BETTER than a price, because that is the quantity a marketable order eats.
+ * The cumulative figure is in each mark's words now, and it accumulates from
+ * the TOP of each book inwards — from the best bid down for YES, from the
+ * best implied offer up for the mirrored NO ladder — because that is the
+ * order an order fills in.
  */
 
-import { useMeasuredWidth } from "@/components/chart-kit";
 import { DOLLAR_CC, fromCenticents, toCenticents } from "@/lib/coherence/fixed-point";
-import Figure, { FigureEmpty } from "./Figure";
+import Figure, { FigureEmpty, Plot } from "./Figure";
 
 const HEIGHT = 150;
 const MARGIN = { top: 14, right: 6, bottom: 22, left: 6 };
@@ -67,7 +89,50 @@ function stepPath(pts: Point[], x: (v: number) => number, y: (v: number) => numb
   return d;
 }
 
-function barsFor(pts: Point[], x: (v: number) => number, y: (v: number) => number, base: number, width: number) {
+/**
+ * A contract count for reading, without a float's tail.
+ *
+ * Sizes arrive as decimal strings and the cumulative is a sum of `Number`s, so
+ * a ladder of thirty-seven levels reported "66887.90000000001 resting at that
+ * bid or better" the first time this was measured in Chrome. Contracts are
+ * whole on this venue in every case seen, but the wire carries hundredths, so
+ * the fraction is kept when there is one and dropped when there is not — a
+ * trailing ".00" claims a precision the count does not have, and sixteen
+ * decimal places claim one nothing has.
+ */
+function contractsLabel(value: number): string {
+  // `String`, not `toFixed(2)`. The first version padded to two places and put
+  // the trailing zero straight back — "66887.90" for a sum of 66887.9, which is
+  // the precision claim this helper exists to refuse, one decimal shorter.
+  // Rounding to hundredths first is what removes the float's tail; `String`
+  // then prints the shortest form that round-trips.
+  return String(Math.round(value * 100) / 100);
+}
+
+/**
+ * The bars, each carrying what is resting at its price AND at or better.
+ *
+ * `inwards` is which end of the book the queue starts at: a YES bid ladder
+ * fills from the highest price down, and the mirrored NO ladder — drawn on the
+ * YES axis — fills from the lowest implied offer up. Accumulating from the
+ * wrong end would report the depth behind a price as the depth in front of it,
+ * which is the one number a marketable order actually meets.
+ */
+function barsFor(
+  pts: Point[],
+  x: (v: number) => number,
+  y: (v: number) => number,
+  base: number,
+  width: number,
+  inwards: "from-high" | "from-low",
+) {
+  const order = inwards === "from-high" ? [...pts].reverse() : pts;
+  const cumulative = new Map<number, number>();
+  let running = 0;
+  for (const point of order) {
+    running += point.size;
+    cumulative.set(point.x, running);
+  }
   return pts.map((point) => ({
     at: `${point.x}`,
     x: x(point.x) - width / 2,
@@ -76,11 +141,11 @@ function barsFor(pts: Point[], x: (v: number) => number, y: (v: number) => numbe
     height: Math.max(0.6, base - y(point.size)),
     price: fromCenticents(point.x) as string,
     size: point.size,
+    depth: cumulative.get(point.x) ?? point.size,
   }));
 }
 
 export default function LadderChart({ yesBids, noBids, yesAsks, caption, unquotedReason }: LadderChartProps) {
-  const [plotRef, plotW] = useMeasuredWidth<HTMLDivElement>(720);
   const yesPoints = points(yesBids, false);
   const askPoints = points(yesAsks, false);
   const noPoints = points(noBids, true);
@@ -101,11 +166,8 @@ export default function LadderChart({ yesBids, noBids, yesAsks, caption, unquote
   const domainHi = Math.min(DOLLAR_CC, hi + pad);
   const maxSize = Math.max(...all.map((p) => p.size), 1);
 
-  const plotWidth = plotW - MARGIN.left - MARGIN.right;
   const base = HEIGHT - MARGIN.bottom;
-  const x = (v: number) => MARGIN.left + ((v - domainLo) / Math.max(1, domainHi - domainLo)) * plotWidth;
   const y = (size: number) => base - (size / maxSize) * (base - MARGIN.top);
-  const barWidth = Math.max(0.5, plotWidth / Math.max(12, all.length * 1.6));
 
   const bestYesBid = yesPoints.length ? yesPoints[yesPoints.length - 1].x : null;
   const bestAsk = askPoints.length ? askPoints[0].x : null;
@@ -125,34 +187,47 @@ export default function LadderChart({ yesBids, noBids, yesAsks, caption, unquote
       }
       missing={unquotedReason}
     >
-      <div ref={plotRef} style={{ width: "100%" }}>
-        <svg viewBox={`0 0 ${plotW} ${HEIGHT}`} width={plotW} height={HEIGHT} className="coh-ladder">
-        <line x1={MARGIN.left} x2={plotW - MARGIN.right} y1={base} y2={base} className="coh-ladder__axis" />
-        {barsFor(noPoints, x, y, base, barWidth).map(({ at, price, size, ...bar }) => (
-          <rect key={`no-${at}`} {...bar} className="coh-ladder__no">
-            <title>{`NO bid implying YES ${price} for ${size} contracts`}</title>
-          </rect>
-        ))}
-        {barsFor(yesPoints, x, y, base, barWidth).map(({ at, price, size, ...bar }) => (
-          <rect key={`yes-${at}`} {...bar} className="coh-ladder__yes">
-            <title>{`YES bid ${price} for ${size} contracts`}</title>
-          </rect>
-        ))}
-        <path d={stepPath(askPoints, x, y, base)} className="coh-ladder__implied" fill="none" />
-        {bestYesBid != null ? (
-          <line x1={x(bestYesBid)} x2={x(bestYesBid)} y1={MARGIN.top - 8} y2={base} className="coh-ladder__mark" />
-        ) : null}
-        {bestAsk != null ? (
-          <line x1={x(bestAsk)} x2={x(bestAsk)} y1={MARGIN.top - 8} y2={base} className="coh-ladder__mark is-ask" />
-        ) : null}
-        <text x={MARGIN.left} y={HEIGHT - 6} className="coh-ladder__tick">
-          {fromCenticents(domainLo)}
-        </text>
-        <text x={plotW - MARGIN.right} y={HEIGHT - 6} textAnchor="end" className="coh-ladder__tick">
-          {fromCenticents(domainHi)}
-        </text>
-        </svg>
-      </div>
+      <Plot height={HEIGHT}>
+        {(plotW) => {
+          const plotWidth = plotW - MARGIN.left - MARGIN.right;
+          const x = (v: number) => MARGIN.left + ((v - domainLo) / Math.max(1, domainHi - domainLo)) * plotWidth;
+          const barWidth = Math.max(0.5, plotWidth / Math.max(12, all.length * 1.6));
+          return (
+            <g className="coh-ladder">
+              <line x1={MARGIN.left} x2={plotW - MARGIN.right} y1={base} y2={base} className="coh-ladder__axis" />
+              {barsFor(noPoints, x, y, base, barWidth, "from-low").map(({ at, price, size, depth, ...bar }) => (
+                <rect key={`no-${at}`} {...bar} className="coh-ladder__no">
+                  <title>
+                    {`NO bid implying YES ${price} for ${contractsLabel(size)} contracts; `
+                     + `${contractsLabel(depth)} resting at that offer or better`}
+                  </title>
+                </rect>
+              ))}
+              {barsFor(yesPoints, x, y, base, barWidth, "from-high").map(({ at, price, size, depth, ...bar }) => (
+                <rect key={`yes-${at}`} {...bar} className="coh-ladder__yes">
+                  <title>
+                    {`YES bid ${price} for ${contractsLabel(size)} contracts; `
+                     + `${contractsLabel(depth)} resting at that bid or better`}
+                  </title>
+                </rect>
+              ))}
+              <path d={stepPath(askPoints, x, y, base)} className="coh-ladder__implied" fill="none" />
+              {bestYesBid != null ? (
+                <line x1={x(bestYesBid)} x2={x(bestYesBid)} y1={MARGIN.top - 8} y2={base} className="coh-ladder__mark" />
+              ) : null}
+              {bestAsk != null ? (
+                <line x1={x(bestAsk)} x2={x(bestAsk)} y1={MARGIN.top - 8} y2={base} className="coh-ladder__mark is-ask" />
+              ) : null}
+              <text x={MARGIN.left} y={HEIGHT - 6} className="coh-ladder__tick">
+                {fromCenticents(domainLo)}
+              </text>
+              <text x={plotW - MARGIN.right} y={HEIGHT - 6} textAnchor="end" className="coh-ladder__tick">
+                {fromCenticents(domainHi)}
+              </text>
+            </g>
+          );
+        }}
+      </Plot>
     </Figure>
   );
 }
