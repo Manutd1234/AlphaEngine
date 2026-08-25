@@ -236,9 +236,29 @@ export default function ModelFormulas({ part }: { part: FormulaPart }) {
   return (
     <>
 
-      <div className="coh-lessons__grid">
+      {/* THE THIRD COLUMN IS ON THE ELEMENT, since 2026-08-25, and only the
+          third. `10a` gives `.coh-lessons__grid` one column and two above
+          1100px, and that rule is shared with the curriculum on Proofs — so
+          this tab's extra column used to live in a `.diffusion-plane`-scoped
+          media query in `10i`, a second file deciding one property.
+
+          ONE utility rather than three, and only the count `10a` does not
+          already give. Spelling out all three — `grid-cols-3` plus two
+          `max-[…]` variants — puts three rules of equal specificity on one
+          property and leaves the winner to the order Tailwind emits them in,
+          which is a thing to reason about at every future edit. An additive
+          utility has one owner per width and reproduces the deleted media
+          query exactly.
+
+          Verified on a production build at the seams: 3 tracks at 1600,
+          2 at 1399, 1 at 1099.
+
+          `items-stretch` and `h-full` are what a grid already does — an item
+          stretches its row — and are stated so a later `align-items` change
+          cannot silently ragged the row. */}
+      <div className="coh-lessons__grid grid items-stretch min-[1400px]:grid-cols-3">
         {shown.map((entry) => (
-          <article className="coh-lesson" key={entry.id}>
+          <article className="coh-lesson h-full" key={entry.id}>
             <header className="coh-lesson__head">
               <h4 className="console-subhead">{entry.title}</h4>
               <span className="coh-lesson__state">

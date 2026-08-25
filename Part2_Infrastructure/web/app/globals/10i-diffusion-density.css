@@ -56,11 +56,3 @@
   vector-effect: non-scaling-stroke;
 }
 
-/* ── Three columns where thirteen cards would otherwise be four rows ──────
-   The grid is what makes a figure per card a net improvement rather than a
-   longer view: at two columns, seven cards are four rows and every row grows
-   by the figure. Scoped to this tab so the curriculum's fourteen cards on
-   Proofs keep the layout they were measured at. */
-@media (min-width: 1400px) {
-  .coherence-plane.diffusion-plane .coh-lessons__grid { grid-template-columns: 1fr 1fr 1fr; }
-}

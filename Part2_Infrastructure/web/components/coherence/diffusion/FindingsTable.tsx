@@ -39,7 +39,17 @@ export default function FindingsTable({ findings }: { findings: Finding[] }) {
   }
   return (
     <div className="table-wrap" tabIndex={0}>
-      <table className="coh-table diff-findings">
+      {/* FIXED, NOT AUTO. Auto gave the seven columns 658 · 139 · 118 · 108 ·
+          124 · 176 · 202 at 1600px and 520 · 110 · 93 · 85 · 98 · 139 · 160 at
+          1280 — the relationship name taking five times the width of the `t`
+          beside it, because it is the only prose column and `auto` sizes to the
+          longest cell.
+
+          Three twelfths, not four, and the number is measured rather than
+          judged: the longest relationship name on the live ledger is 38
+          characters and the median 36, while 3/12 at this width holds about 53.
+          Four twelfths held 71 and took the room from Verdict for nothing. */}
+      <table className="coh-table diff-findings table-fixed">
         <caption className="coh-table__caption">
           Every relationship measured, held or not. The first two rows are the control: a
           pipeline that cannot see a bigger rate change produce a bigger move could not call
@@ -47,13 +57,13 @@ export default function FindingsTable({ findings }: { findings: Finding[] }) {
         </caption>
         <thead>
           <tr>
-            <th scope="col">Relationship</th>
-            <th scope="col">Stage</th>
-            <th scope="col" className="num">Events</th>
-            <th scope="col" className="num">t</th>
-            <th scope="col" className="num">r</th>
-            <th scope="col" className="num">Shuffled p</th>
-            <th scope="col">Verdict</th>
+            <th scope="col" className="w-3/12">Relationship</th>
+            <th scope="col" className="w-1/12">Stage</th>
+            <th scope="col" className="num w-1/12">Events</th>
+            <th scope="col" className="num w-1/12">t</th>
+            <th scope="col" className="num w-1/12">r</th>
+            <th scope="col" className="num w-2/12">Shuffled p</th>
+            <th scope="col" className="w-3/12">Verdict</th>
           </tr>
         </thead>
         <tbody>
