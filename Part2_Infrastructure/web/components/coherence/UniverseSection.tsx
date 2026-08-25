@@ -85,6 +85,12 @@ const ALL = "__all__";
 export const UNLABELLED = "__none__";
 
 export interface UniverseSectionProps {
+  /** The view this section is standing on, and how a press changes it.
+   *  Owned by the console since 2026-08-26: a view is an address
+   *  (`#markets/<section>/<view>`), and a `useState` here is unreachable
+   *  from the hash. See `lib/section-views.ts`. */
+  view: UniverseView;
+  onView: (next: UniverseView) => void;
   /** The shared universe read, passed straight through from the console. */
   universe: CoherenceUniverse | null;
   error: string | null;
@@ -97,8 +103,7 @@ export interface UniverseSectionProps {
   updatedAt?: Date | null;
 }
 
-export default function UniverseSection({ universe, error, updatedAt = null }: UniverseSectionProps) {
-  const [view, setView] = useState<UniverseView>("baskets");
+export default function UniverseSection({ universe, error, view, onView, updatedAt = null }: UniverseSectionProps) {
   const [category, setCategory] = useState<string>(ALL);
   const [picked, setPicked] = useState<string | null>(null);
 
@@ -196,7 +201,7 @@ export default function UniverseSection({ universe, error, updatedAt = null }: U
       }
       views={VIEWS}
       view={view}
-      onView={setView}
+      onView={onView}
       viewsLabel="Universe view"
       subject={subject}
       notes={view === "families" ? {

@@ -121,7 +121,11 @@ export default function StakePane({
   active,
   eventTicker,
   events: supplied,
+  view,
+  onView,
 }: {
+  view: StakeSectionView;
+  onView: (next: StakeSectionView) => void;
   active: boolean;
   /** Pins one family. Absent, the pane picks the first the universe returns. */
   eventTicker?: string;
@@ -129,7 +133,6 @@ export default function StakePane({
   events?: CoherenceEventView[];
 }) {
   const [picked, setPicked] = useState<string | null>(null);
-  const [view, setView] = useState<StakeSectionView>("plan");
   const universe = useCoherenceRead<CoherenceUniverse>(
     universeRoute(),
     active && !eventTicker && !supplied?.length,
@@ -192,7 +195,7 @@ export default function StakePane({
       head={<PaneHead {...head} />}
       views={STAKE_VIEWS}
       view={view}
-      onView={setView}
+      onView={onView}
       viewsLabel="Stake view"
       subject={!eventTicker && events.length > 1 ? (
         /* `FamilyPicker`'s listbox and not a row of pills: four tickers as

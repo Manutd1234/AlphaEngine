@@ -208,8 +208,18 @@ export function restoreRememberedLocation(): void {
   }
 }
 
-/** Applies a section id to its rail, or reports that the rail has no such id. */
-export type SectionApplier = (section: string) => (() => void) | null;
+/**
+ * Applies a section id to its rail, or reports that the rail has no such id.
+ *
+ * The optional third segment of the hash rides along as `view`, and it is
+ * OPAQUE HERE ON PURPOSE — this module never asks what it means. A tab that
+ * declares views in `lib/section-views.ts` resolves it against its own table;
+ * a tab that declares none ignores it and keeps whatever view state it holds.
+ * Deciding the meaning here would have forced every consumer into one shape,
+ * and `FindingsPane` on Diffusion draws three views inside what its rail calls
+ * one section — so the shape would have been wrong before it shipped.
+ */
+export type SectionApplier = (section: string, view?: string) => (() => void) | null;
 
 /**
  * Puts the URL's hash on screen, now and on every later move through it.
@@ -225,7 +235,7 @@ export function followLocation(
   setView: (next: WorkspaceView) => void,
 ): () => void {
   const readLocation = () => {
-    const [workspace, nestedSection] = window.location.hash.slice(1).split("/");
+    const [workspace, nestedSection, nestedView] = window.location.hash.slice(1).split("/");
     const named = nestedSection ?? "";
     // A retired workspace resolves to the tab that absorbed it BEFORE the
     // section is read, so a retired hash keeps its section instead of being a
@@ -247,14 +257,18 @@ export function followLocation(
     //      of 2026-08-24 may be a different tab — so this branch sets the view
     //      as well, and it is the only one that can;
     //   3. the named tab's own default.
-    const onRail = applier[hashView](named);
+    const onRail = applier[hashView](named, nestedView);
     if (onRail) {
       setView(hashView);
       onRail();
       return;
     }
+    // A relocated id keeps its view too. The segment was written against the
+    // section that CARRIES the subject, so it still names one of that section's
+    // views — and dropping it would land a three-segment link on a default
+    // while the URL went on naming something else.
     const moved = RELOCATED_SECTIONS[hashView]?.[named];
-    const relocated = moved ? applier[moved.view](moved.section) : null;
+    const relocated = moved ? applier[moved.view](moved.section, nestedView) : null;
     if (moved && relocated) {
       setView(moved.view);
       relocated();

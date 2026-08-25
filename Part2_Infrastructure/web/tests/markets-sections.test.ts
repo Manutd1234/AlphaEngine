@@ -225,8 +225,28 @@ describe("the reads are gated by section, and the expensive views by view", () =
     // `BooksSection`, leaving a `!onChannel` predicate in one file. The split
     // of 2026-08-25 removes the predicate too: the channel is `MakersSection`,
     // and a section gates itself.
-    assert.doesNotMatch(code, /booksView|onViewChange/,
-      "the view plumbing is back; the gate belongs beside the read it gates");
+    // WHAT THIS GUARD IS FOR, restated because its shape changed on 2026-08-26
+    // and the change must not be mistaken for a relaxation. The defect it was
+    // written against is a READ GATED ON A VIEW FROM THE CONSOLE: the signed
+    // 25-second channel call firing because the console, not the section,
+    // decided which view was open. `booksView` was that state and it stays
+    // banned by name.
+    //
+    // The console does now hold view state, for an unrelated reason: a view is
+    // an ADDRESS (`#markets/<section>/<view>`), and a `useState` inside a
+    // section is unreachable from the hash, so `lib/section-views.ts` seeds it
+    // and `use-rail-sections` owns it. That plumbing may carry a view to a
+    // SWITCHER and must never carry one to a READ — so the ban is now on the
+    // reads themselves, which is narrower in wording and identical in teeth.
+    assert.doesNotMatch(code, /booksView/,
+      "the console gates a read on a view again; the gate belongs beside the read it gates");
+    const reads = code.slice(code.indexOf("const SECTION_READS"), code.indexOf("export interface MarketsConsoleProps"));
+    assert.doesNotMatch(reads, /view/i,
+      "a section's read plan mentions a view; reads are gated by SECTION, and by view inside the section that owns them");
+    for (const call of code.match(/useCoherenceRead<[^>]*>\([\s\S]*?\);/g) ?? []) {
+      assert.doesNotMatch(call, /views|viewProps|onViewChange/,
+        `a console read is gated on a view: ${call.slice(0, 80)}`);
+    }
     const books = read(SECTION_FILES.books);
     assert.match(books, /booksRoute\(\), active\)/,
       "the book read is gated on something other than its own section");

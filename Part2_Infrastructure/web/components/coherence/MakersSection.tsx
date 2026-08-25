@@ -59,8 +59,9 @@ const VIEWS: ReadonlyArray<[RfqView, string]> = [
   ["channel", "Channel"],
 ];
 
-export default function MakersSection({ active }: { active: boolean }) {
-  const [view, setView] = useState<RfqView>("quotes");
+export default function MakersSection(
+  { active, view, onView }: { active: boolean; view: RfqView; onView: (next: RfqView) => void },
+) {
 
   return (
     <SectionFrame
@@ -77,7 +78,7 @@ export default function MakersSection({ active }: { active: boolean }) {
       }
       views={VIEWS}
       view={view}
-      onView={setView}
+      onView={onView}
       viewsLabel="Makers view"
     >
       <RfqPane view={view} active={active} />

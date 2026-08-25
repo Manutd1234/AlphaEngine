@@ -173,9 +173,10 @@ function FileReading({ data, requested, loading }: {
   );
 }
 
-export default function ShellPane({ active }: { active: boolean }) {
+export default function ShellPane(
+  { active, view, onView }: { active: boolean; view: ShellView; onView: (next: ShellView) => void },
+) {
   const [path, setPath] = useState("/");
-  const [view, setView] = useState<ShellView>("layout");
   // One read serves the two views that need one. They are the same URL under a
   // different command, so the view IS the command: `ls` draws the tree, `cat`
   // the reading — and Layout, which is the same at every path, asks for neither.
@@ -190,12 +191,12 @@ export default function ShellPane({ active }: { active: boolean }) {
 
   const navigate = (next: string) => {
     setPath(next);
-    setView("tree");
+    onView("tree");
   };
 
   const open = (entry: CoherenceShellEntry) => {
     setPath(pathOf([...segmentsOf(data?.path ?? path), entry.name]));
-    setView(entry.kind === "dir" ? "tree" : "reading");
+    onView(entry.kind === "dir" ? "tree" : "reading");
   };
 
   /**
@@ -242,7 +243,7 @@ export default function ShellPane({ active }: { active: boolean }) {
       }
       views={VIEWS}
       view={view}
-      onView={setView}
+      onView={onView}
       viewsLabel="Shell view"
       subject={subject}
       kpis={kpis}

@@ -85,7 +85,17 @@ describe("dense role workspaces expose accessible feature sections", () => {
   it("workspace switches write the full location, never a bare view", () => {
     // A bare `#research` while the rail shows Strategies was the copy-link /
     // reload desync. navigate() must read the live section at click time.
-    assert.match(routingHook, /url\.hash = detail\?\.hash \?\? `\$\{next\}\/\$\{sectionByViewRef\.current\[next\]\}`/);
+    // The four writers share one builder since 2026-08-26, because the hash
+    // grew a third segment and three of the four having it would be exactly the
+    // desync this assertion exists to catch: copy-link disagreeing with reload.
+    // Both halves are pinned — that the writers route through it, and that it
+    // builds the full location rather than a bare view.
+    assert.match(routingHook, /url\.hash = detail\?\.hash \?\? hashFor\(next\)/,
+      "a workspace switch no longer writes the full location through the shared builder");
+    assert.match(routingHook, /`\$\{tab\}\/\$\{section\}`/,
+      "the location builder no longer writes tab and section");
+    assert.match(routingHook, /`\$\{tab\}\/\$\{section\}\/\$\{at\}`/,
+      "the builder no longer carries the view for a tab that has one");
     assert.ok(
       !/if \(next === "data"\) setDataSection\("overview"\)/.test(routingHook),
       "the forced data reset is back — it hid the desync instead of fixing it",

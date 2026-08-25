@@ -78,8 +78,9 @@ const VIEWS: ReadonlyArray<[BookDetailView, string]> = [
   ["history", "History"],
 ];
 
-export default function BooksSection({ active }: { active: boolean }) {
-  const [view, setView] = useState<BookDetailView>("ladder");
+export default function BooksSection(
+  { active, view, onView }: { active: boolean; view: BookDetailView; onView: (next: BookDetailView) => void },
+) {
   const [selected, setSelected] = useState<string | null>(null);
   // ONE read, gated on the section. The `!onChannel` half of this gate went
   // with the channel on 2026-08-25: while the RFQ panel was two of this
@@ -140,7 +141,7 @@ export default function BooksSection({ active }: { active: boolean }) {
       }
       views={VIEWS}
       view={view}
-      onView={setView}
+      onView={onView}
       viewsLabel="Books view"
       subject={books_.length > 1 ? (
         /* A filtered listbox and not a `.seg`: one button per market is around

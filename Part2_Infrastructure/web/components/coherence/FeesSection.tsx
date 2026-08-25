@@ -72,8 +72,9 @@ const VIEWS: ReadonlyArray<[SectionView, string]> = [
   ["table", "Replay table"],
 ];
 
-export default function FeesSection({ active }: { active: boolean }) {
-  const [view, setView] = useState<SectionView>("example");
+export default function FeesSection(
+  { active, view, onView }: { active: boolean; view: SectionView; onView: (next: SectionView) => void },
+) {
   const [example, setExample] = useState<FeeExample>(EXAMPLES[0]);
 
   const onReplay = REPLAY_VIEWS.includes(view);
@@ -141,7 +142,7 @@ export default function FeesSection({ active }: { active: boolean }) {
       }
       views={VIEWS}
       view={view}
-      onView={setView}
+      onView={onView}
       viewsLabel="Fees view"
       subject={
         /* A native `<select>` rather than the listbox the family and market

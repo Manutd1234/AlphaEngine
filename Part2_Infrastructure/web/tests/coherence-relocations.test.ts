@@ -214,7 +214,12 @@ describe("every location the engine has ever published still resolves", () => {
     // shadow a live id; asked after the default, it would never run. The middle
     // branch is also the only one that may change the VIEW, because since the
     // split a relocated id can land on the other tab.
-    const rail = hash.indexOf("const onRail = applier[hashView](named)");
+    // The call carries the hash's third segment since 2026-08-26
+    // (`applier[hashView](named, nestedView)`), so this looks for the call
+    // rather than for its exact arity — the contract under test is the ORDER of
+    // the three tries, and pinning the argument list here would make an
+    // unrelated signature change look like a routing regression.
+    const rail = hash.indexOf("const onRail = applier[hashView](named");
     const table = hash.indexOf("RELOCATED_SECTIONS[hashView]?.[named]");
     const fallback = hash.indexOf("applier[hashView](DEFAULT_SECTION[hashView])");
     assert.ok(rail !== -1 && table !== -1 && fallback !== -1, "readLocation no longer resolves in three tries");

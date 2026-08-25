@@ -20,7 +20,7 @@
  * `tests/workspace-routing-hook-order.test.ts` is the guard on that.
  */
 
-import { useMemo, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
+import { useCallback, useMemo, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 
 import type { WorkspaceView } from "@/components/WorkspaceHeader";
 import {
@@ -48,6 +48,7 @@ import {
   type RiskSection,
 } from "@/lib/sections";
 import { DEFAULT_SECTION, railSection, type SectionApplier } from "@/lib/workspace-hash";
+import { defaultView, railView, VIEWS_BY_TAB } from "@/lib/section-views";
 
 export interface RailSections {
   overviewSection: OverviewSection;
@@ -74,6 +75,18 @@ export interface RailSections {
   setPortfolioSection: Dispatch<SetStateAction<PortfolioSection>>;
   /** Live section per workspace, readable from handlers created once. */
   sectionByViewRef: MutableRefObject<Record<WorkspaceView, string>>;
+  /**
+   * Which VIEW each Prices section is standing on.
+   *
+   * One record rather than eight states, because the console passes it straight
+   * down and the hash writer reads it by section id. A tab that declares no
+   * views in `lib/section-views.ts` has no entry here and needs none.
+   */
+  marketsViews: Record<string, string>;
+  /** Called by the console when a reader presses a view button. */
+  setMarketsView: (section: string, view: string) => void;
+  /** Live view per Prices section, for the same reason `sectionByViewRef` exists. */
+  viewBySectionRef: MutableRefObject<Record<string, string>>;
   /** Does this workspace have a section by this name, and how is it applied. */
   applier: Record<WorkspaceView, SectionApplier>;
 }
@@ -104,6 +117,23 @@ export function useRailSections(): RailSections {
    * time to write a truthful hash — its useCallback would otherwise capture the
    * mount-time values forever.
    */
+  /**
+   * Every Prices section on the view it opens on, which `section-views.ts`
+   * defines as the first one listed — so the switcher and the URL cannot start
+   * out disagreeing about where the reader is.
+   */
+  const [marketsViews, setMarketsViews] = useState<Record<string, string>>(() =>
+    Object.fromEntries(
+      Object.keys(VIEWS_BY_TAB.markets ?? {}).map((section) => [section, defaultView("markets", section) ?? ""]),
+    ));
+
+  const setMarketsView = useCallback((section: string, view: string) => {
+    setMarketsViews((prev) => (prev[section] === view ? prev : { ...prev, [section]: view }));
+  }, []);
+
+  const viewBySectionRef = useRef<Record<string, string>>({});
+  viewBySectionRef.current = marketsViews;
+
   const sectionByViewRef = useRef<Record<WorkspaceView, string>>({ ...DEFAULT_SECTION });
   sectionByViewRef.current = {
     overview: overviewSection,
@@ -127,10 +157,28 @@ export function useRailSections(): RailSections {
    * by a cross-link. The setters are stable, so this is built once.
    */
   const applier = useMemo<Record<WorkspaceView, SectionApplier>>(() => {
-    const bind = <T extends string>(ids: readonly T[], set: (id: T) => void): SectionApplier =>
-      (section) => {
+    /**
+     * A rail's answer to "do you have this section, and what does opening it do".
+     *
+     * `tab` is passed only by a workspace that declares views. When it is, the
+     * third hash segment is resolved against THAT tab's table and applied with
+     * the section in one commit — an unknown or absent view resolving to the
+     * section's default, never to a blank pane. When it is not, the segment is
+     * carried past untouched and the tab keeps whatever view state it holds.
+     */
+    const bind = <T extends string>(
+      ids: readonly T[],
+      set: (id: T) => void,
+      tab?: WorkspaceView,
+    ): SectionApplier =>
+      (section, view) => {
         const id = railSection(ids, section);
-        return id === null ? null : () => set(id);
+        if (id === null) return null;
+        const resolved = tab ? railView(tab, id, view) : null;
+        return () => {
+          set(id);
+          if (resolved !== null) setMarketsView(id, resolved);
+        };
       };
     return {
       overview: bind(OVERVIEW_SECTION_IDS, setOverviewSection),
@@ -141,11 +189,11 @@ export function useRailSections(): RailSections {
       data: bind(DATA_SECTION_IDS, setDataSection),
       reliability: bind(RELIABILITY_SECTION_IDS, setReliabilitySection),
       developer: bind(DEVELOPER_SECTION_IDS, setDeveloperSection),
-      markets: bind(MARKETS_SECTION_IDS, setMarketsSection),
+      markets: bind(MARKETS_SECTION_IDS, setMarketsSection, "markets"),
       coherence: bind(COHERENCE_SECTION_IDS, setCoherenceSection),
       diffusion: bind(DIFFUSION_SECTION_IDS, setDiffusionSection),
     };
-  }, []);
+  }, [setMarketsView]);
 
   return {
     overviewSection, researchSection, executionSection, dataSection, reliabilitySection,
@@ -153,5 +201,6 @@ export function useRailSections(): RailSections {
     setOverviewSection, setResearchSection, setExecutionSection, setDataSection,
     setReliabilitySection, setDeveloperSection, setMarketsSection, setCoherenceSection, setDiffusionSection, setRiskSection,
     setPortfolioSection, sectionByViewRef, applier,
+    marketsViews, setMarketsView, viewBySectionRef,
   };
 }

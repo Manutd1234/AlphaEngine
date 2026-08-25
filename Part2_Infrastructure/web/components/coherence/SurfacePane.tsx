@@ -129,7 +129,11 @@ export default function SurfacePane({
   active,
   eventTicker,
   events: supplied,
+  view,
+  onView,
 }: {
+  view: LatticeView;
+  onView: (next: LatticeView) => void;
   active: boolean;
   /** Pins one family. Absent, the pane picks the first the universe returns. */
   eventTicker?: string;
@@ -137,7 +141,6 @@ export default function SurfacePane({
   events?: CoherenceEventView[];
 }) {
   const [picked, setPicked] = useState<string | null>(null);
-  const [view, setView] = useState<LatticeView>("survival");
   const universe = useCoherenceRead<CoherenceUniverse>(
     universeRoute(),
     active && !eventTicker && !supplied?.length,
@@ -190,7 +193,7 @@ export default function SurfacePane({
       head={<PaneHead {...head} />}
       views={LATTICE_VIEWS}
       view={view}
-      onView={setView}
+      onView={onView}
       viewsLabel="Which question"
       subject={!eventTicker && events.length > 1 ? (
         <FamilyPicker

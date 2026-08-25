@@ -38,6 +38,7 @@ import { useConsolePrefetch } from "@/lib/use-console-prefetch";
 import { WORKSPACE_LOCATION_KEY } from "@/lib/user-prefs";
 import { DEFAULT_SECTION, followLocation, railSection, type SectionApplier } from "@/lib/workspace-hash";
 import { useRailSections } from "@/lib/use-rail-sections";
+import { viewsFor } from "@/lib/section-views";
 import { buildTourStops } from "@/lib/workspace-tour";
 
 export function useWorkspaceRouting() {
@@ -52,7 +53,25 @@ export function useWorkspaceRouting() {
     setOverviewSection, setResearchSection, setExecutionSection, setDataSection,
     setReliabilitySection, setDeveloperSection, setMarketsSection, setCoherenceSection, setDiffusionSection, setRiskSection,
     setPortfolioSection, sectionByViewRef, applier,
+    marketsViews, setMarketsView, viewBySectionRef,
   } = rails;
+
+  /**
+   * The full location as a hash, section and — where the tab has them — view.
+   *
+   * One builder for all four writers below. They each spelled
+   * `${view}/${section}` by hand, and a third segment added to three of the
+   * four would be the desync the comment on `navigate` already warns about:
+   * copy-link disagreeing with reload. `viewsFor` returns empty for a tab that
+   * declares no views, so those tabs keep writing exactly two segments and
+   * every link already in the world still resolves.
+   */
+  const hashFor = useCallback((tab: WorkspaceView) => {
+    const section = sectionByViewRef.current[tab];
+    if (!viewsFor(tab, section).length) return `${tab}/${section}`;
+    const at = viewBySectionRef.current[section];
+    return at ? `${tab}/${section}/${at}` : `${tab}/${section}`;
+  }, [sectionByViewRef, viewBySectionRef]);
 
   /**
    * The shell, which is the page's scroll container.
@@ -105,7 +124,7 @@ export function useWorkspaceRouting() {
         // Strategies was the desync: copy-link disagreed with reload, and a
         // forced per-workspace reset (data/reliability used to snap back to
         // overview) only hid it. Panels keep state; the URL tells the truth.
-        url.hash = detail?.hash ?? `${next}/${sectionByViewRef.current[next]}`;
+        url.hash = detail?.hash ?? hashFor(next);
         window.history[replace ? "replaceState" : "pushState"]({}, "", url);
       }
     };
@@ -138,14 +157,14 @@ export function useWorkspaceRouting() {
      * always been "back to the top of the tab".
      */
     const url = new URL(window.location.href);
-    url.hash = detail?.hash ?? `${next}/${sectionByViewRef.current[next]}`;
+    url.hash = detail?.hash ?? hashFor(next);
     window.history[replace ? "replaceState" : "pushState"]({}, "", url);
     startTransition(() => {
       setView(next);
       detail?.apply();
     });
     if (viewRef.current === next) shellRef.current?.scrollTo({ top: 0, behavior: "auto" });
-  }, []);
+  }, [hashFor]);
 
   /**
    * The cut lands when the panel does — for a tab change AND a subtab change.
@@ -300,7 +319,7 @@ export function useWorkspaceRouting() {
   /** The current location as a shareable URL, straight from the live ref. */
   const copyLinkToView = useCallback(() => {
     const url = new URL(window.location.href);
-    url.hash = `${view}/${sectionByViewRef.current[view]}`;
+    url.hash = hashFor(view);
     if (navigator.clipboard) {
       void navigator.clipboard.writeText(url.toString()).catch(() => {
         // Clipboard access can be denied by browser policy. The command must
@@ -327,7 +346,7 @@ export function useWorkspaceRouting() {
     try {
       window.localStorage.setItem(
         WORKSPACE_LOCATION_KEY,
-        JSON.stringify({ view, sections: sectionByViewRef.current }),
+        JSON.stringify({ view, sections: sectionByViewRef.current, views: viewBySectionRef.current }),
       );
     } catch {
       // ignored
@@ -358,5 +377,6 @@ export function useWorkspaceRouting() {
     openRiskSection, openPortfolioSection, openResearchSummary, openLiveLiquidity,
     openReliabilityOverview, openDataOverview, openLoopStage, openReliabilitySection,
     copyLinkToView, tourStops,
+    marketsViews, setMarketsView,
   };
 }

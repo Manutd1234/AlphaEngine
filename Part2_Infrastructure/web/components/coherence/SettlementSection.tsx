@@ -59,8 +59,9 @@ const VIEWS: ReadonlyArray<[SettlementView, string]> = [
   ["pending", "Pending"],
 ];
 
-export default function SettlementSection({ active }: { active: boolean }) {
-  const [view, setView] = useState<SettlementView>("reading");
+export default function SettlementSection(
+  { active, view, onView }: { active: boolean; view: SettlementView; onView: (next: SettlementView) => void },
+) {
 
   return (
     <SectionFrame
@@ -77,7 +78,7 @@ export default function SettlementSection({ active }: { active: boolean }) {
       }
       views={VIEWS}
       view={view}
-      onView={setView}
+      onView={onView}
       viewsLabel="Settlement view"
     >
       <SettlementPane view={view} active={active} />

@@ -32,6 +32,9 @@ export interface EnginePanelsProps {
   // accept an id its own rail does not have, which is the one mistake the rail
   // types exist to make impossible.
   marketsSection: MarketsSection;
+  /** Which view each Prices section is standing on, keyed by section id. */
+  marketsViews: Record<string, string>;
+  setMarketsView: (section: string, view: string) => void;
   coherenceSection: CoherenceSection;
   diffusionSection: DiffusionSection;
   changeMarketsSection: (section: MarketsSection) => void;
@@ -44,6 +47,8 @@ export default function EnginePanels({
   view,
   visited,
   marketsSection,
+  marketsViews,
+  setMarketsView,
   coherenceSection,
   diffusionSection,
   changeMarketsSection,
@@ -58,6 +63,8 @@ export default function EnginePanels({
           <MarketsTab
             section={marketsSection}
             onSectionChange={changeMarketsSection}
+            views={marketsViews}
+            onViewChange={setMarketsView}
             active={view === "markets"}
           />
           <NextStepFooter currentView="markets" currentSection={marketsSection} onNavigate={openSection} />
