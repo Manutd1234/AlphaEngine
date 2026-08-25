@@ -264,3 +264,28 @@
   justify-content: flex-start;
   margin-top: var(--space-2);
 }
+
+
+/* ── The lesson cards, three across ─────────────────────────────────────────
+   "the diagrams need to be better." They are 260 user units wide and drawn at
+   1:1 — deliberately, because scaling them would scale their TEXT, and a
+   diagram whose words set larger than the prose around it is a worse figure
+   rather than a bigger one. So what was wrong was not the drawing, it was the
+   column: two across a 1,560px shell gives each card about 745px, and a 260px
+   diagram centred in that is an island with 240px of white either side.
+
+   Three across at 1400 makes each card about 490px, so the diagram is half its
+   card rather than a third — and fourteen lessons fall in five rows instead of
+   seven, which is the scroll the reader also asked about.
+
+   ADDED HERE, not in `10a`, and the difference matters. `.coh-lessons__grid` is
+   a SHARED class: `diffusion/model/ModelFormulas.tsx` renders it too, and
+   re-scoping the base rule to `.proofs-plane` would leave that one unstyled —
+   a defect this sheet has shipped twice and which neither `plane-scope` nor
+   `dead-css` can see, because both ask only whether a rule has a render site
+   somewhere. Adding a scoped rule BESIDE the base is the safe direction. */
+@media (min-width: 1400px) {
+  .coherence-plane.proofs-plane .coh-lessons__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

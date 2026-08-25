@@ -20,11 +20,14 @@
  * tab stop, arrows to walk the marks, Escape to let go — the same four gestures
  * as every plotted figure, so a reader who has met one has met both.
  *
- * `preserveAspectRatio` is left at its default `xMidYMid meet` deliberately.
+ * `preserveAspectRatio` keeps `meet` and takes `xMin` since 2026-08-26.
  * Measured in Chrome on 2026-08-25 the screen CTM is exactly 1:1, so nothing
  * here is scaled or stretched; the letterboxing is the whole point, and
  * `preserveAspectRatio="none"` — which WOULD stretch the text, and is the
- * defect this engine's charts were fixed for — must never be added.
+ * defect this engine's charts were fixed for — must never be added. What
+ * changed is only WHERE the letterbox goes: `xMid` centred the drawing in the
+ * card, so it lined up with nothing, while the summary, the formula and the two
+ * bounds all start at the card's left edge. `xMin` puts it on their vertical.
  */
 
 import type { ReactNode } from "react";
@@ -44,6 +47,17 @@ export function Frame({ label, children }: { label: string; children: ReactNode 
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         width="100%"
         height={HEIGHT}
+        // LEFT, NOT CENTRED. `xMidYMid` is the default and it centres the
+        // drawing in whatever the card gives it — so a 260-unit diagram in a
+        // 490px card floats with white either side and lines up with nothing.
+        // Every other thing in the card starts at its left edge: the summary,
+        // the formula, the two bounds. `xMinYMid` puts the diagram on that same
+        // vertical, so a reader's eye follows one line down the card.
+        //
+        // `meet` is untouched, and must stay: `none` would stretch the drawing
+        // to the card and stretch its text with it, which is the defect this
+        // engine's charts were fixed for.
+        preserveAspectRatio="xMinYMid meet"
         role="img"
         aria-label={label}
         // Only once it HAS a mark to walk to. A diagram drawn without facts
