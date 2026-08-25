@@ -34,6 +34,7 @@ import { indexRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import Figure, { FigureEmpty, StateChip } from "./Figure";
 import { clock, thin, type IndexPoint } from "./IndexBasisChart";
+import FamilyRidge from "./FamilyRidge";
 import IndexFamilies from "./IndexFamilies";
 import IndexSeriesChart from "./IndexSeriesChart";
 import MeasurabilityStrip from "./MeasurabilityStrip";
@@ -162,6 +163,14 @@ export default function IndexPane({ active, view }: {
         </>
       ) : (
         <>
+          {/* THE RIDGE FIRST, THEN THE ROLL-UP. `IndexFamilies` rows on
+              `series_ticker` — two of them on the live watchlist — so "by
+              family" was a strip of two lengths. The families are the EVENTS,
+              twenty-six of them, each its own ladder with its own history, and
+              those are what the ridge draws. The two-row strip stays under it
+              as the SERIES roll-up it always was, which is a different and
+              smaller question rather than the same one badly. */}
+          <FamilyRidge data={data} />
           <IndexFamilies data={data} />
           {/* The gateway's notes, folded 2026-08-25. Rendered raw they sat
               BETWEEN the table and the sentence defining what a reading is —

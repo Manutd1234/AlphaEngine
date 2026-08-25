@@ -60,6 +60,11 @@ const FIGURES: Record<string, { file: string; drawnIn: string; replaces: string;
     replaces: "one grey sentence on the branch that IS the view when the venue is slow",
     through: "../components/coherence/FormationDiagram.tsx",
   },
+  FamilyRidge: {
+    file: "../components/coherence/FamilyRidge.tsx",
+    drawnIn: "../components/coherence/IndexPane.tsx",
+    replaces: "a two-row strip of series peaks on a view named for families",
+  },
   ShortfallScale: {
     file: "../components/coherence/ShortfallScale.tsx",
     drawnIn: "../components/coherence/PortfolioPane.tsx",

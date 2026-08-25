@@ -28,6 +28,7 @@
  * pretending here.
  */
 
+import { DRAWINGS } from "./helpers/engine-drawings";
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
@@ -39,50 +40,6 @@ const strip = (s: string) =>
     .replace(/\/\*[\s\S]*?\*\//g, " ")
     .replace(/^[ \t]*\/\/.*$/gm, " ");
 
-/**
- * The components that ARE a drawing when a view opens with one.
- *
- * `Figure`, `Plot` and a bare `<svg>` are the primitives. The rest are this
- * engine's own figures — each renders a `<Figure>` as its own first element,
- * which is why naming them here is not a loophole: it is one indirection, and
- * the suite below asserts that each of them still opens on a drawing too.
- */
-const DRAWINGS = [
-  "Figure", "Plot", "svg",
-  "MarginAxis", "ValueStrip", "PayoffByState", "ComboBandStrips", "FrechetBand",
-  "SlackStrip", "CalibrationGauge", "CalibrationTrend", "IndexPane",
-  "ReliabilityDiagram", "MurphyBars", "LessonFigure", "DollarBar",
-  // The six added on 2026-08-25, one per Proofs section, and the chain two of
-  // them are drawn with. Each is verified to open on a drawing ITSELF by the
-  // LOCAL table at the foot of this file, which is what stops this list being
-  // a way to exempt a view without writing down that you did.
-  "CheckLadder", "StateCoverage", "ParlayLegs", "HorizonAxis",
-  "MeasurabilityStrip", "GroupPins", "FormationDiagram",
-  // The one figure on the tab whose name says nothing about being one; it is
-  // local to `IndexPane` and there is no second `Chart` under `coherence/`.
-  "Chart",
-  // Diffusion's. Wired in 2026-08-25 with the branch mode below, so these are
-  // reached rather than merely declared. `SurvivalChart` and `MeetingsEmpty`
-  // are local to `KalshiArm` and `MeetingTable`; both open on a `<Figure>`.
-  "ClockAgreement", "EpisodeWatch", "MeetingTable", "SurvivalChart", "MeetingsEmpty",
-  "MeetingCalendar",
-  // Findings / Instrument, 2026-08-25. It replaced a `ValueStrip` that drew
-  // two rows of "not measured" on the live read — an empty frame that also
-  // duplicated the last two rows of the table beneath it.
-  "InstrumentFit",
-  // Coherence test / Proof, 2026-08-26. It replaced a `ValueStrip` of the
-  // certificate's own two row counts — 189 against 0, the second floored to a
-  // 1px hairline and excluded from that strip's floor note — with the room
-  // every inequality has left, sorted. Verified to open on a drawing itself by
-  // the LOCAL table at the foot of this file.
-  "ConstraintLadder",
-  // Basket, 2026-08-26. It replaced `MarginAxis` on the no-legs branch — the
-  // ordinary answer, where a linear axis puts an optimum of -0.000000, a
-  // threshold of 0.0001 and zero on the same pixel and the figure is one
-  // horizontal rule. Four magnitudes on a decade scale instead. `MarginAxis`
-  // keeps the Coherence test's verdict view, where the question is a yes/no.
-  "ShortfallScale",
-];
 
 /**
  * How far past a `return` to read for its opening tags.
@@ -383,6 +340,7 @@ describe("every Proofs view opens on a drawing", () => {
       MeetingCalendar: "../components/coherence/diffusion/MeetingCalendar.tsx#MeetingCalendar",
       ConstraintLadder: "../components/coherence/ConstraintLadder.tsx#ConstraintLadder",
       ShortfallScale: "../components/coherence/ShortfallScale.tsx#ShortfallScale",
+      FamilyRidge: "../components/coherence/FamilyRidge.tsx#FamilyRidge",
     };
     for (const [name, at] of Object.entries(LOCAL)) {
       const [file, fn] = at.split("#");

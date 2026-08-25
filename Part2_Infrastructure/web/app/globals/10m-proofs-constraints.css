@@ -191,3 +191,50 @@
   font-size: var(--fs-tick);
   font-variant-numeric: tabular-nums;
 }
+
+/* ── The family ridge ───────────────────────────────────────────────────────
+   One lane per watched family, all on one y so the comparison across them is
+   the reading. The lane rule is what keeps a family with two readings looking
+   like a lane rather than like a stray mark. */
+
+.coh-ridge__base {
+  stroke: var(--grid);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.coh-ridge__line {
+  fill: none;
+  stroke: var(--series-1);
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+/* The worst reading this family ever produced. A dot rather than a taller
+   stroke: the lanes share a scale, so height already carries the magnitude and
+   a second encoding of it would be the same fact twice. */
+.coh-ridge__peak { fill: var(--series-2); }
+
+.coh-ridge__name {
+  fill: var(--text-primary);
+  font-size: var(--fs-tick);
+  font-variant-numeric: tabular-nums;
+}
+
+.coh-ridge__meta {
+  fill: var(--text-secondary);
+  font-size: var(--fs-tick);
+  font-variant-numeric: tabular-nums;
+}
+
+.coh-ridge__tick {
+  fill: var(--text-secondary);
+  font-size: var(--fs-tick);
+  font-variant-numeric: tabular-nums;
+}
+
+/* One mark per reading. The lane's line only exists where two readings were
+   consecutive in the shared poll order, which on the live tape is rare — so the
+   dots are what carry the measurement and the line is what carries a run. */
+.coh-ridge__dot { fill: color-mix(in srgb, var(--series-1) 70%, var(--surface-1)); }
