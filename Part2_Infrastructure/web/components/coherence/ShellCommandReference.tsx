@@ -11,9 +11,25 @@
  */
 
 import { DERIVED_FILES } from "./ShellTree";
+import ShellReadings from "./ShellReadings";
 
 export default function CommandReference() {
   return (
+    <>
+      {/* THE DRAWING FIRST since 2026-08-25 — "add more diagrams and summarise
+          the words". This view was a seven-row table whose third column is the
+          one that matters and the one the card cut off at the right edge, and
+          that column is not five facts: it is one distinction with three
+          values, which the caption below already states in words. Drawn, a
+          reader can see which reading is worth asking again without reading a
+          sentence per row. */}
+      <ShellReadings />
+
+      {/* The table is the proof and it folds. What it alone carries is what
+          each reading READS — the middle column — and the exact sentence the
+          gateway would return, which is per-row detail rather than the shape. */}
+      <details className="disclosure">
+        <summary>What each of the two commands and five readings answers, {DERIVED_FILES.length + 2} rows</summary>
     <div className="table-wrap">
       <table className="coh-table">
         <caption className="coh-table__caption">
@@ -50,5 +66,7 @@ export default function CommandReference() {
         </tbody>
       </table>
     </div>
+      </details>
+    </>
   );
 }

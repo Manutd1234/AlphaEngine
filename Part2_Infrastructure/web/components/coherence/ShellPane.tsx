@@ -73,6 +73,7 @@ import { shellRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import { StateChip } from "./Figure";
 import ShellListing, { READ_OK } from "./ShellListing";
+import ShellReadings from "./ShellReadings";
 import ShellTree from "./ShellTree";
 
 type ShellView = "tree" | "reading" | "commands" | "layout";
@@ -213,11 +214,23 @@ function Reading({ data, requested, loading }: {
         loading ? (
           <p className="console-empty muted">Reading {requested}…</p>
         ) : (
-          <p className="console-empty">
-            <span aria-hidden="true">○</span> {requested} is a directory, and{" "}
-            <code>cat</code> answers for a file — the venue returned its listing instead. Open a file from
-            the Tree, or use Tree to walk here.
-          </p>
+          <>
+            <p className="console-empty">
+              <span aria-hidden="true">○</span> {requested} is a directory, and{" "}
+              <code>cat</code> answers for a file — the venue returned its listing instead. Open a reading from
+              Browse, or use the Map to see where they hang.
+            </p>
+            {/* THE DRAWING A READER STANDING ON A DIRECTORY ACTUALLY NEEDS, added
+                2026-08-25. This branch was one sentence, and it is the branch a
+                reader lands on every time they press Read without having opened
+                a file — including on arrival, where the path is `/`. The
+                question it leaves them with is "so what CAN I read", and that is
+                exactly what this figure answers: the five readings, grouped by
+                whether an empty one is worth asking again. Same component the
+                Commands view leads with, so the two views agree by construction
+                rather than by being kept in step. */}
+            <ShellReadings />
+          </>
         )
       ) : data.state === "ok" && data.body ? (
         <pre className="coh-shell__body">{data.body}</pre>
