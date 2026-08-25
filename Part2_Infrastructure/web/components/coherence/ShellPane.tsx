@@ -77,18 +77,65 @@ import ShellTree from "./ShellTree";
 
 type ShellView = "tree" | "reading" | "commands" | "layout";
 
-/** The switcher's options, in the order they are pressed. `commands` split out
- *  of Reading on the second 2026-08-24 pass: the reference table is static
- *  material that is true whatever the venue answered, and stacked under a
- *  `cat` body it made the one view with a preformatted block the tallest on
- *  the tab. Like Layout, it reads nothing and returns before the branches
- *  that need a payload. */
+/**
+ * The switcher's options, in the order they are pressed.
+ *
+ * MAP IS FIRST AND IS THE LANDING VIEW SINCE 2026-08-25, on the reader's own
+ * report: "fix shell since i dont know what it is doing". The section used to
+ * open on `Browse`, which answers ONE level at a time — and at the root that is
+ * a single row reading `0/  directory  3 watched event(s)`, under a lede about
+ * `ls` and `cat`. A reader met the grammar of a filesystem and no reason for
+ * one. The Map was the view that answers the question and it was the fourth
+ * button along: it draws the whole shape at once, the five derived readings
+ * that hang off a market, and the shard boundary with "one order group cannot
+ * cross it" written across it. That is the argument the section exists to make,
+ * so it is what the section opens on.
+ *
+ * The labels are what each one DOES, not what it is made of. "Tree" and
+ * "Layout" were two words for the same noun and neither said which was the
+ * picture; "Reading" and "Browse" both read as verbs for the same act. Map
+ * draws the shape, Browse walks it, Read opens one file, Commands is the
+ * vocabulary.
+ *
+ * `commands` split out of Read on the second 2026-08-24 pass: the reference
+ * table is static material that is true whatever the venue answered, and
+ * stacked under a `cat` body it made the one view with a preformatted block the
+ * tallest on the tab. Like Map, it reads nothing and returns before the
+ * branches that need a payload.
+ */
 const VIEWS: ReadonlyArray<[ShellView, string]> = [
-  ["tree", "Tree"],
-  ["reading", "Reading"],
+  ["layout", "Map"],
+  ["tree", "Browse"],
+  ["reading", "Read"],
   ["commands", "Commands"],
-  ["layout", "Layout"],
 ];
+
+/**
+ * What the path a reader is standing on IS, in words.
+ *
+ * The breadcrumb says `/ shards / 0 / KXBTCD` and a reader who has not read the
+ * Map cannot tell whether `0` is a shard, a series or a ticker — the segments
+ * are the venue's own names and none of them carries its own kind. Depth does,
+ * because the grammar is fixed: `/shards/<n>/<series>/<event>/<name>`.
+ *
+ * Written out rather than indexed off a list so the last entry can say what it
+ * says: below an event the names are the five derived readings, and a reader
+ * who has arrived there is looking at a computed file rather than at anything
+ * the exchange published.
+ */
+const LEVEL: readonly string[] = [
+  "the watched universe",
+  "every exchange instance the watchlist touches",
+  "one exchange instance, and one collateral pool",
+  "one series",
+  "one event, and the readings derived from it",
+  "one derived reading",
+];
+
+function levelOf(path: string): string {
+  const depth = segmentsOf(path).length;
+  return LEVEL[Math.min(depth, LEVEL.length - 1)];
+}
 
 function segmentsOf(path: string): string[] {
   return path.split("/").filter(Boolean);
@@ -199,7 +246,7 @@ function Reading({ data, requested, loading }: {
 
 export default function ShellPane({ active }: { active: boolean }) {
   const [path, setPath] = useState("/");
-  const [view, setView] = useState<ShellView>("tree");
+  const [view, setView] = useState<ShellView>("layout");
   // One read serves the two views that need one. They are the same URL under a
   // different command, so the view IS the command: `ls` draws the tree, `cat`
   // the reading — and Layout, which is the same at every path, asks for neither.
@@ -234,8 +281,8 @@ export default function ShellPane({ active }: { active: boolean }) {
         note={note}
         lede={
           <>
-            Shards hold series, series hold events, events hold markets, so <code>ls</code> a path and{" "}
-            <code>cat</code> a derived reading.
+            Every watched market has an address, and where it sits decides both which collateral pool can
+            protect it and which derived readings it can answer.
           </>
         }
       />
@@ -280,6 +327,18 @@ export default function ShellPane({ active }: { active: boolean }) {
 
       {/* The command line, and it belongs to every view: it sets the path, and through what it lands on, the command. */}
       <Breadcrumb path={data.path} command={data.command} onNavigate={navigate} />
+
+      {/* What that path IS. The segments are the venue's own names and none of
+          them says its own kind, so a reader who has not studied the Map cannot
+          tell a shard from a series from a ticker by looking. Depth can, and
+          this is the one sentence that spends it.
+
+          `.coh-shell__detail-line` rather than a class of its own: that rule is
+          already the pane's "what this read is" voice — note size, primary
+          colour — and it is what the gateway's own detail prints in, one line
+          below. A new class would need a rule in 10g and a rung in the type
+          ladder to say the same thing twice. */}
+      <p className="coh-shell__detail-line">You are looking at {levelOf(data.path)}.</p>
 
       {stale ? (
         <p className="coh-shell__note">
