@@ -34,6 +34,7 @@
 
 import { priceLabel } from "@/lib/coherence/fixed-point";
 import type { CoherenceCalibration } from "@/lib/coherence/types-lab";
+import HorizonAxis from "./HorizonAxis";
 import ReliabilityDiagram, { decimalLabel, statValue } from "./ReliabilityDiagram";
 import ValueStrip from "./ValueStrip";
 
@@ -49,6 +50,16 @@ export default function CalibrationBands({
 
   return (
     <>
+      {/* THE ENGINE CAVEAT MOVED HERE ON 2026-08-26, from above every view in
+          the section. It is a position on a clock — WHEN the prices on the x
+          axis were read — and this is the view whose x axis they are. On Score
+          it stood over a gauge and a decomposition that do not have an x axis
+          to be caveated, and it was one of five figure frames on that view.
+
+          The claim is unchanged and still made exactly once; `HorizonAxis`
+          records why it may not be made twice. */}
+      <HorizonAxis data={data} />
+
       <div className="coh-calib__figures">
         <ReliabilityDiagram
           bins={data.bins}

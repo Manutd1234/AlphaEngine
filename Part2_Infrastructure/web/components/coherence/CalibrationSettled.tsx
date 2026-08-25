@@ -75,18 +75,15 @@ export default function CalibrationSettled({ data, error, view }: {
         <StateChip mark="◇" word="Settled markets scored" value={String(data.count)} tone="muted" />
       </SectionVerdict>
 
-      {/* THE ENGINE CAVEAT, AS A FIGURE. It was a three-branch paragraph — the
-          longest prose object on the tab, standing over every view in the
-          section — and the fact it was making is a position on a clock. The
-          claim is unchanged and still said exactly once; `HorizonAxis` records
-          why it may not be said twice. */}
-      <HorizonAxis data={data} />
-
       {view === "score" ? (
         <>
-          {/* The verdict first, then the six figures it is drawn from. The gauge
-              refuses to call a convergence score or a thin corpus a pass, which
-              is the argument the banner above makes in prose. */}
+          {/* TWO FIGURES AND A TABLE, where there were five figures and a table.
+              The gauge is the verdict — it refuses to call a convergence score
+              or a thin corpus a pass — and the decomposition is what the
+              headline number is made of. `HorizonAxis` moved to Bands on
+              2026-08-26 and the six-row strip left: the first is a caveat about
+              WHICH PRICES were scored, which is the question the reliability
+              bands are read against, and the second drew the table below it. */}
           <CalibrationGauge data={data} />
           <ScoreView data={data} facts={scoreFacts(data)} />
         </>

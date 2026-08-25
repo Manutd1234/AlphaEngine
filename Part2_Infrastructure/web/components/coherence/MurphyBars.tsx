@@ -305,22 +305,37 @@ export default function MurphyBars({
         </Figure>
       )}
 
-      <dl className="coh-calib__terms">
-        {terms.map((term) => (
-          <div key={term.key}>
-            <dt>
-              <span className="coh-calib__term-sign" aria-hidden="true">
-                {term.sign < 0 ? "−" : "+"}
-              </span>
-              {term.name}
-              <span className="coh-calib__term-dir">{term.direction}</span>
-            </dt>
-            <dd>
-              <b>{cut(term.raw)}</b> {term.meaning}
-            </dd>
-          </div>
-        ))}
-      </dl>
+      {/* FOLDED AND COUNTED, 2026-08-26. "why am i scrolling so much for the
+          score tab" — and this glossary is four definitions standing open under
+          two figures that already draw the four quantities and print their
+          values. It is a reference: a reader consults it once and then knows
+          what resolution means for the rest of the session.
+
+          It passes the fold test `13-warm-bright-pass.css` states, which is
+          that hiding a thing must not change what someone believes about the
+          desk: every term's own figure carries its name, its sign and its value
+          on the drawing, so what is behind the fold is the SENTENCE explaining
+          each — not the measurement. The summary counts them, so nobody opens
+          it to find out how big it is. */}
+      <details className="disclosure">
+        <summary>{`What each of the ${terms.length} terms means, and which way it is good`}</summary>
+        <dl className="coh-calib__terms">
+          {terms.map((term) => (
+            <div key={term.key}>
+              <dt>
+                <span className="coh-calib__term-sign" aria-hidden="true">
+                  {term.sign < 0 ? "−" : "+"}
+                </span>
+                {term.name}
+                <span className="coh-calib__term-dir">{term.direction}</span>
+              </dt>
+              <dd>
+                <b>{cut(term.raw)}</b> {term.meaning}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </details>
     </div>
   );
 }

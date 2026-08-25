@@ -60,8 +60,13 @@ const FIGURES: Record<string, { file: string; drawnIn: string }> = {
     drawnIn: "../components/coherence/CombosViews.tsx",
   },
   HorizonAxis: {
+    // MOVED TO Bands ON 2026-08-26. It stood over every view in the section,
+    // including Score, where it was one of FIVE figure frames on one view and
+    // caveated an x axis that view does not have. It is a position on a clock —
+    // when the prices on the x axis were read — so it belongs to the view whose
+    // x axis they are. The claim is unchanged and still made exactly once.
     file: "../components/coherence/HorizonAxis.tsx",
-    drawnIn: "../components/coherence/CalibrationSettled.tsx",
+    drawnIn: "../components/coherence/CalibrationBands.tsx",
   },
   MeasurabilityStrip: {
     file: "../components/coherence/MeasurabilityStrip.tsx",

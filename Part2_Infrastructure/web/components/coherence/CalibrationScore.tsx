@@ -169,17 +169,19 @@ function scoreRows(data: CoherenceCalibration, facts: Fact[]): StripRow[] {
 export function ScoreView({ data, facts }: { data: CoherenceCalibration; facts: Fact[] }) {
   return (
     <>
-      {/* The reader's third review, 2026-08-24: every view draws its numbers.
-          The four score-like figures share the nought-to-one axis honestly —
-          position IS the reading, with the dashed rule at one — while the two
-          counts decline their bars: a count of markets and a time in seconds
-          are not lengths on this axis. */}
-      <ValueStrip
-        caption="The score-like figures on one axis, nought to the dashed rule at one"
-        ariaLabel="Brier, skill, base rate and slope on one axis; the two counts are printed, not drawn"
-        rows={scoreRows(data, facts)}
-        mark={{ at: 1, label: "1" }}
-      />
+      {/* THE SIX-ROW STRIP LEFT ON 2026-08-26, and its departure is the whole
+          of "why am i scrolling so much for the score tab".
+
+          It drew the same six quantities the table below prints, off the same
+          `scoreFacts` call, four of them as bars on a nought-to-one axis and
+          two of them declining a bar because a count of markets is not a length.
+          So the view carried the score twice, once as a picture of itself: five
+          `Figure` frames and a table where two figures and a table say more.
+
+          The rule it was added under — every view draws its numbers — is
+          satisfied by the two that remain, and satisfied better. The gauge is
+          the verdict and the decomposition is what the headline number is MADE
+          of; a strip of the numbers beside their own table is neither. */}
       {/* PROMOTED OUT OF A <details> ON 2026-08-25. The decomposition is not
           an aside about the Brier — it IS the Brier, split into the three
           things that make it: how far off the prices were (reliability), how
