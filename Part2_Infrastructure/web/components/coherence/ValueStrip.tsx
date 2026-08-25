@@ -39,14 +39,12 @@
  * the comparison DOWN the rows, so one shared domain or no bar at all.
  */
 
+import { DIAGRAM_LABEL_PX, advancePx, gutterFor, truncateMiddle } from "@/lib/coherence/label-metrics";
 import Figure, { Plot } from "./Figure";
 
 const ROW = 22;
 const PAD = { top: 8, bottom: 8, right: 64 };
 const BAR_H = 12;
-/** The 13px diagram-label rung (14r) x the face's ~0.56 advance. 2026-08-24:
- *  the rung moved 12 -> 13, so 12 x 0.56 = 6.72 became 13 x 0.56 = 7.28. */
-const CHAR_PX = 7.28;
 const GUTTER_MIN = 72;
 const GUTTER_MAX = 300;
 /** Under this many pixels a bar is drawn at a hairline and named below. */
@@ -101,13 +99,17 @@ export default function ValueStrip({
     <Figure caption={caption} ariaLabel={ariaLabel} reading={reading} missing={note}>
       <Plot height={height}>
         {(width) => {
-          const longest = rows.reduce((most, row) => Math.max(most, row.label.length), 0);
-          const gutter = Math.min(
-            GUTTER_MAX,
-            Math.max(GUTTER_MIN, Math.min(longest * CHAR_PX + 14, width * 0.38)),
-          );
-          const fits = Math.max(6, Math.floor((gutter - 14) / CHAR_PX));
-          const short = (text: string) => (text.length > fits ? `${text.slice(0, fits - 1)}…` : text);
+          // The per-glyph advance moved to `lib/coherence/label-metrics.ts` on
+          // 2026-08-25. It was 7.28px here — 13px times a 0.56 em ratio — and
+          // 0.56 is what MIXED-CASE prose measures; this strip also carries
+          // uppercase tickers and tabular amounts, which set 23% wider, so the
+          // labels that overran were exactly the ones a reader most needed
+          // whole. The shared module classifies the string instead of making
+          // one ratio serve three.
+          const gutter = gutterFor(rows.map((row) => row.label), width, DIAGRAM_LABEL_PX, {
+            min: GUTTER_MIN, max: GUTTER_MAX, maxFraction: 0.38, clearance: 14,
+          });
+          const short = (text: string) => truncateMiddle(text, gutter - 14, DIAGRAM_LABEL_PX);
           const plotW = Math.max(80, width - gutter - PAD.right);
           const x = (value: number) => gutter + ((value - lo) / span) * plotW;
           const zero = x(0);
@@ -121,14 +123,26 @@ export default function ValueStrip({
                 const barless = v == null || row.noBar;
                 const w = barless ? 0 : Math.max(FLOOR_PX, Math.abs(x(v as number) - zero));
                 const bx = barless || (v as number) >= 0 ? zero : zero - w;
-                // The figure prints on the bar's own side; clamped so a long
-                // bar's number never leaves the plot.
-                const tx = barless
-                  ? zero + 6
-                  : (v as number) >= 0
-                    ? Math.min(width - 4, bx + w + 5)
-                    : Math.max(gutter + 2, bx - 5);
-                const anchor = !barless && (v as number) < 0 ? "end" : "start";
+                // The figure prints on the bar's own side, and the clamp is on
+                // the text's FAR edge rather than its anchor.
+                //
+                // It used to clamp the start: `Math.min(width - 4, …)` put the
+                // first glyph inside the plot and let the rest run out of the
+                // viewBox, because start-anchored text extends rightward from
+                // the point being clamped. A bar reaching the end of the track
+                // then printed its value past the card — reported on Fees →
+                // Worked example, where "0.010097" is about 68px against the
+                // 64px `PAD.right` reserves. The mirror image applies to a
+                // negative bar, whose end-anchored value extends LEFT and could
+                // cross into the label gutter.
+                const valueText = row.noBar ? `${row.text} — ${row.noBar}` : row.text;
+                const valueW = advancePx(valueText, DIAGRAM_LABEL_PX);
+                const negative = !barless && (v as number) < 0;
+                const wanted = barless ? zero + 6 : negative ? bx - 5 : bx + w + 5;
+                const tx = negative
+                  ? Math.max(gutter + 2 + valueW, Math.min(wanted, width - 4))
+                  : Math.max(gutter + 2, Math.min(wanted, width - 4 - valueW));
+                const anchor = negative ? "end" : "start";
                 return (
                   <g key={`${index}-${row.label}`}>
                     <title>{row.title}</title>
@@ -139,7 +153,7 @@ export default function ValueStrip({
                       <rect x={bx} y={y} width={w} height={BAR_H} className="coh-ablation__bar" />
                     )}
                     <text x={tx} y={cy + 3.5} textAnchor={anchor} className="coh-ablation__value">
-                      {row.noBar ? `${row.text} — ${row.noBar}` : row.text}
+                      {valueText}
                     </text>
                   </g>
                 );

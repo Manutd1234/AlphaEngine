@@ -179,3 +179,50 @@
    The ▲ and the words "outside the band" are in the same string, so the colour
    is the third thing saying it. */
 .coh-combo__state.is-outside { fill: var(--series-2); font-weight: 700; }
+
+/* ── The bounds dumbbell ─────────────────────────────────────────────────── */
+
+/*
+ * A tick at the bound, a dot at what the portfolio costs, the span between them
+ * the slack. The span is the QUANTITY, so it is the mark that carries weight;
+ * the bound is what a reader judges against, so it is drawn last and darkest
+ * and nothing occludes it — the same rule the band strips keep.
+ *
+ * Violation is a direction, not a colour: a cost dot LEFT of its bound is the
+ * Dutch book, and the row's own label carries `▲` against `●` so the state is
+ * legible without the tint at all.
+ */
+.coh-slack__span {
+  stroke: var(--sky-2);
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+.coh-slack__span.is-violated { stroke: var(--status-critical); opacity: 0.4; }
+
+.coh-slack__bound {
+  stroke: var(--text-primary);
+  stroke-width: 2;
+  shape-rendering: crispEdges;
+}
+
+.coh-slack__cost { fill: var(--series-1); }
+.coh-slack__cost.is-violated { fill: var(--status-critical); }
+
+.coh-slack__key {
+  fill: var(--text-muted);
+  font-size: var(--fs-tick);
+}
+
+/* Πpᵢ is HOLLOW where the quoted price is solid, and that is the argument
+   rather than decoration: independence is a guess about the legs the venue
+   never promises, so it must not read as a second price. */
+.coh-combo__independence {
+  fill: none;
+  stroke: var(--text-secondary);
+  stroke-width: 1.5;
+}
+
+.coh-combo__key {
+  fill: var(--text-muted);
+  font-size: var(--fs-tick);
+}

@@ -30,7 +30,12 @@ import type { CoherenceCombo, CoherenceComboLeg, CoherenceComboRow } from "@/lib
 import { priceLabel } from "@/lib/coherence/fixed-point";
 import ComboBandStrips from "./ComboBandStrips";
 import FrechetBand, { DEPENDENCE_WORD, basisCaveat, probLabel, toUnit } from "./FrechetBand";
+import { DIAGRAM_LABEL_PX, gutterFor, truncateMiddle } from "@/lib/coherence/label-metrics";
 import Figure, { Plot, StateChip } from "./Figure";
+
+/** One dumbbell row. 30 was the bespoke strip's; 26 fits more rows on screen
+ *  now that every tested row is drawn rather than only the violated ones. */
+const ROW_H = 26;
 
 /** Said on the card whose Πpᵢ is missing, and once under Notes. Never both. */
 const NO_INDEPENDENCE =
@@ -101,156 +106,6 @@ function LegTable({ combo }: { combo: CoherenceCombo }) {
   );
 }
 
-function RowLegs({ legs }: { legs: CoherenceComboLeg[] }) {
-  return (
-    <div className="table-wrap">
-      <table className="coh-table">
-        <caption className="coh-table__caption">
-          The portfolio this bound is tested with. A sold leg shows a dash — its price is absent from the payload, not
-          zero.
-        </caption>
-        <thead>
-          <tr>
-            <th scope="col">Leg</th>
-            <th scope="col">Direction</th>
-            <th scope="col">Side</th>
-            <th scope="col" className="num">Cost</th>
-          </tr>
-        </thead>
-        <tbody>
-          {legs.map((leg, index) => (
-            <tr key={`${leg.ticker}-${index}`}>
-              <th scope="row">{leg.label || leg.ticker}</th>
-              <td>{leg.buy_cost == null ? "Sell" : "Buy"}</td>
-              <td>
-                <span className="coh-combo__side">{leg.side}</span>
-              </td>
-              <td className="num">{priceLabel(leg.buy_cost)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-/**
- * Every shown bound in one table, a row each.
- *
- * These four numbers used to be a `<dl>` inside each row block, so two violated
- * rows arrived as two free-standing lists and no column could be read down.
- */
-function RowFacts({ rows }: { rows: CoherenceComboRow[] }) {
-  const untested = rows.some((row) => row.cost == null || row.slack == null);
-  return (
-    <div className="table-wrap">
-      <table className="coh-table">
-        <caption className="coh-table__caption">
-          Slack is the portfolio&rsquo;s cost minus its bound: negative is the violation, before fees.
-          {untested ? " A dash is a claim not tested — a leg lost its quote between the read and this row — never a cost of nothing." : ""}
-        </caption>
-        <thead>
-          <tr>
-            <th scope="col" className="num">Bound</th>
-            <th scope="col" className="num">Portfolio cost</th>
-            <th scope="col" className="num">Slack</th>
-            <th scope="col">Scope</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, index) => (
-            <tr key={`facts-${index}`}>
-              <th scope="row" className="num">{priceLabel(row.bound)}</th>
-              <td className="num">{priceLabel(row.cost)}</td>
-              <td className="num">{priceLabel(row.slack)}</td>
-              <td>{row.scope}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-/**
- * The Bounds view's own drawing (third 2026-08-24 review): each shown row's
- * slack as a bar from a shared zero line. Negative runs left and is the
- * violation; the mark and word beside each bar carry that without colour. A
- * row whose slack was not measured gets words, never a zero-length bar.
- */
-function SlackStrip({ rows }: { rows: CoherenceComboRow[] }) {
-  const values = rows.map((row) => {
-    const slack = toUnit(row.slack);
-    return slack == null ? null : slack;
-  });
-  const widest = Math.max(...values.map((value) => (value == null ? 0 : Math.abs(value))), 1e-9);
-  const height = 8 + rows.length * 30 + 20;
-  return (
-    <Figure
-      caption="Each tested portfolio's slack against its bound"
-      ariaLabel={rows
-        .map((row, index) => `bound ${priceLabel(row.bound)}: slack ${values[index] == null ? "not tested" : priceLabel(row.slack)}`)
-        .join(". ")}
-    >
-      <Plot height={height}>
-        {(width) => {
-          const zero = width * 0.55;
-          const scale = (width * 0.4) / widest;
-          return (
-            <>
-              {rows.map((row, index) => {
-                const y = 8 + index * 30;
-                const value = values[index];
-                return (
-                  <g key={`slack-${index}`}>
-                    <text x={0} y={y + 14} className="coh-combo__label">
-                      {`${row.violated ? "▲" : "●"} bound ${priceLabel(row.bound)}, ${row.scope}`}
-                    </text>
-                    {value == null ? (
-                      <text x={zero + 4} y={y + 14} className="coh-combo__label">— not tested</text>
-                    ) : (
-                      <rect
-                        x={value < 0 ? zero - Math.abs(value) * scale : zero}
-                        y={y + 4}
-                        width={Math.max(1, Math.abs(value) * scale)}
-                        height={14}
-                        className={value < 0 ? "coh-dollarbar__leg is-leg-2" : "coh-kelly__bar-cash"}
-                      >
-                        <title>{`slack ${priceLabel(row.slack)}${value < 0 ? " — violated, a Dutch book before fees" : ""}`}</title>
-                      </rect>
-                    )}
-                  </g>
-                );
-              })}
-              <line x1={zero} x2={zero} y1={4} y2={height - 16} className="coh-ladder__axis" />
-              <text x={zero} y={height - 4} textAnchor="middle" className="coh-combo__axis">0</text>
-            </>
-          );
-        }}
-      </Plot>
-    </Figure>
-  );
-}
-
-function RowBlock({ row, tightest }: { row: CoherenceComboRow; tightest: boolean }) {
-  const mark = row.violated ? "▲" : "●";
-  const word = row.violated ? "Violated, a Dutch book before fees" : tightest ? "Satisfied, the closest of them" : "Satisfied";
-  return (
-    <div className="coh-combo__row">
-      <p className="coh-combo__because">
-        <span aria-hidden="true">{mark}</span> {word}: {row.because}
-      </p>
-      {/* The verdict and its reason stay open; the portfolio proving it is
-          per-leg detail and takes a summary that counts the legs (fourth
-          review of 2026-08-24). SlackStrip above already draws whether this
-          row clears its bound, which is what a reader on Bounds came for. */}
-      <details className="disclosure">
-        <summary>{`The ${row.legs.length} legs this bound is tested with`}</summary>
-        <RowLegs legs={row.legs} />
-      </details>
-    </div>
-  );
-}
 
 function ComboChips({ combo }: { combo: CoherenceCombo }) {
   const inside = combo.inside_band;
@@ -261,13 +116,16 @@ function ComboChips({ combo }: { combo: CoherenceCombo }) {
                  value={combo.price == null ? null : priceLabel(combo.price)}
                  tone={inside == null ? "muted" : inside ? "good" : "critical"} />
       <StateChip mark="◇" word="Band width" value={priceLabel(combo.band_width)} tone="muted" />
+      {/* The Πpᵢ FIGURE is not a chip any more. `FrechetBand` draws it on the
+          card's own axis as a hollow ring and labels it there, and the Bands
+          view now draws it per row too — so the chip was a number sitting
+          beside a picture of itself. What stays is the DEPENDENCE word, which
+          is a judgement about the legs that no position on an axis can carry,
+          and the absence case, which is a fact about the quotes. */}
       {combo.independence == null ? (
         <StateChip mark="◌" word="No independence figure" tone="muted" />
       ) : (
-        <>
-          <StateChip mark="○" word="Independence Πpᵢ" value={probLabel(combo.independence)} tone="muted" />
-          <StateChip mark="◇" word={DEPENDENCE_WORD[combo.dependence] ?? combo.dependence} tone="muted" />
-        </>
+        <StateChip mark="◇" word={DEPENDENCE_WORD[combo.dependence] ?? combo.dependence} tone="muted" />
       )}
     </div>
   );
@@ -311,11 +169,15 @@ export function BandsView({ combos }: { combos: CoherenceCombo[] }) {
 export function ParlaysView({ combos }: { combos: CoherenceCombo[] }) {
   return (
     <section className="coh-combos__rows">
-      <h4 className="console-subhead">{`Each of the ${combos.length} parlays, its band and its legs`}</h4>
-      <p className="coh-combo__meta">
-        One line per parlay, carrying where its price sits in the band its own legs leave. Open one for the
-        band drawn and the leg-by-leg cost; the Bands view draws all {combos.length} against each other.
-      </p>
+      {/* NO HEADING AND NO INSTRUCTION HERE, as of 2026-08-25. The `<h4>` said
+          "Each of the N parlays, its band and its legs" directly under a seg
+          button reading "Parlays" — the control names the view, and a heading
+          that repeats a control is the shape `copy-audit` calls a tab
+          description paraphrasing its own rail. The paragraph under it was
+          worse: "Open one for the band drawn… the Bands view draws all N
+          against each other" is a reader being told what the two things they
+          can already see and press will do. Each summary carries its own
+          verdict, which is the thing that actually helps them choose. */}
       {/* SIX FULL CARDS WAS 3,567px AT DESK WIDTH — measured, and the longest
           view on the desk by a factor of nearly two. Each card is a title, a
           chip row, a band figure, a position sentence and a leg table, and six
@@ -335,32 +197,6 @@ export function ParlaysView({ combos }: { combos: CoherenceCombo[] }) {
           <ComboCard combo={combo} />
         </details>
       ))}
-    </section>
-  );
-}
-
-export function BoundsView(
-  { rows, violated, tightest }: { rows: CoherenceComboRow[]; violated: CoherenceComboRow[]; tightest: CoherenceComboRow | null },
-) {
-  const shown = violated.length ? violated : tightest ? [tightest] : [];
-  return (
-    <section className="coh-combos__rows">
-      <h4 className="console-subhead">What the bounds test found</h4>
-      <p className="coh-combo__meta">
-        {violated.length
-          ? `${violated.length} of ${rows.length} testable rows are violated. Each portfolio below pays at least its bound in every future and costs less than that, before fees.`
-          : rows.length
-            ? `None of the ${rows.length} testable rows is violated: no parlay is priced outside the band its legs impose — a reading about the bounds only, never about whether a parlay is worth its price.`
-            : "No row could be tested: every one needed a leg unquoted on the side the bound uses."}
-      </p>
-      {!violated.length && tightest ? (
-        <p className="coh-combo__meta">
-          {`The closest still leaves ${priceLabel(tightest.slack)} between the portfolio and its bound.`}
-        </p>
-      ) : null}
-      {shown.length ? <SlackStrip rows={shown} /> : null}
-      {shown.length ? <RowFacts rows={shown} /> : null}
-      {shown.map((row, index) => <RowBlock key={`row-${index}`} row={row} tightest={!violated.length} />)}
     </section>
   );
 }

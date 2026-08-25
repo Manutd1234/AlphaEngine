@@ -67,7 +67,11 @@ import type { CoherenceComboRow, CoherenceCombos } from "@/lib/coherence/types-l
 import { toCenticents } from "@/lib/coherence/fixed-point";
 import { combosRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
-import { BandsView, BoundsView, NotesView, ParlaysView } from "./CombosViews";
+import { BandsView, NotesView, ParlaysView } from "./CombosViews";
+// The Bounds view left `CombosViews` when that file crossed the ceiling: it
+// draws the PORTFOLIO a bound is tested with, where the other two draw a
+// parlay against its band.
+import { BoundsView } from "./CombosBounds";
 import { StateChip } from "./Figure";
 
 const FORMULA = "max(0, Σpᵢ − (n−1))  ≤  P(all legs)  ≤  min pᵢ";
@@ -123,14 +127,12 @@ export default function CombosPane({ active, view }: { active: boolean; view: Co
 
   return (
     <>
-      {/* The claim the three views are built on, said once and above all of
-          them: it used to lead the `combos` section's own lede, and the fold
-          into Dutch book left it with nowhere to be. A reader who takes the
-          independence product for a fair value reads every figure below
-          backwards, so the sentence sits with the formula that states it. */}
-      <p className="coh-combo__note">
-        Two probabilities do not determine the probability of both: they bound it.
-      </p>
+      {/* The formula only. The sentence that used to sit above it — two
+          probabilities do not determine the probability of both — went back to
+          being the SECTION's lede on 2026-08-25, which is where it was
+          published and where `CombosSection` now carries it. It lived here for
+          one day because the fold into Dutch book left it with nowhere to be,
+          and a claim made in two places is a claim a reader reads twice. */}
       <code className="coh-combo__formula">{FORMULA}</code>
 
       {/* Two chips, not four: the count chips restated the section note, which

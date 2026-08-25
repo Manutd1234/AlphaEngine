@@ -17,16 +17,16 @@
  */
 
 import { DOLLAR_CC, fromCenticents, toCenticents } from "@/lib/coherence/fixed-point";
+import { DIAGRAM_LABEL_PX, gutterFor, truncateMiddle } from "@/lib/coherence/label-metrics";
 import type { CoherenceCombo } from "@/lib/coherence/types-lab";
 import Figure, { Plot } from "./Figure";
 
-const ROW_H = 34;
+/** 40, from 34. Two adjacent price markers are 22px tall in a row that was 34,
+ *  so they came within 12px of touching and read as one mark spanning two
+ *  parlays. */
+const ROW_H = 40;
 const TOP = 4;
 const AXIS_GAP = 8;
-/** Combo tickers run long; 26 glyphs at the 13px rung is 26 x 13 x 0.577 =
- *  195px, and the gutter keeps the same 10px of clearance it kept at 12px,
- *  where the same 26 glyphs were ≈180px inside 190. */
-const LABEL_W = 205;
 
 export default function ComboBandStrips({ combos }: { combos: CoherenceCombo[] }) {
   const rows = combos.map((combo) => ({
@@ -34,6 +34,13 @@ export default function ComboBandStrips({ combos }: { combos: CoherenceCombo[] }
     lo: toCenticents(combo.lower_bound),
     hi: toCenticents(combo.upper_bound),
     price: toCenticents(combo.price),
+    // Πpᵢ — where the parlay would sit if the legs were independent. Drawn as a
+    // hollow tick rather than said in a chip: "priced above independence" was
+    // four words for a comparison of two positions, and a reader had to hold
+    // both numbers in their head to make it. It is NOT a fair value, which is
+    // why it is hollow where the price is solid — the venue never promises
+    // independence, and `FrechetBand` carries the sentence that says so.
+    independence: toCenticents(combo.independence),
     width: combo.band_width,
     inside: combo.inside_band,
   }));
@@ -55,30 +62,44 @@ export default function ComboBandStrips({ combos }: { combos: CoherenceCombo[] }
     >
       <Plot height={height}>
         {(width) => {
-          const trackW = Math.max(60, width - LABEL_W);
-          const x = (cc: number) => LABEL_W + (Math.min(cc, DOLLAR_CC) / DOLLAR_CC) * trackW;
+          // MEASURED, not multiplied out by hand. The gutter this replaces was a
+          // fixed 205px derived from a tabular-mono advance for text that is set
+          // in Inter, so every full-length ticker ran past it. See
+          // `lib/coherence/label-metrics.ts` for the measurement and the method.
+          const labelW = gutterFor(rows.map((row) => row.ticker), width, DIAGRAM_LABEL_PX, {
+            min: 96, maxFraction: 0.34, max: 260,
+          });
+          const trackW = Math.max(60, width - labelW);
+          const x = (cc: number) => labelW + (Math.min(cc, DOLLAR_CC) / DOLLAR_CC) * trackW;
           return (
             <>
+              {/* TRACKS AND MARKS FIRST, LABELS AFTER. `.coh-combo__track` is an
+                  opaque fill, so with the labels emitted first SVG paint order
+                  turned an overrun into a silent CLIP — the tail of a long
+                  ticker was painted over by the bar beside it, which is
+                  indistinguishable from a shorter ticker. Drawn last, an overrun
+                  that the gutter arithmetic ever gets wrong again is visible as
+                  an overlap instead of hidden as a truncation. */}
               {rows.map((row, index) => {
                 const y = TOP + index * ROW_H;
-                const label = row.ticker.length > 26 ? `${row.ticker.slice(0, 25)}…` : row.ticker;
                 return (
-                  <g key={row.ticker}>
-                    <text x={0} y={y + 15} className="coh-combo__label">
-                      {label}
-                      <title>{row.ticker}</title>
-                    </text>
-                    <rect x={LABEL_W} y={y + 6} width={trackW} height={14} className="coh-combo__track" />
+                  <g key={`${row.ticker}-track`}>
+                    <rect x={labelW} y={y + 9} width={trackW} height={14} className="coh-combo__track" />
                     {row.lo != null && row.hi != null ? (
-                      <rect x={x(row.lo)} y={y + 6} width={Math.max(1, x(row.hi) - x(row.lo))} height={14}
+                      <rect x={x(row.lo)} y={y + 9} width={Math.max(1, x(row.hi) - x(row.lo))} height={14}
                             className="coh-combo__band">
                         <title>{`band ${fromCenticents(row.lo)} to ${fromCenticents(row.hi)}${row.width ? `, ${row.width} wide` : ""}`}</title>
                       </rect>
                     ) : (
-                      <text x={LABEL_W + 4} y={y + 17} className="coh-combo__label">◌ no band</text>
+                      <text x={labelW + 4} y={y + 20} className="coh-combo__label">◌ no band</text>
                     )}
+                    {row.independence != null ? (
+                      <circle cx={x(row.independence)} cy={y + 16} r={4} className="coh-combo__independence">
+                        <title>{`independence Πpᵢ would put this at ${fromCenticents(row.independence)} — a guess about the legs, never a fair value`}</title>
+                      </circle>
+                    ) : null}
                     {row.price != null ? (
-                      <line x1={x(row.price)} x2={x(row.price)} y1={y + 2} y2={y + 24}
+                      <line x1={x(row.price)} x2={x(row.price)} y1={y + 5} y2={y + 27}
                             className="coh-combo__price">
                         <title>{`price ${fromCenticents(row.price)}${row.inside == null ? "" : row.inside ? ", inside the band" : ", outside the band"}`}</title>
                       </line>
@@ -86,9 +107,23 @@ export default function ComboBandStrips({ combos }: { combos: CoherenceCombo[] }
                   </g>
                 );
               })}
-              <line x1={LABEL_W} x2={width} y1={axisY} y2={axisY} className="coh-ladder__axis" />
-              <text x={LABEL_W} y={axisY + 13} className="coh-combo__axis">$0</text>
+              {rows.map((row, index) => (
+                <text key={`${row.ticker}-label`} x={0} y={TOP + index * ROW_H + 20} className="coh-combo__label">
+                  {/* Both ends kept. A combo ticker's tail is what tells it from
+                      every other parlay in the same series, so a trailing
+                      ellipsis leaves six rows reading identically. */}
+                  {truncateMiddle(row.ticker, labelW - 10, DIAGRAM_LABEL_PX)}
+                  <title>{row.ticker}</title>
+                </text>
+              ))}
+              <line x1={labelW} x2={width} y1={axisY} y2={axisY} className="coh-ladder__axis" />
+              <text x={labelW} y={axisY + 13} className="coh-combo__axis">$0</text>
               <text x={width} y={axisY + 13} textAnchor="end" className="coh-combo__axis">$1</text>
+              {/* The key names both marks in words, so the figure carries no
+                  meaning in shape alone any more than in colour alone. */}
+              <text x={(labelW + width) / 2} y={axisY + 13} textAnchor="middle" className="coh-combo__key">
+                | quoted price ○ independence Πpᵢ
+              </text>
             </>
           );
         }}
