@@ -25,8 +25,9 @@
 import { useMeasuredWidth } from "@/components/chart-kit";
 
 import { episodesToSamples } from "@/lib/coherence/absorption";
-import type { CoherenceEpisodes } from "@/lib/coherence/types";
+import type { CoherenceEpisodes, CoherenceStatus } from "@/lib/coherence/types";
 import Figure, { FigureEmpty, StateChip } from "../Figure";
+import EpisodeWatch from "./EpisodeWatch";
 import ValueStrip from "../ValueStrip";
 
 const HEIGHT = 160;
@@ -107,10 +108,12 @@ function SurvivalChart({ data }: { data: CoherenceEpisodes }) {
 
 /** The Kalshi arm, one view at a time: the survival curve under its chips, or
  *  the episode table with its half-life note. One `episodes` read feeds both. */
-export default function KalshiArm({ data, error, view }: {
+export default function KalshiArm({ data, error, view, status }: {
   data: CoherenceEpisodes | null;
   error: string | null;
   view: "survival" | "episodes";
+  /** The recorder behind the tape; drawn when the tape has nothing closed. */
+  status: CoherenceStatus | null;
 }) {
   if (error && !data) {
     return (
@@ -123,6 +126,13 @@ export default function KalshiArm({ data, error, view }: {
 
   const samples = episodesToSamples(data.episodes);
   const withHalfLife = samples.filter((sample) => sample.half_life_s != null);
+
+  // NOTHING CLOSED IS THE LIVE CASE, and it is a property of the tape rather
+  // than of the view, so both views draw the watch rather than one drawing a
+  // curve of nothing and the other a sentence. `EpisodeWatch` claims no
+  // lifetime and draws no episode: it reports what the recorder is doing and
+  // the window an episode has to outlive to be seen at all.
+  if (!data.episodes.length) return <EpisodeWatch data={data} status={status} />;
 
   if (view === "survival") {
     return (

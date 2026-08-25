@@ -39,12 +39,15 @@ import FreshnessStamp from "@/components/workspace/FreshnessStamp";
 import ArmSection from "@/components/coherence/diffusion/ArmSection";
 import EpisodesSection from "@/components/coherence/diffusion/EpisodesSection";
 import FindingsSection from "@/components/coherence/diffusion/FindingsSection";
+import InstrumentSection from "@/components/coherence/diffusion/InstrumentSection";
+import MeetingsSection from "@/components/coherence/diffusion/MeetingsSection";
 import ModelSection from "@/components/coherence/diffusion/ModelSection";
+import SandboxSection from "@/components/coherence/diffusion/SandboxSection";
 import { DIFFUSION_SECTIONS, type DiffusionSection } from "@/lib/sections";
-import { absorptionRoute, episodesRoute, findingsRoute } from "@/lib/coherence/routes";
+import { absorptionRoute, episodesRoute, findingsRoute, statusRoute } from "@/lib/coherence/routes";
 import { COHERENCE_POLL_MS, useCoherenceRead, warmCoherenceRead } from "@/lib/coherence/use-coherence";
 import type { AbsorptionRead } from "@/components/coherence/diffusion/types";
-import type { CoherenceEpisodes } from "@/lib/coherence/types";
+import type { CoherenceEpisodes, CoherenceStatus } from "@/lib/coherence/types";
 import { useSectionWarming } from "@/lib/coherence/use-section-warming";
 
 export { type DiffusionSection } from "@/lib/sections";
@@ -52,15 +55,33 @@ export { type DiffusionSection } from "@/lib/sections";
 /**
  * What each section asks for the moment it opens.
  *
- * `model` is empty ON PURPOSE and is stated rather than left to be noticed: an
- * empty list that is a decision and one that is an oversight look identical in
- * a diff. Every view in that section computes in the browser, and the reason it
- * exists is to show that the closed form ships before the model does.
+ * THREE EMPTY LISTS, and each is a decision rather than an oversight, which is
+ * why each is stated here in its own words rather than sharing one sentence.
+ *
+ * `model` draws the seven measurement cards from a literal in this bundle.
+ * `instrument` draws the six instrument cards from
+ * the same literal in this bundle.
+ * `sandbox` is the half-life crossing, the simulated path and the spectrum,
+ * computed on a slider a reader moves.
+ *
+ * Each computes in the browser from `lib/coherence/diffusion-model`, the
+ * TypeScript port a committed parity fixture holds to the Python reference —
+ * and the reason those sections exist is to show that the closed form ships
+ * before the model does, so a gateway call in any of the three would contradict
+ * what they demonstrate.
+ *
+ * `arm` and `meetings` NAME THE SAME URL, and that is free rather than
+ * wasteful: `read-cache.ts` holds one payload per URL and joins a read already
+ * in flight, and `useSectionWarming` de-duplicates the sweep. So the second
+ * section spends no request and opens warm off the first.
  */
 const SECTION_READS: Record<DiffusionSection, readonly string[]> = {
   arm: [absorptionRoute()],
-  episodes: [episodesRoute()],
+  meetings: [absorptionRoute()],
+  episodes: [episodesRoute(), statusRoute()],
   model: [],
+  instrument: [],
+  sandbox: [],
   findings: [findingsRoute()],
 };
 
@@ -72,8 +93,15 @@ export interface DiffusionConsoleProps {
 }
 
 export default function DiffusionConsole({ section, onSectionChange, active = true }: DiffusionConsoleProps) {
-  const absorption = useCoherenceRead<AbsorptionRead>(absorptionRoute(), active && section === "arm");
+  const absorption = useCoherenceRead<AbsorptionRead>(
+    absorptionRoute(),
+    active && (section === "arm" || section === "meetings"),
+  );
   const episodes = useCoherenceRead<CoherenceEpisodes>(episodesRoute(), active && section === "episodes");
+  // The recorder's own state, read beside the tape. An empty tape is the LIVE
+  // case on most deployments, and "nothing has closed yet" is a report rather
+  // than an absence only if the watch behind it can be counted.
+  const status = useCoherenceRead<CoherenceStatus>(statusRoute(), active && section === "episodes");
 
   useSectionWarming(SECTION_READS, active);
 
@@ -91,7 +119,7 @@ export default function DiffusionConsole({ section, onSectionChange, active = tr
         note: "quiet half-hours the same estimator is run over",
       },
       {
-        label: "Model",
+        label: "Estimator",
         value: "in the browser",
         note: "the estimator's own arithmetic, computed here rather than fetched",
       },
@@ -125,7 +153,7 @@ export default function DiffusionConsole({ section, onSectionChange, active = tr
         activeId={section}
         onChange={openSection}
         onIntent={warmSection}
-        secondary={["model"]}
+        secondary={["model", "instrument", "sandbox"]}
         active={active}
       />
 
@@ -133,12 +161,24 @@ export default function DiffusionConsole({ section, onSectionChange, active = tr
         <ArmSection data={absorption.data} error={absorption.error} />
       </WorkspaceSubtabPanel>
 
+      <WorkspaceSubtabPanel workspaceId="diffusion" tabId="meetings" activeId={section}>
+        <MeetingsSection data={absorption.data} error={absorption.error} />
+      </WorkspaceSubtabPanel>
+
       <WorkspaceSubtabPanel workspaceId="diffusion" tabId="episodes" activeId={section}>
-        <EpisodesSection data={episodes.data} error={episodes.error} />
+        <EpisodesSection data={episodes.data} error={episodes.error} status={status.data} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="diffusion" tabId="model" activeId={section}>
         <ModelSection />
+      </WorkspaceSubtabPanel>
+
+      <WorkspaceSubtabPanel workspaceId="diffusion" tabId="instrument" activeId={section}>
+        <InstrumentSection />
+      </WorkspaceSubtabPanel>
+
+      <WorkspaceSubtabPanel workspaceId="diffusion" tabId="sandbox" activeId={section}>
+        <SandboxSection />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="diffusion" tabId="findings" activeId={section}>

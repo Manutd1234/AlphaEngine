@@ -11,7 +11,7 @@
 
 import { useState } from "react";
 
-import type { CoherenceEpisodes } from "@/lib/coherence/types";
+import type { CoherenceEpisodes, CoherenceStatus } from "@/lib/coherence/types";
 import PaneHead from "../PaneHead";
 import KalshiArm from "./KalshiArm";
 
@@ -22,7 +22,12 @@ const VIEWS: ReadonlyArray<[EpisodeView, string]> = [
   ["episodes", "Episodes"],
 ];
 
-export default function EpisodesSection({ data, error }: { data: CoherenceEpisodes | null; error: string | null }) {
+export default function EpisodesSection({ data, error, status }: {
+  data: CoherenceEpisodes | null;
+  error: string | null;
+  /** The recorder behind the tape, so an empty tape can report its watch. */
+  status: CoherenceStatus | null;
+}) {
   const [view, setView] = useState<EpisodeView>("survival");
   return (
     <section className="card console-card coh-diffusion" aria-labelledby="diffusion-episodes-heading">
@@ -40,7 +45,7 @@ export default function EpisodesSection({ data, error }: { data: CoherenceEpisod
           </button>
         ))}
       </div>
-      <KalshiArm data={data} error={error} view={view} />
+      <KalshiArm data={data} error={error} view={view} status={status} />
     </section>
   );
 }

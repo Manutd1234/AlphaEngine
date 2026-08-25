@@ -1,16 +1,21 @@
 "use client";
 
 /**
- * The announcement arm: absorption against a control of matched quiet windows.
+ * The announcement arm: absorption, and the control that makes it a finding.
  *
- * One of four sections of the Diffusion tab since 2026-08-25, where it was one
- * of four GROUPS of a Proofs section. Same four views, same one read; what it
- * gained is a head that can say what the arm is, and a control row that is the
- * only one on screen.
+ * TWO VIEWS SINCE 2026-08-25, down from four. `meetings` and the mechanism
+ * drawing left for a section of their own — they answer what each decision did,
+ * which is a different question from how fast a stage is absorbed.
  *
- * Mechanism reads nothing — its drawing is two stage constants — and rides here
- * anyway, because a view that fetches nothing needs no gate of its own and a
- * section for one figure would put the switcher back where this pass found it.
+ * THE NOISE FLOOR DID NOT LEAVE, and that is a decision rather than an
+ * oversight. It is the CONTROL for the claim this section makes: the matched
+ * half-hours in which nothing was announced, which is what "faster" is faster
+ * than. A section boundary is how a reader stops encountering something, and a
+ * reader who could reach the decay curve without ever meeting its control could
+ * read a half-life off it and leave with a shape mistaken for a finding. So the
+ * two views sit behind one button, and the switcher says "Control" rather than
+ * "Noise floor" — the reader needs to know what it is FOR before they know what
+ * it is called.
  */
 
 import { useState } from "react";
@@ -19,13 +24,11 @@ import PaneHead from "../PaneHead";
 import InformationDiffusionPane from "./InformationDiffusionPane";
 import type { AbsorptionRead } from "./types";
 
-type ArmView = "absorption" | "floor" | "meetings" | "mechanism";
+type ArmView = "absorption" | "floor";
 
 const VIEWS: ReadonlyArray<[ArmView, string]> = [
   ["absorption", "Absorption"],
-  ["floor", "Noise floor"],
-  ["meetings", "Meetings"],
-  ["mechanism", "Mechanism"],
+  ["floor", "Control"],
 ];
 
 export default function ArmSection({ data, error }: { data: AbsorptionRead | null; error: string | null }) {

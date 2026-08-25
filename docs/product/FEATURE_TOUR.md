@@ -63,14 +63,17 @@ its aria-label and title; HALTED is never folded.
 
 **Where the rail lists below come from.** Every rail in this document is transcribed from
 `Part2_Infrastructure/web/lib/sections.ts`, which is the single definition the rails, the
-command palette, the hash whitelist and "Copy link to this view" all read. **66 sections across
-the eleven tabs** — 48 on the eight decision-loop tabs, 8 on Quotes, 6 on Proofs and 4 on
+command palette, the hash whitelist and "Copy link to this view" all read. **69 sections across
+the eleven tabs** — 48 on the eight decision-loop tabs, 8 on Quotes, 6 on Proofs and 7 on
 Diffusion — a total
-`web/scripts/desk-sweep-plan.mjs` mirrors by hand as `EXPECTED_SECTIONS = 66` and the tour test
-asserts against the arrays themselves. Six ids deliberately disagree with their labels, because
+`web/scripts/desk-sweep-plan.mjs` mirrors by hand as `EXPECTED_SECTIONS = 69` and the tour test
+asserts against the arrays themselves. Seven ids deliberately disagree with their labels, because
 the deep link came first and ids never change: view `live` renders "Execution", view `markets`
 renders "Quotes", view `coherence` renders "Proofs", section `codex` renders "Strategies",
-section `activity` renders "Blotter", and Risk's section `model` renders "Risk engine" — it
+section `activity` renders "Blotter", and TWO different sections called `model` render
+something else — Diffusion's renders "Measurement", because since 2026-08-25 it is one half of
+the estimator and its peer is "Instrument", so calling one half "Model" while the other is named
+for what it holds would be a category error on the rail; and Risk's renders "Risk engine" — it
 carried a label combining the forecast and the chart that scores it until those were split onto
 two subtabs, and a section-level alias was considered and rejected, because nothing is broken and
 it would be a migration mechanism for no migration. If a rail here disagrees with the app, `sections.ts` is
@@ -677,15 +680,19 @@ worth of subject behind one button, and it had grown a THIRD switcher level to h
 `#coherence/diffusion` and `#coherence/findings` both cross tabs now, which is the one kind of move
 `RELOCATED_SECTIONS` cannot stop being needed for.
 
-**60 seconds:** rail: **Announcement arm → Kalshi episodes → Model → Findings**. Four sections,
-Model carried as secondary because it is an instrument rather than a reading.
+**60 seconds:** rail: **Announcement arm → Meetings → Kalshi episodes → Measurement →
+Instrument → Sandbox → Findings**. Seven sections; the three that read nothing are carried as
+secondary, because they are the instrument rather than a reading of it.
 
 | Section | Views | What it answers |
 |---|---|---|
-| **Announcement arm** | Absorption · Noise floor · Meetings · Mechanism | How much of the move had arrived, and by when? A stage is measured against matched windows in which nothing was announced, so a fast absorption has to be faster than the market is anyway — **Noise floor** is that control drawn, and it is what stops a decay curve being read as a finding. **Mechanism** reads nothing: its drawing is two stage constants, and it is here because a reader has to know the two windows are the same length before any comparison between them means anything. |
+| **Announcement arm** | Absorption · Control | How much of the move had arrived, and by when? A stage is measured against matched windows in which nothing was announced, so a fast absorption has to be faster than the market is anyway — **Control** is that comparison drawn, and it is what stops a decay curve being read as a finding. It stays inside this section deliberately: a section boundary is how a reader stops encountering something, and a reader who could reach the curve without its control could take a half-life away without the caveat that makes it one. |
+| **Meetings** | Meeting by meeting · Mechanism | What did each decision do? The same ledger the arm reads, cut per meeting rather than per stage — a blank stage never moved enough to measure, which is a property of the decision rather than of the data. **Mechanism** reads nothing: its drawing is two stage constants, and it is here because the two windows being the same length is what a reader has to accept before any per-meeting number means anything. Sharing the arm's read costs nothing — `read-cache.ts` holds one payload per URL. |
 | **Kalshi episodes** | Survival · Episodes | How long does a published mispricing survive? An episode earns a lifetime only by CLOSING, which is why the survival curve is drawn from closed episodes alone and why the median can be withheld while episodes are still open. This is the measurement that says whether the executor is worth building — half-life before P&L. |
-| **Model** | Measurement · Instrument · Half-life · Simulator · Spectrum | What does the estimator actually compute? Every view here reads NOTHING: it computes in this browser from `lib/coherence/diffusion-model.ts`, a TypeScript port held to the Python original by a committed parity fixture. That is the section's argument rather than a saving — the closed form is what lets the instrument ship before the model does — and a gateway call here would contradict it. Move a slider and watch the estimator decline to answer, which is the interesting case. |
-| **Findings** | Effects · Table · Instrument | What did the study conclude, and was it fit to? The absorption clock is predictable without the text at all — R² +0.14 out of sample — and the statement's spectrum adds nothing to it. That is a sharper and falsifiable claim, not "nothing predicts anything", and **Instrument** is what keeps the verdict separated from the mechanism that produced it: a finding read while standing inside the model that generated it is the easiest place on the desk to confuse a fit with a result. |
+| **Measurement** | one view | What does the estimator compute on a price path? Seven cards: the absorbed fraction, the gate that decides whether there was a move at all, the crossing, and the two fits that are reported but are never the verdict. Every card names the reference module it is a port of and states what BREAKS it above what it measures. |
+| **Instrument** | one view | What is built on top of the measurement? Six cards: a clock that is not made of the event, the control percentile, and the closed-form information spectrum the study reads. Split from Measurement because they are two questions — and because the thirteen cards together measured 2,724px, four times the next largest view on the tab. |
+| **Sandbox** | Half-life · Simulator · Spectrum | What happens when you move the inputs? The only views on this tab a reader can DRIVE, and the interesting case is the refusal: each can be driven to a state where the honest output is a named reason rather than a number. Every figure computes in this browser from `lib/coherence/diffusion-model.ts`, a TypeScript port held to the Python original by a committed parity fixture — which is what makes a slider possible at all, since a round trip per keystroke would make all three unusable. |
+| **Findings** | Effects · Table · Instrument | What did the study conclude, and was it fit to? The absorption clock is predictable without the text at all — R² +0.14 out of sample — and the statement's spectrum adds nothing to it. That is a sharper and falsifiable claim, not "nothing predicts anything", and **Instrument** is what keeps the verdict separated from the mechanism that produced it: a finding read while standing inside the model that generated it is the easiest place on the desk to confuse a fit with a result. It stays one section for the same reason the control does — that view is what makes the null readable at all. |
 
 ---
 

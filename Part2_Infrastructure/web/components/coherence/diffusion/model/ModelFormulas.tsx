@@ -210,7 +210,7 @@ const FORMULAS: readonly ModelFormula[] = [
 ];
 
 /**
- * Two views rather than one, and the measurement is why.
+ * Two SECTIONS rather than one view, and the measurement is why.
  *
  * All thirteen on one view came to 2,724px at desk width and 3,142px at 1100 —
  * four times the next largest view on the tab and the longest thing on the desk,
@@ -219,21 +219,20 @@ const FORMULAS: readonly ModelFormula[] = [
  * better and still the longest.
  *
  * So it splits where the model splits: what the estimator MEASURES on a price
- * path, and the INSTRUMENT built on top of it. Seven cards and six, each landing
- * in the range every other view on this tab occupies. The same move as the
- * grouping slices — a control is cheaper than a scroll.
+ * path, and the INSTRUMENT built on top of it. Seven cards and six. They were
+ * two views of one section until 2026-08-25 and are `model` and `instrument`
+ * now, because reading what a thing computes and reading what is built on top
+ * of it are two questions, and a rail button is cheaper than a scroll.
+ *
+ * NO SECTION NOTE HERE ANY MORE. Both owners draw a `PaneHead` whose lede says
+ * what the half is and that every card names its reference module, so the
+ * paragraph this file used to open with was the same claim in a second voice on
+ * the same screen.
  */
 export default function ModelFormulas({ part }: { part: FormulaPart }) {
   const shown = FORMULAS.filter((entry) => entry.part === part);
   return (
     <>
-      <p className="coh-event__note">
-        {part === "measurement"
-          ? "What the estimator computes on a price path: the absorbed fraction, the gate that decides whether there was a move at all, the crossing, and the two fits that are reported but never the verdict."
-          : "The instrument built on top of it: a clock that is not made of the event, and the closed-form information spectrum the diffusion study reads."}{" "}
-        Each names its reference module; Python is the reference and the browser twin is held to a fixture
-        that module writes.
-      </p>
 
       <div className="coh-lessons__grid">
         {shown.map((entry) => (

@@ -117,12 +117,15 @@ const OWNERS: Record<string, string> = {
   calibration: "components/coherence/CalibrationPane.tsx",
   index: "components/coherence/IndexSection.tsx",
   lessons: "components/coherence/LessonsPane.tsx",
-  // Diffusion is the eleventh TAB as of 2026-08-25. Its four sections are
+  // Diffusion is the eleventh TAB as of 2026-08-25. Its seven sections are
   // argument panes like the rest of this suite's, so they are headed here
   // rather than by the reading suite.
   arm: "components/coherence/diffusion/ArmSection.tsx",
+  meetings: "components/coherence/diffusion/MeetingsSection.tsx",
   episodes: "components/coherence/diffusion/EpisodesSection.tsx",
   model: "components/coherence/diffusion/ModelSection.tsx",
+  instrument: "components/coherence/diffusion/InstrumentSection.tsx",
+  sandbox: "components/coherence/diffusion/SandboxSection.tsx",
   findings: "components/coherence/diffusion/FindingsSection.tsx",
 };
 

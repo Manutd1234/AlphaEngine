@@ -1,0 +1,65 @@
+/* ==========================================================================
+   Diffusion — the folded-prose rung and the episode watch.
+
+   A SECOND PARTIAL RATHER THAN MORE OF 10c, and the reason is the ceiling:
+   10c reached 403 lines when these landed, and the house rule is to split
+   rather than to shave prose out of a comment to buy a line. The seam is a
+   real one — 10c is the FIGURES the announcement arm draws, and what is here
+   is a type decision that applies to every fold on the tab plus one figure
+   that only exists when a tape is empty.
+
+   Imported after 10h and before 11, which is where the numeric prefix puts it.
+   ========================================================================== */
+
+/* ── Folded prose sets at the summary's own rung ──────────────────────────
+   A `<details class="disclosure">` already opens with a quiet summary —
+   `--fs-xs`, `--text-secondary` (partial 13) — and then its BODY inherited
+   `--fs-body` at full contrast. So the thing a reader chose to skip came back
+   louder than the control that offered it, and on the Measurement and
+   Instrument sections that is thirteen cards of it.
+
+   Folded prose is commentary a reader may skip, and it is sized as such: the
+   same rung and the same colour as the summary that hides it. Nothing here
+   holds a number, a status or a limit — the boundary clause each formula card
+   states ("what breaks it") stays OPEN and at full contrast, which is
+   `LessonsPane`'s rule and the reason the fold is on the confident half.
+
+   Scoped to this tab. The other eight have their own condensation passes and
+   their own copy guards, and a desk-wide rung change is not this pass's to
+   make. */
+.coherence-plane.diffusion-plane details.disclosure > p,
+.coherence-plane.diffusion-plane details.disclosure > .coh-lesson__summary,
+.coherence-plane.diffusion-plane details.disclosure > dl,
+.coherence-plane.diffusion-plane details.disclosure > div,
+.coherence-plane.diffusion-plane details.disclosure > .table-wrap {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+/* The `dd` inside a fold is targeted directly rather than left to inherit,
+   because `14q` restates `.coh-lesson__bounds dd` at the reading rung across
+   the whole coherence plane — a declaration on the element beats inheritance
+   from its list however specific the ancestor selector is. Same reason 14q
+   gives for restating these in the first place. */
+.coherence-plane.diffusion-plane details.disclosure .coh-lesson__bounds dd,
+.coherence-plane.diffusion-plane details.disclosure .coh-lesson__bounds dt {
+  font-size: var(--fs-xs);
+}
+
+/* The table inside a fold keeps its own head weight — a column heading that
+   dropped to body colour would stop reading as a heading — but its cells take
+   the folded rung with everything else. */
+.coherence-plane.diffusion-plane details.disclosure .coh-table th,
+.coherence-plane.diffusion-plane details.disclosure .coh-table td {
+  font-size: var(--fs-xs);
+}
+
+/* ── The observable window on the episode watch ───────────────────────────
+   Three regions of one log axis, and each carries a MARK and a WORD on the
+   drawing as well as a fill, because a reader who cannot separate the three
+   greys still has to be able to tell "never available" from "would be
+   recorded". The fills only rank them. */
+.diff-watch__band { stroke: none; }
+.diff-watch__band--gone { fill: color-mix(in srgb, var(--text-secondary) 14%, transparent); }
+.diff-watch__band--blind { fill: color-mix(in srgb, var(--series-2) 12%, transparent); }
+.diff-watch__band--seen { fill: color-mix(in srgb, var(--series-1) 14%, transparent); }

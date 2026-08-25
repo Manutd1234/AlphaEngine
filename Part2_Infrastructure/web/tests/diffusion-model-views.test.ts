@@ -57,22 +57,51 @@ const MODEL_FILES = [
 
 const sources = new Map(MODEL_FILES.map((file) => [file, read(file)] as const));
 
-describe("the Model section is offered and is reachable", () => {
-  // A SECTION as of 2026-08-25, not a group. Diffusion became the eleventh tab
-  // and its four groups became its four sections, so the switcher this checks
-  // is the section's own control row rather than a second level inside one.
-  it("the section's five views are named on its switcher", () => {
-    const section = read("../components/coherence/diffusion/ModelSection.tsx");
-    for (const label of ["Measurement", "Instrument", "Half-life", "Simulator", "Spectrum"]) {
-      assert.ok(section.includes(`"${label}"`), `the Model section lost its ${label} view`);
+/**
+ * The three sections the five Model views became, with the file that draws each.
+ *
+ * RE-CUT ON 2026-08-25, and deliberately rather than loosened. This suite used
+ * to assert that the five labels "Measurement", "Instrument", "Half-life",
+ * "Simulator" and "Spectrum" all appeared on ONE switcher in `ModelSection`.
+ * Two of those were never views of a thing a reader drives — they are the two
+ * halves of the formula catalogue — so the five became three sections: the
+ * cards about a price path, the cards about the instrument built on it, and the
+ * three a reader can actually move a slider on.
+ */
+const SECTION_FILES: Record<string, string> = {
+  model: "../components/coherence/diffusion/ModelSection.tsx",
+  instrument: "../components/coherence/diffusion/InstrumentSection.tsx",
+  sandbox: "../components/coherence/diffusion/SandboxSection.tsx",
+};
+
+describe("the estimator's three sections are offered and are reachable", () => {
+  it("the two formula halves are drawn, one section each, with no switcher", () => {
+    // One view each, so neither may draw a control row: a switcher with one
+    // option is a control that cannot be operated.
+    assert.match(read(SECTION_FILES.model), /<ModelFormulas part="measurement"/);
+    assert.match(read(SECTION_FILES.instrument), /<ModelFormulas part="instrument"/);
+    for (const id of ["model", "instrument"] as const) {
+      assert.equal(
+        (read(SECTION_FILES[id]).match(/className="seg[ "]/g) ?? []).length, 0,
+        `${id} draws a switcher and has one view`,
+      );
     }
   });
 
-  it("the rail offers the section itself", () => {
+  it("the three a reader can drive are named on the Sandbox switcher", () => {
+    const sandbox = read(SECTION_FILES.sandbox);
+    for (const label of ["Half-life", "Simulator", "Spectrum"]) {
+      assert.ok(sandbox.includes(`"${label}"`), `the Sandbox section lost its ${label} view`);
+    }
+  });
+
+  it("the rail offers all three", () => {
     // From the registry rather than from a console's markup: the rail is data,
     // and a section missing from it is unreachable however it is drawn.
-    assert.ok(DIFFUSION_SECTIONS.some((section) => section.id === "model"),
-      "the Model section is not on the Diffusion rail");
+    for (const id of Object.keys(SECTION_FILES)) {
+      assert.ok(DIFFUSION_SECTIONS.some((section) => section.id === id),
+        `the ${id} section is not on the Diffusion rail`);
+    }
   });
 });
 
@@ -80,8 +109,12 @@ describe("it computes in the browser, which is the claim it is making", () => {
   it("no view in the group reads the gateway", () => {
     // `gaussian.py`: the closed form is what lets the instrument ship before the
     // model does. A fetch here would contradict the thing being demonstrated.
+    // The SECTION wrappers are scanned too, not only the four view files. The
+    // wrapper is where a fetch would most naturally be added — it is the thing
+    // holding the props — and until 2026-08-25 nothing scanned it at all.
     const offenders: string[] = [];
-    for (const [file, source] of sources) {
+    const scanned = new Map([...sources, ...Object.values(SECTION_FILES).map((f) => [f, read(f)] as const)]);
+    for (const [file, source] of scanned) {
       if (/useCoherenceRead|absorptionRoute|episodesRoute|findingsRoute|fetch\(/.test(source)) {
         offenders.push(file);
       }

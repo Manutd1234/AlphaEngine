@@ -260,8 +260,8 @@ describe("the head is one sentence per section", () => {
    *  the rail rather than through the relocation table. */
   const PROVED = [
     "certificate", "portfolio", "combos", "calibration", "index", "lessons",
-    // The Diffusion tab's four, headed by the proof suite.
-    "arm", "episodes", "model", "findings",
+    // The Diffusion tab's seven, headed by the proof suite.
+    "arm", "meetings", "episodes", "model", "instrument", "sandbox", "findings",
   ];
 
   it("the two suites' owners add up to both rails, exactly once each", () => {

@@ -119,12 +119,20 @@ describe("every section can be warmed before it is opened", () => {
    */
   const UNWARMED: Record<string, RegExp> = {
     lessons: /asks the gateway for nothing/,
-    // The Model section reads nothing at all and that is its ARGUMENT rather
-    // than a saving: every view in it computes in the browser from the
-    // TypeScript port of the estimator, which is what shows the closed form
-    // ships before the model does. A gateway call there would contradict the
-    // thing the section demonstrates.
+    // THREE Diffusion sections read nothing at all and that is their ARGUMENT
+    // rather than a saving: each computes in the browser from the TypeScript
+    // port of the estimator, which is what shows the closed form ships before
+    // the model does. A gateway call in any of them would contradict the thing
+    // they demonstrate.
+    //
+    // Three regexes rather than one shared phrase, deliberately. A single
+    // pattern would match once for each of the three against a sentence written
+    // about only one of them — and then a FOURTH empty list would arrive excused
+    // by prose that was never about it, which is the "decision versus oversight"
+    // distinction this whole table exists to draw.
     model: /computes in the browser/,
+    instrument: /the same literal in this bundle/,
+    sandbox: /computed on a slider a reader moves/,
     // `dispersion` joined on 2026-08-25, when the RFQ channel became a section
     // again. As two views of Books its read was gated on the VIEW and warmed by
     // nothing, which is the `rfq` entry in VIEW_GATED below; as a section it is

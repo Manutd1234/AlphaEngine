@@ -46,10 +46,10 @@ const TABS = {
   developer: ["overview", "readiness", "quality", "apis", "codebase", "work"],
   markets: ["universe", "settlement", "books", "dispersion", "lattice", "stake", "fees", "shell"],
   coherence: ["certificate", "portfolio", "combos", "calibration", "index", "lessons"],
-  diffusion: ["arm", "episodes", "model", "findings"],
+  diffusion: ["arm", "meetings", "episodes", "model", "instrument", "sandbox", "findings"],
 };
 
-const EXPECTED_SECTIONS = 66;
+const EXPECTED_SECTIONS = 69;
 
 /**
  * The two tabs whose job is to report infrastructure truth.

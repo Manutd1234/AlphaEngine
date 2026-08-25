@@ -20,25 +20,27 @@
  * every stage that failed the noise floor is counted on the same bar as the
  * ones that passed.
  *
- * The switcher lives one level up, in `DiffusionPane`, and hands this pane the
- * view it should draw. FOUR views since the second pass of 2026-08-24:
- * Absorption (the arm's chips and the curve), Noise floor (the attrition and
- * control-percentile bars), Meetings (the per-meeting table) and Mechanism
- * (the two-stage timeline, made of constants). They used to be one stacked
- * view three screens tall; each is now one figure or one table, per the
- * review that split them ("i dont want to keep scrolling or squint my eyes").
- * Three of the four read the same ledger — `DiffusionPane` owns that gate and
- * shares one read across them — and Mechanism still fetches nothing, so this
- * pane still takes no `active` prop: it starts nothing that needs gating.
+ * The switcher lives one level up, in `ArmSection`, and hands this pane the view
+ * it should draw. TWO views since 2026-08-25, down from four: Absorption (the
+ * chips and the curve) and Control (the attrition and control-percentile bars,
+ * labelled for what it is FOR rather than what it is called). Meetings and
+ * Mechanism left for a section of their own — they answer what each decision
+ * did, which is a different question from how fast a stage is absorbed.
+ *
+ * THE CONTROL DID NOT LEAVE WITH THEM, and that is the decision this file
+ * records. It is what "faster" is faster than, and a reader able to reach the
+ * decay curve without ever meeting it could read a half-life off it and leave
+ * with a shape mistaken for a finding.
+ *
+ * The pane takes no `active` prop: it starts nothing that needs gating, and the
+ * one read it draws is owned and gated by `DiffusionConsole`.
  */
 
 import Figure, { FigureEmpty, StateChip } from "../Figure";
-import { STAGE_GAP_MIN, STAGE_TERMINAL_MIN, STAGE_WORD, absorptionNotice, absorptionReady } from "./AbsorptionGate";
+import { STAGE_TERMINAL_MIN, STAGE_WORD, absorptionNotice, absorptionReady } from "./AbsorptionGate";
 import AbsorptionCurve from "./AbsorptionCurve";
-import MeetingTable from "./MeetingTable";
 import FloorDistribution from "./FloorDistribution";
 import StageBars from "./StageBars";
-import StageTimeline from "./StageTimeline";
 import type { AbsorptionRead, StageRun } from "./types";
 
 
@@ -51,28 +53,10 @@ function ratio(read: AbsorptionRead): string | null {
 
 
 export default function InformationDiffusionPane({ view, read, error }: {
-  view: "absorption" | "floor" | "meetings" | "mechanism";
+  view: "absorption" | "floor";
   read: AbsorptionRead | null;
   error: string | null;
 }) {
-  // The mechanism drawing is made of the two stage constants and nothing else.
-  // It used to sit behind the absorption read because the venue gate was
-  // shared; flat views let it wait on nothing and fetch nothing.
-  if (view === "mechanism") {
-    return (
-      <div className="diff-pane">
-        <Figure
-          caption="Why a rate decision can be measured twice"
-          ariaLabel={`Two stages ${STAGE_GAP_MIN} minutes apart, each measured over its own ${STAGE_TERMINAL_MIN} minute window`}
-          reading="Both windows are the same length and each is measured from its own start, so a difference between them is a difference in absorption, not in the grid."
-          missing="Sub-minute horizons are drawn but never measured: no free bar source resolves them."
-        >
-          <StageTimeline gapMinutes={STAGE_GAP_MIN} terminalMinutes={STAGE_TERMINAL_MIN} />
-        </Figure>
-      </div>
-    );
-  }
-
   // One gate, shared with the Meetings section, so the two cannot word the same
   // absence differently. The predicate is what narrows `read` for everything
   // below it, rather than a non-null assertion at each use.
@@ -105,14 +89,6 @@ export default function InformationDiffusionPane({ view, read, error }: {
             rather than per stage — because "indistinguishable from an ordinary
             half hour" is a claim about a shape, and a median cannot show one. */}
         <FloorDistribution runs={read.runs} />
-      </div>
-    );
-  }
-
-  if (view === "meetings") {
-    return (
-      <div className="diff-pane">
-        <MeetingTable runs={read.runs} />
       </div>
     );
   }

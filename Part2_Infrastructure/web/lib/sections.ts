@@ -294,8 +294,11 @@ export const COHERENCE_SECTION_IDS =
 // the fourth time this restructure has spent nothing to restore a link.
 export const DIFFUSION_SECTIONS = [
   { id: "arm", label: "Announcement arm", description: "Absorption against a control of matched quiet windows" },
+  { id: "meetings", label: "Meetings", description: "Each decision's own half-life, and the two-stage window every comparison rests on" },
   { id: "episodes", label: "Kalshi episodes", description: "How long a published mispricing survives" },
-  { id: "model", label: "Model", description: "What the estimator computes, worked in the browser" },
+  { id: "model", label: "Measurement", description: "What the estimator computes on a price path, worked in the browser" },
+  { id: "instrument", label: "Instrument", description: "The clock and the information spectrum built on top of it" },
+  { id: "sandbox", label: "Sandbox", description: "The estimator with its controls left on, including where it declines to answer" },
   { id: "findings", label: "Findings", description: "What the study concluded, and whether it was fit to" },
 ] as const;
 export type DiffusionSection = (typeof DIFFUSION_SECTIONS)[number]["id"];

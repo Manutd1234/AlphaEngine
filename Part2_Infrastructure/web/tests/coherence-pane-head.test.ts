@@ -92,12 +92,15 @@ const OWNERS: Record<string, { file: string; tab: string }> = {
   // again, under the id it was published with.
   index: { file: "components/coherence/IndexSection.tsx", tab: "coherence" },
   lessons: { file: "components/coherence/LessonsPane.tsx", tab: "coherence" },
-  // Diffusion became the ELEVENTH TAB in the same change, so its four groups
-  // are four sections with four heads. `findings` is the fourth published id
+  // Diffusion became the ELEVENTH TAB in the same change; its four groups
+  // became four sections and, on 2026-08-25, seven. `findings` is the fourth published id
   // this restructure has brought back rather than invented.
   arm: { file: "components/coherence/diffusion/ArmSection.tsx", tab: "diffusion" },
+  meetings: { file: "components/coherence/diffusion/MeetingsSection.tsx", tab: "diffusion" },
   episodes: { file: "components/coherence/diffusion/EpisodesSection.tsx", tab: "diffusion" },
   model: { file: "components/coherence/diffusion/ModelSection.tsx", tab: "diffusion" },
+  instrument: { file: "components/coherence/diffusion/InstrumentSection.tsx", tab: "diffusion" },
+  sandbox: { file: "components/coherence/diffusion/SandboxSection.tsx", tab: "diffusion" },
   findings: { file: "components/coherence/diffusion/FindingsSection.tsx", tab: "diffusion" },
 };
 

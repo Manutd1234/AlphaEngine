@@ -1,56 +1,38 @@
 "use client";
 
 /**
- * The model, worked in the browser.
+ * What the estimator measures on a price path, worked in the browser.
  *
- * READS NOTHING, and that is the section's whole argument rather than a
- * limitation of it: `gaussian.py` shows the closed form exists, so the
- * instrument can ship before the model does. Every view here computes from
- * `lib/coherence/diffusion-model`, a TypeScript port held to the Python
- * original by a committed parity fixture. A gateway call in this section would
- * contradict the thing the section demonstrates.
+ * ONE VIEW SINCE 2026-08-25 and no switcher, which is the point of the split.
+ * This section was five views: two of formula cards and three a reader can
+ * drive. Those are different acts — reading what a thing computes, and turning
+ * its knobs — so the drivable three are `sandbox` now and the instrument half
+ * of the cards is `instrument`. What is left is the seven cards that say what
+ * happens to a price path: the absorbed fraction, the gate that decides whether
+ * there was a move at all, the crossing, and the two fits that are reported but
+ * are never the verdict.
+ *
+ * READS NOTHING, and that is the section's argument rather than a limitation of
+ * it: `gaussian.py` shows the closed form exists, so the instrument can ship
+ * before the model does. A gateway call here would contradict the thing being
+ * demonstrated, and `diffusion-model-views.test.ts` holds all three of these
+ * sections to it.
  */
 
-import { useState } from "react";
-
 import PaneHead from "../PaneHead";
-import DiffusionSimulator from "./model/DiffusionSimulator";
-import HalfLifeCalculator from "./model/HalfLifeCalculator";
 import ModelFormulas from "./model/ModelFormulas";
-import SpectrumExplorer from "./model/SpectrumExplorer";
-
-type ModelView = "measurement" | "instrument" | "halflife" | "simulator" | "spectrum";
-
-const VIEWS: ReadonlyArray<[ModelView, string]> = [
-  ["measurement", "Measurement"],
-  ["instrument", "Instrument"],
-  ["halflife", "Half-life"],
-  ["simulator", "Simulator"],
-  ["spectrum", "Spectrum"],
-];
 
 export default function ModelSection() {
-  const [view, setView] = useState<ModelView>("measurement");
   return (
     <section className="card console-card coh-diffusion" aria-labelledby="diffusion-model-heading">
       <PaneHead
-        kicker="Model"
-        title="What the estimator computes, worked here"
+        kicker="Measurement"
+        title="What the estimator computes on a price path"
         id="diffusion-model-heading"
-        note="nothing on this section is fetched"
-        lede="Every figure here is computed in this browser from the same arithmetic the gateway runs, which is what lets a reader move a slider and watch the estimator decline to answer."
+        note="computes in the browser, fetching nothing"
+        lede="Every card names the reference module it is a port of, and states what breaks it above what it measures."
       />
-      <div className="seg" role="group" aria-label="Model view">
-        {VIEWS.map(([name, label]) => (
-          <button key={name} type="button" aria-pressed={view === name} onClick={() => setView(name)}>
-            {label}
-          </button>
-        ))}
-      </div>
-      {view === "measurement" || view === "instrument" ? <ModelFormulas part={view} />
-        : view === "halflife" ? <HalfLifeCalculator />
-          : view === "simulator" ? <DiffusionSimulator />
-            : <SpectrumExplorer />}
+      <ModelFormulas part="measurement" />
     </section>
   );
 }
