@@ -192,7 +192,6 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
               />
               <EngineStatePanel
                 status={status.data}
-                error={status.error}
                 familiesPriced={universe.data ? `${universe.data.events.length} read live` : null}
               />
             </div>

@@ -144,24 +144,31 @@
 .coherence-plane .coh-facts--tabled {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
-  /* THE GAPS ARE THE RULES, and this is what a wrapping table costs. A border
-     on each cell worked while the table was one declared row: `border-left` on
-     every cell and `:first-child { border-left: 0 }` drew four verticals and no
-     stray edge. Under `auto-fit` there is no first child of a ROW — the second
-     row's leading cell is `:nth-child(4)` at three columns and `:nth-child(3)`
-     at two, and neither is a selector, because the count is the viewport's to
-     decide.
+  /* EVERY CELL CARRIES ITS OWN HAIRLINE, and this is what a wrapping table
+     costs. A border on each cell worked while the table was one declared row:
+     `border-left` on every cell and `:first-child { border-left: 0 }` drew four
+     verticals and no stray edge. Under `auto-fit` there is no first child of a
+     ROW — the second row's leading cell is `:nth-child(4)` at three columns and
+     `:nth-child(3)` at two, and neither is a selector, because the count is the
+     viewport's to decide.
 
-     A 1px gap over a ruled background draws every divider the grid actually
-     has, in both directions, at whatever count it wrapped to. The cells paint
-     their own surface back over it. Nothing here knows how many columns there
-     are, which is the property the old rule could not have. */
+     A `box-shadow` spread of 1px around each cell, over a 1px gap, meets its
+     neighbour's exactly: every divider the grid actually has, in both
+     directions, at whatever count it wrapped to, with nothing knowing how many
+     columns there are.
+
+     THE FIRST VERSION OF THIS PAINTED THE RULES AS A BACKGROUND SHOWING THROUGH
+     THE GAPS, and it was wrong in a way only a viewport shows. Five metrics in
+     three columns leave a SIXTH CELL THAT DOES NOT EXIST, and a ruled
+     background has no cell to be covered by there — so the empty corner
+     rendered as a solid grey block that read as a disabled figure. The shadow
+     is drawn by the cells instead, so an absent cell draws nothing. */
   gap: 1px;
   margin: 0;
   border: 1px solid var(--rule);
   border-radius: var(--radius-md);
   overflow: hidden;
-  background: var(--rule-soft);
+  background: var(--surface-1);
 }
 
 .coherence-plane .coh-facts--tabled > div {
@@ -172,8 +179,8 @@
   grid-template-rows: auto 1fr;
   gap: 0;
   min-inline-size: 0;
-  /* Over the ruled background above, so only the 1px gaps show through. */
   background: var(--surface-1);
+  box-shadow: 0 0 0 1px var(--rule-soft);
 }
 
 .coherence-plane .coh-facts--tabled dt {

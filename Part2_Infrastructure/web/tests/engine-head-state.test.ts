@@ -98,6 +98,30 @@ describe("the read-state sits in the head, once", () => {
     }
   });
 
+  it("an absence in that slot is reported once, not twice", () => {
+    // BOTH HALVES SHARE ONE COLUMN NOW, twenty pixels apart, so both printing
+    // "Asking the engine how it is…" reads as a stutter rather than as a state.
+    // It was survivable while the chips were in the head and the table was
+    // under it; it is not now. Seen at a viewport, not in a diff.
+    //
+    // The chips keep the sentence — they are first in the slot and they are
+    // what a reader looks at for engine state. The panel renders nothing until
+    // it has a table to render, which is NOT a hidden empty result: the
+    // absence is reported, by the sibling, in the same words, once. Same
+    // argument the head's metric tiles retired under.
+    const panel = strip(read("../components/coherence/EngineStatePanel.tsx"));
+    const chips = panel.slice(0, panel.indexOf("export default function"));
+    const table = panel.slice(panel.indexOf("export default function"));
+    assert.match(chips, /Asking the engine how it is/,
+      "the chip row no longer says what it is waiting for");
+    assert.doesNotMatch(table, /Asking the engine how it is/,
+      "the facts table prints the sentence its slot-mate already prints");
+    assert.doesNotMatch(table, /could not report its own state/,
+      "the facts table prints the failure its slot-mate already prints");
+    assert.match(table, /if \(!status\) return null;/,
+      "the facts table has no early return, so it renders a frame with nothing in it");
+  });
+
   it("neither console builds a metrics row beside the panel", () => {
     // The move was a MERGE. Three of the four head tiles said what three of the
     // chips say — Exchange/reachable, Solver, Order path — and moving the strip

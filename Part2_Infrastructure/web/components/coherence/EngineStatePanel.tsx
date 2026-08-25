@@ -147,11 +147,9 @@ export function EngineChips({
 
 export default function EngineStatePanel({
   status,
-  error,
   familiesPriced,
 }: {
   status: CoherenceStatus | null;
-  error: string | null;
   /**
    * How many families the universe read returned, when this section read it.
    *
@@ -165,22 +163,23 @@ export default function EngineStatePanel({
   familiesPriced?: string | null;
 }) {
 
-  if (error && !status) {
-    return (
-      <div className="coh-headstate">
-        <p className="console-empty">
-          <span aria-hidden="true">✕</span> The engine could not report its own state: {error}
-        </p>
-      </div>
-    );
-  }
-  if (!status) {
-    return (
-      <div className="coh-headstate">
-        <p className="console-empty muted">Asking the engine how it is…</p>
-      </div>
-    );
-  }
+  /**
+   * NOTHING, WHEN THERE IS NOTHING — because `EngineChips` is in the same slot
+   * and says it, and since 2026-08-26 the two are twenty pixels apart.
+   *
+   * This used to print "Asking the engine how it is…" and, on a failure, "The
+   * engine could not report its own state: …". So did the chips. That was
+   * survivable while the two halves sat in different parts of the head; once
+   * both moved into the head's right-hand column the same sentence appeared
+   * twice, stacked, and read as a stutter rather than as a state. Seen at a
+   * viewport, not in a diff.
+   *
+   * NOT A HIDDEN EMPTY RESULT. The house rule is that an absence is reported,
+   * and it is: by the sibling that shares this slot, in the same words, once.
+   * The same argument the head's metric tiles retired under — a fact stated
+   * twice on one screen is a reader checking whether they are two facts.
+   */
+  if (!status) return null;
 
   const recorder = status.recorder;
   const tape = status.tape as { state?: string; book_snapshots?: number; tickers_seen?: number };

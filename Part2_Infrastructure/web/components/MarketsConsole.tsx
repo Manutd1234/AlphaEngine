@@ -138,13 +138,26 @@ const SECTION_READS: Record<MarketsSection, readonly string[]> = {
 };
 
 export interface MarketsConsoleProps {
+  /**
+   * Which view each section is standing on, keyed by section id.
+   *
+   * Owned by `use-rail-sections` rather than by the eight sections themselves,
+   * because a view is an ADDRESS now: `#markets/fees/comparison` has to be able
+   * to put Fees on its Ablation before anyone presses anything, and a `useState`
+   * inside the section is unreachable from the hash. The record is seeded from
+   * `lib/section-views.ts`, which is also where each section's own union of
+   * view ids comes from — so the cast at each call site below is between two
+   * spellings of one table rather than a guess.
+   */
+  views: Record<string, string>;
+  onViewChange: (section: string, view: string) => void;
   section: MarketsSection;
   onSectionChange: (section: MarketsSection) => void;
   /** False while another tab is in front: every poll here is gated on it. */
   active?: boolean;
 }
 
-export default function MarketsConsole({ section, onSectionChange, active = true }: MarketsConsoleProps) {
+export default function MarketsConsole({ section, onSectionChange, views, onViewChange, active = true }: MarketsConsoleProps) {
   /**
    * The reader's own hold on this tab's polling, and the one piece of state on
    * this console that is not a read.
@@ -205,6 +218,17 @@ export default function MarketsConsole({ section, onSectionChange, active = true
   useSectionWarming(SECTION_READS, live);
 
 
+  /**
+   * The view props for one section, built once here rather than eight times
+   * inline. The cast is documented on `views` above: both sides of it are
+   * generated from `lib/section-views.ts`, and `section-views.test.ts` fails if
+   * a section's table and its own switcher ever disagree.
+   */
+  const viewProps = <V extends string>(id: MarketsSection) => ({
+    view: views[id] as V,
+    onView: (next: V) => onViewChange(id, next),
+  });
+
   const openSection = (next: MarketsSection) => {
     onSectionChange(next);
     requestAnimationFrame(() => document.getElementById(`markets-subtab-${next}`)?.focus());
@@ -251,7 +275,6 @@ export default function MarketsConsole({ section, onSectionChange, active = true
             />
             <EngineStatePanel
               status={status.data}
-              error={status.error}
               familiesPriced={universe.data ? `${universe.data.events.length} read live` : null}
             />
           </div>
@@ -284,18 +307,18 @@ export default function MarketsConsole({ section, onSectionChange, active = true
             other section owns its `useCoherenceRead` and gets `updatedAt` with
             the payload; this one is handed the data, so it has to be handed the
             moment too or its tape would append a point per render. */}
-        <UniverseSection universe={universe.data} error={universe.error} updatedAt={universe.updatedAt} />
+        <UniverseSection universe={universe.data} error={universe.error} updatedAt={universe.updatedAt} {...viewProps("universe")} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="markets" tabId="settlement" activeId={section}>
-        <SettlementSection active={live && section === "settlement"} />
+        <SettlementSection active={live && section === "settlement"} {...viewProps("settlement")} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="markets" tabId="books" activeId={section}>
         {/* One read, gated on the section. Dispersion rode here on the argument
             that a book and a maker panel are both "what is this quoted at"; at
             that width so is every section on the tab. */}
-        <BooksSection active={live && section === "books"} />
+        <BooksSection active={live && section === "books"} {...viewProps("books")} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="markets" tabId="dispersion" activeId={section}>
@@ -303,11 +326,11 @@ export default function MarketsConsole({ section, onSectionChange, active = true
             As two views of Books it needed a predicate in that file whose whole
             job was to keep the desk's slowest call from firing for a reader who
             came to look at a ladder; a section gates itself. */}
-        <MakersSection active={live && section === "dispersion"} />
+        <MakersSection active={live && section === "dispersion"} {...viewProps("dispersion")} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="markets" tabId="lattice" activeId={section}>
-        <SurfacePane events={universe.data?.events ?? []} active={live && section === "lattice"} />
+        <SurfacePane events={universe.data?.events ?? []} active={live && section === "lattice"} {...viewProps("lattice")} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="markets" tabId="stake" activeId={section}>
@@ -316,7 +339,7 @@ export default function MarketsConsole({ section, onSectionChange, active = true
             controls over the one answer a reader came for; as a section it has
             one read, one control row and an empty state that names what to
             press when the solver declines the family. */}
-        <StakePane events={universe.data?.events ?? []} active={live && section === "stake"} />
+        <StakePane events={universe.data?.events ?? []} active={live && section === "stake"} {...viewProps("stake")} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="markets" tabId="fees" activeId={section}>
@@ -324,11 +347,11 @@ export default function MarketsConsole({ section, onSectionChange, active = true
             charges is a fact of the venue, and whether that cost changes the
             ANSWER is the same question one step on — which is what the tape
             replayed under four cost models measures. */}
-        <FeesSection active={live && section === "fees"} />
+        <FeesSection active={live && section === "fees"} {...viewProps("fees")} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="markets" tabId="shell" activeId={section}>
-        <ShellPane active={live && section === "shell"} />
+        <ShellPane active={live && section === "shell"} {...viewProps("shell")} />
       </WorkspaceSubtabPanel>
 
       <div className="coh-console__status">
