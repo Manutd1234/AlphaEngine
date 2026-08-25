@@ -337,7 +337,16 @@
 }
 
 .coherence-plane.proofs-plane .coh-bar > .seg button {
-  flex: 1 1 7rem;
+  /* NATURAL WIDTH, and this is the second attempt. `flex: 1 1 7rem` gave every
+     button a 112px basis and let them grow equally — which is right when the
+     control has room, and wrong here: `.coh-bar` is a flex row and the `.seg`
+     inside it is `flex: 0 1 auto` with no floor, so the control had shrunk to
+     251px. Three 112px bases do not fit in 251, so they wrapped, and the
+     measurement went from "every label on two lines" to "the row on two rows"
+     — the same defect wearing the other hat.
+     Sized to their own text instead, so a switcher is as wide as its words and
+     wraps only when it genuinely cannot fit. */
+  flex: 0 0 auto;
   /* A label breaks at its longest word when nothing says otherwise, and a
      `flex-basis: 0` item's automatic minimum is that word — so one wrap made
      all three buttons two rows tall. The floor above is what gives them room;
