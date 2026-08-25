@@ -189,3 +189,47 @@
   stroke-width: 1;
   stroke-linejoin: round;
 }
+
+/* ── The Universe summary tiles get a card each ─────────────────────────
+
+   Reported looking at the running desk: "Total Basket Value, Active Contracts,
+   Liquidity Value, and Families Watch rows lack proper card borders,
+   structural padding". They were bare `<dl>` rows — a label over a figure,
+   floating between two bordered figures above and a bordered table below, so
+   the eye had nothing to tell it where one metric ended and the next began.
+
+   `.coh-status__facts` stays what it is — the plane's 140px auto-fit tile grid,
+   shared by StatusPane, Fees, Lattice and Stake — and this is a MODIFIER on it
+   rather than a second grid, so the tiles keep their column behaviour and only
+   gain a frame. Universe asked for it; the sections whose tiles sit inside an
+   already-bordered figure did not, and adding it to the base class would have
+   put a box inside a box on four other sections.
+
+   Tokens, not a palette: `--surface-1`, `--border` and the radius/spacing
+   scales are what carry light and dark and what forced-colors can override.
+   A literal colour here would be a fifth idea about what a card looks like. */
+.coherence-plane.markets-plane .coh-facts--boxed {
+  gap: var(--space-2);
+}
+
+.coherence-plane.markets-plane .coh-facts--boxed > div {
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+
+/* ── The exposure table reads as rows ───────────────────────────────────
+
+   Zebra striping was asked for; a hover band and a rule per row is the desk's
+   own answer and it survives forced-colors, where a background wash does not.
+   The band cells already carry their own `color-mix` fill, so striping them
+   would put two washes on one cell and make the fill — which is the reading —
+   harder to judge. The rule goes under the row instead. */
+.coherence-plane.markets-plane .coh-table tbody tr {
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.coherence-plane.markets-plane .coh-table tbody tr:hover {
+  background: color-mix(in srgb, var(--series-1) 6%, transparent);
+}

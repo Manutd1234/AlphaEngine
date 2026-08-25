@@ -19,7 +19,7 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { contractsLabel, dollarsLabel } from "../lib/coherence/universe-metrics";
+import { contractsLabel, dollarsLabel, groupDigits } from "../lib/coherence/universe-metrics";
 
 const read = (relative: string) =>
   readFileSync(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
@@ -35,12 +35,12 @@ const code = source
 describe("the figures print as the exchange sent them", () => {
   it("a contract count keeps the two places the venue quotes", () => {
     // 2112.64 + 21126.86 + 0.00 across the watched families.
-    assert.equal(contractsLabel(232_395_000), "23239.50");
+    assert.equal(contractsLabel(232_395_000), "23,239.50");
   });
 
   it("a measured zero prints as a zero", () => {
     assert.equal(contractsLabel(0), "0.00");
-    assert.equal(dollarsLabel(0), "0.0000");
+    assert.equal(dollarsLabel(0), "$0.0000");
   });
 
   it("and an absent figure prints as a dash, never as a zero", () => {
@@ -48,8 +48,24 @@ describe("the figures print as the exchange sent them", () => {
     assert.equal(dollarsLabel(null), "—");
   });
 
+  it("grouping moves no digit and rounds nothing", () => {
+    // The whole numeric contract on this engine is "truncated, never rounded",
+    // so the separator has to be presentational and provably so: same digits,
+    // same order, same fraction, three-digit groups from the right. A formatter
+    // that reached for `toLocaleString` would round the fraction to make the
+    // figure prettier, which is the one thing it may not do.
+    assert.equal(groupDigits("641674.28"), "641,674.28");
+    assert.equal(groupDigits("1000"), "1,000");
+    assert.equal(groupDigits("999"), "999");
+    assert.equal(groupDigits("-1234567.8900"), "-1,234,567.8900");
+    assert.equal(groupDigits("0.0000"), "0.0000");
+    for (const raw of ["1.0600", "641674.28", "23239.50", "-9.9"]) {
+      assert.equal(groupDigits(raw).replace(/,/g, ""), raw, `${raw} changed under grouping`);
+    }
+  });
+
   it("a dollar keeps all four places, because the last one is a price", () => {
-    assert.equal(dollarsLabel(10_600), "1.0600");
+    assert.equal(dollarsLabel(10_600), "$1.0600");
   });
 });
 

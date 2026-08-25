@@ -44,6 +44,7 @@
  */
 
 import DonutChart, { type DonutSlice } from "@/components/common/DonutChart";
+import { groupDigits } from "@/lib/coherence/universe-metrics";
 import { fromCenticents } from "@/lib/coherence/fixed-point";
 import type { CoherenceUniverse } from "@/lib/coherence/types";
 import type { BasketOverviewRow } from "./BasketOverview";
@@ -119,14 +120,19 @@ export default function BasketComposition({ universe, rows }: BasketCompositionP
   /** The value and the family it belongs to, or the dash and its reason. Never
    *  a stringified null: `fromCenticents` is nullable, and a template literal
    *  would print the word. */
+  /** The cost of a whole basket, marked as money and grouped, like the tiles
+   *  below it. Before 2026-08-25 this printed a bare `1.0700` two rows above a
+   *  `$1.0700` saying the same thing, which reads as two different quantities. */
   const buyLabel = (row: BasketOverviewRow | null): string => {
     const value = row ? fromCenticents(row.askTotalCc) : null;
-    return value && row ? `${value}, ${row.ticker}` : "— no watched family carries an ask on every leg";
+    return value && row
+      ? `$${groupDigits(value)}, ${row.ticker}`
+      : "— no watched family carries an ask on every leg";
   };
 
   return (
     <>
-      <dl className="coh-status__facts">
+      <dl className="coh-status__facts coh-facts--boxed">
         <div>
           <dt>Families watched</dt>
           <dd>{events.length} across {universe.watchlist.length} series</dd>

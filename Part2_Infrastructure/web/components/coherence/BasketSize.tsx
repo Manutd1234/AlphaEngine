@@ -98,7 +98,7 @@ export default function BasketSize({ universe }: { universe: CoherenceUniverse }
 
   return (
     <>
-      <dl className="coh-status__facts">
+      <dl className="coh-status__facts coh-facts--boxed">
         <div>
           <dt>Total basket value</dt>
           <dd>{dollarsLabel(value.totalCc)}</dd>

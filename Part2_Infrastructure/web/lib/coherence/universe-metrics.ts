@@ -223,8 +223,38 @@ export function unplacedContractsCc(event: CoherenceEventView, bands = BAND_COUN
  * trailing zero the venue sent is a digit, not padding. `null` is a dash — and
  * `0` is `0.0000`, which is the whole point of keeping the two apart.
  */
+/**
+ * Thousands separators in the integer part, and NOTHING else.
+ *
+ * Presentational only: the digits, their order and the fraction are untouched,
+ * so a grouped figure is the same figure. That matters more here than it looks,
+ * because this engine's whole numeric contract is "truncated, never rounded"
+ * and a formatter that reached for `toLocaleString` would round the fraction
+ * and change the number to make it prettier.
+ *
+ * Added 2026-08-25: the desk was printing `641674.28` open contracts as one
+ * run of digits, which is a figure a reader has to count with a fingertip.
+ */
+export function groupDigits(text: string): string {
+  const [whole, fraction] = text.split(".");
+  const sign = whole.startsWith("-") ? "-" : "";
+  const digits = sign ? whole.slice(1) : whole;
+  const grouped = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return fraction == null ? `${sign}${grouped}` : `${sign}${grouped}.${fraction}`;
+}
+
+/**
+ * A dollar total for display, or a dash.
+ *
+ * Carries its own currency mark since 2026-08-25. "Total basket value 1.0900"
+ * and "Liquidity depth 0.0000" sat in a row beside a CONTRACT COUNT with no
+ * unit on any of the three, so nothing on screen said which two were money.
+ * The mark is on the figure rather than in the label because the label is what
+ * a reader skims past.
+ */
 export function dollarsLabel(totalCc: number | null): string {
-  return fromCenticents(totalCc) ?? "—";
+  const text = fromCenticents(totalCc);
+  return text == null ? "—" : `$${groupDigits(text)}`;
 }
 
 /**
@@ -239,5 +269,5 @@ export function dollarsLabel(totalCc: number | null): string {
 export function contractsLabel(totalCc: number | null): string {
   const text = fromCenticents(totalCc);
   if (text == null) return "—";
-  return text.endsWith("00") ? text.slice(0, -2) : text;
+  return groupDigits(text.endsWith("00") ? text.slice(0, -2) : text);
 }
