@@ -888,6 +888,48 @@ constants. Recorded rather than quietly corrected: picking one value is a
 one-line change, and the change that makes it *stay* picked is a cross-stack
 fixture assertion on the constant itself, which is a different piece of work.
 
+## What a source-scanning guard cannot see
+
+Most of the web suite reads component source with `readFileSync` and asserts
+against the text (CLAUDE.md, fact 6 — there is no DOM). That buys a great deal
+and it has one property worth stating once, because three sessions hit it from
+three different sides on 2026-08-25/26 and it is one property, not three bugs.
+
+**A guard that scans source is fooled by prose, in both directions, on a tree
+where the comments are as long as the code.**
+
+*False positives — the comment explaining a rule trips the rule.* Three in one
+sweep, each on a comment written minutes earlier to explain the very assertion
+being checked: a partial's banner saying "only its `@import` line in
+globals.css" failed `globals-manifest`'s no-nested-imports scan; a header
+arguing "these figures do NOT go through `<Plot>`" failed a
+`doesNotMatch(/\bPlot\b/)` in the same commit; and `type-scale`'s inline
+`fontSize` ratchet counts the literal wherever it appears, so a note about the
+budget spends it. **Explaining why a thing is absent makes it look present.**
+
+*False negatives — the comment keeps a dead thing alive.* `dead-css` cannot see
+an orphaned rule whose class name survives in a comment; `.coh-universe__controls`
+had no render site for hours while three header comments discussed removing it.
+And `cssRules` in `tests/globals-rules.ts` takes everything between the previous
+`}` and the `{` as the selector, comments included — so a rule preceded by a
+comment naming another selector is found by an `.includes()` lookup for it. Two
+assertions in `engine-head-state.test.ts` were silently matching the wrong
+rule's body.
+
+*And the quieter one — a guard that SKIPS what it does not recognise reports
+green for "checked and fine" and for "never looked", with nothing to tell them
+apart.* `coherence-figure-margins.test.ts` scores in-plot labels against a
+`RUNG` map and, for anything drawn away from `MARGIN.top - k`, silently scores
+an unknown class as nothing. Teaching it `coh-svg-label` turned up nine
+previously unchecked labels.
+
+**Two fixes, and they are cheap.** Blank `/* */` and `//` before matching,
+keeping newlines so reported line numbers stay true —
+`coherence-proof-claims.test.ts` is the model. And make the unknown case FAIL
+rather than skip. Before adding a source-scanning assertion, write a comment
+containing the exact literal it looks for and confirm the guard still behaves;
+if it does not, fix the guard, not the prose.
+
 ## Running the suites
 
 `/verify` (the repo's own skill) runs everything below and reports the real
@@ -1024,6 +1066,23 @@ committed.
   `tests/test_data_quality_rollup.py` pins `_AGGREGATE` and `data_quality_rollup`
   to the same six column names; comparing *results* needs a Postgres in the job.
   See [`DATA_OPS_BACKEND.md`](../architecture/DATA_OPS_BACKEND.md).
+
+- **No completeness guard on the figure `RUNG` map.** UNCLAIMED, and recorded
+  rather than dropped. `coherence-figure-margins.test.ts` fails on a class it
+  does not know only for text drawn at `y={MARGIN.top - k}`; anything drawn
+  elsewhere is scored as nothing and passes. The fix is to assert that every
+  class the figures actually render is IN the map, so a new one fails there
+  instead of going unchecked — but that reaches every figure under
+  `components/coherence/`, not one tab, and wants its own slice with a
+  proven-red first. Two sessions looked at it on 2026-08-26 and both declined to
+  half-do it at the end of a round.
+- **Nothing times the venue round trip on the episode path.** The desk draws
+  `round_trip_s` from `/coherence/episodes`, and that field is a query
+  parameter's default — `modules/api/coherence_history.py:154`,
+  `Query(default="0.240")` — which the desk never passes, so the gateway echoes
+  its own default back. `EpisodeWatch` labels it an ASSUMPTION for that reason.
+  Making it a measurement needs the recorder to stamp one per poll and the
+  episode to carry it, which is a gateway slice rather than a figure fix.
 
 *Related: [`FEATURE_TOUR.md`](../product/FEATURE_TOUR.md) for what the tested system
 does — and which `tour-truth.test.ts` holds to the code;

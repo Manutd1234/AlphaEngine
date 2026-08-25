@@ -1,5 +1,13 @@
 /**
- * No hook on this tab sits below a conditional return.
+ * No hook anywhere on the engine sits below a conditional return.
+ *
+ * NAMED FOR THE WHOLE ENGINE FROM 2026-08-26, and the rename is a correction
+ * rather than a tidy-up. This shipped as `markets-hook-order` because a Markets
+ * pane is what it was written for — but `sources()` walks `components/coherence`
+ * RECURSIVELY, so it has covered `diffusion/` and `surface/` since its first
+ * run. Counted: 137 assertions, 33 of them naming `diffusion/` files. A guard
+ * whose name understates its reach is one people stop looking to for the tabs
+ * it silently protects, and then widen by writing a second copy.
  *
  * WHAT THIS COSTS WHEN IT IS WRONG: the whole dashboard, not the section.
  * `StakePane` shipped with `useLiveSeries` below its `if (!target)` branch, so
@@ -12,13 +20,17 @@
  *
  * SO THE BUG IS INVISIBLE EXACTLY WHERE IT IS MOST LIKELY. A warm desk never
  * takes the early branch. A reader opening the tab for the first time always
- * does. And no assertion on this desk could see it — the suite has no DOM
+ * does. Diffusion is full of exactly that shape — seven sections whose panes
+ * open `const notice = absorptionNotice(...); if (!ready) return notice;` — so
+ * the reach matters here as much as where it was found. And no assertion on this desk could see it — the suite has no DOM
  * (CLAUDE.md, fact 6), so nothing renders twice and nothing counts hooks.
  *
- * This reads the source instead: for every component on the tab, find the first
+ * This reads the source instead: for every component the engine can reach, find
+ * the first
  * `return` that is INSIDE a conditional, and fail if any `use*(` call appears
  * after it. That is a coarse rule and deliberately so — the React rule is
- * exactly this coarse, and every legitimate shape on this tab already obeys it.
+ * exactly this coarse, and every legitimate shape on the engine already obeys
+ * it.
  *
  * The eslint rule that normally does this is not available: the web workspace
  * has no lint script at all (CLAUDE.md, fact 2), and adding one would be a new

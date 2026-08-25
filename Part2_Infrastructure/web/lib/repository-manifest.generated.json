@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-25",
-  "commit": "81b22da",
+  "commit": "f1f0026",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -1615,6 +1615,7 @@
     "Part2_Infrastructure/web/tests/disclosure-risk.test.ts",
     "Part2_Infrastructure/web/tests/drift-bars.test.ts",
     "Part2_Infrastructure/web/tests/engine-head-state.test.ts",
+    "Part2_Infrastructure/web/tests/engine-hook-order.test.ts",
     "Part2_Infrastructure/web/tests/engine-linreg.test.ts",
     "Part2_Infrastructure/web/tests/engine-opens-on-a-drawing.test.ts",
     "Part2_Infrastructure/web/tests/execution-controls-activity.test.ts",
@@ -1706,7 +1707,6 @@
     "Part2_Infrastructure/web/tests/login-layout-stability.test.ts",
     "Part2_Infrastructure/web/tests/marketdata-routing.test.ts",
     "Part2_Infrastructure/web/tests/markets-book-history.test.ts",
-    "Part2_Infrastructure/web/tests/markets-hook-order.test.ts",
     "Part2_Infrastructure/web/tests/markets-ladder-instrument.test.ts",
     "Part2_Infrastructure/web/tests/markets-live-tape.test.ts",
     "Part2_Infrastructure/web/tests/markets-sections.test.ts",
