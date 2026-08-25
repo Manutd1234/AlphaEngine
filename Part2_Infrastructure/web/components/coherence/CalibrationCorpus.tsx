@@ -58,14 +58,29 @@ export default function CalibrationCorpus({ data }: { data: CoherenceCalibration
           {/* The mixture drawn (third review, 2026-08-24): the whole point of
               this view is that one bar is most of the picture. */}
           <ValueStrip
-            caption="How much of the corpus each series is"
-            ariaLabel={`Settled markets per series across ${data.composition.length} series`}
-            rows={data.composition.map((row) => ({
-              label: row.series_ticker,
-              value: row.count,
-              text: corpus > 0 ? `${row.count} (${pct(row.count / corpus)})` : String(row.count),
-              title: `${row.series_ticker}: ${row.count} of the ${corpus} settled markets in the composition`,
-            }))}
+            caption="Share of the corpus, largest first"
+            ariaLabel={`Share of the settled corpus for each of ${data.composition.length} series`}
+            reading={
+              heaviest && corpus > 0
+                ? `${heaviest.series_ticker} is ${pct(heaviest.count / corpus)} of everything scored, so every figure on Score is mostly a score of it.`
+                : null
+            }
+            rows={[...data.composition]
+              .sort((a, b) => b.count - a.count)
+              .map((row) => ({
+                label: row.series_ticker,
+                // A SHARE, not a count. The claim this view exists to make is
+                // "one series is most of the picture", which is a part-of-whole
+                // statement — and N counts against a zero rule is N independent
+                // quantities that happen to sit near each other. Sorted, so the
+                // largest is the first thing the eye lands on rather than
+                // wherever the exchange happened to list it.
+                value: corpus > 0 ? row.count / corpus : null,
+                text: corpus > 0 ? `${pct(row.count / corpus)} (${row.count})` : String(row.count),
+                title: `${row.series_ticker}: ${row.count} of the ${corpus} settled markets in the composition`,
+                ...(corpus > 0 ? {} : { noBar: "the composition total is zero, so no share can be taken" }),
+              }))}
+            mark={corpus > 0 ? { at: 1, label: "all" } : undefined}
           />
           {/* THE SECOND MIXTURE CLAIM, DRAWN 2026-08-25. The strip above says
               which series the corpus is MADE of; this one says whether those
@@ -86,6 +101,12 @@ export default function CalibrationCorpus({ data }: { data: CoherenceCalibration
               ariaLabel={`Bias slope for ${slopes.length} series against a calibrated slope of one`}
               rows={slopes}
               mark={{ at: 1, label: "1" }}
+              // MEASURED FROM THE RULE, not from zero. Anchored at zero — which
+              // is `ValueStrip`'s default and was right for every other caller —
+              // slopes clustered near 1 drew bars filling 85 to 100 per cent of
+              // the track, so the eye took distance from ZERO and the figure
+              // could not show the one thing its caption promises.
+              anchorOnMark
             />
           ) : null}
 

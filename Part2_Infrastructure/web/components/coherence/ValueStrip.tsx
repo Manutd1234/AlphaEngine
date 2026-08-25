@@ -69,6 +69,7 @@ export default function ValueStrip({
   notes,
   rows,
   mark,
+  anchorOnMark = false,
 }: {
   caption: string;
   ariaLabel: string;
@@ -87,11 +88,33 @@ export default function ValueStrip({
   rows: StripRow[];
   /** An optional dashed reference rule with its own meaning, e.g. 1. */
   mark?: { at: number; label: string };
+  /**
+   * Measure each bar FROM the mark rather than from zero.
+   *
+   * Zero is the right anchor when zero is the meaningful value — a signed edge,
+   * a deviation, money. It is the wrong one when the reading is distance from
+   * something else, and the Corpus slope strip is the case that exposed it: its
+   * own docstring says "the rule at one is the whole reading… the distance from
+   * the rule is what the eye takes", and with slopes clustered near 1 against a
+   * domain running from 0, every bar filled 85 to 100 per cent of the track and
+   * the eye took distance from ZERO. The figure could not show the thing it was
+   * built to show.
+   *
+   * With this set the domain is centred on the mark and a bar runs from the
+   * rule to its value, so a slope of 1.03 is a short bar to the right and 0.97
+   * a short bar to the left — which is the comparison the caption promises.
+   */
+  anchorOnMark?: boolean;
 }) {
   const drawable = rows.filter((row) => row.value != null && !row.noBar);
   const values = drawable.map((row) => row.value as number);
-  const lo = Math.min(0, mark?.at ?? 0, ...values);
-  const hi = Math.max(0, mark?.at ?? 0, ...values);
+  // The anchor is the mark when the caller says so, zero otherwise. A domain
+  // padded symmetrically about the anchor is what makes equal distances either
+  // side of it read as equal lengths.
+  const anchor = anchorOnMark && mark ? mark.at : 0;
+  const reach = Math.max(...values.map((v) => Math.abs(v - anchor)), 0);
+  const lo = anchorOnMark && mark ? anchor - reach : Math.min(0, mark?.at ?? 0, ...values);
+  const hi = anchorOnMark && mark ? anchor + reach : Math.max(0, mark?.at ?? 0, ...values);
   const span = hi - lo || 1;
   const height = PAD.top + rows.length * ROW + PAD.bottom;
 
@@ -123,7 +146,7 @@ export default function ValueStrip({
           const short = (text: string) => truncateMiddle(text, gutter - 14, DIAGRAM_LABEL_PX);
           const plotW = Math.max(80, width - gutter - PAD.right);
           const x = (value: number) => gutter + ((value - lo) / span) * plotW;
-          const zero = x(0);
+          const zero = x(anchor);
 
           return (
             <>
