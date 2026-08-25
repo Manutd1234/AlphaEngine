@@ -7,6 +7,14 @@
  * drawing left for a section of their own — they answer what each decision did,
  * which is a different question from how fast a stage is absorbed.
  *
+ * THREE VIEWS SINCE THE CLOCKS WERE DRAWN. `Control` held the attrition bars,
+ * the percentile distribution and the two-clock ranking at 1,235px, which is
+ * three answers behind one button and the longest thing on the tab after the
+ * formula catalogue. The clocks are their own view now: the noise floor asks
+ * whether a stage moved at all, and the clocks ask whether it stopped moving
+ * because it had finished or because the market had — related, and not the same
+ * question.
+ *
  * THE NOISE FLOOR DID NOT LEAVE, and that is a decision rather than an
  * oversight. It is the CONTROL for the claim this section makes: the matched
  * half-hours in which nothing was announced, which is what "faster" is faster
@@ -24,11 +32,12 @@ import PaneHead from "../PaneHead";
 import InformationDiffusionPane from "./InformationDiffusionPane";
 import type { AbsorptionRead } from "./types";
 
-type ArmView = "absorption" | "floor";
+type ArmView = "absorption" | "floor" | "clocks";
 
 const VIEWS: ReadonlyArray<[ArmView, string]> = [
   ["absorption", "Absorption"],
   ["floor", "Control"],
+  ["clocks", "Clocks"],
 ];
 
 export default function ArmSection({ data, error }: { data: AbsorptionRead | null; error: string | null }) {

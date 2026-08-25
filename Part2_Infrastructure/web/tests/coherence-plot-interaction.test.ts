@@ -110,11 +110,45 @@ describe("what it does to the accessibility tree", () => {
   it("announces through a live region OUTSIDE that image", () => {
     // A `role="img"` subtree is presentational to assistive technology, so
     // labelling the marks themselves would announce nothing at all. The live
-    // region is a sibling of the image for exactly that reason.
+    // region has to be a SIBLING of the image, not merely later in the file.
+    //
+    // STRENGTHENED 2026-08-25, because the old version of this assertion passed
+    // while the property was false. It compared two indexes inside this one
+    // file — and `Plot` rendered the live region as a sibling of its `<svg>`
+    // while `Plot` itself was a child of the `role="img"` div, in all of its
+    // callers. So the region sat INSIDE the presentational subtree and was
+    // announced to nobody, and the index comparison could not see it.
     assert.match(figure, /className="coh-plot__live" role="status" aria-live="polite"/);
-    const imageAt = figure.indexOf('role="img"');
-    const liveAt = figure.indexOf("coh-plot__live");
-    assert.ok(liveAt > imageAt, "the live region moved inside the image, where it says nothing");
+    // Read inside `Figure`'s own body. The previous version compared indexes
+    // across the whole file, so it was satisfied by `Plot` being DEFINED after
+    // `Figure` — a fact about source order that says nothing about nesting.
+    const body = figure.slice(figure.indexOf("export default function Figure"), figure.indexOf("export function Plot"));
+    const imageOpen = body.indexOf('role="img"');
+    const imageClose = body.indexOf("</div>", imageOpen);
+    const liveAt = body.indexOf("coh-plot__live");
+    assert.ok(imageOpen !== -1, "Figure no longer renders the image wrapper this scan can find");
+    assert.ok(liveAt !== -1, "Figure does not render the live region; the plot cannot put it outside itself");
+    assert.ok(
+      liveAt > imageClose,
+      "the live region is inside the role=img element, where a presentational subtree swallows it",
+    );
+  });
+
+  it("the plot speaks for itself ONLY when no figure is there to speak for it", () => {
+    // Every caller on the engine nests `Plot` inside `Figure`'s `role="img"`
+    // wrapper, so a region rendered unconditionally from inside `Plot` is
+    // inside the image however it is ordered — which is the defect this pair
+    // fixes. The fallback is kept for a `Plot` with no `Figure` around it,
+    // where there is no presentational subtree and its own region is the right
+    // answer; it just has to be GUARDED on that being the case.
+    const plotBody = figure.slice(figure.indexOf("export function Plot"), figure.indexOf("function Readout"));
+    const liveAt = plotBody.indexOf("coh-plot__live");
+    if (liveAt === -1) return;
+    const guardAt = plotBody.indexOf("publish ? null : (");
+    assert.ok(
+      guardAt !== -1 && guardAt < liveAt,
+      "Plot renders its live region unconditionally again — inside the image, where it says nothing",
+    );
   });
 
   it("hides the live region visually without hiding it from AT", () => {

@@ -22,19 +22,19 @@
  * That is worth knowing before an executor is built, not after.
  */
 
-import { useMeasuredWidth } from "@/components/chart-kit";
-
 import { episodesToSamples } from "@/lib/coherence/absorption";
 import type { CoherenceEpisodes, CoherenceStatus } from "@/lib/coherence/types";
-import Figure, { FigureEmpty, StateChip } from "../Figure";
+import Figure, { FigureEmpty, Plot, StateChip } from "../Figure";
 import EpisodeWatch from "./EpisodeWatch";
 import ValueStrip from "../ValueStrip";
 
-const HEIGHT = 160;
-const MARGIN = { top: 12, right: 6, bottom: 22, left: 6 };
+const HEIGHT = 178;
+// `top` carries the round-trip label's own baseline: it sets at the 14px note
+// rung, so anything less than that draws the word above y=0 and the viewBox
+// cuts it off. HEIGHT rose by the same amount, so the plot area is unchanged.
+const MARGIN = { top: 30, right: 6, bottom: 22, left: 6 };
 
 function SurvivalChart({ data }: { data: CoherenceEpisodes }) {
-  const [plotRef, plotW] = useMeasuredWidth<HTMLDivElement>(720);
   const points = data.survival.map((point) => ({ t: Number(point.t_s), s: Number(point.surviving) }));
   if (points.length < 2) {
     return (
@@ -48,22 +48,14 @@ function SurvivalChart({ data }: { data: CoherenceEpisodes }) {
     );
   }
 
-  const longest = Math.max(...points.map((point) => point.t), 1);
-  const plotWidth = plotW - MARGIN.left - MARGIN.right;
-  const base = HEIGHT - MARGIN.bottom;
-  const x = (t: number) => MARGIN.left + (t / longest) * plotWidth;
-  const y = (s: number) => base - s * (base - MARGIN.top);
-
-  // A step, not a line: survival is constant between observed lifetimes, and a
-  // smooth curve would draw episodes ending at times nothing was measured.
-  let path = `M${MARGIN.left},${y(1).toFixed(2)}`;
-  let previous = 1;
-  for (const point of points) {
-    path += `L${x(point.t).toFixed(2)},${y(previous).toFixed(2)}L${x(point.t).toFixed(2)},${y(point.s).toFixed(2)}`;
-    previous = point.s;
-  }
-
   const median = data.median_s ? Number(data.median_s) : null;
+  const roundTrip = Number(data.round_trip_s);
+  // The axis has to reach the round trip even when every episode is shorter
+  // than it, or the rule that says "never available" would be drawn off the
+  // plot exactly when it is most worth seeing.
+  const longest = Math.max(...points.map((point) => point.t), Number.isFinite(roundTrip) ? roundTrip : 0, 1);
+  const base = HEIGHT - MARGIN.bottom;
+  const y = (s: number) => base - s * (base - MARGIN.top);
 
   return (
     <Figure
@@ -72,8 +64,21 @@ function SurvivalChart({ data }: { data: CoherenceEpisodes }) {
       reading={data.verdict}
       missing={data.median_withheld_reason}
     >
-      <div ref={plotRef} style={{ width: "100%" }}>
-        <svg viewBox={`0 0 ${plotW} ${HEIGHT}`} width={plotW} height={HEIGHT} className="coh-survival">
+      <Plot height={HEIGHT}>
+        {(plotW) => {
+          const plotWidth = Math.max(1, plotW - MARGIN.left - MARGIN.right);
+          const x = (t: number) => MARGIN.left + (t / longest) * plotWidth;
+          // A step, not a line: survival is constant between observed lifetimes,
+          // and a smooth curve would draw episodes ending at times nothing was
+          // measured.
+          let path = `M${MARGIN.left},${y(1).toFixed(2)}`;
+          let previous = 1;
+          for (const point of points) {
+            path += `L${x(point.t).toFixed(2)},${y(previous).toFixed(2)}L${x(point.t).toFixed(2)},${y(point.s).toFixed(2)}`;
+            previous = point.s;
+          }
+          return (
+            <>
         <line x1={MARGIN.left} x2={plotW - MARGIN.right} y1={base} y2={base} className="coh-ladder__axis" />
         <line x1={MARGIN.left} x2={plotW - MARGIN.right} y1={y(0.5)} y2={y(0.5)} className="coh-survival__half">
           <title>Half the recorded violations were still open at this height</title>
@@ -97,11 +102,29 @@ function SurvivalChart({ data }: { data: CoherenceEpisodes }) {
         <text x={MARGIN.left} y={y(0.5) - 2} className="coh-svg-note">
           half still open
         </text>
+        {/* THE ROUND TRIP, DRAWN. It was a chip and a tooltip, while the file's
+            own argument is that a median lifetime under the round trip means
+            the race was lost before it was entered — a comparison the figure
+            could not make because only one of the two was on it. */}
+        {Number.isFinite(roundTrip) ? (
+          <>
+            <line x1={x(roundTrip)} x2={x(roundTrip)} y1={MARGIN.top} y2={base} className="coh-survival__median">
+              <title>
+                {`Round trip ${data.round_trip_s}s — a lifetime left of this rule was over before a taker could reach it`}
+              </title>
+            </line>
+            <text x={x(roundTrip)} y={MARGIN.top - 3} textAnchor="middle" className="coh-svg-note">
+              round trip
+            </text>
+          </>
+        ) : null}
         <text x={plotW - MARGIN.right} y={HEIGHT - 6} textAnchor="end" className="coh-ladder__tick">
           {longest}s
         </text>
-        </svg>
-      </div>
+            </>
+          );
+        }}
+      </Plot>
     </Figure>
   );
 }

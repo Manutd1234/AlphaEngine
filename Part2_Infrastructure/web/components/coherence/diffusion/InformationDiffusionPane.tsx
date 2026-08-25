@@ -38,7 +38,9 @@
 
 import Figure, { FigureEmpty, StateChip } from "../Figure";
 import { STAGE_TERMINAL_MIN, STAGE_WORD, absorptionNotice, absorptionReady } from "./AbsorptionGate";
+import { absorptionBand, bandCoverage } from "@/lib/coherence/absorption-band";
 import AbsorptionCurve from "./AbsorptionCurve";
+import ClockAgreement from "./ClockAgreement";
 import FloorDistribution from "./FloorDistribution";
 import StageBars from "./StageBars";
 import type { AbsorptionRead, StageRun } from "./types";
@@ -53,7 +55,7 @@ function ratio(read: AbsorptionRead): string | null {
 
 
 export default function InformationDiffusionPane({ view, read, error }: {
-  view: "absorption" | "floor";
+  view: "absorption" | "floor" | "clocks";
   read: AbsorptionRead | null;
   error: string | null;
 }) {
@@ -64,6 +66,8 @@ export default function InformationDiffusionPane({ view, read, error }: {
   if (!absorptionReady(read)) return notice;
 
   const measured = read.stages.reduce((total, stage) => total + stage.measured, 0);
+  const measuredOn = (curve: (number | null)[]) => curve.filter((value) => value != null).length;
+  const coverage = bandCoverage(absorptionBand(read.runs, "release", read.horizons));
   const gap = ratio(read);
   // Named so the bars figure can say which stage has no median and why, in the
   // one place a reader is already asking it: under the drawing itself.
@@ -93,6 +97,18 @@ export default function InformationDiffusionPane({ view, read, error }: {
     );
   }
 
+  if (view === "clocks") {
+    return (
+      <div className="diff-pane">
+        {/* The control the tab argued in prose only: a stage measured on a clock
+            built from OTHER windows, ranked against itself on the wall clock.
+            Same read, no new field — `half_life_vol` has been on the wire since
+            the arm shipped and was drawn nowhere. */}
+        <ClockAgreement runs={read.runs} />
+      </div>
+    );
+  }
+
   return (
     <div className="diff-pane">
       {/* Two chips, not four. "Stages measured" and "Below the floor" were the
@@ -106,7 +122,12 @@ export default function InformationDiffusionPane({ view, read, error }: {
 
       <Figure
         caption="How much of each stage's move had arrived by each horizon"
-        ariaLabel={`Absorbed fraction against horizon for both stages, over ${measured} measured stages`}
+        // Carries the COVERAGE the curve's own label used to hold. That label
+        // was inside this figure's `role="img"` element, which is presentational
+        // to assistive technology, so it had never been read to anyone.
+        ariaLabel={`Absorbed fraction against horizon for both stages, over ${measured} measured stages: `
+          + `statement ${measuredOn(read.release_curve)} of ${read.horizons.length} horizons, `
+          + `press conference ${measuredOn(read.call_curve)}, each with the middle half of its runs drawn behind it`}
         // NO READING as of 2026-08-25. It said "the statement is half absorbed
         // in Ns and the press conference takes 4.4x as long" — which is the
         // chip above the figure ("Conference slower by 4.4x") and both curve
@@ -117,15 +138,20 @@ export default function InformationDiffusionPane({ view, read, error }: {
         // first two horizons are gaps. That is a fact about the sources, not
         // about the shape.
         reading={null}
-        missing={
+        missing={[
           read.horizons.length && read.release_curve[0] == null
             ? "The first two horizons are drawn as gaps: no free source resolves a move inside one minute."
-            : null
-        }
+            : null,
+          // The band and the line are drawn at the same weight whatever the
+          // sample, so the count is the only thing that says which is which.
+          coverage
+            ? `Each band is the middle half of ${coverage}; the line through it is a MEAN, so it can sit off-centre wherever the runs are skewed — which overshoot makes them.`
+            : null,
+        ].filter(Boolean).join(" ") || null}
       >
         {read.runs.length ? (
           <AbsorptionCurve horizons={read.horizons} release={read.release_curve}
-                           call={read.call_curve} stages={read.stages} />
+                           call={read.call_curve} stages={read.stages} runs={read.runs} />
         ) : (
           <FigureEmpty reason="No stage has been measured yet." />
         )}

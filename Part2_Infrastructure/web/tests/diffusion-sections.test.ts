@@ -101,6 +101,26 @@ describe("one control row per section, and none where there is one view", () => 
   });
 });
 
+describe("each switcher names its options", () => {
+  const OPTIONS: Record<string, readonly string[]> = {
+    arm: ["Absorption", "Control", "Clocks"],
+    meetings: ["Meeting by meeting", "Mechanism"],
+    episodes: ["Survival", "Episodes"],
+    sandbox: ["Half-life", "Simulator", "Spectrum"],
+  };
+  for (const [id, labels] of Object.entries(OPTIONS)) {
+    it(`${id} offers ${labels.join(", ")}`, () => {
+      // The view labels are the only route a reader has to a view: pane ids are
+      // component state and are not addressable, so a renamed view is
+      // unreachable by any link and only its label says it exists.
+      const source = read(SECTION_FILES[id]);
+      for (const label of labels) {
+        assert.ok(source.includes(`"${label}"`), `${id} lost its ${label} view`);
+      }
+    });
+  }
+});
+
 describe("the slowest read is asked for once and shared", () => {
   it("arm and meetings name the same URL", () => {
     assert.match(console_, /^ {2}arm: \[absorptionRoute\(\)\],$/m);

@@ -20,7 +20,7 @@
  * would scale the labels horizontally and not vertically.
  */
 
-import { useMeasuredWidth } from "@/components/chart-kit";
+import { Plot } from "../Figure";
 
 const HEIGHT = 172;
 const MARGIN = { left: 16, right: 16, top: 40 };
@@ -42,11 +42,7 @@ export default function StageTimeline({
   callLabel = "Press conference",
   callKnown = true,
 }: StageTimelineProps) {
-  const [ref, width] = useMeasuredWidth<HTMLDivElement>();
-  const plot = Math.max(width, 360);
   const span = gapMinutes + terminalMinutes;
-  const usable = plot - MARGIN.left - MARGIN.right;
-  const x = (minutes: number) => MARGIN.left + (minutes / span) * usable;
   const releaseRow = MARGIN.top + 22;
   const callRow = MARGIN.top + 82;
 
@@ -54,7 +50,7 @@ export default function StageTimeline({
   // figure's aria-label describes the whole drawing for a screen reader; a
   // pointer reader had nothing, and this drawing's two bands look identical
   // while meaning different clocks — each is measured from its OWN start.
-  const band = (row: number, start: number, kind: string, what: string) => (
+  const bandAt = (x: (minutes: number) => number) => (row: number, start: number, kind: string, what: string) => (
     <g>
       <rect x={x(start)} y={row - 11} width={Math.max(x(start + terminalMinutes) - x(start), 2)}
             height={22} className={`diff-time__band diff-time__band--${kind}`}>
@@ -69,10 +65,16 @@ export default function StageTimeline({
   );
 
   return (
-    <div ref={ref} className="diff-time__frame">
-      <svg viewBox={`0 0 ${plot} ${HEIGHT}`} width="100%" height={HEIGHT} role="img"
-           aria-label={`A rate decision in two stages: the statement, then the press conference `
-             + `${gapMinutes} minutes later, each measured over its own ${terminalMinutes} minute window.`}>
+    // FLOORED at 360px rather than measured all the way down. Every word in this
+    // drawing sits at a fixed x and none of it thins, so a narrow column has to
+    // move the figure sideways rather than squeeze its geometry into one.
+    <Plot height={HEIGHT} minWidth={360}>
+      {(plot) => {
+        const usable = plot - MARGIN.left - MARGIN.right;
+        const x = (minutes: number) => MARGIN.left + (minutes / span) * usable;
+        const band = bandAt(x);
+        return (
+          <>
         <line x1={x(0)} x2={x(gapMinutes)} y1={MARGIN.top - 20} y2={MARGIN.top - 20}
               className="diff-time__gap">
           <title>{`${gapMinutes} minutes between the two stages, set by the issuer`}</title>
@@ -114,7 +116,9 @@ export default function StageTimeline({
         ))}
         <line x1={MARGIN.left} x2={plot - MARGIN.right} y1={HEIGHT - 24} y2={HEIGHT - 24}
               className="diff-time__axis" />
-      </svg>
-    </div>
+          </>
+        );
+      }}
+    </Plot>
   );
 }

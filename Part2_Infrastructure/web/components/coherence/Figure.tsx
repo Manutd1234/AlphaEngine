@@ -21,7 +21,7 @@
  * Contrast and to a reader who cannot separate red from green.
  */
 
-import { type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
 import { useMeasuredWidth } from "@/components/chart-kit";
 import { DIAGRAM_LABEL_PX, advancePx } from "@/lib/coherence/label-metrics";
@@ -42,13 +42,36 @@ export interface FigureProps {
   children: ReactNode;
 }
 
+/**
+ * Where a `Plot` hands its focused mark's words, so a `Figure` can say them.
+ *
+ * THE REGION HAS TO BE OUTSIDE THE IMAGE AND `Plot` IS ALWAYS INSIDE IT. A
+ * `role="img"` subtree is presentational to assistive technology: everything
+ * under it loses its role and its name, a live region included. `Plot` used to
+ * render the region as a sibling of its own `<svg>` and note in a comment that
+ * putting it outside the wrapper "is not possible from here" — which was true,
+ * and meant the region was inside the image in all of its callers and announced
+ * to nobody. The suite could not see it because it compared source positions
+ * within one file.
+ *
+ * So the plot publishes and the figure speaks. A `Plot` used outside a `Figure`
+ * falls back to rendering its own region, which is worse but is not silence.
+ */
+const AnnounceContext = createContext<((text: string) => void) | null>(null);
+
 export default function Figure({ caption, reading, missing, ariaLabel, children }: FigureProps) {
+  const [announced, setAnnounced] = useState("");
   return (
     <figure className="coh-figure">
       <figcaption className="coh-figure__caption">{caption}</figcaption>
-      <div className="coh-figure__plot" role="img" aria-label={ariaLabel}>
-        {children}
-      </div>
+      <AnnounceContext.Provider value={setAnnounced}>
+        <div className="coh-figure__plot" role="img" aria-label={ariaLabel}>
+          {children}
+        </div>
+      </AnnounceContext.Provider>
+      {/* OUTSIDE the `role="img"` element, which is the whole point of the
+          context above: a sibling of the image rather than a descendant of it. */}
+      <p className="coh-plot__live" role="status" aria-live="polite">{announced}</p>
       {reading ? <p className="coh-figure__reading">{reading}</p> : null}
       {missing ? (
         <p className="coh-figure__missing">
@@ -74,16 +97,34 @@ export default function Figure({ caption, reading, missing, ariaLabel, children 
  */
 export function Plot({
   height,
+  minWidth = 0,
   children,
 }: {
   height: number;
+  /**
+   * A floor the drawing may not be compressed below.
+   *
+   * For a figure whose text sits at fixed positions and cannot thin — the stage
+   * timeline is the one — a narrow column has to SCROLL rather than squeeze the
+   * geometry into it. Zero for every other caller, which is what it was before
+   * this existed.
+   */
+  minWidth?: number;
   children: (width: number) => ReactNode;
 }) {
-  const [ref, width] = useMeasuredWidth<HTMLDivElement>(720);
+  const [ref, measured] = useMeasuredWidth<HTMLDivElement>(720);
+  const width = Math.max(measured, minWidth);
   const { svgRef, readout, interactive, announce, handlers } = useMarkReadout(height);
+  const publish = useContext(AnnounceContext);
+  // In an effect, not during render. Calling a PARENT's setter while a child is
+  // rendering is the one thing React refuses outright — "cannot update a
+  // component while rendering a different component" — and it is the obvious
+  // way to write this. The cost is one extra commit per readout change, which
+  // is a keypress, not a frame loop.
+  useEffect(() => { publish?.(announce); }, [publish, announce]);
 
   return (
-    <div ref={ref} className="coh-plot" style={{ width: "100%" }}>
+    <div ref={ref} className={`coh-plot${minWidth ? " is-floored" : ""}`} style={{ width: "100%" }}>
       <svg
         ref={svgRef}
         viewBox={`0 0 ${width} ${height}`}
@@ -100,11 +141,12 @@ export function Plot({
         {children(width)}
         {readout ? <Readout {...readout} chartWidth={width} /> : null}
       </svg>
-      {/* OUTSIDE the `role="img"` wrapper's subtree in the accessibility tree
-          is not possible from here, so this is a live region that speaks the
-          focused mark's own words. A `role="img"` subtree is presentational, so
-          labelling the marks themselves would announce nothing. */}
-      <p className="coh-plot__live" role="status" aria-live="polite">{announce}</p>
+      {/* Only when this plot is NOT inside a Figure. Inside one — which is every
+          caller on the engine — the figure renders the region outside its own
+          `role="img"` element, where assistive technology can reach it. */}
+      {publish ? null : (
+        <p className="coh-plot__live" role="status" aria-live="polite">{announce}</p>
+      )}
     </div>
   );
 }

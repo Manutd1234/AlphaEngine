@@ -16,6 +16,7 @@
  * opens it to find out how big it is.
  */
 
+import Figure, { Plot } from "../Figure";
 import ValueStrip from "../ValueStrip";
 import type { StageRun } from "./types";
 
@@ -35,13 +36,7 @@ export default function MeetingTable({ runs }: { runs: StageRun[] }) {
     .slice(-RECENT_MEETINGS)
     .reverse();
 
-  if (!rows.length) {
-    return (
-      <p className="console-empty">
-        <span aria-hidden="true">◌</span> No stage has cleared the noise floor yet.
-      </p>
-    );
-  }
+  if (!rows.length) return <MeetingsEmpty runs={runs} />;
 
   const cell = (run: StageRun | undefined) => {
     if (!run) return <td className="num">—</td>;
@@ -139,5 +134,76 @@ export default function MeetingTable({ runs }: { runs: StageRun[] }) {
     </div>
     </details>
     </>
+  );
+}
+
+/**
+ * What the strip will hold, drawn before it holds anything.
+ *
+ * THE EMPTY BRANCH IS A DEPLOYMENT'S NORMAL STATE, not an edge one: a keyless
+ * desk has read no announcement window at all, and this view used to answer
+ * that with one grey sentence. The house rule is that an empty result is
+ * REPORTED — and a report of an empty ledger can still say what the ledger is
+ * for and what it will never hold.
+ *
+ * Every mark is a constant. The eight horizons are the study's own grid, and
+ * the first two are drawn already refused because a sub-minute move cannot be
+ * resolved from any free bar source whatever lands later — a property of the
+ * grid against the bar interval, knowable with no data. Nothing here claims a
+ * measurement.
+ */
+const GRID_LABELS = ["1s", "30s", "1m", "2m", "5m", "10m", "15m", "30m"];
+const EMPTY_HEIGHT = 96;
+
+function MeetingsEmpty({ runs }: { runs: StageRun[] }) {
+  const read = runs.length;
+  const refused = runs.filter((run) => run.signal_state !== "ok").length;
+  return (
+    <Figure
+      caption="The horizons a meeting is measured at, and the two that never resolve"
+      ariaLabel={`Eight horizons from one second to thirty minutes, the first two marked as never resolvable from a free source${read ? `, over ${read} stages read` : ""}`}
+      reading={
+        read
+          ? `${read} ${read === 1 ? "stage has" : "stages have"} been read and ${refused} did not move enough to measure, so no row is drawn yet — a property of those decisions rather than of the data.`
+          : "No announcement window has been recorded on this deployment yet, so there is nothing to rank; the grid below is what a meeting will be measured against when one is."
+      }
+      missing="The first two horizons stay unmeasured whatever lands: no free bar source resolves a move inside one minute."
+    >
+      <Plot height={EMPTY_HEIGHT}>
+        {(width) => {
+          const left = 18;
+          const right = Math.max(left + 60, width - 18);
+          const x = (index: number) => left + (index / (GRID_LABELS.length - 1)) * (right - left);
+          const base = EMPTY_HEIGHT - 30;
+          return (
+            <>
+              <line className="coh-ladder__axis" x1={left} x2={right} y1={base} y2={base} />
+              {GRID_LABELS.map((word, index) => {
+                const resolvable = index >= 2;
+                return (
+                  <g key={word}>
+                    <circle
+                      className={resolvable ? "diff-curve__dot" : "diff-curve__dot diff-curve__dot--gap"}
+                      cx={x(index)} cy={base} r={3.5}
+                    >
+                      <title>
+                        {resolvable
+                          ? `${word}: a stage that clears the noise floor is measured here`
+                          : `${word}: never resolved — no free bar source reaches inside one minute`}
+                      </title>
+                    </circle>
+                    <text className="coh-ladder__tick" x={x(index)} y={base + 15} textAnchor="middle">{word}</text>
+                    {resolvable ? null : (
+                      <text className="coh-ladder__tick" x={x(index)} y={base - 9} textAnchor="middle">◌</text>
+                    )}
+                  </g>
+                );
+              })}
+              <text className="coh-svg-note" x={left} y={18}>a meeting fills one row per stage</text>
+            </>
+          );
+        }}
+      </Plot>
+    </Figure>
   );
 }

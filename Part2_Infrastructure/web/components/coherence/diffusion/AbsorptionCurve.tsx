@@ -22,10 +22,12 @@
  * width and squash the part where everything happens.
  */
 
-import { Grid, XAxis, linearScale, ticks, useMeasuredWidth } from "@/components/chart-kit";
+import { Grid, XAxis, bandPath, linearScale, ticks } from "@/components/chart-kit";
+import { Plot } from "../Figure";
+import { absorptionBand, bandCoverage } from "@/lib/coherence/absorption-band";
 import { pct } from "@/lib/format";
 
-import type { StageSummary } from "./types";
+import type { StageRun, StageSummary } from "./types";
 
 const HEIGHT = 210;
 const MARGIN = { top: 34, right: 18, bottom: 30, left: 44 };
@@ -35,6 +37,12 @@ export interface AbsorptionCurveProps {
   release: (number | null)[];
   call: (number | null)[];
   stages: StageSummary[];
+  /**
+   * The runs the two curves are the MEAN of, for the spread behind them.
+   * Optional: the curves are complete without it, and a caller that has not
+   * got the runs draws the means alone rather than an empty band.
+   */
+  runs?: StageRun[];
 }
 
 /** Broken at gaps rather than bridged: an unmeasured horizon is a hole in the
@@ -57,8 +65,15 @@ function brokenPath(
   return drawn;
 }
 
-export default function AbsorptionCurve({ horizons, release, call, stages }: AbsorptionCurveProps) {
-  const [ref, width] = useMeasuredWidth<HTMLDivElement>();
+export default function AbsorptionCurve({ horizons, release, call, stages, runs }: AbsorptionCurveProps) {
+  return (
+    <Plot height={HEIGHT} minWidth={320}>
+      {(width) => <Curve width={width} horizons={horizons} release={release} call={call} stages={stages} runs={runs} />}
+    </Plot>
+  );
+}
+
+function Curve({ width, horizons, release, call, stages, runs }: AbsorptionCurveProps & { width: number }) {
   const x0 = MARGIN.left;
   const x1 = Math.max(x0 + 60, width - MARGIN.right);
   const y0 = HEIGHT - MARGIN.bottom;
@@ -77,13 +92,46 @@ export default function AbsorptionCurve({ horizons, release, call, stages }: Abs
 
   const half = yScale(0.5);
 
+  // The spread the two means are means OF, drawn behind them. Same population
+  // as the mean by construction — the filter lives in `absorption-band.ts`.
+  const bands = runs?.length
+    ? ({
+        release: absorptionBand(runs, "release", horizons),
+        call: absorptionBand(runs, "call", horizons),
+      })
+    : null;
+  const bandFor = (rows: ReturnType<typeof absorptionBand>) =>
+    bandPath(
+      rows
+        .map((row, index) => ({ row, index }))
+        .filter(({ row }) => row.p25 != null && row.p75 != null)
+        .map(({ row, index }) => ({
+          x: xScale(index),
+          y0: yScale(row.p25 as number),
+          y1: yScale(row.p75 as number),
+        })),
+    );
+
   return (
-    <div ref={ref} className="diff-curve__frame">
-      <svg viewBox={`0 0 ${Math.max(width, 320)} ${HEIGHT}`} width="100%" height={HEIGHT}
-           role="img"
-           aria-label={`Absorbed fraction by horizon, both stages: statement ${measured(release)} of `
-             + `${horizons.length} horizons measured, press conference ${measured(call)}.`}>
+    <>
         <Grid yTicks={yTicks} yScale={yScale} x0={x0} x1={x1} format={(value) => pct(value, 0)} />
+
+        {/* The middle half of the runs at each horizon, behind the mean each is
+            a mean of. Drawn FIRST so the two lines stay the thing being read. */}
+        {bands ? (
+          <>
+            <path d={bandFor(bands.release)} className="diff-curve__band diff-curve__band--release">
+              <title>
+                {`The middle half of the statement stages at each horizon — the mean is a mean of paths this far apart`}
+              </title>
+            </path>
+            <path d={bandFor(bands.call)} className="diff-curve__band diff-curve__band--call">
+              <title>
+                {`The middle half of the press-conference stages at each horizon`}
+              </title>
+            </path>
+          </>
+        ) : null}
 
         {/* Drawn only when a path overshot its own terminal and came back, which
             is a real thing a price does. Clipping the axis at one would report
@@ -151,7 +199,6 @@ export default function AbsorptionCurve({ horizons, release, call, stages }: Abs
             ? ` — half in ${Math.round(summaryOf("call")!.median_half_life_s!)}s`
             : ""}
         </text>
-      </svg>
-    </div>
+    </>
   );
 }

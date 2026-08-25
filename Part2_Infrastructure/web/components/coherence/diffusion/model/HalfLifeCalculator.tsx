@@ -33,8 +33,7 @@
 import { useState } from "react";
 
 import { halfLife } from "@/lib/coherence/diffusion-model";
-import Figure from "../../Figure";
-import { useMeasuredWidth } from "@/components/chart-kit";
+import Figure, { Plot } from "../../Figure";
 
 /** The v2 horizon grid, in seconds: 1m, 2m, 5m, 10m, 15m, 30m. */
 const GRID = [60, 120, 300, 600, 900, 1800] as const;
@@ -74,7 +73,6 @@ function verdict(state: string, value: number | null): { mark: string; text: str
 
 export default function HalfLifeCalculator() {
   const [absorbed, setAbsorbed] = useState<number[]>(OPENING);
-  const [plotRef, plotW] = useMeasuredWidth<HTMLDivElement>(720);
 
   const result = halfLife([...GRID], absorbed);
   const reading = verdict(result.state, result.value);
@@ -85,13 +83,9 @@ export default function HalfLifeCalculator() {
   // Log x, because that is the axis the crossing is interpolated on.
   const logLow = Math.log(GRID[0]);
   const logHigh = Math.log(GRID[GRID.length - 1]);
-  const plotWidth = Math.max(1, plotW - MARGIN.left - MARGIN.right);
   const base = HEIGHT - MARGIN.bottom;
   const top = Math.max(...absorbed, 1);
-  const x = (value: number) => MARGIN.left + ((Math.log(value) - logLow) / (logHigh - logLow)) * plotWidth;
   const y = (value: number) => base - (value / top) * (base - MARGIN.top);
-
-  const path = GRID.map((horizon, index) => `${index ? "L" : "M"}${x(horizon).toFixed(2)},${y(absorbed[index]).toFixed(2)}`).join("");
 
   return (
     <div className="diff-pane">
@@ -128,8 +122,16 @@ export default function HalfLifeCalculator() {
             : result.reason
         }
       >
-        <div ref={plotRef} style={{ width: "100%" }}>
-          <svg viewBox={`0 0 ${plotW} ${HEIGHT}`} width={plotW} height={HEIGHT}>
+        <Plot height={HEIGHT}>
+          {(plotW) => {
+            const plotWidth = Math.max(1, plotW - MARGIN.left - MARGIN.right);
+            const x = (value: number) =>
+              MARGIN.left + ((Math.log(value) - logLow) / (logHigh - logLow)) * plotWidth;
+            const path = GRID
+              .map((horizon, index) => `${index ? "L" : "M"}${x(horizon).toFixed(2)},${y(absorbed[index]).toFixed(2)}`)
+              .join("");
+            return (
+              <>
             <line x1={MARGIN.left} x2={plotW - MARGIN.right} y1={base} y2={base} className="coh-ladder__axis" />
             {/* The level being crossed. It is the figure's whole subject, so it
                 is drawn over the data rather than under it. */}
@@ -165,8 +167,10 @@ export default function HalfLifeCalculator() {
                 {GRID_LABELS[index]}
               </text>
             ))}
-          </svg>
-        </div>
+              </>
+            );
+          }}
+        </Plot>
       </Figure>
 
       <div className="coh-status__chips">

@@ -41,9 +41,8 @@
 import { useMemo, useState } from "react";
 
 import { fitExponential, fitPower, halfLife } from "@/lib/coherence/diffusion-model";
-import Figure from "../../Figure";
+import Figure, { Plot } from "../../Figure";
 import { StateChip } from "../../Figure";
-import { useMeasuredWidth } from "@/components/chart-kit";
 
 const GRID = [60, 120, 300, 600, 900, 1800] as const;
 const GRID_LABELS = ["1m", "2m", "5m", "10m", "15m", "30m"] as const;
@@ -147,7 +146,6 @@ export default function DiffusionSimulator() {
   const [noise, setNoise] = useState(0.0001);
   const [preBars, setPreBars] = useState(60);
   const [seed, setSeed] = useState(14);
-  const [plotRef, plotW] = useMeasuredWidth<HTMLDivElement>(720);
 
   const run = useMemo(
     () => simulate(trueHalfLife, move, noise, preBars, seed),
@@ -157,15 +155,10 @@ export default function DiffusionSimulator() {
   const exponential = run.signal === "ok" ? fitExponential([...GRID], run.absorbed) : null;
   const power = run.signal === "ok" ? fitPower([...GRID], run.absorbed) : null;
 
-  const plotWidth = Math.max(1, plotW - MARGIN.left - MARGIN.right);
   const base = HEIGHT - MARGIN.bottom;
   const span = Math.max(...run.path.map((point) => Math.abs(point.value)), 1e-9);
-  const x = (t: number) => MARGIN.left + (t / TERMINAL) * plotWidth;
   const y = (value: number) => base - ((value + span) / (2 * span)) * (base - MARGIN.top);
-  const line = run.path.map((point, index) => `${index ? "L" : "M"}${x(point.t).toFixed(2)},${y(point.value).toFixed(2)}`).join("");
-
   const drift = (t: number) => move * (1 - Math.exp(-t / (trueHalfLife / Math.LN2)));
-  const truth = run.path.map((point, index) => `${index ? "L" : "M"}${x(point.t).toFixed(2)},${y(drift(point.t)).toFixed(2)}`).join("");
 
   const error = recovered?.value != null
     ? `${(((recovered.value - trueHalfLife) / trueHalfLife) * 100).toFixed(0)}%`
@@ -250,8 +243,18 @@ export default function DiffusionSimulator() {
             : null
         }
       >
-        <div ref={plotRef} style={{ width: "100%" }}>
-          <svg viewBox={`0 0 ${plotW} ${HEIGHT}`} width={plotW} height={HEIGHT}>
+        <Plot height={HEIGHT}>
+          {(plotW) => {
+            const plotWidth = Math.max(1, plotW - MARGIN.left - MARGIN.right);
+            const x = (t: number) => MARGIN.left + (t / TERMINAL) * plotWidth;
+            const line = run.path
+              .map((point, index) => `${index ? "L" : "M"}${x(point.t).toFixed(2)},${y(point.value).toFixed(2)}`)
+              .join("");
+            const truth = run.path
+              .map((point, index) => `${index ? "L" : "M"}${x(point.t).toFixed(2)},${y(drift(point.t)).toFixed(2)}`)
+              .join("");
+            return (
+              <>
             <line x1={MARGIN.left} x2={plotW - MARGIN.right} y1={y(0)} y2={y(0)} className="coh-ladder__axis" />
             <path d={truth} fill="none" className="coh-model__truth">
               <title>{`The decay the path was drawn from: half-life ${trueHalfLife}s`}</title>
@@ -270,8 +273,10 @@ export default function DiffusionSimulator() {
                 {GRID_LABELS[index]}
               </text>
             ))}
-          </svg>
-        </div>
+              </>
+            );
+          }}
+        </Plot>
       </Figure>
     </div>
   );

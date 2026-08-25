@@ -111,7 +111,6 @@
   vector-effect: non-scaling-stroke;
 }
 
-.coh-survival { height: 160px; }
 
 .coh-survival__step {
   stroke: var(--series-3);
@@ -145,7 +144,6 @@
   vector-effect: non-scaling-stroke;
 }
 
-.coh-survival { height: 160px; }
 
 .coh-survival__step {
   stroke: var(--series-3);
@@ -213,6 +211,11 @@
 
 /* The live region is for assistive technology only. Not `display: none`, which
    would take it out of the accessibility tree along with everything it says. */
+/* A plot with a width FLOOR scrolls rather than compressing. For a figure whose
+   text sits at fixed positions and cannot thin, a narrow column has to move the
+   drawing sideways instead of squeezing its geometry into the column. */
+.coh-plot.is-floored { overflow-x: auto; }
+
 .coh-plot__live {
   position: absolute;
   width: 1px;

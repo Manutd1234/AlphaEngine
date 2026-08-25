@@ -26,9 +26,6 @@
 
 /* ---------- the absorption curve ---------- */
 
-.diff-curve__frame,
-.diff-time__frame { min-width: 0; }
-
 /* Broken at gaps rather than bridged. A horizon nobody measured is a hole in
    the record; a line drawn across it asserts an absorbed fraction that was
    never read. */
@@ -357,3 +354,29 @@
     color-mix(in srgb, var(--text-secondary) 30%, transparent) 3px 6px
   );
 }
+
+/* The middle half of the runs each mean is a mean of. Behind the lines and
+   faint: the band is the spread, the line is still the reading. Assigned by
+   ENTITY like every other colour on this tab — series 1 is always the
+   statement, series 2 always the press conference — so a filter that changed
+   which stages were present could not repaint the survivors. */
+.diff-curve__band { stroke: none; }
+.diff-curve__band--release { fill: color-mix(in srgb, var(--series-1) 14%, transparent); }
+.diff-curve__band--call { fill: color-mix(in srgb, var(--series-2) 14%, transparent); }
+
+/* ── The two clocks ───────────────────────────────────────────────────────
+   One line per stage between two rank axes. The lines that MOVE are the
+   finding, so they are drawn heavier as well as tinted — a reader who cannot
+   separate the two weights still has each line's own words on it. */
+.diff-clock__link {
+  stroke: color-mix(in srgb, var(--text-secondary) 30%, transparent);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.diff-clock__link--release.is-moved { stroke: var(--series-1); stroke-width: 1.6; }
+.diff-clock__link--call.is-moved { stroke: var(--series-2); stroke-width: 1.6; stroke-dasharray: 3 2; }
+
+/* A horizon that will never resolve, on the empty-state grid: hollow as well as
+   muted, so "nothing will ever be measured here" is not carried by tint alone. */
+.diff-curve__dot--gap { fill: none; stroke: var(--text-secondary); stroke-width: 1; }

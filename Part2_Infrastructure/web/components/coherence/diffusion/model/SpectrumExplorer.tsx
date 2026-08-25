@@ -40,9 +40,7 @@
 import { useMemo, useState } from "react";
 
 import { gaussianInformation, gaussianSpectrum } from "@/lib/coherence/diffusion-model";
-import Figure from "../../Figure";
-import { StateChip } from "../../Figure";
-import { useMeasuredWidth } from "@/components/chart-kit";
+import Figure, { Plot, StateChip } from "../../Figure";
 
 const HEIGHT = 206;
 // `top` clears the 14px `coh-svg-note` rung the resolution note draws at
@@ -60,7 +58,6 @@ const STEP = (ALPHA_HIGH - ALPHA_LOW) / STEPS;
 export default function SpectrumExplorer() {
   const [logLambda, setLogLambda] = useState([1.6, 0.4, -0.9]);
   const [logMu, setLogMu] = useState([0.7, -0.1, -1.2]);
-  const [plotRef, plotW] = useMeasuredWidth<HTMLDivElement>(720);
 
   const { density, integral, exact, centroid } = useMemo(() => {
     const values = gaussianSpectrum(ALPHAS, logLambda, logMu);
@@ -80,13 +77,8 @@ export default function SpectrumExplorer() {
     else setLogMu(update);
   };
 
-  const plotWidth = Math.max(1, plotW - MARGIN.left - MARGIN.right);
   const base = HEIGHT - MARGIN.bottom;
   const peak = Math.max(...density, 1e-6);
-  const x = (alpha: number) => MARGIN.left + ((alpha - ALPHA_LOW) / (ALPHA_HIGH - ALPHA_LOW)) * plotWidth;
-  const y = (value: number) => base - (value / peak) * (base - MARGIN.top);
-  const path = density.map((value, index) => `${index ? "L" : "M"}${x(ALPHAS[index]).toFixed(2)},${y(value).toFixed(2)}`).join("");
-  const area = `${path}L${x(ALPHA_HIGH).toFixed(2)},${base}L${x(ALPHA_LOW).toFixed(2)},${base}Z`;
 
   const flat = Math.abs(exact) < 1e-9;
 
@@ -137,8 +129,18 @@ export default function SpectrumExplorer() {
         }
         missing="Whitening the latent would send every log λ to zero, collapse this curve to one bump at α = 0 and destroy the resolution axis the instrument reads. Drag the three unconditional sliders together to see it happen — it is the natural thing to reach for and it deletes the measurement."
       >
-        <div ref={plotRef} style={{ width: "100%" }}>
-          <svg viewBox={`0 0 ${plotW} ${HEIGHT}`} width={plotW} height={HEIGHT}>
+        <Plot height={HEIGHT}>
+          {(plotW) => {
+            const plotWidth = Math.max(1, plotW - MARGIN.left - MARGIN.right);
+            const x = (alpha: number) =>
+              MARGIN.left + ((alpha - ALPHA_LOW) / (ALPHA_HIGH - ALPHA_LOW)) * plotWidth;
+            const y = (value: number) => base - (value / peak) * (base - MARGIN.top);
+            const path = density
+              .map((value, index) => `${index ? "L" : "M"}${x(ALPHAS[index]).toFixed(2)},${y(value).toFixed(2)}`)
+              .join("");
+            const area = `${path}L${x(ALPHA_HIGH).toFixed(2)},${base}L${x(ALPHA_LOW).toFixed(2)},${base}Z`;
+            return (
+              <>
             <line x1={MARGIN.left} x2={plotW - MARGIN.right} y1={base} y2={base} className="coh-ladder__axis" />
             <path d={area} className="coh-model__area">
               <title>{`Area ${integral.toFixed(6)} nats, which is I(x;c)`}</title>
@@ -156,8 +158,10 @@ export default function SpectrumExplorer() {
               α = {ALPHA_HIGH}
             </text>
             <text x={MARGIN.left} y={MARGIN.top - 4} className="coh-svg-note">coarse ← resolution → fine</text>
-          </svg>
-        </div>
+              </>
+            );
+          }}
+        </Plot>
       </Figure>
     </div>
   );

@@ -17,6 +17,7 @@
  */
 
 import { Plot } from "../Figure";
+import { DIAGRAM_LABEL_PX, gutterFor, truncateMiddle } from "@/lib/coherence/label-metrics";
 import type { Finding } from "./types";
 
 const ROW = 26;
@@ -28,10 +29,15 @@ const PAD = { top: 22, bottom: 26, right: 46 };
  *  derive from it, so the label column widened with the type rather than
  *  truncating. The 14r token `--fs-diagram-label` holds the same 13 for the
  *  classes that read CSS; this one is inline because the arithmetic below
- *  needs the number. */
-const LABEL_SIZE = 13;
-/** Average advance of the UI face at LABEL_SIZE, in pixels per character. */
-const CHAR_PX = LABEL_SIZE * 0.56;
+ *  needs the number.
+ *
+ *  THE GUTTER IS NO LONGER DERIVED FROM A CONSTANT RATIO. It used to be
+ *  `LABEL_SIZE * 0.56`, which is the MIXED-CASE prose advance measured in
+ *  Chrome — while a `Finding.name` is wire data and can arrive uppercase, where
+ *  Inter sets nearer 0.69em. So the column under-measured exactly the labels
+ *  most likely to overrun it, and the overrun printed into the axis rather than
+ *  clipping. `label-metrics.ts` exists for this and owns the numbers now. */
+const LABEL_SIZE = DIAGRAM_LABEL_PX;
 const GUTTER_MIN = 140;
 const GUTTER_MAX = 300;
 /** Beyond this the axis stops growing; a larger t is drawn at the edge with its value. */
@@ -51,10 +57,9 @@ export default function EffectPlot({ findings }: { findings: Finding[] }) {
         // full text kept in a tooltip, because a clipped label is worse than a
         // shortened one — it looks like the word is simply missing.
         const label = (row: Finding) => `${row.name} (${row.stage})`;
-        const longest = rows.reduce((most, row) => Math.max(most, label(row).length), 0);
-        const gutter = Math.min(GUTTER_MAX, Math.max(GUTTER_MIN,
-          Math.min(longest * CHAR_PX + 18, width * 0.34)));
-        const fits = Math.max(8, Math.floor((gutter - 18) / CHAR_PX));
+        const gutter = gutterFor(rows.map(label), width, LABEL_SIZE, {
+          min: GUTTER_MIN, max: GUTTER_MAX, maxFraction: 0.34, clearance: 18,
+        });
         const span = Math.max(width - gutter - PAD.right, 120);
         const x = (t: number) =>
           gutter + ((Math.max(-AXIS_MAX, Math.min(AXIS_MAX, t)) + AXIS_MAX) / (2 * AXIS_MAX)) * span;
@@ -109,7 +114,10 @@ export default function EffectPlot({ findings }: { findings: Finding[] }) {
                   <text className="diff-effect__row" x={gutter - 12} y={cy + 3.5}
                         textAnchor="end" fontSize={LABEL_SIZE}>
                     <title>{`${label(row)} — ${row.question}`}</title>
-                    {label(row).length > fits ? `${label(row).slice(0, fits - 1)}…` : label(row)}
+                    {/* Middle-elided, not tail-truncated: a relationship name
+                        is distinguished by its tail — the stage in brackets —
+                        as often as by its head. */}
+                    {truncateMiddle(label(row), gutter - 18, LABEL_SIZE)}
                   </text>
                   <line
                     className="diff-effect__stem"
