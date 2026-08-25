@@ -37,6 +37,10 @@ import { read, stripNonCode } from "./helpers/workspace-sources";
 const page = read("../app/dashboard/page.tsx");
 const panels = read("../components/workspace/WorkspacePanels.tsx");
 const routingHook = read("../lib/use-workspace-routing.ts");
+// The two location WRITERS moved to their own module on 2026-08-26, when the
+// third hash segment took the routing hook past the 400-line ceiling. Same rule
+// as the split above: each assertion reads the file its subject now lives in.
+const location = read("../lib/workspace-location.ts");
 // Rail state moved to its own hook when the ninth tab arrived and the routing
 // file reached its length ceiling; the guards below follow the code they guard.
 const railSections = read("../lib/use-rail-sections.ts");
@@ -92,14 +96,35 @@ describe("dense role workspaces expose accessible feature sections", () => {
     // builds the full location rather than a bare view.
     assert.match(routingHook, /url\.hash = detail\?\.hash \?\? hashFor\(next\)/,
       "a workspace switch no longer writes the full location through the shared builder");
-    assert.match(routingHook, /`\$\{tab\}\/\$\{section\}`/,
+    assert.match(location, /`\$\{tab\}\/\$\{section\}`/,
       "the location builder no longer writes tab and section");
-    assert.match(routingHook, /`\$\{tab\}\/\$\{section\}\/\$\{at\}`/,
+    assert.match(location, /`\$\{tab\}\/\$\{section\}\/\$\{at\}`/,
       "the builder no longer carries the view for a tab that has one");
     assert.ok(
       !/if \(next === "data"\) setDataSection\("overview"\)/.test(routingHook),
       "the forced data reset is back — it hid the desync instead of fixing it",
     );
+  });
+
+  it("a view press rewrites the hash, and replaces rather than pushes", () => {
+    // The other half of an addressable view, and the half that was missing when
+    // it first landed: `#markets/fees/comparison` opened Fees on its Ablation,
+    // and then pressing "Replay table" left the hash still saying "comparison".
+    // Reading an address without writing one back is the copy-link/reload
+    // desync this suite already guards for tab switches, one level down.
+    //
+    // FOUND IN A BROWSER, NOT HERE. No DOM-less assertion can watch a button
+    // press fail to reach the address bar; what it can do is pin the writer
+    // once it exists. `scripts/figure-arrival-measure.mjs` is the sibling case
+    // — behaviour this suite can only guard structurally.
+    assert.match(location, /url\.hash = `markets\/\$\{section\}\/\$\{next\}`/,
+      "pressing a view no longer writes the location, so a copied link goes stale");
+    const writer = location.slice(location.indexOf("export function useViewWriter"));
+    assert.match(writer.slice(0, writer.indexOf("}, [")), /window\.history\.replaceState/,
+      "a view press pushes history; Back would then step through every button press on the way out of the tab");
+    assert.doesNotMatch(writer.slice(0, writer.indexOf("}, [")), /pushState/);
+    assert.match(writer.slice(0, writer.indexOf("}, [")), /viewRef\.current !== "markets"/,
+      "a background tab can rewrite the address bar");
   });
 
   it("Alt+1–9 then Alt+0 reads physical key codes and never fires while typing", () => {

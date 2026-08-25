@@ -38,7 +38,7 @@ import { useConsolePrefetch } from "@/lib/use-console-prefetch";
 import { WORKSPACE_LOCATION_KEY } from "@/lib/user-prefs";
 import { DEFAULT_SECTION, followLocation, railSection, type SectionApplier } from "@/lib/workspace-hash";
 import { useRailSections } from "@/lib/use-rail-sections";
-import { viewsFor } from "@/lib/section-views";
+import { useHashFor, useViewWriter } from "@/lib/workspace-location";
 import { buildTourStops } from "@/lib/workspace-tour";
 
 export function useWorkspaceRouting() {
@@ -56,22 +56,6 @@ export function useWorkspaceRouting() {
     marketsViews, setMarketsView, viewBySectionRef,
   } = rails;
 
-  /**
-   * The full location as a hash, section and — where the tab has them — view.
-   *
-   * One builder for all four writers below. They each spelled
-   * `${view}/${section}` by hand, and a third segment added to three of the
-   * four would be the desync the comment on `navigate` already warns about:
-   * copy-link disagreeing with reload. `viewsFor` returns empty for a tab that
-   * declares no views, so those tabs keep writing exactly two segments and
-   * every link already in the world still resolves.
-   */
-  const hashFor = useCallback((tab: WorkspaceView) => {
-    const section = sectionByViewRef.current[tab];
-    if (!viewsFor(tab, section).length) return `${tab}/${section}`;
-    const at = viewBySectionRef.current[section];
-    return at ? `${tab}/${section}/${at}` : `${tab}/${section}`;
-  }, [sectionByViewRef, viewBySectionRef]);
 
   /**
    * The shell, which is the page's scroll container.
@@ -86,6 +70,8 @@ export function useWorkspaceRouting() {
 
   /** The visible tab, readable at click time for the same reason the sections are. */
   const viewRef = useRef<WorkspaceView>(view);
+
+  const hashFor = useHashFor({ sectionByViewRef, viewBySectionRef, viewRef });
   viewRef.current = view;
 
   /**
@@ -316,6 +302,8 @@ export function useWorkspaceRouting() {
     }
   }, [openSection]);
 
+  const changeMarketsView = useViewWriter({ sectionByViewRef, viewBySectionRef, viewRef }, setMarketsView);
+
   /** The current location as a shareable URL, straight from the live ref. */
   const copyLinkToView = useCallback(() => {
     const url = new URL(window.location.href);
@@ -377,6 +365,6 @@ export function useWorkspaceRouting() {
     openRiskSection, openPortfolioSection, openResearchSummary, openLiveLiquidity,
     openReliabilityOverview, openDataOverview, openLoopStage, openReliabilitySection,
     copyLinkToView, tourStops,
-    marketsViews, setMarketsView,
+    marketsViews, setMarketsView: changeMarketsView,
   };
 }
