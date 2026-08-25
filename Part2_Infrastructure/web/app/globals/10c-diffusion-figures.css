@@ -262,9 +262,11 @@
 
    `dead-css.test.ts` cannot see this class of fault by construction: it asks
    whether a class NAME appears anywhere under components/app/lib, and all six
-   of these did. Seeing it needs a guard that resolves each plane-scoped rule to
-   the components that render its classes and asks whether that console reaches
-   this plane; a peer session is writing one.
+   of these did. The guard that does see it is `tests/plane-scope.test.ts`: it
+   walks the import graph from each console that renders a plane and asserts
+   every plane-scoped rule targets a class some component reachable from that
+   console renders. It was proven by re-injecting this fault, not by observing
+   it pass.
    ──────────────────────────────────────────────────────────────────────── */
 /* ── The control grid ─────────────────────────────────────────────────────
    One column on a phone, two from the desk breakpoint the rest of this engine

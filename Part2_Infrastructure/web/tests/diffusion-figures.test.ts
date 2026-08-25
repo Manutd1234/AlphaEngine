@@ -87,6 +87,38 @@ describe("the two figures that are not drawn are recorded as decisions", () => {
     );
   });
 
+  it("no figure draws controls_used as the backing for a rank", () => {
+    // `control_percentile` is a rank against the PLACEBO population — the
+    // matched windows whose own path cleared the gate AND whose volatility
+    // half-life resolved. `controls_used` is the windows FOUND, before either
+    // filter. So it is an upper bound on what a rank stands on, not the
+    // denominator, and a figure drawing it as "how many controls back this
+    // rank" would overstate the backing by an unknown amount.
+    //
+    // Measured on the live ledger 2026-08-25, which is the part that settles
+    // it: `controls_used` was identically 5 on every run, ranked and unranked
+    // alike, while only 19 of 89 measured runs carried a percentile at all. It
+    // distinguishes nothing on this payload even before the definition is
+    // argued.
+    //
+    // Pinned as a property of the SCHEMA rather than of today's numbers, so it
+    // fails the day the wire carries the count that IS the denominator, and not
+    // before — a guard keyed to 70-of-89 would cry wolf the moment the tape
+    // grows.
+    assert.doesNotMatch(
+      types,
+      /controls_ranked|placebo_count|controls_scored/,
+      "the wire now carries the population a percentile is ranked against — the backing can be drawn, and should be",
+    );
+    for (const file of ["FloorDistribution", "StageBars", "MeetingTable", "InformationDiffusionPane"]) {
+      assert.doesNotMatch(
+        read(`../components/coherence/diffusion/${file}.tsx`),
+        /controls_used/,
+        `${file} draws controls_used; it is the windows found, not the population the rank was taken over`,
+      );
+    }
+  });
+
   it("no placebo strip, because the wire carries no placebo", () => {
     // Stated as a property of the SCHEMA rather than of the component: the day
     // `StageRun` gains a placebo field, this assertion fails and the figure
