@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-25",
-  "commit": "28d4275",
+  "commit": "ed54d49",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -528,6 +528,7 @@
     "Part2_Infrastructure/tests/test_coherence_series_meta.py",
     "Part2_Infrastructure/tests/test_coherence_shell.py",
     "Part2_Infrastructure/tests/test_coherence_size_fields.py",
+    "Part2_Infrastructure/tests/test_coherence_status_concurrency.py",
     "Part2_Infrastructure/tests/test_coherence_store.py",
     "Part2_Infrastructure/tests/test_coherence_universe_parity.py",
     "Part2_Infrastructure/tests/test_coherence_warm.py",
@@ -1598,6 +1599,7 @@
     "Part2_Infrastructure/web/tests/diffusion-model-parity.test.ts",
     "Part2_Infrastructure/web/tests/diffusion-model-views.test.ts",
     "Part2_Infrastructure/web/tests/diffusion-sections.test.ts",
+    "Part2_Infrastructure/web/tests/diffusion-table-columns.test.ts",
     "Part2_Infrastructure/web/tests/directed-removals.test.ts",
     "Part2_Infrastructure/web/tests/disclosure-data.test.ts",
     "Part2_Infrastructure/web/tests/disclosure-developer.test.ts",
@@ -1700,6 +1702,7 @@
     "Part2_Infrastructure/web/tests/login-layout-stability.test.ts",
     "Part2_Infrastructure/web/tests/marketdata-routing.test.ts",
     "Part2_Infrastructure/web/tests/markets-book-history.test.ts",
+    "Part2_Infrastructure/web/tests/markets-ladder-instrument.test.ts",
     "Part2_Infrastructure/web/tests/markets-live-tape.test.ts",
     "Part2_Infrastructure/web/tests/markets-sections.test.ts",
     "Part2_Infrastructure/web/tests/mc-distribution.test.ts",

@@ -67,8 +67,31 @@ async def coherence_status(_actor: str = Depends(trader_identity)) -> CoherenceS
     probe: dict[str, Any] = {"schema": "unavailable", "detail": "no market payload was read"}
 
     client = KalshiClient()
+
+    # CONCURRENTLY, because they are two independent round trips to Kalshi and
+    # awaiting them one after the other made this route cost the sum.
+    #
+    # Measured 2026-08-25 against the live venue: exchange_status ~245ms and
+    # markets(limit=1) ~260ms, so the handler spent ~505ms wall-clock and the
+    # desk saw 520/538/525ms through the proxy — roughly forty times every other
+    # coherence route, on something the Diffusion episodes section polls every
+    # twenty seconds. None of that was compute; it was two internet round trips
+    # taken in series for no reason.
+    #
+    # NOT CACHED, deliberately. A short TTL would take the steady state to zero,
+    # and it would also mean a status endpoint reporting an exchange as
+    # reachable for up to a TTL after it stopped being — which is the one thing
+    # this route exists to tell the truth about. Concurrency costs nothing and
+    # keeps every answer live.
+    status_task = asyncio.create_task(client.exchange_status())
+    probe_task = (
+        asyncio.create_task(client.markets(tunables.SERIES_WATCHLIST[0], limit=1))
+        if tunables.SERIES_WATCHLIST
+        else None
+    )
+
     try:
-        fetched = await client.exchange_status()
+        fetched = await status_task
         hosts.append(CoherenceHostStatus(host=fetched.host, reachable=True))
         for row in fetched.payload.get("exchange_index_statuses") or []:
             shards.append(
@@ -83,9 +106,9 @@ async def coherence_status(_actor: str = Depends(trader_identity)) -> CoherenceS
         hosts.append(CoherenceHostStatus(host=tunables.PUBLIC_BASE_URL, reachable=False, detail=exc.reason))
         notes.append(f"Kalshi was not reachable: {exc.reason}")
 
-    if tunables.SERIES_WATCHLIST:
+    if probe_task is not None:
         try:
-            markets = await client.markets(tunables.SERIES_WATCHLIST[0], limit=1)
+            markets = await probe_task
             rows = markets.payload.get("markets") or []
             probe = schema_probe(rows[0] if rows else None)
         except KalshiUnavailable as exc:
