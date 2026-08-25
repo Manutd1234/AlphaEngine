@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-25",
-  "commit": "80ca032",
+  "commit": "e6a7c77",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -891,7 +891,6 @@
     "Part2_Infrastructure/web/components/coherence/diffusion/FindingsTable.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/FloorDistribution.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/InformationDiffusionPane.tsx",
-    "Part2_Infrastructure/web/components/coherence/diffusion/InstrumentFit.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/InstrumentSection.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/InstrumentTable.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/KalshiArm.tsx",
