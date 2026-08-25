@@ -24,6 +24,11 @@
 import { type ReactNode } from "react";
 
 import { useMeasuredWidth } from "@/components/chart-kit";
+import { DIAGRAM_LABEL_PX, advancePx } from "@/lib/coherence/label-metrics";
+import { useMarkReadout, type MarkReadout } from "@/lib/coherence/use-mark-readout";
+
+/** The readout sets on the diagram label rung, like every other word in a plot. */
+const READOUT_PX = DIAGRAM_LABEL_PX;
 
 export interface FigureProps {
   /** What this figure shows, as a sentence fragment. Always present. */
@@ -75,12 +80,53 @@ export function Plot({
   children: (width: number) => ReactNode;
 }) {
   const [ref, width] = useMeasuredWidth<HTMLDivElement>(720);
+  const { svgRef, readout, interactive, announce, handlers } = useMarkReadout(height);
+
   return (
-    <div ref={ref} style={{ width: "100%" }}>
-      <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height} role="presentation">
+    <div ref={ref} className="coh-plot" style={{ width: "100%" }}>
+      <svg
+        ref={svgRef}
+        viewBox={`0 0 ${width} ${height}`}
+        width={width}
+        height={height}
+        role="presentation"
+        // ONE tab stop for the whole plot, and only once it has a mark to walk
+        // to — an empty figure must not put an empty control in the tab order.
+        // `Heatmap` set this rule for the desk: one keyboard instrument, not
+        // hundreds of tab stops.
+        tabIndex={interactive ? 0 : undefined}
+        {...handlers}
+      >
         {children(width)}
+        {readout ? <Readout {...readout} chartWidth={width} /> : null}
       </svg>
+      {/* OUTSIDE the `role="img"` wrapper's subtree in the accessibility tree
+          is not possible from here, so this is a live region that speaks the
+          focused mark's own words. A `role="img"` subtree is presentational, so
+          labelling the marks themselves would announce nothing. */}
+      <p className="coh-plot__live" role="status" aria-live="polite">{announce}</p>
     </div>
+  );
+}
+
+/**
+ * The focused or hovered mark's own words, drawn beside it.
+ *
+ * In USER units, like everything else in the plot, so it lands beside the thing
+ * it describes whatever width the figure was measured at. Clamped to the plot
+ * on both sides: a mark at the right edge would otherwise put its readout off
+ * the viewBox, which is the same clipping this engine has just finished fixing
+ * in its label gutters.
+ */
+function Readout({ text, x, y, chartWidth }: MarkReadout & { chartWidth: number }) {
+  const width = Math.min(chartWidth - 8, advancePx(text, READOUT_PX) + 20);
+  const left = Math.min(Math.max(x - width / 2, 4), Math.max(4, chartWidth - width - 4));
+  const top = Math.max(2, y - 26);
+  return (
+    <g className="coh-plot__readout" pointerEvents="none">
+      <rect x={left} y={top} width={width} height={22} rx={6} />
+      <text x={left + 10} y={top + 15}>{text}</text>
+    </g>
   );
 }
 
@@ -121,7 +167,12 @@ export function StateChip({
         {mark}
       </span>
       <span className="coh-chip__word">{word}</span>
-      {value ? <span className="coh-chip__value">{value}</span> : null}
+      {/* The value carries its own `title`, because it is the part that
+          truncates: a chip is `white-space: nowrap` by design — a state that
+          wrapped mid-phrase would read as two states — so a long value like a
+          hostname could only widen the pill until it broke the row. It ellipses
+          now, and the hover has the whole of it. */}
+      {value ? <span className="coh-chip__value" title={value}>{value}</span> : null}
     </span>
   );
 }

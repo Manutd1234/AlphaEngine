@@ -192,3 +192,104 @@
 .coh-ablation__value { fill: var(--text-primary); font-weight: 640; }
 
 .coh-ablation-pane { display: grid; gap: 12px; min-width: 0; }
+
+/* ── The mark readout ────────────────────────────────────────────────────── */
+
+/*
+ * Every figure's marks carry their facts in a `<title>`, which is a tooltip a
+ * mouse can reach and a keyboard and a touch screen cannot. The plot is one tab
+ * stop that walks them; this is what it draws while it does.
+ */
+.coh-plot { position: relative; min-width: 0; }
+
+/* One tab stop, so it has to SHOW that it has focus. `:focus-visible` rather
+   than `:focus`: a pointer user who clicked a mark has not asked for a ring. */
+.coh-plot svg:focus { outline: none; }
+.coh-plot svg:focus-visible {
+  outline: 2px solid var(--series-1);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* The live region is for assistive technology only. Not `display: none`, which
+   would take it out of the accessibility tree along with everything it says. */
+.coh-plot__live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/*
+ * NO forced-colors rule of its own, and that is a decision rather than an
+ * omission. `forced-colors.test.ts` holds the desk to ONE authoritative block,
+ * which lives in `15-` — and `15-` is over the file ceiling, where the ratchet
+ * only turns one way, so a rule added there would have to be paid for by
+ * shortening something else in a file this change has no business editing.
+ *
+ * It does not need one. Forced-colors mode overrides `fill` and `stroke` on
+ * these two rules exactly as it overrides every other token-coloured mark on
+ * the tab: the plate becomes the system's own background and its border and
+ * text become CanvasText. What the mode is dangerous for is a wash that CARRIES
+ * meaning, because that is what it paints away — and this plate carries none.
+ * The words on it are the meaning, and they are text.
+ */
+.coh-plot__readout rect {
+  fill: var(--surface-1);
+  stroke: var(--border);
+}
+.coh-plot__readout text {
+  fill: var(--text-primary);
+  font-size: var(--fs-diagram-label);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── The coherence margin axis ───────────────────────────────────────────── */
+
+/*
+ * The Verdict view's lead figure. Its whole job is to make ONE position
+ * legible — which side of the decision line the programme's optimum sits on —
+ * so the line and the mark are the loudest objects and everything else recedes.
+ *
+ * The tinted half-plane is the one place a wash appears on this figure, and it
+ * is named in words at its own edge ("a portfolio wins in every state") as well
+ * as tinted, because a wash that carries meaning alone is what forced-colours
+ * and a monochrome reader both lose.
+ */
+.coh-margin__tradable { fill: var(--sky-2); opacity: 0.55; }
+
+.coh-margin__zone {
+  fill: var(--text-secondary);
+  font-size: var(--fs-tick);
+}
+
+/* Zero and the threshold are DIFFERENT lines and must not read as one: zero is
+   where the sign changes, the threshold is where a trade becomes expressible at
+   the exchange's own precision. They sit a hair apart at most scales. */
+.coh-margin__zero {
+  stroke: var(--axis);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+.coh-margin__line {
+  stroke: var(--text-primary);
+  stroke-width: 2;
+  shape-rendering: crispEdges;
+}
+
+/* A mark, never a bar — a coherent optimum sits ON the line, and a bar of no
+   length is indistinguishable from one that failed to draw. */
+.coh-margin__mark { fill: var(--text-primary); }
+.coh-margin__mark.is-tradable { fill: var(--status-critical); }
+
+.coh-margin__value {
+  fill: var(--text-primary);
+  font-size: var(--fs-diagram-label);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
