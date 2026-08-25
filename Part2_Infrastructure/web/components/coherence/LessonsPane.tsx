@@ -83,11 +83,21 @@ function LessonCard({ lesson }: { lesson: CoherenceLesson }) {
 
       <p className="coh-lesson__summary">{lesson.summary}</p>
 
-      {lesson.formula ? <code className="coh-lesson__formula">{lesson.formula}</code> : null}
+      {/* ALWAYS RENDERED, EVEN WHEN EMPTY, and that is the whole of the
+          alignment fix. Two of the fifteen lessons carry no formula, so this
+          slot used to be present on thirteen cards and absent on two — which
+          gave the grid two different row COUNTS and made
+          `grid-template-rows: subgrid` impossible to line up. An empty `<code>`
+          still claims its row line, so the tallest formula in a row sets the
+          height for every card beside it and everything below starts level.
+          `:empty` drops its box in the stylesheet, so a lesson without one
+          shows blank space rather than an empty grey chip. */}
+      <code className="coh-lesson__formula">{lesson.formula ?? ""}</code>
 
       {/* Four of the fourteen make a claim about a SHAPE, and for those the
-          formula is the part a reader can already read. A lesson with no entry
-          in the registry draws nothing here — no gap, no placeholder. */}
+          formula is the part a reader can already read. Every lesson has a
+          figure since 2026-08-25, so this slot is always filled too — which is
+          the other half of the fixed row count. */}
       <LessonFigure id={lesson.id} />
 
       {/* BOTH HALVES STAY OPEN, and that was re-tested rather than assumed.

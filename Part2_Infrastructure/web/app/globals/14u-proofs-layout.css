@@ -191,3 +191,52 @@
   stroke-width: 1;
   stroke-dasharray: 3 2;
 }
+
+/* ── Every lesson card's rows on the same lines ───────────────────────────
+   "For quotes, structure, bounds, record subtabs, can we make the what it
+    measures, what it holds the same row for all boxes… standardize the
+    alignment since some boxes are higher, some are lower. Use a table and
+    borders to help for each box."
+
+   The cause is that `.coh-lesson` is its own grid with `align-content: start`,
+   so each card's rows are sized by that card's own content: a two-line summary
+   beside a one-line one pushed everything under it out of step, and the two
+   `<dt>` rows a reader compares across cards — "When it holds" and "What
+   breaks it" — ended up at different heights in the same row.
+
+   `subgrid` is the house answer and `10i-diffusion-density.css` is the
+   precedent, written for this same complaint in the same words. Its cards have
+   a fixed five children; these have SEVEN, and only because the formula slot is
+   now rendered even when empty — two of the fifteen lessons carry none, and a
+   card with six rows beside one with seven cannot share row lines at all.
+
+   Where subgrid is unsupported the declaration is dropped and the cards fall
+   back to the auto rows they have today: the old layout rather than a broken
+   one. Chrome 117+, Safari 16+, Firefox 71+.
+
+   The hairline is the "borders to help" half, and it is what makes the
+   alignment legible — without a rule at the row line, seven cards agreeing
+   looks like seven cards. */
+@supports (grid-template-rows: subgrid) {
+  .coherence-plane.proofs-plane .coh-lessons__grid {
+    grid-auto-rows: auto;
+  }
+
+  .coherence-plane.proofs-plane .coh-lesson {
+    grid-row: span 7;
+    grid-template-rows: subgrid;
+    align-content: stretch;
+  }
+}
+
+.coherence-plane.proofs-plane .coh-lesson > .coh-lesson__bounds {
+  border-top: 1px solid var(--grid);
+  padding-top: var(--space-2);
+}
+
+/* An empty formula slot holds its row line and shows nothing. Without this it
+   would draw the chip's own grey box and padding around no text. */
+.coherence-plane.proofs-plane .coh-lesson__formula:empty {
+  padding: 0;
+  background: none;
+}
