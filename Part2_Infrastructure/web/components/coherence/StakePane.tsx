@@ -145,6 +145,25 @@ export default function StakePane({
 
   const kelly = stake.data;
 
+  /* The growth rate over time, keyed by family. Zero is the reference and it is
+     the whole reading: a log-optimal plan whose growth rate is zero is the
+     solver saying "stake nothing", which is what it says on the market's own
+     mids — so a series that lifts off the line is the moment the quotes stopped
+     being a fair game, and that moment is invisible in any one poll.
+
+     ABOVE THE EARLY RETURN, WHICH IS NOT A STYLE CHOICE. It sat below the
+     `!target` branch when it was written, so on a COLD load — no family yet,
+     then a family — React ran a render with one fewer hook than the next and
+     tore the whole dashboard down with error #310. It never showed in the first
+     browser check because the universe read was already warm, so `target` was
+     truthy on the first render and the branch never fired. A hook after a
+     conditional return is a crash waiting for a slow read. */
+  const growthTape = useLiveSeries(
+    `stake:${target}:growth`,
+    stake.updatedAt,
+    kelly && kelly.engine !== "unavailable" ? toUnit(kelly.growth_rate) : null,
+  );
+
   if (!target) {
     return (
       <SectionFrame
@@ -165,17 +184,6 @@ export default function StakePane({
   // no plan to answer in, and six withheld labels over `StakeDeclined` would
   // read as a plan the solver nearly made.
   const kpis = kelly && kelly.engine !== "unavailable" ? readings(kelly) : undefined;
-
-  /* The growth rate over time, keyed by family. Zero is the reference and it is
-     the whole reading: a log-optimal plan whose growth rate is zero is the
-     solver saying "stake nothing", which is what it says on the market's own
-     mids — so a series that lifts off the line is the moment the quotes stopped
-     being a fair game, and that moment is invisible in any one poll. */
-  const growthTape = useLiveSeries(
-    `stake:${target}:growth`,
-    stake.updatedAt,
-    kelly && kelly.engine !== "unavailable" ? toUnit(kelly.growth_rate) : null,
-  );
 
   return (
     <SectionFrame

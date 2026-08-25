@@ -207,3 +207,42 @@
   stroke-linejoin: round;
   opacity: 0.75;
 }
+
+/* ── The edge scatter ───────────────────────────────────────────────────
+
+   `EdgeScatter` puts every outcome at (what it costs, what the measure says it
+   is worth) and draws the line where those agree. Which SIDE of that line a dot
+   falls on is the figure's entire content, so nothing here may rest on colour:
+   an admitted point is larger and carries a mark above it as well as a fill.
+
+   The diagonal borrows the dollar line's treatment — the reference this tab
+   asks a reader to judge against, drawn over the data and occluded by nothing.
+   Sizes read the ladder declared in 14r; nothing here declares a rung. */
+.coh-edge__fair {
+  stroke: var(--text-primary);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.coh-edge__fair-label {
+  fill: var(--text-secondary);
+  font-size: var(--fs-tick);
+}
+
+/* Passed over: quiet, and the majority on any ordinary read. */
+.coh-edge__dot {
+  fill: color-mix(in srgb, var(--series-1) 45%, transparent);
+  stroke: var(--series-1);
+  stroke-width: 0.75;
+}
+
+.coh-edge__dot.is-admitted {
+  fill: var(--series-1);
+  stroke: var(--surface-1);
+  stroke-width: 1.25;
+}
+
+.coh-edge__mark {
+  fill: var(--series-1);
+  font-size: var(--fs-tick);
+}

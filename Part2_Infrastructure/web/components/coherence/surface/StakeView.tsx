@@ -42,6 +42,7 @@ import { priceLabel } from "@/lib/coherence/fixed-point";
 import type { CoherenceKelly } from "@/lib/coherence/types-lab";
 import Figure, { FigureEmpty, Plot, StateChip } from "../Figure";
 import { decimalLabel, FactTable, row, type Fact } from "./DistributionView";
+import EdgeScatter from "./EdgeScatter";
 import StakeBars, { GrowthBars, toRatio } from "./StakeBars";
 
 const BAR_HEIGHT = 76;
@@ -242,6 +243,19 @@ export default function StakeView({
           <span aria-hidden="true">○</span> No outcome is admitted: {kelly.detail}. That is a result, not a failure.
         </p>
       )}
+
+      {/* WHY, drawn, and on BOTH branches. Fed the market's own mids the solver
+          returns "stake nothing" — this section's own lede says so — which makes
+          the empty branch the one a reader normally lands on, and until
+          2026-08-25 it was a single grey sentence. The scatter answers the
+          question that sentence raises: every outcome against what the measure
+          says it is worth, with the line where those agree.
+
+          Not only on the empty branch, because a plan that staked three of
+          sixty raises the same question about the other fifty-seven, and a
+          figure that appeared only when the answer was "none" would teach a
+          reader that no news is no picture. */}
+      <EdgeScatter kelly={kelly} />
     </div>
   );
 }
