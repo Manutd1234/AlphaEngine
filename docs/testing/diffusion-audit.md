@@ -121,7 +121,7 @@ Production build, `NODE_ENV=development next start -p 3100`, headless Chrome at
 | model | Spectrum | 993 | 1 | 1 | 0 | 0 | **3** | **0** |
 | findings | Effect plot | 760 | 1 | 1 | 0 | 0 | 14 | 1 |
 | findings | Findings table | 1,090 | 1 | 1 | 1 | 0 | 14 | 1 |
-| findings | Instrument | 1,040 | 1 | 1 | 1 | 1 | 2 | 1 |
+| findings | Instrument | 1,019 | 1 | 1 | 1 | 1 | 2 | 1 |
 
 **Zero exceptions and zero HTTP failures across the whole walk.**
 
@@ -178,12 +178,12 @@ stop.**
 | episodes | Episodes | 486 | 1 | 0 | 0 | 5 | 1 |
 | model | (single) | 1,384 | **7** | 0 | 7 | 0 | 0 |
 | instrument | (single) | 934 | **6** | 0 | 6 | 0 | 0 |
-| sandbox | Half-life | 786 | 1 | 0 | 0 | 9 | 1 |
-| sandbox | Simulator | 776 | 1 | 0 | 0 | 3 | 1 |
+| sandbox | Half-life | 749 | 1 | 0 | 0 | 9 | 1 |
+| sandbox | Simulator | 739 | 1 | 0 | 0 | 3 | 1 |
 | sandbox | Spectrum | 826 | 1 | 0 | 0 | 3 | 1 |
 | findings | Effect plot | 760 | 1 | 0 | 0 | 14 | 1 |
 | findings | Findings table | 1,090 | 1 | 1 | 0 | 14 | 1 |
-| findings | Instrument | 1,040 | 1 | 1 | 1 | 2 | 1 |
+| findings | Instrument | 1,019 | 1 | 1 | 1 | 2 | 1 |
 
 Zero exceptions and zero HTTP failures across every walk, before and after.
 
@@ -220,4 +220,13 @@ drawn for the first time as a rank slopegraph against the wall clock — **57 of
 89 stages move more than a tenth of their own field between the two clocks**,
 which is the identification check the tab argued in prose only.
 
-Final suite: **4,859 tests across 1,054 suites, 0 failed.**
+**Four openers cut after the fact**, by a guard that was extended to reach this
+tab rather than by eye. `Findings / Instrument` opened on a heading restating
+the switcher button beside it; `Sandbox / Half-life` on a sentence restating its
+own figure caption; `Sandbox / Simulator` on a sentence restating the section
+lede. All three are gone and the three heights above are the ones after. The
+fourth was the guard's own scanner: its read window was too short to see past a
+six-chip row, so it reported "no drawing" for a view that had one.
+
+Final suite: **4,880 tests across 1,055 suites, 0 failed.** Gateway: **3,049
+passed, 2 skipped** in CI shape, ruff clean.
