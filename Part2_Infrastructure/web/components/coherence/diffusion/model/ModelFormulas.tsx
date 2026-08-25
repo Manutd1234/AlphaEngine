@@ -32,6 +32,8 @@
  * trust. `diffusion-model-views.test.ts` asserts each path is a real module.
  */
 
+import FormulaFigure from "./formula-figures";
+
 /** Which half of the model a formula belongs to. */
 export type FormulaPart = "measurement" | "instrument";
 
@@ -245,6 +247,11 @@ export default function ModelFormulas({ part }: { part: FormulaPart }) {
             </header>
 
             <code className="coh-lesson__formula">{entry.formula}</code>
+
+            {/* The mechanism, and where the card names one, the failure. Drawn
+                between the expression and the boundary clause, because it is
+                what the expression MEANS and what the clause is about. */}
+            <FormulaFigure id={entry.id} />
 
             {/* THE BOUNDARY STAYS OPEN AND THE CONFIDENT HALF FOLDS, which is
                 the exact inverse of the usual disclosure and is what

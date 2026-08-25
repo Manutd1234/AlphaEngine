@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-25",
-  "commit": "0d34f48",
+  "commit": "aadb91f",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -886,6 +886,10 @@
     "Part2_Infrastructure/web/components/coherence/diffusion/MeetingsSection.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/MeetingTable.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/model/DiffusionSimulator.tsx",
+    "Part2_Infrastructure/web/components/coherence/diffusion/model/formula-figures/index.tsx",
+    "Part2_Infrastructure/web/components/coherence/diffusion/model/formula-figures/instrument.tsx",
+    "Part2_Infrastructure/web/components/coherence/diffusion/model/formula-figures/measurement.tsx",
+    "Part2_Infrastructure/web/components/coherence/diffusion/model/formula-figures/primitives.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/model/HalfLifeCalculator.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/model/ModelFormulas.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/model/SpectrumExplorer.tsx",

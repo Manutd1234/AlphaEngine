@@ -63,3 +63,33 @@
 .diff-watch__band--gone { fill: color-mix(in srgb, var(--text-secondary) 14%, transparent); }
 .diff-watch__band--blind { fill: color-mix(in srgb, var(--series-2) 12%, transparent); }
 .diff-watch__band--seen { fill: color-mix(in srgb, var(--series-1) 14%, transparent); }
+
+/* ── The figure on a formula card ─────────────────────────────────────────
+   A fixed 260x84 drawing between the expression and the boundary clause. It
+   scales uniformly and letterboxes rather than stretching, so its text is the
+   size it says it is at any card width — the defect every figure on this
+   engine was rebuilt to avoid. */
+.coherence-plane.diffusion-plane .diff-cardfig {
+  margin: 2px 0 4px;
+  min-width: 0;
+}
+
+.coherence-plane.diffusion-plane .diff-cardfig svg { display: block; }
+
+/* The wrong version, always dashed as well as tinted: which of the two curves
+   is the mistake is the card's whole point, and it may not rest on hue. */
+.coherence-plane.diffusion-plane .diff-cardfig__wrong {
+  stroke: var(--text-secondary);
+  stroke-width: 1;
+  stroke-dasharray: 3 2;
+  vector-effect: non-scaling-stroke;
+}
+
+/* ── Three columns where thirteen cards would otherwise be four rows ──────
+   The grid is what makes a figure per card a net improvement rather than a
+   longer view: at two columns, seven cards are four rows and every row grows
+   by the figure. Scoped to this tab so the curriculum's fourteen cards on
+   Proofs keep the layout they were measured at. */
+@media (min-width: 1400px) {
+  .coherence-plane.diffusion-plane .coh-lessons__grid { grid-template-columns: 1fr 1fr 1fr; }
+}

@@ -48,6 +48,8 @@ import { describe, it } from "node:test";
 import { DIFFUSION_SECTIONS } from "../lib/sections";
 import { read } from "./helpers/workspace-sources";
 
+const FORMULAS_FILE = "../components/coherence/diffusion/model/ModelFormulas.tsx";
+
 const MODEL_FILES = [
   "../components/coherence/diffusion/model/ModelFormulas.tsx",
   "../components/coherence/diffusion/model/HalfLifeCalculator.tsx",
@@ -102,6 +104,37 @@ describe("the estimator's three sections are offered and are reachable", () => {
       assert.ok(DIFFUSION_SECTIONS.some((section) => section.id === id),
         `the ${id} section is not on the Diffusion rail`);
     }
+  });
+});
+
+describe("every formula card carries a figure", () => {
+  it("the registry and the catalogue are the same list", () => {
+    // COMPLETE, unlike `lesson-figures`, which covers ten of fourteen on
+    // purpose. Every card here names a mechanism AND a failure, so a card with
+    // no drawing is a gap rather than a decision — the two views this catalogue
+    // fills were the only two on the desk that drew nothing at all.
+    const catalogue = [...read(FORMULAS_FILE).matchAll(/^ {4}id: "([a-z]+)",$/gm)].map((m) => m[1]);
+    const registry = [...read("../components/coherence/diffusion/model/formula-figures/index.tsx")
+      .matchAll(/^ {2}([a-z]+): [A-Z]/gm)].map((m) => m[1]);
+    assert.ok(catalogue.length >= 13, `only ${catalogue.length} cards were found; the scan has drifted`);
+    assert.deepEqual(registry.sort(), [...catalogue].sort(),
+      "a formula card has no figure, or a figure has no card");
+  });
+
+  it("no card figure carries a mark, because it is a diagram and not a reading", () => {
+    // `Plot` turns every `<title>` into a walkable mark, which is right for the
+    // data figures and wrong here: thirteen diagrams of an ARGUMENT would put
+    // seven extra tab stops in Measurement alone, to re-read labels already
+    // drawn. The frame carries one `aria-label` for the whole thing instead.
+    for (const file of ["primitives", "measurement", "instrument"]) {
+      const source = read(`../components/coherence/diffusion/model/formula-figures/${file}.tsx`);
+      assert.doesNotMatch(source, /<title>/, `${file} gives a card figure a hover-only mark`);
+    }
+    assert.match(
+      read("../components/coherence/diffusion/model/formula-figures/primitives.tsx"),
+      /role="img" aria-label=\{label\}/,
+      "the card frame no longer names itself, and its marks are not named either",
+    );
   });
 });
 
