@@ -1,0 +1,82 @@
+/* ==========================================================================
+   The engine tabs' top bar, as one box. 2026-08-25.
+
+   "Move the table of the proofs recorded below the header on the left side,
+    then shift the rest of the stuff down. Make it one nice box for the top
+    bar" — and, a message later, "fix this for Markets and Proofs tabs".
+
+   `PageHead` returns a FRAGMENT: its `<header class="page-heading">` and then
+   its `children`. So a wrapper around the element wraps both, and the title,
+   the chips and the facts table land inside one frame instead of three loose
+   rows. The chips ride the heading's own right-hand slot; the table goes in
+   `children`, which renders after `</header>` and before the section rail —
+   which is what "shift the rest of the stuff down" asks for.
+
+   SCOPED `.coherence-plane`, not to either tab class, because both engine
+   consoles render this and a tab-scoped rule would style one and leave the
+   other bare. `plane-scope.test.ts` would not catch that: it asks whether a
+   plane-scoped rule has a render site reachable from that console, and this one
+   does — green, and half the desk unstyled.
+
+   Imported after 14v and before 15, which stays last. Declares no `font-size`:
+   every element inside already reads a rung through 14q and 13.
+   ========================================================================== */
+
+.coherence-plane .coh-topbar {
+  margin-bottom: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+
+/* The head's own bottom rule and margin are what separated it from the rail
+   when it stood alone. Inside a box they draw a second line just under the
+   frame's own edge, and the box's padding is already the separation. */
+.coherence-plane .coh-topbar .page-heading {
+  margin-bottom: var(--space-2);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--grid);
+}
+
+/* The chips column: still in the heading's `flex-end` row, still holding the
+   clock. `FreshnessStamp` re-renders every second and its string changes
+   length, and `.page-heading__actions` is `flex: 0 0 auto` — so without a
+   reservation the whole row's left edge would move once a minute beside a
+   title that is not moving. Same rule shape `page-status-book.test.ts` pins for
+   the Portfolio strip, and for the same reason: a `ch` width so it steps with
+   the reader's Text-size preference, `max-width: 100%` so it collapses rather
+   than overflowing, and no `nowrap`/`ellipsis`/`overflow: hidden` — it wraps,
+   it never clips. */
+.coherence-plane .page-heading__actions .coh-headchips {
+  display: grid;
+  gap: var(--space-1);
+  justify-items: end;
+  width: 34ch;
+  max-width: 100%;
+  margin-bottom: 0;
+}
+
+/* The facts table, under the title and on the left, which is where the reader
+   put it. `max-inline-size` rather than a column: five metrics across the full
+   width of a 1640px desk would set each label a long way from its figure. */
+.coherence-plane .coh-topbar .coh-headstate {
+  max-inline-size: 62ch;
+}
+
+@media (max-width: 1120px) {
+  .coherence-plane .page-heading__actions .coh-headchips {
+    width: 100%;
+    justify-items: start;
+  }
+
+  .coherence-plane .coh-topbar .coh-headstate {
+    max-inline-size: none;
+  }
+}
+
+@media (max-width: 620px) {
+  .coherence-plane .coh-topbar {
+    padding: var(--space-2);
+  }
+}

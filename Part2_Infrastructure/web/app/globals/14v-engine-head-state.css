@@ -51,22 +51,12 @@
   min-inline-size: 0;
 }
 
-/* A FIXED WIDTH, BECAUSE SOMETHING IN HERE TICKS. `FreshnessStamp` re-renders
-   every second and its string changes length — "59s ago" to "1m ago", "9:59" to
-   "10:00" — and `.page-heading__actions` is `flex: 0 0 auto`, so a
-   content-sized panel would move its own left edge once a minute beside a
-   title that is not moving. This is the rule shape `page-status-book.test.ts`
-   pins for the Portfolio strip, for exactly this reason: a `ch` reservation,
-   `max-width: 100%` so it collapses rather than overflowing, and no `nowrap`,
-   `ellipsis` or `overflow: hidden` — the panel wraps, it never clips.
-
-   `ch` rather than `px` so the reservation steps with the reader's Text-size
-   preference exactly as the content inside it does. */
-.coherence-plane .page-heading__actions .coh-headstate {
-  width: 62ch;
-  max-width: 100%;
-  margin-bottom: 0;
-}
+/* THE RESERVATION MOVED TO 14w. This block used to hold `width: 62ch` on
+   `.page-heading__actions .coh-headstate`, because the panel — chips, table and
+   clock together — was the whole of the heading's right slot. The top bar is
+   one box now: the chips ride that slot and the table sits under the title, so
+   the thing that ticks is `.coh-headchips` and the reservation belongs with it.
+   Its argument is unchanged and is written out where the rule now lives. */
 
 /* Four label-and-figure pairs, bordered into a table — which is what the reader
    asked for and what `.cockpit-strip--compact .cockpit-strip__metrics` already

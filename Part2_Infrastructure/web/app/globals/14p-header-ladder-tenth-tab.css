@@ -156,6 +156,26 @@
    beside it and carries no measurement, no state and no destination — and at
    72px it is worth more than either of the two labels it now outranks. Folding
    it first is what keeps "Live" and "Connect" on screen at 1722. */
+/* A KNOWN LIMIT, measured 2026-08-25 and written here so it is not rediscovered.
+   The ladder has no headroom for its OWN worst-case label content in the
+   1600-2000 band. `scripts/header-ladder-measure.mjs` injects the widest
+   strings the header can carry before every measurement — "15.0 µs · core
+   352 ns", "within budget", "12/12 providers routable", "Live data" — and with
+   those the utility row overflows by 52 to 62px between 1600 and 1800, rising
+   to 59-69px once the Markets label is seven characters rather than six.
+
+   With the desk's REAL content it does not overflow at any width from 2000 down
+   to 1120, and never goes to two rows. Measured with fresh navigation at each
+   width rather than by resizing, because resizing an already-rendered page
+   reports overflow a real load does not.
+
+   Why it is not fixed here: at 1660 the tagline, the search label, the chip
+   state, the settings label, the tier label and the providers label are all
+   already folded, and it is still 69px over at worst case. The only thing left
+   big enough to fold is the latency chip's copy, which is a measurement rather
+   than decoration — trading a real reading a reader uses for a case nobody has
+   hit. If the worst case ever becomes the normal case, that is the rung to
+   spend, and this is the note that says so. */
 @media (min-width: 901px) and (max-width: 1790px) {
   .brand-copy small {
     display: none;

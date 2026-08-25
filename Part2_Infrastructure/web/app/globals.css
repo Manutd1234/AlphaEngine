@@ -205,6 +205,10 @@
    tabs — which is why it is scoped `.coherence-plane` and is not in 14t or 14u,
    each of which owns one tab class. It declares no `font-size` at all. */
 @import "./globals/14v-engine-head-state.css";
+/* The engine tabs' top bar as one box: the head, the chips and the facts table
+   in one frame, on both Proofs and Markets. Scoped `.coherence-plane` for the
+   same reason 14v is. After 14v, before 14x. */
+@import "./globals/14w-engine-topbar.css";
 /* `SectionFrame`'s three boxes — the section rhythm, the one control row and
    its subject group — plus the KPI row's two notes. Boxes only: the two type
    rungs it needs are in 14q, which owns this plane's prose ladder. Markets

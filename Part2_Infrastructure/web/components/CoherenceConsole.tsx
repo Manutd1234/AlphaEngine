@@ -52,7 +52,7 @@ import { useCallback, useMemo, useState } from "react";
 
 import PageHead from "@/components/workspace/PageHead";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
-import EngineStatePanel from "@/components/coherence/EngineStatePanel";
+import EngineStatePanel, { EngineChips } from "@/components/coherence/EngineStatePanel";
 import BasketSection from "@/components/coherence/BasketSection";
 import CalibrationPane from "@/components/coherence/CalibrationPane";
 import CertificatePane from "@/components/coherence/CertificatePane";
@@ -159,26 +159,40 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
 
   return (
     <div className="coherence-plane proofs-plane">
-      <PageHead
-        kicker="Proofs"
-        title="Prices as probabilities, tested for coherence"
-        description="A family of contracts admitting no probability measure hands back a basket that wins in every state, and this is the test."
-        actions={
+      {/* ONE BOX FOR THE TOP BAR. `PageHead` returns a fragment — its
+          `<header>` and then its `children` — so wrapping the element wraps
+          both, and the title, the chips and the facts table end up inside one
+          frame instead of three loose rows. The chips ride the heading's own
+          right-hand slot; the table goes in `children`, which renders after
+          `</header>` and before the section rail, so everything below shifts
+          down rather than the table squeezing in beside the title. */}
+      <div className="coh-topbar">
+        <PageHead
+          kicker="Proofs"
+          title="Prices as probabilities, tested for coherence"
+          description="A family of contracts admitting no probability measure hands back a basket that wins in every state, and this is the test."
+          actions={
+            <EngineChips
+              status={status.data}
+              error={status.error}
+              updatedAt={status.updatedAt}
+              pollMs={COHERENCE_POLL_MS}
+              paused={!active}
+            />
+          }
+          status={
+            status.data
+              ? { label: status.data.state === "ok" ? "Reading the exchange" : status.data.state, tone: status.data.state === "ok" ? "good" : "warn" }
+              : undefined
+          }
+        >
           <EngineStatePanel
             status={status.data}
             error={status.error}
-            updatedAt={status.updatedAt}
-            pollMs={COHERENCE_POLL_MS}
-            paused={!active}
             familiesPriced={universe.data ? `${universe.data.events.length} read live` : null}
           />
-        }
-        status={
-          status.data
-            ? { label: status.data.state === "ok" ? "Reading the exchange" : status.data.state, tone: status.data.state === "ok" ? "good" : "warn" }
-            : undefined
-        }
-      />
+        </PageHead>
+      </div>
 
       <WorkspaceSubtabs
         workspaceId="coherence"

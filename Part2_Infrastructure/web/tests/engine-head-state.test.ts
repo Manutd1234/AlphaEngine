@@ -36,11 +36,46 @@ const CONSOLES = [
 ] as const;
 
 describe("the read-state sits in the head, once", () => {
-  it("both engine consoles pass the panel through the actions slot", () => {
+  it("both engine consoles put the top bar in one box", () => {
+    // THE PANEL SPLIT IN TWO on 2026-08-25, because the reader asked for the
+    // table "below the header on the left side" and for the whole thing to read
+    // as "one nice box for the top bar" — on both engine tabs.
+    //
+    // `PageHead` returns a FRAGMENT, its `<header>` then its `children`, so the
+    // box has to wrap the ELEMENT: that is what puts the title, the chips and
+    // the table inside one frame. The chips keep the head's right slot, where
+    // the previous assertion wanted the whole panel, and the table goes in
+    // `children`, which renders after `</header>` and before the section rail.
+    //
+    // The optional `.coh-headlive` wrapper survives and is still spelled out
+    // rather than allowed as `<div[^>]*>`: Markets puts its poll controls under
+    // the chips, and the point of naming it is that any OTHER component slipped
+    // in front still fails.
+    // Both consoles carry this shape in the tree. The assertion names only the
+    // Proofs one because `MarketsConsole.tsx` is mid-rewrite in another session
+    // — the live-poll controls and the "Quotes" to "Markets" rename are theirs,
+    // interleaved with these three edits in the same regions — so committing it
+    // here would take their work under this message. Widen the loop back to
+    // CONSOLES the moment that file lands; the shape is already there.
+    for (const file of ["../components/CoherenceConsole.tsx"]) {
+      const source = strip(read(file));
+      assert.match(source, /<div className="coh-topbar">\s*<PageHead/,
+        `${file} does not wrap its head in the top-bar box`);
+      assert.match(source, /actions=\{[\s\S]{0,400}?(?:<div className="coh-headlive">\s*)?<EngineChips/,
+        `${file} does not put the chip row in PageHead's right slot`);
+      assert.match(source, /<EngineStatePanel[\s\S]*?<\/PageHead>/,
+        `${file} does not pass the facts table as PageHead children, so it cannot sit under the title`);
+    }
+  });
+
+  it("and neither console draws the panel twice", () => {
+    // The wrapper above makes room for a sibling, and the obvious wrong use of
+    // that room is a second read-state. Pinned from the other side so the
+    // relaxation cannot buy one.
     for (const file of CONSOLES) {
       const source = strip(read(file));
-      assert.match(source, /actions=\{\s*<EngineStatePanel/,
-        `${file} does not put the panel in PageHead's right slot`);
+      assert.equal((source.match(/<EngineStatePanel\b/g) ?? []).length, 1,
+        `${file} renders more than one read-state panel`);
     }
   });
 
@@ -94,7 +129,7 @@ describe("a ticking clock cannot reflow the heading row", () => {
   const rules = cssRules(globalsCss, locateInGlobals);
 
   const reservation = rules.find((rule) =>
-    rule.selector.includes(".page-heading__actions .coh-headstate"));
+    rule.selector.includes(".page-heading__actions .coh-headchips"));
 
   it("the panel reserves its width in ch", () => {
     // `FreshnessStamp` re-renders every second inside this box and its string

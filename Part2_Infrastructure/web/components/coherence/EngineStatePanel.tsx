@@ -59,38 +59,34 @@ function count(value: number | null | undefined): string {
   return value == null ? "—" : groupDigits(String(value));
 }
 
-export default function EngineStatePanel({
+/**
+ * The chip row, for the heading's right-hand slot.
+ *
+ * Split from the facts table on 2026-08-25 so the top bar can be ONE box: the
+ * reader asked for the table "below the header on the left side" with the rest
+ * shifted down, which means the two halves of this panel sit in two different
+ * slots of the same heading. They still read one `status`, so they cannot
+ * disagree about what the engine is doing.
+ */
+export function EngineChips({
   status,
   error,
   updatedAt,
   pollMs,
   paused,
-  familiesPriced,
 }: {
   status: CoherenceStatus | null;
   error: string | null;
   updatedAt: Date | null;
   pollMs: number | null;
   paused: boolean;
-  /**
-   * How many families the universe read returned, when this section read it.
-   *
-   * The last survivor of the head's metrics row. It was left alone in a
-   * full-width grid once its three neighbours retired into this panel, which
-   * reads as a card that lost its neighbours rather than as one deliberate
-   * figure — seen at a viewport, not in a diff. It is a fact about what the
-   * engine has READ, which is what the rest of this table is about, so it comes
-   * in here and the head loses a row rather than keeping one for a single tile.
-   */
-  familiesPriced?: string | null;
 }) {
   const stamp = (
     <FreshnessStamp updatedAt={updatedAt} pollMs={pollMs} paused={paused} transport="poll" />
   );
-
   if (error && !status) {
     return (
-      <div className="coh-headstate">
+      <div className="coh-headchips">
         <p className="console-empty">
           <span aria-hidden="true">✕</span> The engine could not report its own state: {error}
         </p>
@@ -100,21 +96,17 @@ export default function EngineStatePanel({
   }
   if (!status) {
     return (
-      <div className="coh-headstate">
+      <div className="coh-headchips">
         <p className="console-empty muted">Asking the engine how it is…</p>
         {stamp}
       </div>
     );
   }
-
   const schema = String((status.schema_probe as { schema?: string }).schema ?? "unavailable");
   const recorder = status.recorder;
-  const tape = status.tape as { state?: string; book_snapshots?: number; tickers_seen?: number };
   const reachable = status.hosts.some((host) => host.reachable);
-  const solver = String((status.solver as { linear_programme?: string }).linear_programme ?? "unknown");
-
   return (
-    <div className="coh-headstate">
+    <div className="coh-headchips">
       <div className="coh-status__chips">
         <StateChip
           mark={reachable ? "●" : "✕"}
@@ -135,7 +127,54 @@ export default function EngineStatePanel({
         />
         <StateChip mark="✓" word="Read only" value={status.dry_run ? "no order path" : "dry run off"} tone="muted" />
       </div>
+      {stamp}
+    </div>
+  );
+}
 
+export default function EngineStatePanel({
+  status,
+  error,
+  familiesPriced,
+}: {
+  status: CoherenceStatus | null;
+  error: string | null;
+  /**
+   * How many families the universe read returned, when this section read it.
+   *
+   * The last survivor of the head's metrics row. It was left alone in a
+   * full-width grid once its three neighbours retired into this panel, which
+   * reads as a card that lost its neighbours rather than as one deliberate
+   * figure — seen at a viewport, not in a diff. It is a fact about what the
+   * engine has READ, which is what the rest of this table is about, so it comes
+   * in here and the head loses a row rather than keeping one for a single tile.
+   */
+  familiesPriced?: string | null;
+}) {
+
+  if (error && !status) {
+    return (
+      <div className="coh-headstate">
+        <p className="console-empty">
+          <span aria-hidden="true">✕</span> The engine could not report its own state: {error}
+        </p>
+      </div>
+    );
+  }
+  if (!status) {
+    return (
+      <div className="coh-headstate">
+        <p className="console-empty muted">Asking the engine how it is…</p>
+      </div>
+    );
+  }
+
+  const recorder = status.recorder;
+  const tape = status.tape as { state?: string; book_snapshots?: number; tickers_seen?: number };
+  const solver = String((status.solver as { linear_programme?: string }).linear_programme ?? "unknown");
+
+  return (
+    <div className="coh-headstate">
       {/* A TABLE, which is what the reader asked for, and a `<dl>`, which is
           what these are. Four label-and-figure pairs are a description list;
           the borders are what make it read as a table. `PnlStrip`'s compact
@@ -185,7 +224,6 @@ export default function EngineStatePanel({
         ) : null}
       </dl>
 
-      {stamp}
     </div>
   );
 }
