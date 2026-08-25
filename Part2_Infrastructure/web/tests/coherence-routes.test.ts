@@ -142,12 +142,20 @@ describe("every section can be warmed before it is opened", () => {
     // deployment it answers "no view, unsigned" every time — so warming it
     // spends the desk's slowest read to pre-fetch a refusal.
     dispersion: /pre-fetch a refusal/,
-    // The coherence index became a section again on 2026-08-25 and warms
-    // nothing, because its two reads belong to two different views: the
-    // calibration history behind Score trend, the index series behind the other
-    // two. Warming the section would have to pick one, which is guessing at
-    // which view a reader wants rather than at which section.
-    index: /guessing at the view a reader wants/,
+    // `index` LEFT THIS TABLE on 2026-08-25, later the same day it joined it.
+    // The entry read "warming the section would have to pick one of its two
+    // reads, which is guessing at which view a reader wants" — sound reasoning
+    // resting on an unstated premise, that warming costs something.
+    //
+    // Measured, it does not: both reads are DuckDB-only, at 1.63ms and 2.98ms,
+    // so the section warms BOTH for about five milliseconds and there is no
+    // choice left to guess at. They were the only two reads on the tab already
+    // fast enough to need no warming and the only two still opening on a
+    // spinner for want of it.
+    //
+    // Recorded here rather than deleted because the argument was right about
+    // the thing it examined. What it did not examine was the cost, and the
+    // cost is what decided it.
   };
 
   /**
