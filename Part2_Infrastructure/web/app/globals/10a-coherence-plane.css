@@ -243,7 +243,7 @@
 .coh-lesson__bounds .is-holds dt { color: var(--series-3); }
 .coh-lesson__bounds .is-fails dt { color: var(--series-2); }
 
-.coh-lesson__mechanics summary { font-size: var(--fs-xs); cursor: pointer; }
+.coh-lesson__mechanics summary { font-size: var(--fs-body); cursor: pointer; }
 .coh-lesson__mechanics ul { margin: 6px 0 0; padding-left: 18px; font-size: var(--fs-xs); }
 
 .coh-console__status { border-top: 1px solid var(--border); padding-top: 12px; }

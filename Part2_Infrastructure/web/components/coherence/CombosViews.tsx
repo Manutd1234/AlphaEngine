@@ -154,7 +154,6 @@ function ComboCard({ combo }: { combo: CoherenceCombo }) {
 export function BandsView({ combos }: { combos: CoherenceCombo[] }) {
   return (
     <section className="coh-combos__rows">
-      <h4 className="console-subhead">The bands, and where each price sits</h4>
       <ComboBandStrips combos={combos} />
       {combos.map((combo) => (
         <div className="coh-combo__row" key={combo.ticker}>

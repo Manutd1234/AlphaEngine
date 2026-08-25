@@ -1173,7 +1173,7 @@ button.data-trust-action > i {
   padding: 14px 16px;
   cursor: pointer;
   color: var(--text-primary);
-  font-size: var(--fs-lg);
+  font-size: var(--fs-body); /* one disclosure-summary rung; was --fs-lg, the table-cell rung */
   font-weight: 700;
 }
 

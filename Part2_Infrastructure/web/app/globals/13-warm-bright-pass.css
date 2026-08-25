@@ -960,7 +960,13 @@ button:active:not(:disabled) {
 .quality-disclosure > summary,
 .strategy-doc__mechanics > summary {
   cursor: pointer;
-  font-size: var(--fs-xs);
+  /* --fs-body, the one disclosure-summary rung on the desk. This rule read
+     --fs-xs and, at equal specificity to `.console-card summary` in
+     `02-systems-console.css`, WON by being in a later partial — so every
+     `.disclosure` inside a console card shipped a 12.75px question over a 13px
+     answer, the fold inverted. Five sizes were declared for this one role
+     across the sheet; see tests/type-role-disclosure.test.ts. */
+  font-size: var(--fs-body);
   color: var(--text-secondary);
   padding: var(--space-2) 0;
   list-style-position: inside;

@@ -188,7 +188,7 @@ function StateTable({ panel }: { panel: CoherenceRfqPanel }) {
         </table>
         </div>
       </details>
-      {panel.detail ? <p className="coh-rfq__lead">The gateway says: {panel.detail}.</p> : null}
+      {panel.detail ? <p className="coh-rfq__lead">The gateway says: {panel.detail}</p> : null}
     </div>
   );
 }
@@ -218,7 +218,16 @@ function Row({ row }: { row: CoherenceDispersion }) {
           </span>
         )}
       </td>
-      <td>{row.detail}</td>
+      <td>
+        {row.detail ? (
+          <details className="disclosure">
+            <summary>How this row reached its usable count</summary>
+            <p>{row.detail}</p>
+          </details>
+        ) : (
+          "—"
+        )}
+      </td>
     </tr>
   );
 }
@@ -305,7 +314,7 @@ export default function RfqPane({ view, active }: { view: RfqView; active: boole
                   <th scope="col" className="num">Band the legs leave</th>
                   <th scope="col" className="num">Share of it used</th>
                   <th scope="col">Panel</th>
-                  <th scope="col">Reading</th>
+                  <th scope="col">Notes</th>
                 </tr>
               </thead>
               <tbody>

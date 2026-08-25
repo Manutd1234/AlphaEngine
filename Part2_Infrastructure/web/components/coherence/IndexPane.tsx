@@ -359,11 +359,6 @@ export default function IndexPane({ active, view }: {
           into Scorecard left it homeless; it is not decoration — the gaps are
           most of the record on a thin watchlist, and a reader who reads them as
           nothing happening has the record backwards. */}
-      <p className="coh-event__note">
-        A poll that could not be measured is drawn as a gap, never as a zero and never dropped: a line closed over
-        one would claim continuity nobody observed.
-      </p>
-
       {view === "series" ? (
         <Chart data={data} />
       ) : (
@@ -380,6 +375,11 @@ export default function IndexPane({ active, view }: {
           </p>
         </>
       )}
+
+      <p className="coh-event__note">
+        A poll that could not be measured is drawn as a gap, never as a zero and never dropped: a line closed over
+        one would claim continuity nobody observed.
+      </p>
     </div>
   );
 }

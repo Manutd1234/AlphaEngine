@@ -161,13 +161,13 @@ export default function SurvivalChart({ surface }: { surface: CoherenceSurface }
     <Figure
       caption={CAPTION}
       ariaLabel={`Survival function sampled at ${steps.length} strikes`}
-      reading={`Survival runs from ${priceLabel(steps[0].survival)} at ${steps[0].strike} to ${priceLabel(steps[steps.length - 1].survival)} at ${steps[steps.length - 1].strike}.${
+      reading={
         median
-          ? ` It first falls below a half between ${steps[crossing - 1].strike} and ${median.strike} — the exchange is not quoting a strike inside that gap, so the crossing is bracketed, not located.`
+          ? `Survival first falls below a half between ${steps[crossing - 1].strike} and ${median.strike} — the exchange is not quoting a strike inside that gap, so the crossing is bracketed, not located.`
           : medianBelowRange
-            ? ` It is already below a half at ${steps[0].strike}, the lowest strike quoted, so the median sits below the quoted range rather than inside it.`
-            : " It never falls below a half inside the quoted range, so the median sits above the highest quoted strike."
-      }`}
+            ? `Survival is already below a half at ${steps[0].strike}, the lowest strike quoted, so the median sits below the quoted range rather than inside it.`
+            : "Survival never falls below a half inside the quoted range, so the median sits above the highest quoted strike."
+      }
       missing={missingLine(surface, unreadable, rises.length)}
     >
       <Plot height={HEIGHT}>

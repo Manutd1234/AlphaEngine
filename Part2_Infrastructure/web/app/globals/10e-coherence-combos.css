@@ -87,7 +87,7 @@
    footnote, because the chip is the thing it corrects. */
 .coh-combo__caveat { border-left: 2px solid var(--border); padding-left: 8px; }
 
-.coh-combo__legs > summary { font-size: var(--fs-xs); cursor: pointer; }
+.coh-combo__legs > summary { font-size: var(--fs-body); cursor: pointer; }
 .coh-combo__legs > div { margin-top: 6px; }
 
 /* The side a leg has to land on. Uppercased because "no" in running lowercase

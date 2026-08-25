@@ -108,6 +108,18 @@ button
   border-top: 1px solid var(--grid);
   border-radius: 0;
   background: transparent;
+  /* THE BODY IS SET HERE, NOT ON `> p`, because half the disclosure bodies on
+     the desk are a <dl>, a <ul> or a <div> and only half are a paragraph — so a
+     `> p` rung sized the ones that happened to be prose and left the rest
+     inheriting. What they inherited was `body`, which reads --fs-title (17px,
+     the CARD-TITLE rung) on this desk, so folded-away detail came back LARGER
+     than the summary that hid it: 17px under a 14px question. `summary` sets
+     its own rung below and does not inherit this one.
+
+     One rung under the summary, not two: the pair is a question and its answer
+     and has to read as one voice, which is the whole reason a disclosure is not
+     a card. See tests/type-role-disclosure.test.ts. */
+  font-size: var(--fs-sm);
 }
 
 .console-card details.disclosure > p {

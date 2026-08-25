@@ -151,15 +151,6 @@
   font-size: var(--fs-title);
 }
 
-/* Disclosure summaries: a sentence a reader reads before deciding to open it,
-   so it reads the prose rung rather than the furniture one. */
-.coherence-plane :is(
-  .coh-event__outcomes > summary,
-  .coh-combo__legs > summary
-) {
-  font-size: var(--fs-title);
-}
-
 /* ------------------------------------------------------------------ */
 /* Furniture — one rung under the prose it frames                     */
 /* ------------------------------------------------------------------ */
@@ -187,7 +178,20 @@
   .coh-combo__side,
   .coh-proof,
   .diff-bars__head,
-  .disclosure > summary
+  .disclosure > summary,
+  /* MOVED HERE 2026-08-25 from a --fs-title block of their own, which is how
+     one text type came to have THREE sizes on one plane: these two at 17px,
+     `.coh-lesson__mechanics summary` and `.disclosure > summary` at 14px in
+     this list, and the 10a/10e originals at 12.75px underneath both. The old
+     block argued a summary is "a sentence a reader reads before deciding to
+     open it, so it reads the prose rung" — true of the sentence, wrong about
+     the rung, because it made the QUESTION louder than the page and the answer
+     behind it louder still. A fold is the quietest thing on a card. The grammar
+     is now one pair everywhere: the question at --fs-body and the answer one
+     rung under it at --fs-sm, set on `.console-card details.disclosure` in
+     `02-systems-console.css` and pinned by tests/type-role-disclosure.test.ts. */
+  .coh-event__outcomes > summary,
+  .coh-combo__legs > summary
 ) {
   font-size: var(--fs-body);
 }

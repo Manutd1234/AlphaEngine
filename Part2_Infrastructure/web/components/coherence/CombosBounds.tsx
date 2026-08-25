@@ -241,7 +241,7 @@ export function BoundsView(
   const cards = violated.length ? violated : tightest ? [tightest] : [];
   return (
     <section className="coh-combos__rows">
-      <h4 className="console-subhead">What the bounds test found</h4>
+      {shown.length ? <SlackStrip rows={shown} /> : null}
       <p className="coh-combo__meta">
         {violated.length
           ? `${violated.length} of ${rows.length} testable rows are violated. Each portfolio below pays at least its bound in every future and costs less than that, before fees.`
@@ -249,12 +249,6 @@ export function BoundsView(
             ? `None of the ${rows.length} testable rows is violated: no parlay is priced outside the band its legs impose — a reading about the bounds only, never about whether a parlay is worth its price.`
             : "No row could be tested: every one needed a leg unquoted on the side the bound uses."}
       </p>
-      {!violated.length && tightest ? (
-        <p className="coh-combo__meta">
-          {`The closest still leaves ${priceLabel(tightest.slack)} between the portfolio and its bound.`}
-        </p>
-      ) : null}
-      {shown.length ? <SlackStrip rows={shown} /> : null}
       {cards.length ? <RowFacts rows={cards} /> : null}
       {cards.map((row, index) => <RowBlock key={`row-${index}`} row={row} tightest={!violated.length} />)}
     </section>
