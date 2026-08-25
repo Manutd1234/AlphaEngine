@@ -67,7 +67,7 @@ import type { CoherenceComboRow, CoherenceCombos } from "@/lib/coherence/types-l
 import { toCenticents } from "@/lib/coherence/fixed-point";
 import { combosRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
-import { BandsView, NotesView, ParlaysView } from "./CombosViews";
+import { BandsView, GatewayNotes, NotesView, ParlaysView } from "./CombosViews";
 // The Bounds view left `CombosViews` when that file crossed the ceiling: it
 // draws the PORTFOLIO a bound is tested with, where the other two draw a
 // parlay against its band.
@@ -157,8 +157,12 @@ export default function CombosPane({ active, view }: { active: boolean; view: Co
               open it to find out whether it is worth opening. */}
           <details className="disclosure">
             <summary>What this read reports, and what it cannot</summary>
-            <NotesView combos={data.combos} notes={data.notes} />
+            <NotesView combos={data.combos} />
           </details>
+          {/* A SIBLING, not a child. These two were nested — the gateway's
+              notes lived inside `NotesView`, which this fold wraps — so
+              reaching one list meant opening two disclosures. */}
+          <GatewayNotes notes={data.notes} />
         </>
       )}
     </>

@@ -125,11 +125,6 @@
   padding-top: 0;
 }
 
-.coherence-plane .coh-headstate__note {
-  margin: 0;
-  color: var(--text-secondary);
-}
-
 /* Below the head's own column breakpoint the panel is no longer beside
    anything, so the reservation becomes the whole width rather than a column
    inside it. */

@@ -254,7 +254,7 @@ export function ProofView({ data }: { data: CoherenceCertificate }) {
           whether to open it should not have to open it to count them. */}
       {data.notes.length ? (
         <details className="disclosure">
-          <summary>{`Notes the solver returned with this proof, ${data.notes.length}`}</summary>
+          <summary>{`What the solver had to assume to reach this verdict, ${data.notes.length}`}</summary>
           <ul className="coh-notes" aria-label="Notes returned with the proof">
             {data.notes.map((note, index) => (
               <li key={`${index}-${note}`}>{note}</li>

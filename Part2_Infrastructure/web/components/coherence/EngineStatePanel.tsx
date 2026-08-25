@@ -65,7 +65,6 @@ export default function EngineStatePanel({
   updatedAt,
   pollMs,
   paused,
-  readOnlyNote,
   familiesPriced,
 }: {
   status: CoherenceStatus | null;
@@ -73,8 +72,6 @@ export default function EngineStatePanel({
   updatedAt: Date | null;
   pollMs: number | null;
   paused: boolean;
-  /** Said once on the whole engine, by the tab where the misreading is reachable. */
-  readOnlyNote?: string;
   /**
    * How many families the universe read returned, when this section read it.
    *
@@ -188,7 +185,6 @@ export default function EngineStatePanel({
         ) : null}
       </dl>
 
-      {readOnlyNote ? <p className="coh-headstate__note">{readOnlyNote}</p> : null}
       {stamp}
     </div>
   );

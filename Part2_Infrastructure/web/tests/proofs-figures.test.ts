@@ -269,18 +269,33 @@ describe("the Parlays view is a table, and its columns are measurements", () => 
       "the mispricing distinction went with the position sentence rather than moving to the caption");
   });
 
-  it("the cards were trimmed and folded, not deleted", () => {
-    // The band drawn and the legs priced are the two things a cell cannot be,
-    // so they stay — behind ONE disclosure rather than six summaries. This is
-    // also what keeps `FrechetBand` a rendered component: it has exactly one
-    // render site in the tree and it is inside that fold.
-    assert.match(view, /<details className="disclosure">/, "the per-parlay detail is not folded");
-    assert.equal(
-      (view.match(/<details className="disclosure">/g) ?? []).length, 1,
-      "the six per-parlay folds are back; the table is what replaced them",
-    );
+  it("every parlay is reachable by name, and the table did not go with them", () => {
+    // REVERSED ON 2026-08-25, deliberately, and the earlier assertion is worth
+    // recording rather than deleting. It read "the six per-parlay folds are
+    // back; the table is what replaced them" and required EXACTLY ONE
+    // disclosure in this view — written when six named folds collapsed into one
+    // drawer, because six summaries above the content were six lines of chrome.
+    //
+    // What that traded away only became visible in use: the one drawer is
+    // labelled "…6 parlays", so a reader after a NAMED parlay had to open it
+    // and scroll six cards to find out whether theirs was among them. The
+    // reader asked for exactly that back — "explain the dataset used for each
+    // one, it used to have the table of stuff for us to see".
+    //
+    // So both are true now and neither is the old shape: the TABLE stays, which
+    // is what killed the chrome, and each row also has its own named fold, which
+    // is what makes a parlay addressable. The fold is keyed by ticker, so this
+    // counts the map rather than a literal.
+    assert.match(view, /combos\.map\(\(combo\) => \(\s*<details className="disclosure" key=\{combo\.ticker\}>/,
+      "the per-parlay folds are gone again; a named parlay is not reachable");
+    assert.match(view, /<table className="coh-table">/,
+      "the table went with them, and it is what replaced six lines of chrome");
     assert.match(source, /<FrechetBand reading=\{combo\} \/>/,
       "the per-parlay band figure is gone, and with it FrechetBand's only render site");
     assert.match(source, /<LegTable combo=\{combo\} \/>/, "the per-leg costs are gone");
+    // The legs are no longer behind a fold of their OWN inside the parlay's —
+    // that nesting is what the reader called a dropdown inside a dropdown.
+    assert.doesNotMatch(source, /<details className="coh-combo__legs"/,
+      "the leg table is folded inside the parlay's fold again");
   });
 });

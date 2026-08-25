@@ -48,19 +48,19 @@ const NO_INDEPENDENCE =
 
 function LegTable({ combo }: { combo: CoherenceCombo }) {
   const unpriced = combo.legs.filter((leg) => leg.probability == null).length;
-  // OPEN ONLY WHERE IT EXPLAINS AN ABSENCE. It used to open for any parlay of
-  // six legs or fewer, which is every parlay the exchange lists — so the
-  // Parlays view was six cards each carrying a five-column table nobody had
-  // asked for, and the band figure of the parlay below it was two screens down.
-  // A leg with no implied p is the one case where the table is the answer to a
-  // question the card raises ("why has this parlay no band"), so that case
-  // stays open and the rest are one click.
+  // NOT A FOLD ANY MORE, and the reason is that it had become the inner half of
+  // a nested one: this table lived in a `<details>` inside the view's own
+  // `<details>`, and self-opened when a leg was unpriced — a visibly open
+  // drawer inside a closed one. The parlay's own fold is now the only fold, so
+  // opening a parlay shows its legs, which is what "explain the dataset used
+  // for each one" asks for. The count the summary carried moves to the
+  // caption, where it sits beside what the columns mean.
   return (
-    <details className="coh-combo__legs" open={unpriced > 0}>
-      <summary>{`The ${combo.legs.length} legs, and what each side costs`}</summary>
+    <section className="coh-combo__legs">
       <div className="table-wrap">
         <table className="coh-table">
           <caption className="coh-table__caption">
+            {`The ${combo.legs.length} legs this band is built from. `}
             Implied p is the mid of the side the parlay needs, what both bounds are built from; opposite cost is
             the offer the cover portfolio pays.
           </caption>
@@ -93,7 +93,7 @@ function LegTable({ combo }: { combo: CoherenceCombo }) {
           {`${unpriced} legs show a dash for implied p — an unquoted side, not a zero probability.`}
         </p>
       ) : null}
-    </details>
+    </section>
   );
 }
 
@@ -138,13 +138,25 @@ function ComboChips({ combo }: { combo: CoherenceCombo }) {
 function ComboCard({ combo }: { combo: CoherenceCombo }) {
   return (
     <article className="coh-combo">
-      <h5 className="coh-combo__title">{combo.ticker}</h5>
       <p className="coh-combo__legend">{combo.label}</p>
+      {/* WHERE THIS PARLAY COMES FROM, and it went missing when the cards
+          became a table. `collection_ticker` is the R-collection the shard
+          lists it under — literally the dataset this row is drawn from — and
+          `scope` says whether its legs cross shards, which is what decides
+          whether the bound below is executable at all. Between the rewrite and
+          now, neither field was rendered anywhere on the desk. */}
+      <div className="coh-status__chips">
+        <StateChip mark="◇" word="Listed in" value={combo.collection_ticker || "no collection"} tone="muted" />
+        <StateChip mark="→" word={combo.scope} tone={combo.scope === "cross-shard" ? "warn" : "muted"} />
+      </div>
       {/* Neither the ask caveat nor the unquoted-leg caveat repeats here:
           FrechetBand's missing line and the leg table's own note carry them
           on this card, and NO_INDEPENDENCE stays on the Notes view. */}
       <FrechetBand reading={combo} />
       <LegTable combo={combo} />
+      {/* The gateway's own account of how this parlay's band was built. It has
+          been on the wire since the route was written and drawn nowhere. */}
+      {combo.detail ? <p className="coh-combo__note">The gateway says: {combo.detail}</p> : null}
     </article>
   );
 }
@@ -261,17 +273,32 @@ export function ParlaysView({ combos }: { combos: CoherenceCombo[] }) {
           rather than six: six summaries were six lines of chrome above the
           content, and the table above now carries the verdict they existed to
           preview. Nothing was removed. */}
-      <details className="disclosure">
-        <summary>
-          {`Each parlay's band drawn, and what every leg costs, ${combos.length} ${combos.length === 1 ? "parlay" : "parlays"}`}
-        </summary>
-        {combos.map((combo) => <ComboCard combo={combo} key={combo.ticker} />)}
-      </details>
+      {/* ONE FOLD PER PARLAY, NAMED — and it is a restoration rather than a new
+          idea. Collapsing six named folds into one lost the only way to reach a
+          NAMED parlay: a reader after a particular ticker had to open a fold
+          reading "…6 parlays" and scroll six cards to find it. The summary
+          carries the ticker and its verdict again, so the closed state is six
+          readings rather than one drawer.
+
+          It also un-nests the leg table. That table lived inside a `<details>`
+          inside this one, and self-opened when a leg was unpriced — a visibly
+          open drawer inside a closed one. Now the parlay's fold is the only
+          fold, and everything about that parlay is behind exactly one click. */}
+      {combos.map((combo) => (
+        <details className="disclosure" key={combo.ticker}>
+          <summary>
+            <span aria-hidden="true">{positionMark(combo)}</span> {combo.ticker}
+            {" — "}
+            {combo.legs.length} legs, {combo.scope}
+          </summary>
+          <ComboCard combo={combo} />
+        </details>
+      ))}
     </section>
   );
 }
 
-export function NotesView({ combos, notes }: { combos: CoherenceCombo[]; notes: string[] }) {
+export function NotesView({ combos }: { combos: CoherenceCombo[] }) {
   // One caveat per basis actually present in the read, not one per card: on a
   // normal read every parlay is quoted on the ask and this is a single line.
   const bases = [...new Set(combos.map((combo) => combo.price_basis))];
@@ -282,17 +309,30 @@ export function NotesView({ combos, notes }: { combos: CoherenceCombo[]; notes: 
       {unquoted ? (
         <p className="coh-combo__caveat">{`${unquoted} parlays: ${NO_INDEPENDENCE}`}</p>
       ) : null}
-      {notes.length ? (
-        <details className="disclosure">
-          <summary>{`What the gateway noted about this read, ${notes.length} ${notes.length === 1 ? "note" : "notes"}`}</summary>
-          <ul className="coh-notes">
-            {notes.map((note, index) => (
-              <li key={`${index}-${note}`}>{note}</li>
-            ))}
-          </ul>
-        </details>
-      ) : null}
     </section>
   );
 }
 
+
+/**
+ * What the gateway said while reading, folded — and NOT inside another fold.
+ *
+ * This used to render inside `NotesView`, which the pane wraps in a
+ * `<details>` of its own, so a reader had to open two things to reach one list.
+ * Nothing in the coherence suite forbade it: the nesting crossed a component
+ * boundary, so no single file contained a `<details>` inside a `<details>` and
+ * no source read could see it.
+ */
+export function GatewayNotes({ notes }: { notes: string[] }) {
+  if (!notes.length) return null;
+  return (
+    <details className="disclosure">
+      <summary>{`What the gateway noted about this read, ${notes.length} ${notes.length === 1 ? "note" : "notes"}`}</summary>
+      <ul className="coh-notes">
+        {notes.map((note, index) => (
+          <li key={`${index}-${note}`}>{note}</li>
+        ))}
+      </ul>
+    </details>
+  );
+}

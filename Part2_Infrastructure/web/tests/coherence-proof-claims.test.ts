@@ -202,13 +202,6 @@ const CLAIMS: readonly Claim[] = [
       + "counts the gaps; the lede is what says why they are drawn as gaps at all.",
   },
   {
-    phrase: "it sends nothing",
-    places: 1,
-    claim: "the engine reads, records and certifies; there is no send path in this version",
-    why: "The one claim on the tab a reader could most damagingly get wrong. It is a "
-      + "head metric so it is on screen on every section, which is why no section repeats it.",
-  },
-  {
     phrase: "wins in every state",
     places: 2,
     claim: "the failure certificate is a portfolio that pays in every settlement state",

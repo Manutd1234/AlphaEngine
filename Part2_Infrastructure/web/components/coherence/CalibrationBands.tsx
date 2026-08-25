@@ -74,16 +74,21 @@ export default function CalibrationBands({
           noBar:
             bin.count === 0 ? "nobody quoted" : statValue(bin.deviation) == null ? "not computed" : undefined,
         }))}
-        notes={
-          data.isotonic_map.length
-            ? [
-                `${data.isotonic_map.length} isotonic step(s), non-decreasing by construction — a higher price `
-                + "mapping to a lower probability would be incoherent in exactly the way this tab tests for. It "
-                + "repairs the reliability term and nothing else.",
-              ]
-            : ["No isotonic correction was returned, so the diagram carries the raw bands only."]
-        }
       />
+      {/* A SIBLING, not the figure's `notes` prop. `Figure` renders `notes`
+          behind a "What this figure cannot say, N" disclosure — and this strip
+          sits inside the fold above, so that made a dropdown inside a dropdown
+          for a single sentence. Both branches of the ternary yielded exactly
+          one note, so the inner fold was never anything but one line hidden
+          behind two clicks. The fold above already names the isotonic
+          correction; this is the sentence it promised. */}
+      <p className="coh-event__note">
+        {data.isotonic_map.length
+          ? `${data.isotonic_map.length} isotonic step(s), non-decreasing by construction — a higher price `
+            + "mapping to a lower probability would be incoherent in exactly the way this tab tests for. It "
+            + "repairs the reliability term and nothing else."
+          : "No isotonic correction was returned, so the diagram carries the raw bands only."}
+      </p>
       <div className="table-wrap">
         <table className="coh-table">
           <caption className="coh-table__caption">

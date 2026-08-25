@@ -171,11 +171,6 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
             pollMs={COHERENCE_POLL_MS}
             paused={!active}
             familiesPriced={universe.data ? `${universe.data.events.length} read live` : null}
-            // Said ONCE on the whole engine, and said by this tab: it is where
-            // a reader meets a certificate that is literally a portfolio with
-            // legs, quantities and fees on it, so it is the tab where "and then
-            // it is traded" is the reachable misreading. Quotes passes nothing.
-            readOnlyNote="this engine reads, records and certifies; it sends nothing"
           />
         }
         status={

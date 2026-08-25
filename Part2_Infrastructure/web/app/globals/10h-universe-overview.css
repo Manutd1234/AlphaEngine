@@ -11,18 +11,6 @@
    stack of two bars and a full table put 280 rows of quotes above the fold.
    ========================================================================== */
 
-/* Switcher and asset filter on one row: they choose different things — the
-   question, and the noun — and stacked they read as one control with six
-   options. Wraps rather than shrinks, because a squeezed <select> truncates
-   the category name, which is the only word in it. */
-.coh-universe__controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-}
-
 /* The desk's own filter grammar — the label beside the control, not above it.
    Copied from `.data-workboard__sort` deliberately: a reader who has used the
    work board's Sort should not have to learn a second one here. */
