@@ -277,6 +277,11 @@ def solve(
         return certificate
 
     worst_case = Decimal(str(result.x[-1])).quantize(Decimal("0.000001"))
+    # Carried on every path the programme solves, not only the one that finds a
+    # trade. It is what the verdict is decided on, and a coherent certificate
+    # that reported nothing left the reader to take the answer on trust: four
+    # money rows all reading "not reported" is what "coherent" looked like.
+    certificate.margin = worst_case
     if worst_case <= MIN_MEANINGFUL_EDGE:
         certificate.because = (
             "no portfolio of these quotes pays more than it costs in every state, "

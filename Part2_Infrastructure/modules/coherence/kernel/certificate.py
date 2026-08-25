@@ -84,6 +84,17 @@ class Certificate:
     net_edge: Decimal | None = None
     rows_tested: int = 0
     rows_untestable: int = 0
+    #: The linear programme's optimum — the most any portfolio of these quotes
+    #: can guarantee itself in the worst state, before fees. It is the quantity
+    #: the coherent verdict is READ OFF, and until 2026-08-25 it was computed,
+    #: compared against the threshold and then thrown away, so the one figure
+    #: the common answer rests on was the one figure the certificate did not
+    #: carry. Distinct from ``worst_case_payoff``, which describes the portfolio
+    #: actually reported and is therefore absent when there is none: this is
+    #: about the whole feasible set, is signed, and is at or below zero exactly
+    #: when a probability measure exists. ``None`` from the closed-form engine,
+    #: which solves no programme and so has no optimum to report.
+    margin: Decimal | None = None
     #: The prices admit no probability measure, but no portfolio survives the
     #: fees. Distinct from ``coherent`` on purpose: a family quoted at $0.98
     #: for a dollar of payoff IS incoherent, and reporting it as coherent
@@ -134,6 +145,10 @@ class Certificate:
             "worst_case_payoff": None if self.worst_case_payoff is None else format_dollars(self.worst_case_payoff),
             "total_fees": None if self.total_fees is None else format_dollars(self.total_fees, 6),
             "net_edge": None if self.net_edge is None else format_dollars(self.net_edge),
+            # Six decimals, like the fees: the margin is routinely smaller
+            # than a centicent and the whole verdict turns on its sign, so
+            # four places would round the interesting cases to "0.0000".
+            "margin": None if self.margin is None else format_dollars(self.margin, 6),
             "worth_doing": self.worth_doing,
             "rows_tested": self.rows_tested,
             "rows_untestable": self.rows_untestable,
@@ -169,6 +184,11 @@ class Certificate:
                 [
                     f"COHERENT - {self.component_id} - shard {self.exchange_index} - engine {self.engine}",
                     f"  {self.rows_tested} constraint(s) tested, none violated.",
+                    *(
+                        [f"  best guaranteed worst-case payoff {format_dollars(self.margin, 6)}, at or below zero."]
+                        if self.margin is not None
+                        else []
+                    ),
                     *([f"  {self.rows_untestable} could not be tested: a leg was unquoted."] if self.rows_untestable else []),
                     *[f"  {note}" for note in self.notes],
                 ]

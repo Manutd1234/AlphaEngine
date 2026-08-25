@@ -1016,6 +1016,17 @@
             "title": "Legs",
             "type": "array"
           },
+          "margin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Margin"
+          },
           "net_edge": {
             "anyOf": [
               {

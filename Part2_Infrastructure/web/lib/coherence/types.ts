@@ -200,6 +200,18 @@ export interface CoherenceCertificate {
   worst_case_payoff: string | null;
   total_fees: string | null;
   net_edge: string | null;
+  /**
+   * The linear programme's optimum, signed, at six decimal places: the most any
+   * portfolio of these quotes can guarantee itself in the worst state, before
+   * fees. At or below zero exactly when a probability measure exists.
+   *
+   * The four figures above describe a PORTFOLIO, so on the common answer —
+   * coherent, no portfolio exists — all four are correctly null and the verdict
+   * drew four dashes. This one is about the whole feasible set and is reported
+   * whenever the programme ran, which is what gives that verdict something to
+   * draw. Null from the closed-form engine, which solves no programme.
+   */
+  margin: string | null;
   worth_doing: boolean;
   rows_tested: number;
   rows_untestable: number;

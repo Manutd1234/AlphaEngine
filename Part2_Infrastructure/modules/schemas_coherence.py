@@ -226,6 +226,13 @@ class CoherenceCertificate(BaseModel):
     worst_case_payoff: str | None = None
     total_fees: str | None = None
     net_edge: str | None = None
+    #: The linear programme's optimum, six-decimal, signed: the most any
+    #: portfolio of these quotes can guarantee itself in the worst state before
+    #: fees. At or below zero exactly when a probability measure exists, which
+    #: makes it the one figure a COHERENT certificate can report — the other
+    #: four describe a portfolio, and a coherent verdict has none. ``None`` from
+    #: the closed-form engine, which solves no programme.
+    margin: str | None = None
     worth_doing: bool = False
     rows_tested: int = 0
     rows_untestable: int = 0

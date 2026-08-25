@@ -57,7 +57,15 @@ def certify(observation: Observation, schedule: FeeSchedule, max_contracts: Deci
         )
         if gross_only:
             programme.priced_out = True
+            # All four, not the two this copied until 2026-08-25. The verdict
+            # panel draws them as one signed set — gross, fees, net, worst case
+            # — and copying half of it left two rows reading "not reported"
+            # beside two that were reported, from the same closed-form answer
+            # that had all four in hand. A partial copy is not more cautious
+            # than a whole one; it invents a gap in a measurement that was made.
             programme.gross_edge = closed.gross_edge
+            programme.worst_case_payoff = closed.worst_case_payoff
+            programme.total_fees = closed.total_fees
             programme.net_edge = closed.net_edge
             programme.notes.append(
                 f"the prices here are incoherent and not tradable: the closed-form checks found a "

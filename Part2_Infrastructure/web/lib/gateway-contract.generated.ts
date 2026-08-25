@@ -162,6 +162,7 @@ export interface CoherenceCertificate {
   family?: string;
   gross_edge?: string | null;
   legs?: Array<CoherenceCertificateLeg>;
+  margin?: string | null;
   net_edge?: string | null;
   notes?: Array<string>;
   priced_out?: boolean;

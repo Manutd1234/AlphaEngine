@@ -150,6 +150,58 @@ class TestTheLinearProgramme:
         assert certificate.verdict == "untestable"
 
 
+@linprog_required
+class TestTheMarginTheCoherentVerdictIsReadOff:
+    """The one figure a coherent certificate can report, and did not until 2026-08-25.
+
+    ``gross_edge``, ``total_fees``, ``net_edge`` and ``worst_case_payoff`` all
+    describe a portfolio, so on the common answer — no portfolio exists — all
+    four are correctly ``None`` and the verdict panel rendered four dashes. The
+    programme's optimum is not about a portfolio; it is about the whole feasible
+    set, and it is computed on every solve. These pin that it is carried rather
+    than discarded, and that its SIGN is what the verdict turns on.
+    """
+
+    def test_a_coherent_family_reports_its_margin_at_or_below_zero(self):
+        certificate = dutchbook.solve(family(), COHERENT, SCHEDULE)
+        assert certificate is not None and certificate.verdict == "coherent"
+        assert certificate.margin is not None, "the coherent verdict must report what it was read off"
+        assert certificate.margin <= dutchbook.MIN_MEANINGFUL_EDGE
+
+    def test_the_four_portfolio_figures_stay_absent_when_there_is_no_portfolio(self):
+        """The margin is an addition, never a way to fill the other four in."""
+        certificate = dutchbook.solve(family(), COHERENT, SCHEDULE)
+        assert certificate is not None
+        assert certificate.legs == ()
+        assert certificate.gross_edge is None
+        assert certificate.total_fees is None
+        assert certificate.net_edge is None
+        assert certificate.worst_case_payoff is None
+
+    def test_an_incoherent_family_reports_a_margin_above_the_threshold(self):
+        certificate = dutchbook.solve(family(), DUTCH, SCHEDULE)
+        assert certificate is not None and certificate.verdict == "incoherent"
+        assert certificate.margin is not None
+        assert certificate.margin > dutchbook.MIN_MEANINGFUL_EDGE
+
+    def test_the_closed_form_engine_reports_no_margin_because_it_solves_no_programme(self):
+        certificate = closedform.solve(family(), rows_for(family(), COHERENT), SCHEDULE)
+        assert certificate.margin is None
+
+    def test_the_wire_carries_the_margin_at_six_places(self):
+        """Four would round a margin smaller than a centicent to "0.0000"."""
+        certificate = dutchbook.solve(family(), COHERENT, SCHEDULE)
+        assert certificate is not None
+        wire = certificate.to_dict()["margin"]
+        assert wire is not None
+        assert len(wire.split(".")[1]) == 6, wire
+
+    def test_the_proof_text_states_the_margin_it_concluded_from(self):
+        certificate = dutchbook.solve(family(), COHERENT, SCHEDULE)
+        assert certificate is not None
+        assert "best guaranteed worst-case payoff" in certificate.render_text()
+
+
 def test_the_seam_reports_absence_rather_than_pretending():
     module, error = dutchbook.import_linprog()
     if module is None:
