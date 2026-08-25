@@ -38,7 +38,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { read } from "./helpers/workspace-sources";
+import { read, stripNonCode } from "./helpers/workspace-sources";
 
 const WEB = fileURLToPath(new URL("..", import.meta.url));
 
@@ -72,6 +72,57 @@ function interfaces(source: string): Map<string, Set<string>> {
     const fields = new Set<string>();
     for (const field of body.matchAll(/^\s*(\w+)\??\s*:/gm)) fields.add(field[1]);
     out.set(match[1], fields);
+  }
+  return out;
+}
+
+
+/**
+ * Source reduced to the identifiers that could be a CALL, for counting only.
+ *
+ * `stripNonCode` removes comments and quoted strings and deliberately KEEPS
+ * template text — that is why it costs no guard anywhere else in the suite, and
+ * why an id built as `markets-subtab-${next}` is still readable. For counting
+ * callers it is not enough twice over, and both holes were demonstrated rather
+ * than argued (`developer-analyst-7c`, 2026-08-26):
+ *
+ *   a guard named in a doc block            counted as a caller
+ *   a guard named inside a template literal counted as a caller
+ *
+ * The first is house style here — this tree names identifiers in backticks
+ * inside doc blocks constantly, and the comment above this very function does
+ * it. So a guard could be orphaned and laundered by the sentence explaining
+ * that it was orphaned.
+ *
+ * So prose inside backticks goes too, and `${...}` substitutions stay, because
+ * a call CAN live in one. Blanking template text is wrong globally — it breaks
+ * the two rail guards that read a constructed id — and right here, where the
+ * only question is whether an identifier occurs in code.
+ */
+function callableText(source: string): string {
+  const code = stripNonCode(source);
+  const frames: string[] = [];
+  let out = "";
+  let i = 0;
+  const skipProse = () => {
+    while (i < code.length) {
+      if (code[i] === "\\") { i += 2; continue; }
+      if (code[i] === "`") { i++; return; }
+      if (code[i] === "$" && code[i + 1] === "{") { out += " ${"; i += 2; frames.push("tmpl"); return; }
+      i++;
+    }
+  };
+  while (i < code.length) {
+    const c = code[i];
+    if (c === "`") { i++; skipProse(); continue; }
+    if (c === "{" && frames.length) { frames.push("code"); out += c; i++; continue; }
+    if (c === "}" && frames.length) {
+      const top = frames.pop();
+      out += c; i++;
+      if (top === "tmpl") skipProse();
+      continue;
+    }
+    out += c; i++;
   }
   return out;
 }
@@ -161,11 +212,12 @@ describe("a guard that exists is a guard that is called", () => {
       ...filesUnder("lib", /\.tsx?$/),
       ...filesUnder("components", /\.tsx?$/),
       ...filesUnder("app", /\.tsx?$/),
-    ].map((path) => [path, readFileSync(path, "utf8")] as const);
+    ].map((path) => [path, callableText(readFileSync(path, "utf8"))] as const);
 
     const orphans: string[] = [];
     for (const module of GUARD_MODULES) {
       const declared = readFileSync(join(WEB, module), "utf8");
+      const callable = callableText(declared);
       for (const match of declared.matchAll(/export function (is[A-Z]\w*)/g)) {
         const guard = match[1];
         // A guard used only by its SIBLINGS in the same module is called —
@@ -173,7 +225,7 @@ describe("a guard that exists is a guard that is called", () => {
         // and its two neighbours and exported for its own sake. So the
         // declaring file counts too, by occurrences beyond the declaration
         // itself rather than by presence.
-        const own = (declared.match(new RegExp(`\\b${guard}\\b`, "g")) ?? []).length;
+        const own = (callable.match(new RegExp(`\\b${guard}\\b`, "g")) ?? []).length;
         const elsewhere = sources.some(([path, text]) =>
           !path.endsWith(module) && new RegExp(`\\b${guard}\\b`).test(text));
         if (own <= 1 && !elsewhere) orphans.push(`${guard} (${module})`);
