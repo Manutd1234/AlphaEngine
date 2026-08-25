@@ -28,6 +28,7 @@ mistakes a shallow read for a deep one.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import dataclass
 from typing import Any, Sequence
@@ -39,6 +40,71 @@ from modules.coherence.drivers import kalshi_auth
 from modules.coherence.scheduler.budget import ReadBudget, get_read_budget
 
 logger = logging.getLogger(__name__)
+
+
+# ── The connection pool ──────────────────────────────────────────────────────
+#
+# Until 2026-08-25 every GET opened its own `httpx.AsyncClient` and closed it on
+# the way out, so each call paid for a fresh DNS lookup, TCP connect and TLS
+# handshake. Measured against `external-api.kalshi.com` from this machine:
+#
+#     cold connection   DNS 3ms + TCP 239-257ms + TLS 237-265ms + ~250ms  = 713-776ms
+#     reused connection                                          ~265ms  = 261-274ms
+#
+# A cold Proofs load makes about nineteen of these, so roughly 9.3 seconds of
+# the wall clock was handshake for connections thrown away microseconds later.
+#
+# One client for the process, created on first use rather than at import: the
+# module is imported by tooling that never makes a request, and a client built
+# at import time binds to whatever event loop happens to exist then.
+#
+# KEYED ON THE RUNNING LOOP, and that is not defensive programming — it is the
+# first thing that broke. A pooled connection holds a transport bound to the
+# loop that opened it, so a client built under one loop raises "Event loop is
+# closed" the moment a second loop uses it. In this process there is only ever
+# one loop and the check never fires; under pytest every test gets its own, and
+# without this the suite fails in whichever test happens to run second.
+_POOL: httpx.AsyncClient | None = None
+_POOL_LOOP: asyncio.AbstractEventLoop | None = None
+
+
+def _pool() -> httpx.AsyncClient:
+    """The shared client for the running loop, built on first use."""
+    global _POOL, _POOL_LOOP
+    loop = asyncio.get_running_loop()
+    if _POOL is None or _POOL.is_closed or _POOL_LOOP is not loop:
+        _POOL = httpx.AsyncClient(
+            follow_redirects=False,
+            # Bounded rather than default-unbounded: this process talks to two
+            # hosts and a leak here is a file-descriptor leak.
+            limits=httpx.Limits(max_keepalive_connections=8, max_connections=16),
+        )
+        _POOL_LOOP = loop
+    return _POOL
+
+
+async def close_pool() -> None:
+    """Close the shared client, if it belongs to the loop asking.
+
+    ONLY IF IT BELONGS TO THIS LOOP, and that qualifier is the whole function.
+    `aclose()` on a client whose connections were opened under a different loop
+    raises "Event loop is closed" from deep inside asyncio's transport teardown
+    — and under pytest that is the common case, because every `TestClient`
+    builds a loop, runs the lifespan and tears the loop down, so the second test
+    to start the app finds a pool belonging to the first test's corpse. Dropping
+    the reference is the right move there: the loop that owned those sockets is
+    already gone and closed them on its way out.
+    """
+    global _POOL, _POOL_LOOP
+    if _POOL is not None and not _POOL.is_closed:
+        try:
+            mine = _POOL_LOOP is asyncio.get_running_loop()
+        except RuntimeError:
+            mine = False
+        if mine:
+            await _POOL.aclose()
+    _POOL = None
+    _POOL_LOOP = None
 
 # One request per call, and the caller decides how many calls to make. The
 # retry curve is the gateway's own Backoff; there is no retry inside a single
@@ -154,13 +220,31 @@ class KalshiClient:
             # reading as a credential fault.
             headers.update(kalshi_auth.sign("GET", f"/trade-api/v2{path.split('?', 1)[0]}", host).as_dict())
         try:
-            async with httpx.AsyncClient(
-                timeout=max(0.1, self._timeout_s),
-                follow_redirects=False,
-                transport=self._transport,
-                headers=headers,
-            ) as client:
-                response = await client.get(f"{host}{path}", params=params)
+            if self._transport is not None:
+                # AN INJECTED TRANSPORT NEVER TOUCHES THE POOL. Four suites hand
+                # this class an `httpx.MockTransport` and expect a client built
+                # around it; sharing a pooled client between tests would leak one
+                # test's stub into the next. A throwaway costs nothing when the
+                # transport is a function call.
+                async with httpx.AsyncClient(
+                    timeout=max(0.1, self._timeout_s),
+                    follow_redirects=False,
+                    transport=self._transport,
+                    headers=headers,
+                ) as client:
+                    response = await client.get(f"{host}{path}", params=params)
+            else:
+                # Headers go on the REQUEST, not the client: `kalshi_auth.sign`
+                # signs one method, path and host, so a header set on a client
+                # shared across hosts would send the wrong signature to the
+                # failover. The timeout rides along for the same reason — it is
+                # a property of this caller, not of the connection.
+                response = await _pool().get(
+                    f"{host}{path}",
+                    params=params,
+                    headers=headers,
+                    timeout=max(0.1, self._timeout_s),
+                )
         except httpx.HTTPError as exc:
             # Never interpolate the URL: it is the one string that can carry a
             # credential, and an exception message outlives the request.

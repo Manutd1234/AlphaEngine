@@ -14,13 +14,14 @@ respond to any of them.
 
 from __future__ import annotations
 
+import asyncio
 from decimal import Decimal
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query
 
 from modules.api.deps import trader_identity
-from modules.coherence import tunables
+from modules.coherence import fee_meta, tunables
 from modules.coherence.drivers import kalshi_auth
 from modules.coherence.drivers.kalshi_parse import schema_probe
 from modules.coherence.drivers.kalshi_rest import KalshiClient, KalshiUnavailable
@@ -31,7 +32,7 @@ from modules.coherence.kernel.costs import FeeSchedule
 from modules.coherence.kernel.money import MoneyError, parse_dollars, parse_fp
 from modules.coherence.recorder import recorder_state
 from modules.coherence.scheduler.budget import get_read_budget
-from modules.coherence.series_meta import categories_for
+from modules.coherence.series_meta import CONCURRENT_SERIES_READS, categories_for
 from modules.coherence.syscalls.certify import certify
 from modules.coherence.syscalls.fees import worked_example
 from modules.coherence.syscalls.observe import observe_event, observe_series
@@ -167,13 +168,40 @@ async def coherence_universe(
     client = KalshiClient()
     events = []
     notes: list[str] = []
-    for series_ticker in watchlist:
+
+    # CONCURRENT ACROSS SERIES, and it was serial until 2026-08-25 — which is
+    # most of why this route measured 6.7 seconds. `observe_series` already
+    # parallelises the events WITHIN a series behind its own semaphore
+    # (`observe.py:135-152`); nothing was doing the same across the watchlist,
+    # so two series meant two full passes end to end for work that shares no
+    # state. Order is preserved by gathering into a list and reading it back in
+    # watchlist order, because the events a reader sees should not depend on
+    # which series answered first.
+    # BOUNDED, and the bound is not decoration. `observe_series` already runs up
+    # to CONCURRENT_EVENT_READS events at once WITHIN a series, so gathering
+    # across an unbounded watchlist multiplies the two. The read budget bursts
+    # at 100 tokens and a default call costs 10 — ten calls — so a wide enough
+    # watchlist would exhaust it in one pass and take refusals rather than
+    # answers. Measured on 2026-08-25: a benchmark firing four routes back to
+    # back with no gap took eight refusals, which is what this bound is for.
+    gate = asyncio.Semaphore(CONCURRENT_SERIES_READS)
+
+    async def read_series(series_ticker: str) -> tuple[list[Any], list[str]]:
         try:
-            for observation in await observe_series(client, series_ticker, max_events=max_events):
-                events.append(event_view(observation))
-                notes.extend(observation.notes)
+            async with gate:
+                observations = await observe_series(client, series_ticker, max_events=max_events)
         except KalshiUnavailable as exc:
-            notes.append(f"{series_ticker} could not be read: {exc.reason}")
+            return [], [f"{series_ticker} could not be read: {exc.reason}"]
+        return (
+            [event_view(observation) for observation in observations],
+            [note for observation in observations for note in observation.notes],
+        )
+
+    for series_events, series_notes in await asyncio.gather(
+        *(read_series(ticker) for ticker in watchlist)
+    ):
+        events.extend(series_events)
+        notes.extend(series_notes)
 
     state = "ok" if events else ("unavailable" if notes else "empty")
     # What each series is ABOUT, so the surface can cut the families by asset
@@ -346,15 +374,16 @@ async def schedule_for_event(series_ticker: str, event_ticker: str) -> FeeSchedu
             taker_rate=tunables.TAKER_RATE, maker_ratio=tunables.MAKER_RATIO,
             balance_precision=tunables.BALANCE_PRECISION,
         )
-    client = KalshiClient()
-    series_payload: dict[str, Any] | None = None
-    series_changes: list[dict[str, Any]] = []
-    event_changes: list[dict[str, Any]] = []
-    try:
-        series_payload = (await client.series(series_ticker)).payload
-        series_changes = (await client.series_fee_changes()).payload.get("series_fee_change_arr") or []
-        if event_ticker:
-            event_changes = (await client.event_fee_changes(event_ticker)).payload.get("event_fee_changes") or []
-    except KalshiUnavailable:
-        pass
+    # THREE READS IN SERIES, ON EVERY CERTIFICATE, until 2026-08-25 — measured
+    # at 2.0 to 2.2 seconds of a 4.4-second certify, or about fifty-five per
+    # cent of it. All three fetch documents that move on a schedule of days,
+    # one of them takes no argument at all, and one was already being fetched
+    # and cached by `series_meta` a few files away. `fee_meta` holds them and
+    # runs whatever is still cold concurrently; `schedule_for` still computes
+    # the verdict fresh against the clock, which is the part that must not be
+    # cached. Refusals are not cached, so a bad minute does not become an hour
+    # of the published default.
+    series_payload, series_changes, event_changes = await fee_meta.documents_for(
+        KalshiClient(), series_ticker, event_ticker,
+    )
     return schedule_for(series_payload, series_changes, event_changes, event_ticker).schedule

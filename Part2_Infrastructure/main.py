@@ -60,6 +60,7 @@ from modules.api import (
 )
 from modules.audit import get_audit
 from modules.backtester import VECTORBT_AVAILABLE
+from modules.coherence.drivers.kalshi_rest import close_pool as close_kalshi_pool
 from modules.coherence.recorder import recorder_loop as coherence_recorder_loop
 from modules.data_jobs import on_data_job_complete
 from modules.data_quality import resolve_loop
@@ -185,6 +186,10 @@ async def lifespan(app: FastAPI):
         coherence_task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await coherence_task
+        # After the recorder is cancelled, not before: closing the pool out from
+        # under an in-flight book read would surface as a transport failure and
+        # be recorded as a venue fault.
+        await close_kalshi_pool()
         await get_ml_store().stop()
         await bot.stop()
         await rag.stop()

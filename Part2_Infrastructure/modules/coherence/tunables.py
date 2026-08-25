@@ -106,6 +106,21 @@ READ_BURST_TOKENS: Final = _env_int("COHERENCE_READ_BURST_TOKENS", 100)
 DEFAULT_TOKEN_COST: Final = _env_int("COHERENCE_DEFAULT_TOKEN_COST", 10)
 REQUEST_TIMEOUT_S: Final = _env_decimal("COHERENCE_REQUEST_TIMEOUT_S", "20")
 
+# How long a fee document stays believable without re-reading it.
+#
+# `schedule_for_event` used to make three venue calls in series on EVERY
+# certify — about 2.0 of its 4.4 seconds. All three read documents that change
+# on a schedule measured in days: a series' fee multiplier, the exchange's
+# published fee-change list, and a per-event override. An hour is short against
+# how fast they move and long against how often the desk asks.
+#
+# A TTL rather than forever, unlike `series_meta`'s category cache: a category
+# is a fact about what a series IS, and a fee is a fact about what it COSTS
+# today. `fees_source.schedule_for` compares each scheduled timestamp against
+# the clock, so caching the LIST is safe while caching the verdict would not be
+# — a change published inside the window is applied late, by up to this long.
+FEE_META_TTL_S: Final = _env_int("COHERENCE_FEE_META_TTL_S", 3600)
+
 # ── Fees ─────────────────────────────────────────────────────────────────────
 # The published general taker rate and the maker ratio. Both are starting
 # hypotheses: the per-series `fee_multiplier` scales them, per-event overrides
