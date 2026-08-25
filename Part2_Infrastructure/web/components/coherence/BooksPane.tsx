@@ -32,6 +32,7 @@ import { useState } from "react";
 
 import type { CoherenceBooks, CoherenceBookView } from "@/lib/coherence/types";
 import IdentityStrip from "./IdentityStrip";
+import MarketPicker from "./MarketPicker";
 import LadderChart from "./LadderChart";
 
 /** The two views this pane draws. Dispersion is the RFQ half, not a book. */
@@ -140,22 +141,23 @@ export default function BooksPane({
 
   return (
     <>
-      {/* The picker belongs to the heading, not to the view rail: two segmented
-          controls stacked one under the other read as one broken rail. */}
+      {/* The picker belongs to the heading, not to the view rail: two controls
+          stacked one under the other read as one broken rail. It is a filtered
+          listbox rather than a `.seg` since 2026-08-25 — one button per market
+          is around a hundred and ninety buttons on this watchlist, which filled
+          the card before any book was drawn. `MarketPicker`'s header has the
+          argument. */}
       <div className="coh-event__head">
         <h4 className="coh-books__ticker">{current.ticker}</h4>
-        <div className="seg coh-books__picker" role="group" aria-label="Choose a market">
-          {books.books.map((book) => (
-            <button
-              key={book.ticker}
-              type="button"
-              aria-pressed={book.ticker === current.ticker}
-              onClick={() => setSelected(book.ticker)}
-            >
-              {book.ticker.split("-").slice(-1)[0]}
-            </button>
-          ))}
-        </div>
+        <MarketPicker
+          options={books.books.map((book) => ({
+            ticker: book.ticker,
+            unquotedReason: book.unquoted_reason,
+          }))}
+          selected={current.ticker}
+          onSelect={setSelected}
+          label="Choose a market"
+        />
       </div>
 
       <BookDetail book={current} view={view} />

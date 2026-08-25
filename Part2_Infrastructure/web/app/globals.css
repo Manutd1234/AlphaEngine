@@ -191,4 +191,8 @@
    three SVG marks its figures add. Neither ladder, which is why it is not in
    14q or 14r; after them, before 15, which stays last. */
 @import "./globals/14s-proofs-model.css";
+/* The Quotes tab's own controls. After 14s, before 15, which stays last: it is
+   a control partial rather than a ladder one, so it may carry boxes where 14q
+   and 14r may not. */
+@import "./globals/14t-quotes-layout.css";
 @import "./globals/15-navigator-and-trailing-layer.css";
