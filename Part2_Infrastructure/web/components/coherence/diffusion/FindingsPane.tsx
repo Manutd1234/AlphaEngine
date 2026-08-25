@@ -171,9 +171,13 @@ export default function FindingsPane({ active }: { active: boolean }) {
       </>
       ) : (
       <>
+      {/* The heading this branch used to open with — "Was the instrument fit to
+          answer?" — restated the switcher button beside it and pushed the
+          drawing under it. The words survive as the section's accessible name:
+          a screen reader still gets them, a sighted reader gets the figure
+          first. */}
       {study ? (
-        <section aria-labelledby="diff-instrument-head">
-          <h4 id="diff-instrument-head">Was the instrument fit to answer?</h4>
+        <section aria-label="Was the instrument fit to answer?">
           {/* The two out-of-sample rows drawn (third review, 2026-08-24):
               the target has structure, and what the text adds to it is the
               headline — both signed, both against zero. */}

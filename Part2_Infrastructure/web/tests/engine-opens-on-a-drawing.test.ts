@@ -55,14 +55,21 @@ const DRAWINGS = [
   // The one figure on the tab whose name says nothing about being one; it is
   // local to `IndexPane` and there is no second `Chart` under `coherence/`.
   "Chart",
-  // Diffusion's, declared here so the list is ready when its fifteen views are
-  // wired in. They are NOT in the table yet: that tab's sections branch on
-  // `view === "..."` INSIDE one section component rather than delegating to a
-  // function per view, so `openersOf` — which finds a named function and takes
-  // its first return — reads the section's own opener fifteen times over. The
-  // scanner needs a second mode that finds the branch before it reads the tags.
-  "ClockAgreement", "EpisodeWatch", "MeetingTable",
+  // Diffusion's. Wired in 2026-08-25 with the branch mode below, so these are
+  // reached rather than merely declared. `SurvivalChart` and `MeetingsEmpty`
+  // are local to `KalshiArm` and `MeetingTable`; both open on a `<Figure>`.
+  "ClockAgreement", "EpisodeWatch", "MeetingTable", "SurvivalChart", "MeetingsEmpty",
 ];
+
+/**
+ * How far past a `return` to read for its opening tags.
+ *
+ * Wide enough to outlast a row of chips: a `StateChip` carries four props and
+ * six of them run past nine hundred characters before the figure beneath is
+ * reached, so a shorter window reported "no tags" for a view that opens on a
+ * drawing. It only ever adds tags a wrapper filter then drops.
+ */
+const WINDOW = 2400;
 
 /** Openers that are an ABSENCE, which the null-honesty rule requires in words. */
 const ABSENCE = /className="console-empty|<FigureEmpty|className="coh-figure__missing/;
@@ -85,6 +92,24 @@ const CHIPS = ["StateChip"];
 interface View {
   /** The file and the exported function that draws this view. */
   readonly at: string;
+  /**
+   * The condition text that selects this view, for a component holding several.
+   *
+   * Proofs delegates a function per view; Diffusion branches on `view === "..."`
+   * INSIDE one section component, so taking a named function's first return
+   * would read the section's own opener once per view and report a green that
+   * means nothing. With a branch, the scan starts at the condition and reads the
+   * markup that follows it — which is the view, and only the view.
+   */
+  readonly branch?: string;
+  /**
+   * Take the LAST drawing return rather than the first.
+   *
+   * The default arm of an `if`-chain has no condition to anchor on: it is what
+   * is left when every named branch has returned. Naming it as "the last one"
+   * is exact for that shape and wrong for any other, so it is opt-in.
+   */
+  readonly last?: boolean;
   /** Named exemption: a view that legitimately opens on something else. */
   readonly exempt?: string;
 }
@@ -118,6 +143,88 @@ const VIEWS: Record<string, View> = {
   "Coherence index / series": { at: "../components/coherence/IndexPane.tsx#IndexPane" },
   "Lessons / Coverage": { at: "../components/coherence/LessonCoverage.tsx#LessonCoverage" },
   "Lessons / Episode states": { at: "../components/coherence/ViolationStates.tsx#ViolationStates" },
+
+  /* ── Diffusion, fifteen views over seven sections ────────────────────────
+     Its sections hold every view behind `view === "..."`, so each row names the
+     branch that selects it; the four default arms say `last` instead, which is
+     exact for an if-chain's final return and wrong for anything else. */
+  "Announcement arm / Absorption": {
+    at: "../components/coherence/diffusion/InformationDiffusionPane.tsx#InformationDiffusionPane",
+    last: true,
+  },
+  "Announcement arm / Control": {
+    at: "../components/coherence/diffusion/InformationDiffusionPane.tsx#InformationDiffusionPane",
+    branch: 'view === "floor"',
+  },
+  "Announcement arm / Clocks": {
+    at: "../components/coherence/diffusion/InformationDiffusionPane.tsx#InformationDiffusionPane",
+    branch: 'view === "clocks"',
+  },
+  "Meetings / Meeting by meeting": {
+    at: "../components/coherence/diffusion/MeetingsSection.tsx#MeetingsBody",
+    last: true,
+  },
+  "Meetings / Mechanism": {
+    at: "../components/coherence/diffusion/MeetingsSection.tsx#MeetingsBody",
+    branch: 'view === "mechanism"',
+  },
+  "Kalshi episodes / Survival": {
+    at: "../components/coherence/diffusion/KalshiArm.tsx#KalshiArm",
+    branch: 'view === "survival"',
+  },
+  "Kalshi episodes / Episodes": {
+    at: "../components/coherence/diffusion/KalshiArm.tsx#KalshiArm",
+    last: true,
+  },
+  "Measurement": {
+    at: "../components/coherence/diffusion/model/ModelFormulas.tsx#ModelFormulas",
+    // A CATALOGUE, not a reading. Each of the thirteen cards opens on the
+    // expression it is about and draws that expression immediately under it —
+    // the card IS the unit, and a figure hoisted above the whole grid would
+    // belong to none of them. The rule is satisfied one level down, which is
+    // why the card's own opener is checked below rather than waived.
+    exempt: "a catalogue of formula cards; each opens on its expression and draws it",
+  },
+  "Instrument": {
+    at: "../components/coherence/diffusion/model/ModelFormulas.tsx#ModelFormulas",
+    exempt: "the same catalogue, filtered to the instrument half",
+  },
+  "Sandbox / Half-life": {
+    at: "../components/coherence/diffusion/model/HalfLifeCalculator.tsx#HalfLifeCalculator",
+    // A DRIVEN INSTRUMENT. Its controls are the subject and the figure is their
+    // answer, so the sliders come first by design — a reader who met the curve
+    // before the thing that moves it would have to scroll back to use it. What
+    // the rule bans is PROSE above the drawing, and there is none: the sentence
+    // this view used to open with restated its own figure caption and is cut.
+    exempt: "a driven instrument: the controls are the subject, the figure is their answer",
+  },
+  "Sandbox / Simulator": {
+    at: "../components/coherence/diffusion/model/DiffusionSimulator.tsx#DiffusionSimulator",
+    exempt: "a driven instrument; its opening sentence restated the section lede and is cut",
+  },
+  "Sandbox / Spectrum": {
+    at: "../components/coherence/diffusion/model/SpectrumExplorer.tsx#SpectrumExplorer",
+    // The one sentence kept of the three: it says what the six eigenvalue
+    // sliders MEAN, which is said nowhere else and is not derivable from the
+    // drawing. Words that come before a drawing must change what the drawing
+    // means — the same narrow case the Scorecard exemption is for.
+    exempt: "a driven instrument, and its lede defines the sliders rather than the figure",
+  },
+  "Findings / Effect plot": {
+    at: "../components/coherence/diffusion/FindingsPane.tsx#FindingsPane",
+    // Anchored on the TERNARY, not on the bare condition: the same text appears
+    // in the switcher button above it (`aria-pressed={view === "plot"}`), which
+    // is what a naive anchor would find.
+    branch: '{view === "plot" ? (',
+  },
+  "Findings / Findings table": {
+    at: "../components/coherence/diffusion/FindingsPane.tsx#FindingsPane",
+    branch: 'view === "table" ? (',
+  },
+  "Findings / Instrument": {
+    at: "../components/coherence/diffusion/FindingsPane.tsx#FindingsPane",
+    branch: "aria-label=\"Was the instrument fit to answer?\"",
+  },
 };
 
 /**
@@ -126,15 +233,45 @@ const VIEWS: Record<string, View> = {
  * Absence branches are dropped rather than searched past: each `return` is taken
  * whole, and one whose markup names an empty state is not the drawing return.
  */
-function openersOf(source: string, fn: string): string[] {
+function openersOf(source: string, fn: string, spec: View = { at: "" }): string[] {
   const at = source.search(new RegExp(`function ${fn}\\b`));
   assert.notEqual(at, -1, `${fn} is not a function in that file any more`);
   const body = source.slice(at);
   const end = body.search(/\n(?:export )?function /) ;
-  const scoped = end > 0 ? body.slice(0, end) : body;
+  let scoped = end > 0 ? body.slice(0, end) : body;
 
-  for (const chunk of scoped.split(/\breturn\b/).slice(1)) {
-    const head = chunk.slice(0, 900);
+  if (spec.branch) {
+    const from = scoped.indexOf(spec.branch);
+    assert.notEqual(from, -1,
+      `${fn} no longer branches on \`${spec.branch}\` — the view moved, or the condition was rewritten`);
+    // From the condition to the markup that follows it. Both branch shapes on
+    // this engine land here: `if (cond) { return (<X/>) }` and `cond ? <X/> :`.
+    //
+    // BOUNDED AT THE NEXT BRANCH, which is not a detail. A fixed window runs
+    // past a short branch into the one after it, so a branch that opened on
+    // nothing but wrappers would be satisfied by its NEIGHBOUR's drawing and
+    // pass for a reason that has nothing to do with it. Caught by injecting a
+    // paragraph into one branch and reading the reported tags: they ran
+    // `p > ClockAgreement > Figure > AbsorptionCurve`, and the last two belong
+    // to the next view.
+    // Two bounds, because one shape defeats each. A TERNARY chain is bounded by
+    // the next condition; an IF chain's LAST branch has no next condition, so it
+    // is bounded by the return after its own — otherwise the default arm's
+    // drawing sits inside the window and answers for it.
+    const after = from + spec.branch.length;
+    const nextCond = scoped.indexOf('view === "', after);
+    const ownReturn = scoped.indexOf("return", after);
+    const nextReturn = ownReturn === -1 ? -1 : scoped.indexOf("return", ownReturn + 6);
+    const upto = Math.min(...[from + WINDOW, nextCond, nextReturn].filter((bound) => bound > from));
+    const tags = [...scoped.slice(from, upto).matchAll(/<([A-Za-z][A-Za-z0-9.]*)/g)].map((m) => m[1]);
+    assert.ok(tags.length, `${fn}'s \`${spec.branch}\` branch draws nothing this scan can find`);
+    return tags;
+  }
+
+  const chunks = scoped.split(/\breturn\b/).slice(1);
+  const drawing: string[][] = [];
+  for (const chunk of chunks) {
+    const head = chunk.slice(0, WINDOW);
     const tags = [...head.matchAll(/<([A-Za-z][A-Za-z0-9.]*)/g)].map((m) => m[1]);
     if (!tags.length) continue;
     // An absence BRANCH opens with its empty state, so the marker sits inside
@@ -142,9 +279,10 @@ function openersOf(source: string, fn: string): string[] {
     // for a leg it could not read, say — is not an absence branch. Comparing
     // raw offsets does not work: `className` always follows its own `<p`.
     if (ABSENCE.test(head.slice(0, 160))) continue;
-    return tags;
+    if (!spec.last) return tags;
+    drawing.push(tags);
   }
-  return [];
+  return spec.last ? (drawing[drawing.length - 1] ?? []) : [];
 }
 
 describe("every Proofs view opens on a drawing", () => {
@@ -152,12 +290,14 @@ describe("every Proofs view opens on a drawing", () => {
     const [file, fn] = spec.at.split("#");
 
     it(`${view}${spec.exempt ? " is exempt, and says why" : ""}`, () => {
-      const tags = openersOf(strip(read(file)), fn);
+      const tags = openersOf(strip(read(file)), fn, spec);
       assert.ok(tags.length, `${view} draws nothing this scan can find`);
 
       // A wrapper is not an opener: a view may sit inside a fragment or a
       // grouping element and still open on its figure.
-      const content = tags.filter((t) => !["section", "div", "Fragment", ...CHIPS].includes(t));
+      // `article` joins the wrappers: a catalogue of cards is a grouping
+      // element like any other, and the card's own opener is what matters.
+      const content = tags.filter((t) => !["section", "div", "article", "Fragment", ...CHIPS].includes(t));
       const first = content[0];
 
       if (spec.exempt) {
@@ -172,9 +312,29 @@ describe("every Proofs view opens on a drawing", () => {
     });
   }
 
-  it("names every view the Proofs rail ships, so none is guarded by omission", () => {
-    // Eleven views over six sections. A view added without a line here is a view
-    // this contract does not reach, and the failure would be silence.
-    assert.equal(Object.keys(VIEWS).length, 11);
+  it("names every view both engine rails ship, so none is guarded by omission", () => {
+    // Eleven views over six Proofs sections, plus fifteen over Diffusion's
+    // seven. A view added without a line here is a view this contract does not
+    // reach, and the failure would be silence.
+    assert.equal(Object.keys(VIEWS).length, 26);
+  });
+
+  it("every named drawing is one, so the allow-list is not a loophole", () => {
+    // The list names components as well as primitives. A component earns its
+    // place by opening on a drawing ITSELF — otherwise "name it in DRAWINGS" is
+    // a way to exempt a view without writing down that you did.
+    const LOCAL: Record<string, string> = {
+      ClockAgreement: "../components/coherence/diffusion/ClockAgreement.tsx#ClockAgreement",
+      EpisodeWatch: "../components/coherence/diffusion/EpisodeWatch.tsx#EpisodeWatch",
+      MeetingsEmpty: "../components/coherence/diffusion/MeetingTable.tsx#MeetingsEmpty",
+    };
+    for (const [name, at] of Object.entries(LOCAL)) {
+      const [file, fn] = at.split("#");
+      const tags = openersOf(strip(read(file)), fn).filter(
+        (t) => !["section", "div", "article", "Fragment", ...CHIPS].includes(t),
+      );
+      assert.ok(DRAWINGS.includes(tags[0]),
+        `${name} is named a drawing but opens on <${tags[0]}>`);
+    }
   });
 });

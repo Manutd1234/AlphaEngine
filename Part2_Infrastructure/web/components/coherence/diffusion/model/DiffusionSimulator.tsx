@@ -166,11 +166,6 @@ export default function DiffusionSimulator() {
 
   return (
     <div className="diff-pane">
-      <p className="coh-event__note">
-        A path with a half-life you chose, run through the arithmetic the gateway runs. The interesting
-        settings are the ones where it declines to answer.
-      </p>
-
       <div className="coh-model__controls">
         <label>
           <span className="field">True half-life — {trueHalfLife}s</span>
