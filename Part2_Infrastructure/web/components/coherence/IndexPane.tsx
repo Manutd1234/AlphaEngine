@@ -364,11 +364,19 @@ export default function IndexPane({ active, view }: {
       ) : (
         <>
           <FamilyTable data={data} />
-          {data.notes.map((note, index) => (
-            <p className="coh-event__note" key={`${index}-${note}`}>
-              {note}
-            </p>
-          ))}
+          {/* The gateway's notes, folded 2026-08-25. Rendered raw they sat
+              BETWEEN the table and the sentence defining what a reading is —
+              so a variable number of machine paragraphs pushed the one
+              definition on the view further down the page the more the engine
+              had to say. Provenance goes behind a summary that counts it. */}
+          {data.notes.length ? (
+            <details className="disclosure">
+              <summary>{`What the engine noted about this read, ${data.notes.length} ${data.notes.length === 1 ? "note" : "notes"}`}</summary>
+              {data.notes.map((note, index) => (
+                <p key={`${index}-${note}`}>{note}</p>
+              ))}
+            </details>
+          ) : null}
           <p className="coh-event__note">
             A reading is the L1 distance from the family&rsquo;s MID prices to the nearest vector summing to a dollar
             — mid, because consistency is a property of the prices, tradability of the book.

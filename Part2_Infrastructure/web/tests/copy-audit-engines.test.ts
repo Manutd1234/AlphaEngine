@@ -151,16 +151,43 @@ describe("shape 6 — wire prose is not a column of a table of measurements", ()
     const offenders: string[] = [];
     for (const file of engineFiles()) {
       const source = code(readFileSync(file, "utf8"));
-      for (const match of source.matchAll(/<td[^>]*>\{(\w+)\.(\w+)(?:\s*\?\?\s*[^}]*)?\}<\/td>/g)) {
+      // `<td>` was the only shape when this rule was written. Widened to the
+      // paragraph and list forms on 2026-08-25, once the four sinks that would
+      // have failed it were folded: two note lists, a solver's account of its
+      // ranking and the engine's account of a scoring run.
+      for (const match of source.matchAll(
+        /<(?:td|p|li)[^>]*>\{(\w+)\.(\w+)(?:\s*\?\?\s*[^}]*)?\}<\/(?:td|p|li)>/g)) {
         const [, object, field] = match;
-        // `row`/`data`/`item` are the wire record; `fact`/`part` are authored.
-        if (!/^(row|data|entry|record)$/.test(object)) continue;
+        // `row`/`data`/`record` are the wire payload and its mapped rows.
+        // `entry` was here and came out: `ModelFormulas` maps an AUTHORED
+        // `FORMULAS` constant to `entry`, so the name says nothing about where
+        // the text came from, and the rule flagged thirteen teaching cards.
+        if (!/^(row|data|record)$/.test(object)) continue;
         if (!PROSE_FIELDS.test(field)) continue;
-        offenders.push(`${shortName(file)}: <td>{${object}.${field}}</td>`);
+        // A body already inside a fold is the FIXED shape, not the defect.
+        const before = source.slice(0, match.index);
+        if (before.lastIndexOf("<details") > before.lastIndexOf("</details>")) continue;
+        offenders.push(`${shortName(file)}: {${object}.${field}}`);
       }
     }
     assert.deepEqual(offenders, [],
       `unbounded wire prose in a measured row — fold it behind a <details>:\n    ${offenders.join("\n    ")}`);
+  });
+
+  it("every note list the engine sends is folded, and counted in its summary", () => {
+    // The positive half for the four sinks the widened rule covers. A fold that
+    // does not say how many notes are behind it is worse than the raw list: an
+    // empty fold and a fold hiding four look identical, so a reader cannot tell
+    // whether opening it is worth the click.
+    for (const [file, held] of [
+      ["../components/coherence/IndexPane.tsx", "data.notes"],
+      ["../components/coherence/CombosViews.tsx", "notes"],
+      ["../components/coherence/StatusPane.tsx", "status.notes"],
+    ] as const) {
+      const source = read(file);
+      assert.match(source, new RegExp(`\\$\\{${held.replace(".", "\\.")}\\.length\\}`),
+        `${file} folds its notes without counting them in the summary`);
+    }
   });
 
   it("the dispersion notes are kept, and folded", () => {

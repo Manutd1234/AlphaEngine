@@ -214,14 +214,15 @@ export function NotesView({ combos, notes }: { combos: CoherenceCombo[]; notes: 
         </p>
       ) : null}
       {notes.length ? (
-        <ul className="coh-notes">
-          {notes.map((note, index) => (
-            <li key={`${index}-${note}`}>{note}</li>
-          ))}
-        </ul>
-      ) : (
-        <p className="coh-combo__note">The gateway returned no notes; the caveats above hold on every read.</p>
-      )}
+        <details className="disclosure">
+          <summary>{`What the gateway noted about this read, ${notes.length} ${notes.length === 1 ? "note" : "notes"}`}</summary>
+          <ul className="coh-notes">
+            {notes.map((note, index) => (
+              <li key={`${index}-${note}`}>{note}</li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
     </section>
   );
 }
