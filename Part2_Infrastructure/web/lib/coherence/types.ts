@@ -119,6 +119,13 @@ export interface CoherenceEventView {
 }
 
 export interface CoherenceUniverse {
+  /**
+   * The venue reading's age in seconds. Declared because the gateway SENDS it:
+   * it was on `tools/openapi.json` and absent here, so no panel could read the
+   * age of the read it drew. Null is "no age carried" — never zero, which
+   * would read as "measured this instant".
+   */
+  observed_age_s: number | null;
   state: string;
   events: CoherenceEventView[];
   watchlist: string[];
@@ -177,6 +184,8 @@ export interface CoherenceCertificateLeg {
 }
 
 export interface CoherenceCertificate {
+  /** The venue reading's age in seconds; see `CoherenceUniverse`. Null, never zero. */
+  observed_age_s: number | null;
   verdict: string;
   /**
    * The prices admit no probability measure, but no portfolio survives the

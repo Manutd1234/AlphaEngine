@@ -149,6 +149,8 @@ export interface CoherenceComboRow {
 }
 
 export interface CoherenceCombos {
+  /** The venue reading's age in seconds; see `CoherenceUniverse`. Null, never zero. */
+  observed_age_s: number | null;
   state: string;
   combos: CoherenceCombo[];
   rows: CoherenceComboRow[];
