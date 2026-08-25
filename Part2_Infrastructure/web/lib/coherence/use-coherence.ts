@@ -95,12 +95,34 @@ export function warmCoherenceRead(url: string): void {
 /**
  * Fields that change on every read by construction and draw nothing.
  *
- * `observed_at` is the gateway stamping the moment it answered. It is not the
- * age of the DATA — the freshness stamp reads `updatedAt`, which this hook sets
- * from the browser's own clock — so a payload differing only here is a payload
- * a reader cannot tell apart from the last one.
+ * `observed_age_s` is how old the venue read behind the answer was when the
+ * gateway composed it, so it moves on every response whether or not anything
+ * drawable did. It is excluded from the fingerprint for that reason — and it is
+ * NOT ignored: `observedAt` below turns it into the timestamp the freshness
+ * stamp shows, which is the whole point of the field.
  */
-const FRESHNESS_ONLY = new Set(["observed_at"]);
+const FRESHNESS_ONLY = new Set(["observed_age_s"]);
+
+/**
+ * When the venue was actually read for this payload, or null if it does not say.
+ *
+ * WHY THIS EXISTS. `updatedAt` used to be `new Date()` at the moment the
+ * response landed, which was true while every read went to the exchange on the
+ * request. Once the gateway started precomputing answers it stopped being true:
+ * a snapshot taken forty seconds ago arrives in two milliseconds and would have
+ * been stamped "0s ago". Faster, and lying about it.
+ *
+ * DERIVED FROM AN AGE, NOT A TIMESTAMP. The gateway sends how old the reading
+ * was when it answered, computed against its own clock, and this subtracts that
+ * from ours. An absolute timestamp would have to be compared across two
+ * machines, and a desk a few seconds ahead of the gateway would render a
+ * reading "in the future" — worse than no stamp.
+ */
+function observedAt(data: unknown): Date | null {
+  const age = (data as { observed_age_s?: unknown } | null)?.observed_age_s;
+  if (typeof age !== "number" || !Number.isFinite(age)) return null;
+  return new Date(Date.now() - age * 1000);
+}
 
 /**
  * A string that changes when anything DRAWABLE changes, and not otherwise.
@@ -195,7 +217,10 @@ export function useCoherenceRead<T>(url: string, enabled: boolean, pollMs = COHE
       data: unchanged && previous.data ? previous.data : data,
       error,
       loading: false,
-      updatedAt: new Date(),
+      // The BOOK's age when the payload says, this machine's clock when it does
+      // not. A read that went to the exchange on this request carries no age
+      // and is as fresh as the request, so `new Date()` is the truth there.
+      updatedAt: observedAt(data) ?? new Date(),
     }));
   }, [url]);
 

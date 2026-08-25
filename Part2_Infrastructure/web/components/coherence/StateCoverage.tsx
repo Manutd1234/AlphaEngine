@@ -62,7 +62,7 @@ export interface CoverageState {
 
 const CAPTION = "Every state this family can settle into, marked where a leg names it";
 
-const KEY_Y = 11;
+const KEY_Y = 15;
 const WORD_Y = 30;
 const BLOCK_TOP = 38;
 const BLOCK_H = 34;
@@ -177,7 +177,7 @@ export default function StateCoverage({
           return (
             <>
               <text x={0} y={KEY_Y} className="coh-svg-note">
-                <tspan>▪ a leg names this state</tspan>
+                <tspan>● a leg names this state</tspan>
                 <tspan dx={14}>◌ none</tspan>
               </text>
 
@@ -232,14 +232,11 @@ export default function StateCoverage({
                         names every state, and the reading carries the count. */}
                     {dense ? null : (
                       <>
-                        <text
-                          x={cx}
-                          y={WORD_Y}
-                          textAnchor="middle"
-                          className={column.legs.length ? "coh-surface__value" : "coh-surface__unread"}
-                        >
-                          {column.word}
-                        </text>
+                        {column.legs.length ? (
+                          <text x={cx} y={WORD_Y} textAnchor="middle" className="coh-surface__value">
+                            {column.word}
+                          </text>
+                        ) : null}
                         <text
                           x={labelX}
                           y={labelY}

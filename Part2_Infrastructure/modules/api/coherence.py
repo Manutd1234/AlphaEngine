@@ -166,7 +166,7 @@ async def coherence_universe(
 
     held = warm.snapshot_for("universe", max_events=max_events)
     if held is not None:
-        return held.value.model_copy(update={"observed_at": held.taken_at_ns})
+        return held.value.model_copy(update={"observed_age_s": round(held.age_s(), 1)})
 
     client = KalshiClient()
     events = []
@@ -327,7 +327,7 @@ async def coherence_certify(
     # the live read below and answer exactly as they did before this existed.
     held = warm.snapshot_for("certify", event_ticker=event_ticker, max_contracts=max_contracts)
     if held is not None:
-        return held.value.model_copy(update={"observed_at": held.taken_at_ns})
+        return held.value.model_copy(update={"observed_age_s": round(held.age_s(), 1)})
 
     try:
         observation = await observe_event(KalshiClient(), event_ticker)

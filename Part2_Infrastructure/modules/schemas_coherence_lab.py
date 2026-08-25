@@ -161,6 +161,11 @@ class CoherenceComboRow(BaseModel):
 
 
 class CoherenceCombos(BaseModel):
+    #: Age in seconds of the venue read behind this answer, or null when it was
+    #: read on this request. An age rather than a timestamp so it survives a
+    #: clock skew between this process and the reader's machine; the long form
+    #: of the argument is on `CoherenceCertificate`.
+    observed_age_s: float | None = None
     state: str
     combos: list[CoherenceCombo] = Field(default_factory=list)
     rows: list[CoherenceComboRow] = Field(default_factory=list)

@@ -1045,16 +1045,16 @@
             "title": "Notes",
             "type": "array"
           },
-          "observed_at": {
+          "observed_age_s": {
             "anyOf": [
               {
-                "type": "integer"
+                "type": "number"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Observed At"
+            "title": "Observed Age S"
           },
           "priced_out": {
             "default": false,
@@ -1491,6 +1491,17 @@
             },
             "title": "Notes",
             "type": "array"
+          },
+          "observed_age_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed Age S"
           },
           "outside_band": {
             "default": 0,
@@ -3468,16 +3479,16 @@
             "title": "Notes",
             "type": "array"
           },
-          "observed_at": {
+          "observed_age_s": {
             "anyOf": [
               {
-                "type": "integer"
+                "type": "number"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Observed At"
+            "title": "Observed Age S"
           },
           "state": {
             "title": "State",

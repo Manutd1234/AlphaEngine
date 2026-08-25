@@ -9,6 +9,7 @@ about the response would say so.
 
 from __future__ import annotations
 
+import pathlib
 import time
 
 import pytest
@@ -133,7 +134,10 @@ class TestTheRouteDoesNotTouchTheVenueWhenAnAnswerIsHeld:
             event_ticker="KXTEST-1", max_contracts=1000, _actor="test",
         )
         assert answer.component_id == "KXTEST-1"
-        assert answer.observed_at == taken
+        # An AGE, computed here against the clock that took the reading — never
+        # a timestamp the reader's machine would have to subtract from its own.
+        assert answer.observed_age_s is not None
+        assert answer.observed_age_s == pytest.approx(0, abs=1.0)
 
     @pytest.mark.asyncio
     async def test_a_family_outside_the_warm_set_still_falls_through(self, monkeypatch):
@@ -154,3 +158,41 @@ class TestTheRouteDoesNotTouchTheVenueWhenAnAnswerIsHeld:
                 event_ticker="NOT-WARMED", max_contracts=1000, _actor="test",
             )
         assert reached["live"], "the route answered without reading, for a family it never warmed"
+
+
+class TestTheWarmSetMatchesWhatTheDeskAsksFor:
+    """The one failure mode that is silent in both directions.
+
+    A route serves a snapshot only when the request's parameters match the
+    refresher's, which is right — a universe of two events is a DIFFERENT answer
+    from one of six, not a staler one. But the two numbers are written in two
+    languages: the refresher's in `warm.py`, the desk's in
+    `web/lib/coherence/routes.ts`. Move either and the refresher fills a cache
+    nobody reads: every request goes to the venue, the latency comes back, and
+    every test in this file still passes because the cache still works.
+
+    So this reads the TypeScript. It is the only assertion here that leaves
+    Python, and it is the only one that could catch that.
+    """
+
+    @staticmethod
+    def _desk_default(name: str) -> int:
+        import re
+
+        routes = pathlib.Path(__file__).resolve().parents[1] / "web/lib/coherence/routes.ts"
+        text = routes.read_text(encoding="utf-8")
+        found = re.search(rf"export const {name} = \(\w+ = (\d+)\)", text)
+        assert found, f"{name} is not declared the way this test reads it: {routes}"
+        return int(found.group(1))
+
+    def test_the_universe_event_count_agrees_with_the_desk(self):
+        assert warm.WARM_MAX_EVENTS == self._desk_default("universeRoute"), (
+            "the refresher warms a universe the desk never asks for, so every "
+            "universe read goes to the venue and nothing says so"
+        )
+
+    def test_the_parlay_limit_agrees_with_the_desk(self):
+        assert warm.WARM_COMBOS_LIMIT == self._desk_default("combosRoute"), (
+            "the refresher warms a parlay count the desk never asks for, so the "
+            "slowest route on the tab stays slow and nothing says so"
+        )

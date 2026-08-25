@@ -131,13 +131,22 @@ class CoherenceEventView(BaseModel):
 class CoherenceUniverse(BaseModel):
     """The watchlist, as far as it could be read."""
 
-    #: When the venue was READ for this answer, in nanoseconds, or null when
-    #: the answer came straight from the exchange on this request. It is the age
-    #: of the BOOK rather than the age of the request, which is the distinction
-    #: the desk's freshness stamp needs: a precomputed answer arriving in two
-    #: milliseconds is not two milliseconds old, and saying "0s ago" over it
-    #: would make the desk faster and its own clock a lie.
-    observed_at: int | None = None
+    #: How old the venue read behind this answer was, in seconds, at the moment
+    #: this response was composed. Null when the answer came straight from the
+    #: exchange on this request, which is its own answer: it is as fresh as the
+    #: request.
+    #:
+    #: AN AGE, NOT A TIMESTAMP, and the difference is not pedantry. A timestamp
+    #: has to be subtracted from a clock, and the clock that would do it belongs
+    #: to the reader's laptop rather than to this process — so a machine a few
+    #: seconds ahead would render "12s in the future", which is worse than no
+    #: stamp at all. An age is computed here, against the clock that took the
+    #: reading, and survives any skew between the two.
+    #:
+    #: The desk needs it because a precomputed answer arrives in two
+    #: milliseconds and is not two milliseconds old; stamping it "0s ago" would
+    #: make the desk faster and its own clock a liar.
+    observed_age_s: float | None = None
     state: str
     events: list[CoherenceEventView] = Field(default_factory=list)
     watchlist: list[str] = Field(default_factory=list)
@@ -212,13 +221,22 @@ class CoherenceCertificate(BaseModel):
     engine's most common — and correct — answer is that the market is coherent.
     """
 
-    #: When the venue was READ for this answer, in nanoseconds, or null when
-    #: the answer came straight from the exchange on this request. It is the age
-    #: of the BOOK rather than the age of the request, which is the distinction
-    #: the desk's freshness stamp needs: a precomputed answer arriving in two
-    #: milliseconds is not two milliseconds old, and saying "0s ago" over it
-    #: would make the desk faster and its own clock a lie.
-    observed_at: int | None = None
+    #: How old the venue read behind this answer was, in seconds, at the moment
+    #: this response was composed. Null when the answer came straight from the
+    #: exchange on this request, which is its own answer: it is as fresh as the
+    #: request.
+    #:
+    #: AN AGE, NOT A TIMESTAMP, and the difference is not pedantry. A timestamp
+    #: has to be subtracted from a clock, and the clock that would do it belongs
+    #: to the reader's laptop rather than to this process — so a machine a few
+    #: seconds ahead would render "12s in the future", which is worse than no
+    #: stamp at all. An age is computed here, against the clock that took the
+    #: reading, and survives any skew between the two.
+    #:
+    #: The desk needs it because a precomputed answer arrives in two
+    #: milliseconds and is not two milliseconds old; stamping it "0s ago" would
+    #: make the desk faster and its own clock a liar.
+    observed_age_s: float | None = None
     verdict: str
     engine: str
     component_id: str

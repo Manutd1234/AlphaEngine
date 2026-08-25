@@ -36,8 +36,8 @@
  * line every mark on this tab carries.
  */
 
-import Figure from "./Figure";
-import { useMeasuredWidth } from "@/components/chart-kit";
+import Figure, { Plot } from "./Figure";
+import { DIAGRAM_LABEL_PX, advancePx } from "@/lib/coherence/label-metrics";
 
 const HEIGHT = 210;
 
@@ -108,12 +108,6 @@ const EDGES: readonly Edge[] = [
 ];
 
 export default function ViolationStates() {
-  const [plotRef, width] = useMeasuredWidth<HTMLDivElement>(720);
-
-  const boxW = Math.max(96, width * 0.2);
-  const boxH = 54;
-  const x = (box: StateBox) => box.at * (width - boxW);
-  const y = (box: StateBox) => (box.row === 0 ? 24 : 128);
   const find = (id: string) => BOXES.find((box) => box.id === id) as StateBox;
 
   return (
@@ -129,22 +123,57 @@ export default function ViolationStates() {
         + "The counts are on Diffusion, where the episodes read is gated.",
       ]}
     >
-      <div ref={plotRef} style={{ width: "100%" }}>
-        <svg viewBox={`0 0 ${width} ${HEIGHT}`} width={width} height={HEIGHT}>
+      <Plot height={HEIGHT} minWidth={560}>
+        {(width) => {
+          // THE BOXES WERE 0.2 OF THE WIDTH ON A 0.26 PITCH, which leaves
+          // 0.008 of the width — 5.76px at 720 — between one box and the next,
+          // permanently, because both terms scale together. Each transition
+          // label is 94 to 138px wide and was centred in that gap at the boxes'
+          // own mid-height, so it sat inside them horizontally AND vertically;
+          // and because the edges were emitted before the boxes, the opaque
+          // rects painted over about ninety-five per cent of each one. Only the
+          // ~6px slice showing through the gutter survived, which is why the
+          // reader saw "e", "ce" and "he" floating between the boxes rather
+          // than an overlap.
+          //
+          // Narrower boxes give the arrows a gap worth drawing, and the labels
+          // move ABOVE the row entirely, where nothing can paint over them.
+          const boxW = Math.max(88, width * 0.155);
+          const boxH = 54;
+          const span = width - boxW;
+          const x = (box: StateBox) => box.at * span;
+          const y = (box: StateBox) => (box.row === 0 ? 34 : 138);
+          // The pitch between two label anchors. A label wider than this would
+          // touch its neighbour, so it is DROPPED rather than overprinted or
+          // truncated — the rule `axis-labels` already holds every axis to. The
+          // fact is not lost: it is the edge's own <title>, which the readout
+          // speaks on hover, focus and arrow key.
+          const pitch = 0.26 * span;
+          return (
+        <>
           {EDGES.map((edge) => {
             const from = find(edge.from);
             const to = find(edge.to);
             const x1 = x(from) + boxW;
             const x2 = x(to);
             const yy = y(from) + boxH / 2;
+            const fits = advancePx(edge.label, DIAGRAM_LABEL_PX) <= pitch - 8;
             return (
-              <g key={`${edge.from}-${edge.to}`}>
-                <line x1={x1} x2={x2} y1={yy} y2={yy} className="coh-form__arrow">
+              // A `<g>`, not the `<line>` itself. Every rule for this class is a
+              // DESCENDANT selector — `.coh-form__arrow line` — so putting the
+              // class on the line matched nothing and the stroke fell back to
+              // SVG's default of none. Measured in Chrome: four such lines on
+              // this figure, every one `stroke: none`. They rendered as
+              // literally nothing, which is why the boxes looked unconnected.
+              <g key={`${edge.from}-${edge.to}`} className="coh-form__arrow">
+                <line x1={x1} x2={x2} y1={yy} y2={yy}>
                   <title>{edge.hover}</title>
                 </line>
-                <text x={(x1 + x2) / 2} y={yy - 6} textAnchor="middle" className="coh-form__note">
-                  {edge.label}
-                </text>
+                {fits ? (
+                  <text x={(x1 + x2) / 2} y={18} textAnchor="middle" className="coh-form__note">
+                    {edge.label}
+                  </text>
+                ) : null}
               </g>
             );
           })}
@@ -153,15 +182,16 @@ export default function ViolationStates() {
               lifetime, or to one that is still running and has none. Drawn as a
               fork rather than a fifth box in the row, because it is a CHOICE the
               world makes rather than a stage the episode passes through. */}
-          <line
-            x1={x(find("peak")) + boxW}
-            x2={x(find("open-still"))}
-            y1={y(find("peak")) + boxH / 2}
-            y2={y(find("open-still")) + boxH / 2}
-            className="coh-form__arrow"
-          >
-            <title>An episode that has not closed by the time the tape is read is still open, and has no lifetime.</title>
-          </line>
+          <g className="coh-form__arrow">
+            <line
+              x1={x(find("peak")) + boxW}
+              x2={x(find("open-still"))}
+              y1={y(find("peak")) + boxH / 2}
+              y2={y(find("open-still")) + boxH / 2}
+            >
+              <title>An episode that has not closed by the time the tape is read is still open, and has no lifetime.</title>
+            </line>
+          </g>
 
           {BOXES.map((box) => (
             <g key={box.id}>
@@ -183,8 +213,10 @@ export default function ViolationStates() {
               </text>
             </g>
           ))}
-        </svg>
-      </div>
+        </>
+          );
+        }}
+      </Plot>
     </Figure>
   );
 }

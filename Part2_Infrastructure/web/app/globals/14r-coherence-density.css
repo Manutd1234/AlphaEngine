@@ -320,10 +320,27 @@
    Unconditional, not behind a width query: a phone is where seven segments are
    worst, and the packing rules above are desk-width DENSITY choices, which this
    is not. */
-.coherence-plane.proofs-plane .console-card > .seg {
+/* `.coh-bar > .seg`, NOT `.console-card > .seg`, and the difference is why this
+   rule did nothing for a day. `14u` wrapped every Proofs switcher in a
+   `<div className="coh-bar">` on 2026-08-25, which made the `.seg` a GRANDCHILD
+   of the card — so the child combinator stopped matching and the 7rem floor
+   below stopped applying. Nothing could see it: `dead-css` checks whether a
+   class NAME appears, `plane-scope` checks whether a plane can reach it, and
+   both classes are rendered and reachable. A dead combinator is invisible to
+   every suite in this repository.
+
+   Measured in Chrome before the fix: the Coherence-index buttons computed
+   `flex-basis: 0%` rather than `7rem`, and rendered 79x40px with every one of
+   "Score trend", "By poll" and "By family" broken onto two lines. */
+.coherence-plane.proofs-plane .coh-bar > .seg {
   flex-wrap: wrap;
 }
 
-.coherence-plane.proofs-plane .console-card > .seg button {
+.coherence-plane.proofs-plane .coh-bar > .seg button {
   flex: 1 1 7rem;
+  /* A label breaks at its longest word when nothing says otherwise, and a
+     `flex-basis: 0` item's automatic minimum is that word — so one wrap made
+     all three buttons two rows tall. The floor above is what gives them room;
+     this is what stops them taking it as an excuse to wrap anyway. */
+  white-space: nowrap;
 }

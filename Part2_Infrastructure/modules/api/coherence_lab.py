@@ -23,7 +23,7 @@ from fastapi import APIRouter, Depends, Query
 
 from modules.api import coherence_lab_views as views
 from modules.api.deps import trader_identity
-from modules.coherence import fee_meta, tunables
+from modules.coherence import fee_meta, tunables, warm
 from modules.coherence.drivers.kalshi_auth import signing_available
 from modules.coherence.drivers.kalshi_rest import KalshiClient, KalshiUnavailable
 from modules.coherence.drivers.rfq import read_panel
@@ -123,6 +123,12 @@ async def coherence_combos(
     not a mispricing. A price outside it is a Dutch book, and the row that
     proves it comes back with the reading.
     """
+    # The snapshot first. A miss — a limit the refresher does not hold — falls
+    # through to the live read below and answers exactly as it did before.
+    held = warm.snapshot_for("combos", limit=limit)
+    if held is not None:
+        return held.value.model_copy(update={"observed_age_s": round(held.age_s(), 1)})
+
     return views.combos_view(await combos.observe_combos(KalshiClient(), limit=limit))
 
 

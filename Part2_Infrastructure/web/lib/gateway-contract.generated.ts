@@ -165,7 +165,7 @@ export interface CoherenceCertificate {
   margin?: string | null;
   net_edge?: string | null;
   notes?: Array<string>;
-  observed_at?: number | null;
+  observed_age_s?: number | null;
   priced_out?: boolean;
   proof?: string;
   rows_tested?: number;
@@ -237,6 +237,7 @@ export interface CoherenceComboRow {
 export interface CoherenceCombos {
   combos?: Array<CoherenceCombo>;
   notes?: Array<string>;
+  observed_age_s?: number | null;
   outside_band?: number;
   quoted?: number;
   rows?: Array<CoherenceComboRow>;
@@ -575,7 +576,7 @@ export interface CoherenceUniverse {
   categories?: Record<string, string>;
   events?: Array<CoherenceEventView>;
   notes?: Array<string>;
-  observed_at?: number | null;
+  observed_age_s?: number | null;
   state: string;
   watchlist?: Array<string>;
 }

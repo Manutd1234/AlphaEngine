@@ -57,6 +57,21 @@ logger = logging.getLogger(__name__)
 
 _MAX_CONTRACTS = 1000
 
+# HOW MANY EVENTS A WARMED UNIVERSE HOLDS, spelled once.
+#
+# The refresher stores its universe under this number and a route serves a
+# snapshot only when the request asks for the same one — which is right, because
+# a universe of two events is a different answer from a universe of six, not a
+# staler one. The hazard is that the desk's own default is written in
+# `web/lib/coherence/routes.ts` and this is written here: if either moves, the
+# refresher fills a cache nobody reads, every request goes to the venue, the
+# latency comes back and every test stays green. `test_coherence_warm.py` pins
+# the two together so that cannot happen quietly.
+WARM_MAX_EVENTS = 2
+
+# The parlay count the desk asks for, spelled once, for the same reason.
+WARM_COMBOS_LIMIT = 6
+
 
 @dataclass(frozen=True, slots=True)
 class Snapshot:
@@ -166,7 +181,7 @@ async def refresh_once(client: KalshiClient) -> int:
 
     async def read(series_ticker: str) -> None:
         try:
-            for observation in await observe_series(client, series_ticker, max_events=2):
+            for observation in await observe_series(client, series_ticker, max_events=WARM_MAX_EVENTS):
                 observations.append(observation)
         except KalshiUnavailable as exc:
             notes.append(f"{series_ticker} could not be read: {exc.reason}")
@@ -204,9 +219,30 @@ async def refresh_once(client: KalshiClient) -> int:
                 notes=list(dict.fromkeys(notes)),
             ),
             observed_at,
-            max_events=2,
+            max_events=WARM_MAX_EVENTS,
         )
         stored += 1
+
+    # COMBOS, because it is the slowest route on the tab and warming the other
+    # two left the reader's worst page untouched: measured p95 6,252ms against
+    # certify's 4,133ms. It needs its own venue call — a parlay is a listing the
+    # exchange publishes rather than something derivable from the observations
+    # above — so it is done here rather than skipped.
+    try:
+        # IMPORTED HERE, not at the top, and the reason is layering rather than
+        # cycles: `combos_view` lives in the API layer because it builds a
+        # response model, and this module is under `coherence/`. A deferred
+        # import keeps the dependency at the one line that needs it instead of
+        # making every importer of this module pull in FastAPI's view layer.
+        from modules.api import coherence_lab_views as lab_views
+        from modules.coherence.syscalls import combos as combos_syscall
+
+        reading = await combos_syscall.observe_combos(client, limit=WARM_COMBOS_LIMIT)
+        _store("combos", lab_views.combos_view(reading), observed_at, limit=WARM_COMBOS_LIMIT)
+        stored += 1
+    except (KalshiUnavailable, ValueError) as exc:
+        logger.info("coherence warm: combos did not read (%s)", exc)
+
     return stored
 
 
