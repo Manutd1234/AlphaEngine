@@ -134,20 +134,36 @@ const MEASURE = (tab, section) => `(() => {
   const panel = document.getElementById(${JSON.stringify(`${tab}-subpanel-${section}`)});
   if (!panel) return null;
   const card = panel.querySelector(".console-card") ?? panel;
-  const segs = [...card.querySelectorAll(":scope > .seg")];
-  const nested = [...card.querySelectorAll(".seg")].length - segs.length;
-  const row = segs[0];
+  const direct = [...card.querySelectorAll(":scope > .seg")];
+  const all = [...card.querySelectorAll(".seg")];
+  // THE SECTION CONTROL IS NOT ALWAYS A DIRECT CHILD, and reading only the
+  // direct-child query is how the first version of this probe reported
+  // wrapped:false for the two sections that were wrapping. SurfacePane and
+  // StakePane put their switcher inside a .coh-status__chips flex row so it can
+  // share a line with the family picker, so the direct-child query found
+  // nothing, every field came back null, and wrapped defaulted to false -- a
+  // DEFAULT reported as a measurement. Fall back to the first .seg anywhere in
+  // the card, which is the section control in both shapes.
+  const row = direct[0] ?? all[0];
   const button = row?.querySelector("button");
+
+  // ROWS IN THE CONTROL, not rows in the box, which is the metric this probe
+  // was missing. A .seg whose segments each take their own line is still one
+  // flex item and one bounding box, so a height comparison against the frame
+  // reads it as fine; grouping the buttons by offsetTop counts the lines a
+  // reader actually sees. Found by developer-analyst-b9, which caught Lattice
+  // and Stake rendering as vertical stacks that this probe had called one row.
+  const tops = row ? [...new Set([...row.querySelectorAll("button")].map((b) => Math.round(b.offsetTop)))] : [];
   return {
     stillReading: !!card.querySelector(".console-empty.muted"),
     scrollHeight: Math.round(panel.scrollHeight),
-    controlRows: segs.length,
-    nestedControls: nested,
+    controlRows: direct.length,
+    nestedControls: all.length - direct.length,
+    controlNested: direct.length === 0 && all.length > 0,
     controlHeight: row ? Math.round(row.getBoundingClientRect().height) : null,
     buttonHeight: button ? Math.round(button.getBoundingClientRect().height) : null,
-    wrapped: row && button
-      ? row.getBoundingClientRect().height > button.getBoundingClientRect().height * 1.6
-      : false,
+    controlLines: tops.length,
+    wrapped: tops.length > 1,
     figures: card.querySelectorAll(".coh-figure").length,
     tables: card.querySelectorAll(".coh-table").length,
     disclosures: card.querySelectorAll("details.disclosure").length,
@@ -268,7 +284,7 @@ async function main() {
         rows.push(
           `${key.padEnd(22)} ${width.padEnd(7)} ${String(view).padEnd(34)} `
           + `${String(m.scrollHeight).padStart(6)}px  segs ${m.controlRows}+${m.nestedControls}  `
-          + `${m.wrapped ? "WRAPPED" : "one row"}  `
+          + `${m.wrapped ? `WRAPPED x${m.controlLines}` : "one row"}${m.controlNested ? " (nested)" : ""}  `
           + `fig ${m.figures} tab ${m.tables} det ${m.disclosures} p ${m.paragraphs}`
           + `${m.stillReading ? "  STILL READING" : ""}`,
         );
