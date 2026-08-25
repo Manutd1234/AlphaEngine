@@ -30,12 +30,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from dataclasses import dataclass
 from typing import Any, Sequence
 
 import httpx
 
-from modules.coherence import tunables
+from modules.coherence import latency, tunables
 from modules.coherence.drivers import kalshi_auth
 from modules.coherence.scheduler.budget import ReadBudget, get_read_budget
 
@@ -219,6 +220,11 @@ class KalshiClient:
             # signer refuses rather than producing a signature that earns a 401
             # reading as a credential fault.
             headers.update(kalshi_auth.sign("GET", f"/trade-api/v2{path.split('?', 1)[0]}", host).as_dict())
+        # TIMED AROUND THE CALL ITSELF, not around the whole method: the signing
+        # above and the JSON parse below are this process's work, not the
+        # venue's, and folding them in would report our own CPU as network. A
+        # monotonic clock, because a wall clock can step backwards mid-request.
+        started = time.perf_counter()
         try:
             if self._transport is not None:
                 # AN INJECTED TRANSPORT NEVER TOUCHES THE POOL. Four suites hand
@@ -248,7 +254,17 @@ class KalshiClient:
         except httpx.HTTPError as exc:
             # Never interpolate the URL: it is the one string that can carry a
             # credential, and an exception message outlives the request.
+            #
+            # NOT TIMED. A call that failed measures this client's patience —
+            # an eight-second timeout is eight seconds of waiting, not eight
+            # seconds of venue — and feeding it to the window would push the
+            # median toward the timeout and make every opportunity look
+            # untradeable. `latency` says the same from the other side.
             raise KalshiUnavailable(f"transport failed: {type(exc).__name__}") from exc
+        # An answer arrived, whatever its status. A 429 or a 401 is the venue
+        # responding and its round trip is real; only a transport that never
+        # answered is excluded.
+        latency.record(time.perf_counter() - started)
 
         if response.status_code in (401, 403):
             raise KalshiRefused(

@@ -154,6 +154,14 @@
   stroke: var(--axis);
   stroke-width: 1;
   shape-rendering: crispEdges;
+  /* THE CLASS IS ON BOTH THE TICK AND ITS LABEL, and until 2026-08-26 it sized
+     neither. A `<line>` does not care, so the omission was invisible — but
+     `prices.tsx` and `record.tsx` also hang `<text>` on it ("YES bid 42",
+     "p₁ + p₂ = 1"), and SVG text inherits the document's 16px when no rule
+     says otherwise. Those labels were rendering half again the size of every
+     numeral beside them on a 10px ladder. The floor, like every other axis
+     numeral on the plane. */
+  font-size: var(--fs-tick);
 }
 
 /* Nested implication. No fill — containment is what is being shown, and a

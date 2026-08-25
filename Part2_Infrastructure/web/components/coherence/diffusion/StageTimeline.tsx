@@ -110,7 +110,7 @@ export default function StageTimeline({
 
         {TICKS.map((tick, index) => (
           <text key={TICK_LABEL[index]} x={x(tick * terminalMinutes)} y={HEIGHT - 8}
-                textAnchor="middle" fontSize={10} className="diff-time__ticklabel">
+                textAnchor="middle" className="diff-time__ticklabel">
             {TICK_LABEL[index]}
           </text>
         ))}

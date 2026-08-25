@@ -322,48 +322,6 @@ class CoherenceIndexSeries(BaseModel):
     measured: int = 0
     unmeasurable: int = 0
     notes: list[str] = Field(default_factory=list)
-
-
-class CoherenceEpisodeSample(BaseModel):
-    ts_ns: int
-    ci: str | None = None
-
-
-class CoherenceEpisode(BaseModel):
-    """One violation, from the poll it appeared on to the poll it stopped."""
-
-    component_id: str
-    series_ticker: str
-    event_ticker: str
-    family: str
-    exchange_index: int
-    opened_ts_ns: int
-    closed_ts_ns: int | None = None
-    lifetime_s: str | None = None
-    peak_ci: str | None = None
-    peak_net_edge_dollars: str | None = None
-    samples: list[CoherenceEpisodeSample] = Field(default_factory=list)
-
-
-class CoherenceSurvivalPoint(BaseModel):
-    t_s: str
-    surviving: str
-
-
-class CoherenceEpisodes(BaseModel):
-    """Closed episodes and the survival curve they make."""
-
-    state: str
-    episodes: list[CoherenceEpisode] = Field(default_factory=list)
-    open_episodes: int = 0
-    survival: list[CoherenceSurvivalPoint] = Field(default_factory=list)
-    median_s: str | None = None
-    median_withheld_reason: str | None = None
-    verdict: str = ""
-    round_trip_s: str = "0.240"
-    notes: list[str] = Field(default_factory=list)
-
-
 class CoherenceAblation(BaseModel):
     """What one configuration of the model found over the whole tape."""
 

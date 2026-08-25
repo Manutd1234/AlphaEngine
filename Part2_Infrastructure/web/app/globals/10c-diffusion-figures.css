@@ -66,7 +66,9 @@
   stroke: var(--border);
   stroke-width: 1;
 }
-.diff-time__ticklabel { fill: var(--text-muted); }
+/* As above: `fontSize={10}` on the element became the tick rung, which is
+   the same 10px declared where every other axis numeral declares it. */
+.diff-time__ticklabel { fill: var(--text-muted); font-size: var(--fs-tick); }
 .diff-time__band {
   fill: color-mix(in srgb, var(--surface-2) 70%, transparent);
   stroke: var(--border);
@@ -129,8 +131,15 @@
   stroke-dasharray: 3 3;
 }
 .diff-effect__bandlabel { fill: var(--text-muted); }
-.diff-effect__row { fill: var(--text-secondary); }
-.diff-effect__tick { fill: var(--text-muted); }
+/* The row label's rung, added 2026-08-26. It carried only a `fill`, and the
+   size arrived as a `fontSize` attribute on the element — a rung the sheet
+   could not see and `type-diagram-ladder` could not check. Same 13px it was
+   drawing at, read off the ladder now. `EffectPlot` still derives its label
+   gutter from `DIAGRAM_LABEL_PX`, so the two agree by construction. */
+.diff-effect__row { fill: var(--text-secondary); font-size: var(--fs-diagram-label); }
+/* A true axis numeral, so the ladder's floor. It was a bare `fontSize={10}`
+   on the element: the right VALUE and no way for the sheet to say so. */
+.diff-effect__tick { fill: var(--text-muted); font-size: var(--fs-tick); }
 .diff-effect__value { fill: var(--text-primary); font-weight: 650; }
 .diff-effect__zero {
   stroke: var(--axis);

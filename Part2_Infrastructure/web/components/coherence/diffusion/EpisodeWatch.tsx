@@ -19,10 +19,16 @@
  *
  * AND IT ASSERTED TWO THINGS THAT ARE NOT TRUE.
  *
- * `round_trip_s` is not a measurement. `modules/api/coherence_history.py:154`
- * declares it `Query(default="0.240")` and `lib/coherence/routes.ts` never
- * passes it, so the desk was drawing the server echoing its own default back,
- * labelled as though something had timed it. It is named an ASSUMPTION here.
+ * `round_trip_s` was not a measurement. The route declared it
+ * `Query(default="0.240")` and `lib/coherence/routes.ts` never passed it, so
+ * the desk drew the server echoing its own default back, labelled as though
+ * something had timed it. It was named an ASSUMPTION here, and on 2026-08-26
+ * the gateway started timing its own reads — so the payload now says WHICH it
+ * carries and the figure follows `round_trip_source` rather than assuming.
+ *
+ * A MEASURED READ IS STILL A LOWER BOUND ON AN ORDER, which is why the word
+ * even in the measured case names the reads it came from. An order carries a
+ * signature, is written rather than read, and queues behind a matching engine.
  *
  * The recordable floor is two polls, not one. `episodes.py:37` sets
  * `POLLS_TO_CLOSE = 2` and `closed_ts_ns` is the SECOND coherent poll's

@@ -96,7 +96,6 @@ export default function EffectPlot({ findings }: { findings: Finding[] }) {
                 x={x(tick)}
                 y={base + 14}
                 textAnchor="middle"
-                fontSize={10}
               >
                 {tick > 0 ? `+${tick}` : tick}
               </text>
@@ -122,7 +121,7 @@ export default function EffectPlot({ findings }: { findings: Finding[] }) {
               return (
                 <g key={`${row.name}-${row.stage}`}>
                   <text className="diff-effect__row" x={gutter - 12} y={cy + 3.5}
-                        textAnchor="end" fontSize={LABEL_SIZE}>
+                        textAnchor="end">
                     <title>{`${label(row)} — ${row.question}`}</title>
                     {/* Middle-elided, not tail-truncated: a relationship name
                         is distinguished by its tail — the stage in brackets —

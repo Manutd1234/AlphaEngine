@@ -184,7 +184,22 @@ export default function KalshiArm({ data, error, view, status, index }: {
             value={data.median_s ? `${data.median_s}s` : "withheld"}
             tone={data.median_s ? "good" : "muted"}
           />
-          <StateChip mark="→" word="Round trip assumed" value={`${data.round_trip_s}s`} tone="muted" />
+          {/* MEASURED OR ASSUMED, said in the chip's own word rather than left
+              to the reader. It was hard-coded to "assumed" because it always
+              was one: the gateway echoed a query parameter's default back and
+              nothing had timed it. The gateway measures its own read round trip
+              now, so the chip reports which of the two this payload carries —
+              and a measured READ is a lower bound on an ORDER, which is why
+              even the measured word is not "round trip measured" but names the
+              read it came from. */}
+          <StateChip
+            mark="→"
+            word={data.round_trip_source === "measured" ? "Round trip, timed reads" : "Round trip assumed"}
+            value={data.round_trip_source === "measured"
+              ? `${data.round_trip_s}s over ${data.round_trip_samples ?? 0} reads`
+              : `${data.round_trip_s}s`}
+            tone="muted"
+          />
         </div>
 
         <SurvivalChart data={data} />

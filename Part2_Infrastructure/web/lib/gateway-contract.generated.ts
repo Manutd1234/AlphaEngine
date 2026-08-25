@@ -313,6 +313,8 @@ export interface CoherenceEpisodes {
   notes?: Array<string>;
   open_episodes?: number;
   round_trip_s?: string;
+  round_trip_samples?: number;
+  round_trip_source?: string;
   state: string;
   survival?: Array<CoherenceSurvivalPoint>;
   verdict?: string;

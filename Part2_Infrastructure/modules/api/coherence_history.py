@@ -20,7 +20,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query
 
 from modules.api.deps import trader_identity
-from modules.coherence import tunables
+from modules.coherence import latency, tunables
 from modules.coherence.episodes import Episode, survival, verdict_for
 from modules.coherence.fs import calibration_store
 from modules.coherence.fs.quotes_history import book_history, recorded_tickers
@@ -151,7 +151,10 @@ async def coherence_calibration_history(
 async def coherence_episodes(
     series: str | None = Query(default=None, description="One series ticker, or every one recorded"),
     limit: int = Query(default=500, ge=1, le=5000),
-    round_trip_s: str = Query(default="0.240", description="Your measured round trip, for the verdict"),
+    round_trip_s: str | None = Query(
+        default=None,
+        description="Override the round trip used for the verdict; omit to use this deployment's measured median",
+    ),
     _actor: str = Depends(trader_identity),
 ) -> CoherenceEpisodes:
     """Violation episodes and the survival curve they make.
@@ -160,6 +163,28 @@ async def coherence_episodes(
     sample: each episode is an information arrival with an absorption time
     attached. If the median lifetime is under the round trip, the opportunity
     was never available.
+
+    THE ROUND TRIP IS MEASURED NOW, and until 2026-08-26 it was not. It was a
+    query parameter defaulting to "0.240" that nothing on the desk ever passed,
+    so the gate above was decided by the gateway echoing its own default and the
+    figure drew it as a timing. `latency` holds the median of the reads this
+    deployment has actually made, and `round_trip_source` says which of the two
+    the payload carries.
+
+    WHAT IS MEASURED IS A READ, NOT AN ORDER. An order carries a signature, is
+    written rather than read, and queues behind a matching engine, so it is at
+    least as slow. The measured read is a LOWER BOUND, and a verdict computed
+    from it is optimistic — it calls an opportunity tradeable slightly more
+    often than a real order path would. Every surface drawing it has to say so.
+
+    THE OTHER LIMIT ON THIS PAYLOAD, recorded here because a reader meets the
+    verdict before they meet the recorder: an episode closes on the SECOND
+    coherent poll (``episodes.POLLS_TO_CLOSE`` is 2), and ``closed_ts_ns`` is
+    that second poll's stamp. So the shortest violation this tape can hold is
+    two poll intervals — about ten minutes at a 300-second cadence — and every
+    survival curve drawn from it is blind below that. It is not that short
+    violations are rare here; it is that they cannot be recorded at all, which
+    is a different claim and the one the figure has to make.
     """
     try:
         rows = get_store().episodes(series_ticker=series, limit=limit)
@@ -168,10 +193,29 @@ async def coherence_episodes(
 
     episodes = [_episode_from(row) for row in rows]
     curve = survival([_tracked_from(row) for row in rows])
-    try:
-        round_trip = Decimal(round_trip_s)
-    except (ArithmeticError, ValueError):
-        round_trip = Decimal("0.240")
+
+    # THE MEASUREMENT FIRST, AND THE PARAMETER ONLY AS AN OVERRIDE. This
+    # argument used to default to "0.240", nothing on the desk ever passed it,
+    # and the payload reported the gateway echoing its own default back as
+    # though something had timed it — while `verdict_for` decided the engine's
+    # honest gate against it. `latency` holds the median of the read round
+    # trips this deployment has actually made.
+    #
+    # A read is a LOWER BOUND on an order, so a verdict from it is optimistic.
+    # That is why `round_trip_source` travels with the number: a surface may
+    # not present a measured read as the cost of trading, and it cannot know
+    # which it has without being told.
+    measured = latency.median_s()
+    samples = latency.count()
+    if round_trip_s is not None:
+        try:
+            round_trip, source = Decimal(round_trip_s), "assumed"
+        except (ArithmeticError, ValueError):
+            round_trip, source = (measured, "measured") if measured else (Decimal("0.240"), "assumed")
+    elif measured is not None:
+        round_trip, source = measured, "measured"
+    else:
+        round_trip, source = Decimal("0.240"), "assumed"
 
     return CoherenceEpisodes(
         state="ok" if episodes else "empty",
@@ -182,6 +226,8 @@ async def coherence_episodes(
         median_withheld_reason=curve.reason,
         verdict=verdict_for(curve, round_trip),
         round_trip_s=str(round_trip),
+        round_trip_source=source,
+        round_trip_samples=samples if source == "measured" else 0,
         notes=[] if episodes else ["no violation has opened and closed yet; the recorder tracks them per poll"],
     )
 

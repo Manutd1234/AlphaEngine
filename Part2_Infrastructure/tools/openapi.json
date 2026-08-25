@@ -1967,6 +1967,16 @@
             "title": "Round Trip S",
             "type": "string"
           },
+          "round_trip_samples": {
+            "default": 0,
+            "title": "Round Trip Samples",
+            "type": "integer"
+          },
+          "round_trip_source": {
+            "default": "assumed",
+            "title": "Round Trip Source",
+            "type": "string"
+          },
           "state": {
             "title": "State",
             "type": "string"
@@ -11040,7 +11050,7 @@
     },
     "/api/coherence/episodes": {
       "get": {
-        "description": "Violation episodes and the survival curve they make.\n\nThe honest gate on this whole engine, and the diffusion module's event\nsample: each episode is an information arrival with an absorption time\nattached. If the median lifetime is under the round trip, the opportunity\nwas never available.",
+        "description": "Violation episodes and the survival curve they make.\n\nThe honest gate on this whole engine, and the diffusion module's event\nsample: each episode is an information arrival with an absorption time\nattached. If the median lifetime is under the round trip, the opportunity\nwas never available.\n\nTHE ROUND TRIP IS MEASURED NOW, and until 2026-08-26 it was not. It was a\nquery parameter defaulting to \"0.240\" that nothing on the desk ever passed,\nso the gate above was decided by the gateway echoing its own default and the\nfigure drew it as a timing. `latency` holds the median of the reads this\ndeployment has actually made, and `round_trip_source` says which of the two\nthe payload carries.\n\nWHAT IS MEASURED IS A READ, NOT AN ORDER. An order carries a signature, is\nwritten rather than read, and queues behind a matching engine, so it is at\nleast as slow. The measured read is a LOWER BOUND, and a verdict computed\nfrom it is optimistic \u2014 it calls an opportunity tradeable slightly more\noften than a real order path would. Every surface drawing it has to say so.",
         "operationId": "coherence_episodes_api_coherence_episodes_get",
         "parameters": [
           {
@@ -11074,15 +11084,21 @@
             }
           },
           {
-            "description": "Your measured round trip, for the verdict",
+            "description": "Override the round trip used for the verdict; omit to use this deployment's measured median",
             "in": "query",
             "name": "round_trip_s",
             "required": false,
             "schema": {
-              "default": "0.240",
-              "description": "Your measured round trip, for the verdict",
-              "title": "Round Trip S",
-              "type": "string"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Override the round trip used for the verdict; omit to use this deployment's measured median",
+              "title": "Round Trip S"
             }
           },
           {

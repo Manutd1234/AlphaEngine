@@ -296,6 +296,19 @@ export interface CoherenceEpisodes {
   median_withheld_reason: string | null;
   verdict: string;
   round_trip_s: string;
+  /**
+   * Where that figure came from. `"measured"` is the median read round trip
+   * this deployment has actually timed; `"assumed"` is a caller's parameter or
+   * the gateway's default, which nothing timed.
+   *
+   * A MEASURED READ IS A LOWER BOUND ON AN ORDER — an order carries a
+   * signature, is written rather than read, and queues behind a matching
+   * engine — so a verdict computed from it is OPTIMISTIC, and any surface
+   * drawing it has to say which it has.
+   */
+  round_trip_source?: string;
+  /** How many reads the median was taken over. Zero when nothing was timed. */
+  round_trip_samples?: number;
   notes: string[];
 }
 

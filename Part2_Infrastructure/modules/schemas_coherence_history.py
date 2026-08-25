@@ -101,3 +101,73 @@ class CoherenceFeeCurve(BaseModel):
     balance_precision: str
     points: list[CoherenceFeeCurvePoint] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
+
+
+# --------------------------------------------------------------------------- #
+# Violation episodes
+#
+# MOVED HERE FROM `schemas_coherence.py` on 2026-08-26, when that module crossed
+# the 400-line ceiling and the house rule is to split rather than shave prose.
+# The seam was already drawn: this module is the shapes read back off the
+# recorder's own tables, and `violation_episodes` is one of them. An episode is
+# the recorder noticing a family stop admitting a probability and noticing it
+# start again — a series, not a reading of now.
+#
+# `round_trip_source` on the collection is the reason that file grew: the
+# verdict these episodes carry used to be decided against a query parameter's
+# default that nothing ever passed, and the payload now says whether the figure
+# it was decided against was measured.
+# --------------------------------------------------------------------------- #
+
+
+class CoherenceEpisodeSample(BaseModel):
+    ts_ns: int
+    ci: str | None = None
+
+
+class CoherenceEpisode(BaseModel):
+    """One violation, from the poll it appeared on to the poll it stopped."""
+
+    component_id: str
+    series_ticker: str
+    event_ticker: str
+    family: str
+    exchange_index: int
+    opened_ts_ns: int
+    closed_ts_ns: int | None = None
+    lifetime_s: str | None = None
+    peak_ci: str | None = None
+    peak_net_edge_dollars: str | None = None
+    samples: list[CoherenceEpisodeSample] = Field(default_factory=list)
+
+
+class CoherenceSurvivalPoint(BaseModel):
+    t_s: str
+    surviving: str
+
+
+class CoherenceEpisodes(BaseModel):
+    """Closed episodes and the survival curve they make."""
+
+    state: str
+    episodes: list[CoherenceEpisode] = Field(default_factory=list)
+    open_episodes: int = 0
+    survival: list[CoherenceSurvivalPoint] = Field(default_factory=list)
+    median_s: str | None = None
+    median_withheld_reason: str | None = None
+    verdict: str = ""
+    round_trip_s: str = "0.240"
+    #: Where that figure came from. "measured" is the median read round trip
+    #: this deployment has actually timed; "assumed" is the caller's parameter
+    #: or its default, which nothing timed.
+    #:
+    #: A MEASURED READ IS A LOWER BOUND ON AN ORDER. An order carries a
+    #: signature, is written rather than read, and queues behind a matching
+    #: engine, so it is at least as slow. A verdict computed from the read is
+    #: therefore OPTIMISTIC — it calls an opportunity tradeable slightly more
+    #: often than an order path would — and every surface that draws it has to
+    #: say so rather than presenting it as the cost of trading.
+    round_trip_source: str = "assumed"
+    #: How many reads the median was taken over. Zero when nothing was timed.
+    round_trip_samples: int = 0
+    notes: list[str] = Field(default_factory=list)
