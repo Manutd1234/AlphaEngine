@@ -402,3 +402,68 @@ Measured three runs each: 520/538/525ms through the proxy, against 4/5/7ms for
 `coherence/episodes` on the same proxy with the same auth. The proxy adds ~3ms,
 so the time is the gateway's own. It polls every 20s on the episodes section and
 is a shared `coherence/*` route.
+
+## Slice 2 — uniformity, 2026-08-25
+
+The type ladder was inverted in four places, each traced with
+`CSS.getMatchedStylesForNode` so the winner is measured rather than reasoned:
+
+    slot                         before   after
+    figure caption (the TITLE)     14       14
+    figure reading (the gloss)     17       14
+    figure missing (footnote)      13       13
+    .diff-bars__head               14       14
+    .diff-bars__foot               17       13
+    instrument ladder row       12.75       13
+    instrument ladder grouphead 12.75    12.75
+    sandbox slider label           17       13
+    folded table  th / td       13 / 13   12.75 / 13
+
+One rule now holds across the tab: **12.75 labels a column, 13 is a body cell or
+a footnote, 14 is a caption or a reading.**
+
+**Why the reading came down rather than the footnote going up.** The question
+was which way "uniform" should cut, since the caption/reading inversion is
+desk-wide — Proofs and Markets measure 14/17 on every figure too. `10i:77-87`
+settled it: the 13px footnote rung on this tab exists because of three separate
+reports of that footnote reading "out of place" at the reading rung. Raising it
+back would have undone a change that was asked for. So the cut is within the
+figure — caption and reading are one voice about one drawing, already separated
+by weight and colour, and the footnote sits a rung below both. The desk-wide
+inversion is a proposal to the partial's owner, not a fork made here.
+
+**Two classes were rendered with no rule reaching them, both found by asking
+the browser rather than by reading source.**
+
+`.diff-fit__value` had one declaration, `text-align: left`, inside a max-width
+query — undoing an alignment nothing had set. Measured `start` at every width.
+
+The sandbox slider labels rendered at **17px primary-colour prose**, louder than
+the caption on the same card. `00:1434` styles `label.field`; the three
+instruments render `<label><span class="field">…</span><input type="range">`.
+The label wraps the control, which is the right markup, and the span carries the
+words — so the element with the words is a `span.field`, the rule is written for
+`label.field`, and nothing reached it. They inherit `body`'s `--fs-title`. Now
+the same 13px caps every other field label on the desk uses.
+
+**The arm's chips blinked in and out.** They rendered inside the Absorption
+branch only, so switching to Control or Clocks removed them and switching back
+restored them — a row of facts appearing and disappearing from a card that had
+not changed. Neither chip is about that view: the ratio is the two stages'
+median half-lives over the whole study, and the terminal window is a constant of
+both. Hoisted; all three views now carry both.
+
+**What is left, and it is one thing.** The findings table's cells read 15px
+while the two folded tables read 13px. That is the fold/open distinction, not a
+cascade fault — the disclosure body rung is a house contract
+(`type-role-disclosure`: summary 14, body 13, exactly one rung apart), and a
+table inside a fold reading 13 is that contract working. It resolves when the
+findings table folds in the declutter slice, at which point every table on the
+tab reads 12.75 / 13.
+
+17px now renders nowhere visible on the tab except the "What breaks it" clauses
+on the two formula catalogues, which the declutter slice folds.
+
+**Height, net of both slices:** 12,038px to 12,289px across the 15 views. The
+arm's Control view is the one that moved down (804 to 775) as its two readings
+came off the title rung.

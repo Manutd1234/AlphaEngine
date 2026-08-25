@@ -30,10 +30,19 @@
 .coherence-plane.diffusion-plane details.disclosure .coh-lesson__summary,
 .coherence-plane.diffusion-plane details.disclosure .coh-lesson__bounds dd,
 .coherence-plane.diffusion-plane details.disclosure .coh-lesson__bounds dt,
-.coherence-plane.diffusion-plane details.disclosure .coh-table th,
-.coherence-plane.diffusion-plane details.disclosure .coh-table td {
+.coherence-plane.diffusion-plane details.disclosure .coh-table td,
+.coherence-plane.diffusion-plane details.disclosure .coh-table th[scope="row"] {
   font-size: var(--fs-sm);
 }
+
+/* CELLS ONLY, and `thead th` is left out on purpose. Naming the bare `th` here
+   sized COLUMN headers and body cells onto one rung, which made the folded
+   tables the only ones on the desk whose headers do not sit a rung under the
+   cells they label. Unnamed, a column header falls to the desk-wide `th` rule
+   at `00:1688` and lands on `--fs-xs`, which is the pairing every other table
+   has. `th[scope="row"]` has to be said in its own right: a row header IS a
+   body cell, and `tbody th[scope="row"]` at `00:1719` would otherwise hold it
+   at `--fs-lg`, two rungs above the row it opens. */
 
 /* ── The figure on a formula card ─────────────────────────────────────────
    A fixed 260x84 drawing between the expression and the boundary clause. It
@@ -143,6 +152,9 @@
 .diff-fit__ladder { display: grid; gap: var(--space-3); min-width: 0; }
 .diff-fit__group { display: grid; gap: 2px; min-width: 0; }
 
+/* Stays at `--fs-xs` while the rows moved to `--fs-sm`: this labels the rows
+   beneath it, so it is a column header and belongs one rung under them —
+   the same relationship `thead th` has to its cells. */
 .diff-fit__grouphead {
   margin: 0 0 2px;
   font-size: var(--fs-xs);
@@ -155,13 +167,18 @@
 /* Four columns: the requirement, the measurement, the track, the margin. The
    first three are bounded so the margin sentence gets whatever is left, which
    is the column that reads as prose and therefore wants the width. */
+/* `--fs-sm`, the body-cell rung, not `--fs-xs`. This family was the smallest
+   prose on the tab — under the table cells, the captions and the reading — and
+   it is the same KIND of thing as a table row. Deliberately not lifted to
+   `--fs-body`: "The clock is predictable at all" is 31 characters against a
+   13rem first column, and at 14px it wraps every row to two lines. */
 .diff-fit__row {
   display: grid;
   grid-template-columns: minmax(8rem, 13rem) minmax(4.5rem, 7rem) minmax(5rem, 1fr) minmax(9rem, 24rem);
   align-items: center;
   gap: var(--space-2);
   padding: 3px 0;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   min-width: 0;
 }
 
@@ -218,7 +235,7 @@
   grid-template-columns: minmax(8rem, 14rem) 1fr;
   gap: 3px var(--space-3);
   margin: 0;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
 }
 .diff-fit__why dt { font-weight: 600; }
 .diff-fit__why dd { margin: 0; color: var(--text-secondary); }

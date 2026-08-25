@@ -65,6 +65,26 @@ export default function InformationDiffusionPane({ view, read, error }: {
   const notice = absorptionNotice(read, error);
   if (!absorptionReady(read)) return notice;
 
+  // ONE CHIP ROW FOR ALL THREE VIEWS, hoisted 2026-08-25. It used to render
+  // inside the Absorption branch only, so switching to Control or Clocks made
+  // it disappear and switching back made it reappear — a row of facts blinking
+  // in and out of a card that had not changed. Neither chip is about the
+  // absorption VIEW: the ratio is the two stages' median half-lives over the
+  // whole study, and the terminal window is a constant of both stages. So they
+  // belong to the arm, and the arm is what they sit on now.
+  //
+  // Two chips, not four. "Stages measured" and "Below the floor" were the
+  // column sums of the two attrition bars in the Control view, so the summary
+  // and the drawing were saying one number twice.
+  const gap = ratio(read);
+  const chips = (
+    <div className="coh-status__chips">
+      <StateChip mark={gap ? "→" : "◌"} word="Conference slower by"
+                 value={gap ?? "not yet"} tone={gap ? "warn" : "muted"} />
+      <StateChip mark="✓" word="Terminal" value={`${STAGE_TERMINAL_MIN} min, both stages`} tone="muted" />
+    </div>
+  );
+
   // EACH VIEW DERIVES WHAT IT DRAWS AND NOTHING ELSE. These five used to be
   // computed together above the branches, so Control and Clocks both paid for
   // an absorption band neither renders — and that band is the most expensive
@@ -80,6 +100,7 @@ export default function InformationDiffusionPane({ view, read, error }: {
 
     return (
       <div className="diff-pane">
+        {chips}
         <Figure
           caption="Stages that cleared the noise floor, and where they sat against windows with no news"
           ariaLabel={`Two bars for each of ${read.stages.length} stages: measured against refused, and the median percentile against matched no-news windows`}
@@ -101,6 +122,7 @@ export default function InformationDiffusionPane({ view, read, error }: {
   if (view === "clocks") {
     return (
       <div className="diff-pane">
+        {chips}
         {/* The control the tab argued in prose only: a stage measured on a clock
             built from OTHER windows, ranked against itself on the wall clock.
             Same read, no new field — `half_life_vol` has been on the wire since
@@ -113,18 +135,10 @@ export default function InformationDiffusionPane({ view, read, error }: {
   const measured = read.stages.reduce((total, stage) => total + stage.measured, 0);
   const measuredOn = (curve: (number | null)[]) => curve.filter((value) => value != null).length;
   const coverage = bandCoverage(absorptionBand(read.runs, "release", read.horizons));
-  const gap = ratio(read);
 
   return (
     <div className="diff-pane">
-      {/* Two chips, not four. "Stages measured" and "Below the floor" were the
-          column sums of the two attrition bars (the Noise floor view), so the
-          summary and the drawing were saying one number twice. */}
-      <div className="coh-status__chips">
-        <StateChip mark={gap ? "→" : "◌"} word="Conference slower by"
-                   value={gap ?? "not yet"} tone={gap ? "warn" : "muted"} />
-        <StateChip mark="✓" word="Terminal" value={`${STAGE_TERMINAL_MIN} min, both stages`} tone="muted" />
-      </div>
+      {chips}
 
       <Figure
         caption="How much of each stage's move had arrived by each horizon"

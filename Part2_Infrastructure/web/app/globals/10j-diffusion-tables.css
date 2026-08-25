@@ -104,3 +104,69 @@
   flex: 1 1 auto;
   flex-wrap: wrap;
 }
+
+/* ── The figure's two prose slots, one voice ─────────────────────────────── */
+
+/* `14q` sorts the READING into "prose a reader READS" at `--fs-title` and the
+   CAPTION into "furniture" a rung under it at `--fs-body`. On a figure the
+   caption IS the title, so the result is a 14px heading over a drawing with a
+   17px paragraph under it — measured, the largest text in eight of Diffusion's
+   fifteen views is the gloss beneath the picture it glosses.
+
+   Same rung as the caption, not under it: the two are one voice about one
+   drawing — what it shows, and what it says — already separated by weight and
+   colour. `.coh-figure__missing` stays a rung below at `--fs-sm`, which it has
+   been on this tab since three separate reports of that footnote reading "out
+   of place" at the reading rung; it is now a deliberate step in a ladder rather
+   than a lone divergence.
+
+   DIFFUSION-SCOPED, and that is a compromise rather than a preference. The same
+   inversion measures on Proofs and Markets — caption 14, reading 17, on every
+   figure of both — and the rule that causes it is one plane-wide pass another
+   session maintains. Raising it there is the right fix; this is the half that
+   can be made without editing a file two other tabs depend on. If that pass's
+   owner agrees, DELETE this block rather than keeping it beside a changed 14q.
+
+   (0,3,0) — two classes plus `:is()`'s most specific argument — against
+   `14q:122`'s (0,2,0). Wins on specificity, so 10j sorting first does not
+   matter. `.coh-figure__empty` joins it because it stands in PLACE of the
+   drawing, and an absence should not be the loudest thing in the box. */
+.coherence-plane.diffusion-plane :is(.coh-figure__reading, .coh-figure__empty) {
+  font-size: var(--fs-body);
+}
+
+/* The same inversion one view over. `.diff-bars__head` labels a track and reads
+   `--fs-body`; `.diff-bars__foot` carries the micro-copy UNDER it and reads
+   `--fs-title` — `14q` sorted the foot into prose and the head into furniture.
+   `10c:123` and `10c:158` had them at 13 and 12.75, one rung apart the right
+   way round. Both classes render only on Diffusion, so the clean fix is to drop
+   the foot from 14q's plane-wide list rather than override it here — proposed
+   to that file's owner; this holds the line until they answer. */
+.coherence-plane.diffusion-plane .diff-bars__foot {
+  font-size: var(--fs-sm);
+}
+
+/* ── The sandbox slider labels ───────────────────────────────────────────── */
+
+/* `00:1434` styles `label.field` — a LABEL that is itself the field caption.
+   The three sandbox instruments render `<label><span class="field">…</span>
+   <input type="range"></label>`: the label wraps the control, which is the
+   right markup, and the span carries the words. So the element carrying the
+   words is a `span.field`, the rule is written for `label.field`, and nothing
+   reached it — the labels inherited `body`'s `--fs-title` and rendered as 17px
+   primary-colour prose, the loudest text in all three sandbox views.
+
+   Measured: six of them at 17px against a 14px caption on the same card. The
+   same treatment as every other field label on the desk, so a slider says what
+   it is in the voice a control label uses. `.coh-model__controls` is Diffusion's
+   own (it moved to this plane with the model figures on 2026-08-25), so this
+   reaches the three sandbox instruments and nothing else. */
+.coherence-plane.diffusion-plane .coh-model__controls .field {
+  display: block;
+  font-size: var(--fs-sm);
+  text-transform: uppercase;
+  letter-spacing: var(--ls-caps);
+  color: var(--text-muted);
+  margin-bottom: 5px;
+  font-weight: 600;
+}
