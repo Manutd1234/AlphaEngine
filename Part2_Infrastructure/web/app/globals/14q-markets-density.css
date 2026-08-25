@@ -149,7 +149,6 @@
   .coh-combo__caveat,
   .coh-combo__note,
   .coh-combo__because,
-  .diff-bars__foot
 ) {
   font-size: var(--fs-title);
 }
@@ -173,11 +172,6 @@
      same way the tile's label does, and putting it a rung higher would
      make the qualification louder than the number. */
   .coh-kpi__note,
-  /* The poll countdown and its two buttons, 2026-08-25. Furniture in the
-     strictest sense: it names the state of a read rather than any
-     reading, and it sits beside `.freshness-stamp`, which is a rung
-     lower still. */
-  .coh-live__state,
   .coh-family > span.muted,
   .coh-lesson__state,
   .coh-lesson__formula,
@@ -189,7 +183,6 @@
   .coh-combo__formula,
   .coh-combo__side,
   .coh-proof,
-  .diff-bars__head,
   .disclosure > summary,
   /* MOVED HERE 2026-08-25 from a --fs-title block of their own, which is how
      one text type came to have THREE sizes on one plane: these two at 17px,

@@ -37,12 +37,32 @@
 }
 
 .coherence-plane .page-heading__actions {
-  align-items: flex-start;
+  /* CENTRE, not flex-start. This slot holds three declared rows of pills whose
+     heights differ — a chip is shorter than the stamp, and the poll controls
+     hold buttons taller than both — so a cross-axis start hangs every short
+     pill off the top of its line. It read as flex-start while the slot held one
+     tall column and one thing; it does not now. */
+  align-items: center;
   /* Right even when it wraps. `justify-content: space-between` on the head
      only separates items that share a line — once the panel wraps to its own,
      at about 1200px, it is the only item there and lands left. Measured: its
      right edge was 865px inside a head whose own right edge was 1180. */
   margin-left: auto;
+  /* THE ROWS WRAP AND START LEFT, 2026-08-25, which is the reader's "align
+     everything". Declared HERE rather than in a second rule of the same
+     selector in `14w`: two rules for one selector in two partials is the
+     duplicate this sheet has been bitten by before, and a `.includes()` lookup
+     in the guards finds whichever comes first. `14w` owns the three-row split
+     and the `display: contents` that makes it possible; the slot's own flex
+     behaviour belongs to the slot's own rule, and this is it.
+
+     Left rather than right is the alignment itself: the pills now begin on the
+     same vertical as "Recorded so far" in the table below, instead of ending on
+     the same vertical as its right edge. A right-aligned row of variable-width
+     pills shares no edge with anything — every row starts somewhere different. */
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  row-gap: var(--space-2);
   /* A ROW OF ITS OWN, always, and the arithmetic is what decides it. The four
      chips and the freshness stamp come to about 1,346px together, and the head
      is 1,526px wide at a 1600 viewport with the copy column asking 380px at its

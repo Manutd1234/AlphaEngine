@@ -130,7 +130,21 @@ describe("the read-state sits in the head, once", () => {
 });
 
 describe("a ticking clock cannot reflow the heading row", () => {
-  const rules = cssRules(globalsCss, locateInGlobals);
+  // COMMENT BODIES BLANKED BEFORE PARSING, and this is a trap rather than a
+  // preference. `cssRules` takes everything between the previous `}` and the
+  // `{` as the selector — comments included — so a rule preceded by a comment
+  // that happens to MENTION another selector is found by a `.includes()` search
+  // for it. That is not hypothetical: the head's own rules carry comments
+  // naming the stamp pin and the actions slot, and both lookups below silently
+  // matched the wrong rule and asserted against its body.
+  //
+  // Blanked to spaces rather than removed, newlines kept, so every index still
+  // maps to the same file and line and `locateInGlobals` keeps telling the
+  // truth about where a rule lives.
+  const rules = cssRules(
+    globalsCss.replace(/\/\*[\s\S]*?\*\//g, (block) => block.replace(/[^\n]/g, " ")),
+    locateInGlobals,
+  );
 
   const reservation = rules.find((rule) =>
     rule.selector.includes(".page-heading__actions .coh-headchips"));
@@ -157,12 +171,41 @@ describe("a ticking clock cannot reflow the heading row", () => {
       "a ch reservation steps with the reader's Text-size preference; px does not");
   });
 
-  it("and the row it sits in collapses rather than overflowing", () => {
-    assert.ok(reservation, "the chips row declares no rule at all");
-    assert.match(reservation.body, /max-width:\s*100%/,
-      "without this the row overflows the moment the head goes to one column");
-    assert.doesNotMatch(reservation.body, /width:\s*\d+ch/,
-      "a fixed width on the COLUMN is what forced the chips to stack; the clock carries the reservation now");
+  it("and the rows it sits in wrap rather than overflowing", () => {
+    // THE WRAPPERS ARE NOT BOXES ANY MORE. `PageHead` renders its own status
+    // pill as a sibling of `actions`, so the chips can only share a line with
+    // it if the wrappers between them are `display: contents` — and a box that
+    // does not exist cannot carry a `max-width`. The constraint moved to the
+    // things that are now the flex items: each declared row wraps inside
+    // itself, and the slot holding them wraps too.
+    assert.ok(reservation, "the chips wrapper declares no rule at all");
+    assert.match(reservation.body, /display:\s*contents/,
+      "the wrapper is a box again, so the status pill cannot share a line with the chips");
+    // EXACTLY ONE rule for the slot, and that is half the assertion. Two rules
+    // for one selector in two partials is how this sheet has drifted before,
+    // and a `.includes()` lookup silently reads whichever comes first — which
+    // is what sent this very check to the wrong rule while the declarations
+    // were split across 14v and 14w.
+    const slots = rules.filter((rule) =>
+      rule.selector.trim() === ".coherence-plane .page-heading__actions");
+    assert.equal(slots.length, 1,
+      "the actions slot is declared more than once; merge them, or a later partial wins in silence");
+    const slot = slots[0];
+    assert.match(slot.body, /flex-wrap:\s*wrap/,
+      "without this the declared rows run out of the card instead of taking a line");
+    // DESCENDANT, not `>`. `display: contents` removes the wrappers' boxes but
+    // reparents nothing, and a child combinator matches the DOM tree — so a `>`
+    // here matches nothing at all and the rows wrap by luck. Asserted by shape
+    // so the combinator cannot creep back.
+    const row = rules.find((rule) =>
+      rule.selector.includes(".page-heading__actions .coh-status__chips"));
+    assert.ok(row, "the chip rows declare no rule");
+    assert.match(row.body, /flex-wrap:\s*wrap/,
+      "a row that cannot wrap inside itself pushes past the card at a narrow width");
+    const breaks = rules.find((rule) => rule.selector.includes(".coh-headchips__desk"));
+    assert.ok(breaks, "nothing forces the recorder row onto its own line");
+    assert.doesNotMatch(breaks.selector, /page-heading__actions\s*>/,
+      "a child combinator under `display: contents` matches nothing — the rows then wrap by luck");
   });
 
   it("the panel wraps rather than clipping", () => {

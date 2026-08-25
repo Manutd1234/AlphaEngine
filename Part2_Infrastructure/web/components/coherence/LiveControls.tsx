@@ -29,6 +29,17 @@
  * overdue, ◌ nothing yet — so the control reads the same in Windows High
  * Contrast and to a reader who cannot separate red from green.
  *
+ * THE STATE IS A `StateChip`, NOT A THIRD GRAMMAR. It was a bare span with a
+ * `min-width` in ch, sitting under a row of pills and matching none of them —
+ * the reader's "revamp the alignment and formatting". A pill of read-state
+ * beside four pills of read-state IS the same object, so it borrows the same
+ * component rather than approximating it: the mark, the word and the tone come
+ * out identical because they are the same code, and the row above cannot drift
+ * away from it in a later pass. The reservation that kept the buttons from
+ * shuffling every second goes with the span — a chip's own width is set by its
+ * WORD, and the varying part ("in 12s") moved into the chip's `value` slot,
+ * which is `nowrap` and ellipses rather than pushing.
+ *
  * WHY PAUSE IS NOT A COSMETIC FREEZE. It gates `active`, which every section
  * on the tab already takes and passes to `useCoherenceRead`, which passes it to
  * `usePolling` as `enabled`. A paused tab therefore stops asking Kalshi
@@ -38,6 +49,8 @@
  */
 
 import { useEffect, useState } from "react";
+
+import { StateChip } from "./Figure";
 
 export interface LiveControlsProps {
   /** When the newest answer landed, or null before the first one. */
@@ -70,24 +83,27 @@ export default function LiveControls({ updatedAt, pollMs, paused, onPause, onRea
   const overdue = remaining != null && remaining < -pollMs * 0.5;
 
   const state = paused
-    ? { mark: "○", words: "Polling paused" }
+    ? { mark: "○", word: "Polling paused", value: null, tone: "muted" as const }
     : remaining == null
-      ? { mark: "◌", words: "Awaiting the first read" }
+      ? { mark: "◌", word: "Awaiting the first read", value: null, tone: "muted" as const }
       : overdue
-        ? { mark: "▲", words: "Read overdue" }
+        ? { mark: "▲", word: "Read overdue", value: null, tone: "warn" as const }
         : remaining <= 0
-          ? { mark: "●", words: "Reading now" }
-          : { mark: "●", words: `Next read in ${Math.ceil(remaining / 1000)}s` };
+          ? { mark: "●", word: "Reading", value: "now", tone: "good" as const }
+          : { mark: "●", word: "Next read", value: `in ${Math.ceil(remaining / 1000)}s`, tone: "good" as const };
 
   return (
     <div className="coh-live" role="group" aria-label="Polling">
-      <span className="coh-live__state">
-        <span aria-hidden="true">{state.mark}</span> {state.words}
-      </span>
-      <button type="button" onClick={onReadNow}>Read now</button>
-      <button type="button" aria-pressed={paused} onClick={() => onPause(!paused)}>
-        {paused ? "Resume" : "Pause"}
-      </button>
+      <StateChip mark={state.mark} word={state.word} value={state.value} tone={state.tone} />
+      {/* The two controls, as one segmented pair rather than two loose buttons.
+          They are the same KIND of thing — both change what the poll does next —
+          and the desk's own vocabulary for that is a group, not a scatter. */}
+      <div className="coh-live__controls">
+        <button type="button" onClick={onReadNow}>Read now</button>
+        <button type="button" aria-pressed={paused} onClick={() => onPause(!paused)}>
+          {paused ? "Resume" : "Pause"}
+        </button>
+      </div>
     </div>
   );
 }

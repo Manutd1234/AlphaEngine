@@ -39,47 +39,68 @@
   border-bottom: 1px solid var(--grid);
 }
 
-/* ONE LINE: the four chips and the clock, since 2026-08-25.
+/* THREE ROWS, LEFT-ALIGNED, and the reader chose the split: "Reading the
+   exchange, Exchange reachable, Fixed-point schema — put above the recorder
+   row, then align everything", and "revamp the next read, pause and read now
+   buttons and alignment and formatting".
 
-   It was a 34ch column, so the chips wrapped one per line and the stamp sat
-   under them — five stacked rows in a head with an empty middle. The reader
-   asked for them "in one row and make it one line with the updated line in one
-   row". The head has the width: the title column is `flex: 1` beside an actions
-   slot that takes only what it needs, and at every width this desk is used at
-   the middle of that row was blank.
+   THE HISTORY IS TWO WRONG SHAPES AND IT IS SHORT ENOUGH TO STATE. First the
+   chips lived in a 34ch column, which stacked them five deep. Then they were
+   one nowrap line pinned right, which fitted at 1600 and ran 143px out of the
+   card at 1440 — the document never scrolled, so a page-level check called it
+   clean. Now they are three declared rows that wrap inside themselves, which is
+   the first shape that is a decision rather than an arithmetic accident: the
+   break used to land wherever the row happened to run out, so the seam moved at
+   every viewport.
 
-   THE RESERVATION MOVED TO THE THING THAT ACTUALLY TICKS rather than being
-   dropped. The 34ch existed because `FreshnessStamp` re-renders every second
-   and its string changes length — and in a `flex-end` row a box that grows and
-   shrinks drags everything left of it once a second. Reserving the whole column
-   fixed that by making the column too narrow to hold one line, which is the
-   defect the reader is reporting. Reserving the STAMP fixes it at the source:
-   the chips are static, the clock is pinned, and nothing moves.
+   THE SEAM IS MEANING, NOT WIDTH. Row one is THE VENUE — can this desk reach
+   Kalshi, does it understand what Kalshi sent. Row two is THIS DESK — what its
+   own recorder has written, that it cannot trade, when it last looked. Row
+   three is the reader's hold on it. `EngineChips` declares the first two as
+   separate groups; this file only has to break between them.
 
-   `max-width: 100%` so the row collapses rather than overflowing, and no
-   `nowrap`/`ellipsis`/`overflow: hidden` — it wraps, it never clips. */
+   `display: contents` ON THE TWO WRAPPERS, which is what makes it possible at
+   all. `PageHead` renders its own `.page-status` pill as a SIBLING of whatever
+   the console passes as `actions`, so "Reading the exchange" can only share a
+   line with the first two chips if the wrappers between them stop being boxes.
+   The elements stay in the tree, so `.coh-headchips .freshness-stamp` below
+   still matches and the groups keep their own `flex` rules.
+
+   THE SLOT'S OWN FLEX BEHAVIOUR IS NOT HERE. It wraps and starts left, which is
+   the "align everything" half, and both declarations live on the slot's one
+   rule in `14v` — two rules for one selector across two partials is the
+   duplicate this sheet has been bitten by before, and the guards' `.includes()`
+   lookups find whichever comes first. */
+.coherence-plane .page-heading__actions .coh-headlive,
 .coherence-plane .page-heading__actions .coh-headchips {
-  display: flex;
-  /* NOWRAP between the chip GROUP and the stamp, which is the pair the reader
-     asked to see on one row. The group inside is still `flex-wrap: wrap`, so
-     when the row genuinely runs out it is the chips that take a second line and
-     the stamp stays put — the thing that ticks never moves.
-
-     `wrap` here put the stamp on its own line even with room to spare:
-     measured at 1600, the group at y=195 (952px) and the stamp at y=230
-     (386px) inside a container 1,346px wide holding 1,346px of content. */
-  flex-wrap: nowrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-2);
-  max-width: 100%;
-  margin-bottom: 0;
+  display: contents;
 }
 
-.coherence-plane .coh-headchips > .coh-status__chips {
-  flex: 0 0 auto;
-  justify-content: flex-end;
+/* DESCENDANT, NEVER `>`, AND THIS IS THE TRAP `display: contents` SETS.
+   Making the wrappers contents removes their BOXES, so their children become
+   flex items of the slot — but it does not reparent anything, and a child
+   combinator matches the DOM tree, not the box tree. `.coh-live` is still a
+   child of `.coh-headlive` and always will be.
+
+   Measured before it was believed: with `>` these three rules matched nothing
+   and the layout still split into two rows, because the two chip GROUPS are
+   atomic and wrapped as units — the right answer arrived by accident at 1600,
+   1440 and 1280 and would have moved the moment a chip's value changed length.
+   A layout that is correct by coincidence is the one that breaks on live data. */
+.coherence-plane .page-heading__actions .coh-status__chips {
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  justify-content: flex-start;
 }
+
+/* The forced breaks. `flex-basis: 100%` on the second and third rows puts each
+   on a line of its own whatever the width — the alternative is letting the row
+   run out, which is what moved the seam from viewport to viewport. */
+.coherence-plane .page-heading__actions .coh-headchips__desk,
+.coherence-plane .page-heading__actions .coh-live {
+  flex: 0 0 100%;
+}
+
 
 /* The pin, and the number is a MEASUREMENT — the first value written here was
    43ch and it was a guess wearing a measurement's clothes, 16px short of the
@@ -114,11 +135,6 @@
 }
 
 @media (max-width: 1120px) {
-  .coherence-plane .page-heading__actions .coh-headchips {
-    width: 100%;
-    justify-items: start;
-  }
-
   .coherence-plane .coh-topbar .coh-headstate {
     max-inline-size: none;
   }
@@ -128,4 +144,30 @@
   .coherence-plane .coh-topbar {
     padding: var(--space-2);
   }
+}
+
+/* ── The poll controls ──────────────────────────────────────────────────
+
+   The third row. The state is a `StateChip` now rather than a bare span with a
+   `min-width` in ch: a pill of read-state sitting under four pills of
+   read-state IS the same object, and approximating it was the "formatting" half
+   of the report. Nothing here sizes it — a chip's width is its word's, and the
+   part that changes every second ("in 12s") rides the chip's `value` slot,
+   which the plane already sets `nowrap`. */
+.coherence-plane .coh-live {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  min-inline-size: 0;
+}
+
+/* The two buttons as one pair. They are the same KIND of control — both change
+   what the poll does next — so they are grouped rather than scattered, and the
+   gap inside the pair is tighter than the gap to the chip that names the state
+   they act on. */
+.coherence-plane .coh-live__controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
 }

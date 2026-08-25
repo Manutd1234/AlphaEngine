@@ -107,7 +107,18 @@ export function EngineChips({
   const reachable = status.hosts.some((host) => host.reachable);
   return (
     <div className="coh-headchips">
-      <div className="coh-status__chips">
+      {/* TWO GROUPS, TWO ROWS, and the split is the reader's own: "Reading the
+          exchange, Exchange reachable, Fixed-point schema — put above the
+          recorder row".
+
+          It is also the honest seam. The first row is THE VENUE: can this desk
+          reach Kalshi and does it understand what Kalshi sent. The second is
+          THIS DESK: what its own recorder has written, that it cannot trade,
+          and when it last looked. Four chips and a clock in one wrapping row
+          broke wherever the width happened to run out, which put the seam in a
+          different place at every viewport — so the break is declared here and
+          forced in CSS rather than left to arithmetic. */}
+      <div className="coh-status__chips coh-headchips__venue">
         <StateChip
           mark={reachable ? "●" : "✕"}
           word={reachable ? "Exchange reachable" : "Exchange unreachable"}
@@ -119,6 +130,8 @@ export function EngineChips({
           word={schema === "fp-2026" ? "Fixed-point schema" : `Schema ${schema}`}
           tone={schemaTone(schema)}
         />
+      </div>
+      <div className="coh-status__chips coh-headchips__desk">
         <StateChip
           mark={recorder.running ? "●" : "○"}
           word={recorder.running ? "Recorder running" : recorder.configured ? "Recorder idle" : "Recorder off"}
@@ -126,8 +139,8 @@ export function EngineChips({
           tone={recorder.running ? "good" : recorder.configured ? "warn" : "muted"}
         />
         <StateChip mark="✓" word="Read only" value={status.dry_run ? "no order path" : "dry run off"} tone="muted" />
+        {stamp}
       </div>
-      {stamp}
     </div>
   );
 }
