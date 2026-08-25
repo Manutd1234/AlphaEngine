@@ -32,6 +32,8 @@
 
 import { DOLLAR_CC, fromCenticents, sumPrices } from "@/lib/coherence/fixed-point";
 import type { CoherenceEventView } from "@/lib/coherence/types";
+import { DIAGRAM_LABEL_PX, glyphClassOf, glyphsWithin } from "@/lib/coherence/label-metrics";
+import { groupDigits } from "@/lib/coherence/universe-metrics";
 import Figure, { FigureEmpty, Plot } from "./Figure";
 
 /** Matches `DollarBar`, so a reader moving between the two is not re-scaled. */
@@ -40,6 +42,8 @@ const ROW_H = 26;
 const TOP = 22;
 const BOTTOM = 26;
 const MARK_R = 5;
+/** The span bar sits under the two marks, thinner than they are wide. */
+const BAR_H = 6;
 
 /**
  * The label column, derived from the width.
@@ -56,11 +60,27 @@ function labelWidthFor(width: number): number {
   return Math.min(384, Math.max(150, Math.round(width * 0.42)));
 }
 
-/** Characters that fit the label column at 7.48px per 13px-rung glyph, erring
- *  short so a string never enters the track. 2026-08-24 the rung moved
- *  12 -> 13, so 12 x 0.575 = 6.9 became 13 x 0.575 = 7.48. */
-function labelBudget(labelW: number): number {
-  return Math.max(12, Math.floor((labelW - 8) / 7.48));
+/**
+ * The dollar ceiling the track runs to, and why it is not the widest total.
+ *
+ * A fixed ceiling keeps every family on ONE scale, which is the whole point of
+ * putting them on one axis — a per-row scale would make two bars of equal
+ * length mean different money. 1.30 is a third above the dollar, which is far
+ * enough that a real Dutch book has somewhere to sit and near enough that the
+ * dollar line is not squashed against the left.
+ */
+
+/**
+ * Characters that fit the label column, MEASURED rather than assumed.
+ *
+ * This divided by a literal 7.48 — the 13px rung times an assumed 0.575 — and
+ * that ratio was one of eight spellings of the same guess in this engine. Inter
+ * sets mixed-case prose at 0.56 and an uppercase ticker at 0.69, so a single
+ * ratio was wrong for one of the two whichever value it took. `label-metrics`
+ * classifies the string instead.
+ */
+function labelBudget(labelW: number, label: string): number {
+  return Math.max(12, glyphsWithin(labelW - 8, DIAGRAM_LABEL_PX, glyphClassOf(label)));
 }
 
 export interface BasketOverviewRow {
@@ -134,7 +154,6 @@ export default function BasketOverview({ rows, caption }: { rows: BasketOverview
       <Plot height={height}>
         {(width) => {
           const plotLeft = labelWidthFor(width);
-          const budget = labelBudget(plotLeft);
           const plotWidth = Math.max(60, width - plotLeft - 44);
           const x = (cc: number) => plotLeft + (cc / CEILING_CC) * plotWidth;
           const dollarX = x(DOLLAR_CC);
@@ -160,37 +179,88 @@ export default function BasketOverview({ rows, caption }: { rows: BasketOverview
 
               {rows.map((row, index) => {
                 const y = TOP + index * ROW_H + ROW_H / 2;
+                const ask = row.askTotalCc;
+                const bid = row.bidTotalCc;
+                /* THE BAR RUNS FROM ZERO TO WHAT THE BASKET COSTS, so payout
+                   value is a LENGTH and the dollar line crosses it: "left of
+                   the line is a dollar going cheap" becomes a bar that stops
+                   short of the line, which is a thing the eye does without
+                   being told. Two loose marks could not do that, and a bar that
+                   spanned bid-to-ask could not either — on this watchlist most
+                   families carry one total, and a span needs two, so the
+                   commonest row would have drawn nothing at all.
+                   The two marks stay ON the bar: a filled disc where buying
+                   every outcome lands, a hollow square where selling does. */
+                const extent = ask ?? bid;
+                const money = (cc: number | null) => {
+                  const raw = fromCenticents(cc);
+                  return raw == null ? "not priced" : `$${groupDigits(raw)}`;
+                };
+                const status = !row.mutuallyExclusive
+                  ? "not mutually exclusive"
+                  : ask == null && bid == null
+                    ? "a leg is unquoted"
+                    : ask == null
+                      ? "can be sold, not bought"
+                      : bid == null
+                        ? "can be bought, not sold"
+                        : "priced both ways";
                 return (
                   <g key={row.ticker}>
                     <text x={0} y={y + 4} className="coh-axis__label">
-                      {short(row.label, budget)}
-                      <title>{row.label}</title>
+                      {short(row.label, labelBudget(plotLeft, row.label))}
                     </text>
-                    <line
-                      x1={plotLeft} x2={trackEnd} y1={y} y2={y}
-                      stroke="var(--border)" strokeWidth="1"
-                    />
-                    {row.askTotalCc != null ? (
-                      <circle cx={x(row.askTotalCc)} cy={y} r={MARK_R} className="coh-basket__buy">
-                        <title>{`buy total ${fromCenticents(row.askTotalCc)}`}</title>
-                      </circle>
+                    {/* THE TRACK IS ONLY DRAWN WHERE THERE IS SOMETHING TO
+                        PLACE ON IT. A row with no total had a full-width rule
+                        with its reason printed straight through the middle of
+                        it, which renders as struck-through text — the drawing
+                        said "here is a scale" and then had nothing to put on
+                        it. No total, no scale: the reason stands on its own. */}
+                    {ask != null || bid != null ? (
+                      <line
+                        x1={plotLeft} x2={trackEnd} y1={y} y2={y}
+                        stroke="var(--border)" strokeWidth="1"
+                      />
                     ) : null}
-                    {row.bidTotalCc != null ? (
+                    {extent != null ? (
+                      <rect
+                        x={plotLeft} y={y - BAR_H / 2}
+                        width={Math.max(2, x(extent) - plotLeft)} height={BAR_H}
+                        className="coh-basket__span"
+                      />
+                    ) : null}
+                    {ask != null ? (
+                      <circle cx={x(ask)} cy={y} r={MARK_R} className="coh-basket__buy" />
+                    ) : null}
+                    {bid != null ? (
                       // A hollow square for sell, a filled disc for buy: the
                       // pair has to be tellable apart with every hue stripped.
                       <rect
-                        x={x(row.bidTotalCc) - MARK_R} y={y - MARK_R}
+                        x={x(bid) - MARK_R} y={y - MARK_R}
                         width={MARK_R * 2} height={MARK_R * 2}
                         className="coh-basket__sell"
-                      >
-                        <title>{`sell total ${fromCenticents(row.bidTotalCc)}`}</title>
-                      </rect>
+                      />
                     ) : null}
-                    {row.askTotalCc == null && row.bidTotalCc == null ? (
+                    {ask == null && bid == null ? (
                       <text x={plotLeft + 6} y={y + 4} className="coh-axis__label">
                         {row.mutuallyExclusive ? "◌ no total: a leg is unquoted" : "○ not mutually exclusive"}
                       </text>
                     ) : null}
+                    {/* ONE hover target for the whole row, over the marks so it
+                        wins, carrying the ticker, both totals and the status —
+                        which is what a reader hovering a row wants and what the
+                        per-mark titles could each only give a third of. It is
+                        also what puts this row in `Plot`'s keyboard readout,
+                        since that walks elements carrying a `<title>`. */}
+                    <rect
+                      x={0} y={y - ROW_H / 2} width={Math.max(1, trackEnd)} height={ROW_H}
+                      fill="transparent"
+                    >
+                      <title>
+                        {`${row.label} (${row.ticker}) — buy every outcome ${money(ask)}, `
+                          + `sell every outcome ${money(bid)}: ${status}`}
+                      </title>
+                    </rect>
                   </g>
                 );
               })}

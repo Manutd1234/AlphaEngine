@@ -233,3 +233,23 @@
 .coherence-plane.markets-plane .coh-table tbody tr:hover {
   background: color-mix(in srgb, var(--series-1) 6%, transparent);
 }
+
+/* ── The basket span bar ────────────────────────────────────────────────
+
+   `BasketOverview` draws one bar per family from its sell total to its buy
+   total, with the dollar line crossing it. The bar is the SPREAD of the whole
+   basket, so it is drawn as a band rather than as a series: quiet enough that
+   the two marks on its ends and the dollar line stay the things a reader
+   reads, and the same `--series-1` at low alpha the settlement window and the
+   moments band already use for a region. */
+.coh-basket__span {
+  fill: color-mix(in srgb, var(--series-1) 26%, transparent);
+  rx: 3;
+}
+
+/* Internal padding on the Universe figures, which the brief asked for as p-5.
+   The plot is measured, so this is on the frame rather than the drawing and
+   costs the figure no track. */
+.coherence-plane.markets-plane .coh-universe .coh-figure {
+  padding: var(--space-4);
+}

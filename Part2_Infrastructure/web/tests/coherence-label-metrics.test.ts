@@ -165,6 +165,9 @@ describe("no figure keeps a per-glyph constant of its own", () => {
     // the 13px rung times an assumed 0.567 — which clips an uppercase station
     // word, since uppercase sets at 0.69 in this face.
     "../components/coherence/ChannelStates.tsx",
+    // Joined 2026-08-25 with the Universe rebuild: it divided by a literal
+    // 7.48 for a label column that holds both prose titles and tickers.
+    "../components/coherence/BasketOverview.tsx",
   ];
 
   for (const file of REWIRED) {
