@@ -139,10 +139,22 @@ export default function FloorDistribution({ runs }: { runs: StageRun[] }) {
                 );
               })}
               {row.unranked ? (
+                // FULL HEIGHT, NOT A SCALED ONE. This column is off the
+                // percentile axis by design — a missing rank is not a rank of
+                // zero — so scaling it against the tallest BUCKET was a
+                // category error twice over: it gave the column a height that
+                // invited comparison with bars it cannot be compared to, and
+                // with 31 unranked runs against a tallest bucket of nine it
+                // computed 344% and drew a 217px bar inside a 64px row, which
+                // overflowed upward through the head text above it.
+                //
+                // It marks presence now. The count is in the row head and in
+                // the hover, where a number belongs; the column says only
+                // "these are not on this scale", which is all it should.
                 <span
                   className="coh-floor__bucket is-unranked"
-                  style={{ height: `${(row.unranked / tallest) * 100}%` }}
-                  title={`${row.unranked} run(s) with no percentile: no matched window cleared the floor, so they are not ranked at all`}
+                  style={{ height: "100%" }}
+                  title={`${row.unranked} run${row.unranked === 1 ? "" : "s"} with no percentile: no matched window cleared the floor, so they are not ranked at all — this column is off the axis and its height carries no reading`}
                 />
               ) : null}
             </div>
