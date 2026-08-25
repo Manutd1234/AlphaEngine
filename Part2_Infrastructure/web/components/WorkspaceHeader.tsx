@@ -16,47 +16,15 @@ import type { DecisionLatencySource } from "@/lib/overview-state";
 import type { Provenance } from "@/lib/data-tier";
 import { useTabShortcuts } from "@/lib/use-tab-shortcuts";
 
-export type WorkspaceView =
-  | "overview"
-  | "research"
-  | "live"
-  | "portfolio"
-  | "risk"
-  | "data"
-  | "reliability"
-  | "developer"
-  | "markets"
-  | "coherence";
+/**
+ * The rail's ids and labels live in `lib/workspace-nav.ts` since 2026-08-25 —
+ * thirty-two files import them and almost none render a header. Re-exported
+ * here so every one of those imports keeps working unchanged.
+ */
+import { NAV_ITEMS, type WorkspaceView } from "@/lib/workspace-nav";
 
-export const NAV_ITEMS: { id: WorkspaceView; label: string; role: string; accessibleLabel?: string }[] = [
-  { id: "overview", label: "Overview", role: "All Roles" },
-  { id: "research", label: "Research", role: "Quant" },
-  { id: "live", label: "Execution", role: "Trader", accessibleLabel: "Execution" },
-  { id: "portfolio", label: "Portfolio", role: "PM" },
-  { id: "risk", label: "Risk", role: "Risk" },
-  { id: "data", label: "Data", role: "Data", accessibleLabel: "Data operations" },
-  { id: "reliability", label: "Reliability", role: "SRE" },
-  { id: "developer", label: "Developer", role: "Dev" },
-  // The Kalshi engine reaches the reader as TWO tabs, in the order the argument
-  // runs: what the exchange quotes, then what this engine proves about it. Ten
-  // destinations, which is the count the priority ladder below is measured
-  // against.
-  //
-  // THE IDS DISAGREE WITH THE LABELS ON PURPOSE, and that is house practice on
-  // this row rather than a mistake to tidy: `live` renders "Execution",
-  // `codex` renders "Strategies", `activity` renders "Blotter". An id is a
-  // public deep link and never changes; a label is what a reader reads. So
-  // `coherence` — the only Kalshi tab id `origin/main` ever published — keeps
-  // every `#coherence/<section>` link in the world resolving natively while
-  // reading "Proofs", and `markets` is reused rather than re-invented because
-  // the tests, the relocation table and the desk sweep already speak it.
-  //
-  // "Quotes" and "Proofs" are six characters each, against "Markets" (7) and
-  // "Coherence" (9): this ten-tab row is NARROWER than the ten-tab row the
-  // header ladder was last measured against.
-  { id: "markets", label: "Quotes", role: "Quant", accessibleLabel: "Prediction market quotes" },
-  { id: "coherence", label: "Proofs", role: "Quant", accessibleLabel: "Prediction market coherence" },
-];
+export type { WorkspaceView } from "@/lib/workspace-nav";
+export { NAV_ITEMS } from "@/lib/workspace-nav";
 
 interface WorkspaceHeaderProps {
   view: WorkspaceView;

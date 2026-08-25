@@ -57,6 +57,7 @@
   overflow: visible;
 }
 
+
 .coh-figure__reading,
 .coh-figure__missing,
 .coh-figure__empty {
@@ -73,8 +74,16 @@
 
 .coh-chip {
   display: inline-flex;
-  align-items: baseline;
+  /* CENTRE, not baseline. The mark, the word and the value are three
+     different rungs, and on a baseline the pill's own border sat closer to the
+     tallest of them than to the others — which is what made a chip carrying a
+     long value read as a different SHAPE from the chips beside it rather than
+     as a wider one. */
+  align-items: center;
   gap: 6px;
+  /* A fixed block size, so a row of chips is a row of one height whatever any
+     of them is carrying. */
+  min-block-size: 24px;
   padding: 2px 8px;
   border: 1px solid var(--border);
   border-radius: var(--radius-pill);
@@ -84,7 +93,24 @@
 
 .coh-chip__mark { font-size: var(--fs-xs); }
 .coh-chip__word { color: var(--text-secondary); }
-.coh-chip__value { font-variant-numeric: tabular-nums; font-weight: 620; }
+
+/*
+ * The value ELLIPSES rather than widening the pill without limit.
+ * `external-api.kalshi.com` is twenty-two glyphs, and beside "Exchange
+ * reachable" it made one pill wide enough to push the other three onto a
+ * second row. `white-space: nowrap` on the chip is deliberate — a state that
+ * wrapped mid-phrase would read as two states — so this is the only place to
+ * give. 22ch holds the live hostname whole; the element carries a `title`.
+ */
+.coh-chip__value {
+  display: inline-block;
+  max-inline-size: 22ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+  font-variant-numeric: tabular-nums;
+  font-weight: 620;
+}
 
 .coh-chip.is-good { border-color: color-mix(in srgb, var(--series-3) 40%, var(--border)); }
 .coh-chip.is-good .coh-chip__mark { color: var(--series-3); }
@@ -222,28 +248,14 @@
 
 .coh-console__status { border-top: 1px solid var(--border); padding-top: 12px; }
 
-/*
- * The second level of a two-level section: its view switcher and what the view
- * draws, under the group control that chose them.
- *
- * A WRAPPER RATHER THAN A FRAGMENT, and the reason is a selector. `14r` wraps
- * every section-level switcher on Proofs with `.console-card > .seg` — a CHILD
- * combinator, picked so a nested seg stays out of it. Returned as a fragment,
- * a group's view control would be a direct child of the section too: it would
- * take the wrap treatment meant for the group row, and the two controls would
- * sit as siblings in the section's own grid, which is the "two `.seg` controls
- * in a column read as one broken control" that DiffusionPane's header rejected.
- *
- * `align-content: start` because the house rule asks it of any grid inside a
- * subtab panel: spare height would otherwise inflate the rows, which is the
- * seg-resizes-on-pane-switch bug.
- */
-.coh-views {
-  display: grid;
-  gap: 12px;
-  min-width: 0;
-  align-content: start;
-}
+/* `.coh-views` was DELETED on 2026-08-25, with the second switcher level it
+   existed for. It wrapped a group's view control so `14r`'s
+   `.console-card > .seg` child combinator would not treat it as a section-level
+   row — a problem that only exists where a section has two `.seg` controls, and
+   no section has two any more. Every one that did turned out to be carrying
+   several questions and became several sections. Nothing renders the class, so
+   the rule goes rather than waiting to be found dead. */
+
 
 /* ── The certificate, the fee model, and the proof block ─────────────────── */
 
@@ -252,13 +264,101 @@
 
 /*
  * The family picker carries a visible "Family" label, so the label and the
- * `.seg` have to share a line — as a grid item the label would otherwise
- * block onto the row above the control it names. The picker takes the
- * remaining width; `min-width: 0` is what lets it shrink rather than push.
+ * control share a line — as a grid item the label would otherwise block onto
+ * the row above the thing it names. The control takes the remaining width;
+ * `min-width: 0` is what lets it shrink rather than push.
+ *
+ * The positioning context is `.coh-family__control`, not this row: the row
+ * also holds the visible "Family" label, so a list anchored to it would hang
+ * left of the button it belongs to.
  */
-.coh-certificate__pick { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.coh-certificate__pick > span { font-size: var(--fs-xs); white-space: nowrap; }
-.coh-certificate__pick > .seg { flex: 1 1 auto; min-width: 0; }
+.coh-family {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.coh-family > span.muted { font-size: var(--fs-xs); white-space: nowrap; }
+
+/* Grows to fit the ticker and stops. A control that spans the card reads as
+   the section's headline rather than as one input among several, and the
+   longest live ticker — `KXMVECROSSCATEGORY-SHARD1-…` at forty-odd glyphs — is
+   comfortably inside 30rem at the body rung. Below that the `1 1 auto` lets it
+   shrink rather than push the label onto its own line. */
+.coh-family__control {
+  position: relative;
+  flex: 1 1 auto;
+  max-inline-size: 30rem;
+  min-width: 0;
+}
+
+.coh-family__button {
+  inline-size: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  font-size: var(--fs-body);
+  text-align: left;
+  cursor: pointer;
+}
+.coh-family__button:hover { background: var(--surface-2); }
+
+/* Ellipsis rather than wrap: a ticker is forty-odd glyphs and the closed state
+   is one row by contract. The full string is in the list, and in the heading. */
+.coh-family__ticker {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.coh-family__count,
+.coh-family__shard,
+.coh-family__verdict {
+  flex: 0 0 auto;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.coh-family__caret { flex: 0 0 auto; color: var(--text-muted); }
+
+.coh-family__list {
+  position: absolute;
+  z-index: var(--z-popover);
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-sm);
+}
+
+.coh-family__option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.coh-family__option.is-active { background: var(--surface-2); }
+/* The tick, not the tint, is what says "this one" — the tint is a pointer
+   position and says nothing on its own. */
+.coh-family__mark { flex: 0 0 1ch; color: var(--text-primary); }
 
 /*
  * The proof is fixed-width because it is the artefact that leaves this

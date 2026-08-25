@@ -87,6 +87,10 @@ export function warmCoherenceRead(url: string): void {
  * beside it rather than instead of it: a book from forty seconds ago plus "the
  * gateway is unreachable" is more useful than an empty panel, so long as the
  * staleness is on screen — which is what the freshness stamp is for.
+ *
+ * That carry-over is scoped to ONE url. A stale answer to the question being
+ * asked is useful; a fresh-looking answer to a question that is no longer being
+ * asked is a lie, and the two are one line apart. See the reseed below.
  */
 export function useCoherenceRead<T>(url: string, enabled: boolean, pollMs = COHERENCE_POLL_MS): CoherenceLoad<T> & {
   refresh: () => void;
@@ -95,7 +99,7 @@ export function useCoherenceRead<T>(url: string, enabled: boolean, pollMs = COHE
   // warmed on hover opens on its figures rather than on "Reading…". `useState`
   // takes the initialiser lazily, so this runs on mount and not on every
   // render; a URL nobody has warmed seeds exactly as it did before.
-  const [state, setState] = useState<CoherenceLoad<T>>(() => {
+  const seed = (): CoherenceLoad<T> => {
     const cached = peek<T>(url);
     return {
       data: cached?.data ?? null,
@@ -103,7 +107,27 @@ export function useCoherenceRead<T>(url: string, enabled: boolean, pollMs = COHE
       loading: enabled && !cached,
       updatedAt: cached?.updatedAt ?? null,
     };
-  });
+  };
+  const [state, setState] = useState<CoherenceLoad<T>>(seed);
+
+  // RESEEDED WHEN THE URL CHANGES, and this is a defect fix rather than a
+  // refinement. `useState`'s initialiser runs on mount only, and `tick` below
+  // keeps the last good payload when a poll answers with nothing — which is
+  // right for a FAILED POLL OF THE SAME QUESTION and wrong for a different
+  // question. Together they meant that choosing a new family left the previous
+  // family's certificate on screen, under the new family's name, for as long as
+  // the twenty-eight second live read took: the verdict, the chips and the
+  // fixed-width proof all described a market the reader was no longer looking
+  // at, and nothing on the page said so.
+  //
+  // Rendering during render rather than in an effect is deliberate: an effect
+  // would paint one frame of the old answer under the new heading first, which
+  // is a smaller version of the same lie.
+  const [seededFor, setSeededFor] = useState(url);
+  if (seededFor !== url) {
+    setSeededFor(url);
+    setState(seed());
+  }
 
   // The in-flight latch moved to the cache, where it is shared. Three panes
   // read `universe` and each held its own, so a tab switch could put three

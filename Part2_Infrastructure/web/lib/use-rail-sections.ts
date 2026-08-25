@@ -25,6 +25,7 @@ import { useMemo, useRef, useState, type Dispatch, type MutableRefObject, type S
 import type { WorkspaceView } from "@/components/WorkspaceHeader";
 import {
   COHERENCE_SECTION_IDS,
+  DIFFUSION_SECTION_IDS,
   DATA_SECTION_IDS,
   DEVELOPER_SECTION_IDS,
   EXECUTION_SECTION_IDS,
@@ -35,6 +36,7 @@ import {
   RESEARCH_SECTION_IDS,
   RISK_SECTION_IDS,
   type CoherenceSection,
+  type DiffusionSection,
   type DataSection,
   type DeveloperSection,
   type ExecutionSection,
@@ -56,6 +58,7 @@ export interface RailSections {
   developerSection: DeveloperSection;
   marketsSection: MarketsSection;
   coherenceSection: CoherenceSection;
+  diffusionSection: DiffusionSection;
   riskSection: RiskSection;
   portfolioSection: PortfolioSection;
   setOverviewSection: Dispatch<SetStateAction<OverviewSection>>;
@@ -66,6 +69,7 @@ export interface RailSections {
   setDeveloperSection: Dispatch<SetStateAction<DeveloperSection>>;
   setMarketsSection: Dispatch<SetStateAction<MarketsSection>>;
   setCoherenceSection: Dispatch<SetStateAction<CoherenceSection>>;
+  setDiffusionSection: Dispatch<SetStateAction<DiffusionSection>>;
   setRiskSection: Dispatch<SetStateAction<RiskSection>>;
   setPortfolioSection: Dispatch<SetStateAction<PortfolioSection>>;
   /** Live section per workspace, readable from handlers created once. */
@@ -87,6 +91,7 @@ export function useRailSections(): RailSections {
   // two states below are per-TAB, so a reader who moves inside Prices and
   // comes back to Proofs finds the section they left rather than a default.
   const [coherenceSection, setCoherenceSection] = useState<CoherenceSection>("certificate");
+  const [diffusionSection, setDiffusionSection] = useState<DiffusionSection>("arm");
   // Risk and Portfolio kept these internally, which made them the only two
   // steppers in the workspace that a link could not address: `#risk/model`
   // opened the tab on step 1. Lifted here so they route exactly like the other
@@ -110,6 +115,7 @@ export function useRailSections(): RailSections {
     reliability: reliabilitySection,
     developer: developerSection,
     markets: marketsSection,
+    diffusion: diffusionSection,
     coherence: coherenceSection,
   };
 
@@ -137,14 +143,15 @@ export function useRailSections(): RailSections {
       developer: bind(DEVELOPER_SECTION_IDS, setDeveloperSection),
       markets: bind(MARKETS_SECTION_IDS, setMarketsSection),
       coherence: bind(COHERENCE_SECTION_IDS, setCoherenceSection),
+      diffusion: bind(DIFFUSION_SECTION_IDS, setDiffusionSection),
     };
   }, []);
 
   return {
     overviewSection, researchSection, executionSection, dataSection, reliabilitySection,
-    developerSection, marketsSection, coherenceSection, riskSection, portfolioSection,
+    developerSection, marketsSection, coherenceSection, diffusionSection, riskSection, portfolioSection,
     setOverviewSection, setResearchSection, setExecutionSection, setDataSection,
-    setReliabilitySection, setDeveloperSection, setMarketsSection, setCoherenceSection, setRiskSection,
+    setReliabilitySection, setDeveloperSection, setMarketsSection, setCoherenceSection, setDiffusionSection, setRiskSection,
     setPortfolioSection, sectionByViewRef, applier,
   };
 }

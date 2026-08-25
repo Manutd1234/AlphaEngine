@@ -20,6 +20,7 @@ import { NAV_ITEMS, type WorkspaceView } from "@/components/WorkspaceHeader";
 import {
   DATA_SECTIONS,
   COHERENCE_SECTIONS,
+  DIFFUSION_SECTIONS,
   DEVELOPER_SECTIONS,
   EXECUTION_SECTIONS,
   MARKETS_SECTIONS,
@@ -55,6 +56,7 @@ const SECTIONS_BY_VIEW: Record<WorkspaceView, readonly WorkspaceSectionDef[]> = 
   developer: DEVELOPER_SECTIONS,
   markets: MARKETS_SECTIONS,
   coherence: COHERENCE_SECTIONS,
+  diffusion: DIFFUSION_SECTIONS,
 };
 
 /**
@@ -278,9 +280,15 @@ const FLOW_MAP: Record<WorkspaceView, { nextId: WorkspaceView; kicker: string; t
     nextId: "coherence",
     kicker: "Next step for the quant researcher",
     title: "Test those prices against their own probabilities",
-    hint: "Dutch-book certificate, settled scorecard, absorption.",
+    hint: "The coherence test, the basket it hands back, the settled scorecard.",
   },
   coherence: {
+    nextId: "diffusion",
+    kicker: "Next step for the quant researcher",
+    title: "Ask how fast any of it is absorbed",
+    hint: "Announcement arm, episode survival, the model worked in the browser.",
+  },
+  diffusion: {
     nextId: "overview",
     kicker: "Next step around the decision loop",
     title: "Return to the desk overview",

@@ -30,6 +30,7 @@ const ReliabilityConsole = dynamic(() => import("@/components/ReliabilityConsole
 const DeveloperConsole = dynamic(() => import("@/components/DeveloperConsole"), { loading: PanelLoading });
 const MarketsConsole = dynamic(() => import("@/components/MarketsConsole"), { loading: PanelLoading });
 const CoherenceConsole = dynamic(() => import("@/components/CoherenceConsole"), { loading: PanelLoading });
+const DiffusionConsole = dynamic(() => import("@/components/DiffusionConsole"), { loading: PanelLoading });
 
 /**
  * Memoised once, at module level. The seven persistent tabs stay mounted behind
@@ -45,3 +46,4 @@ export const ReliabilityTab = memo(ReliabilityConsole);
 export const DeveloperTab = memo(DeveloperConsole);
 export const MarketsTab = memo(MarketsConsole);
 export const CoherenceTab = memo(CoherenceConsole);
+export const DiffusionTab = memo(DiffusionConsole);

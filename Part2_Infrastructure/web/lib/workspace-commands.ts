@@ -31,6 +31,7 @@ import { RESEARCH_SYMBOLS } from "@/lib/research-symbols";
 import {
   DATA_SECTIONS,
   COHERENCE_SECTIONS,
+  DIFFUSION_SECTIONS,
   DEVELOPER_SECTIONS,
   EXECUTION_SECTIONS,
   MARKETS_SECTIONS,
@@ -41,6 +42,7 @@ import {
   RISK_SECTIONS,
   type DataSection,
   type CoherenceSection,
+  type DiffusionSection,
   type DeveloperSection,
   type ExecutionSection,
   type MarketsSection,
@@ -78,6 +80,7 @@ export interface CommandDeps {
   setDeveloperSection: Setter<DeveloperSection>;
   setMarketsSection: Setter<MarketsSection>;
   setCoherenceSection: Setter<CoherenceSection>;
+  setDiffusionSection: Setter<DiffusionSection>;
   updateStrategy: (strategy: Strategy) => void;
   updateSymbol: (symbol: string) => void;
   run: () => void | Promise<unknown>;
@@ -110,7 +113,7 @@ export function buildCommands(d: CommandDeps): Command[] {
   const {
     navigate, setOverviewSection, setResearchSection, setExecutionSection,
     setPortfolioSection, setRiskSection, setDataSection, setReliabilitySection,
-    setDeveloperSection, setMarketsSection, setCoherenceSection, updateStrategy, updateSymbol, run, pinRun, running,
+    setDeveloperSection, setMarketsSection, setCoherenceSection, setDiffusionSection, updateStrategy, updateSymbol, run, pinRun, running,
     currentPinned, data, showMcBands, setShowMcBands, setMcRunNonce, side,
     setSide, setNotional, copyLinkToView, setShortcutsOpen, view,
     researchSection, symbol, refreshHealth, reconnectSockets,
@@ -177,6 +180,9 @@ export function buildCommands(d: CommandDeps): Command[] {
   }
   for (const s of COHERENCE_SECTIONS) {
     section("coherence", "Proofs", s.id, `${s.label} — ${s.description}`, () => setCoherenceSection(s.id));
+  }
+  for (const s of DIFFUSION_SECTIONS) {
+    section("diffusion", "Diffusion", s.id, `${s.label} — ${s.description}`, () => setDiffusionSection(s.id));
   }
 
   for (const strategy of Object.keys(STRATEGY_LABELS) as Strategy[]) {

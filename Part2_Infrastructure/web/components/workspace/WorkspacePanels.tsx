@@ -22,11 +22,12 @@ import LiveMarket from "@/components/LiveMarket";
 import { type PortfolioFocusDestination } from "@/components/PortfolioWorkspace";
 import ResearchWorkspace from "@/components/ResearchWorkspace";
 import NextStepFooter from "@/components/common/NextStepFooter";
+import EnginePanels from "./EnginePanels";
 import { BookStatus } from "@/components/portfolio/BookChrome";
 import WorkspaceIntro from "@/components/WorkspaceIntro";
 import WorkspaceSubtabs from "@/components/WorkspaceSubtabs";
 import {
-  CoherenceTab, DataTab, DeveloperTab, MarketsTab, OverviewTab, PortfolioTab, ReliabilityTab, RiskTab,
+  DataTab, DeveloperTab, OverviewTab, PortfolioTab, ReliabilityTab, RiskTab,
 } from "@/components/workspace/lazy-panels";
 import type { DeveloperWorkItem } from "@/lib/developer-work";
 import { EXECUTION_SECTIONS } from "@/lib/sections";
@@ -80,10 +81,10 @@ export default function WorkspacePanels({ routing, sweep, desk }: WorkspacePanel
   const {
     view, visitedViews, navigate, openSection,
     overviewSection, researchSection, executionSection, dataSection,
-    reliabilitySection, developerSection, marketsSection, coherenceSection, riskSection, portfolioSection,
+    reliabilitySection, developerSection, marketsSection, coherenceSection, diffusionSection, riskSection, portfolioSection,
     changeOverviewSection, changeResearchSection, changeExecutionSection,
     changeDeveloperSection, changeRiskSection, changePortfolioSection,
-    changeDataSection, changeReliabilitySection, changeMarketsSection, changeCoherenceSection,
+    changeDataSection, changeReliabilitySection, changeMarketsSection, changeCoherenceSection, changeDiffusionSection,
     openRiskSection, openPortfolioSection, openResearchSummary, openLiveLiquidity,
     openReliabilityOverview, openDataOverview, openLoopStage,
   } = routing;
@@ -373,27 +374,21 @@ export default function WorkspacePanels({ routing, sweep, desk }: WorkspacePanel
         </section>
       )}
 
-      {(view === "markets" || visitedViews.current.has("markets")) && (
-        <section id="panel-markets" role="tabpanel" aria-labelledby="tab-markets" className="view-panel" hidden={view !== "markets"}>
-          <MarketsTab
-            section={marketsSection}
-            onSectionChange={changeMarketsSection}
-            active={view === "markets"}
-          />
-          <NextStepFooter currentView="markets" currentSection={marketsSection} onNavigate={openSection} />
-        </section>
-      )}
-
-      {(view === "coherence" || visitedViews.current.has("coherence")) && (
-        <section id="panel-coherence" role="tabpanel" aria-labelledby="tab-coherence" className="view-panel" hidden={view !== "coherence"}>
-          <CoherenceTab
-            section={coherenceSection}
-            onSectionChange={changeCoherenceSection}
-            active={view === "coherence"}
-          />
-          <NextStepFooter currentView="coherence" currentSection={coherenceSection} onNavigate={openSection} />
-        </section>
-      )}
+      {/* The three engine tabs are `EnginePanels`. This file was at 399 of the
+          four-hundred-line ceiling when Diffusion became the eleventh tab, and
+          the seam is the one the desk already has: eight tabs are the decision
+          loop, and three are the Kalshi engine. */}
+      <EnginePanels
+        view={view}
+        visited={visitedViews.current}
+        marketsSection={marketsSection}
+        coherenceSection={coherenceSection}
+        diffusionSection={diffusionSection}
+        changeMarketsSection={changeMarketsSection}
+        changeCoherenceSection={changeCoherenceSection}
+        changeDiffusionSection={changeDiffusionSection}
+        openSection={openSection}
+      />
     </>
   );
 }

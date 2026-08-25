@@ -221,6 +221,11 @@ export const COHERENCE_LESSONS: CoherenceLesson[] = [
       "For any constraints written as linear rows — why new instruments extend the engine by adding rows rather than code paths.",
     whenItFails:
       "A solver answer is only as good as its executability constraints: an LP ignoring resting depth, price grids or per-shard collateral returns a portfolio nobody can fill.",
+    // `certificate`, not `portfolio`, and the guard is what settles it: this
+    // lesson is pinned by the LP suite, and the LP is what the Coherence test
+    // runs — `t*` is the margin that verdict now reports. Basket DRAWS the dual
+    // and states the claim in its lede, so the split of 2026-08-25 left this
+    // lesson able to argue for either section; the module it names does not.
     pane: "certificate",
     group: "structure",
     guards: ["modules/coherence/kernel/dutchbook.py"],
@@ -237,7 +242,10 @@ export const COHERENCE_LESSONS: CoherenceLesson[] = [
       "Once enough episodes are recorded to estimate a median; until then the honest answer is no estimate.",
     whenItFails:
       "Reading a short half-life as 'be faster'. Against commercial detection in tens of milliseconds over REST polling, the edge has to be in structures nobody scans for, not in speed.",
-    pane: "diffusion",
+    // `arm`, not `diffusion`: Diffusion became a TAB on 2026-08-25 and its four
+    // groups became sections, so `diffusion` is no longer any rail's section id.
+    // The half-life lesson is about the announcement arm's own measurement.
+    pane: "arm",
     group: "record",
     guards: ["modules/coherence/episodes.py"],
     pinnedBy: ["tests/test_coherence_episodes.py"],
@@ -253,7 +261,10 @@ export const COHERENCE_LESSONS: CoherenceLesson[] = [
       "Two families, measured differently: a mutually exclusive basket against Σq = 1, so the distance is |Σp − 1|; a threshold ladder against monotonicity, so the distance is to its isotonic regression.",
     whenItFails:
       "Measuring only the basket. Crypto ladders carry no exclusivity flag, so an index handling baskets alone writes a column of nulls for the whole crypto complex — exactly the series a shard-migration study needs.",
-    pane: "calibration",
+    // `index`, not `calibration`: the Scorecard split on 2026-08-25 and the
+    // coherence index is its own section again. This lesson is about the
+    // distance measured on every poll, which is that section exactly.
+    pane: "index",
     group: "record",
     guards: ["modules/coherence/kernel/coherence_index.py"],
     pinnedBy: ["tests/test_coherence_store.py"],
@@ -301,7 +312,7 @@ export const COHERENCE_LESSONS: CoherenceLesson[] = [
       "For any conjunction whose legs the venue lists, whatever the dependence turns out to be.",
     whenItFails:
       "Treating the independence product as a fair value. Legs are routinely dependent, a price above \u03a0p\u1d62 is no evidence on its own, and parlays are quoted one-sided — the offer carries the maker's margin.",
-    pane: "certificate",
+    pane: "combos",
     group: "bounds",
     guards: ["modules/coherence/kernel/frechet.py", "modules/coherence/drivers/kalshi_combos.py"],
     pinnedBy: ["tests/test_coherence_frechet.py"],

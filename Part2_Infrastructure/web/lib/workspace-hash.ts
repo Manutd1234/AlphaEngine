@@ -48,6 +48,10 @@ export const DEFAULT_SECTION: Record<WorkspaceView, string> = {
   // named for — `universe` is not on that rail at all any more.
   markets: "universe",
   coherence: "certificate",
+  // Diffusion opens on the announcement arm, which is the arm the study's
+  // headline finding is about; the episode tape and the model instrument are
+  // both readings taken against it.
+  diffusion: "arm",
 };
 
 /**
@@ -138,8 +142,16 @@ export const RELOCATED_SECTIONS: Record<string, Record<string, RelocatedSection>
     // which is where they pointed when they were published.
     //
     // Stopped being sections; their carrier stayed on this tab.
-    index: { view: "coherence", section: "calibration" },
-    findings: { view: "coherence", section: "diffusion" },
+    // `index` RETIRED on 2026-08-25 — it is a section of this rail again, and
+    // `readLocation` asks the rail before it asks this table, so the entry
+    // could never be reached. Fourth id this restructure has brought back.
+    //
+    // `diffusion` and `findings` changed TAB in the same change, which is the
+    // one kind of move this table cannot stop needing: the id is not on the
+    // Proofs rail any more, so the URL is wrong about the tab and only a lookup
+    // can say so. `findings` lands on the section that carries it natively.
+    diffusion: { view: "diffusion", section: "arm" },
+    findings: { view: "diffusion", section: "findings" },
   },
   // THE `markets` HALF IS EMPTY AS OF 2026-08-25, and an empty object rather
   // than a deleted key because the shape of this table is per-workspace and a

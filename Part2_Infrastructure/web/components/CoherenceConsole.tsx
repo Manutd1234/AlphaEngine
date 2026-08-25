@@ -48,18 +48,20 @@
  * only ever match here says so in its selector.
  */
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import PageHead from "@/components/workspace/PageHead";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
 import FreshnessStamp from "@/components/workspace/FreshnessStamp";
+import BasketSection from "@/components/coherence/BasketSection";
 import CalibrationPane from "@/components/coherence/CalibrationPane";
 import CertificatePane from "@/components/coherence/CertificatePane";
-import DiffusionPane from "@/components/coherence/DiffusionPane";
+import CombosSection from "@/components/coherence/CombosSection";
+import IndexSection from "@/components/coherence/IndexSection";
 import LessonsPane from "@/components/coherence/LessonsPane";
 import StatusPane from "@/components/coherence/StatusPane";
 import { COHERENCE_SECTIONS, type CoherenceSection } from "@/lib/sections";
-import { absorptionRoute, calibrationRoute, statusRoute, universeRoute } from "@/lib/coherence/routes";
+import { calibrationRoute, combosRoute, statusRoute, universeRoute } from "@/lib/coherence/routes";
 import { COHERENCE_POLL_MS, useCoherenceRead, warmCoherenceRead } from "@/lib/coherence/use-coherence";
 import type { CoherenceStatus, CoherenceUniverse } from "@/lib/coherence/types";
 import { useSectionWarming } from "@/lib/coherence/use-section-warming";
@@ -90,8 +92,20 @@ export { type CoherenceSection } from "@/lib/sections";
  */
 const SECTION_READS: Record<CoherenceSection, readonly string[]> = {
   certificate: [universeRoute()],
+  portfolio: [universeRoute()],
+  // The one section that warms its OWN slow call rather than the universe,
+  // and the difference is what it needs to know first: a parlay is a listing
+  // the venue publishes, not a family the reader picks, so there is no choice
+  // to guess at. `certify` stays unwarmed for exactly the opposite reason.
+  combos: [combosRoute()],
   calibration: [calibrationRoute()],
-  diffusion: [absorptionRoute()],
+  // WARMS NOTHING, and the reason is which view rather than which section. The
+  // coherence index has TWO reads — the calibration history behind Score trend,
+  // the index series behind the other two — and warming the section would have
+  // to pick one of them. That is guessing at the view a reader wants, which is
+  // a guess this plan is not allowed to make; the section warms nothing the one
+  // beside it already holds either, so nothing is lost by waiting.
+  index: [],
   lessons: [],
 };
 
@@ -104,7 +118,22 @@ export interface CoherenceConsoleProps {
 
 export default function CoherenceConsole({ section, onSectionChange, active = true }: CoherenceConsoleProps) {
   const status = useCoherenceRead<CoherenceStatus>(statusRoute(), active);
-  const universe = useCoherenceRead<CoherenceUniverse>(universeRoute(), active && section === "certificate");
+  const onFamily = section === "certificate" || section === "portfolio";
+  const universe = useCoherenceRead<CoherenceUniverse>(universeRoute(), active && onFamily);
+
+  // THE FAMILY IS THE CONSOLE'S, AND THAT REVERSES A RECORDED REJECTION.
+  // `FamilyPicker` argued against hoisting it here on the grounds that the
+  // console would own state only some of its sections can use, and that a
+  // reader choosing a family to read a proof has not asked the neighbouring
+  // section to move with them. Both were right while Dutch book was ONE
+  // section. The 2026-08-25 split made Coherence test and Basket two sections
+  // over ONE `certify` read of ONE family — a verdict and the portfolio that
+  // verdict hands back — so a reader who picks a family on one and finds the
+  // other on a different family has been told something false about which
+  // answer they are looking at. Parlays needs no family and takes none.
+  const [family, setFamily] = useState<string | null>(null);
+  const events = useMemo(() => universe.data?.events ?? [], [universe.data]);
+  const target = family ?? events[0]?.event_ticker ?? "";
   // "Has not answered either way" rather than the hook's own `loading`, which
   // is false-until-mount-with-enabled and misses the section-switch case: a
   // reader landing on the certificate mid-flight must see reading, not "none
@@ -119,7 +148,14 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
       {
         label: "Exchange",
         value: status.data?.hosts.some((host) => host.reachable) ? "reachable" : "—",
-        note: status.data?.hosts[0]?.host ?? "not yet asked",
+        // NOT the hostname. The status strip at the foot of this tab carries it
+        // beside the same reachability state, and one figure printed twice on
+        // one screen is a reader checking whether they are two measurements.
+        // What the header needs from this tile is the thing the strip cannot
+        // say from below the fold: whether the answer above it is live.
+        note: status.data
+          ? `${status.data.hosts.length} ${status.data.hosts.length === 1 ? "host" : "hosts"} asked on every poll`
+          : "not yet asked",
       },
       {
         label: "Families priced",
@@ -180,16 +216,34 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
         active={active}
       />
 
+      {/* Three sections over two reads. Coherence test and Basket share the
+          `certify` answer for one family — the read cache holds one answer per
+          URL, so the second costs nothing — and Parlays is the `combos` call,
+          which names no family at all. */}
       <WorkspaceSubtabPanel workspaceId="coherence" tabId="certificate" activeId={section}>
-        {/* Bands, Parlays and Bounds ride here: the Fréchet test is the same
-            coherence test run on a conjunction the venue states rather than on
-            strikes this engine reads a measure off. */}
         <CertificatePane
-          events={universe.data?.events ?? []}
+          events={events}
+          target={target}
+          onFamily={setFamily}
           active={active && section === "certificate"}
           eventsPending={familiesPending}
           eventsError={universe.error}
         />
+      </WorkspaceSubtabPanel>
+
+      <WorkspaceSubtabPanel workspaceId="coherence" tabId="portfolio" activeId={section}>
+        <BasketSection
+          events={events}
+          target={target}
+          onFamily={setFamily}
+          active={active && section === "portfolio"}
+          eventsPending={familiesPending}
+          eventsError={universe.error}
+        />
+      </WorkspaceSubtabPanel>
+
+      <WorkspaceSubtabPanel workspaceId="coherence" tabId="combos" activeId={section}>
+        <CombosSection active={active && section === "combos"} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="coherence" tabId="calibration" activeId={section}>
@@ -200,8 +254,8 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
         <CalibrationPane active={active && section === "calibration"} />
       </WorkspaceSubtabPanel>
 
-      <WorkspaceSubtabPanel workspaceId="coherence" tabId="diffusion" activeId={section}>
-        <DiffusionPane active={active && section === "diffusion"} />
+      <WorkspaceSubtabPanel workspaceId="coherence" tabId="index" activeId={section}>
+        <IndexSection active={active && section === "index"} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="coherence" tabId="lessons" activeId={section}>

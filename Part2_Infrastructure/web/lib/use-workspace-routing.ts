@@ -48,9 +48,9 @@ export function useWorkspaceRouting() {
   const rails = useRailSections();
   const {
     overviewSection, researchSection, executionSection, dataSection, reliabilitySection,
-    developerSection, marketsSection, coherenceSection, riskSection, portfolioSection,
+    developerSection, marketsSection, coherenceSection, diffusionSection, riskSection, portfolioSection,
     setOverviewSection, setResearchSection, setExecutionSection, setDataSection,
-    setReliabilitySection, setDeveloperSection, setMarketsSection, setCoherenceSection, setRiskSection,
+    setReliabilitySection, setDeveloperSection, setMarketsSection, setCoherenceSection, setDiffusionSection, setRiskSection,
     setPortfolioSection, sectionByViewRef, applier,
   } = rails;
 
@@ -219,6 +219,7 @@ export function useWorkspaceRouting() {
       developer: bind("developer", setDeveloperSection),
       markets: bind("markets", setMarketsSection),
       coherence: bind("coherence", setCoherenceSection),
+      diffusion: bind("diffusion", setDiffusionSection),
       risk: bind("risk", setRiskSection),
       portfolio: bind("portfolio", setPortfolioSection),
       data: bind("data", setDataSection),
@@ -311,7 +312,7 @@ export function useWorkspaceRouting() {
   const tourStops = useMemo(() => buildTourStops({
     navigate, setOverviewSection, setResearchSection, setExecutionSection,
     setPortfolioSection, setRiskSection, setDataSection, setReliabilitySection,
-    setDeveloperSection, setMarketsSection, setCoherenceSection,
+    setDeveloperSection, setMarketsSection, setCoherenceSection, setDiffusionSection,
   }), [navigate]);
 
   /**
@@ -337,7 +338,7 @@ export function useWorkspaceRouting() {
     // inside that tab had the move persisted on their next move anywhere else,
     // or not at all.
   }, [view, overviewSection, researchSection, executionSection, dataSection,
-    reliabilitySection, developerSection, marketsSection, coherenceSection,
+    reliabilitySection, developerSection, marketsSection, coherenceSection, diffusionSection,
     riskSection, portfolioSection]);
 
   // Packed rather than one key per line: this file sits under the same size
@@ -345,14 +346,15 @@ export function useWorkspaceRouting() {
   return {
     view, shellRef, visitedViews, navigate, warmView, pushSection, openSection,
     overviewSection, researchSection, executionSection, dataSection,
-    reliabilitySection, developerSection, marketsSection, coherenceSection, riskSection, portfolioSection,
+    reliabilitySection, developerSection, marketsSection, coherenceSection, diffusionSection, riskSection, portfolioSection,
     setOverviewSection, setResearchSection, setExecutionSection, setDataSection,
-    setReliabilitySection, setDeveloperSection, setMarketsSection, setCoherenceSection, setRiskSection, setPortfolioSection,
+    setReliabilitySection, setDeveloperSection, setMarketsSection, setCoherenceSection, setDiffusionSection, setRiskSection, setPortfolioSection,
     changeOverviewSection: change.overview, changeResearchSection: change.research,
     changeExecutionSection: change.live, changeDeveloperSection: change.developer,
     changeRiskSection: change.risk, changePortfolioSection: change.portfolio,
     changeDataSection: change.data, changeReliabilitySection: change.reliability,
     changeMarketsSection: change.markets, changeCoherenceSection: change.coherence,
+    changeDiffusionSection: change.diffusion,
     openRiskSection, openPortfolioSection, openResearchSummary, openLiveLiquidity,
     openReliabilityOverview, openDataOverview, openLoopStage, openReliabilitySection,
     copyLinkToView, tourStops,

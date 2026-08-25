@@ -263,13 +263,44 @@ export const COHERENCE_SECTIONS = [
   { id: "certificate", label: "Coherence test", description: "Whether these prices admit a probability, and the proof" },
   { id: "portfolio", label: "Basket", description: "The portfolio the test hands back, and what it pays" },
   { id: "combos", label: "Parlays", description: "The venue's conjunctions against the bounds their legs impose" },
-  { id: "calibration", label: "Scorecard", description: "Were the prices right — once settled, and over time" },
-  { id: "diffusion", label: "Diffusion", description: "How fast information is absorbed, and the findings" },
+  { id: "calibration", label: "Scorecard", description: "Were the prices right, on what has settled" },
+  { id: "index", label: "Coherence index", description: "How far the quotes sit from admitting a probability, per poll" },
   { id: "lessons", label: "Lessons", description: "The curriculum & what guards it" },
 ] as const;
 export type CoherenceSection = (typeof COHERENCE_SECTIONS)[number]["id"];
 export const COHERENCE_SECTION_IDS =
   COHERENCE_SECTIONS.map((s) => s.id) as readonly CoherenceSection[];
+
+// Diffusion — how fast anything the market did not know reaches the price.
+//
+// A TAB OF ITS OWN SINCE 2026-08-25, and the reason is that it was never the
+// same question as the rest of Proofs. Every other section on that rail argues
+// from ONE poll of the exchange: does this family's prices admit a probability,
+// what portfolio does the failure hand back, how far from coherent is it right
+// now. This one argues from a RESEARCH PANEL — 200 recorded runs, a control
+// arm of matched windows with no news in them, an out-of-sample verdict — and
+// answers a question about how long absorption takes rather than about what a
+// price implies.
+//
+// It also stopped fitting. Four groups over eleven views is a whole rail's
+// worth of subject sitting behind one section's button, and it had already
+// grown a THIRD level: `FindingsPane` drew its own switcher inside a view
+// inside a group, which `coherence-sections.test.ts` carried as a named
+// exemption because there was nowhere else for it to go. As a tab there is:
+// four sections, one control row each, and the exemption is deleted rather than
+// inherited.
+//
+// `findings` is a PUBLISHED id and takes its own section back here, which is
+// the fourth time this restructure has spent nothing to restore a link.
+export const DIFFUSION_SECTIONS = [
+  { id: "arm", label: "Announcement arm", description: "Absorption against a control of matched quiet windows" },
+  { id: "episodes", label: "Kalshi episodes", description: "How long a published mispricing survives" },
+  { id: "model", label: "Model", description: "What the estimator computes, worked in the browser" },
+  { id: "findings", label: "Findings", description: "What the study concluded, and whether it was fit to" },
+] as const;
+export type DiffusionSection = (typeof DIFFUSION_SECTIONS)[number]["id"];
+export const DIFFUSION_SECTION_IDS =
+  DIFFUSION_SECTIONS.map((s) => s.id) as readonly DiffusionSection[];
 
 /**
  * Both halves of the Kalshi engine, in reading order.
@@ -284,5 +315,6 @@ export const COHERENCE_SECTION_IDS =
 export const ENGINE_SECTIONS: readonly WorkspaceSectionDef[] = [
   ...MARKETS_SECTIONS,
   ...COHERENCE_SECTIONS,
+  ...DIFFUSION_SECTIONS,
 ];
 export const ENGINE_SECTION_IDS: readonly string[] = ENGINE_SECTIONS.map((s) => s.id);

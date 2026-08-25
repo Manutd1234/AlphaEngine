@@ -1,7 +1,7 @@
 # Feature tour — the whole infrastructure, walked as the decision loop
 
 This is the guided walkthrough of AlphaEngine: the Vercel portal, the OCI gateway behind it,
-the operator modes, and the Oracle/Supabase/Neo4j persistence layer. Eight of its ten tabs are
+the operator modes, and the Oracle/Supabase/Neo4j persistence layer. Eight of its eleven tabs are
 structured as the decision loop itself — **Overview → Research → Execution → Portfolio → Risk →
 Data → Reliability → Developer** — because that is the order a desk makes decisions in, and the
 workspace's tabs are that loop made navigable. The last two, **Quotes** (`#markets`) and
@@ -63,9 +63,10 @@ its aria-label and title; HALTED is never folded.
 
 **Where the rail lists below come from.** Every rail in this document is transcribed from
 `Part2_Infrastructure/web/lib/sections.ts`, which is the single definition the rails, the
-command palette, the hash whitelist and "Copy link to this view" all read. **62 sections across
-the ten tabs** — 48 on the eight decision-loop tabs, 8 on Quotes and 6 on Proofs — a total
-`web/scripts/desk-sweep-plan.mjs` mirrors by hand as `EXPECTED_SECTIONS = 62` and the tour test
+command palette, the hash whitelist and "Copy link to this view" all read. **66 sections across
+the eleven tabs** — 48 on the eight decision-loop tabs, 8 on Quotes, 6 on Proofs and 4 on
+Diffusion — a total
+`web/scripts/desk-sweep-plan.mjs` mirrors by hand as `EXPECTED_SECTIONS = 66` and the tour test
 asserts against the arrays themselves. Six ids deliberately disagree with their labels, because
 the deep link came first and ids never change: view `live` renders "Execution", view `markets`
 renders "Quotes", view `coherence` renders "Proofs", section `codex` renders "Strategies",
@@ -544,7 +545,7 @@ is literally a portfolio with legs, quantities and fees on it.
 relocation table are described under Tab 9 and apply here unchanged, as does the note on what a
 `.seg` view gives up.
 
-**60 seconds:** rail: **Coherence test → Basket → Parlays → Scorecard → Diffusion → Lessons**.
+**60 seconds:** rail: **Coherence test → Basket → Parlays → Scorecard → Coherence index → Lessons**.
 Six sections, Lessons carried as secondary because it is reference material rather than a step.
 The first three were one section, "Dutch book", until 2026-08-25: three groups over six views
 over a family picker, which is three rows of chrome before any drawing. They are three questions
@@ -559,7 +560,7 @@ already published, so the split shortened the relocation table rather than lengt
 | **Basket** | one view | The portfolio the test hands back, drawn state by state — the constructive half of the theorem and the reason this engine tests for coherence instead of scanning for arbitrage shapes. Where no measure fits a family's prices, duality returns the basket that wins in every state, so the certificate of infeasibility IS the trade. Every leg carries all three fee components, because a gross edge is not an answer. |
 | **Parlays** | Bands · Parlays · Bounds | The same test run on the parlays the venue states rather than on a family's strikes: two probabilities never determine the probability of both, so the legs give a Fréchet band and never a price, and the band's width is how far the parlay can move with no leg moving at all. It takes no family picker, and that is the structural reason it is its own section: a parlay is a listing the exchange publishes, not a family this engine chooses. |
 | **Scorecard** | Score · Bands · Corpus · Index series · Index families | Were these prices right — once settled, and over time? The Brier score is split under Murphy's decomposition — reliability, resolution, uncertainty, and the residual the binning leaves (`modules/coherence/kernel/calibration.py`); **Corpus** is the composition, because a corpus is whatever the watched series happened to settle. **Index series** and **Index families** are the continuous form of the same question, measured every poll as the distance to the nearest coherent price vector — the series nobody publishes for this exchange. Unmeasurable readings are drawn as gaps, never dropped or zeroed, because a line closing over them would claim continuity nobody observed. The two used to be separate sections and asked a reader to discover that they were one question. |
-| **Diffusion** | Absorption · Noise floor · Meetings · Mechanism · Kalshi survival · Kalshi episodes · Findings | How fast is information absorbed? Two arms of one question: how long a coherence violation survives here, and how long a timestamped announcement takes to finish reaching the price. **Findings** keeps the out-of-sample verdict separated from the mechanism that produced it, because a finding read while standing inside the model that generated it is the easiest place on the desk to confuse a fit with a result. |
+| **Coherence index** | Score trend · By poll · By family | How far do these prices sit from admitting a probability, right now? The Scorecard scores a SETTLED corpus against what paid; this measures the L1 distance from the quoted price vector to the nearest one summing to a dollar, on every poll, on markets that have not settled and may never. One is a verdict about the past and the other a time series about the present — they shared a section for a day on the argument that both ask "were these prices right", which is a question rather than a subject. Unmeasurable readings are drawn as gaps, never dropped or zeroed, because a line closing over them would claim continuity nobody observed. |
 | **Lessons** | Coverage · Prices · Structure · Bounds · Record | What is the curriculum, and what guards each claim? Fourteen lessons rendered from `lib/coherence/lessons.ts`, each naming the code it is about and the tests that pin it, matched one-to-one by the notebooks in `Part2_Infrastructure/notebooks/coherence_lab/`. **Coverage** is the map of the catalogue against both rails at once — a lesson's `pane` is a section id with no tab inside it, and half of them are taught on Quotes. |
 
 **Reads are gated on the open section *and*, where a view alone is expensive, on the open view.**
@@ -657,6 +658,34 @@ configured or needed for the read path. The recorder is off unless `COHERENCE_SE
 `COHERENCE_POLL_S` are both set on the gateway, and when it is off the sections state what they
 will show and what has to exist first, rather than rendering an empty chart frame: an axis with
 nothing on it and an axis whose data failed to load look identical, and one of those is a fault.
+
+---
+
+## Tab 11 — Diffusion (`#diffusion`)
+
+**What it answers:** how long does it take a price to finish moving on something it did not
+already know?
+
+**Why it is a tab and not a Proofs section.** Every section of Proofs argues from ONE poll of the
+exchange: does this family's prices admit a probability, what portfolio does the failure hand
+back, how far from coherent are the quotes right now. This argues from a recorded research panel —
+two hundred runs, a control arm of matched half-hours in which nothing was announced, an
+out-of-sample verdict — and answers a question about DURATION rather than about what a price
+implies. It shared a rail with the coherence engine because both are research, which is a category
+rather than a question. It had also stopped fitting: four groups over eleven views is a rail's
+worth of subject behind one button, and it had grown a THIRD switcher level to hold the findings.
+`#coherence/diffusion` and `#coherence/findings` both cross tabs now, which is the one kind of move
+`RELOCATED_SECTIONS` cannot stop being needed for.
+
+**60 seconds:** rail: **Announcement arm → Kalshi episodes → Model → Findings**. Four sections,
+Model carried as secondary because it is an instrument rather than a reading.
+
+| Section | Views | What it answers |
+|---|---|---|
+| **Announcement arm** | Absorption · Noise floor · Meetings · Mechanism | How much of the move had arrived, and by when? A stage is measured against matched windows in which nothing was announced, so a fast absorption has to be faster than the market is anyway — **Noise floor** is that control drawn, and it is what stops a decay curve being read as a finding. **Mechanism** reads nothing: its drawing is two stage constants, and it is here because a reader has to know the two windows are the same length before any comparison between them means anything. |
+| **Kalshi episodes** | Survival · Episodes | How long does a published mispricing survive? An episode earns a lifetime only by CLOSING, which is why the survival curve is drawn from closed episodes alone and why the median can be withheld while episodes are still open. This is the measurement that says whether the executor is worth building — half-life before P&L. |
+| **Model** | Measurement · Instrument · Half-life · Simulator · Spectrum | What does the estimator actually compute? Every view here reads NOTHING: it computes in this browser from `lib/coherence/diffusion-model.ts`, a TypeScript port held to the Python original by a committed parity fixture. That is the section's argument rather than a saving — the closed form is what lets the instrument ship before the model does — and a gateway call here would contradict it. Move a slider and watch the estimator decline to answer, which is the interesting case. |
+| **Findings** | Effects · Table · Instrument | What did the study conclude, and was it fit to? The absorption clock is predictable without the text at all — R² +0.14 out of sample — and the statement's spectrum adds nothing to it. That is a sharper and falsifiable claim, not "nothing predicts anything", and **Instrument** is what keeps the verdict separated from the mechanism that produced it: a finding read while standing inside the model that generated it is the easiest place on the desk to confuse a fit with a result. |
 
 ---
 
