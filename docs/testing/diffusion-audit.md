@@ -161,8 +161,44 @@ and every slider row in the three drivable views was unlaid-out. The
 
 Suite after the fix: **4,794 tests, 4,792 passed, 2 skipped, 0 failed.**
 
-## 7. Still to measure
+## 7. After — the same walk, measured the same way
 
-The closing re-run: deep links for all seven sections once the rail is split,
-the density re-measure against this table, and keyboard walking of each migrated
-figure.
+Production build, same browser, same viewport, same script. **Fourteen views
+across seven sections, and every one of them draws.**
+
+| section | view | height | svg | tables | disclosures | `<title>` | keyboard stops |
+|---|---|---|---|---|---|---|---|
+| arm | Absorption | 527 | 1 | 0 | 0 | 14 | 0 |
+| arm | Control | 825 | 0 | 0 | 0 | 0 | 0 |
+| meetings | Meeting by meeting | 854 | 1 | 1 | 1 | 24 | 1 |
+| meetings | Mechanism | 481 | 1 | 0 | 0 | 5 | 0 |
+| episodes | Survival | 486 | 1 | 0 | 0 | 5 | 1 |
+| episodes | Episodes | 486 | 1 | 0 | 0 | 5 | 1 |
+| model | (single) | 1,384 | **7** | 0 | 7 | 0 | 0 |
+| instrument | (single) | 934 | **6** | 0 | 6 | 0 | 0 |
+| sandbox | Half-life | 786 | 1 | 0 | 0 | 9 | 0 |
+| sandbox | Simulator | 776 | 1 | 0 | 0 | 3 | 0 |
+| sandbox | Spectrum | 826 | 1 | 0 | 0 | 3 | 0 |
+| findings | Effect plot | 760 | 1 | 0 | 0 | 14 | 1 |
+| findings | Findings table | 1,090 | 1 | 1 | 0 | 14 | 1 |
+| findings | Instrument | 1,040 | 1 | 1 | 1 | 2 | 1 |
+
+Zero exceptions and zero HTTP failures across the whole walk, before and after.
+
+**Against the three views that drew nothing:**
+
+- `Model → Measurement` had **zero** figures at 1,354px. It now draws **seven**
+  at 1,384px — thirty pixels for seven drawings, because the cards moved to
+  three columns above 1400px and a duplicated section note came out.
+- `Model → Instrument` had **zero** at 1,084px. It draws **six** at 934px, so it
+  is both shorter and no longer wordless.
+- `episodes → Episodes` was a 251px dead pane — one grey sentence, and on this
+  deployment that is the LIVE state, not an edge case. It draws the recorder's
+  watch at 486px: six live counters and a figure of the window an episode has to
+  outlive to be seen.
+
+**What is not yet done, stated rather than left to be noticed.** Thirty-four
+facts on five figures are still mouse-only — Absorption 14, Mechanism 5,
+Half-life 9, Simulator 3, Spectrum 3 — each on a figure with no keyboard stop.
+Migrating those six to the shared `Plot` frame is the remaining slice; the
+machinery already exists and three figures on the tab use it.
