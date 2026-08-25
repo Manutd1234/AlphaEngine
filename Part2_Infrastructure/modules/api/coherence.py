@@ -229,6 +229,29 @@ async def coherence_books(
     except TapeUnavailable as exc:
         return CoherenceBooks(state="unavailable", origin="tape", notes=[str(exc)])
     if not rows:
+        # TWO EMPTIES, TOLD APART. A cold tape and a filter that matched nothing
+        # are different answers, and they used to share one sentence — the one
+        # naming `COHERENCE_POLL_S`. That is true of a cold tape and false of a
+        # tape holding twenty-five thousand snapshots when the caller asked for
+        # a ticker not among them, and it is false in the most expensive
+        # direction: it names a configuration variable as the cause, so the
+        # reader goes and sets a variable that is already set and concludes the
+        # recorder is broken. It cost a session an hour on 2026-08-25.
+        #
+        # This is the four-absence discipline every pane on this engine keeps,
+        # applied at the route that feeds them: a pane cannot tell apart what
+        # the route has already merged.
+        held = get_store().counts().get("book_snapshots", 0)
+        if wanted and held:
+            return CoherenceBooks(
+                state="empty",
+                origin="tape",
+                notes=[
+                    f"no book on the tape matches {', '.join(wanted)}; it holds {held} snapshot(s) "
+                    "for other tickers, so this is a filter that found nothing rather than a "
+                    "recorder that has not run",
+                ],
+            )
         return CoherenceBooks(
             state="empty",
             origin="tape",
