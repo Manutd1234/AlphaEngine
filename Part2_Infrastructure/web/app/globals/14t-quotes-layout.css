@@ -253,3 +253,30 @@
 .coherence-plane.markets-plane .coh-universe .coh-figure {
   padding: var(--space-4);
 }
+
+/* ── Tables read as tables, and their captions read as prose ────────────
+
+   Two things the resweep found on the running desk rather than in the source.
+
+   THE CAPTION WAS SETTING IN MONO. `.coh-table` gives its cells the tabular
+   face so columns of figures line up, and the caption inherited it — so
+   "Where each family's open interest is offered. A cell is that band's share
+   of its own family…" rendered as a wall of typewriter prose above the table
+   it introduces. It is a sentence, not a figure. `label-metrics` makes the same
+   point from the other side: prose sets at 0.526 em against a ticker's 0.668,
+   and reading it in the ticker's face is the part that costs.
+
+   THE CELLS WERE AT 4px. A ledger a reader scans down wants a row taller than
+   its type, and 4px above and below a 13px line is tighter than anything else
+   on the plane. 7px is the smallest step that reads as a row without adding a
+   line's worth of height to a 188-row outcome table.
+
+   Scoped to this tab because that is what was reviewed; the same rules are
+   probably right for Proofs and that is that tab's call to make. */
+.coherence-plane.markets-plane .coh-table__caption {
+  font-family: var(--sans);
+}
+
+.coherence-plane.markets-plane .coh-table :is(th, td) {
+  padding: 7px 10px;
+}

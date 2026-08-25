@@ -12,6 +12,7 @@
  * reader has to diagnose from a chart.
  */
 
+import { groupDigits } from "@/lib/coherence/universe-metrics";
 import type { CoherenceStatus } from "@/lib/coherence/types";
 import { StateChip } from "./Figure";
 
@@ -19,6 +20,20 @@ function schemaTone(schema: unknown): "good" | "warn" | "critical" | "muted" {
   if (schema === "fp-2026") return "good";
   if (schema === "unavailable") return "muted";
   return "critical";
+}
+
+/**
+ * A whole count for display, grouped.
+ *
+ * These are the largest bare figures on the engine — 33866 snapshots, 2428
+ * markets, 23510 tokens — and they were printed as unbroken digit runs a reader
+ * has to count with a fingertip to tell thirty-three thousand from three
+ * hundred thousand. `groupDigits` is presentational and provably so: it moves
+ * no digit and rounds nothing, which matters on a tab whose numeric contract is
+ * "truncated, never rounded".
+ */
+function count(value: number | null | undefined): string {
+  return value == null ? "0" : groupDigits(String(value));
 }
 
 export default function StatusPane({ status, error }: { status: CoherenceStatus | null; error: string | null }) {
@@ -108,7 +123,9 @@ export default function StatusPane({ status, error }: { status: CoherenceStatus 
         <div>
           <dt>Recorded so far</dt>
           <dd>
-            {tape.state === "ok" ? `${tape.book_snapshots ?? 0} snapshots across ${tape.tickers_seen ?? 0} markets` : "—"}
+            {tape.state === "ok"
+              ? `${count(tape.book_snapshots)} snapshots across ${count(tape.tickers_seen)} markets`
+              : "—"}
           </dd>
         </div>
         <div>
@@ -122,7 +139,7 @@ export default function StatusPane({ status, error }: { status: CoherenceStatus 
         <div>
           <dt>Read budget</dt>
           <dd>
-            {status.budget.tokens_per_second} tokens per second, {status.budget.tokens_spent} spent
+            {count(status.budget.tokens_per_second)} tokens per second, {count(status.budget.tokens_spent)} spent
           </dd>
           {/* The basis WAS a bare gateway string in its own paragraph below the
               list, with a full stop appended and no label — a reader met a
