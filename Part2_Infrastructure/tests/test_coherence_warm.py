@@ -181,7 +181,12 @@ class TestTheWarmSetMatchesWhatTheDeskAsksFor:
 
         routes = pathlib.Path(__file__).resolve().parents[1] / "web/lib/coherence/routes.ts"
         text = routes.read_text(encoding="utf-8")
-        found = re.search(rf"export const {name} = \(\w+ = (\d+)\)", text)
+        # The FIRST parameter's default, however many follow it. This read
+        # `\(\w+ = (\d+)\)` until `combosRoute` gained a `ticker` argument, and
+        # then matched nothing — which failed the test rather than passing it,
+        # so the guard reported a drift it had merely stopped being able to see.
+        # That is the right way round for a guard to break.
+        found = re.search(rf"export const {name} = \(\w+ = (\d+)[,)]", text)
         assert found, f"{name} is not declared the way this test reads it: {routes}"
         return int(found.group(1))
 

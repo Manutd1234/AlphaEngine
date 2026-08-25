@@ -52,7 +52,8 @@ export const replayRoute = (limit = 20_000) => `${COHERENCE}/replay?limit=${limi
 
 export const indexRoute = (limit = 2_000) => `${COHERENCE}/index?limit=${limit}`;
 
-export const combosRoute = (limit = 6) => `${COHERENCE}/combos?limit=${limit}`;
+export const combosRoute = (limit = 6, ticker?: string | null) =>
+  `${COHERENCE}/combos?limit=${limit}${ticker ? `&ticker=${encodeURIComponent(ticker)}` : ""}`;
 
 export const calibrationRoute = () => `${COHERENCE}/calibration`;
 

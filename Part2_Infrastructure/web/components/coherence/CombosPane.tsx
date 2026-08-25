@@ -65,6 +65,8 @@
 
 import type { CoherenceComboRow, CoherenceCombos } from "@/lib/coherence/types-lab";
 import { toCenticents } from "@/lib/coherence/fixed-point";
+import { useState } from "react";
+
 import { combosRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import { BandsView, GatewayNotes, NotesView, ParlaysView } from "./CombosViews";
@@ -81,7 +83,43 @@ const FORMULA = "max(0, Σpᵢ − (n−1))  ≤  P(all legs)  ≤  min pᵢ";
 export type ComboView = "bands" | "parlays" | "bounds";
 
 export default function CombosPane({ active, view }: { active: boolean; view: ComboView }) {
-  const { data, error } = useCoherenceRead<CoherenceCombos>(combosRoute(), active);
+  /**
+   * A named parlay, or the first few the exchange lists.
+   *
+   * The exchange lists about a thousand open parlays and this read takes six of
+   * them, so a reader after a PARTICULAR one had no way to ask: it was in the
+   * answer or it was not, and it usually was not — a different six came back on
+   * every read. `asked` is what the reader typed; `ticker` is what has been
+   * submitted, so the read does not refire on every keystroke.
+   */
+  const [asked, setAsked] = useState("");
+  const [ticker, setTicker] = useState<string | null>(null);
+  const { data, error } = useCoherenceRead<CoherenceCombos>(combosRoute(6, ticker), active);
+
+  const search = (
+    <form
+      className="coh-combos__find"
+      onSubmit={(event) => {
+        event.preventDefault();
+        setTicker(asked.trim() || null);
+      }}
+    >
+      <label htmlFor="coh-parlay-ticker">Parlay</label>
+      <input
+        id="coh-parlay-ticker"
+        type="search"
+        value={asked}
+        placeholder="a parlay ticker, or blank for the listed few"
+        onChange={(event) => setAsked(event.target.value)}
+      />
+      <button type="submit">Read it</button>
+      {ticker ? (
+        <button type="button" onClick={() => { setAsked(""); setTicker(null); }}>
+          Back to the listed few
+        </button>
+      ) : null}
+    </form>
+  );
 
   // No head on any of these branches: the section's head is `CertificatePane`'s
   // and is drawn above whatever this returns. A demoted pane that kept its own
@@ -98,6 +136,10 @@ export default function CombosPane({ active, view }: { active: boolean; view: Co
     const notes = data.notes ?? [];
     return (
       <>
+        {/* The search stays on this branch too. Asking for a ticker the
+            exchange is not listing lands here, and without it a reader would
+            have no way back to the listed few except reloading the tab. */}
+        {search}
         <p className="console-empty">
           <span aria-hidden="true">◌</span>{" "}
           {data.state !== "available"
@@ -143,6 +185,8 @@ export default function CombosPane({ active, view }: { active: boolean; view: Co
           one day because the fold into Dutch book left it with nowhere to be,
           and a claim made in two places is a claim a reader reads twice. */}
       <code className="coh-combo__formula">{FORMULA}</code>
+
+      {search}
 
       {view === "bands" ? (
         <BandsView combos={data.combos} />

@@ -114,6 +114,7 @@ async def coherence_stake(
 @router.get("/api/coherence/combos", response_model=CoherenceCombos)
 async def coherence_combos(
     limit: int = Query(default=8, ge=1, le=10, description="How many parlays to fetch books for"),
+    ticker: str | None = Query(default=None, description="Read one named parlay instead of the first few"),
     _actor: str = Depends(trader_identity),
 ) -> CoherenceCombos:
     """Parlays against the Fréchet band their own legs leave them.
@@ -125,11 +126,18 @@ async def coherence_combos(
     """
     # The snapshot first. A miss — a limit the refresher does not hold — falls
     # through to the live read below and answers exactly as it did before.
-    held = warm.snapshot_for("combos", limit=limit)
-    if held is not None:
-        return held.value.model_copy(update={"observed_age_s": round(held.age_s(), 1)})
+    # A NAMED PARLAY IS NEVER SERVED WARM. The refresher holds the first few by
+    # leg count; a reader asking for a ticker is asking about a specific one,
+    # and answering from a snapshot that happens to contain it would make the
+    # two requests mean different things at the same URL.
+    if ticker is None:
+        held = warm.snapshot_for("combos", limit=limit)
+        if held is not None:
+            return held.value.model_copy(update={"observed_age_s": round(held.age_s(), 1)})
 
-    return views.combos_view(await combos.observe_combos(KalshiClient(), limit=limit))
+    return views.combos_view(
+        await combos.observe_combos(KalshiClient(), limit=limit, ticker=ticker),
+    )
 
 
 @router.get("/api/coherence/calibration", response_model=CoherenceCalibration)

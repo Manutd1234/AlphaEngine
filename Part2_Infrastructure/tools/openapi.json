@@ -10632,6 +10632,24 @@
             }
           },
           {
+            "description": "Read one named parlay instead of the first few",
+            "in": "query",
+            "name": "ticker",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Read one named parlay instead of the first few",
+              "title": "Ticker"
+            }
+          },
+          {
             "in": "header",
             "name": "authorization",
             "required": false,
