@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-25",
-  "commit": "fe3d57b",
+  "commit": "1a8b27d",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -809,6 +809,7 @@
     "Part2_Infrastructure/web/app/globals/10h-universe-overview.css",
     "Part2_Infrastructure/web/app/globals/10i-diffusion-density.css",
     "Part2_Infrastructure/web/app/globals/10j-diffusion-tables.css",
+    "Part2_Infrastructure/web/app/globals/10k-diffusion-marks.css",
     "Part2_Infrastructure/web/app/globals/11-next-step-footer.css",
     "Part2_Infrastructure/web/app/globals/12-workspace-standardisation.css",
     "Part2_Infrastructure/web/app/globals/13-warm-bright-pass.css",
