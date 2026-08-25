@@ -50,19 +50,27 @@ import {
 import Figure, { FigureEmpty, Plot } from "../Figure";
 import type { AbsorptionRead } from "./types";
 
-const HEIGHT = 300;
-const MARGIN = { top: 40, right: 14, bottom: 34, left: 58 };
-const ALLEY = 26;
+const HEIGHT = 318;
+// `top: 58` is two rows, not padding: the quantity's name on one, and each
+// panel's own head on the next. At a single row the y-axis title sat at x=0 and
+// the panel head at x=58, and "abnormal return" ran straight into "statement" —
+// which only appeared once the head stopped being centred.
+const MARGIN = { top: 58, right: 14, bottom: 34, left: 58 };
+const ALLEY = 40;
 const STAGE_WORD: Record<string, string> = { release: "statement", call: "press conference" };
 
 /** One stage's panel: band behind, paths over it, zero rule through it. */
-function Panel({ paths, horizons, bound, left, width, label }: {
+function Panel({ paths, horizons, bound, left, width, label, firstMeasured, why }: {
   paths: readonly RunPath[];
   horizons: readonly string[];
   bound: number;
   left: number;
   width: number;
   label: string;
+  /** The first horizon index any run resolves at; everything left of it is a gap. */
+  firstMeasured: number;
+  /** The wire's own reason for that gap, for the region's title. */
+  why: string | null;
 }) {
   const plotH = HEIGHT - MARGIN.top - MARGIN.bottom;
   const x = (index: number) =>
@@ -82,9 +90,38 @@ function Panel({ paths, horizons, bound, left, width, label }: {
 
   return (
     <g>
-      <text className="coh-svg-note" x={left + width / 2} y={MARGIN.top - 22} textAnchor="middle">
-        {label}
-      </text>
+      {/* Stage left, count right, on one row — the `.diff-bars__head` /
+          `__count` idiom `StageBars` already uses. The count used to sit under
+          the plot at `HEIGHT - 6`, four pixels INTO the tick row above it:
+          measured, "82 of 124 below the floor" overlapped the 2m and 5m ticks
+          in both panels. A figure's axis row belongs to its axis. */}
+      <text className="diff-fan__head" x={left} y={MARGIN.top - 18}>{label}</text>
+      {refused ? (
+        <text className="diff-fan__count" x={left + width} y={MARGIN.top - 18} textAnchor="end">
+          {refused} of {paths.length} below the floor
+        </text>
+      ) : null}
+
+      {/* THE GAP, DRAWN AS A GAP. The first horizons resolve for no run at
+          all, and this span was 201 of each 703px panel — 29% of the figure
+          carrying no ink, with ticks underneath labelling the blank. Hatched
+          with the pattern `Plot` ships for exactly this, and titled with the
+          source's own reason rather than a paraphrase, so the emptiness reads
+          as "never measured" instead of as a rendering fault. */}
+      {firstMeasured > 0 ? (
+        <rect
+          className="diff-fan__unmeasured"
+          x={left}
+          y={MARGIN.top}
+          width={Math.max(0, x(firstMeasured) - left)}
+          height={HEIGHT - MARGIN.top - MARGIN.bottom}
+        >
+          <title>
+            {`${horizons.slice(0, firstMeasured).join(" and ")} resolve for no run`
+              + (why ? `: ${why.replace(/\.?$/, "")}` : "")}
+          </title>
+        </rect>
+      ) : null}
 
       {bandPath ? (
         <path className="diff-fan__band" d={bandPath}>
@@ -122,18 +159,15 @@ function Panel({ paths, horizons, bound, left, width, label }: {
         );
       })}
 
-      {horizons.map((horizon, index) => (
+      {/* Only the horizons that resolve. Labelling the unmeasured ones put
+          panel two's "1s" nine pixels from panel one's "30m" — the tightest gap
+          on the figure — to name a span the hatch above already names once. */}
+      {horizons.map((horizon, index) => (index < firstMeasured ? null : (
         <text key={horizon} className="coh-ladder__tick" x={x(index)}
               y={HEIGHT - MARGIN.bottom + 16} textAnchor="middle">
           {horizon}
         </text>
-      ))}
-
-      {refused ? (
-        <text className="coh-svg-note" x={left + width / 2} y={HEIGHT - 6} textAnchor="middle">
-          {refused} of {paths.length} below the floor
-        </text>
-      ) : null}
+      )))}
     </g>
   );
 }
@@ -166,6 +200,12 @@ function ReturnFan({ read }: { read: AbsorptionRead }) {
   const why = read.runs
     .flatMap((run) => run.cells)
     .find((cell) => cell.abnormal_return == null && cell.reason)?.reason ?? null;
+  // Where the ink actually starts. Taken from the grid rather than assumed to
+  // be the count of unresolved horizons: a gap in the MIDDLE would make those
+  // two numbers disagree, and the hatch must only cover a leading run.
+  const firstMeasured = read.horizons.findIndex((horizon) =>
+    read.runs.some((run) =>
+      run.cells.some((cell) => cell.horizon === horizon && cell.abnormal_return != null)));
 
   return (
     <Figure
@@ -199,7 +239,7 @@ function ReturnFan({ read }: { read: AbsorptionRead }) {
             const panelW = stages.length > 1 ? (span - ALLEY) / stages.length : span;
             return (
               <>
-                <text className="coh-svg-label" x={0} y={MARGIN.top - 22}>abnormal return</text>
+                <text className="coh-svg-label" x={0} y={MARGIN.top - 42}>abnormal return</text>
                 {/* Decade ticks, labelled in bps. The scale is a drawing
                     device; a reader should not have to decode it. */}
                 {logTicks(bound).flatMap((tick) => {
@@ -224,6 +264,8 @@ function ReturnFan({ read }: { read: AbsorptionRead }) {
                     left={MARGIN.left + index * (panelW + ALLEY)}
                     width={panelW}
                     label={STAGE_WORD[stage] ?? stage}
+                    firstMeasured={Math.max(0, firstMeasured)}
+                    why={why}
                   />
                 ))}
               </>

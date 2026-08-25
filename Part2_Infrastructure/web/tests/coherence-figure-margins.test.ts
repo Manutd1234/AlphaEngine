@@ -58,6 +58,13 @@ const RUNG: Record<string, number> = {
   // class already existed and reads the 13px label rung at `14r:183`; the map
   // simply had not been taught it, so its labels were going unchecked.
   "coh-svg-label": DIAGRAM_LABEL_PX,
+  // The fan's panel header, added 2026-08-26 when the refused count moved off
+  // the axis row and onto it. Both read `--fs-sm`, which is this rung.
+  "diff-fan__head": DIAGRAM_LABEL_PX,
+  "diff-fan__count": DIAGRAM_LABEL_PX,
+  // The watch's poll count, added 2026-08-26 with the recorder clock. Reads
+  // `--fs-sm`, the same rung.
+  "diff-watch__count": DIAGRAM_LABEL_PX,
   "coh-axis__label": DIAGRAM_LABEL_PX,
   "coh-surface__value": DIAGRAM_LABEL_PX,
   "coh-surface__rise": DIAGRAM_LABEL_PX,

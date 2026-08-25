@@ -1,38 +1,65 @@
 "use client";
 
 /**
- * What the recorder is watching, and the window an episode has to survive to be
- * seen at all.
+ * The recorder's own clock: when it has looked, when it did not, and when it
+ * looks next.
  *
- * THE EMPTY TAPE IS THE LIVE CASE, not an edge one. On this deployment
- * `/api/coherence/episodes` answers `state: "empty"` — no violation has opened
- * and closed — and the section drew one grey sentence for it. That sentence was
- * true and it was also the whole section for anyone looking at the desk today.
+ * THE EMPTY TAPE IS THE LIVE CASE, not an edge one. `/api/coherence/episodes`
+ * answers `state: "empty"` here — no violation has opened and closed — so this
+ * is what the section shows anyone looking at the desk today.
  *
- * WHAT IS DRAWN INSTEAD IS THE WATCH, and every number in it is live. The
- * recorder is running, it polls a watchlist on a fixed cadence, and the tape
- * counts what it has taken. "Nothing has closed yet" then reads as a report
- * with a denominator rather than as an absence.
+ * WHAT THIS REPLACED, and why it had to go. The previous figure drew three
+ * bands on a log axis: what an episode could never outlive, what might be
+ * missed, and what would be recorded. Measured on the live desk it had five
+ * marks, every one of them restating one of two constants, and NOTHING was
+ * encoded in y. Worse, its own label guard was `x1 - x0 > 96`, and the leftmost
+ * band spans 9.3% of the plot — so that label needed a plot wider than 1,030px
+ * and was never drawn at any desk width. It read as one enormous rectangle with
+ * an unlabelled sliver at each end.
  *
- * AND THE FIGURE IS THE THING THAT SENTENCE COULD NOT SAY. Two rules on one log
- * axis: the round trip a taker needs, and the recorder's own poll interval. The
- * span between them is the resolution gap — an episode shorter than one poll can
- * open and close entirely between two observations, so the tape cannot report
- * it and its absence from this section is not evidence that it did not happen.
- * That is a real limitation of the measurement and it is drawn rather than
- * confessed in a footnote.
+ * AND IT ASSERTED TWO THINGS THAT ARE NOT TRUE.
  *
- * NOTHING HERE IS INVENTED. No episode is drawn, no lifetime is claimed, and
- * the axis is labelled with the two constants it is built from. An episode
- * earns a lifetime only by closing, which is the same refusal the survival
- * curve makes by using closed episodes alone.
+ * `round_trip_s` is not a measurement. `modules/api/coherence_history.py:154`
+ * declares it `Query(default="0.240")` and `lib/coherence/routes.ts` never
+ * passes it, so the desk was drawing the server echoing its own default back,
+ * labelled as though something had timed it. It is named an ASSUMPTION here.
+ *
+ * The recordable floor is two polls, not one. `episodes.py:37` sets
+ * `POLLS_TO_CLOSE = 2` and `closed_ts_ns` is the SECOND coherent poll's
+ * timestamp, so at a 300s cadence nothing shorter than about ten minutes can be
+ * recorded at all. The old reading said "shorter than one poll", which
+ * understated the blind spot by half.
+ *
+ * WHAT IS DRAWN NOW IS THE WATCH ITSELF, on two rows with two honest scales.
+ * The top row is every poll the recorder has taken across the tape's real span,
+ * one mark each — including the stretches where it was not looking, which are
+ * hatched rather than left blank. The bottom row is the interval in progress.
+ * Both are live; neither invents an episode, a lifetime or a threshold.
+ *
+ * The two rows do NOT share an x axis and are not drawn as though they do. A
+ * poll interval is 300s against a tape spanning about twenty-seven hours — 0.3%
+ * of the width — so putting the countdown on the time axis would render it
+ * invisible and imply a precision the drawing does not have.
  */
 
-import Figure, { Plot, StateChip } from "../Figure";
-import type { CoherenceEpisodes, CoherenceStatus } from "@/lib/coherence/types";
+import Figure, { FigureEmpty, Plot, StateChip } from "../Figure";
+import type {
+  CoherenceEpisodes,
+  CoherenceIndexPoint,
+  CoherenceStatus,
+} from "@/lib/coherence/types";
 
-const HEIGHT = 138;
-const MARGIN = { top: 34, right: 26, bottom: 26, left: 26 };
+const HEIGHT = 190;
+const MARGIN = { top: 46, right: 20, bottom: 34, left: 20 };
+const TAPE_H = 26;
+// 122, not 108. At 108 the second row's own label sat in the tape's end-label
+// box — measured, "the interval in progress" overlapped "08-24 13:07" at every
+// width, because the two rows were eleven pixels apart and one is 13px type
+// over a 10px tick.
+const NEXT_TOP = 122;
+const NEXT_H = 12;
+/** A gap wider than this many polls is the recorder not looking, not jitter. */
+const OUTAGE_POLLS = 2;
 
 /** Read a count off the untyped `tape` bag without inventing a zero for it. */
 function tapeCount(status: CoherenceStatus | null, key: string): number | null {
@@ -43,96 +70,60 @@ function tapeCount(status: CoherenceStatus | null, key: string): number | null {
 function seconds(value: number): string {
   if (value < 1) return `${Math.round(value * 1000)}ms`;
   if (value < 90) return `${value % 1 === 0 ? value : value.toFixed(1)}s`;
-  return `${Math.round(value / 60)}m`;
+  if (value < 5400) return `${Math.round(value / 60)}m`;
+  return `${(value / 3600).toFixed(1)}h`;
+}
+
+function clock(ms: number): string {
+  return new Date(ms).toISOString().slice(5, 16).replace("T", " ");
+}
+
+interface Poll {
+  /** Milliseconds, from the first reading in the cluster. */
+  readonly at: number;
+  /** How many events the recorder read on that visit. */
+  readonly readings: number;
 }
 
 /**
- * The two constants on one log axis, with the span between them named.
+ * The readings, clustered back into the polls that wrote them.
  *
- * Log because the two are three orders of magnitude apart — 240ms against five
- * minutes — and a linear axis would put the round trip on the left edge and say
- * nothing about the distance.
+ * Each poll writes one reading per EVENT, not one per family, so 757 readings
+ * are 218 visits. Anything closer together than a poll interval belongs to the
+ * same visit; the cut is deliberately generous because a poll takes real time
+ * to walk its watchlist.
  */
-function ResolutionAxis({ roundTrip, pollSeconds }: { roundTrip: number; pollSeconds: number }) {
-  const low = Math.min(roundTrip, 0.1);
-  const high = Math.max(pollSeconds, 1) * 4;
-  const logLow = Math.log(low);
-  const logHigh = Math.log(high);
+function pollsOf(points: readonly CoherenceIndexPoint[], pollSeconds: number): Poll[] {
+  const stamps = points
+    .map((point) => Number(point.ts_ns) / 1e6)
+    .filter((ms) => Number.isFinite(ms))
+    .sort((a, b) => a - b);
+  if (!stamps.length) return [];
 
-  return (
-    <Plot height={HEIGHT}>
-      {(width) => {
-        const plot = Math.max(1, width - MARGIN.left - MARGIN.right);
-        const base = HEIGHT - MARGIN.bottom;
-        const top = MARGIN.top;
-        const x = (value: number) =>
-          MARGIN.left + ((Math.log(Math.max(value, low)) - logLow) / (logHigh - logLow)) * plot;
-        const ticks = [0.1, 1, 10, 60, 300, 900].filter((t) => t >= low && t <= high);
-
-        // Three regions, left to right, each a claim about a lifetime landing
-        // in it. The marks carry the meaning so it survives monochrome.
-        const bands = [
-          { from: low, to: roundTrip, mark: "✕", word: "never available", cls: "diff-watch__band--gone",
-            title: `A lifetime under the ${seconds(roundTrip)} round trip was over before a taker could reach it` },
-          { from: roundTrip, to: pollSeconds, mark: "◌", word: "may be missed", cls: "diff-watch__band--blind",
-            title: `Between the round trip and one ${seconds(pollSeconds)} poll: takeable in principle, but it can open and close between two observations, so the tape would not hold it` },
-          { from: pollSeconds, to: high, mark: "✓", word: "would be recorded", cls: "diff-watch__band--seen",
-            title: `Longer than one ${seconds(pollSeconds)} poll: the recorder would observe it open and observe it close` },
-        ];
-
-        return (
-          <>
-            {bands.map((band) => {
-              const x0 = x(band.from);
-              const x1 = x(band.to);
-              const mid = (x0 + x1) / 2;
-              return (
-                <g key={band.word}>
-                  <rect className={`diff-watch__band ${band.cls}`} x={x0} y={top} width={Math.max(0, x1 - x0)} height={base - top}>
-                    <title>{band.title}</title>
-                  </rect>
-                  {x1 - x0 > 96 ? (
-                    <text className="coh-svg-note" x={mid} y={top + 20} textAnchor="middle">
-                      {band.mark} {band.word}
-                    </text>
-                  ) : null}
-                </g>
-              );
-            })}
-
-            <line className="coh-ladder__axis" x1={MARGIN.left} x2={width - MARGIN.right} y1={base} y2={base} />
-
-            {/* The two constants the regions are cut at, labelled above the
-                plot rather than on the tick row, which the axis owns. */}
-            <line className="coh-survival__median" x1={x(roundTrip)} x2={x(roundTrip)} y1={top} y2={base}>
-              <title>{`Round trip assumed ${seconds(roundTrip)}`}</title>
-            </line>
-            <line className="coh-survival__half" x1={x(pollSeconds)} x2={x(pollSeconds)} y1={top} y2={base}>
-              <title>{`The recorder polls every ${seconds(pollSeconds)}`}</title>
-            </line>
-            <text className="coh-axis__label" x={x(roundTrip)} y={top - 6} textAnchor="start">
-              round trip {seconds(roundTrip)}
-            </text>
-            <text className="coh-axis__label" x={x(pollSeconds)} y={top - 6} textAnchor="end">
-              poll {seconds(pollSeconds)}
-            </text>
-
-            {ticks.map((tick) => (
-              <text key={tick} className="coh-ladder__tick" x={x(tick)} y={base + 14} textAnchor="middle">
-                {seconds(tick)}
-              </text>
-            ))}
-          </>
-        );
-      }}
-    </Plot>
-  );
+  const cut = Math.max(1, pollSeconds) * 1000 * 0.5;
+  const out: Poll[] = [{ at: stamps[0], readings: 1 }];
+  for (let i = 1; i < stamps.length; i += 1) {
+    const last = out[out.length - 1];
+    if (stamps[i] - last.at > cut) out.push({ at: stamps[i], readings: 1 });
+    else out[out.length - 1] = { at: last.at, readings: last.readings + 1 };
+  }
+  return out;
 }
 
-/** The watch, drawn when the tape has nothing closed to draw instead. */
-export default function EpisodeWatch({ data, status }: {
+/** The stretches between polls where the recorder was not looking. */
+function outagesOf(polls: readonly Poll[], pollSeconds: number) {
+  const limit = Math.max(1, pollSeconds) * 1000 * OUTAGE_POLLS;
+  const out: Array<{ from: number; to: number }> = [];
+  for (let i = 1; i < polls.length; i += 1) {
+    if (polls[i].at - polls[i - 1].at > limit) out.push({ from: polls[i - 1].at, to: polls[i].at });
+  }
+  return out;
+}
+
+export default function EpisodeWatch({ data, status, points }: {
   data: CoherenceEpisodes;
   status: CoherenceStatus | null;
+  points: readonly CoherenceIndexPoint[];
 }) {
   const recorder = status?.recorder ?? null;
   const roundTrip = Number(data.round_trip_s);
@@ -140,6 +131,19 @@ export default function EpisodeWatch({ data, status }: {
   const snapshots = tapeCount(status, "book_snapshots");
   const indexRows = tapeCount(status, "coherence_index_rows");
   const recorded = tapeCount(status, "violation_episodes");
+
+  const polls = pollSeconds ? pollsOf(points, pollSeconds) : [];
+  const outages = pollSeconds ? outagesOf(polls, pollSeconds) : [];
+  const since = recorder?.seconds_since_last_poll ?? null;
+  const first = polls.length ? polls[0].at : null;
+  const last = polls.length ? polls[polls.length - 1].at : null;
+  const missed = outages.reduce(
+    (total, gap) => total + Math.round((gap.to - gap.from) / 1000 / Math.max(1, pollSeconds ?? 1)) - 1,
+    0,
+  );
+  // Two polls to close, so this is the shortest lifetime the tape can record —
+  // not one poll, which is what this figure used to imply.
+  const floor = pollSeconds ? pollSeconds * 2 : null;
 
   return (
     <>
@@ -180,23 +184,127 @@ export default function EpisodeWatch({ data, status }: {
         />
       </div>
 
-      {Number.isFinite(roundTrip) && pollSeconds ? (
-        <Figure
-          caption="What an episode has to outlive to be seen, and to be worth taking"
-          ariaLabel={`A log axis in seconds carrying the ${seconds(roundTrip)} round trip and the ${seconds(pollSeconds)} poll interval, with the span below one poll shaded`}
-          reading="Nothing has closed on this tape yet, and anything shorter than one poll would not have been recorded even if it had — so this is a watch rather than a count."
-          missing="The shaded span is a bound on what this measurement can see, not a claim about what happened inside it."
-        >
-          <ResolutionAxis roundTrip={roundTrip} pollSeconds={pollSeconds} />
-        </Figure>
-      ) : (
-        <p className="console-empty">
-          <span aria-hidden="true">◌</span>{" "}
-          {pollSeconds
-            ? "The round trip is not on the wire, so the window an episode must outlive cannot be drawn."
-            : "The recorder's poll cadence could not be read, so the observable window cannot be drawn."}
-        </p>
-      )}
+      <Figure
+        caption="Every poll the recorder has taken, and the one it is waiting on"
+        ariaLabel={polls.length
+          ? `${polls.length} polls from ${clock(first as number)} to ${clock(last as number)}, `
+            + `${outages.length} stretches where the recorder was not looking, `
+            + `and the current interval ${since == null ? "unknown" : `${Math.round(since)} of ${pollSeconds} seconds`} through`
+          : "The recorder has taken no poll this read can see"}
+        reading={polls.length && floor
+          ? `Nothing has closed on this tape yet. A violation has to survive two polls to be recorded at `
+            + `all — about ${seconds(floor)} at this cadence — so an absence here is a bound on what the `
+            + "recorder can see, not evidence that nothing happened."
+          : "The recorder has written no reading this view can place in time."}
+        missing={[
+          outages.length
+            ? `${outages.length} stretch${outages.length === 1 ? "" : "es"} are hatched: the recorder was `
+              + `not looking, and about ${missed} poll${missed === 1 ? "" : "s"} that would have fallen inside `
+              + "them were never taken."
+            : null,
+          Number.isFinite(roundTrip)
+            ? `The ${seconds(roundTrip)} round trip is an ASSUMPTION, not a reading — it is a query `
+              + "parameter's default that the gateway echoes back, and nothing on this desk has timed it."
+            : null,
+        ].filter(Boolean).join(" ") || null}
+      >
+        {polls.length >= 2 && pollSeconds ? (
+          <Plot height={HEIGHT} minWidth={420}>
+            {(width) => {
+              const span = Math.max(60, width - MARGIN.left - MARGIN.right);
+              const from = first as number;
+              const to = Math.max(last as number, from + 1);
+              const x = (at: number) => MARGIN.left + ((at - from) / (to - from)) * span;
+              const tapeTop = MARGIN.top;
+              const ratio = since == null ? null : Math.min(1.4, since / pollSeconds);
+
+              return (
+                <>
+                  <text className="coh-svg-label" x={0} y={tapeTop - 22}>
+                    the watch, {seconds((to - from) / 1000)} of it
+                  </text>
+                  <text className="diff-watch__count" x={MARGIN.left + span} y={tapeTop - 22} textAnchor="end">
+                    {polls.length} polls
+                  </text>
+
+                  {/* The stretches first, so a tick drawn inside one still sits
+                      over it rather than under. */}
+                  {outages.map((gap) => (
+                    <rect
+                      key={gap.from}
+                      className="diff-watch__outage"
+                      x={x(gap.from)}
+                      y={tapeTop}
+                      width={Math.max(1, x(gap.to) - x(gap.from))}
+                      height={TAPE_H}
+                    >
+                      <title>
+                        {`Not looking for ${seconds((gap.to - gap.from) / 1000)}, from ${clock(gap.from)}`}
+                      </title>
+                    </rect>
+                  ))}
+
+                  <line className="coh-ladder__axis" x1={MARGIN.left} x2={MARGIN.left + span}
+                        y1={tapeTop + TAPE_H} y2={tapeTop + TAPE_H} />
+
+                  {polls.map((poll) => (
+                    <line
+                      key={poll.at}
+                      className="diff-watch__poll"
+                      x1={x(poll.at)}
+                      x2={x(poll.at)}
+                      y1={tapeTop}
+                      y2={tapeTop + TAPE_H}
+                    >
+                      <title>{`${clock(poll.at)} — ${poll.readings} event${poll.readings === 1 ? "" : "s"} read`}</title>
+                    </line>
+                  ))}
+
+                  <text className="coh-ladder__tick" x={MARGIN.left} y={tapeTop + TAPE_H + 15}>
+                    {clock(from)}
+                  </text>
+                  <text className="coh-ladder__tick" x={MARGIN.left + span} y={tapeTop + TAPE_H + 15}
+                        textAnchor="end">
+                    {clock(to)}
+                  </text>
+
+                  {/* ITS OWN SCALE, and said so. One interval is 0.3% of the
+                      span above; drawn up there it would be invisible and would
+                      imply a precision this has not got. */}
+                  <text className="coh-svg-label" x={0} y={NEXT_TOP - 10}>the interval in progress</text>
+                  <rect className="diff-watch__track" x={MARGIN.left} y={NEXT_TOP}
+                        width={span} height={NEXT_H} />
+                  {ratio == null ? null : (
+                    <rect
+                      className={`diff-watch__elapsed${ratio > 1 ? " is-overdue" : ""}`}
+                      x={MARGIN.left}
+                      y={NEXT_TOP}
+                      width={Math.max(1, Math.min(1, ratio) * span)}
+                      height={NEXT_H}
+                    >
+                      <title>
+                        {ratio > 1
+                          ? `${seconds(since as number)} since the last poll, past the ${seconds(pollSeconds)} cadence`
+                          : `${seconds(since as number)} of ${seconds(pollSeconds)} — next poll in ${seconds(pollSeconds - (since as number))}`}
+                      </title>
+                    </rect>
+                  )}
+                  <text className="coh-ladder__tick" x={MARGIN.left + span} y={NEXT_TOP + NEXT_H + 14}
+                        textAnchor="end">
+                    {since == null
+                      ? "cadence not read"
+                      : ratio != null && ratio > 1
+                        ? `overdue by ${seconds((since as number) - pollSeconds)}`
+                        : `next poll in ${seconds(pollSeconds - (since as number))}`}
+                  </text>
+                </>
+              );
+            }}
+          </Plot>
+        ) : (
+          <FigureEmpty reason="Fewer than two polls carry a timestamp, so there is no watch to draw yet." />
+        )}
+      </Figure>
     </>
   );
 }

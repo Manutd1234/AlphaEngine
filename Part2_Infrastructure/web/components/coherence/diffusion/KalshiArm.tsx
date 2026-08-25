@@ -162,7 +162,11 @@ export default function KalshiArm({ data, error, view, status, index }: {
   // index the episode ledger is downstream of, which is live.
   if (!data.episodes.length) {
     return view === "survival"
-      ? <EpisodeWatch data={data} status={status} />
+      // `index` reaches this branch from 2026-08-26. It was already fetched by
+      // the section and already in these props, and was handed only to the
+      // Episodes branch — so the biggest live dataset on the section was one
+      // line away from the view that had nothing live to draw.
+      ? <EpisodeWatch data={data} status={status} points={index?.points ?? []} />
       : <EpisodeTape points={index?.points ?? []} series={index?.series ?? []} />;
   }
 

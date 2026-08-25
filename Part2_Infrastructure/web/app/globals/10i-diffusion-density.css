@@ -61,22 +61,6 @@
   stroke-dasharray: 3 2;
   vector-effect: non-scaling-stroke;
 }
-/* ── The observable window on the episode watch ───────────────────────────
-   RESTORED 2026-08-25 after being deleted by accident: a disclosure-rung edit
-   replaced the block these sat inside, and the component kept rendering the
-   classes. With no fill rule an SVG `<rect>` paints BLACK, so the whole figure
-   came out as a black slab with the labels invisible inside it.
-
-   `dead-css.test.ts` cannot see this and is not meant to: it catches a class
-   with no render site, and this was the inverse — a render site with no class.
-
-   Each region carries a MARK and a WORD on the drawing as well as a fill,
-   because a reader who cannot separate three tints still has to tell "never
-   available" from "would be recorded". The fills only rank them. */
-.diff-watch__band { stroke: none; }
-.diff-watch__band--gone { fill: color-mix(in srgb, var(--text-secondary) 14%, transparent); }
-.diff-watch__band--blind { fill: color-mix(in srgb, var(--series-2) 12%, transparent); }
-.diff-watch__band--seen { fill: color-mix(in srgb, var(--series-1) 14%, transparent); }
 /* ── A footnote that reads as a footnote ──────────────────────────────────
    `.coh-figure__missing` is the slot for what a drawing could not include, and
    `14q` puts it on the READING rung across the whole plane — so it arrived at

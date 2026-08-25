@@ -181,6 +181,29 @@
   stroke: var(--text-primary);
 }
 
+/* The panel's own header row: stage left, refused count right. The count used
+   to sit UNDER the plot and overlapped the tick row by four pixels — measured,
+   "82 of 124 below the floor" ran across the 2m and 5m ticks in both panels.
+   Same two roles `.diff-bars__head` and `__count` carry, one rung apart. */
+.coherence-plane.diffusion-plane .diff-fan__head {
+  fill: var(--text-primary);
+  font-size: var(--fs-sm);
+  font-weight: 650;
+}
+
+.coherence-plane.diffusion-plane .diff-fan__count {
+  fill: var(--text-secondary);
+  font-size: var(--fs-sm);
+}
+
+/* The leading horizons that resolve for no run. Hatched rather than left blank,
+   because 29% of each panel carrying no ink under a row of ticks reads as a
+   rendering fault; hatched, with the source's own reason in its title, it reads
+   as the gap it is. */
+.coherence-plane.diffusion-plane .diff-fan__unmeasured {
+  fill: url(#diff-hatch);
+}
+
 .coherence-plane.diffusion-plane .diff-fan__band {
   fill: color-mix(in srgb, var(--series-3) 16%, transparent);
   stroke: none;
@@ -263,4 +286,47 @@
   stroke: var(--grid);
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
+}
+
+/* ── The recorder's watch ────────────────────────────────────────────────── */
+
+/* One stroke per poll. A tick rather than a dot because the quantity is "the
+   recorder looked at this instant" — an event on a time axis, not a value. At
+   218 polls over a day the ticks merge into a comb wherever the cadence held,
+   and that merging IS the reading: an even comb means it never stopped. */
+.coherence-plane.diffusion-plane .diff-watch__poll {
+  stroke: color-mix(in srgb, var(--series-1) 62%, transparent);
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Where it was NOT looking. Hatched with the pattern `Plot` ships, because a
+   blank stretch on a tape of ticks reads as "nothing happened" when it means
+   "nobody was watching" — the opposite claim. */
+.coherence-plane.diffusion-plane .diff-watch__outage {
+  fill: url(#diff-hatch);
+}
+
+.coherence-plane.diffusion-plane .diff-watch__count {
+  fill: var(--text-secondary);
+  font-size: var(--fs-sm);
+}
+
+/* The interval in progress, on its own scale and visibly its own object: an
+   empty track with the elapsed part filled. */
+.coherence-plane.diffusion-plane .diff-watch__track {
+  fill: var(--surface-2);
+  stroke: var(--rule-soft);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.coherence-plane.diffusion-plane .diff-watch__elapsed {
+  fill: color-mix(in srgb, var(--series-1) 70%, transparent);
+}
+
+/* Overdue is a different fact, not a fuller bar — the track is full either way,
+   so the word in the label carries it and this only agrees with the word. */
+.coherence-plane.diffusion-plane .diff-watch__elapsed.is-overdue {
+  fill: color-mix(in srgb, var(--status-warn, var(--series-2)) 62%, transparent);
 }

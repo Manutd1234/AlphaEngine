@@ -705,3 +705,88 @@ own absorption gate — `return notice; … return (<figure>)`. The scan in
 window closed before the figure and the view reported "draws nothing". Moved
 below the shared gate, the branch is a single return whose first tag is the
 drawing. `VIEWS` goes 26 to 27 and the Diffusion count 15 to 16.
+
+## The Survival watch and the fan's axis row, 2026-08-26
+
+Two figures from this sweep, both mine, both fixed against measurements.
+
+### The fan was putting its own count on its own axis
+
+    tick row    top 272  bottom 284
+    note row    top 280  bottom 297     vertical gap  -4px
+    clashes     "82 of 124 below the floor" over the 2m and 5m ticks, both panels
+    dead space  201px of each 703px panel (29%) with no ink, under ticks
+    alley       26px, tightest tick gap 9px between panel 1's 30m and panel 2's 1s
+
+The count moved to the panel header — stage left, count right, the
+`.diff-bars__head`/`__count` idiom `StageBars` already uses. The leading
+horizons that resolve for no run are hatched with the pattern `Plot` ships and
+titled with the wire's own reason, so 29% of each panel says "never measured"
+rather than sitting blank. Their ticks are gone, which is also what cures the
+alley. After, at 1600/1280/1100:
+
+    every text pair checked   0 clashes at all three widths
+    tightest tick gap         78px
+    lowest text 302 against a viewBox of 318 — no clipping
+
+**One collision I introduced and had to measure to find.** Left-aligning the
+panel head put "statement" at x=58, and the y-axis title "abnormal return" runs
+from x=0 to about x=100 — invisible while the head was centred. The axis title
+has its own row now and `HEIGHT` went 300 → 318 to pay for it, rather than
+shaving a margin that was already 3px from clipping.
+
+### The Survival figure was drawing a server default as a measurement
+
+Before: 1504x138, **5 marks**, every one restating one of two constants, and
+nothing at all encoded in y. Its own label guard was `x1 - x0 > 96` against a
+leftmost band spanning 9.3% of the plot — so that label needed a plot wider than
+1,030px and **was never drawn at any desk width**. It read as one enormous
+rectangle with an unlabelled sliver at each end.
+
+Two of its claims were false:
+
+- **`round_trip_s` is not measured.** `modules/api/coherence_history.py:154`
+  declares it `Query(default="0.240")` and `lib/coherence/routes.ts` never
+  passes it, so the desk drew the gateway echoing its own default back, labelled
+  as though something had timed it. Same class as `?? 0`: a number that looks
+  measured and is not. It is named an ASSUMPTION now, with the reason.
+- **The recordable floor is two polls, not one.** `episodes.py:37`
+  `POLLS_TO_CLOSE = 2`, and `closed_ts_ns` is the SECOND coherent poll's
+  timestamp — so at a 300s cadence nothing shorter than about ten minutes can be
+  recorded. The old reading said "shorter than one poll" and understated the
+  blind spot by half.
+
+After: **225 marks**, all live.
+
+    the watch, 27.5h of it                                    222 polls
+    |||||||||||||||||//////////////////|||||||||||||||||||||||||||||
+    08-24 13:07                                        08-25 16:35
+    the interval in progress
+    [####                                                        ]
+                                                    next poll in 5m
+
+One mark per poll across the tape's real span, the readings clustered back into
+the visits that wrote them (each poll writes one reading per EVENT, so 775
+readings are 222 visits). **Two stretches where the recorder was not looking are
+hatched rather than left blank** — about 105 polls that would have fallen inside
+them were never taken, and a blank stretch on a tape of ticks reads as "nothing
+happened" when it means "nobody was watching".
+
+The two rows deliberately do NOT share an x axis: one poll interval is 0.3% of a
+27-hour span, so drawing the countdown up there would make it invisible and
+imply a precision it has not got.
+
+**It needed the `index` read, which it was never given.** `KalshiArm` handed
+`index` to the Episodes branch only — the biggest live dataset on the section
+was one line away from the view that had nothing live to draw.
+
+Proof it is live: across two screenshots minutes apart, polls 29 → 30, snapshots
+61,970 → 62,250, readings 771 → 775, and the interval track reset.
+
+The four `.diff-watch__band*` rules went with the bands they styled; leaving
+them would have failed `dead-css`.
+
+**A second row-overlap, also found by measuring rather than looking.** At
+`NEXT_TOP = 108` the label "the interval in progress" sat inside the tape's
+end-label box at every width — eleven pixels apart, 13px type over a 10px tick.
+122 now.
