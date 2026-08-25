@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-25",
-  "commit": "a28d0e5",
+  "commit": "80ca032",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -834,6 +834,7 @@
     "Part2_Infrastructure/web/app/globals/14t-quotes-layout.css",
     "Part2_Infrastructure/web/app/globals/14u-proofs-layout.css",
     "Part2_Infrastructure/web/app/globals/14v-engine-head-state.css",
+    "Part2_Infrastructure/web/app/globals/14w-engine-topbar.css",
     "Part2_Infrastructure/web/app/globals/14x-markets-frame.css",
     "Part2_Infrastructure/web/app/globals/15-navigator-and-trailing-layer.css",
     "Part2_Infrastructure/web/app/icon.svg",
@@ -890,6 +891,7 @@
     "Part2_Infrastructure/web/components/coherence/diffusion/FindingsTable.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/FloorDistribution.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/InformationDiffusionPane.tsx",
+    "Part2_Infrastructure/web/components/coherence/diffusion/InstrumentFit.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/InstrumentSection.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/InstrumentTable.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/KalshiArm.tsx",
@@ -936,6 +938,7 @@
     "Part2_Infrastructure/web/components/coherence/lesson-figures/structure.tsx",
     "Part2_Infrastructure/web/components/coherence/LessonCoverage.tsx",
     "Part2_Infrastructure/web/components/coherence/LessonsPane.tsx",
+    "Part2_Infrastructure/web/components/coherence/LiveControls.tsx",
     "Part2_Infrastructure/web/components/coherence/MakersSection.tsx",
     "Part2_Infrastructure/web/components/coherence/MarginAxis.tsx",
     "Part2_Infrastructure/web/components/coherence/MarketPicker.tsx",
