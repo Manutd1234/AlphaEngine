@@ -53,6 +53,8 @@ interface Step {
   strike: string;
   survival: string;
   label: string;
+  /** "threshold" read directly, or "ceiling" inverted from a P(X <= k) market. */
+  origin: string;
 }
 
 function readProbes(surface: CoherenceSurface): { steps: Step[]; unreadable: number } {
@@ -68,7 +70,9 @@ function readProbes(surface: CoherenceSurface): { steps: Step[]; unreadable: num
       unreadable += 1;
       continue;
     }
-    steps.push({ x, s, strike: probe.strike, survival: probe.survival, label: probe.label });
+    steps.push({
+      x, s, strike: probe.strike, survival: probe.survival, label: probe.label, origin: probe.origin,
+    });
   }
   steps.sort((a, b) => a.x - b.x);
   return { steps, unreadable };
@@ -157,6 +161,20 @@ export default function SurvivalChart({ surface }: { surface: CoherenceSurface }
   const medianBelowRange = crossing === 0;
   const dotRadius = steps.length > 60 ? 1 : 1.9;
 
+  /**
+   * The interval that STARTS at each strike, so a scrub can name the mass.
+   *
+   * Bins are what differencing leaves between consecutive strikes, so the bin a
+   * reader wants at strike k is the one whose `low` IS k. Keyed by centicents
+   * rather than by the string, because "67600" and "67600.00" are the same
+   * strike and different keys.
+   */
+  const massAt = new Map<number, { mass: string; negative: boolean; label: string }>();
+  for (const bin of surface.bins) {
+    const low = toCenticents(bin.low);
+    if (low != null) massAt.set(low, { mass: bin.mass, negative: bin.negative, label: bin.label });
+  }
+
   return (
     <Figure
       caption={CAPTION}
@@ -170,7 +188,82 @@ export default function SurvivalChart({ surface }: { surface: CoherenceSurface }
       }
       missing={missingLine(surface, unreadable, rises.length)}
     >
-      <Plot height={HEIGHT}>
+      <Plot
+        height={HEIGHT}
+        /**
+         * ONE CURSOR OVER THE STRIKE AXIS, and it replaces the per-dot titles
+         * rather than joining them. `Plot` gives a figure the mark readout or
+         * the shared axis, never both — and a ladder is the case the shared one
+         * is for: the reader's question at a strike is not "what is this dot"
+         * but "what is true here", which on this figure is four things at once.
+         * A per-mark readout answers it four times, once per press, and never
+         * lets two be compared.
+         *
+         * `x0`/`x1` ARE FUNCTIONS OF THE MEASURED WIDTH, which is the trap this
+         * hook documents: they are read in the same units as the pointer, and
+         * the plot's own gutters are not known until it has been measured.
+         * They are derived from the SAME `plotWidth` the drawing uses below, so
+         * the cursor cannot land where no step was drawn.
+         *
+         * THE LINEAR INDEX→POSITION MAP IS EXACT HERE, AND THAT WAS MEASURED
+         * RATHER THAN ASSUMED. `useCrosshair` maps the pointer to an index by
+         * dividing the axis evenly, which is only the drawn position if the
+         * strikes are evenly spaced. Checked against the live ladder on
+         * 2026-08-26 — `KXBTCD-26AUG2513`, 124 probes from 67599.99 to
+         * 79899.99, a single distinct gap of 100.0 — and the maximum deviation
+         * between the value-based and index-based position was 0.000000 of the
+         * axis. If a family ever quotes UNEVEN strikes the cursor drifts from
+         * the curve, and the fix then is a positional read rather than an
+         * index one; nothing invents that until a family needs it.
+         *
+         * `arriveAt: "first"`, because this axis is ordered rather than
+         * temporal. The default is the last position — right for a record of
+         * runs, where "now" is what a reader means — and on a 124-strike ladder
+         * it is the far tail, where survival is nearest zero and the mass
+         * thinnest. A keyboard reader arrives at the lowest strike, where the
+         * curve begins; End still reaches the tail in one press.
+         */
+        sharedX={(width) => {
+          const plotWidth = Math.max(1, width - MARGIN.left - MARGIN.right);
+          return {
+            count: steps.length,
+            x0: MARGIN.left,
+            x1: MARGIN.left + plotWidth,
+            width: 260,
+            arriveAt: "first" as const,
+            read: (index: number) => {
+              const step = steps[index];
+              const interval = massAt.get(step.x);
+              const rose = index > 0 && step.s > steps[index - 1].s;
+              return {
+                title: `Strike ${step.strike}`,
+                rows: [
+                  // The market's own name, which the per-dot `<title>` used to
+                  // carry. It moves into the reading rather than being dropped:
+                  // the titles go because `Plot` gives a figure the mark
+                  // readout or the shared axis and never both, not because
+                  // what they said stopped mattering.
+                  { label: "Market", value: step.label },
+                  { label: "P(X ≥ k)", value: priceLabel(step.survival) },
+                  {
+                    label: "Read from",
+                    value: step.origin === "ceiling" ? "a P(X ≤ k) market, inverted" : "a threshold market",
+                  },
+                  {
+                    label: "Mass to the next strike",
+                    value: interval
+                      ? `${interval.mass}${interval.negative ? " — negative" : ""}`
+                      : "— no interval starts here",
+                  },
+                  ...(rose
+                    ? [{ label: "Monotonicity", value: "▲ rose above a lower strike, which P(X ≥ k) cannot do" }]
+                    : []),
+                ],
+              };
+            },
+          };
+        }}
+      >
         {(width) => {
           const plotWidth = Math.max(1, width - MARGIN.left - MARGIN.right);
           const base = HEIGHT - MARGIN.bottom;
@@ -181,9 +274,12 @@ export default function SurvivalChart({ surface }: { surface: CoherenceSurface }
               <line x1={MARGIN.left} x2={width - MARGIN.right} y1={base} y2={base} className="coh-surface__axis" />
               <path d={stepPath(steps, x, y)} className="coh-surface__step" fill="none" />
               {steps.map((step) => (
-                <circle key={step.strike} cx={x(step.x)} cy={y(step.s)} r={dotRadius} className="coh-surface__dot">
-                  <title>{`${step.label}: survival ${priceLabel(step.survival)} at strike ${step.strike}`}</title>
-                </circle>
+                /* NO `<title>` SINCE 2026-08-26. It said the label, the
+                   survival and the strike, and the shared readout says all
+                   three at once beside the interval's mass — while a `<title>`
+                   left here would give a hovering reader TWO tooltips, the
+                   browser's and the figure's, saying overlapping things. */
+                <circle key={step.strike} cx={x(step.x)} cy={y(step.s)} r={dotRadius} className="coh-surface__dot" />
               ))}
               {rises.slice(0, 12).map((index) => (
                 <text
@@ -193,8 +289,10 @@ export default function SurvivalChart({ surface }: { surface: CoherenceSurface }
                   textAnchor="middle"
                   className="coh-surface__rise"
                 >
+                  {/* The mark stays and its title goes: the readout's
+                      Monotonicity row says the same thing at the same strike,
+                      and two tooltips over one mark is the defect. */}
                   ▲
-                  <title>{`${steps[index].label}: survival rises to ${priceLabel(steps[index].survival)} above a lower strike — a monotonicity violation, not a drawing artefact`}</title>
                 </text>
               ))}
               {/* The half line and the bracketed median are drawn over the data:
