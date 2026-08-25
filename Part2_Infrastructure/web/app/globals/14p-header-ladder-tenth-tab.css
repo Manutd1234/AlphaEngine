@@ -116,24 +116,23 @@
    TWO ROWS WAS TRIED, MEASURED, AND REVERTED ON THE READER'S INSTRUCTION.
    ────────────────────────────────────────────────────────────────────────
 
-   Kept because the numbers are the only ones anybody has for that layout, and
-   the next person to reach for it should not have to re-measure to learn it was
-   tried. Built 2026-08-25 as `flex-basis: 100%` on the strip so the tabs took
-   their own line; reverted the same day — "i want one row, no two rows for
-   header, revert back to the old design".
+   A RECORD, NOT A RULE — there is no two-row CSS in this file. Kept because
+   these are the only numbers anybody has for that layout, and the next person
+   who reads the paragraph above and reaches for it should not have to
+   re-measure to learn it was already tried. Built 2026-08-25 as
+   `flex-basis: 100%` on the strip; reverted the same day — "i want one row, no
+   two rows for header, revert back to the old design".
 
-   WHAT IT MEASURED, on the production build with `document.fonts.ready` awaited
-   and Inter asserted APPLIED before any width was believed:
+   WHAT IT MEASURED, on a real build with `document.fonts.ready` awaited and
+   Inter asserted APPLIED before any width was believed:
 
      one row, 1728    header 57px   tabs  767px   five labels folded
      two rows, 1728   header 74px   tabs 1688px   every label on screen
 
    Line 1 without the tabs needed ~1361px unfolded against 2046, so the ladder
-   re-derived SHORTER: 1380, 1280, 1180, 1120, 1050, 990, 960, with rungs 8-11
-   retired because they landed at 890, 810, 650 and 540 — inside their own
-   `min-width: 901px` floor. Header height was constant 74px from 2400 to 910,
-   deliberately unconditional above 901 rather than wrap-when-crowded: a hinge
-   width is where a `--header-h` ResizeObserver write would oscillate.
+   re-derived SHORTER — 1380, 1280, 1180, 1120, 1050, 990, 960 — with rungs 8
+   to 11 retired, because re-derived they landed at 890, 810, 650 and 540,
+   inside their own `min-width: 901px` floor.
 
    THE STANDING TRADE, WHICH IS WHAT THIS RECORD IS FOR. One row cannot hold
    eleven tabs, eight controls and every label at 1728 — measured twice, from
@@ -157,96 +156,28 @@
    beside it and carries no measurement, no state and no destination — and at
    72px it is worth more than either of the two labels it now outranks. Folding
    it first is what keeps "Live" and "Connect" on screen at 1722. */
-@media (min-width: 901px) and (max-width: 1120px) {
+@media (min-width: 901px) and (max-width: 1790px) {
   .brand-copy small {
     display: none;
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════════
-   THE ROW STOPS BEING ONE ROW, 2026-08-25
-   ══════════════════════════════════════════════════════════════════════════
+/* Rung 11 (≤1170): the wordmark itself, leaving the α mark alone.
 
-   The banner above ends "the padding was the last thing on this row that could
-   be given up without costing a reader a word. The next tab needs the row to
-   stop being one row." The reader did not wait for a twelfth tab. Reading the
-   patched single-row header at 1728 they asked why the settings control was
-   "hidden and to the far right", and then: "fix the layout for the top bar but
-   make it big enough for everyone to know what is going on."
+   New with the tenth tab, and the reason the table above ends at 1167 rather
+   than clipping on down to the switchover: after every other rung has fired
+   the row still needs 1167px, and the <select> switcher does not take over
+   until 900. There had been nothing left to fold across a 260px band.
 
-   THE PADDING FIX ANSWERED THE CLIPPING AND NOT THE QUESTION. Nothing was cut
-   off any more, but at 1728 the reader had still lost five words to the ladder
-   — "Search", the providers' "routable", the decision chip's state, the brand
-   tagline, and the word "Settings" — because eleven tabs and eight controls
-   were competing for one 1728px line. Measured: restoring the word "Settings"
-   alone re-clipped the row at 1800, 1740 and 1728. Inside one row there was no
-   answer; the words and the tabs could not both fit at any setting of the
-   ladder.
-
-   SO THE TABS TAKE THEIR OWN LINE. `flex-basis: 100%` on the strip, which no
-   line can ever share, so the header is exactly two lines at every width the
-   strip is shown at — 57px becomes 80px. Deterministic on purpose: a layout
-   that wrapped only when crowded would have a hinge width where the header
-   changes height, and `--header-h` is published from a ResizeObserver
-   (`WorkspaceHeader.tsx:113-120`) whose whole documented hazard is a write
-   that dirties the layout it was measuring. A hinge is where that would
-   oscillate. There is no hinge.
-
-   WHAT IT BUYS, measured on the production build at 3100 with
-   `document.fonts.ready` awaited and Inter asserted APPLIED before any width
-   was believed — because a width measured mid-swap is a width measured in SF
-   Pro, and the two faces do not have the same advances:
-
-     1728, one row   header 57px   tabs 767px    every label folded
-     1728, two rows  header 80px   tabs 1688px   EVERY LABEL BACK, overflow 0
-
-   Line 2 is constant: the strip's min-content at 11 tabs and its 8px padding,
-   plus the shell's inset. Line 1 is brand and the eight controls, and it is
-   the one the ladder now measures against.
-
-   THE LADDER IS RE-DERIVED, NOT LOOSENED, and it gets SHORTER. Line 1 without
-   the tabs needs about 1361px unfolded, so the first rung falls from 2050 to
-   1380 and the rest follow it down. Rungs 8 to 11 are RETIRED: retuned against
-   line 1 they land at 890, 810, 650 and 540 — inside their own `min-width:
-   901px` floor, blocks that could never match. Nothing they did is lost. The
-   tab padding and type go back to their designed 8px and 14px (the eleventh
-   tab's 6px/4px was a stopgap for a row that no longer exists); the p99 figure,
-   the kill and sign-in words and the wordmark all still fold below the desk
-   band, at `01:2081-2100` (≤720), `01:2125-2131` (≤520) and `max-[520px]:hidden`
-   in their own components.
-
-   Rung 4's width above is part of that re-derivation: 1790 → 1120.
-
-   WHAT IT COSTS: 23px of vertical chrome on a viewport-locked desk, and it is
-   the whole price. `--header-h` is measured rather than assumed, so its four
-   consumers — the shell's height, the anchored panel's max-height, the research
-   sidebar and the sectioned research layout — take the new number without being
-   told.
-   ══════════════════════════════════════════════════════════════════════════ */
-
-/* The strip is its own line. `order` rather than DOM order so the markup keeps
-   reading brand → tabs → controls, which is the order a screen reader and the
-   tab sequence want; only the paint moves. */
-@media (min-width: 901px) {
-  .workspace-header__utility.workspace-header__primary {
-    flex-wrap: wrap;
-    row-gap: 2px;
-  }
-
-  .workspace-header__primary > .brand-lockup {
-    order: 0;
-  }
-
-  /* Still `flex: 1`, so it still pushes the cluster to the right of line 1. */
-  .workspace-header__primary > .header-spacer {
-    order: 1;
-  }
-
-  /* 100% basis: no line can share with it, so the wrap is unconditional and
-     the header's height cannot depend on how wide the cluster happens to be. */
-  .workspace-header__primary > .workspace-tabs {
-    order: 3;
-    flex: 1 0 100%;
-    margin-left: 0;
+   This is the last thing on the row that is not a control. The mark is still
+   the button back to Overview and still carries its aria-label, and
+   `BrandLockup` has always had a `markOnly` prop for exactly this — "the
+   header's narrow breakpoints may want it", written before one did. It is the
+   same fold the ≤520px rule in 01-workspace-shell.css already makes, pulled up
+   into the desk band, which is rung 9's pattern too. Measured saving ~140px,
+   so the row clears the 1110 wrap with room. */
+@media (min-width: 901px) and (max-width: 1170px) {
+  .brand-copy {
+    display: none;
   }
 }
