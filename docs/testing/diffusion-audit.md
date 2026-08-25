@@ -602,3 +602,63 @@ rule-dropper could not reach, holding `dead-css` one over its baseline.
 draws 628 readings with 3 marks. Its titles are per FAMILY line, which is the
 meaningful unit for a two-family tape, but a mark per unmeasurable gap would say
 more and is not built.
+
+## Slice 4 — the figures the wire was already paying for, 2026-08-25
+
+**`ReturnFan`: the 64% of measured data nothing had drawn.**
+
+    248 runs    89 cleared the noise floor    159 refused
+      refused runs carrying a COMPLETE six-point measured path : 159 of 159
+      measured cells inside refused runs : 954
+      measured cells inside drawn runs   : 534
+
+`_cell()` in `absorption.py` never consults the noise gate — the gate is applied
+afterwards to `terminal_return` and lands in `signal_state` — so a refused run
+still carries a full measured path. Every consumer on this tab opened by
+filtering `signal_state === "ok"`. `StageBars` COUNTS the refused; it cannot
+show they are the flat ones. This draws all 248, with 248 hoverable marks.
+
+And the claim is computed rather than asserted: refused runs peak at a median
+**49 bps** against **170** for cleared, with only 5% of refused runs exceeding
+the median cleared run. The reading quotes both numbers off the drawn paths.
+
+**A SIGNED-LOG AXIS, and the first build is why.** Bounded linearly by the
+largest path the axis read ±891 bps, and |bps| runs median 29.7, p75 70.5, p95
+217, p99 477, max 891 — a thirty-fold tail. The median half of the sample landed
+inside 3.3% of the height; bounding at p99 only reached 6.2%. So a linear scale
+was unreadable wherever it was cut, and cutting it is the clipping this figure
+exists to avoid. `sign(v)·log10(1+|v|)` keeps every path, every sign and zero at
+zero, and puts the median at 50% of the half-axis. Honest and legible were never
+in tension — a linear scale only made them look it.
+
+The axis stays unclipped for the reason `absorption.py` leaves the denominator
+unclipped: 52 of 534 absorbed values exceed 1.0, the largest is 3.22, and both
+mean curves top out at exactly 1.0000 — so `AbsorptionCurve`'s `highest > 1`
+branch has never once fired and overshoot is structurally invisible everywhere
+else on the tab.
+
+Two defects the drawing exposed on its first build, both fixed: the footnote ran
+two sentences together, because the wire's own `reason` ends without a full
+stop; and the reading asserted "they are the flat ones" without the numbers that
+make it checkable.
+
+**Four more fields that arrived and were drawn nowhere.** `Finding.note` landed
+as `EffectPlot` marks in the previous slice. `gate.fact` now names the fact —
+the first requirement said the encoding "recovers a known fact" without ever
+saying which, which is the difference between a check a reader can audit and one
+they must trust; it reads "Recovers the policy move in basis points" now.
+`gate.samples` joins its margin, because an R² of 0.74 over 61 meetings and over
+6 are not the same claim. `study_id` and `verdict` fold into the run's own
+disclosure, so the reported run is identifiable.
+
+**A test taught rather than dodged.** `coherence-figure-margins.test.ts` scores
+in-plot labels against a rung map, and `coh-svg-label` was missing from it — so
+that class's labels had been going unchecked desk-wide. Added rather than
+sidestepped: the suite went 4,920 to 4,929 because the check now covers more.
+
+**Not built, and named so the next reader does not think they were missed:**
+`MeetingCalendar` (a mark per meeting off `StageRun.t0`, 124 distinct decisions
+back to 2019-01-30 — the tab is an event study with no event axis) and
+`HorizonResolution` (the `[1, 2, 5, 10, 15, 30]` bar ladder off `cell.bars`,
+which would say that the 1m point of all 248 paths is a single close). Both are
+designed and neither is written.

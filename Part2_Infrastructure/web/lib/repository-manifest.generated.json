@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-25",
-  "commit": "12e7abb",
+  "commit": "a235fe7",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -906,6 +906,7 @@
     "Part2_Infrastructure/web/components/coherence/diffusion/model/ModelFormulas.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/model/SpectrumExplorer.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/ModelSection.tsx",
+    "Part2_Infrastructure/web/components/coherence/diffusion/ReturnFan.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/SandboxSection.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/StageBars.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/StageTimeline.tsx",
@@ -1224,6 +1225,7 @@
     "Part2_Infrastructure/web/lib/coherence/label-metrics.ts",
     "Part2_Infrastructure/web/lib/coherence/lessons.ts",
     "Part2_Infrastructure/web/lib/coherence/read-cache.ts",
+    "Part2_Infrastructure/web/lib/coherence/return-path.ts",
     "Part2_Infrastructure/web/lib/coherence/routes.ts",
     "Part2_Infrastructure/web/lib/coherence/thresholds.ts",
     "Part2_Infrastructure/web/lib/coherence/types-lab.ts",

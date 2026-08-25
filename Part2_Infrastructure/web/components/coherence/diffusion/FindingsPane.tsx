@@ -221,7 +221,9 @@ export default function FindingsPane({ active }: { active: boolean }) {
               against the {study.conditioning === "prior" ? "previous statement" : study.conditioning},
               at latent width {study.latent_dim}; the desk shows whichever run best recovers the known
               fact among the well conditioned — a rule fixed in advance, blind to absorption speed, so
-              re-running cannot walk the headline.{" "}
+              re-running cannot walk the headline. The run reported here is{" "}
+              <code>{study.study_id}</code>
+              {study.verdict ? <> and its verdict is <strong>{study.verdict.replace(/_/g, " ")}</strong></> : null}.{" "}
               {study.verdict_reason
                 ? `${study.verdict_reason.charAt(0).toUpperCase()}${study.verdict_reason.slice(1)}.`
                 : ""}

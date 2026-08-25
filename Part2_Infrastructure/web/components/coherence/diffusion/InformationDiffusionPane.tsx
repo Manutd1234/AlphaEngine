@@ -40,6 +40,7 @@ import Figure, { FigureEmpty, StateChip } from "../Figure";
 import { STAGE_TERMINAL_MIN, STAGE_WORD, absorptionNotice, absorptionReady } from "./AbsorptionGate";
 import { absorptionBand, bandCoverage } from "@/lib/coherence/absorption-band";
 import AbsorptionCurve from "./AbsorptionCurve";
+import ReturnFan from "./ReturnFan";
 import ClockAgreement from "./ClockAgreement";
 import FloorDistribution from "./FloorDistribution";
 import StageBars from "./StageBars";
@@ -176,6 +177,17 @@ export default function InformationDiffusionPane({ view, read, error }: {
           <FigureEmpty reason="No stage has been measured yet." />
         )}
       </Figure>
+
+      {/* The curve's own denominator, drawn under it. `absorbed(h)` is a ratio
+          against the terminal, so the figure above shows the SHAPE of an
+          average approach and can say nothing about how big a move was, how
+          much the cross-section spreads, or how often a path overshoots — and
+          it is a mean over the 89 runs that cleared the floor, while the fan
+          draws all 248. Paired here rather than given a view of its own for the
+          reason `ArmSection` already argues about the noise floor: a reader who
+          can reach the curve without meeting the raw paths reads a normalised
+          mean as if it were the data. */}
+      <ReturnFan read={read} />
     </div>
   );
 }

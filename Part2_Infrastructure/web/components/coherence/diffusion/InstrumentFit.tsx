@@ -83,7 +83,14 @@ function groupsOf(study: DiffusionStudy, gate: GateCheck | null): Group[] {
       title: "Measured blind to absorption speed",
       rows: [
         {
-          what: "Recovers a known fact",
+          // NAMES THE FACT. `gate.fact` is on the wire ("the policy move in
+          // basis points") and was rendered nowhere, so this row asserted that
+          // the encoding recovers "a known fact" without ever saying which —
+          // which is the difference between a check a reader can audit and one
+          // they have to trust. `gate.samples` joins it in the margin for the
+          // same reason: an R² of 0.74 over 61 meetings and over 6 are not the
+          // same claim.
+          what: gate?.fact ? `Recovers ${gate.fact}` : "Recovers a known fact",
           value: gate?.r_squared != null
             ? `R² ${gate.r_squared >= 0 ? "+" : ""}${fmt(gate.r_squared, 2)}`
             : "—",
@@ -93,7 +100,8 @@ function groupsOf(study: DiffusionStudy, gate: GateCheck | null): Group[] {
           met: gate ? gate.state === "passed" : null,
           room: gate?.r_squared == null
             ? (gate?.reason ?? "the gate was not run")
-            : `${fmt(gate.r_squared - gate.floor, 2)} clear of the ${fmt(gate.floor, 2)} floor`,
+            : `${fmt(gate.r_squared - gate.floor, 2)} clear of the ${fmt(gate.floor, 2)} floor`
+              + (gate.samples ? `, over ${gate.samples} meetings` : ""),
           why: "The encoding loses what the statement actually said.",
         },
         {

@@ -54,6 +54,10 @@ const TICK_PX = 10;
 const RUNG: Record<string, number> = {
   "coh-figure__key": DIAGRAM_LEGEND_PX,
   "coh-svg-note": DIAGRAM_LEGEND_PX,
+  // Added 2026-08-25 with `ReturnFan`, which titles its y axis with it. The
+  // class already existed and reads the 13px label rung at `14r:183`; the map
+  // simply had not been taught it, so its labels were going unchecked.
+  "coh-svg-label": DIAGRAM_LABEL_PX,
   "coh-axis__label": DIAGRAM_LABEL_PX,
   "coh-surface__value": DIAGRAM_LABEL_PX,
   "coh-surface__rise": DIAGRAM_LABEL_PX,
