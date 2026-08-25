@@ -19,7 +19,7 @@
  * why a slow read could not simply be made faster.
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { usePolling } from "@/lib/use-polling";
 import { peek, read, warm } from "./read-cache";
@@ -92,6 +92,44 @@ export function warmCoherenceRead(url: string): void {
  * asked is useful; a fresh-looking answer to a question that is no longer being
  * asked is a lie, and the two are one line apart. See the reseed below.
  */
+/**
+ * Fields that change on every read by construction and draw nothing.
+ *
+ * `observed_at` is the gateway stamping the moment it answered. It is not the
+ * age of the DATA — the freshness stamp reads `updatedAt`, which this hook sets
+ * from the browser's own clock — so a payload differing only here is a payload
+ * a reader cannot tell apart from the last one.
+ */
+const FRESHNESS_ONLY = new Set(["observed_at"]);
+
+/**
+ * A string that changes when anything DRAWABLE changes, and not otherwise.
+ *
+ * MEASURED BEFORE IT WAS WRITTEN, AND THE FIRST NUMBER WAS WRONG. Three
+ * consecutive absorption polls twenty seconds apart come back 404,325 bytes
+ * each and byte-identical apart from `observed_at`, and the desk re-rendered
+ * every mounted section for all three. The first estimate of what that cost —
+ * about 14ms a poll — did not survive a control: it was ambient desk activity,
+ * most of it the freshness clock ticking once a second, which happens whether
+ * this hook polls or not.
+ *
+ * The honest figure, taken back to back in one session on the same section with
+ * only this check toggled, is **about 1.9ms of script per poll**, with layout
+ * and style recalculation unchanged. React's reconciler writes nothing to the
+ * DOM when the output matches — verified: zero mutations in every section
+ * subtree across a poll, with the check on AND off — so what is saved is the
+ * reconciliation, not paint.
+ *
+ * Against that, this costs 1ms at full speed and 3ms under a 4x CPU throttle,
+ * so the win is small and real rather than large: roughly a millisecond a poll
+ * unthrottled, more on a slow machine where the render it skips costs more and
+ * the string it builds does not. It is kept because a stable identity is worth
+ * having for its own sake — every future memo on this data depends on it.
+ */
+function readingOf(data: unknown): string {
+  return JSON.stringify(data, (key, value) => (FRESHNESS_ONLY.has(key) ? undefined : value)) ?? "";
+}
+
 export function useCoherenceRead<T>(url: string, enabled: boolean, pollMs = COHERENCE_POLL_MS): CoherenceLoad<T> & {
   refresh: () => void;
 } {
@@ -123,9 +161,17 @@ export function useCoherenceRead<T>(url: string, enabled: boolean, pollMs = COHE
   // Rendering during render rather than in an effect is deliberate: an effect
   // would paint one frame of the old answer under the new heading first, which
   // is a smaller version of the same lie.
+  // The last payload that changed anything drawable. Compared OUTSIDE the state
+  // updater and written there too: an updater must be pure, and React may call
+  // it twice — a ref written inside would make the second call see its own
+  // first, report "unchanged", and drop a genuinely new read.
+  const lastReading = useRef<string | null>(null);
+
   const [seededFor, setSeededFor] = useState(url);
   if (seededFor !== url) {
     setSeededFor(url);
+    // A different URL's fingerprint must not be compared against this one's.
+    lastReading.current = null;
     setState(seed());
   }
 
@@ -134,11 +180,22 @@ export function useCoherenceRead<T>(url: string, enabled: boolean, pollMs = COHE
   // identical live reads on the exchange's token bucket at once.
   const tick = useCallback(async () => {
     const { data, error } = await read<T>(url, readJson);
+    if (!data) {
+      setState((previous) => ({ ...previous, error, loading: false }));
+      return;
+    }
+    const reading = readingOf(data);
+    const unchanged = reading === lastReading.current;
+    lastReading.current = reading;
     setState((previous) => ({
-      data: data ?? previous.data,
+      // IDENTITY KEPT WHEN NOTHING DRAWABLE CHANGED, so a memoised section can
+      // bail out. `updatedAt` still advances — the freshness stamp is a clock
+      // and has to tick — so this component still re-renders every poll; what
+      // stops is the seven section subtrees below it.
+      data: unchanged && previous.data ? previous.data : data,
       error,
       loading: false,
-      updatedAt: data ? new Date() : previous.updatedAt,
+      updatedAt: new Date(),
     }));
   }, [url]);
 

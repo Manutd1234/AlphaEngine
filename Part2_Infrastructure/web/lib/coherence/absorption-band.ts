@@ -46,20 +46,35 @@ export function quantile(sorted: readonly number[], q: number): number | null {
   return sorted[lower] + (position - lower) * (sorted[upper] - sorted[lower]);
 }
 
-/** The inter-quartile band per horizon, for one stage, over the mean's own population. */
+/**
+ * The inter-quartile band per horizon, for one stage, over the mean's own population.
+ *
+ * ONE PASS OVER THE RUNS, NOT ONE PER HORIZON. The first cut looped horizons on
+ * the outside and runs on the inside, so every run's cell array was walked once
+ * for each of the eight horizons — 8 x 248 x 8 on the live ledger, about 15,900
+ * iterations for a job that visits 1,984 cells. Bucketing by horizon in a single
+ * sweep is the same answer for an eighth of the work, and the sort cost is
+ * unchanged because it was always per horizon.
+ */
 export function absorptionBand(
   runs: readonly StageRun[],
   stage: "release" | "call",
   horizons: readonly string[],
 ): HorizonBand[] {
-  return horizons.map((horizon) => {
-    const values: number[] = [];
-    for (const run of runs) {
-      if (run.stage !== stage || run.signal_state !== "ok") continue;
-      for (const cell of run.cells) {
-        if (cell.horizon === horizon && cell.absorbed != null) values.push(cell.absorbed);
-      }
+  const byHorizon = new Map<string, number[]>();
+  for (const horizon of horizons) byHorizon.set(horizon, []);
+  for (const run of runs) {
+    if (run.stage !== stage || run.signal_state !== "ok") continue;
+    for (const cell of run.cells) {
+      if (cell.absorbed == null) continue;
+      // `get` rather than `has` + `get`: a cell whose horizon is not on the
+      // read's horizon list is dropped, which is what the nested loop did by
+      // never asking about it.
+      byHorizon.get(cell.horizon)?.push(cell.absorbed);
     }
+  }
+  return horizons.map((horizon) => {
+    const values = byHorizon.get(horizon) ?? [];
     values.sort((a, b) => a - b);
     return { p25: quantile(values, 0.25), p75: quantile(values, 0.75), n: values.length };
   });

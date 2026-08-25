@@ -65,18 +65,19 @@ export default function InformationDiffusionPane({ view, read, error }: {
   const notice = absorptionNotice(read, error);
   if (!absorptionReady(read)) return notice;
 
-  const measured = read.stages.reduce((total, stage) => total + stage.measured, 0);
-  const measuredOn = (curve: (number | null)[]) => curve.filter((value) => value != null).length;
-  const coverage = bandCoverage(absorptionBand(read.runs, "release", read.horizons));
-  const gap = ratio(read);
-  // Named so the bars figure can say which stage has no median and why, in the
-  // one place a reader is already asking it: under the drawing itself.
-  const unresolved = read.stages
-    .filter((stage) => stage.median_half_life_s == null)
-    .map((stage) => `No median half-life for the ${STAGE_WORD[stage.stage] ?? stage.stage}: `
-      + `${stage.reason ?? "the ledger gave no reason"}.`);
-
+  // EACH VIEW DERIVES WHAT IT DRAWS AND NOTHING ELSE. These five used to be
+  // computed together above the branches, so Control and Clocks both paid for
+  // an absorption band neither renders — and that band is the most expensive
+  // derivation on the tab. Nothing here is shared between the branches, so
+  // there is no saving to trade away by moving them down.
   if (view === "floor") {
+    // Named so the bars figure can say which stage has no median and why, in
+    // the one place a reader is already asking it: under the drawing itself.
+    const unresolved = read.stages
+      .filter((stage) => stage.median_half_life_s == null)
+      .map((stage) => `No median half-life for the ${STAGE_WORD[stage.stage] ?? stage.stage}: `
+        + `${stage.reason ?? "the ledger gave no reason"}.`);
+
     return (
       <div className="diff-pane">
         <Figure
@@ -108,6 +109,11 @@ export default function InformationDiffusionPane({ view, read, error }: {
       </div>
     );
   }
+
+  const measured = read.stages.reduce((total, stage) => total + stage.measured, 0);
+  const measuredOn = (curve: (number | null)[]) => curve.filter((value) => value != null).length;
+  const coverage = bandCoverage(absorptionBand(read.runs, "release", read.horizons));
+  const gap = ratio(read);
 
   return (
     <div className="diff-pane">

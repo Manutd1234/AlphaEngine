@@ -131,8 +131,23 @@ describe("an answer belongs to the question that was asked", () => {
     // A book from forty seconds ago beside "the gateway is unreachable" is more
     // use than an empty panel. This half is not the defect and must not be lost
     // while fixing the other half.
-    assert.match(hook, /data: data \?\? previous\.data/,
-      "a failed poll now blanks the panel instead of reporting the failure beside the last answer");
+    //
+    // RE-CUT 2026-08-25, following the property rather than the shape. It used
+    // to pin the literal `data: data ?? previous.data`. That expression is gone
+    // because the hook branches now: a poll that answered with NOTHING returns
+    // early, spreading `previous` so the last good payload is carried; a poll
+    // that answered goes on to decide whether the payload's identity may be
+    // kept, which is a question the old single expression could not ask. Same
+    // guarantee, different shape.
+    const branch = hook.slice(hook.indexOf("if (!data) {"));
+    assert.ok(branch.startsWith("if (!data) {"), "the hook no longer has a no-data branch to check");
+    assert.match(branch.slice(0, 220), /\.\.\.previous/,
+      "a failed poll no longer carries the previous state, so it blanks the panel");
+
+    // And the answering path must never blank it either: identity may be KEPT
+    // from `previous`, never replaced with nothing.
+    assert.match(hook, /data: unchanged && previous\.data \? previous\.data : data/,
+      "the answering path no longer falls back to the previous payload");
   });
 
   it("but the state is reseeded when the url changes, because that is a different question", () => {
