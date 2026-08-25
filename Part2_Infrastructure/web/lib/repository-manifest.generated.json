@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-25",
-  "commit": "ed54d49",
+  "commit": "e40848c",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -980,6 +980,7 @@
     "Part2_Infrastructure/web/components/coherence/StateCoverage.tsx",
     "Part2_Infrastructure/web/components/coherence/StatusPane.tsx",
     "Part2_Infrastructure/web/components/coherence/surface/DistributionView.tsx",
+    "Part2_Infrastructure/web/components/coherence/surface/EdgeScatter.tsx",
     "Part2_Infrastructure/web/components/coherence/surface/FamilyView.tsx",
     "Part2_Infrastructure/web/components/coherence/surface/MomentsShape.tsx",
     "Part2_Infrastructure/web/components/coherence/surface/StakeBars.tsx",
@@ -1702,6 +1703,7 @@
     "Part2_Infrastructure/web/tests/login-layout-stability.test.ts",
     "Part2_Infrastructure/web/tests/marketdata-routing.test.ts",
     "Part2_Infrastructure/web/tests/markets-book-history.test.ts",
+    "Part2_Infrastructure/web/tests/markets-hook-order.test.ts",
     "Part2_Infrastructure/web/tests/markets-ladder-instrument.test.ts",
     "Part2_Infrastructure/web/tests/markets-live-tape.test.ts",
     "Part2_Infrastructure/web/tests/markets-sections.test.ts",
