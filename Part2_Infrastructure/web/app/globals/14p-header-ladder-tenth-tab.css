@@ -112,6 +112,37 @@
    padding was the last thing on this row that could be given up without costing
    a reader a word. The next tab needs the row to stop being one row.
 
+   ────────────────────────────────────────────────────────────────────────
+   TWO ROWS WAS TRIED, MEASURED, AND REVERTED ON THE READER'S INSTRUCTION.
+   ────────────────────────────────────────────────────────────────────────
+
+   Kept because the numbers are the only ones anybody has for that layout, and
+   the next person to reach for it should not have to re-measure to learn it was
+   tried. Built 2026-08-25 as `flex-basis: 100%` on the strip so the tabs took
+   their own line; reverted the same day — "i want one row, no two rows for
+   header, revert back to the old design".
+
+   WHAT IT MEASURED, on the production build with `document.fonts.ready` awaited
+   and Inter asserted APPLIED before any width was believed:
+
+     one row, 1728    header 57px   tabs  767px   five labels folded
+     two rows, 1728   header 74px   tabs 1688px   every label on screen
+
+   Line 1 without the tabs needed ~1361px unfolded against 2046, so the ladder
+   re-derived SHORTER: 1380, 1280, 1180, 1120, 1050, 990, 960, with rungs 8-11
+   retired because they landed at 890, 810, 650 and 540 — inside their own
+   `min-width: 901px` floor. Header height was constant 74px from 2400 to 910,
+   deliberately unconditional above 901 rather than wrap-when-crowded: a hinge
+   width is where a `--header-h` ResizeObserver write would oscillate.
+
+   THE STANDING TRADE, WHICH IS WHAT THIS RECORD IS FOR. One row cannot hold
+   eleven tabs, eight controls and every label at 1728 — measured twice, from
+   both directions. Restoring the word "Settings" alone re-clips at 1800, 1740
+   and 1728. So on one row the ladder folds five words at that width: "Search",
+   the providers' "routable", the decision chip's state, the brand tagline and
+   "Settings". That is the price of one row, and it is a decision rather than a
+   defect.
+
    The measurement is a `flex: 1` trap worth recording: `header-spacer` absorbs
    the surplus, so at any width the row FITS the rightmost control is flush
    right and a right-edge measurement reports the viewport back at you. The

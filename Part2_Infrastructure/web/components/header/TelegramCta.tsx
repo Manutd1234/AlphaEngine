@@ -238,7 +238,7 @@ function TelegramCta() {
         </svg>
       </span>
       {mark ? <span aria-hidden className="text-fs-chrome-tab leading-none">{mark}</span> : null}
-      <span className="max-[990px]:hidden">{label}</span>
+      <span className="max-[1660px]:hidden">{label}</span>
     </>
   );
 
