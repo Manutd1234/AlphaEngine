@@ -43,6 +43,20 @@
      at about 1200px, it is the only item there and lands left. Measured: its
      right edge was 865px inside a head whose own right edge was 1180. */
   margin-left: auto;
+  /* A ROW OF ITS OWN, always, and the arithmetic is what decides it. The four
+     chips and the freshness stamp come to about 1,346px together, and the head
+     is 1,526px wide at a 1600 viewport with the copy column asking 380px at its
+     smallest — so all five on one line BESIDE the title needs 1,726px and never
+     fits. The ask is that they share a row, so the row is the head's own width.
+
+     `flex: 0 0 auto` (the base sheet) grew this slot to fit its content and
+     never gave room back, so `max-width: 100%` on the chip row was measuring
+     100% of a box already sized to the chips: no constraint, nothing wrapped,
+     and at 1440 the top bar measured 1,400px wide against a scrollWidth of
+     1,543 — 143px of content past its own card. The document never scrolled,
+     which is why a page-level check called that clean. */
+  flex: 1 1 100%;
+  min-width: 0;
 }
 
 .coherence-plane .coh-headstate {

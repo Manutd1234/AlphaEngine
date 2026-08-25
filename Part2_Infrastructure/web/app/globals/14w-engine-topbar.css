@@ -60,12 +60,25 @@
    `nowrap`/`ellipsis`/`overflow: hidden` — it wraps, it never clips. */
 .coherence-plane .page-heading__actions .coh-headchips {
   display: flex;
-  flex-wrap: wrap;
+  /* NOWRAP between the chip GROUP and the stamp, which is the pair the reader
+     asked to see on one row. The group inside is still `flex-wrap: wrap`, so
+     when the row genuinely runs out it is the chips that take a second line and
+     the stamp stays put — the thing that ticks never moves.
+
+     `wrap` here put the stamp on its own line even with room to spare:
+     measured at 1600, the group at y=195 (952px) and the stamp at y=230
+     (386px) inside a container 1,346px wide holding 1,346px of content. */
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-2);
   max-width: 100%;
   margin-bottom: 0;
+}
+
+.coherence-plane .coh-headchips > .coh-status__chips {
+  flex: 0 0 auto;
+  justify-content: flex-end;
 }
 
 /* The pin, and the number is a MEASUREMENT — the first value written here was
