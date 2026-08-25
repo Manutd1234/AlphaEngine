@@ -76,6 +76,8 @@ import type { CoherenceDispersion, CoherenceRfqPanel } from "@/lib/coherence/typ
 import { rfqRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import ChannelStates from "./ChannelStates";
+import DispersionTable, { THIN_PANEL } from "./DispersionTable";
+import KpiRow, { type Reading } from "./KpiRow";
 import DispersionStrips from "./DispersionStrips";
 
 /** The section's two subjects since the second 2026-08-24 pass: the quotes
@@ -85,9 +87,6 @@ import DispersionStrips from "./DispersionStrips";
  *  number. Quotes is the default because it answers the section's headline
  *  question; the Channel view is where a no-answer explains itself. */
 export type RfqView = "quotes" | "channel";
-
-/** Below this many independent makers a spread is an anecdote, not a distribution. */
-const THIN_PANEL = 3;
 
 /**
  * The four answers the channel can give, as data rather than as four branches.
@@ -127,6 +126,40 @@ const STATES: ReadonlyArray<{ state: string; mark: string; word: string; means: 
     not: "Not a price. Several makers answering independently.",
   },
 ];
+
+/**
+ * The three numbers a reader wants before any drawing, whatever the channel said.
+ *
+ * EVERY BRANCH CAN ANSWER ALL THREE, which is why they are a row rather than
+ * chips inside the available branch. A refusal still has a state, still has an
+ * open-request count (zero, measured, not missing), and still knows whether a
+ * panel came back — and on a keyless deployment those three are the entire
+ * section. The panel width is the one that is genuinely absent then, and it is
+ * withheld with its reason rather than printed as a zero: no panels means no
+ * width, not a width of nothing.
+ */
+function channelReadings(panel: CoherenceRfqPanel): Reading[] {
+  const panels = panel.dispersions.length;
+  const thin = panel.dispersions.filter((row) => row.thin).length;
+  return [
+    { label: "Channel said", value: wordFor(panel.state) },
+    {
+      label: "Open requests",
+      value: String(panel.open_requests),
+      note: panel.open_requests === 0 ? "a measured zero: the venue looked and found none" : undefined,
+    },
+    {
+      label: "Maker panels",
+      value: panels ? `${panels} ${panels === 1 ? "market" : "markets"}` : null,
+      withheld: "no panel came back on this read, so there is none to count",
+      note: thin ? (
+        <>
+          <span aria-hidden="true">▲</span> {thin} of {panels} thin, under {THIN_PANEL} makers
+        </>
+      ) : undefined,
+    },
+  ];
+}
 
 function wordFor(state: string): string {
   return STATES.find((row) => row.state === state)?.word ?? `State ${state}`;
@@ -193,45 +226,6 @@ function StateTable({ panel }: { panel: CoherenceRfqPanel }) {
   );
 }
 
-function Row({ row }: { row: CoherenceDispersion }) {
-  const band = row.lowest == null || row.highest == null ? "—" : `${row.lowest} to ${row.highest}`;
-  return (
-    <tr>
-      <th scope="row">{row.market_ticker}</th>
-      <td className="num">{row.quotes}</td>
-      <td className="num">{row.usable}</td>
-      <td className="num">{row.median ?? "—"}</td>
-      <td className="num">{band}</td>
-      <td className="num">{row.spread ?? "—"}</td>
-      <td className="num">{row.median_width ?? "—"}</td>
-      <td className="num">{row.crossed}</td>
-      <td className="num">{row.band_width ?? "—"}</td>
-      <td className="num">{row.band_fraction ?? "—"}</td>
-      <td>
-        {row.thin ? (
-          <span>
-            <span aria-hidden="true">▲</span> thin, fewer than {THIN_PANEL} makers
-          </span>
-        ) : (
-          <span>
-            <span aria-hidden="true">●</span> {THIN_PANEL} makers or more
-          </span>
-        )}
-      </td>
-      <td>
-        {row.detail ? (
-          <details className="disclosure">
-            <summary>How this row reached its usable count</summary>
-            <p>{row.detail}</p>
-          </details>
-        ) : (
-          "—"
-        )}
-      </td>
-    </tr>
-  );
-}
-
 export default function RfqPane({ view, active }: { view: RfqView; active: boolean }) {
   const { data, error } = useCoherenceRead<CoherenceRfqPanel>(rfqRoute(), active);
 
@@ -249,11 +243,18 @@ export default function RfqPane({ view, active }: { view: RfqView; active: boole
 
           What is NOT prose is the open-request count, which is this read's own
           answer and belongs beside the figure it describes. */}
-      <p className="sub">
-        {data
-          ? `${data.open_requests} open ${data.open_requests === 1 ? "request" : "requests"} on the channel.`
-          : "Asking the channel now."}
-      </p>
+      {data ? (
+        /* The channel's own three numbers, in the row every other section on
+           the tab answers in. They were one sentence — "N open requests on the
+           channel." — which is the right fact in the wrong object: a count, a
+           verdict and a panel width are measurements, and this section was one
+           of four with no KPI row at all while Lattice and Stake had six tiles
+           each. On a keyless deployment, which is every demo of this engine,
+           these three ARE the view, so they had better be legible. */
+        <KpiRow readings={channelReadings(data)} source="this call to the channel" />
+      ) : (
+        <p className="sub">Asking the channel now.</p>
+      )}
       {body}
     </div>
   );
@@ -283,52 +284,7 @@ export default function RfqPane({ view, active }: { view: RfqView; active: boole
       ) : available && data.dispersions.length ? (
         <>
           <DispersionStrips rows={data.dispersions} />
-          {/* The strips rank the panels; this proves them, twelve columns wide.
-              Folded on the fourth pass of 2026-08-24: it is the longest table
-              on the tab and every column of it is per-row detail, so it opens
-              when a reader wants to check a number and costs nothing when they
-              want the ranking. The summary states both the shape and the size,
-              so nobody opens it to find out how big it is. */}
-          <details className="disclosure">
-            <summary>
-              Every maker panel across twelve columns, {data.dispersions.length}{" "}
-              {data.dispersions.length === 1 ? "market" : "markets"}
-            </summary>
-          <div className="table-wrap">
-            <table className="coh-table">
-              <caption className="coh-table__caption">
-                Spread is the disagreement between makers, median width is one maker&rsquo;s own bid-offer — opposite
-                situations. Band and share are blank without a combo reading: an unmeasured ratio is
-                not a ratio of zero.
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col">Market</th>
-                  <th scope="col" className="num">Quotes</th>
-                  <th scope="col" className="num">Usable</th>
-                  <th scope="col" className="num">Median</th>
-                  <th scope="col" className="num">Lowest to highest</th>
-                  <th scope="col" className="num">Spread between makers</th>
-                  <th scope="col" className="num">Median maker width</th>
-                  <th scope="col" className="num">Crossed</th>
-                  <th scope="col" className="num">Band the legs leave</th>
-                  <th scope="col" className="num">Share of it used</th>
-                  <th scope="col">Panel</th>
-                  <th scope="col">Notes</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.dispersions.map((row) => (
-                  <Row key={row.market_ticker} row={row} />
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="coh-rfq__note">
-            Crossed quotes are counted and excluded, never averaged in: their two sides were priced at different
-            moments. A dash is a quantity the panel could not produce, never a zero.
-          </p>
-          </details>
+          <DispersionTable rows={data.dispersions} />
         </>
       ) : (
         <>

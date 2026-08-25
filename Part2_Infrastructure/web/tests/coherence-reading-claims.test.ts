@@ -98,6 +98,13 @@ const FILES = [
   "../components/coherence/LadderChart.tsx",
   "../components/coherence/IdentityStrip.tsx",
   "../components/coherence/RfqPane.tsx",
+  // Split out of `RfqPane` on 2026-08-25 when that file crossed the 400-line
+  // ceiling. It carries four of this tab's pinned claims — the spread/width
+  // distinction, the crossed-quote exclusion and the unmeasured ratio — so it
+  // joins the scan in the same change. A claim that moves file without its
+  // guard following is a claim that stops being guarded while every assertion
+  // still reads as present.
+  "../components/coherence/DispersionTable.tsx",
   "../components/coherence/DispersionStrips.tsx",
   "../components/coherence/SurfacePane.tsx",
   "../components/coherence/ShellPane.tsx",

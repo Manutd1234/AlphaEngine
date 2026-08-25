@@ -31,14 +31,17 @@
  *
  * THE LADDER VIEW OPENS ON ITS DRAWING. Until the fourth pass of 2026-08-24 it
  * opened on a five-row definition list, three rows of which the chart's reading
- * prints underneath anyway. The list is folded now, with a summary that names
- * what is in it; the two facts the drawing cannot carry — the NO bid as the
- * venue sends it, and whether the read reached past the top of book — are the
- * reason it is folded rather than deleted.
+ * prints underneath anyway. It was folded then, and on 2026-08-25 the three
+ * duplicates were dropped outright: a fold whose contents are already on screen
+ * is a claim made twice with a click in between, not a claim made once. The two
+ * the drawing genuinely cannot carry — the NO bid as the venue SENDS it, and
+ * how deep this read reached — are a `KpiRow` now, which is the object every
+ * other section on the tab answers its measurements in.
  */
 
 import type { CoherenceBooks, CoherenceBookView } from "@/lib/coherence/types";
 import IdentityStrip from "./IdentityStrip";
+import KpiRow from "./KpiRow";
 import LadderChart from "./LadderChart";
 
 /**
@@ -85,38 +88,33 @@ function BookDetail({ book, view }: { book: CoherenceBookView; view: BookDetailV
         unquotedReason={book.unquoted_reason}
       />
 
-      <details className="disclosure">
-        <summary>The five figures this book was read from, and how deep the read went</summary>
-        <dl className="coh-book__facts">
-          <div>
-            <dt>Best YES bid</dt>
-            <dd>{book.best_yes_bid ?? "—"}</dd>
-          </div>
-          <div>
-            <dt>Best NO bid</dt>
-            <dd>{book.best_no_bid ?? "—"}</dd>
-          </div>
-          <div>
-            <dt>Implied YES ask</dt>
-            <dd>{book.best_yes_ask ?? "—"}</dd>
-          </div>
-          <div>
-            <dt>Spread</dt>
-            <dd>{book.spread ?? "—"}</dd>
-          </div>
-          <div>
-            <dt>Depth read</dt>
-            <dd>{book.depth === "full" ? "full ladder" : "top of book only"}</dd>
-          </div>
-        </dl>
-
-        {book.depth === "top_of_book" ? (
-          <p className="coh-event__note">
-            <span aria-hidden="true">◌</span> One level a side, from the market object&rsquo;s top-of-book fields: the
-            orderbook route refused an unauthenticated read, so depth cannot be answered.
-          </p>
-        ) : null}
-      </details>
+      {/* THE TWO FACTS THE DRAWING CANNOT SAY, as the tab's KPI row rather
+          than as a five-row fold. The fold held five and the chart's own
+          reading already prints three of them — the best YES bid, the implied
+          offer and the spread between them — so opening it was reading the
+          same numbers twice. What only the fold carried is the NO bid as the
+          venue SENDS it (every offer on this section is read off that ladder,
+          and the chart draws the offer rather than its source) and how deep
+          this read reached. Those two are measurements, so they answer in the
+          row every other section answers in, and the claim is made once. */}
+      <KpiRow
+        readings={[
+          {
+            label: "Best NO bid",
+            value: book.best_no_bid,
+            withheld: "nobody is bidding the NO side, so no YES offer is implied",
+            note: "the ladder every offer here is read off",
+          },
+          {
+            label: "Depth read",
+            value: book.depth === "full" ? "full ladder" : "top of book only",
+            note: book.depth === "full"
+              ? undefined
+              : "the orderbook route refused an unauthenticated read",
+          },
+        ]}
+        source="this book"
+      />
     </div>
   );
 }

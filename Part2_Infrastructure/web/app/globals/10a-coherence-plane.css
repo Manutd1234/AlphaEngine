@@ -175,18 +175,23 @@
 .coh-notes li { margin-bottom: 3px; }
 
 .coh-book { display: grid; gap: 10px; min-width: 0; }
-.coh-book__facts,
+
+/* `.coh-book__facts` was DELETED on 2026-08-25 with the fold it styled. The
+   Ladder view opened on five figures behind a disclosure, three of which the
+   chart's own reading already prints — a claim made twice with a click in
+   between. The two the drawing cannot carry are a `KpiRow` now, on the shared
+   `.coh-status__facts` grid, which is what every other section on the tab
+   answers its measurements in. It shared four selector lists with that class,
+   so this is four lines removed rather than a block, which is why it is
+   recorded here instead of leaving a reader to diff for it. */
 .coh-status__facts {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 8px;
   margin: 0;
 }
-.coh-book__facts div,
 .coh-status__facts div { display: grid; gap: 2px; }
-.coh-book__facts dt,
 .coh-status__facts dt { font-size: var(--fs-xs); color: var(--text-secondary); }
-.coh-book__facts dd,
 .coh-status__facts dd { margin: 0; font-variant-numeric: tabular-nums; font-weight: 620; }
 
 .coh-books__ticker { margin: 0; font-size: var(--fs-lg); font-variant-numeric: tabular-nums; }

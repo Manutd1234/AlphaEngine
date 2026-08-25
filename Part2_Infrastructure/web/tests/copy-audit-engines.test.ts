@@ -195,7 +195,10 @@ describe("shape 6 — wire prose is not a column of a table of measurements", ()
     // them is still rendered, one disclosure per row, because the counts they
     // explain are columns of that same row and nothing else says why a quote
     // was left out of them.
-    const rfq = read("../components/coherence/RfqPane.tsx");
+    // The per-row folds moved with the twelve-column table into
+    // `DispersionTable` when `RfqPane` crossed the ceiling; the claim is about
+    // the ROW, so the assertion follows the row.
+    const rfq = read("../components/coherence/DispersionTable.tsx");
     assert.match(rfq, /<summary>How this row reached its usable count<\/summary>/,
       "the fold must name what it hides");
     assert.match(rfq, /<p>\{row\.detail\}<\/p>/,

@@ -166,7 +166,6 @@
   .coh-chip,
   .coh-chip__mark,
   .coh-event__meta,
-  .coh-book__facts dt,
   .coh-status__facts dt,
   /* Beside `dt` deliberately: a tile's caveat ranks under its figure the
      same way the tile's label does, and putting it a rung higher would

@@ -66,7 +66,7 @@ import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import FormationDiagram, { type FormationStage } from "./FormationDiagram";
 import IndexBasisChart from "./IndexBasisChart";
 import PendingMinutes from "./PendingMinutes";
-import { StateChip } from "./Figure";
+import KpiRow, { type Reading } from "./KpiRow";
 
 /** The one city the venue publishes. Probed, not assumed — see the driver. */
 export const PUBLISHED_CITY = "miami";
@@ -110,8 +110,65 @@ function TodayReading({ data }: { data: CoherenceSettlementFeed }) {
   const thin = data.contributors_min != null && data.contributors_max != null
     && data.contributors_min !== data.contributors_max;
 
+  /* The quality control that decides whether the average means anything, as the
+     tab's KPI row rather than as a chip strip. They are MEASUREMENTS — a count,
+     a mean, a range, a version — and a chip is a pill that carries a STATE; the
+     four sat under a figure looking like status while saying numbers. The tile
+     grid is what Lattice, Stake and Fees answer in, so a reader moving down the
+     rail meets one object rather than four.
+
+     The warnings survive the move in the tiles' own note slot, with their marks,
+     because "the flags move the settled number" is the reading and a tile that
+     printed the clean average with nothing beside it would bury it. */
+  const readings: Reading[] = [
+    {
+      label: "Flagged minutes",
+      value: `${data.degraded_samples} of ${data.sample_count}`,
+      note: data.degraded_samples ? (
+        <>
+          <span aria-hidden="true">▲</span> quality control dropped these
+        </>
+      ) : undefined,
+    },
+    {
+      label: "Window mean, flags removed",
+      value: data.window_average_clean,
+      withheld: "the venue did not publish a cleaned figure for this read",
+      note: flagsMatter ? (
+        <>
+          <span aria-hidden="true">▲</span> the flags move the settled number
+        </>
+      ) : (
+        <>
+          <span aria-hidden="true">●</span> same as the published mean
+        </>
+      ),
+    },
+    {
+      label: "Stations in",
+      value: data.contributors_min == null || data.contributors_max == null
+        ? null
+        : thin
+          ? `${data.contributors_min} to ${data.contributors_max}`
+          : `${data.contributors_min} throughout`,
+      withheld: "this read carried no contributor count",
+      note: thin ? (
+        <>
+          <span aria-hidden="true">▲</span> the panel changed size inside the window
+        </>
+      ) : undefined,
+    },
+    { label: "QC rules", value: data.config_version || null, withheld: "this read named no rule version" },
+  ];
+
   return (
     <>
+      {/* The numbers BEFORE the drawing, which is the order every other section
+          on the tab answers in. They rode under the chart until 2026-08-25,
+          which put a reader past a 240px figure before being told how much of
+          it had been thrown away. */}
+      <KpiRow readings={readings} source="this read of the index" />
+
       <IndexBasisChart
         samples={data.samples}
         windowMinutes={data.window_minutes}
@@ -120,40 +177,6 @@ function TodayReading({ data }: { data: CoherenceSettlementFeed }) {
         latestValue={data.latest_value}
         spotMinusWindow={data.spot_minus_window}
       />
-
-      {/* The quality control that decides whether the average above means
-          anything, as chips rather than as a five-row table of prose. Each is a
-          measurement, and the chip words carry the verdict, so the sentence
-          that used to restate all four underneath them is gone. */}
-      {/* The city chip is gone: the head's note names the city on every
-          view, and a chip restating the head is the wordiness under review. */}
-      <div className="coh-status__chips">
-        <StateChip
-          mark={data.degraded_samples ? "▲" : "●"}
-          word="Flagged minutes"
-          value={`${data.degraded_samples} of ${data.sample_count}`}
-          tone={data.degraded_samples ? "warn" : "good"}
-        />
-        <StateChip
-          mark={flagsMatter ? "▲" : "●"}
-          word={flagsMatter ? "Flags move the settled number" : "Flags do not move it"}
-          value={data.window_average_clean ?? "—"}
-          tone={flagsMatter ? "warn" : "good"}
-        />
-        <StateChip
-          mark={thin ? "▲" : "●"}
-          word="Stations in"
-          value={
-            data.contributors_min == null || data.contributors_max == null
-              ? "—"
-              : thin
-                ? `${data.contributors_min} to ${data.contributors_max}`
-                : `${data.contributors_min} throughout`
-          }
-          tone={thin ? "warn" : "good"}
-        />
-        <StateChip mark="●" word="QC rules" value={data.config_version || "—"} tone="muted" />
-      </div>
 
       <p className="coh-settle__note">
         Both averages are the same {data.window_minutes}-minute mean, once with the flagged minutes and once without
