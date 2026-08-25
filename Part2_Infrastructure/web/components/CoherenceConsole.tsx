@@ -246,18 +246,24 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
         <CombosSection active={active && section === "combos"} />
       </WorkspaceSubtabPanel>
 
+      {/* PANELS IN RAIL ORDER, which `coherence-sections` deep-equals against
+          `COHERENCE_SECTIONS`. `index` reads the same object as the three tests
+          above it — distance from a price vector that admits a measure — and
+          Scorecard reads a different one, so the two numbers no longer sit
+          adjacent with nothing between them saying which is which. */}
+      <WorkspaceSubtabPanel workspaceId="coherence" tabId="index" activeId={section}>
+        <IndexSection active={active && section === "index"} />
+      </WorkspaceSubtabPanel>
+
       <WorkspaceSubtabPanel workspaceId="coherence" tabId="calibration" activeId={section}>
         <CalibrationPane active={active && section === "calibration"} />
       </WorkspaceSubtabPanel>
 
       {/* What that score was computed on, and how it accrued — the question
-          Scorecard carried as a third view and `index` as a first one. */}
+          Scorecard carried as a third view and `index` as a first one. It
+          follows the score now, because a score is a score OF something. */}
       <WorkspaceSubtabPanel workspaceId="coherence" tabId="corpus" activeId={section}>
         <CorpusSection active={active && section === "corpus"} />
-      </WorkspaceSubtabPanel>
-
-      <WorkspaceSubtabPanel workspaceId="coherence" tabId="index" activeId={section}>
-        <IndexSection active={active && section === "index"} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="coherence" tabId="lessons" activeId={section}>

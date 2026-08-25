@@ -259,13 +259,36 @@ export const MARKETS_SECTION_IDS =
 // `#coherence/combos` now lands on the parlays themselves rather than on the
 // section that had absorbed them — which is where it pointed when it was
 // published.
+//
+// THE ORDER IS THE ARGUMENT, since 2026-08-26, and nothing else about the rail
+// moved: seven ids, seven URLs, `RELOCATED_SECTIONS` untouched. Rail order is
+// not addressable — no hash, no relocation entry and no test names it directly,
+// only `coherence-sections` asking that the panels be drawn in whatever order
+// this array happens to be in. So it is free to state something, and it now
+// states the order a reader meets the claims in:
+//
+//   certificate  is there an arbitrage in this family, right now
+//   portfolio    the basket that answer hands back, and what it pays
+//   combos       the same test on the venue's own conjunctions
+//   index        how far from arbitrage-free the quotes have been sitting
+//   calibration  and were the prices, separately, RIGHT
+//   corpus       what that score was computed on
+//   lessons      the curriculum, and what pins it
+//
+// `index` moves up three places, which is the whole change. It measures the
+// same object as the three tests above it — distance from a price vector that
+// admits a measure — and it was sitting after Scorecard, which measures a
+// different one: whether settled outcomes matched the quotes. Two questions
+// that both produce a number, separated by nothing, in the wrong order.
+// Scorecard and Corpus then sit together at the end, which is where the corpus
+// argument belongs: a score is a score OF something, and the thing follows it.
 export const COHERENCE_SECTIONS = [
   { id: "certificate", label: "Coherence test", description: "Whether these prices admit a probability, and the proof" },
   { id: "portfolio", label: "Basket", description: "The portfolio the test hands back, and what it pays" },
   { id: "combos", label: "Parlays", description: "The venue's conjunctions against the bounds their legs impose" },
+  { id: "index", label: "Coherence index", description: "How far the quotes sit from admitting a probability, per poll" },
   { id: "calibration", label: "Scorecard", description: "Were the prices right, on what has settled" },
   { id: "corpus", label: "Corpus", description: "What that score was computed on, and how it accrued" },
-  { id: "index", label: "Coherence index", description: "How far the quotes sit from admitting a probability, per poll" },
   { id: "lessons", label: "Lessons", description: "The curriculum & what guards it" },
 ] as const;
 export type CoherenceSection = (typeof COHERENCE_SECTIONS)[number]["id"];

@@ -45,7 +45,7 @@ const TABS = {
   reliability: ["overview", "planes", "services", "events", "controls"],
   developer: ["overview", "readiness", "quality", "apis", "codebase", "work"],
   markets: ["universe", "settlement", "books", "dispersion", "lattice", "stake", "fees", "shell"],
-  coherence: ["certificate", "portfolio", "combos", "calibration", "corpus", "index", "lessons"],
+  coherence: ["certificate", "portfolio", "combos", "index", "calibration", "corpus", "lessons"],
   diffusion: ["arm", "meetings", "episodes", "model", "instrument", "sandbox", "findings"],
 };
 
