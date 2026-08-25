@@ -27,8 +27,11 @@ import type { CoherenceCertificate } from "@/lib/coherence/types";
 import { certifyRoute } from "@/lib/coherence/routes";
 import PaneHead from "./PaneHead";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
+import { verdictChip } from "./certificate-verdict";
 import FamilyChoice, { type FamilySectionProps } from "./FamilyChoice";
+import { StateChip } from "./Figure";
 import PortfolioPane from "./PortfolioPane";
+import SectionVerdict from "./SectionVerdict";
 
 export default function BasketSection({
   events,
@@ -53,7 +56,7 @@ export default function BasketSection({
         title="The portfolio the test hands back"
         id="coherence-portfolio-heading"
         note="one basket per family, priced through all three fee components"
-        lede="Where no probability measure fits a family's prices, duality hands back the basket that wins in every state — so the certificate of infeasibility IS the trade."
+        lede="Where no probability measure fits, duality hands back a basket that wins in every state: the certificate of infeasibility IS the trade."
       />
 
       <FamilyChoice
@@ -65,15 +68,38 @@ export default function BasketSection({
         label="Choose a family to price"
         verdict={answer?.verdict ?? null}
       >
-        {error && !answer ? (
-          <p className="console-empty">
-            <span aria-hidden="true">✕</span> The test could not be run: {error}
-          </p>
-        ) : !answer ? (
-          <p className="console-empty muted">Pricing this family…</p>
-        ) : (
-          <PortfolioPane certificate={answer} chosen={chosen} />
-        )}
+        {/* The same band, in the same place, as the other five sections. This
+            one has no switcher — it is a single-view section — so the pinned
+            row above it carries the family picker alone. */}
+        <SectionVerdict
+          pending={
+            error && !answer
+              ? <><span aria-hidden="true">✕</span> The test could not be run: {error}</>
+              : !answer
+                ? "Pricing this family…"
+                : null
+          }
+        >
+          {answer ? (
+            <>
+              <StateChip {...verdictChip(answer)} value={answer.net_edge} />
+              <StateChip
+                mark="◇"
+                word={answer.legs.length ? "Legs in the basket" : "No basket returned"}
+                value={answer.legs.length ? String(answer.legs.length) : null}
+                tone="muted"
+              />
+              <StateChip
+                mark="→"
+                word="Fees on the basket"
+                value={answer.total_fees ?? "—"}
+                tone="muted"
+              />
+            </>
+          ) : null}
+        </SectionVerdict>
+
+        {answer ? <PortfolioPane certificate={answer} chosen={chosen} /> : null}
       </FamilyChoice>
     </section>
   );

@@ -26,12 +26,14 @@
  * question. It is still drawn from `pane`, so a section nobody teaches is a
  * column with a mark in it, not a column missing.
  *
- * THE FOUR GROUP VIEWS DRAW SOMETHING NOW (fourth review of 2026-08-24, "a
- * drawing of the numbers in every subtab"). Coverage was the only view here
- * with a figure and the other four opened on a grid of prose cards;
- * `GroupPins` below draws the one quantity a group of lessons actually has.
- * The cards' own path lists stay where they were, behind each card's mechanics
- * summary — the strip is their reading, not a replacement.
+ * THE FOUR GROUP VIEWS DRAW SOMETHING (fourth review of 2026-08-24, "a drawing
+ * of the numbers in every subtab"). Coverage was the only view here with a
+ * figure and the other four opened on a grid of prose cards. `GroupPins` is
+ * its own file since 2026-08-25 and draws BOTH quantities a group of lessons
+ * has — the modules each lesson is about against the suites that hold it — as
+ * a dumbbell, because the catalogue's claim is a ratio between them and one bar
+ * drew half of it. The cards' own path lists stay behind each card's mechanics
+ * summary; the strip is their reading, not a replacement.
  *
  * A lesson whose slice has not landed is shown as pending rather than omitted.
  * A curriculum that silently lists only what is finished cannot be read as a
@@ -41,58 +43,13 @@
 import { useState } from "react";
 
 import { COHERENCE_LESSONS, LESSON_GROUPS, type CoherenceLesson, type LessonGroup } from "@/lib/coherence/lessons";
-import { ENGINE_SECTIONS } from "@/lib/sections";
 
 import { StateChip } from "./Figure";
+import GroupPins, { sectionLabel } from "./GroupPins";
 import LessonCoverage from "./LessonCoverage";
 import LessonFigure from "./lesson-figures";
 import PaneHead from "./PaneHead";
 import ViolationStates from "./ViolationStates";
-import ValueStrip from "./ValueStrip";
-
-/** The rail's own label, so a card names the section as the reader sees it.
- *  BOTH rails since the split of 2026-08-24: the curriculum spans the engine
- *  and half the lessons are taught on Quotes, so looking a `pane` up in one
- *  tab's array would print the raw id for seven of the fourteen. */
-const sectionLabel = (pane: string) =>
-  ENGINE_SECTIONS.find((section) => section.id === pane)?.label ?? pane;
-
-/**
- * How much test surface each lesson in the group rests on.
- *
- * Coverage was the only view here with a drawing, and the four GROUP views —
- * Prices, Structure, Bounds, Record — opened on a grid of prose cards. The
- * fourth review of 2026-08-24 asked for a drawing of the numbers in every
- * view, and the only numbers a group of lessons has are the two path lists on
- * each card: the modules a lesson is about, and the suites that go red if it
- * stops being true. The second is the one that RANKS — the catalogue's whole
- * claim is that these are enforced claims rather than notes beside the code,
- * so "how much would break" is the reading, and it is otherwise reachable only
- * by opening every card's mechanics disclosure and counting by eye.
- *
- * REFUSED: a bar per lesson of its summary's length, its formula's presence,
- * or shipped-versus-pending. The first two are drawings of the prose rather
- * than of anything measured, and the third is degenerate here — every lesson
- * in the catalogue is shipped, so it would be a row of identical bars claiming
- * to be a finding. A figure has to answer its view's own question or not be
- * drawn.
- */
-function GroupPins({ lessons }: { lessons: CoherenceLesson[] }) {
-  return (
-    <ValueStrip
-      caption="How many suites go red if each lesson stops being true"
-      ariaLabel={`Pinning suites for each of the ${lessons.length} lessons in this group`}
-      rows={lessons.map((lesson) => ({
-        label: lesson.title,
-        value: lesson.pinnedBy.length,
-        text: `${lesson.pinnedBy.length} ${lesson.pinnedBy.length === 1 ? "suite" : "suites"}`,
-        title: `${lesson.title} — taught in ${sectionLabel(lesson.pane)}, carried by ${lesson.guards.length} module(s), pinned by ${lesson.pinnedBy.join(", ") || "nothing yet"}`,
-        noBar: lesson.pinnedBy.length ? undefined : "not pinned yet",
-      }))}
-      missing="The bar counts SUITES, not assertions: a file that pins one lesson in forty places is one bar. It is a measure of how widely a claim is held, never of how deeply."
-    />
-  );
-}
 
 function PathList({ paths }: { paths: string[] }) {
   return (
@@ -206,6 +163,13 @@ export default function LessonsPane() {
           cannot offer a group that holds nothing or omit one that does;
           Coverage is the one hand-written peer, and it is the map of the
           whole catalogue rather than another slice of it. */}
+      {/* Pinned (`14u`), and this is the section that most needed it: six
+          buttons over a card grid that runs past a screen, so choosing another
+          group meant scrolling back to the head to reach the control. NO
+          VERDICT BAND HERE, unlike the other five — a curriculum produces a
+          catalogue rather than an answer, and a band summarising one would be a
+          frame around the head's own count. */}
+      <div className="coh-bar">
       <div className="seg" role="group" aria-label="Lessons view">
         <button
           type="button"
@@ -234,6 +198,7 @@ export default function LessonsPane() {
             {entry.label}
           </button>
         ))}
+      </div>
       </div>
 
       {view === "coverage" ? (

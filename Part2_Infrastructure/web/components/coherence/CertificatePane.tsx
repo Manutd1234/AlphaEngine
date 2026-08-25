@@ -34,9 +34,11 @@ import type { CoherenceCertificate, CoherenceEventView } from "@/lib/coherence/t
 import { certifyRoute } from "@/lib/coherence/routes";
 import PaneHead from "./PaneHead";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
-import { ProofView, VerdictView, verdictChip, verdictReading } from "./CertificateViews";
+import { ProofView, VerdictView, verdictReading } from "./CertificateViews";
+import { verdictChip } from "./certificate-verdict";
 import FamilyChoice, { type FamilySectionProps } from "./FamilyChoice";
 import { StateChip } from "./Figure";
+import SectionVerdict from "./SectionVerdict";
 import { useState } from "react";
 
 type CertificateView = "verdict" | "proof";
@@ -69,16 +71,8 @@ export default function CertificatePane({
         title="Whether these prices admit a probability"
         id="coherence-certificate-heading"
         note="one test per family"
-        lede="The usual answer is “coherent”, and that is the claim — a detector that spoke only on a hit would leave “no opportunity” and “the feed is down” looking identical."
+        lede="The usual answer is “coherent”, and that is the claim: a detector that spoke only on a hit would leave “no opportunity” and “the feed is down” identical."
       />
-
-      <div className="seg" role="group" aria-label="Certificate view">
-        {VIEWS.map(([name, label]) => (
-          <button key={name} type="button" aria-pressed={view === name} onClick={() => setView(name)}>
-            {label}
-          </button>
-        ))}
-      </div>
 
       <FamilyChoice
         events={events}
@@ -88,16 +82,31 @@ export default function CertificatePane({
         eventsError={eventsError}
         label="Choose a family to test"
         verdict={answer?.verdict ?? null}
+        switcher={
+          <div className="seg" role="group" aria-label="Certificate view">
+            {VIEWS.map(([name, label]) => (
+              <button key={name} type="button" aria-pressed={view === name} onClick={() => setView(name)}>
+                {label}
+              </button>
+            ))}
+          </div>
+        }
       >
-        {error && !answer ? (
-          <p className="console-empty">
-            <span aria-hidden="true">✕</span> The test could not be run: {error}
-          </p>
-        ) : !answer ? (
-          <p className="console-empty muted">Testing this family…</p>
-        ) : (
-          <>
-            <div className="coh-status__chips">
+        {/* THE ANSWER FIRST, IN THE SAME PLACE ON ALL SIX SECTIONS. These three
+            chips were below the control row and above the reading; they are the
+            band now, so a reader who switches section meets the verdict where
+            they last met one. The chips themselves are unchanged. */}
+        <SectionVerdict
+          pending={
+            error && !answer
+              ? <><span aria-hidden="true">✕</span> The test could not be run: {error}</>
+              : !answer
+                ? "Testing this family…"
+                : null
+          }
+        >
+          {answer ? (
+            <>
               <StateChip {...verdictChip(answer)} value={answer.net_edge} />
               <StateChip
                 mark="◇"
@@ -106,12 +115,23 @@ export default function CertificatePane({
                 tone="muted"
               />
               <StateChip mark="→" word={`Legging tier ${answer.tier}`} tone={answer.tier > 2 ? "warn" : "muted"} />
-            </div>
-            <p className="coh-event__note">{verdictReading(answer)}</p>
+            </>
+          ) : null}
+        </SectionVerdict>
+
+        {answer ? (
+          <>
+            {/* Only what the figures below cannot say. The sentence this used
+                to open with — no portfolio pays more than it costs, so a
+                measure exists — is `MarginAxis`'s own reading, drawn under the
+                axis that measures it, and a reader met both on one screen. */}
+            {verdictReading(answer) ? (
+              <p className="coh-event__note">{verdictReading(answer)}</p>
+            ) : null}
 
             {view === "proof" ? <ProofView data={answer} /> : <VerdictView data={answer} target={target} />}
           </>
-        )}
+        ) : null}
       </FamilyChoice>
     </section>
   );

@@ -39,8 +39,7 @@ function RowLegs({ legs }: { legs: CoherenceComboLeg[] }) {
     <div className="table-wrap">
       <table className="coh-table">
         <caption className="coh-table__caption">
-          The portfolio this bound is tested with. A sold leg shows a dash — its price is absent from the payload, not
-          zero.
+          A sold leg shows a dash: its price is absent from the payload, never zero.
         </caption>
         <thead>
           <tr>
@@ -79,8 +78,8 @@ function RowFacts({ rows }: { rows: CoherenceComboRow[] }) {
     <div className="table-wrap">
       <table className="coh-table">
         <caption className="coh-table__caption">
-          Slack is the portfolio&rsquo;s cost minus its bound: negative is the violation, before fees.
-          {untested ? " A dash is a claim not tested — a leg lost its quote between the read and this row — never a cost of nothing." : ""}
+          Slack is cost minus bound; negative is the violation, before fees.
+          {untested ? " A dash is a claim not tested, never a cost of nothing." : ""}
         </caption>
         <thead>
           <tr>
@@ -141,6 +140,11 @@ function SlackStrip({ rows }: { rows: CoherenceComboRow[] }) {
           ? "A cost mark left of its bound is the violation: the portfolio pays at least the bound in every future and costs less than it."
           : "Every cost mark sits right of its bound, so nothing here can be bought for less than it is certain to pay."
       }
+      notes={[
+        "A reading about the BOUNDS only. Nothing here says whether a parlay is worth its price — every price "
+        + "between its two bounds is consistent with some dependence between the legs, and nothing on this "
+        + "exchange quotes dependence.",
+      ]}
     >
       <Plot height={height}>
         {(width) => {
@@ -242,12 +246,15 @@ export function BoundsView(
   return (
     <section className="coh-combos__rows">
       {shown.length ? <SlackStrip rows={shown} /> : null}
+      {/* A COUNT, not a paragraph. All three branches used to restate what the
+          strip above draws — whether each cost mark clears its bound — and the
+          strip's own `reading` already makes that judgement in the words the
+          figure earns. What is left is the arithmetic a length cannot carry:
+          how many of how many, and the one case where the answer is neither. */}
       <p className="coh-combo__meta">
-        {violated.length
-          ? `${violated.length} of ${rows.length} testable rows are violated. Each portfolio below pays at least its bound in every future and costs less than that, before fees.`
-          : rows.length
-            ? `None of the ${rows.length} testable rows is violated: no parlay is priced outside the band its legs impose — a reading about the bounds only, never about whether a parlay is worth its price.`
-            : "No row could be tested: every one needed a leg unquoted on the side the bound uses."}
+        {rows.length
+          ? `${violated.length} of ${rows.length} testable rows violated.`
+          : "No row could be tested: every one needed a leg unquoted on the side the bound uses."}
       </p>
       {cards.length ? <RowFacts rows={cards} /> : null}
       {cards.map((row, index) => <RowBlock key={`row-${index}`} row={row} tightest={!violated.length} />)}

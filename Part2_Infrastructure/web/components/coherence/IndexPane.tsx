@@ -8,20 +8,11 @@
  * admits a probability, measured on every poll. That turns a rare binary event
  * into a series, and a series is the thing nobody publishes for this exchange.
  *
- * IT WAS THE `index` RAIL SECTION UNTIL THE CONSOLIDATION OF 2026-08-24, and it
- * is two views of `calibration` — relabelled "Scorecard" — now. The fold is not
- * tidying: both halves answer "were these prices right", the index continuously
- * and calibration once settled, and two sections asked a reader to discover
- * that for themselves. What it cost is written down in `lib/sections.ts` and it
- * is real — `index` was PUBLISHED, so `#coherence/index` is a link someone may
- * hold, and `RELOCATED_SECTIONS` now lands it on Scorecard rather than on the
- * rail default. It lands on the SECTION; which of the five views opens is
- * component state the hash cannot name.
- *
- * So this file draws no head, owns no switcher and returns no `<section>`.
- * `CalibrationPane` owns all three and passes `view` down, exactly as
- * `CertificatePane` does with the parlays. What stayed here is the read, the
- * chips that count both views' readings, and the two drawings.
+ * IT DRAWS NO HEAD, OWNS NO SWITCHER AND RETURNS NO `<section>`. `IndexSection`
+ * owns all three and passes `view` down. What is here is the read, the chips
+ * that count both views' readings, and the drawings. The section's own history
+ * — published id, folded into Scorecard on 2026-08-24, its own rail again on
+ * 2026-08-25 — is `lib/sections.ts`, told once.
  *
  * Unmeasurable readings are drawn as gaps rather than dropped or zeroed. A
  * series that is often unmeasurable is telling you something real about its
@@ -43,6 +34,9 @@ import { indexRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import Figure, { FigureEmpty, StateChip } from "./Figure";
 import { clock, thin, type IndexPoint } from "./IndexBasisChart";
+import IndexFamilies from "./IndexFamilies";
+import MeasurabilityStrip from "./MeasurabilityStrip";
+import SectionVerdict from "./SectionVerdict";
 import ValueStrip from "./ValueStrip";
 
 const HEIGHT = 168;
@@ -76,111 +70,6 @@ function whyUnmeasurable(points: CoherenceIndexPoint[]): string {
   const named = ranked.slice(0, REASONS_SHOWN).map(([detail, count]) => `${detail} (${count})`);
   if (ranked.length > named.length) named.push(`${ranked.length - named.length} further reason(s) recorded`);
   return named.join("; ");
-}
-
-interface FamilyRow {
-  ticker: string;
-  readings: number;
-  measured: number;
-  unmeasurable: number;
-  /** The largest distance measured on this family, or null if none ever was. */
-  peak: number | null;
-}
-
-function familyRows(data: CoherenceIndexSeries): FamilyRow[] {
-  const rows = new Map<string, FamilyRow>();
-  const rowFor = (ticker: string) => {
-    const found = rows.get(ticker) ?? { ticker, readings: 0, measured: 0, unmeasurable: 0, peak: null };
-    rows.set(ticker, found);
-    return found;
-  };
-  // Seeded from the watched list first, so a family that has produced nothing
-  // still gets a row: absent from the table reads as "not watched".
-  for (const ticker of data.series) rowFor(ticker);
-  for (const point of data.points) {
-    const row = rowFor(point.series_ticker);
-    row.readings += 1;
-    const cc = toCenticents(point.ci);
-    if (cc == null) {
-      row.unmeasurable += 1;
-      continue;
-    }
-    row.measured += 1;
-    row.peak = row.peak == null || cc > row.peak ? cc : row.peak;
-  }
-  return [...rows.values()].sort(
-    (a, b) => (b.peak ?? -1) - (a.peak ?? -1) || a.ticker.localeCompare(b.ticker),
-  );
-}
-
-function FamilyTable({ data }: { data: CoherenceIndexSeries }) {
-  const rows = familyRows(data);
-
-  if (!rows.length) {
-    return (
-      <p className="console-empty">
-        <span aria-hidden="true">◌</span> No family has been polled yet.
-      </p>
-    );
-  }
-
-  return (
-    <>
-    {/* The table's decisive column drawn (third review, 2026-08-24): which
-        family drives the index. A family with no measured reading declines
-        its bar — a peak nobody measured is not a peak of zero. */}
-    <ValueStrip
-      caption="The worst distance ever measured, family by family"
-      ariaLabel={`Peak distance per family for ${rows.length} watched families`}
-      rows={rows.map((row) => ({
-        label: row.ticker,
-        value: row.peak,
-        text: row.peak == null ? "—" : fromCenticents(row.peak) ?? "—",
-        title: `${row.ticker}: ${row.readings} readings, ${row.measured} measured, ${row.unmeasurable} unmeasurable`,
-        noBar: row.peak == null ? (row.readings ? "never measured" : "never polled") : undefined,
-      }))}
-    />
-    {/* The strip answers the view's question — which family drives the index —
-        so the four counts behind each bar go behind a summary (fourth review
-        of 2026-08-24). They are per-row detail: how many polls a family has
-        had, how many of them could be measured, and how many could not. A
-        reader auditing a family's coverage opens one disclosure; a reader
-        asking which family is worst never has to. */}
-    <details className="disclosure">
-      <summary>{`Readings, measured and unmeasurable for each watched family, ${rows.length} rows`}</summary>
-    <div className="table-wrap">
-      <table className="coh-table">
-        <caption className="coh-table__caption">
-          One row per watched family, worst peak first. An unmeasurable poll is counted in its own column, never
-          folded into the measured ones.
-        </caption>
-        <thead>
-          <tr>
-            <th scope="col">Family</th>
-            <th scope="col" className="num">Readings</th>
-            <th scope="col" className="num">Measured</th>
-            <th scope="col" className="num">Unmeasurable</th>
-            <th scope="col" className="num">Peak distance</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.ticker}>
-              <th scope="row">{row.ticker}</th>
-              <td className="num">{row.readings}</td>
-              <td className="num">{row.measured}</td>
-              <td className="num">{row.unmeasurable}</td>
-              <td className="num">
-                {row.peak == null ? <span className="muted">—</span> : fromCenticents(row.peak)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-    </details>
-    </>
-  );
 }
 
 function Chart({ data }: { data: CoherenceIndexSeries }) {
@@ -262,6 +151,11 @@ function Chart({ data }: { data: CoherenceIndexSeries }) {
   if (current) segments.push(current);
 
   const notes = [
+    // The claim this figure exists to make, and the one place on the tab that
+    // makes it. It was a free-standing paragraph under both views until
+    // 2026-08-25; it belongs to the drawing whose gaps it explains.
+    "A poll that could not be measured is drawn as a gap, never as a zero and never dropped: a line closed over "
+    + "one would claim continuity nobody observed.",
     data.unmeasurable
       ? `${data.unmeasurable} of ${data.points.length} readings could not be measured and are drawn as gaps.`
       : "",
@@ -275,8 +169,8 @@ function Chart({ data }: { data: CoherenceIndexSeries }) {
     <Figure
       caption="Distance from the nearest coherent price vector, over time"
       ariaLabel={`${measured.length} measured readings, peaking at ${fromCenticents(peak)}`}
-      reading={`Peak ${fromCenticents(peak)}. Zero is prices admitting a probability exactly; the further above, the more the family prices against itself.`}
-      missing={notes.length ? notes.join(" ") : null}
+      reading={`Peak ${fromCenticents(peak)}; zero is prices that admit a probability exactly.`}
+      notes={notes}
     >
       <div ref={plotRef} style={{ width: "100%" }}>
         <svg viewBox={`0 0 ${plotW} ${HEIGHT}`} width={plotW} height={HEIGHT} className="coh-index">
@@ -320,18 +214,20 @@ export default function IndexPane({ active, view }: {
   // must stop drawing one rather than keep a second.
   if (error && !data) {
     return (
-      <p className="console-empty">
-        <span aria-hidden="true">✕</span> The index could not be read: {error}
-      </p>
+      <SectionVerdict pending={<><span aria-hidden="true">✕</span> The index could not be read: {error}</>} />
     );
   }
-  if (!data) return <p className="console-empty muted">Reading the index…</p>;
+  if (!data) return <SectionVerdict pending="Reading the index…" />;
   if (data.state === "empty") {
     return (
-      <p className="console-empty">
-        <span aria-hidden="true">◌</span> {data.notes[0] ?? "Nothing indexed yet."} Set{" "}
-        <code>COHERENCE_SERIES</code> and <code>COHERENCE_POLL_S</code> on the gateway to start recording.
-      </p>
+      <SectionVerdict
+        pending={
+          <>
+            <span aria-hidden="true">◌</span> {data.notes[0] ?? "Nothing indexed yet."} Set{" "}
+            <code>COHERENCE_SERIES</code> and <code>COHERENCE_POLL_S</code> on the gateway to start recording.
+          </>
+        }
+      />
     );
   }
 
@@ -343,7 +239,7 @@ export default function IndexPane({ active, view }: {
     // notes was never the section's — it was this content's.
     <div className="coh-index-pane">
       {/* Outside the drawing: all four count both views' readings. */}
-      <div className="coh-status__chips">
+      <SectionVerdict>
         <StateChip mark="●" word="Readings" value={String(data.points.length)} tone="muted" />
         <StateChip mark="✓" word="Measured" value={String(data.measured)} tone="good" />
         <StateChip
@@ -353,17 +249,33 @@ export default function IndexPane({ active, view }: {
           tone={data.unmeasurable > data.measured ? "warn" : "muted"}
         />
         <StateChip mark="◇" word="Series watched" value={String(data.series.length)} tone="muted" />
-      </div>
+      </SectionVerdict>
 
-      {/* Both views, once. The `index` section's lede carried this and the fold
-          into Scorecard left it homeless; it is not decoration — the gaps are
-          most of the record on a thin watchlist, and a reader who reads them as
-          nothing happening has the record backwards. */}
+      {/* THE TWO TRAILING PARAGRAPHS WENT ON 2026-08-25 and neither claim did.
+          One defined a reading and now sits in the family strip's own notes;
+          the other said why an unmeasurable poll is a gap, which is the chart's
+          claim and is in the chart's. Both used to render under BOTH views, so
+          a reader on the families table met a sentence about a line they were
+          not looking at. */}
       {view === "series" ? (
-        <Chart data={data} />
+        <>
+          <Chart data={data} />
+          {/* What the line's white space IS. The chart breaks at every gap and
+              never bridges one, which is right and is a poor picture of its own
+              breaks — on a thin watchlist the gaps are most of the record. */}
+          <MeasurabilityStrip
+            subject="poll"
+            caption="What the record is made of: polls measured, against polls that could not be"
+            marks={data.points.map((point) => ({
+              ts: point.ts_ns,
+              measured: toCenticents(point.ci) != null,
+              detail: point.detail,
+            }))}
+          />
+        </>
       ) : (
         <>
-          <FamilyTable data={data} />
+          <IndexFamilies data={data} />
           {/* The gateway's notes, folded 2026-08-25. Rendered raw they sat
               BETWEEN the table and the sentence defining what a reading is —
               so a variable number of machine paragraphs pushed the one
@@ -377,17 +289,8 @@ export default function IndexPane({ active, view }: {
               ))}
             </details>
           ) : null}
-          <p className="coh-event__note">
-            A reading is the L1 distance from the family&rsquo;s MID prices to the nearest vector summing to a dollar
-            — mid, because consistency is a property of the prices, tradability of the book.
-          </p>
         </>
       )}
-
-      <p className="coh-event__note">
-        A poll that could not be measured is drawn as a gap, never as a zero and never dropped: a line closed over
-        one would claim continuity nobody observed.
-      </p>
     </div>
   );
 }

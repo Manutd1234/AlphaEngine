@@ -36,6 +36,10 @@ export interface FormationStage {
   holds: boolean | null;
 }
 
+/** What the boxes mean for this diagram's first caller. See `keyLine`. */
+const SETTLEMENT_KEY =
+  "Each box is a transformation, not a reading; the contract settles on the last one.";
+
 const BOX_H = 68;
 const GAP = 34;
 const TOP = 8;
@@ -75,11 +79,26 @@ export default function FormationDiagram({
   caption,
   reading,
   missing,
+  notes,
+  keyLine = SETTLEMENT_KEY,
 }: {
   stages: FormationStage[];
   caption: string;
   reading?: string | null;
   missing?: string | null;
+  /** Passed through to `Figure`, which folds it and counts it in the summary. */
+  notes?: readonly string[] | null;
+  /**
+   * The line under the chain, when the chain is not a settlement index.
+   *
+   * Defaulted rather than required, because this diagram was written for ONE
+   * caller and the sentence it hard-coded is that caller's. A second caller
+   * arrived on 2026-08-25 — `CheckLadder`, the path a coherence verdict takes
+   * — and its boxes are decisions rather than transformations, so the settled
+   * sentence would have been false under it. A default keeps the original
+   * caller unchanged and makes the new one say what its own chain is.
+   */
+  keyLine?: string;
 }) {
   const height = TOP + BOX_H + 34;
   const ariaLabel = stages
@@ -87,7 +106,7 @@ export default function FormationDiagram({
     .join(". Then ");
 
   return (
-    <Figure caption={caption} reading={reading} missing={missing} ariaLabel={ariaLabel}>
+    <Figure caption={caption} reading={reading} missing={missing} notes={notes} ariaLabel={ariaLabel}>
       <Plot height={height}>
         {(width) => {
           // The boxes FILL the measured width rather than sitting at a fixed
@@ -142,7 +161,7 @@ export default function FormationDiagram({
                 );
               })}
               <text x={startX} y={height - 8} className="coh-figure__key">
-                Each box is a transformation, not a reading; the contract settles on the last one.
+                {keyLine}
               </text>
             </>
           );

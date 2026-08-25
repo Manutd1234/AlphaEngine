@@ -31,7 +31,9 @@
 import type { CoherenceCalibrationHistory } from "@/lib/coherence/types-lab";
 import { calibrationHistoryRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
-import Figure, { FigureEmpty, StateChip } from "./Figure";
+import Figure, { StateChip } from "./Figure";
+import MeasurabilityStrip from "./MeasurabilityStrip";
+import SectionVerdict from "./SectionVerdict";
 import { useMeasuredWidth } from "@/components/chart-kit";
 
 const HEIGHT = 170;
@@ -49,18 +51,15 @@ export default function CalibrationTrend({ active }: { active: boolean }) {
 
   if (error && !data) {
     return (
-      <p className="console-empty">
-        <span aria-hidden="true">✕</span> The score history could not be read: {error}
-      </p>
+      <SectionVerdict pending={<><span aria-hidden="true">✕</span> The score history could not be read: {error}</>} />
     );
   }
-  if (!data) return <p className="console-empty muted">Reading the recorded scores…</p>;
+  if (!data) return <SectionVerdict pending="Reading the recorded scores…" />;
   if (data.state !== "ok" || !data.points.length) {
     return (
-      <p className="console-empty">
-        <span aria-hidden="true">◌</span>{" "}
-        {data.notes[0] ?? "No score has been recorded yet."}
-      </p>
+      <SectionVerdict
+        pending={<><span aria-hidden="true">◌</span> {data.notes[0] ?? "No score has been recorded yet."}</>}
+      />
     );
   }
 
@@ -74,15 +73,47 @@ export default function CalibrationTrend({ active }: { active: boolean }) {
   const scored = points.filter((point) => point.skill != null && Number.isFinite(point.skill));
   const refused = points.length - scored.length;
 
+  const engines = [...new Set(points.map((point) => point.engine))];
+
+  // THE CHIPS COME FIRST WHATEVER HAPPENS NEXT. They were below this branch,
+  // so on a corpus where nothing has settled — which is every keyless
+  // deployment, and this section's DEFAULT view — the reader met an empty
+  // frame with no counts and no band at all.
+  const chips = (
+    <SectionVerdict>
+      <StateChip mark="●" word="Recorded runs" value={String(points.length)} tone="muted" />
+      <StateChip mark="✓" word="Scored" value={String(scored.length)} tone={scored.length ? "good" : "muted"} />
+      <StateChip
+        mark={refused ? "◌" : "✓"}
+        word="Declined"
+        value={refused ? String(refused) : "none"}
+        tone={refused ? "warn" : "muted"}
+      />
+      <StateChip mark="◇" word="Engine" value={engines.join(", ")} tone={engines.length > 1 ? "warn" : "muted"} />
+    </SectionVerdict>
+  );
+
   if (!scored.length) {
+    // NOT AN EMPTY FRAME. Every recorded run declined to score, which is a real
+    // record of the recorder RUNNING against a corpus that will not score — a
+    // different fact from a gap in the record, and one the coverage strip can
+    // draw where a line of no points cannot. This is the section's default view
+    // on any deployment with nothing settled, so an empty frame here is the
+    // dead pane the desk sweep exists to find.
     return (
-      <Figure
-        caption="The settled score over time"
-        ariaLabel="No recorded run produced a score"
-        missing={`All ${points.length} recorded runs declined to score, each with its reason. That is a record of the recorder running against a corpus that will not score, which is a different fact from a gap in the record.`}
-      >
-        <FigureEmpty reason="Nothing scoreable has been recorded yet." />
-      </Figure>
+      <>
+        {chips}
+        <MeasurabilityStrip
+          subject="run"
+          caption="When the recorder ran, and what each run could score"
+          marks={points.map((point) => ({
+            ts: point.ts,
+            measured: point.skill != null && Number.isFinite(point.skill),
+            detail: point.detail,
+          }))}
+          reading={`All ${points.length} recorded runs declined to score — the recorder is running against a corpus that will not score, which is not the same as a gap in the record.`}
+        />
+      </>
     );
   }
 
@@ -117,36 +148,24 @@ export default function CalibrationTrend({ active }: { active: boolean }) {
   }
   if (current) segments.push(current);
 
-  const engines = [...new Set(points.map((point) => point.engine))];
-
   return (
     <>
-      <div className="coh-status__chips">
-        <StateChip mark="●" word="Recorded runs" value={String(points.length)} tone="muted" />
-        <StateChip mark="✓" word="Scored" value={String(scored.length)} tone="good" />
-        <StateChip
-          mark={refused ? "◌" : "✓"}
-          word="Declined"
-          value={refused ? String(refused) : "none"}
-          tone={refused ? "warn" : "muted"}
-        />
-        <StateChip mark="◇" word="Engine" value={engines.join(", ")} tone={engines.length > 1 ? "warn" : "muted"} />
-      </div>
+      {chips}
 
       <Figure
         caption="Brier skill on the settled corpus, as it was recorded"
         ariaLabel={`${scored.length} recorded skills between ${clock(first / NS_PER_MS)} and ${clock(last / NS_PER_MS)} UTC`}
         reading={
           engines.length > 1
-            ? "This series holds more than one engine. `tape` is a forecast test and `final_trade` is not, so the two halves are not one measurement and the line between them is not a trend."
-            : "Zero is no better than always quoting the base rate; one is perfect. The record begins where the recorder began."
+            ? "Two engines in one series: the line between them is not a trend, because a forecast test and a convergence test are not one measurement."
+            : "Zero is no better than always quoting the base rate; one is perfect."
         }
-        missing={[
+        notes={[
           "The series accrues forward only: nothing back-fills it, so the first point is where the recorder started rather than where the venue did.",
           refused
             ? `${refused} of ${points.length} runs could not be scored and are drawn as gaps, never as zeroes — a line closed over one would claim a score nobody took.`
             : "",
-        ].filter(Boolean).join(" ")}
+        ].filter(Boolean)}
       >
         <div ref={plotRef} style={{ width: "100%" }}>
           <svg viewBox={`0 0 ${width} ${HEIGHT}`} width={width} height={HEIGHT}>

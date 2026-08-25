@@ -37,6 +37,28 @@ export interface FigureProps {
   reading?: string | null;
   /** What the drawing could not include, and why. Rendered when present. */
   missing?: string | null;
+  /**
+   * The caveats too long to stand under the drawing, folded and COUNTED.
+   *
+   * Added 2026-08-25, for the reason `missing` alone stopped serving. Several
+   * figures on Proofs had grown a `missing` of three joined sentences — the
+   * index chart's ran to four lines under a 168px plot — so the footnote was
+   * taller than the thing it qualified and a reader scrolled past the drawing
+   * to reach the next one. Splitting them into an array and folding it keeps
+   * every word (nothing here is deleted) while giving the figure back its
+   * proportions.
+   *
+   * THE SUMMARY COUNTS, and that is not decoration: an empty fold and a fold
+   * hiding four look identical, so a reader cannot tell whether opening it is
+   * worth the click. It is the same rule `copy-audit-engines.test.ts` already
+   * holds the engine's note lists to.
+   *
+   * `missing` STAYS for the one short line that changes how the drawing may be
+   * READ — a caveat that invalidates the figure must not be behind a click.
+   * The split between the two is a judgement each caller makes; the rule is
+   * that `missing` is one clause and anything longer is a note.
+   */
+  notes?: readonly string[] | null;
   /** Screen-reader description of the drawing itself. */
   ariaLabel: string;
   children: ReactNode;
@@ -59,7 +81,7 @@ export interface FigureProps {
  */
 const AnnounceContext = createContext<((text: string) => void) | null>(null);
 
-export default function Figure({ caption, reading, missing, ariaLabel, children }: FigureProps) {
+export default function Figure({ caption, reading, missing, notes, ariaLabel, children }: FigureProps) {
   const [announced, setAnnounced] = useState("");
   return (
     <figure className="coh-figure">
@@ -77,6 +99,16 @@ export default function Figure({ caption, reading, missing, ariaLabel, children 
         <p className="coh-figure__missing">
           <span aria-hidden="true">◌</span> {missing}
         </p>
+      ) : null}
+      {notes?.length ? (
+        <details className="disclosure coh-figure__notes">
+          <summary>{`What this figure cannot say, ${notes.length}`}</summary>
+          <ul className="coh-notes">
+            {notes.map((note, index) => (
+              <li key={`${index}-${note.slice(0, 24)}`}>{note}</li>
+            ))}
+          </ul>
+        </details>
       ) : null}
     </figure>
   );

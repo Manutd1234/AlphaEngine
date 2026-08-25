@@ -38,6 +38,10 @@ import Figure, { Plot } from "./Figure";
 /** 108, from 96. The zone names sit on their own line above the value label;
  *  at 96 the two shared a band and collided wherever the mark was near the
  *  threshold, which is exactly where the mark is on the common answer. */
+/** One string, not two: it was written out in both branches, so an edit to the
+ *  drawn one would have left the absent one describing a different figure. */
+const CAPTION = "What the programme could guarantee itself, against the line it is judged on";
+
 const HEIGHT = 108;
 const AXIS_Y = 64;
 const ZONE_Y = 20;
@@ -68,7 +72,7 @@ export default function MarginAxis({
   if (value == null) {
     return (
       <Figure
-        caption="What the programme could guarantee itself, against the line it is judged on"
+        caption={CAPTION}
         ariaLabel="No margin was reported for this family."
         // THREE reasons a margin can be absent, and they are not
         // interchangeable. Branching on the verdict alone said "this came from
@@ -98,7 +102,7 @@ export default function MarginAxis({
 
   return (
     <Figure
-      caption="What the programme could guarantee itself, against the line it is judged on"
+      caption={CAPTION}
       ariaLabel={
         `The programme's optimum is ${margin}. Anything above ${MEANINGFUL_EDGE.toFixed(4)} is a portfolio that pays `
         + `more than it costs in every state; this sits ${tradable ? "above" : "at or below"} it, so the prices `
@@ -109,8 +113,8 @@ export default function MarginAxis({
           ? `A portfolio clears the line by ${margin}, so no probability measure fits these quotes.`
           : `Nothing clears the line — the best guarantee available is ${margin}, so a consistent probability measure exists.`
       }
-      missing={pricedOut
-        ? "The closed-form checks found a violation these quotes do not admit; the money rows below are its arithmetic, and this axis is the programme's separate answer about what could be traded."
+      notes={pricedOut
+        ? ["The closed-form checks found a violation these quotes do not admit. The money rows below are its arithmetic; this axis is the programme's separate answer about what could be traded."]
         : null}
     >
       <Plot height={HEIGHT}>

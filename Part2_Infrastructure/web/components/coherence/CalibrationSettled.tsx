@@ -20,8 +20,10 @@ import type { CoherenceCalibration } from "@/lib/coherence/types-lab";
 import CalibrationBands from "./CalibrationBands";
 import CalibrationCorpus from "./CalibrationCorpus";
 import CalibrationGauge from "./CalibrationGauge";
-import { EngineBanner, ScoreView, horizonText, scoreFacts } from "./CalibrationScore";
+import { ScoreView, horizonText, scoreFacts } from "./CalibrationScore";
+import HorizonAxis from "./HorizonAxis";
 import { StateChip } from "./Figure";
+import SectionVerdict from "./SectionVerdict";
 
 export type SettledView = "score" | "bands" | "corpus";
 
@@ -40,35 +42,45 @@ export default function CalibrationSettled({ data, error, view }: {
 }) {
   if (error && !data) {
     return (
-      <p className="console-empty">
-        <span aria-hidden="true">✕</span> The settled corpus could not be read: {error}
-      </p>
+      <SectionVerdict pending={<><span aria-hidden="true">✕</span> The settled corpus could not be read: {error}</>} />
     );
   }
-  if (!data) return <p className="console-empty muted">Scoring the settled markets…</p>;
+  if (!data) return <SectionVerdict pending="Scoring the settled markets…" />;
   if (data.state !== "available") {
     return (
-      <p className="console-empty">
-        <span aria-hidden="true">◌</span>{" "}
-        {data.detail || "Nothing has settled yet, so there is nothing to score."}
-      </p>
+      <SectionVerdict
+        pending={
+          <>
+            <span aria-hidden="true">◌</span>{" "}
+            {data.detail || "Nothing has settled yet, so there is nothing to score."}
+          </>
+        }
+      />
     );
   }
 
   return (
     <>
-      {/* The one chip no figure, note or heading below already says. Settled
-          markets, bands quoted and the engine each repeated a neighbour. */}
-      <div className="coh-status__chips">
+      {/* The chips no figure, note or heading below already says. "Settled
+          markets" and "bands quoted" each repeated a neighbour and stayed out;
+          what a reader cannot get elsewhere in one glance is whether the sample
+          is too thin to conclude from, and what the corpus scored. */}
+      <SectionVerdict>
         <StateChip
           mark={data.thin ? "▲" : "●"}
           word={data.thin ? "Thin sample" : "Not flagged thin"}
           value={data.thin ? "too few to conclude from" : null}
           tone={data.thin ? "warn" : "muted"}
         />
-      </div>
+        <StateChip mark="◇" word="Settled markets scored" value={String(data.count)} tone="muted" />
+      </SectionVerdict>
 
-      <EngineBanner data={data} />
+      {/* THE ENGINE CAVEAT, AS A FIGURE. It was a three-branch paragraph — the
+          longest prose object on the tab, standing over every view in the
+          section — and the fact it was making is a position on a clock. The
+          claim is unchanged and still said exactly once; `HorizonAxis` records
+          why it may not be said twice. */}
+      <HorizonAxis data={data} />
 
       {view === "score" ? (
         <>

@@ -14,6 +14,18 @@
  * twenty-eight second deadline spends its first seconds with no data and no
  * error, and this section used to claim "none has been read" for all of them —
  * a slow open dressed as a dead pane.
+ *
+ * IT OWNS THE CONTROL ROW SINCE 2026-08-25, and that is what made the row
+ * pinnable. The picker and the view switcher were two siblings in the section's
+ * grid, so pinning "the controls" meant pinning two elements with two tops and
+ * watching them come apart at any width where the first one wrapped. They are
+ * one `.coh-bar` now: the section passes its `.seg` down and this draws both.
+ *
+ * THE SWITCHER SURVIVES AN ABSENT FAMILY LIST, which is why the bar is outside
+ * the early return rather than inside it. When the universe read fails there is
+ * nothing to pick, but there is still something to switch between — and a
+ * control row that vanishes on a failed read takes the reader's way out with
+ * it.
  */
 
 import type { ReactNode } from "react";
@@ -42,39 +54,45 @@ export default function FamilyChoice({
   eventsError = null,
   label,
   verdict = null,
+  switcher = null,
   children,
 }: Omit<FamilySectionProps, "active"> & {
   label: string;
   /** The last verdict for the chosen family, shown against it in the list. */
   verdict?: string | null;
+  /** The section's own view `.seg`, drawn at the left of the pinned row. */
+  switcher?: ReactNode;
   children: ReactNode;
 }) {
-  if (!events.length) {
-    return (
-      <p className="console-empty">
-        <span aria-hidden="true">{eventsError ? "✕" : "◌"}</span>{" "}
-        {eventsError
-          ? <>The families could not be read, so there is nothing to test: {eventsError}</>
-          : eventsPending
-            ? "Reading the families this engine prices…"
-            : "Nothing to test yet — no family has been read on Universe."}
-      </p>
-    );
-  }
-
   return (
     <>
-      <FamilyPicker
-        options={events.map((event) => ({
-          ticker: event.event_ticker,
-          shard: event.exchange_index,
-          verdict: event.event_ticker === target ? verdict : null,
-        }))}
-        selected={target}
-        onSelect={onFamily}
-        label={label}
-      />
-      {children}
+      <div className="coh-bar">
+        {switcher}
+        {events.length ? (
+          <FamilyPicker
+            options={events.map((event) => ({
+              ticker: event.event_ticker,
+              shard: event.exchange_index,
+              verdict: event.event_ticker === target ? verdict : null,
+            }))}
+            selected={target}
+            onSelect={onFamily}
+            label={label}
+          />
+        ) : null}
+      </div>
+      {events.length ? (
+        children
+      ) : (
+        <p className="console-empty">
+          <span aria-hidden="true">{eventsError ? "✕" : "◌"}</span>{" "}
+          {eventsError
+            ? <>The families could not be read, so there is nothing to test: {eventsError}</>
+            : eventsPending
+              ? "Reading the families this engine prices…"
+              : "Nothing to test yet — no family has been read on Universe."}
+        </p>
+      )}
     </>
   );
 }

@@ -66,6 +66,7 @@ export default function ValueStrip({
   ariaLabel,
   reading,
   missing,
+  notes,
   rows,
   mark,
 }: {
@@ -73,6 +74,16 @@ export default function ValueStrip({
   ariaLabel: string;
   reading?: string | null;
   missing?: string | null;
+  /**
+   * Passed through to `Figure`, which folds it and counts it in the summary.
+   *
+   * A strip's own floor note is appended to `missing` below and stays visible,
+   * because it is a statement about the LENGTHS a reader is looking at — a
+   * hairline bar that nobody is told is a hairline is the one way this figure
+   * can mislead. Everything a caller sends here is a caveat about the data
+   * instead, and those fold.
+   */
+  notes?: readonly string[] | null;
   rows: StripRow[];
   /** An optional dashed reference rule with its own meaning, e.g. 1. */
   mark?: { at: number; label: string };
@@ -96,7 +107,7 @@ export default function ValueStrip({
   const note = [missing, floorNote].filter(Boolean).join(" ") || null;
 
   return (
-    <Figure caption={caption} ariaLabel={ariaLabel} reading={reading} missing={note}>
+    <Figure caption={caption} ariaLabel={ariaLabel} reading={reading} missing={note} notes={notes}>
       <Plot height={height}>
         {(width) => {
           // The per-glyph advance moved to `lib/coherence/label-metrics.ts` on

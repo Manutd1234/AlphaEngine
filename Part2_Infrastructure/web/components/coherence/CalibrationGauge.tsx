@@ -80,9 +80,7 @@ export function verdictOf(data: CoherenceCalibration, skill: number | null): Ver
     return {
       mark: "◌",
       word: "No score",
-      reading:
-        "The engine did not return a skill, so there is no needle. A zero here would read as “no better than "
-        + "the base rate”, which is a measurement rather than an absence of one.",
+      reading: "No skill was returned, so there is no needle — a zero here would be a measurement, not an absence of one.",
       drawn: false,
     };
   }
@@ -90,10 +88,7 @@ export function verdictOf(data: CoherenceCalibration, skill: number | null): Ver
     return {
       mark: "◌",
       word: "Withheld, thin sample",
-      reading:
-        `Too few settled markets to conclude from. The skill is ${skill.toFixed(6)}, and it is drawn faintly `
-        + "rather than as a verdict: a small sample at the top of a dial and a small sample at the bottom are "
-        + "both absence of evidence.",
+      reading: `Too few settled markets to conclude from; the ${skill.toFixed(6)} is drawn faintly rather than as a verdict.`,
       drawn: true,
     };
   }
@@ -108,9 +103,7 @@ export function verdictOf(data: CoherenceCalibration, skill: number | null): Ver
   return {
     mark: "✕",
     word: "Worse than knowing nothing",
-    reading:
-      "The prices scored worse than always quoting the base rate would have. Negative skill is a real outcome "
-      + "and is reported rather than floored at zero.",
+    reading: "Worse than always quoting the base rate would have been — a real outcome, reported rather than floored at zero.",
     drawn: true,
   };
 }
@@ -132,8 +125,12 @@ export default function CalibrationGauge({ data }: { data: CoherenceCalibration 
       missing={
         skill != null && skill > HIGH
           ? `The skill is ${skill.toFixed(6)}, past the drawn range, so the needle sits at the end of the track rather than off it.`
-          : "Skill is the share of the question's uncertainty these prices removed. One is perfect; zero is no better than always quoting the base rate; below zero is worse than that."
+          : "Skill is the share of the question's uncertainty these prices removed."
       }
+      notes={[
+        "One is perfect, zero is no better than always quoting the base rate, and below zero is worse than that — "
+        + "which is why the axis is not nought-to-one and the sub-zero region is drawn.",
+      ]}
     >
       <div ref={plotRef} style={{ width: "100%" }}>
         <svg viewBox={`0 0 ${width} ${HEIGHT}`} width={width} height={HEIGHT}>

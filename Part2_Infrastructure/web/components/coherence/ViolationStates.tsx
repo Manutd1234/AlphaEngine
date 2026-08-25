@@ -120,8 +120,14 @@ export default function ViolationStates() {
     <Figure
       caption="What the recorder can write about one violation, and when it refuses to write a lifetime"
       ariaLabel="A state diagram: coherent, violation opens, peak distance, and then either closed with a lifetime or still open with none"
-      reading="An episode earns a lifetime only by closing. That is why the survival curve is drawn from closed episodes alone, and why the median can be withheld while episodes are plainly running."
-      missing="Structural rather than live: these are the states the recorder CAN write, not a count of what it has. The counts are on Diffusion, where the episodes read is gated."
+      reading="An episode earns a lifetime only by closing."
+      notes={[
+        "That is why the survival curve is drawn from closed episodes alone, and why the median can be withheld "
+        + "while episodes are plainly running: mixing bounds with measurements pulls the curve down by exactly the "
+        + "long tail it exists to show.",
+        "Structural rather than live — these are the states the recorder CAN write, not a count of what it has. "
+        + "The counts are on Diffusion, where the episodes read is gated.",
+      ]}
     >
       <div ref={plotRef} style={{ width: "100%" }}>
         <svg viewBox={`0 0 ${width} ${HEIGHT}`} width={width} height={HEIGHT}>

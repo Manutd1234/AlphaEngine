@@ -73,6 +73,7 @@ import { BandsView, NotesView, ParlaysView } from "./CombosViews";
 // parlay against its band.
 import { BoundsView } from "./CombosBounds";
 import { StateChip } from "./Figure";
+import SectionVerdict from "./SectionVerdict";
 
 const FORMULA = "max(0, Σpᵢ − (n−1))  ≤  P(all legs)  ≤  min pᵢ";
 
@@ -87,12 +88,10 @@ export default function CombosPane({ active, view }: { active: boolean; view: Co
   // would put two card titles in one card.
   if (error && !data) {
     return (
-      <p className="console-empty">
-        <span aria-hidden="true">✕</span> The parlays could not be read: {error}
-      </p>
+      <SectionVerdict pending={<><span aria-hidden="true">✕</span> The parlays could not be read: {error}</>} />
     );
   }
-  if (!data) return <p className="console-empty muted">Reading the listed parlays…</p>;
+  if (!data) return <SectionVerdict pending="Reading the listed parlays…" />;
   if (data.state !== "available" || !data.combos.length) {
     // Three answers used to arrive here as one sentence with the gateway's own
     // reason thrown away; `notes` carries the venue's account of which.
@@ -127,6 +126,16 @@ export default function CombosPane({ active, view }: { active: boolean; view: Co
 
   return (
     <>
+      {/* Two chips, not four: the count chips restated the section note, which
+          already carries both figures. In the band since 2026-08-25, where the
+          other five sections put their answer. */}
+      <SectionVerdict>
+        <StateChip mark={data.outside_band ? "▲" : "●"} word="Priced outside their band"
+                   value={String(data.outside_band)} tone={data.outside_band ? "critical" : "good"} />
+        <StateChip mark={data.violations ? "▲" : "●"} word="Bounds violated"
+                   value={String(data.violations)} tone={data.violations ? "critical" : "good"} />
+      </SectionVerdict>
+
       {/* The formula only. The sentence that used to sit above it — two
           probabilities do not determine the probability of both — went back to
           being the SECTION's lede on 2026-08-25, which is where it was
@@ -134,15 +143,6 @@ export default function CombosPane({ active, view }: { active: boolean; view: Co
           one day because the fold into Dutch book left it with nowhere to be,
           and a claim made in two places is a claim a reader reads twice. */}
       <code className="coh-combo__formula">{FORMULA}</code>
-
-      {/* Two chips, not four: the count chips restated the section note, which
-          already carries both figures. */}
-      <div className="coh-status__chips">
-        <StateChip mark={data.outside_band ? "▲" : "●"} word="Priced outside their band"
-                   value={String(data.outside_band)} tone={data.outside_band ? "critical" : "good"} />
-        <StateChip mark={data.violations ? "▲" : "●"} word="Bounds violated"
-                   value={String(data.violations)} tone={data.violations ? "critical" : "good"} />
-      </div>
 
       {view === "bands" ? (
         <BandsView combos={data.combos} />

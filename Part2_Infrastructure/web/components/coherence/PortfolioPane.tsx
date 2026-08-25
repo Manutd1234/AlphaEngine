@@ -42,6 +42,7 @@ import type { CoherenceCertificate, CoherenceEventView } from "@/lib/coherence/t
 import MarginAxis from "./MarginAxis";
 import PayoffByState from "./PayoffByState";
 import { statValue } from "./ReliabilityDiagram";
+import StateCoverage, { type CoverageState } from "./StateCoverage";
 import ValueStrip from "./ValueStrip";
 
 /**
@@ -128,6 +129,16 @@ export default function PortfolioPane({ certificate, chosen }: {
   /** The family being solved, for the state space the payoff figure prices. */
   chosen: CoherenceEventView | null;
 }) {
+  // The state space, read once for both branches. It comes off the universe
+  // read the console already holds, so neither branch fetches anything, and it
+  // is EXACT only where the venue marks the family mutually exclusive — one
+  // market, one state, the payoff matrix the identity.
+  const states: CoverageState[] = (chosen?.markets ?? []).map((market) => ({
+    ticker: market.ticker,
+    label: market.yes_sub_title || market.ticker,
+  }));
+  const exact = Boolean(chosen?.mutually_exclusive);
+
   if (!certificate.legs.length) {
     // NOT A SENTENCE ON ITS OWN ANY MORE. This is the answer on the common
     // path — the exchange is almost always coherent, so the solver almost
@@ -140,15 +151,24 @@ export default function PortfolioPane({ certificate, chosen }: {
     // standing in for one.
     return (
       <>
-        <MarginAxis
-          margin={certificate.margin}
-          verdict={certificate.verdict}
-          engine={certificate.engine}
-          pricedOut={Boolean(certificate.priced_out)}
-        />
+        {/* TWO FIGURES ON THE ORDINARY ANSWER, not one and a sentence. The
+            margin says how far the best available basket fell short; the
+            coverage strip says what it would have had to cover, which is a
+            property of the FAMILY and therefore exists whether or not a
+            portfolio does. The sentence that used to stand in for a drawing
+            here is now one clause under two of them. */}
+        <div className="coh-figpair">
+          <MarginAxis
+            margin={certificate.margin}
+            verdict={certificate.verdict}
+            engine={certificate.engine}
+            pricedOut={Boolean(certificate.priced_out)}
+          />
+          <StateCoverage certificate={certificate} states={states} exact={exact} />
+        </div>
         <p className="console-empty">
           <span aria-hidden="true">◌</span> No basket to price: no portfolio of these quotes pays more than it
-          costs in every state, which is what the margin above measures.
+          costs in every state.
         </p>
       </>
     );
@@ -169,20 +189,21 @@ export default function PortfolioPane({ certificate, chosen }: {
           strikes, and a state space guessed wrong draws a different world
           confidently. Without one the figure says which claim is therefore not
           drawn, and the leg table below still carries the portfolio. */}
-      {chosen?.mutually_exclusive ? (
-        <PayoffByState
-          certificate={certificate}
-          states={chosen.markets.map((market) => ({
-            ticker: market.ticker,
-            label: market.yes_sub_title || market.ticker,
-          }))}
-        />
+      {exact ? (
+        <PayoffByState certificate={certificate} states={states} />
       ) : (
         <p className="coh-figure__missing">
           <span aria-hidden="true">◌</span> No payoff figure: the family is not marked mutually exclusive, so there
-          is no state space to price against. The legs below are the portfolio.
+          is no state space to price against.
         </p>
       )}
+
+      {/* WHICH states the basket touches, under what it PAYS in them. Two
+          different claims about the same space: the payoff figure needs legs,
+          prices and sizes and is absent whenever any of the three cannot be
+          read, and this one needs only the tickers — so it still draws on
+          exactly the reads where the figure above cannot. */}
+      <StateCoverage certificate={certificate} states={states} exact={exact} />
 
       <details className="disclosure">
         <summary>Every leg through all three fee components, and what the basket comes to</summary>

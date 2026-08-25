@@ -74,6 +74,15 @@ export default function CalibrationBands({
           noBar:
             bin.count === 0 ? "nobody quoted" : statValue(bin.deviation) == null ? "not computed" : undefined,
         }))}
+        notes={
+          data.isotonic_map.length
+            ? [
+                `${data.isotonic_map.length} isotonic step(s), non-decreasing by construction — a higher price `
+                + "mapping to a lower probability would be incoherent in exactly the way this tab tests for. It "
+                + "repairs the reliability term and nothing else.",
+              ]
+            : ["No isotonic correction was returned, so the diagram carries the raw bands only."]
+        }
       />
       <div className="table-wrap">
         <table className="coh-table">
@@ -114,22 +123,12 @@ export default function CalibrationBands({
         </table>
       </div>
 
-      {/* The heading that stood here said "The isotonic correction" and the
-          summary one screen above already says the disclosure holds it, so it
-          was a label restating its own container — removed rather than
-          reworded. The note itself is the claim and it stays. */}
-      {data.isotonic_map.length ? (
-        <p className="coh-event__note">
-          {data.isotonic_map.length} step(s), non-decreasing by construction — a higher price mapping to a lower
-          probability would be incoherent in exactly the way this tab tests for. It repairs the reliability term and
-          nothing else.
-        </p>
-      ) : (
-        <p className="coh-event__note">
-          <span aria-hidden="true">◌</span> No isotonic correction was returned, so the diagram carries the raw bands
-          only.
-        </p>
-      )}
+      {/* THE ISOTONIC NOTE MOVED INTO THE STRIP'S OWN FOLD on 2026-08-25. It
+          was a free-standing paragraph at the foot of this disclosure, which is
+          two folds deep for a claim about the bands drawn at the top of it —
+          and its step count is a fact about those bands. Both branches are
+          kept: "no correction was returned" is a different fact from a
+          correction of no steps. */}
       </details>
     </>
   );

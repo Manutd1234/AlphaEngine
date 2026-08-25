@@ -52,6 +52,12 @@ const DRAWINGS = [
   "MarginAxis", "ValueStrip", "PayoffByState", "ComboBandStrips", "FrechetBand",
   "SlackStrip", "CalibrationGauge", "CalibrationTrend", "IndexPane",
   "ReliabilityDiagram", "MurphyBars", "LessonFigure", "DollarBar",
+  // The six added on 2026-08-25, one per Proofs section, and the chain two of
+  // them are drawn with. Each is verified to open on a drawing ITSELF by the
+  // LOCAL table at the foot of this file, which is what stops this list being
+  // a way to exempt a view without writing down that you did.
+  "CheckLadder", "StateCoverage", "ParlayLegs", "HorizonAxis",
+  "MeasurabilityStrip", "GroupPins", "FormationDiagram",
   // The one figure on the tab whose name says nothing about being one; it is
   // local to `IndexPane` and there is no second `Chart` under `coherence/`.
   "Chart",
@@ -71,8 +77,18 @@ const DRAWINGS = [
  */
 const WINDOW = 2400;
 
-/** Openers that are an ABSENCE, which the null-honesty rule requires in words. */
-const ABSENCE = /className="console-empty|<FigureEmpty|className="coh-figure__missing/;
+/**
+ * Openers that are an ABSENCE, which the null-honesty rule requires in words.
+ *
+ * `<SectionVerdict pending` joined them on 2026-08-25 and it is the same shape
+ * under a new name. Six sections drew their absence as a bare
+ * `<p className="console-empty">`; they draw it inside the verdict band now, so
+ * that a section whose read failed still shows the frame its answer would have
+ * been in rather than a sentence floating where a band should be. The MARKER
+ * moved from the caller's own markup into a prop, so this pattern is what the
+ * scan can see — and `pending` is only ever set on a branch that has no answer.
+ */
+const ABSENCE = /className="console-empty|<FigureEmpty|className="coh-figure__missing|<SectionVerdict\s+pending/;
 
 /**
  * A CHIP ROW may open a view; a paragraph may not.
@@ -86,8 +102,15 @@ const ABSENCE = /className="console-empty|<FigureEmpty|className="coh-figure__mi
  * What stays banned is prose, headings and tables: `<p>`, `<h3>`, `<h4>`,
  * `<table>`. Those are the shapes that push a drawing below the fold, and two
  * views were opening on exactly them when this file was written.
+ *
+ * `SectionVerdict` is the band those chips sit in since 2026-08-25 — a frame
+ * around a `StateChip` row and nothing else — so it is a chip row by the same
+ * argument, one element up. It is here rather than in the wrapper list because
+ * it is not a wrapper: the rule it is being admitted under is the chip rule,
+ * and putting it with `div` would hide that it was a decision. Its ABSENCE form
+ * carries `pending` and is matched above instead.
  */
-const CHIPS = ["StateChip"];
+const CHIPS = ["StateChip", "SectionVerdict"];
 
 interface View {
   /** The file and the exported function that draws this view. */
@@ -119,26 +142,22 @@ const VIEWS: Record<string, View> = {
   "Coherence test / Proof": { at: "../components/coherence/CertificateViews.tsx#ProofView" },
   "Basket": { at: "../components/coherence/PortfolioPane.tsx#PortfolioPane" },
   "Parlays / Bands": { at: "../components/coherence/CombosViews.tsx#BandsView" },
-  "Parlays / Parlays": {
-    at: "../components/coherence/CombosViews.tsx#ParlaysView",
-    // The one view on this tab that is a LIST rather than a reading. Each row is
-    // a folded card whose summary carries its own verdict, and the drawing for
-    // all six together is the Bands view beside it — so a figure here would be
-    // the same six bands drawn twice.
-    exempt: "a list of folded per-parlay cards; Bands draws all six together",
-  },
+  // NO LONGER EXEMPT, as of 2026-08-25. The exemption said a figure here would
+  // be the same six bands the Bands view already draws together, and it was
+  // right about BANDS — so what leads this view is not one. `ParlayLegs` draws
+  // the LEGS at their implied p, which is what both bounds are built from and
+  // what every card below keeps behind a `<details>`.
+  "Parlays / Parlays": { at: "../components/coherence/CombosViews.tsx#ParlaysView" },
   "Parlays / Bounds": { at: "../components/coherence/CombosBounds.tsx#BoundsView" },
-  "Scorecard": {
-    at: "../components/coherence/CalibrationSettled.tsx#CalibrationSettled",
-    // The one caveat on this tab that INVALIDATES the drawing under it. The
-    // `final_trade` engine scores prices read moments before settlement, so the
-    // gauge below measures convergence speed and not foresight — a reader who
-    // meets the number first has already taken the wrong reading, and putting
-    // the warning after it would be the same as not making it. This is the
-    // narrow case the rule is FOR, not an exception to it: words that come
-    // before a drawing must change what the drawing means.
-    exempt: "the engine caveat decides how the score under it may be read",
-  },
+  // NO LONGER EXEMPT, as of 2026-08-25, and the exemption was retired by
+  // building rather than by argument. It covered the engine caveat — the one
+  // caveat on this tab that INVALIDATES the drawing under it, since
+  // `final_trade` scores prices read moments before settlement — which stood
+  // here as a three-branch paragraph because a reader who meets the number
+  // first has already taken the wrong reading. The caveat still comes first and
+  // still decides how everything below may be read; it is `HorizonAxis` now,
+  // which puts the median read-time on a clock instead of describing it.
+  "Scorecard": { at: "../components/coherence/CalibrationSettled.tsx#CalibrationSettled" },
   "Coherence index / trend": { at: "../components/coherence/CalibrationTrend.tsx#CalibrationTrend" },
   "Coherence index / series": { at: "../components/coherence/IndexPane.tsx#IndexPane" },
   "Lessons / Coverage": { at: "../components/coherence/LessonCoverage.tsx#LessonCoverage" },
@@ -327,6 +346,15 @@ describe("every Proofs view opens on a drawing", () => {
       ClockAgreement: "../components/coherence/diffusion/ClockAgreement.tsx#ClockAgreement",
       EpisodeWatch: "../components/coherence/diffusion/EpisodeWatch.tsx#EpisodeWatch",
       MeetingsEmpty: "../components/coherence/diffusion/MeetingTable.tsx#MeetingsEmpty",
+      // The 2026-08-25 six. `CheckLadder` opens on `FormationDiagram`, which is
+      // itself checked here — one indirection, verified rather than asserted.
+      CheckLadder: "../components/coherence/CheckLadder.tsx#CheckLadder",
+      FormationDiagram: "../components/coherence/FormationDiagram.tsx#FormationDiagram",
+      StateCoverage: "../components/coherence/StateCoverage.tsx#StateCoverage",
+      ParlayLegs: "../components/coherence/ParlayLegs.tsx#ParlayLegs",
+      HorizonAxis: "../components/coherence/HorizonAxis.tsx#HorizonAxis",
+      MeasurabilityStrip: "../components/coherence/MeasurabilityStrip.tsx#MeasurabilityStrip",
+      GroupPins: "../components/coherence/GroupPins.tsx#GroupPins",
     };
     for (const [name, at] of Object.entries(LOCAL)) {
       const [file, fn] = at.split("#");

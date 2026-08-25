@@ -119,7 +119,11 @@ export default function StatusPane({ status, error }: { status: CoherenceStatus 
       </div>
       </details>
 
-      <dl className="coh-status__facts">
+      {/* Boxed, the way Universe's tiles are on the other tab (14t, and 14u for
+          this one). They were bare rows at the foot of the tab with a bordered
+          figure above and nothing around them, so the eye had no edge to tell
+          one metric from the next. */}
+      <dl className="coh-status__facts coh-facts--boxed">
         <div>
           <dt>Recorded so far</dt>
           <dd>
@@ -145,8 +149,20 @@ export default function StatusPane({ status, error }: { status: CoherenceStatus 
               list, with a full stop appended and no label — a reader met a
               sentence about token buckets with nothing saying what it was about
               or which figure it explained. It is provenance for this row, so it
-              sits under this row. */}
-          <dd className="coh-status__basis">{status.budget.basis}</dd>
+              sits under this row.
+
+              FOLDED once the tiles gained frames (14u, 2026-08-25). These four
+              are a 140px auto-fit grid whose items stretch to the tallest row,
+              and this one carried a whole gateway sentence where its three
+              neighbours carry a figure — so boxing them made one tile three
+              times the height of the rest and the row read as broken. The
+              sentence is provenance, which is what a fold is for. */}
+          <dd className="coh-status__basis">
+            <details className="disclosure">
+              <summary>How this budget was chosen</summary>
+              {status.budget.basis}
+            </details>
+          </dd>
         </div>
         <div>
           <dt>Coherence solver</dt>

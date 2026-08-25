@@ -47,12 +47,17 @@ export default function CombosSection({ active }: { active: boolean }) {
         lede="Two probabilities do not determine the probability of both: they bound it."
       />
 
-      <div className="seg" role="group" aria-label="Parlay view">
-        {VIEWS.map(([name, label]) => (
-          <button key={name} type="button" aria-pressed={view === name} onClick={() => setView(name)}>
-            {label}
-          </button>
-        ))}
+      {/* The control row is pinned (`14u`), so a reader deep in the body can
+          switch view without scrolling back to the head. One row per section is
+          the rule this rail already kept; wrapping it is what made it pinnable. */}
+      <div className="coh-bar">
+        <div className="seg" role="group" aria-label="Parlay view">
+          {VIEWS.map(([name, label]) => (
+            <button key={name} type="button" aria-pressed={view === name} onClick={() => setView(name)}>
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="coh-combos">

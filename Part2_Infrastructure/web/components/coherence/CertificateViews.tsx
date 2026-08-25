@@ -34,41 +34,47 @@
  */
 
 import type { CoherenceCertificate } from "@/lib/coherence/types";
+export { verdictChip } from "./certificate-verdict";
 import { statValue } from "./ReliabilityDiagram";
+import CheckLadder from "./CheckLadder";
 import MarginAxis from "./MarginAxis";
 import ValueStrip, { type StripRow } from "./ValueStrip";
 
-export function verdictChip(certificate: CoherenceCertificate) {
-  if (certificate.verdict === "incoherent") {
-    return certificate.worth_doing
-      ? { mark: "▲", word: "Dutch book, net of fees", tone: "critical" as const }
-      : { mark: "▲", word: "Violated, but the fees eat it", tone: "warn" as const };
-  }
-  if (certificate.verdict === "untestable") {
-    return { mark: "◌", word: "Not testable", tone: "muted" as const };
-  }
-  // The solver found no portfolio worth putting on, but the closed-form
-  // checks found prices that admit no probability measure. Both are true and
-  // they are different claims, so this does not render as "Coherent".
-  if (certificate.priced_out) {
-    return { mark: "▲", word: "Incoherent, but priced out by fees", tone: "warn" as const };
-  }
-  return { mark: "●", word: "Coherent", tone: "good" as const };
-}
-
-/** One sentence for the verdict on screen. The chips carry the state; this says what it means. */
+/**
+ * What the drawings below cannot say, and nothing else. Empty when they say it all.
+ *
+ * IT USED TO RESTATE `MarginAxis`. On the ordinary answer this returned "No
+ * portfolio of these quotes pays more than it costs in every state, so a
+ * consistent probability measure exists" — and the axis three elements below it
+ * reads "Nothing clears the line … so a consistent probability measure exists",
+ * under the figure that measures exactly that. One claim, twice, on one screen,
+ * which is the shape `copy-audit` is for.
+ *
+ * So the coherent branch is now the gateway's own `because` or nothing at all,
+ * and the caller renders no paragraph when there is nothing to put in it. What
+ * survives is the three cases the figures genuinely cannot carry: a test that
+ * did not run, the pointer to where the basket is drawn, and the two-readings
+ * distinction a single verdict word flattens.
+ */
 export function verdictReading(certificate: CoherenceCertificate): string {
-  const because = certificate.because ? ` ${certificate.because}.` : "";
+  const because = certificate.because ? `${certificate.because}.` : "";
   if (certificate.verdict === "untestable") {
-    return `This family could not be tested.${because}`;
-  }
-  if (certificate.verdict === "incoherent") {
-    return `These quotes admit no probability measure; Certificate draws the basket that pays in every state.${because}`;
+    return `This family could not be tested. ${because}`.trim();
   }
   if (certificate.priced_out) {
-    return "These quotes admit no probability measure and the fees remove the edge — two true readings, kept apart on purpose.";
+    return `These quotes admit no probability measure and the fees remove the edge — two true readings, kept apart on purpose. ${because}`.trim();
   }
-  return "No portfolio of these quotes pays more than it costs in every state, so a consistent probability measure exists.";
+  if (certificate.verdict === "incoherent") {
+    return `Basket draws the portfolio that pays whatever settles. ${because}`.trim();
+  }
+  // NOTHING on the ordinary answer. The gateway's own `because` for a coherent
+  // family reads "no portfolio of these quotes pays more than it costs in every
+  // state, so a probability measure consistent with all of them exists" — which
+  // is `MarginAxis`'s reading in the gateway's words, three elements below it.
+  // Measured on the live feed, not reasoned about: both sentences were on one
+  // screen. It is not lost — `CheckLadder` carries it as a note under the figure
+  // whose subject is how the verdict was reached.
+  return "";
 }
 
 /**
@@ -150,8 +156,18 @@ export function VerdictView({ data, target }: { data: CoherenceCertificate; targ
           the arithmetic of a portfolio that usually does not exist. Leading
           with them meant the headline figure of the headline view said
           "not reported" four times on the answer a reader sees almost every
-          time. */}
-      <MarginAxis margin={data.margin} verdict={data.verdict} engine={data.engine} pricedOut={Boolean(data.priced_out)} />
+          time.
+
+          PAIRED WITH THE LADDER since 2026-08-25, and the pairing is the
+          point rather than the packing: the axis says WHERE the optimum
+          landed and the ladder says HOW it was reached, so a reader meets
+          the answer and its derivation in one glance instead of scrolling
+          between them. Both exist on every solve, which is why these two are
+          the pair and the money strip below is not. */}
+      <div className="coh-figpair">
+        <MarginAxis margin={data.margin} verdict={data.verdict} engine={data.engine} pricedOut={Boolean(data.priced_out)} />
+        <CheckLadder certificate={data} />
+      </div>
 
       {anyMoney ? (
         <ValueStrip

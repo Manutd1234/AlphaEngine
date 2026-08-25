@@ -48,15 +48,20 @@ export default function IndexSection({ active }: { active: boolean }) {
         title="How far these prices sit from admitting a probability"
         id="coherence-index-heading"
         note="measured every poll, on markets that have not settled"
-        lede="Zero is a family whose prices admit a probability exactly, and the distance above it is how much the quotes contradict themselves — a reading this exchange publishes for nobody."
+        lede="Zero is prices that admit a probability exactly; the distance above it is how much the quotes contradict themselves."
       />
 
-      <div className="seg" role="group" aria-label="Index view">
-        {VIEWS.map(([name, label]) => (
-          <button key={name} type="button" aria-pressed={view === name} onClick={() => setView(name)}>
-            {label}
-          </button>
-        ))}
+      {/* The control row is pinned (`14u`), so a reader deep in the body can
+          switch view without scrolling back to the head. One row per section is
+          the rule this rail already kept; wrapping it is what made it pinnable. */}
+      <div className="coh-bar">
+        <div className="seg" role="group" aria-label="Index view">
+          {VIEWS.map(([name, label]) => (
+            <button key={name} type="button" aria-pressed={view === name} onClick={() => setView(name)}>
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* The branch IS the gate, and the compiler proves it: inside the else,

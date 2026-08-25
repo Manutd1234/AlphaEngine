@@ -1,0 +1,209 @@
+/* ==========================================================================
+   The Proofs tab's own layout, 2026-08-25.
+
+   Its own partial rather than an addition to 14r or 14s, and each of those has
+   a reason. `14r` is the DIAGRAM ladder plus packing and
+   `coherence-density-partial.test.ts` holds it to exactly that — it refuses a
+   selector it cannot classify as one of the two. `14s` is the Model group's
+   control grid and its own banner says it sizes nothing; layout rules are
+   neither. `14t` is the same file for the Quotes tab and is the template this
+   one follows, down to the argument for existing.
+
+   Imported after 14t and before 15, which stays last.
+   ========================================================================== */
+
+/* ── Two figures side by side, where both exist on every read ─────────────
+
+   Every section on this tab stacked figure, figure, fold, table in one narrow
+   column, so a view with two drawings put the second below the fold at desk
+   width and the reader scrolled between an answer and its derivation.
+
+   PAIRED ONLY WHERE BOTH FIGURES ARE ALWAYS DRAWN, which is the rule that
+   decides what goes in here and what does not. Verdict pairs the margin axis
+   with the check ladder because both exist on every solve; its money strip is
+   NOT in the pair, because on the ordinary coherent answer no portfolio exists
+   and the strip is correctly absent — a pair with one child is a half-empty
+   row claiming to be a comparison.
+
+   1100px is 14r's own packing breakpoint, reused rather than chosen: below it
+   this plane is already a single-column flow and a two-column figure would
+   squeeze both plots under their own label gutters. */
+.coherence-plane.proofs-plane .coh-figpair {
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: 1fr;
+  min-width: 0;
+}
+
+@media (min-width: 1100px) {
+  .coherence-plane.proofs-plane .coh-figpair {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+}
+
+/* ── A figure's caveats, folded ───────────────────────────────────────────
+
+   `Figure` grew a counted `<details>` on 2026-08-25 for the footnotes that had
+   outgrown standing under a drawing — the index chart's ran to four lines under
+   a 168px plot. It sits inside the figure's border, so it takes the figure's
+   own rhythm rather than the disclosure spacing the page-level folds use. */
+.coherence-plane.proofs-plane .coh-figure__notes {
+  margin-top: 2px;
+}
+
+/* ── The control row stays put ────────────────────────────────────────────
+
+   Reported from the running desk: a reader deep in the Scorecard's band table
+   or the Lessons card grid had to scroll back to the top of the card to change
+   view. The switcher and the family picker are ONE row per section (the rule
+   every section on this rail keeps), so pinning that row is one rule.
+
+   `--rail-h` and not `--chrome-rail`: the offset stays measured when the
+   subtab rail wraps or grows on a coarse pointer, which is the same reason
+   `.sidebar` reads it in 12. The header is NOT counted — the shell is the
+   scroll container and its top edge already sits below the header, and adding
+   `--header-h` here is what parked the research sidebar a full header down.
+
+   The background is not decoration: a transparent sticky row lets the table
+   scrolling under it show through its own gaps, which reads as a rendering
+   fault rather than as a pinned control. `--z-sticky-cell` is the desk's rung
+   for something that pins inside its own scroller — deliberately far below
+   `--z-rail`, so this can never cover the navigation above it. */
+.coherence-plane.proofs-plane .coh-bar {
+  position: sticky;
+  top: calc(var(--rail-h) + var(--space-3));
+  z-index: var(--z-sticky-cell);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  padding: var(--space-2) 0;
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+/* The family picker sits at the far end of the row, so the view switcher is
+   always in the same place whether or not a section has a subject picker. */
+.coherence-plane.proofs-plane .coh-bar > .coh-family {
+  margin-left: auto;
+}
+
+/* ── The verdict band ─────────────────────────────────────────────────────
+
+   Every section computed its own chips and drew them in a different place —
+   inside the family choice on Coherence test, under the engine figure on the
+   Scorecard, above the switcher on Parlays — so the one thing a reader came for
+   was somewhere different on each of six sections. It is one band now, directly
+   under the head, above the control row it does not scroll with.
+
+   It carries no colour of its own. Every chip inside it is a `StateChip`, which
+   is a mark, a word and a figure; the band is a frame. */
+.coherence-plane.proofs-plane .coh-verdict {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  min-width: 0;
+}
+
+/* A section whose read has not answered yet says so in the band rather than
+   drawing an empty frame — an empty band and a band still loading look
+   identical, and one of them means the feed is down. */
+.coherence-plane.proofs-plane .coh-verdict__pending {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+/* ── The Quotes polish, brought over ──────────────────────────────────────
+
+   `14t-quotes-layout.css` ends by saying these rules are "probably right for
+   Proofs and that is that tab's call to make". Taken on 2026-08-25, after the
+   same two faults were found on this tab at a viewport.
+
+   THE CAPTION WAS SETTING IN MONO. `.coh-table` gives its cells the tabular
+   face so columns of figures line up, and the caption inherited it — so
+   "Slack is the portfolio's cost minus its bound: negative is the violation,
+   before fees" rendered as a wall of typewriter prose above the table it
+   introduces. It is a sentence, not a figure.
+
+   THE CELLS WERE AT 3px. 14r's packing block tightens them at desk width
+   against the type lift it paid for, and on a ledger a reader scans down that
+   is tighter than anything else on the plane. 7px is the smallest step that
+   reads as a row. This partial sorts after 14r, so it wins without either file
+   naming the other. */
+.coherence-plane.proofs-plane .coh-table__caption {
+  font-family: var(--sans);
+}
+
+.coherence-plane.proofs-plane .coh-table :is(th, td) {
+  padding: 7px 10px;
+}
+
+/* Rows read as rows. A rule under each and a hover band, rather than zebra
+   striping: the band cells on this tab already carry their own `color-mix`
+   fill, and a stripe under one would put two washes on a cell whose fill IS the
+   reading. The rule also survives forced-colors, where a wash does not. */
+.coherence-plane.proofs-plane .coh-table tbody tr {
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.coherence-plane.proofs-plane .coh-table tbody tr:hover {
+  background: color-mix(in srgb, var(--series-1) 6%, transparent);
+}
+
+/* The status strip's tiles get a frame, the way Universe's did. They were bare
+   `<dl>` rows at the foot of the tab with a bordered figure above and nothing
+   around them, so the eye had no edge to tell one metric from the next.
+   A MODIFIER on the plane's own 140px auto-fit grid, never a second grid, so
+   the tiles keep their column behaviour and only gain a border. */
+.coherence-plane.proofs-plane .coh-facts--boxed {
+  gap: var(--space-2);
+}
+
+.coherence-plane.proofs-plane .coh-facts--boxed > div {
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+
+/* ── Marks the three new figures needed ───────────────────────────────────
+
+   Same vocabulary as the rest of the engine: a track is what a quantity is
+   measured against, a region is a judgement about part of it, and anything
+   loud is the thing the figure is about. Nothing here means anything by fill
+   alone — each of the three carries a word or a mark in its own plot. */
+
+/* `HorizonAxis`: the stretch of clock inside which an outcome is usually in
+   plain sight. Its own class rather than `.coh-margin__tradable`, which is the
+   half-plane where a Dutch book exists — one wash reused for two unrelated
+   judgements is a reader learning that a tint means nothing in particular. */
+.coherence-plane.proofs-plane .coh-horizon__near {
+  fill: color-mix(in srgb, var(--series-2) 14%, transparent);
+  stroke: var(--border);
+}
+
+/* `ParlayLegs`: one leg at its implied p. Distinct from `.coh-combo__price`,
+   which is the parlay's own quote on the band strip beside it — the two figures
+   are read as a pair and their marks must not be the same mark. */
+.coherence-plane.proofs-plane .coh-combo__leg {
+  stroke: var(--series-1);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+/* `MeasurabilityStrip`: a run of polls nobody could measure. Outlined rather
+   than filled, and dashed as well, so it survives forced-colors and reads as an
+   absence beside the solid runs it sits between — the figure's whole subject is
+   that these stretches are not readings. */
+.coherence-plane.proofs-plane .coh-cover__gap {
+  fill: none;
+  stroke: var(--text-secondary);
+  stroke-width: 1;
+  stroke-dasharray: 3 2;
+}

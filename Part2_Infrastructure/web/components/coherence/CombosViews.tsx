@@ -29,6 +29,7 @@
 import type { CoherenceCombo, CoherenceComboLeg, CoherenceComboRow } from "@/lib/coherence/types-lab";
 import { priceLabel } from "@/lib/coherence/fixed-point";
 import ComboBandStrips from "./ComboBandStrips";
+import ParlayLegs from "./ParlayLegs";
 import FrechetBand, { DEPENDENCE_WORD, basisCaveat, probLabel, toUnit } from "./FrechetBand";
 import { DIAGRAM_LABEL_PX, gutterFor, truncateMiddle } from "@/lib/coherence/label-metrics";
 import Figure, { Plot, StateChip } from "./Figure";
@@ -39,7 +40,7 @@ const ROW_H = 26;
 
 /** Said on the card whose Πpᵢ is missing, and once under Notes. Never both. */
 const NO_INDEPENDENCE =
-  "A leg is unquoted on the side the parlay needs, so Πpᵢ has no value and neither do the bounds — a missing quote, not a probability of zero.";
+  "a leg is unquoted on the side the parlay needs, so Πpᵢ has no value and neither do the bounds — a missing quote, not a probability of zero.";
 
 /** Where in the band a price sits, as prose. A location, never a verdict. */
 function positionSentence(combo: CoherenceCombo): string {
@@ -177,6 +178,16 @@ export function ParlaysView({ combos }: { combos: CoherenceCombo[] }) {
           against each other" is a reader being told what the two things they
           can already see and press will do. Each summary carries its own
           verdict, which is the thing that actually helps them choose. */}
+      {/* THE VIEW'S OWN DRAWING, 2026-08-25, and what deleted its exemption in
+          `engine-opens-on-a-drawing.test.ts`. That exemption said a figure here
+          would be the same six bands the Bands view already draws together, and
+          it was right about BANDS — so this is not one. It is the legs, at their
+          implied p, which is what both bounds are built from and what every card
+          below keeps behind a `<details>`. A reader can now see why one parlay's
+          band is tight and another's runs half the dollar without opening six
+          tables. */}
+      <ParlayLegs combos={combos} />
+
       {/* SIX FULL CARDS WAS 3,567px AT DESK WIDTH — measured, and the longest
           view on the desk by a factor of nearly two. Each card is a title, a
           chip row, a band figure, a position sentence and a leg table, and six
@@ -209,9 +220,7 @@ export function NotesView({ combos, notes }: { combos: CoherenceCombo[]; notes: 
     <section className="coh-combos__rows">
       {bases.map((basis) => <p className="coh-combo__caveat" key={basis}>{basisCaveat(basis)}</p>)}
       {unquoted ? (
-        <p className="coh-combo__caveat">
-          {`${unquoted} parlays show no independence figure. ${NO_INDEPENDENCE}`}
-        </p>
+        <p className="coh-combo__caveat">{`${unquoted} parlays: ${NO_INDEPENDENCE}`}</p>
       ) : null}
       {notes.length ? (
         <details className="disclosure">

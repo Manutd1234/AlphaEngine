@@ -97,10 +97,9 @@ export default function CalibrationCorpus({ data }: { data: CoherenceCalibration
               draws. What is behind the summary is the per-series detail: the
               exact share and the series' own slope, one row each. */}
           <p className="coh-event__note">
-            {`${corpus} of the ${data.count} scored markets say which series they came from — not a random sample, so every figure on Score scores THIS mixture.`}
             {heaviest && corpus > 0
-              ? ` ${heaviest.series_ticker} alone is ${heaviest.count} of ${corpus} (${pct(heaviest.count / corpus)}).`
-              : ""}
+              ? `Not a random sample: ${heaviest.series_ticker} alone is ${pct(heaviest.count / corpus)} of it, so every figure on Score scores THIS mixture.`
+              : `Not a random sample — ${corpus} of the ${data.count} scored markets name their series, so every figure on Score scores THIS mixture.`}
           </p>
 
           <details className="disclosure">

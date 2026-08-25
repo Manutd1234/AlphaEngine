@@ -196,4 +196,9 @@
    a control partial rather than a ladder one, so it may carry boxes where 14q
    and 14r may not. */
 @import "./globals/14t-quotes-layout.css";
+/* The Proofs tab's own layout: the figure pair, the pinned control row, the
+   verdict band and the marks its three new figures needed. A layout partial
+   rather than a ladder one, which is why it is not in 14r or 14s; 14t is the
+   same file for the other tab. After 14t, before 15, which stays last. */
+@import "./globals/14u-proofs-layout.css";
 @import "./globals/15-navigator-and-trailing-layer.css";

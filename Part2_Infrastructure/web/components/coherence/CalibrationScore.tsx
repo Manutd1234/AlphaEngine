@@ -9,9 +9,12 @@
  * the section already had, since everything here is a pure render over a
  * payload the parent has already read.
  *
- * THE BANNER IS NEVER BEHIND A BUTTON, and that is the reason it is exported
- * separately from the score it stands over. The whole section turns on one
- * field a reader will not think to check — `engine` says WHEN the price was
+ * THE ENGINE CAVEAT LEFT THIS FILE ON 2026-08-25 and is `HorizonAxis`. It was
+ * a three-branch paragraph exported from here as `EngineBanner`, and the fact
+ * it was making is a POSITION ON A CLOCK, which is a picture. It is still
+ * drawn above the switcher, never behind a button, and still said exactly once.
+ * The reason it must exist at all is unchanged — the whole section turns on one
+ * field a reader will not think to check, and `engine` says WHEN the price was
  * read:
  *
  *  - `tape` reads a price quoted an hour before close and scores it against
@@ -23,21 +26,20 @@
  *
  * On the live sample the second engine returns a Brier of 0.00010533 and a
  * skill of 0.99935238, which reads as a spectacular forecaster and is nothing
- * of the sort. The caveat invalidates every view the settled corpus feeds, so
- * the parent draws this banner ABOVE the switcher and `median_horizon_s` —
- * zero, meaning the price was read AT settlement — is printed as the tell
- * rather than buried.
+ * of the sort. The caveat invalidates every view the settled corpus feeds, and
+ * `median_horizon_s` — zero, meaning the price was read AT settlement — is now
+ * the mark's own position on that figure rather than a number in a sentence.
  *
- * WHERE THE CAVEAT IS SAID: ONCE, in the banner. It used to be said three
- * times — the banner, then again in the Brier cell's note, then again in the
- * skill cell's note, each in different words, so a reader met "these are not
- * forecasts" three times before reaching a number and could not tell whether
- * the three were one fact or three.
+ * WHERE THE CAVEAT IS SAID: ONCE. It used to be said three times — the banner,
+ * then again in the Brier cell's note, then again in the skill cell's note,
+ * each in different words, so a reader met "these are not forecasts" three
+ * times before reaching a number and could not tell whether the three were one
+ * fact or three. `horizonText` stays exported from here because the Bands view
+ * needs the same sentence for its x axis.
  *
- * REJECTED: dropping it from the banner and keeping it per-cell, which is the
- * arrangement that survives a reader who reads only the number they came for.
- * It loses the SHAPE of the claim — the caveat invalidates the whole score, not
- * two of its six rows.
+ * REJECTED: keeping it per-cell, which is the arrangement that survives a
+ * reader who reads only the number they came for. It loses the SHAPE of the
+ * claim — the caveat invalidates the whole score, not two of its six rows.
  *
  * THE DECOMPOSITION IS A DISCLOSURE, not a sixth segment. It was a view of its
  * own for part of 2026-08-24, split off because Score stacked a six-row table
@@ -162,42 +164,6 @@ function scoreRows(data: CoherenceCalibration, facts: Fact[]): StripRow[] {
     });
   }
   return rows;
-}
-
-export function EngineBanner({ data }: { data: CoherenceCalibration }) {
-  const convergence = data.engine === "final_trade";
-  const forecast = data.engine === "tape";
-  return (
-    <section className={`coh-calib__engine ${convergence ? "is-warn" : forecast ? "is-good" : "is-muted"}`}>
-      <h2 className="coh-calib__engine-head">
-        <span aria-hidden="true">{convergence ? "▲" : forecast ? "✓" : "◌"}</span>{" "}
-        {convergence
-          ? "Not a forecast test — these are last traded prices"
-          : forecast
-            ? "A forecast test — prices quoted before the answer was known"
-            : `Unrecognised engine: ${data.engine}`}
-      </h2>
-      {convergence ? (
-        <p className="coh-calib__engine-body">
-          A last trade lands moments before settlement, with the answer largely in plain sight, and{" "}
-          {horizonText(data.median_horizon_s)}. So the Brier and skill below measure convergence
-          speed, not foresight, and must not be quoted as evidence of it. The <code>tape</code> engine — prices an
-          hour before close — asks the forecasting question.
-        </p>
-      ) : forecast ? (
-        <p className="coh-calib__engine-body">
-          Prices were read from the tape before close and scored against what settled, so{" "}
-          {horizonText(data.median_horizon_s)}. A real forecast test: the score below is about foresight.
-        </p>
-      ) : (
-        <p className="coh-calib__engine-body">
-          This pane knows two engines — <code>tape</code>, a forecast test, and <code>final_trade</code>, which is
-          not — and cannot tell which <code>{data.engine}</code> is, so nothing below reads as a forecast score
-          until it can.
-        </p>
-      )}
-    </section>
-  );
 }
 
 export function ScoreView({ data, facts }: { data: CoherenceCalibration; facts: Fact[] }) {

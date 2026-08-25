@@ -50,19 +50,23 @@ export default function CalibrationPane({ active }: { active: boolean }) {
         note={data ? `${data.engine} prices` : "the settled corpus"}
         lede={
           <>
-            A set of quotes can admit a probability exactly and still be wrong about the world, so this asks the other
-            question — of the contracts priced near a dime, how many paid — and it turns on <code>engine</code>, which
-            says WHEN the price was read.
+            Quotes can admit a probability exactly and still be wrong about the world, so this asks the other
+            question: of the contracts priced near a dime, how many paid?
           </>
         }
       />
 
-      <div className="seg" role="group" aria-label="Scorecard view">
-        {VIEWS.map(([name, label]) => (
-          <button key={name} type="button" aria-pressed={view === name} onClick={() => setView(name)}>
-            {label}
-          </button>
-        ))}
+      {/* The control row is pinned (`14u`), so a reader deep in the body can
+          switch view without scrolling back to the head. One row per section is
+          the rule this rail already kept; wrapping it is what made it pinnable. */}
+      <div className="coh-bar">
+        <div className="seg" role="group" aria-label="Scorecard view">
+          {VIEWS.map(([name, label]) => (
+            <button key={name} type="button" aria-pressed={view === name} onClick={() => setView(name)}>
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <CalibrationSettled data={data} error={error} view={view} />
