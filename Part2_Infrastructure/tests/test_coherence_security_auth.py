@@ -39,6 +39,13 @@ ROUTES: dict[str, tuple[str, str, dict | None]] = {
     "GET /api/coherence/calibration/history": (
         "GET", "/api/coherence/calibration/history?limit=1", None,
     ),
+    # The recorded book series. A read of this deployment's own tape, so it is
+    # behind the same door as the live reads: the tape records what the desk
+    # watched and when, which is a position-shaped fact even though no order
+    # was ever sent.
+    "GET /api/coherence/books/history": (
+        "GET", "/api/coherence/books/history?ticker=KX-NOT-A-REAL-TICKER&limit=1", None,
+    ),
     "GET /api/coherence/replay": ("GET", "/api/coherence/replay?limit=1", None),
     # The lab routes. Every one is a read as well: the lab computes readings
     # from what the engine already fetched and adds no write path.

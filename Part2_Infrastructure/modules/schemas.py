@@ -49,6 +49,8 @@ from modules.schemas_coherence import CoherenceShardStatus as CoherenceShardStat
 from modules.schemas_coherence import CoherenceStatus as CoherenceStatus  # noqa: F401
 from modules.schemas_coherence import CoherenceSurvivalPoint as CoherenceSurvivalPoint  # noqa: F401
 from modules.schemas_coherence import CoherenceUniverse as CoherenceUniverse  # noqa: F401
+from modules.schemas_coherence_history import CoherenceBookHistory as CoherenceBookHistory  # noqa: F401
+from modules.schemas_coherence_history import CoherenceBookHistoryPoint as CoherenceBookHistoryPoint  # noqa: F401
 from modules.schemas_coherence_lab import CoherenceBin as CoherenceBin  # noqa: F401
 from modules.schemas_coherence_lab import CoherenceCalibration as CoherenceCalibration  # noqa: F401
 from modules.schemas_coherence_lab import CoherenceCalibrationHistory as CoherenceCalibrationHistory  # noqa: F401,E501

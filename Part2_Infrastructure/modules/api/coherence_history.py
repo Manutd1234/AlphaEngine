@@ -20,14 +20,18 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query
 
 from modules.api.deps import trader_identity
+from modules.coherence import tunables
 from modules.coherence.episodes import Episode, survival, verdict_for
 from modules.coherence.fs import calibration_store
+from modules.coherence.fs.quotes_history import book_history, recorded_tickers
 from modules.coherence.fs.replay import rows_from_store
 from modules.coherence.fs.store import TapeUnavailable, get_store
 from modules.coherence.kernel.money import format_dollars
 from modules.coherence.recorder import episode_tracker
 from modules.coherence.syscalls.replay import run
 from modules.schemas import (
+    CoherenceBookHistory,
+    CoherenceBookHistoryPoint,
     CoherenceCalibrationHistory,
     CoherenceCalibrationPoint,
     CoherenceEpisode,
@@ -244,3 +248,100 @@ async def coherence_replay(
             notes=["the tape is empty; the recorder writes to it once COHERENCE_POLL_S is set"],
         )
     return CoherenceReplay(**run(rows))
+
+
+@router.get("/api/coherence/books/history", response_model=CoherenceBookHistory)
+async def coherence_books_history(
+    ticker: str = Query(description="One market ticker, as the exchange spells it"),
+    since_ts_ns: int = Query(default=0, ge=0),
+    limit: int = Query(default=600, ge=1, le=20_000),
+    _actor: str = Depends(trader_identity),
+) -> CoherenceBookHistory:
+    """One market's quotes over time — the first read of what the recorder bought.
+
+    ``/books`` answers what a market is quoted at NOW, and every book pane on the
+    desk draws that. This answers what it HAS been quoted at, off the same
+    ``book_snapshots`` table, which the recorder has been filling since it was
+    switched on and which nothing has ever read as a series. Depth is
+    forward-only: a book nobody recorded at 14:32 cannot be recovered at 14:33
+    from any endpoint, which is why the recorder runs before any strategy code
+    exists. This is the first thing that spends it.
+
+    FOUR ANSWERS, NEVER ONE EMPTY LIST, because every one of them reaches a
+    reader as "no data" otherwise and only one of them is normal:
+
+      * ``unavailable``   — the tape would not open. An outage, not an answer.
+      * ``unconfigured``  — ``COHERENCE_POLL_S`` is unset, so the recorder has
+        never run here and no deployment history exists to read. Distinct from
+        an outage: nothing is broken, nothing was ever written.
+      * ``empty``         — the tape is real and holds nothing for THIS market.
+        The tickers it DOES hold come back in ``recorded``, so a reader who
+        mistyped one is shown the list rather than left guessing whether the
+        ticker was wrong or the recorder was off.
+      * ``ok``            — a series, oldest first.
+
+    The default limit is 600 rather than the 2,000 its siblings use, and the
+    number is the cadence: at a fifteen-second recorder poll that is two and a
+    half hours of one market, which is longer than the question "what has this
+    been doing" ever reaches back for. A reader who wants more asks for it.
+    """
+    try:
+        store = get_store()
+        points = book_history(store, ticker=ticker, since_ts_ns=since_ts_ns, limit=limit)
+    except TapeUnavailable as exc:
+        return CoherenceBookHistory(state="unavailable", ticker=ticker, notes=[str(exc)])
+
+    if not points:
+        # THE TAPE IS ASKED BEFORE THE CONFIG, and that order is the whole of
+        # this branch. The first version read `COHERENCE_POLL_S` first and
+        # answered "unconfigured" whenever the recorder was off — which is
+        # wrong on the commonest deployment there is: a tape recorded yesterday
+        # with the recorder switched off today. Run against this desk's own
+        # 43,302-row tape with polling disabled, it reported a deployment that
+        # had "never recorded a book" while holding 2,992 markets.
+        #
+        # So the evidence decides. If the tape holds ANY book, the recorder has
+        # run and an absence here is about this market. Only when the tape holds
+        # nothing at all does the configuration get to say which kind of nothing
+        # it is — never having been switched on, or switched on and not yet
+        # having written.
+        try:
+            held = recorded_tickers(store)
+        except TapeUnavailable as exc:
+            return CoherenceBookHistory(state="unavailable", ticker=ticker, notes=[str(exc)])
+
+        if held:
+            return CoherenceBookHistory(
+                state="empty",
+                ticker=ticker,
+                recorded=held,
+                notes=[
+                    f"the tape holds no book for {ticker}; it is not on the watchlist, "
+                    "or nothing was recorded before this window"
+                ],
+            )
+
+        if tunables.POLL_SECONDS <= 0 or not tunables.watchlist_configured():
+            return CoherenceBookHistory(
+                state="unconfigured",
+                ticker=ticker,
+                notes=[
+                    "the recorder has never run on this deployment; set COHERENCE_POLL_S "
+                    "and COHERENCE_SERIES to start writing the tape"
+                ],
+            )
+
+        return CoherenceBookHistory(
+            state="empty",
+            ticker=ticker,
+            notes=[
+                "the recorder is configured and has written nothing yet; the first poll "
+                "has not landed, or it has not reached this market"
+            ],
+        )
+
+    return CoherenceBookHistory(
+        state="ok",
+        ticker=ticker,
+        points=[CoherenceBookHistoryPoint(**point) for point in points],
+    )

@@ -184,3 +184,26 @@
    hangs left of it rather than overrunning the viewBox — the clipping this
    engine has spent two passes removing from its label gutters. */
 .coh-tape__tick--end { text-anchor: end; }
+
+/* ── The recorded book tape ─────────────────────────────────────────────
+
+   `BookHistory` draws two series and only one of them is a quote: Kalshi sends
+   two BID ladders and no asks, so the implied YES ask is a dollar less the NO
+   bid. Dashed, which is the treatment this tab already gives every derived
+   offer — `LadderChart`'s ghost asks and `ShellTree`'s order group both use it —
+   so a reader who has met one has met this. The band between the two lines is
+   the spread a position crosses.
+
+   It borrows `.coh-tape__grid` and `.coh-tape__tick` from the live tape above
+   rather than declaring its own: the axis furniture is the same furniture, and
+   two names for it would drift the first time one was tuned. What it does not
+   borrow is `.coh-tape__line`, which it uses for the BID — the solid line is
+   the venue's own number in both figures, which is the point of the pairing. */
+.coh-book-tape__ask {
+  fill: none;
+  stroke: var(--series-1);
+  stroke-width: 1.25;
+  stroke-dasharray: 4 3;
+  stroke-linejoin: round;
+  opacity: 0.75;
+}

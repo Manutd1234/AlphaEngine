@@ -45,6 +45,7 @@ export const API_OPERATIONS: readonly ApiOperation[] = [
   { method: "GET", path: "/api/gateway/coherence/combos", purpose: "Parlays against the Frechet band their own legs leave", group: "gateway" },
   { method: "GET", path: "/api/gateway/coherence/calibration", purpose: "Brier score and Murphy decomposition over settled markets", group: "gateway" },
   { method: "GET", path: "/api/gateway/coherence/calibration/history", purpose: "The settled score over time, recorded forward only", group: "gateway" },
+  { method: "GET", path: "/api/gateway/coherence/books/history", purpose: "One market's recorded quotes, off this deployment's own tape", group: "gateway" },
   { method: "GET", path: "/api/gateway/coherence/settlement", purpose: "The published index a contract resolves against, with its quality control", group: "gateway" },
   { method: "GET", path: "/api/gateway/coherence/rfq", purpose: "Maker quote dispersion, where the public book shows nothing", group: "gateway" },
   { method: "GET", path: "/api/gateway/coherence/shell", purpose: "The watched universe as a filesystem: ls a path, cat a reading", group: "gateway" },

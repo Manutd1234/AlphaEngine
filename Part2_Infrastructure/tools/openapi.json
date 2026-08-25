@@ -433,6 +433,136 @@
         "title": "CoherenceBin",
         "type": "object"
       },
+      "CoherenceBookHistory": {
+        "description": "One market's recorded quotes, oldest first so a chart can plot it.",
+        "properties": {
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/CoherenceBookHistoryPoint"
+            },
+            "title": "Points",
+            "type": "array"
+          },
+          "recorded": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Recorded",
+            "type": "array"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "ticker": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ticker"
+          }
+        },
+        "required": [
+          "state"
+        ],
+        "title": "CoherenceBookHistory",
+        "type": "object"
+      },
+      "CoherenceBookHistoryPoint": {
+        "description": "One recorded book, as prices rather than ladders.\n\n``implied_yes_ask`` is DERIVED \u2014 Kalshi sends two bid ladders and no asks, so\nthe YES ask a reader trades against is a dollar less the NO bid. It is named\nfor what it is so nothing downstream can mistake it for a quote the venue\nsent, and it is null whenever the NO side was unquoted: a market with no NO\nbid has no implied ask, and a zero there is a free option.",
+        "properties": {
+          "best_no_bid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best No Bid"
+          },
+          "best_yes_bid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best Yes Bid"
+          },
+          "depth": {
+            "default": "top_of_book",
+            "title": "Depth",
+            "type": "string"
+          },
+          "event_ticker": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Ticker"
+          },
+          "implied_yes_ask": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Implied Yes Ask"
+          },
+          "series_ticker": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Series Ticker"
+          },
+          "source": {
+            "default": "unknown",
+            "title": "Source",
+            "type": "string"
+          },
+          "ticker": {
+            "title": "Ticker",
+            "type": "string"
+          },
+          "ts_ns": {
+            "title": "Ts Ns",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ts_ns",
+          "ticker"
+        ],
+        "title": "CoherenceBookHistoryPoint",
+        "type": "object"
+      },
       "CoherenceBookLevel": {
         "description": "One resting level. Both fields are strings; neither is ever null.",
         "properties": {
@@ -10341,6 +10471,106 @@
         "summary": "Coherence Books",
         "tags": [
           "coherence"
+        ]
+      }
+    },
+    "/api/coherence/books/history": {
+      "get": {
+        "description": "One market's quotes over time \u2014 the first read of what the recorder bought.\n\n``/books`` answers what a market is quoted at NOW, and every book pane on the\ndesk draws that. This answers what it HAS been quoted at, off the same\n``book_snapshots`` table, which the recorder has been filling since it was\nswitched on and which nothing has ever read as a series. Depth is\nforward-only: a book nobody recorded at 14:32 cannot be recovered at 14:33\nfrom any endpoint, which is why the recorder runs before any strategy code\nexists. This is the first thing that spends it.\n\nFOUR ANSWERS, NEVER ONE EMPTY LIST, because every one of them reaches a\nreader as \"no data\" otherwise and only one of them is normal:\n\n  * ``unavailable``   \u2014 the tape would not open. An outage, not an answer.\n  * ``unconfigured``  \u2014 ``COHERENCE_POLL_S`` is unset, so the recorder has\n    never run here and no deployment history exists to read. Distinct from\n    an outage: nothing is broken, nothing was ever written.\n  * ``empty``         \u2014 the tape is real and holds nothing for THIS market.\n    The tickers it DOES hold come back in ``recorded``, so a reader who\n    mistyped one is shown the list rather than left guessing whether the\n    ticker was wrong or the recorder was off.\n  * ``ok``            \u2014 a series, oldest first.\n\nThe default limit is 600 rather than the 2,000 its siblings use, and the\nnumber is the cadence: at a fifteen-second recorder poll that is two and a\nhalf hours of one market, which is longer than the question \"what has this\nbeen doing\" ever reaches back for. A reader who wants more asks for it.",
+        "operationId": "coherence_books_history_api_coherence_books_history_get",
+        "parameters": [
+          {
+            "description": "One market ticker, as the exchange spells it",
+            "in": "query",
+            "name": "ticker",
+            "required": true,
+            "schema": {
+              "description": "One market ticker, as the exchange spells it",
+              "title": "Ticker",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "since_ts_ns",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Since Ts Ns",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 600,
+              "maximum": 20000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoherenceBookHistory"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Coherence Books History",
+        "tags": [
+          "coherence history"
         ]
       }
     },

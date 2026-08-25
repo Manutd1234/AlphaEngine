@@ -35,6 +35,22 @@ export const universeRoute = (maxEvents = 2) => `${COHERENCE}/universe?max_event
 
 export const booksRoute = () => `${COHERENCE}/books`;
 
+/**
+ * One market's recorded quotes, oldest first.
+ *
+ * The tape rather than the venue: `book_snapshots` has a row per watched market
+ * per recorder poll and nothing on the desk had ever read it as a series. So
+ * this is the cheap read of the two — no exchange call, no signing, just DuckDB
+ * — and it is the only route on the tab that can answer what a market has BEEN
+ * quoted at rather than what it is quoted at now.
+ *
+ * 600 rather than the 2,000 its siblings default to, and the number is the
+ * cadence: at a fifteen-second recorder poll that is two and a half hours of one
+ * market, which is further back than "what has this been doing" ever reaches.
+ */
+export const booksHistoryRoute = (ticker: string, limit = 600) =>
+  `${COHERENCE}/books/history?ticker=${encodeURIComponent(ticker)}&limit=${limit}`;
+
 export const certifyRoute = (eventTicker: string) =>
   `${COHERENCE}/certify?event_ticker=${encodeURIComponent(eventTicker)}`;
 

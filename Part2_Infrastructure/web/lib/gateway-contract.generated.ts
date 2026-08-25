@@ -72,6 +72,26 @@ export interface CoherenceBin {
   representative?: string | null;
 }
 
+export interface CoherenceBookHistory {
+  notes?: Array<string>;
+  points?: Array<CoherenceBookHistoryPoint>;
+  recorded?: Array<string>;
+  state: string;
+  ticker?: string | null;
+}
+
+export interface CoherenceBookHistoryPoint {
+  best_no_bid?: string | null;
+  best_yes_bid?: string | null;
+  depth?: string;
+  event_ticker?: string | null;
+  implied_yes_ask?: string | null;
+  series_ticker?: string | null;
+  source?: string;
+  ticker: string;
+  ts_ns: number;
+}
+
 export interface CoherenceBookLevel {
   price: string;
   size: string;
@@ -1600,6 +1620,7 @@ export interface GatewayOperations {
   "POST /api/backtest": { request: BacktestRequest; response: Record<string, unknown> };
   "GET /api/book/{symbol}": { response: Array<VenueBook> };
   "GET /api/coherence/books": { response: CoherenceBooks };
+  "GET /api/coherence/books/history": { response: CoherenceBookHistory };
   "GET /api/coherence/calibration": { response: CoherenceCalibration };
   "GET /api/coherence/calibration/history": { response: CoherenceCalibrationHistory };
   "GET /api/coherence/certify": { response: CoherenceCertificate };
@@ -1681,6 +1702,7 @@ export const GATEWAY_CONTRACT_PATHS = [
   "/api/backtest",
   "/api/book/{symbol}",
   "/api/coherence/books",
+  "/api/coherence/books/history",
   "/api/coherence/calibration",
   "/api/coherence/calibration/history",
   "/api/coherence/certify",

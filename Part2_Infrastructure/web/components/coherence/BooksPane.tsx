@@ -41,8 +41,16 @@ import type { CoherenceBooks, CoherenceBookView } from "@/lib/coherence/types";
 import IdentityStrip from "./IdentityStrip";
 import LadderChart from "./LadderChart";
 
-/** The two views this pane draws. Dispersion is the RFQ half, not a book. */
-export type BookDetailView = "ladder" | "identity";
+/**
+ * The section's three views. This pane draws two of them.
+ *
+ * `history` is the recorded tape and `BookHistory` draws it — a different READ
+ * (the deployment's own DuckDB rather than the venue) answering a different
+ * question (what this market has been quoted at, not what it is). The id lives
+ * in this union because the section's switcher is typed on it and one union is
+ * what stops the two files disagreeing about which views exist.
+ */
+export type BookDetailView = "ladder" | "identity" | "history";
 
 function BookDetail({ book, view }: { book: CoherenceBookView; view: BookDetailView }) {
   if (view === "identity") {

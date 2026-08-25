@@ -56,8 +56,10 @@
 import { useState } from "react";
 
 import type { CoherenceBooks } from "@/lib/coherence/types";
-import { booksRoute } from "@/lib/coherence/routes";
+import type { CoherenceBookHistory } from "@/lib/coherence/types-history";
+import { booksHistoryRoute, booksRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
+import BookHistory from "./BookHistory";
 import BooksPane, { type BookDetailView } from "./BooksPane";
 import LiveTape from "./LiveTape";
 import { toUnit } from "./FrechetBand";
@@ -66,10 +68,14 @@ import MarketPicker from "./MarketPicker";
 import PaneHead from "./PaneHead";
 import SectionFrame from "./SectionFrame";
 
-/** The two views, in the order they are pressed. */
+/** The three views, in the order they are pressed. */
 const VIEWS: ReadonlyArray<[BookDetailView, string]> = [
   ["ladder", "Ladder"],
   ["identity", "Identity"],
+  // The recorded tape, added 2026-08-25 with the route that reads it. It is the
+  // only view here whose answer is about a market's PAST, so it is last: the
+  // section's question is what this is quoted at, and history is what follows.
+  ["history", "History"],
 ];
 
 export default function BooksSection({ active }: { active: boolean }) {
@@ -100,6 +106,17 @@ export default function BooksSection({ active }: { active: boolean }) {
     `books:${current}:bid`,
     books.updatedAt,
     drawn ? toUnit(drawn.best_yes_bid) : null,
+  );
+
+  /* The recorded tape, gated on its OWN view and on having a market to ask
+     about. It is the cheap read of the two — DuckDB, no exchange call, no
+     signing — but it is still a read, and a section that fetched a history
+     nobody opened would be spending it on every reader who came for a ladder.
+     The URL carries the ticker, so choosing another market is a different read
+     and `read-cache` keys them apart without being told. */
+  const history = useCoherenceRead<CoherenceBookHistory>(
+    booksHistoryRoute(current || "none"),
+    active && view === "history" && Boolean(current),
   );
 
   return (
@@ -143,7 +160,11 @@ export default function BooksSection({ active }: { active: boolean }) {
         <span className="coh-books__ticker">{current}</span>
       ) : null}
     >
-      <BooksPane books={books.data} error={books.error} view={view} selected={selected} />
+      {view === "history" ? (
+        <BookHistory history={history.data} error={history.error} />
+      ) : (
+        <BooksPane books={books.data} error={books.error} view={view} selected={selected} />
+      )}
 
       {current ? (
         <LiveTape
