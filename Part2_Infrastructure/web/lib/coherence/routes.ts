@@ -63,6 +63,21 @@ export const stakeRoute = (eventTicker: string) =>
 export const feesRoute = (price: string | number, contracts: string | number, fills: string | number) =>
   `${COHERENCE}/fees?price=${price}&contracts_fp=${contracts}&fills=${fills}`;
 
+/**
+ * The same fee at every price the venue quotes, for one size and fill count.
+ *
+ * A sibling of `feesRoute` rather than a flag on it: that one works a single
+ * case through and this returns ninety-nine. It takes no price for the same
+ * reason — the price is the axis.
+ *
+ * Pure arithmetic on the gateway, so it is the cheapest read on the tab: no
+ * venue call, no tape, no signing. It exists because the alternative was
+ * computing the curve in the browser, which would be a third implementation of
+ * fee maths this codebase keeps in Python as its reference.
+ */
+export const feesCurveRoute = (contracts: string | number, fills: string | number) =>
+  `${COHERENCE}/fees/curve?contracts_fp=${contracts}&fills=${fills}`;
+
 /** The largest read on the tab, and the reason Ablation is gated on its view. */
 export const replayRoute = (limit = 20_000) => `${COHERENCE}/replay?limit=${limit}`;
 

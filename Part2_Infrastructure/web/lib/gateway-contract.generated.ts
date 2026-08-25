@@ -333,6 +333,26 @@ export interface CoherenceEventView {
   yes_bid_total?: string | null;
 }
 
+export interface CoherenceFeeCurve {
+  balance_precision: string;
+  contracts: string;
+  fills: number;
+  multiplier: string;
+  notes?: Array<string>;
+  points?: Array<CoherenceFeeCurvePoint>;
+  state: string;
+}
+
+export interface CoherenceFeeCurvePoint {
+  as_fraction_of_notional?: string | null;
+  net: string;
+  notional: string;
+  price: string;
+  rebate: string;
+  rounding_fee: string;
+  trade_fee: string;
+}
+
 export interface CoherenceFeeFill {
   net: string;
   notional: string;
@@ -1627,6 +1647,7 @@ export interface GatewayOperations {
   "GET /api/coherence/combos": { response: CoherenceCombos };
   "GET /api/coherence/episodes": { response: CoherenceEpisodes };
   "GET /api/coherence/fees": { response: CoherenceFees };
+  "GET /api/coherence/fees/curve": { response: CoherenceFeeCurve };
   "GET /api/coherence/index": { response: CoherenceIndexSeries };
   "GET /api/coherence/replay": { response: CoherenceReplay };
   "GET /api/coherence/rfq": { response: CoherenceRfqPanel };
@@ -1709,6 +1730,7 @@ export const GATEWAY_CONTRACT_PATHS = [
   "/api/coherence/combos",
   "/api/coherence/episodes",
   "/api/coherence/fees",
+  "/api/coherence/fees/curve",
   "/api/coherence/index",
   "/api/coherence/replay",
   "/api/coherence/rfq",

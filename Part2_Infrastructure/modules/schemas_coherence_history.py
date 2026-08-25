@@ -58,3 +58,46 @@ class CoherenceBookHistory(BaseModel):
     #: An empty series and a mistyped ticker are different answers.
     recorded: list[str] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
+
+
+class CoherenceFeeCurvePoint(BaseModel):
+    """The three components at one price, for a fixed size and fill count.
+
+    Every figure is a string for the reason the rest of this engine's money is:
+    these are exact fixed-point quantities and their last places are the
+    finding. ``as_fraction_of_notional`` is null at a price of zero — nothing
+    was traded, so there is no notional to be a fraction of, and a zero there
+    would read as a free trade.
+    """
+
+    price: str
+    trade_fee: str
+    rounding_fee: str
+    rebate: str
+    net: str
+    notional: str
+    as_fraction_of_notional: str | None = None
+
+
+class CoherenceFeeCurve(BaseModel):
+    """The fee at every price the venue quotes, for one size and fill count.
+
+    `/api/coherence/fees` works ONE case through — Kalshi's own documented
+    example, where the component nobody models is nineteen times the one
+    everybody does. It cannot answer the question that example raises, which is
+    whether that ratio is a property of that price or of the schedule; and the
+    desk drew a parabola for it from a formula written in the browser, which is
+    a third implementation of arithmetic Python is the reference for.
+
+    So the whole curve is computed once, here, by the same kernel the worked
+    example uses. Pure arithmetic: no venue call, no tape, one read.
+    """
+
+    state: str
+    #: Contracts, to a hundredth — the same fixed-point form `/fees` takes.
+    contracts: str
+    fills: int
+    multiplier: str
+    balance_precision: str
+    points: list[CoherenceFeeCurvePoint] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)

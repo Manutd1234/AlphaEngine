@@ -2093,6 +2093,104 @@
         "title": "CoherenceEventView",
         "type": "object"
       },
+      "CoherenceFeeCurve": {
+        "description": "The fee at every price the venue quotes, for one size and fill count.\n\n`/api/coherence/fees` works ONE case through \u2014 Kalshi's own documented\nexample, where the component nobody models is nineteen times the one\neverybody does. It cannot answer the question that example raises, which is\nwhether that ratio is a property of that price or of the schedule; and the\ndesk drew a parabola for it from a formula written in the browser, which is\na third implementation of arithmetic Python is the reference for.\n\nSo the whole curve is computed once, here, by the same kernel the worked\nexample uses. Pure arithmetic: no venue call, no tape, one read.",
+        "properties": {
+          "balance_precision": {
+            "title": "Balance Precision",
+            "type": "string"
+          },
+          "contracts": {
+            "title": "Contracts",
+            "type": "string"
+          },
+          "fills": {
+            "title": "Fills",
+            "type": "integer"
+          },
+          "multiplier": {
+            "title": "Multiplier",
+            "type": "string"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/CoherenceFeeCurvePoint"
+            },
+            "title": "Points",
+            "type": "array"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "contracts",
+          "fills",
+          "multiplier",
+          "balance_precision"
+        ],
+        "title": "CoherenceFeeCurve",
+        "type": "object"
+      },
+      "CoherenceFeeCurvePoint": {
+        "description": "The three components at one price, for a fixed size and fill count.\n\nEvery figure is a string for the reason the rest of this engine's money is:\nthese are exact fixed-point quantities and their last places are the\nfinding. ``as_fraction_of_notional`` is null at a price of zero \u2014 nothing\nwas traded, so there is no notional to be a fraction of, and a zero there\nwould read as a free trade.",
+        "properties": {
+          "as_fraction_of_notional": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "As Fraction Of Notional"
+          },
+          "net": {
+            "title": "Net",
+            "type": "string"
+          },
+          "notional": {
+            "title": "Notional",
+            "type": "string"
+          },
+          "price": {
+            "title": "Price",
+            "type": "string"
+          },
+          "rebate": {
+            "title": "Rebate",
+            "type": "string"
+          },
+          "rounding_fee": {
+            "title": "Rounding Fee",
+            "type": "string"
+          },
+          "trade_fee": {
+            "title": "Trade Fee",
+            "type": "string"
+          }
+        },
+        "required": [
+          "price",
+          "trade_fee",
+          "rounding_fee",
+          "rebate",
+          "net",
+          "notional"
+        ],
+        "title": "CoherenceFeeCurvePoint",
+        "type": "object"
+      },
       "CoherenceFeeFill": {
         "description": "What one fill of a worked example cost, component by component.",
         "properties": {
@@ -11165,6 +11263,114 @@
         "summary": "Coherence Fees",
         "tags": [
           "coherence"
+        ]
+      }
+    },
+    "/api/coherence/fees/curve": {
+      "get": {
+        "description": "The three-component fee at every price the venue quotes.\n\n`/api/coherence/fees` works ONE case through, and it is the right case \u2014\nKalshi's own documented example, where the rounding component is nineteen\ntimes the trading one. What it cannot answer is the question that example\nraises: whether that ratio is a property of THAT PRICE or of the schedule.\nA curve answers it, and the desk had been drawing one from a formula\nwritten in TypeScript \u2014 a third implementation of arithmetic this codebase\nkeeps in Python precisely so the two it already has can be held to parity.\n\nNO VENUE CALL, NO TAPE, ONE READ. Ninety-nine evaluations of the same\nkernel the worked example uses, which is why it can afford to be a route\nrather than a cached artefact: it is arithmetic, and it is the arithmetic\nthe gateway is the reference for.\n\nONE CENT TO NINETY-NINE, and both ends are excluded on purpose. A contract\nat zero or a dollar is settled, not quoted, and including them would put\ntwo points on the curve where the fee is a fact about a trade nobody can\nmake \u2014 and at zero the fraction of notional is undefined, which would need\na null in the middle of a series that has none.",
+        "operationId": "coherence_fees_curve_api_coherence_fees_curve_get",
+        "parameters": [
+          {
+            "description": "Contracts, to 0.01",
+            "in": "query",
+            "name": "contracts_fp",
+            "required": false,
+            "schema": {
+              "default": "0.09",
+              "description": "Contracts, to 0.01",
+              "title": "Contracts Fp",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "fills",
+            "required": false,
+            "schema": {
+              "default": 3,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Fills",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Take the fee multiplier from this series",
+            "in": "query",
+            "name": "series",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Take the fee multiplier from this series",
+              "title": "Series"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoherenceFeeCurve"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Coherence Fees Curve",
+        "tags": [
+          "coherence lab"
         ]
       }
     },

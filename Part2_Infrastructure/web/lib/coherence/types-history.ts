@@ -58,3 +58,31 @@ export interface CoherenceBookHistory {
 export function isCoherenceBookHistory(value: unknown): value is CoherenceBookHistory {
   return isRecord(value) && typeof value.state === "string" && Array.isArray(value.points);
 }
+
+
+/** The three components at one price, for a fixed size and fill count. */
+export interface CoherenceFeeCurvePoint {
+  price: string;
+  trade_fee: string;
+  rounding_fee: string;
+  rebate: string;
+  net: string;
+  notional: string;
+  /** Null only at a price of zero, which the route excludes. */
+  as_fraction_of_notional: string | null;
+}
+
+/** The fee at every price the venue quotes, computed by the gateway's kernel. */
+export interface CoherenceFeeCurve {
+  state: string;
+  contracts: string;
+  fills: number;
+  multiplier: string;
+  balance_precision: string;
+  points: CoherenceFeeCurvePoint[];
+  notes: string[];
+}
+
+export function isCoherenceFeeCurve(value: unknown): value is CoherenceFeeCurve {
+  return isRecord(value) && typeof value.state === "string" && Array.isArray(value.points);
+}

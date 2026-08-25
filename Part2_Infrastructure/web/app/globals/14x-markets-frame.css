@@ -246,3 +246,26 @@
   fill: var(--series-1);
   font-size: var(--fs-tick);
 }
+
+/* ── The measured fee curve ─────────────────────────────────────────────
+
+   Two lines and the reader is asked to judge the GAP between them, which is the
+   rounding component. So the trade fee is quiet and the net fee is the one that
+   reads: same hue, different weight and opacity, and the net carries the solid
+   stroke this plane gives a measured series. Neither is dashed — both are
+   computed by the gateway's kernel, and the dash on this tab means "derived
+   from the other side of the book", which neither of these is. */
+.coh-fee-curve__trade {
+  fill: none;
+  stroke: var(--series-1);
+  stroke-width: 1;
+  opacity: 0.45;
+  stroke-linejoin: round;
+}
+
+.coh-fee-curve__net {
+  fill: none;
+  stroke: var(--series-1);
+  stroke-width: 1.75;
+  stroke-linejoin: round;
+}

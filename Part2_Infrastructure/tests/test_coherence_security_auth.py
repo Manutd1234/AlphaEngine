@@ -34,6 +34,10 @@ ROUTES: dict[str, tuple[str, str, dict | None]] = {
     "GET /api/coherence/books": ("GET", "/api/coherence/books?tickers=KX-NOT-A-REAL-TICKER", None),
     "GET /api/coherence/certify": ("GET", "/api/coherence/certify?event_ticker=KXNOTREAL-99", None),
     "GET /api/coherence/fees": ("GET", "/api/coherence/fees?price=0.5000&contracts_fp=1.00&fills=1", None),
+    # Pure arithmetic — no venue call and no tape — but behind the same door as
+    # everything else on this prefix: the schedule it prices from is this
+    # deployment's, and a route that leaks a fee schedule leaks a configuration.
+    "GET /api/coherence/fees/curve": ("GET", "/api/coherence/fees/curve?contracts_fp=1.00&fills=1", None),
     "GET /api/coherence/index": ("GET", "/api/coherence/index?limit=1", None),
     "GET /api/coherence/episodes": ("GET", "/api/coherence/episodes?limit=1", None),
     "GET /api/coherence/calibration/history": (

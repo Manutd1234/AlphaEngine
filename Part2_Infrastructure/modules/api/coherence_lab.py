@@ -29,14 +29,16 @@ from modules.coherence.drivers.kalshi_rest import KalshiClient, KalshiUnavailabl
 from modules.coherence.drivers.rfq import read_panel
 from modules.coherence.fs.store import TapeUnavailable, get_store
 from modules.coherence.kernel.band_usage import band_usage
-from modules.coherence.kernel.costs import no_arbitrage_bound
-from modules.coherence.kernel.money import DOLLAR
+from modules.coherence.kernel.costs import FeeSchedule, net_fee, no_arbitrage_bound
+from modules.coherence.kernel.money import DOLLAR, MoneyError, format_dollars, parse_fp
 from modules.coherence.syscalls import calibrate, combos, settlement, shell, surface
 from modules.coherence.syscalls.certify import certify
 from modules.coherence.syscalls.observe import observe_event, observe_series
 from modules.schemas import (
     CoherenceCalibration,
     CoherenceCombos,
+    CoherenceFeeCurve,
+    CoherenceFeeCurvePoint,
     CoherenceKelly,
     CoherenceRfqPanel,
     CoherenceSettlementFeed,
@@ -292,3 +294,76 @@ async def _certificate_for(observations: list[Any], path: str) -> Any:
         return None
     schedule = await fee_meta.schedule_for_event(observation.event.series_ticker, observation.event.event_ticker)
     return certify(observation, schedule)
+
+
+@router.get("/api/coherence/fees/curve", response_model=CoherenceFeeCurve)
+async def coherence_fees_curve(
+    contracts_fp: str = Query(default="0.09", description="Contracts, to 0.01"),
+    fills: int = Query(default=3, ge=1, le=50),
+    series: str | None = Query(default=None, description="Take the fee multiplier from this series"),
+    _actor: str = Depends(trader_identity),
+) -> CoherenceFeeCurve:
+    """The three-component fee at every price the venue quotes.
+
+    `/api/coherence/fees` works ONE case through, and it is the right case —
+    Kalshi's own documented example, where the rounding component is nineteen
+    times the trading one. What it cannot answer is the question that example
+    raises: whether that ratio is a property of THAT PRICE or of the schedule.
+    A curve answers it, and the desk had been drawing one from a formula
+    written in TypeScript — a third implementation of arithmetic this codebase
+    keeps in Python precisely so the two it already has can be held to parity.
+
+    NO VENUE CALL, NO TAPE, ONE READ. Ninety-nine evaluations of the same
+    kernel the worked example uses, which is why it can afford to be a route
+    rather than a cached artefact: it is arithmetic, and it is the arithmetic
+    the gateway is the reference for.
+
+    ONE CENT TO NINETY-NINE, and both ends are excluded on purpose. A contract
+    at zero or a dollar is settled, not quoted, and including them would put
+    two points on the curve where the fee is a fact about a trade nobody can
+    make — and at zero the fraction of notional is undefined, which would need
+    a null in the middle of a series that has none.
+    """
+    try:
+        size = parse_fp(contracts_fp)
+    except MoneyError as exc:
+        return CoherenceFeeCurve(
+            state="unreadable",
+            contracts=contracts_fp,
+            fills=fills,
+            multiplier="1",
+            balance_precision=format_dollars(tunables.BALANCE_PRECISION),
+            notes=[str(exc)],
+        )
+
+    schedule = await fee_meta.schedule_for_event(series or "", "") if series else FeeSchedule(
+        taker_rate=tunables.TAKER_RATE,
+        maker_ratio=tunables.MAKER_RATIO,
+        balance_precision=tunables.BALANCE_PRECISION,
+    )
+
+    points: list[CoherenceFeeCurvePoint] = []
+    for cents in range(1, 100):
+        price = Decimal(cents) / Decimal(100)
+        breakdown = net_fee(price, size, schedule, fills=fills)
+        fraction = breakdown.as_fraction_of_notional
+        points.append(
+            CoherenceFeeCurvePoint(
+                price=format_dollars(price),
+                trade_fee=format_dollars(breakdown.trade_fee),
+                rounding_fee=format_dollars(breakdown.rounding_fee),
+                rebate=format_dollars(breakdown.rebate),
+                net=format_dollars(breakdown.net),
+                notional=format_dollars(breakdown.notional),
+                as_fraction_of_notional=None if fraction is None else format_dollars(fraction),
+            )
+        )
+
+    return CoherenceFeeCurve(
+        state="ok",
+        contracts=contracts_fp,
+        fills=fills,
+        multiplier=format_dollars(schedule.taker_rate),
+        balance_precision=format_dollars(schedule.balance_precision),
+        points=points,
+    )

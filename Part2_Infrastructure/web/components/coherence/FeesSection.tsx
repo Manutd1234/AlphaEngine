@@ -45,7 +45,9 @@
 import { useState } from "react";
 
 import type { CoherenceFees } from "@/lib/coherence/types";
-import { feesRoute } from "@/lib/coherence/routes";
+import type { CoherenceFeeCurve } from "@/lib/coherence/types-history";
+import { feesCurveRoute, feesRoute } from "@/lib/coherence/routes";
+import FeeCurve from "./FeeCurve";
 import LiveTape from "./LiveTape";
 import { toUnit } from "./FrechetBand";
 import { useLiveSeries } from "@/lib/coherence/use-live-series";
@@ -80,6 +82,15 @@ export default function FeesSection({ active }: { active: boolean }) {
   const fees = useCoherenceRead<CoherenceFees>(
     feesRoute(example.price, example.contracts, example.fills),
     active,
+  );
+
+  /* The whole curve, gated on the one view that draws it. The cheapest read on
+     the tab — pure arithmetic on the gateway, no venue call and no tape — but
+     still a read, and a section that fetched ninety-nine prices for a reader
+     who came to see a worked example would be spending it for nothing. */
+  const curve = useCoherenceRead<CoherenceFeeCurve>(
+    feesCurveRoute(example.contracts, example.fills),
+    active && view === "shape",
   );
 
   const share = fees.data?.net_as_fraction_of_notional ?? null;
@@ -161,6 +172,15 @@ export default function FeesSection({ active }: { active: boolean }) {
       ) : (
         <FeesPane fees={fees.data} error={fees.error} view={view as FeesView} />
       )}
+
+      {/* MEASURED, beside the modelled parabola rather than instead of it. That
+          figure draws the trade fee's closed form and makes this tab's thesis —
+          the naive test is furthest wrong in the middle of the book. This draws
+          what the gateway's kernel actually charges at every price, so the
+          rounding component the section opens by claiming is nineteen times the
+          trading one becomes a gap a reader can see rather than a sentence they
+          are asked to take. */}
+      {view === "shape" ? <FeeCurve curve={curve.data} error={curve.error} /> : null}
 
       <LiveTape
         points={shareTape}
