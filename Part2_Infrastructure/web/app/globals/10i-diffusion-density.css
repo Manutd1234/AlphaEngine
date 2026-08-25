@@ -124,17 +124,25 @@
 @supports (grid-template-rows: subgrid) {
   .coherence-plane.diffusion-plane .coh-lessons__grid { grid-auto-rows: auto; }
 
+  /* FOUR ROWS, not five, from 2026-08-25: the boundary clause folded into the
+     card's own disclosure, so a card is head, formula, figure, fold. Every one
+     of the first three is fixed-height now, which means the cards very nearly
+     align by construction and subgrid buys much less than it did — it is kept
+     because it costs nothing while every fold is closed, and it is what still
+     holds a row level when one card's title wraps to two lines. */
   .coherence-plane.diffusion-plane .coh-lesson {
-    grid-row: span 5;
+    grid-row: span 4;
     grid-template-rows: subgrid;
     align-content: stretch;
   }
 }
 
-.coherence-plane.diffusion-plane .coh-lesson > .coh-lesson__bounds {
-  border-top: 1px solid var(--grid);
-  padding-top: var(--space-2);
-}
+/* The rule that drew a hairline over the open boundary clause is DELETED, not
+   moved: with the clause inside the fold there is no `.coh-lesson__bounds` that
+   is a direct child of a card for it to match, and the hairline it drew is
+   already supplied by `.console-card details.disclosure` at `02:106`. Leaving
+   it would have been a selector matching nothing — which `dead-css` cannot see,
+   because the CLASS still has render sites. */
 
 /* ── The instrument-fit ladder ────────────────────────────────────────────
    Six requirements, each drawn on its OWN nought-to-one track with the

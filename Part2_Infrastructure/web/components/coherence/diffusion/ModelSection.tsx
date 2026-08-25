@@ -32,7 +32,7 @@ function ModelSection() {
         title="What the estimator computes on a price path"
         id="diffusion-model-heading"
         note="computes in the browser, fetching nothing"
-        lede="Every card names the reference module it is a port of, and states what breaks it above what it measures."
+        lede="Every card names the reference module it is a port of and draws the mechanism it computes, with what it measures, what breaks it and when it holds behind one summary."
       />
       <ModelFormulas part="measurement" />
     </section>

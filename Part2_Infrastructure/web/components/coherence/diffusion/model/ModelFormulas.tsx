@@ -256,7 +256,7 @@ export default function ModelFormulas({ part }: { part: FormulaPart }) {
           `items-stretch` and `h-full` are what a grid already does — an item
           stretches its row — and are stated so a later `align-items` change
           cannot silently ragged the row. */}
-      <div className="coh-lessons__grid grid items-stretch min-[1400px]:grid-cols-3">
+      <div className="coh-lessons__grid grid items-stretch min-[1240px]:grid-cols-3">
         {shown.map((entry) => (
           <article className="coh-lesson h-full" key={entry.id}>
             <header className="coh-lesson__head">
@@ -273,32 +273,46 @@ export default function ModelFormulas({ part }: { part: FormulaPart }) {
                 what the expression MEANS and what the clause is about. */}
             <FormulaFigure id={entry.id} />
 
-            {/* THE BOUNDARY STAYS OPEN AND THE CONFIDENT HALF FOLDS, which is
-                the exact inverse of the usual disclosure and is what
-                `LessonsPane`'s rule actually asks for. That header refuses to
-                hide "what breaks it", because folding the failure mode leaves
-                the confident half on screen and hides the half that stops a
-                reader over-applying the claim. Hiding the confident half is
-                therefore the move that argument PERMITS — and it is the one
-                this view needed: measured at 2,724px with everything open, it
-                was the longest thing on the desk by a factor of four. */}
-            <dl className="coh-lesson__bounds">
-              <div className="is-fails">
-                <dt>What breaks it</dt>
-                <dd>{entry.breaks}</dd>
-              </div>
-            </dl>
+            {/* THE BOUNDARY FOLDS TOO, from 2026-08-25, and this reverses
+                what stood here. The old note argued `LessonsPane`'s rule: never
+                leave the confident half on screen while hiding the failure, so
+                the failure stayed open and the claim folded. Three things make
+                the fold safe now, and the third is the one that changed.
 
+                The figure already draws the failure. `primitives.tsx` says it
+                outright — what each figure draws is the mechanism AND where it
+                fits, which is the failure the `breaks` clause names: the linear
+                crossing landing where the log one does not, the asymptote
+                walked upward, the whitened spectrum collapsing to one bump. The
+                warning stays visible; it stays visible as a DRAWING, which is
+                this tab's own thesis about how a claim should be made.
+
+                The order survives the move. Inside the fold "What breaks it"
+                sits ABOVE "When it holds", so the inversion the old rule wanted
+                is now carried by sequence rather than by visibility.
+
+                And the arrangement it replaces had its own distortion, which
+                that note never named: a reader who opened no card got the
+                warning and never the claim. Behind one fold the two are
+                inseparable, which is a stronger reading of the same rule.
+
+                Measured: model 1,411px and instrument 952px before, and the two
+                were about 60% of the tab's visible prose. */}
             <details className="disclosure">
-              <summary>What it measures, and when it holds</summary>
+              <summary>What it measures, what breaks it, and when it holds</summary>
               <p className="coh-lesson__summary">{entry.summary}</p>
               <dl className="coh-lesson__bounds">
+                <div className="is-fails">
+                  <dt>What breaks it</dt>
+                  <dd>{entry.breaks}</dd>
+                </div>
                 <div className="is-holds">
                   <dt>When it holds</dt>
                   <dd>{entry.holds}</dd>
                 </div>
               </dl>
             </details>
+
           </article>
         ))}
       </div>

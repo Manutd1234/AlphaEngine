@@ -171,7 +171,27 @@ export default function FindingsPane({ active }: { active: boolean }) {
           title: `${row.name} (${row.stage}): ${row.n} meetings — ${row.question}`,
         }))}
       />
-      <FindingsTable findings={data.findings} />
+      {/* FOLDED, following `MeetingTable` on this same tab: the strip above is
+          the view and the table is its audit. The two were drawing the same 14
+          rows twice — the strip bars `row.n` and the table's Events column IS
+          `row.n` — and the Effect plot draws `t` for the same rows one button
+          away. At 7px cells over 14 rows the table was 1,227px, the tallest
+          live-data view on the tab.
+
+          The length gate is not decoration: `FindingsTable` renders a
+          `.console-empty` line when there is nothing to show, and folding an
+          empty state away would break the house rule that an empty result is
+          reported rather than hidden. The 32-word caption survives inside. */}
+      {data.findings.length ? (
+        <details className="disclosure">
+          <summary>
+            {`Every relationship measured, with its count, its statistics and its verdict, ${data.findings.length} rows`}
+          </summary>
+          <FindingsTable findings={data.findings} />
+        </details>
+      ) : (
+        <FindingsTable findings={data.findings} />
+      )}
       </>
       ) : (
       <>

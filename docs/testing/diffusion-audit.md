@@ -467,3 +467,68 @@ on the two formula catalogues, which the declutter slice folds.
 **Height, net of both slices:** 12,038px to 12,289px across the 15 views. The
 arm's Control view is the one that moved down (804 to 775) as its two readings
 came off the title rung.
+
+## Slice 5 — declutter, 2026-08-25
+
+Taken out of plan order, ahead of the interactivity and new-figure slices,
+because it is cheap, it is the largest visible win, and its table fold is what
+closes the one split slice 2 left open.
+
+    section / view            before    after    delta   visible words
+    model                       1411      921     -490      263 -> 20
+    instrument                   952      650     -302      216 -> 19
+    findings / Findings table   1090      690     -400       46 -> 46
+    total across 15 views      12038    11029    -1009     1673 -> 1233
+
+**The boundary clause folds, and that reverses a decision.** Each of the 13
+formula cards was five grid rows: head, formula, figure, an OPEN definition list
+carrying "What breaks it", and a disclosure carrying the summary and "When it
+holds". The note that put it that way argued `LessonsPane`'s rule — never leave
+the confident half on screen while hiding the failure — so the failure stayed
+open and the claim folded.
+
+Three things make the fold safe, and the third is what changed. The figure
+already draws the failure: `primitives.tsx` says what each figure draws is the
+mechanism AND where it fits, which is the failure the clause names — the linear
+crossing landing where the log one does not, the asymptote walked upward, the
+whitened spectrum collapsing to one bump. The order survives, because inside the
+fold "What breaks it" sits above "When it holds", so the inversion is carried by
+sequence rather than by visibility. And the arrangement it replaces had a
+distortion its own note never named: a reader who opened no card got the warning
+and never the claim. Behind one fold the two are inseparable.
+
+Both section ledes said cards "state what breaks it above what it measures".
+That stopped being true the moment the clause moved, so both were rewritten in
+the same change — a stale lede is the failure mode this tab has already had once
+this week, in Findings.
+
+**Three columns from 1240px rather than 1400px.** At 1280 the grid used to drop
+to two and `model` grew a fourth card row to 1,680px. With the prose folded the
+row height is set by the fixed 96px figure rather than by reflow, so a narrower
+card costs almost nothing.
+
+**Subgrid goes from `span 5` to `span 4`,** and the rule that drew a hairline
+over the open clause is deleted rather than moved: with the clause inside the
+fold, no `.coh-lesson__bounds` is a direct child of a card for it to match, and
+`02:106` already supplies that hairline. A selector matching nothing is
+something `dead-css` cannot see, because the CLASS still has render sites.
+
+**The findings table folds behind its own strip,** the pattern `MeetingTable`
+already uses on this tab. The two were drawing the same 14 rows twice — the
+strip bars `row.n` and the table's Events column IS `row.n` — with `t` for the
+same rows one button away on the Effect plot. The length gate is load-bearing:
+`FindingsTable` renders a `.console-empty` line when there is nothing, and
+folding an empty state away would break the rule that an empty result is
+reported rather than hidden.
+
+**That fold is also what completes slice 2.** Measured after:
+
+    meetings table   th 12.75  td 13
+    episodes table   th 12.75  td 13
+    findings table   th 12.75  td 13
+
+One ladder across the tab: 12.75 labels a column, 13 is a body cell or a
+footnote, 14 is a caption or a reading. 17px now renders nowhere on it.
+
+**Nothing was deleted.** Every word is one click away, and the two catalogue
+sections stop being roughly 60% of the tab's visible prose.

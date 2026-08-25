@@ -29,7 +29,7 @@ function InstrumentSection() {
         title="The clock, the control and the spectrum"
         id="diffusion-instrument-heading"
         note="nothing on this section is fetched"
-        lede="Each card names the module it is the reference for, and states what breaks it above what it measures."
+        lede="Each card names the module it is the reference for and draws the mechanism it computes, with what it measures, what breaks it and when it holds behind one summary."
       />
       <ModelFormulas part="instrument" />
     </section>
