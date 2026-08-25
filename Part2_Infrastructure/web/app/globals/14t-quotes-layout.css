@@ -91,8 +91,8 @@
   z-index: var(--z-popover);
   top: calc(100% + 4px);
   left: 0;
-  min-width: 260px;
-  max-width: min(420px, 90vw);
+  min-width: 300px;
+  max-width: min(460px, 90vw);
   padding: 8px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -122,6 +122,11 @@
   overflow-y: auto;
 }
 
+/* ONE LINE PER MARKET. `flex-wrap` was here and had to go: two hundred rows
+   that each wrap to three lines is a list nobody can scan, and the thing doing
+   the wrapping was a full sentence from the gateway that is now two words and a
+   `title`. The group heading still needs its own line, so it keeps a 100% basis
+   and everything else stays on the row. */
 .coh-market__option {
   display: flex;
   align-items: baseline;
@@ -130,6 +135,7 @@
   padding: 4px 6px;
   border-radius: var(--radius-sm);
   cursor: pointer;
+  white-space: nowrap;
 }
 
 /* The active row is the keyboard's position and the pointer's, so it is one

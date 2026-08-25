@@ -185,9 +185,43 @@ export const DEVELOPER_SECTION_IDS =
 // can merge and summarise it will be good."
 
 // Prices — what the exchange is quoting, read live and recorded.
+//
+// EIGHT SINCE 2026-08-25, AND THE SPLIT IS THE SAME ONE PROOFS JUST MADE.
+// "the universe section has too many subtabs" — five, over two different
+// subjects, which is what made the row long rather than the count. Universe
+// answered both "what does a family cost" (Baskets, Families) and "what does it
+// settle against" (Settlement, Formation, Pending); Books answered both "what
+// are the two ladders" (Ladder, Identity) and "what do independent makers say"
+// (Dispersion, Channel). A switcher holds views of ONE question, and neither of
+// those two was one question.
+//
+// So each splits at the seam it already had, and both new ids are ids this
+// engine PUBLISHED — `settlement` and `dispersion` were rail sections during
+// the promotion pass and have been sitting in `RELOCATED_SECTIONS` ever since.
+// Reusing them DELETES their entries from that table rather than adding two:
+// `readLocation` asks the rail before it asks the table, so an id back on its
+// own rail can never reach its entry, and an entry that cannot be reached is a
+// lookup claiming a move that was undone. `markets/stake` records the same
+// thing, and `coherence/portfolio` and `coherence/combos` left the same way
+// hours earlier when Dutch book split into three.
+//
+// `dispersion` renders "Makers", which is house practice on this row rather
+// than drift — `live` renders "Execution", `activity` renders "Blotter". The id
+// is what the hash, the sweep and the relocation table speak; the label is what
+// a reader finds. "Dispersion" names the measurement, and the section is about
+// who is doing the quoting.
+//
+// WHAT IT COSTS: two more entries on a rail that already held six, on a desk
+// where Research carries nine and Risk eight, and no header chip moves — this
+// is the second-level rail, not the tab row, so the measured header ladder is
+// untouched. WHAT IT BUYS: no section on this tab now carries more than four
+// views, every one of them is one question, and four subjects that were
+// reachable only by pressing an unaddressable button have their URLs back.
 export const MARKETS_SECTIONS = [
-  { id: "universe", label: "Universe", description: "Baskets, families & what they settle against" },
-  { id: "books", label: "Books", description: "Two bid ladders, the identity & maker dispersion" },
+  { id: "universe", label: "Universe", description: "Every family against the dollar it pays" },
+  { id: "settlement", label: "Settlement", description: "The published index, how it is formed & what is pending" },
+  { id: "books", label: "Books", description: "Two bid ladders & the offers they imply" },
+  { id: "dispersion", label: "Makers", description: "What independent makers say, and what the channel answered" },
   { id: "lattice", label: "Lattice", description: "Implied mass, its moments & the negative bins" },
   { id: "stake", label: "Stake", description: "The log-optimal plan, its capital split & method" },
   { id: "fees", label: "Fees", description: "Three-component cost & the four-model ablation" },
@@ -197,10 +231,38 @@ export type MarketsSection = (typeof MARKETS_SECTIONS)[number]["id"];
 export const MARKETS_SECTION_IDS =
   MARKETS_SECTIONS.map((s) => s.id) as readonly MarketsSection[];
 
-// Proofs — what follows from those quotes. Ids unchanged; `certificate` and
-// `calibration` keep the ids they were published under while their labels move.
+// Proofs — what follows from those quotes. Every id here was published before;
+// `certificate` and `calibration` keep theirs while their labels move, and
+// `portfolio` and `combos` are the two the consolidation folded away.
+//
+// THE SIXTH MOVE UNFOLDS TWO OF THEM, and it is the first that undoes a
+// consolidation rather than deepening one — so it is worth the reason. Dutch
+// book held SIX views under THREE groups over a family picker, which is three
+// rows of chrome before any drawing: the two-level switcher was the right
+// answer to seven flat segments and the wrong answer to a section carrying
+// three different questions. They are three questions, and the reader said so:
+// "there are too many subtabs and subsubtabs".
+//
+//   `certificate` → "Coherence test"  is there a Dutch book in this family.
+//   `portfolio`   → "Basket"          the portfolio the answer hands back.
+//   `combos`      → "Parlays"         the same test on the venue's own conjunctions.
+//
+// Each is ONE read and ONE control row, which is the rule `stake` was promoted
+// back for and the same rule applied twice more. Nothing was invented to do it:
+// both ids are already in `RELOCATED_SECTIONS`, so this DELETES two entries
+// from that table rather than adding two — an id back on its own rail is
+// reached by `readLocation` before the table is consulted, and a table entry
+// that cannot be reached is a lookup claiming a move that was undone. That is
+// exactly what `markets/stake` records.
+//
+// The cost is honest and small: six rail sections where there were four, and
+// `#coherence/combos` now lands on the parlays themselves rather than on the
+// section that had absorbed them — which is where it pointed when it was
+// published.
 export const COHERENCE_SECTIONS = [
-  { id: "certificate", label: "Dutch book", description: "The coherence test, its proof & the parlays it bounds" },
+  { id: "certificate", label: "Coherence test", description: "Whether these prices admit a probability, and the proof" },
+  { id: "portfolio", label: "Basket", description: "The portfolio the test hands back, and what it pays" },
+  { id: "combos", label: "Parlays", description: "The venue's conjunctions against the bounds their legs impose" },
   { id: "calibration", label: "Scorecard", description: "Were the prices right — once settled, and over time" },
   { id: "diffusion", label: "Diffusion", description: "How fast information is absorbed, and the findings" },
   { id: "lessons", label: "Lessons", description: "The curriculum & what guards it" },

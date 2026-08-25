@@ -35,6 +35,16 @@ from modules.coherence.syscalls.observe import Observation
 
 Kind = Literal["dir", "file"]
 
+
+def _plural(count: int, noun: str) -> str:
+    """The noun, singular or plural, rather than the "(s)" that stands for both.
+
+    A listing that reads "1 watched event(s)" is a sentence written for a
+    variable rather than for a reader, and this string is drawn on the desk's
+    Shell section beside a count of one for every shard the demo watchlist has.
+    """
+    return noun if count == 1 else f"{noun}s"
+
 #: The derived readings an event directory offers. Names are permanent: they are
 #: what a saved command line refers to.
 EVENT_FILES: tuple[tuple[str, str], ...] = (
@@ -84,7 +94,11 @@ def _root(observations: Sequence[Observation]) -> Listing:
     for observation in observations:
         shards[observation.event.exchange_index] = shards.get(observation.event.exchange_index, 0) + 1
     entries = tuple(
-        Entry(name=str(index), kind="dir", detail=f"{count} watched event(s) on this exchange instance")
+        Entry(
+            name=str(index),
+            kind="dir",
+            detail=f"{count} watched {_plural(count, 'event')} on this exchange instance",
+        )
         for index, count in sorted(shards.items())
     )
     return Listing(
@@ -109,7 +123,7 @@ def _series_in(observations: Sequence[Observation], shard: int) -> Listing:
     return Listing(
         path=f"/shards/{shard}",
         entries=tuple(
-            Entry(name=key, kind="dir", detail=f"{count} watched event(s)")
+            Entry(name=key, kind="dir", detail=f"{count} watched {_plural(count, 'event')}")
             for key, count in sorted(series.items())
         ),
         detail=f"series on exchange instance {shard}",

@@ -111,7 +111,7 @@ function readings(surface: CoherenceSurface): Reading[] {
     {
       label: "Negative mass",
       value: surface.negative_bins.length
-        ? `${surface.negative_bins.length} interval(s)`
+        ? `${surface.negative_bins.length} ${surface.negative_bins.length === 1 ? "interval" : "intervals"}`
         : "none on this read",
     },
   ];

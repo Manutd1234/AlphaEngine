@@ -91,7 +91,9 @@ const FILES = [
   "../components/coherence/SettlementPane.tsx",
   "../components/coherence/FormationDiagram.tsx",
   "../components/coherence/PendingMinutes.tsx",
+  "../components/coherence/SettlementSection.tsx",
   "../components/coherence/BooksSection.tsx",
+  "../components/coherence/MakersSection.tsx",
   "../components/coherence/BooksPane.tsx",
   "../components/coherence/LadderChart.tsx",
   "../components/coherence/IdentityStrip.tsx",
@@ -223,13 +225,20 @@ describe("the head is one sentence per section", () => {
    * head — one head per section is what `coherence-pane-head.test.ts` holds, so
    * a lede pin for a view would be pinning markup that must not exist. The
    * sentences those heads carried are still on screen and still pinned above,
-   * as the paragraph each view now opens with. `combos` is the same story with
-   * a published id: it heads nothing because `CertificatePane` heads it, and
-   * `RELOCATED_SECTIONS` is what keeps its link working.
+   * as the paragraph each view now opens with. `combos` was a fourth and is not
+   * any more: it became a Proofs section again on 2026-08-25 with a head of its
+   * own, so it is pinned by the other suite rather than by nothing.
    */
   const OWNERS: Record<string, string> = {
     universe: "../components/coherence/UniverseSection.tsx",
+    // `settlement` and `dispersion` are rail sections again as of 2026-08-25,
+    // each with a wrapper that owns its head and its one-sentence lede. They
+    // were views of Universe and Books for a day; the sentences those views
+    // opened with are still on screen, drawn by the panes, and still pinned in
+    // the claims table above.
+    settlement: "../components/coherence/SettlementSection.tsx",
     books: "../components/coherence/BooksSection.tsx",
+    dispersion: "../components/coherence/MakersSection.tsx",
     lattice: "../components/coherence/SurfacePane.tsx",
     // `stake` became a rail section of its own on 2026-08-24, the fifth review:
     // the lattice was stacking a five-view seg, a second three-view seg and a
@@ -240,11 +249,16 @@ describe("the head is one sentence per section", () => {
     shell: "../components/coherence/ShellPane.tsx",
   };
 
-  /** The Proofs rail's four, from the other suite. Named here so the union can
+  /** The Proofs rail's six, from the other suite. Named here so the union can
    *  be checked against BOTH rails: a section neither suite heads would be
    *  guarded by neither, and both files would stay green while its head grew a
-   *  second sentence. */
-  const PROVED = ["certificate", "calibration", "diffusion", "lessons"];
+   *  second sentence.
+   *
+   *  Four until 2026-08-25, when Dutch book's three groups became three
+   *  sections. `combos` is among them, which retires the note above about it
+   *  heading nothing — it heads `CombosSection` now, and its link resolves on
+   *  the rail rather than through the relocation table. */
+  const PROVED = ["certificate", "portfolio", "combos", "calibration", "diffusion", "lessons"];
 
   it("the two suites' owners add up to both rails, exactly once each", () => {
     const covered = [...Object.keys(OWNERS), ...PROVED].sort();

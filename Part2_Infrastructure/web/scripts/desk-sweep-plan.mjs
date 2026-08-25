@@ -9,7 +9,7 @@
  * by hand — the sweep runs against a built page, not against `lib/sections.ts`
  * — so the count is the only thing standing between a renamed section and a
  * section nobody sweeps. `desk-sweep.mjs` refuses to run when the two disagree,
- * and `tour-truth.test.ts` holds the same 57 against the rails themselves.
+ * and `tour-truth.test.ts` holds the same 60 against the rails themselves.
  *
  * 59 → 65 → 59 → 57, all on 2026-08-24 and none of it pushed. The Kalshi engine
  * split into two tabs and promoted six in-pane `.seg` views to rail sections,
@@ -18,9 +18,15 @@
  * hash, and this harness drives the hash. The merge back to one tab returned
  * them to views; the consolidation that followed folded `index` and `combos`
  * into the sections answering the same question, which is the last two. So
- * eight subjects on this engine are reachable only by pressing a button and the
- * sweep does not walk them — the cost the reader chose, recorded here rather
+ * eight subjects on this engine were reachable only by pressing a button and
+ * the sweep did not walk them — the cost the reader chose, recorded here rather
  * than left to be rediscovered.
+ *
+ * 57 → 58 → 60. The last step is 2026-08-25, and it BUYS two of those eight
+ * back: Dutch book's three groups became three sections, so `portfolio` and
+ * `combos` are in the hash again and this harness walks them. Six subjects
+ * remain view-only, which is the smallest that number has been since the
+ * consolidation.
  *
  * The engine is two tabs again and the ids below are the tab IDS, not the
  * labels: `markets` renders "Prices" and `coherence` renders "Proofs". The
@@ -38,11 +44,11 @@ const TABS = {
   data: ["overview", "feeds", "quality", "incidents", "lineage", "providers", "queue"],
   reliability: ["overview", "planes", "services", "events", "controls"],
   developer: ["overview", "readiness", "quality", "apis", "codebase", "work"],
-  markets: ["universe", "books", "lattice", "stake", "fees", "shell"],
-  coherence: ["certificate", "calibration", "diffusion", "lessons"],
+  markets: ["universe", "settlement", "books", "dispersion", "lattice", "stake", "fees", "shell"],
+  coherence: ["certificate", "portfolio", "combos", "calibration", "diffusion", "lessons"],
 };
 
-const EXPECTED_SECTIONS = 58;
+const EXPECTED_SECTIONS = 62;
 
 /**
  * The two tabs whose job is to report infrastructure truth.

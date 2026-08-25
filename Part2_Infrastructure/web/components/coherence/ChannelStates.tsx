@@ -15,6 +15,7 @@
  * itself, exactly as the table rows it.
  */
 
+import { DIAGRAM_LABEL_PX, glyphClassOf, glyphsWithin } from "@/lib/coherence/label-metrics";
 import Figure, { Plot } from "./Figure";
 
 export interface ChannelStateRow {
@@ -29,10 +30,18 @@ const TOP = 8;
 const GAP = 26;
 const PAD = 7;
 
+/**
+ * Trim a station's word to its box.
+ *
+ * This used to divide by a literal 7.37px/char — the 13px rung times an assumed
+ * 0.567 advance — and that ratio was wrong in the direction that clips: measured
+ * in Chrome on 2026-08-25, mixed-case prose in this face sets at 0.56 and an
+ * uppercase word at 0.69, so a station named for an untaught state ("State
+ * signing_unavailable") overflowed the budget it was given. `label-metrics`
+ * classifies the string instead of assuming one ratio for all of them.
+ */
 function fit(text: string, boxWidth: number): string {
-  // 7.37px/char: the 13px diagram-label rung (14r) x the face's ~0.567
-  // advance. 2026-08-24 the rung moved 12 -> 13, so 6.8 became 7.37.
-  const budget = Math.max(4, Math.floor((boxWidth - PAD * 2) / 7.37));
+  const budget = Math.max(4, glyphsWithin(boxWidth - PAD * 2, DIAGRAM_LABEL_PX, glyphClassOf(text)));
   return text.length <= budget ? text : `${text.slice(0, budget - 1)}…`;
 }
 

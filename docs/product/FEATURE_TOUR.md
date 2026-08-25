@@ -63,9 +63,9 @@ its aria-label and title; HALTED is never folded.
 
 **Where the rail lists below come from.** Every rail in this document is transcribed from
 `Part2_Infrastructure/web/lib/sections.ts`, which is the single definition the rails, the
-command palette, the hash whitelist and "Copy link to this view" all read. **58 sections across
-the ten tabs** — 48 on the eight decision-loop tabs, 6 on Quotes and 4 on Proofs — a total
-`web/scripts/desk-sweep-plan.mjs` mirrors by hand as `EXPECTED_SECTIONS = 58` and the tour test
+command palette, the hash whitelist and "Copy link to this view" all read. **62 sections across
+the ten tabs** — 48 on the eight decision-loop tabs, 8 on Quotes and 6 on Proofs — a total
+`web/scripts/desk-sweep-plan.mjs` mirrors by hand as `EXPECTED_SECTIONS = 62` and the tour test
 asserts against the arrays themselves. Six ids deliberately disagree with their labels, because
 the deep link came first and ids never change: view `live` renders "Execution", view `markets`
 renders "Quotes", view `coherence` renders "Proofs", section `codex` renders "Strategies",
@@ -484,16 +484,22 @@ entries**, thirteen under `#coherence/` and three under `#markets/`, covering al
 **25 distinct locations** this engine has ever published.
 `web/tests/coherence-sections.test.ts` pins the table entry by entry, asserts that every id ever
 shipped resolves somewhere, and — the check that matters — that an entry does not quietly land on
-its tab's own rail default, which is indistinguishable from not resolving at all. Three entries do
-land on a default and are exempted **by name**, because each carrier is simply first in rail
-order: `#coherence/portfolio` and `#coherence/combos` to Dutch book, `#markets/settlement` to
-Universe. Two of the demoted ids, `index` and `combos`, are
+its tab's own rail default, which is indistinguishable from not resolving at all. One entry does
+land on a default and is exempted **by name**, because its carrier is simply first in rail
+order: `#markets/settlement` to Universe. It was three until 2026-08-25, when `portfolio` and
+`combos` became sections again and left the table altogether — an id back on its own rail is
+reached before the table is consulted. One demoted id that remains, `index`, is
 published on `origin/main`, which is what makes that table load-bearing rather than a courtesy. A
 section the named tab still has always wins over the table, so nothing rests on ids staying
 unique by luck.
 
-**60 seconds:** rail: **Universe → Books → Lattice → Fees → Shell**. Five sections, each
-splitting its content across an in-pane `.seg` switcher rather than one long scroll. That control
+**60 seconds:** rail: **Universe → Settlement → Books → Makers → Lattice → Stake → Fees →
+Shell**. Eight sections, each asking ONE question and splitting its answer across an in-pane
+`.seg` switcher rather than one long scroll. Eight and not six since 2026-08-25: Universe was
+carrying what a family costs AND what it settles against on one five-button row, and Books was
+carrying the exchange's two ladders AND what independent makers say. A switcher holds views of
+one question, so each split at the seam it already had, under ids this engine had published
+before — which shortened the relocation table rather than lengthening it. That control
 is structural, not cosmetic: `WorkspaceSubtabs` publishes `--rail-h` onto
 `document.documentElement`, so a nested rail inside a section would be a second instance writing
 the custom property the outer rail owns, and the two would fight. A `.seg` is plain CSS keyed off
@@ -509,8 +515,10 @@ the five section names are asserted against `lib/sections.ts`.
 
 | Section | Views | What it answers |
 |---|---|---|
-| **Universe** | Baskets · Families · Settlement · Formation · Pending | What does a whole mutually exclusive family cost against the dollar it is certain to pay? Both directions are priced, because buying every outcome needs every ask and selling needs every bid — and in the tails a market routinely has an ask and no bid, so a family that cannot be SOLD as a basket can often still be BOUGHT as one. One figure carries every watched family on a single dollar axis, with each family's outcome table behind a disclosure that states its row count: measured live, four watched families carry 80, 188, 6 and 6 markets, and drawing them all was 280 rows of quotes above the fold. **Families** cuts the universe by Kalshi's own `category` — "Crypto", "Climate and Weather" — read from `GET /series/{ticker}` and never inferred from a ticker prefix; a series the exchange will not categorise is grouped as uncategorised rather than guessed at. **Settlement** is the published variable a family actually resolves against, which is not the price on the screen; **Formation** draws the chain that produces it — stations, quality control, a published minute, a sixty-minute mean — with the station DISAGREEMENT as the bar on the minutes not yet published, and **Pending** is the trailing minutes the feed has not published at all. |
-| **Books** | Ladder · Identity · Dispersion · Channel | What does this market look like as the exchange really publishes it? Two BID ladders and no asks; the offer ladder is IMPLIED and is the one the exchange never sends you. **Identity** draws `yes_ask + no_ask = 1 + spread` as two bars landing on the same tick — the reason the "buy both sides for under a dollar" branch in two of the most-starred bots in this space is unreachable rather than rare. **Dispersion** and **Channel** are the request-for-quote side: what several makers, pricing the same joint probability independently, disagree about, which is the only place the venue reveals that at all — a book shows nothing for a combo. |
+| **Universe** | Baskets · Families | What does a whole mutually exclusive family cost against the dollar it is certain to pay? Both directions are priced, because buying every outcome needs every ask and selling needs every bid — and in the tails a market routinely has an ask and no bid, so a family that cannot be SOLD as a basket can often still be BOUGHT as one. One figure carries every watched family on a single dollar axis, with each family's outcome table behind a disclosure that states its row count: measured live, four watched families carry 80, 188, 6 and 6 markets, and drawing them all was 280 rows of quotes above the fold. **Families** cuts the universe by Kalshi's own `category` — "Crypto", "Climate and Weather" — read from `GET /series/{ticker}` and never inferred from a ticker prefix; a series the exchange will not categorise is grouped as uncategorised rather than guessed at. |
+| **Settlement** | Index · Formation · Pending | What does the contract actually resolve against, given it is not the price on the screen? A weather contract settles on the MEAN of a published index over a window, and the gap between that and the latest print is basis a position carries for free. **Index** draws the published series against the window it settles on; **Formation** draws the chain that produces it — stations, quality control, a published minute, a sixty-minute mean — as a pipeline rather than a table, because a table cannot show that the figure a contract settles on is four transformations away from a thermometer; and **Pending** is the trailing minutes the stations have reported and the exchange has not published, drawn with the station DISAGREEMENT as the bar, because a provisional mean built from readings 3.6° apart is a different object from the same figure built from readings that agree. Three views of Universe until 2026-08-25, and a section again under the id it was published under. |
+| **Books** | Ladder · Identity | What does this market look like as the exchange really publishes it? Two BID ladders and no asks; the offer ladder is IMPLIED and is the one the exchange never sends you. **Identity** draws `yes_ask + no_ask = 1 + spread` as two bars landing on the same tick — the reason the "buy both sides for under a dollar" branch in two of the most-starred bots in this space is unreachable rather than rare. |
+| **Makers** | Dispersion · Channel | What do several professionals say when the book shows one opinion, or none? A book publishes the most aggressive resting order rather than the typical view, and for a combo it publishes nothing at all; the request-for-quote channel is the only place the venue exposes N independent answers to a question it never asked. **Dispersion** ranks each panel's lowest-to-highest range on one dollar axis and keeps `spread` (what the makers disagree about) apart from `median_width` (one maker's own bid-offer), because a wide panel of tight makers and a tight panel of wide makers are opposite situations that read identically if either number stands alone. **Channel** is the four answers the channel itself can give — unsigned, refused, read-and-empty, quotes-in-hand — drawn as a figure and tabulated with what each one is NOT, because all four would be reported as "no data" by a panel that only tracked whether it had quotes. Two views of Books until 2026-08-25, and a section again under the id it was published under; the label is "Makers" because the section is about who is quoting, and a reader scanning a rail should not need the statistic to find the people. |
 | **Lattice** | Survival · Mass · Moments · Whole family · Stake | What measure do these prices imply, and what would it be right to bet? **Survival** is the function the strikes sample, **Mass** what differencing leaves between them, **Moments** the summary that falls out, and **Whole family** every outcome the solver ranked including the ones it passed over. **Stake** opens a second `.seg` — Plan · Capital · Method — for a multi-asset Kelly plan whose WORST OUTCOME is printed beside its growth rate, because log-optimal is not riskless. It is the only place on either tab that talks about size, and it still places nothing. |
 | **Fees** | Worked example · Cost shape · Ablation · Replay table | What does a real position pay, and does the cost model change the answer? The defaults reproduce Kalshi's own documented case, where the component nobody models is nineteen times the one everybody does and the net fee exceeds the notional traded. **Ablation** replays the recorded tape under four configurations — including `no_fees`, the test every bot in this space ships with — and **Replay table** is that run row by row. `/replay?limit=20000` is the largest read on either tab, so it is gated on those two views alone and, uniquely, warmed by nothing. |
 | **Shell** | Tree · Reading · Commands · Layout | Where does a market live, and what has actually been derived about it? `ls` a path and `cat` a derived reading, because the shard a market sits on is a directory and crossing that boundary is a real cost. Four outcomes are kept apart and never collapsed into "no data": a path that does not exist, a reading this read could not produce, a genuinely empty directory, and a venue that could not be read at all. |
@@ -536,15 +544,20 @@ is literally a portfolio with legs, quantities and fees on it.
 relocation table are described under Tab 9 and apply here unchanged, as does the note on what a
 `.seg` view gives up.
 
-**60 seconds:** rail: **Dutch book → Scorecard → Diffusion → Lessons**. Four sections, Lessons
-carried as secondary because it is reference material rather than a step. Two of the four
-absorbed a whole published section in the consolidation and keep it as views, which is the part
-worth knowing before following an old link: `combos` folds into **Dutch book** and `index` folds
-into **Scorecard**.
+**60 seconds:** rail: **Coherence test → Basket → Parlays → Scorecard → Diffusion → Lessons**.
+Six sections, Lessons carried as secondary because it is reference material rather than a step.
+The first three were one section, "Dutch book", until 2026-08-25: three groups over six views
+over a family picker, which is three rows of chrome before any drawing. They are three questions
+— is there a Dutch book, what portfolio does that hand back, and the same test on the venue's own
+parlays — so they are three sections, each one read and one control row. Both restored ids were
+already published, so the split shortened the relocation table rather than lengthening it.
+**Scorecard** still absorbs a published section and keeps it as views: `index` folds into it.
 
 | Section | Views | What it answers |
 |---|---|---|
-| **Dutch book** | Verdict · Proof · Certificate · Bands · Parlays · Bounds | Do these prices admit a probability measure? Almost always yes — and that is the CLAIM, not a disappointment: a detector that spoke only when it found something would leave "no opportunity" and "the feed is down" looking identical. **Proof** is the whole certificate in a fixed-width block you can check by hand or paste elsewhere, because "arbitrage, 3.2 cents" is not evidence, and **Certificate** draws the portfolio that wins in EVERY state, state by state — the constructive half of the theorem and the reason this engine tests for coherence instead of scanning for arbitrage shapes. **Bands · Parlays · Bounds** are the same test run on the parlays the venue states rather than on a family's strikes: two probabilities never determine the probability of both, so the legs give a Fréchet band and never a price, and the band's width is how far the parlay can move with no leg moving at all. Six views is one subject, not six — which is why they are one `.seg` that wraps rather than a shrunk one. |
+| **Coherence test** | Verdict · Proof | Do these prices admit a probability measure? Almost always yes — and that is the CLAIM, not a disappointment: a detector that spoke only when it found something would leave "no opportunity" and "the feed is down" looking identical. Which is why the verdict now reports the programme's own margin, the signed figure it was read off, rather than four money rows that are correctly empty whenever no portfolio exists. **Proof** is the whole certificate in a fixed-width block you can check by hand or paste elsewhere, because "arbitrage, 3.2 cents" is not evidence. |
+| **Basket** | one view | The portfolio the test hands back, drawn state by state — the constructive half of the theorem and the reason this engine tests for coherence instead of scanning for arbitrage shapes. Where no measure fits a family's prices, duality returns the basket that wins in every state, so the certificate of infeasibility IS the trade. Every leg carries all three fee components, because a gross edge is not an answer. |
+| **Parlays** | Bands · Parlays · Bounds | The same test run on the parlays the venue states rather than on a family's strikes: two probabilities never determine the probability of both, so the legs give a Fréchet band and never a price, and the band's width is how far the parlay can move with no leg moving at all. It takes no family picker, and that is the structural reason it is its own section: a parlay is a listing the exchange publishes, not a family this engine chooses. |
 | **Scorecard** | Score · Bands · Corpus · Index series · Index families | Were these prices right — once settled, and over time? The Brier score is split under Murphy's decomposition — reliability, resolution, uncertainty, and the residual the binning leaves (`modules/coherence/kernel/calibration.py`); **Corpus** is the composition, because a corpus is whatever the watched series happened to settle. **Index series** and **Index families** are the continuous form of the same question, measured every poll as the distance to the nearest coherent price vector — the series nobody publishes for this exchange. Unmeasurable readings are drawn as gaps, never dropped or zeroed, because a line closing over them would claim continuity nobody observed. The two used to be separate sections and asked a reader to discover that they were one question. |
 | **Diffusion** | Absorption · Noise floor · Meetings · Mechanism · Kalshi survival · Kalshi episodes · Findings | How fast is information absorbed? Two arms of one question: how long a coherence violation survives here, and how long a timestamped announcement takes to finish reaching the price. **Findings** keeps the out-of-sample verdict separated from the mechanism that produced it, because a finding read while standing inside the model that generated it is the easiest place on the desk to confuse a fit with a result. |
 | **Lessons** | Coverage · Prices · Structure · Bounds · Record | What is the curriculum, and what guards each claim? Fourteen lessons rendered from `lib/coherence/lessons.ts`, each naming the code it is about and the tests that pin it, matched one-to-one by the notebooks in `Part2_Infrastructure/notebooks/coherence_lab/`. **Coverage** is the map of the catalogue against both rails at once — a lesson's `pane` is a section id with no tab inside it, and half of them are taught on Quotes. |
@@ -552,11 +565,14 @@ into **Scorecard**.
 **Reads are gated on the open section *and*, where a view alone is expensive, on the open view.**
 The universe read asks for `?max_events=2` because four events took 10.1 s before the reads were
 parallelised and 6.4 s after, against `callGateway`'s eight-second deadline; it is shared by
-Universe, Lattice and Dutch book — across both tabs — so it is deliberately *not* gated on the
-sub-view. The books read stops entirely while **Dispersion** or **Channel** is open, because the
-request-for-quote route is a signed private-channel call on a 25 s budget and the two must never
-be in flight together; with Dispersion a view again rather than a rail of its own, `BooksSection`
-says that with one predicate over its four views instead of announcing a view upward.
+Universe, Lattice and the Coherence test — across both tabs — so it is deliberately *not* gated on the
+sub-view. The request-for-quote route is a signed private-channel call on a 25 s budget and must
+never be in flight beside the public book read; that used to be a `booksView` state in the
+console, then one predicate inside `BooksSection`, and since the split of 2026-08-25 it is
+neither — **Makers** is its own section, so each read is gated on its own section and there is no
+second read in either file to be exclusive with. It is also the one section on the tab the rail
+warms with NOTHING, because on a keyless deployment it answers "no view, unsigned" every time and
+warming would pre-fetch a refusal.
 `/replay?limit=20000`, the largest read on either tab, is gated on Fees → Ablation and Replay
 table the same way, and is the one read the rail warms with nothing at all — pre-fetching it
 would put the desk's heaviest read on the exchange for a view nobody has opened.

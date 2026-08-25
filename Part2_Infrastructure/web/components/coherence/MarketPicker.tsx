@@ -199,6 +199,7 @@ export default function MarketPicker({
                       role="option"
                       aria-selected={option.ticker === selected}
                       className={`coh-market__option${at === activeIndex ? " is-active" : ""}`}
+                      title={option.unquotedReason ? `${option.ticker} — ${option.unquotedReason}` : option.ticker}
                       onPointerUp={() => commit(at)}
                       onPointerMove={() => setActiveIndex(at)}
                     >
@@ -207,9 +208,17 @@ export default function MarketPicker({
                           where a reader expects only options. */}
                       {newGroup ? <span className="coh-market__group">{family}</span> : null}
                       <span className="coh-market__strike">{strikeOf(option.ticker)}</span>
+                      {/* A MARK, NOT THE SENTENCE. The gateway's reason is a
+                          full clause — "no resting bids on this side; the
+                          spread is unknowable, not zero" — and drawn in the row
+                          it wrapped to three lines, which over two hundred rows
+                          is a list nobody can scan. Two words carry the fact
+                          that this market has no offer; the reason itself is on
+                          the row's `title`, and the book below states it in full
+                          the moment the market is chosen. */}
                       {option.unquotedReason ? (
-                        <span className="coh-market__unquoted">
-                          <span aria-hidden="true">○</span> {option.unquotedReason}
+                        <span className="coh-market__unquoted" title={option.unquotedReason}>
+                          <span aria-hidden="true">○</span> no offer
                         </span>
                       ) : null}
                       <span className="coh-market__mark" aria-hidden="true">

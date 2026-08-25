@@ -24,6 +24,7 @@
  */
 
 import { priceLabel, toCenticents } from "@/lib/coherence/fixed-point";
+import { DIAGRAM_LABEL_PX, advancePx } from "@/lib/coherence/label-metrics";
 import type { CoherenceSurface } from "@/lib/coherence/types-lab";
 import Figure, { FigureEmpty, Plot } from "./Figure";
 
@@ -89,6 +90,39 @@ export default function PmfChart({ surface }: { surface: CoherenceSurface }) {
     ? `${unreadable} bin(s) carried a mass this desk could not parse exactly, marked ◌ unread rather than drawn as zero.`
     : null;
 
+  /**
+   * Every bar is one quoted interval and its WIDTH is not the interval's width.
+   *
+   * Reported as a defect — the chart ignores `bin.low`/`bin.high` and lays every
+   * bar in an equal slot — and measured before it was believed. On the live
+   * watchlist (KXBTCD-26AUG2502, 2026-08-25) all 138 bounded intervals are
+   * exactly 100 wide: `distinctWidths` is `[100]`. So on the data this desk
+   * actually reads the equal slots are not an approximation, they are right.
+   *
+   * Two things are still true and are said rather than assumed away. The two
+   * TAIL bins are open-ended — "at or below 67599.99", "above 81399.99" — and
+   * no width can be drawn to scale for an unbounded interval by anyone. And
+   * nothing in the payload PROMISES equal spacing: a family quoted on a
+   * non-uniform strike grid, or one with a gap in the ladder, would put unequal
+   * intervals in equal slots, and a reader comparing bar heights would be
+   * comparing masses of different-width intervals as if they were densities.
+   *
+   * So the assumption is CHECKED on every read rather than rebuilt around. When
+   * it holds the figure says nothing extra; when it breaks the figure says so,
+   * which is the only honest option for a chart that cannot draw an infinite
+   * tail to scale in any case.
+   */
+  const widths = new Set(
+    surface.bins
+      .filter((bin) => bin.low != null && bin.high != null)
+      .map((bin) => Number(bin.high) - Number(bin.low))
+      .filter((width) => Number.isFinite(width)),
+  );
+  const unequal = widths.size > 1
+    ? `Bars are one per quoted interval and are drawn at equal width, but these intervals are NOT equal — `
+      + `${widths.size} different widths are quoted. Compare the heights as mass per interval, never as density.`
+    : null;
+
   return (
     <Figure
       caption={CAPTION}
@@ -98,7 +132,14 @@ export default function PmfChart({ surface }: { surface: CoherenceSurface }) {
           ? `${negatives.length} interval(s) price to LESS than nothing and are drawn below the axis, marked ▽. A negative mass is not a small probability, it is a quoted contradiction: the higher strike is priced as more likely than the lower one.`
           : "No interval prices to less than nothing: the quoted ladder is monotone across every pair read."
       }`}
-      missing={[surface.detail, thinning, emptyNote, unreadableNote].filter(Boolean).join(" ")}
+      missing={[surface.detail, unequal, thinning, emptyNote, unreadableNote]
+        .filter(Boolean)
+        // Each part is a SENTENCE and the gateway's `detail` arrives without a
+        // full stop, so a bare join handed the reader "…not a probability of
+        // zero All 136 bins are drawn" — two sentences welded at a capital.
+        // Same fix as `SurvivalChart`, which had the identical join.
+        .map((part) => (/[.!?]$/.test(part!.trim()) ? part!.trim() : `${part!.trim()}.`))
+        .join(" ")}
     >
       <Plot height={HEIGHT}>
         {(width) => {
@@ -181,16 +222,31 @@ export default function PmfChart({ surface }: { surface: CoherenceSurface }) {
                     </g>
                   ))
                 : null}
-              {!labelAll && heaviest ? (
-                <text
-                  x={Math.min(Math.max(centre(bars.indexOf(heaviest)), MARGIN.left + 40), width - MARGIN.right - 40)}
-                  y={MARGIN.top - 10}
-                  textAnchor="middle"
-                  className="coh-surface__value"
-                >
-                  {`heaviest ${clip(heaviest.label, 26)} at ${priceLabel(heaviest.raw)}`}
-                </text>
-              ) : null}
+              {/* CLAMPED AGAINST THE LABEL'S OWN WIDTH, not against a guess.
+                  This reserved a flat 40px either side for a centre-anchored
+                  string that runs to about 200 — so on any ladder whose heaviest
+                  interval sits near the top of the range, which is most of them,
+                  half the reading was drawn past the viewBox: "heaviest 80699.99
+                  to 80799." with the rest cut off. Third instance of one root
+                  cause on this engine, after the vertical margins and
+                  `ValueStrip`'s value: a clamp computed against a number nobody
+                  had measured. `advancePx` is measured. */}
+              {!labelAll && heaviest ? (() => {
+                const words = `heaviest ${clip(heaviest.label, 26)} at ${priceLabel(heaviest.raw)}`;
+                const half = advancePx(words, DIAGRAM_LABEL_PX) / 2;
+                const lo = MARGIN.left + half;
+                const hi = width - MARGIN.right - half;
+                return (
+                  <text
+                    x={Math.min(Math.max(centre(bars.indexOf(heaviest)), lo), Math.max(lo, hi))}
+                    y={MARGIN.top - 10}
+                    textAnchor="middle"
+                    className="coh-surface__value"
+                  >
+                    {words}
+                  </text>
+                );
+              })() : null}
               {!labelAll ? (
                 <>
                   <text x={MARGIN.left} y={floor + 13} className="coh-surface__tick">

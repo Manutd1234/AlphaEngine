@@ -12,28 +12,29 @@
  * not where an argument that retires a published strategy belongs. Four views
  * give each of them the screen.
  *
- * MAKER DISPERSION LEFT AND CAME BACK on 2026-08-24, both within the day. It was
- * promoted to a rail section because a view is not addressable by URL, and it
- * returns because this is where the subject reads: a book is one venue's most
- * aggressive resting order, the RFQ channel is several professionals pricing
- * the same event independently, and both answer "what is this quoted at". That
- * question is the whole of the Quotes tab, which is the rail this section is on
- * after the last of that day's four restructures — the tenth tab went away with
- * the merge and came back with the split, and the answer did not change either
- * time.
+ * MAKER DISPERSION HAS LEFT FOR THE THIRD AND LAST TIME, on 2026-08-25, and
+ * the reason is worth stating because it was folded back here twice. The
+ * argument for keeping it was that a book is one venue's most aggressive
+ * resting order, the RFQ channel is several professionals pricing the same
+ * event independently, and both answer "what is this quoted at". At that width
+ * every section on this tab answers "what is this quoted at". A book is ONE
+ * number the exchange publishes; a maker panel is N independent answers to a
+ * question the exchange never asked — different objects, different failure
+ * modes, and a four-state table exists over there precisely because the two get
+ * confused. `MakersSection` owns it under the id it was published under.
  *
- * WHAT DOES NOT COME BACK IS THE PLUMBING, and it is worth saying why the shape
- * is different this time. While Dispersion was a view of Books the CONSOLE
- * owned the exchange's book read and had to be told which view was open — a
- * `booksView` state up there and an `onViewChange` callback down through here —
- * purely so a signed 25-second private-channel call and a public book read were
- * never in flight together. Both reads live in this file now, each gated on the
- * views that draw it, so the predicate is beside the thing it predicates and no
- * callback climbs back up. The console gates the section; this gates the view.
+ * WHAT LEAVES WITH IT IS THE LAST OF THE PLUMBING. While Dispersion was a view
+ * of Books the CONSOLE owned the book read and had to be told which view was
+ * open — a `booksView` state up there and an `onViewChange` callback down
+ * through here — purely so a signed 25-second private-channel call and a public
+ * book read were never in flight together. That callback went when the reads
+ * came here; the predicate that replaced it goes now, because there is no
+ * second read in this file to be exclusive with. One section, one read, gated
+ * on the section.
  *
  * The switcher is a `.seg` and never a nested `<WorkspaceSubtabs>`: a second
  * rail instance fights the first over the `--rail-h` publisher, as
- * `ReliabilityConsole`'s header comment records. Four views, one seg.
+ * `ReliabilityConsole`'s header comment records. Two views, one seg.
  */
 
 import { useState } from "react";
@@ -43,22 +44,16 @@ import { booksRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import BooksPane, { type BookDetailView } from "./BooksPane";
 import PaneHead from "./PaneHead";
-import RfqPane, { type RfqView } from "./RfqPane";
-
-/** The book's own two views, then the channel's two. */
-type BooksView = BookDetailView | RfqView;
-
-/** Which of the four are the RFQ channel's, so one predicate gates its call. */
-const CHANNEL_VIEWS: ReadonlyArray<BooksView> = ["quotes", "channel"];
 
 export default function BooksSection({ active }: { active: boolean }) {
-  const [view, setView] = useState<BooksView>("ladder");
-  // Two reads, two gates, and they are mutually exclusive by construction: the
-  // exchange's public book for the two ladder views, the signed RFQ channel for
-  // the two channel views. Never both, which is the property the console used
-  // to hold with a callback.
-  const onChannel = CHANNEL_VIEWS.includes(view);
-  const books = useCoherenceRead<CoherenceBooks>(booksRoute(), active && !onChannel);
+  const [view, setView] = useState<BookDetailView>("ladder");
+  // ONE read, gated on the section. The `!onChannel` half of this gate went
+  // with the channel on 2026-08-25: while the RFQ panel was two of this
+  // section's four views, a predicate here had to keep a signed 25-second
+  // private-channel call from firing beside a public book read. `MakersSection`
+  // owns that call now and the console gates it on its own section, so there is
+  // no second read here to be exclusive with.
+  const books = useCoherenceRead<CoherenceBooks>(booksRoute(), active);
 
   return (
     <section className="card console-card coh-books" aria-labelledby="markets-books-heading">
@@ -83,19 +78,9 @@ export default function BooksSection({ active }: { active: boolean }) {
         <button type="button" aria-pressed={view === "identity"} onClick={() => setView("identity")}>
           Identity
         </button>
-        <button type="button" aria-pressed={view === "quotes"} onClick={() => setView("quotes")}>
-          Dispersion
-        </button>
-        <button type="button" aria-pressed={view === "channel"} onClick={() => setView("channel")}>
-          Channel
-        </button>
       </div>
 
-      {onChannel ? (
-        <RfqPane view={view as RfqView} active={active && onChannel} />
-      ) : (
-        <BooksPane books={books.data} error={books.error} view={view as BookDetailView} />
-      )}
+      <BooksPane books={books.data} error={books.error} view={view} />
     </section>
   );
 }

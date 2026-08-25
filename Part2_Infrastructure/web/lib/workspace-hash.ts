@@ -73,7 +73,9 @@ export const DEFAULT_SECTION: Record<WorkspaceView, string> = {
  *     rail default while the URL still says Settlement — green, plausible, and
  *     wrong. `stake` was an eighth and is not one any more: the fifth
  *     restructure gave it its own rail entry back, so its only remaining
- *     entry is a tab move.
+ *     entry is a tab move. `portfolio` and `combos` followed it on 2026-08-25
+ *     and left the table entirely, being sections on this same tab again —
+ *     which leaves FOUR ids here that stopped being sections, not seven.
  *  2. IDS THAT MOVED TAB. `universe`, `books`, `lattice`, `stake`, `fees` and
  *     `shell` are Prices sections now, and `#coherence/universe` is a link
  *     `origin/main` published. It must cross to the `markets` workspace, not 404 and not open
@@ -84,10 +86,15 @@ export const DEFAULT_SECTION: Record<WorkspaceView, string> = {
  *
  * WHAT THIS CANNOT DO, recorded because it is the cost the reader accepted
  * rather than an oversight: it resolves to a SECTION and stops there. The view
- * inside is component state with no name in the URL, so `#coherence/combos`
- * opens Dutch book on its own landing view rather than on Parlays. Naming a
- * view in the hash would need every console to accept an initial view;
- * addressability is exactly what the consolidation spent.
+ * inside is component state with no name in the URL, so `#coherence/calibration`
+ * opens the Scorecard on its own landing view rather than on the one a link
+ * meant. Naming a view in the hash would need every console to accept an
+ * initial view; addressability is exactly what the consolidation spent.
+ *
+ * The example that used to sit here was `#coherence/combos`, and the 2026-08-25
+ * split BOUGHT that one back: `combos` is a section again, so it resolves
+ * natively and lands on the parlays themselves. Two of the folded ids cost
+ * nothing now; the four still in the table below cost exactly this.
  *
  * Keyed by the workspace the URL NAMES, then by the id it names. A section the
  * named rail STILL has always wins, so an entry here can never shadow a live
@@ -107,34 +114,48 @@ export const RELOCATED_SECTIONS: Record<string, Record<string, RelocatedSection>
     lattice: { view: "markets", section: "lattice" },
     fees: { view: "markets", section: "fees" },
     shell: { view: "markets", section: "shell" },
-    // Stopped being sections AND changed tab with their carrier.
-    settlement: { view: "markets", section: "universe" },
-    dispersion: { view: "markets", section: "books" },
+    // Moved tab and are sections again. `#coherence/settlement` and
+    // `#coherence/dispersion` still have to CROSS to Quotes — the id is not on
+    // the Proofs rail — but they now land on the section that carries the
+    // subject rather than on the one that had absorbed it. Retiring them here
+    // the way the `markets` half was retired would strand both links on the
+    // Proofs default, because it is the TAB that is wrong in these URLs.
+    settlement: { view: "markets", section: "settlement" },
+    dispersion: { view: "markets", section: "dispersion" },
+    // Still a fold: `ablation` is two views of Fees and has no rail entry.
     ablation: { view: "markets", section: "fees" },
     // `stake` moved tab and is a SECTION again, so this entry points at the
     // section that carries the subject rather than at the one that briefly
     // absorbed it. It stays in the table because the URL still names the old
     // tab: `#coherence/stake` has to reach `markets/stake`.
     stake: { view: "markets", section: "stake" },
+    // `portfolio` and `combos` are RETIRED from this table rather than
+    // re-pointed, on 2026-08-25, for the reason `markets/stake` records below:
+    // both are sections on this rail again, `readLocation` asks the rail before
+    // it asks this table, so neither entry could ever be reached — and an entry
+    // that cannot be reached is a lookup claiming a move that was undone.
+    // `#coherence/portfolio` and `#coherence/combos` now resolve natively,
+    // which is where they pointed when they were published.
+    //
     // Stopped being sections; their carrier stayed on this tab.
-    portfolio: { view: "coherence", section: "certificate" },
-    combos: { view: "coherence", section: "certificate" },
     index: { view: "coherence", section: "calibration" },
     findings: { view: "coherence", section: "diffusion" },
   },
-  // The promotion pass gave the `markets` tab two sections it no longer has.
-  // Unpushed and alive for hours, but the ids cost two lines and a link made
-  // that morning is still a link someone made.
+  // THE `markets` HALF IS EMPTY AS OF 2026-08-25, and an empty object rather
+  // than a deleted key because the shape of this table is per-workspace and a
+  // reader checking "does Quotes relocate anything" should find the answer
+  // rather than infer it from an absence.
   //
-  // `markets/stake` was the third and its entry is RETIRED rather than
-  // re-pointed: `stake` is on this rail again, `readLocation` asks the rail
-  // before it asks this table, so the entry could never be reached — and an
-  // entry that cannot be reached is a lookup table claiming a move that was
-  // undone.
-  markets: {
-    settlement: { view: "markets", section: "universe" },
-    dispersion: { view: "markets", section: "books" },
-  },
+  // It held `settlement` and `dispersion`, both promoted to rail sections in
+  // the morning of 2026-08-24 and folded into Universe and Books that evening.
+  // The split of 2026-08-25 gives each its own rail entry back under the id it
+  // was published under, so both entries are RETIRED rather than re-pointed —
+  // `readLocation` asks the rail before it asks this table, so an id back on
+  // its own rail can never reach its entry, and an entry that cannot be reached
+  // is a lookup claiming a move that was undone. `markets/stake` was the first
+  // to leave this way and `coherence/portfolio` and `coherence/combos` the
+  // next; this is the same close-out, and it empties the half.
+  markets: {},
 };
 
 /**

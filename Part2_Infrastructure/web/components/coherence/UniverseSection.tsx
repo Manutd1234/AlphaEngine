@@ -3,7 +3,8 @@
 /**
  * The Universe section: the watched families, priced against the dollar they pay.
  *
- * ONE subject, TWO views. Baskets is the one figure that compares every family
+ * ONE subject, TWO views — and since the split of 2026-08-25 the subject and
+ * the switcher finally agree. Baskets is the one figure that compares every family
  * against the dollar it pays — the section's headline question, so it is the
  * default. Families is the per-family detail, and since the THIRD review of
  * 2026-08-24 it is ONE family at a time: the second pass drew every family
@@ -40,19 +41,18 @@
  * The universe read lives in the console, shared with the lattice and the
  * certificate, so this component takes it as a prop and owns no poll.
  *
- * SETTLEMENT CAME BACK ON 2026-08-24, hours after it left. It was the second
- * and third options of this section's `.seg` until the promotion pass made it
- * a rail of its own, which bought it a URL and cost the desk a tenth tab; the
- * merge took the tab back and this is where the subject belongs anyway — the
- * families are priced against an outcome, and the published variable that
- * outcome is read from is the next question the baskets raise. Three of its
- * views ride here as peers rather than as one "Settlement" button with a
- * switcher of its own: a second `.seg` under the first reads as one broken
- * control, and Pending is the section's one genuinely tradeable drawing.
+ * SETTLEMENT LEFT AGAIN ON 2026-08-25, and this time it is a rail section with
+ * its own file. It rode here as three of five views for a day, on the argument
+ * that the families are priced against an outcome and the published variable
+ * that outcome is read from is the next question the baskets raise. That is
+ * still true, and it is still the wrong shape: the next question is a DIFFERENT
+ * question, and a switcher holds views of ONE. The reader counted what the
+ * difference cost — "the universe section has too many subtabs" — and three of
+ * the five were the settlement feed's.
  *
- * `SettlementPane` is controlled from here now — it owns its read, gated on
- * the view, and draws no head of its own. One head per section is the rule
- * `coherence-pane-head.test.ts` holds, and this section's head is below.
+ * So this section is two views over one read, and `SettlementSection` is three
+ * views over another. What is left here is one question: a mutually exclusive
+ * family is a dollar sold in pieces, and what the pieces cost is the answer.
  */
 
 import { useMemo, useState } from "react";
@@ -60,7 +60,6 @@ import { useMemo, useState } from "react";
 import type { CoherenceUniverse } from "@/lib/coherence/types";
 import FamilyPicker from "./FamilyPicker";
 import PaneHead from "./PaneHead";
-import SettlementPane, { type SettlementView } from "./SettlementPane";
 import UniversePane, { type UniverseView } from "./UniversePane";
 
 /** The option every category filter opens on. Never a category's own name. */
@@ -68,22 +67,14 @@ const ALL = "__all__";
 /** Where a family whose series Kalshi would not categorise is grouped. */
 export const UNLABELLED = "__none__";
 
-/** The five peers: the two basket views, then the settlement feed's three. */
-type SectionView = UniverseView | SettlementView;
-
-/** Which of the five are the settlement feed's, so one predicate gates its read. */
-const SETTLEMENT_VIEWS: ReadonlyArray<SectionView> = ["reading", "formation", "pending"];
-
 export interface UniverseSectionProps {
   /** The shared universe read, passed straight through from the console. */
   universe: CoherenceUniverse | null;
   error: string | null;
-  /** False while another tab or section is in front; gates the settlement read. */
-  active: boolean;
 }
 
-export default function UniverseSection({ universe, error, active }: UniverseSectionProps) {
-  const [view, setView] = useState<SectionView>("baskets");
+export default function UniverseSection({ universe, error }: UniverseSectionProps) {
+  const [view, setView] = useState<UniverseView>("baskets");
   const [category, setCategory] = useState<string>(ALL);
   const [picked, setPicked] = useState<string | null>(null);
 
@@ -132,15 +123,6 @@ export default function UniverseSection({ universe, error, active }: UniverseSec
         </button>
         <button type="button" aria-pressed={view === "families"} onClick={() => setView("families")}>
           Families
-        </button>
-        <button type="button" aria-pressed={view === "reading"} onClick={() => setView("reading")}>
-          Settlement
-        </button>
-        <button type="button" aria-pressed={view === "formation"} onClick={() => setView("formation")}>
-          Formation
-        </button>
-        <button type="button" aria-pressed={view === "pending"} onClick={() => setView("pending")}>
-          Pending
         </button>
       </div>
 
@@ -199,17 +181,13 @@ export default function UniverseSection({ universe, error, active }: UniverseSec
         </>
       ) : null}
 
-      {SETTLEMENT_VIEWS.includes(view) ? (
-        <SettlementPane view={view as SettlementView} active={active && SETTLEMENT_VIEWS.includes(view)} />
-      ) : (
-        <UniversePane
-          universe={universe}
-          view={view as UniverseView}
-          events={view === "families" ? (family ? [family] : []) : events}
-          error={error}
-          filtered={view === "families" && category !== ALL}
-        />
-      )}
+      <UniversePane
+        universe={universe}
+        view={view}
+        events={view === "families" ? (family ? [family] : []) : events}
+        error={error}
+        filtered={view === "families" && category !== ALL}
+      />
     </section>
   );
 }

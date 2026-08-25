@@ -301,6 +301,8 @@ function fieldAt(region: string, field: string): number {
  */
 const OWNERS: Record<string, string> = {
   certificate: "components/coherence/CertificatePane.tsx",
+  portfolio: "components/coherence/BasketSection.tsx",
+  combos: "components/coherence/CombosSection.tsx",
   calibration: "components/coherence/CalibrationPane.tsx",
   diffusion: "components/coherence/DiffusionPane.tsx",
   lessons: "components/coherence/LessonsPane.tsx",
@@ -312,14 +314,16 @@ const OWNERS: Record<string, string> = {
  * be guarded by neither, and both files would stay green while a head grew a
  * second sentence.
  *
- * Five names have left this file over the day — `portfolio`, `ablation`,
- * `findings`, `index` and `combos` — and none appears below either, because
- * none is a section any more. They are views of `certificate`, `fees`,
- * `diffusion`, `calibration` and `certificate`, and a view has no head to
- * check; the sentences their heads carried are still on screen, still pinned in
- * CLAIMS above, as the paragraph each view opens with. The last two were
- * PUBLISHED ids, so their links are carried by `RELOCATED_SECTIONS` rather than
- * by a head.
+ * Five names left this file over 2026-08-24 — `portfolio`, `ablation`,
+ * `findings`, `index` and `combos` — because none was a section any more. Two
+ * of them CAME BACK on 2026-08-25 and are in OWNERS above: `portfolio` and
+ * `combos` are sections again, each with a head of its own, and the sentences
+ * their views had been opening with are ledes again. Three remain views —
+ * `ablation`, `findings` and `index`, of `fees`, `diffusion` and `calibration`
+ * — and a view has no head to check; the sentences their heads carried are
+ * still on screen and still pinned in CLAIMS above, as the paragraph each view
+ * opens with. `index` was a PUBLISHED id, so its link is carried by
+ * `RELOCATED_SECTIONS` rather than by a head.
  */
 // SIX since the fifth review of 2026-08-24, not five: `stake` left `lattice`
 // and became a rail section with a head of its own. The lattice was stacking a
@@ -327,7 +331,8 @@ const OWNERS: Record<string, string> = {
 // data, and "what measure do these prices imply" is not "what would it be right
 // to bet" — two questions, two sections. Its head lives in `StakePane`, and the
 // reading suite's OWNERS map names it there.
-const QUOTED = ["universe", "books", "lattice", "stake", "fees", "shell"];
+// Eight since 2026-08-25: `settlement`/`dispersion` are Prices sections again.
+const QUOTED = ["universe", "settlement", "books", "dispersion", "lattice", "stake", "fees", "shell"];
 
 describe("no section opens with a paragraph", () => {
   it("the two suites' owners add up to both rails, exactly once each", () => {

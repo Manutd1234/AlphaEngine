@@ -1,5 +1,5 @@
 /**
- * Proofs is a rail of four sections, and every retired location still resolves.
+ * Proofs is a rail of six sections, and every retired location still resolves.
  *
  * "no i still want two tabs instead but rename markets and coherance as
  *  something else / then split the 9 tabs currently into the two renamed tabs
@@ -22,10 +22,19 @@
  * fact 6), so what is pinned is that a future edit has to break the wiring
  * deliberately.
  *
+ * A FIFTH RESTRUCTURE, on 2026-08-25, and it is the first that UNDID a
+ * consolidation: Dutch book's three groups became three sections — Coherence
+ * test, Basket, Parlays — because three questions behind two rows of chrome is
+ * what the reader meant by "too many subtabs and subsubtabs". It cost this file
+ * nothing and paid it back two entries: `portfolio` and `combos` were both in
+ * the relocation table and both left it, being ids on their own rail again.
+ *
  * The COPY half is `coherence-proof-claims.test.ts`, and its sibling
  * `coherence-reading-claims.test.ts` covers Prices; the two exist because this
  * engine is the one part of the desk with no `summarised-<tab>` /
- * `disclosure-<tab>` pair.
+ * `disclosure-<tab>` pair. The READ half — which section calls what, and when
+ * it is allowed to — is `coherence-reads.test.ts`, split off when this file
+ * crossed the ceiling in that same change.
  */
 
 import assert from "node:assert/strict";
@@ -44,6 +53,8 @@ const hash = read("../lib/workspace-hash.ts");
 /** Every component that owns a section, by the id it draws. */
 const SECTION_FILES: Record<string, string> = {
   certificate: "../components/coherence/CertificatePane.tsx",
+  portfolio: "../components/coherence/BasketSection.tsx",
+  combos: "../components/coherence/CombosSection.tsx",
   calibration: "../components/coherence/CalibrationPane.tsx",
   diffusion: "../components/coherence/DiffusionPane.tsx",
   lessons: "../components/coherence/LessonsPane.tsx",
@@ -100,27 +111,30 @@ describe("every location the engine has ever published still resolves", () => {
       // restructure of 2026-08-24 gave it its own rail entry, so the entry is a
       // plain tab move now.
       stake: { view: "markets", section: "stake" },
-      // Stopped being sections AND changed tab with their carrier.
-      settlement: { view: "markets", section: "universe" },
-      dispersion: { view: "markets", section: "books" },
+      // Moved tab and are sections again, as of 2026-08-25. They still have to
+      // CROSS — neither id is on the Proofs rail — but each now lands on the
+      // section that carries the subject rather than on the one that had
+      // absorbed it. Retiring them the way the `markets` half was retired would
+      // strand both links on the Proofs default, because it is the TAB these
+      // URLs get wrong.
+      settlement: { view: "markets", section: "settlement" },
+      dispersion: { view: "markets", section: "dispersion" },
+      // Still a fold: `ablation` is two views of Fees and has no rail entry.
       ablation: { view: "markets", section: "fees" },
       // Stopped being sections; their carrier stayed here. `index` and `combos`
       // are the two that were PUBLISHED, which is what makes this table
       // load-bearing rather than a courtesy to one unpushed morning.
-      portfolio: { view: "coherence", section: "certificate" },
-      combos: { view: "coherence", section: "certificate" },
       index: { view: "coherence", section: "calibration" },
       findings: { view: "coherence", section: "diffusion" },
     },
-    // `markets/stake` was a third entry here and is RETIRED, not re-pointed:
-    // `stake` is on this rail again, the rail is asked before this table, so
-    // the entry could never have been reached. The assertion below that no
-    // relocated id is still a section of the tab that names it is what would
-    // have caught leaving it.
-    markets: {
-      settlement: { view: "markets", section: "universe" },
-      dispersion: { view: "markets", section: "books" },
-    },
+    // EMPTY AS OF 2026-08-25, and it emptied the way `markets/stake` emptied
+    // before it: `settlement` and `dispersion` are rail sections again under
+    // the ids they were published under, the rail is asked before this table,
+    // so neither entry could ever be reached. An entry that cannot be reached
+    // is a lookup claiming a move that was undone, and the assertion below
+    // that no relocated id is still a section of the tab that names it is
+    // exactly what would fire on leaving one here.
+    markets: {},
   };
 
   it("names every id that moved or stopped being a section, and only those", () => {
@@ -139,16 +153,24 @@ describe("every location the engine has ever published still resolves", () => {
    *
    * The check below exists because an entry landing on the tab default is
    * indistinguishable from an entry that does nothing at all — the whole
-   * failure the table was written against. These three are not that:
-   * `portfolio` and `combos` were folded into Dutch book because it is the
-   * section that answers their question, and `settlement` into Universe for the
-   * same reason — each of those carriers is its tab's default only because it
-   * is first in rail order. Naming them keeps the check meaningful for the
-   * other fourteen and makes the coincidence a decision.
+   * failure the table was written against. This one is not that: `settlement`
+   * was folded into Universe because that is the section answering its
+   * question, and Universe is its tab's default only because it is first in
+   * rail order. Naming it keeps the check meaningful for the rest and makes the
+   * coincidence a decision.
+   *
+   * IT IS EMPTY NOW, and the emptying is the same event three times over.
+   * `coherence/portfolio` and `coherence/combos` left the table when both
+   * became sections again; `markets/settlement` was the last one standing and
+   * left the same way hours later, when the Quotes rail split and `settlement`
+   * stopped needing a carrier at all. An exemption for an entry that no longer
+   * exists is a stale exemption, which the test below is written to catch — so
+   * the set shrinks in the same change rather than being left to fire.
+   *
+   * An empty set rather than a deleted constant: the check below still runs,
+   * and a future entry that lands on a default has somewhere to be argued for.
    */
-  const LANDS_ON_DEFAULT = new Set([
-    "coherence/portfolio", "coherence/combos", "markets/settlement",
-  ]);
+  const LANDS_ON_DEFAULT = new Set<string>();
 
   it("sends each to the tab AND the section that carries it", () => {
     // Not the rail default. Landing on Dutch book from `#coherence/settlement`
@@ -255,17 +277,40 @@ describe("exactly one subtab rail on the tab", () => {
     }
   });
 
-  it("each section draws exactly one seg", () => {
-    // ONE seg in the SECTION file, always, and that survived the grouping pass
-    // rather than being relaxed by it: where a section has more views than a
-    // row can hold, its seg carries the GROUPS and a child carries the views.
-    // Which child, and that every view is still reachable, is
-    // `coherence-groups.test.ts` — split out when this file reached the ceiling.
+  it("no section draws two segs, which is what a reader reads as one broken control", () => {
+    // The rule this has always been about is TWO, not one: two `.seg` controls
+    // stacked in a section's grid read as a single control that has come apart,
+    // which is what `DiffusionPane`'s header rejected before any of this was
+    // built and what the 2026-08-25 split was asked to undo one level higher.
+    //
+    // It said "exactly one" until then, and could, because every section had
+    // more views than a row could hold. Three do not any more: the split gave
+    // Coherence test two views, Basket ONE, and Parlays three, so Basket draws
+    // no switcher at all — a segment that cannot be pressed is not a control.
+    // Requiring one would have made an empty control the price of being a
+    // section. The floor moved to the assertion below, which is stronger than
+    // a count: a section with no seg must have nothing to switch between.
     // Raw source, because a `.seg` is a class-name STRING and `stripNonCode`
     // blanks those.
     for (const [id, file] of Object.entries(SECTION_FILES)) {
       const segs = (read(file).match(/className="seg[ "]/g) ?? []).length;
-      assert.equal(segs, 1, `${id} draws ${segs} .seg groups, expected 1`);
+      assert.ok(segs <= 1, `${id} draws ${segs} .seg groups; two in one section read as one broken control`);
+    }
+  });
+
+  it("a section with no switcher has nothing to switch between", () => {
+    // The other half of the rule above, and the reason relaxing the count did
+    // not relax the contract: a section that drew no seg because its views got
+    // lost would look exactly like one that draws none because it has one view.
+    const SINGLE_VIEW = new Set(["portfolio"]);
+    for (const [id, file] of Object.entries(SECTION_FILES)) {
+      const source = read(file);
+      const segs = (source.match(/className="seg[ "]/g) ?? []).length;
+      if (segs === 0) {
+        assert.ok(SINGLE_VIEW.has(id), `${id} draws no switcher and is not named as a single-view section`);
+      } else {
+        assert.ok(!SINGLE_VIEW.has(id), `${id} is named single-view and draws a switcher; one of the two is wrong`);
+      }
     }
   });
 
@@ -293,45 +338,39 @@ describe("exactly one subtab rail on the tab", () => {
   });
 
   it("the view labels are guarded, and it is coherence-groups that guards them", () => {
-    // This assertion used to list every option of every switcher. All four
-    // sections are two-level now, so a label lives on the section OR on the
-    // child that owns its views, and reading only the section file reports a
-    // label as deleted the moment it moves. `coherence-groups.test.ts` reads
-    // each pair and pins the same labels; what is left here is the check that
-    // it is still doing so, since a guard that quietly stopped covering a
-    // section is the failure this file exists to prevent.
+    // This assertion used to list every option of every switcher. A TWO-level
+    // section keeps its labels on the section OR on the child that owns its
+    // views, so reading only the section file reports a label as deleted the
+    // moment it moves; `coherence-groups.test.ts` reads each pair and pins the
+    // same labels, and what is left here is the check that it is still doing
+    // so. A guard that quietly stopped covering a section is the failure this
+    // file exists to prevent.
+    //
+    // ONE-level sections are guarded differently and have to be, or this would
+    // demand a two-level entry for a section that has no second level. Their
+    // labels are all in their own file by definition, so that is what is
+    // asserted: every one of them names its views where it draws them.
     const groups = read("../tests/coherence-groups.test.ts");
-    for (const id of Object.keys(SECTION_FILES)) {
-      if (id === "lessons") continue;
-      assert.ok(
-        new RegExp(`^  ${id}: \\{`, "m").test(groups),
-        `${id} has no entry in coherence-groups.test.ts, so its view labels are guarded by nothing`,
-      );
+    const ONE_LEVEL: Record<string, readonly string[]> = {
+      certificate: ["Verdict", "Proof"],
+      combos: ["Bands", "Parlays", "Bounds"],
+      portfolio: [],
+      lessons: [],
+    };
+    for (const [id, file] of Object.entries(SECTION_FILES)) {
+      const views = ONE_LEVEL[id];
+      if (views === undefined) {
+        assert.ok(
+          new RegExp(`^  ${id}: \\{`, "m").test(groups),
+          `${id} has no entry in coherence-groups.test.ts, so its view labels are guarded by nothing`,
+        );
+        continue;
+      }
+      const source = read(file);
+      for (const label of views) {
+        assert.ok(source.includes(`"${label}"`), `${id} lost its ${label} view`);
+      }
     }
-  });
-});
-
-describe("the reads are gated by section, and the folded reads by view", () => {
-  it("the certificate warms the universe rather than a family nobody picked", () => {
-    assert.match(console_, /section === "certificate"/,
-      "the universe read is not gated on the one section that needs the family list");
-    const start = console_.indexOf("const SECTION_READS");
-    const plan = console_.slice(start, console_.indexOf("\n};", start));
-    assert.doesNotMatch(plan, /certifyRoute|combosRoute/);
-  });
-
-  it("the parlay read is gated on the three views that draw it", () => {
-    assert.match(read(SECTION_FILES.certificate), /active && !onParlays/,
-      "the certify call runs while a reader is looking at parlays");
-    assert.match(read(SECTION_FILES.certificate), /active=\{active && onParlays\}/,
-      "the combos read is not gated on the three views that draw it");
-  });
-
-  it("the index read is gated on its own two views", () => {
-    assert.match(read(SECTION_FILES.calibration), /active && !onIndex/,
-      "the settled-corpus read runs while a reader is on an index view");
-    assert.match(read(SECTION_FILES.calibration), /active=\{active && onIndex\}/,
-      "the index read is not gated on the two views that draw it");
   });
 });
 

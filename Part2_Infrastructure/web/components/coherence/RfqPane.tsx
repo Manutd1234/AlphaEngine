@@ -226,18 +226,24 @@ function Row({ row }: { row: CoherenceDispersion }) {
 export default function RfqPane({ view, active }: { view: RfqView; active: boolean }) {
   const { data, error } = useCoherenceRead<CoherenceRfqPanel>(rfqRoute(), active);
 
-  /** The lead sentence, and one thing under it. Drawn on every branch. */
+  /** The count, and one thing under it. Drawn on every branch. */
   const framed = (body: ReactNode) => (
     <div className="coh-rfq">
-      {/* The open-request count rides with the sentence rather than in a head
-          note: this is one of four views of Books now, and the section's note
-          slot belongs to the book's provenance. */}
+      {/* THE CLAIM LEFT THIS LINE ON 2026-08-25 and only the count stayed.
+          While this pane was two views of Books it opened with the sentence
+          that a book shows one most aggressive opinion and this channel is the
+          only place the venue exposes several professionals answering
+          separately — because as a view it had no head of its own to put it in.
+          `MakersSection` has a head now, and that sentence is its lede. Left
+          here as well it was the same claim twice in forty pixels, which is
+          exactly the reading the section was reported for: "it is too wordy".
+
+          What is NOT prose is the open-request count, which is this read's own
+          answer and belongs beside the figure it describes. */}
       <p className="sub">
-        A book shows one most aggressive opinion; this channel is the only place the venue exposes several
-        professionals pricing one event independently
         {data
-          ? ` — ${data.open_requests} open ${data.open_requests === 1 ? "request" : "requests"} on it.`
-          : ", and it is being asked now."}
+          ? `${data.open_requests} open ${data.open_requests === 1 ? "request" : "requests"} on the channel.`
+          : "Asking the channel now."}
       </p>
       {body}
     </div>
@@ -316,10 +322,23 @@ export default function RfqPane({ view, active }: { view: RfqView; active: boole
           </details>
         </>
       ) : (
-        <p className="console-empty">
-          <span aria-hidden="true">◌</span> No dispersion on this read: the channel answered
-          &ldquo;{wordFor(data.state).toLowerCase()}&rdquo;; the Channel view says what that means and does not.
-        </p>
+        <>
+          {/* A DRAWING IN THE EMPTY STATE, since 2026-08-25 and the report that
+              this section is "too wordy and no diagrams". It was one grey
+              sentence, and on every keyless deployment — which is every demo of
+              this engine — that sentence WAS the view. `ChannelStates` is the
+              right figure for it rather than a placeholder: the question a
+              reader has when no panel comes back is how far the request got,
+              and that is precisely what it draws. It is the same figure the
+              Channel view leads with, drawn from the same four rows; what
+              Channel adds under it is the table of what each answer is NOT. */}
+          <ChannelStates states={STATES} current={data.state} openRequests={data.open_requests} />
+          <p className="console-empty">
+            <span aria-hidden="true">◌</span> No dispersion to rank on this read: the channel answered
+            &ldquo;{wordFor(data.state).toLowerCase()}&rdquo;, so there are no maker panels to draw. Channel says what
+            that answer means and what it does not.
+          </p>
+        </>
       )}
 
       {error ? (

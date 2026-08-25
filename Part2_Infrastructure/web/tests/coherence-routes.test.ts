@@ -113,6 +113,15 @@ describe("every section can be warmed before it is opened", () => {
    */
   const UNWARMED: Record<string, RegExp> = {
     lessons: /asks the gateway for nothing/,
+    // `dispersion` joined on 2026-08-25, when the RFQ channel became a section
+    // again. As two views of Books its read was gated on the VIEW and warmed by
+    // nothing, which is the `rfq` entry in VIEW_GATED below; as a section it is
+    // gated on the section and STILL warmed by nothing, which is this entry.
+    // The reason did not change with the shape: the route is a signed
+    // private-channel call on a 25-second budget, and on any keyless
+    // deployment it answers "no view, unsigned" every time — so warming it
+    // spends the desk's slowest read to pre-fetch a refusal.
+    dispersion: /pre-fetch a refusal/,
   };
 
   /**
@@ -125,9 +134,15 @@ describe("every section can be warmed before it is opened", () => {
    * `/replay?limit=20000` (behind Fees → Ablation). As sections they were
    * warmed and gated on the section; as views they must be warmed by nothing
    * and gated on the view, or a reader who opened Books to look at a ladder
-   * pays for the slowest signed call on the desk. Both sections are on Quotes
-   * since the split, so both reasons are owed by that console — and neither
-   * route may appear in either plan.
+   * pays for the slowest signed call on the desk.
+   *
+   * `rfq` IS A SECTION AGAIN as of 2026-08-25 and this entry stays, which is
+   * the interesting case rather than an oversight: `MakersSection` gates the
+   * call on its own section now, so the VIEW-level gate is gone — but the rule
+   * this entry defends is the other half, that the route may not appear in
+   * either console's warm plan. That is still true and is now enforced twice
+   * over, here and by `dispersion` in UNWARMED above. The console still owes
+   * the sentence.
    */
   const VIEW_GATED: Record<string, { route: string; why: RegExp }> = {
     rfq: { route: "rfqRoute", why: /25-second gateway budget/ },

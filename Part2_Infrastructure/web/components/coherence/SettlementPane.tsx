@@ -253,13 +253,21 @@ function Pending({ data }: { data: CoherenceSettlementFeed }) {
 export default function SettlementPane({ view, active }: { view: SettlementView; active: boolean }) {
   const { data, error } = useCoherenceRead<CoherenceSettlementFeed>(settlementRoute(PUBLISHED_CITY), active);
 
-  /** The lead sentence, then one thing under it. */
+  /** What this read covers, then one thing under it. */
   const framed = (body: ReactNode) => (
     <div className="coh-settle">
+      {/* THE CLAIM LEFT THIS LINE ON 2026-08-25 and the measurements stayed.
+          While this pane was three views of Universe it opened by stating that
+          a contract settles on the mean of a published index over a window and
+          never on the price on screen — because as a view it had no head to put
+          that in. `SettlementSection` has a head now and that sentence is its
+          lede; left here as well it was one claim twice, adjacent, which is the
+          "too wordy" the reader reported. What a head cannot carry is which
+          window and which city, and that is what is left. */}
       <p className="sub">
-        A contract settles on the mean of a published index over a window, never on the price on screen; the gap
-        between the two is basis a position carries for free
-        {data ? ` — ${data.window_minutes}-minute window, ${data.city ?? PUBLISHED_CITY}.` : "."}
+        {data
+          ? `Read over a ${data.window_minutes}-minute window on the ${data.city ?? PUBLISHED_CITY} index.`
+          : "Reading the published index now."}
       </p>
       {body}
     </div>

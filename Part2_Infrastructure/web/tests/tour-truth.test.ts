@@ -73,14 +73,29 @@ describe("the feature tour names the sections the app actually ships", () => {
 
   it("the section total the tour quotes is the total that exists", () => {
     const total = WORKSPACES.reduce((n, workspace) => n + railOf(workspace).length, 0);
-    // 59 → 65 → 59 → 57, all on 2026-08-24. The promotion pass made six in-pane
-    // `.seg` views into rail sections (4+7 became 7+10); the merge took them
-    // back; the consolidation folded the two published ids `index` and `combos`
-    // into the sections answering the same question; and the split divided the
-    // surviving nine into Prices (5) and Proofs (4). 48 on the eight desk tabs
-    // plus 9. Three files quote this number — the tour,
-    // `scripts/desk-sweep-plan.mjs` and this line.
-    assert.equal(total, 58, "the rail count moved; the tour and desk-sweep both quote it");
+    // 59 → 65 → 59 → 57 → 58, all on 2026-08-24, then 60 on 2026-08-25. The
+    // promotion pass made six in-pane `.seg` views into rail sections; the merge
+    // took them back; the consolidation folded the published ids `index` and
+    // `combos` into the sections answering the same question; the split divided
+    // the survivors into Prices and Proofs; and `stake` was promoted back.
+    //
+    // The last step is the first that UNDID a consolidation rather than
+    // deepening one: Dutch book's three groups became three sections, because
+    // three questions behind two rows of chrome is what "too many subtabs and
+    // subsubtabs" meant. Both ids were already published, so it also shortened
+    // the relocation table. 48 on the eight desk tabs plus 6 and 6.
+    //
+    // 48 on the eight desk tabs plus 8 on Quotes and 6 on Proofs. The Quotes
+    // half moved on 2026-08-25 for the reason the Proofs half moved hours
+    // earlier and in the same direction: Universe was answering what a family
+    // costs AND what it settles against on one five-button row, and Books was
+    // answering what the exchange publishes AND what independent makers say. A
+    // switcher holds views of ONE question. Both split under ids the engine had
+    // already published, so the relocation table got shorter again.
+    //
+    // Three files quote this number — the tour, `scripts/desk-sweep-plan.mjs`
+    // and this line.
+    assert.equal(total, 62, "the rail count moved; the tour and desk-sweep both quote it");
     assert.ok(
       plain.includes(`${total} section`),
       `the tour does not state the ${total}-section total`,

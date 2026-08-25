@@ -113,7 +113,7 @@ class TestLsAtEveryDepth:
     def test_a_shard_lists_its_series_with_a_count_each(self, universe):
         listing = ls(universe, "/shards/2")
         assert [entry.name for entry in listing.entries] == ["KXBTCD"]
-        assert listing.entries[0].detail == "1 watched event(s)"
+        assert listing.entries[0].detail == "1 watched event"
 
     def test_a_series_lists_its_events_and_whether_they_are_exhaustive(self, universe):
         listing = ls(universe, "/shards/0/KXHIGHNY")

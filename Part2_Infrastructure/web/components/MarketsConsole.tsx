@@ -63,13 +63,16 @@ import FreshnessStamp from "@/components/workspace/FreshnessStamp";
 import BooksSection from "@/components/coherence/BooksSection";
 import FeesSection from "@/components/coherence/FeesSection";
 import { EXAMPLES } from "@/components/coherence/FeesPane";
+import MakersSection from "@/components/coherence/MakersSection";
+import SettlementSection from "@/components/coherence/SettlementSection";
 import ShellPane from "@/components/coherence/ShellPane";
 import StatusPane from "@/components/coherence/StatusPane";
 import StakePane from "@/components/coherence/StakePane";
 import SurfacePane from "@/components/coherence/SurfacePane";
 import UniverseSection from "@/components/coherence/UniverseSection";
 import { MARKETS_SECTIONS, type MarketsSection } from "@/lib/sections";
-import { booksRoute, feesRoute, shellRoute, statusRoute, universeRoute } from "@/lib/coherence/routes";
+import { PUBLISHED_CITY } from "@/components/coherence/SettlementPane";
+import { booksRoute, feesRoute, settlementRoute, shellRoute, statusRoute, universeRoute } from "@/lib/coherence/routes";
 import { COHERENCE_POLL_MS, useCoherenceRead, warmCoherenceRead } from "@/lib/coherence/use-coherence";
 import type { CoherenceStatus, CoherenceUniverse } from "@/lib/coherence/types";
 import { useSectionWarming } from "@/lib/coherence/use-section-warming";
@@ -111,10 +114,20 @@ export { type MarketsSection } from "@/lib/sections";
  */
 const SECTION_READS: Record<MarketsSection, readonly string[]> = {
   universe: [universeRoute()],
+  settlement: [settlementRoute(PUBLISHED_CITY)],
   books: [booksRoute()],
+  // The one section on the tab that warms NOTHING, and it is the third entry
+  // this plan has left deliberately empty. `/rfq` is a SIGNED private-channel
+  // call on a 25-second gateway budget, and on any deployment without a key it
+  // answers "no view, unsigned" every time. Warming it would spend the desk's
+  // slowest read to pre-fetch a refusal.
+  dispersion: [],
   lattice: [universeRoute()],
   stake: [universeRoute()],
   fees: [feesRoute(EXAMPLES[0].price, EXAMPLES[0].contracts, EXAMPLES[0].fills)],
+  // Still warmed although Shell now OPENS on Map, which reads nothing: the warm
+  // is for Browse, which is the next thing a reader presses and the only view
+  // here that waits on the venue.
   shell: [shellRoute("/", "ls")],
 };
 
@@ -201,24 +214,31 @@ export default function MarketsConsole({ section, onSectionChange, active = true
       />
 
       <WorkspaceSubtabPanel workspaceId="markets" tabId="universe" activeId={section}>
-        {/* Settlement is a VIEW of this section, and the reason it ever was one
-            still holds: these families are priced against an outcome, and the
-            published variable that outcome is read from is the next question
-            the baskets raise, not a different subject. */}
-        <UniverseSection
-          universe={universe.data}
-          error={universe.error}
-          active={active && section === "universe"}
-        />
+        {/* Two views over one read now. Settlement was three of this section's
+            five until 2026-08-25 and is its own rail entry again: the families
+            are priced against an outcome, and the variable that outcome is read
+            from is the next question the baskets raise — but the NEXT question
+            is a different question, and a switcher holds views of one. */}
+        <UniverseSection universe={universe.data} error={universe.error} />
+      </WorkspaceSubtabPanel>
+
+      <WorkspaceSubtabPanel workspaceId="markets" tabId="settlement" activeId={section}>
+        <SettlementSection active={active && section === "settlement"} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="markets" tabId="books" activeId={section}>
-        {/* Dispersion rides here: a book is one venue's most aggressive resting
-            order and the RFQ channel is several professionals pricing the same
-            event independently, which is the second half of "what is this
-            quoted at" rather than a subject of its own. Both reads live inside
-            the section because only the VIEW can say which may be in flight. */}
+        {/* One read, gated on the section. Dispersion rode here on the argument
+            that a book and a maker panel are both "what is this quoted at"; at
+            that width so is every section on the tab. */}
         <BooksSection active={active && section === "books"} />
+      </WorkspaceSubtabPanel>
+
+      <WorkspaceSubtabPanel workspaceId="markets" tabId="dispersion" activeId={section}>
+        {/* The signed channel, gated on its own section and warmed by nothing.
+            As two views of Books it needed a predicate in that file whose whole
+            job was to keep the desk's slowest call from firing for a reader who
+            came to look at a ladder; a section gates itself. */}
+        <MakersSection active={active && section === "dispersion"} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="markets" tabId="lattice" activeId={section}>

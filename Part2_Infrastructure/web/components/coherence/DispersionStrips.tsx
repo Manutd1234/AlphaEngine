@@ -86,8 +86,21 @@ export default function DispersionStrips({ rows }: { rows: CoherenceDispersion[]
       caption="Where the makers' answers sit on the dollar"
       ariaLabel={`${strips.length} market${strips.length === 1 ? "" : "s"}: lowest-to-highest maker quotes on a $0-to-$1 axis, median marked`}
       reading={
+        // THE TERNARY WAS INVERTED UNTIL 2026-08-25, so this figure was silent
+        // in exactly the case it exists for. `widest.hi > widest.lo` is true
+        // when there IS a range to describe, and that branch returned null; the
+        // sentence about panels agreeing to the tick — the DEGENERATE case —
+        // was the only reading ever drawn. A reader saw a figure of ranked
+        // ranges with no reading, or a reading claiming unanimity underneath
+        // strips that were plainly not unanimous, depending on the read.
         widest.hi > widest.lo
-          ? null
+          // The distinction between this spread and one maker's own bid-offer
+          // is made ONCE, in the table's caption below, and `prices-claims`
+          // pins it at one site. Restating it here would be the same claim
+          // twice on one view — which is the reading this tab was reported for.
+          ? `The widest disagreement is on ${widest.ticker}, ${fromCenticents(widest.lo)} to `
+            + `${fromCenticents(widest.hi)}: that is how far apart independent makers priced one `
+            + "event, before any of them is called right."
           : "Every panel here agrees to the tick, so each strip collapses to a single mark."
       }
       missing={

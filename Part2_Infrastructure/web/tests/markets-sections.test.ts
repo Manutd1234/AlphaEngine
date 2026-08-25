@@ -42,7 +42,9 @@ const prose = read("../app/globals/14q-markets-density.css");
 /** Every component that owns a section, by the id it draws. */
 const SECTION_FILES: Record<string, string> = {
   universe: "../components/coherence/UniverseSection.tsx",
+  settlement: "../components/coherence/SettlementSection.tsx",
   books: "../components/coherence/BooksSection.tsx",
+  dispersion: "../components/coherence/MakersSection.tsx",
   lattice: "../components/coherence/SurfacePane.tsx",
   stake: "../components/coherence/StakePane.tsx",
   fees: "../components/coherence/FeesSection.tsx",
@@ -117,7 +119,8 @@ describe("exactly one subtab rail on the tab", () => {
     // Raw source, because a `.seg` is a class-name STRING and `stripNonCode`
     // blanks those.
     const expected: Record<string, number> = {
-      universe: 1, books: 1, lattice: 1, stake: 1, fees: 1, shell: 1,
+      universe: 1, settlement: 1, books: 1, dispersion: 1,
+      lattice: 1, stake: 1, fees: 1, shell: 1,
     };
     for (const [id, count] of Object.entries(expected)) {
       const segs = (read(SECTION_FILES[id]).match(/className="seg[ "]/g) ?? []).length;
@@ -166,7 +169,9 @@ describe("exactly one subtab rail on the tab", () => {
     // the other views of a section, and a rename that silently drops one leaves
     // the view unreachable exactly the way an unaddressable pane id does.
     assert.match(read(SECTION_FILES.universe), /aria-label="Universe view"/);
+    assert.match(read(SECTION_FILES.settlement), /aria-label="Settlement view"/);
     assert.match(read(SECTION_FILES.books), /aria-label="Books view"/);
+    assert.match(read(SECTION_FILES.dispersion), /aria-label="Makers view"/);
     assert.match(read(SECTION_FILES.lattice), /aria-label="Which question"/);
     // The picker's accessible name is a `label` PROP now, not an attribute:
     // `FamilyPicker` spends it on both the button and the listbox, so it is one
@@ -182,19 +187,40 @@ describe("exactly one subtab rail on the tab", () => {
 });
 
 describe("the reads are gated by section, and the expensive views by view", () => {
-  it("the console no longer owns the book read, so it cannot race the RFQ channel", () => {
-    // While Dispersion was a VIEW of Books the console owned the exchange's
-    // book read and had to be told which view was open — a `booksView` state
-    // and an `onViewChange` callback — so a signed 25-second private-channel
-    // call and a public book read were never in flight together. Both reads
-    // live in `BooksSection` now, each gated on its own views.
+  it("one section, one read — the book and the channel no longer share a gate", () => {
+    // THE WHOLE HISTORY OF THIS ASSERTION IS A GATE SHRINKING. While Dispersion
+    // was a VIEW of Books the CONSOLE owned the book read and had to be told
+    // which view was open — a `booksView` state and an `onViewChange` callback
+    // — so a signed 25-second private-channel call and a public book read were
+    // never in flight together. That callback went when both reads moved into
+    // `BooksSection`, leaving a `!onChannel` predicate in one file. The split
+    // of 2026-08-25 removes the predicate too: the channel is `MakersSection`,
+    // and a section gates itself.
     assert.doesNotMatch(code, /booksView|onViewChange/,
       "the view plumbing is back; the gate belongs beside the read it gates");
     const books = read(SECTION_FILES.books);
-    assert.match(books, /booksRoute\(\), active && !onChannel/,
-      "the book read is not gated away from the channel views");
-    assert.match(books, /active=\{active && onChannel\}/,
-      "the RFQ channel is not gated on the two views that draw it");
+    assert.match(books, /booksRoute\(\), active\)/,
+      "the book read is gated on something other than its own section");
+    // Comments blanked: this file's header EXPLAINS that the `!onChannel` half
+    // of the gate was removed, and a raw scan reads that sentence as the defect
+    // — the same trap the seg-count assertion above documents.
+    assert.doesNotMatch(stripNonCode(books), /onChannel/,
+      "Books is gating against a channel read it no longer holds");
+    assert.match(read(SECTION_FILES.dispersion), /<RfqPane view=\{view\} active=\{active\}/,
+      "the signed channel is not gated on its own section");
+  });
+
+  it("the signed channel is the one section that warms nothing", () => {
+    // `/rfq` is the desk's slowest read and on any keyless deployment it
+    // answers "no view, unsigned" every time, so warming it pre-fetches a
+    // refusal. Pinned as an EMPTY entry rather than a missing one: the record
+    // is `Record<MarketsSection, readonly string[]>`, so a section that plans
+    // no read has to say so, and a reader diffing this file can tell a decision
+    // from an oversight.
+    const start = console_.indexOf("const SECTION_READS");
+    const plan = console_.slice(start, console_.indexOf("\n};", start));
+    assert.match(plan, /dispersion: \[\]/);
+    assert.match(plan, /settlement: \[settlementRoute\(PUBLISHED_CITY\)\]/);
   });
 
   it("the universe read serves the three sections that need the family list", () => {

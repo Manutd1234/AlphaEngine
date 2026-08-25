@@ -52,7 +52,7 @@ const paneHead = read("components/coherence/PaneHead.tsx");
  * belonging to a rail it is no longer on. Five did move on 2026-08-24 when the
  * consolidated nine were split into Prices and Proofs.
  *
- * TEN, not seventeen and not eleven. Earlier that day six in-pane `.seg` views
+ * TWELVE, not seventeen and not eleven. Earlier that day six in-pane `.seg` views
  * had been promoted to rail sections, each growing a head of its own, and two
  * published sections were later folded into the sections that answer the same
  * question. A section that stops being one MUST STOP DRAWING `PaneHead` — one
@@ -63,7 +63,14 @@ const paneHead = read("components/coherence/PaneHead.tsx");
  */
 const OWNERS: Record<string, { file: string; tab: string }> = {
   universe: { file: "components/coherence/UniverseSection.tsx", tab: "markets" },
+  // Back on the Quotes rail on 2026-08-25, each with a wrapper that owns the
+  // head while the pane goes on drawing the subject — the shape `portfolio`
+  // and `combos` took hours earlier. Both panes therefore STAY in DEMOTED
+  // below: a section's head belongs to the section's owner, and a pane that
+  // regained one would put two card titles in one card.
+  settlement: { file: "components/coherence/SettlementSection.tsx", tab: "markets" },
   books: { file: "components/coherence/BooksSection.tsx", tab: "markets" },
+  dispersion: { file: "components/coherence/MakersSection.tsx", tab: "markets" },
   lattice: { file: "components/coherence/SurfacePane.tsx", tab: "markets" },
   // Back on the rail on the fifth restructure of 2026-08-24, with a file and a
   // head of its own. It was a view of `lattice` for one afternoon and drew no
@@ -72,6 +79,14 @@ const OWNERS: Record<string, { file: string; tab: string }> = {
   fees: { file: "components/coherence/FeesSection.tsx", tab: "markets" },
   shell: { file: "components/coherence/ShellPane.tsx", tab: "markets" },
   certificate: { file: "components/coherence/CertificatePane.tsx", tab: "coherence" },
+  // Back on the rail on 2026-08-25, both with a head of their own, for the
+  // reason `stake` is above: each was a group inside Dutch book, and three
+  // groups over six views over a family picker is three rows of chrome before
+  // a drawing. `PortfolioPane` and `CombosPane` still draw no head — the
+  // SECTION owns it and the pane draws the subject, which is why both stay in
+  // DEMOTED below rather than moving up here with their sections.
+  portfolio: { file: "components/coherence/BasketSection.tsx", tab: "coherence" },
+  combos: { file: "components/coherence/CombosSection.tsx", tab: "coherence" },
   calibration: { file: "components/coherence/CalibrationPane.tsx", tab: "coherence" },
   diffusion: { file: "components/coherence/DiffusionPane.tsx", tab: "coherence" },
   lessons: { file: "components/coherence/LessonsPane.tsx", tab: "coherence" },
@@ -92,10 +107,18 @@ const OWNERS: Record<string, { file: string; tab: string }> = {
  * `components/coherence` would also name the twenty inner components that never
  * had a head and never will, and the assertion would stop meaning anything.
  *
- * `index` and `combos` are the two that were PUBLISHED, which is why their
- * heads are the ones most likely to be restored by someone reading
- * `origin/main`. `RELOCATED_SECTIONS` is what keeps their links working; a head
- * is not what a link needs.
+ * `index` is the one still here that was PUBLISHED, which is why its head is
+ * the one most likely to be restored by someone reading `origin/main`.
+ * `RELOCATED_SECTIONS` is what keeps its link working; a head is not what a
+ * link needs.
+ *
+ * `PortfolioPane` and `CombosPane` STAY on this list although `portfolio` and
+ * `combos` are sections again, and that is the distinction the list is for: a
+ * section's head belongs to the section's OWNER, and the owner is
+ * `BasketSection` / `CombosSection`. The pane draws the subject. If a pane
+ * regained a head when its section came back, the tab would show two card
+ * titles in one card — which is the exact failure this list was written to
+ * catch, arriving by the opposite route.
  */
 const DEMOTED: Record<string, string> = {
   settlement: "components/coherence/SettlementPane.tsx",
