@@ -51,17 +51,21 @@ describe("the read-state sits in the head, once", () => {
     // rather than allowed as `<div[^>]*>`: Markets puts its poll controls under
     // the chips, and the point of naming it is that any OTHER component slipped
     // in front still fails.
-    // Both consoles carry this shape in the tree. The assertion names only the
-    // Proofs one because `MarketsConsole.tsx` is mid-rewrite in another session
-    // — the live-poll controls and the "Quotes" to "Markets" rename are theirs,
-    // interleaved with these three edits in the same regions — so committing it
-    // here would take their work under this message. Widen the loop back to
-    // CONSOLES the moment that file lands; the shape is already there.
-    for (const file of ["../components/CoherenceConsole.tsx"]) {
+    // BOTH consoles again. This loop was narrowed to Proofs for one commit
+    // while `MarketsConsole.tsx` was being rewritten in another session, with a
+    // note to widen it back the moment that file landed. It has.
+    for (const file of CONSOLES) {
       const source = strip(read(file));
       assert.match(source, /<div className="coh-topbar">\s*<PageHead/,
         `${file} does not wrap its head in the top-bar box`);
-      assert.match(source, /actions=\{[\s\S]{0,400}?(?:<div className="coh-headlive">\s*)?<EngineChips/,
+      // `\s*`, not `[\s\S]{0,400}?`. The wildcard was carried in while the two
+      // consoles were being edited in parallel and it quietly gave up the
+      // property the comment above claims: four hundred arbitrary characters
+      // is room for a whole component, so "any OTHER component slipped in
+      // front still fails" was no longer true of the regex asserting it.
+      // Neither console needs it — Proofs opens `actions={` directly on the
+      // chips and Markets on the named wrapper, and both are whitespace away.
+      assert.match(source, /actions=\{\s*(?:<div className="coh-headlive">\s*)?<EngineChips/,
         `${file} does not put the chip row in PageHead's right slot`);
       assert.match(source, /<EngineStatePanel[\s\S]*?<\/PageHead>/,
         `${file} does not pass the facts table as PageHead children, so it cannot sit under the title`);

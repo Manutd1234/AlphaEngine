@@ -32,6 +32,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { MARKETS_SECTIONS, MARKETS_SECTION_IDS } from "../lib/sections";
+import { NAV_ITEMS } from "../lib/workspace-nav";
 import { declaredSelectors } from "./helpers/css-selectors";
 import { read, stripNonCode } from "./helpers/workspace-sources";
 
@@ -63,13 +64,23 @@ describe("the Prices rail and its panels agree", () => {
     assert.deepEqual(Object.keys(SECTION_FILES).sort(), [...MARKETS_SECTION_IDS].sort());
   });
 
-  it("the tab id is the published word and the label is the read one", () => {
-    // `markets` renders "Quotes". The id is what the hash, the sweep and the
-    // relocation table speak; the label is what a reader finds on the row. A
-    // rename of the id would be a broken link, which is why it is asserted
-    // rather than left to look like an oversight.
+  it("the tab id is the published word and the kicker agrees with the nav row", () => {
+    // The id is what the hash, the sweep and the relocation table speak; the
+    // label is what a reader finds on the row. A rename of the ID would be a
+    // broken link, which is why it is asserted rather than left to look like an
+    // oversight — and it is the half that did NOT change on 2026-08-25.
     assert.match(console_, /workspaceId="markets"/);
-    assert.match(console_, /kicker="Quotes"/);
+
+    // The kicker is read off NAV_ITEMS rather than written down twice. It said
+    // "Quotes" here and on the row, and the two had to be changed together by
+    // hand; asserting the pair is what stops the head naming a tab the row
+    // does not have. The desk has three ids whose label differs deliberately
+    // (`live`/Execution, `activity`/Blotter, `coherence`/Proofs), so this is a
+    // claim about THIS tab and not a rule about the row.
+    const label = NAV_ITEMS.find((item) => item.id === "markets")!.label;
+    assert.equal(label, "Markets", "the nav row no longer reads Markets");
+    assert.match(console_, new RegExp(`kicker="${label}"`),
+      `the page head's kicker disagrees with the nav row, which reads "${label}"`);
   });
 
   it("focus moves to the rail button the reader just pressed", () => {

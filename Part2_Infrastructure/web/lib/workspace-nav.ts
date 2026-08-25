@@ -55,10 +55,28 @@ export const NAV_ITEMS: { id: WorkspaceView; label: string; role: string; access
   // reading "Proofs", and `markets` is reused rather than re-invented because
   // the tests, the relocation table and the desk sweep already speak it.
   //
-  // "Quotes" and "Proofs" are six characters each, against "Markets" (7) and
-  // "Coherence" (9): this ten-tab row is NARROWER than the ten-tab row the
-  // header ladder was last measured against.
-  { id: "markets", label: "Quotes", role: "Quant", accessibleLabel: "Prediction market quotes" },
+  // "MARKETS" SINCE 2026-08-25, AND THE WIDTH WAS MEASURED RATHER THAN
+  // REASONED ABOUT. The label had been "Quotes" partly because six characters
+  // beat seven on a row the header ladder is known to be tight on, and a
+  // first pass at re-measuring reported the row already clipping at 46 of 93
+  // widths, worst 62px over at 1660 — which would have made a wider label
+  // reckless.
+  //
+  // That reading was an artefact of HOW it was taken. `header-ladder-measure.mjs`
+  // injects the widest strings the header can ever carry AND sweeps by
+  // resizing rather than navigating fresh at each width, which is the exact
+  // measurement error this repository's own notes warn about. Re-measured with
+  // fresh loads and the desk's real content, the row overflows at NO width
+  // either side of the rename and never goes to two rows; the seventh
+  // character costs 0px with real content and 7px against the injected worst
+  // case, in a band (1600–2000) that is already over by ~60px before any of
+  // this and has been since before the eleventh tab. That is a real limit of
+  // the ladder and it is recorded in `14p`'s banner; it is not this label's
+  // to carry.
+  //
+  // The ID stays `markets`, so every `#markets/<section>` link, the relocation
+  // table and the desk sweep are untouched.
+  { id: "markets", label: "Markets", role: "Quant", accessibleLabel: "Prediction market quotes" },
   { id: "coherence", label: "Proofs", role: "Quant", accessibleLabel: "Prediction market coherence" },
   // THE ELEVENTH, added 2026-08-25. Diffusion was a Proofs section and was
   // never the same question as the rail it sat on: everything else there argues

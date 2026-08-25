@@ -173,10 +173,12 @@ export function buildCommands(d: CommandDeps): Command[] {
     section("developer", "Developer", s.id, `${s.label} — ${s.description}`, () => setDeveloperSection(s.id));
   }
   for (const s of MARKETS_SECTIONS) {
-    // "Quotes", not "Markets": a palette category is a LABEL a reader reads,
-    // and the id it navigates to is deliberately the older word. Same for
-    // Proofs below — see NAV_ITEMS.
-    section("markets", "Quotes", s.id, `${s.label} — ${s.description}`, () => setMarketsSection(s.id));
+    // "Markets", not "markets": a palette category is a LABEL a reader reads,
+    // and the id it navigates to is deliberately a different word. It follows
+    // the nav row — it was "Quotes" until 2026-08-25 — because a reader who
+    // searched the palette for the tab they can see on the row has to find it.
+    // Same for Proofs below; see NAV_ITEMS.
+    section("markets", "Markets", s.id, `${s.label} — ${s.description}`, () => setMarketsSection(s.id));
   }
   for (const s of COHERENCE_SECTIONS) {
     section("coherence", "Proofs", s.id, `${s.label} — ${s.description}`, () => setCoherenceSection(s.id));

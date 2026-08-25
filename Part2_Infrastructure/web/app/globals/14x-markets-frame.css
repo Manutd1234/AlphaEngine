@@ -91,3 +91,44 @@
   margin: 0;
   color: var(--text-secondary);
 }
+
+/* ── The head's live controls ───────────────────────────────────────────
+
+   `.page-heading__actions` is `display: flex; justify-content: flex-end`, so
+   two children of it share a line — and `EngineStatePanel` reserves 62ch in
+   there, which would push these off the head. The wrapper makes the slot one
+   COLUMN: the engine's state, then the reader's hold on it.
+
+   No width of its own. The panel inside sets the column at 62ch and these
+   controls are narrower, so a width here would be a second opinion about the
+   same measurement — and the panel's is the one with a comment explaining why
+   it is fixed (something in it ticks every second). */
+.coherence-plane .coh-headlive {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: end;
+  min-inline-size: 0;
+}
+
+/* The row itself, shaped like `.freshness-stamp` above it, because they are
+   the same kind of object — a small pill of read-state in the head — and a
+   reader should not meet two grammars for it forty pixels apart. What differs
+   is that this one contains controls, so it is a `role="group"` with buttons
+   rather than a bare span. */
+.coherence-plane .coh-live {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Tabular, so the countdown does not shuffle the two buttons sideways once a
+   second. `ch` and not `px`, so the reservation steps with the reader's
+   Text-size preference exactly as the digits inside it do — the same argument
+   `14v` makes for the panel's own 62ch. The widest string is "Awaiting the
+   first read" at 24 characters; the countdown never exceeds it. */
+.coherence-plane .coh-live__state {
+  min-width: 24ch;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}

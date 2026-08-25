@@ -11,10 +11,15 @@
  * filesystem. What FOLLOWS from those prices — the de Finetti test, the settled
  * scorecard, the absorption study — is the Proofs tab.
  *
- * THE TAB ID IS `markets` AND THE LABEL IS "Quotes", which is house practice on
- * this row rather than drift: `live` renders "Execution", `activity` renders
- * "Blotter". The id is reused rather than re-minted because the relocation
- * table, the desk sweep and this suite already speak it.
+ * THE TAB ID IS `markets` AND SO, SINCE 2026-08-25, IS THE LABEL. It read
+ * "Quotes" for a day — house practice on this row is that the two differ
+ * (`live` renders "Execution", `activity` renders "Blotter"), and six
+ * characters beat seven on a header row the ladder is tight on. The reader
+ * asked for "Markets", and the width turned out not to be the objection it
+ * looked like: re-measured with fresh loads and the desk's real content the
+ * row overflows at no width either side of the change. `lib/workspace-nav.ts`
+ * carries the measurement. The id is untouched, so every `#markets/<section>`
+ * link, the relocation table and the desk sweep still resolve.
  *
  * FIFTH RESTRUCTURE OF ONE DAY, AND THE HISTORY IS WORTH ONE PARAGRAPH so the
  * next reader does not re-derive it. 2026-08-24 went: one tab of eleven (what
@@ -55,11 +60,12 @@
  * appears. `14q-markets-density.css` owns this pair; `14r` owns the other.
  */
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import PageHead from "@/components/workspace/PageHead";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
-import EngineStatePanel from "@/components/coherence/EngineStatePanel";
+import EngineStatePanel, { EngineChips } from "@/components/coherence/EngineStatePanel";
+import LiveControls from "@/components/coherence/LiveControls";
 import BooksSection from "@/components/coherence/BooksSection";
 import FeesSection from "@/components/coherence/FeesSection";
 import { EXAMPLES } from "@/components/coherence/FeesPane";
@@ -139,7 +145,50 @@ export interface MarketsConsoleProps {
 }
 
 export default function MarketsConsole({ section, onSectionChange, active = true }: MarketsConsoleProps) {
-  const status = useCoherenceRead<CoherenceStatus>(statusRoute(), active);
+  /**
+   * The reader's own hold on this tab's polling, and the one piece of state on
+   * this console that is not a read.
+   *
+   * `active` means "this tab is in front"; `paused` means "and the reader wants
+   * it to keep reading". They are ANDed into one `live` flag every section
+   * takes, so a pause genuinely stops asking Kalshi rather than freezing a
+   * picture over live traffic. That distinction earns the state: these reads
+   * spend a token bucket the exchange publishes no budget for, and a desk left
+   * open on a second monitor is the case that spends it.
+   *
+   * The RAIL keeps plain `active`. Pausing the reads must not disable the
+   * control that changes sections — a reader who paused to look at one figure
+   * would be unable to leave it.
+   */
+  const [paused, setPaused] = useState(false);
+  /**
+   * A one-render dip in that gate, which is what "Read now" IS.
+   *
+   * `usePolling`'s effect depends on `enabled` and `PollingController` is built
+   * with `immediate: true`, so taking the gate down and putting it back up
+   * tears every loop down and starts it again — and the first thing a restarted
+   * loop does is tick. `read-cache.ts` joins a request already in flight but
+   * never answers from store, so that tick is a real fetch of every URL the
+   * mounted sections are asking for rather than a replay of the last answer.
+   *
+   * A dip rather than a `refresh()` call because the reads are not here: each
+   * section owns its own `useCoherenceRead`, and the alternative is a nonce
+   * threaded through eight components into a hook that would have to grow a
+   * parameter to receive it. This spends one render, in one file.
+   *
+   * Cleared in an EFFECT, not in the handler. Set and cleared inside one
+   * handler, React batches both into a single render and the effect below
+   * `usePolling` never sees the gate go down — so nothing restarts and the
+   * button does nothing, silently.
+   */
+  const [rearming, setRearming] = useState(false);
+  useEffect(() => {
+    if (rearming) setRearming(false);
+  }, [rearming]);
+
+  const live = active && !paused && !rearming;
+
+  const status = useCoherenceRead<CoherenceStatus>(statusRoute(), live);
   // Three sections here share this one read — the baskets, the lattice's family
   // picker and the stake's — and the Proofs tab's certificate shares it across
   // the tab boundary, because `read-cache.ts` holds one answer per URL. It is
@@ -150,10 +199,10 @@ export default function MarketsConsole({ section, onSectionChange, active = true
   // for every watched family is on this payload and nowhere else.
   const universe = useCoherenceRead<CoherenceUniverse>(
     universeRoute(),
-    active && (section === "universe" || section === "lattice" || section === "stake"),
+    live && (section === "universe" || section === "lattice" || section === "stake"),
   );
 
-  useSectionWarming(SECTION_READS, active);
+  useSectionWarming(SECTION_READS, live);
 
 
   const openSection = (next: MarketsSection) => {
@@ -166,26 +215,48 @@ export default function MarketsConsole({ section, onSectionChange, active = true
 
   return (
     <div className="coherence-plane markets-plane">
+      {/* ONE BOX FOR THE TOP BAR, matching Proofs. See CoherenceConsole for the
+          argument; the shape is the reader's, asked for on both engine tabs. */}
+      <div className="coh-topbar">
       <PageHead
-        kicker="Quotes"
+        kicker="Markets"
         title="The exchange as it is quoted"
         description="A contract paying $1 is a probability with a price on it, and these are the families, ladders and costs it is quoted at."
         actions={
-          <EngineStatePanel
-            status={status.data}
-            error={status.error}
-            updatedAt={status.updatedAt}
-            pollMs={COHERENCE_POLL_MS}
-            paused={!active}
-            familiesPriced={universe.data ? `${universe.data.events.length} read live` : null}
-          />
+          /* One COLUMN in the head's right slot: the engine's own state, then
+             the reader's hold on it. A wrapper because `.page-heading__actions`
+             is a `flex-end` row — two children there sit side by side, and the
+             panel's 62ch would push the controls off the head. */
+          <div className="coh-headlive">
+            <EngineChips
+              status={status.data}
+              error={status.error}
+              updatedAt={status.updatedAt}
+              pollMs={COHERENCE_POLL_MS}
+              paused={!live}
+            />
+            <LiveControls
+              updatedAt={status.updatedAt}
+              pollMs={COHERENCE_POLL_MS}
+              paused={paused}
+              onPause={setPaused}
+              onReadNow={() => setRearming(true)}
+            />
+          </div>
         }
         status={
           status.data
             ? { label: status.data.state === "ok" ? "Reading the exchange" : status.data.state, tone: status.data.state === "ok" ? "good" : "warn" }
             : undefined
         }
-      />
+      >
+        <EngineStatePanel
+          status={status.data}
+          error={status.error}
+          familiesPriced={universe.data ? `${universe.data.events.length} read live` : null}
+        />
+      </PageHead>
+      </div>
 
       <WorkspaceSubtabs
         workspaceId="markets"
@@ -207,14 +278,14 @@ export default function MarketsConsole({ section, onSectionChange, active = true
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="markets" tabId="settlement" activeId={section}>
-        <SettlementSection active={active && section === "settlement"} />
+        <SettlementSection active={live && section === "settlement"} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="markets" tabId="books" activeId={section}>
         {/* One read, gated on the section. Dispersion rode here on the argument
             that a book and a maker panel are both "what is this quoted at"; at
             that width so is every section on the tab. */}
-        <BooksSection active={active && section === "books"} />
+        <BooksSection active={live && section === "books"} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="markets" tabId="dispersion" activeId={section}>
@@ -222,11 +293,11 @@ export default function MarketsConsole({ section, onSectionChange, active = true
             As two views of Books it needed a predicate in that file whose whole
             job was to keep the desk's slowest call from firing for a reader who
             came to look at a ladder; a section gates itself. */}
-        <MakersSection active={active && section === "dispersion"} />
+        <MakersSection active={live && section === "dispersion"} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="markets" tabId="lattice" activeId={section}>
-        <SurfacePane events={universe.data?.events ?? []} active={active && section === "lattice"} />
+        <SurfacePane events={universe.data?.events ?? []} active={live && section === "lattice"} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="markets" tabId="stake" activeId={section}>
@@ -235,7 +306,7 @@ export default function MarketsConsole({ section, onSectionChange, active = true
             controls over the one answer a reader came for; as a section it has
             one read, one control row and an empty state that names what to
             press when the solver declines the family. */}
-        <StakePane events={universe.data?.events ?? []} active={active && section === "stake"} />
+        <StakePane events={universe.data?.events ?? []} active={live && section === "stake"} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="markets" tabId="fees" activeId={section}>
@@ -243,11 +314,11 @@ export default function MarketsConsole({ section, onSectionChange, active = true
             charges is a fact of the venue, and whether that cost changes the
             ANSWER is the same question one step on — which is what the tape
             replayed under four cost models measures. */}
-        <FeesSection active={active && section === "fees"} />
+        <FeesSection active={live && section === "fees"} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="markets" tabId="shell" activeId={section}>
-        <ShellPane active={active && section === "shell"} />
+        <ShellPane active={live && section === "shell"} />
       </WorkspaceSubtabPanel>
 
       <div className="coh-console__status">
