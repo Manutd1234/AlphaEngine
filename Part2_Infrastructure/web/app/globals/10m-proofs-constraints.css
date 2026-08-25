@@ -238,3 +238,60 @@
    consecutive in the shared poll order, which on the live tape is rare — so the
    dots are what carry the measurement and the line is what carries a run. */
 .coh-ridge__dot { fill: color-mix(in srgb, var(--series-1) 70%, var(--surface-1)); }
+
+/* ── The corpus mixture ─────────────────────────────────────────────────────
+   One row per series, position carrying its bias slope against the rule at one
+   and bar HEIGHT carrying its share of what was scored. Two quantities, one
+   mark, because the claim the view makes needs both at once: an aggregate slope
+   sitting at one can be two series pointing opposite ways.
+
+   Height rather than a second length, so no mark can be read wrong along the
+   axis that already means something. */
+
+.coh-mix__rule {
+  stroke: var(--text-secondary);
+  stroke-width: 1.2;
+  stroke-dasharray: 3 3;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Over and under the rule are opposite readings, so they are opposite ends of
+   the desk's two-series pairing rather than two tints of one. Neither carries
+   the meaning alone: the mark's SIDE of the dashed rule says it first, and the
+   figure's own notes name both directions in words. */
+.coh-mix__bar.is-over { fill: color-mix(in srgb, var(--series-2) 62%, var(--surface-1)); }
+.coh-mix__bar.is-under { fill: color-mix(in srgb, var(--series-1) 55%, var(--surface-1)); }
+
+/* A share the engine reported no slope for. Hatched rather than tinted: in
+   Windows High Contrast two fills collapse to one colour and the texture is
+   what survives, and this mark's whole point is that it is NOT a reading of
+   one. */
+.coh-mix__unscored {
+  fill: url(#diff-hatch);
+  stroke: var(--border);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.coh-mix__name {
+  fill: var(--text-primary);
+  font-size: var(--fs-diagram-label);
+  font-variant-numeric: tabular-nums;
+}
+
+.coh-mix__meta {
+  fill: var(--text-secondary);
+  font-size: var(--fs-diagram-label);
+  font-variant-numeric: tabular-nums;
+}
+
+.coh-mix__tick {
+  fill: var(--text-secondary);
+  font-size: var(--fs-tick);
+  font-variant-numeric: tabular-nums;
+}
+
+.coh-mix__withheld {
+  fill: var(--text-muted);
+  font-size: var(--fs-diagram-label);
+}

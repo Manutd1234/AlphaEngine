@@ -77,6 +77,10 @@ const RUNG: Record<string, number> = {
   // anything under a tick — it moved there because under the band it shared a
   // baseline with the first decade tick and the two printed over each other.
   "coh-decade__tick": TICK_PX,
+  // The mixture figure's axis words, added 2026-08-26 with `CorpusShares`. The
+  // one above `MARGIN.top` labels the dashed rule at a slope of one, which is
+  // the only position on that axis with a name.
+  "coh-mix__tick": TICK_PX,
 };
 
 function figures(dir: string): string[] {

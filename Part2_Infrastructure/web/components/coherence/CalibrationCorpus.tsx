@@ -24,7 +24,7 @@
 import { pct } from "@/lib/format";
 import type { CoherenceCalibration } from "@/lib/coherence/types-lab";
 
-import ValueStrip, { type StripRow } from "./ValueStrip";
+import CorpusShares from "./CorpusShares";
 
 export default function CalibrationCorpus({ data }: { data: CoherenceCalibration }) {
   const corpus = data.composition.reduce((sum, row) => sum + row.count, 0);
@@ -32,19 +32,6 @@ export default function CalibrationCorpus({ data }: { data: CoherenceCalibration
     (carry, row) => (carry == null || row.count > carry.count ? row : carry),
     null,
   );
-
-  const slopes: StripRow[] = (data.bias_by_series ?? []).map((row) => {
-    const value = Number(row.slope);
-    return {
-      label: row.series_ticker,
-      // NOT `|| null`: a slope of exactly zero is a real reading — prices that
-      // did not move with the outcome at all — and would be erased by it.
-      value: Number.isFinite(value) ? value : null,
-      text: row.slope.slice(0, 6),
-      title: `${row.series_ticker}: slope ${row.slope.slice(0, 6)}, against one for a series whose prices moved with the outcome`,
-      ...(Number.isFinite(value) ? {} : { noBar: "the engine did not report a slope for this series" }),
-    };
-  });
 
   return (
     <>
@@ -55,60 +42,20 @@ export default function CalibrationCorpus({ data }: { data: CoherenceCalibration
             The strip's caption says what is being counted. */}
         {data.composition.length ? (
           <>
-          {/* The mixture drawn (third review, 2026-08-24): the whole point of
-              this view is that one bar is most of the picture. */}
-          <ValueStrip
-            caption="Share of the corpus, largest first"
-            ariaLabel={`Share of the settled corpus for each of ${data.composition.length} series`}
-            reading={
-              heaviest && corpus > 0
-                ? `${heaviest.series_ticker} is ${pct(heaviest.count / corpus)} of everything scored, so every figure on Score is mostly a score of it.`
-                : null
-            }
-            rows={[...data.composition]
-              .sort((a, b) => b.count - a.count)
-              .map((row) => ({
-                label: row.series_ticker,
-                // A SHARE, not a count. The claim this view exists to make is
-                // "one series is most of the picture", which is a part-of-whole
-                // statement — and N counts against a zero rule is N independent
-                // quantities that happen to sit near each other. Sorted, so the
-                // largest is the first thing the eye lands on rather than
-                // wherever the exchange happened to list it.
-                value: corpus > 0 ? row.count / corpus : null,
-                text: corpus > 0 ? `${pct(row.count / corpus)} (${row.count})` : String(row.count),
-                title: `${row.series_ticker}: ${row.count} of the ${corpus} settled markets in the composition`,
-                ...(corpus > 0 ? {} : { noBar: "the composition total is zero, so no share can be taken" }),
-              }))}
-            mark={corpus > 0 ? { at: 1, label: "all" } : undefined}
-          />
-          {/* THE SECOND MIXTURE CLAIM, DRAWN 2026-08-25. The strip above says
-              which series the corpus is MADE of; this one says whether those
-              series agree with each other, and the view's own docstring argues
-              why that cannot be read off the aggregate: "two of them can point
-              opposite ways and still sit at one together". The aggregate slope
-              is the one number on the Score view that a mixture can fake, and
-              until now the only place a reader could check it was a column
-              inside a fold — six digits per row, four rows down.
+          {/* ONE FIGURE FOR TWO FACTS, 2026-08-26. Two `ValueStrip`s stood
+              here — a share strip and a slope strip — over the same four
+              labels, on two axes, with a reader asked to join them by name.
+              "the information is too cluttered", and the clutter was that the
+              two facts only mean anything TOGETHER: an aggregate slope sitting
+              at one can be two series pointing opposite ways, which is the
+              whole argument this view makes and neither strip could show.
 
-              The rule at one is the whole reading: a series above it moved
-              MORE than the outcome warranted and one below it moved less. The
-              distance from the rule is what the eye takes, which is why this is
-              a strip and not four more table cells. */}
-          {slopes.length ? (
-            <ValueStrip
-              caption="Each series' own slope, against the dashed rule at one"
-              ariaLabel={`Bias slope for ${slopes.length} series against a calibrated slope of one`}
-              rows={slopes}
-              mark={{ at: 1, label: "1" }}
-              // MEASURED FROM THE RULE, not from zero. Anchored at zero — which
-              // is `ValueStrip`'s default and was right for every other caller —
-              // slopes clustered near 1 drew bars filling 85 to 100 per cent of
-              // the track, so the eye took distance from ZERO and the figure
-              // could not show the one thing its caption promises.
-              anchorOnMark
-            />
-          ) : null}
+              `CorpusShares` carries the slope as position against the rule at
+              one and the share as bar HEIGHT, so a heavy mark far from the rule
+              is the finding rather than something a reader assembles. The
+              paragraph that restated the first strip's reading is that figure's
+              own `reading` now — same sentence, one place. */}
+          <CorpusShares data={data} />
 
           {/* THE FINDING STAYS OPEN, THE ROWS GO BEHIND A SUMMARY (fourth
               review of 2026-08-24). It used to be one caption carrying both,
@@ -117,11 +64,10 @@ export default function CalibrationCorpus({ data }: { data: CoherenceCalibration
               series is usually most of the picture, which the strip above now
               draws. What is behind the summary is the per-series detail: the
               exact share and the series' own slope, one row each. */}
-          <p className="coh-event__note">
-            {heaviest && corpus > 0
-              ? `Not a random sample: ${heaviest.series_ticker} alone is ${pct(heaviest.count / corpus)} of it, so every figure on Score scores THIS mixture.`
-              : `Not a random sample — ${corpus} of the ${data.count} scored markets name their series, so every figure on Score scores THIS mixture.`}
-          </p>
+          {/* THE FINDING MOVED INTO THE FIGURE. It was this paragraph AND the
+              share strip's `reading` — the same sentence twice on one view, in
+              two voices. `CorpusShares` says it once, under the drawing that
+              makes it. */}
 
           <details className="disclosure">
             <summary>{`Every series in the corpus, its share and its own slope, ${data.composition.length} rows`}</summary>
