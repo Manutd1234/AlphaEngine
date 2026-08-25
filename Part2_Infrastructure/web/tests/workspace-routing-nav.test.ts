@@ -34,7 +34,15 @@ const header = read("../components/WorkspaceHeader.tsx");
  * header keep reading `header`. Left on `page` the panel scans would find nothing
  * and pass.
  */
-const panels = read("../components/workspace/WorkspacePanels.tsx");
+// BOTH panel files. The three engine tabs moved to `EnginePanels.tsx` on
+// 2026-08-25, when Diffusion became the eleventh tab and `WorkspacePanels`
+// stood at 399 of the four-hundred-line ceiling. A scan left on one file finds
+// a subset and reports it confidently, which is the failure this file exists
+// to catch, arriving through the file it reads.
+const panels = [
+  read("../components/workspace/WorkspacePanels.tsx"),
+  read("../components/workspace/EnginePanels.tsx"),
+].join("\n");
 /**
  * Where the reader is, and every way the desk moves them, left `page.tsx` for
  * `lib/use-workspace-routing.ts` over `lib/workspace-hash.ts`. The legacy hash
@@ -60,6 +68,10 @@ describe("the nav and the render tree describe the same workspace", () => {
       "developer",
       "markets",
       "coherence",
+      // The eleventh, 2026-08-25. Diffusion was a Proofs section and argues
+      // from a recorded research panel rather than from a poll of the exchange,
+      // which is a different question from every other section on that rail.
+      "diffusion",
     ]);
   });
 

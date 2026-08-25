@@ -45,6 +45,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { DIFFUSION_SECTIONS } from "../lib/sections";
 import { read } from "./helpers/workspace-sources";
 
 const MODEL_FILES = [
@@ -56,16 +57,22 @@ const MODEL_FILES = [
 
 const sources = new Map(MODEL_FILES.map((file) => [file, read(file)] as const));
 
-describe("the Model group is offered and is reachable", () => {
-  it("the group's four views are named on the switcher", () => {
-    const groups = read("../components/coherence/diffusion/DiffusionGroups.tsx");
+describe("the Model section is offered and is reachable", () => {
+  // A SECTION as of 2026-08-25, not a group. Diffusion became the eleventh tab
+  // and its four groups became its four sections, so the switcher this checks
+  // is the section's own control row rather than a second level inside one.
+  it("the section's five views are named on its switcher", () => {
+    const section = read("../components/coherence/diffusion/ModelSection.tsx");
     for (const label of ["Measurement", "Instrument", "Half-life", "Simulator", "Spectrum"]) {
-      assert.ok(groups.includes(`"${label}"`), `the Model group lost its ${label} view`);
+      assert.ok(section.includes(`"${label}"`), `the Model section lost its ${label} view`);
     }
   });
 
-  it("the section offers the group itself", () => {
-    assert.match(read("../components/coherence/DiffusionPane.tsx"), /"Model"/);
+  it("the rail offers the section itself", () => {
+    // From the registry rather than from a console's markup: the rail is data,
+    // and a section missing from it is unreachable however it is drawn.
+    assert.ok(DIFFUSION_SECTIONS.some((section) => section.id === "model"),
+      "the Model section is not on the Diffusion rail");
   });
 });
 

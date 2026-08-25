@@ -17,6 +17,7 @@ import {
   COHERENCE_SECTION_IDS,
   MARKETS_SECTION_IDS,
   DEVELOPER_SECTION_IDS,
+  DIFFUSION_SECTION_IDS,
   EXECUTION_SECTION_IDS,
   OVERVIEW_SECTION_IDS,
   PORTFOLIO_SECTION_IDS,
@@ -37,6 +38,7 @@ export const RAILS: Record<string, readonly string[]> = {
   developer: DEVELOPER_SECTION_IDS,
   markets: MARKETS_SECTION_IDS,
   coherence: COHERENCE_SECTION_IDS,
+  diffusion: DIFFUSION_SECTION_IDS,
 };
 
 export function isRealLocation(view: string, section: string): boolean {

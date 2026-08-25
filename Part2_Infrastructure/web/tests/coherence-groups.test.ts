@@ -74,48 +74,28 @@ interface TwoLevel {
   readonly gated: readonly RegExp[];
 }
 
-const SECTIONS: Record<string, TwoLevel> = {
-  certificate: {
-    pane: "../components/coherence/CertificatePane.tsx",
-    child: "../components/coherence/CertificateGroups.tsx",
-    groupLabel: "Certificate group",
-    viewLabel: "Certificate view",
-    groups: ["Coherence test", "Basket", "Parlays"],
-    views: ["Verdict", "Proof", "Certificate", "Bands", "Parlays", "Bounds"],
-    gate: /const onParlays = group === "parlays"/,
-    gated: [/active && !onParlays/, /active=\{active && onParlays\}/],
-  },
-  diffusion: {
-    pane: "../components/coherence/DiffusionPane.tsx",
-    child: "../components/coherence/diffusion/DiffusionGroups.tsx",
-    groupLabel: "Diffusion group",
-    viewLabel: "Diffusion view",
-    // Seven views on one row was the widest control on the desk, and `14r` said
-    // so at its wrap rule. The three groups are the three READS: the absorption
-    // ledger, the episode tape, and the study that gates its own.
-    groups: ["Announcement arm", "Kalshi episodes", "Model", "Findings"],
-    views: [
-      "Absorption", "Noise floor", "Meetings", "Mechanism", "Survival", "Episodes",
-      "Measurement", "Instrument", "Half-life", "Simulator", "Spectrum",
-    ],
-    gate: /const onEpisodes = group === "episodes"/,
-    gated: [/active && onEpisodes/, /active && group === "arm"/],
-  },
-  calibration: {
-    pane: "../components/coherence/CalibrationPane.tsx",
-    child: "../components/coherence/CalibrationGroups.tsx",
-    groupLabel: "Calibration group",
-    viewLabel: "Calibration view",
-    // Two groups, and they are the two questions the section was folded from:
-    // was the price right ONCE SETTLED, and how far from coherent OVER TIME.
-    // Two sections used to ask a reader to discover they were one; two groups
-    // say it on the control.
-    groups: ["Once settled", "Over time"],
-    views: ["Score", "Bands", "Corpus", "Index series", "Index families"],
-    gate: /const onIndex = group === "time"/,
-    gated: [/active && !onIndex/, /active=\{active && onIndex\}/],
-  },
-};
+/**
+ * EMPTY AS OF 2026-08-25, and that is this contract succeeding rather than
+ * lapsing.
+ *
+ * The rule was never "sections have two levels" — it was "a section holds views
+ * of ONE question, and where it holds more than a row can carry, the extra
+ * level names the questions". Every entry that was here turned out to be a
+ * section carrying several questions:
+ *
+ *   `certificate`  three groups → three sections (Coherence test, Basket, Parlays)
+ *   `calibration`  two groups   → two sections   (Scorecard, Coherence index)
+ *   `diffusion`    four groups  → four sections of a TAB of its own
+ *
+ * So the second level is gone because the reason for it is gone, and the file
+ * stays — with the table empty and the assertions intact — because the next
+ * section to grow past a row will need exactly this, and a contract deleted the
+ * moment it has no subjects is one that gets reinvented worse.
+ *
+ * `coherence-sections.test.ts` holds the one-level shape: at most one `.seg`
+ * per section, and a section with none has one view.
+ */
+const SECTIONS: Record<string, TwoLevel> = {};
 
 describe("a crowded section splits its switcher into two levels", () => {
   for (const [id, section] of Object.entries(SECTIONS)) {

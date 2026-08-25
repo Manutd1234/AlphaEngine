@@ -44,7 +44,18 @@ export function stripNonCode(source: string): string {
 }
 
 /** Nav ids, in declaration order, from the single NAV_ITEMS literal. */
-export function navIds(source: string): string[] {
+/**
+ * The tab ids, in rail order, read from wherever `NAV_ITEMS` is DECLARED.
+ *
+ * The argument is ignored as of 2026-08-25 and the parameter is kept so the
+ * callers did not have to change: `NAV_ITEMS` moved to `lib/workspace-nav.ts`
+ * when the eleventh tab would have pushed `WorkspaceHeader` past the line
+ * ceiling, and the component re-exports it. A scan of the re-export finds the
+ * `export {` line and no entries — which returns an EMPTY list rather than
+ * failing, so every caller would have asserted happily against nothing.
+ */
+export function navIds(_source?: string): string[] {
+  const source = read("../lib/workspace-nav.ts");
   const start = source.indexOf("export const NAV_ITEMS");
   const block = source.slice(start, source.indexOf("];", start) + 2);
   return [...block.matchAll(/\{\s*id:\s*"([a-z]+)"/g)].map((match) => match[1]);

@@ -29,7 +29,15 @@ const page = read("../app/dashboard/page.tsx");
  * header and `#workspace-content`. The head-per-panel scan below reads `panels`
  * for that reason — left on `page` it would find no panel bodies and pass.
  */
-const panels = read("../components/workspace/WorkspacePanels.tsx");
+// BOTH panel files. The three engine tabs moved to `EnginePanels.tsx` on
+// 2026-08-25, when Diffusion became the eleventh tab and `WorkspacePanels`
+// stood at 399 of the four-hundred-line ceiling. A scan left on one file finds
+// a subset and reports it confidently, which is the failure this file exists
+// to catch, arriving through the file it reads.
+const panels = [
+  read("../components/workspace/WorkspacePanels.tsx"),
+  read("../components/workspace/EnginePanels.tsx"),
+].join("\n");
 const researchWorkspace = read("../components/ResearchWorkspace.tsx");
 const riskWorkspace = read("../components/RiskWorkspace.tsx");
 const portfolioWorkspace = read("../components/PortfolioWorkspace.tsx");
@@ -39,6 +47,7 @@ const reliabilityConsole = read("../components/ReliabilityConsole.tsx");
 const developerConsole = read("../components/DeveloperConsole.tsx");
 const marketsConsole = read("../components/MarketsConsole.tsx");
 const coherenceConsole = read("../components/CoherenceConsole.tsx");
+const diffusionConsole = read("../components/DiffusionConsole.tsx");
 
 describe("every tab opens with the same header", () => {
   /**
@@ -102,7 +111,7 @@ describe("every tab opens with the same header", () => {
     }
   });
 
-  it("each of the ten tabs has exactly one head in its panel", () => {
+  it("each tab has exactly one head in its panel", () => {
     /**
      * Two heads on one tab is the scatter this converged out of; zero means a
      * tab opens with no identity at all.
@@ -127,6 +136,7 @@ describe("every tab opens with the same header", () => {
       overview: workspaceOverview,
       markets: marketsConsole,
       coherence: coherenceConsole,
+      diffusion: diffusionConsole,
     };
     const HEAD = /<(?:WorkspaceIntro|ConsoleChrome|PageHead)\b/g;
     for (const view of navIds(header)) {

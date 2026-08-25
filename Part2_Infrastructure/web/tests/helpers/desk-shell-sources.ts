@@ -41,7 +41,20 @@ export const strip = (source: string) =>
  * so the cross-link measurements read the whole shell.
  */
 export const pageCode = strip(readSource("app/dashboard/page.tsx"));
-export const panelsCode = strip(readSource("components/workspace/WorkspacePanels.tsx"));
+/**
+ * BOTH panel files, joined.
+ *
+ * The three engine tabs moved to `EnginePanels.tsx` on 2026-08-25, when
+ * Diffusion became the eleventh tab and `WorkspacePanels` stood at 399 of the
+ * four-hundred-line ceiling. Every suite reading this constant is asking about
+ * the desk's PANELS rather than about one file, so a scan left on the original
+ * would silently stop covering three tabs — which is the shape of failure the
+ * split itself was made to avoid.
+ */
+export const panelsCode = [
+  strip(readSource("components/workspace/WorkspacePanels.tsx")),
+  strip(readSource("components/workspace/EnginePanels.tsx")),
+].join("\n");
 export const routingCode = strip(readSource("lib/use-workspace-routing.ts"));
 export const hashCode = strip(readSource("lib/workspace-hash.ts"));
 export const tourCode = strip(readSource("lib/workspace-tour.ts"));

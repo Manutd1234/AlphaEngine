@@ -29,7 +29,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 
-import { COHERENCE_SECTIONS, MARKETS_SECTIONS } from "../lib/sections";
+import { COHERENCE_SECTIONS, DIFFUSION_SECTIONS, MARKETS_SECTIONS } from "../lib/sections";
 import { stripNonCode } from "./helpers/workspace-sources";
 
 const root = join(import.meta.dirname, "..");
@@ -88,8 +88,17 @@ const OWNERS: Record<string, { file: string; tab: string }> = {
   portfolio: { file: "components/coherence/BasketSection.tsx", tab: "coherence" },
   combos: { file: "components/coherence/CombosSection.tsx", tab: "coherence" },
   calibration: { file: "components/coherence/CalibrationPane.tsx", tab: "coherence" },
-  diffusion: { file: "components/coherence/DiffusionPane.tsx", tab: "coherence" },
+  // The Scorecard split on 2026-08-25 and the coherence index is a section
+  // again, under the id it was published with.
+  index: { file: "components/coherence/IndexSection.tsx", tab: "coherence" },
   lessons: { file: "components/coherence/LessonsPane.tsx", tab: "coherence" },
+  // Diffusion became the ELEVENTH TAB in the same change, so its four groups
+  // are four sections with four heads. `findings` is the fourth published id
+  // this restructure has brought back rather than invented.
+  arm: { file: "components/coherence/diffusion/ArmSection.tsx", tab: "diffusion" },
+  episodes: { file: "components/coherence/diffusion/EpisodesSection.tsx", tab: "diffusion" },
+  model: { file: "components/coherence/diffusion/ModelSection.tsx", tab: "diffusion" },
+  findings: { file: "components/coherence/diffusion/FindingsSection.tsx", tab: "diffusion" },
 };
 
 /**
@@ -153,10 +162,11 @@ describe("every section of the engine opens with it", () => {
   const rails: Array<[string, readonly { id: string }[]]> = [
     ["markets", MARKETS_SECTIONS],
     ["coherence", COHERENCE_SECTIONS],
+    ["diffusion", DIFFUSION_SECTIONS],
   ];
   const ids: string[] = rails.flatMap(([, sections]) => sections.map((section) => section.id));
 
-  it("names an owner for all ten, and no more", () => {
+  it("names an owner for every engine section, and no more", () => {
     assert.deepEqual([...ids].sort(), Object.keys(OWNERS).sort());
   });
 
@@ -178,7 +188,12 @@ describe("every section of the engine opens with it", () => {
       // `PaneHead` or `PaneHead, { PaneHeadEmpty }` — a section whose data can
       // be absent imports both, because its head has to survive the branch
       // that decides whether there is anything to draw.
-      assert.match(source, /import PaneHead(?:, \{ PaneHeadEmpty \})? from "\.\/PaneHead";/,
+      // `./PaneHead` or `../PaneHead`: the four Diffusion owners live a level
+      // deeper, under `coherence/diffusion/`, because their panes always did.
+      // What matters is that it is THE shared head and not a local one — a
+      // section inventing its own heading is the defect this asserts against,
+      // and a relative depth is not that.
+      assert.match(source, /import PaneHead(?:, \{ PaneHeadEmpty \})? from "\.{1,2}\/PaneHead";/,
         `${id} does not import the shared head`);
       assert.match(source, /<PaneHead\b/, `${id} imports the shared head and renders none`);
       // The id, in either shape: a section whose data can be absent hoists its

@@ -28,7 +28,10 @@ const read = (relative: string) =>
   readFileSync(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
 
 const sections = read("../lib/sections.ts");
-const header = read("../components/WorkspaceHeader.tsx");
+// NAV_ITEMS moved to `lib/workspace-nav.ts` on 2026-08-25, when the
+// eleventh tab would have pushed `WorkspaceHeader` past the line ceiling.
+// The component re-exports it, but this scan reads the DECLARATION.
+const header = read("../lib/workspace-nav.ts");
 const tour = read("../../../docs/product/FEATURE_TOUR.md");
 // The ten stops are built in lib/workspace-tour.ts since page.tsx was split.
 const page = read("../lib/workspace-tour.ts");
@@ -44,7 +47,7 @@ function railOf(workspace: string): { id: string; label: string }[] {
 
 const WORKSPACES = [
   "OVERVIEW", "RESEARCH", "EXECUTION", "PORTFOLIO",
-  "RISK", "DATA", "RELIABILITY", "DEVELOPER", "MARKETS", "COHERENCE",
+  "RISK", "DATA", "RELIABILITY", "DEVELOPER", "MARKETS", "COHERENCE", "DIFFUSION",
 ] as const;
 
 /**
@@ -73,7 +76,7 @@ describe("the feature tour names the sections the app actually ships", () => {
 
   it("the section total the tour quotes is the total that exists", () => {
     const total = WORKSPACES.reduce((n, workspace) => n + railOf(workspace).length, 0);
-    // 59 → 65 → 59 → 57 → 58, all on 2026-08-24, then 60 on 2026-08-25. The
+    // 59 → 65 → 59 → 57 → 58 on 2026-08-24, then 60 → 62 → 66 on 2026-08-25. The
     // promotion pass made six in-pane `.seg` views into rail sections; the merge
     // took them back; the consolidation folded the published ids `index` and
     // `combos` into the sections answering the same question; the split divided
@@ -82,8 +85,11 @@ describe("the feature tour names the sections the app actually ships", () => {
     // The last step is the first that UNDID a consolidation rather than
     // deepening one: Dutch book's three groups became three sections, because
     // three questions behind two rows of chrome is what "too many subtabs and
-    // subsubtabs" meant. Both ids were already published, so it also shortened
-    // the relocation table. 48 on the eight desk tabs plus 6 and 6.
+    // subsubtabs" meant, and it was applied three more times the same day:
+    // Prices split Settlement and Makers out (62), the Scorecard split in two
+    // and Diffusion left for a tab of its own with four sections (66). Every id
+    // involved was already published, so the relocation table SHRANK each time.
+    // 48 on the eight desk tabs, plus 8 and 6 and 4.
     //
     // 48 on the eight desk tabs plus 8 on Quotes and 6 on Proofs. The Quotes
     // half moved on 2026-08-25 for the reason the Proofs half moved hours
@@ -95,7 +101,7 @@ describe("the feature tour names the sections the app actually ships", () => {
     //
     // Three files quote this number — the tour, `scripts/desk-sweep-plan.mjs`
     // and this line.
-    assert.equal(total, 62, "the rail count moved; the tour and desk-sweep both quote it");
+    assert.equal(total, 66, "the rail count moved; the tour and desk-sweep both quote it");
     assert.ok(
       plain.includes(`${total} section`),
       `the tour does not state the ${total}-section total`,
@@ -182,6 +188,7 @@ const WORKSPACE_FOR_VIEW: Record<string, string> = {
   developer: "DEVELOPER",
   markets: "MARKETS",
   coherence: "COHERENCE",
+  diffusion: "DIFFUSION",
 };
 
 describe("the in-app tour names the sections the app actually ships", () => {
@@ -189,8 +196,8 @@ describe("the in-app tour names the sections the app actually ships", () => {
   const stops = [...page.matchAll(/stop\(\s*"([^"]+)",[\s\S]*?,\s*"([a-z]+)",\s*"([a-z]+)",\s*\(\) =>/g)]
     .map(([, where, view, section]) => ({ where, view, section }));
 
-  it("finds all ten stops", () => {
-    assert.equal(stops.length, 10, "the stop regex stopped matching the tour's shape");
+  it("finds all eleven stops", () => {
+    assert.equal(stops.length, 11, "the stop regex stopped matching the tour's shape");
   });
 
   for (const { where, view, section } of stops) {

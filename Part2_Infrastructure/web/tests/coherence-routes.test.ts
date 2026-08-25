@@ -30,7 +30,7 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { COHERENCE_SECTION_IDS, MARKETS_SECTION_IDS } from "../lib/sections";
+import { COHERENCE_SECTION_IDS, DIFFUSION_SECTION_IDS, MARKETS_SECTION_IDS } from "../lib/sections";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const read = (relative: string) => readFileSync(join(root, relative), "utf8");
@@ -47,7 +47,13 @@ function paneFiles(relative = "components/coherence"): string[] {
 }
 
 const routes = read("lib/coherence/routes.ts");
-const consoles = ["components/MarketsConsole.tsx", "components/CoherenceConsole.tsx"];
+const consoles = [
+  "components/MarketsConsole.tsx",
+  "components/CoherenceConsole.tsx",
+  // The eleventh tab, 2026-08-25. `absorptionRoute` and `episodesRoute` moved
+  // here with it, which is why they stopped being called by the Proofs console.
+  "components/DiffusionConsole.tsx",
+];
 
 describe("the engine's gateway URLs are built in one place", () => {
   it("no pane spells a gateway path of its own", () => {
@@ -113,6 +119,12 @@ describe("every section can be warmed before it is opened", () => {
    */
   const UNWARMED: Record<string, RegExp> = {
     lessons: /asks the gateway for nothing/,
+    // The Model section reads nothing at all and that is its ARGUMENT rather
+    // than a saving: every view in it computes in the browser from the
+    // TypeScript port of the estimator, which is what shows the closed form
+    // ships before the model does. A gateway call there would contradict the
+    // thing the section demonstrates.
+    model: /computes in the browser/,
     // `dispersion` joined on 2026-08-25, when the RFQ channel became a section
     // again. As two views of Books its read was gated on the VIEW and warmed by
     // nothing, which is the `rfq` entry in VIEW_GATED below; as a section it is
@@ -122,6 +134,12 @@ describe("every section can be warmed before it is opened", () => {
     // deployment it answers "no view, unsigned" every time — so warming it
     // spends the desk's slowest read to pre-fetch a refusal.
     dispersion: /pre-fetch a refusal/,
+    // The coherence index became a section again on 2026-08-25 and warms
+    // nothing, because its two reads belong to two different views: the
+    // calibration history behind Score trend, the index series behind the other
+    // two. Warming the section would have to pick one, which is guessing at
+    // which view a reader wants rather than at which section.
+    index: /guessing at the view a reader wants/,
   };
 
   /**
@@ -153,6 +171,7 @@ describe("every section can be warmed before it is opened", () => {
   const RAILS: Array<[string, string, readonly string[]]> = [
     ["Quotes", "components/MarketsConsole.tsx", MARKETS_SECTION_IDS],
     ["Proofs", "components/CoherenceConsole.tsx", COHERENCE_SECTION_IDS],
+    ["Diffusion", "components/DiffusionConsole.tsx", DIFFUSION_SECTION_IDS],
   ];
 
   for (const [label, file, ids] of RAILS) {

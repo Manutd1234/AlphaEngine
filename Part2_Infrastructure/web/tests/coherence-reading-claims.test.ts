@@ -258,7 +258,11 @@ describe("the head is one sentence per section", () => {
    *  sections. `combos` is among them, which retires the note above about it
    *  heading nothing — it heads `CombosSection` now, and its link resolves on
    *  the rail rather than through the relocation table. */
-  const PROVED = ["certificate", "portfolio", "combos", "calibration", "diffusion", "lessons"];
+  const PROVED = [
+    "certificate", "portfolio", "combos", "calibration", "index", "lessons",
+    // The Diffusion tab's four, headed by the proof suite.
+    "arm", "episodes", "model", "findings",
+  ];
 
   it("the two suites' owners add up to both rails, exactly once each", () => {
     const covered = [...Object.keys(OWNERS), ...PROVED].sort();
