@@ -31,10 +31,9 @@
 import type { CoherenceCalibrationHistory } from "@/lib/coherence/types-lab";
 import { calibrationHistoryRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
-import Figure, { StateChip } from "./Figure";
+import Figure, { Plot, StateChip } from "./Figure";
 import MeasurabilityStrip from "./MeasurabilityStrip";
 import SectionVerdict from "./SectionVerdict";
-import { useMeasuredWidth } from "@/components/chart-kit";
 
 const HEIGHT = 170;
 const MARGIN = { top: 14, right: 10, bottom: 24, left: 10 };
@@ -47,7 +46,6 @@ function clock(ms: number): string {
 
 export default function CalibrationTrend({ active }: { active: boolean }) {
   const { data, error } = useCoherenceRead<CoherenceCalibrationHistory>(calibrationHistoryRoute(), active);
-  const [plotRef, width] = useMeasuredWidth<HTMLDivElement>(720);
 
   if (error && !data) {
     return (
@@ -123,30 +121,34 @@ export default function CalibrationTrend({ active }: { active: boolean }) {
   const low = Math.min(0, ...scored.map((point) => point.skill as number));
   const high = Math.max(1, ...scored.map((point) => point.skill as number));
 
-  const plotWidth = Math.max(1, width - MARGIN.left - MARGIN.right);
   const base = HEIGHT - MARGIN.bottom;
-  const x = (ts: number) => MARGIN.left + ((ts - first) / span) * plotWidth;
   const y = (value: number) => base - ((value - low) / (high - low)) * (base - MARGIN.top);
+  const xAt = (width: number) => (ts: number) =>
+    MARGIN.left + ((ts - first) / span) * Math.max(1, width - MARGIN.left - MARGIN.right);
 
   // Broken at gaps, never bridged. Each unbroken run is its own path with its
   // own hover line, which is the idiom `IndexPane` uses for the same reason.
-  const segments: Array<{ d: string; from: number; to: number; count: number }> = [];
-  let current: { d: string; from: number; to: number; count: number } | null = null;
-  for (const point of points) {
-    if (point.skill == null) {
-      if (current) segments.push(current);
-      current = null;
-      continue;
+  const segmentsAt = (width: number) => {
+    const x = xAt(width);
+    const out: Array<{ d: string; from: number; to: number; count: number }> = [];
+    let current: { d: string; from: number; to: number; count: number } | null = null;
+    for (const point of points) {
+      if (point.skill == null) {
+        if (current) out.push(current);
+        current = null;
+        continue;
+      }
+      if (current) {
+        current.d += `L${x(point.ts).toFixed(2)},${y(point.skill).toFixed(2)}`;
+        current.to = point.ts;
+        current.count += 1;
+      } else {
+        current = { d: `M${x(point.ts).toFixed(2)},${y(point.skill).toFixed(2)}`, from: point.ts, to: point.ts, count: 1 };
+      }
     }
-    if (current) {
-      current.d += `L${x(point.ts).toFixed(2)},${y(point.skill).toFixed(2)}`;
-      current.to = point.ts;
-      current.count += 1;
-    } else {
-      current = { d: `M${x(point.ts).toFixed(2)},${y(point.skill).toFixed(2)}`, from: point.ts, to: point.ts, count: 1 };
-    }
-  }
-  if (current) segments.push(current);
+    if (current) out.push(current);
+    return out;
+  };
 
   return (
     <>
@@ -167,13 +169,31 @@ export default function CalibrationTrend({ active }: { active: boolean }) {
             : "",
         ].filter(Boolean)}
       >
-        <div ref={plotRef} style={{ width: "100%" }}>
-          <svg viewBox={`0 0 ${width} ${HEIGHT}`} width={width} height={HEIGHT}>
+        <Plot height={HEIGHT}>
+          {(width: number) => (
+            <>
             <line x1={MARGIN.left} x2={width - MARGIN.right} y1={y(0)} y2={y(0)} className="coh-gauge__zero">
               <title>Zero skill: no better than always quoting the base rate.</title>
             </line>
-            {segments.map((segment) => (
-              <path key={segment.d.slice(0, 24)} d={segment.d} fill="none" className="coh-index__line">
+            {segmentsAt(width).map((segment) => (
+              // KEYED ON THE RUN'S START, not on its path data. The key is what
+              // decides whether React reuses the node, and `.chart-draw` runs
+              // `forwards` — so a key that changes on every resize would replay
+              // the draw-in each time the column width moved. `from` is the
+              // timestamp the run begins at: stable across a resize, different
+              // for every run, and new when the data genuinely is.
+              //
+              // `pathLength={1}` is what makes one dash rule fit every path
+              // whatever its real length. The reduce block collapses the
+              // duration globally, so a reader who asked for less motion gets
+              // the finished line and no animation at all.
+              <path
+                key={segment.from}
+                d={segment.d}
+                fill="none"
+                pathLength={1}
+                className="coh-index__line chart-draw"
+              >
                 <title>
                   {`${segment.count} unbroken run(s), ${clock(segment.from / NS_PER_MS)} to ${clock(segment.to / NS_PER_MS)} UTC`}
                 </title>
@@ -184,8 +204,9 @@ export default function CalibrationTrend({ active }: { active: boolean }) {
             <text x={width - MARGIN.right} y={HEIGHT - 6} textAnchor="end" className="coh-ladder__tick">
               {clock(last / NS_PER_MS)} UTC
             </text>
-          </svg>
-        </div>
+            </>
+          )}
+        </Plot>
       </Figure>
     </>
   );

@@ -176,7 +176,15 @@ function Chart({ data }: { data: CoherenceIndexSeries }) {
         <svg viewBox={`0 0 ${plotW} ${HEIGHT}`} width={plotW} height={HEIGHT} className="coh-index">
         <line x1={MARGIN.left} x2={plotW - MARGIN.right} y1={base} y2={base} className="coh-ladder__axis" />
         {segments.map((segment) => (
-          <path key={segment.d.slice(0, 24)} d={segment.d} className="coh-index__line" fill="none">
+          // `from` rather than the path data, so a resize does not replay the
+          // draw-in, and `pathLength={1}` so one dash rule fits any length.
+          <path
+            key={segment.from}
+            d={segment.d}
+            className="coh-index__line chart-draw"
+            fill="none"
+            pathLength={1}
+          >
             <title>
               {`${segment.count} unbroken readings, ${clock(segment.from / NS_PER_MS)} to ${clock(segment.to / NS_PER_MS)} UTC, peaking at ${fromCenticents(segment.peak)}`}
             </title>
