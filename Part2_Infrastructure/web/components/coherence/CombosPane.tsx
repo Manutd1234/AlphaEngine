@@ -74,6 +74,7 @@ import { BandsView, GatewayNotes, NotesView, ParlaysView } from "./CombosViews";
 // draws the PORTFOLIO a bound is tested with, where the other two draw a
 // parlay against its band.
 import { BoundsView } from "./CombosBounds";
+import ParlayReadCost from "./ParlayReadCost";
 import { StateChip } from "./Figure";
 import SectionVerdict from "./SectionVerdict";
 
@@ -94,7 +95,7 @@ export default function CombosPane({ active, view }: { active: boolean; view: Co
    */
   const [asked, setAsked] = useState("");
   const [ticker, setTicker] = useState<string | null>(null);
-  const { data, error } = useCoherenceRead<CoherenceCombos>(combosRoute(6, ticker), active);
+  const { data, error, refresh } = useCoherenceRead<CoherenceCombos>(combosRoute(6, ticker), active);
 
   const search = (
     <form
@@ -125,8 +126,25 @@ export default function CombosPane({ active, view }: { active: boolean; view: Co
   // and is drawn above whatever this returns. A demoted pane that kept its own
   // would put two card titles in one card.
   if (error && !data) {
+    // A FIGURE, NOT A SENTENCE, and this branch is the one that needed it most.
+    // On a rate-limited or keyless deployment it IS the view, and one grey line
+    // reads as a broken tab rather than as a venue that did not answer. The
+    // read has a shape — one listing call, then one bulk book call across
+    // shards — and drawing it tells "the venue is slow" from "the venue is
+    // listing nothing" without opening a fold.
     return (
-      <SectionVerdict pending={<><span aria-hidden="true">✕</span> The parlays could not be read: {error}</>} />
+      <>
+        {search}
+        <SectionVerdict pending={<><span aria-hidden="true">✕</span> The parlays could not be read: {error}</>} />
+        <ParlayReadCost data={null} error={error} ticker={ticker} />
+        {/* THE ONE CONTROL A FAILED READ OWES A READER. The poll is twenty
+            seconds and the failure often is not the venue's fault twice in a
+            row, so waiting is the only thing this pane offered and it offered
+            it silently. */}
+        <div className="coh-combos__retry">
+          <button type="button" onClick={refresh}>Read again</button>
+        </div>
+      </>
     );
   }
   if (!data) return <SectionVerdict pending="Reading the listed parlays…" />;

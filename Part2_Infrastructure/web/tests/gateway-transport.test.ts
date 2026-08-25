@@ -259,6 +259,65 @@ describe("concurrent GETs for one path make one upstream call", () => {
     }
   });
 
+  it("does not hand a joiner a budget that is already spent", async () => {
+    // THE DEFECT THIS IS FOR, and it is why a reader saw the wrong number.
+    // `/api/coherence/combos` is budgeted 25s on the route and 9s in the
+    // browser. A first poll that hangs is aborted browser-side at 9s; the
+    // SECOND poll, twenty seconds later, joins the first request's still-open
+    // promise and receives its 504 body a few seconds in — comfortably inside
+    // its own 9s. So "The risk gateway did not answer within 25000ms" was
+    // rendered by a request that had waited five, describing a request the
+    // reader had already given up on. The failure on screen was 20-25 seconds
+    // stale and attributed to the wrong poll.
+    //
+    // Collapsing identical GETs is right and stays. What may not happen is a
+    // late caller INHERITING the elapsed time: if the shared call has less left
+    // than a floor, it is about to fail anyway, and the joiner asks its own
+    // question rather than being told the answer to an older one.
+    const seen: string[] = [];
+    const original = globalThis.fetch;
+    globalThis.fetch = (async (url: URL | RequestInfo) => {
+      seen.push(String(url));
+      await new Promise((r) => setTimeout(r, 700));
+      return new Response("{}", { status: 200, headers: { "content-type": "application/json" } });
+    }) as typeof fetch;
+    process.env.ALPHAENGINE_GATEWAY_URL = "https://gateway.example";
+    try {
+      const first = callGateway("/slow", { timeoutMs: 5_000 });
+      await new Promise((r) => setTimeout(r, 250));
+      // Its own budget is smaller than what the shared call has already spent,
+      // so joining would hand it a promise that cannot answer inside it.
+      const late = callGateway("/slow", { timeoutMs: 200 });
+      await Promise.all([first, late]);
+      assert.equal(seen.length, 2,
+        "a caller whose budget was already spent was joined to a call it cannot wait for");
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
+
+  it("still collapses a joiner that can afford to wait", async () => {
+    // The other half, and the half that must not regress: three panes opening a
+    // tab share one universe read, and that is the whole point of the map.
+    const seen: string[] = [];
+    const original = globalThis.fetch;
+    globalThis.fetch = (async (url: URL | RequestInfo) => {
+      seen.push(String(url));
+      await new Promise((r) => setTimeout(r, 400));
+      return new Response("{}", { status: 200, headers: { "content-type": "application/json" } });
+    }) as typeof fetch;
+    process.env.ALPHAENGINE_GATEWAY_URL = "https://gateway.example";
+    try {
+      const first = callGateway("/shared", { timeoutMs: 25_000 });
+      await new Promise((r) => setTimeout(r, 20));
+      const second = callGateway("/shared", { timeoutMs: 25_000 });
+      await Promise.all([first, second]);
+      assert.equal(seen.length, 1, "identical GETs stopped collapsing, so the venue is asked twice");
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
+
   it("releases the path once the request settles", async () => {
     const seen: string[] = [];
     const original = globalThis.fetch;

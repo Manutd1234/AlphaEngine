@@ -23,6 +23,7 @@ import { useCallback, useRef, useState } from "react";
 
 import { usePolling } from "@/lib/use-polling";
 import { peek, read, warm } from "./read-cache";
+import { isLiveRead } from "./routes";
 import type { CoherenceLoad } from "./types";
 
 /** Slow by choice. The exchange publishes no budget for keyless traffic, and
@@ -40,8 +41,22 @@ export const COHERENCE_POLL_MS = 20_000;
 const DEADLINE_MS = 9_000;
 const LIVE_READ_DEADLINE_MS = 28_000;
 
+/**
+ * WHICH reads are the slow ones is `routes.ts`'s to say, not a regex here.
+ *
+ * This was `/\/(universe|certify)/` — true when it was written, and false the
+ * moment a third route was budgeted in seconds. Nine routes carry the 25-second
+ * server budget; two of them got 28 seconds here and the other seven got nine,
+ * so the browser was giving up on routes that were still working.
+ *
+ * `combos` is the one a reader met. Aborted at 9s while its route had 16 left,
+ * the failure that reached the screen came from the NEXT poll joining the first
+ * request's still-open promise — naming 25000ms in a request that had waited
+ * five, about a poll already abandoned. The list and the routes are one
+ * contract now, and `coherence-gateway-contract.test.ts` holds both ends.
+ */
 function deadlineFor(url: string): number {
-  return /\/(universe|certify)/.test(url) ? LIVE_READ_DEADLINE_MS : DEADLINE_MS;
+  return isLiveRead(url) ? LIVE_READ_DEADLINE_MS : DEADLINE_MS;
 }
 
 async function readJson<T>(url: string): Promise<{ data: T | null; error: string | null }> {

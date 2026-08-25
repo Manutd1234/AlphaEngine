@@ -36,12 +36,29 @@ import { describe, it } from "node:test";
 
 import { read, stripNonCode } from "./helpers/workspace-sources";
 
-/** Each new figure, and the view that draws it. */
-const FIGURES: Record<string, { file: string; drawnIn: string; replaces: string }> = {
+/**
+ * Each new figure, the view that draws it, and — for one of them — the drawing
+ * it draws THROUGH.
+ *
+ * `through` is an indirection, not an exemption, and the difference is that the
+ * structural checks follow it. `ParlayReadCost` composes `FormationDiagram`,
+ * which already owns the chain grammar, the marks and the `<Figure>` frame; a
+ * second SVG chain beside it would be a second way of drawing the same object.
+ * So the frame, the empty branch and the keyboard readout are asserted on
+ * `FormationDiagram` — and the composition itself is asserted here, so the
+ * indirection cannot become a way of claiming a figure that is not one.
+ */
+const FIGURES: Record<string, { file: string; drawnIn: string; replaces: string; through?: string }> = {
   ConstraintLadder: {
     file: "../components/coherence/ConstraintLadder.tsx",
     drawnIn: "../components/coherence/CertificateViews.tsx",
     replaces: "a two-row ValueStrip of rows tested against rows skipped",
+  },
+  ParlayReadCost: {
+    file: "../components/coherence/ParlayReadCost.tsx",
+    drawnIn: "../components/coherence/CombosPane.tsx",
+    replaces: "one grey sentence on the branch that IS the view when the venue is slow",
+    through: "../components/coherence/FormationDiagram.tsx",
   },
   ShortfallScale: {
     file: "../components/coherence/ShortfallScale.tsx",
@@ -55,6 +72,9 @@ describe("the figures that replace a drawn scalar", () => {
     describe(name, () => {
       const source = read(entry.file);
       const code = stripNonCode(source);
+      // Where the frame, the empty branch and the readout live: this file, or
+      // the drawing it composes.
+      const drawing = stripNonCode(read(entry.through ?? entry.file));
 
       it("can be read by the guards that read it", () => {
         // A GUARD THAT CANNOT SEE THE FILE IS NOT A GUARD, and this one is
@@ -108,7 +128,11 @@ describe("the figures that replace a drawn scalar", () => {
       });
 
       it("is a figure, with a footnote it can use", () => {
-        assert.match(code, /<Figure\b/, `${name} draws outside the tab's figure frame`);
+        if (entry.through) {
+          assert.match(code, new RegExp(`<${entry.through.split("/").pop()!.replace(".tsx", "")}\\b`),
+            `${name} names a drawing to compose and does not render it`);
+        }
+        assert.match(drawing, /<Figure\b/, `${name} draws outside the tab's figure frame`);
         assert.match(code, /(missing=|notes=)/,
           `${name} can be missing a leg, a side or a whole book and says so nowhere`);
       });
@@ -116,7 +140,7 @@ describe("the figures that replace a drawn scalar", () => {
       it("has an empty branch that is itself a sentence", () => {
         // A blank plot area and a plot area with nothing in it look identical,
         // and one of them means the feed is down.
-        assert.match(code, /FigureEmpty|coh-figure__empty|console-empty/,
+        assert.match(drawing, /FigureEmpty|coh-figure__empty|console-empty|holds/,
           `${name} renders an empty axis rather than saying why it is empty`);
       });
 
@@ -125,8 +149,9 @@ describe("the figures that replace a drawn scalar", () => {
         // an arrow-key stop, or takes a `sharedX` axis and reads every mark at
         // one position. A figure with neither is a picture, which is the half of
         // "not interactive" a source scan can see.
-        assert.match(code, /<Plot\b/, `${name} does not draw inside Plot, so it has no readout at all`);
-        assert.ok(/<title>/.test(source) || /sharedX=/.test(code),
+        assert.match(drawing, /<Plot\b/, `${name} does not draw inside Plot, so it has no readout at all`);
+        const marks = read(entry.through ?? entry.file);
+        assert.ok(/<title>/.test(marks) || /sharedX=/.test(stripNonCode(marks)),
           `${name} carries no per-mark title and no shared axis, so nothing can be read off it`);
       });
     });

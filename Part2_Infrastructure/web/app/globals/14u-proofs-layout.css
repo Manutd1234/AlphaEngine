@@ -254,3 +254,13 @@
   flex: 1 1 22rem;
   min-width: 0;
 }
+
+/* The one control a failed parlay read owes a reader. It sits under the figure
+   that says what the read was doing, not beside the error line: the sentence
+   states the failure and the button acts on it, and putting them on one row
+   made the button read as part of the sentence. */
+.coherence-plane.proofs-plane .coh-combos__retry {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: var(--space-2);
+}

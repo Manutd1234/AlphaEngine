@@ -212,8 +212,6 @@ export const TRANSPORT_HINTS: Record<string, string> = {
  * added to that function, this key has to grow with it or one desk will read
  * another's book. That is the one way this goes wrong.
  */
-const inflightGets = new Map<string, Promise<GatewayResult<unknown>>>();
-
 /** Structured-cloned per waiter: a shared success would hand two callers the
  *  same object, and a route that mutated its payload before serialising would
  *  corrupt the other's. The clone costs microseconds against a network hop. */
@@ -222,18 +220,24 @@ function cloneResult<T>(result: GatewayResult<unknown>): GatewayResult<T> {
   return { ok: true, data: structuredClone(result.data) as T };
 }
 
+import { shareGet } from "./gateway-inflight";
+
+/**
+ * Re-exported so importers keep the names they had when the join lived here.
+ * `gateway-transport.test.ts` reads them, and the split is a file boundary
+ * rather than a contract change.
+ */
+export { JOIN_FLOOR_MS, joinIsWorthIt } from "./gateway-inflight";
+
 export async function callGateway<T = unknown>(path: string, options: CallOptions = {}): Promise<GatewayResult<T>> {
   const method = options.method ?? "GET";
   if (method === "GET") {
-    const pending = inflightGets.get(path);
-    if (pending) return cloneResult<T>(await pending);
-    const started = callGatewayUncached<unknown>(path, options);
-    inflightGets.set(path, started);
-    try {
-      return cloneResult<T>(await started);
-    } finally {
-      inflightGets.delete(path);
-    }
+    return shareGet<GatewayResult<T>>(
+      path,
+      options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+      () => callGatewayUncached<T>(path, options),
+      (result) => cloneResult<T>(result),
+    );
   }
   return callGatewayUncached<T>(path, options);
 }

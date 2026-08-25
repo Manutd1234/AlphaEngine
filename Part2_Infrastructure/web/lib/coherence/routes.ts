@@ -111,3 +111,40 @@ export const episodesRoute = (limit = 500) => `${COHERENCE}/episodes?limit=${lim
 export const absorptionRoute = (limit = 400) => `${DIFFUSION}/absorption?limit=${limit}`;
 
 export const findingsRoute = () => `${DIFFUSION}/findings`;
+
+/**
+ * The reads that go to the exchange rather than to a store, named once.
+ *
+ * WHY IT IS A LIST AND NOT A REGEX. `use-coherence.ts` chose the browser's
+ * deadline with `/\/(universe|certify)/`, on the reasoning that those two are
+ * the slow ones — true when it was written and false the moment a third route
+ * was budgeted in seconds. NINE routes carry `timeoutMs: 25_000` on the server;
+ * the browser gave two of them 28 seconds and the other seven nine.
+ *
+ * `combos` IS THE ONE THAT BIT. Aborted browser-side at 9s while the route was
+ * still working inside its 25, the failure a reader saw came from the NEXT
+ * poll joining the previous request's still-open promise — so the message named
+ * 25000ms while the request that rendered it had waited five seconds, and the
+ * whole thing described a poll the reader had already given up on.
+ *
+ * Two sides of one contract, so the contract is one list.
+ * `coherence-gateway-contract.test.ts` asserts every route file whose name is
+ * here declares the live budget, and every route file that declares it is here.
+ */
+export const LIVE_READS = [
+  "calibration",
+  "certify",
+  "combos",
+  "rfq",
+  "settlement",
+  "shell",
+  "stake",
+  "surface",
+  "universe",
+] as const;
+
+/** Whether this desk URL is one of the reads that goes to the venue. */
+export function isLiveRead(url: string): boolean {
+  const path = url.split("?")[0];
+  return LIVE_READS.some((name) => path.endsWith(`/${name}`));
+}
