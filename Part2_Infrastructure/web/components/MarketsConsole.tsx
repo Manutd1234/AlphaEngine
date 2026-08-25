@@ -55,7 +55,7 @@
  * appears. `14q-markets-density.css` owns this pair; `14r` owns the other.
  */
 
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 
 import PageHead from "@/components/workspace/PageHead";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
@@ -155,21 +155,6 @@ export default function MarketsConsole({ section, onSectionChange, active = true
 
   useSectionWarming(SECTION_READS, active);
 
-  // ONE TILE LEFT, for the reason written out in `CoherenceConsole`. `Exchange`
-  // and `Books recorded` said what the status chip and the "Recorded so far"
-  // metric say, and both now sit in `EngineStatePanel` in this same head — the
-  // Exchange tile even printed the hostname a second time, which is the shape
-  // the Proofs tile was deliberately avoiding from the other direction.
-  const metrics = useMemo(
-    () => [
-      {
-        label: "Families priced",
-        value: universe.data ? String(universe.data.events.length) : "—",
-        note: universe.data ? "mutually exclusive baskets read live" : "not read on this section",
-      },
-    ],
-    [universe.data],
-  );
 
   const openSection = (next: MarketsSection) => {
     onSectionChange(next);
@@ -192,9 +177,9 @@ export default function MarketsConsole({ section, onSectionChange, active = true
             updatedAt={status.updatedAt}
             pollMs={COHERENCE_POLL_MS}
             paused={!active}
+            familiesPriced={universe.data ? `${universe.data.events.length} read live` : null}
           />
         }
-        metrics={metrics}
         status={
           status.data
             ? { label: status.data.state === "ok" ? "Reading the exchange" : status.data.state, tone: status.data.state === "ok" ? "good" : "warn" }

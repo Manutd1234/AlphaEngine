@@ -66,6 +66,7 @@ export default function EngineStatePanel({
   pollMs,
   paused,
   readOnlyNote,
+  familiesPriced,
 }: {
   status: CoherenceStatus | null;
   error: string | null;
@@ -74,6 +75,17 @@ export default function EngineStatePanel({
   paused: boolean;
   /** Said once on the whole engine, by the tab where the misreading is reachable. */
   readOnlyNote?: string;
+  /**
+   * How many families the universe read returned, when this section read it.
+   *
+   * The last survivor of the head's metrics row. It was left alone in a
+   * full-width grid once its three neighbours retired into this panel, which
+   * reads as a card that lost its neighbours rather than as one deliberate
+   * figure — seen at a viewport, not in a diff. It is a fact about what the
+   * engine has READ, which is what the rest of this table is about, so it comes
+   * in here and the head loses a row rather than keeping one for a single tile.
+   */
+  familiesPriced?: string | null;
 }) {
   const stamp = (
     <FreshnessStamp updatedAt={updatedAt} pollMs={pollMs} paused={paused} transport="poll" />
@@ -168,6 +180,12 @@ export default function EngineStatePanel({
           <dt>Coherence solver</dt>
           <dd>{solver}</dd>
         </div>
+        {familiesPriced ? (
+          <div>
+            <dt>Families priced</dt>
+            <dd>{familiesPriced}</dd>
+          </div>
+        ) : null}
       </dl>
 
       {readOnlyNote ? <p className="coh-headstate__note">{readOnlyNote}</p> : null}

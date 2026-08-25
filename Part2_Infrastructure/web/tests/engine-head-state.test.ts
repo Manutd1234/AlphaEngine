@@ -44,7 +44,7 @@ describe("the read-state sits in the head, once", () => {
     }
   });
 
-  it("neither console builds a metrics tile the panel already carries", () => {
+  it("neither console builds a metrics row beside the panel", () => {
     // The move was a MERGE. Three of the four head tiles said what three of the
     // chips say — Exchange/reachable, Solver, Order path — and moving the strip
     // up without retiring them would state six facts twice, twenty pixels
@@ -53,12 +53,12 @@ describe("the read-state sits in the head, once", () => {
     // than about the engine reading them.
     for (const file of CONSOLES) {
       const source = strip(read(file));
-      for (const retired of ["Exchange", "Solver", "Order path", "Books recorded"]) {
+      for (const retired of ["Exchange", "Solver", "Order path", "Books recorded", "Families priced"]) {
         assert.doesNotMatch(source, new RegExp(`label: "${retired}"`),
           `${file} still builds a "${retired}" tile beside the panel that carries it`);
       }
-      assert.match(source, /label: "Families priced"/,
-        `${file} dropped the one metric no chip carries`);
+      assert.doesNotMatch(source, /metrics=\{/,
+        `${file} still builds a metrics row for a single tile`);
     }
   });
 

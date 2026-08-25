@@ -148,28 +148,6 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
 
   useSectionWarming(SECTION_READS, active);
 
-  // ONE TILE LEFT, and the other three retired into `EngineStatePanel` on
-  // 2026-08-25 rather than being deleted. Three of the four said exactly what
-  // three of the status chips say — Exchange/reachable, Solver/highs and Order
-  // path/none — and the chips now sit twenty pixels away in the same head. The
-  // Exchange tile's own comment argued the other side of this: it withheld the
-  // hostname BECAUSE the strip at the foot carried it, and "one figure printed
-  // twice on one screen is a reader checking whether they are two
-  // measurements". Moving the strip up is what inverted that argument.
-  //
-  // `Families priced` stays because it is not a status figure at all. It counts
-  // what the UNIVERSE read returned, which is a property of the families rather
-  // than of the engine reading them, and no chip carries it.
-  const metrics = useMemo(
-    () => [
-      {
-        label: "Families priced",
-        value: universe.data ? String(universe.data.events.length) : "—",
-        note: universe.data ? "mutually exclusive baskets read live" : "not read on this section",
-      },
-    ],
-    [universe.data],
-  );
 
   const openSection = (next: CoherenceSection) => {
     onSectionChange(next);
@@ -192,6 +170,7 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
             updatedAt={status.updatedAt}
             pollMs={COHERENCE_POLL_MS}
             paused={!active}
+            familiesPriced={universe.data ? `${universe.data.events.length} read live` : null}
             // Said ONCE on the whole engine, and said by this tab: it is where
             // a reader meets a certificate that is literally a portfolio with
             // legs, quantities and fees on it, so it is the tab where "and then
@@ -199,7 +178,6 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
             readOnlyNote="this engine reads, records and certifies; it sends nothing"
           />
         }
-        metrics={metrics}
         status={
           status.data
             ? { label: status.data.state === "ok" ? "Reading the exchange" : status.data.state, tone: status.data.state === "ok" ? "good" : "warn" }

@@ -98,6 +98,12 @@
   border-top: 1px solid var(--rule-soft);
 }
 
+/* An odd last cell spans, rather than leaving a hole beside it. Five facts in
+   two columns is what put `Families priced` on a row of its own. */
+.coherence-plane .coh-facts--tabled > div:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
 .coherence-plane .coh-facts--tabled dt {
   padding: 3px var(--space-3);
   border-bottom: 1px solid var(--rule-soft);
