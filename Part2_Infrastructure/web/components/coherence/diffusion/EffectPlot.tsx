@@ -93,8 +93,10 @@ export default function EffectPlot({ findings }: { findings: Finding[] }) {
                 {tick > 0 ? `+${tick}` : tick}
               </text>
             ))}
-            {/* The axis's TITLE, not one of its numerals: 12px label rung via
-                coh-svg-label (14r); the -4…+4 ticks above stay at the floor. */}
+            {/* The axis's TITLE, not one of its numerals: the 13px label rung
+                via coh-svg-label (14r:183); the -4…+4 ticks above stay at the
+                floor. Said 12px until 2026-08-25 — the rung moved and the
+                comment did not. */}
             <text
               className="coh-svg-label"
               x={gutter + span}

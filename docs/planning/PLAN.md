@@ -311,7 +311,7 @@ mirrored on the storage dataclass and its DDL in
 populated in
 [`findings.py`](../../Part2_Infrastructure/modules/coherence/diffusion/findings.py)
 and surfaced as two rows on
-[`InstrumentTable.tsx`](../../Part2_Infrastructure/web/components/coherence/diffusion/InstrumentTable.tsx).
+[`InstrumentFit.tsx`](../../Part2_Infrastructure/web/components/coherence/diffusion/InstrumentFit.tsx).
 Adding those fields is also a worked example of the generated-artefact cascade —
 one pydantic field, three committed artefacts to regenerate
 ([`WORKFLOW.md` §4a](WORKFLOW.md)).

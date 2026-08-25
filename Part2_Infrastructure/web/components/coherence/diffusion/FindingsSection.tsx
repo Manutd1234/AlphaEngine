@@ -28,7 +28,7 @@ function FindingsSection({ active }: { active: boolean }) {
         title="What the study concluded, out of sample"
         id="diffusion-findings-heading"
         note="reported against a pre-registered control"
-        lede="The absorption clock is predictable without the text at all — R² +0.14 out of sample — and the statement's spectrum adds nothing to it, a sharper and falsifiable claim rather than “nothing predicts anything”."
+        lede="The absorption clock is scored out of sample against a baseline that already knows the stage and the size of the rate move, so “the statement adds nothing” is a claim about the statement rather than about the pipeline."
       />
       <FindingsPane active={active} />
     </section>

@@ -499,8 +499,8 @@ with the largest in-sample |t| of 2.85. The headline is therefore a **null**,
 and a stronger one than the version it replaced: the clock has real structure,
 and the statement's information spectrum is not part of it.
 
-The instrument table renders the target's own row **above** the predictor's
-(`web/components/coherence/diffusion/InstrumentTable.tsx`) — "The clock is
+The instrument ladder renders the target's own row **above** the predictor's
+(`web/components/coherence/diffusion/InstrumentFit.tsx`) — "The clock is
 predictable at all" first, "The text predicts it" second — for the reason that
 ordering exists: if the first fails, the second means nothing.
 

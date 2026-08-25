@@ -51,12 +51,16 @@ function ArmSection({ data, error }: { data: AbsorptionRead | null; error: strin
         note="one estimator, two stages, one control"
         lede="A stage is measured against matched half-hours in which nothing was announced, so a fast absorption has to be faster than the market is anyway."
       />
-      <div className="seg" role="group" aria-label="Announcement arm view">
-        {VIEWS.map(([name, label]) => (
-          <button key={name} type="button" aria-pressed={view === name} onClick={() => setView(name)}>
-            {label}
-          </button>
-        ))}
+      {/* Wrapped 2026-08-25: a bare `.seg` could be reached by neither
+          the sticky rule nor the wrap rule, both `.coh-bar`-scoped. */}
+      <div className="coh-bar">
+        <div className="seg" role="group" aria-label="Announcement arm view">
+          {VIEWS.map(([name, label]) => (
+            <button key={name} type="button" aria-pressed={view === name} onClick={() => setView(name)}>
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
       <InformationDiffusionPane view={view} read={data} error={error} />
     </section>

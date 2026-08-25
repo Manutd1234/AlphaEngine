@@ -47,12 +47,16 @@ function MeetingsSection({ data, error }: { data: AbsorptionRead | null; error: 
         note="the tail of the ledger, newest first"
         lede="A blank stage never moved enough to measure, which is a property of the decision rather than of the data."
       />
-      <div className="seg" role="group" aria-label="Meetings view">
-        {VIEWS.map(([name, label]) => (
-          <button key={name} type="button" aria-pressed={view === name} onClick={() => setView(name)}>
-            {label}
-          </button>
-        ))}
+      {/* Wrapped 2026-08-25: a bare `.seg` could be reached by neither
+          the sticky rule nor the wrap rule, both `.coh-bar`-scoped. */}
+      <div className="coh-bar">
+        <div className="seg" role="group" aria-label="Meetings view">
+          {VIEWS.map(([name, label]) => (
+            <button key={name} type="button" aria-pressed={view === name} onClick={() => setView(name)}>
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
       <MeetingsBody view={view} data={data} error={error} />
     </section>

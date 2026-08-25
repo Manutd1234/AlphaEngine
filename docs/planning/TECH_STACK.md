@@ -672,7 +672,7 @@ populated in
 and consumed by `tools/diffusion_spectrum.py`.
 
 They surface as **two rows** in
-[`InstrumentTable.tsx`](../../Part2_Infrastructure/web/components/coherence/diffusion/InstrumentTable.tsx),
+[`InstrumentFit.tsx`](../../Part2_Infrastructure/web/components/coherence/diffusion/InstrumentFit.tsx),
 and the order is deliberate — the target's own row sits **above** the
 predictor's, because a reader who takes the last row as a result about the
 market has to pass this one first, and if it fails the last row means nothing:

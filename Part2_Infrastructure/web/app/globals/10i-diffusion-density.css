@@ -126,3 +126,108 @@
   border-top: 1px solid var(--grid);
   padding-top: var(--space-2);
 }
+
+/* ── The instrument-fit ladder ────────────────────────────────────────────
+   Six requirements, each drawn on its OWN nought-to-one track with the
+   threshold ticked on the same track. Replaces `.diff-instrument`, whose rules
+   left this file's neighbour `10c` in the same change: that table's fifth
+   column was six fixed sentences wrapped to three lines each, and they are a
+   disclosure now rather than the tallest thing in the view.
+
+   HTML rather than SVG, following `.diff-bars` directly above it in 10c: the
+   track is one flex box per row, the numbers are selectable text, and the
+   hover affordance is the element's own `title`. Meaning is never in the
+   fill — every row carries its mark and its margin in words — so there is no
+   forced-colors block here for the same reason `.diff-bars` needs none. */
+.diff-fit { display: grid; gap: var(--space-3); min-width: 0; }
+.diff-fit__ladder { display: grid; gap: var(--space-3); min-width: 0; }
+.diff-fit__group { display: grid; gap: 2px; min-width: 0; }
+
+.diff-fit__grouphead {
+  margin: 0 0 2px;
+  font-size: var(--fs-xs);
+  font-weight: 650;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+}
+
+/* Four columns: the requirement, the measurement, the track, the margin. The
+   first three are bounded so the margin sentence gets whatever is left, which
+   is the column that reads as prose and therefore wants the width. */
+.diff-fit__row {
+  display: grid;
+  grid-template-columns: minmax(8rem, 13rem) minmax(4.5rem, 7rem) minmax(5rem, 1fr) minmax(9rem, 24rem);
+  align-items: center;
+  gap: var(--space-2);
+  padding: 3px 0;
+  font-size: var(--fs-xs);
+  min-width: 0;
+}
+
+.diff-fit__what { font-weight: 600; }
+.diff-fit__room { color: var(--text-secondary); }
+
+/* The measurement, against the track it labels. It had NO rule of its own at
+   desk width until 2026-08-25 — its only declaration was the `text-align: left`
+   in the narrow query below, which was undoing an alignment nothing had set:
+   measured, the column computed `start` at 1600 and `left` under 1100, so the
+   override was a no-op and the column was left-aligned at every width. Right
+   here, because these are magnitudes read against the bar beside them, and a
+   ragged left edge on a mono column is what tabular numerals exist to avoid. */
+.diff-fit__value { text-align: right; }
+
+.diff-fit__track {
+  position: relative;
+  display: block;
+  height: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--rule-soft);
+}
+
+/* Hatched, not empty: a requirement with no measurement is a gap, and an empty
+   track at this size is indistinguishable from a bar of length zero — which
+   would read as "measured, and it failed". */
+.diff-fit__track.is-absent {
+  background: repeating-linear-gradient(
+    45deg,
+    color-mix(in srgb, var(--text-muted) 26%, transparent),
+    color-mix(in srgb, var(--text-muted) 26%, transparent) 2px,
+    transparent 2px,
+    transparent 5px
+  );
+}
+
+.diff-fit__fill {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  background: color-mix(in srgb, var(--series-1) 70%, transparent);
+}
+
+.diff-fit__floor {
+  position: absolute;
+  inset-block: -1px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--text-primary);
+}
+
+.diff-fit__why {
+  display: grid;
+  grid-template-columns: minmax(8rem, 14rem) 1fr;
+  gap: 3px var(--space-3);
+  margin: 0;
+  font-size: var(--fs-xs);
+}
+.diff-fit__why dt { font-weight: 600; }
+.diff-fit__why dd { margin: 0; color: var(--text-secondary); }
+
+/* One column under a narrow pane: four tracked columns at 13rem apiece do not
+   fit a half-width desk, and a track squeezed under its own border draws a
+   margin that is not the one measured. */
+@media (max-width: 1099px) {
+  .diff-fit__row { grid-template-columns: 1fr; gap: 2px; }
+  .diff-fit__value { text-align: left; }
+  .diff-fit__why { grid-template-columns: 1fr; }
+}

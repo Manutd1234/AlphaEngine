@@ -65,6 +65,10 @@ const DRAWINGS = [
   // reached rather than merely declared. `SurvivalChart` and `MeetingsEmpty`
   // are local to `KalshiArm` and `MeetingTable`; both open on a `<Figure>`.
   "ClockAgreement", "EpisodeWatch", "MeetingTable", "SurvivalChart", "MeetingsEmpty",
+  // Findings / Instrument, 2026-08-25. It replaced a `ValueStrip` that drew
+  // two rows of "not measured" on the live read — an empty frame that also
+  // duplicated the last two rows of the table beneath it.
+  "InstrumentFit",
 ];
 
 /**
@@ -355,6 +359,7 @@ describe("every Proofs view opens on a drawing", () => {
       HorizonAxis: "../components/coherence/HorizonAxis.tsx#HorizonAxis",
       MeasurabilityStrip: "../components/coherence/MeasurabilityStrip.tsx#MeasurabilityStrip",
       GroupPins: "../components/coherence/GroupPins.tsx#GroupPins",
+      InstrumentFit: "../components/coherence/diffusion/InstrumentFit.tsx#InstrumentFit",
     };
     for (const [name, at] of Object.entries(LOCAL)) {
       const [file, fn] = at.split("#");

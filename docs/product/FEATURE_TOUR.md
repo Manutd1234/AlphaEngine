@@ -650,7 +650,7 @@ defined for **62 of 62** meetings per stage; the two-sigma cut became a **precis
 two stages are **pooled with a call indicator** and the policy move enters as a **control, not a
 rival**; and scoring is **leave-one-meeting-out**, because folding by row leaks when both stages
 share a statement. Five `skill_*` fields carry it on the study row
-(`modules/schemas_diffusion.py`) and two `InstrumentTable` rows render it in a deliberate order:
+(`modules/schemas_diffusion.py`) and two `InstrumentFit` rows render it in a deliberate order:
 *"The clock is predictable at all"* sits **above** *"The text predicts it"*, because if the first
 fails the second means nothing at all. The figures quoted are from the run recorded on
 2026-08-24; re-running the study replaces them, which is why they live in fields rather than in

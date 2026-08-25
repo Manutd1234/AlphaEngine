@@ -45,12 +45,16 @@ function SandboxSection() {
         note="computed on a slider a reader moves"
         lede="Every number here comes from the same arithmetic the gateway runs, so a refusal you can produce with a slider is a refusal the ledger can produce too."
       />
-      <div className="seg" role="group" aria-label="Sandbox view">
-        {VIEWS.map(([name, label]) => (
-          <button key={name} type="button" aria-pressed={view === name} onClick={() => setView(name)}>
-            {label}
-          </button>
-        ))}
+      {/* Wrapped 2026-08-25: a bare `.seg` could be reached by neither
+          the sticky rule nor the wrap rule, both `.coh-bar`-scoped. */}
+      <div className="coh-bar">
+        <div className="seg" role="group" aria-label="Sandbox view">
+          {VIEWS.map(([name, label]) => (
+            <button key={name} type="button" aria-pressed={view === name} onClick={() => setView(name)}>
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
       {view === "halflife" ? <HalfLifeCalculator />
         : view === "simulator" ? <DiffusionSimulator />

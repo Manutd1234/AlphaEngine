@@ -36,8 +36,12 @@ import type { StageRun } from "./types";
  * this view exists to be read line by line, and a reader who wants the headline
  * has it in the sentence underneath.
  */
-const HEIGHT = 520;
-const MARGIN = { top: 40, right: 24, bottom: 24, left: 24 };
+const HEIGHT = 620;
+const MARGIN = { top: 40, right: 12, bottom: 24, left: 12 };
+/** Room outside the left axis for "fastest" and "slowest", both right-anchored. */
+const LABEL_GUTTER = 58;
+/** The right axis labels itself on centre, so it needs almost no tail. */
+const PANEL_TAIL = 16;
 
 interface Ranked {
   key: string;
@@ -136,19 +140,22 @@ export default function ClockAgreement({ runs }: { runs: StageRun[] }) {
               <>
                 {drawable.map((panel, index) => {
                   const origin = MARGIN.left + index * panelWidth;
-                  // Centred in its own half, and no wider than 210px however
-                  // much room there is: a slopegraph reads by ANGLE, so a pair
-                  // stretched across a desk-width pane makes every line nearly
-                  // horizontal and a rank change look like no change at all.
-                  // Wider than it was, for the same reason. A slopegraph reads
-                  // by angle, so the cap exists to stop the lines going flat
-                  // across a desk-width pane — but at this height 480px keeps the
-                  // angles and makes each line a longer thing to aim at. It
-                  // also closes most of the dead gap the two panels had
-                  // between them at the old cap.
-                  const span = Math.max(60, Math.min(panelWidth - 72, 480));
-                  const left = origin + (panelWidth - span) / 2;
-                  const right = left + span;
+                  // NOT CENTRED, and that is the whole of this fix. Centring
+                  // gave each panel equal flanks, but the two sides need very
+                  // different room: "fastest" and "slowest" are right-anchored
+                  // OUTSIDE the left axis and want about fifty pixels, while
+                  // the right axis carries its label centred on itself and
+                  // needs almost none. Equal flanks therefore reserved the left
+                  // gutter twice and left 264px of the figure unused — 72 on
+                  // each outer flank and 120 between the pair.
+                  //
+                  // Placed against the gutter each side actually needs, the two
+                  // panels fill their halves. Still bounded by the panel rather
+                  // than unbounded: a slopegraph reads by ANGLE, and at this
+                  // height the result is roughly square, which is the shape
+                  // that keeps a rank change visible as a slope.
+                  const left = origin + LABEL_GUTTER;
+                  const right = origin + panelWidth - PANEL_TAIL;
                   const y = (rank: number) =>
                     MARGIN.top + (rank / Math.max(1, panel.rows.length - 1)) * (HEIGHT - MARGIN.top - MARGIN.bottom);
                   return (

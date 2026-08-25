@@ -40,12 +40,16 @@ function EpisodesSection({ data, error, status, index }: {
         note="from closed episodes only, on the recorded tape"
         lede="Measure how long a dislocation lasts before building anything that trades it — it is the one figure that says whether this is a race worth entering."
       />
-      <div className="seg" role="group" aria-label="Episodes view">
-        {VIEWS.map(([name, label]) => (
-          <button key={name} type="button" aria-pressed={view === name} onClick={() => setView(name)}>
-            {label}
-          </button>
-        ))}
+      {/* Wrapped 2026-08-25: a bare `.seg` could be reached by neither
+          the sticky rule nor the wrap rule, both `.coh-bar`-scoped. */}
+      <div className="coh-bar">
+        <div className="seg" role="group" aria-label="Episodes view">
+          {VIEWS.map(([name, label]) => (
+            <button key={name} type="button" aria-pressed={view === name} onClick={() => setView(name)}>
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
       <KalshiArm data={data} error={error} view={view} status={status} index={index} />
     </section>

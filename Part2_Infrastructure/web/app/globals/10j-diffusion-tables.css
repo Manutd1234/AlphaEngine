@@ -1,0 +1,106 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   DIFFUSION — the table treatment and the control row, both of which the tab
+   has been rendering the markup for and getting none of the rules for.
+
+   EVERY RULE HERE IS A COPY OF ONE THAT ALREADY EXISTS, scoped to a plane this
+   tab is not. That is the whole defect, and it is a class `plane-scope.test.ts`
+   cannot see by construction: it asks whether a rule scoped `.<x>-plane` reaches
+   a component reachable from that plane's console — the FORWARD direction. It
+   never asks the reverse, whether a class rendered under `.diffusion-plane` is
+   styled only under `.proofs-plane`. `Figure.tsx` and `.coh-table` are shared
+   components, so Diffusion renders them and `14u`/`14t` style them for two of
+   the three tabs. Green suite, unstyled tab.
+
+   Measured side by side on 2026-08-25, Proofs against Diffusion, same build:
+
+                      caption font      cell padding    row border
+       Proofs         Inter             7px 10px        1px solid
+       Diffusion      JetBrains Mono    3px 8px         none
+
+   The mono caption is the one to notice: `table { font-family: var(--mono) }`
+   at `00:1680` is what a caption inherits when nothing overrides it, so all
+   three Diffusion table captions were being set in a numerals face. That is the
+   exact bug `14u:139` and `14t:295` were written to fix, still live on the
+   third tab because each was written scoped to its author's own.
+
+   A NEW PARTIAL RATHER THAN AN ADDITION TO 10c OR 10i. `10c` is at 380 of the
+   400-line ceiling and the ratchet only turns one way; `10i` is the density
+   pass and these are not density rules. `globals-manifest.test.ts` derives its
+   expected list from `readdirSync().sort()`, so a correctly prefixed file needs
+   no test edit — only its line in the `globals.css` manifest, in sorted
+   position. Do not write the at-import keyword anywhere in this file,
+   comment included: that same suite greps each partial's RAW text for it to
+   prove no partial pulls in another, and a mention in prose reads as a
+   nested import. Cost one red run to learn.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Tables ──────────────────────────────────────────────────────────────── */
+
+/* Prose, not numerals. A caption is a sentence about the table; it inherits the
+   mono face from the `table` element rule and has to be told otherwise. */
+.coherence-plane.diffusion-plane .coh-table__caption {
+  font-family: var(--sans);
+}
+
+/* (0,3,1), against `14r:231`'s (0,2,1) for the same cells — so this wins on
+   specificity and the import order between the two files is not load-bearing.
+   Worth stating because 10j sorts BEFORE 14r and would lose on order alone. */
+.coherence-plane.diffusion-plane .coh-table :is(th, td) {
+  padding: 7px 10px;
+}
+
+/* Rows read as rows. A rule under each and a hover band rather than zebra
+   striping, for the reason `14u:147` gives: a banded cell already carries its
+   own `color-mix` fill, and a stripe under one would put two washes on a cell
+   whose fill IS the reading. The rule also survives forced-colors; a wash does
+   not. */
+.coherence-plane.diffusion-plane .coh-table tbody tr {
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.coherence-plane.diffusion-plane .coh-table tbody tr:hover {
+  background: color-mix(in srgb, var(--series-1) 6%, transparent);
+}
+
+/* ── The control row ─────────────────────────────────────────────────────── */
+
+/* Diffusion rendered its switchers as a bare `<div className="seg">` until
+   2026-08-25, so neither `14u:73` (sticky) nor `14r:343` (wrapping) could reach
+   them — both are `.coh-bar`-scoped, and there was no `.coh-bar` on the tab.
+   The five segs are wrapped now and these are the diffusion-scoped copies.
+
+   `--z-sticky-cell` is the desk's rung for something that pins inside its own
+   scroller, deliberately far below `--z-rail`, so a switcher can never cover
+   the navigation above it. */
+.coherence-plane.diffusion-plane .coh-bar {
+  position: sticky;
+  top: calc(var(--rail-h) + var(--space-3));
+  z-index: var(--z-sticky-cell);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  padding: var(--space-2) 0;
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+/* `.coh-bar > .seg`, NOT `.coh-bar .seg`. The descendant form would also match
+   a `.seg` nested deeper and is the combinator mistake `14r:323` documents
+   costing a whole pass; the child form says what is meant.
+
+   `flex: 1 1 auto` — THE SEG FILLS THE BAR, and this is where the Proofs copy
+   had to stop being a copy. `14r:347` gives Proofs' buttons `flex: 0 0 auto`
+   so a switcher is only as wide as its words; that is right THERE because a
+   `.coh-bar` on Proofs also carries a family picker pushed to the far end, so
+   a full-width seg would leave the picker nowhere to sit. On Diffusion the seg
+   is alone in the bar. Taking the rule verbatim shrank all five switchers to a
+   small left-aligned pill — measured on the first build, and a visible
+   regression against the full-width segmented control this tab has always
+   drawn. So the seg spans, `.seg button { flex: 1 }` in 00 keeps dividing it
+   equally as before, and the wrap below stays as the relief valve for a narrow
+   card. */
+.coherence-plane.diffusion-plane .coh-bar > .seg {
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+}

@@ -503,7 +503,7 @@ holds both of its reads at section level and gates each on its view, so
 
 **Diffusion's headline is a null, and the table says so in that order.** The
 study asks whether the text of an FOMC statement predicts how fast the market
-absorbs it. `InstrumentTable` renders the target's own row *above* the
+absorbs it. `InstrumentFit` renders the target's own row *above* the
 predictor's on purpose: "the clock is predictable at all" (R², out of sample)
 comes first, because if it fails, "the text predicts it" means nothing. As
 measured, the clock **is** predictable — +0.144 R² from the stage and the rate

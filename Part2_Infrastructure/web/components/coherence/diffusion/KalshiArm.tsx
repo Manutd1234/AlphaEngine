@@ -212,20 +212,30 @@ export default function KalshiArm({ data, error, view, status, index }: {
             half-life — and a reader asking "was any of this available for
             long enough to trade" is answered by the bars alone. */}
         <details className="disclosure">
-          <summary>{`Each closed episode's family, constraint, peak and half-life, ${data.episodes.length} rows`}</summary>
-        <div className="table-wrap">
-          <table className="coh-table">
+          <summary>{`Each closed episode's event, family, peak and half-life, ${data.episodes.length} rows`}</summary>
+        {/* Focusable, like the findings table's wrap. Six columns with four
+            mono numerals is the widest table on the tab, so it is the one most
+            likely to scroll — and until 2026-08-25 it was the only scrolling
+            region here with no keyboard route into it. */}
+        <div className="table-wrap" tabIndex={0}>
+          <table className="coh-table table-fixed">
             <caption className="coh-table__caption">
               Every closed episode, with the time it took the dislocation to halve
             </caption>
             <thead>
+              {/* THE FIRST TWO WERE WRONG UNTIL 2026-08-25, and the counts
+                  matching is why nothing caught it: six headers over six cells,
+                  shifted by one. Column one is the row header and holds
+                  `event_ticker`, so it is the Event; column two holds `family`.
+                  "Constraint" named no field in the payload at all. Measured
+                  against the live episode row rather than reasoned about. */}
               <tr>
-                <th scope="col">Family</th>
-                <th scope="col">Constraint</th>
-                <th scope="col" className="num">Lifetime</th>
-                <th scope="col" className="num">Peak distance</th>
-                <th scope="col" className="num">Peak net edge</th>
-                <th scope="col" className="num">Half-life</th>
+                <th scope="col" className="w-3/12">Event</th>
+                <th scope="col" className="w-2/12">Family</th>
+                <th scope="col" className="num w-2/12">Lifetime</th>
+                <th scope="col" className="num w-2/12">Peak distance</th>
+                <th scope="col" className="num w-2/12">Peak net edge</th>
+                <th scope="col" className="num w-1/12">Half-life</th>
               </tr>
             </thead>
             <tbody>

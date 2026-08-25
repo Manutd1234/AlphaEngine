@@ -109,6 +109,7 @@
    After 10a, whose .coh-event block it extends. */
 @import "./globals/10h-universe-overview.css";
 @import "./globals/10i-diffusion-density.css";
+@import "./globals/10j-diffusion-tables.css";
 @import "./globals/11-next-step-footer.css";
 
 /* Workspace standardisation layer — the shared contract for the eight desk

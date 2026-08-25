@@ -455,7 +455,7 @@ for 26; the two-sigma hard cut became a **precision weight**; the two stages are
 a rival**; and scoring is **leave-one-meeting-out**, because folding by row
 leaks when both stages share a statement. The desk reads the result off five
 `skill_*` fields on the study row (`modules/schemas_diffusion.py`) and renders
-the last two as `InstrumentTable` rows in a deliberate order — *"The clock is
+the last two as `InstrumentFit` rows in a deliberate order — *"The clock is
 predictable at all"* above *"The text predicts it"*, because if the first fails
 the second means nothing. The figures above are from the run recorded on
 2026-08-24; re-running the study replaces them, which is the point of storing

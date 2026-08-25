@@ -95,6 +95,11 @@
   stroke-dasharray: 2 2;
 }
 
+/* The base every node shares. Only the three modifiers were declared until
+   2026-08-25, so the bare class carried nothing and a node rendered without a
+   modifier would have drawn an unstroked default fill. A modifier is always
+   present today; this stops that being load-bearing. */
+.diff-time__node { stroke: var(--surface-1); stroke-width: 0.5; vector-effect: non-scaling-stroke; }
 .diff-time__node--release { fill: var(--series-1); }
 .diff-time__node--call { fill: var(--series-2); }
 .diff-time__node--unknown { fill: none; stroke: var(--text-muted); stroke-width: 1; }
@@ -221,23 +226,14 @@
 /* The findings table: the verdict column is a word, so it needs no colour. */
 .diff-findings th[scope="row"] { font-weight: 600; }
 
-/* The instrument table's last column is prose, not a figure: it says what
- * failing that row would have meant, which is the only way a reader who is not
- * already inside the method can tell a broken measurement from an honest null. */
+/* The Instrument view's own stack: the ladder, then the two disclosures. */
 .diff-results { display: grid; gap: 12px; min-width: 0; }
 
-/* The instrument table's last column is prose, not a figure: it says what
- * failing that row would have meant, which is the only way a reader who is not
- * already inside the method can tell a broken measurement from an honest null.
- * It wraps rather than widening the table, because a five-column table that
- * scrolls sideways hides the column that carries the verdict. */
-.diff-instrument { table-layout: fixed; width: 100%; }
-.diff-instrument th[scope="row"] { width: 12rem; }
-.diff-instrument__why {
-  color: var(--text-secondary);
-  white-space: normal;
-  hyphens: auto;
-}
+/* `.diff-instrument` LEFT THIS FILE on 2026-08-25, with the table it styled.
+ * The Instrument view now draws `InstrumentFit`, a ladder of six requirements
+ * against their thresholds; its rules are `.diff-fit*` in
+ * `10i-diffusion-density.css`. Leaving these here would have failed
+ * `dead-css.test.ts`, which counts classes with no render site. */
 
 /* ── The model controls, marks and the floor histogram ────────────────────
    MOVED HERE FROM `14s-proofs-model.css` ON 2026-08-25, AND THE MOVE WAS A
@@ -370,9 +366,16 @@
    separate the two weights still has each line's own words on it. */
 .diff-clock__link {
   stroke: color-mix(in srgb, var(--text-secondary) 30%, transparent);
-  stroke-width: 1;
+  stroke-width: 1.2;
   vector-effect: non-scaling-stroke;
+  /* The hit target is the STROKE, and a 1.2px stroke is a 1.2px target. This
+     widens what the pointer can land on without widening what is drawn, so 89
+     lines stay legible as lines while each one stays selectable. */
+  stroke-linecap: round;
+  paint-order: stroke;
 }
+
+.diff-clock__link:hover { stroke-width: 2.4; }
 
 .diff-clock__link--release.is-moved { stroke: var(--series-1); stroke-width: 1.6; }
 .diff-clock__link--call.is-moved { stroke: var(--series-2); stroke-width: 1.6; stroke-dasharray: 3 2; }

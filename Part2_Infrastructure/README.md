@@ -2113,7 +2113,7 @@ slower than the statement — but adding the statement's information spectrum
 changes that by **−0.343** (shuffled **p 0.875**), and across a declared 3×3 grid
 of specifications the gain was negative in **all nine** cells, including the one
 with the largest in-sample |t| of 2.85. The desk renders it as two rows of
-`InstrumentTable`, with the target's own row deliberately **above** the
+`InstrumentFit`, with the target's own row deliberately **above** the
 predictor's: if the clock is not predictable at all, the last row means nothing.
 
 *Persistence, packaging and deployment*

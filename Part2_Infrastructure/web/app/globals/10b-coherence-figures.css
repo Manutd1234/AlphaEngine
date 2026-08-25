@@ -98,39 +98,12 @@
   vector-effect: non-scaling-stroke;
 }
 
-.coh-index-pane,
-.coh-diffusion { display: grid; gap: 12px; min-width: 0; }
-
-.coh-index { height: 160px; }
-
-/* Broken at gaps rather than bridged: an unmeasurable poll is a hole in the
-   record, and a line drawn through it asserts a reading nobody took. */
-.coh-index__line {
-  stroke: var(--series-1);
-  stroke-width: 1.4;
-  vector-effect: non-scaling-stroke;
-}
-
-
-.coh-survival__step {
-  stroke: var(--series-3);
-  stroke-width: 1.6;
-  vector-effect: non-scaling-stroke;
-}
-
-.coh-survival__half {
-  stroke: var(--text-secondary);
-  stroke-width: 0.8;
-  stroke-dasharray: 2 2;
-  vector-effect: non-scaling-stroke;
-}
-
-.coh-survival__median {
-  stroke: var(--series-2);
-  stroke-width: 1.2;
-  vector-effect: non-scaling-stroke;
-}
-
+/* One copy, not two. Lines 101-133 and 134-166 were byte-identical here
+   until 2026-08-25 — the whole block, `.coh-diffusion` included, declared
+   twice in a row. Identical declarations, so nothing rendered differently
+   and no test could see it: `dead-css` asks whether a class has a render
+   site, never how many times it is declared. Found by diffing the file
+   against itself while auditing which rules reach the Diffusion plane. */
 .coh-index-pane,
 .coh-diffusion { display: grid; gap: 12px; min-width: 0; }
 

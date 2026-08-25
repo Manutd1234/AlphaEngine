@@ -281,3 +281,124 @@ not paint.
 For context on the same run: `coherence` paints in 18.1ms and `research` carries
 a 76ms long task with 26ms of blocking. Diffusion is the lightest of the three
 engine tabs on requests — `markets` 6, `coherence` 7.
+
+## Findings / Instrument, revamped 2026-08-25
+
+Two defects a source read could not have found, both measured in the browser at
+1600px before the change:
+
+**The view opened on an empty drawing.** `ValueStrip` was drawing the two
+out-of-sample rows as bars. The live findings read returns
+`skill_baseline_r2: null`, `skill_gain: null` and `skill_meetings: 0`, so both
+rows correctly declined to draw and the figure rendered as two lines of
+"— — not measured" under a caption. Its row labels were also clipped mid-word
+("Clock with…t the text"). The same two facts were then the last two rows of
+the table beneath it, so the opener duplicated part of what followed it.
+
+**The table's fifth column was most of the view.** "What failing it would mean"
+is six fixed sentences that never move with the data, wrapped to three lines
+each. Measured heights:
+
+    before   panel 1,019px   1 svg   1 table (30 cells)   5 paragraphs   1 disclosure
+    after    panel   764px   0 svg   6 ladder rows        1 paragraph    3 disclosures
+    after, every disclosure forced open   1,041px
+
+Nothing was deleted — the fully expanded view is the height the old collapsed
+one was. `InstrumentFit` draws each requirement on its OWN nought-to-one scale
+(an R², two indices out of ten, and a yes/no — every one of them native, so no
+scale is invented) with the threshold ticked on the same track. That is the one
+thing the old "✓ met" column could not say, and the margins are not alike:
+
+    Recovers a known fact   R² +0.74   floor 0.20   0.54 clear
+    Uses its dimensions     9.99/10    floor 9      0.99 clear
+    Readings spread out     9.21/10    floor 9      0.21 clear
+
+Row heights are even at 25px across all six at 1600, 1280 and 1100; the row
+collapses to one column under 1100px, and no width scrolls the panel sideways.
+
+**A false claim in the section head, found by the same look.** The lede read
+"the absorption clock is predictable without the text at all — R² +0.14 out of
+sample". That is what `skill.py` produced when it was run; this deployment's
+wire says the run has never landed, and the pane below correctly said so. A
+section lede is a fixed string and cannot read a payload, so it states the
+DESIGN now and the number lives where it can be null.
+
+The ladder is HTML rather than SVG, following `.diff-bars`: the numbers are
+selectable text and the hover affordance is each track's own `title`. Meaning
+is never in the fill — every row carries its mark and its margin in words — so
+it needs no `forced-colors` block, for the reason `.diff-bars` needs none.
+
+## Slice 1 — the bugs, 2026-08-25
+
+Four of these were invisible to the suite by construction, and one was a
+mislabelling of live data.
+
+**The episodes table named the wrong two columns.** `KalshiArm.tsx` headed six
+columns `Family · Constraint · Lifetime · Peak distance · Peak net edge ·
+Half-life` over a body of `event_ticker · family · lifetime_s · peak_ci ·
+peak_net_edge_dollars · half_life_s`. Column one was labelled "Family" over the
+event ticker and column two "Constraint" over the family; "Constraint" named no
+field in the payload at all. Six headers over six cells, so every count matched
+and nothing could catch it. Now `Event · Family · …`, with `table-fixed`,
+twelfths, and `tabIndex={0}` on its wrap — it was the tab's only auto-layout
+table and the only scrolling region on it with no keyboard route.
+
+**Verified by source alignment, not by a render:** this deployment has recorded
+zero closed episodes, so the disclosure holding that table never renders. Say
+that rather than claiming a look that did not happen.
+
+**Diffusion had been rendering table markup and getting none of the rules.**
+Measured against Proofs on one build:
+
+    before            caption font      cell padding    row border
+      Proofs          Inter             7px 10px        1px solid
+      Diffusion       JetBrains Mono    3px 8px         none
+
+    after: all three Diffusion tables Inter / 7px 10px / 1px solid
+
+`.coh-table__caption { font-family: var(--sans) }`, the cell padding and the row
+rules were scoped `.proofs-plane` (`14u`) and `.quotes-plane` (`14t`). Since
+`Figure.tsx` and `.coh-table` are shared components, Diffusion rendered them and
+two of three tabs styled them. `plane-scope.test.ts` cannot see this: it asks
+whether a rule scoped to a plane reaches that plane's components — the forward
+direction — never whether a class rendered on one plane is styled only on
+another. The mono caption came from `table { font-family: var(--mono) }` at
+`00:1680` being inherited with nothing to override it.
+
+**The switcher did not stick.** `.coh-bar` had five render sites, all on Proofs,
+so both `14u:73` (sticky) and `14r:343` (wrap) missed the tab whose banner said
+it needed them most. The five Diffusion segs are wrapped now: measured
+`position: sticky, top: 52px, z-index: 5`.
+
+**One regression, caught by looking.** Copying `14r:347`'s `flex: 0 0 auto`
+verbatim shrank all five switchers from the full-width segmented control to a
+small left-aligned pill. That rule is right on Proofs because a `.coh-bar` there
+also carries a family picker; on Diffusion the seg is alone in the bar. The seg
+spans instead, and `flex-wrap` goes from `nowrap` to `wrap` — which is the
+relief valve a fourth view will need.
+
+**33 lines of CSS were duplicated verbatim.** `10b-coherence-figures.css`
+101-133 was byte-identical to 134-166, `.coh-diffusion` included — the class on
+all seven section elements, declared twice. Identical declarations, so nothing
+rendered differently and `dead-css` could not see it: it asks whether a class
+has a render site, never how many times it is declared.
+
+**Two classes had no base rule.** `.diff-fit__value`'s only declaration was a
+`text-align: left` inside a max-width query — undoing an alignment nothing had
+set, since the column measured `start` at every width. `.diff-time__node` had
+only its three modifiers.
+
+**Cost, measured across all 15 views:**
+
+    +17px on the 13 views with a switcher  (the .coh-bar padding and its rule)
+    +137px on findings / Findings table    (7px cells over 14 rows)
+    total 12,038px -> 12,379px
+
+The +17 is the price of a sticky control row and Proofs pays it too. The +137 is
+paid back with interest by the declutter slice.
+
+**`coherence/status` costs ~515ms of gateway work, and it is not ours.**
+Measured three runs each: 520/538/525ms through the proxy, against 4/5/7ms for
+`coherence/episodes` on the same proxy with the same auth. The proxy adds ~3ms,
+so the time is the gateway's own. It polls every 20s on the episodes section and
+is a shared `coherence/*` route.

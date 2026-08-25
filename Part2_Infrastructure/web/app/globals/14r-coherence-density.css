@@ -289,14 +289,22 @@
    its subject IS the tab: every switcher on Proofs is wider than every
    switcher on Prices, where no section offers more than five views.
 
-   DIFFUSION IS THE WIDEST CONTROL ON THE DESK — seven views on one `.seg`
-   ("Noise floor", "Kalshi survival", "Kalshi episodes") — and this block said
-   Dutch book's six was, for the whole of 2026-08-24, because the rule was
-   written the hour `combos` folded in and the diffusion seg grew its seventh
-   view in a different pass. Dutch book is second at six, Scorecard and Lessons
-   joint third at five. `.seg button { flex: 1 }` in 00 divides the well
-   equally, so at a narrow card seven labels get about a seventh each and every
-   one of them wraps mid-word.
+   DUTCH BOOK IS THE WIDEST CONTROL ON THE DESK, at six views on one `.seg`.
+   This block said Diffusion's seven was, and that stopped being true when the
+   Diffusion tab was split into seven SECTIONS on 2026-08-25: no diffusion seg
+   now offers more than three ("Absorption", "Control", "Clocks"), and the
+   three views this comment named by hand — "Noise floor", "Kalshi survival",
+   "Kalshi episodes" — are section ids rather than seg labels. Re-counted
+   against `diffusion-sections.test.ts`, which pins every label: arm 3,
+   meetings 2, episodes 2, sandbox 3, findings 3. Scorecard and Lessons are
+   joint second at five. `.seg button { flex: 1 }` in 00 divides the well
+   equally, so at a narrow card six labels get about a sixth each and every one
+   of them wraps mid-word.
+
+   The rule below is still scoped `.proofs-plane`, which is now correct for the
+   reason it was accidental: Dutch book is a Proofs section. Diffusion gets its
+   own copy in `10j-diffusion-tables.css`, because a bare `.seg` there is not a
+   `.coh-bar > .seg` and this selector cannot reach it.
 
    NAMED BY THE ROLE, NOT BY THE SECTION, which is the change of the fourth
    review of 2026-08-24 and the reason the miscount above could happen at all:

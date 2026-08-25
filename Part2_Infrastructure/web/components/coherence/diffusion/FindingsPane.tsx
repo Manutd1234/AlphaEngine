@@ -55,7 +55,7 @@ import Figure, { FigureEmpty, StateChip } from "../Figure";
 import ValueStrip from "../ValueStrip";
 import EffectPlot from "./EffectPlot";
 import FindingsTable from "./FindingsTable";
-import InstrumentTable from "./InstrumentTable";
+import InstrumentFit from "./InstrumentFit";
 import type { FindingsRead, GateCheck } from "./types";
 
 const GATE_MARK: Record<GateCheck["state"], string> = {
@@ -124,16 +124,20 @@ export default function FindingsPane({ active }: { active: boolean }) {
         />
       </div>
 
-      <div className="seg" role="group" aria-label="Findings view">
-        <button type="button" aria-pressed={view === "plot"} onClick={() => setView("plot")}>
-          Effect plot
-        </button>
-        <button type="button" aria-pressed={view === "table"} onClick={() => setView("table")}>
-          Findings table
-        </button>
-        <button type="button" aria-pressed={view === "instrument"} onClick={() => setView("instrument")}>
-          Instrument
-        </button>
+      {/* Wrapped 2026-08-25: a bare `.seg` could be reached by neither
+          the sticky rule nor the wrap rule, both `.coh-bar`-scoped. */}
+      <div className="coh-bar">
+        <div className="seg" role="group" aria-label="Findings view">
+          <button type="button" aria-pressed={view === "plot"} onClick={() => setView("plot")}>
+            Effect plot
+          </button>
+          <button type="button" aria-pressed={view === "table"} onClick={() => setView("table")}>
+            Findings table
+          </button>
+          <button type="button" aria-pressed={view === "instrument"} onClick={() => setView("instrument")}>
+            Instrument
+          </button>
+        </div>
       </div>
 
       {view === "plot" ? (
@@ -171,59 +175,48 @@ export default function FindingsPane({ active }: { active: boolean }) {
       </>
       ) : (
       <>
-      {/* The heading this branch used to open with — "Was the instrument fit to
-          answer?" — restated the switcher button beside it and pushed the
+      {/* The heading this branch used to open with — "Was the instrument fit
+          to answer?" — restated the switcher button beside it and pushed the
           drawing under it. The words survive as the section's accessible name:
           a screen reader still gets them, a sighted reader gets the figure
           first. */}
       {study ? (
         <section aria-label="Was the instrument fit to answer?">
-          {/* The two out-of-sample rows drawn (third review, 2026-08-24):
-              the target has structure, and what the text adds to it is the
-              headline — both signed, both against zero. */}
-          <ValueStrip
-            caption="Out of sample: the clock without the text, and what the text adds"
-            ariaLabel="Baseline out-of-sample R squared and the text's added R squared, signed"
-            rows={[
-              {
-                label: "Clock without the text",
-                value: study.skill_baseline_r2,
-                text: study.skill_baseline_r2 != null ? `R² ${study.skill_baseline_r2 >= 0 ? "+" : ""}${study.skill_baseline_r2.toFixed(3)}` : "—",
-                title: "Residence time predicted from the stage and the rate move alone, leave-one-meeting-out",
-                noBar: study.skill_baseline_r2 == null ? "not measured" : undefined,
-              },
-              {
-                label: "What the text adds",
-                value: study.skill_gain,
-                text: study.skill_gain != null ? `${study.skill_gain >= 0 ? "+" : ""}${study.skill_gain.toFixed(3)} R²` : "—",
-                title: "What the statement's spectrum adds to that baseline, same held-out meetings",
-                noBar: study.skill_gain == null ? "not measured" : undefined,
-              },
-            ]}
-          />
-          <InstrumentTable study={study} gate={gate} />
-          <p className="coh-event__note">
-            <span aria-hidden="true">→</span> Reported from the {study.segment ?? "whole statement"}{" "}
-            against the {study.conditioning === "prior" ? "previous statement" : study.conditioning},
-            at latent width {study.latent_dim}; the desk shows whichever run best recovers the known
-            fact among the well conditioned — a rule fixed in advance, blind to absorption speed, so
-            re-running cannot walk the headline.{" "}
-            {study.verdict_reason
-              ? `${study.verdict_reason.charAt(0).toUpperCase()}${study.verdict_reason.slice(1)}.`
-              : ""}
-          </p>
+          <InstrumentFit study={study} gate={gate} />
         </section>
       ) : null}
 
-      {calendar?.of ? (
-        <p className="coh-event__note">
-          <span aria-hidden="true">{allVerified ? "✓" : "◌"}</span>{" "}
-          {calendar.how.charAt(0).toUpperCase()}{calendar.how.slice(1)} — {calendar.verified}{" "}
-          of {calendar.of}. The hour is checked against the issuer, because an event study anchored
-          on a wrong t-zero measures the speed of its own errors. Its {calendar.dissent_votes}{" "}
-          dissenting votes across {calendar.dissent_meetings} meetings come from each statement's
-          vote line, not a summary.
-        </p>
+      {/* THE TWO NOTES THAT USED TO SIT UNDER THE TABLE, FOLDED. Both are
+          method rather than result: how this run was picked out of the ones
+          that were fitted, and how each stated hour was checked. The second
+          was also the fourth telling of "62 of 62" — the chip at the top of
+          the section carries it, and a reader who wants the method opens this
+          rather than reading past it on every visit. */}
+      {study || calendar?.of ? (
+        <details className="disclosure">
+          <summary>How this run was chosen, and how its timestamps were checked</summary>
+          {study ? (
+            <p>
+              Reported from the {study.segment ?? "whole statement"}{" "}
+              against the {study.conditioning === "prior" ? "previous statement" : study.conditioning},
+              at latent width {study.latent_dim}; the desk shows whichever run best recovers the known
+              fact among the well conditioned — a rule fixed in advance, blind to absorption speed, so
+              re-running cannot walk the headline.{" "}
+              {study.verdict_reason
+                ? `${study.verdict_reason.charAt(0).toUpperCase()}${study.verdict_reason.slice(1)}.`
+                : ""}
+            </p>
+          ) : null}
+          {calendar?.of ? (
+            <p>
+              {calendar.how.charAt(0).toUpperCase()}{calendar.how.slice(1)} — {calendar.verified}{" "}
+              of {calendar.of}. The hour is checked against the issuer, because an event study anchored
+              on a wrong t-zero measures the speed of its own errors. Its {calendar.dissent_votes}{" "}
+              dissenting votes across {calendar.dissent_meetings} meetings come from each statement's
+              vote line, not a summary.
+            </p>
+          ) : null}
+        </details>
       ) : null}
 
       <details className="disclosure">
@@ -231,10 +224,10 @@ export default function FindingsPane({ active }: { active: boolean }) {
         <p>
           A null is only worthless when nobody can tell it from a measurement that could not have
           found anything. Two things fix that here: the control rows are the same pipeline on a
-          relationship it does detect at four standard errors, and the instrument table shows the
-          clock is predictable <em>without</em> the text — the target has structure before the text
-          fails to explain it. Deleting the empty rows would leave the next reader to rediscover
-          them over the same weeks.
+          relationship it does detect at four standard errors, and the ladder above reports whether
+          the clock is predictable <em>without</em> the text — the target has to have structure
+          before the text can fail to explain it. Deleting the empty rows would leave the next
+          reader to rediscover them over the same weeks.
         </p>
       </details>
       </>
