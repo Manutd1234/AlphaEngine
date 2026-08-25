@@ -4,7 +4,7 @@
  * The stake plan drawn: each outcome's share of the bankroll as a bar.
  *
  * Added on the third 2026-08-24 review ("every subtab must have an interactive
- * diagram"): Plan and Whole family opened on a bare table, and a ranked list
+ * diagram"): Plan and All outcomes opened on a bare table, and a ranked list
  * of fractions is the most drawable thing on the section. The bars draw ONLY
  * what the table's Stake column states — the figure ranks, the table proves.
  *

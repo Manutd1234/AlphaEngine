@@ -104,19 +104,44 @@ describe("exactly one subtab rail on the tab", () => {
     // `SurfacePane` used to be the exception at THREE — the view seg, a second
     // seg for the stake's Plan/Capital/Method, and the family picker — and the
     // exception is what the reader saw: "there are too many subtabs for lattice".
-    // Splitting `stake` back onto the rail is what retired it. Each of the two
-    // now draws TWO: one view switcher and one family picker, and the picker is
-    // not a view switcher at all — it chooses the subject every view is a
-    // question about. They share ONE row; nothing stacks.
+    // Splitting `stake` back onto the rail took it to TWO, and the shared
+    // `FamilyPicker` takes it to ONE: "there are 4 subtabs for 4 families when
+    // we can use a dropdown instead". A picker was never a view switcher — it
+    // chooses the subject every view is a question about — and drawing it as a
+    // row of pills said otherwise in the only vocabulary a reader has.
+    //
+    // So ONE seg per section is now the rule with no exception, and a second
+    // one appearing is a control that has been given the switcher's shape
+    // without the switcher's meaning.
     //
     // Raw source, because a `.seg` is a class-name STRING and `stripNonCode`
     // blanks those.
     const expected: Record<string, number> = {
-      universe: 1, books: 1, lattice: 2, stake: 2, fees: 1, shell: 1,
+      universe: 1, books: 1, lattice: 1, stake: 1, fees: 1, shell: 1,
     };
     for (const [id, count] of Object.entries(expected)) {
       const segs = (read(SECTION_FILES[id]).match(/className="seg[ "]/g) ?? []).length;
       assert.equal(segs, count, `${id} draws ${segs} .seg groups, expected ${count}`);
+    }
+  });
+
+  it("the sections that choose a family use the shared control, not one of their own", () => {
+    // The counting assertion above can be satisfied by DELETING a picker as
+    // easily as by unifying one, and a section that lost its family control
+    // would still draw one seg. So the replacement is pinned from the other
+    // side: both sections that read per-family mount `FamilyPicker`, which is
+    // the same control the two Proofs sections built on `/certify` mount.
+    //
+    // One control and not two copies of the markup, for the reason that file's
+    // header gives: four call sites keying a shared read cache four ways is
+    // four chances to read the exchange twice for one answer.
+    for (const id of ["lattice", "stake"] as const) {
+      const source = read(SECTION_FILES[id]);
+      assert.match(source, /import FamilyPicker from "\.\/FamilyPicker";/,
+        `${id} no longer mounts the shared family control`);
+      assert.match(source, /<FamilyPicker\b/, `${id} imports the shared control and renders none`);
+      assert.doesNotMatch(source, /className="seg coh-books__picker"/,
+        `${id} has hand-rolled a picker again; that row is what the reader counted`);
     }
   });
 
@@ -143,11 +168,14 @@ describe("exactly one subtab rail on the tab", () => {
     assert.match(read(SECTION_FILES.universe), /aria-label="Universe view"/);
     assert.match(read(SECTION_FILES.books), /aria-label="Books view"/);
     assert.match(read(SECTION_FILES.lattice), /aria-label="Which question"/);
-    assert.match(read(SECTION_FILES.lattice), /aria-label="Choose a family"/);
+    // The picker's accessible name is a `label` PROP now, not an attribute:
+    // `FamilyPicker` spends it on both the button and the listbox, so it is one
+    // string in the section and two in the rendered control.
+    assert.match(read(SECTION_FILES.lattice), /label="Choose a family"/);
     // The stake's switcher keeps the name it had as the lattice's second seg,
     // because it names the same three readings of the same one answer.
     assert.match(read(SECTION_FILES.stake), /aria-label="Stake view"/);
-    assert.match(read(SECTION_FILES.stake), /aria-label="Choose a family"/);
+    assert.match(read(SECTION_FILES.stake), /label="Choose a family"/);
     assert.match(read(SECTION_FILES.fees), /aria-label="Fees view"/);
     assert.match(read(SECTION_FILES.shell), /aria-label="Shell view"/);
   });

@@ -233,7 +233,7 @@ export default function StakeView({
             </summary>
             <StakeTable
               stakes={admitted}
-              caption="Only the outcomes the plan stakes; the ones it passed over are the Whole family view."
+              caption="Only the outcomes the plan stakes; the ones it passed over are the All outcomes view."
             />
           </details>
         </>

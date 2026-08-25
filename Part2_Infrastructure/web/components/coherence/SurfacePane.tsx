@@ -40,9 +40,20 @@
  *
  * The family picker rides the control row on every view, because every view here
  * is a question ABOUT a family and none is answerable without choosing one. It
- * is a `.seg` and never a nested `<WorkspaceSubtabs>`: a second rail instance
- * fights the first over the `--rail-h` publisher, as `ReliabilityConsole`
- * records.
+ * is the shared `FamilyPicker` and no longer a row of pills: five families whose
+ * tickers run to forty glyphs wrapped the row to two lines, and a section is
+ * allowed exactly one row of chrome before its drawing. The closed control names
+ * the count — "KXBTCD-26AUG2517, 1 of 5" — so it hides the roster's SIZE from
+ * nobody, which was the whole of the old argument for pills.
+ *
+ * It is never a nested `<WorkspaceSubtabs>` either: a second rail instance fights
+ * the first over the `--rail-h` publisher, as `ReliabilityConsole` records.
+ *
+ * NO VERDICT IS PASSED, and the omission is deliberate rather than unfinished.
+ * `FamilyPicker` will draw one beside a ticker, and the two Proofs sections that
+ * own `/certify` do pass it. This section reads `/surface`, which answers what
+ * measure the prices imply and says nothing about coherence, so a verdict here
+ * would be a figure borrowed from a read this section never makes.
  */
 
 import { type ReactNode, useState } from "react";
@@ -50,6 +61,7 @@ import { type ReactNode, useState } from "react";
 import type { CoherenceEventView, CoherenceUniverse } from "@/lib/coherence/types";
 import type { CoherenceSurface } from "@/lib/coherence/types-lab";
 import { surfaceRoute, universeRoute } from "@/lib/coherence/routes";
+import FamilyPicker from "./FamilyPicker";
 import PaneHead, { PaneHeadEmpty } from "./PaneHead";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import DistributionView, { decimalLabel } from "./surface/DistributionView";
@@ -165,13 +177,12 @@ export default function SurfacePane({
         </div>
 
         {!eventTicker && events.length > 1 ? (
-          <div className="seg coh-books__picker" role="group" aria-label="Choose a family">
-            {events.map((event) => (
-              <button key={event.event_ticker} type="button" aria-pressed={event.event_ticker === target} onClick={() => setPicked(event.event_ticker)}>
-                {event.event_ticker}
-              </button>
-            ))}
-          </div>
+          <FamilyPicker
+            options={events.map((event) => ({ ticker: event.event_ticker, shard: event.exchange_index }))}
+            selected={target}
+            onSelect={setPicked}
+            label="Choose a family"
+          />
         ) : null}
       </div>
 

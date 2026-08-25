@@ -231,37 +231,52 @@
    at a word — they wrap mid-word, which is the defect the reader reported on
    Dutch book.
 
-   THE LATTICE AND THE STAKE, for the FAMILY PICKER rather than for the views.
-   That half of this rule described five lattice views until the fifth
-   restructure of 2026-08-24 divided them: Lattice draws three buttons now and
-   Stake four, and at three shares of 328px each label gets about 89px, roughly
-   11 characters, which holds "Survival" and "Moments" outright. The picker
-   sharing that row is what still needs the wrap, and needs it harder: its
-   labels are event tickers, and `KXBTCD-26AUG2410` is 16 characters — 128px of
-   glyphs plus the 16px inset, so 144px for one button. Two of them beside a
-   three-segment view control cannot each have 144px of a 328px row, so without
-   a floor the ticker breaks mid-word. `flex: 1 1 7rem` is a 112px basis: the
-   row takes what fits and puts the rest on a second line, where a button has
-   the full 328px and 144px of label fits.
+   THE LATTICE AND THE STAKE NO LONGER ASK, and the reason their half of this
+   rule is gone is worth recording rather than leaving as a deletion. It existed
+   for the FAMILY PICKER, not for the views: the picker's labels were event
+   tickers, `KXBTCD-26AUG2410` is 16 characters, and two of those beside a
+   three-segment view control could not each hold 144px of a 328px row, so
+   without a floor the ticker broke mid-word. `flex: 1 1 7rem` was that floor.
 
-   Wrapping the CONTROL is the fix rather than shrinking the type: the rung is
-   the same on all twenty-two segs on the desk and a per-tab size is the exact
-   defect `nav-type-markets-coherence.test.ts` was written against. So the frame
-   gets a second row and each segment a floor to wrap AT — `flex-wrap` and
-   `flex-basis` only, no metric property.
+   The picker is `FamilyPicker`'s listbox now — one button carrying one ticker
+   and a count — so there is no 40-glyph label in the row to wrap around, and
+   the floor that used to save it became the thing that broke it. A 112px basis
+   on a `.seg` that shrinks to fit inside `.coh-status__chips` is wider than the
+   shrunk frame, so all three segments wrapped one per line and the switcher
+   rendered as a VERTICAL stack. Screenshotted on the running desk 2026-08-25,
+   on both sections, and it is the "information is scattered" the reader
+   reported against Lattice.
 
-   SCOPED TO THE THREE SECTIONS THAT ASKED, not to the tab. Books, Fees and
-   Shell carry four views and no picker; at four shares each label gets about
-   7.6 characters, which holds every label they draw. Widening this rule to the
-   whole plane would be a layout decision made for sections that did not ask for
-   one. Both rows are `.coh-status__chips` because `.coh-surface` and
-   `.coh-kelly` are grids, so two segs as their children would stack. */
-.coherence-plane.markets-plane .coh-universe > .seg,
-.coherence-plane.markets-plane :is(.coh-surface, .coh-kelly) .coh-status__chips > .seg {
+   So the two sections get the opposite rule: the switcher does not shrink below
+   its own content, and its segments keep the equal-share `flex: 1` that 00
+   gives every seg on the desk. Three short words at the --fs-body rung fit a
+   row at every width this desk lays out, and the picker beside them is one
+   button wide.
+
+   UNIVERSE KEEPS ITS WRAP, unchanged. Five segments — "Baskets", "Families",
+   "Settlement", "Formation", "Pending" — at the narrowest card this desk lays
+   out (a 360px viewport less the card's inset, about 328px) split into 62px
+   each after the 3px well and the four 3px seams, and 16px of that is the
+   segment's `var(--space-2)` inset either side. That leaves 46px of text, about
+   5.7 characters at the --fs-body rung's ~8px advance, and "Settlement" is ten
+   characters with no space in it — so it wraps mid-word, which is the defect
+   the reader reported on Dutch book. That row is a direct child of
+   `.coh-universe`; the two below are inside `.coh-status__chips` because
+   `.coh-surface` and `.coh-kelly` are grids, and two controls as their children
+   would stack.
+
+   Wrapping the CONTROL stays the fix rather than shrinking the type: the rung
+   is the same on all twenty-two segs on the desk and a per-tab size is the
+   exact defect `nav-type-markets-coherence.test.ts` was written against.
+   `flex-wrap` and `flex` only, no metric property. */
+.coherence-plane.markets-plane .coh-universe > .seg {
   flex-wrap: wrap;
 }
 
-.coherence-plane.markets-plane .coh-universe > .seg button,
-.coherence-plane.markets-plane :is(.coh-surface, .coh-kelly) .coh-status__chips > .seg button {
+.coherence-plane.markets-plane .coh-universe > .seg button {
   flex: 1 1 7rem;
+}
+
+.coherence-plane.markets-plane :is(.coh-surface, .coh-kelly) .coh-status__chips > .seg {
+  flex: 0 0 auto;
 }

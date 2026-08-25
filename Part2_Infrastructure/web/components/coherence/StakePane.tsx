@@ -20,7 +20,7 @@
  * already holds, which carries the exchange's own `mutually_exclusive` flag.
  * See `StakeDeclined`, which is where that argument lives.
  *
- * FOUR VIEWS, and Whole family is the fourth because it belongs to the BET. It
+ * FOUR VIEWS, and All outcomes is the fourth because it belongs to the BET. It
  * renders the solver's own ranking — every outcome, admitted or passed over —
  * over the `/stake` payload. Left on the distribution section it would have kept
  * a second read there and would have died on every strike ladder with no
@@ -43,6 +43,7 @@ import { type ReactNode, useState } from "react";
 import type { CoherenceEventView, CoherenceUniverse } from "@/lib/coherence/types";
 import type { CoherenceKelly } from "@/lib/coherence/types-lab";
 import { stakeRoute, universeRoute } from "@/lib/coherence/routes";
+import FamilyPicker from "./FamilyPicker";
 import PaneHead, { PaneHeadEmpty } from "./PaneHead";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import { decimalLabel } from "./surface/DistributionView";
@@ -56,7 +57,14 @@ const STAKE_VIEWS: ReadonlyArray<[StakeSectionView, string]> = [
   ["plan", "Plan"],
   ["capital", "Capital"],
   ["method", "Method"],
-  ["family", "Whole family"],
+  // "All outcomes" and not "Whole family" since 2026-08-25: the family PICKER
+  // now sits beside this switcher carrying the word "Family", and two adjacent
+  // controls spending one noun on two different things is a collision a reader
+  // resolves by clicking. It is also two characters shorter than the segment
+  // could hold, so the label stopped wrapping to a second line and the row
+  // stopped being taller than the three sections next to it. The id stays
+  // `family` — it is the view's name in code, not on screen.
+  ["family", "All outcomes"],
 ];
 
 const HEAD = {
@@ -143,7 +151,10 @@ export default function StakePane({
       {/* ONE control row, and the whole point of the split: the view switcher
           and the family picker share it, and nothing stacks under either.
           `.coh-status__chips` is the flex box rather than a class of its own —
-          `.coh-kelly` is a grid, so two segs as its children would stack. */}
+          `.coh-kelly` is a grid, so two controls as its children would stack.
+          The picker is `FamilyPicker`'s listbox now: four tickers as pills was
+          a second row at any ordinary width, and a second row is the defect
+          this section was split out of the lattice to remove. */}
       <div className="coh-status__chips">
         <div className="seg" role="group" aria-label="Stake view">
           {STAKE_VIEWS.map(([name, label]) => (
@@ -154,13 +165,12 @@ export default function StakePane({
         </div>
 
         {!eventTicker && events.length > 1 ? (
-          <div className="seg coh-books__picker" role="group" aria-label="Choose a family">
-            {events.map((event) => (
-              <button key={event.event_ticker} type="button" aria-pressed={event.event_ticker === target} onClick={() => setPicked(event.event_ticker)}>
-                {event.event_ticker}
-              </button>
-            ))}
-          </div>
+          <FamilyPicker
+            options={events.map((event) => ({ ticker: event.event_ticker, shard: event.exchange_index }))}
+            selected={target}
+            onSelect={setPicked}
+            label="Choose a family"
+          />
         ) : null}
       </div>
 
