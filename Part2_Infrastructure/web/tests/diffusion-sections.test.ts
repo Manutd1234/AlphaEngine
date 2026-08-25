@@ -104,7 +104,7 @@ describe("one control row per section, and none where there is one view", () => 
 describe("each switcher names its options", () => {
   const OPTIONS: Record<string, readonly string[]> = {
     arm: ["Absorption", "Control", "Clocks"],
-    meetings: ["Meeting by meeting", "Mechanism"],
+    meetings: ["Meeting by meeting", "Calendar", "Mechanism"],
     episodes: ["Survival", "Episodes"],
     sandbox: ["Half-life", "Simulator", "Spectrum"],
   };

@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-25",
-  "commit": "a235fe7",
+  "commit": "fe3d57b",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -891,10 +891,12 @@
     "Part2_Infrastructure/web/components/coherence/diffusion/FindingsSection.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/FindingsTable.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/FloorDistribution.tsx",
+    "Part2_Infrastructure/web/components/coherence/diffusion/HorizonResolution.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/InformationDiffusionPane.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/InstrumentFit.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/InstrumentSection.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/KalshiArm.tsx",
+    "Part2_Infrastructure/web/components/coherence/diffusion/MeetingCalendar.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/MeetingsSection.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/MeetingTable.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/model/DiffusionSimulator.tsx",

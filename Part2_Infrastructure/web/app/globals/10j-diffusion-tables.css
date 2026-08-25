@@ -351,3 +351,76 @@
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
 }
+
+/* ── The horizon resolution ladder ───────────────────────────────────────── */
+
+.coherence-plane.diffusion-plane .diff-res__label {
+  fill: var(--text-primary);
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.coherence-plane.diffusion-plane .diff-res__absent {
+  fill: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+/* One segment per state present at a horizon. `--ok` is the only filled one;
+   every other state is a KIND of absence and is hatched, so the difference
+   between "measured" and "not measured" survives a monochrome reader — and each
+   segment says its own count and word in its title. */
+.coherence-plane.diffusion-plane .diff-res__seg--ok {
+  fill: color-mix(in srgb, var(--series-1) 62%, transparent);
+}
+
+.coherence-plane.diffusion-plane .diff-res__seg--unavailable,
+.coherence-plane.diffusion-plane .diff-res__seg--uncaptured,
+.coherence-plane.diffusion-plane .diff-res__seg--insufficient,
+.coherence-plane.diffusion-plane .diff-res__seg--pending {
+  fill: url(#diff-hatch);
+}
+
+/* One stroke per close behind a cell. Ticks rather than a bar, because the
+   quantity is a COUNT of closes and a bar invites reading a length. */
+.coherence-plane.diffusion-plane .diff-res__tick {
+  stroke: var(--text-secondary);
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+}
+
+.coherence-plane.diffusion-plane .diff-res__hit {
+  fill: transparent;
+}
+
+/* ── The meeting calendar ────────────────────────────────────────────────── */
+
+/* Shape carries the stage and fill carries the gate, so neither rests on a hue:
+   a filled mark cleared the noise floor and a hollow one did not. */
+.coherence-plane.diffusion-plane .diff-cal__dot--release {
+  fill: color-mix(in srgb, var(--series-1) 72%, transparent);
+}
+
+.coherence-plane.diffusion-plane .diff-cal__dot--call {
+  fill: color-mix(in srgb, var(--series-2) 72%, transparent);
+}
+
+.coherence-plane.diffusion-plane .diff-cal__dot.is-refused {
+  fill: var(--surface-1);
+  stroke: var(--text-muted);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+/* One tick per decision, under the axis: a meeting whose every run sits near
+   zero still shows that it happened. */
+.coherence-plane.diffusion-plane .diff-cal__rug {
+  stroke: var(--text-secondary);
+  stroke-width: 1.2;
+  vector-effect: non-scaling-stroke;
+}
+
+.coherence-plane.diffusion-plane .diff-cal__year {
+  stroke: var(--grid);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}

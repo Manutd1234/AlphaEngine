@@ -26,13 +26,16 @@ import Figure from "../Figure";
 import PaneHead from "../PaneHead";
 import { STAGE_GAP_MIN, STAGE_TERMINAL_MIN, absorptionNotice, absorptionReady } from "./AbsorptionGate";
 import MeetingTable from "./MeetingTable";
+import HorizonResolution from "./HorizonResolution";
+import MeetingCalendar from "./MeetingCalendar";
 import StageTimeline from "./StageTimeline";
 import type { AbsorptionRead } from "./types";
 
-type MeetingsView = "table" | "mechanism";
+type MeetingsView = "table" | "calendar" | "mechanism";
 
 const VIEWS: ReadonlyArray<[MeetingsView, string]> = [
   ["table", "Meeting by meeting"],
+  ["calendar", "Calendar"],
   ["mechanism", "Mechanism"],
 ];
 
@@ -80,6 +83,14 @@ function MeetingsBody({ view, data, error }: {
         >
           <StageTimeline gapMinutes={STAGE_GAP_MIN} terminalMinutes={STAGE_TERMINAL_MIN} />
         </Figure>
+
+        {/* The grid above, then what the ledger actually resolved INSIDE it —
+            grid first, fill second, which is the order a reader meets them in.
+            The timeline draws from constants and answers before the ledger
+            does, so it stays unconditional; this appends only once there is a
+            read to report. `cell.state` and `cell.bars` were both on the wire
+            and drawn nowhere. */}
+        {absorptionReady(data) ? <HorizonResolution read={data} /> : null}
       </div>
     );
   }
@@ -88,6 +99,19 @@ function MeetingsBody({ view, data, error }: {
   // sections cannot word one absence two ways.
   const notice = absorptionNotice(data, error);
   if (!absorptionReady(data)) return notice;
+
+  // AFTER the shared gate, so this branch is a single return whose first tag is
+  // the drawing. Written with its own gate first, it read
+  // `return notice; … return (<figure>)` — and the scan in
+  // `engine-opens-on-a-drawing.test.ts` bounds a branch at its SECOND return, so
+  // the window closed before the figure and the view "drew nothing".
+  if (view === "calendar") {
+    return (
+      <div className="diff-pane">
+        <MeetingCalendar read={data} />
+      </div>
+    );
+  }
 
   return (
     <div className="diff-pane">

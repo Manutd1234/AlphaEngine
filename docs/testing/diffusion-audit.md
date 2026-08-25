@@ -662,3 +662,46 @@ back to 2019-01-30 — the tab is an event study with no event axis) and
 `HorizonResolution` (the `[1, 2, 5, 10, 15, 30]` bar ladder off `cell.bars`,
 which would say that the 1m point of all 248 paths is a single close). Both are
 designed and neither is written.
+
+### The last two figures, same day
+
+**`HorizonResolution` — and the matrix it replaced.** The first design was a run
+x horizon coverage grid. The arithmetic killed it: 1,984 cells is exactly
+248 x 8 and 1,488 measured is exactly 248 x 6, so every run carries the
+identical row `[unavailable, unavailable, ok, ok, ok, ok, ok, ok]` — there is no
+per-run variation in `cell.state` at all. The matrix would have been 1,984 marks
+saying one sentence, in two solid blocks. Eight rows instead, one per horizon,
+with the two that resolve for nobody kept in rather than dropped.
+
+The second track is the new fact: `cell.bars` is exactly `[1, 2, 5, 10, 15, 30]`,
+so **the 1m point of all 248 paths is a single close** — the resolution the whole
+absorption curve rests on, which nobody reading this tab had been told. Drawn as
+one stroke per close, because the quantity is a count and a bar invites reading
+a length. ~20 marks over 1,984 cells, which is every distinct fact in the field.
+
+**`MeetingCalendar` — the event axis an event study did not have.**
+`StageRun.t0` was on the wire and read by nothing: 248 timestamps, 124 distinct,
+62 decisions from 2019-01-30 to 2026-07-29. Every other figure here plots a
+horizon, a rank or a percentile; not one plotted a date. So a reader could take
+away a half-life, a ratio and a null without learning that the ledger spans
+eight years, or where in them the 89 accepted runs sit.
+
+It answers the question nothing else can: if the runs that cleared the floor
+cluster in one regime, every finding on this tab is a finding about that regime.
+Measured on the drawing, they do thin out before 2021.
+
+Shape carries the stage (`●` statement, `▲` press conference) and fill carries
+the gate, so neither rests on a hue. The 62-tick rug is emitted FIRST in
+document order, because `use-mark-readout` walks marks in document order — so
+`Home` lands a keyboard reader on the earliest MEETING and the first 62 presses
+are a meeting-level tour before any run-level detail. The two symbols share
+every meeting, so their marks are nudged apart by a fixed offset that carries no
+time, and the footnote declares it: a drawing device a reader could mistake for
+data has to be named.
+
+**One trap worth writing down.** The calendar branch was first written with its
+own absorption gate — `return notice; … return (<figure>)`. The scan in
+`engine-opens-on-a-drawing.test.ts` bounds a branch at its SECOND return, so the
+window closed before the figure and the view reported "draws nothing". Moved
+below the shared gate, the branch is a single return whose first tag is the
+drawing. `VIEWS` goes 26 to 27 and the Diffusion count 15 to 16.

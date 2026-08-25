@@ -65,6 +65,7 @@ const DRAWINGS = [
   // reached rather than merely declared. `SurvivalChart` and `MeetingsEmpty`
   // are local to `KalshiArm` and `MeetingTable`; both open on a `<Figure>`.
   "ClockAgreement", "EpisodeWatch", "MeetingTable", "SurvivalChart", "MeetingsEmpty",
+  "MeetingCalendar",
   // Findings / Instrument, 2026-08-25. It replaced a `ValueStrip` that drew
   // two rows of "not measured" on the live read — an empty frame that also
   // duplicated the last two rows of the table beneath it.
@@ -186,6 +187,13 @@ const VIEWS: Record<string, View> = {
   "Meetings / Meeting by meeting": {
     at: "../components/coherence/diffusion/MeetingsSection.tsx#MeetingsBody",
     last: true,
+  },
+  // Added 2026-08-25. `StageRun.t0` was on the wire and drawn nowhere: 124
+  // distinct decisions from 2019-01-30, on a tab that plots horizons, ranks and
+  // percentiles and never once plotted a date.
+  "Meetings / Calendar": {
+    at: "../components/coherence/diffusion/MeetingsSection.tsx#MeetingsBody",
+    branch: 'view === "calendar"',
   },
   "Meetings / Mechanism": {
     at: "../components/coherence/diffusion/MeetingsSection.tsx#MeetingsBody",
@@ -336,10 +344,10 @@ describe("every Proofs view opens on a drawing", () => {
   }
 
   it("names every view both engine rails ship, so none is guarded by omission", () => {
-    // Eleven views over six Proofs sections, plus fifteen over Diffusion's
+    // Eleven views over six Proofs sections, plus sixteen over Diffusion's
     // seven. A view added without a line here is a view this contract does not
     // reach, and the failure would be silence.
-    assert.equal(Object.keys(VIEWS).length, 26);
+    assert.equal(Object.keys(VIEWS).length, 27);
   });
 
   it("every named drawing is one, so the allow-list is not a loophole", () => {
@@ -360,6 +368,7 @@ describe("every Proofs view opens on a drawing", () => {
       MeasurabilityStrip: "../components/coherence/MeasurabilityStrip.tsx#MeasurabilityStrip",
       GroupPins: "../components/coherence/GroupPins.tsx#GroupPins",
       InstrumentFit: "../components/coherence/diffusion/InstrumentFit.tsx#InstrumentFit",
+      MeetingCalendar: "../components/coherence/diffusion/MeetingCalendar.tsx#MeetingCalendar",
     };
     for (const [name, at] of Object.entries(LOCAL)) {
       const [file, fn] = at.split("#");
