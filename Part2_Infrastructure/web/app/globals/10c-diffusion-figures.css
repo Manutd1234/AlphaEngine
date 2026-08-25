@@ -241,3 +241,117 @@
   white-space: normal;
   hyphens: auto;
 }
+
+/* ── The model controls, marks and the floor histogram ────────────────────
+   MOVED HERE FROM `14s-proofs-model.css` ON 2026-08-25, AND THE MOVE WAS A
+   BUG FIX RATHER THAN A TIDY-UP. Every rule below was scoped
+   `.coherence-plane.proofs-plane`, which was true when the Model group and the
+   noise floor were sections of Proofs. Diffusion became its own tab the same
+   day and `DiffusionConsole` renders `coherence-plane diffusion-plane`, so
+   from that moment none of these rules could match the elements that draw
+   them — and their only render sites are now under
+   `components/coherence/diffusion/`.
+
+   Measured in Chrome before the move, which is the only way this was ever
+   going to be caught: `.coh-floor__buckets` computed `display: block` and
+   `height: 0px`, so the noise-floor histogram was drawing at zero pixels
+   tall; `.coh-model__truth` computed `stroke: none`, so the ground-truth
+   decay the simulator judges its recovered half-life AGAINST was invisible;
+   and `.coh-model__controls` computed `display: block`, so every slider row in
+   the three drivable views was unlaid-out.
+
+   `dead-css.test.ts` cannot see this class of fault by construction: it asks
+   whether a class NAME appears anywhere under components/app/lib, and all six
+   of these did. Seeing it needs a guard that resolves each plane-scoped rule to
+   the components that render its classes and asks whether that console reaches
+   this plane; a peer session is writing one.
+   ──────────────────────────────────────────────────────────────────────── */
+/* ── The control grid ─────────────────────────────────────────────────────
+   One column on a phone, two from the desk breakpoint the rest of this engine
+   uses. `align-content: start` because the house rule asks it of any grid inside
+   a subtab panel: spare height would otherwise inflate the rows, which is the
+   seg-resizes-on-pane-switch bug. */
+.coherence-plane.diffusion-plane .coh-model__controls {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-2) var(--space-3);
+  align-content: start;
+  min-width: 0;
+}
+
+@media (min-width: 1100px) {
+  .coherence-plane.diffusion-plane .coh-model__controls {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ── The three marks the model figures add ────────────────────────────────
+   Each is a mark these figures draw that no existing class covers: a measured
+   point on the absorbed curve, the decay a simulated path was drawn FROM, and
+   the area under the information density whose size is the figure's subject. */
+
+.coherence-plane.diffusion-plane .coh-model__point {
+  fill: var(--series-3);
+}
+
+/* Dashed as well as tinted: this is the ground truth behind a noisy path, and a
+   reader who cannot separate the two hues still has to be able to tell which
+   line is the one that was drawn from a formula. */
+.coherence-plane.diffusion-plane .coh-model__truth {
+  stroke: var(--text-secondary);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+
+/* The area IS the reading — its size is I(x;c) — so it is filled rather than
+   left as a line with a number beside it. Kept faint so the curve over it
+   stays the thing being read. */
+.coherence-plane.diffusion-plane .coh-model__area {
+  fill: color-mix(in srgb, var(--series-3) 18%, transparent);
+  stroke: none;
+}
+
+/* ── The noise-floor distribution ─────────────────────────────────────────
+   Ten percentile buckets per stage, plus a column for runs that could not be
+   ranked at all. HTML rather than SVG, like `StageBars` beside it, so each bar's
+   hover line is the element's own `title` — the same affordance every mark on
+   this tab carries, spelt the way an HTML bar spells it.
+
+   `align-items: flex-end` because a bucket's height IS its count: the bars grow
+   from the axis, and a bucket with nothing in it is a gap on the floor rather
+   than a bar of zero height floating in the middle. */
+.coherence-plane.diffusion-plane .coh-floor__buckets {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 64px;
+  min-width: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.coherence-plane.diffusion-plane .coh-floor__bucket {
+  flex: 1 1 0;
+  min-height: 1px;
+  background: color-mix(in srgb, var(--series-3) 55%, transparent);
+  border-radius: 1px 1px 0 0;
+}
+
+/* The half-way bucket is the reading — it is where a stage is indistinguishable
+   from an ordinary half hour — so it is marked by an EDGE rather than by hue
+   alone, which keeps it legible in forced colours. */
+.coherence-plane.diffusion-plane .coh-floor__bucket.is-middle {
+  outline: 1px dashed var(--text-secondary);
+  outline-offset: -1px;
+}
+
+/* Runs with no percentile: kept off the axis and drawn apart from it, because a
+   missing rank is not a rank of zero. The gap is what says so. */
+.coherence-plane.diffusion-plane .coh-floor__bucket.is-unranked {
+  flex: 0 0 14px;
+  margin-left: 8px;
+  background: repeating-linear-gradient(
+    45deg,
+    var(--surface-2) 0 3px,
+    color-mix(in srgb, var(--text-secondary) 30%, transparent) 3px 6px
+  );
+}

@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-25",
-  "commit": "f255a55",
+  "commit": "9bb81ae",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -33,6 +33,7 @@
     "docs/product/FEATURE_TOUR.md",
     "docs/product/PRODUCT_GUIDE.md",
     "docs/README.md",
+    "docs/testing/diffusion-audit.md",
     "docs/testing/TESTING.md",
     "docs/whitepaper/main.typ",
     "docs/whitepaper/sections/01-abstract-topology.typ",
