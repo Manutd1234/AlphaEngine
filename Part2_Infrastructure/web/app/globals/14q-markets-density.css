@@ -247,9 +247,17 @@
    on both sections, and it is the "information is scattered" the reader
    reported against Lattice.
 
-   So the two sections get the opposite rule: the switcher does not shrink below
+   So those sections get the opposite rule: the switcher does not shrink below
    its own content, and its segments keep the equal-share `flex: 1` that 00
-   gives every seg on the desk. Three short words at the --fs-body rung fit a
+   gives every seg on the desk.
+
+   FEES JOINED THEM the same day, when its worked-example picker moved out of
+   the pane body and onto this row. It had been the second of two control rows —
+   a `.seg` of four examples under a subheading under the view seg — which is
+   the "information overload" half of the report, and it is a `<select>` beside
+   the views now. The moment it shared the row the view seg began shrinking to
+   make space and its labels wrapped: "Worked example" over two lines, "Replay
+   table" over two. Same mechanism, same rule. Three short words at the --fs-body rung fit a
    row at every width this desk lays out, and the picker beside them is one
    button wide.
 
@@ -277,6 +285,25 @@
   flex: 1 1 7rem;
 }
 
-.coherence-plane.markets-plane :is(.coh-surface, .coh-kelly) .coh-status__chips > .seg {
+.coherence-plane.markets-plane :is(.coh-surface, .coh-kelly, .coh-fees) .coh-status__chips > .seg {
+  flex: 0 0 auto;
+}
+
+/* AND THE SEGMENTS SIZE TO THEIR OWN LABEL, which is the half that actually
+   stops the wrap. `00` gives every segment on the desk `flex: 1`, i.e.
+   `1 1 0%` — equal share — so a control whose natural width is the SUM of four
+   different labels hands each of them a quarter of that sum. On Fees the sum is
+   about 370px and the quarter is ~92px, while "Worked example" needs ~120: the
+   longest label in the group is the one guaranteed not to fit, and it wrapped
+   to two lines while "Ablation" sat in a box half empty.
+
+   Equal share is right for the desk's usual two- and three-option switchers,
+   where the labels are close in length. It is wrong wherever one label is much
+   longer than the others, which is these three. `flex: 0 0 auto` gives each
+   segment its own content width instead.
+
+   No metric property here either — `flex` is not one, which is what lets this
+   sit in the prose partial at all. */
+.coherence-plane.markets-plane :is(.coh-surface, .coh-kelly, .coh-fees) .coh-status__chips > .seg button {
   flex: 0 0 auto;
 }

@@ -73,19 +73,48 @@ export default function FeesSection({ active }: { active: boolean }) {
           </>
         }
       />
-      <div className="seg" role="group" aria-label="Fees view">
-        <button type="button" aria-pressed={view === "example"} onClick={() => setView("example")}>
-          Worked example
-        </button>
-        <button type="button" aria-pressed={view === "shape"} onClick={() => setView("shape")}>
-          Cost shape
-        </button>
-        <button type="button" aria-pressed={view === "comparison"} onClick={() => setView("comparison")}>
-          Ablation
-        </button>
-        <button type="button" aria-pressed={view === "table"} onClick={() => setView("table")}>
-          Replay table
-        </button>
+      {/* ONE control row: the four views, and the example every one of them is
+          priced from. They were TWO rows until 2026-08-25 — the seg here and a
+          second seg of four worked examples inside the pane — which put two
+          rows of chrome above the first figure and is the "information overload
+          is too much" the reader reported. Same defect the lattice and the
+          stake were carrying, and the same fix.
+
+          The example picker is a native `<select>` rather than the listbox the
+          family and market pickers use, and the difference is the OPTIONS: four
+          fixed prose labels that never change with the read, where those two
+          choose from a live roster whose rows carry a shard, a strike or a
+          verdict. A `<select>` renders one string per option, which is exactly
+          what this needs and not enough for those. It is the desk's own filter
+          grammar — the same label-beside-control `.coh-universe__filter` the
+          Universe asset filter uses. */}
+      <div className="coh-status__chips">
+        <div className="seg" role="group" aria-label="Fees view">
+          <button type="button" aria-pressed={view === "example"} onClick={() => setView("example")}>
+            Worked example
+          </button>
+          <button type="button" aria-pressed={view === "shape"} onClick={() => setView("shape")}>
+            Cost shape
+          </button>
+          <button type="button" aria-pressed={view === "comparison"} onClick={() => setView("comparison")}>
+            Ablation
+          </button>
+          <button type="button" aria-pressed={view === "table"} onClick={() => setView("table")}>
+            Replay table
+          </button>
+        </div>
+
+        <label className="coh-universe__filter">
+          <span>Worked example</span>
+          <select
+            value={example.id}
+            onChange={(change) => setExample(EXAMPLES.find((item) => item.id === change.target.value) ?? EXAMPLES[0])}
+          >
+            {EXAMPLES.map((item) => (
+              <option key={item.id} value={item.id}>{item.label}</option>
+            ))}
+          </select>
+        </label>
       </div>
 
       {/* The one figure neither table states. Its mark carries the warning, so
@@ -102,13 +131,7 @@ export default function FeesSection({ active }: { active: boolean }) {
       {onReplay ? (
         <AblationPane view={view as AblationView} active={active && onReplay} />
       ) : (
-        <FeesPane
-          fees={fees.data}
-          error={fees.error}
-          view={view as FeesView}
-          example={example}
-          onExample={setExample}
-        />
+        <FeesPane fees={fees.data} error={fees.error} view={view as FeesView} />
       )}
     </section>
   );

@@ -24,9 +24,15 @@
  * counts its rows — it is the proof, and proof is what a reader opens rather
  * than what they scroll past.
  *
- * Both views draw off the one `fees` read `FeesSection` owns. The example
- * picker renders INSIDE the worked example rather than under the section's
- * view rail: two `.seg` controls in a row read as one broken rail.
+ * Both views draw off the one `fees` read `FeesSection` owns. THE EXAMPLE
+ * PICKER LEFT THIS FILE ON 2026-08-25 and the reversal is worth a sentence,
+ * because the old arrangement was a reasonable answer to the wrong question. It
+ * rendered inside the worked example so that two `.seg` controls would not
+ * stack — true, and it achieved that by putting the second control one row
+ * FURTHER down, under a subheading, which is the same two rows of chrome with
+ * a heading between them. The fix is not where the second seg goes, it is that
+ * a picker is not a seg: it is a `<select>` on the section's own control row
+ * now, beside the views, which is one row in total.
  */
 
 import type { CoherenceFeeFill, CoherenceFees } from "@/lib/coherence/types";
@@ -185,15 +191,11 @@ export default function FeesPane({
   fees,
   error,
   view,
-  example,
-  onExample,
 }: {
   /** The worked example as the gateway priced it, or null until it answers. */
   fees: CoherenceFees | null;
   error: string | null;
   view: FeesView;
-  example: FeeExample;
-  onExample: (next: FeeExample) => void;
 }) {
   const heading = <h4 className="console-subhead">{HEADINGS[view]}</h4>;
 
@@ -266,19 +268,6 @@ export default function FeesPane({
   return (
     <>
       {heading}
-
-      <div className="seg coh-books__picker" role="group" aria-label="Choose a worked example">
-        {EXAMPLES.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            aria-pressed={item.id === example.id}
-            onClick={() => onExample(item)}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
 
       <FeeTotalsBar total={fees.total} />
       <FillStrip fills={fees.per_fill} />
