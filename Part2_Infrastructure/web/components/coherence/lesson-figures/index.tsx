@@ -31,9 +31,9 @@ import type { ReactNode } from "react";
 
 import { Frame, HEIGHT, WIDTH } from "./frame";
 import { Fees } from "./bounds";
-import { Absence, Grid } from "./prices";
-import { HalfLife } from "./record";
-import { Basket, Lattice } from "./structure";
+import { Absence, Book, Grid } from "./prices";
+import { HalfLife, Index } from "./record";
+import { Basket, Distribution, Duality, Lattice } from "./structure";
 
 /**
  * Fréchet: two marginals do not determine a joint, they BOUND it.
@@ -179,12 +179,27 @@ function Calibration() {
  * dwarfs the trading one, and a decay curve with a round trip landing after
  * its half.
  *
- * The remaining five are unfigured on purpose rather than pending. `book` and
- * `duality` are drawn in full elsewhere on the engine — `IdentityStrip` and
- * `PayoffByState` — and a second, smaller copy would be the same claim made
- * twice; `index`, `distribution` and `absence`'s siblings are readings rather
- * than shapes, and a diagram of a reading is a chart with invented numbers in
- * it. `LessonFigure` returns null for all five, which is the honest outcome.
+ * ALL FOURTEEN ARE DRAWN as of 2026-08-25. This paragraph used to argue the
+ * last four should not be, and the reversal is recorded rather than quietly
+ * deleted because half of that argument was sound and the other half was not.
+ *
+ * What was sound: `book` and `duality` ARE drawn in full elsewhere on the
+ * engine, by `IdentityStrip` and `PayoffByState`. What was wrong is the
+ * conclusion drawn from it — the copy rule against making one claim twice is
+ * about one SCREEN, and a reader on Lessons is not on Books or on Basket. A
+ * lesson card is where someone goes to learn the claim; the section is where
+ * they go to read today's numbers off it. The two figures differ accordingly:
+ * these draw the identity and the certificate at chosen values, the sections
+ * draw the live book and the live portfolio.
+ *
+ * What was wrong outright: `index` and `distribution` were called readings
+ * rather than shapes, and they are not. `CI = min ‖p − q‖₁` is a point off a
+ * line and the path between them; `pmf = S(kᵢ) − S(kᵢ₊₁)` is one subtraction
+ * between two quotes. Both are geometry. The test that argument reached for —
+ * "a diagram of a reading is a chart with invented numbers in it" — would
+ * condemn the ten figures already here, every one of which is drawn at chosen
+ * values; `Fees` says so in its own docstring. A lesson figure is a diagram of
+ * a claim, and the claim is what decides whether it can be drawn.
  */
 export const LESSON_FIGURES: Record<string, () => ReactNode> = {
   frechet: Frechet,
@@ -197,6 +212,10 @@ export const LESSON_FIGURES: Record<string, () => ReactNode> = {
   lattice: Lattice,
   fees: Fees,
   halflife: HalfLife,
+  book: Book,
+  duality: Duality,
+  distribution: Distribution,
+  index: Index,
 };
 
 export default function LessonFigure({ id }: { id: string }) {

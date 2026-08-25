@@ -34,6 +34,10 @@ export default function StatusPane({ status, error }: { status: CoherenceStatus 
   const schema = String((status.schema_probe as { schema?: string }).schema ?? "unavailable");
   const recorder = status.recorder;
   const tape = status.tape as { state?: string; book_snapshots?: number; tickers_seen?: number };
+  // A shard is only routine when BOTH are true: the exchange can be up while
+  // trading on that shard is halted, and it is the second that stops a family
+  // being executable.
+  const halted = status.shards.filter((shard) => !shard.exchange_active || !shard.trading_active);
 
   return (
     <div className="coh-status">
@@ -58,6 +62,20 @@ export default function StatusPane({ status, error }: { status: CoherenceStatus 
         <StateChip mark="✓" word="Read only" value={status.dry_run ? "no order path" : "dry run off"} tone="muted" />
       </div>
 
+      {/* FOLDED 2026-08-25, AND IT OPENS ITSELF. This table renders under every
+          section of the tab and is four rows of routine truth, so it is
+          furniture — but `13-warm-bright-pass.css` sets the rule that a STATUS
+          may never be hidden, and a halted shard is exactly that. So the fold
+          is conditional on there being nothing to report: routine shards stay
+          shut, and the moment one stops trading the summary says so and the
+          table is already open behind it. A reader cannot miss it by not
+          clicking, which is the only failure mode a fold introduces. */}
+      <details className="disclosure" open={halted.length > 0}>
+        <summary>
+          {halted.length
+            ? `${halted.length} of ${status.shards.length} exchange shards are not trading`
+            : `Which shard carries what, all ${status.shards.length} trading`}
+        </summary>
       <div className="table-wrap">
         <table className="coh-table">
           <caption className="coh-table__caption">
@@ -84,6 +102,7 @@ export default function StatusPane({ status, error }: { status: CoherenceStatus 
           </tbody>
         </table>
       </div>
+      </details>
 
       <dl className="coh-status__facts">
         <div>
@@ -110,7 +129,7 @@ export default function StatusPane({ status, error }: { status: CoherenceStatus 
               sentence about token buckets with nothing saying what it was about
               or which figure it explained. It is provenance for this row, so it
               sits under this row. */}
-          <dd className="coh-status__basis">{status.budget.basis}.</dd>
+          <dd className="coh-status__basis">{status.budget.basis}</dd>
         </div>
         <div>
           <dt>Coherence solver</dt>
@@ -118,12 +137,19 @@ export default function StatusPane({ status, error }: { status: CoherenceStatus 
         </div>
       </dl>
 
+      {/* The gateway's own notes: unbounded, unlabelled and rendered raw until
+          2026-08-25, at the foot of every section on the tab. Folded, with the
+          count in the summary so a reader knows whether there is anything to
+          open — an empty fold and a fold hiding four notes looked identical. */}
       {status.notes.length ? (
-        <ul className="coh-notes">
-          {status.notes.map((note, index) => (
-            <li key={`${index}-${note}`}>{note}</li>
-          ))}
-        </ul>
+        <details className="disclosure">
+          <summary>{`What the gateway noted about this read, ${status.notes.length} ${status.notes.length === 1 ? "note" : "notes"}`}</summary>
+          <ul className="coh-notes">
+            {status.notes.map((note, index) => (
+              <li key={`${index}-${note}`}>{note}</li>
+            ))}
+          </ul>
+        </details>
       ) : null}
     </div>
   );

@@ -214,6 +214,30 @@ export function ScoreView({ data, facts }: { data: CoherenceCalibration; facts: 
         rows={scoreRows(data, facts)}
         mark={{ at: 1, label: "1" }}
       />
+      {/* PROMOTED OUT OF A <details> ON 2026-08-25. The decomposition is not
+          an aside about the Brier — it IS the Brier, split into the three
+          things that make it: how far off the prices were (reliability), how
+          much they moved with the outcome (resolution), and how hard the
+          question was to begin with (uncertainty). A reader who sees only the
+          score cannot tell a well-calibrated forecaster of hard questions from
+          a badly-calibrated one of easy questions, and those are opposite
+          judgements about the same number.
+
+          `13-warm-bright-pass.css` states the test for what may be folded:
+          hiding it must not change what someone believes about the desk. This
+          failed that test — it was the one drawing on the view that changes
+          what the headline number means. */}
+      <div className="coh-calib__figures">
+        <MurphyBars
+          brier={data.brier}
+          reliability={data.reliability}
+          resolution={data.resolution}
+          uncertainty={data.uncertainty}
+          binning={data.binning}
+          bandCount={data.bins.length}
+        />
+      </div>
+
       <div className="table-wrap">
         <table className="coh-table">
           {/* "The banner above says which are forecast scores" went on
@@ -249,20 +273,6 @@ export function ScoreView({ data, facts }: { data: CoherenceCalibration; facts: 
           </tbody>
         </table>
       </div>
-
-      <details className="disclosure">
-        <summary>What the Brier decomposes into: reliability, resolution and uncertainty</summary>
-        <div className="coh-calib__figures">
-          <MurphyBars
-            brier={data.brier}
-            reliability={data.reliability}
-            resolution={data.resolution}
-            uncertainty={data.uncertainty}
-            binning={data.binning}
-            bandCount={data.bins.length}
-          />
-        </div>
-      </details>
     </>
   );
 }

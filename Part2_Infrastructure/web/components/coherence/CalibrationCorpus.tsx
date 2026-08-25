@@ -24,7 +24,7 @@
 import { pct } from "@/lib/format";
 import type { CoherenceCalibration } from "@/lib/coherence/types-lab";
 
-import ValueStrip from "./ValueStrip";
+import ValueStrip, { type StripRow } from "./ValueStrip";
 
 export default function CalibrationCorpus({ data }: { data: CoherenceCalibration }) {
   const corpus = data.composition.reduce((sum, row) => sum + row.count, 0);
@@ -32,6 +32,19 @@ export default function CalibrationCorpus({ data }: { data: CoherenceCalibration
     (carry, row) => (carry == null || row.count > carry.count ? row : carry),
     null,
   );
+
+  const slopes: StripRow[] = (data.bias_by_series ?? []).map((row) => {
+    const value = Number(row.slope);
+    return {
+      label: row.series_ticker,
+      // NOT `|| null`: a slope of exactly zero is a real reading — prices that
+      // did not move with the outcome at all — and would be erased by it.
+      value: Number.isFinite(value) ? value : null,
+      text: row.slope.slice(0, 6),
+      title: `${row.series_ticker}: slope ${row.slope.slice(0, 6)}, against one for a series whose prices moved with the outcome`,
+      ...(Number.isFinite(value) ? {} : { noBar: "the engine did not report a slope for this series" }),
+    };
+  });
 
   return (
     <>
@@ -54,6 +67,28 @@ export default function CalibrationCorpus({ data }: { data: CoherenceCalibration
               title: `${row.series_ticker}: ${row.count} of the ${corpus} settled markets in the composition`,
             }))}
           />
+          {/* THE SECOND MIXTURE CLAIM, DRAWN 2026-08-25. The strip above says
+              which series the corpus is MADE of; this one says whether those
+              series agree with each other, and the view's own docstring argues
+              why that cannot be read off the aggregate: "two of them can point
+              opposite ways and still sit at one together". The aggregate slope
+              is the one number on the Score view that a mixture can fake, and
+              until now the only place a reader could check it was a column
+              inside a fold — six digits per row, four rows down.
+
+              The rule at one is the whole reading: a series above it moved
+              MORE than the outcome warranted and one below it moved less. The
+              distance from the rule is what the eye takes, which is why this is
+              a strip and not four more table cells. */}
+          {slopes.length ? (
+            <ValueStrip
+              caption="Each series' own slope, against the dashed rule at one"
+              ariaLabel={`Bias slope for ${slopes.length} series against a calibrated slope of one`}
+              rows={slopes}
+              mark={{ at: 1, label: "1" }}
+            />
+          ) : null}
+
           {/* THE FINDING STAYS OPEN, THE ROWS GO BEHIND A SUMMARY (fourth
               review of 2026-08-24). It used to be one caption carrying both,
               which meant a reader met the mixture claim only if they read a
@@ -112,10 +147,18 @@ export default function CalibrationCorpus({ data }: { data: CoherenceCalibration
         )}
       </section>
 
-      <h3 className="research-subhead">The engine&rsquo;s own account of this run</h3>
-      <p className="coh-event__note">
-        <span aria-hidden="true">◌</span> {data.detail}
-      </p>
+      {/* FOLDED 2026-08-25. `data.detail` is composed by the gateway, is not
+          length-bounded by anything, and was rendered raw under a heading that
+          gave it more rank than the two drawings above it. It is provenance —
+          worth having, never the reading — so it goes where provenance goes.
+          The empty case draws nothing rather than an empty paragraph under a
+          heading, which is what the raw render did. */}
+      {data.detail ? (
+        <details className="disclosure">
+          <summary>Where these numbers came from, in the engine&rsquo;s own words</summary>
+          <p>{data.detail}</p>
+        </details>
+      ) : null}
     </>
   );
 }

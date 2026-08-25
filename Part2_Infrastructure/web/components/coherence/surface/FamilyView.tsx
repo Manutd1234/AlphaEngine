@@ -34,7 +34,17 @@ export default function FamilyView({ kelly }: { kelly: CoherenceKelly }) {
         </p>
       )}
 
-      <p className="coh-kelly__note">{kelly.detail}</p>
+      {/* Folded 2026-08-25: `detail` is the solver's own account of the run,
+          composed by the gateway and bounded by nothing. It is provenance for
+          the ranking above, not a reading of it, and it was the last thing on
+          the view — so a reader who scrolled to the bottom met a paragraph of
+          machine prose where the conclusion should be. */}
+      {kelly.detail ? (
+        <details className="disclosure">
+          <summary>How the solver reached this ranking</summary>
+          <p className="coh-kelly__note">{kelly.detail}</p>
+        </details>
+      ) : null}
     </>
   );
 }

@@ -43,3 +43,44 @@ export function HalfLife() {
     </Frame>
   );
 }
+
+/**
+ * Incoherence is measurable, per series, over time.
+ *
+ * `CI = min ‖p_quoted − q‖₁ over the coherent vectors q`. The reason this
+ * lesson needs a picture is that "distance to the nearest arbitrage-free price
+ * vector" sounds like a metaphor and is not one: the coherent vectors form a
+ * LINE (here, the two prices that sum to a dollar), the quoted pair is a point
+ * off it, and the index is the length of the path between them.
+ *
+ * The path is drawn as an L rather than a diagonal, because the norm is L1 and
+ * a diagonal would draw the Euclidean distance — a different number, and the
+ * kind of quietly wrong picture that teaches the wrong thing for years. Two
+ * axes, not the full simplex, for the same reason the duality figure uses three
+ * states: the smallest case where the claim is still the claim.
+ *
+ * The point sits OUTSIDE the line rather than on it, because the lesson's own
+ * argument is that this distance exists on every poll and is usually small but
+ * not zero — a figure showing a coherent book would draw nothing at all.
+ */
+export function Index() {
+  const left = 30;
+  const base = 74;
+  const span = 88;
+  return (
+    <Frame label="A quoted price pair sitting off the line of coherent pairs, with the L-shaped distance between them">
+      <line x1={left} x2={left} y1={base - span} y2={base} className="coh-lessonfig__rule" />
+      <line x1={left} x2={left + span} y1={base} y2={base} className="coh-lessonfig__rule" />
+      <line x1={left} x2={left + span} y1={base - span} y2={base} className="coh-lessonfig__simplex" />
+      <text x={left + span + 4} y={base - span + 10} className="coh-lessonfig__tick">p₁ + p₂ = 1</text>
+      <line x1={left + 62} x2={left + 62} y1={base - 44} y2={base - 26} className="coh-lessonfig__mark-line" />
+      <line x1={left + 62} x2={left + 44} y1={base - 26} y2={base - 26} className="coh-lessonfig__mark-line" />
+      <circle cx={left + 62} cy={base - 44} r={3.5} className="coh-lessonfig__off" />
+      <circle cx={left + 44} cy={base - 26} r={3.5} className="coh-lessonfig__ring" />
+      <text x={left + 68} y={base - 46} className="coh-form__note">quoted</text>
+      <text x={left} y={HEIGHT - 6} className="coh-form__note">
+        the L1 path, not the diagonal: the index is the sum of the two legs
+      </text>
+    </Frame>
+  );
+}

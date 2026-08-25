@@ -79,3 +79,42 @@ export function Absence() {
     </Frame>
   );
 }
+
+/**
+ * A binary book has two bid ladders and no asks.
+ *
+ * The claim is an identity — `yes_ask + no_ask = (1 − no_bid) + (1 − yes_bid)
+ * = 1 + spread` — and it is the kind of arithmetic that is unarguable on a line
+ * and slippery in a sentence. Two bars grow toward each other from opposite
+ * ends, because that is what two bid ladders on a binary market ARE: everything
+ * a YES buyer will pay, and everything a NO buyer will pay, measured from
+ * opposite ends of the same dollar. The offer either side trades against is the
+ * far end of the other bar.
+ *
+ * The gap between them is the spread, and drawing it is the point: the two bars
+ * cannot overlap, so the two asks cannot sum to less than a dollar. A sum below
+ * one is a torn snapshot — the two ladders read at different instants — and the
+ * lesson's `whenItFails` says a bot trading on it trades its own latency.
+ *
+ * 42 and 55 are chosen, like every value in this registry. A three-cent gap is
+ * wide enough to be a length rather than a rounding artefact.
+ */
+export function Book() {
+  const left = 16;
+  const span = WIDTH - 32;
+  const at = (cents: number) => left + (cents / 100) * span;
+  return (
+    <Frame label="Two bid ladders growing toward each other from opposite ends of a dollar, with the spread as the gap between them">
+      <rect x={left} y={40} width={span} height={20} className="coh-lessonfig__track" />
+      <rect x={left} y={40} width={at(42) - left} height={20} className="coh-lessonfig__slice" />
+      <rect x={at(45)} y={40} width={left + span - at(45)} height={20} className="coh-lessonfig__slice is-loud" />
+      <text x={at(21)} y={54} textAnchor="middle" className="coh-lessonfig__tick">YES bid 42</text>
+      <text x={at(72)} y={54} textAnchor="middle" className="coh-lessonfig__tick">NO bid 55</text>
+      <line x1={at(42)} x2={at(45)} y1={32} y2={32} className="coh-lessonfig__mark-line" />
+      <text x={at(43.5)} y={26} textAnchor="middle" className="coh-form__note">spread</text>
+      <text x={left} y={HEIGHT - 8} className="coh-form__note">
+        the asks are the far ends: 45 + 58 = a dollar and the spread, never less
+      </text>
+    </Frame>
+  );
+}
