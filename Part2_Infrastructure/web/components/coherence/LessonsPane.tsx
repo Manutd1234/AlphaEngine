@@ -180,7 +180,34 @@ export default function LessonsPane() {
           catalogue rather than an answer, and a band summarising one would be a
           frame around the head's own count. */}
       <div className="coh-bar">
+      {/* THE CURRICULUM FIRST, THEN THE TWO VIEWS ABOUT IT — reordered
+          2026-08-26, and the reason is that the row held two kinds of thing in
+          one undifferentiated list. "segregate the content better."
+
+          Four of these buttons open a SLICE of the catalogue: Quotes,
+          Structure, Bounds, Record, each a set of lesson cards. The other two
+          are about the catalogue rather than in it — Coverage is the map of
+          which section teaches what, and Episode states is the vocabulary every
+          lesson is written in. A reader met them mixed, with the two
+          about-the-catalogue views leading, and nothing in the row said which
+          kind a button was.
+
+          Order is the only signal a single `.seg` can carry, and one row per
+          section is the rule this rail keeps — so the four slices lead and the
+          two that describe them follow. The default stays Coverage: opening on
+          the map is right, and where the map SITS in the row is a separate
+          question from what opens first. */}
       <div className="seg" role="group" aria-label="Lessons view">
+        {LESSON_GROUPS.map((entry) => (
+          <button
+            key={entry.id}
+            type="button"
+            aria-pressed={view === entry.id}
+            onClick={() => setView(entry.id)}
+          >
+            {entry.label}
+          </button>
+        ))}
         <button
           type="button"
           aria-pressed={view === "coverage"}
@@ -198,16 +225,6 @@ export default function LessonsPane() {
         >
           Episode states
         </button>
-        {LESSON_GROUPS.map((entry) => (
-          <button
-            key={entry.id}
-            type="button"
-            aria-pressed={view === entry.id}
-            onClick={() => setView(entry.id)}
-          >
-            {entry.label}
-          </button>
-        ))}
       </div>
       </div>
 
