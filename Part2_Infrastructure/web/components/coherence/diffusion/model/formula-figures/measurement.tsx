@@ -24,11 +24,12 @@ export function Absorbed() {
   return (
     <Frame label="One stage's abnormal return rising to its terminal, with the absorbed fraction read as the height at a horizon over the height at the terminal; a dashed shorter window is drawn where that ratio would be one by construction">
       <Axes yWord="ar" />
-      <Rule at={1} word="ar(T*)" />
+      <Rule at={1} word="ar(T*)" why="The terminal move — the denominator every absorbed fraction is read against." />
       <path className="coh-index__line" d={path(pts)} fill="none" />
-      <Marker at={0.45} word="h" />
-      <Marker at={1} word="T*" />
-      <Wrong d={path(rise(24, 9).map(([a, b]) => [a * 0.45, b] as const))} word=""  />
+      <Marker at={0.45} word="h" why="The horizon being read. The absorbed fraction is this height over the terminal one." />
+      <Marker at={1} word="T*" why="The terminal. Ending the window here makes the ratio one by construction." />
+      <Wrong d={path(rise(24, 9).map(([a, b]) => [a * 0.45, b] as const))} word=""
+             why="A window ending where the press conference starts: absorbed(release, T) is then identically one, and the half-life is bounded below thirty minutes by construction." />
     </Frame>
   );
 }
@@ -41,10 +42,11 @@ export function Overshoot() {
   return (
     <Frame label="A path whose absorbed fraction rises above one and comes back, against a dashed copy clipped flat at one; the clipped copy crosses a half earlier">
       <Axes yWord="abs" />
-      <Rule at={0.72} word="1.0" />
-      <Rule at={0.36} word="half" kind="mark" />
+      <Rule at={0.72} word="1.0" why="One. A path is allowed above it — overshoot is real, and the denominator is never clipped." />
+      <Rule at={0.36} word="half" kind="mark" why="The half the crossing is read at." />
       <path className="coh-index__line" d={path(pts.map(([a, b]) => [a, b * 0.72] as const))} fill="none" />
-      <Wrong d={path(pts.map(([a, b]) => [a, Math.min(b, 1) * 0.72] as const))} word="clipped" at={[0.74, 1.16]} />
+      <Wrong d={path(pts.map(([a, b]) => [a, Math.min(b, 1) * 0.72] as const))} word="clipped" at={[0.74, 1.16]}
+             why="The same path clipped to one. Every overshoot becomes fully-absorbed-early, and the half-life comes out shorter than it was measured to be." />
     </Frame>
   );
 }
@@ -53,7 +55,7 @@ export function Floor() {
   return (
     <Frame label="A plus or minus two sigma band about zero with one terminal move inside it, refused, and one outside it, measured; a third case where a single pre-event bar collapses the band to nothing and admits everything">
       <Axes />
-      <Band from={0} to={1} word="±2σ" />
+      <Band from={0} to={1} word="±2σ" why="The noise floor. A terminal move inside this band is refused rather than measured." />
       <line className="coh-ladder__axis" x1={x(0)} x2={x(1)} y1={y(0.5)} y2={y(0.5)} />
       <line className="coh-survival__median" x1={x(0.22)} x2={x(0.22)} y1={y(0.5)} y2={y(0.66)} />
       <text className="coh-ladder__tick" x={x(0.22)} y={y(0.72)} textAnchor="middle">✕</text>
@@ -70,14 +72,15 @@ export function HalfLife() {
   return (
     <Frame label="A geometric horizon grid with the last cell shaded because it spans a doubling; the crossing interpolated in log x sits apart from the crossing a linear reading would place at the cell's arithmetic midpoint">
       <Axes yWord="abs" />
-      <Band from={0.7} to={1} word="a doubling" />
-      <Rule at={0.5} word="half" />
+      <Band from={0.7} to={1} word="a doubling" why="The last cell spans a doubling, so where inside it the crossing falls changes the answer." />
+      <Rule at={0.5} word="half" why="The half the crossing is interpolated to." />
       <path className="coh-index__line" d={path(grid.map((g, i) => [g, abs[i]] as const))} fill="none" />
       {grid.map((g, i) => (
         <circle key={g} className="coh-model__point" cx={x(g)} cy={y(abs[i])} r={2.4} />
       ))}
-      <Marker at={0.78} word="log" />
-      <Wrong d={`M${x(0.85)},${y(0)}L${x(0.85)},${y(1)}`} word="linear" at={[0.93, -0.22]} />
+      <Marker at={0.78} word="log" why="The crossing interpolated in log x, which is where an exponential approach actually crosses." />
+      <Wrong d={`M${x(0.85)},${y(0)}L${x(0.85)},${y(1)}`} word="linear" at={[0.93, -0.22]}
+             why="A linear reading puts the crossing at the cell's arithmetic midpoint, which is later than the truth whenever the cell spans a doubling." />
     </Frame>
   );
 }
@@ -116,8 +119,9 @@ export function Exponential() {
     <Frame label="The unpriced fraction decaying to a low asymptote, against a dashed fit whose asymptote has been walked upward until its residual looked small">
       <Axes yWord="u" />
       <path className="coh-index__line" d={path(pts(0.06, 3.4))} fill="none" />
-      <Rule at={0.06} word="u∞" />
-      <Wrong d={path(pts(0.45, 6.5))} word="walked up" at={[0.62, 0.72]} />
+      <Rule at={0.06} word="u∞" why="The asymptote the unpriced fraction decays to." />
+      <Wrong d={path(pts(0.45, 6.5))} word="walked up" at={[0.62, 0.72]}
+             why="An asymptote walked upward until the residual looked small. The fit then reports a half-life the path never had." />
     </Frame>
   );
 }
@@ -128,10 +132,11 @@ export function Power() {
   return (
     <Frame label="An exponential and a power law drawn through the same unpriced fractions; inside the measured grid they agree, and past the last horizon they separate">
       <Axes yWord="u" />
-      <Band from={0.62} to={1} word="past the grid" />
+      <Band from={0.62} to={1} word="past the grid" why="Past the last measured horizon. The two fits agree inside the grid and separate here, so this is extrapolation." />
       <path className="coh-index__line" d={path(expo)} fill="none" />
-      <Wrong d={path(pow)} word="power" at={[0.86, 0.34]} />
-      <Marker at={0.62} word="last" />
+      <Wrong d={path(pow)} word="power" at={[0.86, 0.34]}
+             why="The power law through the same points. Inside the grid it is indistinguishable from the exponential." />
+      <Marker at={0.62} word="last" why="The last horizon actually measured." />
     </Frame>
   );
 }

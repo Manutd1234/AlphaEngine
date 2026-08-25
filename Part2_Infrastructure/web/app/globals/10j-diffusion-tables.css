@@ -135,16 +135,15 @@
   font-size: var(--fs-body);
 }
 
-/* The same inversion one view over. `.diff-bars__head` labels a track and reads
-   `--fs-body`; `.diff-bars__foot` carries the micro-copy UNDER it and reads
-   `--fs-title` — `14q` sorted the foot into prose and the head into furniture.
-   `10c:123` and `10c:158` had them at 13 and 12.75, one rung apart the right
-   way round. Both classes render only on Diffusion, so the clean fix is to drop
-   the foot from 14q's plane-wide list rather than override it here — proposed
-   to that file's owner; this holds the line until they answer. */
-.coherence-plane.diffusion-plane .diff-bars__foot {
-  font-size: var(--fs-sm);
-}
+/* `.diff-bars__head` and `.diff-bars__foot` are GONE, along with the HTML they
+   named. This block used to pull the foot back down from `--fs-title`, because
+   `14q` had sorted the foot into prose and the head into furniture — one rung
+   apart, the wrong way round. Both figures are SVG now and the two rungs are
+   set directly on `.diff-bars__svghead` and `.diff-bars__svgfoot` above. The
+   names were also removed from 14q's plane-wide lists in the same change: they
+   could no longer match anything, and `dead-css` counts a class whose rules
+   outlive its render sites. */
+
 
 /* ── The sandbox slider labels ───────────────────────────────────────────── */
 
@@ -169,4 +168,140 @@
   color: var(--text-muted);
   margin-bottom: 5px;
   font-weight: 600;
+}
+
+/* The note column on the effect plot: a `○` per row that carries a
+   `Finding.note`, whose title IS that sentence. The glyph is the house's status
+   vocabulary rather than a colour, so it survives forced colours and a reader
+   who cannot separate two hues. */
+.coherence-plane.diffusion-plane .diff-effect__note {
+  fill: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+/* ── The attrition bars, in SVG ──────────────────────────────────────────── */
+
+/* `.diff-bars__*` was HTML with `title` ATTRIBUTES, and `useMarkReadout`
+   collects SVG `<title>` CHILDREN — so the Control view measured 26 hoverable
+   facts and 0 keyboard stops. These are the SVG counterparts. The fills keep
+   the same two treatments: a solid measured half and a HATCHED refused half,
+   textured rather than merely paler because in Windows High Contrast both
+   collapse to one colour and the texture is what survives. */
+.coherence-plane.diffusion-plane .diff-bars__svghead {
+  fill: var(--text-primary);
+  font-size: var(--fs-sm);
+  font-weight: 650;
+}
+
+.coherence-plane.diffusion-plane .diff-bars__svgcount,
+.coherence-plane.diffusion-plane .diff-bars__svgfoot {
+  fill: var(--text-secondary);
+  font-size: var(--fs-sm);
+}
+
+.coherence-plane.diffusion-plane .diff-bars__svgtrack {
+  fill: var(--surface-2);
+  stroke: var(--rule-soft);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.coherence-plane.diffusion-plane .diff-bars__svgfill--measured {
+  fill: color-mix(in srgb, var(--series-1) 70%, transparent);
+}
+
+.coherence-plane.diffusion-plane .diff-bars__svgfill--refused {
+  fill: url(#diff-hatch);
+}
+
+/* The hatch stroke itself, defined once in `Plot`'s `<defs>`. */
+.coh-plot__hatch {
+  stroke: color-mix(in srgb, var(--text-muted) 40%, transparent);
+  stroke-width: 2;
+}
+
+/* The floor histogram's buckets, in SVG. `is-middle` marks 0.5 — where a stage
+   is indistinguishable from an ordinary half hour — and `is-unranked` is the
+   column that sits OFF the axis: hatched, because a run with no percentile is a
+   gap and a solid bar of any height would invite a comparison it cannot carry.
+   The reading is in the row head and the readout, never in that column's
+   height. */
+.coherence-plane.diffusion-plane .coh-floor__svgbucket {
+  fill: color-mix(in srgb, var(--series-3) 55%, transparent);
+}
+
+.coherence-plane.diffusion-plane .coh-floor__svgbucket.is-middle {
+  fill: color-mix(in srgb, var(--series-3) 78%, transparent);
+}
+
+.coherence-plane.diffusion-plane .coh-floor__svgbucket.is-unranked {
+  fill: url(#diff-hatch);
+}
+
+/* ── The instrument ladder, in SVG ───────────────────────────────────────── */
+
+/* Same four columns and the same threshold tick the HTML grid drew; the medium
+   moved so the figure could be reached by keyboard. `.diff-fit__why` stays HTML
+   — it is a definition list inside a disclosure, prose rather than a drawing. */
+.coherence-plane.diffusion-plane .diff-fit__svgwhat {
+  fill: var(--text-primary);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.coherence-plane.diffusion-plane .diff-fit__svgvalue {
+  fill: var(--text-primary);
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-sm);
+}
+
+.coherence-plane.diffusion-plane .diff-fit__svgroom {
+  fill: var(--text-secondary);
+  font-size: var(--fs-sm);
+}
+
+/* One rung under the rows it labels, the same relationship `thead th` has to
+   its cells. */
+.coherence-plane.diffusion-plane .diff-fit__svggroup {
+  fill: var(--text-secondary);
+  font-size: var(--fs-xs);
+  font-weight: 650;
+}
+
+.coherence-plane.diffusion-plane .diff-fit__svgrule {
+  stroke: var(--border);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.coherence-plane.diffusion-plane .diff-fit__svgtrack {
+  fill: var(--surface-2);
+  stroke: var(--rule-soft);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Hatched, not empty: a requirement with no measurement is a gap, and an empty
+   track at this size is indistinguishable from a bar of length zero — which
+   would read as "measured, and it failed". */
+.coherence-plane.diffusion-plane .diff-fit__svgtrack.is-absent {
+  fill: url(#diff-hatch);
+}
+
+.coherence-plane.diffusion-plane .diff-fit__svgfill {
+  fill: color-mix(in srgb, var(--series-1) 70%, transparent);
+}
+
+.coherence-plane.diffusion-plane .diff-fit__svgfloor {
+  fill: var(--text-primary);
+}
+
+/* The transparent hit shape behind a card figure's hairlines. A 1px stroke in a
+   260-unit box scaled to a ~480px card is not a pointer target; this is what
+   the `<title>` hangs on. */
+.coherence-plane.diffusion-plane .diff-cardfig__hit {
+  stroke: transparent;
+  stroke-width: 7;
+  fill: none;
 }

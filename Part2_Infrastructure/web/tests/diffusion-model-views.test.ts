@@ -121,20 +121,60 @@ describe("every formula card carries a figure", () => {
       "a formula card has no figure, or a figure has no card");
   });
 
-  it("no card figure carries a mark, because it is a diagram and not a reading", () => {
-    // `Plot` turns every `<title>` into a walkable mark, which is right for the
-    // data figures and wrong here: thirteen diagrams of an ARGUMENT would put
-    // seven extra tab stops in Measurement alone, to re-read labels already
-    // drawn. The frame carries one `aria-label` for the whole thing instead.
+  it("a card figure can be asked what a part means, without joining the tab order", () => {
+    // REVISED 2026-08-25, and the old assertion is the one this replaces:
+    // `assert.doesNotMatch(source, /<title>/)` — no marks at all, on the
+    // argument that thirteen diagrams would put seven extra tab stops in
+    // Measurement alone to re-read labels already drawn.
+    //
+    // Half of that argument holds and is kept below: these figures still must
+    // NOT go through `Plot`, because `Plot` promotes a figure to a tab stop and
+    // nineteen diagrams of an argument would be nineteen new stops to walk
+    // decoration. The frame already names the whole drawing once.
+    //
+    // The other half does not. A `<title>` on a plain `<svg>` is a native
+    // tooltip and creates no tab stop, so hover and the keyboard order are
+    // separable — and the sentences say what a part is DOING in the argument,
+    // which is the thing the card's prose says and the drawing could not.
+    const primitives = read("../components/coherence/diffusion/model/formula-figures/primitives.tsx");
+
+    // COMMENTS BLANKED FIRST. Every one of these files argues in prose about
+    // why it does not use that component, so a raw scan finds the word in the
+    // explanation and fails the file for explaining itself. Cost one red run.
+    const codeOf = (file: string) =>
+      read(`../components/coherence/diffusion/model/formula-figures/${file}.tsx`)
+        .replace(/\/\*[\s\S]*?\*\//g, " ")
+        .replace(/^[ \t]*\/\/.*$/gm, " ");
+
     for (const file of ["primitives", "measurement", "instrument"]) {
-      const source = read(`../components/coherence/diffusion/model/formula-figures/${file}.tsx`);
-      assert.doesNotMatch(source, /<title>/, `${file} gives a card figure a hover-only mark`);
+      assert.doesNotMatch(
+        codeOf(file),
+        /\bPlot\b/,
+        `${file} reaches for Plot, which would put every card figure in the tab order`,
+      );
     }
-    assert.match(
-      read("../components/coherence/diffusion/model/formula-figures/primitives.tsx"),
-      /role="img" aria-label=\{label\}/,
-      "the card frame no longer names itself, and its marks are not named either",
-    );
+
+    // The hit shape is what a title hangs on: a 1px hairline in a 260-unit box
+    // is not a pointer target, so a title on the stroke itself would be a fact
+    // nobody can reach.
+    assert.match(primitives, /diff-cardfig__hit/,
+      "the primitives no longer draw a hit shape, so their titles cannot be pointed at");
+    assert.match(primitives, /role="img" aria-label=\{label\}/,
+      "the card frame no longer names itself, and its marks are not named either");
+
+    // A `why` that merely repeats the `word` printed beside it is the defect the
+    // old rule was guarding against, and it is the one worth keeping out.
+    for (const file of ["measurement", "instrument"]) {
+      const source = read(`../components/coherence/diffusion/model/formula-figures/${file}.tsx`);
+      for (const [, word, why] of source.matchAll(/word="([^"]*)"[^/]*?why="([^"]+)"/gs)) {
+        if (!word) continue;
+        assert.notEqual(why.trim().toLowerCase(), word.trim().toLowerCase(),
+          `a ${file} figure's hover text is just its own label again: "${word}"`);
+      }
+    }
+
+    const sentences = [...primitives.matchAll(/why\?: string/g)].length;
+    assert.ok(sentences >= 4, "fewer than four primitives can carry a why, so most parts cannot be asked");
   });
 });
 

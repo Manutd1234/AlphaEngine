@@ -79,10 +79,11 @@ export function Mmse() {
   return (
     <Frame label="The Bayes-optimal error rising across log signal-to-noise as a sum of shifted sigmoids, with its two tails shaded because the raw error diverges at both and only the difference against a matched Gaussian converges">
       <Axes yWord="mmse" />
-      <Band from={0} to={0.12} word="" />
-      <Band from={0.88} to={1} word="" />
+      <Band from={0} to={0.12} word="" why="The raw error diverges in this tail; only the difference against a matched Gaussian converges." />
+      <Band from={0.88} to={1} word="" why="The other diverging tail. Integrating the raw error over log signal-to-noise fails at both ends." />
       {[-2, 0, 2].map((s) => (
-        <Wrong key={s} d={path(curve(s))} word="" />
+        <Wrong key={s} d={path(curve(s))} word=""
+             why="One shifted sigmoid. The sum of them is the curve, so no single one is the reading." />
       ))}
       <path className="coh-index__line" d={path(sum)} fill="none" />
       <text className="coh-ladder__tick" x={x(0.5)} y={y(-0.34)} textAnchor="middle">α, log-SNR</text>
@@ -104,7 +105,8 @@ export function Spectrum() {
     <Frame label="The information density spread across resolution, against a dashed whitened version collapsed to one bump at zero where the resolution axis has been destroyed">
       <Axes yWord="g(α)" />
       <path className="coh-index__line" d={path(real)} fill="none" />
-      <Wrong d={path(white)} word="whitened" at={[0.5, 1.18]} />
+      <Wrong d={path(white)} word="whitened" at={[0.5, 1.18]}
+             why="The whitened spectrum: every log lambda goes to zero, the spread collapses to one bump, and the resolution axis the instrument reads is destroyed." />
       <text className="coh-ladder__tick" x={x(0)} y={y(-0.34)}>coarse</text>
       <text className="coh-ladder__tick" x={x(1)} y={y(-0.34)} textAnchor="end">fine</text>
     </Frame>
@@ -120,11 +122,12 @@ export function Identity() {
     <Frame label="A signed axis about zero: the closed form sits exactly at zero when the conditioning carries nothing, while the learned estimator's shuffled null lies entirely to the right of it, so a standard-error floor falls inside the null and only the shuffled floor clears it">
       <Axes />
       <line className="coh-ladder__axis" x1={x(0)} x2={x(1)} y1={y(0)} y2={y(0)} />
-      <Marker at={0.36} word="0" />
+      <Marker at={0.36} word="0" why="Zero. The closed form sits exactly here when the conditioning carries nothing." />
       <circle className="coh-model__point" cx={x(0.36)} cy={y(0)} r={3} />
       <text className="coh-ladder__tick" x={x(0.34)} y={y(1.2)} textAnchor="end">closed form</text>
       <path className="coh-model__area" d={`${path(hump)}L${x(0.92)},${y(0)}L${x(0.42)},${y(0)}Z`} />
-      <Wrong d={`M${x(0.5)},${y(0)}L${x(0.5)},${y(1)}`} word="✕ SE floor" at={[0.72, 1.2]} />
+      <Wrong d={`M${x(0.5)},${y(0)}L${x(0.5)},${y(1)}`} word="✕ SE floor" at={[0.72, 1.2]}
+             why="A standard-error floor falls inside the shuffled null, so it cannot tell a real reading from noise. Only a floor taken from the shuffled null clears it." />
       <line className="coh-survival__median" x1={x(0.86)} x2={x(0.86)} y1={y(0)} y2={y(1)} />
       <text className="coh-ladder__tick" x={x(1)} y={y(-0.34)} textAnchor="end">✓ shuffled null</text>
     </Frame>
@@ -139,7 +142,7 @@ export function Skill() {
   return (
     <Frame label="Held-out points against a flat mean and a fitted line: the residuals to the mean are the total sum of squares and the residuals to the fit are what is left, and the gain a text adds is drawn signed so a negative one is reported rather than floored">
       <Axes yWord="resid" />
-      <Rule at={0.55} word="mean" />
+      <Rule at={0.55} word="mean" why="The held-out mean. Residuals to it are the total sum of squares R-squared is measured against." />
       <path className="coh-index__line" d={path([[0, fit(0)], [1, fit(1)]])} fill="none" />
       {pts.map(([px, py]) => (
         <g key={px}>

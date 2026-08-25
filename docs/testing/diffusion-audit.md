@@ -532,3 +532,73 @@ footnote, 14 is a caption or a reading. 17px now renders nowhere on it.
 
 **Nothing was deleted.** Every word is one click away, and the two catalogue
 sections stop being roughly 60% of the tab's visible prose.
+
+## Slice 3 — interactivity, 2026-08-25
+
+Target: no figure on the tab that cannot be asked a question. Measured before
+and after, same probe, same build:
+
+    section / view          svg marks         kbd stops
+    arm / Control            0 -> 26            0 -> 2
+    findings / Instrument    0 ->  6            0 -> 1
+    findings / Effect plot  14 -> 39            1 -> 1
+    model                    0 -> 17 (hover)    0 -> 0
+    instrument               0 ->  9 (hover)    0 -> 0
+
+**Three figures were HTML pretending to be charts.** `StageBars`,
+`FloorDistribution` and `InstrumentFit` were `<div>`s with `title` ATTRIBUTES,
+and `useMarkReadout` collects SVG `<title>` CHILDREN — so every fact in them was
+reachable by mouse and by nothing else. That is why `arm / Control` measured as
+a view with no SVG at all. All three are SVG inside `<Plot>` now, with the same
+geometry: the two-fill attrition track, the ten percentile buckets and the
+off-axis unranked column, the six requirement rows and their threshold ticks.
+Verified not clipped by comparing each SVG's viewBox against the lowest drawn
+element: 158/136 and 226/213.
+
+**`EffectPlot`'s only mark was on the row LABEL,** so hovering the dot — the
+thing a reader points at — reported nothing, and the arrow walk read back text
+already printed in the gutter. 14 marks to 39: the labels stay, the dots gain
+`t`, `n` and the shuffled p, the band says what it is, and ten rows gain a `○`
+in a reserved column carrying `Finding.note` verbatim. That field was on the
+wire for 10 of 14 rows and rendered nowhere; it is the sentence that says why a
+null is READABLE — "the positive control: without it, every null below is
+unfalsifiable" — which is the one thing a dot at t = 1.15 cannot say for itself.
+
+**The readout clipped its own text, and had since it was written.** `Readout`
+bounded the pill to the plot width and let the `<text>` run on, so a long title
+painted past the rounded corner and off the viewBox. It needed a mark title
+longer than the plot to show, which is why no test could catch it: the suite has
+no DOM, so a string length is a number nobody compares to a pixel width.
+`ClockAgreement`'s per-run title is about 130 characters and overflowed at desk
+width. Truncated in the middle now, because a readout is "what this mark is —
+what it measures" and both ends are worth keeping; the full sentence still
+reaches a screen reader through `announce`.
+
+**The 19 formula figures gain hover and NOT a tab stop, and the split is the
+point.** The old rule in `primitives.tsx` was "no hover marks on any of them",
+argued on the grounds that nineteen diagrams would add nineteen tab stops to
+re-read labels already drawn. Half of that holds and is kept: these figures
+still do not go through `<Plot>`, because `Plot` promotes a figure to a tab stop
+and the frame already names the whole drawing once with `role="img"`. The other
+half does not — a `<title>` on a plain `<svg>` is a native tooltip and adds no
+tab stop, so the two are separable. Measured after: 17 and 9 hover titles, **0
+tab stops added**.
+
+The sentences say what a part is DOING in the argument. "linear" names the wrong
+crossing without saying why it is wrong; the hover says a linear reading puts
+the crossing at the cell's arithmetic midpoint, which is later than the truth
+whenever the cell spans a doubling. `diffusion-model-views.test.ts` is re-cut
+rather than deleted: it now asserts the figures never reach for `Plot`, that a
+hit shape exists for the titles to hang on, and that no `why` is merely its own
+`word` again — which was the real defect the old rule guarded against.
+
+**Three traps, each costing one red run.** A comment containing the literal
+`@import` failed the "no partial imports another" guard; a comment containing
+the word `Plot` failed my own new guard, which now blanks comments before
+matching; and a `.diff-fit__row` rule survived inside an `@media` block my
+rule-dropper could not reach, holding `dead-css` one over its baseline.
+
+**Not done, and said rather than left implied:** `episodes / Episodes` still
+draws 628 readings with 3 marks. Its titles are per FAMILY line, which is the
+meaningful unit for a two-family tape, but a mark per unmeasurable gap would say
+more and is not built.

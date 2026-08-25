@@ -23,7 +23,6 @@
    ========================================================================== */
 
 .diff-pane { display: grid; gap: 12px; min-width: 0; }
-
 /* ---------- the absorption curve ---------- */
 
 /* Broken at gaps rather than bridged. A horizon nobody measured is a hole in
@@ -34,25 +33,21 @@
   stroke-width: 1.6;
   vector-effect: non-scaling-stroke;
 }
-
 .diff-curve__call {
   stroke: var(--series-2);
   stroke-width: 1.6;
   stroke-dasharray: 3 2;
   vector-effect: non-scaling-stroke;
 }
-
 .diff-curve__dot { vector-effect: non-scaling-stroke; }
 .diff-curve__dot--release { fill: var(--series-1); }
 .diff-curve__dot--call { fill: var(--series-2); }
-
 .diff-curve__half {
   stroke: var(--text-secondary);
   stroke-width: 0.8;
   stroke-dasharray: 2 2;
   vector-effect: non-scaling-stroke;
 }
-
 /* Drawn only when a path overshot its own terminal, which is a real thing a
    price does and not an error to clip away. */
 .diff-curve__full {
@@ -60,33 +55,26 @@
   stroke-width: 0.8;
   vector-effect: non-scaling-stroke;
 }
-
 .diff-curve__gap { fill: var(--text-muted); }
 .diff-curve__note { fill: var(--text-secondary); }
-
 .diff-curve__key { font-weight: 650; }
 .diff-curve__key--release { fill: var(--series-1); }
 .diff-curve__key--call { fill: var(--series-2); }
-
 /* ---------- the two-stage timeline ---------- */
 
 .diff-time__axis {
   stroke: var(--border);
   stroke-width: 1;
 }
-
 .diff-time__ticklabel { fill: var(--text-muted); }
-
 .diff-time__band {
   fill: color-mix(in srgb, var(--surface-2) 70%, transparent);
   stroke: var(--border);
   stroke-width: 0.6;
   vector-effect: non-scaling-stroke;
 }
-
 .diff-time__band--release { stroke: color-mix(in srgb, var(--series-1) 55%, var(--border)); }
 .diff-time__band--call { stroke: color-mix(in srgb, var(--series-2) 55%, var(--border)); }
-
 /* A second stage nobody publishes a time for is drawn hollow and dashed. The
    absence is the point on the earnings arm, so it is drawn rather than left
    out of the picture. */
@@ -94,7 +82,6 @@
   stroke: var(--text-muted);
   stroke-dasharray: 2 2;
 }
-
 /* The base every node shares. Only the three modifiers were declared until
    2026-08-25, so the bare class carried nothing and a node rendered without a
    modifier would have drawn an unstroked default fill. A modifier is always
@@ -103,74 +90,18 @@
 .diff-time__node--release { fill: var(--series-1); }
 .diff-time__node--call { fill: var(--series-2); }
 .diff-time__node--unknown { fill: none; stroke: var(--text-muted); stroke-width: 1; }
-
 .diff-time__tick {
   stroke: var(--border);
   stroke-width: 0.6;
   vector-effect: non-scaling-stroke;
 }
-
 .diff-time__gap {
   stroke: var(--text-secondary);
   stroke-width: 0.8;
   stroke-dasharray: 1 2;
   vector-effect: non-scaling-stroke;
 }
-
 .diff-time__label { fill: var(--text-secondary); }
-
-/* ---------- attrition and control percentile ---------- */
-
-.diff-bars { display: grid; gap: 10px; }
-
-.diff-bars__row { display: grid; gap: 4px; }
-
-.diff-bars__head {
-  font-size: var(--fs-sm);
-  font-weight: 650;
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.diff-bars__count { color: var(--text-secondary); font-weight: 400; }
-
-/* Measured and refused on one track at one scale, because the ratio between
-   them is the reader's first question and two tracks would hide it. */
-.diff-bars__track {
-  display: flex;
-  height: 10px;
-  background: var(--surface-2);
-  border: 1px solid var(--rule-soft);
-}
-
-.diff-bars__fill { display: block; height: 100%; }
-.diff-bars__fill--measured { background: color-mix(in srgb, var(--series-1) 70%, transparent); }
-
-/* Hatched, not just paler: in Windows High Contrast both fills collapse to
-   the same colour and the texture is what survives. */
-.diff-bars__fill--refused {
-  background: repeating-linear-gradient(
-    45deg,
-    color-mix(in srgb, var(--text-muted) 26%, transparent),
-    color-mix(in srgb, var(--text-muted) 26%, transparent) 2px,
-    transparent 2px,
-    transparent 5px
-  );
-}
-
-.diff-bars__foot {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  font-size: var(--fs-xs);
-  color: var(--text-secondary);
-}
-
-.diff-bars__percentile { text-align: right; }
-
 /* NO forced-colors block here, and none is needed.
    `forced-colors.test.ts` pins the desk at exactly one authoritative block
    (in 15), and that file is at its length ratchet — but the real reason is
@@ -197,38 +128,38 @@
   stroke-width: 1;
   stroke-dasharray: 3 3;
 }
-
 .diff-effect__bandlabel { fill: var(--text-muted); }
 .diff-effect__row { fill: var(--text-secondary); }
 .diff-effect__tick { fill: var(--text-muted); }
 .diff-effect__value { fill: var(--text-primary); font-weight: 650; }
-
 .diff-effect__zero {
   stroke: var(--axis);
   stroke-width: 1;
 }
-
 .diff-effect__axis {
   stroke: var(--axis);
   stroke-width: 1;
 }
-
 .diff-effect__stem {
   stroke: var(--border);
   stroke-width: 2;
 }
-
 .diff-effect__dot { stroke-width: 2; }
 .diff-effect__dot--release { fill: var(--series-1); stroke: var(--series-1); }
 .diff-effect__dot--call { fill: var(--series-2); stroke: var(--series-2); }
 .diff-effect__dot--absent { fill: var(--surface-1); }
+/* `.diff-bars*` AND `.coh-floor__bucket*` LEFT THIS FILE on 2026-08-25, with
+   the HTML they styled. Both figures are SVG inside `<Plot>` now — they were
+   HTML with `title` ATTRIBUTES, and `useMarkReadout` collects SVG `<title>`
+   CHILDREN, so the Control view measured 26 hoverable facts and 0 keyboard
+   stops. Their replacements are `.diff-bars__svg*` and `.coh-floor__svgbucket`
+   in `10j-diffusion-tables.css`. Deleted rather than left: a rule whose class
+   has no render site is what `dead-css` counts, and its baseline is two-sided. */
 
 /* The findings table: the verdict column is a word, so it needs no colour. */
 .diff-findings th[scope="row"] { font-weight: 600; }
-
 /* The Instrument view's own stack: the ladder, then the two disclosures. */
 .diff-results { display: grid; gap: 12px; min-width: 0; }
-
 /* `.diff-instrument` LEFT THIS FILE on 2026-08-25, with the table it styled.
  * The Instrument view now draws `InstrumentFit`, a ladder of six requirements
  * against their thresholds; its rules are `.diff-fit*` in
@@ -273,13 +204,11 @@
   align-content: start;
   min-width: 0;
 }
-
 @media (min-width: 1100px) {
   .coherence-plane.diffusion-plane .coh-model__controls {
     grid-template-columns: 1fr 1fr;
   }
 }
-
 /* ── The three marks the model figures add ────────────────────────────────
    Each is a mark these figures draw that no existing class covers: a measured
    point on the absorbed curve, the decay a simulated path was drawn FROM, and
@@ -288,7 +217,6 @@
 .coherence-plane.diffusion-plane .coh-model__point {
   fill: var(--series-3);
 }
-
 /* Dashed as well as tinted: this is the ground truth behind a noisy path, and a
    reader who cannot separate the two hues still has to be able to tell which
    line is the one that was drawn from a formula. */
@@ -297,7 +225,6 @@
   stroke-width: 1.5;
   stroke-dasharray: 4 3;
 }
-
 /* The area IS the reading — its size is I(x;c) — so it is filled rather than
    left as a line with a number beside it. Kept faint so the curve over it
    stays the thing being read. */
@@ -305,52 +232,6 @@
   fill: color-mix(in srgb, var(--series-3) 18%, transparent);
   stroke: none;
 }
-
-/* ── The noise-floor distribution ─────────────────────────────────────────
-   Ten percentile buckets per stage, plus a column for runs that could not be
-   ranked at all. HTML rather than SVG, like `StageBars` beside it, so each bar's
-   hover line is the element's own `title` — the same affordance every mark on
-   this tab carries, spelt the way an HTML bar spells it.
-
-   `align-items: flex-end` because a bucket's height IS its count: the bars grow
-   from the axis, and a bucket with nothing in it is a gap on the floor rather
-   than a bar of zero height floating in the middle. */
-.coherence-plane.diffusion-plane .coh-floor__buckets {
-  display: flex;
-  align-items: flex-end;
-  gap: 2px;
-  height: 64px;
-  min-width: 0;
-  border-bottom: 1px solid var(--border);
-}
-
-.coherence-plane.diffusion-plane .coh-floor__bucket {
-  flex: 1 1 0;
-  min-height: 1px;
-  background: color-mix(in srgb, var(--series-3) 55%, transparent);
-  border-radius: 1px 1px 0 0;
-}
-
-/* The half-way bucket is the reading — it is where a stage is indistinguishable
-   from an ordinary half hour — so it is marked by an EDGE rather than by hue
-   alone, which keeps it legible in forced colours. */
-.coherence-plane.diffusion-plane .coh-floor__bucket.is-middle {
-  outline: 1px dashed var(--text-secondary);
-  outline-offset: -1px;
-}
-
-/* Runs with no percentile: kept off the axis and drawn apart from it, because a
-   missing rank is not a rank of zero. The gap is what says so. */
-.coherence-plane.diffusion-plane .coh-floor__bucket.is-unranked {
-  flex: 0 0 14px;
-  margin-left: 8px;
-  background: repeating-linear-gradient(
-    45deg,
-    var(--surface-2) 0 3px,
-    color-mix(in srgb, var(--text-secondary) 30%, transparent) 3px 6px
-  );
-}
-
 /* The middle half of the runs each mean is a mean of. Behind the lines and
    faint: the band is the spread, the line is still the reading. Assigned by
    ENTITY like every other colour on this tab — series 1 is always the
@@ -359,7 +240,6 @@
 .diff-curve__band { stroke: none; }
 .diff-curve__band--release { fill: color-mix(in srgb, var(--series-1) 14%, transparent); }
 .diff-curve__band--call { fill: color-mix(in srgb, var(--series-2) 14%, transparent); }
-
 /* ── The two clocks ───────────────────────────────────────────────────────
    One line per stage between two rank axes. The lines that MOVE are the
    finding, so they are drawn heavier as well as tinted — a reader who cannot
@@ -374,12 +254,9 @@
   stroke-linecap: round;
   paint-order: stroke;
 }
-
 .diff-clock__link:hover { stroke-width: 2.4; }
-
 .diff-clock__link--release.is-moved { stroke: var(--series-1); stroke-width: 1.6; }
 .diff-clock__link--call.is-moved { stroke: var(--series-2); stroke-width: 1.6; stroke-dasharray: 3 2; }
-
 /* A horizon that will never resolve, on the empty-state grid: hollow as well as
    muted, so "nothing will ever be measured here" is not carried by tint alone. */
 .diff-curve__dot--gap { fill: none; stroke: var(--text-secondary); stroke-width: 1; }

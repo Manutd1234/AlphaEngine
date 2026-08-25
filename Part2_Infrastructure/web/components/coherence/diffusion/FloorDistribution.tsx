@@ -33,7 +33,7 @@
  */
 
 import { percentileWord } from "./StageBars";
-import Figure, { FigureEmpty } from "../Figure";
+import Figure, { FigureEmpty, Plot } from "../Figure";
 import type { StageRun } from "./types";
 
 const WORD: Record<string, string> = { release: "Statement", call: "Press conference" };
@@ -41,6 +41,11 @@ const MARK: Record<string, string> = { release: "●", call: "▲" };
 
 /** Ten buckets across [0, 1]. A percentile of exactly 1 belongs in the last. */
 const BUCKETS = 10;
+const ROW = 108;
+const HEAD = 20;
+const HIST = 62;
+const UNRANKED_W = 22;
+const PAD = { top: 4, bottom: 6 };
 
 interface StageRow {
   stage: string;
@@ -109,64 +114,94 @@ export default function FloorDistribution({ runs }: { runs: StageRun[] }) {
           : null
       }
     >
-      <div className="diff-bars">
-        {stages.map((row) => (
-          <div className="diff-bars__row" key={row.stage}>
-            <div className="diff-bars__head">
-              <span aria-hidden="true">{MARK[row.stage]}</span> {WORD[row.stage] ?? row.stage}
-              <span className="diff-bars__count">
-                {/* "11 of 42 ranked" rather than "11 ranked, 31 without a
-                    percentile": the long form was CLIPPED at desk width — the
-                    head is a flex row and the right-hand text had nowhere to
-                    go, so it lost the word that made it mean anything. Same two
-                    numbers, and the denominator is the more useful of them. */}
-                {row.ranked} of {row.ranked + row.unranked} ranked
-              </span>
-            </div>
+      {/* SVG INSIDE `<Plot>` SINCE 2026-08-25. It was HTML with `title`
+          ATTRIBUTES, and `useMarkReadout` collects SVG `<title>` CHILDREN, so
+          every bucket here was reachable by mouse and by nothing else — the
+          Control view measured 26 hoverable facts and 0 keyboard stops. The
+          geometry is unchanged; the medium is what moved. */}
+      <Plot height={PAD.top + stages.length * ROW + PAD.bottom} minWidth={420}>
+        {(width) => (
+          <>
+            {stages.map((row, rowIndex) => {
+              const top = PAD.top + rowIndex * ROW;
+              const baseline = top + HEAD + HIST;
+              const span = Math.max(120, width);
+              const unrankedW = row.unranked ? UNRANKED_W : 0;
+              const histW = span - (unrankedW ? unrankedW + 12 : 0);
+              const bucketW = histW / BUCKETS;
+              const label = WORD[row.stage] ?? row.stage;
+              return (
+                <g key={row.stage}>
+                  <text className="diff-bars__svghead" x={0} y={top + 12}>
+                    {MARK[row.stage]} {label}
+                  </text>
+                  {/* "11 of 42 ranked" rather than "11 ranked, 31 without a
+                      percentile": the long form was CLIPPED at desk width when
+                      this was a flex row. Same two numbers, and the denominator
+                      is the more useful of them. */}
+                  <text className="diff-bars__svgcount" x={span} y={top + 12} textAnchor="end">
+                    {row.ranked} of {row.ranked + row.unranked} ranked
+                  </text>
 
-            <div className="coh-floor__buckets" role="img"
-                 aria-label={`${WORD[row.stage] ?? row.stage}: ${row.ranked} runs across ${BUCKETS} percentile buckets`}>
-              {row.counts.map((count, index) => {
-                const low = index / BUCKETS;
-                const high = (index + 1) / BUCKETS;
-                return (
-                  <span
-                    key={low}
-                    className={`coh-floor__bucket${index === BUCKETS / 2 ? " is-middle" : ""}`}
-                    style={{ height: `${(count / tallest) * 100}%` }}
-                    title={`${count} run(s) between ${low.toFixed(1)} and ${high.toFixed(1)} — ${percentileWord((low + high) / 2)}`}
-                  />
-                );
-              })}
-              {row.unranked ? (
-                // FULL HEIGHT, NOT A SCALED ONE. This column is off the
-                // percentile axis by design — a missing rank is not a rank of
-                // zero — so scaling it against the tallest BUCKET was a
-                // category error twice over: it gave the column a height that
-                // invited comparison with bars it cannot be compared to, and
-                // with 31 unranked runs against a tallest bucket of nine it
-                // computed 344% and drew a 217px bar inside a 64px row, which
-                // overflowed upward through the head text above it.
-                //
-                // It marks presence now. The count is in the row head and in
-                // the hover, where a number belongs; the column says only
-                // "these are not on this scale", which is all it should.
-                <span
-                  className="coh-floor__bucket is-unranked"
-                  style={{ height: "100%" }}
-                  title={`${row.unranked} run${row.unranked === 1 ? "" : "s"} with no percentile: no matched window cleared the floor, so they are not ranked at all — this column is off the axis and its height carries no reading`}
-                />
-              ) : null}
-            </div>
+                  {row.counts.map((count, index) => {
+                    const low = index / BUCKETS;
+                    const high = (index + 1) / BUCKETS;
+                    const h = tallest ? (count / tallest) * HIST : 0;
+                    return (
+                      <rect
+                        key={low}
+                        className={`coh-floor__svgbucket${index === BUCKETS / 2 ? " is-middle" : ""}`}
+                        x={index * bucketW + 1}
+                        y={baseline - h}
+                        width={Math.max(1, bucketW - 2)}
+                        height={h}
+                      >
+                        <title>
+                          {`${count} run${count === 1 ? "" : "s"} at ${low.toFixed(1)}-${high.toFixed(1)}`
+                            + ` — ${percentileWord((low + high) / 2)}`}
+                        </title>
+                      </rect>
+                    );
+                  })}
 
-            <div className="diff-bars__foot">
-              <span className="coh-svg-note">0.0 faster</span>
-              <span className="coh-svg-note">0.5 indistinguishable</span>
-              <span className="coh-svg-note">1.0 slower</span>
-            </div>
-          </div>
-        ))}
-      </div>
+                  {row.unranked ? (
+                    // FULL HEIGHT, NOT A SCALED ONE. This column is off the
+                    // percentile axis by design — a missing rank is not a rank
+                    // of zero — so scaling it against the tallest BUCKET was a
+                    // category error twice over: it invited comparison with
+                    // bars it cannot be compared to, and with 31 unranked runs
+                    // against a tallest bucket of nine it computed 344% and
+                    // drew a 217px bar inside a 64px row.
+                    //
+                    // It marks presence. The count is in the row head and in
+                    // the readout, where a number belongs; the column says only
+                    // "these are not on this scale".
+                    <rect
+                      className="coh-floor__svgbucket is-unranked"
+                      x={span - unrankedW}
+                      y={baseline - HIST}
+                      width={unrankedW}
+                      height={HIST}
+                    >
+                      <title>
+                        {`${row.unranked} run${row.unranked === 1 ? "" : "s"} with no percentile`
+                          + " — off this axis, so the height carries no reading"}
+                      </title>
+                    </rect>
+                  ) : null}
+
+                  <line className="diff-effect__axis" x1={0} x2={span} y1={baseline} y2={baseline} />
+                  <text className="coh-svg-note" x={0} y={baseline + 16}>0.0 faster</text>
+                  <text className="coh-svg-note" x={histW / 2} y={baseline + 16} textAnchor="middle">
+                    0.5 indistinguishable
+                  </text>
+                  <text className="coh-svg-note" x={histW} y={baseline + 16} textAnchor="end">1.0 slower</text>
+                </g>
+              );
+            })}
+          </>
+        )}
+      </Plot>
     </Figure>
   );
 }

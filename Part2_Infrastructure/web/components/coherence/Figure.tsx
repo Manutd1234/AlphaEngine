@@ -24,7 +24,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
 import { useMeasuredWidth } from "@/components/chart-kit";
-import { DIAGRAM_LABEL_PX, advancePx } from "@/lib/coherence/label-metrics";
+import { DIAGRAM_LABEL_PX, advancePx, truncateMiddle } from "@/lib/coherence/label-metrics";
 import { useMarkReadout, type MarkReadout } from "@/lib/coherence/use-mark-readout";
 
 /** The readout sets on the diagram label rung, like every other word in a plot. */
@@ -170,6 +170,19 @@ export function Plot({
         tabIndex={interactive ? 0 : undefined}
         {...handlers}
       >
+        {/* ONE HATCH FOR THE WHOLE DESK. A refused or unmeasured region is
+            drawn textured rather than merely paler, because in Windows High
+            Contrast two fills collapse to one colour and the texture is what
+            survives — the same argument `.diff-bars__fill--refused` made in
+            CSS when these bars were HTML. Declared here so any figure can
+            reach it by id without each one carrying its own `<defs>`. */}
+        <defs>
+          <pattern id="diff-hatch" width="5" height="5" patternUnits="userSpaceOnUse"
+                   patternTransform="rotate(45)">
+            <rect width="5" height="5" fill="transparent" />
+            <line x1="0" y1="0" x2="0" y2="5" className="coh-plot__hatch" />
+          </pattern>
+        </defs>
         {children(width)}
         {readout ? <Readout {...readout} chartWidth={width} /> : null}
       </svg>
@@ -192,14 +205,33 @@ export function Plot({
  * the viewBox, which is the same clipping this engine has just finished fixing
  * in its label gutters.
  */
+/**
+ * THE PILL WAS CLAMPED AND THE TEXT WAS NOT, until 2026-08-25.
+ *
+ * `width` has always been bounded by the plot, so a long readout drew a pill
+ * that stopped at the edge — and a `<text>` that did not. The glyphs carried on
+ * past the rounded corner and out of the viewBox, so the tail of the sentence
+ * painted over the drawing and then vanished at the clip.
+ *
+ * It needed a mark title longer than the plot to show, which is why no figure
+ * caught it for months and no test could: the suite has no DOM, so a string
+ * length is a number nobody compares to a pixel width. `ClockAgreement`'s
+ * per-run title is about 130 characters and overflowed at desk width.
+ *
+ * Truncated in the MIDDLE rather than the tail: a readout is "what this mark is
+ * — what it measures", and the two ends are the halves worth keeping. The full
+ * sentence is still announced to a screen reader, which reads `announce` and
+ * not this.
+ */
 function Readout({ text, x, y, chartWidth }: MarkReadout & { chartWidth: number }) {
   const width = Math.min(chartWidth - 8, advancePx(text, READOUT_PX) + 20);
+  const shown = truncateMiddle(text, width - 20, READOUT_PX);
   const left = Math.min(Math.max(x - width / 2, 4), Math.max(4, chartWidth - width - 4));
   const top = Math.max(2, y - 26);
   return (
     <g className="coh-plot__readout" pointerEvents="none">
       <rect x={left} y={top} width={width} height={22} rx={6} />
-      <text x={left + 10} y={top + 15}>{text}</text>
+      <text x={left + 10} y={top + 15}>{shown}</text>
     </g>
   );
 }

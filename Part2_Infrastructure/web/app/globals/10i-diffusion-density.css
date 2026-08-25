@@ -34,7 +34,6 @@
 .coherence-plane.diffusion-plane details.disclosure .coh-table th[scope="row"] {
   font-size: var(--fs-sm);
 }
-
 /* CELLS ONLY, and `thead th` is left out on purpose. Naming the bare `th` here
    sized COLUMN headers and body cells onto one rung, which made the folded
    tables the only ones on the desk whose headers do not sit a rung under the
@@ -53,9 +52,7 @@
   margin: 2px 0 4px;
   min-width: 0;
 }
-
 .coherence-plane.diffusion-plane .diff-cardfig svg { display: block; }
-
 /* The wrong version, always dashed as well as tinted: which of the two curves
    is the mistake is the card's whole point, and it may not rest on hue. */
 .coherence-plane.diffusion-plane .diff-cardfig__wrong {
@@ -64,8 +61,6 @@
   stroke-dasharray: 3 2;
   vector-effect: non-scaling-stroke;
 }
-
-
 /* ── The observable window on the episode watch ───────────────────────────
    RESTORED 2026-08-25 after being deleted by accident: a disclosure-rung edit
    replaced the block these sat inside, and the component kept rendering the
@@ -82,7 +77,6 @@
 .diff-watch__band--gone { fill: color-mix(in srgb, var(--text-secondary) 14%, transparent); }
 .diff-watch__band--blind { fill: color-mix(in srgb, var(--series-2) 12%, transparent); }
 .diff-watch__band--seen { fill: color-mix(in srgb, var(--series-1) 14%, transparent); }
-
 /* ── A footnote that reads as a footnote ──────────────────────────────────
    `.coh-figure__missing` is the slot for what a drawing could not include, and
    `14q` puts it on the READING rung across the whole plane — so it arrived at
@@ -101,7 +95,6 @@
   padding-top: var(--space-1);
   border-top: 1px solid var(--grid);
 }
-
 /* ── Every card's rows on the same lines ──────────────────────────────────
    THE PROBLEM, reported as "some boxes are higher, some are lower". Each card
    is five rows — heading, expression, figure, what-breaks-it, the fold — and
@@ -123,7 +116,6 @@
    a rule at the row line, three cards agreeing is invisible. */
 @supports (grid-template-rows: subgrid) {
   .coherence-plane.diffusion-plane .coh-lessons__grid { grid-auto-rows: auto; }
-
   /* FOUR ROWS, not five, from 2026-08-25: the boundary clause folded into the
      card's own disclosure, so a card is head, formula, figure, fold. Every one
      of the first three is fixed-height now, which means the cards very nearly
@@ -136,7 +128,6 @@
     align-content: stretch;
   }
 }
-
 /* The rule that drew a hairline over the open boundary clause is DELETED, not
    moved: with the clause inside the fold there is no `.coh-lesson__bounds` that
    is a direct child of a card for it to match, and the hairline it drew is
@@ -157,87 +148,13 @@
    fill — every row carries its mark and its margin in words — so there is no
    forced-colors block here for the same reason `.diff-bars` needs none. */
 .diff-fit { display: grid; gap: var(--space-3); min-width: 0; }
-.diff-fit__ladder { display: grid; gap: var(--space-3); min-width: 0; }
-.diff-fit__group { display: grid; gap: 2px; min-width: 0; }
-
-/* Stays at `--fs-xs` while the rows moved to `--fs-sm`: this labels the rows
-   beneath it, so it is a column header and belongs one rung under them —
-   the same relationship `thead th` has to its cells. */
-.diff-fit__grouphead {
-  margin: 0 0 2px;
-  font-size: var(--fs-xs);
-  font-weight: 650;
-  color: var(--text-secondary);
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 4px;
-}
-
-/* Four columns: the requirement, the measurement, the track, the margin. The
-   first three are bounded so the margin sentence gets whatever is left, which
-   is the column that reads as prose and therefore wants the width. */
-/* `--fs-sm`, the body-cell rung, not `--fs-xs`. This family was the smallest
-   prose on the tab — under the table cells, the captions and the reading — and
-   it is the same KIND of thing as a table row. Deliberately not lifted to
-   `--fs-body`: "The clock is predictable at all" is 31 characters against a
-   13rem first column, and at 14px it wraps every row to two lines. */
-.diff-fit__row {
-  display: grid;
-  grid-template-columns: minmax(8rem, 13rem) minmax(4.5rem, 7rem) minmax(5rem, 1fr) minmax(9rem, 24rem);
-  align-items: center;
-  gap: var(--space-2);
-  padding: 3px 0;
-  font-size: var(--fs-sm);
-  min-width: 0;
-}
-
-.diff-fit__what { font-weight: 600; }
-.diff-fit__room { color: var(--text-secondary); }
-
-/* The measurement, against the track it labels. It had NO rule of its own at
-   desk width until 2026-08-25 — its only declaration was the `text-align: left`
-   in the narrow query below, which was undoing an alignment nothing had set:
-   measured, the column computed `start` at 1600 and `left` under 1100, so the
-   override was a no-op and the column was left-aligned at every width. Right
-   here, because these are magnitudes read against the bar beside them, and a
-   ragged left edge on a mono column is what tabular numerals exist to avoid. */
-.diff-fit__value { text-align: right; }
-
-.diff-fit__track {
-  position: relative;
-  display: block;
-  height: 10px;
-  background: var(--surface-2);
-  border: 1px solid var(--rule-soft);
-}
-
-/* Hatched, not empty: a requirement with no measurement is a gap, and an empty
-   track at this size is indistinguishable from a bar of length zero — which
-   would read as "measured, and it failed". */
-.diff-fit__track.is-absent {
-  background: repeating-linear-gradient(
-    45deg,
-    color-mix(in srgb, var(--text-muted) 26%, transparent),
-    color-mix(in srgb, var(--text-muted) 26%, transparent) 2px,
-    transparent 2px,
-    transparent 5px
-  );
-}
-
-.diff-fit__fill {
-  position: absolute;
-  inset-block: 0;
-  left: 0;
-  background: color-mix(in srgb, var(--series-1) 70%, transparent);
-}
-
-.diff-fit__floor {
-  position: absolute;
-  inset-block: -1px;
-  width: 2px;
-  margin-left: -1px;
-  background: var(--text-primary);
-}
-
+/* `.diff-fit__ladder/__group/__grouphead/__row/__what/__value/__room/__track/
+   __fill/__floor` LEFT THIS FILE on 2026-08-25 with the HTML grid they styled.
+   The ladder is SVG inside `<Plot>` now — it was HTML with `title` ATTRIBUTES
+   and `useMarkReadout` collects SVG `<title>` CHILDREN, so it had ten hoverable
+   facts and no keyboard route. Replacements are `.diff-fit__svg*` in
+   `10j-diffusion-tables.css`. `.diff-fit` and `.diff-fit__why` stay: the first
+   is the stack, the second is a definition list inside a disclosure. */
 .diff-fit__why {
   display: grid;
   grid-template-columns: minmax(8rem, 14rem) 1fr;
@@ -247,12 +164,10 @@
 }
 .diff-fit__why dt { font-weight: 600; }
 .diff-fit__why dd { margin: 0; color: var(--text-secondary); }
-
-/* One column under a narrow pane: four tracked columns at 13rem apiece do not
-   fit a half-width desk, and a track squeezed under its own border draws a
-   margin that is not the one measured. */
+/* One column for the folded definition list under a narrow pane. The LADDER
+   itself no longer needs a rule here: it is SVG now and scales with its own
+   viewBox, where the HTML grid had four tracked columns that did not fit a
+   half-width desk. */
 @media (max-width: 1099px) {
-  .diff-fit__row { grid-template-columns: 1fr; gap: 2px; }
-  .diff-fit__value { text-align: left; }
   .diff-fit__why { grid-template-columns: 1fr; }
 }

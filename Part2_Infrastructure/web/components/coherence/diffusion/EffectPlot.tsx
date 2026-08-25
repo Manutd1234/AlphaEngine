@@ -60,7 +60,13 @@ export default function EffectPlot({ findings }: { findings: Finding[] }) {
         const gutter = gutterFor(rows.map(label), width, LABEL_SIZE, {
           min: GUTTER_MIN, max: GUTTER_MAX, maxFraction: 0.34, clearance: 18,
         });
-        const span = Math.max(width - gutter - PAD.right, 120);
+        // A column for the note marks, and only when there is a note to mark.
+        // `Finding.note` is on the wire for 10 of the 14 rows and was rendered
+        // nowhere; it is the sentence that says why a null is READABLE ("the
+        // positive control: without it, every null below is unfalsifiable"),
+        // which is the one thing a dot at t=1.15 cannot say for itself.
+        const noteRoom = rows.some((row) => row.note) ? 18 : 0;
+        const span = Math.max(width - gutter - PAD.right - noteRoom, 120);
         const x = (t: number) =>
           gutter + ((Math.max(-AXIS_MAX, Math.min(AXIS_MAX, t)) + AXIS_MAX) / (2 * AXIS_MAX)) * span;
         const base = PAD.top + rows.length * ROW;
@@ -73,7 +79,9 @@ export default function EffectPlot({ findings }: { findings: Finding[] }) {
               y={PAD.top - 8}
               width={x(THRESHOLD) - x(-THRESHOLD)}
               height={rows.length * ROW + 8}
-            />
+            >
+              <title>{`Inside this band a shuffled pairing reaches the same t about as often`}</title>
+            </rect>
             {/* Sized in 14r at the 13px legend rung — the band's words are the
                 figure's whole caveat, not an axis tick. */}
             <text className="diff-effect__bandlabel" x={x(0)} y={PAD.top - 12} textAnchor="middle">
@@ -128,12 +136,35 @@ export default function EffectPlot({ findings }: { findings: Finding[] }) {
                     y1={cy}
                     y2={cy}
                   />
+                  {/* THE DOT IS A MARK NOW. Until 2026-08-25 the row's only
+                      `<title>` was on its LABEL, so hovering the thing a reader
+                      actually points at reported nothing, and the arrow walk
+                      read back text already printed in the gutter. Title on the
+                      `<circle>`, so `getBBox` puts the readout at the dot. */}
                   <circle
                     className={`diff-effect__dot diff-effect__dot--${stage}${holds ? "" : " diff-effect__dot--absent"}`}
                     cx={x(t)}
                     cy={cy}
                     r={5}
-                  />
+                  >
+                    <title>
+                      {`t ${t > 0 ? "+" : ""}${t.toFixed(2)} over ${row.n} meetings`
+                        + (row.shuffled_p != null ? `, shuffled p ${row.shuffled_p.toFixed(3)}` : "")
+                        + ` — ${holds ? "holds" : "absent"}`}
+                    </title>
+                  </circle>
+                  {row.note ? (
+                    <text
+                      className="diff-effect__note"
+                      x={gutter + span + PAD.right + 8}
+                      y={cy + 4}
+                      textAnchor="middle"
+                      aria-hidden="true"
+                    >
+                      <title>{row.note}</title>
+                      ○
+                    </text>
+                  ) : null}
                   <text
                     className="diff-effect__value"
                     x={x(t) + (t < 0 ? -12 : 12)}

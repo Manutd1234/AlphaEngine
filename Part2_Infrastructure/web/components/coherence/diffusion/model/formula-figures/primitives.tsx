@@ -16,15 +16,25 @@
  * half only would be decoration; the boundary is the part a reader cannot
  * reconstruct from the formula.
  *
- * NO HOVER MARKS ON ANY OF THEM, deliberately, and this is the one place on the
- * tab where that is right. `Plot` promotes every SVG title element into a
- * walkable mark, which is what the data figures want — but these are diagrams
- * of an argument rather than readings of a measurement. There is nothing to
- * interrogate: every word is already ON the drawing, and thirteen cards
- * carrying marks would put seven extra tab stops in Measurement alone to
- * re-read labels a reader can already see. The frame carries one `aria-label`
- * that says the whole thing instead, and the guard in
- * `diffusion-model-views.test.ts` holds these three files to it.
+ * HOVER, BUT NOT A TAB STOP, and the split is the point — revised 2026-08-25.
+ * Each primitive now takes an optional `why`, drawn as a `<title>` on a
+ * transparent hit shape behind the hairline it describes, so a reader can ask
+ * any labelled part of a diagram what it MEANS. The sentences say what the part
+ * is doing in the argument; none of them re-reads a word already printed beside
+ * it, which was the objection the old note raised and the one worth keeping.
+ *
+ * These figures still do NOT go through `<Plot>`, deliberately. `Plot` promotes
+ * a figure to one tab stop, and nineteen diagrams of an argument would put
+ * nineteen new stops in the keyboard order to walk decoration — while the frame
+ * already names the whole drawing once with `role="img"` and an `aria-label`,
+ * which is the right shape for a diagram. So the mouse gains a way to
+ * interrogate the parts and the keyboard order is left alone.
+ *
+ * The note this replaces read "no hover marks on any of them, deliberately",
+ * and argued there was nothing to interrogate because every word is already on
+ * the drawing. That is true of the WORDS and false of what they mean: "linear"
+ * names the wrong crossing without saying why it is wrong, and the sentence
+ * that says why lived only in the card's folded prose.
  *
  * TYPE COMES FROM CLASSES, NEVER AN INLINE SIZE. `type-diagram-ladder.test.ts`
  * caps inline diagram sizes above the compact prose rung, and the cap MAY FALL
@@ -85,9 +95,19 @@ export function y(unit: number, box = BOX): number {
 }
 
 /** A horizontal reference rule with its word sitting above the left end. */
-export function Rule({ at, word, kind = "half" }: { at: number; word?: string; kind?: "half" | "mark" }) {
+export function Rule({ at, word, kind = "half", why }: {
+  at: number; word?: string; kind?: "half" | "mark"; why?: string;
+}) {
   return (
     <>
+      {/* A transparent fat line under the hairline: a 1px stroke in a 260-unit
+          box is not a pointer target, and the title has to hang on something a
+          reader can actually reach. */}
+      {why ? (
+        <line className="diff-cardfig__hit" x1={x(0)} x2={x(1)} y1={y(at)} y2={y(at)}>
+          <title>{why}</title>
+        </line>
+      ) : null}
       <line
         className={kind === "half" ? "coh-survival__half" : "coh-survival__median"}
         x1={x(0)} x2={x(1)} y1={y(at)} y2={y(at)}
@@ -98,9 +118,16 @@ export function Rule({ at, word, kind = "half" }: { at: number; word?: string; k
 }
 
 /** A vertical rule at a unit x, with its word under the axis. */
-export function Marker({ at, word, dashed = false }: { at: number; word?: string; dashed?: boolean }) {
+export function Marker({ at, word, dashed = false, why }: {
+  at: number; word?: string; dashed?: boolean; why?: string;
+}) {
   return (
     <>
+      {why ? (
+        <line className="diff-cardfig__hit" x1={x(at)} x2={x(at)} y1={y(1)} y2={y(0)}>
+          <title>{why}</title>
+        </line>
+      ) : null}
       <line
         className={dashed ? "coh-survival__half" : "coh-survival__median"}
         x1={x(at)} x2={x(at)} y1={y(1)} y2={y(0)}
@@ -129,9 +156,12 @@ export function Axes({ yWord }: { yWord?: string }) {
  * the card's whole point, and a reader who cannot separate two greys still has
  * to be able to tell which one is the mistake.
  */
-export function Wrong({ d, word, at }: { d: string; word: string; at?: readonly [number, number] }) {
+export function Wrong({ d, word, at, why }: {
+  d: string; word: string; at?: readonly [number, number]; why?: string;
+}) {
   return (
     <>
+      {why ? <path className="diff-cardfig__hit" d={d} fill="none"><title>{why}</title></path> : null}
       <path className="diff-cardfig__wrong" d={d} fill="none" />
       {at ? (
         <text className="coh-ladder__tick" x={x(at[0])} y={y(at[1])} textAnchor="middle">{word}</text>
@@ -141,13 +171,17 @@ export function Wrong({ d, word, at }: { d: string; word: string; at?: readonly 
 }
 
 /** A shaded region between two unit x values. */
-export function Band({ from, to, word }: { from: number; to: number; word?: string }) {
+export function Band({ from, to, word, why }: {
+  from: number; to: number; word?: string; why?: string;
+}) {
   return (
     <>
       <rect
         className="diff-effect__band"
         x={x(from)} y={y(1)} width={Math.max(0, x(to) - x(from))} height={y(0) - y(1)}
-      />
+      >
+        {why ? <title>{why}</title> : null}
+      </rect>
       {word ? (
         <text className="coh-ladder__tick" x={(x(from) + x(to)) / 2} y={y(1) + 9} textAnchor="middle">
           {word}
