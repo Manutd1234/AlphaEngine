@@ -169,7 +169,10 @@ export default function UniverseSection({ universe, error, active }: UniverseSec
               ) : null}
               {shown.length > 1 ? (
                 <FamilyPicker
-                  tickers={shown.map((event) => event.event_ticker)}
+                  options={shown.map((event) => ({
+                    ticker: event.event_ticker,
+                    shard: event.exchange_index,
+                  }))}
                   selected={family?.event_ticker ?? ""}
                   onSelect={setPicked}
                   label="Choose a family"
