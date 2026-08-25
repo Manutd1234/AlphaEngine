@@ -70,6 +70,12 @@ const DRAWINGS = [
   // two rows of "not measured" on the live read — an empty frame that also
   // duplicated the last two rows of the table beneath it.
   "InstrumentFit",
+  // Coherence test / Proof, 2026-08-26. It replaced a `ValueStrip` of the
+  // certificate's own two row counts — 189 against 0, the second floored to a
+  // 1px hairline and excluded from that strip's floor note — with the room
+  // every inequality has left, sorted. Verified to open on a drawing itself by
+  // the LOCAL table at the foot of this file.
+  "ConstraintLadder",
 ];
 
 /**
@@ -369,6 +375,7 @@ describe("every Proofs view opens on a drawing", () => {
       GroupPins: "../components/coherence/GroupPins.tsx#GroupPins",
       InstrumentFit: "../components/coherence/diffusion/InstrumentFit.tsx#InstrumentFit",
       MeetingCalendar: "../components/coherence/diffusion/MeetingCalendar.tsx#MeetingCalendar",
+      ConstraintLadder: "../components/coherence/ConstraintLadder.tsx#ConstraintLadder",
     };
     for (const [name, at] of Object.entries(LOCAL)) {
       const [file, fn] = at.split("#");

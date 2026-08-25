@@ -33,10 +33,11 @@
  * on screen twice with no way to tell which was the finding.
  */
 
-import type { CoherenceCertificate } from "@/lib/coherence/types";
+import type { CoherenceCertificate, CoherenceEventView } from "@/lib/coherence/types";
 export { verdictChip } from "./certificate-verdict";
 import { statValue } from "./ReliabilityDiagram";
 import CheckLadder from "./CheckLadder";
+import ConstraintLadder from "./ConstraintLadder";
 import MarginAxis from "./MarginAxis";
 import ValueStrip, { type StripRow } from "./ValueStrip";
 
@@ -217,32 +218,67 @@ export function VerdictView({ data, target }: { data: CoherenceCertificate; targ
   );
 }
 
-export function ProofView({ data }: { data: CoherenceCertificate }) {
+/**
+ * What the solver concluded, as labelled facts rather than as a wall of text.
+ *
+ * The fixed-width block stays — it is what the view is called and it is what a
+ * reader pastes elsewhere — but it stopped being the first thing on the view.
+ * Six facts a reader wants at a glance were reachable only by reading five
+ * lines of monospace prose for them, and four of the six are already typed
+ * fields on the payload rather than substrings of that string.
+ */
+const CONCLUSIONS: ReadonlyArray<{ label: string; of: (data: CoherenceCertificate) => string }> = [
+  { label: "Verdict", of: (data) => data.verdict },
+  { label: "Solver", of: (data) => (data.engine === "highs" ? "linear programme (HiGHS)" : data.engine) },
+  { label: "Rows tested", of: (data) => `${data.rows_tested}` },
+  { label: "Rows untestable", of: (data) => `${data.rows_untestable}` },
+  { label: "Best worst-case payoff", of: (data) => data.worst_case_payoff ?? data.margin ?? "—" },
+  { label: "Legging tier", of: (data) => `${data.tier}, ${data.scope}` },
+];
+
+export function ProofView({ data, event }: {
+  data: CoherenceCertificate;
+  /**
+   * The family's own quotes, off the universe read the section already holds.
+   *
+   * The proof is ABOUT these, and until 2026-08-26 the view drew none of them:
+   * its only figure was a two-row strip of the certificate's own row counts.
+   * Null while the universe read is in flight, which the figure reports rather
+   * than waiting on.
+   */
+  event: CoherenceEventView | null;
+}) {
   return (
     <>
-      <ValueStrip
-        caption="What the proof covers: rows evaluated against rows skipped as unquotable"
-        ariaLabel={`${data.rows_tested} constraints tested, ${data.rows_untestable} untestable`}
-        rows={[
-          // Each bar is labelled and prints its own count, so the hover carries
-          // only what the bar cannot: what the two words MEAN. "Untestable" in
-          // particular reads as a pass unless something says it is a skip.
-          {
-            label: "Tested",
-            value: data.rows_tested,
-            text: String(data.rows_tested),
-            title: "one inequality per state the family can settle into",
-          },
-          {
-            label: "Untestable",
-            value: data.rows_untestable,
-            text: String(data.rows_untestable),
-            title: "skipped because a leg was unquoted — not passed",
-          },
-        ]}
-      />
+      <ConstraintLadder event={event} certificate={data} />
+
+      <div className="table-wrap">
+        <table className="coh-table">
+          <caption className="coh-table__caption">
+            What the solver concluded, and the shape of the run it concluded it from.
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Reading</th>
+              <th scope="col">Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            {CONCLUSIONS.map((row) => (
+              <tr key={row.label}>
+                <th scope="row">{row.label}</th>
+                <td>{row.of(data)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
       {data.proof ? (
-        <pre className="coh-proof">{data.proof}</pre>
+        <details className="disclosure">
+          <summary>{`The solver's own words, ${data.proof.split("\n").length} lines`}</summary>
+          <pre className="coh-proof">{data.proof}</pre>
+        </details>
       ) : (
         <p className="console-empty">
           <span aria-hidden="true">◌</span> No proof was returned for this family.

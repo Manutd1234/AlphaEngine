@@ -137,7 +137,9 @@ export default function CertificatePane({
               <p className="coh-event__note">{verdictReading(answer)}</p>
             ) : null}
 
-            {view === "proof" ? <ProofView data={answer} /> : <VerdictView data={answer} target={target} />}
+            {view === "proof"
+              ? <ProofView data={answer} event={chosen} />
+              : <VerdictView data={answer} target={target} />}
           </>
         ) : null}
 
