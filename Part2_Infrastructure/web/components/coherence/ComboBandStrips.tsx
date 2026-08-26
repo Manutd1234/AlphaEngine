@@ -62,7 +62,7 @@ export default function ComboBandStrips({ combos }: { combos: CoherenceCombo[] }
 
   return (
     <Figure
-      caption="Every parlay on one dollar axis"
+      caption="Every parlay against the Fréchet–Hoeffding band its own legs impose, on one dollar axis"
       ariaLabel={rows
         .map((row) => row.lo == null || row.hi == null
           ? `${row.ticker}: no band`

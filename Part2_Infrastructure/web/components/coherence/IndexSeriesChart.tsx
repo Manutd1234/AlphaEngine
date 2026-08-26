@@ -146,7 +146,7 @@ export default function IndexSeriesChart({ points }: { points: CoherenceIndexPoi
   );
 }
 
-const CAPTION = "Distance from the nearest coherent price vector, one lane per series";
+const CAPTION = "L1 distance from the nearest coherent price vector, one lane per series";
 
 function LaneRow({ lane, top, peak, x, width }: {
   lane: Lane;

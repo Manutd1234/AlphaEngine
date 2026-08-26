@@ -145,7 +145,7 @@ export default function ReliabilityDiagram({
   if (!points.length) {
     return (
       <Figure
-        caption="Price against outcome, band by band"
+        caption="Reliability diagram: quoted price against realised frequency, band by band"
         ariaLabel="No price band has a settled market in it yet"
         missing={emptyNote}
       >
@@ -171,7 +171,7 @@ export default function ReliabilityDiagram({
 
   return (
     <Figure
-      caption={`Price against outcome, band by band — ${horizonNote}`}
+      caption={`Reliability diagram: quoted price against realised frequency, band by band — ${horizonNote}`}
       ariaLabel={`${points.length} of ${bins.length} price bands carry settled markets; the widest gap is in the ${worst.label} band`}
       // WHAT WENT, 2026-08-25. "Priced at the horizontal, happening at the
       // vertical" is the two axis labels; "sized and numbered by its N settled

@@ -115,7 +115,7 @@ export default function CalibrationGauge({ data }: { data: CoherenceCalibration 
 
   return (
     <Figure
-      caption="The settled score as a verdict, on the axis where zero already means something"
+      caption="Brier skill on the settled corpus, on the axis where zero already means something"
       ariaLabel={`Brier skill gauge from ${LOW} to ${HIGH}; the verdict is ${verdict.word}`}
       reading={verdict.reading}
       missing={

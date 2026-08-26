@@ -160,7 +160,7 @@ export default function CorpusHistory({ data, skillDrawnAbove }: {
   );
 }
 
-const CAPTION = "Everything else the recorder wrote, run by run, each on its own scale";
+const CAPTION = "Every measure the scorer recorded, run by run, each on its own scale";
 
 function notesFor(refused: number, silent: readonly Measure[], engines: readonly string[]): string[] {
   const notes: string[] = [];

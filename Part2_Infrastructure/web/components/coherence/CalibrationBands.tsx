@@ -75,7 +75,7 @@ export default function CalibrationBands({
           outcome minus price, signed against zero. An empty band declines its
           bar — nobody quoting there is not a deviation of nought. */}
       <ValueStrip
-        caption="Outcome minus price, band by band"
+        caption="Calibration residual: realised frequency minus quoted price, band by band"
         ariaLabel={`Signed deviation for ${populated} of ${data.bins.length} price bands`}
         rows={data.bins.map((bin) => ({
           label: bin.label,
