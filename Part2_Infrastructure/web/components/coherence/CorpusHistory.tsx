@@ -36,7 +36,7 @@ import type { ReactNode } from "react";
 
 import { extent, linePath, linearScale } from "@/components/chart-kit";
 import Figure, { FigureEmpty, Plot } from "./Figure";
-import { decimalLabel, secondsLabel } from "@/lib/coherence/decimals";
+import { decimalLabel, deltaLabel, secondsLabel } from "@/lib/coherence/decimals";
 import { DIAGRAM_LABEL_PX, gutterFor } from "@/lib/coherence/label-metrics";
 import type { CoherenceCalibrationHistory, CoherenceCalibrationPoint } from "@/lib/coherence/types-lab";
 import type { SharedXRow } from "@/lib/coherence/use-shared-x-readout";
@@ -119,7 +119,7 @@ export default function CorpusHistory({ data, skillDrawnAbove }: {
     const point = points[index];
     const rows: SharedXRow[] = MEASURES.filter((m) => (skillDrawnAbove && m.key === "skill") || drawn.includes(m)).map((m) => {
       const value = m.at(point);
-      return { label: m.label, value: value === null ? "—" : m.show(value) };
+      return { label: m.label, value: value === null ? "—" : m.show(value), raw: value };
     });
     rows.push({ label: "Engine", value: point.engine });
     if (point.thin) rows.push({ label: "Sample", value: "thin" });
@@ -151,7 +151,15 @@ export default function CorpusHistory({ data, skillDrawnAbove }: {
         // the run it names rather than near it.
         sharedX={(width) => {
           const { gutter, trackW } = geometry(width, drawn.map((m) => m.label));
-          return { count: points.length, x0: gutter, x1: gutter + trackW, read, width: 232 };
+          return {
+            count: points.length, x0: gutter, x1: gutter + trackW, read,
+            // 72 wider than the reading alone: a pinned row reads "now was then, +diff".
+            width: 304,
+            // A run held against another: Enter or a click pins, and every
+            // measure then reads as its value, what it was, and the step.
+            pin: true,
+            diff: (a, b) => (a.raw != null && b.raw != null ? deltaLabel(a.raw - b.raw) : ""),
+          };
         }}
       >
         {(width) => <Panel width={width} points={points} drawn={drawn} />}

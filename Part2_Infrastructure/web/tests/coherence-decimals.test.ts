@@ -13,9 +13,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import {
-  countLabel, decimalLabel, probLabel, secondsLabel, statValue, toUnit, truncateDecimal, unitOf,
-} from "../lib/coherence/decimals";
+import { countLabel, decimalLabel, deltaLabel, probLabel, secondsLabel, statValue, toUnit, truncateDecimal, unitOf } from "../lib/coherence/decimals";
+import { signedCenticents } from "../lib/coherence/fixed-point";
 
 describe("decimalLabel pads to the places asked for and says when a digit was cut", () => {
   it("cuts a long statistic and marks the cut", () => {
@@ -95,5 +94,30 @@ describe("secondsLabel picks the two units that describe the span", () => {
   it("is a dash on null, and floors a fraction rather than rounding it up", () => {
     assert.equal(secondsLabel(null), "—");
     assert.equal(secondsLabel(59.9), "59s");
+  });
+});
+
+describe("deltaLabel: a signed, derived difference for a pinned comparison", () => {
+  it("signs, rounds to four places when large enough, and keeps two significant digits when small", () => {
+    assert.equal(deltaLabel(0.05), "+0.0500");
+    assert.equal(deltaLabel(-0.05), "−0.0500");
+    assert.equal(deltaLabel(0.000115), "+0.00012", "a Brier step must not print as +0.0000");
+    assert.equal(deltaLabel(-0.0042), "−0.0042");
+  });
+  it("says unchanged for zero and dashes what is not a number", () => {
+    assert.equal(deltaLabel(0), "unchanged");
+    assert.equal(deltaLabel(Number.NaN), "—");
+    assert.equal(deltaLabel(Number.POSITIVE_INFINITY), "—");
+  });
+});
+
+describe("signedCenticents: the same difference, exact, in dollars", () => {
+  it("prints the step through fromCenticents with its sign", () => {
+    assert.equal(signedCenticents(1250), "+0.1250");
+    assert.equal(signedCenticents(-900), "−0.0900");
+    assert.equal(signedCenticents(0), "unchanged");
+  });
+  it("refuses a non-integer, because centicents are integers on the wire", () => {
+    assert.equal(signedCenticents(12.5), "—");
   });
 });

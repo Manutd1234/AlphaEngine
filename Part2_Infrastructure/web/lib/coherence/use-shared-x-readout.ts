@@ -39,14 +39,22 @@
  * figures outside this engine that share an axis never set it.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 import { useCrosshair } from "@/components/chart-kit";
+
+import { useLinkedX } from "./linked-x";
 
 export interface SharedXRow {
   label: string;
   value: string;
   color?: string;
+  /**
+   * The number `value` was printed from, when there is one. A pinned
+   * comparison's `diff` reads it; null (or absent) when the value is a dash,
+   * so a dash is never subtracted from a dash.
+   */
+  raw?: number | null;
 }
 
 export interface SharedXReading {
@@ -74,6 +82,21 @@ export interface SharedX {
    * axis here carries hundreds of positions at most.
    */
   positions?: readonly number[];
+  /**
+   * The pair this axis belongs to, if any. Two figures declaring the same key
+   * follow each other's index — one position drawn on both, spoken once. See
+   * `linked-x.tsx` for the one condition under which that is honest: both
+   * members count the same thing.
+   */
+  link?: string;
+  /**
+   * Whether a reader may hold one position and read every other against it.
+   * Enter or Space on the keyboard, a click with a pointer; Escape lets go of
+   * the walked position first and of the pin on a second press.
+   */
+  pin?: boolean;
+  /** How a row differs from its pinned counterpart. Called only when both carry `raw`. */
+  diff?: (current: SharedXRow, pinned: SharedXRow) => string;
   /**
    * Which end a keyboard reader arrives at.
    *
@@ -125,7 +148,37 @@ export function useSharedXReadout(shared: SharedX | undefined) {
   // is on the mouse is asking with the mouse. The walked index survives
   // underneath it, so leaving the figure returns to where the keyboard was
   // rather than clearing a reading the reader never dismissed.
-  const index = (positions ? pointed : hovered) ?? walked;
+  const pointer = positions ? pointed : hovered;
+
+  /**
+   * THE LINK, and the one line that keeps it away from everyone else.
+   *
+   * `own` is this figure's live index — the pointer while it is over the
+   * figure, the walked position while the figure has focus — and it exists
+   * ONLY when the axis declared a `link`. Computed for every figure it would
+   * empty `announce` on blur, and today the walked reading keeps speaking
+   * after focus leaves; the three figures outside this engine rely on that.
+   * A linked figure reads its own index first, then what its partner
+   * published, then where its own keyboard last stood.
+   */
+  const link = shared?.link;
+  const { followed, publish } = useLinkedX(link, useId());
+  const [focused, setFocused] = useState(false);
+  const [pinned, setPinned] = useState<number | null>(null);
+  const own = link ? (pointer ?? (focused ? walked : null)) : null;
+  const index = link ? (own ?? followed ?? walked) : (pointer ?? walked);
+  // A follower says nothing: one keypress on the publisher is one utterance.
+  const following = link !== undefined && own === null && followed !== null;
+  // Publish in an effect, never during render, and only what is live. When
+  // the pointer LEAVES an unfocused figure the partner is cleared too, so it
+  // does not stand on a position nobody is asking about; a blur is not a
+  // leave — the walked position stays for the partner to arrive on.
+  const pointerRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (own !== null) publish(own);
+    else if (pointerRef.current !== null) publish(null);
+    pointerRef.current = pointer;
+  }, [own, pointer, publish]);
 
   /** Where position `i` sits: declared when the axis said, evenly spaced otherwise. */
   const atOf = (i: number): number => {
@@ -150,8 +203,24 @@ export function useSharedXReadout(shared: SharedX | undefined) {
       setWalked(next);
       return;
     }
-    if (event.key === "Escape") { event.preventDefault(); setWalked(null); }
-  }, [count, walked]);
+    if (event.key === "Escape") {
+      event.preventDefault();
+      // The walked position first, the pin second: two things held, two presses.
+      if (walked !== null) setWalked(null);
+      else setPinned(null);
+      if (link) publish(null);
+      return;
+    }
+    if (shared?.pin && (event.key === "Enter" || event.key === " ")) {
+      event.preventDefault();
+      if (index !== null) setPinned((held) => (held === index ? null : index));
+    }
+  }, [count, walked, link, publish, shared?.pin, index]);
+
+  /** A click pins where the pointer is; bound only when the axis asked. */
+  const onClick = useCallback(() => {
+    if (index !== null) setPinned((held) => (held === index ? null : index));
+  }, [index]);
 
   /**
    * ARRIVAL SAYS SOMETHING, which is the whole reason the mark readout exists.
@@ -172,25 +241,48 @@ export function useSharedXReadout(shared: SharedX | undefined) {
   countRef.current = count;
   const arriveRef = useRef(shared?.arriveAt ?? "last");
   arriveRef.current = shared?.arriveAt ?? "last";
+  const followedRef = useRef<number | null>(null);
+  followedRef.current = followed;
   useEffect(() => {
     const svg = svgRef.current;
     if (!svg) return;
     const onIn = () => setWalked((at) => {
       if (at !== null || countRef.current === 0) return at;
+      // A linked figure arrives where its partner stands, so focus moving from
+      // one member to the other lands on the same position — before the
+      // axis's own preferred end, which is the fallback.
+      if (followedRef.current !== null && followedRef.current < countRef.current) return followedRef.current;
       return arriveRef.current === "first" ? 0 : countRef.current - 1;
     });
+    const onGain = () => setFocused(true);
+    const onLose = () => setFocused(false);
     svg.addEventListener("focusin", onIn);
-    return () => svg.removeEventListener("focusin", onIn);
+    svg.addEventListener("focusin", onGain);
+    svg.addEventListener("focusout", onLose);
+    return () => {
+      svg.removeEventListener("focusin", onIn);
+      svg.removeEventListener("focusin", onGain);
+      svg.removeEventListener("focusout", onLose);
+    };
   }, []);
 
-  const reading = shared && index !== null && index >= 0 && index < count
+  const current = shared && index !== null && index >= 0 && index < count
     ? shared.read(index)
     : null;
+  // The pinned reading, merged row by row into the current one: "now was
+  // then", and the difference only where both rows carry the number they
+  // were printed from.
+  const held = shared && pinned !== null && pinned !== index && pinned >= 0 && pinned < count
+    ? shared.read(pinned)
+    : null;
+  const reading = current && held ? merge(current, held, shared?.diff) : current;
 
   return {
     svgRef,
     index: reading ? index : null,
     reading,
+    /** Where the pin sits, in user units; null when nothing is pinned. */
+    pinnedAt: pinned !== null ? atOf(pinned) : null,
     /** Where the reading sits on the x axis, in user units; the shell draws it there. */
     at: reading && index !== null ? atOf(index) : null,
     // Same rule the mark readout keeps: an axis with nothing on it must not put
@@ -203,13 +295,28 @@ export function useSharedXReadout(shared: SharedX | undefined) {
      * "Brier 0.000115 skill 0.99929" runs two numbers together with nothing
      * between them, and the units are the only thing telling them apart.
      */
-    announce: reading
+    announce: following ? "" : reading
       ? `${reading.title}. ${reading.rows.map((r) => `${r.label} ${r.value}`).join(", ")}.`
       : "",
     handlers: {
       onPointerMove: positions ? onPositionalMove : cross.onPointerMove,
       onPointerLeave: positions ? leavePositional : cross.onPointerLeave,
       onKeyDown,
+      ...(shared?.pin ? { onClick } : {}),
     },
+  };
+}
+
+/** The current reading against the pinned one, row by row. */
+function merge(current: SharedXReading, held: SharedXReading, diff?: SharedX["diff"]): SharedXReading {
+  return {
+    title: `${current.title}, pinned against ${held.title}`,
+    rows: current.rows.map((row, i) => {
+      const other = held.rows[i];
+      if (!other) return row;
+      let value = `${row.value} was ${other.value}`;
+      if (diff && row.raw != null && other.raw != null) value += `, ${diff(row, other)}`;
+      return { ...row, value };
+    }),
   };
 }

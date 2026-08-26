@@ -128,3 +128,16 @@ export const VERDICT_WORD: Record<BasketVerdict, string> = {
   coherent: "Coherent",
   unknown: "Not measurable",
 };
+
+/**
+ * A signed difference in centicents, printed as dollars — the pinned
+ * comparison on a coherence-index lane. Exact: centicents are integers, so
+ * this is the one difference on the engine that never rounds. Zero is the
+ * word "unchanged", never a signed nothing.
+ */
+export function signedCenticents(deltaCc: number): string {
+  if (!Number.isInteger(deltaCc)) return "—";
+  if (deltaCc === 0) return "unchanged";
+  const dollars = fromCenticents(Math.abs(deltaCc));
+  return dollars === null ? "—" : `${deltaCc > 0 ? "+" : "\u2212"}${dollars}`;
+}

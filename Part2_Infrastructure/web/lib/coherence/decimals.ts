@@ -138,3 +138,22 @@ export function secondsLabel(seconds: number | null | undefined): string {
   if (total < 86_400) return `${Math.floor(total / 3600)}h ${Math.floor((total % 3600) / 60)}m`;
   return `${Math.floor(total / 86_400)}d ${Math.floor((total % 86_400) / 3600)}h`;
 }
+
+/**
+ * A signed difference between two readings, for a pinned comparison.
+ *
+ * DERIVED, so it rounds: both readings were parsed from fixed-point wire
+ * strings, and their difference is this browser's arithmetic, not the
+ * gateway's — the rule in this file's banner. Four places where the number
+ * is large enough to show them, two significant digits below that (a Brier
+ * step of 0.000115 must not print as "+0.0000"), and the word "unchanged"
+ * for zero rather than a signed nothing. U+2212 for the minus, as the
+ * engine's other signed labels use.
+ */
+export function deltaLabel(delta: number): string {
+  if (!Number.isFinite(delta)) return "—";
+  if (delta === 0) return "unchanged";
+  const size = Math.abs(delta);
+  const digits = size >= 0.01 ? size.toFixed(4) : size.toPrecision(2);
+  return `${delta > 0 ? "+" : "\u2212"}${digits}`;
+}

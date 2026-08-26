@@ -40,7 +40,7 @@
 import Figure, { FigureEmpty, Plot } from "./Figure";
 import { clock } from "./IndexBasisChart";
 import { DIAGRAM_LABEL_PX, advancePx, truncateMiddle } from "@/lib/coherence/label-metrics";
-import { fromCenticents, toCenticents } from "@/lib/coherence/fixed-point";
+import { fromCenticents, signedCenticents, toCenticents } from "@/lib/coherence/fixed-point";
 import type { CoherenceIndexSeries } from "@/lib/coherence/types";
 import type { SharedX } from "@/lib/coherence/use-shared-x-readout";
 
@@ -159,13 +159,18 @@ export default function FamilyRidge({ data }: { data: CoherenceIndexSeries }) {
         .map((lane) => ({
           label: truncateMiddle(lane.ticker, 150, DIAGRAM_LABEL_PX),
           value: lane.byOrdinal[index] == null ? "— not measured" : fromCenticents(lane.byOrdinal[index]) ?? "—",
+          raw: lane.byOrdinal[index] ?? null,
         }))
         // A readout naming sixteen families at a poll most of them missed is a
         // list of dashes. The ones that answered are the reading.
         .filter((row) => !row.value.startsWith("—")),
     }),
-    width: 260,
+    // 72 wider than the reading alone: a pinned row reads "now was then, +diff".
+    width: 332,
     arriveAt: "last",
+    // One poll held against another, family by family, the step in dollars.
+    pin: true,
+    diff: (a, b) => (a.raw != null && b.raw != null ? signedCenticents(a.raw - b.raw) : ""),
   });
 
   return (

@@ -326,6 +326,7 @@ export function Plot({
         {axis && shared.reading && shared.at !== null ? (
           <SharedXReadout
             at={shared.at}
+            pinnedAt={shared.pinnedAt}
             height={height}
             width={axis.width ?? 200}
             chartWidth={width}

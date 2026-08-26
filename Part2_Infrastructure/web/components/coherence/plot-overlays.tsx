@@ -117,8 +117,15 @@ export function Readout({ text, x, y, chartWidth }: MarkReadout & { chartWidth: 
  * are being told about. `Tooltip` does the clamping and the card; this adds the
  * one line that says where.
  */
-export function SharedXReadout({ at, height, width, chartWidth, reading }: {
+export function SharedXReadout({ at, pinnedAt, height, width, chartWidth, reading }: {
   at: number;
+  /**
+   * A second rule where the reader pinned a position. Dashed by class and
+   * given a `stroke` ATTRIBUTE like the reference line, so the forced-colors
+   * rule for `svg line[stroke]` recolours it rather than losing it; and a
+   * word, so it never means something by dash alone.
+   */
+  pinnedAt?: number | null;
   height: number;
   width: number;
   chartWidth: number;
@@ -126,6 +133,12 @@ export function SharedXReadout({ at, height, width, chartWidth, reading }: {
 }) {
   return (
     <g pointerEvents="none">
+      {pinnedAt != null && pinnedAt !== at ? (
+        <>
+          <line x1={pinnedAt} x2={pinnedAt} y1={0} y2={height} className="coh-plot__crosshair is-pinned" stroke="var(--text-secondary)" />
+          <text x={pinnedAt + 3} y={10} className="coh-plot__pin">pinned</text>
+        </>
+      ) : null}
       <line x1={at} x2={at} y1={0} y2={height} className="coh-plot__crosshair" />
       <Tooltip x={at} width={width} chartWidth={chartWidth} title={reading.title} rows={reading.rows} />
     </g>

@@ -569,7 +569,8 @@
   .friction-badge,
   .allocation-override-chip,
   .dependency-node__state,
-  .route-latency__row {
+  .route-latency__row,
+  .coherence-plane .coh-facts--tabled > div {
     border: 1px solid CanvasText;
     background: Canvas;
     color: CanvasText;

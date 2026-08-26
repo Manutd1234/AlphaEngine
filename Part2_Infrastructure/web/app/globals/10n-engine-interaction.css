@@ -1,0 +1,23 @@
+/*
+ * 10n — engine interaction state
+ *
+ * One home for what a figure or a table looks like while a reader is ACTING
+ * on it: a pinned position, a chosen row, a hot mark, a pressed toggle. State,
+ * not motion — nothing here transitions, because a state a reader scans must
+ * be where it is the instant it is true. Scoped to `.coherence-plane`, which
+ * every engine tab carries. Grown rule by rule with the site that first
+ * renders each class: `dead-css` has no slack for a rule ahead of its site.
+ * The import line sits between 10m and 11.
+ */
+
+/* The pinned position on a shared axis: dashed against the live rule's solid
+   hairline. The stroke colour is the element's own attribute, for High Contrast. */
+.coherence-plane .coh-plot__crosshair.is-pinned {
+  stroke-dasharray: 2 3;
+}
+
+/* The word beside it. The tick rung, like the reference label. */
+.coherence-plane .coh-plot__pin {
+  fill: var(--text-secondary);
+  font-size: var(--fs-tick);
+}
