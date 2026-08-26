@@ -75,7 +75,14 @@ describe("what the source stripper counts as code", () => {
     // an import between them that used to vanish.
     const source = [
       "const a = `the venue's bounds`;",
-      'import Figure from "./Figure";',
+      // Resolvable ON PURPOSE. `check_repo_complete.sh` scans raw text for
+      // import specifiers and cannot tell a fixture from a real import, so a
+      // made-up `"./Figure"` here reads to it as this file importing a module
+      // that does not exist — which is exactly the class of thing it is right
+      // to fail on. It went red on Linux at 0581f38 while every web job passed,
+      // because the check is a separate job. The shape under test is unchanged:
+      // an import statement between two apostrophe-bearing template literals.
+      'import Figure from "./globals-css";',
       "const b = `don't`;",
       "const c = <Figure />;",
     ].join("\n");
