@@ -40,9 +40,9 @@
  */
 
 import {
-  DEAD_END_PHRASES, EXPECTED_SECTIONS, MEDIA, PROFILES, TABS, TRUTH_TABS,
+  DEAD_END_PHRASES, EXPECTED_SECTIONS, EXPECTED_VIEW_CELLS, MEDIA, PROFILES, TABS, TRUTH_TABS, VIEW_CELLS,
 } from "./desk-sweep-plan.mjs";
-import { VIEW_CELLS, EXPECTED_VIEW_CELLS, connect, installProfile, HYDRATED, INSPECT } from "./desk-sweep-cdp.mjs";
+import { connect, installProfile, HYDRATED, INSPECT } from "./desk-sweep-cdp.mjs";
 
 const ORIGIN = process.env.SWEEP_ORIGIN ?? "http://localhost:3100";
 

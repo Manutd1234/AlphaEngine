@@ -85,3 +85,43 @@ describe("the sweep's view cells mirror the section-views table", () => {
     assert.match(sweep, /EXPECTED_VIEW_CELLS/, "the sweep does not refuse to run when the view count disagrees");
   });
 });
+
+/**
+ * A script that dies on its import line is green in every suite, because no
+ * suite executes it — the derived-not-observed gap on the one script whose job
+ * is observing. 3eb2d72 shipped `desk-sweep.mjs` importing `VIEW_CELLS` from
+ * the cdp module, `node --check` said it parsed (it did — `--check` never
+ * resolves a named import), and the sweep could not start. So: read every
+ * relative import in the sweep scripts and hold each name to its module's
+ * export list — an `export { a, b }` block or an `export const|function name`.
+ */
+function exportsOf(source: string): Set<string> {
+  const names = new Set<string>();
+  for (const block of source.matchAll(/^export \{([^}]*)\}/gm)) {
+    for (const name of block[1].split(",")) {
+      const bare = name.trim().split(/\s+as\s+/).pop();
+      if (bare) names.add(bare);
+    }
+  }
+  for (const one of source.matchAll(/^export (?:async )?(?:const|let|function\*?|class) ([A-Za-z_$][\w$]*)/gm)) names.add(one[1]);
+  return names;
+}
+
+describe("every named import between the sweep scripts resolves", () => {
+  const SCRIPTS = ["desk-sweep.mjs", "section-density-measure.mjs"];
+  for (const script of SCRIPTS) {
+    it(`${script} imports only what its sibling modules export`, () => {
+      const source = read(`../scripts/${script}`);
+      const imports = [...source.matchAll(/^import \{([^}]*)\} from "\.\/([^"]+)";/gm)];
+      assert.ok(imports.length > 0, `${script} has no relative named imports to check — the pattern no longer matches its import lines`);
+      for (const [, names, target] of imports) {
+        const exported = exportsOf(read(`../scripts/${target}`));
+        for (const raw of names.split(",")) {
+          const name = raw.trim().split(/\s+as\s+/)[0];
+          if (!name) continue;
+          assert.ok(exported.has(name), `${script} imports ${name} from ./${target}, which does not export it — the script dies on its import line`);
+        }
+      }
+    });
+  }
+});
