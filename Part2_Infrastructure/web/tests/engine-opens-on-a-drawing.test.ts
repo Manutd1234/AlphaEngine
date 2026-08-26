@@ -297,7 +297,10 @@ describe("every Proofs view opens on a drawing", () => {
       // grouping element and still open on its figure.
       // `article` joins the wrappers: a catalogue of cards is a grouping
       // element like any other, and the card's own opener is what matters.
-      const content = tags.filter((t) => !["section", "div", "article", "Fragment", ...CHIPS].includes(t));
+      // `LinkedX` joins the wrappers on 2026-08-26: a context provider that
+      // renders its children and no element of its own, so a view may sit
+      // inside one and still open on its figure.
+      const content = tags.filter((t) => !["section", "div", "article", "Fragment", "LinkedX", ...CHIPS].includes(t));
       const first = content[0];
 
       if (spec.exempt) {

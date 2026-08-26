@@ -36,6 +36,13 @@
  *
  * It fetches nothing: both callers already hold every mark, its timestamp and
  * the reason it could not be measured.
+ *
+ * A CROSSHAIR, NOT A TITLE PER RUN, since 2026-08-26. The marks sit at their
+ * own stamps, so the axis hands the readout its positions and the rule lands
+ * on the mark under the pointer; the reading says whether that mark was
+ * measured, why not, and which run it belongs to. The index caller links the
+ * strip to the chart above it under one key, so a pointer on either draws the
+ * poll on both — they share the index space because the pane derives it once.
  */
 
 import Figure, { FigureEmpty, Plot } from "./Figure";
@@ -84,6 +91,7 @@ export default function MeasurabilityStrip({
   caption,
   reading,
   notes = [],
+  link,
 }: {
   marks: CoverageMark[];
   subject: string;
@@ -91,10 +99,17 @@ export default function MeasurabilityStrip({
   /** Said only when the caller has something the share does not say. */
   reading?: string | null;
   notes?: readonly string[];
+  /** The pair this strip follows, when its caller draws a figure over the same marks. */
+  link?: string;
 }) {
   const runs = runsOf(marks);
   const measured = marks.filter((mark) => mark.measured).length;
   const gaps = runs.filter((run) => !run.measured);
+  // Which run each mark sits in, by the same contiguity `runsOf` uses.
+  const runAt: number[] = [];
+  marks.forEach((mark, i) => {
+    runAt.push(i === 0 || marks[i - 1].measured !== mark.measured ? runAt.length ? runAt[i - 1] + 1 : 0 : runAt[i - 1]);
+  });
 
   if (!marks.length) {
     return (
@@ -112,6 +127,22 @@ export default function MeasurabilityStrip({
   const last = marks[marks.length - 1].ts;
   const span = Math.max(1, last - first);
   const share = Math.round((measured / marks.length) * 100);
+  // ONE GEOMETRY for the runs and the crosshair.
+  const geometry = (width: number) => {
+    const track = Math.max(40, width - PAD * 2);
+    const x = (ts: number) => PAD + ((ts - first) / span) * track;
+    return { track, x };
+  };
+  const readAt = (index: number) => {
+    const mark = marks[index];
+    const run = runs[runAt[index]];
+    const rows = [
+      { label: "Measured", value: mark.measured ? "yes" : "no" },
+      ...(mark.measured ? [] : [{ label: "Reason", value: mark.detail ?? "no reason recorded" }]),
+      { label: "Run", value: `${runAt[index] + 1} of ${runs.length}, ${run.count} ${subject}(s) ${run.measured ? "measured" : "unmeasurable"}` },
+    ];
+    return { title: `${subject[0].toUpperCase()}${subject.slice(1)} ${index + 1} of ${marks.length}, ${clock(mark.ts / NS_PER_MS)} UTC`, rows };
+  };
 
   return (
     <Figure
@@ -130,10 +161,24 @@ export default function MeasurabilityStrip({
         ...notes,
       ]}
     >
-      <Plot height={HEIGHT}>
+      <Plot
+        height={HEIGHT}
+        sharedX={(width) => {
+          const { track, x } = geometry(width);
+          return {
+            count: marks.length,
+            x0: PAD,
+            x1: PAD + track,
+            positions: marks.map((mark) => x(mark.ts)),
+            read: readAt,
+            width: 300,
+            arriveAt: "last",
+            link,
+          };
+        }}
+      >
         {(width) => {
-          const track = Math.max(40, width - PAD * 2);
-          const x = (ts: number) => PAD + ((ts - first) / span) * track;
+          const { track, x } = geometry(width);
           return (
             <>
               <rect x={PAD} y={TRACK_Y} width={track} height={TRACK_H} className="coh-combo__track" />
@@ -143,11 +188,6 @@ export default function MeasurabilityStrip({
                 // it and the record would look cleaner than it was.
                 const from = x(run.from);
                 const to = Math.max(x(run.to), from + 2);
-                const when = `${clock(run.from / NS_PER_MS)} to ${clock(run.to / NS_PER_MS)} UTC`;
-                const hover = run.measured
-                  ? `${run.count} ${subject}(s) measured, ${when}`
-                  : `${run.count} ${subject}(s) unmeasurable, ${when}`
-                    + `${run.detail ? ` — ${run.detail}` : " — no reason recorded"}`;
                 return (
                   <rect
                     key={`${run.from}-${index}`}
@@ -156,9 +196,7 @@ export default function MeasurabilityStrip({
                     width={to - from}
                     height={TRACK_H}
                     className={run.measured ? "coh-surface__bar" : "coh-cover__gap"}
-                  >
-                    <title>{hover}</title>
-                  </rect>
+                  />
                 );
               })}
               <text x={PAD} y={HEIGHT - 6} className="coh-ladder__tick">

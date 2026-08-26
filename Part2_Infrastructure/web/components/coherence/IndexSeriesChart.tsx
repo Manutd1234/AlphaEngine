@@ -36,6 +36,7 @@
 
 import { fromCenticents, toCenticents } from "@/lib/coherence/fixed-point";
 import type { CoherenceIndexPoint } from "@/lib/coherence/types";
+import type { SharedXRow } from "@/lib/coherence/use-shared-x-readout";
 import Figure, { FigureEmpty, Plot } from "./Figure";
 import { clock, thin, type IndexPoint } from "./IndexBasisChart";
 
@@ -60,7 +61,44 @@ function tally(points: readonly CoherenceIndexPoint[], pick: (p: CoherenceIndexP
   return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([key, n]) => `${key} (${n})`);
 }
 
-export default function IndexSeriesChart({ points }: { points: CoherenceIndexPoint[] }) {
+/**
+ * Everything true at one poll, for the crosshair: each lane's reading at that
+ * stamp or the reason there is none, the estimators that produced them, the
+ * families polled. A lane with no point at the stamp was NOT POLLED, which is
+ * a different absence from a poll that could not be measured, and both are
+ * said in words rather than drawn as a zero.
+ */
+function readAt(
+  index: number,
+  stamps: readonly number[],
+  lanes: readonly Lane[],
+  byStamp: ReadonlyMap<number, CoherenceIndexPoint[]>,
+) {
+  const stamp = stamps[index];
+  const at = byStamp.get(stamp) ?? [];
+  const rows: SharedXRow[] = lanes.map((lane) => {
+    const point = at.find((p) => (p.series_ticker || "unrecorded") === lane.series);
+    if (!point) return { label: lane.series, value: "— not polled" };
+    const cc = toCenticents(point.ci);
+    return cc == null
+      ? { label: lane.series, value: `— not measured${point.detail ? `: ${point.detail}` : ""}` }
+      : { label: lane.series, value: fromCenticents(cc) ?? "—", raw: cc };
+  });
+  const engines = [...new Set(at.filter((p) => toCenticents(p.ci) != null).map((p) => p.engine || "unrecorded"))];
+  if (engines.length) rows.push({ label: "Estimator", value: engines.join(", ") });
+  rows.push({ label: "Families", value: [...new Set(at.map((p) => p.event_ticker))].join(", ") || "—" });
+  return { title: `Poll ${index + 1} of ${stamps.length}, ${clock(stamp / NS_PER_MS)} UTC`, rows };
+}
+
+export default function IndexSeriesChart({ points, stamps }: {
+  points: CoherenceIndexPoint[];
+  /**
+   * The distinct poll stamps, ascending — derived ONCE by the pane and shared
+   * with the coverage strip under this chart, so both figures count the same
+   * polls and a crosshair on one is a crosshair on the other.
+   */
+  stamps: readonly number[];
+}) {
   const lanes: Lane[] = [];
   for (const point of points) {
     const series = point.series_ticker || "unrecorded";
@@ -90,6 +128,21 @@ export default function IndexSeriesChart({ points }: { points: CoherenceIndexPoi
   const engines = tally(measured, (p) => p.engine);
   const families = new Set(points.map((p) => p.event_ticker)).size;
 
+  const byStamp = new Map<number, CoherenceIndexPoint[]>();
+  for (const point of points) {
+    const at = byStamp.get(point.ts_ns);
+    if (at) at.push(point);
+    else byStamp.set(point.ts_ns, [point]);
+  }
+  // ONE GEOMETRY for the lanes and the crosshair, so the rule lands on the
+  // poll it names rather than near it. The axis is time, so the polls are
+  // wherever the recorder ran and the crosshair takes their positions.
+  const geometry = (width: number) => {
+    const plotWidth = width - MARGIN.left - MARGIN.right;
+    const x = (ts: number) => MARGIN.left + ((ts - first) / span) * plotWidth;
+    return { plotWidth, x };
+  };
+
   return (
     <Figure
       caption={CAPTION}
@@ -116,10 +169,24 @@ export default function IndexSeriesChart({ points }: { points: CoherenceIndexPoi
         + " partly which family was polled on that tick. By family carries the per-family reading.",
       ]}
     >
-      <Plot height={height}>
+      <Plot
+        height={height}
+        sharedX={(width) => {
+          const { x } = geometry(width);
+          return {
+            count: stamps.length,
+            x0: MARGIN.left,
+            x1: width - MARGIN.right,
+            positions: stamps.map((ts) => x(ts)),
+            read: (index) => readAt(index, stamps, lanes, byStamp),
+            width: 300,
+            arriveAt: "last",
+            link: "index-polls",
+          };
+        }}
+      >
         {(width) => {
-          const plotWidth = width - MARGIN.left - MARGIN.right;
-          const x = (ts: number) => MARGIN.left + ((ts - first) / span) * plotWidth;
+          const { x } = geometry(width);
           return (
             <>
               {lanes.map((lane, i) => (
@@ -192,20 +259,17 @@ function LaneRow({ lane, top, peak, x, width }: {
             + `${engines.length > 1 ? `, ${engines.length} estimators` : ""}`}
       </text>
       <line x1={MARGIN.left} x2={width - MARGIN.right} y1={base} y2={base} className="coh-ladder__axis" />
+      {/* NO TITLE ON A SEGMENT since 2026-08-26: the crosshair reads every
+          lane at a poll, which is the reader's question, and a segment's own
+          facts (its unbroken count, its span) are what the coverage strip
+          under this chart draws run by run. The estimator is still not named
+          per segment: a segment is built from THINNED points, which carry a
+          timestamp and a distance and not the engine that produced them, so
+          the estimator at a poll is read from the raw points in the readout
+          and the mix belongs to the lane's notes. */}
       {segments.map((segment) => (
         <path key={`${segment.from}`} d={segment.d} fill="none" pathLength={1}
-              className="coh-index__line chart-draw">
-          {/* NO ESTIMATOR NAMED HERE, deliberately. A segment is built from
-              THINNED points, which carry a timestamp and a distance and not the
-              engine that produced them, so this cannot know which of the three
-              its readings came from — and a lane's most common estimator
-              printed on a segment would be a guess in the shape of a fact. The
-              estimator mix belongs to the lane and is stated in the notes. */}
-          <title>
-            {`${lane.series}: ${segment.count} unbroken reading(s), peak ${fromCenticents(segment.peak)},`
-             + ` ${clock(segment.from / NS_PER_MS)} to ${clock(segment.to / NS_PER_MS)} UTC`}
-          </title>
-        </path>
+              className="coh-index__line chart-draw" />
       ))}
       {kept.length < lane.points.length ? (
         <text x={MARGIN.left} y={base + 14} className="coh-svg-note">

@@ -155,6 +155,8 @@ export default function CorpusHistory({ data, skillDrawnAbove }: {
             count: points.length, x0: gutter, x1: gutter + trackW, read,
             // 72 wider than the reading alone: a pinned row reads "now was then, +diff".
             width: 304,
+            // A record of runs in time arrives at "now".
+            arriveAt: "last",
             // A run held against another: Enter or a click pins, and every
             // measure then reads as its value, what it was, and the step.
             pin: true,

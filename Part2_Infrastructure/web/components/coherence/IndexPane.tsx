@@ -38,6 +38,8 @@ import FamilyRidge from "./FamilyRidge";
 import IndexFamilies from "./IndexFamilies";
 import IndexSeriesChart from "./IndexSeriesChart";
 import MeasurabilityStrip from "./MeasurabilityStrip";
+import { marksAtStamps, stampsOf } from "@/lib/coherence/index-stamps";
+import { LinkedX } from "@/lib/coherence/linked-x";
 import SectionVerdict from "./SectionVerdict";
 import ValueStrip from "./ValueStrip";
 
@@ -85,8 +87,8 @@ function whyUnmeasurable(points: CoherenceIndexPoint[]): string {
  * content of a scatter in poll order. `IndexSeriesChart` draws the series apart
  * and states in its notes what is still pooled inside them.
  */
-function Chart({ data }: { data: CoherenceIndexSeries }) {
-  return <IndexSeriesChart points={data.points} />;
+function Chart({ data, stamps }: { data: CoherenceIndexSeries; stamps: readonly number[] }) {
+  return <IndexSeriesChart points={data.points} stamps={stamps} />;
 }
 
 export default function IndexPane({ active, view }: {
@@ -119,6 +121,12 @@ export default function IndexPane({ active, view }: {
     );
   }
 
+  // ONE INDEX SPACE for the chart and the strip: the distinct poll stamps,
+  // derived here and handed to both, so their linked crosshair counts the
+  // same polls. One mark per STAMP on the strip, not per point — a poll that
+  // read two series is two points and one moment.
+  const stamps = stampsOf(data.points);
+
   return (
     // `.coh-index-pane` is the 12px grid this pane has always stacked in, and
     // it survives the demotion as a plain <div>: the pane is a view now, so the
@@ -146,21 +154,20 @@ export default function IndexPane({ active, view }: {
           a reader on the families table met a sentence about a line they were
           not looking at. */}
       {view === "series" ? (
-        <>
-          <Chart data={data} />
+        // The provider renders no element: a pointer on either figure draws
+        // the same poll on both.
+        <LinkedX>
+          <Chart data={data} stamps={stamps} />
           {/* What the line's white space IS. The chart breaks at every gap and
               never bridges one, which is right and is a poor picture of its own
               breaks — on a thin watchlist the gaps are most of the record. */}
           <MeasurabilityStrip
             subject="poll"
             caption="What the record is made of: polls measured, against polls that could not be"
-            marks={data.points.map((point) => ({
-              ts: point.ts_ns,
-              measured: toCenticents(point.ci) != null,
-              detail: point.detail,
-            }))}
+            marks={marksAtStamps(data.points, stamps)}
+            link="index-polls"
           />
-        </>
+        </LinkedX>
       ) : (
         <>
           {/* THE RIDGE FIRST, THEN THE ROLL-UP. `IndexFamilies` rows on

@@ -177,25 +177,57 @@ describe("one CSS home for interaction state", () => {
  * with one hand. Kept as a table so a fifth pair cannot arrive without
  * naming its space.
  */
-const LINKED: Array<{ key: string; holder: string; members: [string, string]; space: string }> = [];
+interface Member {
+  file: string;
+  /** The `count:` literal in the member's sharedX block. */
+  count: string;
+  /** `"literal"` when the member declares the key itself; `"prop"` when its caller passes it. */
+  link: "literal" | "prop";
+}
+interface Pair {
+  key: string;
+  /** The component that wraps both in `<LinkedX>` and derives the space once. */
+  holder: string;
+  members: [Member, Member];
+  /** The one derivation in the holder that both counts come from. */
+  derivation: RegExp;
+}
+
+const LINKED: Pair[] = [
+  {
+    // The index tape: polls at their own stamps. The pane derives the
+    // distinct stamps once; the chart counts them and the strip's marks are
+    // built one per stamp, so `marks.length === stamps.length` by construction.
+    key: "index-polls",
+    holder: "IndexPane.tsx",
+    members: [
+      { file: "IndexSeriesChart.tsx", count: "stamps.length", link: "literal" },
+      { file: "MeasurabilityStrip.tsx", count: "marks.length", link: "prop" },
+    ],
+    derivation: /const stamps = stampsOf\(data\.points\);[\s\S]*?marks=\{marksAtStamps\(data\.points, stamps\)\}/,
+  },
+];
+
+const escape = (literal: string) => literal.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 describe("every linked pair shares one index space", () => {
   for (const pair of LINKED) {
-    it(`${pair.key}: ${pair.members.join(" and ")} both count ${pair.space}`, () => {
+    it(`${pair.key}: ${pair.members.map((m) => m.file).join(" and ")} count one derivation`, () => {
       const holder = read(`../components/coherence/${pair.holder}`);
       assert.match(holder, /<LinkedX>/, `${pair.holder} does not wrap the pair in a provider`);
+      assert.match(holder, pair.derivation, `${pair.holder} no longer derives the pair's index space once`);
+      assert.match(holder, new RegExp(`link="${pair.key}"`), `${pair.holder} passes no key to its shared member`);
       for (const member of pair.members) {
-        const source = read(`../components/coherence/${member}`);
-        const block = source.slice(source.indexOf("sharedX={"));
-        assert.match(block.slice(0, 1200), new RegExp(`link: "${pair.key}"`), `${member} does not declare the link`);
-        assert.match(block.slice(0, 1200), new RegExp(`count: ${pair.space.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`),
-          `${member} counts something other than ${pair.space}`);
+        const source = read(`../components/coherence/${member.file}`);
+        const block = source.slice(source.indexOf("sharedX={"), source.indexOf("sharedX={") + 1200);
+        assert.match(block, new RegExp(`count: ${escape(member.count)}`), `${member.file} counts something other than ${member.count}`);
+        if (member.link === "literal") assert.match(block, new RegExp(`link: "${pair.key}"`), `${member.file} does not declare the link`);
+        else assert.match(block, /\blink,\s*\}/, `${member.file} does not pass its caller's key through`);
       }
     });
   }
   it("declares the pairs it has, and only those", () => {
-    // Zero until the crosshair slice; the row shape is what this pins.
-    assert.equal(LINKED.length, 0);
+    assert.equal(LINKED.length, 1);
   });
 });
 
