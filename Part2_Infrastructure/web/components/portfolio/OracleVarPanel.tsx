@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { useMeasuredWidth } from "@/components/chart-kit";
 import NumberTicker from "@/components/common/NumberTicker";
 import OracleVarTrend, {
   ORACLE_TREND_RESERVE, TREND_MAX_OBSERVATIONS, observationKey, type OracleVarObservation,
@@ -86,7 +85,6 @@ export default function OracleVarPanel({
    *  asked to see the figure MOVE and a tile shows only where it stopped. */
   const [observations, setObservations] = useState<OracleVarObservation[]>([]);
   /* SVG in user units, so the chart needs a real width; the box below reserves it. */
-  const [chartRef, chartWidth] = useMeasuredWidth<HTMLDivElement>();
   // Quantised so a live book repolling every 15s does not re-simulate on every
   // equity tick — the restraint MonteCarloDistribution credits this panel with
   // sharing. A sub-$1,000 move does not move a 99th percentile read.
@@ -367,12 +365,12 @@ export default function OracleVarPanel({
           unchanged inputs is a fresh draw. Reserved so it holds its height
           whether it holds the chart, the measuring frame, or the sentence
           saying what it is waiting for. */}
-      <div ref={chartRef} style={{ minHeight: ORACLE_TREND_RESERVE }}>
-        {chartWidth > 0 && (
+      {/* The observer went with the prop: `Plot` measures its own box. */}
+      <div style={{ minHeight: ORACLE_TREND_RESERVE }}>
+        {observations.length > 0 && (
           <OracleVarTrend
             observations={observations}
             horizonDays={horizonDays}
-            width={chartWidth}
             everySeconds={everySeconds}
           />
         )}

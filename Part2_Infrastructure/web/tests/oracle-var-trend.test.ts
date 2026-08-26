@@ -121,9 +121,19 @@ describe("a re-run repaints the chart and does not move the card", () => {
     assert.match(panelCode, /minHeight: 192/);
   });
 
-  it("the measuring frame cannot collapse the reserved box", () => {
-    assert.match(panelCode, /chartWidth > 0 &&/,
-      "the box is the ref'd element, so it is measured whether or not the chart draws");
+  it("the reserved box stands whether or not the chart draws", () => {
+    // The measuring frame this used to pin went with the width prop on
+    // 2026-08-26: the trend draws through `Plot`, which measures the box it is
+    // in, so the panel no longer runs an observer of its own and there is no
+    // `chartWidth > 0` gate left to assert.
+    //
+    // The PROPERTY is unchanged and is what this always meant: the reserve sits
+    // on the wrapper rather than on the chart, so an empty state cannot
+    // collapse the card and make it jump when the first observation lands.
+    assert.doesNotMatch(panelCode, /useMeasuredWidth|chartWidth/,
+      "the panel measures its own box again; the plot inside it already does");
+    assert.match(panelCode, /observations\.length > 0 && \(/,
+      "the chart is no longer gated on having something to draw");
   });
 });
 

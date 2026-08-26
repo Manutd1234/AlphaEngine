@@ -52,6 +52,7 @@
  */
 
 import { DEFAULT_MARGIN, extent, linePath, linearScale, ticks, Grid, AnimatedPath } from "@/components/chart-kit";
+import Figure, { Plot } from "@/components/coherence/Figure";
 import { usd } from "@/lib/format";
 
 /**
@@ -116,13 +117,10 @@ export const ORACLE_TREND_RESERVE = 156;
 export default function OracleVarTrend({
   observations,
   horizonDays,
-  width = 640,
   everySeconds = null,
 }: {
   observations: OracleVarObservation[];
   horizonDays: number;
-  /** Measured by the caller, which already owns a width observer. */
-  width?: number;
   /**
    * Seconds between re-runs, or null when none is scheduled.
    *
@@ -187,7 +185,6 @@ export default function OracleVarTrend({
 
   const m = DEFAULT_MARGIN;
   const x0 = m.left;
-  const x1 = Math.max(x0 + 40, width - m.right);
   const y0 = HEIGHT - m.bottom;
   const y1 = m.top;
 
@@ -195,11 +192,8 @@ export default function OracleVarTrend({
   // simulated quantile is the finding this panel exists to surface, so it must
   // be on screen rather than clipped to flatter the agreement.
   const [lo, hi] = extent([...shown.map((o) => o.var99), ...shown.map((o) => o.clientVar)]);
-  const xScale = linearScale(0, Math.max(1, shown.length - 1), x0, x1);
   const yScale = linearScale(lo, hi, y0, y1);
 
-  const oraclePoints = shown.map((o, i) => ({ x: xScale(i), y: o.var99 === null ? null : yScale(o.var99) }));
-  const clientPoints = shown.map((o, i) => ({ x: xScale(i), y: o.clientVar === null ? null : yScale(o.clientVar) }));
   const latest = shown[shown.length - 1];
   // Data identity, never width: `AnimatedPath` replays its draw when this
   // changes, and keying on a measured width would replay it on every resize.
@@ -220,18 +214,31 @@ export default function OracleVarTrend({
           </span>
         )}
       </div>
-      <svg
-        viewBox={`0 0 ${width} ${HEIGHT}`}
-        width="100%"
-        height={HEIGHT}
-        role="img"
-        aria-label={
+      {/* Through `Figure` and `Plot` since 2026-08-26. The points carried their
+          readings in `<title>` — including the ones that could not be computed,
+          which is the reading that matters — and a `<title>` is reachable with
+          a mouse and by nothing else. */}
+      <Figure
+        caption={`Terminal-value 99% VaR over ${horizonDays} days, simulated against the closed form`}
+        ariaLabel={
           `Terminal-value 99% value-at-risk over a ${horizonDays}-day horizon across `
           + `${shown.length} re-run${shown.length === 1 ? "" : "s"} of this panel, simulated against `
           + `the closed form. ${missing} could not be computed. Latest simulated `
           + `${latest.var99 === null ? "not computed" : usd(latest.var99, 0)}.`
         }
+        reading="The dashed line is the analytic answer; the question is how far the simulation sits from it, and the dash says which one is analytic without relying on colour."
+        missing={missing > 0 ? `${missing} of ${shown.length} re-runs could not be computed, and are drawn as gaps rather than as zero.` : null}
       >
+        <Plot height={HEIGHT}>
+          {(measured) => {
+            // Everything downstream of the right edge follows the measured
+            // width, so it all belongs to the plot.
+            const x1 = Math.max(x0 + 40, measured - m.right);
+            const xScale = linearScale(0, Math.max(1, shown.length - 1), x0, x1);
+            const oraclePoints = shown.map((o, i) => ({ x: xScale(i), y: o.var99 === null ? null : yScale(o.var99) }));
+            const clientPoints = shown.map((o, i) => ({ x: xScale(i), y: o.clientVar === null ? null : yScale(o.clientVar) }));
+            return (
+              <>
         <Grid yTicks={ticks(lo, hi, 3)} yScale={yScale} x0={x0} x1={x1} format={(v) => usd(v, 0)} />
 
         {/* The closed form first and dashed, so the simulated line reads on
@@ -287,7 +294,11 @@ export default function OracleVarTrend({
             </circle>
           ),
         )}
-      </svg>
+              </>
+            );
+          }}
+        </Plot>
+      </Figure>
       {/* The series says how much history it holds, in words, every time. A
           two-point line and a forty-point line look the same at a glance and
           mean very different things. */}
