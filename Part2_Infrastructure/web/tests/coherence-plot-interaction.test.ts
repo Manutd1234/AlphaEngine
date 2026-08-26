@@ -148,9 +148,12 @@ describe("what it does to the accessibility tree", () => {
     // The overlays moved to `plot-overlays.tsx` on 2026-08-26, so `Readout` is
     // no longer in this file to slice against — and `indexOf` returning -1
     // would have made `slice(a, -1)` cover a silently wrong span rather than
-    // fail. The plot's body ends where the next export begins.
+    // fail. The plot's body ends where the next export begins — since
+    // 2026-08-26 that is the chips' re-export line (`FigureEmpty` and
+    // `StateChip` moved to `figure-chips.tsx`), so the anchor is any export at
+    // the start of a line, not the next exported function.
     const plotStart = figure.indexOf("export function Plot");
-    const plotEnd = figure.indexOf("export function", plotStart + 1);
+    const plotEnd = figure.indexOf("\nexport ", plotStart + 1);
     assert.ok(plotStart !== -1 && plotEnd !== -1, "Plot is no longer where this guard reads it");
     const plotBody = figure.slice(plotStart, plotEnd);
     const liveAt = plotBody.indexOf("coh-plot__live");
@@ -319,5 +322,57 @@ describe("a figure read ACROSS one axis, rather than mark by mark", () => {
     // And a measure null on EVERY run gets no lane at all, because an empty
     // lane reads as a measure that came back zero.
     assert.match(history, /const drawn = lanes\.filter\(\(m\) => points\.some\(\(p\) => m\.at\(p\) !== null\)\)/);
+  });
+});
+
+describe("a shared axis may be positional, and then the hook owns where the reading sits", () => {
+  // Nine of ten crosshair candidates on this engine are drawn BY VALUE — a tape
+  // that keeps its width across a failed poll, runs at their own stamps — and
+  // `useCrosshair` assumes even spacing. So the axis may hand the hook its
+  // positions, and from then on the pointer maps to the NEAREST one and the
+  // readout is drawn at it, by the hook rather than by the shell's arithmetic.
+  it("declares `positions` on the axis, optional and read-only", () => {
+    assert.match(sharedHook, /positions\?: readonly number\[\];/,
+      "the axis cannot say where its positions are, so a by-value figure's crosshair drifts");
+  });
+
+  it("uses the nearest search ONLY when positions are given, so the three peer figures keep even spacing", () => {
+    // `useCrosshair` still runs — hooks must — and is still the pointer half
+    // for an evenly spaced axis. The positional handler replaces it only when
+    // the axis asked. Stripped: a header describing this in prose must not
+    // satisfy it.
+    const code = stripNonCode(sharedHook);
+    assert.match(code, /useCrosshair\(count, shared\?\.x0 \?\? 0, shared\?\.x1 \?\? 1\)/,
+      "the even-spacing hook no longer runs, which changes the three figures outside this engine");
+    assert.match(code, /onPointerMove: positions \? onPositionalMove : cross\.onPointerMove/,
+      "the positional handler is not gated on the axis declaring positions");
+    assert.match(code, /onPointerLeave: positions \? leavePositional : cross\.onPointerLeave/);
+  });
+
+  it("recomputes the pointer's x the way chart-kit does, so the two halves cannot disagree", () => {
+    // `useCrosshair` returns only an index, so the nearest search needs the
+    // pointer's x in user units — the same rect-and-viewBox arithmetic, copied
+    // rather than reached, because chart-kit exports the hook and not the sum.
+    const code = stripNonCode(sharedHook);
+    assert.match(code, /viewBox\.baseVal\.width/);
+    assert.match(code, /getBoundingClientRect\(\)/);
+  });
+
+  it("owns `at`, and the shell draws the readout there", () => {
+    assert.match(stripNonCode(sharedHook), /at: reading/, "the hook does not return where the reading sits");
+    assert.match(stripNonCode(figure), /at=\{shared\.at\}/,
+      "the shell computes the readout's x itself, and a positional axis would draw it in the wrong place");
+    assert.doesNotMatch(stripNonCode(figure), /axis\.count - 1/,
+      "the shell still has its own even-spacing arithmetic beside the hook's");
+  });
+
+  it("keeps the chips in figure-chips.tsx, and Figure.tsx to the plot and the shell", () => {
+    // Split so the shell has room for what later slices add to it (a
+    // `controls` slot), with re-exports so every importer keeps its line.
+    const chips = read("../components/coherence/figure-chips.tsx");
+    assert.match(chips, /export function FigureEmpty\(/);
+    assert.match(chips, /export function StateChip\(/);
+    assert.match(figure, /export \{ FigureEmpty, StateChip \} from "\.\/figure-chips";/);
+    assert.doesNotMatch(stripNonCode(figure), /function FigureEmpty\(|function StateChip\(/);
   });
 });

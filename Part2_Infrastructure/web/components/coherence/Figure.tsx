@@ -323,9 +323,9 @@ export function Plot({
         {children(width)}
         {mark ? <ReferenceLabel {...mark} /> : null}
         {readout ? <Readout {...readout} chartWidth={width} /> : null}
-        {axis && shared.reading && shared.index !== null ? (
+        {axis && shared.reading && shared.at !== null ? (
           <SharedXReadout
-            at={axis.x0 + ((axis.x1 - axis.x0) * shared.index) / Math.max(1, axis.count - 1)}
+            at={shared.at}
             height={height}
             width={axis.width ?? 200}
             chartWidth={width}
@@ -344,51 +344,4 @@ export function Plot({
 }
 
 
-
-/**
- * The empty state a figure renders instead of an axis with nothing on it.
- *
- * A blank plot area and a plot area with nothing in it look identical, and one
- * of them means the feed is down. This says which.
- */
-export function FigureEmpty({ reason }: { reason: string }) {
-  return (
-    <p className="coh-figure__empty">
-      <span aria-hidden="true">◌</span> {reason}
-    </p>
-  );
-}
-
-/**
- * A labelled state chip: mark, word, and optionally a figure.
- *
- * The mark comes first so the sentence still parses when colour is stripped —
- * "▲ Dutch book, 0.9800" reads the same in monochrome as in full colour.
- */
-export function StateChip({
-  mark,
-  word,
-  value,
-  tone,
-}: {
-  mark: string;
-  word: string;
-  value?: string | null;
-  tone: "good" | "warn" | "critical" | "muted";
-}) {
-  return (
-    <span className={`coh-chip is-${tone}`}>
-      <span className="coh-chip__mark" aria-hidden="true">
-        {mark}
-      </span>
-      <span className="coh-chip__word">{word}</span>
-      {/* The value carries its own `title`, because it is the part that
-          truncates: a chip is `white-space: nowrap` by design — a state that
-          wrapped mid-phrase would read as two states — so a long value like a
-          hostname could only widen the pill until it broke the row. It ellipses
-          now, and the hover has the whole of it. */}
-      {value ? <span className="coh-chip__value" title={value}>{value}</span> : null}
-    </span>
-  );
-}
-
+export { FigureEmpty, StateChip } from "./figure-chips";
