@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-26",
-  "commit": "686de0c",
+  "commit": "f3b870c",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -977,6 +977,7 @@
     "Part2_Infrastructure/web/components/coherence/ParlayReadCost.tsx",
     "Part2_Infrastructure/web/components/coherence/PayoffByState.tsx",
     "Part2_Infrastructure/web/components/coherence/PendingMinutes.tsx",
+    "Part2_Infrastructure/web/components/coherence/plot-overlays.tsx",
     "Part2_Infrastructure/web/components/coherence/PmfChart.tsx",
     "Part2_Infrastructure/web/components/coherence/PortfolioPane.tsx",
     "Part2_Infrastructure/web/components/coherence/PriceHistogram.tsx",
@@ -1660,6 +1661,7 @@
     "Part2_Infrastructure/web/tests/exposure-chart.test.ts",
     "Part2_Infrastructure/web/tests/favourites.test.ts",
     "Part2_Infrastructure/web/tests/figure-arrival.test.ts",
+    "Part2_Infrastructure/web/tests/figure-reference.test.ts",
     "Part2_Infrastructure/web/tests/file-size.test.ts",
     "Part2_Infrastructure/web/tests/fill-quality-provenance.test.ts",
     "Part2_Infrastructure/web/tests/fill-quality.test.ts",
@@ -1890,6 +1892,7 @@
     "Part2_Infrastructure/web/tests/systems-stability.test.ts",
     "Part2_Infrastructure/web/tests/tab-chrome-metrics.test.ts",
     "Part2_Infrastructure/web/tests/tab-consolidation.test.ts",
+    "Part2_Infrastructure/web/tests/tabular-numerals.test.ts",
     "Part2_Infrastructure/web/tests/tailwind-bridge.test.ts",
     "Part2_Infrastructure/web/tests/tech-marks.test.ts",
     "Part2_Infrastructure/web/tests/telegram-cta.test.ts",
