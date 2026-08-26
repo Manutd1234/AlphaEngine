@@ -142,16 +142,29 @@
 .diff-fit__why {
   display: grid;
   grid-template-columns: minmax(8rem, 14rem) 1fr;
-  gap: 3px var(--space-3);
+  gap: 0;
   margin: 0;
   font-size: var(--fs-sm);
+}
+/* THE TABLE'S RHYTHM, since 2026-08-26. The two folds beside this one are
+   tables now (`FindingsFolds`), at 7px 10px a cell with a hairline under each
+   row (`10j:48`, `10j:57`). This stays a definition list — six fixed sentences
+   are prose, not data — but three folds in a stack read as one thing only if
+   their rows land on one grid, so the list takes the cell padding and the row
+   rule rather than its own 3px gap. */
+.diff-fit__why dt,
+.diff-fit__why dd {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--rule-soft);
 }
 .diff-fit__why dt { font-weight: 600; }
 .diff-fit__why dd { margin: 0; color: var(--text-secondary); }
 /* One column for the folded definition list under a narrow pane. The LADDER
    itself no longer needs a rule here: it is SVG now and scales with its own
    viewBox, where the HTML grid had four tracked columns that did not fit a
-   half-width desk. */
+   half-width desk. Stacked, the term and its sentence are one row: the rule
+   goes under the pair, not between them. */
 @media (max-width: 1099px) {
   .diff-fit__why { grid-template-columns: 1fr; }
+  .diff-fit__why dt { border-bottom: 0; padding-bottom: 0; }
 }

@@ -222,6 +222,7 @@ describe("Findings: the field, the matrix, and the sentence the wire decides", (
       .replace(/\/\*[\s\S]*?\*\//g, " ")
       .replace(/^[ \t]*\/\/.*$/gm, " ");
   const pane = codeOf("FindingsPane");
+  const folds = codeOf("FindingsFolds");
   const field = codeOf("EffectField");
   const matrix = codeOf("EvidenceMatrix");
   const fit = codeOf("InstrumentFit");
@@ -250,13 +251,26 @@ describe("Findings: the field, the matrix, and the sentence the wire decides", (
     assert.doesNotMatch(pane, /\+0\.14|57 meetings|R² \+/, "a number the wire can contradict is asserted in fixed prose");
   });
 
-  it("the fold's claim about the ladder branches on skill_meetings", () => {
-    const at = pane.indexOf("the ladder above reports whether the clock is predictable");
+  it("the caption's claim about the ladder branches on skill_meetings", () => {
+    const at = folds.indexOf("the ladder above reports whether the clock is predictable");
     assert.notEqual(at, -1, "the ladder sentence is gone");
-    const before = pane.slice(Math.max(0, at - 200), at);
-    assert.match(before, /study\.skill_meetings > 0 \?/,
+    const before = folds.slice(Math.max(0, at - 200), at);
+    assert.match(before, /study\.skill_meetings > 0\s*\?/,
       "\"the ladder above reports\" is rendered without a branch on `skill_meetings` — on this deployment it is false");
-    assert.match(pane, /on this run it has not been scored/, "the unscored case has no sentence of its own");
+    assert.match(folds, /on this run it has not been scored/, "the unscored case has no sentence of its own");
+  });
+
+  it("the method folds are tables whose summaries count their rows, and the pane keeps no prose fold", () => {
+    assert.match(pane, /<FindingsFolds study=\{study\} calendar=\{calendar\} \/>/, "the folds are not mounted");
+    // ONE fold stays on the pane — the table view's folded `FindingsTable`,
+    // which is a table already. The two prose folds and the third are gone.
+    assert.equal((pane.match(/<details/g) ?? []).length, 1, "the pane should keep exactly the table view's fold");
+    assert.doesNotMatch(pane, /How this run was chosen|Why report the predictor/,
+      "a prose fold survives on the pane; the folds are tables in FindingsFolds now");
+    assert.match(folds, /The run, and what it was held to, \$\{run\.length\} rows/, "the run fold's summary does not count its rows");
+    assert.match(folds, /Timestamps, checked against the issuer, \$\{stamps\.length\} rows/, "the timestamp fold's summary does not count its rows");
+    assert.equal((folds.match(/<table className="coh-table table-fixed">/g) ?? []).length, 2, "each fold is one fixed-layout table");
+    assert.doesNotMatch(folds, /\?\? 0/, "a missing study field was coerced to nought");
   });
 
   it("the ladder's unscored row says it was not scored, and only when it was not", () => {

@@ -58,6 +58,7 @@ import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import { StateChip } from "../Figure";
 import EffectField from "./EffectField";
 import EvidenceMatrix from "./EvidenceMatrix";
+import FindingsFolds from "./FindingsFolds";
 import FindingsTable from "./FindingsTable";
 import InstrumentFit from "./InstrumentFit";
 import type { FindingsRead, GateCheck } from "./types";
@@ -182,62 +183,11 @@ export default function FindingsPane({ active }: { active: boolean }) {
         </section>
       ) : null}
 
-      {/* THE TWO NOTES THAT USED TO SIT UNDER THE TABLE, FOLDED. Both are
-          method rather than result: how this run was picked out of the ones
-          that were fitted, and how each stated hour was checked. The second
-          was also the fourth telling of "62 of 62" — the chip at the top of
-          the section carries it, and a reader who wants the method opens this
-          rather than reading past it on every visit. */}
-      {study || calendar?.of ? (
-        <details className="disclosure">
-          <summary>How this run was chosen, and how its timestamps were checked</summary>
-          {study ? (
-            <p>
-              Reported from the {study.segment ?? "whole statement"}{" "}
-              against the {study.conditioning === "prior" ? "previous statement" : study.conditioning},
-              at latent width {study.latent_dim}; the desk shows whichever run best recovers the known
-              fact among the well conditioned — a rule fixed in advance, blind to absorption speed, so
-              re-running cannot walk the headline. The run reported here is{" "}
-              <code>{study.study_id}</code>
-              {study.verdict ? <> and its verdict is <strong>{study.verdict.replace(/_/g, " ")}</strong></> : null}.{" "}
-              {study.verdict_reason
-                ? `${study.verdict_reason.charAt(0).toUpperCase()}${study.verdict_reason.slice(1)}.`
-                : ""}
-            </p>
-          ) : null}
-          {calendar?.of ? (
-            <p>
-              {calendar.how.charAt(0).toUpperCase()}{calendar.how.slice(1)} — {calendar.verified}{" "}
-              of {calendar.of}. The hour is checked against the issuer, because an event study anchored
-              on a wrong t-zero measures the speed of its own errors. Its {calendar.dissent_votes}{" "}
-              dissenting votes across {calendar.dissent_meetings} meetings come from each statement's
-              vote line, not a summary.
-            </p>
-          ) : null}
-        </details>
-      ) : null}
-
-      <details className="disclosure">
-        <summary>Why report the predictor as absent rather than drop it?</summary>
-        <p>
-          A null is only worthless when nobody can tell it from a measurement that could not have
-          found anything. Two things fix that here: the control rows are the same pipeline on a
-          relationship it does detect at four standard errors, and{" "}
-          {study && study.skill_meetings > 0 ? (
-            <>
-              the ladder above reports whether the clock is predictable <em>without</em> the text,
-              on {study.skill_meetings} meetings the fit never saw
-            </>
-          ) : (
-            <>
-              the ladder above would report whether the clock is predictable <em>without</em> the
-              text — on this run it has not been scored, so the null rests on the control alone
-            </>
-          )}
-          {" "}— the target has to have structure before the text can fail to explain it. Deleting
-          the empty rows would leave the next reader to rediscover them over the same weeks.
-        </p>
-      </details>
+      {/* THE METHOD, FOLDED AS TABLES since 2026-08-26. Two prose folds and a
+          third beneath them used to sit here; both bodies were numbers wearing
+          sentences, and the third's one genuine sentence is the run table's
+          caption now. Each summary counts its rows. */}
+      <FindingsFolds study={study} calendar={calendar} />
       </>
       )}
     </div>

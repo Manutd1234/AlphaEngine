@@ -993,3 +993,44 @@ the phrase.
 chance band, which the model's formula cards also draw, is `.diff-band` in
 `10k` now — one name for one thing with three owners. `dead-css` unchanged at
 its baseline.
+
+## Findings / Instrument, the folds as tables — 2026-08-26
+
+Three `<details>` sat under the ladder: 88, 134 and 85 words of prose, three
+identical hairlines with no heading between, and summaries in three grammars
+(a counted noun, an uncounted noun, a question). Two of the three were numbers
+wearing sentences — the run's id, segment, conditioning, latent width, event
+count, rank, spread, criterion and verdict in one paragraph; "62 of 62", 18
+meetings and 32 votes in another.
+
+`FindingsFolds` draws them as two tables, following `MeetingTable` on this tab
+and the four folded tables on Proofs; the third fold's one genuine sentence —
+why the predictor is reported as absent rather than dropped — is the run
+table's caption, with its claim about the ladder still branching on
+`study.skill_meetings`. Every summary counts its rows. The criterion and the
+largest measured |t| are parsed from `verdict_reason`, the only place the wire
+states them; a sentence that does not parse is printed whole beneath the
+table rather than read into a row.
+
+    The run, and what it was held to, 12 rows        setting · value · what it means
+    Timestamps, checked against the issuer, 3 rows   check · result · read from
+    What each requirement is guarding against, 6     stays a definition list; six fixed sentences are prose
+
+Measured with every fold forced open, at 1600 and 1100:
+
+    summary 14px   cells 13px   column heads 12.75px   caption 14px   cells 7px 10px
+    closed 766px → open 1,661px (1600)   788 → 1,764 (1100)   the page never scrolls sideways
+
+Two things only the open view could show. **The cells set in mono.**
+`.coh-table` gives every cell the tabular face — right for "62 of 62", wrong
+for "a rule fixed in advance, blind to absorption speed". `coh-table__prose`
+joins `coh-table__caption` in `10j`: sans, wrapping, on the cell that says so.
+**The run table scrolled 77px inside its fold** at every width while no cell's
+edge crossed the wrap — a fixed-layout cell that cannot wrap overflows its box
+without widening the table, so the row's `scrollWidth` said 1,602 in a wrap of
+1,526 and every rect said fine. The same class fixes it; both tables fit now.
+
+`diffusion-table-columns` declares both tables (a file may draw more than one
+since this change: `nth` names which). The definition list under the ladder
+takes the tables' rhythm — 7px 10px a cell, a hairline per row — so the three
+folds land on one grid.

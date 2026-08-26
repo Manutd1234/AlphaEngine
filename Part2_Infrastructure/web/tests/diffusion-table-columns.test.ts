@@ -52,6 +52,8 @@ interface TableSpec {
    * carries the datum.
    */
   readonly columns: ReadonlyArray<readonly [label: string, token: string]>;
+  /** Which `<table>` in the file, in source order, when a file draws more than one. Default the first. */
+  readonly nth?: number;
 }
 
 const TABLES: readonly TableSpec[] = [
@@ -95,18 +97,41 @@ const TABLES: readonly TableSpec[] = [
       ["Verdict", "row.verdict"],
     ],
   },
+  // The two method folds under Findings / Instrument, 2026-08-26. One file,
+  // two tables: `nth` says which. Their rows are authored here rather than
+  // wire rows, so the pairing checked is that each header sits over the field
+  // of the row shape it names.
+  {
+    file: "../components/coherence/diffusion/FindingsFolds.tsx",
+    what: "the run and what it was held to",
+    columns: [
+      ["Setting", "row.what"],
+      ["Value", "row.value"],
+      ["What it means", "row.how"],
+    ],
+  },
+  {
+    file: "../components/coherence/diffusion/FindingsFolds.tsx",
+    what: "the timestamps checked against the issuer",
+    nth: 1,
+    columns: [
+      ["Check", "row.what"],
+      ["Result", "row.value"],
+      ["Read from", "row.how"],
+    ],
+  },
 ];
 
 /** The `<thead>`'s column labels, in the order they are drawn. */
-function headerLabels(source: string): string[] {
-  const head = source.match(/<thead>([\s\S]*?)<\/thead>/)?.[1] ?? "";
+function headerLabels(source: string, nth = 0): string[] {
+  const head = [...source.matchAll(/<thead>([\s\S]*?)<\/thead>/g)][nth]?.[1] ?? "";
   return [...head.matchAll(/<th\b[^>]*>([\s\S]*?)<\/th>/g)]
     .map((match) => match[1].replace(/\s+/g, " ").trim());
 }
 
 /** The `<tbody>`'s cells, in the order they are drawn, as raw source. */
-function bodyCells(source: string): string[] {
-  const body = source.match(/<tbody>([\s\S]*?)<\/tbody>/)?.[1] ?? "";
+function bodyCells(source: string, nth = 0): string[] {
+  const body = [...source.matchAll(/<tbody>([\s\S]*?)<\/tbody>/g)][nth]?.[1] ?? "";
   const starts = [...body.matchAll(CELL_START)].map((match) => match.index as number);
   return starts.map((start, index) => body.slice(start, starts[index + 1] ?? body.length));
 }
@@ -114,8 +139,8 @@ function bodyCells(source: string): string[] {
 describe("every diffusion table's header names the cell beneath it", () => {
   for (const table of TABLES) {
     const source = read(table.file);
-    const labels = headerLabels(source);
-    const cells = bodyCells(source);
+    const labels = headerLabels(source, table.nth ?? 0);
+    const cells = bodyCells(source, table.nth ?? 0);
 
     it(`${table.what} draws one cell per header`, () => {
       assert.equal(

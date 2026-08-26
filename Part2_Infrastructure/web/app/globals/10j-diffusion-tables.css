@@ -42,6 +42,18 @@
   font-family: var(--sans);
 }
 
+/* A PROSE CELL, since 2026-08-26. `.coh-table` sets its cells in the tabular
+   mono face and does not wrap them, which is right for a column of numbers
+   and wrong for "a rule fixed in advance, blind to absorption speed" — the
+   Findings method tables have two such columns, and under `table-fixed` a
+   cell that cannot wrap overflows its box sideways without widening the
+   table, so the fold scrolled 77px at 1600 while every cell's edge measured
+   inside the wrap. Sans, wrapping, on the cell that says so. */
+.coherence-plane.diffusion-plane .coh-table .coh-table__prose {
+  font-family: var(--sans);
+  white-space: normal;
+}
+
 /* (0,3,1), against `14r:231`'s (0,2,1) for the same cells — so this wins on
    specificity and the import order between the two files is not load-bearing.
    Worth stating because 10j sorts BEFORE 14r and would lose on order alone. */
