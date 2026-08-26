@@ -43,6 +43,10 @@ export const DRAWINGS = [
   // The mechanism's windows with the ledger's meetings on them, 2026-08-26.
   // Replaced a constant-only timeline; opens on a `<Figure>` itself.
   "StageWindows",
+  // The Control view's two figures, 2026-08-26: every refusal's distance
+  // below the noise floor, and the ranked percentiles as a dot strip. Both
+  // open on a `<Figure>` themselves; replaced two HTML-era bar charts.
+  "FloorDistance", "ControlRank",
   // Findings / Instrument, 2026-08-25. It replaced a `ValueStrip` that drew
   // two rows of "not measured" on the live read — an empty frame that also
   // duplicated the last two rows of the table beneath it.

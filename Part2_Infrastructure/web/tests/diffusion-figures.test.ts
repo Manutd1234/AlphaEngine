@@ -32,7 +32,8 @@ import { describe, it } from "node:test";
 
 import { read } from "./helpers/workspace-sources";
 
-const distribution = read("../components/coherence/diffusion/FloorDistribution.tsx");
+const distribution = read("../components/coherence/diffusion/ControlRank.tsx");
+const floor = read("../components/coherence/diffusion/FloorDistance.tsx");
 const arm = read("../components/coherence/diffusion/InformationDiffusionPane.tsx");
 // The per-meeting strip and its table left the pane on 2026-08-25, when the
 // four-view arm was split so `meetings` could become a section of its own. The
@@ -43,7 +44,8 @@ const types = read("../components/coherence/diffusion/types.ts");
 
 describe("the noise floor shows its distribution, not only two medians", () => {
   it("the figure is drawn on the floor view", () => {
-    assert.match(arm, /FloorDistribution/, "the Noise floor view draws no distribution");
+    assert.match(arm, /ControlRank/, "the Control view draws no rank strip");
+    assert.match(arm, /FloorDistance/, "the Control view draws no distance to the floor");
   });
 
   it("it reads a field the payload already carries, so it is a figure and not a schema change", () => {
@@ -79,6 +81,16 @@ describe("the noise floor shows its distribution, not only two medians", () => {
 });
 
 describe("the two figures that are not drawn are recorded as decisions", () => {
+  it("the floor figure reads the refusal sentence and fetches nothing", () => {
+    // 159 of 159 refusals on the live ledger carry "N pre-event sigmas, below
+    // the floor of M" and no numeric field beside it. The figure parses that
+    // through one shared helper; it does not fetch, and it does not draw the
+    // 89 accepted runs at the floor — their sigma is not on the wire.
+    assert.match(floor, /refusalSigma/, "the floor figure no longer reads the refusal sentence");
+    assert.doesNotMatch(floor, /useCoherenceRead|Route\(/, "the floor figure fetches");
+    assert.doesNotMatch(floor, /half_life_s\b(?!\s*\?\?\s*null)/, "the floor figure buckets half-lives, which is the histogram Meetings already draws");
+  });
+
   it("no half-life histogram, because Meetings already draws that column", () => {
     assert.match(
       meetings,
@@ -110,9 +122,17 @@ describe("the two figures that are not drawn are recorded as decisions", () => {
       /controls_ranked|placebo_count|controls_scored/,
       "the wire now carries the population a percentile is ranked against — the backing can be drawn, and should be",
     );
-    for (const file of ["FloorDistribution", "StageBars", "MeetingTable", "InformationDiffusionPane"]) {
+    // COMMENTS BLANKED FIRST. `FloorDistance`'s header explains in prose why it
+    // does NOT read `controls_used`, and a raw scan found the word in the
+    // explanation and failed the file for explaining itself — the same shape
+    // that has cost this tree six red runs in a week. A guard reads code.
+    const codeOf = (file: string) =>
+      read(`../components/coherence/diffusion/${file}.tsx`)
+        .replace(/\/\*[\s\S]*?\*\//g, " ")
+        .replace(/^[ \t]*\/\/.*$/gm, " ");
+    for (const file of ["ControlRank", "FloorDistance", "MeetingTable", "InformationDiffusionPane"]) {
       assert.doesNotMatch(
-        read(`../components/coherence/diffusion/${file}.tsx`),
+        codeOf(file),
         /controls_used/,
         `${file} draws controls_used; it is the windows found, not the population the rank was taken over`,
       );

@@ -72,6 +72,9 @@ const RUNG: Record<string, number> = {
   // `diff-time__label` left with `StageTimeline` on 2026-08-26; `StageWindows`
   // draws the same rung under its own name.
   "diff-win__label": DIAGRAM_LABEL_PX,
+  // The Control view's head row, 2026-08-26. Both read `--fs-sm`.
+  "diff-floor__head": DIAGRAM_LABEL_PX,
+  "diff-floor__count": DIAGRAM_LABEL_PX,
   "coh-surface__tick": TICK_PX,
   "coh-ladder__tick": TICK_PX,
   // The decade scale's axis words, added 2026-08-26 with `ShortfallScale`. The

@@ -339,6 +339,8 @@ describe("every Proofs view opens on a drawing", () => {
       InstrumentFit: "../components/coherence/diffusion/InstrumentFit.tsx#InstrumentFit",
       MeetingCalendar: "../components/coherence/diffusion/MeetingCalendar.tsx#MeetingCalendar",
       StageWindows: "../components/coherence/diffusion/StageWindows.tsx#StageWindows",
+      FloorDistance: "../components/coherence/diffusion/FloorDistance.tsx#FloorDistance",
+      ControlRank: "../components/coherence/diffusion/ControlRank.tsx#ControlRank",
       ConstraintLadder: "../components/coherence/ConstraintLadder.tsx#ConstraintLadder",
       ShortfallScale: "../components/coherence/ShortfallScale.tsx#ShortfallScale",
       FamilyRidge: "../components/coherence/FamilyRidge.tsx#FamilyRidge",

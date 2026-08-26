@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-26",
-  "commit": "8fe8d56",
+  "commit": "8e1616b",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -902,6 +902,7 @@
     "Part2_Infrastructure/web/components/coherence/diffusion/AbsorptionGate.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/ArmSection.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/ClockAgreement.tsx",
+    "Part2_Infrastructure/web/components/coherence/diffusion/ControlRank.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/EffectPlot.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/EpisodesSection.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/EpisodeTape.tsx",
@@ -909,7 +910,7 @@
     "Part2_Infrastructure/web/components/coherence/diffusion/FindingsPane.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/FindingsSection.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/FindingsTable.tsx",
-    "Part2_Infrastructure/web/components/coherence/diffusion/FloorDistribution.tsx",
+    "Part2_Infrastructure/web/components/coherence/diffusion/FloorDistance.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/HorizonResolution.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/InformationDiffusionPane.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/InstrumentFit.tsx",
@@ -929,7 +930,6 @@
     "Part2_Infrastructure/web/components/coherence/diffusion/ModelSection.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/ReturnFan.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/SandboxSection.tsx",
-    "Part2_Infrastructure/web/components/coherence/diffusion/StageBars.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/StageWindows.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/types.ts",
     "Part2_Infrastructure/web/components/coherence/DispersionStrips.tsx",

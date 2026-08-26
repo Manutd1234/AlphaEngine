@@ -42,8 +42,8 @@ import { absorptionBand, bandCoverage } from "@/lib/coherence/absorption-band";
 import AbsorptionCurve from "./AbsorptionCurve";
 import ReturnFan from "./ReturnFan";
 import ClockAgreement from "./ClockAgreement";
-import FloorDistribution from "./FloorDistribution";
-import StageBars from "./StageBars";
+import ControlRank from "./ControlRank";
+import FloorDistance from "./FloorDistance";
 import type { AbsorptionRead, StageRun } from "./types";
 
 
@@ -92,30 +92,18 @@ export default function InformationDiffusionPane({ view, read, error }: {
   // derivation on the tab. Nothing here is shared between the branches, so
   // there is no saving to trade away by moving them down.
   if (view === "floor") {
-    // Named so the bars figure can say which stage has no median and why, in
-    // the one place a reader is already asking it: under the drawing itself.
-    const unresolved = read.stages
-      .filter((stage) => stage.median_half_life_s == null)
-      .map((stage) => `No median half-life for the ${STAGE_WORD[stage.stage] ?? stage.stage}: `
-        + `${stage.reason ?? "the ledger gave no reason"}.`);
-
     return (
       <div className="diff-pane">
         {chips}
-        <Figure
-          caption="Stages that cleared the noise floor, and where they sat against windows with no news"
-          ariaLabel={`Two bars for each of ${read.stages.length} stages: measured against refused, and the median percentile against matched no-news windows`}
-          reading="Most rate decisions move neither stage two pre-event sigmas, so refused stages are drawn on the same bar at the same scale."
-          missing={unresolved.length ? unresolved.join(" ") : null}
-        >
-          <StageBars stages={read.stages} />
-        </Figure>
-
-        {/* The two bars above are aggregates; this is the distribution behind
-            the second of them. Same field, already on the wire, drawn per run
-            rather than per stage — because "indistinguishable from an ordinary
-            half hour" is a claim about a shape, and a median cannot show one. */}
-        <FloorDistribution runs={read.runs} />
+        {/* Two figures on the same idea: how far each stage sat from a line.
+            The first is every REFUSED run's distance below the noise floor,
+            read from the sigma its refusal sentence carries — the attrition
+            block this replaced could say only that 82 and 77 were refused.
+            The second is every RANKED run's percentile against matched
+            no-news windows, as marks rather than the ten-bucket histogram of
+            nineteen points at two values this replaced. */}
+        <FloorDistance runs={read.runs} stages={read.stages} />
+        <ControlRank runs={read.runs} />
       </div>
     );
   }

@@ -1,82 +1,13 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   DIFFUSION — the insides of its figures.
-
-   SPLIT OUT OF `10j` ON 2026-08-25 AT THE 400-LINE CEILING, which is a one-way
-   ratchet, and split rather than trimmed because the rule says so and because
-   the two halves are genuinely different jobs. `10j` is the tab's CHROME: the
-   table treatment two other planes already had, the sticky control row, and
-   which prose slot reads which rung. This file is what is drawn INSIDE a
-   `<Plot>` — the marks, fills, hatches and hairlines of eight figures.
-
-   Nearly every rule here exists because a figure moved from HTML to SVG.
-   `StageBars`, `FloorDistribution` and `InstrumentFit` were divs with `title`
-   ATTRIBUTES, and `useMarkReadout` collects SVG `<title>` CHILDREN — so their
-   facts were reachable by mouse and by nothing else. The `.diff-fan`,
-   `.diff-res` and `.diff-cal` families are the three figures built from wire
-   fields nothing had drawn.
-
-   The hatch every "not measured" region uses is `#diff-hatch`, declared once in
-   `Plot`'s own `<defs>` so no figure carries its own.
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-/* ── The attrition bars, in SVG ──────────────────────────────────────────── */
-
-/* `.diff-bars__*` was HTML with `title` ATTRIBUTES, and `useMarkReadout`
-   collects SVG `<title>` CHILDREN — so the Control view measured 26 hoverable
-   facts and 0 keyboard stops. These are the SVG counterparts. The fills keep
-   the same two treatments: a solid measured half and a HATCHED refused half,
-   textured rather than merely paler because in Windows High Contrast both
-   collapse to one colour and the texture is what survives. */
-.coherence-plane.diffusion-plane .diff-bars__svghead {
-  fill: var(--text-primary);
-  font-size: var(--fs-sm);
-  font-weight: 650;
-}
-
-.coherence-plane.diffusion-plane .diff-bars__svgcount,
-.coherence-plane.diffusion-plane .diff-bars__svgfoot {
-  fill: var(--text-secondary);
-  font-size: var(--fs-sm);
-}
-
-.coherence-plane.diffusion-plane .diff-bars__svgtrack {
-  fill: var(--surface-2);
-  stroke: var(--rule-soft);
-  stroke-width: 1;
-  vector-effect: non-scaling-stroke;
-}
-
-.coherence-plane.diffusion-plane .diff-bars__svgfill--measured {
-  fill: color-mix(in srgb, var(--series-1) 70%, transparent);
-}
-
-.coherence-plane.diffusion-plane .diff-bars__svgfill--refused {
-  fill: url(#diff-hatch);
-}
-
 /* The hatch stroke itself, defined once in `Plot`'s `<defs>`. */
 .coh-plot__hatch {
   stroke: color-mix(in srgb, var(--text-muted) 40%, transparent);
   stroke-width: 2;
 }
-
-/* The floor histogram's buckets, in SVG. `is-middle` marks 0.5 — where a stage
-   is indistinguishable from an ordinary half hour — and `is-unranked` is the
-   column that sits OFF the axis: hatched, because a run with no percentile is a
-   gap and a solid bar of any height would invite a comparison it cannot carry.
-   The reading is in the row head and the readout, never in that column's
-   height. */
-.coherence-plane.diffusion-plane .coh-floor__svgbucket {
-  fill: color-mix(in srgb, var(--series-3) 55%, transparent);
-}
-
-.coherence-plane.diffusion-plane .coh-floor__svgbucket.is-middle {
-  fill: color-mix(in srgb, var(--series-3) 78%, transparent);
-}
-
-.coherence-plane.diffusion-plane .coh-floor__svgbucket.is-unranked {
-  fill: url(#diff-hatch);
-}
+/* `.diff-bars__svg*` and `.coh-floor__svgbucket*` LEFT THIS FILE on 2026-08-26
+   with `StageBars` and `FloorDistribution`. Their replacements are
+   `.diff-floor__*` and `.diff-rank__*` below: a sigma histogram of every
+   refusal's distance below the noise floor, and a dot strip of the nineteen
+   ranked percentiles that a ten-bucket histogram was flattening. */
 
 /* ── The instrument ladder, in SVG ───────────────────────────────────────── */
 
@@ -88,19 +19,16 @@
   font-size: var(--fs-sm);
   font-weight: 600;
 }
-
 .coherence-plane.diffusion-plane .diff-fit__svgvalue {
   fill: var(--text-primary);
   font-family: var(--mono);
   font-variant-numeric: tabular-nums;
   font-size: var(--fs-sm);
 }
-
 .coherence-plane.diffusion-plane .diff-fit__svgroom {
   fill: var(--text-secondary);
   font-size: var(--fs-sm);
 }
-
 /* One rung under the rows it labels, the same relationship `thead th` has to
    its cells. */
 .coherence-plane.diffusion-plane .diff-fit__svggroup {
@@ -108,35 +36,29 @@
   font-size: var(--fs-xs);
   font-weight: 650;
 }
-
 .coherence-plane.diffusion-plane .diff-fit__svgrule {
   stroke: var(--border);
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
 }
-
 .coherence-plane.diffusion-plane .diff-fit__svgtrack {
   fill: var(--surface-2);
   stroke: var(--rule-soft);
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
 }
-
 /* Hatched, not empty: a requirement with no measurement is a gap, and an empty
    track at this size is indistinguishable from a bar of length zero — which
    would read as "measured, and it failed". */
 .coherence-plane.diffusion-plane .diff-fit__svgtrack.is-absent {
   fill: url(#diff-hatch);
 }
-
 .coherence-plane.diffusion-plane .diff-fit__svgfill {
   fill: color-mix(in srgb, var(--series-1) 70%, transparent);
 }
-
 .coherence-plane.diffusion-plane .diff-fit__svgfloor {
   fill: var(--text-primary);
 }
-
 /* The transparent hit shape behind a card figure's hairlines. A 1px stroke in a
    260-unit box scaled to a ~480px card is not a pointer target; this is what
    the `<title>` hangs on. */
@@ -145,7 +67,6 @@
   stroke-width: 7;
   fill: none;
 }
-
 /* ── The return fan ──────────────────────────────────────────────────────── */
 
 /* A transparent fat stroke under each hairline: 248 paths at 1.1px are not
@@ -155,32 +76,26 @@
   stroke: transparent;
   stroke-width: 8;
 }
-
 .coherence-plane.diffusion-plane .diff-fan__line {
   stroke-width: 1.1;
   vector-effect: non-scaling-stroke;
 }
-
 .coherence-plane.diffusion-plane .diff-fan__line--release {
   stroke: color-mix(in srgb, var(--series-1) 46%, transparent);
 }
-
 .coherence-plane.diffusion-plane .diff-fan__line--call {
   stroke: color-mix(in srgb, var(--series-2) 46%, transparent);
 }
-
 /* Dashed AND said in the title: a refused run must be tellable from an accepted
    one without relying on a hue, and the count is printed under the panel. */
 .coherence-plane.diffusion-plane .diff-fan__line.is-refused {
   stroke: color-mix(in srgb, var(--text-muted) 42%, transparent);
   stroke-dasharray: 2 3;
 }
-
 .coherence-plane.diffusion-plane .diff-fan__run:hover .diff-fan__line {
   stroke-width: 2.2;
   stroke: var(--text-primary);
 }
-
 /* The panel's own header row: stage left, refused count right. The count used
    to sit UNDER the plot and overlapped the tick row by four pixels — measured,
    "82 of 124 below the floor" ran across the 2m and 5m ticks in both panels.
@@ -190,12 +105,10 @@
   font-size: var(--fs-sm);
   font-weight: 650;
 }
-
 .coherence-plane.diffusion-plane .diff-fan__count {
   fill: var(--text-secondary);
   font-size: var(--fs-sm);
 }
-
 /* The leading horizons that resolve for no run. Hatched rather than left blank,
    because 29% of each panel carrying no ink under a row of ticks reads as a
    rendering fault; hatched, with the source's own reason in its title, it reads
@@ -203,18 +116,15 @@
 .coherence-plane.diffusion-plane .diff-fan__unmeasured {
   fill: url(#diff-hatch);
 }
-
 .coherence-plane.diffusion-plane .diff-fan__band {
   fill: color-mix(in srgb, var(--series-3) 16%, transparent);
   stroke: none;
 }
-
 .coherence-plane.diffusion-plane .diff-fan__zero {
   stroke: var(--axis);
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
 }
-
 /* ── The horizon resolution ladder ───────────────────────────────────────── */
 
 .coherence-plane.diffusion-plane .diff-res__label {
@@ -222,12 +132,10 @@
   font-size: var(--fs-sm);
   font-variant-numeric: tabular-nums;
 }
-
 .coherence-plane.diffusion-plane .diff-res__absent {
   fill: var(--text-muted);
   font-size: var(--fs-sm);
 }
-
 /* One segment per state present at a horizon. `--ok` is the only filled one;
    every other state is a KIND of absence and is hatched, so the difference
    between "measured" and "not measured" survives a monochrome reader — and each
@@ -235,14 +143,12 @@
 .coherence-plane.diffusion-plane .diff-res__seg--ok {
   fill: color-mix(in srgb, var(--series-1) 62%, transparent);
 }
-
 .coherence-plane.diffusion-plane .diff-res__seg--unavailable,
 .coherence-plane.diffusion-plane .diff-res__seg--uncaptured,
 .coherence-plane.diffusion-plane .diff-res__seg--insufficient,
 .coherence-plane.diffusion-plane .diff-res__seg--pending {
   fill: url(#diff-hatch);
 }
-
 /* One stroke per close behind a cell. Ticks rather than a bar, because the
    quantity is a COUNT of closes and a bar invites reading a length. */
 .coherence-plane.diffusion-plane .diff-res__tick {
@@ -250,7 +156,71 @@
   stroke-width: 1.4;
   vector-effect: non-scaling-stroke;
 }
-
 .coherence-plane.diffusion-plane .diff-res__hit {
   fill: transparent;
+}
+
+/* ── Distance to the noise floor, and the rank strip ─────────────────────── */
+
+/* Both figures share a head row: stage left, counts right — the same two roles
+   `.diff-fan__head` and `__count` carry one figure over. */
+.coherence-plane.diffusion-plane .diff-floor__head {
+  fill: var(--text-primary);
+  font-size: var(--fs-sm);
+  font-weight: 650;
+}
+
+.coherence-plane.diffusion-plane .diff-floor__count {
+  fill: var(--text-secondary);
+  font-size: var(--fs-sm);
+}
+
+.coherence-plane.diffusion-plane .diff-floor__axis {
+  stroke: var(--axis);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+/* One bucket per 0.2σ of the refused run's distance below the floor. The two
+   nearest the floor are darker AND titled "within reach" — the darkness alone
+   would be a colour-only meaning, and the title is what a keyboard hears. */
+.coherence-plane.diffusion-plane .diff-floor__bucket {
+  fill: color-mix(in srgb, var(--text-muted) 42%, transparent);
+}
+
+.coherence-plane.diffusion-plane .diff-floor__bucket.is-near {
+  fill: color-mix(in srgb, var(--series-2) 62%, transparent);
+}
+
+/* The floor itself: the one line on this figure a run had to cross. */
+.coherence-plane.diffusion-plane .diff-floor__floor {
+  stroke: var(--text-primary);
+  stroke-width: 1.6;
+  vector-effect: non-scaling-stroke;
+}
+
+/* The rank strip. Coincident ranks stack upward so each stays its own mark;
+   the 0.5 rule is the reading — "indistinguishable from an ordinary half
+   hour" — and the unranked column is hatched because a missing rank is a gap,
+   never a rank of nought. */
+.coherence-plane.diffusion-plane .diff-rank__dot--release {
+  fill: color-mix(in srgb, var(--series-1) 72%, transparent);
+}
+
+.coherence-plane.diffusion-plane .diff-rank__dot--call {
+  fill: color-mix(in srgb, var(--series-2) 72%, transparent);
+}
+
+.coherence-plane.diffusion-plane .diff-rank__half {
+  stroke: var(--text-secondary);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.coherence-plane.diffusion-plane .diff-rank__unranked {
+  fill: url(#diff-hatch);
+  stroke: var(--rule-soft);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
 }

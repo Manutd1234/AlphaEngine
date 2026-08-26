@@ -892,3 +892,37 @@ Measured after: 0 text clashes at 1600/1280/1100, lowest text 527 in a 544
 viewBox, all four figure guards green. `.diff-time__*` left `10c` and `14r`
 with their render site; `10k` crossed the ceiling and split at the calendar
 seam into `10l-diffusion-calendar.css` (257 + 177).
+
+## Slice 2 — the Control view: distance to the floor, and the rank strip — 2026-08-26
+
+**`StageBars` drew 82 and 77 refused runs as one grey block each.** Every one
+of those refusals carries the sigma its terminal move represented, in the
+sentence `signal_reason` — "the terminal move is 0.71 pre-event sigmas, below
+the floor of 2" — and 159 of 159 parse. `FloorDistance` draws that as a
+histogram per stage on 0.2σ buckets with the floor as a rule:
+
+    statement    refused |σ|  n=82  median 0.72  p90 1.61  max 1.98
+    conference   refused |σ|  n=77  median 0.63  p90 1.51  max 1.92
+
+The reading is the fact the block hid: **the floor is a gradient, not a cliff.**
+9 statement and 7 conference runs sat within 0.4σ of clearing. The 89 accepted
+runs are counted above the floor and placed nowhere — their sigma is not on
+the wire, and the figure says so rather than drawing them at the line.
+
+**`FloorDistribution` was a ten-bucket histogram of nineteen points at two
+values.** `control_percentile` is `0.0` on 13 runs and `1.0` on 6, so eight
+buckets were height-zero rects carrying a title and a keyboard stop each, and
+the `is-middle` highlight marked an empty bar. `ControlRank` draws the nineteen
+as marks on the 0–1 axis, coincident ones stacked, the 0.5 rule kept, and the
+70 unranked in a hatched off-axis column — a missing rank is not a rank of
+nought.
+
+**One defect the probes could not see and a screenshot could.** The nine
+statement runs at 0.0 stacked UPWARD through the head text. The text-overlap
+probe checks text against text; a dot over a label is invisible to it. The
+stack goes downward now, into room the row reserves.
+
+The `controls_used` guard in `diffusion-figures.test.ts` ate `FloorDistance`'s
+own docblock — which explains why the figure does NOT read that field — and
+now blanks comments first, proven red against a real read. Measured after:
+22 and 23 marks, 0 text clashes at 1600/1100, nothing clips.
