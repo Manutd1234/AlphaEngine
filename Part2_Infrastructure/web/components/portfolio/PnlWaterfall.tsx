@@ -29,10 +29,13 @@ import {
   extent,
   linearScale,
   ticks,
-  useMeasuredWidth,
 } from "@/components/chart-kit";
+import Figure, { Plot } from "@/components/coherence/Figure";
 import { compact, pct, usd } from "@/lib/format";
 import type { PnlLeg, PnlWaterfall as Waterfall } from "@/lib/pnl-attribution";
+
+import PnlLegTable from "./PnlLegTable";
+import { BASIS_WORD } from "./pnl-basis";
 
 interface PnlWaterfallProps {
   waterfall: Waterfall | null;
@@ -41,29 +44,12 @@ interface PnlWaterfallProps {
 
 const HEIGHT = 260;
 
-const BASIS_WORD: Record<PnlLeg["basis"], string> = {
-  measured: "measured",
-  audited: "audited",
-  derived: "derived",
-  generated: "generated",
-  withheld: "not measurable",
-};
-
-const BASIS_SOURCE: Record<PnlLeg["basis"], string> = {
-  measured: "Daily bars + measured beta",
-  audited: "Audit log, this session only",
-  derived: "Arithmetic on the legs above",
-  generated: "Sandbox fixture",
-  withheld: "—",
-};
-
 function money(value: number): string {
   return `${value < 0 ? "−" : "+"}$${compact(Math.abs(value))}`;
 }
 
 export default function PnlWaterfall({ waterfall, generated }: PnlWaterfallProps) {
   const [hover, setHover] = useState<string | null>(null);
-  const [ref, width] = useMeasuredWidth<HTMLDivElement>();
 
   if (!waterfall) {
     return (
@@ -86,7 +72,6 @@ export default function PnlWaterfall({ waterfall, generated }: PnlWaterfallProps
 
   const margin = { ...DEFAULT_MARGIN, left: 66, right: 20, top: 18, bottom: 50 };
   const x0 = margin.left;
-  const x1 = Math.max(x0 + 120, width - margin.right);
   const yTop = margin.top;
   const yBot = HEIGHT - margin.bottom;
 
@@ -97,8 +82,6 @@ export default function PnlWaterfall({ waterfall, generated }: PnlWaterfallProps
     { key: "total", label: "Day P&L", leg: null },
   ];
 
-  const step = (x1 - x0) / columns.length;
-  const barW = Math.min(64, step * 0.62);
 
   let cumulative = 0;
   const bars = columns.map((column, index) => {
@@ -114,7 +97,8 @@ export default function PnlWaterfall({ waterfall, generated }: PnlWaterfallProps
       withheld: !isTotal && value === null,
       from,
       to,
-      cx: x0 + step * index + step / 2,
+      // Geometry belongs to the plot; the bar keeps its place in the order.
+      index,
     };
   });
 
@@ -143,18 +127,28 @@ export default function PnlWaterfall({ waterfall, generated }: PnlWaterfallProps
         <span><i className="is-withheld" /> not measurable</span>
       </div>
 
-      <div ref={ref} className="pnl-waterfall">
-        <svg
-          width="100%"
-          height={HEIGHT}
-          viewBox={`0 0 ${Math.max(width, 320)} ${HEIGHT}`}
-          role="img"
-          aria-label={
-            `Day P&L of ${usd(dayPnl, 0)} split into ${legs.map((l) => l.label).join(", ")}.`
-            + ` ${legs.filter((l) => l.value === null).length} leg(s) could not be measured.`
-            + " The same figures are in the table below."
-          }
-        >
+      {/* Through `Figure` and `Plot` since 2026-08-26: the legs' words were in
+          `<title>`, which is reachable with a mouse and by nothing else. */}
+      <Figure
+        caption="Day P&L, split into the legs that made it"
+        ariaLabel={
+          `Day P&L of ${usd(dayPnl, 0)} split into ${legs.map((l) => l.label).join(", ")}.`
+          + ` ${legs.filter((l) => l.value === null).length} leg(s) could not be measured.`
+          + " The same figures are in the table below."
+        }
+        reading="Every step is measured from the zero rule; the total is anchored to it rather than stacked, because it is the sum and not another step."
+        missing={legs.some((l) => l.value === null)
+          ? `${legs.filter((l) => l.value === null).length} of ${legs.length} legs are withheld, not zero.` : null}
+      >
+        <Plot height={HEIGHT} minWidth={320}>
+          {(measured) => {
+            // The plot owns the width; this file kept a second observer on it.
+            const x1 = Math.max(x0 + 120, measured - margin.right);
+            const step = (x1 - x0) / columns.length;
+            const barW = Math.min(64, step * 0.62);
+            const cxOf = (at: number) => x0 + step * at + step / 2;
+            return (
+              <>
           <Grid yTicks={yTicks} yScale={yScale} x0={x0} x1={x1} format={money} />
 
           {/* The zero rule, not an axis: every step is measured from it. */}
@@ -175,8 +169,8 @@ export default function PnlWaterfall({ waterfall, generated }: PnlWaterfallProps
             return (
               <line
                 key={`link-${bar.key}`}
-                x1={bar.cx + barW / 2}
-                x2={next.cx - barW / 2}
+                x1={cxOf(bar.index) + barW / 2}
+                x2={cxOf(next.index) - barW / 2}
                 y1={yScale(bar.to)}
                 y2={yScale(next.from)}
                 stroke="var(--grid)"
@@ -204,7 +198,7 @@ export default function PnlWaterfall({ waterfall, generated }: PnlWaterfallProps
               return (
                 <g key={bar.key}>
                   <rect
-                    x={bar.cx - barW / 2}
+                    x={cxOf(bar.index) - barW / 2}
                     y={yTop}
                     width={barW}
                     height={yBot - yTop}
@@ -217,7 +211,7 @@ export default function PnlWaterfall({ waterfall, generated }: PnlWaterfallProps
                     <title>{`${bar.label}: ${bar.leg?.note ?? "not measurable"}`}</title>
                   </rect>
                   <text
-                    x={bar.cx}
+                    x={cxOf(bar.index)}
                     y={zeroY - 8}
                     textAnchor="middle"
                     fontSize={13}
@@ -237,7 +231,7 @@ export default function PnlWaterfall({ waterfall, generated }: PnlWaterfallProps
                 onPointerLeave={() => setHover(null)}
               >
                 <rect
-                  x={bar.cx - barW / 2}
+                  x={cxOf(bar.index) - barW / 2}
                   y={top}
                   width={barW}
                   height={height}
@@ -248,7 +242,7 @@ export default function PnlWaterfall({ waterfall, generated }: PnlWaterfallProps
                   <title>{`${bar.label}: ${money(bar.value ?? 0)} — ${bar.leg?.note ?? "the four legs above, added up"}`}</title>
                 </rect>
                 <text
-                  x={bar.cx}
+                  x={cxOf(bar.index)}
                   y={top - 6 < yTop + 10 ? top + height + 13 : top - 6}
                   textAnchor="middle"
                   fontSize={13}
@@ -267,7 +261,7 @@ export default function PnlWaterfall({ waterfall, generated }: PnlWaterfallProps
           {bars.map((bar) => (
             <g key={`label-${bar.key}`} aria-hidden>
               <text
-                x={bar.cx}
+                x={cxOf(bar.index)}
                 y={yBot + 16}
                 textAnchor="middle"
                 fontSize={14}
@@ -276,7 +270,7 @@ export default function PnlWaterfall({ waterfall, generated }: PnlWaterfallProps
                 {bar.label}
               </text>
               <text
-                x={bar.cx}
+                x={cxOf(bar.index)}
                 y={yBot + 30}
                 textAnchor="middle"
                 fontSize={12}
@@ -286,52 +280,13 @@ export default function PnlWaterfall({ waterfall, generated }: PnlWaterfallProps
               </text>
             </g>
           ))}
-        </svg>
-      </div>
+              </>
+            );
+          }}
+        </Plot>
+      </Figure>
 
-      {/* One light-mode categorical slot sits below 3:1 against the surface, so
-          the palette obliges a non-colour reading of the same figures. The table
-          is also where the caveats live in words rather than as a shape. */}
-      <div className="table-wrap" tabIndex={0}>
-        <table>
-          <caption className="sr-only">
-            Each leg of the day&apos;s P&amp;L, its basis, and why any is missing.
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">Leg</th>
-              <th scope="col">Amount</th>
-              <th scope="col">Basis</th>
-              <th scope="col">Source</th>
-            </tr>
-          </thead>
-          <tbody>
-            {legs.map((leg) => (
-              <tr key={leg.key} className={hover === leg.key ? "is-best" : undefined}>
-                <th scope="row">{leg.label}</th>
-                <td className={`num ${leg.value == null ? "muted" : leg.value >= 0 ? "pos" : "neg"}`}>
-                  {leg.value == null ? "—" : usd(leg.value, 0)}
-                </td>
-                <td>
-                  <span aria-hidden>{leg.value == null ? "○" : "●"}</span> {BASIS_WORD[leg.basis]}
-                </td>
-                <td className="muted">{BASIS_SOURCE[leg.basis]}</td>
-              </tr>
-            ))}
-            <tr className="is-best">
-              <th scope="row">Day P&amp;L</th>
-              <td className={`num ${dayPnl >= 0 ? "pos" : "neg"}`}>{usd(dayPnl, 0)}</td>
-              <td>
-                <span aria-hidden>{waterfall.complete ? "●" : "○"}</span>{" "}
-                {waterfall.complete ? "reconciles" : "partial"}
-              </td>
-              <td className="muted">
-                {waterfall.startEquity ? `from ${usd(waterfall.startEquity, 0)}` : "—"}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <PnlLegTable legs={legs} dayPnl={dayPnl} waterfall={waterfall} hover={hover} />
 
       {/* A definition of a leg the chart already draws, names and basis-marks,
           and which the bar's own <title> repeats. The anti-alpha guard is done

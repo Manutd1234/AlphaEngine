@@ -1029,17 +1029,12 @@
 
 /* ---------- P&L waterfall ---------- */
 
-.pnl-waterfall {
-  width: 100%;
-  min-width: 0;
-  overflow-x: auto;
-  margin-bottom: 12px;
-}
-
-.pnl-waterfall svg {
-  display: block;
-  min-width: 320px;
-}
+/* `.pnl-waterfall` was deleted on 2026-08-26 rather than left unreferenced.
+   It held `overflow-x: auto` plus a 320px floor on its svg, which is exactly
+   what `.coh-plot.is-floored` gives a plot built with `minWidth` — so when the
+   waterfall moved through `Plot` the rules stopped being reachable. A class
+   with no render site is what `dead-css.test.ts` counts, and the fix it asks
+   for is deletion, not a hook kept alive for the shape of it. */
 
 /* The legend entry for a leg nobody could measure. Drawn as the same dashed
    outline the chart uses, so the two readings agree — a hollow swatch and a
