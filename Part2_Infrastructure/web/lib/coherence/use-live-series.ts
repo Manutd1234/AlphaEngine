@@ -37,7 +37,7 @@
  * rather than a typed union — the sections do not agree on what a subject is.
  */
 
-import { useSyncExternalStore } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 
 /** One reading, at the moment the poll that carried it landed. */
 export interface LivePoint {
@@ -66,23 +66,37 @@ export interface LivePoint {
 export const LIVE_SERIES_CAP = 240;
 
 const series = new Map<string, LivePoint[]>();
-const listeners = new Set<() => void>();
 
 /**
- * The version counter every subscriber reads.
+ * Subscribers and versions PER KEY, not per store.
+ *
+ * One counter for the whole store was the first shape, and it was wrong in a
+ * way nothing failed on: every append re-rendered every mounted tape. A visited
+ * panel stays mounted behind `hidden`, so a poll on Books woke the tapes on
+ * Universe, Lattice, Stake, Fees, Settlement, Makers and Shell as well — seven
+ * renders to paint one line. At five tapes it was a rounding error; at eight,
+ * on a tab whose sections all poll, it is a poll's worth of wasted work on
+ * every poll.
+ *
+ * The key is the subject the caller keyed on, so a reader watching one family
+ * is woken by that family and by nothing else.
+ */
+const listeners = new Map<string, Set<() => void>>();
+const versions = new Map<string, number>();
+
+/**
+ * The version each subscriber reads, keyed by series.
  *
  * `useSyncExternalStore` compares snapshots by `Object.is`, so returning the
- * array itself would need the array's identity to change on every append — and
- * returning a fresh array on every read would make the store re-render
- * infinitely. A number that increments on append is the snapshot; the reading
- * hook then takes the array separately. This is the shape the React docs call
- * for and the one people get wrong.
+ * array itself would need its identity to change on every append — and
+ * returning a fresh array on every read would re-render infinitely. A number
+ * that increments on append is the snapshot; the reading hook takes the array
+ * separately. This is the shape the React docs call for and the one people get
+ * wrong.
  */
-let version = 0;
-
-function emit(): void {
-  version += 1;
-  for (const listener of listeners) listener();
+function emit(key: string): void {
+  versions.set(key, (versions.get(key) ?? 0) + 1);
+  for (const listener of listeners.get(key) ?? []) listener();
 }
 
 /**
@@ -105,7 +119,7 @@ export function recordLive(key: string, at: number | null | undefined, value: nu
   next.push({ at, value });
   if (next.length > LIVE_SERIES_CAP) next.splice(0, next.length - LIVE_SERIES_CAP);
   series.set(key, next);
-  emit();
+  emit(key);
 }
 
 /** The readings held for a key, oldest first. Empty until a poll has landed. */
@@ -113,12 +127,22 @@ export function readLive(key: string): readonly LivePoint[] {
   return series.get(key) ?? [];
 }
 
-function subscribe(listener: () => void): () => void {
-  listeners.add(listener);
-  return () => { listeners.delete(listener); };
+function subscribeTo(key: string) {
+  return (listener: () => void): () => void => {
+    let set = listeners.get(key);
+    if (!set) {
+      set = new Set();
+      listeners.set(key, set);
+    }
+    set.add(listener);
+    return () => {
+      set.delete(listener);
+      // The map is the store's only unbounded structure, so an emptied set is
+      // dropped rather than left as a key nobody reads.
+      if (!set.size) listeners.delete(key);
+    };
+  };
 }
-
-const snapshot = () => version;
 
 /**
  * Records this poll's reading and returns everything seen so far.
@@ -131,6 +155,10 @@ const snapshot = () => version;
  */
 export function useLiveSeries(key: string, at: Date | null, value: number | null): readonly LivePoint[] {
   recordLive(key, at?.getTime(), value);
+  // Stable per key, or `useSyncExternalStore` resubscribes on every render and
+  // trades one wasted render for another.
+  const subscribe = useCallback(subscribeTo(key), [key]);
+  const snapshot = useCallback(() => versions.get(key) ?? 0, [key]);
   useSyncExternalStore(subscribe, snapshot, snapshot);
   return readLive(key);
 }
@@ -138,5 +166,5 @@ export function useLiveSeries(key: string, at: Date | null, value: number | null
 /** Testing seam: drops every series, so one suite cannot see another's. */
 export function resetLiveSeries(): void {
   series.clear();
-  version = 0;
+  versions.clear();
 }

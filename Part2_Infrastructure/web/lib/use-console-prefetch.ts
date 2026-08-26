@@ -24,6 +24,12 @@ const load = {
   developer: () => import("@/components/DeveloperConsole"),
   markets: () => import("@/components/MarketsConsole"),
   coherence: () => import("@/components/CoherenceConsole"),
+  // The sixth, and it was missing for as long as the tab has existed. Diffusion
+  // arrived chunk-split like its five neighbours and was never added here, so
+  // it was the one console on the desk whose first click still paid for its own
+  // download behind the skeleton. Invisible to anyone whose chunk is already
+  // cached, which is everybody who built it.
+  diffusion: () => import("@/components/DiffusionConsole"),
 };
 
 /** Returns the hover/focus warm-up handler; the idle warm-up runs on its own. */
