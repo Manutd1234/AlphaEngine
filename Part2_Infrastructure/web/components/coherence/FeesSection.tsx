@@ -49,7 +49,7 @@ import type { CoherenceFeeCurve } from "@/lib/coherence/types-history";
 import { feesCurveRoute, feesRoute } from "@/lib/coherence/routes";
 import FeeCurve from "./FeeCurve";
 import LiveTape from "./LiveTape";
-import { toUnit } from "./FrechetBand";
+import { toUnit } from "@/lib/coherence/decimals";
 import { useLiveSeries } from "@/lib/coherence/use-live-series";
 import PaneHead from "./PaneHead";
 import SectionFrame from "./SectionFrame";

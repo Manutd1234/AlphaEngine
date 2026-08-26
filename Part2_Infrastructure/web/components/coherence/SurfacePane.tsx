@@ -68,12 +68,12 @@ import { surfaceRoute, universeRoute } from "@/lib/coherence/routes";
 import FamilyPicker from "./FamilyPicker";
 import type { Reading } from "./KpiRow";
 import LiveTape from "./LiveTape";
-import { toUnit } from "./FrechetBand";
 import { useLiveSeries } from "@/lib/coherence/use-live-series";
 import PaneHead, { PaneHeadEmpty } from "./PaneHead";
 import SectionFrame from "./SectionFrame";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
-import DistributionView, { decimalLabel } from "./surface/DistributionView";
+import DistributionView from "./surface/DistributionView";
+import { decimalLabel, toUnit } from "@/lib/coherence/decimals";
 import TruncationNote from "./surface/TruncationNote";
 
 /** The three readings of one payload. `stake` and `family` left on the fifth

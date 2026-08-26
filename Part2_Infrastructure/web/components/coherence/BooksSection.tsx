@@ -62,7 +62,7 @@ import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import BookHistory from "./BookHistory";
 import BooksPane, { type BookDetailView } from "./BooksPane";
 import LiveTape from "./LiveTape";
-import { toUnit } from "./FrechetBand";
+import { toUnit } from "@/lib/coherence/decimals";
 import { useLiveSeries } from "@/lib/coherence/use-live-series";
 import MarketPicker from "./MarketPicker";
 import PaneHead from "./PaneHead";

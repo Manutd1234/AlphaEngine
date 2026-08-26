@@ -38,7 +38,8 @@
 
 import type { CoherenceCalibration } from "@/lib/coherence/types-lab";
 import Figure, { Plot } from "./Figure";
-import { statValue } from "./ReliabilityDiagram";
+import { decimalLabel, statValue } from "@/lib/coherence/decimals";
+import { pct } from "@/lib/format";
 
 const HEIGHT = 96;
 const MARGIN = { left: 16, right: 16 };
@@ -87,7 +88,7 @@ export function verdictOf(data: CoherenceCalibration, skill: number | null): Ver
     return {
       mark: "◌",
       word: "Withheld, thin sample",
-      reading: `Too few settled markets to conclude from; the ${skill.toFixed(6)} is drawn faintly rather than as a verdict.`,
+      reading: `Too few settled markets to conclude from; the ${decimalLabel(String(skill), 6)} is drawn faintly rather than as a verdict.`,
       drawn: true,
     };
   }
@@ -95,7 +96,7 @@ export function verdictOf(data: CoherenceCalibration, skill: number | null): Ver
     return {
       mark: "✓",
       word: "Better than the base rate",
-      reading: `These prices removed ${(skill * 100).toFixed(2)}% of the question's uncertainty, scored against what settled.`,
+      reading: `These prices removed ${pct(skill, 2)} of the question's uncertainty, scored against what settled.`,
       drawn: true,
     };
   }
@@ -120,7 +121,7 @@ export default function CalibrationGauge({ data }: { data: CoherenceCalibration 
       reading={verdict.reading}
       missing={
         skill != null && skill > HIGH
-          ? `The skill is ${skill.toFixed(6)}, past the drawn range, so the needle sits at the end of the track rather than off it.`
+          ? `The skill is ${decimalLabel(String(skill), 6)}, past the drawn range, so the needle sits at the end of the track rather than off it.`
           : "Skill = 1 − Brier / Uncertainty: the share of the questions’ own variance these prices removed."
       }
       notes={[
@@ -164,7 +165,7 @@ export default function CalibrationGauge({ data }: { data: CoherenceCalibration 
               y2={60}
               className={data.thin ? "coh-gauge__needle is-thin" : "coh-gauge__needle"}
             >
-              <title>{`Skill ${skill?.toFixed(8)} — ${verdict.word}`}</title>
+              <title>{`Skill ${skill == null ? "—" : decimalLabel(String(skill), 8)} — ${verdict.word}`}</title>
             </line>
           ) : null}
 

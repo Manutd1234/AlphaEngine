@@ -35,7 +35,8 @@
 import { priceLabel } from "@/lib/coherence/fixed-point";
 import type { CoherenceCalibration } from "@/lib/coherence/types-lab";
 import HorizonAxis from "./HorizonAxis";
-import ReliabilityDiagram, { decimalLabel, statValue } from "./ReliabilityDiagram";
+import ReliabilityDiagram from "./ReliabilityDiagram";
+import { decimalLabel, statValue } from "@/lib/coherence/decimals";
 import ValueStrip from "./ValueStrip";
 
 export default function CalibrationBands({

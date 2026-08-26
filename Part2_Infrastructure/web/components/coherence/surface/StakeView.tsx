@@ -41,7 +41,8 @@
 import { priceLabel } from "@/lib/coherence/fixed-point";
 import type { CoherenceKelly } from "@/lib/coherence/types-lab";
 import Figure, { FigureEmpty, Plot, StateChip } from "../Figure";
-import { decimalLabel, FactTable, row, type Fact } from "./DistributionView";
+import { FactTable, row, type Fact } from "./DistributionView";
+import { decimalLabel } from "@/lib/coherence/decimals";
 import EdgeScatter from "./EdgeScatter";
 import StakeBars, { GrowthBars, toRatio } from "./StakeBars";
 

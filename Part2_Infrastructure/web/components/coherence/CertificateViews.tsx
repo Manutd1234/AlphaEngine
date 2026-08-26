@@ -35,7 +35,7 @@
 
 import type { CoherenceCertificate, CoherenceEventView } from "@/lib/coherence/types";
 export { verdictChip } from "./certificate-verdict";
-import { statValue } from "./ReliabilityDiagram";
+import { statValue } from "@/lib/coherence/decimals";
 import CheckLadder from "./CheckLadder";
 import ConstraintLadder from "./ConstraintLadder";
 import MarginAxis from "./MarginAxis";
@@ -260,14 +260,14 @@ export function ProofView({ data, event }: {
           <thead>
             <tr>
               <th scope="col">Reading</th>
-              <th scope="col">Value</th>
+              <th scope="col" className="num">Value</th>
             </tr>
           </thead>
           <tbody>
             {CONCLUSIONS.map((row) => (
               <tr key={row.label}>
                 <th scope="row">{row.label}</th>
-                <td>{row.of(data)}</td>
+                <td className="num">{row.of(data)}</td>
               </tr>
             ))}
           </tbody>

@@ -39,6 +39,7 @@ import type { CoherenceStatus } from "@/lib/coherence/types";
 import { groupDigits } from "@/lib/coherence/universe-metrics";
 import FreshnessStamp from "@/components/workspace/FreshnessStamp";
 import { StateChip } from "./Figure";
+import { countLabel } from "@/lib/coherence/decimals";
 
 function schemaTone(schema: unknown): "good" | "warn" | "critical" | "muted" {
   if (schema === "fp-2026") return "good";
@@ -46,18 +47,9 @@ function schemaTone(schema: unknown): "good" | "warn" | "critical" | "muted" {
   return "critical";
 }
 
-/**
- * A whole count for display, grouped — or a dash when there is no count.
- *
- * `— not "0"`. This returned `"0"` for null until it moved here, which is null
- * coerced to zero: the one thing this codebase refuses everywhere else. It was
- * shielded on one call site by a `tape.state === "ok"` guard and on neither of
- * the two budget sites, so a gateway that had not reported a budget printed
- * "0 tokens per second, 0 spent" — a working engine reading as a stopped one.
- */
-function count(value: number | null | undefined): string {
-  return value == null ? "—" : groupDigits(String(value));
-}
+// The count printer is `countLabel` in lib/coherence/decimals.ts, hoisted from
+// here on 2026-08-26 with the defect its header recorded: a null budget must
+// print a dash, never "0 tokens per second".
 
 /**
  * The chip row, for the heading's right-hand slot.
@@ -196,7 +188,7 @@ export default function EngineStatePanel({
           <dt>Recorded so far</dt>
           <dd>
             {tape.state === "ok"
-              ? `${count(tape.book_snapshots)} snapshots across ${count(tape.tickers_seen)} markets`
+              ? `${countLabel(tape.book_snapshots)} snapshots across ${countLabel(tape.tickers_seen)} markets`
               : "—"}
           </dd>
         </div>
@@ -211,7 +203,7 @@ export default function EngineStatePanel({
         <div>
           <dt>Read budget</dt>
           <dd>
-            {count(status.budget.tokens_per_second)} per second, {count(status.budget.tokens_spent)} spent
+            {countLabel(status.budget.tokens_per_second)} per second, {countLabel(status.budget.tokens_spent)} spent
           </dd>
           {/* Provenance for THIS row, so it sits under this row — and folded,
               because it is a whole gateway sentence beside three neighbours

@@ -38,6 +38,7 @@
 
 import Figure, { FigureEmpty, Plot } from "./Figure";
 import type { CoherenceEventView, CoherenceMarketView } from "@/lib/coherence/types";
+import { groupDigits } from "@/lib/coherence/universe-metrics";
 
 const HEIGHT = 236;
 const MARGIN = { top: 18, right: 12, bottom: 34, left: 44 };
@@ -199,7 +200,7 @@ export default function LadderPrices({ event }: { event: CoherenceEventView }) {
 const CAPTION = "Both sides of every leg, on one dollar axis, sized by open interest";
 
 const fmtStrike = (value: number): string =>
-  Math.abs(value) >= 1000 ? value.toLocaleString("en-GB", { maximumFractionDigits: 0 }) : String(value);
+  groupDigits(String(value));
 
 function legReading(row: {
   market: CoherenceMarketView;

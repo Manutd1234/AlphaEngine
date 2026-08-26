@@ -34,7 +34,7 @@
 import { linePath, linearScale, ticks } from "@/components/chart-kit";
 import { DIAGRAM_LABEL_PX, advancePx } from "@/lib/coherence/label-metrics";
 import type { CoherenceBookHistory } from "@/lib/coherence/types-history";
-import { toUnit } from "./FrechetBand";
+import { toUnit } from "@/lib/coherence/decimals";
 import Figure, { FigureEmpty, Plot } from "./Figure";
 
 const HEIGHT = 190;

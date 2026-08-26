@@ -36,7 +36,7 @@ import type { ReactNode } from "react";
 
 import { extent, linePath, linearScale } from "@/components/chart-kit";
 import Figure, { FigureEmpty, Plot } from "./Figure";
-import { decimalLabel } from "./ReliabilityDiagram";
+import { decimalLabel, secondsLabel } from "@/lib/coherence/decimals";
 import { DIAGRAM_LABEL_PX, gutterFor } from "@/lib/coherence/label-metrics";
 import type { CoherenceCalibrationHistory, CoherenceCalibrationPoint } from "@/lib/coherence/types-lab";
 import type { SharedXRow } from "@/lib/coherence/use-shared-x-readout";
@@ -72,7 +72,7 @@ const MEASURES: readonly Measure[] = [
     key: "median_horizon_s",
     label: "Median horizon",
     at: (p) => p.median_horizon_s,
-    show: (v) => (v >= 3600 ? `${Math.round(v / 360) / 10}h` : v >= 60 ? `${Math.round(v / 60)}m` : `${Math.round(v)}s`),
+    show: (v) => secondsLabel(v),
   },
   { key: "markets", label: "Markets scored", at: (p) => p.markets, show: (v) => String(Math.round(v)) },
 ];

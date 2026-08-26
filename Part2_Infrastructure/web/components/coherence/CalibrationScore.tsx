@@ -53,7 +53,7 @@
 
 import type { CoherenceCalibration } from "@/lib/coherence/types-lab";
 import MurphyBars from "./MurphyBars";
-import { decimalLabel, statValue } from "./ReliabilityDiagram";
+import { decimalLabel, secondsLabel, statValue } from "@/lib/coherence/decimals";
 import ValueStrip, { type StripRow } from "./ValueStrip";
 
 const PLACES = 8;
@@ -132,7 +132,7 @@ export function scoreFacts(data: CoherenceCalibration): Fact[] {
     },
     {
       label: "Median horizon",
-      value: data.median_horizon_s == null ? "—" : `${data.median_horizon_s}s`,
+      value: data.median_horizon_s == null ? "—" : secondsLabel(data.median_horizon_s),
       // "the banner reads it" was a pointer at something four lines up.
       note: "How far ahead of the answer these prices were standing.",
     },
@@ -141,7 +141,7 @@ export function scoreFacts(data: CoherenceCalibration): Fact[] {
       // Null when the report is unavailable — no floor was applied to nothing —
       // and a dash there, never 0: a horizon of zero is `final_trade`'s own
       // reading, the one this row exists to be told apart from.
-      value: data.horizon_s == null ? "—" : `${data.horizon_s}s`,
+      value: data.horizon_s == null ? "—" : secondsLabel(data.horizon_s),
       note: "The floor the scorer applied: a tape price had to be quoted at least this long before close to count.",
     },
   ];

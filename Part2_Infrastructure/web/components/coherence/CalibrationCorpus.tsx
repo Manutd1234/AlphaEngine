@@ -25,6 +25,7 @@ import { pct } from "@/lib/format";
 import type { CoherenceCalibration } from "@/lib/coherence/types-lab";
 
 import CorpusShares from "./CorpusShares";
+import { decimalLabel } from "@/lib/coherence/decimals";
 
 export default function CalibrationCorpus({ data }: { data: CoherenceCalibration }) {
   const corpus = data.composition.reduce((sum, row) => sum + row.count, 0);
@@ -96,7 +97,7 @@ export default function CalibrationCorpus({ data }: { data: CoherenceCalibration
                       <th scope="row">{row.series_ticker}</th>
                       <td className="num">{row.count}</td>
                       <td className="num">{corpus > 0 ? pct(row.count / corpus) : "—"}</td>
-                      <td className="num">{own ? own.slope.slice(0, 6) : "—"}</td>
+                      <td className="num">{own ? decimalLabel(own.slope, 4) : "—"}</td>
                     </tr>
                   );
                 })}

@@ -40,7 +40,7 @@ import type { CoherenceAblation, CoherenceReplay } from "@/lib/coherence/types";
 import { replayRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import Figure, { FigureEmpty, StateChip } from "./Figure";
-import { statValue } from "./ReliabilityDiagram";
+import { statValue } from "@/lib/coherence/decimals";
 import ValueStrip from "./ValueStrip";
 
 const HEIGHT = 120;

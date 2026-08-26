@@ -126,6 +126,9 @@ function LessonCard({ lesson }: { lesson: CoherenceLesson }) {
         <summary>{`Which code carries this, and which test holds it, ${lesson.guards.length + lesson.pinnedBy.length} paths`}</summary>
         <div className="table-wrap">
         <table className="coh-table">
+          {/* Visually the fold's summary names this table; the caption is for
+              assistive technology, which does not read summaries as names. */}
+          <caption className="coh-table__caption sr-only">Which code carries this lesson, and which test holds it</caption>
           <tbody>
             <tr>
               <th scope="row">Carried by</th>

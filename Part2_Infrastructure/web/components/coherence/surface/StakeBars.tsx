@@ -16,7 +16,7 @@
 
 import type { CoherenceKelly } from "@/lib/coherence/types-lab";
 import Figure, { FigureEmpty, Plot } from "../Figure";
-import { decimalLabel } from "./DistributionView";
+import { decimalLabel } from "@/lib/coherence/decimals";
 
 /**
  * A wire decimal as a plain number, for BAR GEOMETRY only. A Kelly fraction

@@ -41,7 +41,7 @@
 import type { CoherenceCertificate, CoherenceEventView } from "@/lib/coherence/types";
 import ShortfallScale from "./ShortfallScale";
 import PayoffByState from "./PayoffByState";
-import { statValue } from "./ReliabilityDiagram";
+import { statValue } from "@/lib/coherence/decimals";
 import StateCoverage, { type CoverageState } from "./StateCoverage";
 import ValueStrip from "./ValueStrip";
 
@@ -76,7 +76,7 @@ function LegTable({ certificate }: { certificate: CoherenceCertificate }) {
         noBar: statValue(leg.net_fee) == null ? "not readable" : undefined,
       }))}
     />
-    <div className="table-wrap">
+    <div className="table-wrap" tabIndex={0}>
       <table className="coh-table">
         <caption className="coh-table__caption">
           At the exchange&rsquo;s own precision.

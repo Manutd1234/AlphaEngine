@@ -34,30 +34,11 @@
 
 import type { CoherenceSurface } from "@/lib/coherence/types-lab";
 import Figure, { FigureEmpty, Plot } from "../Figure";
-import { toUnit } from "../FrechetBand";
+import { toUnit } from "@/lib/coherence/decimals";
 import MomentsShape from "./MomentsShape";
 import PmfChart from "../PmfChart";
 import SurvivalChart from "../SurvivalChart";
-
-/**
- * A wire decimal for display, truncated and never rounded.
- *
- * A standard deviation arrives as `1.599804675577615631316479364` — 27 places
- * that `toCenticents` refuses outright, being finer than a centicent. Cutting
- * the string is exact where rounding a float is not, and the ellipsis says a
- * digit was cut rather than pretending the value ended there.
- */
-export function decimalLabel(raw: string | null | undefined, places = 4): string {
-  if (raw == null) return "—";
-  const text = raw.trim();
-  if (!/^-?\d*(?:\.\d*)?$/.test(text) || text === "" || text === "-") return "—";
-  const [whole, fraction = ""] = text.split(".");
-  const head = whole === "" || whole === "-" ? `${whole}0` : whole;
-  if (!fraction) return head;
-  const kept = fraction.slice(0, places);
-  const cut = /[1-9]/.test(fraction.slice(places));
-  return `${head}.${kept}${cut ? "…" : ""}`;
-}
+import { decimalLabel } from "@/lib/coherence/decimals";
 
 export interface Fact {
   label: string;

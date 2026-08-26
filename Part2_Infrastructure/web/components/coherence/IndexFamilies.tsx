@@ -118,7 +118,7 @@ export default function FamilyTable({ data }: { data: CoherenceIndexSeries }) {
               <td className="num">{row.measured}</td>
               <td className="num">{row.unmeasurable}</td>
               <td className="num">
-                {row.peak == null ? <span className="muted">—</span> : fromCenticents(row.peak)}
+                {row.peak == null ? <span title="no measurable poll for this family">—</span> : fromCenticents(row.peak)}
               </td>
             </tr>
           ))}

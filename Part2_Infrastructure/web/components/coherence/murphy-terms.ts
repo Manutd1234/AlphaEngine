@@ -18,6 +18,8 @@
  * reading and the inset's footnote. Edit them as copy, not as comments.
  */
 
+
+import { groupDigits } from "@/lib/coherence/universe-metrics";
 export interface Term {
   key: string;
   name: string;
@@ -52,7 +54,7 @@ export function placesFor(raws: (string | null)[]): number {
 
 /** How many times the second magnitude goes into the first, as a grouped integer. */
 export function ratioOf(large: number, small: number): string {
-  return Math.round(large / small).toLocaleString("en-GB");
+  return groupDigits(String(Math.round(large / small)));
 }
 
 /** The decomposition in rail order: the order the waterfall draws and the glossary lists. */

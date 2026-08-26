@@ -35,7 +35,10 @@
 import Figure, { FigureEmpty, Plot } from "./Figure";
 import { DIAGRAM_LABEL_PX, advancePx } from "@/lib/coherence/label-metrics";
 import { MEANINGFUL_EDGE } from "@/lib/coherence/thresholds";
-import { DOLLAR_CC, toCenticents } from "@/lib/coherence/fixed-point";
+
+/** The threshold as the exchange prints it — from its centicents, never a float's toFixed. */
+const EDGE_LABEL = fromCenticents(Math.round(MEANINGFUL_EDGE * DOLLAR_CC)) as string;
+import { DOLLAR_CC, fromCenticents, toCenticents } from "@/lib/coherence/fixed-point";
 
 const HEIGHT = 186;
 /**
@@ -95,7 +98,7 @@ function readingFor({ clears, nothingFound, shortfall, verdict }: {
   }
   if (nothingFound) {
     return "The programme found no guarantee at all: the best portfolio available to it is worth exactly nothing, "
-      + `against a threshold of ${MEANINGFUL_EDGE.toFixed(4)}.`;
+      + `against a threshold of ${EDGE_LABEL}.`;
   }
   if (shortfall == null) {
     return `The programme reported no optimum for this ${verdict} family, so the shortfall cannot be placed.`;
@@ -133,7 +136,7 @@ export default function ShortfallScale({ margin, verdict, engine }: {
     {
       label: "Worth taking above",
       value: threshold,
-      text: MEANINGFUL_EDGE.toFixed(4),
+      text: EDGE_LABEL,
       meaning: "below this the optimum is smaller than any price that could express it",
     },
     {
@@ -175,7 +178,7 @@ export default function ShortfallScale({ margin, verdict, engine }: {
       caption="How far the best available basket fell short, by order of magnitude"
       ariaLabel={
         "Four magnitudes on a logarithmic scale from one tick to a dollar: the optimum "
-        + `the programme found (${margin ?? "unreported"}), the ${MEANINGFUL_EDGE.toFixed(4)} threshold, one tick, and a dollar`
+        + `the programme found (${margin ?? "unreported"}), the ${EDGE_LABEL} threshold, one tick, and a dollar`
       }
       reading={readingFor({ clears, nothingFound, shortfall, verdict })}
       missing={
@@ -232,7 +235,7 @@ export default function ShortfallScale({ margin, verdict, engine }: {
                 <g key={cc}>
                   <line x1={x(cc)} x2={x(cc)} y1={MARGIN.top} y2={MARGIN.top + rows.length * ROW_H} className="coh-decade__rule" />
                   <text x={x(cc)} y={MARGIN.top + rows.length * ROW_H + 14} textAnchor="middle" className="coh-decade__tick">
-                    {(cc / DOLLAR_CC).toFixed(4)}
+                    {fromCenticents(cc)}
                   </text>
                 </g>
               ))}

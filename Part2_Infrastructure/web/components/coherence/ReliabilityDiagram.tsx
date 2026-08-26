@@ -31,6 +31,7 @@
 import { DOLLAR_CC, toCenticents } from "@/lib/coherence/fixed-point";
 import type { CoherenceMapPoint, CoherenceReliabilityBin } from "@/lib/coherence/types-lab";
 import Figure, { FigureEmpty, Plot } from "./Figure";
+import { decimalLabel, statValue, truncateDecimal, unitOf } from "@/lib/coherence/decimals";
 
 const HEIGHT = 310;
 const MARGIN = { top: 14, right: 10, bottom: 40, left: 36 };
@@ -42,58 +43,6 @@ const MAX_SIDE = 256;
 const KEY_WIDTH = 200;
 const DOT_MIN = 3.5;
 const DOT_MAX = 9;
-
-/* ------------------------------------------------------------- decimals -- */
-
-/**
- * A wire decimal cut to `places`, textually.
- *
- * Cut, not rounded, and never through a float: `Number("0.00010533…")` is
- * already a different number by the time it could be formatted, and these
- * quantities exist at the places where the difference between a reliability of
- * 0.00010358 and a brier of 0.00010533 is the entire finding.
- */
-export function truncateDecimal(raw: string | null | undefined, places: number): string | null {
-  if (raw == null) return null;
-  const match = /^(-?)(\d*)(?:\.(\d*))?$/.exec(raw.trim());
-  if (!match) return null;
-  const [, sign, whole, fraction = ""] = match;
-  if (!whole && !fraction) return null;
-  const kept = (fraction + "0".repeat(places)).slice(0, places);
-  return places > 0 ? `${sign}${whole || "0"}.${kept}` : `${sign}${whole || "0"}`;
-}
-
-/** The same, ready to print. A statistic the engine could not compute is a dash. */
-export function decimalLabel(raw: string | null | undefined, places = 4): string {
-  return truncateDecimal(raw, places) ?? "—";
-}
-
-/**
- * A quoted probability as a fraction of a dollar, for plotting.
- *
- * Routed through the centicent reader so a price on this diagram is the same
- * quantity the rest of the tab draws — four decimals, the exchange's own tick.
- */
-export function unitOf(raw: string | null | undefined): number | null {
-  const cc = toCenticents(truncateDecimal(raw, 4));
-  return cc == null ? null : cc / DOLLAR_CC;
-}
-
-/**
- * A decomposition term as a float, for GEOMETRY ONLY.
- *
- * These are not prices. They are mean squared errors carrying twenty-eight
- * significant digits, and a pixel is not a twenty-eight-digit quantity — so the
- * coordinate is allowed to be a float while every number the reader is shown is
- * cut from the string by `decimalLabel` and never from this.
- */
-export function statValue(raw: string | null | undefined): number | null {
-  if (raw == null) return null;
-  const text = raw.trim();
-  if (!/^-?(?:\d+(?:\.\d*)?|\.\d+)$/.test(text)) return null;
-  const value = Number(text);
-  return Number.isFinite(value) ? value : null;
-}
 
 /* ------------------------------------------------------------- diagram --- */
 

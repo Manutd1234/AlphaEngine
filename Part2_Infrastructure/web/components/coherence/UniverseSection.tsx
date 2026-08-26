@@ -66,7 +66,7 @@ import { useMemo, useState } from "react";
 import type { CoherenceUniverse } from "@/lib/coherence/types";
 import FamilyPicker from "./FamilyPicker";
 import LiveTape from "./LiveTape";
-import { toUnit } from "./FrechetBand";
+import { toUnit } from "@/lib/coherence/decimals";
 import { fromCenticents, sumPrices } from "@/lib/coherence/fixed-point";
 import { useLiveSeries } from "@/lib/coherence/use-live-series";
 import PaneHead from "./PaneHead";

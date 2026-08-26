@@ -39,6 +39,7 @@
 import { DOLLAR_CC, fromCenticents, toCenticents } from "@/lib/coherence/fixed-point";
 import type { CoherenceCombo } from "@/lib/coherence/types-lab";
 import Figure, { FigureEmpty, Plot } from "./Figure";
+import { probLabel, toUnit } from "@/lib/coherence/decimals";
 
 const HEIGHT = 126;
 const PRICE_LABEL_Y = 14;
@@ -69,36 +70,6 @@ export type BandReading = Pick<
   | "violated_rows"
 >;
 
-/**
- * A probability string of unbounded precision, as a 0-to-1 number.
- *
- * `toCenticents` refuses anything finer than six decimals and is right to: a
- * price with nine decimals is not a price any exchange quoted. But
- * `independence` is Πpᵢ — a product the gateway never rounds, up to twenty-nine
- * decimals long — and it is a position on a track rather than a price to trade.
- * So it is parsed here, truncated at a millionth, and used for GEOMETRY. Every
- * display of it goes through `probLabel`, which prints the ≈ that says so.
- */
-export function toUnit(raw: string | null | undefined): number | null {
-  if (raw == null) return null;
-  const match = /^(-?)(\d*)(?:\.(\d*))?$/.exec(raw.trim());
-  if (!match) return null;
-  const [, sign, whole, fraction = ""] = match;
-  if (!whole && !fraction) return null;
-  const millionths = Number(`${fraction}000000`.slice(0, 6));
-  const value = Number(whole || "0") + millionths / 1_000_000;
-  return sign === "-" ? -value : value;
-}
-
-/** A probability for display: exact when the wire is exact, ≈ when it is not. */
-export function probLabel(raw: string | null | undefined): string {
-  if (raw == null) return "—";
-  const exact = toCenticents(raw);
-  if (exact != null) return fromCenticents(exact) as string;
-  const unit = toUnit(raw);
-  if (unit == null) return "—";
-  return `≈${fromCenticents(Math.round(unit * DOLLAR_CC)) as string}`;
-}
 
 /**
  * What the `dependence` field measured, phrased as the comparison it is.

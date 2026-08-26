@@ -29,7 +29,7 @@
  */
 
 import type { CoherenceKelly, CoherenceStake } from "@/lib/coherence/types-lab";
-import { toUnit } from "../FrechetBand";
+import { toUnit } from "@/lib/coherence/decimals";
 import Figure, { FigureEmpty, Plot } from "../Figure";
 
 const HEIGHT = 240;

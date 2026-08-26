@@ -51,7 +51,7 @@
  */
 
 import Figure, { FigureEmpty, Plot } from "./Figure";
-import { decimalLabel, statValue } from "./ReliabilityDiagram";
+import { decimalLabel, statValue } from "@/lib/coherence/decimals";
 // What each term IS — the glossary copy, the cut depth and the ratio helper —
 // lives in murphy-terms.ts since 2026-08-24, when this file stood at 395
 // against the 400-line ratchet. This file keeps what is about the DRAWING.

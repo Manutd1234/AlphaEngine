@@ -27,7 +27,7 @@
 import type { CoherenceComboLeg, CoherenceComboRow } from "@/lib/coherence/types-lab";
 import { priceLabel } from "@/lib/coherence/fixed-point";
 import { DIAGRAM_LABEL_PX, gutterFor, truncateMiddle } from "@/lib/coherence/label-metrics";
-import { toUnit } from "./FrechetBand";
+import { toUnit } from "@/lib/coherence/decimals";
 import Figure, { Plot } from "./Figure";
 
 /** One dumbbell row. 30 was the bespoke strip's; 26 fits more rows on screen

@@ -33,7 +33,11 @@
 
 import { DIAGRAM_LABEL_PX, advancePx } from "@/lib/coherence/label-metrics";
 import { MEANINGFUL_EDGE } from "@/lib/coherence/thresholds";
+
+/** The threshold as the exchange prints it — from its centicents, never a float's toFixed. */
+const EDGE_LABEL = fromCenticents(Math.round(MEANINGFUL_EDGE * DOLLAR_CC)) as string;
 import Figure, { Plot } from "./Figure";
+import { DOLLAR_CC, fromCenticents } from "@/lib/coherence/fixed-point";
 
 /** 108, from 96. The zone names sit on their own line above the value label;
  *  at 96 the two shared a band and collided wherever the mark was near the
@@ -104,7 +108,7 @@ export default function MarginAxis({
     <Figure
       caption={CAPTION}
       ariaLabel={
-        `The programme's optimum is ${margin}. Anything above ${MEANINGFUL_EDGE.toFixed(4)} is a portfolio that pays `
+        `The programme's optimum is ${margin}. Anything above ${EDGE_LABEL} is a portfolio that pays `
         + `more than it costs in every state; this sits ${tradable ? "above" : "at or below"} it, so the prices `
         + `${tradable ? "admit no probability measure" : "admit one"}.`
       }
@@ -161,7 +165,7 @@ export default function MarginAxis({
 
               <line x1={lineX} x2={lineX} y1={AXIS_Y - 14} y2={AXIS_Y + 14} className="coh-margin__line" />
               <text x={lineX} y={AXIS_Y + 28} textAnchor="middle" className="coh-combo__axis">
-                {MEANINGFUL_EDGE.toFixed(4)}
+                {EDGE_LABEL}
               </text>
 
               {/* A MARK, never a bar: the coherent answer sits on the rule and a
@@ -170,7 +174,7 @@ export default function MarginAxis({
                 className={`coh-margin__mark${tradable ? " is-tradable" : ""}`}
                 points={`${x(value)},${AXIS_Y} ${x(value) - MARK_H / 2},${AXIS_Y - MARK_H} ${x(value) + MARK_H / 2},${AXIS_Y - MARK_H}`}
               >
-                <title>{`the programme's optimum is ${margin}, ${tradable ? "above" : "at or below"} the ${MEANINGFUL_EDGE.toFixed(4)} line`}</title>
+                <title>{`the programme's optimum is ${margin}, ${tradable ? "above" : "at or below"} the ${EDGE_LABEL} line`}</title>
               </polygon>
               <text x={labelX} y={AXIS_Y - MARK_H - 5} textAnchor="middle" className="coh-margin__value">
                 {label}

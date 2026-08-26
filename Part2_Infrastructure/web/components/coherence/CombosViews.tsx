@@ -30,8 +30,10 @@ import type { CoherenceCombo } from "@/lib/coherence/types-lab";
 import { priceLabel } from "@/lib/coherence/fixed-point";
 import ComboBandStrips from "./ComboBandStrips";
 import ParlayLegs from "./ParlayLegs";
-import FrechetBand, { DEPENDENCE_WORD, basisCaveat, probLabel, toUnit } from "./FrechetBand";
+import FrechetBand, { DEPENDENCE_WORD, basisCaveat } from "./FrechetBand";
+import { probLabel, toUnit } from "@/lib/coherence/decimals";
 import { StateChip } from "./Figure";
+import { pct } from "@/lib/format";
 
 
 /** Said on the card whose Πpᵢ is missing, and once under Notes. Never both. */
@@ -212,7 +214,9 @@ export function ParlaysView({ combos }: { combos: CoherenceCombo[] }) {
 
           What a cell cannot be — the band drawn, and the legs priced — is the
           one fold below, which is where the cards went rather than away. */}
-      <div className="table-wrap">
+      {/* tabIndex on the wrap: seven columns scroll inside it at narrow widths, and a
+          scroll region nobody can focus is unreachable by keyboard. */}
+      <div className="table-wrap" tabIndex={0}>
         <table className="coh-table">
           <caption className="coh-table__caption">
             One row per listed parlay, worst position first. ● inside the band its legs impose, ▲ outside it —
@@ -252,7 +256,7 @@ export function ParlaysView({ combos }: { combos: CoherenceCombo[] }) {
                       consistent with some dependence between the legs, and
                       nothing on this exchange quotes dependence. */}
                   <td className="num">
-                    {position == null ? "—" : `${Math.round(position * 100)}%`}
+                    {position == null ? "—" : pct(position, 0)}
                   </td>
                 </tr>
               );
