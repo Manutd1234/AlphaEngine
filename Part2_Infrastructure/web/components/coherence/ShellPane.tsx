@@ -74,6 +74,8 @@ import SectionFrame from "./SectionFrame";
 import { Breadcrumb, levelOf, pathOf, segmentsOf } from "./ShellPath";
 import { shellRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
+import { useLiveSeries } from "@/lib/coherence/use-live-series";
+import LiveTape from "./LiveTape";
 import ShellListing, { READ_OK } from "./ShellListing";
 import ShellReadings from "./ShellReadings";
 import ShellTree from "./ShellTree";
@@ -184,9 +186,20 @@ export default function ShellPane(
   const url = shellRoute(path, command);
   // Only the two views that answer FROM a read poll: Layout is the same at
   // every path and Commands is reference material, so neither asks.
-  const { data, error, loading } = useCoherenceRead<CoherenceShell>(
+  const { data, error, loading, updatedAt } = useCoherenceRead<CoherenceShell>(
     url,
     active && (view === "tree" || view === "reading"),
+  );
+
+  /* How many entries sit under the path being walked, poll by poll.
+     Keyed on the PATH, so stepping into a directory starts a new series rather
+     than drawing a cliff between two different places and calling it a change.
+     It is the one reading on this section that moves for a reason a reader
+     cares about: the watchlist growing or shrinking under them. */
+  const entriesTape = useLiveSeries(
+    `shell:${path}:entries`,
+    updatedAt,
+    data?.entries == null ? null : data.entries.length,
   );
 
   const navigate = (next: string) => {
@@ -338,6 +351,19 @@ export default function ShellPane(
         <p className="coh-shell__note">
           <span aria-hidden="true">✕</span> The last refresh failed: {error}. What is above is the previous answer.
         </p>
+      ) : null}
+
+      {/* Only where a listing is what is on screen. Reading a FILE, the entry
+          count belongs to the directory the reader left, and drawing it under
+          the file would be a number about somewhere else. */}
+      {view === "tree" ? (
+        <LiveTape
+          points={entriesTape}
+          caption={`What has been under ${data.path}, poll by poll`}
+          ariaLabel="The number of entries listed under this path over the polls seen since this tab opened"
+          format={(value) => `${Math.round(value)}`}
+          reading="The watchlist growing or shrinking under the reader. A step here is a series the recorder started or stopped watching, not a price."
+        />
       ) : null}
     </>,
     crumbs,

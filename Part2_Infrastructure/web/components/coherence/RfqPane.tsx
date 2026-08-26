@@ -75,6 +75,8 @@ import { type ReactNode } from "react";
 import type { CoherenceDispersion, CoherenceRfqPanel } from "@/lib/coherence/types-lab";
 import { rfqRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
+import { useLiveSeries } from "@/lib/coherence/use-live-series";
+import LiveTape from "./LiveTape";
 import ChannelStates from "./ChannelStates";
 import DispersionTable, { THIN_PANEL } from "./DispersionTable";
 import KpiRow, { type Reading } from "./KpiRow";
@@ -227,7 +229,23 @@ function StateTable({ panel }: { panel: CoherenceRfqPanel }) {
 }
 
 export default function RfqPane({ view, active }: { view: RfqView; active: boolean }) {
-  const { data, error } = useCoherenceRead<CoherenceRfqPanel>(rfqRoute(), active);
+  const { data, error, updatedAt } = useCoherenceRead<CoherenceRfqPanel>(rfqRoute(), active);
+
+  /* How far the makers are apart, poll by poll.
+     ON ONE MARKET, NOT THE PANEL. `median_width` is a per-market measurement
+     and averaging it across the panel would invent a number the venue never
+     sent — the same rule the four size fields on Universe are drawn under. So
+     the tape follows the first market that HAS a width, and is keyed on that
+     market: when the panel reorders, a different ticker starts a different
+     series rather than welding two markets into one line.
+     Null where nothing is measured, which on a keyless deployment is always —
+     and a null is drawn as a break rather than bridged. */
+  const spread = data?.dispersions.find((row) => row.median_width != null) ?? null;
+  const widthTape = useLiveSeries(
+    `rfq:${spread?.market_ticker ?? "unquoted"}:width`,
+    updatedAt,
+    spread?.median_width == null ? null : Number(spread.median_width),
+  );
 
   /** The count, and one thing under it. Drawn on every branch. */
   const framed = (body: ReactNode) => (
@@ -310,6 +328,20 @@ export default function RfqPane({ view, active }: { view: RfqView; active: boole
         <p className="coh-rfq__note">
           <span aria-hidden="true">✕</span> The last refresh failed: {error}. What is above is the previous answer.
         </p>
+      ) : null}
+
+      {/* Drawn only where there is a market to name. A tape captioned "no
+          market" would be a figure about the absence of a subject, and the
+          empty state above already draws that — better, because it draws how
+          far the request got rather than a flat line at nothing. */}
+      {spread ? (
+        <LiveTape
+          points={widthTape}
+          caption={`How far the makers are apart on ${spread.market_ticker}, poll by poll`}
+          ariaLabel="The median width between independent maker quotes on this market, over the polls seen since this tab opened"
+          reference={{ value: 0, label: "the makers agree exactly" }}
+          reading="Widening means the professionals are disagreeing more about the same contract; a gap in the line is a poll that measured nothing, never a poll that measured zero."
+        />
       ) : null}
     </>,
   );

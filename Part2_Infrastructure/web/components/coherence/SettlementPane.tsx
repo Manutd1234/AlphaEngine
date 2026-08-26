@@ -63,6 +63,8 @@ import { toCenticents } from "@/lib/coherence/fixed-point";
 import type { CoherenceSettlementFeed } from "@/lib/coherence/types-lab";
 import { settlementRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
+import { useLiveSeries } from "@/lib/coherence/use-live-series";
+import LiveTape from "./LiveTape";
 import FormationDiagram, { type FormationStage } from "./FormationDiagram";
 import IndexBasisChart from "./IndexBasisChart";
 import PendingMinutes from "./PendingMinutes";
@@ -274,7 +276,21 @@ function Pending({ data }: { data: CoherenceSettlementFeed }) {
 }
 
 export default function SettlementPane({ view, active }: { view: SettlementView; active: boolean }) {
-  const { data, error } = useCoherenceRead<CoherenceSettlementFeed>(settlementRoute(PUBLISHED_CITY), active);
+  const { data, error, updatedAt } = useCoherenceRead<CoherenceSettlementFeed>(settlementRoute(PUBLISHED_CITY), active);
+
+  /* The published index, poll by poll, against the window mean it settles on.
+     THE FIGURE THIS SECTION WAS MISSING: every number here is one minute's
+     print, and what a contract pays is the MEAN over a window — so the question
+     a reader actually has is whether the latest print is running above or below
+     that mean, and for how long. The reference line answers it directly rather
+     than asking anyone to hold two numbers in their head.
+     Keyed on the city because exactly one is published today and a second would
+     be a different index, not more of this one. */
+  const indexTape = useLiveSeries(
+    `settlement:${PUBLISHED_CITY}:index`,
+    updatedAt,
+    data?.latest_value == null ? null : Number(data.latest_value),
+  );
 
   /** What this read covers, then one thing under it. */
   const framed = (body: ReactNode) => (
@@ -339,6 +355,24 @@ export default function SettlementPane({ view, active }: { view: SettlementView;
           answer.
         </p>
       ) : null}
+
+      {/* THE REFERENCE IS THE POINT OF THIS FIGURE, not the line. What a
+          contract pays is the window MEAN; every number above it is one
+          minute's print. Drawn against each other, "is the index running hot"
+          stops being two numbers a reader holds in their head. */}
+      <LiveTape
+        points={indexTape}
+        caption={`The published ${PUBLISHED_CITY} index, poll by poll`}
+        ariaLabel="The latest published index reading over the polls seen since this tab opened, against the settlement window's mean"
+        reference={
+          data.window_average == null
+            ? null
+            : { value: Number(data.window_average), label: `the ${data.window_minutes}-minute mean it settles on` }
+        }
+        format={(value) => `${value.toFixed(1)}°`}
+        reading="Above the line the index is running hot against what a contract would pay on it; below, cold. The distance is the basis."
+        missing={data.window_average == null ? "No window mean this read, so there is nothing to judge the prints against." : null}
+      />
     </>,
   );
 }

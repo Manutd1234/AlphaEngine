@@ -92,6 +92,20 @@ describe("one series per key, and the key carries the subject", () => {
       ["SurfacePane", "components/coherence/SurfacePane.tsx"],
       ["StakePane", "components/coherence/StakePane.tsx"],
       ["FeesSection", "components/coherence/FeesSection.tsx"],
+      // The last three, 2026-08-26. Every section on the rail carries a tape
+      // now: a reader who cannot see whether a number has been where it is all
+      // afternoon or crossed a minute ago is reading a snapshot and being asked
+      // to treat it as a trend.
+      //
+      // These three name a PANE rather than a section, and that is where the
+      // read is. Settlement and Makers delegate to `SettlementPane` and
+      // `RfqPane`, and a tape has to be mounted where `updatedAt` is — the
+      // moment the poll landed is what makes an append a poll rather than a
+      // re-render. The property under test is unchanged: whoever mounts it
+      // keys it on its own subject.
+      ["SettlementPane", "components/coherence/SettlementPane.tsx"],
+      ["RfqPane", "components/coherence/RfqPane.tsx"],
+      ["ShellPane", "components/coherence/ShellPane.tsx"],
     ];
     for (const [name, path] of sites) {
       const source = read(`../${path}`);

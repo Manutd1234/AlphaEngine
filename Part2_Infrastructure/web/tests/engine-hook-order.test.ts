@@ -75,7 +75,26 @@ function sources(): Array<[string, string]> {
  * callback's body is deeper by construction. That is a convention rather than a
  * law, which is why the hook scan below is anchored the same way — both halves
  * have to be at the component's own level for the pair to mean anything.
+ *
+ * AND THE SPAN IS ONE FUNCTION, NOT ONE FILE, which is the correction of
+ * 2026-08-26. A module-level HELPER sits at two spaces too, so a file whose
+ * helper opens with `if (state === "…") { return … }` — `SettlementPane` does,
+ * two hundred lines above its component — put the cut at the helper's return
+ * and reported every hook in the component below it. The pair only means
+ * anything within one function, so the file is split at its top-level
+ * declarations and each span scanned on its own.
  */
+/** Each top-level function body, so one function's early return cannot cut another's. */
+function topLevelSpans(code: string): string[] {
+  const starts: number[] = [];
+  const lines = code.split("\n");
+  lines.forEach((line, index) => {
+    if (/^(?:export )?(?:default )?(?:async )?function \w/.test(line)) starts.push(index);
+  });
+  if (!starts.length) return [code];
+  return starts.map((start, at) => lines.slice(start, starts[at + 1] ?? lines.length).join("\n"));
+}
+
 function firstConditionalReturn(code: string): number {
   const lines = code.split("\n");
   for (let i = 0; i < lines.length; i += 1) {
@@ -88,6 +107,24 @@ function firstConditionalReturn(code: string): number {
     }
   }
   return -1;
+}
+
+/**
+ * Hooks called at the component's own indent, in a span that is already past a
+ * conditional return.
+ *
+ * THE ANGLE BRACKET WAS A HOLE, and it was the whole point of the check: the
+ * pattern required `use…(` immediately, so `useCoherenceRead<CoherenceShell>(`
+ * and `useState<Foo>(` were invisible — every generic hook call, which on this
+ * tab is most of them. The guard could only ever have caught a non-generic
+ * hook, and the first one written after a conditional return is what exposed
+ * it. Type arguments are now allowed between the name and the parenthesis.
+ */
+function hooksAfter(after: string): string[] {
+  return [...new Set(
+    [...after.matchAll(/^ {2}(?:const [\w{}[\], ]+ = )?(use[A-Z]\w*)\s*(?:<[^(]*>)?\(/gm)]
+      .map((match) => match[1]),
+  )];
 }
 
 describe("every hook runs on every render", () => {
@@ -104,15 +141,20 @@ describe("every hook runs on every render", () => {
       // Comments and strings blanked: several files QUOTE the defect in their
       // headers — including the one that caused it — and a raw scan reads that
       // prose as the defect itself.
-      const code = stripNonCode(raw);
-      const cut = firstConditionalReturn(code);
-      if (cut === -1) return;
-      const after = code.slice(cut);
+      const offenders: string[] = [];
+      for (const span of topLevelSpans(stripNonCode(raw))) {
+        const cut = firstConditionalReturn(span);
+        if (cut === -1) continue;
+        offenders.push(...hooksAfter(span.slice(cut)));
+      }
+      const code = "";
+      const cut = -1;
+      const after = "";
       // Hooks at the COMPONENT's own indent, for the reason the return scan is
       // anchored there: a `use*` inside a callback is not a hook call of this
       // component and never was.
-      const hooks = [...after.matchAll(/^ {2}(?:const [\w{}, ]+ = )?(use[A-Z]\w*)\(/gm)]
-        .map((match) => match[1]);
+      void code; void cut; void after;
+      const hooks = offenders;
       assert.deepEqual(
         [...new Set(hooks)],
         [],
