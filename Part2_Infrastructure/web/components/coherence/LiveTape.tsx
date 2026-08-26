@@ -117,14 +117,29 @@ export default function LiveTape({
           : null)
       }
     >
-      <Plot height={HEIGHT}>
+      <Plot
+        height={HEIGHT}
+        /* UNDER the series now, not over it, and the reversal is deliberate.
+           "Over the series, never under it" was this figure's own rule, on the
+           reasoning that a reference hidden behind a line is no reference. But
+           a dashed hairline painted first shows through a one-pixel series,
+           while a hairline painted LAST can sit exactly on the tape's latest
+           point and hide the one mark a reader came for. The plot paints the
+           reference before every mark for that reason, and it is one rule for
+           every figure with a baseline rather than one per figure. */
+        reference={(width) => {
+          if (!reference) return null;
+          const right = width - MARGIN.right - advancePx(format(hi), DIAGRAM_LABEL_PX) - 6;
+          const y = linearScale(lo, hi, HEIGHT - MARGIN.bottom, MARGIN.top);
+          return { y: y(reference.value), x0: MARGIN.left, x1: Math.max(MARGIN.left + 1, right), label: reference.label };
+        }}
+      >
         {(width) => {
           const right = width - MARGIN.right - advancePx(format(hi), DIAGRAM_LABEL_PX) - 6;
           const x = linearScale(first, last, MARGIN.left, Math.max(MARGIN.left + 1, right));
           const y = linearScale(lo, hi, HEIGHT - MARGIN.bottom, MARGIN.top);
           const path = linePath(points.map((point) => ({ x: x(point.at), y: point.value == null ? null : y(point.value) })));
           const axis = ticks(lo, hi, 3);
-          const refY = reference ? y(reference.value) : null;
           const latest = measured[measured.length - 1];
 
           return (
@@ -143,22 +158,6 @@ export default function LiveTape({
                   </text>
                 </g>
               ))}
-
-              {/* Over the series, never under it. */}
-              {refY != null && reference ? (
-                <>
-                  <line
-                    className="coh-tape__reference"
-                    x1={MARGIN.left}
-                    x2={Math.max(MARGIN.left + 1, right)}
-                    y1={refY}
-                    y2={refY}
-                  />
-                  <text className="coh-tape__reference-label" x={MARGIN.left + 2} y={refY - 4}>
-                    {reference.label}
-                  </text>
-                </>
-              ) : null}
 
               <path className="coh-tape__line" d={path} />
 

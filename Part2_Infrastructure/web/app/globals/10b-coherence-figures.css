@@ -295,3 +295,25 @@
   font-variant-numeric: tabular-nums;
   font-weight: 600;
 }
+
+/* ── The reference, as the plot paints it ───────────────────────────────
+
+   One rule for the line every figure with a baseline used to draw its own
+   way. Dashed and one pixel, so it reads as a reference and never as a
+   series; the colour is the text colour rather than an axis grey, because
+   this line carries a claim ("break-even", "the mean it settles on") and a
+   claim should be as legible as the caption that makes it. The `stroke`
+   attribute on the element itself is what the forced-colors block catches —
+   this only sets the dash and the weight over it. Lifted from
+   `.coh-tape__reference` in 14x on 2026-08-26, which the tape no longer
+   needs. */
+.coh-plot__reference line {
+  stroke: var(--text-primary);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.coh-plot__reference text {
+  fill: var(--text-primary);
+  font-size: var(--fs-tick);
+}

@@ -23,13 +23,42 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
-import { Tooltip, useMeasuredWidth } from "@/components/chart-kit";
+import { useMeasuredWidth } from "@/components/chart-kit";
 import { useSharedXReadout, type SharedX } from "@/lib/coherence/use-shared-x-readout";
-import { DIAGRAM_LABEL_PX, advancePx, truncateMiddle } from "@/lib/coherence/label-metrics";
-import { useMarkReadout, type MarkReadout } from "@/lib/coherence/use-mark-readout";
+import { useMarkReadout } from "@/lib/coherence/use-mark-readout";
+
+import { Readout, ReferenceLine, SharedXReadout } from "./plot-overlays";
+
+// Re-exported so the one outside caller (`lesson-figures/frame.tsx`) keeps its
+// import: the overlays moved on 2026-08-26 and a lifted primitive leaves a
+// thin re-export behind rather than a changed import in every consumer.
+export { Readout } from "./plot-overlays";
 
 /** The readout sets on the diagram label rung, like every other word in a plot. */
-const READOUT_PX = DIAGRAM_LABEL_PX;
+
+/**
+ * A line the reader judges the marks against.
+ *
+ * Every figure on this desk that convinces has one — the diagonal where a
+ * price equals its worth, the window mean a print is running hot or cold
+ * against, the base rate a score has to beat. It is what turns an assertion in
+ * the caption into something a reader can CHECK. Three figures drew one by
+ * hand and each drew it differently; this makes it the plot's, so it is
+ * painted before the marks (an SVG paints in source order, so nothing can
+ * occlude it) and always carries a word (a bare hairline is colour-only
+ * meaning, which the house rule forbids).
+ *
+ * `y` is in the plot's own units — the caller has the scale, the plot does
+ * not — and `x0`/`x1` bound it to the drawn axis rather than the whole width,
+ * so it does not run under a label gutter.
+ */
+export interface PlotReference {
+  y: number;
+  x0: number;
+  x1: number;
+  /** The word beside the line: "the mean it settles on", "break-even". */
+  label: string;
+}
 
 export interface FigureProps {
   /** What this figure shows, as a sentence fragment. Always present. */
@@ -134,6 +163,7 @@ export function Plot({
   onSelect,
   sharedX,
   viewBox,
+  reference = null,
   children,
 }: {
   height: number;
@@ -190,6 +220,14 @@ export function Plot({
    * not fit, not the callers.
    */
   viewBox?: string;
+  /**
+   * The baseline the marks are read against, painted under them.
+   *
+   * A function of the measured width where the axis it spans is one the
+   * figure lays out — the same reason `sharedX` is — or a plain value where
+   * the caller already knows its extent.
+   */
+  reference?: PlotReference | ((width: number) => PlotReference | null) | null;
   children: (width: number) => ReactNode;
 }) {
   const [ref, measured] = useMeasuredWidth<HTMLDivElement>(720);
@@ -250,6 +288,15 @@ export function Plot({
             <line x1="0" y1="0" x2="0" y2="5" className="coh-plot__hatch" />
           </pattern>
         </defs>
+        {/* FIRST, and that is the whole contract: source order is paint order,
+            so a reference painted here sits under every mark a figure draws
+            after it. It is also a mark itself — it carries a title — so the
+            readout can say what the line is when a keyboard reader lands on
+            it, which a bare hairline could never do. */}
+        {(() => {
+          const ref = typeof reference === "function" ? reference(width) : reference;
+          return ref ? <ReferenceLine {...ref} /> : null;
+        })()}
         {children(width)}
         {readout ? <Readout {...readout} chartWidth={width} /> : null}
         {axis && shared.reading && shared.index !== null ? (
@@ -272,45 +319,7 @@ export function Plot({
   );
 }
 
-/**
- * The focused or hovered mark's own words, drawn beside it.
- *
- * In USER units, like everything else in the plot, so it lands beside the thing
- * it describes whatever width the figure was measured at. Clamped to the plot
- * on both sides: a mark at the right edge would otherwise put its readout off
- * the viewBox, which is the same clipping this engine has just finished fixing
- * in its label gutters.
- */
-/**
- * THE PILL WAS CLAMPED AND THE TEXT WAS NOT, until 2026-08-25.
- *
- * `width` has always been bounded by the plot, so a long readout drew a pill
- * that stopped at the edge — and a `<text>` that did not. The glyphs carried on
- * past the rounded corner and out of the viewBox, so the tail of the sentence
- * painted over the drawing and then vanished at the clip.
- *
- * It needed a mark title longer than the plot to show, which is why no figure
- * caught it for months and no test could: the suite has no DOM, so a string
- * length is a number nobody compares to a pixel width. `ClockAgreement`'s
- * per-run title is about 130 characters and overflowed at desk width.
- *
- * Truncated in the MIDDLE rather than the tail: a readout is "what this mark is
- * — what it measures", and the two ends are the halves worth keeping. The full
- * sentence is still announced to a screen reader, which reads `announce` and
- * not this.
- */
-export function Readout({ text, x, y, chartWidth }: MarkReadout & { chartWidth: number }) {
-  const width = Math.min(chartWidth - 8, advancePx(text, READOUT_PX) + 20);
-  const shown = truncateMiddle(text, width - 20, READOUT_PX);
-  const left = Math.min(Math.max(x - width / 2, 4), Math.max(4, chartWidth - width - 4));
-  const top = Math.max(2, y - 26);
-  return (
-    <g className="coh-plot__readout" pointerEvents="none">
-      <rect x={left} y={top} width={width} height={22} rx={6} />
-      <text x={left + 10} y={top + 15}>{shown}</text>
-    </g>
-  );
-}
+
 
 /**
  * The empty state a figure renders instead of an axis with nothing on it.
@@ -359,26 +368,3 @@ export function StateChip({
   );
 }
 
-/**
- * The rule and the card, for a figure read across one axis.
- *
- * The rule is what makes the card honest: a tooltip clamped away from the edge
- * sits somewhere other than the position it describes, and without a mark on
- * the axis a reader near the end of the series cannot tell which point they
- * are being told about. `Tooltip` does the clamping and the card; this adds the
- * one line that says where.
- */
-function SharedXReadout({ at, height, width, chartWidth, reading }: {
-  at: number;
-  height: number;
-  width: number;
-  chartWidth: number;
-  reading: { title: string; rows: Array<{ label: string; value: string; color?: string }> };
-}) {
-  return (
-    <g pointerEvents="none">
-      <line x1={at} x2={at} y1={0} y2={height} className="coh-plot__crosshair" />
-      <Tooltip x={at} width={width} chartWidth={chartWidth} title={reading.title} rows={reading.rows} />
-    </g>
-  );
-}

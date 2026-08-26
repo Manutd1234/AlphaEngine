@@ -156,16 +156,12 @@
 /* The line the reader judges against — a dollar, a zero, a window mean. Drawn
    OVER the series like every reference on this tab, so it is dashed rather than
    heavy: it must be legible across the data without hiding it. */
-.coh-tape__reference {
-  stroke: var(--text-primary);
-  stroke-width: 1;
-  stroke-dasharray: 3 3;
-}
-
-.coh-tape__reference-label {
-  fill: var(--text-primary);
-  font-size: var(--fs-tick);
-}
+/* `.coh-tape__reference` and its label left on 2026-08-26. The tape draws its
+   reference through `Plot`'s own `reference` prop now, painted under the
+   series rather than over it, and the rule that styles it is
+   `.coh-plot__reference` in 10b — one rule for every figure with a baseline,
+   instead of one per figure. Deleted rather than left unreferenced: a class
+   with no render site is what `dead-css.test.ts` counts. */
 
 .coh-tape__grid {
   stroke: var(--grid);

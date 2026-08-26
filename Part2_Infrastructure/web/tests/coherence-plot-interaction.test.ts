@@ -97,7 +97,9 @@ describe("the readout says what the mark says, where the mark is", () => {
   it("clamps to the plot on both sides", () => {
     // A mark at the right edge would otherwise put its readout outside the
     // viewBox — the same clipping the label gutters have just been fixed for.
-    assert.match(figure, /Math\.min\(Math\.max\(x - width \/ 2, 4\)/);
+    // `Readout` moved to `plot-overlays.tsx` on 2026-08-26 with the other two
+    // things the plot paints over a figure; the clamp went with it.
+    assert.match(read("../components/coherence/plot-overlays.tsx"), /Math\.min\(Math\.max\(x - width \/ 2, 4\)/);
   });
 });
 
@@ -143,7 +145,14 @@ describe("what it does to the accessibility tree", () => {
     // fixes. The fallback is kept for a `Plot` with no `Figure` around it,
     // where there is no presentational subtree and its own region is the right
     // answer; it just has to be GUARDED on that being the case.
-    const plotBody = figure.slice(figure.indexOf("export function Plot"), figure.indexOf("function Readout"));
+    // The overlays moved to `plot-overlays.tsx` on 2026-08-26, so `Readout` is
+    // no longer in this file to slice against — and `indexOf` returning -1
+    // would have made `slice(a, -1)` cover a silently wrong span rather than
+    // fail. The plot's body ends where the next export begins.
+    const plotStart = figure.indexOf("export function Plot");
+    const plotEnd = figure.indexOf("export function", plotStart + 1);
+    assert.ok(plotStart !== -1 && plotEnd !== -1, "Plot is no longer where this guard reads it");
+    const plotBody = figure.slice(plotStart, plotEnd);
     const liveAt = plotBody.indexOf("coh-plot__live");
     if (liveAt === -1) return;
     const guardAt = plotBody.indexOf("publish ? null : (");
