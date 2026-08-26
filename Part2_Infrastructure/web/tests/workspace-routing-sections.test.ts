@@ -318,3 +318,32 @@ describe("dense role workspaces expose accessible feature sections", () => {
     );
   });
 });
+
+describe("a read hash confesses: the address is rewritten to what actually opened", () => {
+  // Walked in a browser on 2026-08-26: `#coherence/certificate/zzz-not-a-view`
+  // opened Verdict, correctly, and the address bar went on saying `zzz` — on
+  // every section of both tabs, because the third segment was designed to
+  // fall back silently. A URL that names a view the screen does not show is
+  // the desync the writer was built to end, arriving from the other side.
+  // The fix belongs in the READER, not the writer: the writer runs on a
+  // press, and a bogus segment arrives on a load, a Back, or a typed hash.
+  const hash = read("../lib/workspace-hash.ts");
+
+  it("rewrites after both arrivals that apply a view, with replaceState and the one builder", () => {
+    const reader = hash.slice(hash.indexOf("const readLocation = "), hash.indexOf("restoreRememberedLocation();"));
+    assert.ok(reader.length > 200, "readLocation is no longer where this reads it");
+    const rail = reader.indexOf("onRail();");
+    const moved = reader.indexOf("relocated();");
+    assert.ok(rail !== -1 && moved !== -1, "the two applying arrivals are gone");
+    assert.match(reader.slice(rail, rail + 120), /confess\(hashView, named, nestedView\)/,
+      "a hash that landed on its own rail is never rewritten, so an unknown view segment stays in the address bar");
+    assert.match(reader.slice(moved, moved + 140), /confess\(moved\.view, moved\.section, nestedView\)/,
+      "a relocated hash is never rewritten");
+    const confess = hash.slice(hash.indexOf("function confess("));
+    assert.match(confess.slice(0, 900), /locationHash\(tab, section, railView\(tab, section, view\) \?\? undefined\)/,
+      "confess builds the address by hand instead of through the one builder and the one resolver");
+    assert.match(confess.slice(0, 900), /window\.history\.replaceState/, "confess pushes, so Back steps through a correction nobody made");
+    assert.match(confess.slice(0, 900), /if \(view === undefined\) return;/,
+      "confess runs on a two-segment hash too, rewriting addresses that were already honest");
+  });
+});

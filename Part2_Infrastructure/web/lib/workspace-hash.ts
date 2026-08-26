@@ -11,6 +11,7 @@
 
 import { NAV_ITEMS, type WorkspaceView } from "@/components/WorkspaceHeader";
 import { WORKSPACE_LOCATION_KEY } from "@/lib/user-prefs";
+import { locationHash, railView } from "@/lib/section-views";
 
 export const VIEWS: WorkspaceView[] = NAV_ITEMS.map((item) => item.id);
 
@@ -230,6 +231,30 @@ export type SectionApplier = (section: string, view?: string) => (() => void) | 
  * runs first because it may fill an empty hash, which is then read like any
  * other. Returns the unsubscribe, so the caller's effect owns the listeners.
  */
+/**
+ * The address says what opened — after a read, not only after a press.
+ *
+ * The third segment was designed to fall back silently: an unknown view lands
+ * on the section's default, and a default written out in full lands where a
+ * bare section would. Both are right on screen and were wrong in the address
+ * bar, which went on naming a view nobody was shown — walked on 2026-08-26 on
+ * every section of both engine tabs. The writer could not fix it, because the
+ * writer runs on a press and a bogus segment arrives on a load, a Back, or a
+ * hash typed in. So the READER rewrites, through the same builder and the
+ * same resolver the writer uses, with `replaceState`: a correction is not a
+ * place the reader went, and `replaceState` fires no `hashchange`, so the
+ * listener below never sees its own rewrite. A two-segment hash is left alone
+ * — it was honest already, and a tab without views has nothing to resolve.
+ */
+function confess(tab: WorkspaceView, section: string, view: string | undefined): void {
+  if (view === undefined) return;
+  const honest = `#${locationHash(tab, section, railView(tab, section, view) ?? undefined)}`;
+  if (window.location.hash === honest) return;
+  const url = new URL(window.location.href);
+  url.hash = honest;
+  window.history.replaceState({}, "", url);
+}
+
 export function followLocation(
   applier: Record<WorkspaceView, SectionApplier>,
   setView: (next: WorkspaceView) => void,
@@ -261,6 +286,7 @@ export function followLocation(
     if (onRail) {
       setView(hashView);
       onRail();
+      confess(hashView, named, nestedView);
       return;
     }
     // A relocated id keeps its view too. The segment was written against the
@@ -272,6 +298,7 @@ export function followLocation(
     if (moved && relocated) {
       setView(moved.view);
       relocated();
+      confess(moved.view, moved.section, nestedView);
       return;
     }
     setView(hashView);
