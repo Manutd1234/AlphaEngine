@@ -27,6 +27,7 @@ from modules.coherence import fee_meta, tunables, warm
 from modules.coherence.drivers.kalshi_auth import signing_available
 from modules.coherence.drivers.kalshi_rest import KalshiClient, KalshiUnavailable
 from modules.coherence.drivers.rfq import read_panel
+from modules.coherence.fs import corpus
 from modules.coherence.fs.store import TapeUnavailable, get_store
 from modules.coherence.kernel.band_usage import band_usage
 from modules.coherence.kernel.costs import FeeSchedule, net_fee, no_arbitrage_bound
@@ -158,16 +159,21 @@ async def coherence_combos(
 
 @router.get("/api/coherence/calibration", response_model=CoherenceCalibration)
 async def coherence_calibration(
-    horizon_s: int = Query(default=3600, ge=0, le=604_800),
+    horizon_s: int = Query(default=corpus.MIN_HORIZON_S, ge=0, le=604_800),
     harvest: bool = Query(default=True, description="Read settled markets before scoring"),
     _actor: str = Depends(trader_identity),
 ) -> CoherenceCalibration:
     """Were the prices right? The Brier score and Murphy's decomposition.
 
-    Prefers forecasts from the tape — a price quoted an hour before close,
-    scored against what happened. Falls back to last traded prices only when
-    the tape is too short, and says so in the engine name, because a last trade
-    happens moments before settlement and scores convergence, not foresight.
+    Prefers forecasts from the tape — a price quoted well before close, scored
+    against what happened. Falls back to last traded prices only when the tape
+    is too short, and says so in the engine name, because a last trade happens
+    moments before settlement and scores convergence, not foresight.
+
+    THE DEFAULT HORIZON IS THE CORPUS MODULE'S FLOOR, read from where it is
+    defined. This route carried its own ``3600`` until 2026-08-26, a second copy
+    of a constant that had already excluded the hourly series once; the floor
+    applied travels on the wire as ``horizon_s`` so a reader can see it.
     """
     try:
         store = get_store()
@@ -182,7 +188,9 @@ async def coherence_calibration(
         notes.append(str(result.get("detail") or ""))
 
     report = calibrate.score(store, horizon_s=horizon_s, fallback=fallback)
-    return views.calibration_view(report, "; ".join([note for note in notes if note] + [report.detail]))
+    return views.calibration_view(
+        report, "; ".join([note for note in notes if note] + [report.detail]), horizon_s=horizon_s,
+    )
 
 
 @router.get("/api/coherence/settlement", response_model=CoherenceSettlementFeed)

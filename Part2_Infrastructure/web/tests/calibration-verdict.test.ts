@@ -36,6 +36,8 @@ import { read } from "./helpers/workspace-sources";
 const gauge = read("../components/coherence/CalibrationGauge.tsx");
 const trend = read("../components/coherence/CalibrationTrend.tsx");
 const routes = read("../lib/coherence/routes.ts");
+const score = read("../components/coherence/CalibrationScore.tsx");
+const horizon = read("../components/coherence/HorizonAxis.tsx");
 
 /**
  * The same source with comments blanked, for the checks that are about CODE.
@@ -97,5 +99,25 @@ describe("the trend says where its record begins", () => {
     // a score nobody took.
     assert.match(trend, /gap/i, "the trend must draw unscoreable runs as gaps");
     assert.doesNotMatch(code(trend), /\?\?\s*0\b/);
+  });
+});
+
+describe("the floor the scorer applied is on screen, and null is never a floor of zero", () => {
+  // The Scorecard scored an empty corpus for a week because the horizon floor
+  // excluded the hourly series, and nothing on the tab said which floor had
+  // been applied. `horizon_s` is on the wire now; a dash on null, because a
+  // horizon of zero is `final_trade`'s own reading — the one this row exists
+  // to be told apart from.
+  it("the score table prints the floor beside the median, dashed on null", () => {
+    assert.match(score, /label: "Forecast horizon"/);
+    assert.match(score, /data\.horizon_s == null \? "—"/);
+    assert.doesNotMatch(code(score), /horizon_s\s*\?\?\s*0\b/);
+  });
+
+  it("the horizon axis draws the floor as its own tick when the wire names one", () => {
+    assert.match(horizon, /const floor = data\.horizon_s;/);
+    assert.match(horizon, /floor == null/, "a null floor must be withheld, not drawn at settlement");
+    assert.match(horizon, /x\(floor\)/);
+    assert.doesNotMatch(code(horizon), /horizon_s\s*\?\?\s*0\b/);
   });
 });

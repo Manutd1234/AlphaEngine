@@ -93,7 +93,7 @@ function slopeReading(slope: string | null, populated: number, bands: number): s
   return "indistinguishable from 1 at two decimals — the shape a well calibrated venue has";
 }
 
-/** The six headline figures, each with the one line that reads it. */
+/** The seven headline figures, each with the one line that reads it. */
 export function scoreFacts(data: CoherenceCalibration): Fact[] {
   const populated = data.bins.filter((bin) => bin.count > 0).length;
   return [
@@ -135,6 +135,14 @@ export function scoreFacts(data: CoherenceCalibration): Fact[] {
       value: data.median_horizon_s == null ? "—" : `${data.median_horizon_s}s`,
       // "the banner reads it" was a pointer at something four lines up.
       note: "How far ahead of the answer these prices were standing.",
+    },
+    {
+      label: "Forecast horizon",
+      // Null when the report is unavailable — no floor was applied to nothing —
+      // and a dash there, never 0: a horizon of zero is `final_trade`'s own
+      // reading, the one this row exists to be told apart from.
+      value: data.horizon_s == null ? "—" : `${data.horizon_s}s`,
+      note: "The floor the scorer applied: a tape price had to be quoted at least this long before close to count.",
     },
   ];
 }

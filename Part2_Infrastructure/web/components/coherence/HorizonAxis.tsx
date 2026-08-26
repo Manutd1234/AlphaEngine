@@ -100,6 +100,14 @@ export function horizonVerdict(engine: string): Verdict {
 export default function HorizonAxis({ data }: { data: CoherenceCalibration }) {
   const verdict = horizonVerdict(data.engine);
   const seconds = data.median_horizon_s;
+  // THE FLOOR THE SCORER APPLIED, drawn as its own tick. Since 2026-08-26 the
+  // tape engine's horizon is not the fixed hour: it is a floor (half an hour)
+  // or half the market's observed life, whichever is longer, and the wire says
+  // which was applied. The hour stays drawn — it is the reference the axis is
+  // sized by — and the floor sits beside it, so a reader can see that the
+  // median was read at or beyond the floor rather than take it on trust.
+  // Null is withheld, never drawn at zero: zero on this axis is settlement.
+  const floor = data.horizon_s;
   // GEOMETRY ONLY, and said because it reads exactly like the coercion this
   // codebase is most alert to. A null horizon is NOT drawn as zero seconds: the
   // mark is withheld entirely below and `missing` says the engine did not record
@@ -115,7 +123,8 @@ export default function HorizonAxis({ data }: { data: CoherenceCalibration }) {
       caption="When the median price was read, against the hour a forecast test needs"
       ariaLabel={
         `${verdict.word}. The median price was read ${seconds == null ? "at a time the engine did not record" : `${seconds}s`} `
-        + `before close, on an axis running from settlement to ${Math.round(span / 60)} minutes before it.`
+        + `before close, on an axis running from settlement to ${Math.round(span / 60)} minutes before it`
+        + (floor == null ? "." : `, with the scorer's floor marked at ${floor}s.`)
       }
       reading={verdict.reading}
       missing={
@@ -175,6 +184,17 @@ export default function HorizonAxis({ data }: { data: CoherenceCalibration }) {
                 <title>Settlement: the moment the answer is known.</title>
               </line>
               <text x={x(0)} y={AXIS_Y + 28} textAnchor="end" className="coh-combo__axis">0</text>
+
+              {floor == null || floor === HOUR_S ? null : (
+                <>
+                  <line x1={x(floor)} x2={x(floor)} y1={AXIS_Y - 10} y2={AXIS_Y + 10} className="coh-margin__line">
+                    <title>{`The floor the scorer applied: a tape price had to be quoted at least ${floor}s before close.`}</title>
+                  </line>
+                  <text x={x(floor)} y={AXIS_Y + 28} textAnchor="middle" className="coh-combo__axis">
+                    {`floor ${Math.round(floor / 60)}m`}
+                  </text>
+                </>
+              )}
 
               {seconds == null ? null : (
                 <>

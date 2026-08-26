@@ -211,6 +211,8 @@ export interface CoherenceCalibration {
   bias_slope: string | null;
   bias_by_series: CoherenceSeriesBias[];
   median_horizon_s: number | null;
+  /** The floor the scorer applied, in seconds before close; null when no floor was applied to nothing. */
+  horizon_s: number | null;
   thin: boolean;
   bins: CoherenceReliabilityBin[];
   isotonic_map: CoherenceMapPoint[];
@@ -364,6 +366,8 @@ export interface CoherenceCalibrationPoint {
   uncertainty: string | null;
   bias_slope: string | null;
   median_horizon_s: number | null;
+  /** The floor the scorer applied, in seconds before close; null when no floor was applied to nothing. */
+  horizon_s: number | null;
   thin: boolean;
   detail: string | null;
 }

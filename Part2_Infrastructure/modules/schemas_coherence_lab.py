@@ -212,6 +212,9 @@ class CoherenceCalibration(BaseModel):
     bias_slope: str | None = None
     bias_by_series: list[CoherenceSeriesBias] = Field(default_factory=list)
     median_horizon_s: int | None = None
+    #: The floor the scorer applied — a tape price had to be quoted at least
+    #: this long before close to count. Null on an unavailable report.
+    horizon_s: int | None = None
     thin: bool = True
     bins: list[CoherenceReliabilityBin] = Field(default_factory=list)
     isotonic_map: list[CoherenceMapPoint] = Field(default_factory=list)
@@ -240,6 +243,9 @@ class CoherenceCalibrationPoint(BaseModel):
     median_horizon_s: int | None = None
     thin: bool = False
     detail: str | None = None
+    #: The floor this run was scored under; null on rows written before the
+    #: column existed, never 0.
+    horizon_s: int | None = None
 
 
 class CoherenceCalibrationHistory(BaseModel):

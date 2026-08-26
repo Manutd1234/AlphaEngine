@@ -222,3 +222,36 @@ class TestTheCombosRoute:
         payload = client.get("/api/coherence/combos?limit=1").json()
         assert payload["state"] == "unavailable"
         assert "listing no open combo markets" in " ".join(payload["notes"])
+
+
+class TestTheCalibrationRoute:
+    """The route says which horizon it applied, and it is the corpus module's floor.
+
+    ``coherence_lab.py`` carried a second copy of the horizon as a bare
+    ``Query(default=3600)``; when the corpus module's constant moved, the route
+    would have kept scoring at the hour that emptied the crypto half of the
+    corpus. One constant, read from where it is defined.
+    """
+
+    def test_the_default_horizon_is_the_corpus_floor_and_it_is_on_the_wire(self, client, monkeypatch, tape):
+        from modules.coherence.fs import corpus
+
+        venue(monkeypatch)
+        payload = client.get("/api/coherence/calibration").json()
+        assert payload["horizon_s"] == corpus.MIN_HORIZON_S == 1800
+        assert "floor" in payload["detail"]
+
+    def test_a_requested_horizon_is_echoed_not_the_default(self, client, monkeypatch, tape):
+        venue(monkeypatch)
+        payload = client.get("/api/coherence/calibration?horizon_s=3600").json()
+        assert payload["horizon_s"] == 3600
+
+    def test_the_history_carries_the_field_on_every_point(self, client, monkeypatch, tape):
+        from modules.coherence.fs import calibration_store
+        from modules.coherence.kernel.calibration import score
+
+        calibration_store.record_calibration(tape, score([], engine="unavailable"), now_ns=10**12)
+        payload = client.get("/api/coherence/calibration/history").json()
+        assert payload["state"] == "ok"
+        assert "horizon_s" in payload["points"][0]
+        assert payload["points"][0]["horizon_s"] is None

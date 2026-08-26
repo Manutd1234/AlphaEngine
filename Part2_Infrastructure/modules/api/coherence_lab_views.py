@@ -194,10 +194,13 @@ def combos_view(observation: Any) -> CoherenceCombos:
     )
 
 
-def calibration_view(report: Any, detail: str) -> CoherenceCalibration:
+def calibration_view(report: Any, detail: str, horizon_s: int | None = None) -> CoherenceCalibration:
+    unavailable = report.engine == "unavailable"
     return CoherenceCalibration(
-        state="unavailable" if report.engine == "unavailable" else "available",
+        state="unavailable" if unavailable else "available",
         engine=report.engine,
+        # Null on an unavailable report: no floor was applied to nothing.
+        horizon_s=None if unavailable or horizon_s is None else int(horizon_s),
         count=report.count,
         base_rate=text(report.base_rate),
         brier=text(report.brier),

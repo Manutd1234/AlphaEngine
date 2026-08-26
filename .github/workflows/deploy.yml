@@ -252,7 +252,7 @@ jobs:
           command_timeout: 10m
           # Correction 5 — passed as environment variables, so none of these
           # appears in the VM's process list or shell history.
-          envs: IMAGE,REGISTRY,CONTAINER,VOLUME,PORT,GH_ACTOR,GH_TOKEN,WEB_API_TOKEN,SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,TELEGRAM_BOT_TOKEN,TELEGRAM_ALLOWED_USER_IDS,TELEGRAM_CONTROL_USER_IDS,TELEGRAM_ALERT_CHAT_IDS,TELEGRAM_LINK_SECRET,COHERENCE_SERIES,COHERENCE_POLL_S,COHERENCE_MAX_EVENTS
+          envs: IMAGE,REGISTRY,CONTAINER,VOLUME,PORT,GH_ACTOR,GH_TOKEN,WEB_API_TOKEN,SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,TELEGRAM_BOT_TOKEN,TELEGRAM_ALLOWED_USER_IDS,TELEGRAM_CONTROL_USER_IDS,TELEGRAM_ALERT_CHAT_IDS,TELEGRAM_LINK_SECRET,COHERENCE_SERIES,COHERENCE_POLL_S,COHERENCE_MAX_EVENTS,COHERENCE_CALIBRATION_EVERY_S
           script_stop: true
           script: |
             set -euo pipefail
@@ -397,6 +397,7 @@ jobs:
             put COHERENCE_SERIES "${COHERENCE_SERIES:-}"
             put COHERENCE_POLL_S "${COHERENCE_POLL_S:-}"
             put COHERENCE_MAX_EVENTS "${COHERENCE_MAX_EVENTS:-}"
+            put COHERENCE_CALIBRATION_EVERY_S "${COHERENCE_CALIBRATION_EVERY_S:-}"
             echo "    overlaying $(grep -cE '^[A-Za-z_][A-Za-z0-9_]*=' "$OVERLAY" || true) CI-supplied variable(s)"
 
             # Overlay first (so it wins), then any KEY= line from the preserved
@@ -543,6 +544,12 @@ jobs:
           COHERENCE_SERIES: ${{ vars.COHERENCE_SERIES || 'KXBTCD,KXHIGHNY' }}
           COHERENCE_POLL_S: ${{ vars.COHERENCE_POLL_S || '300' }}
           COHERENCE_MAX_EVENTS: ${{ vars.COHERENCE_MAX_EVENTS || '2' }}
+          # The scoring cadence. Off (0) is what the tape ran on for a week and
+          # what left the Scorecard with nothing to score: the settlements table
+          # filled only while a reader had the Settlement pane open. 900 is the
+          # local cadence; inline like its neighbours, for the reason at the top
+          # of this block.
+          COHERENCE_CALIBRATION_EVERY_S: ${{ vars.COHERENCE_CALIBRATION_EVERY_S || '900' }}
 
       # -----------------------------------------------------------------------
       # TLS termination (FEAT-077). README has claimed "Caddy — Automatic HTTPS"

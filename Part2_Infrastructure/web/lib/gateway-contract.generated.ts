@@ -144,6 +144,7 @@ export interface CoherenceCalibration {
   count?: number;
   detail?: string;
   engine: string;
+  horizon_s?: number | null;
   isotonic_map?: Array<CoherenceMapPoint>;
   median_horizon_s?: number | null;
   reliability?: string | null;
@@ -166,6 +167,7 @@ export interface CoherenceCalibrationPoint {
   brier?: string | null;
   detail?: string | null;
   engine: string;
+  horizon_s?: number | null;
   markets?: number;
   median_horizon_s?: number | null;
   skill?: string | null;

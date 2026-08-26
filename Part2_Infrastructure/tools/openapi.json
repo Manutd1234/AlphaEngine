@@ -890,6 +890,17 @@
             "title": "Engine",
             "type": "string"
           },
+          "horizon_s": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Horizon S"
+          },
           "isotonic_map": {
             "items": {
               "$ref": "#/components/schemas/CoherenceMapPoint"
@@ -1047,6 +1058,17 @@
           "engine": {
             "title": "Engine",
             "type": "string"
+          },
+          "horizon_s": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Horizon S"
           },
           "markets": {
             "default": 0,
@@ -10706,7 +10728,7 @@
     },
     "/api/coherence/calibration": {
       "get": {
-        "description": "Were the prices right? The Brier score and Murphy's decomposition.\n\nPrefers forecasts from the tape \u2014 a price quoted an hour before close,\nscored against what happened. Falls back to last traded prices only when\nthe tape is too short, and says so in the engine name, because a last trade\nhappens moments before settlement and scores convergence, not foresight.",
+        "description": "Were the prices right? The Brier score and Murphy's decomposition.\n\nPrefers forecasts from the tape \u2014 a price quoted well before close, scored\nagainst what happened. Falls back to last traded prices only when the tape\nis too short, and says so in the engine name, because a last trade happens\nmoments before settlement and scores convergence, not foresight.\n\nTHE DEFAULT HORIZON IS THE CORPUS MODULE'S FLOOR, read from where it is\ndefined. This route carried its own ``3600`` until 2026-08-26, a second copy\nof a constant that had already excluded the hourly series once; the floor\napplied travels on the wire as ``horizon_s`` so a reader can see it.",
         "operationId": "coherence_calibration_api_coherence_calibration_get",
         "parameters": [
           {
@@ -10714,7 +10736,7 @@
             "name": "horizon_s",
             "required": false,
             "schema": {
-              "default": 3600,
+              "default": 1800,
               "maximum": 604800,
               "minimum": 0,
               "title": "Horizon S",

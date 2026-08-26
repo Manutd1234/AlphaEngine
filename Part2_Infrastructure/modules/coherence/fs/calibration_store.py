@@ -54,17 +54,26 @@ CREATE TABLE IF NOT EXISTS calibration_scores (
     bias_slope       VARCHAR,
     median_horizon_s INTEGER,
     thin             BOOLEAN NOT NULL,
-    detail           VARCHAR
+    detail           VARCHAR,
+    horizon_s        INTEGER
 )
 """
+
+#: The live table predates ``horizon_s`` and has rows in it, and ``CREATE TABLE
+#: IF NOT EXISTS`` does nothing to an existing table. So every reader and writer
+#: runs this after the DDL: the column arrives on first touch after deploy,
+#: and every row written before it carries NULL — a horizon nobody applied is
+#: not a horizon of zero.
+_ADD_HORIZON = "ALTER TABLE calibration_scores ADD COLUMN IF NOT EXISTS horizon_s INTEGER"
 
 #: The columns ``calibration_history`` selects, in order. Named once so the
 #: SELECT and the dict it is zipped into cannot drift apart — the failure mode
 #: is a silent column shift, where every field is populated and half of them
-#: hold the neighbouring value.
+#: hold the neighbouring value. ``horizon_s`` is LAST because it was added last:
+#: the ALTER appends, and the zip is strict.
 COLUMNS = (
     "ts_ns", "engine", "markets", "brier", "skill", "base_rate",
-    "uncertainty", "bias_slope", "median_horizon_s", "thin", "detail",
+    "uncertainty", "bias_slope", "median_horizon_s", "thin", "detail", "horizon_s",
 )
 
 
@@ -73,23 +82,33 @@ def _text(value: Decimal | None) -> str | None:
     return None if value is None else str(value)
 
 
+def _prepare(conn: Any) -> None:
+    conn.execute(_SCORES_DDL)
+    conn.execute(_ADD_HORIZON)
+
+
 def ensure_table(store: CoherenceStore) -> None:
     with store.connection() as conn:
-        conn.execute(_SCORES_DDL)
+        _prepare(conn)
 
 
-def record_calibration(store: CoherenceStore, report: Report, now_ns: int) -> None:
+def record_calibration(store: CoherenceStore, report: Report, now_ns: int, horizon_s: int | None = None) -> None:
     """Append one scoring run, whether or not it produced a score.
 
     Append-only and never de-duplicated, unlike ``record_settlements``: two
     runs at different instants are two readings of a corpus that has grown
     between them, which is the whole point of the series. A run that refused is
     written with null figures and the report's own ``detail`` as the reason.
+
+    ``horizon_s`` is the floor the scorer applied to this run, so the recorded
+    series can be read against the snapshot the Scorecard shows. It is None
+    when the caller did not say — never a default, because a default here
+    would claim a horizon for rows scored under a different one.
     """
     with store.connection() as conn:
-        conn.execute(_SCORES_DDL)
+        _prepare(conn)
         conn.execute(
-            "INSERT INTO calibration_scores VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO calibration_scores VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 int(now_ns),
                 report.engine,
@@ -102,6 +121,7 @@ def record_calibration(store: CoherenceStore, report: Report, now_ns: int) -> No
                 report.median_horizon_s,
                 bool(report.thin),
                 report.detail or None,
+                None if horizon_s is None else int(horizon_s),
             ),
         )
 
@@ -114,7 +134,7 @@ def last_calibration_ns(store: CoherenceStore) -> int | None:
     that resets on restart and could disagree with the series it describes.
     """
     with store.connection() as conn:
-        conn.execute(_SCORES_DDL)
+        _prepare(conn)
         row = conn.execute("SELECT MAX(ts_ns) FROM calibration_scores").fetchone()
     return None if row is None or row[0] is None else int(row[0])
 
@@ -129,7 +149,7 @@ def calibration_history(
     and a broken one must not look alike, and only one of them is normal.
     """
     with store.connection() as conn:
-        conn.execute(_SCORES_DDL)
+        _prepare(conn)
         rows = conn.execute(
             f"SELECT {', '.join(COLUMNS)} FROM calibration_scores "  # noqa: S608 - a fixed tuple, never input
             "WHERE ts_ns >= ? ORDER BY ts_ns ASC LIMIT ?",

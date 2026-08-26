@@ -8,13 +8,14 @@ network call succeeding, and a harvest never blocks a pane.
 
 The engine chosen is the honest one available, not the best-looking one. Tape
 forecasts are preferred whenever the recorder has enough of them, because a
-price quoted an hour before close is a forecast. Final trades are used only when
+price quoted well before close is a forecast. Final trades are used only when
 the tape cannot answer, and they are labelled so in the report itself.
 """
 
 from __future__ import annotations
 
 import calendar
+import dataclasses
 import time
 from decimal import Decimal
 from typing import Sequence
@@ -151,21 +152,42 @@ async def harvest(
     }
 
 
+def _with_basis(report: calibration.Report, basis: str, verdict: str) -> calibration.Report:
+    """The report with its own detail prefixed by which side of the floor the tape was on.
+
+    ``Report`` is frozen, so this is a replace rather than an assignment. The
+    sentence is prepended, never appended: the kernel's detail describes the
+    corpus it scored, and a reader should meet "why this corpus" before "what
+    it scored".
+    """
+    return dataclasses.replace(report, detail="; ".join(part for part in (f"{basis}, {verdict}", report.detail) if part))
+
+
 def score(
     store: CoherenceStore,
-    horizon_s: int = corpus.DEFAULT_HORIZON_S,
+    horizon_s: int = corpus.MIN_HORIZON_S,
     fallback: list[corpus.Settlement] | None = None,
 ) -> calibration.Report:
-    """Score the corpus, preferring genuine forecasts over final trades."""
+    """Score the corpus, preferring genuine forecasts over final trades.
+
+    THE REPORT SAYS WHICH SIDE OF THE FLOOR THE TAPE WAS ON, and by how much.
+    The fallback to last trades used to fire silently at nineteen tape
+    forecasts, and on the live desk it fired for a week at ONE — because the
+    horizon predicate was discarding the whole crypto half of the corpus — and
+    nothing on the wire said "the tape had one forecast, the floor is twenty".
+    A collapse like that has to be legible in the detail, or the next
+    watchlist recreates it invisibly.
+    """
     corpus.ensure_table(store)
     tape = corpus.tape_forecasts(store, horizon_s=horizon_s)
+    basis = f"{len(tape)} tape forecast(s) at a horizon of at least {int(horizon_s)} s"
     if len(tape) >= MIN_TAPE_FORECASTS:
-        return calibration.score(tape, engine="tape")
+        return _with_basis(calibration.score(tape, engine="tape"), basis, "above the floor")
 
     final = corpus.final_trade_forecasts(fallback or [])
+    below = f"below the floor of {MIN_TAPE_FORECASTS}"
     if not final and not tape:
-        return calibration.score([], engine="unavailable")
+        return _with_basis(calibration.score([], engine="unavailable"), basis, f"{below} and no last trades to fall back on")
     if not final:
-        return calibration.score(tape, engine="tape")
-    report = calibration.score(final, engine="final_trade")
-    return report
+        return _with_basis(calibration.score(tape, engine="tape"), basis, f"{below}, scored anyway because no last trades were read")
+    return _with_basis(calibration.score(final, engine="final_trade"), basis, f"{below}, so last trades are scored instead")

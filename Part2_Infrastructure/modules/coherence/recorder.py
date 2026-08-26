@@ -30,7 +30,7 @@ from modules.backoff import Backoff
 from modules.coherence import tunables
 from modules.coherence.drivers.kalshi_rest import KalshiClient, KalshiUnavailable
 from modules.coherence.episodes import EpisodeTracker
-from modules.coherence.fs import calibration_store
+from modules.coherence.fs import calibration_store, corpus
 from modules.coherence.fs.store import BookRow, CoherenceStore, TapeUnavailable, get_store
 from modules.coherence.kernel.coherence_index import measure
 from modules.coherence.kernel.costs import FeeSchedule
@@ -189,6 +189,53 @@ async def _measure(observation: Observation, store: CoherenceStore, tracked: Rec
         tracked.episodes_closed += 1
 
 
+def _calibration_due(store: CoherenceStore, now_ns: int | None) -> int | None:
+    """The instant to score at when the cadence says so, else None.
+
+    One predicate for the harvest and the score, so the two can never disagree
+    about whether this iteration is a scoring one. Read off the tape rather
+    than held in memory: each recorded row IS a run, and a copy that reset on
+    restart could disagree with the series it describes.
+    """
+    every = tunables.CALIBRATION_EVERY_SECONDS
+    if every <= 0:
+        return None
+    stamp = time.time_ns() if now_ns is None else now_ns
+    last = calibration_store.last_calibration_ns(store)
+    if last is not None and stamp - last < every * 1_000_000_000:
+        return None
+    return stamp
+
+
+async def harvest_if_due(client: KalshiClient, store: CoherenceStore, now_ns: int | None = None) -> bool:
+    """Read settled markets when a score is due, so the score has something to score.
+
+    THE ONE EXCHANGE READ THE CADENCE MAKES, and it exists because for a week it
+    did not. ``calibrate.harvest`` had exactly one caller — the calibration
+    ROUTE — so the settlements table filled only while a reader had the
+    Settlement pane open. On the OCI gateway nobody does, and the recorded
+    score series was 98 runs against a corpus nobody had harvested.
+
+    A SIBLING of ``score_if_due``, not a change to it: that function's contract
+    is that it takes no client (pinned in its suite), and the two share one
+    predicate so they fire on the same iteration. Called BEFORE the score.
+
+    WHAT IT COSTS: one settled-markets page per watched series per cadence.
+    At the local cadence of 900 s and two series that is two reads per
+    quarter-hour against a bucket that refills at 50 tokens a second — a
+    rounding error beside the book poll, which is why this can afford to be
+    the honest thing rather than the cheap one.
+
+    Returns whether anything was read. Idempotent on the table: settlements
+    are de-duplicated on ticker by ``record_settlements``.
+    """
+    stamp = _calibration_due(store, now_ns)
+    if stamp is None:
+        return False
+    result = await calibrate.harvest(client, store, tunables.SERIES_WATCHLIST)
+    return bool(result.get("read"))
+
+
 def score_if_due(store: CoherenceStore, now_ns: int | None = None) -> bool:
     """Take one settled score when the cadence says it is due. Returns whether it wrote.
 
@@ -199,22 +246,23 @@ def score_if_due(store: CoherenceStore, now_ns: int | None = None) -> bool:
 
     IT COSTS NO EXCHANGE READ, and that is why it takes no client. `calibrate.score`
     is handed the store alone — no harvest — so it scores settlements the tape
-    already holds. A scoring pass that fetched would put a second, slower call
-    inside a loop whose whole budget is spent on books.
+    already holds. The read that fills the table moved next door, to
+    ``harvest_if_due``, on the same cadence: a scoring pass that fetched would
+    put a slow call inside a loop whose budget is spent on books, and a scoring
+    pass that never fetched scored an empty corpus for a week.
 
     A REFUSAL IS STILL A ROW. On a cold tape nothing has settled and the report
     comes back with null figures and a reason; writing it is what makes "the
     recorder was running and the corpus was not ready" distinguishable from a
-    gap in the record.
+    gap in the record. The row also carries the horizon floor it was scored
+    under, so the series can be read against the Scorecard's snapshot.
     """
-    every = tunables.CALIBRATION_EVERY_SECONDS
-    if every <= 0:
+    stamp = _calibration_due(store, now_ns)
+    if stamp is None:
         return False
-    stamp = time.time_ns() if now_ns is None else now_ns
-    last = calibration_store.last_calibration_ns(store)
-    if last is not None and stamp - last < every * 1_000_000_000:
-        return False
-    calibration_store.record_calibration(store, calibrate.score(store), now_ns=stamp)
+    calibration_store.record_calibration(
+        store, calibrate.score(store, horizon_s=corpus.MIN_HORIZON_S), now_ns=stamp, horizon_s=corpus.MIN_HORIZON_S,
+    )
     return True
 
 
@@ -264,9 +312,12 @@ async def recorder_loop() -> None:
                 backoff = Backoff(base_s=BACKOFF_BASE_S, ceiling_s=BACKOFF_CEILING_S)
                 logger.debug("coherence: wrote %d books", written)
                 # After the books, never instead of them: a scoring pass that
-                # raised would otherwise cost the poll its tape. Threaded for
-                # the reason every other DuckDB write here is — the event loop
-                # is not held by the disk.
+                # raised would otherwise cost the poll its tape. The harvest
+                # first, so the score has the settlements it is about; then
+                # the score, threaded for the reason every other DuckDB write
+                # here is — the event loop is not held by the disk.
+                if await harvest_if_due(client, store):
+                    logger.debug("coherence: harvested settled markets")
                 if await asyncio.to_thread(score_if_due, store):
                     logger.debug("coherence: recorded a settled score")
                 await asyncio.sleep(tunables.POLL_SECONDS)
