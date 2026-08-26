@@ -62,6 +62,56 @@ async def fetch_listing(client: KalshiClient) -> list[Combo]:
     return parse_combos(page.payload)
 
 
+def _choose(combos: list[Combo], limit: int, ticker: str | None, result: ComboObservation) -> list[Combo] | None:
+    """Which of the listed parlays this read will quote, and why.
+
+    Split out of `observe_combos` on 2026-08-26 when the named-read branch took
+    that function past the complexity ceiling. This is the one decision in it —
+    a named parlay, or the fewest-legged few — and the reasoning for the order
+    is here because the order IS the decision. Returns None when the read has
+    to stop, with the note already on `result`.
+    """
+    if ticker:
+        wanted_one = [combo for combo in combos if combo.ticker == ticker]
+        if not wanted_one:
+            result.notes.append(
+                f"{ticker} is not among the {len(combos)} combos the exchange is listing as open; "
+                "it may have settled, or it may be listed on a shard this read does not cover"
+            )
+            return None
+        return wanted_one
+
+    # MOST LEGS FIRST, and it is deliberately not "worst first". Which parlays a
+    # reader saw was the venue's listing order, and the table above them claimed
+    # "worst position first" — a claim nothing made true, and one that CANNOT be
+    # made true here: a band, a position and a violation are all computed from
+    # books this read has not fetched yet. Sorting on them would mean reading
+    # every one of the thousand.
+    #
+    # FEWEST LEGS FIRST, and the first attempt had this backwards. Leg count is
+    # the only ordering the listing supports, and I sorted DESCENDING on the
+    # reasoning that the band widens with n so a wider band is more room for a
+    # price to be wrong in. Measured, that returns 68-, 67- and 66-leg parlays —
+    # and a 68-leg band is max(0, Σpᵢ − 67) to min pᵢ, which is [0, min pᵢ] for
+    # any realistic prices. The widest band is the WEAKEST constraint: it
+    # excludes almost nothing, so almost nothing can violate it and the pane has
+    # nothing to report.
+    #
+    # A two- or three-leg parlay is where the band is tight enough for a quoted
+    # price to fall outside it, which is the only mispricing this pane can find.
+    # Those come first.
+    ordered = sorted(combos, key=lambda combo: len(combo.legs))
+    taken = ordered[: max(1, limit)]
+    if len(ordered) > len(taken):
+        result.notes.append(
+            f"{len(ordered)} combos are listed and {len(taken)} were read, fewest legs first — the "
+            "tightest bands, which are the only ones a price can fall outside: one "
+            "bulk book call covers a hundred tickers and each parlay needs one per leg plus its "
+            "own. Ask for a ticker to read a specific parlay."
+        )
+    return taken
+
+
 async def observe_combos(
     client: KalshiClient,
     limit: int = MAX_COMBOS_PER_READ,
@@ -111,44 +161,9 @@ async def observe_combos(
         result.notes.append("the exchange is listing no open combo markets right now")
         return result
 
-    if ticker:
-        wanted_one = [combo for combo in combos if combo.ticker == ticker]
-        if not wanted_one:
-            result.notes.append(
-                f"{ticker} is not among the {len(combos)} combos the exchange is listing as open; "
-                "it may have settled, or it may be listed on a shard this read does not cover"
-            )
-            return result
-        taken = wanted_one
-    else:
-        # MOST LEGS FIRST, and it is deliberately not "worst first". Which
-        # parlays a reader saw was the venue's listing order, and the table
-        # above them claimed "worst position first" — a claim nothing made true,
-        # and one that CANNOT be made true here: a band, a position and a
-        # violation are all computed from books this read has not fetched yet.
-        # Sorting on them would mean reading every one of the thousand.
-        #
-        # FEWEST LEGS FIRST, and the first attempt had this backwards. Leg count
-        # is the only ordering the listing supports, and I sorted DESCENDING on
-        # the reasoning that the band widens with n so a wider band is more room
-        # for a price to be wrong in. Measured, that returns 68-, 67- and
-        # 66-leg parlays — and a 68-leg band is max(0, Σpᵢ − 67) to min pᵢ,
-        # which is [0, min pᵢ] for any realistic prices. The widest band is the
-        # WEAKEST constraint: it excludes almost nothing, so almost nothing can
-        # violate it and the pane has nothing to report.
-        #
-        # A two- or three-leg parlay is where the band is tight enough for a
-        # quoted price to fall outside it, which is the only mispricing this
-        # pane can find. Those come first.
-        combos = sorted(combos, key=lambda combo: len(combo.legs))
-        taken = combos[: max(1, limit)]
-        if len(combos) > len(taken):
-            result.notes.append(
-                f"{len(combos)} combos are listed and {len(taken)} were read, fewest legs first — the "
-                "tightest bands, which are the only ones a price can fall outside: one "
-                "bulk book call covers a hundred tickers and each parlay needs one per leg plus its "
-                "own. Ask for a ticker to read a specific parlay."
-            )
+    taken = _choose(combos, limit, ticker, result)
+    if taken is None:
+        return result
     result.combos = taken
 
     wanted = [combo.ticker for combo in taken] + leg_tickers(taken)
