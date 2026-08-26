@@ -121,13 +121,31 @@ describe("every Prices section declares the views it actually draws", () => {
 describe("resolving the third segment", () => {
   it("accepts a view the section has", () => {
     assert.equal(railView("markets", "fees", "comparison"), "comparison");
-    assert.equal(railView("markets", "shell", "commands"), "commands");
+    assert.equal(railView("markets", "shell", "tree"), "tree");
   });
 
   it("falls back to the section's default when the view is unknown", () => {
     // A stale or mistyped link must land on the section, never on nothing.
     assert.equal(railView("markets", "fees", "nonsense"), defaultView("markets", "fees"));
     assert.equal(railView("markets", "fees", ""), defaultView("markets", "fees"));
+  });
+
+  it("lands a RETIRED view on the section that absorbed it", () => {
+    // Shell went from four views to two on 2026-08-26: `reading` merged into
+    // Browse (selecting a file was already switching the view under the reader)
+    // and `commands` onto Map (both read nothing, and between them they answer
+    // what the filesystem IS rather than what is in it).
+    //
+    // Both ids were minted as addresses hours earlier, so both may be in
+    // somebody's link. Neither needs a relocation entry: falling back to the
+    // section's own default is the right answer HERE precisely because the
+    // absorbing view IS the default. That is a coincidence worth asserting
+    // rather than relying on — if Map ever stops being first in the table,
+    // these two links start landing somewhere that never held them.
+    assert.equal(railView("markets", "shell", "commands"), "layout");
+    assert.equal(railView("markets", "shell", "reading"), "layout");
+    assert.equal(defaultView("markets", "shell"), "layout",
+      "Map is no longer the default, so the two retired Shell views now land on a view that never absorbed them");
   });
 
   it("falls back when the segment is absent, which is every link written so far", () => {

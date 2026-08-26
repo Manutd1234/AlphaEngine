@@ -113,6 +113,10 @@ const FILES = [
   // one, and the shard boundary's note over a listing — so it joins the scan in
   // the same change. A file that renders copy and is not on this list is a
   // claim guarded by nothing, which is the failure this suite exists to stop.
+  // Split out of `ShellPane` on 2026-08-26, when merging Read into Browse took
+  // it past the ceiling. It carries the `cat` reading, so it carries the claim
+  // about a file whose reading a read could not produce.
+  "../components/coherence/ShellFileReading.tsx",
   "../components/coherence/ShellListing.tsx",
   "../components/coherence/ShellTree.tsx",
   "../components/coherence/ShellCommandReference.tsx",

@@ -76,7 +76,13 @@ const MARKETS_VIEWS = {
   lattice: [["survival", "Survival"], ["mass", "Mass"], ["moments", "Moments"]],
   stake: [["plan", "Plan"], ["capital", "Capital"], ["method", "Method"], ["family", "All outcomes"]],
   fees: [["example", "Worked example"], ["shape", "Cost shape"], ["comparison", "Ablation"], ["table", "Replay table"]],
-  shell: [["layout", "Map"], ["tree", "Browse"], ["reading", "Read"], ["commands", "Commands"]],
+  // TWO SINCE 2026-08-26. `reading` merged into `tree` (selecting a file was
+  // already switching the view for the reader) and `commands` onto `layout`
+  // (both read nothing and answer what the filesystem IS). Neither id is
+  // reachable now, and neither needs an entry anywhere: `railView` falls back
+  // to the section's default for a view it does not have, so `#markets/shell/
+  // commands` opens Map — the section that absorbed it — rather than nothing.
+  shell: [["layout", "Map"], ["tree", "Browse"]],
 } as const satisfies Record<string, readonly SectionViewDef[]>;
 
 /**

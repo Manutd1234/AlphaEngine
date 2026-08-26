@@ -77,10 +77,29 @@ import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import { useLiveSeries } from "@/lib/coherence/use-live-series";
 import LiveTape from "./LiveTape";
 import ShellListing, { READ_OK } from "./ShellListing";
+import FileReading from "./ShellFileReading";
 import ShellReadings from "./ShellReadings";
 import ShellTree from "./ShellTree";
 
-type ShellView = "tree" | "reading" | "commands" | "layout";
+/**
+ * TWO SINCE 2026-08-26, DOWN FROM FOUR, and both of the merges are the same
+ * observation: a view is a QUESTION, and two of the four were answers to a
+ * question another view had already asked.
+ *
+ * `reading` was not a view of its own. Selecting a file in Browse already ran
+ * `onView(entry.kind === "dir" ? "tree" : "reading")` — one gesture crossing a
+ * view boundary — so a reader walking the tree was switched between two rail
+ * entries by clicking, and the switcher underneath them moved on its own. It is
+ * one view with two shapes now, and which shape is `mode`, because whether you
+ * are looking at a listing or a file is a property of the PATH you opened, not
+ * of the question you asked.
+ *
+ * `commands` folded onto Map. It reads nothing and Map reads nothing, and the
+ * two answer one question between them: what this filesystem IS, as opposed to
+ * what is in it right now. Nothing was dropped to do it — `CommandReference`
+ * already led with a drawing and folded its own table, so it moved whole.
+ */
+type ShellView = "tree" | "layout";
 
 /**
  * The switcher's options, in the order they are pressed.
@@ -111,84 +130,29 @@ type ShellView = "tree" | "reading" | "commands" | "layout";
 const VIEWS: ReadonlyArray<[ShellView, string]> = [
   ["layout", "Map"],
   ["tree", "Browse"],
-  ["reading", "Read"],
-  ["commands", "Commands"],
 ];
-
-function FileReading({ data, requested, loading }: {
-  data: CoherenceShell;
-  requested: string;
-  /** True only while a `cat` is actually in flight. */
-  loading: boolean;
-}) {
-  return (
-    <>
-      {data.command !== "cat" ? (
-        // FOUR ABSENCES HERE, NOT ONE, and the fourth was rendering as the
-        // first. `cat` on a directory is answered with a LISTING, so this view
-        // sat on "Reading /…" for ever at the root — a settled refusal wearing
-        // a pending state's clothes. Measured: `markets/shell` → Reading was
-        // the only view on either tab that never stopped loading.
-        loading ? (
-          <p className="console-empty muted">Reading {requested}…</p>
-        ) : (
-          <>
-            <p className="console-empty">
-              <span aria-hidden="true">○</span> {requested} is a directory, and{" "}
-              <code>cat</code> answers for a file — the venue returned its listing instead. Open a reading from
-              Browse, or use the Map to see where they hang.
-            </p>
-            {/* THE DRAWING A READER STANDING ON A DIRECTORY ACTUALLY NEEDS, added
-                2026-08-25. This branch was one sentence, and it is the branch a
-                reader lands on every time they press Read without having opened
-                a file — including on arrival, where the path is `/`. The
-                question it leaves them with is "so what CAN I read", and that is
-                exactly what this figure answers: the five readings, grouped by
-                whether an empty one is worth asking again. Same component the
-                Commands view leads with, so the two views agree by construction
-                rather than by being kept in step. */}
-            <ShellReadings />
-          </>
-        )
-      ) : data.state === "ok" && data.body ? (
-        <pre className="coh-shell__body">{data.body}</pre>
-      ) : data.state === "missing" ? (
-        // The venue's own reason when it has one, and it usually does: asking to
-        // read `/` answers "a readable file lives at /shards/<n>/<series>/
-        // <event>/<name>", which tells a reader where to go. The generic line
-        // below it said "no file of that name here" about a path that is not a
-        // file name at all, and threw away the more useful sentence the gateway
-        // had already sent.
-        <p className="console-empty">
-          <span aria-hidden="true">○</span>{" "}
-          {data.detail
-            ? `${requested} has no reading: ${data.detail}.`
-            : "No file of that name here: another read returns the same answer."}
-        </p>
-      ) : (
-        <p className="console-empty">
-          <span aria-hidden="true">◌</span> The file is listed and this read produced no body: the path exists, the
-          reading does not, in this read.
-        </p>
-      )}
-    </>
-  );
-}
 
 export default function ShellPane(
   { active, view, onView }: { active: boolean; view: ShellView; onView: (next: ShellView) => void },
 ) {
   const [path, setPath] = useState("/");
+  /**
+   * Whether the open path is being LISTED or READ.
+   *
+   * This was the difference between two rail views until 2026-08-26, which made
+   * clicking a file move the switcher. It is a property of what was opened.
+   */
+  const [mode, setMode] = useState<"ls" | "cat">("ls");
   // One read serves the two views that need one. They are the same URL under a
   // different command, so the view IS the command: `ls` draws the tree, `cat`
   // the reading — and Layout, which is the same at every path, asks for neither.
-  const command: "ls" | "cat" = view === "reading" ? "cat" : "ls";
+  const command: "ls" | "cat" = mode;
   const url = shellRoute(path, command);
   // Only the two views that answer FROM a read poll: Layout is the same at
   // every path and Commands is reference material, so neither asks.
   const { data, error, loading, updatedAt } = useCoherenceRead<CoherenceShell>(
     url,
-    active && (view === "tree" || view === "reading"),
+    active && view === "tree",
   );
 
   /* How many entries sit under the path being walked, poll by poll.
@@ -204,12 +168,14 @@ export default function ShellPane(
 
   const navigate = (next: string) => {
     setPath(next);
+    setMode("ls");
     onView("tree");
   };
 
   const open = (entry: CoherenceShellEntry) => {
     setPath(pathOf([...segmentsOf(data?.path ?? path), entry.name]));
-    onView(entry.kind === "dir" ? "tree" : "reading");
+    setMode(entry.kind === "dir" ? "ls" : "cat");
+    onView("tree");
   };
 
   /**
@@ -266,8 +232,15 @@ export default function ShellPane(
     </SectionFrame>
   );
 
-  if (view === "layout") return framed("every path at once", <ShellTree />);
-  if (view === "commands") return framed("every command it answers", <CommandReference />);
+  if (view === "layout") {
+    return framed(
+      "every path at once, and every command it answers",
+      <>
+        <ShellTree />
+        <CommandReference />
+      </>,
+    );
+  }
 
   const crumbs = (
     <Breadcrumb path={data?.path ?? path} command={data?.command ?? command} onNavigate={navigate} />
@@ -330,7 +303,7 @@ export default function ShellPane(
 
       {data.detail && !repeatsFooter ? <p className="coh-shell__detail-line">{data.detail}.</p> : null}
 
-      {view === "reading" ? (
+      {mode === "cat" ? (
         <FileReading data={data} requested={path} loading={loading} />
       ) : data.command !== "ls" ? (
         <p className="console-empty muted">Listing {path}…</p>
@@ -356,7 +329,7 @@ export default function ShellPane(
       {/* Only where a listing is what is on screen. Reading a FILE, the entry
           count belongs to the directory the reader left, and drawing it under
           the file would be a number about somewhere else. */}
-      {view === "tree" ? (
+      {mode === "ls" ? (
         <LiveTape
           points={entriesTape}
           caption={`What has been under ${data.path}, poll by poll`}
