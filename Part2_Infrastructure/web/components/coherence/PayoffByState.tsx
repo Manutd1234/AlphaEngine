@@ -45,89 +45,43 @@
  * whole component exists to keep those apart — so it stays, at four words.
  */
 
-import { DOLLAR_CC, fromCenticents, toCenticents } from "@/lib/coherence/fixed-point";
+import { toCenticents } from "@/lib/coherence/fixed-point";
+import { legPayoffsInState, MICRO_PER_CC, money, payoffsByState, toMicros, type PayoffState } from "@/lib/coherence/payoff-by-state";
 import type { CoherenceCertificate } from "@/lib/coherence/types";
 import Figure, { FigureEmpty, Plot } from "./Figure";
+
+export type { PayoffState } from "@/lib/coherence/payoff-by-state";
 
 const HEIGHT = 190;
 /** The gutter for the two reference lines' figures, where no bar reaches.
  *  Sized for "$0 break even": 13 chars x 13px note rung x 0.56 = 95px + 6. */
 const MARGIN = { top: 36, right: 104, bottom: 36, left: 8 };
 const MAX_BAR = 54;
-/** Micro-dollars per centicent. Every amount below is integer micro-dollars. */
-const MICRO_PER_CC = 100;
 const CAPTION = "What the portfolio pays in each state this family can settle into, gross and after fees";
 
-/** One settlement state: the market that resolves YES in it. */
-export interface PayoffState {
-  ticker: string;
-  label: string;
-}
-
-interface Column {
-  label: string;
-  /** Gross payoff in micro-dollars, before fees. Null when a leg is unreadable. */
-  gross: number | null;
-}
-
-/**
- * A dollar string to integer micro-dollars ($0.000001).
- *
- * `toCenticents` is the right parser for a price and the wrong one for a fee.
- * The rounding component floors a notional to the account's balance precision,
- * so `total_fees` arrives at SIX decimals, and a centicent parser rejects that
- * as "not a price from a book". Rejecting the fee would leave the gross bar
- * with nothing taken off it — the one direction that invents an edge.
- */
-function toMicros(raw: string | null | undefined): number | null {
-  if (raw == null) return null;
-  const match = /^(-?)(\d*)(?:\.(\d{0,6}))?$/.exec(raw.trim());
-  if (!match) return null;
-  const [, sign, whole, fraction = ""] = match;
-  if (!whole && !fraction) return null;
-  const micros = Number(whole || "0") * 1_000_000 + Number(`${fraction}000000`.slice(0, 6));
-  return sign === "-" ? -micros : micros;
-}
-
-/** A computed amount at the exchange's canonical four decimals. */
-function money(micros: number | null): string {
-  if (micros == null) return "—";
-  return fromCenticents(Math.round(micros / MICRO_PER_CC)) ?? "—";
-}
-
-/**
- * The portfolio's gross payoff in each state, rebuilt the way the kernel does.
- *
- * ``kernel/dutchbook.py::_worst_case_gross``, in the browser: a bought leg
- * contributes ``(payoff - price) * size`` and a sold leg the mirror of it, at
- * RAW prices, before any fee. Held in micro-dollars because a price is exact to
- * a centicent and a size to a hundredth of a contract, and their product is
- * exact to neither on its own.
- */
-function payoffsByState(certificate: CoherenceCertificate, states: PayoffState[]) {
-  const unreadable: string[] = [];
-  const priced = certificate.legs.map((leg) => {
-    const price = toCenticents(leg.price);
-    const size = toCenticents(leg.size);
-    if (price == null || size == null) {
-      unreadable.push(leg.label || leg.ticker);
-      return null;
-    }
-    return { ticker: leg.ticker, price, size, selling: leg.direction === "sell" };
-  });
-
-  const columns: Column[] = states.map((state) => {
-    let total = 0;
-    for (const leg of priced) {
-      if (leg == null) return { label: state.label, gross: null };
-      const payoff = leg.ticker === state.ticker ? DOLLAR_CC : 0;
-      const per = leg.selling ? leg.price - payoff : payoff - leg.price;
-      total += (per * leg.size) / MICRO_PER_CC;
-    }
-    return { label: state.label, gross: total };
-  });
-
-  return { columns, unreadable };
+/** The rows the crosshair reads at one state: each leg, the total, the fees, the net, the word. */
+function readState(
+  certificate: CoherenceCertificate,
+  states: PayoffState[],
+  column: { label: string; gross: number | null },
+  index: number,
+  fees: number | null,
+) {
+  const legs = legPayoffsInState(certificate, states[index]);
+  const perLeg = legs.length <= 6
+    ? legs.map((leg) => ({ label: leg.label, value: money(leg.micros), raw: leg.micros }))
+    : [{ label: "Legs", value: `${legs.length}, ${legs.filter((leg) => leg.micros == null).length} unreadable` }];
+  const net = column.gross == null || fees == null ? null : column.gross - fees;
+  return {
+    title: `State ${index + 1} of ${states.length}: ${column.label}`,
+    rows: [
+      ...perLeg,
+      { label: "Gross", value: column.gross == null ? "— not measurable: a leg could not be read" : money(column.gross), raw: column.gross },
+      { label: "Fees", value: certificate.total_fees ?? "not readable" },
+      { label: "Net", value: money(net), raw: net },
+      { label: "Basket", value: column.gross == null ? "—" : column.gross > 0 ? "pays" : column.gross < 0 ? "loses" : "breaks even" },
+    ],
+  };
 }
 
 export default function PayoffByState({
@@ -249,6 +203,14 @@ export default function PayoffByState({
   if (worst != null) legend.push({ mark: "rule", text: "worst case" });
   if (unreadable.length) legend.push({ mark: null, text: "— not measurable" });
 
+  // ONE GEOMETRY for the columns and the crosshair: states in the exchange's
+  // order, one slot each, so the rule sits on the column it names.
+  const layout = (width: number) => {
+    const inner = Math.max(1, width - MARGIN.left - MARGIN.right);
+    const slot = inner / columns.length;
+    return { inner, slot, cx: (index: number) => MARGIN.left + slot * (index + 0.5) };
+  };
+
   return (
     <Figure
       caption={CAPTION}
@@ -256,10 +218,23 @@ export default function PayoffByState({
       reading={reading}
       missing={missing}
     >
-      <Plot height={HEIGHT}>
+      <Plot
+        height={HEIGHT}
+        sharedX={(width) => {
+          const { cx } = layout(width);
+          return {
+            count: columns.length,
+            x0: cx(0),
+            x1: cx(columns.length - 1),
+            read: (index) => readState(certificate, states, columns[index], index, fees),
+            width: 300,
+            arriveAt: "first",
+            link: "basket-states",
+          };
+        }}
+      >
         {(width) => {
-          const inner = Math.max(1, width - MARGIN.left - MARGIN.right);
-          const slot = inner / columns.length;
+          const { slot, cx } = layout(width);
           const bar = Math.min(MAX_BAR, slot * 0.62);
           const zeroY = y(0);
           const labelY = HEIGHT - 12;
@@ -311,24 +286,24 @@ export default function PayoffByState({
               })}
 
               {columns.map((column, index) => {
-                const cx = MARGIN.left + slot * (index + 0.5);
+                const centre = cx(index);
                 // A leg sits in the cost of EVERY state, so one unreadable leg
                 // normally takes the whole figure to the empty state above.
                 // This branch is what draws the difference the moment a state
-                // exists whose payoff alone could not be read.
+                // exists whose payoff alone could not be read. Its facts are
+                // in the crosshair's rows, not a title.
                 if (column.gross == null) {
                   return (
                     <g key={`${index}-${column.label}`}>
-                      <title>{`${column.label}: not measurable — a leg could not be read`}</title>
                       <text
-                        x={cx}
+                        x={centre}
                         y={(plotTop + plotBottom) / 2}
                         textAnchor="middle"
                         className="coh-ablation__value"
                       >
                         —
                       </text>
-                      <text x={cx} y={labelY} textAnchor="middle" className="coh-ablation__label">
+                      <text x={centre} y={labelY} textAnchor="middle" className="coh-ablation__label">
                         {short(column.label)}
                       </text>
                     </g>
@@ -340,11 +315,8 @@ export default function PayoffByState({
                 const topY = Math.min(grossY, netY, zeroY);
                 return (
                   <g key={`${index}-${column.label}`}>
-                    <title>
-                      {`${column.label}: gross ${money(column.gross)}, fees ${certificate.total_fees ?? "not readable"}, net ${money(fees == null ? null : net)}`}
-                    </title>
                     <rect
-                      x={cx - bar / 2}
+                      x={centre - bar / 2}
                       y={Math.min(grossY, zeroY)}
                       width={bar}
                       height={Math.max(0.6, Math.abs(zeroY - grossY))}
@@ -352,7 +324,7 @@ export default function PayoffByState({
                     />
                     {fees == null ? null : (
                       <rect
-                        x={cx - bar / 2}
+                        x={centre - bar / 2}
                         y={Math.min(grossY, netY)}
                         width={bar}
                         height={Math.max(0.6, Math.abs(netY - grossY))}
@@ -361,7 +333,7 @@ export default function PayoffByState({
                     )}
                     {roomForFigures ? (
                       <text
-                        x={cx}
+                        x={centre}
                         y={Math.max(MARGIN.top - 8, topY - 5)}
                         textAnchor="middle"
                         className="coh-ablation__value"
@@ -369,7 +341,7 @@ export default function PayoffByState({
                         {money(fees == null ? column.gross : net)}
                       </text>
                     ) : null}
-                    <text x={cx} y={labelY} textAnchor="middle" className="coh-ablation__label">
+                    <text x={centre} y={labelY} textAnchor="middle" className="coh-ablation__label">
                       {short(column.label)}
                     </text>
                   </g>

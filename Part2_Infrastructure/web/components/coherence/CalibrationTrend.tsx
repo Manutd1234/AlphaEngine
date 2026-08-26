@@ -28,6 +28,8 @@
  * instant and this figure has to prevent across a series.
  */
 
+import { decimalLabel } from "@/lib/coherence/decimals";
+import { LinkedX } from "@/lib/coherence/linked-x";
 import type { CoherenceCalibrationHistory } from "@/lib/coherence/types-lab";
 import { calibrationHistoryRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
@@ -65,6 +67,8 @@ export default function CalibrationTrend({ active }: { active: boolean }) {
   const points = data.points.map((point) => ({
     ts: point.ts_ns,
     skill: point.skill == null ? null : Number(point.skill),
+    /** The wire's own string, printed from rather than through the float. */
+    skillRaw: point.skill,
     engine: point.engine,
     markets: point.markets,
     detail: point.detail,
@@ -131,8 +135,25 @@ export default function CalibrationTrend({ active }: { active: boolean }) {
 
   const base = HEIGHT - MARGIN.bottom;
   const y = (value: number) => base - ((value - low) / (high - low)) * (base - MARGIN.top);
+  // THE ONE GEOMETRY: the segments and the crosshair both position through
+  // it, so the rule lands on the run it names. Runs sit at their own stamps,
+  // so the axis hands the readout its positions rather than assuming even
+  // spacing.
   const xAt = (width: number) => (ts: number) =>
     MARGIN.left + ((ts - first) / span) * Math.max(1, width - MARGIN.left - MARGIN.right);
+  const readAt = (index: number) => {
+    const point = points[index];
+    return {
+      title: `Run ${index + 1} of ${points.length}, ${clock(point.ts / NS_PER_MS)} UTC`,
+      rows: [
+        point.skill == null
+          ? { label: "Skill", value: `— declined${point.detail ? `: ${point.detail}` : ""}` }
+          : { label: "Skill", value: decimalLabel(point.skillRaw, 4), raw: point.skill },
+        { label: "Engine", value: point.engine },
+        { label: "Markets", value: String(point.markets) },
+      ],
+    };
+  };
 
   // Broken at gaps, never bridged. Each unbroken run is its own path with its
   // own hover line, which is the idiom `IndexPane` uses for the same reason.
@@ -162,6 +183,10 @@ export default function CalibrationTrend({ active }: { active: boolean }) {
     <>
       {chips}
 
+      {/* ONE CROSSHAIR OVER BOTH: the skill line and the record of every
+          measure under it are drawn from the same runs, so a pointer on
+          either draws the run on both. */}
+      <LinkedX>
       <Figure
         caption="Brier skill on the settled corpus, as it was recorded"
         ariaLabel={`${scored.length} recorded skills between ${clock(first / NS_PER_MS)} and ${clock(last / NS_PER_MS)} UTC`}
@@ -181,12 +206,28 @@ export default function CalibrationTrend({ active }: { active: boolean }) {
             : "",
         ].filter(Boolean)}
       >
-        <Plot height={HEIGHT}>
+        <Plot
+          height={HEIGHT}
+          sharedX={(width) => {
+            const x = xAt(width);
+            return {
+              count: points.length,
+              x0: MARGIN.left,
+              x1: width - MARGIN.right,
+              positions: points.map((point) => x(point.ts)),
+              read: readAt,
+              width: 300,
+              arriveAt: "last",
+              link: "calibration-runs",
+            };
+          }}
+        >
           {(width: number) => (
             <>
-            <line x1={MARGIN.left} x2={width - MARGIN.right} y1={y(0)} y2={y(0)} className="coh-gauge__zero">
-              <title>Zero skill: no better than always quoting the base rate.</title>
-            </line>
+            {/* No title on the zero rule: the in-plot words beside it say what
+                it is, and a title beside a shared axis would make the figure
+                two instruments. */}
+            <line x1={MARGIN.left} x2={width - MARGIN.right} y1={y(0)} y2={y(0)} className="coh-gauge__zero" />
             {segmentsAt(width).map((segment) => (
               // KEYED ON THE RUN'S START, not on its path data. The key is what
               // decides whether React reuses the node, and `.chart-draw` runs
@@ -205,11 +246,7 @@ export default function CalibrationTrend({ active }: { active: boolean }) {
                 fill="none"
                 pathLength={1}
                 className="coh-index__line chart-draw"
-              >
-                <title>
-                  {`${segment.count} unbroken run(s), ${clock(segment.from / NS_PER_MS)} to ${clock(segment.to / NS_PER_MS)} UTC`}
-                </title>
-              </path>
+              />
             ))}
             <text x={MARGIN.left} y={y(0) - 3} className="coh-svg-note">no better than the base rate</text>
             <text x={MARGIN.left} y={HEIGHT - 6} className="coh-ladder__tick">{clock(first / NS_PER_MS)} UTC</text>
@@ -227,6 +264,7 @@ export default function CalibrationTrend({ active }: { active: boolean }) {
           panel's readout rather than its lanes, so the comparison is available
           and the claim is still made once. */}
       <CorpusHistory data={data} skillDrawnAbove />
+      </LinkedX>
     </>
   );
 }

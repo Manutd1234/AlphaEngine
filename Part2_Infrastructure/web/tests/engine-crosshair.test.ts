@@ -47,7 +47,7 @@ interface Row {
 const SHARED_X: Row[] = [
   // The four that had the crosshair before this file — evenly spaced by
   // construction (runs, polls, strikes and tiers as ordinals).
-  { file: "CorpusHistory.tsx", geometry: "geometry(width", byValue: false, arriveAt: "last" },
+  { file: "CorpusHistory.tsx", geometry: "geometry(width", byValue: false, arriveAt: "last", link: "calibration-runs" },
   { file: "FamilyRidge.tsx", geometry: "advancePx(lane.ticker", byValue: false, arriveAt: "last" },
   { file: "ConstraintLadder.tsx", geometry: "x0", byValue: false, arriveAt: "first" },
   { file: "SurvivalChart.tsx", geometry: "x(", byValue: false, arriveAt: "first" },
@@ -55,6 +55,12 @@ const SHARED_X: Row[] = [
   { file: "IndexSeriesChart.tsx", geometry: "x(", byValue: true, arriveAt: "last", link: "index-polls" },
   // Shared with the settled trend, which links it to nothing: the key is the caller's.
   { file: "MeasurabilityStrip.tsx", geometry: "x(", byValue: true, arriveAt: "last", link: "prop" },
+  // The settled trend: runs at their own stamps, linked to the record of every measure.
+  { file: "CalibrationTrend.tsx", geometry: "xAt(", byValue: true, arriveAt: "last", link: "calibration-runs" },
+  // The basket pair: states in the exchange's order, one slot each — even by construction.
+  { file: "PayoffByState.tsx", geometry: "cx(", byValue: false, arriveAt: "first", link: "basket-states" },
+  // Drawn alone on the no-basket branch too, so the key is the caller's.
+  { file: "StateCoverage.tsx", geometry: "cx(", byValue: false, arriveAt: "first", link: "prop" },
 ];
 
 describe("every crosshair figure on the engine", () => {
@@ -105,7 +111,7 @@ describe("every crosshair figure on the engine", () => {
   }
 
   it("counts the rows it has", () => {
-    // Six on Proofs now; the Markets session appends theirs.
-    assert.equal(SHARED_X.length, 6);
+    // Nine on Proofs now; the Markets session appends theirs.
+    assert.equal(SHARED_X.length, 9);
   });
 });

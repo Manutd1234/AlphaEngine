@@ -206,6 +206,27 @@ const LINKED: Pair[] = [
     ],
     derivation: /const stamps = stampsOf\(data\.points\);[\s\S]*?marks=\{marksAtStamps\(data\.points, stamps\)\}/,
   },
+  {
+    // The settled record: the skill line maps `data.points` one to one and
+    // hands the same `data` to the panel, whose `points` IS `data.points`.
+    key: "calibration-runs",
+    holder: "CalibrationTrend.tsx",
+    members: [
+      { file: "CalibrationTrend.tsx", count: "points.length", link: "literal" },
+      { file: "CorpusHistory.tsx", count: "points.length", link: "literal" },
+    ],
+    derivation: /const points = data\.points\.map\([\s\S]*?<LinkedX>[\s\S]*?<CorpusHistory data=\{data\} skillDrawnAbove \/>/,
+  },
+  {
+    // The basket: both figures map the same `states` array to their columns.
+    key: "basket-states",
+    holder: "PortfolioPane.tsx",
+    members: [
+      { file: "PayoffByState.tsx", count: "columns.length", link: "literal" },
+      { file: "StateCoverage.tsx", count: "columns.length", link: "prop" },
+    ],
+    derivation: /const states: CoverageState\[\] = [\s\S]*?<LinkedX>[\s\S]*?<PayoffByState certificate=\{certificate\} states=\{states\} \/>[\s\S]*?<StateCoverage certificate=\{certificate\} states=\{states\} exact=\{exact\} link="basket-states" \/>/,
+  },
 ];
 
 const escape = (literal: string) => literal.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -216,7 +237,9 @@ describe("every linked pair shares one index space", () => {
       const holder = read(`../components/coherence/${pair.holder}`);
       assert.match(holder, /<LinkedX>/, `${pair.holder} does not wrap the pair in a provider`);
       assert.match(holder, pair.derivation, `${pair.holder} no longer derives the pair's index space once`);
-      assert.match(holder, new RegExp(`link="${pair.key}"`), `${pair.holder} passes no key to its shared member`);
+      if (pair.members.some((m) => m.link === "prop")) {
+        assert.match(holder, new RegExp(`link="${pair.key}"`), `${pair.holder} passes no key to its shared member`);
+      }
       for (const member of pair.members) {
         const source = read(`../components/coherence/${member.file}`);
         const block = source.slice(source.indexOf("sharedX={"), source.indexOf("sharedX={") + 1200);
@@ -227,7 +250,7 @@ describe("every linked pair shares one index space", () => {
     });
   }
   it("declares the pairs it has, and only those", () => {
-    assert.equal(LINKED.length, 1);
+    assert.equal(LINKED.length, 3);
   });
 });
 

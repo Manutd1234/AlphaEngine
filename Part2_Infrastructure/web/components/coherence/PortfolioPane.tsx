@@ -40,6 +40,7 @@
 
 import type { CoherenceCertificate, CoherenceEventView } from "@/lib/coherence/types";
 import ShortfallScale from "./ShortfallScale";
+import { LinkedX } from "@/lib/coherence/linked-x";
 import PayoffByState from "./PayoffByState";
 import { statValue } from "@/lib/coherence/decimals";
 import StateCoverage, { type CoverageState } from "./StateCoverage";
@@ -194,6 +195,10 @@ export default function PortfolioPane({ certificate, chosen }: {
           strikes, and a state space guessed wrong draws a different world
           confidently. Without one the figure says which claim is therefore not
           drawn, and the leg table below still carries the portfolio. */}
+      {/* ONE CROSSHAIR OVER BOTH: the payoff columns and the coverage blocks
+          are the same states in the same order, so a pointer on either draws
+          the state on both. */}
+      <LinkedX>
       {exact ? (
         <PayoffByState certificate={certificate} states={states} />
       ) : (
@@ -208,7 +213,8 @@ export default function PortfolioPane({ certificate, chosen }: {
           prices and sizes and is absent whenever any of the three cannot be
           read, and this one needs only the tickers — so it still draws on
           exactly the reads where the figure above cannot. */}
-      <StateCoverage certificate={certificate} states={states} exact={exact} />
+      <StateCoverage certificate={certificate} states={states} exact={exact} link="basket-states" />
+      </LinkedX>
 
       <details className="disclosure">
         <summary>Every leg through all three fee components, and what the basket comes to</summary>

@@ -105,12 +105,15 @@ export default function StateCoverage({
   certificate,
   states,
   exact,
+  link,
 }: {
   certificate: CoherenceCertificate;
   /** The family's settlement states, in the exchange's own order. */
   states: CoverageState[];
   /** True only where one market is one state, so a ticker match IS a covering. */
   exact: boolean;
+  /** The pair this strip follows, when the payoff figure above it draws the same states. */
+  link?: string;
 }) {
   const columns = states.map((state) => {
     const legs = certificate.legs.filter((leg) => leg.ticker === state.ticker);
@@ -154,9 +157,14 @@ export default function StateCoverage({
     "The block says a leg NAMES this state, never what it pays in it — the payoff is the figure above, and it is drawn only where the solver returned a basket.",
     dense
       ? `${columns.length} states is more than this width can label, so the per-state names are dropped rather than `
-        + "drawn over each other. Every state still carries its own name on hover, and the ends of the ladder are marked."
+        + "drawn over each other. Every state still carries its own name under the crosshair, and the ends of the ladder are marked."
       : null,
   ].filter((note): note is string => note != null);
+
+  const layout = (width: number) => {
+    const colW = width / columns.length;
+    return { colW, cx: (index: number) => index * colW + colW / 2 };
+  };
 
   return (
     <Figure
@@ -169,10 +177,41 @@ export default function StateCoverage({
       }
       notes={notes}
     >
-      <Plot height={BLOCK_TOP + BLOCK_H + (dense ? DENSE_BAND : LABEL_BAND)}>
+      <Plot
+        height={BLOCK_TOP + BLOCK_H + (dense ? DENSE_BAND : LABEL_BAND)}
+        // ONE GEOMETRY for the blocks and the crosshair: a slot per state in
+        // the exchange's order, so the rule sits on the state it names. The
+        // rows say what a block cannot: which legs name the state, at what.
+        sharedX={(width) => {
+          const { cx } = layout(width);
+          return {
+            count: columns.length,
+            x0: cx(0),
+            x1: cx(columns.length - 1),
+            read: (index) => {
+              const column = columns[index];
+              return {
+                title: `State ${index + 1} of ${columns.length}: ${column.label}`,
+                rows: [
+                  {
+                    label: "Legs",
+                    value: column.legs.length
+                      ? column.legs.map((leg) => `${leg.direction} ${leg.size} at ${leg.price}`).join("; ")
+                      : "none names this state",
+                  },
+                  { label: "Basket", value: column.word },
+                ],
+              };
+            },
+            width: 300,
+            arriveAt: "first",
+            link,
+          };
+        }}
+      >
         {(width) => {
           const axisY = BLOCK_TOP + BLOCK_H;
-          const colW = width / columns.length;
+          const { colW, cx } = layout(width);
           const blockW = dense ? Math.max(1, colW - 1) : Math.max(6, Math.min(colW - 10, 34));
           return (
             <>
@@ -184,43 +223,34 @@ export default function StateCoverage({
               <line x1={0} x2={width} y1={axisY} y2={axisY} className="coh-surface__axis" />
 
               {columns.map((column, index) => {
-                const cx = index * colW + colW / 2;
+                const centre = cx(index);
                 // Rotated -90°, so the anchor's glyphs hang below and to the
                 // left of it; nudged right to sit optically over the column.
-                const labelX = cx + 3.5;
+                const labelX = centre + 3.5;
                 const labelY = axisY + 8;
-                const hover = column.legs.length
-                  ? `${column.label}: ${column.legs
-                      .map((leg) => `${leg.direction} ${leg.size} at ${leg.price}`)
-                      .join("; ")}`
-                  : `${column.label}: no leg of this basket names it`;
                 return (
                   <g key={column.ticker}>
                     {column.legs.length ? (
                       <rect
-                        x={cx - blockW / 2}
+                        x={centre - blockW / 2}
                         y={BLOCK_TOP}
                         width={blockW}
                         height={BLOCK_H}
                         className="coh-surface__bar"
-                      >
-                        <title>{hover}</title>
-                      </rect>
+                      />
                     ) : (
                       <>
                         {/* A stub ON the axis, not a gap: the state exists and
                             carries no leg, which is not the same as absent. */}
                         <rect
-                          x={cx - blockW / 2}
+                          x={centre - blockW / 2}
                           y={axisY - 3}
                           width={blockW}
                           height={3}
                           className="coh-surface__bar-zero"
-                        >
-                          <title>{hover}</title>
-                        </rect>
+                        />
                         {dense ? null : (
-                          <text x={cx} y={axisY - 8} textAnchor="middle" className="coh-surface__unread">
+                          <text x={centre} y={axisY - 8} textAnchor="middle" className="coh-surface__unread">
                             ◌
                           </text>
                         )}
@@ -228,12 +258,12 @@ export default function StateCoverage({
                     )}
                     {/* DROPPED WHEN THERE IS NO ROOM, never drawn overlapping.
                         At 188 states a column is 7px and both of these printed
-                        through their neighbours; the `<title>` above still
-                        names every state, and the reading carries the count. */}
+                        through their neighbours; the crosshair still names
+                        every state, and the reading carries the count. */}
                     {dense ? null : (
                       <>
                         {column.legs.length ? (
-                          <text x={cx} y={WORD_Y} textAnchor="middle" className="coh-surface__value">
+                          <text x={centre} y={WORD_Y} textAnchor="middle" className="coh-surface__value">
                             {column.word}
                           </text>
                         ) : null}

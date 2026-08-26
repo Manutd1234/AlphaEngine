@@ -157,6 +157,8 @@ export default function CorpusHistory({ data, skillDrawnAbove }: {
             width: 304,
             // A record of runs in time arrives at "now".
             arriveAt: "last",
+            // The skill line above is drawn from the same runs.
+            link: "calibration-runs",
             // A run held against another: Enter or a click pins, and every
             // measure then reads as its value, what it was, and the step.
             pin: true,
