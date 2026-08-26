@@ -1090,18 +1090,29 @@ Held to the six lines the plan set:
 on a paragraph are the two formula-card sections (Measurement, Instrument),
 whose lede is the card, and Sandbox / Spectrum, all named exemptions in
 `engine-opens-on-a-drawing`. **Every figure interrogable** — no `<Plot>` view
-has 0 keyboard stops; the two card sections carry 17 and 9 hover titles and 0
-focusable drawings, because their cards skip `<Plot>` on purpose (its `<svg>`
-is `role="presentation"`), and that is the one census line not met — recorded
-as the next thing to do, not done here. **One type ladder** — 12.75 / 13 / 14
+has 0 keyboard stops. The two card sections carry 17 and 9 hover titles and 0
+focusable drawings, and that is BY DESIGN, not a gap: `diffusion-model-views.test.ts:124`
+pins that a card figure "can be asked what a part means, without joining the
+tab order" and refuses any card that reaches for `Plot`, because nineteen
+diagrams of an argument would be nineteen new stops to walk decoration. Each
+card names itself once (`role="img"` with a sentence) and hangs its titles on
+a hit shape a pointer can reach. The census line reads "every figure a reader
+can interrogate", and the cards meet it by hover and by name; they were never
+meant to meet it by tab, and the guard says so. **One type ladder** — 12.75 / 13 / 14
 on every fold and figure measured (`foldprobe`, `findprobe`). **No text
 overlap at 1600 / 1280 / 1100** — every pair of `<text>` boxes checked on every
 `svg` of every view. Before the sweep, three views clashed at all three widths
 by under a pixel each: the Absorption fan's two key lines (14px glyphs 14px
 apart), the Clocks figure's "wall" over "fastest" (two 10px boxes meeting at
-the plot edge), and the Episodes legend. The first two are fixed in this
-commit (17px and 3px); the third is `IndexSection`'s child, outside
-`diffusion/**`, and is recorded here for its owner. **Nothing clips its
+the plot edge), and the Episodes legend. The first two were fixed in the
+sweep commit (17px and 3px). The third was recorded "for its owner" as
+`IndexSection`'s child — wrongly: the Episodes view mounts `EpisodeTape`, under
+`diffusion/`, whose two family keys stepped by 14 with 14px glyphs. Fixed on
+the same day (step 17, first line raised 3px); 0 clashes at 1600 / 1280 / 1100
+after. The lesson is the one from slice 3 again: a probe names the svg, not
+the file, and "which component drew this" is a question to answer by reading
+the section's branch, not by grepping for a caption phrase — that phrase sat
+in three files, none of them the right one. **Nothing clips its
 viewBox** — 0 of 16. **No `?? 0`** — `null-honesty` is green and every gap on
 the tab is hatched.
 

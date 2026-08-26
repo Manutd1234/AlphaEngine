@@ -160,7 +160,11 @@ export default function EpisodeTape({ points, series }: {
                       key={family}
                       className={index === 0 ? "diff-curve__key diff-curve__key--release" : "diff-curve__key diff-curve__key--call"}
                       x={x1}
-                      y={top - 10 + index * 14}
+                      // 17, not 14: a 14px key's box is 17px tall, and at 14 the two
+                      // family lines printed through each other by under a pixel at
+                      // every desk width — found by the 2026-08-26 sweep, invisible by
+                      // eye, real to a reader who cannot separate two hues.
+                      y={top - 13 + index * 17}
                       textAnchor="end"
                     >
                       <tspan aria-hidden="true">{index === 0 ? "●" : "▲"}</tspan> {family}
