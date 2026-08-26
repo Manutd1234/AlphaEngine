@@ -69,3 +69,52 @@ describe("ranking", () => {
     assert.equal(best.label, "Model: Hull trend — Trend");
   });
 });
+
+describe("a whole word wins, and the last word of a label wins most", () => {
+  // MEASURED 2026-08-26: typing "Mass" into the palette did not surface
+  // "Markets → Lattice → Mass". Every Markets label begins "Markets →", so
+  // "mass" is a subsequence of most of them — M-a-r-k-e-t-S... — and a
+  // subsequence scorer with a cap of twenty let the one label that ENDS in
+  // the word fall off the list. The view word is what a reader types, so a
+  // query that is a whole word of the label scores above a scatter, and a
+  // query that is the label's LAST word scores above that.
+  const labels = [
+    "Markets → Settlement → Formation",
+    "Markets → Settlement → Pending",
+    "Markets → Stake → Capital",
+    "Markets → Stake → Method",
+    "Markets → Books → Identity",
+    "Markets → Books → History",
+    "Markets → Dispersion → Channel",
+    "Markets → Fees → Cost shape",
+    "Markets → Fees → Ablation",
+    "Markets → Shell → Browse",
+    "Markets → Universe → Families",
+    "Markets → Lattice → Moments",
+    "Markets → Lattice → Mass",
+  ];
+  const ranked = (query: string) => labels
+    .map((label) => ({ label, score: commandScore(query, label) }))
+    .filter((entry): entry is { label: string; score: number } => entry.score !== null)
+    .sort((a, b) => b.score - a.score)
+    .map((entry) => entry.label);
+
+  it("puts the label that ends in the typed word first", () => {
+    assert.equal(ranked("Mass")[0], "Markets → Lattice → Mass");
+    assert.equal(ranked("mass")[0], "Markets → Lattice → Mass");
+    assert.equal(ranked("Families")[0], "Markets → Universe → Families");
+  });
+
+  it("still scores a whole word inside the label above a scatter", () => {
+    assert.equal(ranked("Stake")[0].startsWith("Markets → Stake"), true);
+  });
+
+  it("uses the LAST word of a multi-word query, so 'lattice mass' finds the same label", () => {
+    assert.equal(ranked("lattice mass")[0], "Markets → Lattice → Mass");
+  });
+
+  it("changes nothing for a query that is no whole word", () => {
+    assert.equal(commandScore("wf", "Walk-forward"), commandScore("wf", "Walk-forward"));
+    assert.equal(commandScore("zz", "Markets → Lattice → Mass"), null);
+  });
+});
