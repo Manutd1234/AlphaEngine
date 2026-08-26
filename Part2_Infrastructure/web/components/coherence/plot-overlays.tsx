@@ -30,11 +30,17 @@ const READOUT_PX = DIAGRAM_LABEL_PX;
  * class then sets the dash and weight, which is what makes it read as a
  * reference and not a series.
  */
-export function ReferenceLine({ y, x0, x1, label }: PlotReference) {
+export function ReferenceLine({ y, y1, x0, x1, label }: PlotReference) {
+  const diagonal = y1 !== undefined;
+  const far = Math.max(x0 + 1, x1);
   return (
     <g className="coh-plot__reference">
-      <line x1={x0} x2={Math.max(x0 + 1, x1)} y1={y} y2={y} stroke="var(--axis)" />
-      <text x={x0 + 2} y={y - 4}>{label}</text>
+      <line x1={x0} x2={far} y1={y} y2={diagonal ? y1 : y} stroke="var(--axis)" />
+      {/* A level line is read from its start; a diagonal is read where it
+          ends, because that is the point the eye follows it to. */}
+      {diagonal
+        ? <text x={far - 2} y={y1 - 6} textAnchor="end">{label}</text>
+        : <text x={x0 + 2} y={y - 4}>{label}</text>}
       <title>{`Reference: ${label}`}</title>
     </g>
   );

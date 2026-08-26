@@ -53,9 +53,21 @@ export { Readout } from "./plot-overlays";
  * so it does not run under a label gutter.
  */
 export interface PlotReference {
+  /** The line's y at `x0` — its only y, unless `y1` makes it a diagonal. */
   y: number;
   x0: number;
   x1: number;
+  /**
+   * The line's y at `x1`, for a DIAGONAL. Absent, the reference is level.
+   *
+   * Added 2026-08-26 for the exposure-against-contribution scatter, and it is
+   * the desk's most convincing reference shape: `EdgeScatter`'s "priced at
+   * worth" line is what turns "no outcome is admitted" from an assertion into
+   * a picture, and that line hand-drawn is exactly the thing this prop exists
+   * to end. A diagonal's label sits above its far end, where a level line's
+   * sits above its start, because that is where the eye reaches it.
+   */
+  y1?: number;
   /** The word beside the line: "the mean it settles on", "break-even". */
   label: string;
 }

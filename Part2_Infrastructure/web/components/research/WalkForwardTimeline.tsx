@@ -24,6 +24,7 @@
 import { fmt, pct } from "@/lib/format";
 import { DEFAULT_MARGIN, Grid, extent, linearScale, ticks } from "@/components/chart-kit";
 import Figure, { Plot } from "@/components/coherence/Figure";
+import FoldLadder from "@/components/research/FoldLadder";
 import type { WalkForwardReport } from "@/lib/types";
 
 const LEVEL_TONE: Record<string, string> = {
@@ -182,6 +183,11 @@ export default function WalkForwardTimeline({ report }: { report: WalkForwardRep
           }}
         </Plot>
       </Figure>
+
+      {/* The sharper question, under the Sharpe pair: not "did the number
+          hold" but "where did the choice PLACE among every combination the
+          fold scored". Same folds, one derivation each. */}
+      <FoldLadder folds={folds} />
       </div>
 
       <div className="tiles stability-tiles">

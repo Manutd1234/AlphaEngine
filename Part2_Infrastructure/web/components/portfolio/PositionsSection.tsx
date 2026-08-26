@@ -29,6 +29,7 @@ import RowMenu from "@/components/common/RowMenu";
 // vocabulary of where a symbol click lands. Erased at compile: no import
 // cycle survives into the bundle.
 import type { PortfolioFocusDestination } from "@/components/PortfolioWorkspace";
+import ContributionScatter from "@/components/portfolio/ContributionScatter";
 import ExposureHeatmap from "@/components/portfolio/ExposureHeatmap";
 import LiquidityPanel from "@/components/portfolio/LiquidityPanel";
 import UnrealisedSpread from "@/components/portfolio/UnrealisedSpread";
@@ -242,6 +243,11 @@ export default function PositionsSection({
           small total P&L is a quiet book or two large offsetting bets. */}
       {positionsPane === "shape" && (
         <>
+          {/* First, because it is the shape question in one picture: which
+              positions earned their size. The heatmap and spread below are
+              the two halves of it — utilisation and open P&L — that this
+              draws against each other. */}
+          <ContributionScatter positions={positions} />
           <ExposureHeatmap positions={positions} generated={Boolean(book.sandbox)} />
           <UnrealisedSpread positions={positions} generated={Boolean(book.sandbox)} />
         </>

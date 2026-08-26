@@ -76,3 +76,29 @@ describe("the reference is the plot's, not each figure's", () => {
     assert.match(block.slice(0, 1200), /<line[^>]*\bstroke=/, "the reference line has no stroke attribute, so the forced-colors rule cannot reach it");
   });
 });
+
+describe("a reference may be a diagonal, and it is still one labelled mark", () => {
+  it("takes an optional far-end y", () => {
+    // The desk's most convincing reference is `EdgeScatter`'s diagonal — the
+    // line where a price equals its worth — and a level-only prop would have
+    // left exactly that shape hand-drawn, which is what the prop exists to end.
+    assert.match(figure, /y1\?: number;/, "PlotReference cannot express a diagonal");
+  });
+
+  it("draws the far end from y1 and keeps the label and title", () => {
+    const at = overlayCode.indexOf("function ReferenceLine");
+    const block = overlayCode.slice(at, at + 900);
+    assert.match(block, /y2=\{diagonal \? y1 : y\}/, "the line's far end ignores y1");
+    // A diagonal's label sits at its far end, a level line's at its start:
+    // both branches must still print the word, or one shape is colour-only.
+    assert.equal((block.match(/<text/g) ?? []).length, 2, "one of the two label branches is missing");
+    assert.match(block, /<title>/);
+  });
+
+  it("is used for a diagonal by the contribution scatter, not hand-drawn", () => {
+    const scatter = stripNonCode(read("../components/portfolio/ContributionScatter.tsx"));
+    assert.match(scatter, /reference=\{/, "the scatter draws no reference");
+    assert.match(scatter, /y1: y\(1\)/, "the scatter's reference is level, not the diagonal");
+    assert.doesNotMatch(scatter, /coh-edge__fair/, "the scatter hand-draws the diagonal EdgeScatter draws by class");
+  });
+});

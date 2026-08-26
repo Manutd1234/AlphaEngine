@@ -151,7 +151,13 @@ describe("panes are conditional renders, never hidden", () => {
   it("puts each card in exactly one pane", () => {
     const positions = code(positionsSection);
     assert.match(positions, /positionsPane === "holdings" && \(\s*<div className="card portfolio-positions-card">/);
-    assert.match(positions, /positionsPane === "shape" && \(\s*<>\s*<ExposureHeatmap/);
+    // The scatter leads the shape pane since 2026-08-26 — it is the shape
+    // question in one picture, and the heatmap and spread are its two halves.
+    // The property under test is unchanged: each card in exactly one pane.
+    // `code()` strips `/* */` first, which turns a `{/* JSX comment */}` into a
+    // bare `{}` that its second pattern then never matches — so the scatter's
+    // own comment survives here as `{}`. Matched as such rather than assumed away.
+    assert.match(positions, /positionsPane === "shape" && \(\s*<>\s*(?:\{\}\s*)?<ContributionScatter[\s\S]*?<ExposureHeatmap/);
     assert.match(positions, /positionsPane === "exit" && \(\s*<>\s*<LiquidityPanel/);
     const allocation = code(allocationSection);
     assert.match(allocation, /allocationPane === "mix" && \(\s*<AllocationDonut/);
