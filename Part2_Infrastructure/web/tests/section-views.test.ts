@@ -231,3 +231,40 @@ describe("resolving the third segment", () => {
     assert.equal(railView("markets", "not-a-section", "baskets"), null);
   });
 });
+
+/* ── A section's views exist before its data does ─────────────────────── */
+
+import { read as readSource } from "./helpers/workspace-sources";
+
+describe("every frame a Markets section renders carries its views", () => {
+  // FOUND BY A PEER'S BROWSER WALK, 2026-08-26. During a slow universe read —
+  // or a failed one — Stake and Lattice rendered their `!target` frame with no
+  // switcher at all, so a deep link to `#markets/stake/method` pointed at
+  // nothing a reader could see or press until the read landed. The views are
+  // structural: they exist whether or not the data has arrived, the URL and
+  // the palette both name them, and a frame that drops them for the empty
+  // branch makes the address a lie for as long as the gateway is slow.
+  // The rule: as many `views=` as `<SectionFrame` in every section the table
+  // gives views to. The six single-frame sections already satisfy it.
+  const SECTIONS: ReadonlyArray<readonly [section: string, file: string]> = [
+    ["universe", "../components/coherence/UniverseSection.tsx"],
+    ["settlement", "../components/coherence/SettlementSection.tsx"],
+    ["books", "../components/coherence/BooksSection.tsx"],
+    ["dispersion", "../components/coherence/MakersSection.tsx"],
+    ["lattice", "../components/coherence/SurfacePane.tsx"],
+    ["stake", "../components/coherence/StakePane.tsx"],
+    ["fees", "../components/coherence/FeesSection.tsx"],
+    ["shell", "../components/coherence/ShellPane.tsx"],
+  ];
+  for (const [section, file] of SECTIONS) {
+    it(`${section}: no frame is rendered without its switcher`, () => {
+      const source = readSource(file);
+      assert.ok(source.trim().length > 2000, `${file} is empty`);
+      const frames = (source.match(/<SectionFrame\b/g) ?? []).length;
+      const withViews = (source.match(/^\s+views=\{/gm) ?? []).length;
+      assert.ok(frames >= 1, `${section} renders no SectionFrame`);
+      assert.equal(withViews, frames,
+        `${section} renders ${frames} frame(s) and only ${withViews} carry views= — the empty branch has dropped the switcher, so a deep link to a view shows nothing until the read lands`);
+    });
+  }
+});

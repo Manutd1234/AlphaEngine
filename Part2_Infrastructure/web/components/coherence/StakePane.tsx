@@ -166,11 +166,17 @@ export default function StakePane({
     kelly && kelly.engine !== "unavailable" ? toUnit(kelly.growth_rate) : null,
   );
 
+  // The switcher is structural — the views exist before the data does, and a
+  // deep link during a slow read must show what it points at (2026-08-26).
   if (!target) {
     return (
       <SectionFrame
         className="coh-kelly"
         aria-labelledby="markets-stake-heading"
+        views={STAKE_VIEWS}
+        view={view}
+        onView={onView}
+        viewsLabel="Stake view"
         head={
           <PaneHeadEmpty head={head} mark={universe.error ? "✕" : "◌"}>
             {universe.error

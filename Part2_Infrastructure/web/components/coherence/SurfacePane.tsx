@@ -170,11 +170,17 @@ export default function SurfacePane({
     surface.data ? toUnit(surface.data.total_mass) : null,
   );
 
+  // The switcher is structural — the views exist before the data does, and a
+  // deep link during a slow read must show what it points at (2026-08-26).
   if (!target) {
     return (
       <SectionFrame
         className="coh-surface"
         aria-labelledby="markets-lattice-heading"
+        views={LATTICE_VIEWS}
+        view={view}
+        onView={onView}
+        viewsLabel="Which question"
         head={
           <PaneHeadEmpty head={head} mark={universe.error ? "✕" : "◌"}>
             {universe.error
