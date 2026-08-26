@@ -631,6 +631,7 @@
 
   .coh-form__arrow line { stroke: currentColor; }
   .coh-form__arrow polygon { fill: currentColor; }
+  .coh-plot__reference text { stroke: Canvas; } /* the halo is the plate, and the plate is Canvas here */
 }
 
 /* Research doubles as its own evidence pack. Printing reveals every Research

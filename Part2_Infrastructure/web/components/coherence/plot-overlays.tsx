@@ -22,7 +22,7 @@ import type { PlotReference } from "./Figure";
 const READOUT_PX = DIAGRAM_LABEL_PX;
 
 /**
- * The reference, drawn as one labelled mark.
+ * The reference's line and its title — the mark. Painted FIRST by `Plot`.
  *
  * A `stroke` ATTRIBUTE rather than a class alone: the forced-colors block
  * targets `svg line[stroke]`, so this survives Windows High Contrast, where a
@@ -36,12 +36,34 @@ export function ReferenceLine({ y, y1, x0, x1, label }: PlotReference) {
   return (
     <g className="coh-plot__reference">
       <line x1={x0} x2={far} y1={y} y2={diagonal ? y1 : y} stroke="var(--axis)" />
-      {/* A level line is read from its start; a diagonal is read where it
-          ends, because that is the point the eye follows it to. */}
+      <title>{`Reference: ${label}`}</title>
+    </g>
+  );
+}
+
+/**
+ * The reference's word — painted LAST by `Plot`, after every mark.
+ *
+ * The line goes first so nothing can occlude it, and that same order put every
+ * mark on top of its label: on a 339-bar calendar the leftmost breach bars
+ * struck straight through "the forecast — above this line is a breach"
+ * (2026-08-26, seen only in a browser). A halo under the text could not help
+ * while the text itself was under the bars. So the word is its own element,
+ * rendered after the children, with a halo in the plate colour from
+ * `paint-order: stroke` in 10b — legible over any mark, invisible over the
+ * plate. No `<title>` here: the line already is the mark, and a second title
+ * would make one reference two stops for a keyboard reader.
+ */
+export function ReferenceLabel({ y, y1, x0, x1, label }: PlotReference) {
+  const diagonal = y1 !== undefined;
+  const far = Math.max(x0 + 1, x1);
+  // A level line is read from its start; a diagonal is read where it ends,
+  // because that is the point the eye follows it to.
+  return (
+    <g className="coh-plot__reference">
       {diagonal
         ? <text x={far - 2} y={y1 - 6} textAnchor="end">{label}</text>
         : <text x={x0 + 2} y={y - 4}>{label}</text>}
-      <title>{`Reference: ${label}`}</title>
     </g>
   );
 }

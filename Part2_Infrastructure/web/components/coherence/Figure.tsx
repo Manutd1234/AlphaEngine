@@ -27,7 +27,7 @@ import { useMeasuredWidth } from "@/components/chart-kit";
 import { useSharedXReadout, type SharedX } from "@/lib/coherence/use-shared-x-readout";
 import { useMarkReadout } from "@/lib/coherence/use-mark-readout";
 
-import { Readout, ReferenceLine, SharedXReadout } from "./plot-overlays";
+import { Readout, ReferenceLabel, ReferenceLine, SharedXReadout } from "./plot-overlays";
 
 // Re-exported so the one outside caller (`lesson-figures/frame.tsx`) keeps its
 // import: the overlays moved on 2026-08-26 and a lifted primitive leaves a
@@ -262,6 +262,7 @@ export function Plot({
   // both, so there is no case where the unused one has anything to say.
   const marks = useMarkReadout(height, onSelect);
   const axis = sharedX ? sharedX(width) : undefined;
+  const mark = typeof reference === "function" ? reference(width) : reference;
   const shared = useSharedXReadout(axis);
   // The svg needs ONE ref, and which hook owns it depends on which readout is
   // in use: each binds its own native `focusin`, because React's synthetic
@@ -313,16 +314,14 @@ export function Plot({
             <line x1="0" y1="0" x2="0" y2="5" className="coh-plot__hatch" />
           </pattern>
         </defs>
-        {/* FIRST, and that is the whole contract: source order is paint order,
-            so a reference painted here sits under every mark a figure draws
-            after it. It is also a mark itself — it carries a title — so the
-            readout can say what the line is when a keyboard reader lands on
-            it, which a bare hairline could never do. */}
-        {(() => {
-          const ref = typeof reference === "function" ? reference(width) : reference;
-          return ref ? <ReferenceLine {...ref} /> : null;
-        })()}
+        {/* The LINE first, and that is the contract: source order is paint
+            order, so it sits under every mark drawn after it. It is a mark
+            itself — it carries the title — so the readout can say what it is.
+            The WORD is painted after the children instead, with a halo, so a
+            dense figure cannot strike through it. */}
+        {mark ? <ReferenceLine {...mark} /> : null}
         {children(width)}
+        {mark ? <ReferenceLabel {...mark} /> : null}
         {readout ? <Readout {...readout} chartWidth={width} /> : null}
         {axis && shared.reading && shared.index !== null ? (
           <SharedXReadout

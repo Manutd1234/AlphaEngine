@@ -241,19 +241,22 @@ export default function RiskEngine({
     )}
 
     {showDiagram && (varSeries ? (
-      <>
-        <VarBacktestChart
-          series={varSeries}
-          validation={validation ?? null}
-          sandbox={sandbox}
-          missing={missing}
-        />
+      <VarBacktestChart
+        series={varSeries}
+        validation={validation ?? null}
+        sandbox={sandbox}
+        missing={missing}
+      >
         {/* The other half of the verdict. The band above says whether the model
             was tight; this says whether its breaches came at the promised rate
             and whether they bunched — which Kupiec, scoring the count alone,
-            cannot tell apart. Same series, same validation, drawn once each. */}
+            cannot tell apart. Same series, same validation, drawn once each.
+            INSIDE the band chart's card, as its children, since 2026-08-26: a
+            browser pass found the two drawings framed 34px apart — the band in
+            `.card`'s padding, the calendar bare in the section — and the card's
+            own subhead already promises "whether breaches clustered". */}
         <ExceedanceCalendar series={varSeries} validation={validation ?? null} />
-      </>
+      </VarBacktestChart>
     ) : (
       /* The null state is not optional. `rollingVarSeries` refuses twice
          (var-validation.ts:176, :179) and only the second refusal is reachable

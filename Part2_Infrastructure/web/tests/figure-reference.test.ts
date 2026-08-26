@@ -53,6 +53,12 @@ describe("the reference is the plot's, not each figure's", () => {
     assert.ok(ref !== -1, "the reference is not rendered at all");
     assert.ok(kids !== -1, "the plot no longer renders its children where this looks");
     assert.ok(ref < kids, "the reference is painted AFTER the marks, where they can hide it");
+    // The WORD is the exception, since 2026-08-26: painted after the children,
+    // because a label under 339 bars is a label struck through. The line
+    // stays first; the two are separate elements so each can be in its place.
+    const word = code.indexOf("<ReferenceLabel");
+    assert.ok(word !== -1, "the reference's word is no longer rendered separately, so it is back under the marks");
+    assert.ok(word > kids, "the reference's label is painted BEFORE the marks again, where a dense figure strikes through it");
   });
 
   it("carries a word as well as a stroke", () => {
@@ -61,9 +67,15 @@ describe("the reference is the plot's, not each figure's", () => {
     // pair is one mark to the readout, so a keyboard reader arrives on it too.
     const at = overlayCode.indexOf("function ReferenceLine");
     assert.ok(at !== -1, "ReferenceLine is not in plot-overlays.tsx");
-    const block = overlayCode.slice(at, at + 600);
-    assert.match(block, /<text/, "the reference has no label, so it means something by colour alone");
-    assert.match(block, /<title>/, "the reference is not a mark, so the readout cannot say what it is");
+    const line = overlayCode.slice(at, at + 600);
+    assert.match(line, /<title>/, "the reference is not a mark, so the readout cannot say what it is");
+    const wordAt = overlayCode.indexOf("function ReferenceLabel");
+    assert.ok(wordAt !== -1, "ReferenceLabel is not in plot-overlays.tsx, so the word is under the marks again");
+    const word = overlayCode.slice(wordAt, wordAt + 600);
+    assert.match(word, /<text/, "the reference has no label, so it means something by colour alone");
+    // One title between them: the line is the mark. A second would make one
+    // reference two stops for a keyboard reader.
+    assert.doesNotMatch(word, /<title>/, "the label carries a title of its own, so the reference is two marks");
   });
 
   it("survives forced colours as a stroke", () => {
@@ -100,5 +112,30 @@ describe("a reference may be a diagonal, and it is still one labelled mark", () 
     assert.match(scatter, /reference=\{/, "the scatter draws no reference");
     assert.match(scatter, /y1: y\(1\)/, "the scatter's reference is level, not the diagonal");
     assert.doesNotMatch(scatter, /coh-edge__fair/, "the scatter hand-draws the diagonal EdgeScatter draws by class");
+  });
+});
+
+/* ── Legible over the marks it is painted under ───────────────────────── */
+
+const figuresCss = read("../app/globals/10b-coherence-figures.css");
+
+describe("the reference's label survives being painted under the marks", () => {
+  it("the stylesheet is non-empty", () => assert.ok(figuresCss.trim().length > 5000));
+
+  it("carries a halo in the plate colour, painted before its fill", () => {
+    // FOUND IN A BROWSER, 2026-08-26. Painting the reference FIRST keeps the
+    // line checkable — nothing occludes it — and put every mark on top of its
+    // label: on the 339-bar exceedance calendar the leftmost breach bars struck
+    // straight through "the forecast — above this line is a breach". A halo
+    // alone did NOT fix it — the text was still under the bars — which is why
+    // the word is now painted after the children (pinned above). Over the
+    // marks, `paint-order: stroke` puts a stroke in the plate colour under the
+    // fill: a halo that keeps the word legible and vanishes over the plate.
+    const rule = figuresCss.slice(figuresCss.indexOf(".coh-plot__reference text {"));
+    const body = rule.slice(0, rule.indexOf("}"));
+    assert.ok(body.length > 20, "the `.coh-plot__reference text` rule is gone");
+    assert.match(body, /paint-order:\s*stroke/, "the label's stroke is painted over its fill, or not at all");
+    assert.match(body, /stroke:\s*var\(--/, "the halo is not a token, so it cannot follow the theme");
+    assert.match(body, /stroke-width:\s*[2-4]px/, "a halo thinner than 2px does not cover a 1px bar edge; wider than 4px eats the neighbour");
   });
 });

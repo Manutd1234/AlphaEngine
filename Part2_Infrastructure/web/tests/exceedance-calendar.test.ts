@@ -127,3 +127,44 @@ describe("the calendar is an instrument, not a picture", () => {
     assert.doesNotMatch(code, /exception95/, "the figure recomputes a breach instead of reading the derivation");
   });
 });
+
+/* ── Where it sits, and what the band chart beside it must not clip ─────── */
+
+const engine = read("../components/portfolio/RiskEngine.tsx");
+const band = read("../components/portfolio/VarBacktestChart.tsx");
+
+describe("the calendar shares the band chart's frame", () => {
+  it("is non-empty", () => {
+    assert.ok(engine.trim().length > 1500);
+    assert.ok(band.trim().length > 1500);
+  });
+
+  it("is mounted INSIDE the VaR card, not beneath it", () => {
+    // FOUND IN A BROWSER, 2026-08-26. `VarBacktestChart` wraps its figure in
+    // `div.card.var-backtest` (16px of padding, so 1606px wide at x=57) and the
+    // calendar sat bare in the section (1640px at x=40): two drawings of one
+    // subject, framed 34px apart. The card's own subhead — "where the model was
+    // breached, and whether breaches clustered" — already names the calendar's
+    // job, so the calendar goes in as the card's children, under the band and
+    // above the exceptions table. A sibling `.card` would have aligned the
+    // edges and doubled the chrome.
+    const engineCode = stripNonCode(engine);
+    assert.match(
+      engineCode,
+      /<VarBacktestChart[^>]*>[\s\S]*?<ExceedanceCalendar[\s\S]*?<\/VarBacktestChart>/,
+      "the calendar is no longer rendered as the band chart's children",
+    );
+    assert.doesNotMatch(engineCode, /<VarBacktestChart[^>]*\/>/, "the band chart is self-closing again, so the calendar sits outside its card");
+    assert.match(stripNonCode(band), /\{children\}/, "VarBacktestChart renders no children slot");
+  });
+
+  it("the band chart's y-gutter is sized from its own labels, not a constant", () => {
+    // The same browser pass: `$100,000` drew as `00,000` at the left edge.
+    // `DEFAULT_MARGIN.left` is 52px; nine monospace glyphs at 13px are ~76.
+    // Every other figure on the desk that draws row labels sizes its gutter
+    // with `gutterFor` — this one now does too.
+    const bandCode = stripNonCode(band);
+    assert.match(bandCode, /gutterFor\(/, "the gutter is no longer derived from the labels");
+    assert.doesNotMatch(bandCode, /const x0 = DEFAULT_MARGIN\.left/, "x0 is the 52px constant again, which clips a six-figure label");
+  });
+});

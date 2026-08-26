@@ -316,6 +316,16 @@
 .coh-plot__reference text {
   fill: var(--text-primary);
   font-size: var(--fs-tick);
+  /* A halo in the plate colour, painted under the fill. The word is the
+     one part of a reference `Plot` paints AFTER the marks (`ReferenceLabel`),
+     so on a 339-bar calendar it sits over the bars rather than being struck
+     through by them; the halo is what keeps it legible there and vanishes
+     over the plate. 3px covers a 1px bar edge on both sides without eating
+     a neighbouring 4px column. The line itself stays painted first. */
+  paint-order: stroke;
+  stroke: var(--surface-1);
+  stroke-width: 3px;
+  stroke-linejoin: round;
 }
 
 /* ── The live number beside a caption ────────────────────────────────────

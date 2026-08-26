@@ -16,7 +16,7 @@
  * as EquityChart's drawdown panel.
  */
 
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 
 import {
   DEFAULT_MARGIN,
@@ -28,6 +28,7 @@ import {
   ticks,
 } from "@/components/chart-kit";
 import Figure, { Plot } from "@/components/coherence/Figure";
+import { gutterFor } from "@/lib/coherence/label-metrics";
 import { shortDate, usd } from "@/lib/format";
 import type { VarBacktest, VarSeries } from "@/lib/portfolio-risk";
 
@@ -40,6 +41,12 @@ interface VarBacktestChartProps {
   /** Symbols excluded for want of history — the exception count is understated by them. */
   missing: string[];
   show99?: boolean;
+  /**
+   * Drawn under the band and above the exceptions table, inside this card.
+   * The exceedance calendar is the other half of the same verdict, and a
+   * sibling outside the card sat 34px narrower than the band it answers.
+   */
+  children?: ReactNode;
 }
 
 const HEIGHT = 230;
@@ -52,6 +59,7 @@ export default function VarBacktestChart({
   sandbox,
   missing,
   show99 = true,
+  children,
 }: VarBacktestChartProps) {
   const points = series.points;
 
@@ -72,7 +80,16 @@ export default function VarBacktestChart({
     ]);
     return { y0, y1, lo, hi, yScale: linearScale(lo, hi, y0, y1) };
   }, [points, show99]);
-  const x0 = DEFAULT_MARGIN.left;
+  const yTicks = ticks(lo, hi, 5);
+  // FOUND IN A BROWSER, 2026-08-26: `$100,000` drew as `00,000`. The default
+  // left margin is 52px and nine monospace glyphs at the grid's 13px are ~76,
+  // so the gutter was narrower than its own widest label and the UA clipped
+  // the head of it. Sized from the labels now, as every figure on the desk
+  // that draws row labels is. `Grid` ends a label 8px short of `x0`; the
+  // clearance above that is room for a face that measures wider than the
+  // digit class assumes. 720 is chart-kit's own fallback width and only
+  // bounds the fraction of the plot a gutter may take.
+  const x0 = gutterFor(yTicks.map((v) => usd(v, 0)), 720, 13, { min: DEFAULT_MARGIN.left, clearance: 14 });
 
   const exceptions = points.filter((p) => p.exception95);
   const dated = series.timesAligned && points.every((p) => p.t !== null);
@@ -162,7 +179,7 @@ export default function VarBacktestChart({
             const bandPathD = `${var95Path} L ${xScale(points.length - 1)} ${yScale(0)} L ${xScale(0)} ${yScale(0)} Z`;
             return (
               <>
-          <Grid yTicks={ticks(lo, hi, 5)} yScale={yScale} x0={x0} x1={x1} format={(v) => usd(v, 0)} />
+          <Grid yTicks={yTicks} yScale={yScale} x0={x0} x1={x1} format={(v) => usd(v, 0)} />
 
           <path d={bandPathD} fill="color-mix(in oklab, var(--diverging-neg) 10%, transparent)" />
 
@@ -254,6 +271,8 @@ export default function VarBacktestChart({
           }}
         </Plot>
       </Figure>
+
+      {children}
 
       {/* The reason, not the axis. "#0, #12, #24" stays drawn above; what folds
           is why it reads that way, which a reader needs once. The summary sits
