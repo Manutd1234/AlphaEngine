@@ -1034,3 +1034,28 @@ without widening the table, so the row's `scrollWidth` said 1,602 in a wrap of
 since this change: `nth` names which). The definition list under the ladder
 takes the tables' rhythm — 7px 10px a cell, a hairline per row — so the three
 folds land on one grid.
+
+## The outages on the Survival tape, 2026-08-26 — documented at the cause
+
+The tape carried ten hatched stretches on 26 August, eight of them in one
+seven-hour window:
+
+    08-24 17:59 → 08-25 02:17   497 min
+    08-25 02:25 → 03:04          39 min
+    08-26 02:01 … 08:53          eight gaps of 12–80 min
+
+The recorder is not a service of its own. `main.py:157` starts it with
+`asyncio.create_task(coherence_recorder_loop())` inside the gateway process,
+and `recorder.py:236` is that loop — so every restart of port 8912 stops the
+poller with it, and the tape shows a stretch from the last poll before to the
+first poll after. Three desk sessions restarted the gateway independently that
+morning; the eight gaps are those restarts. The figure was reporting the truth.
+
+What changed: `EpisodeWatch`'s docblock says why a restart is a gap, and the
+figure's `missing` line names it beside the count — "a restart of the gateway
+is one of these — the recorder runs inside that process — so a stretch here is
+not on its own evidence of the venue being away". Nothing else. Persisting the
+poller's state across restarts was considered and declined: the loop is
+peer-owned, and a gap the recorder did not see is still a gap; carrying state
+over would change what the tape means, not what it shows. 3202 (gone) and
+3210 (serving `main`) needed nothing.

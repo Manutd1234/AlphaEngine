@@ -46,6 +46,18 @@
  * poll interval is 300s against a tape spanning about twenty-seven hours — 0.3%
  * of the width — so putting the countdown on the time axis would render it
  * invisible and imply a precision the drawing does not have.
+ *
+ * WHY A RESTART IS A GAP, and why the figure says so. The recorder is not a
+ * service of its own: `main.py` starts it with `asyncio.create_task` inside
+ * the gateway process, so every restart of the gateway port stops the poller
+ * with it and the tape shows a hatched stretch from the last poll before to
+ * the first poll after. On 2026-08-26 the tape carried eight such stretches
+ * in one seven-hour window, because three desk sessions restarted the gateway
+ * independently. That is the truth about the recorder, not a fault in it, and
+ * the honest reading is to name the cause beside the count rather than let a
+ * reader take eight outages for eight failures of the venue. Persisting the
+ * poller's state across restarts would change what the tape MEANS — a gap it
+ * did not see is still a gap — so it stays as it is, and says why.
  */
 
 import Figure, { FigureEmpty, Plot, StateChip } from "../Figure";
@@ -214,7 +226,8 @@ export default function EpisodeWatch({ data, status, points }: {
           outages.length
             ? `${outages.length} stretch${outages.length === 1 ? "" : "es"} are hatched: the recorder was `
               + `not looking, and about ${missed} poll${missed === 1 ? "" : "s"} that would have fallen inside `
-              + "them were never taken."
+              + "them were never taken. A restart of the gateway is one of these — the recorder runs inside "
+              + "that process — so a stretch here is not on its own evidence of the venue being away."
             : null,
           // Two honest sentences, one per source. The measured one still has a
           // caveat, and it is the gateway's own: what was timed is a READ, and
