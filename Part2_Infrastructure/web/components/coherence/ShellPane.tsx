@@ -316,10 +316,20 @@ export default function ShellPane(
         <ShellListing data={data} atShards={segmentsOf(data.path).length === 1} onOpen={open} />
       )}
 
-      <p className="coh-shell__note">
-        This tree is the watchlist, not the exchange: Kalshi lists some thirteen thousand series, and only the set{" "}
-        <code>COHERENCE_SERIES</code> names has been read.
-      </p>
+      {/* FOLDED, NOT CUT, on 2026-08-26. This is a scope caveat and the section
+          head already carries the boundary — the rail calls it "the WATCHED
+          universe as a filesystem", so a reader is not left thinking they are
+          looking at all of Kalshi while this is closed. Same argument
+          `RouteLatencyBars` makes for its own boundary note, and the same limit:
+          it applies to a caveat, never to an absence or a finding. The summary
+          names what is inside so nobody opens it to find out how big it is. */}
+      <details className="disclosure">
+        <summary>What this tree covers, and what it leaves out</summary>
+        <p className="coh-shell__note">
+          This tree is the watchlist, not the exchange: Kalshi lists some thirteen thousand series, and only the set{" "}
+          <code>COHERENCE_SERIES</code> names has been read.
+        </p>
+      </details>
       {error ? (
         <p className="coh-shell__note">
           <span aria-hidden="true">✕</span> The last refresh failed: {error}. What is above is the previous answer.
