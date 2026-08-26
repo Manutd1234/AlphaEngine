@@ -128,17 +128,31 @@ async def coherence_combos(
     """
     # The snapshot first. A miss — a limit the refresher does not hold — falls
     # through to the live read below and answers exactly as it did before.
-    # A NAMED PARLAY IS NEVER SERVED WARM. The refresher holds the first few by
-    # leg count; a reader asking for a ticker is asking about a specific one,
-    # and answering from a snapshot that happens to contain it would make the
-    # two requests mean different things at the same URL.
+    # A NAMED PARLAY IS NEVER SERVED WARM, and that rule is unchanged. The
+    # refresher holds the first few by leg count; a reader asking for a ticker
+    # is asking about a specific one, and answering from a snapshot that
+    # happens to contain it would make the same request mean two things
+    # depending on the venue's listing order that poll.
     if ticker is None:
         held = warm.snapshot_for("combos", limit=limit)
         if held is not None:
             return held.value.model_copy(update={"observed_age_s": round(held.age_s(), 1)})
 
+    # THE LISTING IS A DIFFERENT OBJECT AND IT CAN BE REUSED. What the rule
+    # above refuses is serving a named parlay's ANSWER from a set somebody else
+    # chose; this reuses only the description of what the exchange is listing,
+    # which is the same for every ticker and is where a named read spends most
+    # of its time. The books are still read for this request, so the prices are
+    # this request's, and `observe_combos` names the listing's age in a note.
+    listing = warm.snapshot_for("combos-listing")
     return views.combos_view(
-        await combos.observe_combos(KalshiClient(), limit=limit, ticker=ticker),
+        await combos.observe_combos(
+            KalshiClient(),
+            limit=limit,
+            ticker=ticker,
+            listing=None if listing is None else listing.value,
+            listing_age_s=None if listing is None else listing.age_s(),
+        ),
     )
 
 

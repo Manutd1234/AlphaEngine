@@ -7,9 +7,23 @@ line ceiling. The stubbed venue both halves share lives in
 
 from __future__ import annotations
 
+import time
+
 import httpx
 import pytest
-from coherence_lab_harness import EVENT, make_client, point_tape_at, unreachable, venue
+from coherence_lab_harness import (
+    COMBO_MARKETS,
+    EVENT,
+    PARLAY,
+    exchange,
+    make_client,
+    point_tape_at,
+    unreachable,
+    venue,
+)
+
+from modules.coherence import tunables, warm
+from modules.coherence.drivers.kalshi_combos import parse_combos
 
 
 @pytest.fixture
@@ -107,6 +121,22 @@ class TestTheStakeRoute:
 
 
 class TestTheCombosRoute:
+    @pytest.fixture(autouse=True)
+    def _no_warmed_listing_leaks(self):
+        """`warm._CACHE` is module level, so one test's snapshot answers the next.
+
+        It bites here and not elsewhere because the lookup is only live when
+        `WARM_SECONDS` is set — and on a machine whose `Part2_Infrastructure/.env`
+        carries `COHERENCE_WARM_S` it is set in EVERY test, inherited rather
+        than chosen. So a listing stored by the reuse tests below silently
+        satisfied the empty-listing test's venue, which is the one shape a
+        source read of either test cannot show.
+        """
+        warm._CACHE.clear()
+        yield
+        warm._CACHE.clear()
+
+
     def test_a_quoted_parlay_arrives_with_the_band_its_legs_leave(self, client, monkeypatch):
         venue(monkeypatch)
         payload = client.get("/api/coherence/combos?limit=1").json()
@@ -128,6 +158,64 @@ class TestTheCombosRoute:
         assert payload["rows"], "the cover row is testable once the parlay is offered"
         assert all(row["cost"] is not None and row["slack"] is not None for row in payload["rows"])
         assert payload["violations"] == sum(1 for row in payload["rows"] if row["violated"])
+
+    def test_a_named_parlay_reuses_a_warmed_listing_instead_of_asking_again(
+        self, client, monkeypatch
+    ):
+        """The listing is the expensive half, and a named read paid it every time.
+
+        `observe_combos` makes two venue calls: one listing of every open combo
+        the exchange publishes, and one bulk book call for the parlays taken
+        plus their legs. Asking for a parlay BY NAME still needs the listing,
+        because that is where the combo and its legs are described — so the
+        named path paid the whole listing to pick one row out of it.
+
+        The refresher already fetches that listing on its own cadence. Reusing
+        it costs one venue call instead of two and changes nothing about the
+        answer: the combo and its legs come from the listing either way, and
+        the prices come from a book call this still makes fresh.
+        """
+        seen: list[str] = []
+
+        def counting(request: httpx.Request) -> httpx.Response:
+            if request.url.path.endswith("/markets") and request.url.params.get("mve_filter") == "only":
+                seen.append("listing")
+            return exchange(request)
+
+        venue(monkeypatch, counting)
+        warm._CACHE.clear()
+        monkeypatch.setattr(tunables, "WARM_SECONDS", 60)
+
+        # Cold: the listing is read, and it is what the answer is built from.
+        first = client.get(f"/api/coherence/combos?ticker={PARLAY}").json()
+        assert first["state"] == "available"
+        assert len(seen) == 1, "a cold named read must go to the venue for the listing"
+
+        # Stored the way the refresher stores it: the PARSED listing, which is
+        # what `observe_combos` would otherwise have gone to the venue to build.
+        warm._store("combos-listing", parse_combos(COMBO_MARKETS), time.time_ns())
+        second = client.get(f"/api/coherence/combos?ticker={PARLAY}").json()
+        assert len(seen) == 1, "a warmed listing was held and the route asked the venue again"
+        assert second["combos"], "reusing the listing must still answer with the parlay"
+        assert second["combos"][0]["ticker"] == PARLAY
+
+    def test_a_reused_listing_says_how_old_it_was(self, client, monkeypatch):
+        """A stale listing can offer a parlay that has since settled.
+
+        The prices in the answer are fresh — the book call is always made — but
+        WHICH parlays exist came from an older read, and that is a different
+        kind of staleness from the one `observed_age_s` reports. It is said in
+        words rather than left for a reader to infer from a number about
+        something else.
+        """
+        venue(monkeypatch)
+        warm._CACHE.clear()
+        monkeypatch.setattr(tunables, "WARM_SECONDS", 60)
+        warm._store("combos-listing", parse_combos(COMBO_MARKETS), time.time_ns())
+        payload = client.get(f"/api/coherence/combos?ticker={PARLAY}").json()
+        assert any("listing" in note and "old" in note for note in payload["notes"]), (
+            "a reused listing must name its own age; the prices are fresh and the listing is not"
+        )
 
     def test_an_exchange_listing_no_parlays_says_so_rather_than_showing_nothing(self, client, monkeypatch):
         venue(monkeypatch, lambda request: httpx.Response(200, json={"markets": []}))

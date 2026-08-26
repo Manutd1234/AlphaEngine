@@ -48,10 +48,26 @@ class ComboObservation:
         return [reading for reading in self.readings if reading.inside_band is False]
 
 
+async def fetch_listing(client: KalshiClient) -> list[Combo]:
+    """Every open combo the exchange publishes, parsed. One venue call.
+
+    Split out so the refresher can make this call once and hand the result to
+    both its own `observe_combos` and, through the snapshot, to a named read
+    that would otherwise repeat it. It raises `KalshiUnavailable` rather than
+    swallowing it: a caller warming a cache wants to know the venue refused,
+    and a caller answering a request wants to say so in a note. Those are
+    different responses to the same failure, so the choice belongs to them.
+    """
+    page = await client.multivariate_markets(status="open", limit=1000)
+    return parse_combos(page.payload)
+
+
 async def observe_combos(
     client: KalshiClient,
     limit: int = MAX_COMBOS_PER_READ,
     ticker: str | None = None,
+    listing: list[Combo] | None = None,
+    listing_age_s: float | None = None,
 ) -> ComboObservation:
     """Fetch parlays and everything their legs need, in two calls.
 
@@ -61,15 +77,36 @@ async def observe_combos(
     wanted a named parlay had no way to ask for it — it was in the answer or it
     was not, and usually it was not. A ticker that is not listed comes back as
     an empty read with a note saying so, never as a silent substitution.
+
+    `listing` hands in a set of combos already parsed, so this makes one venue
+    call instead of two. THE LISTING IS THE EXPENSIVE HALF and it is the half a
+    named read cannot avoid: the combo and its legs are described there, so
+    picking one parlay out by name still paid for all thousand of them. The
+    refresher fetches that listing on its own cadence anyway.
+
+    WHAT IT DOES NOT CHANGE is the answer. The combos and their legs come from
+    the listing either way, and the prices come from a book call this still
+    makes fresh every time. What it DOES change is that which parlays exist may
+    be a few seconds old, and a parlay that has since settled could still be
+    offered — a different staleness from the one `observed_age_s` reports, so
+    `listing_age_s` is said in words rather than left to be inferred from a
+    number about something else.
     """
     result = ComboObservation()
-    try:
-        page = await client.multivariate_markets(status="open", limit=1000)
-    except KalshiUnavailable as exc:
-        result.notes.append(f"the combo listing could not be read: {exc.reason}")
-        return result
+    combos = listing
+    if combos is None:
+        try:
+            combos = await fetch_listing(client)
+        except KalshiUnavailable as exc:
+            result.notes.append(f"the combo listing could not be read: {exc.reason}")
+            return result
+    elif listing_age_s is not None:
+        result.notes.append(
+            f"the listing of open parlays is {listing_age_s:.1f}s old and was not re-read; the prices "
+            "below come from a book call made for this request, so a parlay that settled in between "
+            "would be offered at a fresh price it can no longer be traded at"
+        )
 
-    combos = parse_combos(page.payload)
     if not combos:
         result.notes.append("the exchange is listing no open combo markets right now")
         return result

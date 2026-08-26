@@ -237,9 +237,19 @@ async def refresh_once(client: KalshiClient) -> int:
         from modules.api import coherence_lab_views as lab_views
         from modules.coherence.syscalls import combos as combos_syscall
 
-        reading = await combos_syscall.observe_combos(client, limit=WARM_COMBOS_LIMIT)
+        # THE LISTING IS STORED TOO, AND FETCHED ONCE FOR BOTH. It is the
+        # expensive half of a combo read — a thousand open parlays, described —
+        # and it is the half a NAMED read cannot avoid, because that is where a
+        # parlay and its legs are described. Held here, `?ticker=` costs one
+        # venue call instead of two and the answer is unchanged: the books are
+        # still read for that request.
+        listing = await combos_syscall.fetch_listing(client)
+        _store("combos-listing", listing, observed_at)
+        reading = await combos_syscall.observe_combos(
+            client, limit=WARM_COMBOS_LIMIT, listing=listing,
+        )
         _store("combos", lab_views.combos_view(reading), observed_at, limit=WARM_COMBOS_LIMIT)
-        stored += 1
+        stored += 2
     except (KalshiUnavailable, ValueError) as exc:
         logger.info("coherence warm: combos did not read (%s)", exc)
 
