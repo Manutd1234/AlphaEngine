@@ -231,7 +231,7 @@ export default function KalshiArm({ data, error, view, status, index }: {
             half-life — and a reader asking "was any of this available for
             long enough to trade" is answered by the bars alone. */}
         <details className="disclosure">
-          <summary>{`Each closed episode's event, family, peak and half-life, ${data.episodes.length} rows`}</summary>
+          <summary>Each closed episode’s event, family, peak and half-life</summary>
         {/* Focusable, like the findings table's wrap. Six columns with four
             mono numerals is the widest table on the tab, so it is the one most
             likely to scroll — and until 2026-08-25 it was the only scrolling

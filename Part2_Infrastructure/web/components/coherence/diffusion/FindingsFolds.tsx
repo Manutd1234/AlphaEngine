@@ -121,7 +121,7 @@ export default function FindingsFolds({ study, calendar }: {
     <>
       {study ? (
         <details className="disclosure">
-          <summary>{`The run, and what it was held to, ${run.length} rows`}</summary>
+          <summary>The run, and what it was held to</summary>
           <div className="table-wrap" tabIndex={0}>
             <table className="coh-table table-fixed">
               <caption className="coh-table__caption">
@@ -160,7 +160,7 @@ export default function FindingsFolds({ study, calendar }: {
 
       {stamps.length && calendar ? (
         <details className="disclosure">
-          <summary>{`Timestamps, checked against the issuer, ${stamps.length} rows`}</summary>
+          <summary>Timestamps, checked against the issuer</summary>
           <div className="table-wrap" tabIndex={0}>
             <table className="coh-table table-fixed">
               <caption className="coh-table__caption">

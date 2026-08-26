@@ -51,7 +51,7 @@ export default function FindingsTable({ findings }: { findings: Finding[] }) {
           Four twelfths held 71 and took the room from Verdict for nothing. */}
       <table className="coh-table diff-findings table-fixed">
         <caption className="coh-table__caption">
-          Every relationship measured, held or not. The first two rows are the control: a
+          {`All ${findings.length} relationships measured, held or not. `}The first two rows are the control: a
           pipeline that cannot see a bigger rate change produce a bigger move could not call
           the others absent.
         </caption>

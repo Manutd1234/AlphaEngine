@@ -161,9 +161,7 @@ export default function FindingsPane({ active }: { active: boolean }) {
           reported rather than hidden. The 32-word caption survives inside. */}
       {data.findings.length ? (
         <details className="disclosure">
-          <summary>
-            {`Every relationship measured, with its count, its statistics and its verdict, ${data.findings.length} rows`}
-          </summary>
+          <summary>Every relationship measured, with its count, its statistics and its verdict</summary>
           <FindingsTable findings={data.findings} />
         </details>
       ) : (
@@ -186,7 +184,11 @@ export default function FindingsPane({ active }: { active: boolean }) {
       {/* THE METHOD, FOLDED AS TABLES since 2026-08-26. Two prose folds and a
           third beneath them used to sit here; both bodies were numbers wearing
           sentences, and the third's one genuine sentence is the run table's
-          caption now. Each summary counts its rows. */}
+          caption now. Each summary names its table; a count moved off the
+          header on 2026-08-27, into the caption where it is a measurement
+          (14 relationships, 24 meetings) and off the tab entirely where it
+          is not (12 settings, 3 fixed checks, 6 requirements already drawn
+          above the fold that names them). */}
       <FindingsFolds study={study} calendar={calendar} />
       </>
       )}

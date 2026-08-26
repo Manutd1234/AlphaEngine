@@ -1007,14 +1007,20 @@ meetings and 32 votes in another.
 and the four folded tables on Proofs; the third fold's one genuine sentence —
 why the predictor is reported as absent rather than dropped — is the run
 table's caption, with its claim about the ladder still branching on
-`study.skill_meetings`. Every summary counts its rows. The criterion and the
+`study.skill_meetings`. Every summary names its table. The criterion and the
 largest measured |t| are parsed from `verdict_reason`, the only place the wire
 states them; a sentence that does not parse is printed whole beneath the
 table rather than read into a row.
 
-    The run, and what it was held to, 12 rows        setting · value · what it means
-    Timestamps, checked against the issuer, 3 rows   check · result · read from
-    What each requirement is guarding against, 6     stays a definition list; six fixed sentences are prose
+    The run, and what it was held to        setting · value · what it means
+    Timestamps, checked against the issuer  check · result · read from
+    What each requirement is guarding against   stays a definition list; six fixed sentences are prose
+
+**2026-08-27 — the counts left these headers.** Neither of these two folds is
+a measurement: 12 settings and 3 fixed checks, both gated on a non-empty body
+(`study ?`, `stamps.length && calendar ?`), so the "empty fold looks like a
+full one" case the counted-summary convention exists for cannot occur here.
+See the round-2 sweep section below for the other three headers this touched.
 
 Measured with every fold forced open, at 1600 and 1100:
 

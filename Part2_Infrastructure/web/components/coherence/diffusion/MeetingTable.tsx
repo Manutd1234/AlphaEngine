@@ -91,7 +91,7 @@ export default function MeetingTable({ runs }: { runs: StageRun[] }) {
         move, and where it sat against matched windows with no news. Per-row
         provenance for a reader checking one meeting, not the reading. */}
     <details className="disclosure">
-      <summary>{`Both stages, the move and the no-news percentile for each meeting, ${rows.length} rows`}</summary>
+      <summary>Both stages, the move and the no-news percentile for each meeting</summary>
     <div className="table-wrap">
       {/* FIXED, NOT AUTO, since 2026-08-25. Measured in Chrome at 1600px, the
           auto layout gave these six columns 179 · 124 · 313 · 417 · 238 · 253 —
@@ -101,8 +101,7 @@ export default function MeetingTable({ runs }: { runs: StageRun[] }) {
           changed. Twelfths, declared once here, hold whatever lands in them. */}
       <table className="coh-table table-fixed">
         <caption className="coh-table__caption">
-          Meetings with a measured stage, capped at the last {RECENT_MEETINGS}. A blank stage never
-          moved enough to measure — a property of the decision, not of the data.
+          {`The last ${rows.length} meetings with a measured stage, of a cap of ${RECENT_MEETINGS}.`}
         </caption>
         <thead>
           <tr>

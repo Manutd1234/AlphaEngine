@@ -328,7 +328,7 @@ export default function InstrumentFit({ study, gate }: {
           table's widest column and most of this view's height; folded, because
           a reader needs them once and not on every glance at the numbers. */}
       <details className="disclosure">
-        <summary>{`What each requirement is guarding against, ${rows.length}`}</summary>
+        <summary>What each requirement is guarding against</summary>
         <dl className="diff-fit__why">
           {rows.map((check) => (
             <Fragment key={check.what}>

@@ -61,6 +61,11 @@ const RUNG: Record<string, number> = {
   // The fan's panel header, added 2026-08-26 when the refused count moved off
   // the axis row and onto it. Both read `--fs-sm`, which is this rung.
   "diff-fan__head": DIAGRAM_LABEL_PX,
+  // The Absorption legend, moved above MARGIN.top as one row, 2026-08-27.
+  // Reads `--fs-diagram-legend` (14px, `14r-coherence-density.css`).
+  "diff-curve__key": DIAGRAM_LEGEND_PX,
+  "diff-curve__key--release": DIAGRAM_LEGEND_PX,
+  "diff-curve__key--call": DIAGRAM_LEGEND_PX,
   "diff-fan__count": DIAGRAM_LABEL_PX,
   // The watch's poll count, added 2026-08-26 with the recorder clock. Reads
   // `--fs-sm`, the same rung.

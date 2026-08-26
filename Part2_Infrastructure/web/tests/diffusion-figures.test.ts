@@ -275,15 +275,20 @@ describe("Findings: the field, the matrix, and the sentence the wire decides", (
     assert.match(folds, /on this run it has not been scored/, "the unscored case has no sentence of its own");
   });
 
-  it("the method folds are tables whose summaries count their rows, and the pane keeps no prose fold", () => {
+  it("the method folds are tables whose summaries name them without a count, and the pane keeps no prose fold", () => {
     assert.match(pane, /<FindingsFolds study=\{study\} calendar=\{calendar\} \/>/, "the folds are not mounted");
     // ONE fold stays on the pane — the table view's folded `FindingsTable`,
     // which is a table already. The two prose folds and the third are gone.
     assert.equal((pane.match(/<details/g) ?? []).length, 1, "the pane should keep exactly the table view's fold");
     assert.doesNotMatch(pane, /How this run was chosen|Why report the predictor/,
       "a prose fold survives on the pane; the folds are tables in FindingsFolds now");
-    assert.match(folds, /The run, and what it was held to, \$\{run\.length\} rows/, "the run fold's summary does not count its rows");
-    assert.match(folds, /Timestamps, checked against the issuer, \$\{stamps\.length\} rows/, "the timestamp fold's summary does not count its rows");
+    // SINCE 2026-08-27 the two counts moved off these headers: 12 settings
+    // and 3 fixed checks are not measurements, so nothing replaces them — a
+    // plain-text summary is the precedent (`ModelFormulas.tsx`'s "What it
+    // measures, what breaks it, and when it holds", 13 identical renders).
+    assert.match(folds, /<summary>The run, and what it was held to<\/summary>/, "the run fold's summary is no longer plain text naming its table");
+    assert.match(folds, /<summary>Timestamps, checked against the issuer<\/summary>/, "the timestamp fold's summary is no longer plain text naming its table");
+    assert.doesNotMatch(folds, /<summary>\{`/, "a fold summary interpolates a count again — a row count is not a measurement here");
     assert.equal((folds.match(/<table className="coh-table table-fixed">/g) ?? []).length, 2, "each fold is one fixed-layout table");
     assert.doesNotMatch(folds, /\?\? 0/, "a missing study field was coerced to nought");
   });

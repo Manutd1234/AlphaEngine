@@ -29,8 +29,14 @@ import { pct } from "@/lib/format";
 
 import type { StageRun, StageSummary } from "./types";
 
-const HEIGHT = 210;
-const MARGIN = { top: 34, right: 18, bottom: 30, left: 44 };
+const HEIGHT = 216;
+// 40, not 34: the legend sits in the top margin as ONE row now (below), and at
+// 34 a 14px key's own ink box started 1px ABOVE the svg's own top edge — it
+// survived only because `.coh-figure__plot svg` sets `overflow: visible`
+// (`10a-coherence-plane.css`) — with a 5px gap to the caption above and an
+// 8.4px vertical overlap with the "100%" gridline label. Both figures move by
+// the same +6, so the plot area itself is unchanged.
+const MARGIN = { top: 40, right: 18, bottom: 30, left: 44 };
 
 export interface AbsorptionCurveProps {
   horizons: string[];
@@ -187,13 +193,18 @@ function Curve({ width, horizons, release, call, stages, runs }: AbsorptionCurve
         <XAxis points={points} y={y0} x0={x0} x1={x1}
                format={(value) => horizons[Math.round(value)] ?? ""} minGap={34} />
 
-        <text x={x0} y={13} className="diff-curve__key diff-curve__key--release">
+        {/* ONE ROW, not two, since 2026-08-27: the two keys measure 179px and
+            237px at 14px in a plot over 1500px wide — stacking them was never
+            necessary, and it was the stack that left no room for the caption
+            gap. Left-anchored at the axis origin, right-anchored at the axis
+            end, the `EpisodeTape.tsx` two-key idiom. */}
+        <text x={x0} y={MARGIN.top - 12} className="diff-curve__key diff-curve__key--release">
           <tspan aria-hidden="true">●</tspan> statement
           {summaryOf("release")?.median_half_life_s
             ? ` — half in ${Math.round(summaryOf("release")!.median_half_life_s!)}s`
             : ""}
         </text>
-        <text x={x0} y={30} className="diff-curve__key diff-curve__key--call">
+        <text x={x1} y={MARGIN.top - 12} textAnchor="end" className="diff-curve__key diff-curve__key--call">
           <tspan aria-hidden="true">▲</tspan> press conference
           {summaryOf("call")?.median_half_life_s
             ? ` — half in ${Math.round(summaryOf("call")!.median_half_life_s!)}s`
