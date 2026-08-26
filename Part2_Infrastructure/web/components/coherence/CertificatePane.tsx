@@ -34,18 +34,18 @@ import type { CoherenceCertificate, CoherenceEventView } from "@/lib/coherence/t
 import { certifyRoute } from "@/lib/coherence/routes";
 import PaneHead from "./PaneHead";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
-import { ProofView, VerdictView, verdictReading } from "./CertificateViews";
+import { PricesView, ProofView, VerdictView, verdictReading } from "./CertificateViews";
 import { verdictChip } from "./certificate-verdict";
 import FamilyChoice, { type FamilySectionProps } from "./FamilyChoice";
-import LadderPrices from "./LadderPrices";
 import { StateChip } from "./Figure";
 import SectionVerdict from "./SectionVerdict";
 
-type CertificateView = "verdict" | "proof";
+type CertificateView = "verdict" | "proof" | "prices";
 
 const VIEWS: ReadonlyArray<[CertificateView, string]> = [
   ["verdict", "Verdict"],
   ["proof", "Proof"],
+  ["prices", "Prices"],
 ];
 
 export default function CertificatePane({
@@ -151,19 +151,16 @@ export default function CertificatePane({
         {/* NOT INSIDE THE BLOCK ABOVE, and that is the point. These prices come
             from the universe read, not from the certificate: they are what the
             test is ABOUT, not something it returns. Gated on `answer` they
-            vanished exactly when they were most wanted — a 188-strike family
-            takes seconds to certify, and for those seconds the section showed a
-            spinner and nothing else while the whole book sat in memory.
+            would vanish exactly when they are most wanted — a 188-strike family
+            takes seconds to certify, and for those seconds the section would
+            show a spinner and nothing else while the whole book sat in memory.
 
-            Verdict only: on Proof the subject is the certificate itself. */}
-        {/* THE PRICES THE VERDICT IS ABOUT, and only those. `BasketWhatIf` was
-            drawn here too until 2026-08-26 and has moved to Basket, which is
-            the section it names: it is the operated figure of what a cover
-            COSTS, and Basket is where a reader goes for the portfolio rather
-            than for the verdict. It also left this section with two figures
-            about prices and Basket with two that degenerate on the ordinary
-            answer, which is the imbalance the reader saw. */}
-        {view === "verdict" && chosen ? <LadderPrices event={chosen} /> : null}
+            A VIEW OF THEIR OWN since 2026-08-26. The ladder used to ride below
+            the verdict, so a reader met the conclusion first and the evidence
+            after scrolling, and the figure a reader most wanted to sit with was
+            the one furthest down the section. It is Prices now, with the size
+            ribbons under it on the same strike axis. */}
+        {view === "prices" && chosen ? <PricesView event={chosen} /> : null}
       </FamilyChoice>
     </section>
   );

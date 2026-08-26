@@ -37,6 +37,7 @@
  */
 
 import Figure, { FigureEmpty, Plot } from "./Figure";
+import { money, placeStrikes } from "@/lib/coherence/strike-axis";
 import type { CoherenceEventView, CoherenceMarketView } from "@/lib/coherence/types";
 import { groupDigits } from "@/lib/coherence/universe-metrics";
 
@@ -45,35 +46,19 @@ const MARGIN = { top: 18, right: 12, bottom: 34, left: 44 };
 const R_MIN = 1.6;
 const R_MAX = 6;
 
-const money = (raw: string | null): number | null => {
-  if (raw === null) return null;
-  const value = Number(raw);
-  return Number.isFinite(value) ? value : null;
-};
-
-/**
- * Where a leg sits on the strike axis.
- *
- * A `between` leg spans two strikes and is placed at its midpoint; the
- * one-sided kinds have only the bound they are named for. A leg whose bounds
- * are both absent has no position and is counted rather than placed.
- */
-function strikeOf(market: CoherenceMarketView): number | null {
-  const floor = money(market.floor_strike);
-  const cap = money(market.cap_strike);
-  if (floor !== null && cap !== null) return (floor + cap) / 2;
-  return floor ?? cap;
-}
-
 export default function LadderPrices({ event }: { event: CoherenceEventView }) {
-  const placed = event.markets
-    .map((market) => ({ market, strike: strikeOf(market), bid: money(market.yes_bid), ask: money(market.yes_ask) }))
-    .filter((row) => row.strike !== null)
-    .sort((a, b) => (a.strike as number) - (b.strike as number));
-  const unplaced = event.markets.length - placed.length;
+  // The placement rule is `strike-axis`'s, shared with `LegSizes` under this
+  // figure: two drawings over one x extent must agree about where a leg is.
+  const { placed: legs, unplaced, lo, hi } = placeStrikes(event.markets);
+  const placed = legs.map((leg) => ({
+    market: leg.market,
+    strike: leg.strike,
+    bid: money(leg.market.yes_bid),
+    ask: money(leg.market.yes_ask),
+  }));
   const quoted = placed.filter((row) => row.bid !== null || row.ask !== null);
 
-  if (!quoted.length) {
+  if (!quoted.length || lo === null || hi === null) {
     return (
       <Figure
         caption={CAPTION}
@@ -90,9 +75,6 @@ export default function LadderPrices({ event }: { event: CoherenceEventView }) {
     );
   }
 
-  const strikes = placed.map((row) => row.strike as number);
-  const lo = Math.min(...strikes);
-  const hi = Math.max(...strikes);
   // NULL OPEN INTEREST IS NOT ZERO OPEN INTEREST, and the payload's own type
   // says so: "0.0000" is the exchange having looked and found nothing, null is
   // the venue having stopped sending the field. Coercing the second to the
@@ -159,7 +141,7 @@ export default function LadderPrices({ event }: { event: CoherenceEventView }) {
                 </g>
               ))}
               {placed.map((row) => {
-                const cx = x(row.strike as number);
+                const cx = x(row.strike);
                 const held = money(row.market.open_interest);
                 const sized = held !== null;
                 // An unsized leg draws at the floor radius, ringed rather than

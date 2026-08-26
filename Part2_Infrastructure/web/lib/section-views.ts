@@ -97,7 +97,7 @@ const MARKETS_VIEWS = {
  * follow them, in the order the row presses.
  */
 const COHERENCE_VIEWS = {
-  certificate: [["verdict", "Verdict"], ["proof", "Proof"]],
+  certificate: [["verdict", "Verdict"], ["proof", "Proof"], ["prices", "Prices"]],
   portfolio: [],
   combos: [["bands", "Bands"], ["parlays", "Parlays"], ["bounds", "Bounds"]],
   index: [["series", "By poll"], ["families", "By family"]],

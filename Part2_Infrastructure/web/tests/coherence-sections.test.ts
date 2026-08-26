@@ -180,7 +180,7 @@ describe("exactly one subtab rail on the tab", () => {
     // left — `coherence-groups.test.ts` records why — so each of these names
     // its own views where it draws them, and that file's table is empty.
     const ONE_LEVEL: Record<string, readonly string[]> = {
-      certificate: ["Verdict", "Proof"],
+      certificate: ["Verdict", "Proof", "Prices"],
       combos: ["Bands", "Parlays", "Bounds"],
       calibration: ["Score", "Bands"],
       corpus: ["Composition", "Score trend"],

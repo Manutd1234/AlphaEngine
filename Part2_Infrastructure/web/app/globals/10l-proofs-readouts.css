@@ -263,3 +263,36 @@
 .coh-lessonfig__danger {
   fill: color-mix(in srgb, var(--status-critical) 10%, transparent);
 }
+
+/* The size ribbons under the price ladder. One fill for all three: the ribbon
+   name to the left of each row is what tells them apart, so nothing here means
+   anything by colour. */
+.coh-legsize__cell {
+  fill: var(--series-1);
+}
+
+/* A field the venue stopped sending: an outline where a measured zero is a
+   filled sliver, so the two absences cannot be read as one. */
+.coh-legsize__cell.is-null {
+  fill: none;
+  stroke: var(--rule);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.coh-legsize__name {
+  fill: var(--text-secondary);
+  font-size: var(--fs-tick);
+}
+
+.coh-legsize__base {
+  stroke: var(--axis);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+/* The invisible column that carries a leg's `<title>`: one mark per leg,
+   spanning the three ribbons, so a reader walks legs rather than cells. */
+.coh-legsize__column {
+  fill: transparent;
+}

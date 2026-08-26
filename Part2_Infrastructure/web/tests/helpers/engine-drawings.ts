@@ -32,6 +32,10 @@ export const DRAWINGS = [
   // a way to exempt a view without writing down that you did.
   "CheckLadder", "StateCoverage", "ParlayLegs", "HorizonAxis",
   "MeasurabilityStrip", "GroupPins", "FormationDiagram",
+  // The Prices view's two, 2026-08-26: both sides of every leg on one dollar
+  // axis, and the same legs' three size fields under it on the same strike
+  // extent. Both open on a `<Figure>` themselves; both are in LOCAL below.
+  "LadderPrices", "LegSizes",
   // The one figure on the tab whose name says nothing about being one; it is
   // local to `IndexPane` and there is no second `Chart` under `coherence/`.
   "Chart",

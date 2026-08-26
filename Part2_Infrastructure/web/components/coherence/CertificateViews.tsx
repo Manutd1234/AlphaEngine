@@ -37,6 +37,8 @@ import type { CoherenceCertificate, CoherenceEventView } from "@/lib/coherence/t
 export { verdictChip } from "./certificate-verdict";
 import { statValue } from "@/lib/coherence/decimals";
 import CheckLadder from "./CheckLadder";
+import LadderPrices from "./LadderPrices";
+import LegSizes from "./LegSizes";
 import ConstraintLadder from "./ConstraintLadder";
 import MarginAxis from "./MarginAxis";
 import ValueStrip, { type StripRow } from "./ValueStrip";
@@ -299,5 +301,26 @@ export function ProofView({ data, event }: {
         </details>
       ) : null}
     </>
+  );
+}
+
+/**
+ * The prices the test is about, and the sizes behind them.
+ *
+ * ONE COLUMN, NOT A PAIR. Both figures are drawn on the same strike extent
+ * through `lib/coherence/strike-axis.ts`, and two figures sharing an x extent
+ * have to share a width: side by side, one strike would sit at two different
+ * pixels and a reader would read the two as different families. Stacked, a
+ * column of the ladder is the same column of the ribbons.
+ *
+ * It takes the EVENT, not the certificate: these come from the universe read,
+ * so they draw while the test is still running.
+ */
+export function PricesView({ event }: { event: CoherenceEventView }) {
+  return (
+    <div className="coh-grid">
+      <LadderPrices event={event} />
+      <LegSizes event={event} />
+    </div>
   );
 }

@@ -114,6 +114,9 @@ interface View {
 const VIEWS: Record<string, View> = {
   "Coherence test / Verdict": { at: "../components/coherence/CertificateViews.tsx#VerdictView" },
   "Coherence test / Proof": { at: "../components/coherence/CertificateViews.tsx#ProofView" },
+  // The prices the test is about, given a view of their own on 2026-08-26
+  // rather than a place below the verdict.
+  "Coherence test / Prices": { at: "../components/coherence/CertificateViews.tsx#PricesView" },
   "Basket": { at: "../components/coherence/PortfolioPane.tsx#PortfolioPane" },
   "Parlays / Bands": { at: "../components/coherence/CombosViews.tsx#BandsView" },
   // NO LONGER EXEMPT, as of 2026-08-25. The exemption said a figure here would
@@ -319,7 +322,7 @@ describe("every Proofs view opens on a drawing", () => {
     // Eleven views over six Proofs sections, plus sixteen over Diffusion's
     // seven. A view added without a line here is a view this contract does not
     // reach, and the failure would be silence.
-    assert.equal(Object.keys(VIEWS).length, 27);
+    assert.equal(Object.keys(VIEWS).length, 28);
   });
 
   it("every named drawing is one, so the allow-list is not a loophole", () => {
@@ -338,6 +341,8 @@ describe("every Proofs view opens on a drawing", () => {
       ParlayLegs: "../components/coherence/ParlayLegs.tsx#ParlayLegs",
       HorizonAxis: "../components/coherence/HorizonAxis.tsx#HorizonAxis",
       MeasurabilityStrip: "../components/coherence/MeasurabilityStrip.tsx#MeasurabilityStrip",
+      LadderPrices: "../components/coherence/LadderPrices.tsx#LadderPrices",
+      LegSizes: "../components/coherence/LegSizes.tsx#LegSizes",
       GroupPins: "../components/coherence/GroupPins.tsx#GroupPins",
       InstrumentFit: "../components/coherence/diffusion/InstrumentFit.tsx#InstrumentFit",
       MeetingCalendar: "../components/coherence/diffusion/MeetingCalendar.tsx#MeetingCalendar",
