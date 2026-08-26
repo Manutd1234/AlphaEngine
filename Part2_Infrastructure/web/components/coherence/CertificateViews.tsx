@@ -165,7 +165,7 @@ export function VerdictView({ data, target }: { data: CoherenceCertificate; targ
           the answer and its derivation in one glance instead of scrolling
           between them. Both exist on every solve, which is why these two are
           the pair and the money strip below is not. */}
-      <div className="coh-figpair">
+      <div className="coh-grid coh-grid--2">
         <MarginAxis margin={data.margin} verdict={data.verdict} engine={data.engine} pricedOut={Boolean(data.priced_out)} />
         <CheckLadder certificate={data} />
       </div>

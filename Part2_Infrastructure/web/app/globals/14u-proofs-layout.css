@@ -12,36 +12,6 @@
    Imported after 14t and before 15, which stays last.
    ========================================================================== */
 
-/* ── Two figures side by side, where both exist on every read ─────────────
-
-   Every section on this tab stacked figure, figure, fold, table in one narrow
-   column, so a view with two drawings put the second below the fold at desk
-   width and the reader scrolled between an answer and its derivation.
-
-   PAIRED ONLY WHERE BOTH FIGURES ARE ALWAYS DRAWN, which is the rule that
-   decides what goes in here and what does not. Verdict pairs the margin axis
-   with the check ladder because both exist on every solve; its money strip is
-   NOT in the pair, because on the ordinary coherent answer no portfolio exists
-   and the strip is correctly absent — a pair with one child is a half-empty
-   row claiming to be a comparison.
-
-   1100px is 14r's own packing breakpoint, reused rather than chosen: below it
-   this plane is already a single-column flow and a two-column figure would
-   squeeze both plots under their own label gutters. */
-.coherence-plane.proofs-plane .coh-figpair {
-  display: grid;
-  gap: var(--space-2);
-  grid-template-columns: 1fr;
-  min-width: 0;
-}
-
-@media (min-width: 1100px) {
-  .coherence-plane.proofs-plane .coh-figpair {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: start;
-  }
-}
-
 /* ── A figure's caveats, folded ───────────────────────────────────────────
 
    `Figure` grew a counted `<details>` on 2026-08-25 for the footnotes that had
@@ -104,9 +74,12 @@
   align-items: center;
   gap: var(--space-2);
   flex-wrap: wrap;
-  padding: var(--space-2) var(--space-3);
+  /* Tightened 2026-08-26 with the dense layouts: the inset rung of padding
+     and the inset radius — the band is a frame inside a card, and every box
+     inside a section takes `--radius-sm` (14z's ladder). */
+  padding: var(--space-1) var(--space-2);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   background: var(--surface-1);
   min-width: 0;
 }

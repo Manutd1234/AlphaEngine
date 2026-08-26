@@ -1,0 +1,59 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   14y — the engine grid family: one layout vocabulary for both engine tabs
+
+   Every section on Proofs and Markets was one column — head, verdict, control
+   row, figure, reading, fold, table — with exactly two two-up grids on the
+   whole Proofs tab (`.coh-figpair`, scoped to one plane) and none on Markets.
+   A dense section body is a grid, and this is the grid: a base and a small
+   family of modifiers, declared once for the plane every engine console
+   renders, so a layout on Proofs and the same layout on Markets are the same
+   rule rather than two rules that drift.
+
+   WHAT IS NOT HERE. No size (the ladder's), no colour or border (14z's), no
+   motion. A grid is geometry, and `engine-grid.test.ts` holds it to that.
+
+   WHY NOT 14r, 14u OR 14x. 14r is held by `coherence-density-partial` to the
+   type ladder and packing of grids 10a already declares, and refuses a new
+   grid of its own; 14u and 14x each own one tab. This partial names the
+   shared plane and sits after 14x in the manifest, before 15, which stays
+   last.
+
+   EVERY PACKING RULE IS INSIDE A MIN-WIDTH QUERY, so a phone keeps its one
+   column; 1100 is 14r's own packing breakpoint, reused rather than chosen,
+   and 1400 is where a third column earns its width.
+
+   ALIGN-CONTENT: START on the base, and it is load-bearing. A `display: grid`
+   on a subtab-panel element without it lets spare height inflate the rows on
+   a pane switch — the seg-resizes trap — and `14j` protects only the
+   portfolio, risk and execution panels, not the engine tabs.
+
+   The two-up landed first, on the two sites `.coh-figpair` had; the rest of
+   the family is declared in the same commit as its first render site, because
+   `dead-css` has no slack for a rule waiting on a caller.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* The base: one column, the section's own gap, rows packed from the top. */
+.coherence-plane .coh-grid {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  align-content: start;
+}
+
+@media (min-width: 1100px) {
+  /* Two figures that both exist on every read, side by side. */
+  .coherence-plane .coh-grid--2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  /* The status pane under every section: the shard fold beside the notes
+     fold, rather than two full-width folds stacked. Both summaries count. */
+  .coherence-plane .coh-console__status {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3);
+    align-content: start;
+    align-items: start;
+  }
+}

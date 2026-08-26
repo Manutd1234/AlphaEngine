@@ -87,6 +87,13 @@ export interface SectionFrameProps<V extends string> {
    * inside so nobody opens it to find out how big it is.
    */
   notes?: { summary: string; body: ReactNode } | null;
+  /**
+   * The grid the drawings sit in — `14y-engine-grid.css`'s family. Wraps
+   * CHILDREN ONLY: the head stays a slot (see above), the control row and the
+   * KPI row keep their places, and the folded prose stays last. A section
+   * whose views lay out differently draws `.coh-grid` itself inside children.
+   */
+  layout?: "2" | "3" | "aside" | "lead";
   children?: ReactNode;
 }
 
@@ -102,6 +109,7 @@ export default function SectionFrame<V extends string>({
   kpis,
   kpiSource,
   notes,
+  layout,
   children,
 }: SectionFrameProps<V>) {
   const switcher = views && views.length > 1 && view !== undefined && onView;
@@ -134,7 +142,7 @@ export default function SectionFrame<V extends string>({
 
       {kpis?.length ? <KpiRow readings={kpis} source={kpiSource} /> : null}
 
-      {children}
+      {layout ? <div className={`coh-grid coh-grid--${layout}`}>{children}</div> : children}
 
       {notes ? (
         <details className="disclosure">

@@ -219,4 +219,8 @@
    rungs it needs are in 14q, which owns this plane's prose ladder. Markets
    only, after 14v, before 15. */
 @import "./globals/14x-markets-frame.css";
+/* The engine grid family — the dense-layout vocabulary both engine tabs share,
+   scoped `.coherence-plane` like 14v and 14w. Geometry only: no size, no
+   colour, no motion. After 14x, before 15, which stays last. */
+@import "./globals/14y-engine-grid.css";
 @import "./globals/15-navigator-and-trailing-layer.css";

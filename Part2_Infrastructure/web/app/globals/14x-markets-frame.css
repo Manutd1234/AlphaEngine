@@ -57,6 +57,17 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
+  /* PINNED, since 2026-08-26, the way Proofs' `.coh-bar` has been: a reader
+     three figures down a section can still change the view without scrolling
+     back. Same offset, same rung — `--z-sticky-cell` is the desk's rung for
+     something that pins inside its own scroller, deliberately far below
+     `--z-rail`, so this can never cover the navigation above it. */
+  position: sticky;
+  top: calc(var(--rail-h) + var(--space-3));
+  z-index: var(--z-sticky-cell);
+  padding: var(--space-2) 0;
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--rule-soft);
 }
 
 /* The right-hand half. A group rather than a bare child so a section carrying

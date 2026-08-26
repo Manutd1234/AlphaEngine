@@ -157,7 +157,7 @@ export default function PortfolioPane({ certificate, chosen }: {
             property of the FAMILY and therefore exists whether or not a
             portfolio does. The sentence that used to stand in for a drawing
             here is now one clause under two of them. */}
-        <div className="coh-figpair">
+        <div className="coh-grid coh-grid--2">
           {/* NOT `MarginAxis`, which stays on the Coherence test's verdict view
               where it answers a yes/no beside the check ladder. Here the
               question is HOW FAR, and on the answer this branch exists for —

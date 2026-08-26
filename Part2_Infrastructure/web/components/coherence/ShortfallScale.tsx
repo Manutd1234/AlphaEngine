@@ -42,7 +42,7 @@ import { DOLLAR_CC, fromCenticents, toCenticents } from "@/lib/coherence/fixed-p
 
 const HEIGHT = 186;
 /**
- * Reserved rather than assumed, because this figure lives in a `.coh-figpair`.
+ * Reserved rather than assumed, because this figure lives in a `.coh-grid--2`.
  *
  * `MARGIN.left` was a constant 168 and the row labels are right-anchored inside
  * it — which held at the 720px default width and clipped every label at the
@@ -198,7 +198,7 @@ export default function ShortfallScale({ margin, verdict, engine }: {
     >
       <Plot height={HEIGHT}>
         {(width: number) => {
-          // MEASURED, NOT ASSUMED. This figure sits in a `.coh-figpair`, so its
+          // MEASURED, NOT ASSUMED. This figure sits in a `.coh-grid--2`, so its
           // measured width is about half what a full-width plot gets — and a
           // constant left margin clipped every row label there while looking
           // right at the default. The gutter is the longest label's own advance
