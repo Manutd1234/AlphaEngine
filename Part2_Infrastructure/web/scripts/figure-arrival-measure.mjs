@@ -38,6 +38,14 @@
  *     its empty branch with no `<svg>` at all, which is correct behaviour and
  *     looks identical to a broken instrument. The script reports the empty
  *     reason rather than counting it as silence.
+ *  5. Press the segs a reader would. A figure behind a pane seg (`Shape` on
+ *     Positions) or behind a substitute book (`Sandbox` on Risk) is NOT in the
+ *     DOM until the seg is pressed — switched-away panes unmount — so the hash
+ *     alone cannot reach it, and "0 visible figures" there is the pane, not
+ *     hydration. `tab/section!Label!Label` presses the visible buttons with
+ *     exactly those labels, in that order, after the settle. Found 2026-08-26:
+ *     `#risk/diagram` and `#portfolio/positions` both read 0 on a flat book
+ *     while `#markets/books` spoke on the same server.
  *
  * Run against a PRODUCTION build, for the reason `section-density-measure.mjs`
  * records: `next dev` returns 403 for every JS chunk under Next's
@@ -115,11 +123,25 @@ const COLLECT = `(() => {
 let silent = 0;
 let spoke = 0;
 
-for (const location of LOCATIONS) {
+for (const spec of LOCATIONS) {
+  const [location, ...presses] = spec.split("!");
   await send("Page.navigate", { url: `${ORIGIN}/dashboard#${location}` });
   // TRAP 1. Without this, focus() fires no focus events and every plot reads silent.
   await send("Page.bringToFront");
   await wait(SETTLE_MS);
+  // TRAP 5. A pane behind a seg is not in the DOM until the seg is pressed.
+  for (const label of presses) {
+    const hit = await evaluate(`(() => {
+      const wanted = ${JSON.stringify(label)};
+      const b = [...document.querySelectorAll('button')]
+        .find((el) => el.offsetParent !== null && el.textContent.trim() === wanted);
+      if (!b) return "missing";
+      b.click();
+      return "ok";
+    })()`);
+    console.log(`   press "${label}": ${hit === "ok" ? "ok" : "NO VISIBLE BUTTON WITH THAT LABEL"}`);
+    await wait(2500);
+  }
 
   let state = JSON.parse(await evaluate(COLLECT));
   for (let attempt = 0; attempt < 4 && state.focusable === 0; attempt++) {
@@ -127,7 +149,7 @@ for (const location of LOCATIONS) {
     state = JSON.parse(await evaluate(COLLECT));
   }
 
-  console.log(`\n#${location} — ${state.focusable} focusable of ${state.visible} visible figure(s)`);
+  console.log(`\n#${spec} — ${state.focusable} focusable of ${state.visible} visible figure(s)`);
   for (const undrawn of state.undrawn) {
     console.log(`   (not drawn) ${undrawn.caption} — ${undrawn.empty ?? "no empty reason given"}`);
   }
