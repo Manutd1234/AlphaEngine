@@ -25,8 +25,8 @@ import {
   linePath,
   linearScale,
   ticks,
-  useMeasuredWidth,
 } from "@/components/chart-kit";
+import Figure, { Plot } from "@/components/coherence/Figure";
 import StatTile from "@/components/StatTile";
 import { compact, pct, usd } from "@/lib/format";
 import type { EquityPoint } from "@/lib/portfolio";
@@ -53,7 +53,6 @@ const PERIOD_LABELS: Array<[string, string]> = [
 export default function EquityCurve({
   points, startOfDay, haltLevel, generated, periods, backfilled,
 }: EquityCurveProps) {
-  const [ref, width] = useMeasuredWidth<HTMLDivElement>();
 
   if (points.length < 2) {
     return (
@@ -76,7 +75,6 @@ export default function EquityCurve({
   const height = 260;
   const m = { ...DEFAULT_MARGIN, right: 64, left: 62, bottom: 28 };
   const x0 = m.left;
-  const x1 = Math.max(x0 + 40, width - m.right);
   const y0 = height - m.bottom;
   const y1 = m.top;
 
@@ -86,7 +84,6 @@ export default function EquityCurve({
   // that looks comfortable while sitting just above the level that stops it.
   const [lo, hi] = extent([...equity, ...hwm, startOfDay, haltLevel]);
   const yScale = linearScale(lo, hi, y0, y1);
-  const xScale = linearScale(0, points.length - 1, x0, x1);
 
   // Contiguous runs of halted observations, collapsed into spans so a long halt
   // draws as one band rather than a picket fence of adjacent rectangles.
@@ -102,9 +99,6 @@ export default function EquityCurve({
   const last = points[points.length - 1];
   const drawdown = last.highWaterMark > 0 ? last.equity / last.highWaterMark - 1 : 0;
   const peak = Math.max(...hwm);
-
-  const equityPath = linePath(points.map((p, i) => ({ x: xScale(i), y: yScale(p.equity) })));
-  const hwmPath = linePath(points.map((p, i) => ({ x: xScale(i), y: yScale(p.highWaterMark) })));
 
   const stamp = (t: number) =>
     new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -140,14 +134,25 @@ export default function EquityCurve({
         )}
       </div>
 
-      <div ref={ref}>
-        <svg
-          viewBox={`0 0 ${width} ${height}`}
-          width="100%"
-          height={height}
-          role="img"
-          aria-label={`Intraday equity against its high-water mark. Currently ${usd(last.equity, 0)}, ${pct(drawdown, 2)} from a peak of ${usd(peak, 0)}.`}
-        >
+      {/* Through `Figure` and `Plot` since 2026-08-26: the curve's marks carried
+          their readings in `<title>`, reachable with a mouse and by nothing
+          else. `Plot` walks them; `Figure` puts the live region outside the
+          `role="img"` wrapper, where a presentational subtree cannot. */}
+      <Figure
+        caption="Intraday equity against its high-water mark"
+        ariaLabel={`Intraday equity against its high-water mark. Currently ${usd(last.equity, 0)}, ${pct(drawdown, 2)} from a peak of ${usd(peak, 0)}.`}
+        reading="The gap between the line and the mark is the drawdown; a shaded stretch is the desk halted, which is a different fact from the desk choosing not to trade."
+      >
+        <Plot height={height}>
+          {(measured) => {
+            // Both depend on the measured width, so both belong to the plot.
+            const x1 = Math.max(x0 + 40, measured - m.right);
+            const xScale = linearScale(0, points.length - 1, x0, x1);
+            // The paths follow the scale, so they follow the width too.
+            const equityPath = linePath(points.map((p, i) => ({ x: xScale(i), y: yScale(p.equity) })));
+            const hwmPath = linePath(points.map((p, i) => ({ x: xScale(i), y: yScale(p.highWaterMark) })));
+            return (
+              <>
           <Grid yTicks={yTicks} yScale={yScale} x0={x0} x1={x1} format={(v) => `$${compact(v)}`} />
 
           {/* Halted stretches, shaded behind the line. The endpoint has always
@@ -225,8 +230,11 @@ export default function EquityCurve({
           <text x={x1} y={height - 8} textAnchor="end" fontSize={13} fontFamily="var(--mono)" fill="var(--text-muted)">
             {stamp(last.t)}
           </text>
-        </svg>
-      </div>
+              </>
+            );
+          }}
+        </Plot>
+      </Figure>
 
       <div className="allocation-facts">
         <span>
