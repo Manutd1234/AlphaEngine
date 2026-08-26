@@ -27,94 +27,146 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { MARKETS_SECTION_IDS } from "../lib/sections";
-import { defaultView, railView, viewsFor, VIEWS_BY_TAB } from "../lib/section-views";
+import { COHERENCE_SECTION_IDS, MARKETS_SECTION_IDS } from "../lib/sections";
+import { LESSON_GROUPS } from "../lib/coherence/lessons";
+import { defaultView, locationHash, railView, viewsFor, VIEWS_BY_TAB } from "../lib/section-views";
 import { read } from "./helpers/workspace-sources";
 
 /** Which component owns each section, for the two source cross-checks below. */
-const OWNERS: Record<string, string> = {
-  universe: "UniverseSection", settlement: "SettlementSection", books: "BooksSection",
-  dispersion: "MakersSection", lattice: "SurfacePane", stake: "StakePane",
-  fees: "FeesSection", shell: "ShellPane",
+const OWNERS: Record<string, Record<string, string>> = {
+  markets: {
+    universe: "UniverseSection", settlement: "SettlementSection", books: "BooksSection",
+    dispersion: "MakersSection", lattice: "SurfacePane", stake: "StakePane",
+    fees: "FeesSection", shell: "ShellPane",
+  },
+  // Proofs adopted the grammar on 2026-08-26 — the second tab, and the one the
+  // table's header said it was designed against.
+  coherence: {
+    certificate: "CertificatePane", portfolio: "BasketSection", combos: "CombosSection",
+    index: "IndexSection", calibration: "CalibrationPane", corpus: "CorpusSection", lessons: "LessonsPane",
+  },
+};
+const RAILS: Record<string, readonly string[]> = { markets: MARKETS_SECTION_IDS, coherence: COHERENCE_SECTION_IDS };
+/**
+ * Sections that draw no switcher and declare no views — `coherence-sections`
+ * names the same set. Basket is one view until its redo.
+ */
+const SINGLE_VIEW: Record<string, readonly string[]> = { markets: [], coherence: ["portfolio"] };
+/**
+ * Where the default is NOT the first listed, and why: Lessons leads with its
+ * four curriculum slices ("segregate the content better", the reader's own
+ * reorder) and still opens on Coverage, the map. Pinned here so a future
+ * reorder cannot move the landing view by accident.
+ */
+const NAMED_DEFAULTS: Record<string, Record<string, string>> = { coherence: { lessons: "coverage" } };
+/**
+ * Owners whose switcher is built from data rather than a literal pairs array:
+ * the expected pairs are assembled from the same data.
+ */
+const DERIVED: Record<string, () => Array<[string, string]>> = {
+  LessonsPane: () => [...LESSON_GROUPS.map((g) => [g.id, g.label] as [string, string]), ["coverage", "Coverage"], ["states", "Episode states"]],
 };
 
-describe("every Prices section declares the views it actually draws", () => {
-  it("covers the rail exactly — no section without views, no views without a section", () => {
-    assert.deepEqual(Object.keys(VIEWS_BY_TAB.markets ?? {}).sort(), [...MARKETS_SECTION_IDS].sort());
-  });
+for (const [tab, owners] of Object.entries(OWNERS)) {
+  describe(`every ${tab} section declares the views it actually draws`, () => {
+    const rail = RAILS[tab];
+    it("covers the rail exactly — no section without a row, no row without a section", () => {
+      assert.deepEqual(Object.keys(VIEWS_BY_TAB[tab as keyof typeof VIEWS_BY_TAB] ?? {}).sort(), [...rail].sort());
+    });
 
-  it("gives every view an id and a label", () => {
-    for (const section of MARKETS_SECTION_IDS) {
-      for (const [id, label] of viewsFor("markets", section)) {
-        assert.match(id, /^[a-z][a-z0-9]*$/, `${section} has a view id that cannot sit in a URL: ${id}`);
-        assert.ok(label.trim().length > 0, `${section}/${id} has no label`);
+    it("gives every view an id and a label", () => {
+      for (const section of rail) {
+        for (const [id, label] of viewsFor(tab, section)) {
+          assert.match(id, /^[a-z][a-z0-9]*$/, `${section} has a view id that cannot sit in a URL: ${id}`);
+          assert.ok(label.trim().length > 0, `${section}/${id} has no label`);
+        }
       }
-    }
-  });
+    });
 
-  it("keeps view ids unique inside a section", () => {
-    for (const section of MARKETS_SECTION_IDS) {
-      const ids = viewsFor("markets", section).map(([id]) => id);
-      assert.equal(new Set(ids).size, ids.length, `${section} declares the same view id twice`);
-    }
-  });
+    it("keeps view ids unique inside a section", () => {
+      for (const section of rail) {
+        const ids = viewsFor(tab, section).map(([id]) => id);
+        assert.equal(new Set(ids).size, ids.length, `${section} declares the same view id twice`);
+      }
+    });
 
-  it("is the only place a section's view default is written", () => {
-    // The assertion this replaces read each component's own
-    // `useState<XView>("baskets")` and checked the table agreed with it. That
-    // check existed because there were TWO sources; now there is one, and the
-    // stronger property is that no second source can come back. A section that
-    // reintroduces its own view state would render one view while the URL named
-    // another, and nothing downstream would notice — the switcher would work,
-    // the link would not, and both would look right in a diff.
-    for (const [section, owner] of Object.entries(OWNERS)) {
-      const source = read(`../components/coherence/${owner}.tsx`);
-      assert.doesNotMatch(source, /const \[view, setView\] = useState/,
-        `${owner} holds its own view state again; the hash cannot reach it, so ${section}'s address would be a lie`);
-      assert.match(source, /onView/,
-        `${owner} no longer takes a view from the console`);
-    }
-  });
+    it("is the only place a section's view default is written", () => {
+      // The assertion this replaces read each component's own
+      // `useState<XView>("baskets")` and checked the table agreed with it. That
+      // check existed because there were TWO sources; now there is one, and the
+      // stronger property is that no second source can come back. A section that
+      // reintroduces its own view state would render one view while the URL named
+      // another, and nothing downstream would notice — the switcher would work,
+      // the link would not, and both would look right in a diff.
+      for (const [section, owner] of Object.entries(owners)) {
+        const source = read(`../components/coherence/${owner}.tsx`);
+        assert.doesNotMatch(source, /const \[view, setView\] = useState/,
+          `${owner} holds its own view state again; the hash cannot reach it, so ${section}'s address would be a lie`);
+        if (SINGLE_VIEW[tab].includes(section)) continue;
+        assert.match(source, /onView/, `${owner} no longer takes a view from the console`);
+      }
+    });
 
-  it("the default is the first view listed, so the switcher opens where the URL does", () => {
-    for (const section of MARKETS_SECTION_IDS) {
-      assert.equal(defaultView("markets", section), viewsFor("markets", section)[0][0]);
-    }
-  });
+    it("the default is the first view listed unless the table names another, so the switcher opens where the URL does", () => {
+      for (const section of rail) {
+        if (SINGLE_VIEW[tab].includes(section)) continue;
+        const named = NAMED_DEFAULTS[tab]?.[section];
+        assert.equal(defaultView(tab, section), named ?? viewsFor(tab, section)[0][0],
+          `${tab}/${section} opens on ${defaultView(tab, section)}`);
+        if (named) assert.ok(viewsFor(tab, section).some(([id]) => id === named), `${section}'s named default ${named} is not one of its views`);
+      }
+    });
 
-  it("declares exactly the views its section's own switcher offers", () => {
-    // The cross-check `developer-analyst-7c` asked for, and the one that stops
-    // this table becoming a second vocabulary. `SectionFrame` draws a switcher
-    // only when a section hands it more than one view, and
-    // `coherence-sections.test.ts` pins that a section either draws exactly one
-    // `.seg` or is named single-view. So a row here that disagrees with the
-    // component's own VIEWS array is either an address that opens nothing or a
-    // button with no address, and neither shows up anywhere else.
-    for (const section of MARKETS_SECTION_IDS) {
-      const source = read(`../components/coherence/${OWNERS[section]}.tsx`);
-      // Selected by SHAPE, not by name. `FeesSection` declares `REPLAY_VIEWS`
-      // (a flat list of ids, used to gate a read) BEFORE its `VIEWS` pairs, so
-      // a name-ordered match reads the wrong array and reports a disagreement
-      // that is not there. The switcher is the one array of [id, label] pairs.
-      const candidates = [...source.matchAll(/[A-Z_]*VIEWS[^=]*=\s*\[([\s\S]*?)\]\s*;/g)]
-        .map((block) => [...block[1].matchAll(/\["([a-z]+)",\s*"([^"]+)"\]/g)].map((m) => [m[1], m[2]]))
-        .filter((pairs) => pairs.length > 1);
-      assert.equal(candidates.length, 1,
-        `${OWNERS[section]} declares ${candidates.length} arrays of view pairs; expected exactly the switcher's`);
-      const drawn = candidates[0];
-      assert.deepEqual(
-        viewsFor("markets", section).map(([id, label]) => [id, label]), drawn,
-        `${section}'s table and ${OWNERS[section]}'s switcher disagree`,
-      );
-    }
-  });
+    it("declares exactly the views its section's own switcher offers", () => {
+      // The cross-check `developer-analyst-7c` asked for, and the one that stops
+      // this table becoming a second vocabulary. `SectionFrame` draws a switcher
+      // only when a section hands it more than one view, and
+      // `coherence-sections.test.ts` pins that a section either draws exactly one
+      // `.seg` or is named single-view. So a row here that disagrees with the
+      // component's own VIEWS array is either an address that opens nothing or a
+      // button with no address, and neither shows up anywhere else.
+      for (const section of rail) {
+        if (SINGLE_VIEW[tab].includes(section)) continue;
+        const owner = owners[section];
+        const source = read(`../components/coherence/${owner}.tsx`);
+        const drawn = DERIVED[owner]
+          ? DERIVED[owner]()
+          : (() => {
+            // Selected by SHAPE, not by name. `FeesSection` declares `REPLAY_VIEWS`
+            // (a flat list of ids, used to gate a read) BEFORE its `VIEWS` pairs, so
+            // a name-ordered match reads the wrong array and reports a disagreement
+            // that is not there. The switcher is the one array of [id, label] pairs.
+            const candidates = [...source.matchAll(/[A-Z_]*VIEWS[^=]*=\s*\[([\s\S]*?)\]\s*;/g)]
+              .map((block) => [...block[1].matchAll(/\["([a-z]+)",\s*"([^"]+)"\]/g)].map((m) => [m[1], m[2]] as [string, string]))
+              .filter((pairs) => pairs.length > 1);
+            assert.equal(candidates.length, 1,
+              `${owner} declares ${candidates.length} arrays of view pairs; expected exactly the switcher's`);
+            return candidates[0];
+          })();
+        assert.deepEqual(viewsFor(tab, section).map(([id, label]) => [id, label]), drawn,
+          `${section}'s table and ${owner}'s switcher disagree`);
+      }
+    });
 
-  it("gives every section enough views to need a switcher at all", () => {
-    // Fewer than two is not a choice, `SectionFrame` draws no switcher for it,
-    // and the section would then owe an entry in that suite's SINGLE_VIEW set.
-    for (const section of MARKETS_SECTION_IDS) {
-      assert.ok(viewsFor("markets", section).length >= 2, `${section} declares fewer than two views`);
-    }
+    it("gives every section enough views to need a switcher at all, or names it single-view", () => {
+      for (const section of rail) {
+        const count = viewsFor(tab, section).length;
+        if (SINGLE_VIEW[tab].includes(section)) assert.equal(count, 0, `${section} is named single-view and declares views`);
+        else assert.ok(count >= 2, `${section} declares fewer than two views`);
+      }
+    });
+  });
+}
+
+describe("the one hash writer", () => {
+  it("writes two segments for a default view and for a tab with none, three otherwise", () => {
+    assert.equal(locationHash("markets", "fees", "example"), "markets/fees");
+    assert.equal(locationHash("markets", "fees", "comparison"), "markets/fees/comparison");
+    assert.equal(locationHash("coherence", "lessons", "coverage"), "coherence/lessons");
+    assert.equal(locationHash("coherence", "lessons", "record"), "coherence/lessons/record");
+    assert.equal(locationHash("coherence", "portfolio", "anything"), "coherence/portfolio");
+    assert.equal(locationHash("research", "summary", "x"), "research/summary");
+    assert.equal(locationHash("coherence", "certificate", undefined), "coherence/certificate");
   });
 });
 
@@ -158,6 +210,14 @@ describe("resolving the third segment", () => {
     // string is live somewhere on the tab.
     assert.equal(railView("markets", "books", "commands"), defaultView("markets", "books"));
     assert.equal(railView("markets", "fees", "ladder"), defaultView("markets", "fees"));
+  });
+
+  it("resolves a Proofs view, falls back to its default, and never takes a sibling's", () => {
+    assert.equal(railView("coherence", "certificate", "proof"), "proof");
+    assert.equal(railView("coherence", "certificate", "bands"), "verdict", "a sibling's id must land on the default");
+    assert.equal(railView("coherence", "lessons", ""), "coverage", "bare #coherence/lessons opens the map, not the first slice");
+    assert.equal(railView("coherence", "lessons", "nonsense"), "coverage");
+    assert.equal(railView("coherence", "portfolio", "anything"), null, "a single-view section resolves nothing");
   });
 
   it("returns null for a tab that declares no views, so the router leaves it alone", () => {

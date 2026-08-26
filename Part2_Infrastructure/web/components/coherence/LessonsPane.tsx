@@ -40,9 +40,9 @@
  * plan, and the gap is the honest part.
  */
 
-import { useState } from "react";
 
 import { COHERENCE_LESSONS, LESSON_GROUPS, type CoherenceLesson, type LessonGroup } from "@/lib/coherence/lessons";
+import type { WorkspaceView } from "@/lib/workspace-nav";
 
 import { StateChip } from "./Figure";
 import GroupPins, { sectionLabel } from "./GroupPins";
@@ -150,8 +150,29 @@ function LessonCard({ lesson }: { lesson: CoherenceLesson }) {
   );
 }
 
-export default function LessonsPane() {
-  const [view, setView] = useState<LessonGroup | "coverage" | "states">("coverage");
+export type LessonsView = LessonGroup | "coverage" | "states";
+
+/**
+ * The switcher, as [id, label] pairs in press order: the four curriculum
+ * slices from the data, then the two views ABOUT the catalogue. One array so
+ * `section-views.test.ts` can hold `lib/section-views.ts` to it — and the
+ * default is Coverage, which is NOT first: `DEFAULTS` there records the
+ * exception, and the test pins it.
+ */
+export const LESSONS_VIEWS: ReadonlyArray<readonly [LessonsView, string]> = [
+  ...LESSON_GROUPS.map((entry) => [entry.id, entry.label] as const),
+  ["coverage", "Coverage"],
+  ["states", "Episode states"],
+];
+
+export default function LessonsPane({ view, onView, onOpenSection }: {
+  /** Owned by the console: a view is an address. See `lib/section-views.ts`. */
+  view: LessonsView;
+  onView: (next: LessonsView) => void;
+  /** Opens a section on any tab; wired by the coverage figure's link in a later slice. */
+  onOpenSection?: (tab: WorkspaceView, section?: string) => void;
+}) {
+  void onOpenSection;
   const shipped = COHERENCE_LESSONS.filter((lesson) => lesson.shipped).length;
   const group = LESSON_GROUPS.find((entry) => entry.id === view) ?? LESSON_GROUPS[0];
   const inView = COHERENCE_LESSONS.filter((lesson) => lesson.group === group.id);
@@ -201,33 +222,15 @@ export default function LessonsPane() {
           the map is right, and where the map SITS in the row is a separate
           question from what opens first. */}
       <div className="seg" role="group" aria-label="Lessons view">
-        {LESSON_GROUPS.map((entry) => (
-          <button
-            key={entry.id}
-            type="button"
-            aria-pressed={view === entry.id}
-            onClick={() => setView(entry.id)}
-          >
-            {entry.label}
+        {/* Six buttons from one array: the four slices, then Coverage, then
+            Episode states — the vocabulary the whole catalogue is written in,
+            its own peer rather than a card because it defines the objects the
+            other views make claims ABOUT. */}
+        {LESSONS_VIEWS.map(([name, label]) => (
+          <button key={name} type="button" aria-pressed={view === name} onClick={() => onView(name)}>
+            {label}
           </button>
         ))}
-        <button
-          type="button"
-          aria-pressed={view === "coverage"}
-          onClick={() => setView("coverage")}
-        >
-          Coverage
-        </button>
-        {/* The vocabulary the whole catalogue is written in. Its own peer rather
-            than a card, because it defines the objects the other views make
-            claims ABOUT — an episode, its peak, its half-life, its lifetime. */}
-        <button
-          type="button"
-          aria-pressed={view === "states"}
-          onClick={() => setView("states")}
-        >
-          Episode states
-        </button>
       </div>
       </div>
 

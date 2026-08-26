@@ -42,7 +42,7 @@
 import {
   DEAD_END_PHRASES, EXPECTED_SECTIONS, MEDIA, PROFILES, TABS, TRUTH_TABS,
 } from "./desk-sweep-plan.mjs";
-import { connect, installProfile, HYDRATED, INSPECT } from "./desk-sweep-cdp.mjs";
+import { VIEW_CELLS, EXPECTED_VIEW_CELLS, connect, installProfile, HYDRATED, INSPECT } from "./desk-sweep-cdp.mjs";
 
 const ORIGIN = process.env.SWEEP_ORIGIN ?? "http://localhost:3100";
 
@@ -81,6 +81,12 @@ async function main() {
   const { profile: onlyProfile, tab: onlyTab, media: onlyMedia, verbose } = parseArgs();
 
   const declared = Object.values(TABS).reduce((n, list) => n + list.length, 0);
+  const viewCells = Object.values(VIEW_CELLS).reduce((n, sections) => n + Object.values(sections).reduce((m, v) => m + v.length, 0), 0);
+  if (viewCells !== EXPECTED_VIEW_CELLS) {
+    console.error(`desk-sweep-plan.mjs declares ${viewCells} view cells against EXPECTED_VIEW_CELLS=${EXPECTED_VIEW_CELLS}; fix the plan before sweeping`);
+    process.exitCode = 1;
+    return;
+  }
   if (declared !== EXPECTED_SECTIONS) {
     console.error(`section list drift: this file declares ${declared}, expected ${EXPECTED_SECTIONS}.`);
     console.error("If a section was added, add it here too — an unswept section is an unverified one.");
@@ -138,7 +144,15 @@ async function main() {
         continue;
       }
 
-      for (const section of sections) {
+      // Every section, then every NON-DEFAULT view inside it: a view is an
+      // address now, so the sweep drives `#tab/section/view` the way it drives
+      // sections, and a view can no longer break behind a button unseen.
+      const cells = sections.flatMap((section) => [
+        { section, view: null },
+        ...(VIEW_CELLS[tab]?.[section] ?? []).map((view) => ({ section, view })),
+      ]);
+      for (const { section, view } of cells) {
+        const target = view ? `${tab}/${section}/${view}` : `${tab}/${section}`;
         /**
          * Wait for the panel to stop waiting, not for a fixed beat.
          *
@@ -154,8 +168,8 @@ async function main() {
          * itself a finding rather than a timing accident.
          */
         await cdp.evaluate(`(async () => {
-          if (location.hash !== '#${tab}/${section}') {
-            location.hash = '#${tab}/${section}';
+          if (location.hash !== '#${target}') {
+            location.hash = '#${target}';
           }
           await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
           // Both signals: aria-busy is the app's own statement, and a bare

@@ -52,6 +52,39 @@ const TABS = {
 const EXPECTED_SECTIONS = 70;
 
 /**
+ * The NON-DEFAULT views the sweep walks inside each section, per tab that
+ * declares views in `lib/section-views.ts` — the eight-then-six subjects the
+ * header above records as "view-only" are addresses now, and this harness
+ * drives the hash. Mirrored by hand like `TABS`; `tests/desk-sweep-views.test.ts`
+ * derives the same cells from the table and holds this to them, count
+ * included. Declared BELOW `TABS` and with no `diffusion` key on purpose:
+ * `diffusion-sections.test.ts` reads the first `diffusion: [` literal in this
+ * file as the Diffusion rail.
+ */
+const VIEW_CELLS = {
+  markets: {
+    universe: ["families"],
+    settlement: ["formation", "pending"],
+    books: ["identity", "history"],
+    dispersion: ["channel"],
+    lattice: ["mass", "moments"],
+    stake: ["capital", "method", "family"],
+    fees: ["shape", "comparison", "table"],
+    shell: ["tree"],
+  },
+  coherence: {
+    certificate: ["proof"],
+    combos: ["parlays", "bounds"],
+    index: ["families"],
+    calibration: ["bands"],
+    corpus: ["trend"],
+    lessons: ["prices", "structure", "bounds", "record", "states"],
+  },
+};
+
+const EXPECTED_VIEW_CELLS = 26;
+
+/**
  * The two tabs whose job is to report infrastructure truth.
  *
  * Everywhere else, "unreachable" is a dead end to be removed. Here it is the
@@ -143,4 +176,4 @@ const MEDIA = {
   "forced": [{ name: "forced-colors", value: "active" }],
 };
 
-export { TABS, EXPECTED_SECTIONS, TRUTH_TABS, DEAD_END_PHRASES, PROFILES, MEDIA };
+export { TABS, EXPECTED_SECTIONS, VIEW_CELLS, EXPECTED_VIEW_CELLS, TRUTH_TABS, DEAD_END_PHRASES, PROFILES, MEDIA };

@@ -32,9 +32,9 @@ export interface EnginePanelsProps {
   // accept an id its own rail does not have, which is the one mistake the rail
   // types exist to make impossible.
   marketsSection: MarketsSection;
-  /** Which view each Prices section is standing on, keyed by section id. */
-  marketsViews: Record<string, string>;
-  setMarketsView: (section: string, view: string) => void;
+  /** Which view each section is standing on, per view-declaring tab, keyed by section id. */
+  sectionViews: Record<string, Record<string, string>>;
+  setSectionView: (tab: WorkspaceView, section: string, view: string) => void;
   coherenceSection: CoherenceSection;
   diffusionSection: DiffusionSection;
   changeMarketsSection: (section: MarketsSection) => void;
@@ -47,8 +47,8 @@ export default function EnginePanels({
   view,
   visited,
   marketsSection,
-  marketsViews,
-  setMarketsView,
+  sectionViews,
+  setSectionView,
   coherenceSection,
   diffusionSection,
   changeMarketsSection,
@@ -63,8 +63,8 @@ export default function EnginePanels({
           <MarketsTab
             section={marketsSection}
             onSectionChange={changeMarketsSection}
-            views={marketsViews}
-            onViewChange={setMarketsView}
+            views={sectionViews.markets ?? {}}
+            onViewChange={(section, next) => setSectionView("markets", section, next)}
             active={view === "markets"}
           />
           <NextStepFooter currentView="markets" currentSection={marketsSection} onNavigate={openSection} />
@@ -76,6 +76,9 @@ export default function EnginePanels({
           <CoherenceTab
             section={coherenceSection}
             onSectionChange={changeCoherenceSection}
+            views={sectionViews.coherence ?? {}}
+            onViewChange={(section, next) => setSectionView("coherence", section, next)}
+            onOpenSection={openSection}
             active={view === "coherence"}
           />
           <NextStepFooter currentView="coherence" currentSection={coherenceSection} onNavigate={openSection} />

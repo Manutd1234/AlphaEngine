@@ -68,6 +68,7 @@ import {
 } from "@/lib/coherence/routes";
 import { COHERENCE_POLL_MS, useCoherenceRead, warmCoherenceRead } from "@/lib/coherence/use-coherence";
 import type { CoherenceStatus, CoherenceUniverse } from "@/lib/coherence/types";
+import type { WorkspaceView } from "@/lib/workspace-nav";
 import { useSectionWarming } from "@/lib/coherence/use-section-warming";
 
 export { type CoherenceSection } from "@/lib/sections";
@@ -116,13 +117,26 @@ const SECTION_READS: Record<CoherenceSection, readonly string[]> = {
 };
 
 export interface CoherenceConsoleProps {
+  /**
+   * Which view each section is standing on, keyed by section id.
+   *
+   * Owned by `use-rail-sections`, as Markets' is, because a view is an ADDRESS:
+   * `#coherence/certificate/proof` has to put the test on its Proof before
+   * anyone presses anything, and a `useState` inside the pane is unreachable
+   * from the hash. Seeded from `lib/section-views.ts`, which is also where each
+   * pane's own union of view ids comes from.
+   */
+  views: Record<string, string>;
+  onViewChange: (section: string, view: string) => void;
+  /** Opens a section on any tab — the lesson-coverage link's way out of this one. */
+  onOpenSection?: (view: WorkspaceView, section?: string) => void;
   section: CoherenceSection;
   onSectionChange: (section: CoherenceSection) => void;
   /** False while another tab is in front: every poll here is gated on it. */
   active?: boolean;
 }
 
-export default function CoherenceConsole({ section, onSectionChange, active = true }: CoherenceConsoleProps) {
+export default function CoherenceConsole({ section, onSectionChange, active = true, views, onViewChange, onOpenSection }: CoherenceConsoleProps) {
   const status = useCoherenceRead<CoherenceStatus>(statusRoute(), active);
   const onFamily = section === "certificate" || section === "portfolio";
   const universe = useCoherenceRead<CoherenceUniverse>(universeRoute(), active && onFamily);
@@ -178,6 +192,17 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
     if (!active || !target) return;
     warmCoherenceRead(certifyRoute(target));
   }, [active, target]);
+
+  /**
+   * The view props for one section, built once here rather than six times
+   * inline. The cast is documented on `views` above: both sides of it are
+   * generated from `lib/section-views.ts`, and `section-views.test.ts` fails
+   * if a declared default drifts from the one the pane opens on.
+   */
+  const viewProps = <V extends string>(id: CoherenceSection) => ({
+    view: views[id] as V,
+    onView: (next: V) => onViewChange(id, next),
+  });
 
   return (
     <div className="coherence-plane proofs-plane">
@@ -264,6 +289,7 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
           active={active && section === "certificate"}
           eventsPending={familiesPending}
           eventsError={universe.error}
+          {...viewProps("certificate")}
         />
       </WorkspaceSubtabPanel>
 
@@ -279,7 +305,7 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="coherence" tabId="combos" activeId={section}>
-        <CombosSection active={active && section === "combos"} />
+        <CombosSection active={active && section === "combos"} {...viewProps("combos")} />
       </WorkspaceSubtabPanel>
 
       {/* PANELS IN RAIL ORDER, which `coherence-sections` deep-equals against
@@ -288,22 +314,22 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
           Scorecard reads a different one, so the two numbers no longer sit
           adjacent with nothing between them saying which is which. */}
       <WorkspaceSubtabPanel workspaceId="coherence" tabId="index" activeId={section}>
-        <IndexSection active={active && section === "index"} />
+        <IndexSection active={active && section === "index"} {...viewProps("index")} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="coherence" tabId="calibration" activeId={section}>
-        <CalibrationPane active={active && section === "calibration"} />
+        <CalibrationPane active={active && section === "calibration"} {...viewProps("calibration")} />
       </WorkspaceSubtabPanel>
 
       {/* What that score was computed on, and how it accrued — the question
           Scorecard carried as a third view and `index` as a first one. It
           follows the score now, because a score is a score OF something. */}
       <WorkspaceSubtabPanel workspaceId="coherence" tabId="corpus" activeId={section}>
-        <CorpusSection active={active && section === "corpus"} />
+        <CorpusSection active={active && section === "corpus"} {...viewProps("corpus")} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="coherence" tabId="lessons" activeId={section}>
-        <LessonsPane />
+        <LessonsPane {...viewProps("lessons")} onOpenSection={onOpenSection} />
       </WorkspaceSubtabPanel>
 
       <div className="coh-console__status">

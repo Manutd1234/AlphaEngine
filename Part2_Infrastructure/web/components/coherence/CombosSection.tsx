@@ -23,7 +23,6 @@
  * owns the one control row, which is the rule every section on this rail keeps.
  */
 
-import { useState } from "react";
 
 import CombosPane, { type ComboView } from "./CombosPane";
 import PaneHead from "./PaneHead";
@@ -34,8 +33,7 @@ const VIEWS: ReadonlyArray<[ComboView, string]> = [
   ["bounds", "Bounds"],
 ];
 
-export default function CombosSection({ active }: { active: boolean }) {
-  const [view, setView] = useState<ComboView>("bands");
+export default function CombosSection({ active, view, onView }: { active: boolean; view: ComboView; onView: (next: ComboView) => void }) {
 
   return (
     <section className="card console-card coh-certificate" aria-labelledby="coherence-combos-heading">
@@ -53,7 +51,7 @@ export default function CombosSection({ active }: { active: boolean }) {
       <div className="coh-bar">
         <div className="seg" role="group" aria-label="Parlay view">
           {VIEWS.map(([name, label]) => (
-            <button key={name} type="button" aria-pressed={view === name} onClick={() => setView(name)}>
+            <button key={name} type="button" aria-pressed={view === name} onClick={() => onView(name)}>
               {label}
             </button>
           ))}

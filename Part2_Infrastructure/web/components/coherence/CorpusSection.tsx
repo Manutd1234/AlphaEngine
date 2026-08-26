@@ -24,7 +24,6 @@
  * on the view that draws it, so a reader on one never pays for the other.
  */
 
-import { useState } from "react";
 
 import type { CoherenceCalibration } from "@/lib/coherence/types-lab";
 import { calibrationRoute } from "@/lib/coherence/routes";
@@ -40,8 +39,7 @@ const VIEWS: ReadonlyArray<[CorpusView, string]> = [
   ["trend", "Score trend"],
 ];
 
-export default function CorpusSection({ active }: { active: boolean }) {
-  const [view, setView] = useState<CorpusView>("composition");
+export default function CorpusSection({ active, view, onView }: { active: boolean; view: CorpusView; onView: (next: CorpusView) => void }) {
   // Gated on the view, exactly as every other section on this rail gates its
   // reads: the trend draws from the history route inside `CalibrationTrend`,
   // so a reader who never opens Composition never asks for the settled read.
@@ -66,7 +64,7 @@ export default function CorpusSection({ active }: { active: boolean }) {
       <div className="coh-bar">
         <div className="seg" role="group" aria-label="Corpus view">
           {VIEWS.map(([name, label]) => (
-            <button key={name} type="button" aria-pressed={view === name} onClick={() => setView(name)}>
+            <button key={name} type="button" aria-pressed={view === name} onClick={() => onView(name)}>
               {label}
             </button>
           ))}

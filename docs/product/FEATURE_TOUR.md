@@ -66,7 +66,7 @@ its aria-label and title; HALTED is never folded.
 command palette, the hash whitelist and "Copy link to this view" all read. **70 sections across
 the eleven tabs** — 48 on the eight decision-loop tabs, 8 on Quotes, 6 on Proofs and 7 on
 Diffusion — a total
-`web/scripts/desk-sweep-plan.mjs` mirrors by hand as `EXPECTED_SECTIONS = 69` and the tour test
+`web/scripts/desk-sweep-plan.mjs` mirrors by hand as `EXPECTED_SECTIONS = 70` and the tour test
 asserts against the arrays themselves. Seven ids deliberately disagree with their labels, because
 the deep link came first and ids never change: view `live` renders "Execution", view `markets`
 renders "Quotes", view `coherence` renders "Proofs", section `codex` renders "Strategies",
@@ -572,6 +572,8 @@ section's own header admitted. Every section on this rail is now one question.
 | **Scorecard** | Score · Bands | Were these prices right — once settled, and over time? The Brier score is split under Murphy's decomposition — reliability, resolution, uncertainty, and the residual the binning leaves (`modules/coherence/kernel/calibration.py`); What the score was taken OVER is next door, in Corpus. |
 | **Corpus** | Composition · Score trend | What was that score computed on, and how did it accrue? A Brier score is a score of whatever happened to settle, so the mixture decides what the figure next door is a figure about — the composition names each series' share and its own favourite–longshot slope, and refuses to let the aggregate stand in for a series, because the aggregate averages series that are not the same question. **Score trend** is the settled score as it was recorded, accruing forward only: nothing back-fills it, so the first point is where the recorder started rather than where the venue did. Runs that could not be scored are drawn as gaps, never as zeroes. |
 | **Lessons** | Coverage · Prices · Structure · Bounds · Record | What is the curriculum, and what guards each claim? Fourteen lessons rendered from `lib/coherence/lessons.ts`, each naming the code it is about and the tests that pin it, matched one-to-one by the notebooks in `Part2_Infrastructure/notebooks/coherence_lab/`. **Coverage** is the map of the catalogue against both rails at once — a lesson's `pane` is a section id with no tab inside it, and half of them are taught on Quotes. |
+
+**Every view on Quotes and Proofs is an address.** The grammar is `#<tab>/<section>/<view>` — `#coherence/certificate/proof`, `#markets/fees/comparison` — declared once in `web/lib/section-views.ts` and read by the router, the command palette (one entry per non-default view) and `desk-sweep.mjs`, which walks the 26 non-default views beside the 70 sections. A bare two-segment link opens the section's default, an unknown third segment falls back to it, and pressing a view replaces the address rather than pushing it, so Back steps sections.
 
 **Reads are gated on the open section *and*, where a view alone is expensive, on the open view.**
 The universe read asks for `?max_events=2` because four events took 10.1 s before the reads were

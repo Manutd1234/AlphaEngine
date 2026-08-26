@@ -31,32 +31,32 @@
 import { useCallback, type MutableRefObject } from "react";
 
 import type { WorkspaceView } from "@/components/WorkspaceHeader";
-import { viewsFor } from "@/lib/section-views";
+import { locationHash } from "@/lib/section-views";
 
 export interface LocationRefs {
   /** Live section per workspace. */
   sectionByViewRef: MutableRefObject<Record<WorkspaceView, string>>;
-  /** Live view per section, for the tabs that have views. */
-  viewBySectionRef: MutableRefObject<Record<string, string>>;
+  /** Live view per section per tab, for the tabs that have views. */
+  viewBySectionRef: MutableRefObject<Record<string, Record<string, string>>>;
   /** The tab in front, so a background panel cannot rewrite the address bar. */
   viewRef: MutableRefObject<WorkspaceView>;
 }
 
 /**
  * The full location as a hash — tab, section, and the view where the tab has
- * one.
+ * one and it is not the default.
  *
- * One builder for every writer. They each spelled `${view}/${section}` by hand,
- * and a third segment added to three of the four would be the desync above.
- * `viewsFor` is empty for a tab that declares no views, so those tabs keep
- * writing exactly two segments and every link already in the world resolves.
+ * One builder for every writer, and the builder is `locationHash` in
+ * `section-views.ts`, beside the table it reads. They each spelled
+ * `${view}/${section}` by hand, and a third segment added to three of the four
+ * would be the desync above. A tab that declares no views, or a section on its
+ * default view, writes exactly two segments — so every link already in the
+ * world stays canonical.
  */
 export function useHashFor({ sectionByViewRef, viewBySectionRef }: LocationRefs) {
   return useCallback((tab: WorkspaceView) => {
     const section = sectionByViewRef.current[tab];
-    if (!viewsFor(tab, section).length) return `${tab}/${section}`;
-    const at = viewBySectionRef.current[section];
-    return at ? `${tab}/${section}/${at}` : `${tab}/${section}`;
+    return locationHash(tab, section, viewBySectionRef.current[tab]?.[section]);
   }, [sectionByViewRef, viewBySectionRef]);
 }
 
@@ -74,13 +74,15 @@ export function useHashFor({ sectionByViewRef, viewBySectionRef }: LocationRefs)
  */
 export function useViewWriter(
   { viewRef }: LocationRefs,
-  setMarketsView: (section: string, view: string) => void,
+  tab: WorkspaceView,
+  setSectionView: (tab: WorkspaceView, section: string, view: string) => void,
 ) {
   return useCallback((section: string, next: string) => {
-    setMarketsView(section, next);
-    if (typeof window === "undefined" || viewRef.current !== "markets") return;
+    setSectionView(tab, section, next);
+    // The tab in front only: a background panel cannot rewrite the address bar.
+    if (typeof window === "undefined" || viewRef.current !== tab) return;
     const url = new URL(window.location.href);
-    url.hash = `markets/${section}/${next}`;
+    url.hash = locationHash(tab, section, next);
     window.history.replaceState({}, "", url);
-  }, [viewRef, setMarketsView]);
+  }, [viewRef, tab, setSectionView]);
 }

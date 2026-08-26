@@ -87,7 +87,7 @@ export default function WorkspacePanels({ routing, sweep, desk }: WorkspacePanel
     changeDataSection, changeReliabilitySection, changeMarketsSection, changeCoherenceSection, changeDiffusionSection,
     openRiskSection, openPortfolioSection, openResearchSummary, openLiveLiquidity,
     openReliabilityOverview, openDataOverview, openLoopStage,
-    marketsViews, setMarketsView,
+    sectionViews, setSectionView,
   } = routing;
   const {
     req, data, inspect, displayedResult, activeResult, running, researchDirty,
@@ -383,8 +383,8 @@ export default function WorkspacePanels({ routing, sweep, desk }: WorkspacePanel
         view={view}
         visited={visitedViews.current}
         marketsSection={marketsSection}
-        marketsViews={marketsViews}
-        setMarketsView={setMarketsView}
+        sectionViews={sectionViews}
+        setSectionView={setSectionView}
         coherenceSection={coherenceSection}
         diffusionSection={diffusionSection}
         changeMarketsSection={changeMarketsSection}

@@ -41,6 +41,7 @@ const routingHook = read("../lib/use-workspace-routing.ts");
 // third hash segment took the routing hook past the 400-line ceiling. Same rule
 // as the split above: each assertion reads the file its subject now lives in.
 const location = read("../lib/workspace-location.ts");
+const sectionViews = read("../lib/section-views.ts");
 // Rail state moved to its own hook when the ninth tab arrived and the routing
 // file reached its length ceiling; the guards below follow the code they guard.
 const railSections = read("../lib/use-rail-sections.ts");
@@ -96,10 +97,16 @@ describe("dense role workspaces expose accessible feature sections", () => {
     // builds the full location rather than a bare view.
     assert.match(routingHook, /url\.hash = detail\?\.hash \?\? hashFor\(next\)/,
       "a workspace switch no longer writes the full location through the shared builder");
-    assert.match(location, /`\$\{tab\}\/\$\{section\}`/,
-      "the location builder no longer writes tab and section");
-    assert.match(location, /`\$\{tab\}\/\$\{section\}\/\$\{at\}`/,
-      "the builder no longer carries the view for a tab that has one");
+    // THE BUILDER LIVES BESIDE THE TABLE since 2026-08-26 — `locationHash` in
+    // lib/section-views.ts — and both writers call it. A default view writes
+    // NO third segment, so every two-segment link already in the world stays
+    // canonical.
+    assert.match(location, /locationHash\(tab, section/,
+      "the location builder no longer routes through locationHash");
+    assert.match(sectionViews, /`\$\{tab\}\/\$\{section\}`/,
+      "locationHash no longer writes tab and section");
+    assert.match(sectionViews, /`\$\{tab\}\/\$\{section\}\/\$\{view\}`/,
+      "locationHash no longer carries the view for a tab that has one");
     assert.ok(
       !/if \(next === "data"\) setDataSection\("overview"\)/.test(routingHook),
       "the forced data reset is back — it hid the desync instead of fixing it",
@@ -117,14 +124,19 @@ describe("dense role workspaces expose accessible feature sections", () => {
     // press fail to reach the address bar; what it can do is pin the writer
     // once it exists. `scripts/figure-arrival-measure.mjs` is the sibling case
     // — behaviour this suite can only guard structurally.
-    assert.match(location, /url\.hash = `markets\/\$\{section\}\/\$\{next\}`/,
+    assert.match(location, /url\.hash = locationHash\(tab, section, next\)/,
       "pressing a view no longer writes the location, so a copied link goes stale");
     const writer = location.slice(location.indexOf("export function useViewWriter"));
     assert.match(writer.slice(0, writer.indexOf("}, [")), /window\.history\.replaceState/,
       "a view press pushes history; Back would then step through every button press on the way out of the tab");
     assert.doesNotMatch(writer.slice(0, writer.indexOf("}, [")), /pushState/);
-    assert.match(writer.slice(0, writer.indexOf("}, [")), /viewRef\.current !== "markets"/,
+    assert.match(writer.slice(0, writer.indexOf("}, [")), /viewRef\.current !== tab/,
       "a background tab can rewrite the address bar");
+    // One writer per view-declaring tab, and the coherence bind carries its tab —
+    // without the third argument the segment is carried past and dropped.
+    assert.match(routingHook, /useViewWriter\([^)]*"coherence"/, "Proofs has no view writer");
+    assert.match(railSections, /coherence: bind\(COHERENCE_SECTION_IDS, setCoherenceSection, "coherence"\)/,
+      "the coherence bind drops the third segment");
   });
 
   it("Alt+1–9 then Alt+0 reads physical key codes and never fires while typing", () => {

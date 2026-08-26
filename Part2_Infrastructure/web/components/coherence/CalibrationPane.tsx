@@ -23,7 +23,6 @@
  * the fourth id this restructure has brought back for free.
  */
 
-import { useState } from "react";
 
 import type { CoherenceCalibration } from "@/lib/coherence/types-lab";
 import { calibrationRoute } from "@/lib/coherence/routes";
@@ -42,8 +41,7 @@ const VIEWS: ReadonlyArray<[SettledView, string]> = [
   ["bands", "Bands"],
 ];
 
-export default function CalibrationPane({ active }: { active: boolean }) {
-  const [view, setView] = useState<SettledView>("score");
+export default function CalibrationPane({ active, view, onView }: { active: boolean; view: SettledView; onView: (next: SettledView) => void }) {
   const { data, error } = useCoherenceRead<CoherenceCalibration>(calibrationRoute(), active);
 
   return (
@@ -67,7 +65,7 @@ export default function CalibrationPane({ active }: { active: boolean }) {
       <div className="coh-bar">
         <div className="seg" role="group" aria-label="Scorecard view">
           {VIEWS.map(([name, label]) => (
-            <button key={name} type="button" aria-pressed={view === name} onClick={() => setView(name)}>
+            <button key={name} type="button" aria-pressed={view === name} onClick={() => onView(name)}>
               {label}
             </button>
           ))}

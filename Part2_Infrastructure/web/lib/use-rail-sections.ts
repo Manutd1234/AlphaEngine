@@ -76,17 +76,19 @@ export interface RailSections {
   /** Live section per workspace, readable from handlers created once. */
   sectionByViewRef: MutableRefObject<Record<WorkspaceView, string>>;
   /**
-   * Which VIEW each Prices section is standing on.
+   * Which VIEW each section is standing on, per tab that declares views.
    *
-   * One record rather than eight states, because the console passes it straight
-   * down and the hash writer reads it by section id. A tab that declares no
-   * views in `lib/section-views.ts` has no entry here and needs none.
+   * One record per tab rather than a state per section, because the console
+   * passes its tab's record straight down and the hash writer reads it by
+   * section id. A tab that declares no views in `lib/section-views.ts` has no
+   * entry here and needs none. Markets was the only key until Proofs adopted
+   * the grammar on 2026-08-26; a third tab joins by declaring a table.
    */
-  marketsViews: Record<string, string>;
-  /** Called by the console when a reader presses a view button. */
-  setMarketsView: (section: string, view: string) => void;
-  /** Live view per Prices section, for the same reason `sectionByViewRef` exists. */
-  viewBySectionRef: MutableRefObject<Record<string, string>>;
+  sectionViews: Record<string, Record<string, string>>;
+  /** Called by a console when a reader presses a view button. */
+  setSectionView: (tab: WorkspaceView, section: string, view: string) => void;
+  /** Live view per section per tab, for the same reason `sectionByViewRef` exists. */
+  viewBySectionRef: MutableRefObject<Record<string, Record<string, string>>>;
   /** Does this workspace have a section by this name, and how is it applied. */
   applier: Record<WorkspaceView, SectionApplier>;
 }
@@ -118,21 +120,28 @@ export function useRailSections(): RailSections {
    * mount-time values forever.
    */
   /**
-   * Every Prices section on the view it opens on, which `section-views.ts`
-   * defines as the first one listed — so the switcher and the URL cannot start
-   * out disagreeing about where the reader is.
+   * Every section of every view-declaring tab on the view it opens on, which
+   * `section-views.ts` defines — so the switcher and the URL cannot start out
+   * disagreeing about where the reader is.
    */
-  const [marketsViews, setMarketsViews] = useState<Record<string, string>>(() =>
+  const [sectionViews, setSectionViews] = useState<Record<string, Record<string, string>>>(() =>
     Object.fromEntries(
-      Object.keys(VIEWS_BY_TAB.markets ?? {}).map((section) => [section, defaultView("markets", section) ?? ""]),
+      Object.entries(VIEWS_BY_TAB).map(([tab, sections]) => [
+        tab,
+        Object.fromEntries(Object.keys(sections ?? {}).map((section) => [section, defaultView(tab, section) ?? ""])),
+      ]),
     ));
 
-  const setMarketsView = useCallback((section: string, view: string) => {
-    setMarketsViews((prev) => (prev[section] === view ? prev : { ...prev, [section]: view }));
+  const setSectionView = useCallback((tab: WorkspaceView, section: string, view: string) => {
+    setSectionViews((prev) => {
+      const current = prev[tab] ?? {};
+      if (current[section] === view) return prev;
+      return { ...prev, [tab]: { ...current, [section]: view } };
+    });
   }, []);
 
-  const viewBySectionRef = useRef<Record<string, string>>({});
-  viewBySectionRef.current = marketsViews;
+  const viewBySectionRef = useRef<Record<string, Record<string, string>>>({});
+  viewBySectionRef.current = sectionViews;
 
   const sectionByViewRef = useRef<Record<WorkspaceView, string>>({ ...DEFAULT_SECTION });
   sectionByViewRef.current = {
@@ -177,7 +186,7 @@ export function useRailSections(): RailSections {
         const resolved = tab ? railView(tab, id, view) : null;
         return () => {
           set(id);
-          if (resolved !== null) setMarketsView(id, resolved);
+          if (resolved !== null && tab) setSectionView(tab, id, resolved);
         };
       };
     return {
@@ -190,10 +199,13 @@ export function useRailSections(): RailSections {
       reliability: bind(RELIABILITY_SECTION_IDS, setReliabilitySection),
       developer: bind(DEVELOPER_SECTION_IDS, setDeveloperSection),
       markets: bind(MARKETS_SECTION_IDS, setMarketsSection, "markets"),
-      coherence: bind(COHERENCE_SECTION_IDS, setCoherenceSection),
+      // THE THIRD ARGUMENT IS THE WHOLE FEATURE. Without it the segment is
+      // carried past and dropped — `#coherence/certificate/proof` landed on
+      // Verdict with the URL still saying proof, and nothing was red.
+      coherence: bind(COHERENCE_SECTION_IDS, setCoherenceSection, "coherence"),
       diffusion: bind(DIFFUSION_SECTION_IDS, setDiffusionSection),
     };
-  }, [setMarketsView]);
+  }, [setSectionView]);
 
   return {
     overviewSection, researchSection, executionSection, dataSection, reliabilitySection,
@@ -201,6 +213,6 @@ export function useRailSections(): RailSections {
     setOverviewSection, setResearchSection, setExecutionSection, setDataSection,
     setReliabilitySection, setDeveloperSection, setMarketsSection, setCoherenceSection, setDiffusionSection, setRiskSection,
     setPortfolioSection, sectionByViewRef, applier,
-    marketsViews, setMarketsView, viewBySectionRef,
+    sectionViews, setSectionView, viewBySectionRef,
   };
 }

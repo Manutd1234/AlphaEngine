@@ -61,7 +61,7 @@ export default function Page() {
     view, shellRef, navigate, warmView, setExecutionSection, openReliabilitySection,
     setOverviewSection, setResearchSection, setDataSection, setReliabilitySection,
     setDeveloperSection, setMarketsSection, setCoherenceSection, setDiffusionSection, setRiskSection, setPortfolioSection, researchSection,
-    copyLinkToView, tourStops,
+    copyLinkToView, tourStops, setSectionView,
   } = routing;
   const sweep = useSweepRun({ view });
   const {
@@ -192,7 +192,7 @@ export default function Page() {
   const commands = useMemo<Command[]>(() => buildCommands({
     navigate, setOverviewSection, setResearchSection, setExecutionSection,
     setPortfolioSection, setRiskSection, setDataSection, setReliabilitySection,
-    setDeveloperSection, setMarketsSection, setCoherenceSection, setDiffusionSection, updateStrategy, updateSymbol, run, pinRun, running,
+    setDeveloperSection, setMarketsSection, setCoherenceSection, setDiffusionSection, setSectionView, updateStrategy, updateSymbol, run, pinRun, running,
     currentPinned, data, showMcBands, setShowMcBands, setMcRunNonce, side,
     setSide, setNotional, copyLinkToView, setShortcutsOpen, view,
     researchSection, focusPortfolioSymbol, symbol: req.symbol,
@@ -205,7 +205,7 @@ export default function Page() {
     systems.onReconnectSockets, systems.refresh, updateStrategy, updateSymbol, view,
     setOverviewSection, setResearchSection, setExecutionSection, setPortfolioSection,
     setRiskSection, setDataSection, setReliabilitySection, setDeveloperSection,
-    setMarketsSection, setCoherenceSection, setDiffusionSection,
+    setMarketsSection, setCoherenceSection, setDiffusionSection, setSectionView,
   ]);
 
   return (

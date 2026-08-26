@@ -24,7 +24,6 @@
  * to `corpus`, beside the corpus it describes.
  */
 
-import { useState } from "react";
 
 import IndexPane from "./IndexPane";
 import PaneHead from "./PaneHead";
@@ -36,8 +35,7 @@ const VIEWS: ReadonlyArray<[IndexView, string]> = [
   ["families", "By family"],
 ];
 
-export default function IndexSection({ active }: { active: boolean }) {
-  const [view, setView] = useState<IndexView>("series");
+export default function IndexSection({ active, view, onView }: { active: boolean; view: IndexView; onView: (next: IndexView) => void }) {
 
   return (
     <section className="card console-card coh-calib" aria-labelledby="coherence-index-heading">
@@ -55,7 +53,7 @@ export default function IndexSection({ active }: { active: boolean }) {
       <div className="coh-bar">
         <div className="seg" role="group" aria-label="Index view">
           {VIEWS.map(([name, label]) => (
-            <button key={name} type="button" aria-pressed={view === name} onClick={() => setView(name)}>
+            <button key={name} type="button" aria-pressed={view === name} onClick={() => onView(name)}>
               {label}
             </button>
           ))}

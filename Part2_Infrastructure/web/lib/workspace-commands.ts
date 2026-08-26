@@ -28,6 +28,7 @@ import { NAV_ITEMS, type WorkspaceView } from "@/components/WorkspaceHeader";
 import type { Command } from "@/components/header/CommandBar";
 import { usd } from "@/lib/format";
 import { RESEARCH_SYMBOLS } from "@/lib/research-symbols";
+import { viewCommands } from "@/lib/workspace-view-commands";
 import {
   DATA_SECTIONS,
   COHERENCE_SECTIONS,
@@ -81,6 +82,8 @@ export interface CommandDeps {
   setMarketsSection: Setter<MarketsSection>;
   setCoherenceSection: Setter<CoherenceSection>;
   setDiffusionSection: Setter<DiffusionSection>;
+  /** Puts a section on one of its views; the view commands need it beside the section setters. */
+  setSectionView: (tab: WorkspaceView, section: string, view: string) => void;
   updateStrategy: (strategy: Strategy) => void;
   updateSymbol: (symbol: string) => void;
   run: () => void | Promise<unknown>;
@@ -113,7 +116,7 @@ export function buildCommands(d: CommandDeps): Command[] {
   const {
     navigate, setOverviewSection, setResearchSection, setExecutionSection,
     setPortfolioSection, setRiskSection, setDataSection, setReliabilitySection,
-    setDeveloperSection, setMarketsSection, setCoherenceSection, setDiffusionSection, updateStrategy, updateSymbol, run, pinRun, running,
+    setDeveloperSection, setMarketsSection, setCoherenceSection, setDiffusionSection, setSectionView, updateStrategy, updateSymbol, run, pinRun, running,
     currentPinned, data, showMcBands, setShowMcBands, setMcRunNonce, side,
     setSide, setNotional, copyLinkToView, setShortcutsOpen, view,
     researchSection, symbol, refreshHealth, reconnectSockets,
@@ -186,6 +189,9 @@ export function buildCommands(d: CommandDeps): Command[] {
   for (const s of DIFFUSION_SECTIONS) {
     section("diffusion", "Diffusion", s.id, `${s.label} — ${s.description}`, () => setDiffusionSection(s.id));
   }
+  // One entry per non-default view of the two tabs that declare views, read
+  // from lib/section-views — never a second list. See workspace-view-commands.
+  list.push(...viewCommands({ navigate, setMarketsSection, setCoherenceSection, setSectionView }));
 
   for (const strategy of Object.keys(STRATEGY_LABELS) as Strategy[]) {
     list.push({

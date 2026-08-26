@@ -53,7 +53,7 @@ export function useWorkspaceRouting() {
     setOverviewSection, setResearchSection, setExecutionSection, setDataSection,
     setReliabilitySection, setDeveloperSection, setMarketsSection, setCoherenceSection, setDiffusionSection, setRiskSection,
     setPortfolioSection, sectionByViewRef, applier,
-    marketsViews, setMarketsView, viewBySectionRef,
+    sectionViews, setSectionView, viewBySectionRef,
   } = rails;
 
 
@@ -302,7 +302,15 @@ export function useWorkspaceRouting() {
     }
   }, [openSection]);
 
-  const changeMarketsView = useViewWriter({ sectionByViewRef, viewBySectionRef, viewRef }, setMarketsView);
+  // One writer per view-declaring tab — hooks, so a fixed pair rather than a
+  // loop — and one setter dispatching between them for the panels.
+  const changeMarketsView = useViewWriter({ sectionByViewRef, viewBySectionRef, viewRef }, "markets", setSectionView);
+  const changeCoherenceView = useViewWriter({ sectionByViewRef, viewBySectionRef, viewRef }, "coherence", setSectionView);
+  const changeSectionView = useCallback((tab: WorkspaceView, section: string, next: string) => {
+    if (tab === "markets") changeMarketsView(section, next);
+    else if (tab === "coherence") changeCoherenceView(section, next);
+    else setSectionView(tab, section, next);
+  }, [changeMarketsView, changeCoherenceView, setSectionView]);
 
   /** The current location as a shareable URL, straight from the live ref. */
   const copyLinkToView = useCallback(() => {
@@ -365,6 +373,6 @@ export function useWorkspaceRouting() {
     openRiskSection, openPortfolioSection, openResearchSummary, openLiveLiquidity,
     openReliabilityOverview, openDataOverview, openLoopStage, openReliabilitySection,
     copyLinkToView, tourStops,
-    marketsViews, setMarketsView: changeMarketsView,
+    sectionViews, setSectionView: changeSectionView,
   };
 }

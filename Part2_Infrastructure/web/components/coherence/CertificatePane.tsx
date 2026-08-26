@@ -40,7 +40,6 @@ import FamilyChoice, { type FamilySectionProps } from "./FamilyChoice";
 import LadderPrices from "./LadderPrices";
 import { StateChip } from "./Figure";
 import SectionVerdict from "./SectionVerdict";
-import { useState } from "react";
 
 type CertificateView = "verdict" | "proof";
 
@@ -56,8 +55,15 @@ export default function CertificatePane({
   active,
   eventsPending = false,
   eventsError = null,
-}: FamilySectionProps) {
-  const [view, setView] = useState<CertificateView>("verdict");
+  view,
+  onView,
+}: FamilySectionProps & {
+  /** The view this section is standing on, and how a press changes it — owned
+   *  by the console since 2026-08-26: a view is an address, and a `useState`
+   *  here is unreachable from the hash. See `lib/section-views.ts`. */
+  view: CertificateView;
+  onView: (next: CertificateView) => void;
+}) {
   const { data, error } = useCoherenceRead<CoherenceCertificate>(
     certifyRoute(target),
     active && Boolean(target),
@@ -92,7 +98,7 @@ export default function CertificatePane({
         switcher={
           <div className="seg" role="group" aria-label="Certificate view">
             {VIEWS.map(([name, label]) => (
-              <button key={name} type="button" aria-pressed={view === name} onClick={() => setView(name)}>
+              <button key={name} type="button" aria-pressed={view === name} onClick={() => onView(name)}>
                 {label}
               </button>
             ))}
