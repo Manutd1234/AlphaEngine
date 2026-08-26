@@ -181,24 +181,27 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
 
   return (
     <div className="coherence-plane proofs-plane">
-      {/* ONE BOX FOR THE TOP BAR, AND THE STATE IN ITS RIGHT-HAND COLUMN.
-          `PageHead` returns a fragment — its `<header>` and then its `children`
-          — so wrapping the element is what puts the title and the engine's
-          read-state inside one frame.
+      {/* ONE BOX FOR THE TOP BAR: the head, its chips in the right slot, and the
+          facts table as a strip under both. `PageHead` returns a fragment — its
+          `<header>` and then its `children` — so wrapping the element is what
+          puts the title and the engine's read-state inside one frame.
 
-          BOTH HALVES RIDE `actions` NOW. They were split on 2026-08-25, chips
-          here and the facts table in `children`; but `children` renders after
-          `</header>`, so the table was full-width by construction and the head's
-          right half stayed empty. The reader was looking at that empty half:
-          "move the entire stuff in the attachment to the empty space at the top
-          right which i have circled". So the slot stops being a full-width row
-          and becomes a column, and the table joins the chips inside it.
+          THREE SHAPES IN THREE DAYS, each a reader's correction of the last.
+          2026-08-25: chips in `actions`, table in `children` — full-width by
+          construction, and the head's right half stayed empty ("move the
+          entire stuff … to the empty space at the top right which i have
+          circled"). 2026-08-26, morning: both in `actions`, a column — and the
+          right column grew taller than the title's, leaving white under the
+          lede ("so much white space on the left"). 2026-08-26, evening: chips
+          in `actions`, the table a sibling strip under the head. The chips are
+          the only thing that belongs beside the title; the table wants the
+          whole width, and gets it by decision rather than by accident.
 
           `.coh-headlive` is `display: contents` (14w), so the wrapper costs no
           box and its children are flex items of the slot itself — which is what
-          lets the two chip rows and the table each take their own line. Markets
-          has always carried this wrapper for its poll controls; Proofs carries
-          it now so the two heads are one shape. */}
+          lets the two chip rows each take their own line. Markets has always
+          carried this wrapper for its poll controls; Proofs carries it so the
+          two heads are one shape. */}
       <div className="coh-topbar">
         <PageHead
           kicker="Proofs"
@@ -213,10 +216,6 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
                 pollMs={COHERENCE_POLL_MS}
                 paused={!active}
               />
-              <EngineStatePanel
-                status={status.data}
-                familiesPriced={universe.data ? `${universe.data.events.length} read live` : null}
-              />
             </div>
           }
           status={
@@ -224,6 +223,21 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
               ? { label: status.data.state === "ok" ? "Reading the exchange" : status.data.state, tone: status.data.state === "ok" ? "good" : "warn" }
               : undefined
           }
+        />
+        {/* THE FACTS TABLE IS A STRIP UNDER THE HEAD, since 2026-08-26, and a
+            SIBLING of `PageHead` rather than its `children` or its `actions`.
+            In `actions` it stacked under two chip rows in a ~1,000px column,
+            wrapping five tiles into two rows beside a 58ch title column that
+            had nothing under its lede — the reader was looking at that white:
+            "there is so much white space on the left". As `children` it would
+            be full-width too, but `engine-head-state` refuses `PageHead`
+            children on the engine tabs (nothing may be full-width by accident);
+            a sibling inside the box is full-width by decision. Five tiles in
+            one row at desk widths (14v's `auto-fit` over a 14rem floor); the
+            chips keep the head's right slot beside the title. */}
+        <EngineStatePanel
+          status={status.data}
+          familiesPriced={universe.data ? `${universe.data.events.length} read live` : null}
         />
       </div>
 

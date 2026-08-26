@@ -63,7 +63,14 @@
   flex-wrap: wrap;
   justify-content: flex-start;
   row-gap: var(--space-2);
-  /* A COLUMN, NOT A ROW OF ITS OWN, since 2026-08-26 — and the same arithmetic
+  /* CHIPS ONLY, since the evening of 2026-08-26: the facts table is a strip
+     under the head now (14w), so this slot holds two chip rows and, on
+     Markets, the poll controls. The basis below is unchanged and still the
+     reason — the desk row is still the widest declared row — and what has
+     gone is the taller neighbour: two chip rows are shorter than the title's
+     column, so nothing is left white under the lede.
+
+     A COLUMN, NOT A ROW OF ITS OWN, since 2026-08-26 — and the same arithmetic
      that made it a row is what lets it be a column.
 
      THE MEASUREMENT, unchanged and still the reason: the four chips and the
@@ -143,7 +150,16 @@
    is still readable in. */
 .coherence-plane .coh-facts--tabled {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  /* 14rem, from 16rem, with the strip. The strip is the box's inner width —
+     1,526px at 1600 → 304px a tile across five, 272 at 1440, 240 at 1280 —
+     and five hold in one row down to a 1,124px strip (≈1,198px viewport).
+     At 1120 the fifth wraps under four BY THE SHAPE RULE, never by a count:
+     `engine-head-state` bans `repeat(5, …)` and requires `auto-fit` over a
+     floor, so a sixth tile (the mirror's, when it lands) joins the row rather
+     than starting a second under a rule that says five. 14rem is the narrowest
+     a two-clause figure — "63,930 snapshots across 4,126 markets" — still
+     reads in two lines at the tabled rung. */
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
   /* EVERY CELL CARRIES ITS OWN HAIRLINE, and this is what a wrapping table
      costs. A border on each cell worked while the table was one declared row:
      `border-left` on every cell and `:first-child { border-left: 0 }` drew four
@@ -208,8 +224,12 @@
    anything, so the reservation becomes the whole width rather than a column
    inside it. */
 @media (max-width: 1120px) {
-  .coherence-plane .page-heading__actions,
-  .coherence-plane .page-heading__actions .coh-headstate {
+  /* DESCENDANT OF `.page-heading`, not the bare slot selector: the slot's one
+     rule above is pinned to be declared exactly once, and this override is a
+     different rule for a different width. (`>` would not match — `.page-
+     heading__context` is `display: contents`, and a child combinator reads the
+     DOM tree, not the box tree.) */
+  .coherence-plane .page-heading .page-heading__actions {
     width: 100%;
   }
 

@@ -8,9 +8,10 @@
    `PageHead` returns a FRAGMENT: its `<header class="page-heading">` and then
    its `children`. So a wrapper around the element wraps both, and the title,
    the chips and the facts table land inside one frame instead of three loose
-   rows. The chips ride the heading's own right-hand slot; the table goes in
-   `children`, which renders after `</header>` and before the section rail —
-   which is what "shift the rest of the stuff down" asks for.
+   rows. The chips ride the heading's own right-hand slot; the facts table is
+   a strip under the heading, a sibling inside this box — which is what "shift
+   the rest of the stuff down" asks for, and what "so much white space on the
+   left" asked for again when the table had joined the chips.
 
    SCOPED `.coherence-plane`, not to either tab class, because both engine
    consoles render this and a tab-scoped rule would style one and leave the
@@ -126,30 +127,20 @@
   justify-content: flex-end;
 }
 
-/* The facts table, and it is IN the head's right slot now rather than under the
-   title. It spans that slot: nothing caps it, because the slot is already the
-   cap — `14v` gives the slot a `30rem` floor and lets it take what the 58ch copy
-   column does not want.
+/* THE FACTS TABLE IS A STRIP UNDER THE HEAD, a sibling of `.page-heading`
+   inside this box, since the evening of 2026-08-26. Two shapes came before
+   it: `PageHead` children (full-width by construction, the head's right half
+   empty) and a flex item of the actions slot (a column that grew taller than
+   the title's and left white under the lede). A sibling strip is full-width
+   by decision: it takes the box's inner width — 1,526px at 1600, 304px a
+   tile across five — and the chips keep the slot beside the title.
 
-   A LINE OF ITS OWN INSIDE THE SLOT, which is what the basis buys. The wrappers
-   above are `display: contents`, so the table is a flex item of
-   `.page-heading__actions` exactly like the two chip rows are — and without a
-   full-width basis it would try to sit BESIDE the desk row, squeezing five
-   metrics into whatever a 49ch stamp left. Same declaration and the same reason
-   as `.coh-headchips__desk` and `.coh-live` above; the three of them are what
-   make the slot read as a column of rows rather than as a row that wrapped. */
-.coherence-plane .page-heading__actions .coh-headstate {
-  flex: 0 0 100%;
-}
-
+   `flex: 0 0 100%` on it is GONE with the move: it was the line-break inside
+   the slot, and the strip is not in the slot. The 1120 duplicate below went
+   with it; `14v` already gives the panel the whole width there. */
 .coherence-plane .coh-topbar .coh-headstate {
   max-inline-size: none;
-}
-
-@media (max-width: 1120px) {
-  .coherence-plane .coh-topbar .coh-headstate {
-    max-inline-size: none;
-  }
+  margin-top: var(--space-2);
 }
 
 @media (max-width: 620px) {

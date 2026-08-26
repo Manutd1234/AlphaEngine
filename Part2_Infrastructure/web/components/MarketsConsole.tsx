@@ -253,11 +253,10 @@ export default function MarketsConsole({ section, onSectionChange, views, onView
              sit side by side — and `display: contents` (14w) is what makes each
              of these a flex item of the slot with a line of its own.
 
-             THE FACTS TABLE JOINED THEM on 2026-08-26. It used to be `PageHead`
-             children, which render after `</header>` and therefore at the head's
-             full width, leaving the head's own right half empty. Same change on
-             Proofs, same commit: the layout is `.coherence-plane`-scoped, so one
-             console moving alone would style itself and leave the other bare. */
+             THE FACTS TABLE LEFT THEM AGAIN on the evening of 2026-08-26, for the
+             strip under the head: two chip rows and a two-row grid made this
+             column taller than the title's and left white under the lede. The
+             slot holds the chips and the poll controls now, nothing else. */
           <div className="coh-headlive">
             <EngineChips
               status={status.data}
@@ -273,10 +272,6 @@ export default function MarketsConsole({ section, onSectionChange, views, onView
               onPause={setPaused}
               onReadNow={() => setRearming(true)}
             />
-            <EngineStatePanel
-              status={status.data}
-              familiesPriced={universe.data ? `${universe.data.events.length} read live` : null}
-            />
           </div>
         }
         status={
@@ -284,6 +279,15 @@ export default function MarketsConsole({ section, onSectionChange, views, onView
             ? { label: status.data.state === "ok" ? "Reading the exchange" : status.data.state, tone: status.data.state === "ok" ? "good" : "warn" }
             : undefined
         }
+      />
+      {/* The facts table as a strip under the head — a sibling, not `children`
+          and not `actions`. Same change on Proofs, same commit: the layout is
+          `.coherence-plane`-scoped, so one console moving alone would leave the
+          other's panel beside its desk row. See CoherenceConsole for the three
+          shapes this head has had and why this is the third. */}
+      <EngineStatePanel
+        status={status.data}
+        familiesPriced={universe.data ? `${universe.data.events.length} read live` : null}
       />
       </div>
 

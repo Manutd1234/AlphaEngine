@@ -6,10 +6,13 @@
  * "Move the Exchange reachable / Fixed-point schema / Recorder running / no
  *  order path row above to the top right corner"
  *
- * Both rows moved out of `StatusPane`'s foot and into `EngineStatePanel`, which
- * renders through `PageHead`'s existing `actions` slot. Three things about that
- * are load-bearing and none of them is visible in any one file, which is what
- * this suite is for.
+ * Both rows moved out of `StatusPane`'s foot and into `EngineStatePanel`. The
+ * chips render through `PageHead`'s `actions` slot; the facts table, since the
+ * evening of 2026-08-26, is a STRIP under the head — a sibling inside the top
+ * bar — after two arrangements the reader corrected (full-width children with
+ * an empty right half; a right column taller than the title's). Three things
+ * about that are load-bearing and none of them is visible in any one file,
+ * which is what this suite is for.
  *
  * WHAT NO TEST HERE CAN DO: `npm test` is plain Node with no jsdom, no browser
  * and no layout engine, so every width below is read out of the sheet, never
@@ -76,12 +79,21 @@ describe("the read-state sits in the head, once", () => {
       // component this is looking for.
       const slot = source.match(/actions=\{([\s\S]*?)\n\s*status=\{$/m);
       assert.ok(slot, `${file} declares no actions slot before its status pill`);
-      assert.match(slot[1], /<EngineStatePanel/,
-        `${file} does not put the facts table in the head's right slot beside the chips`);
+      // THE PANEL LEFT THE SLOT on the evening of 2026-08-26. In the slot it
+      // stacked under two chip rows in a ~1,000px column and left the title's
+      // column white under its lede — "so much white space on the left". It is
+      // a SIBLING of the head inside the box now, a strip under both columns.
+      // Written so the morning's arrangement fails: the slot may not hold it.
+      assert.doesNotMatch(slot[1], /<EngineStatePanel/,
+        `${file} puts the facts table in the head's right slot; it is a strip under the head now`);
+      // `strip` leaves a JSX comment as an empty `{}`, which is what the
+      // optional group allows between the head's `/>` and the strip.
+      assert.match(source, /<PageHead[\s\S]*?\n\s*\/>\s*(?:\{\s*\}\s*)?<EngineStatePanel\b/,
+        `${file} does not render the facts table as the sibling right after its self-closing <PageHead />`);
 
-      // `PageHead` takes no children on either engine tab any more, which is the
-      // other half of the same claim: nothing renders after `</header>` and
-      // before the rail, so nothing is full-width by accident.
+      // `PageHead` takes no children on either engine tab, which is the other
+      // half of the same claim: nothing renders after `</header>` by accident.
+      // The strip is a sibling inside `.coh-topbar` by decision.
       assert.doesNotMatch(source, /<\/PageHead>/,
         `${file} still passes PageHead children, which render at the head's full width`);
     }
@@ -268,22 +280,19 @@ describe("a ticking clock cannot reflow the heading row", () => {
     assert.match(basis[1], /\d+rem/,
       "the slot needs a basis in rem so it steps with the reader's Text-size preference");
 
-    // AND THE TABLE TAKES A LINE INSIDE THAT COLUMN. It is a flex item of the
-    // slot now, beside two chip rows that are themselves flex items — without
-    // its own full-width basis it would try to sit BESIDE a chip row and the
-    // five metrics would be squeezed into whatever the chips left.
-    // EXACT SELECTOR, NOT `.includes`. `14v`'s 1120px block carries
-    // `.coherence-plane .page-heading__actions, .coherence-plane
-    // .page-heading__actions .coh-headstate { width: 100% }` — a comma list that
-    // an `.includes` lookup matches, and it is declared FIRST, so `.find`
-    // returned the media-query rule and asserted against `width: 100%`. Same
-    // trap the comment at the head of this block records for the slot itself.
-    const tables = rules.filter((rule) =>
-      rule.selector.trim() === ".coherence-plane .page-heading__actions .coh-headstate");
-    assert.equal(tables.length, 1,
-      "the facts table's line rule is missing or declared more than once");
-    assert.match(tables[0].body, /flex:\s*0 0 100%/,
-      "the facts table shares a line with a chip row instead of taking its own");
+    // AND THE TABLE IS NOT IN THAT COLUMN AT ALL. It was, for one morning, and
+    // it made the column taller than the title's. No rule may place the panel
+    // as a descendant of the slot any more; its one rule is as the box's
+    // sibling strip, with no `flex` of its own to break a line it is not on.
+    // EXACT SELECTOR, NOT `.includes`, for the reason the block above records.
+    const inSlot = rules.filter((rule) =>
+      rule.selector.split(",").some((part) => part.includes("page-heading__actions") && part.includes("coh-headstate")));
+    assert.deepEqual(inSlot.map((rule) => rule.where), [],
+      "a rule still places the facts table inside the head's right slot");
+    const strip = rules.filter((rule) =>
+      rule.selector.trim() === ".coherence-plane .coh-topbar .coh-headstate");
+    assert.equal(strip.length, 1, "the strip's rule is missing or declared more than once");
+    assert.doesNotMatch(strip[0].body, /flex:/, "the strip is a grid under the head, not a flex item of anything");
   });
 
   it("the facts table is a grid about its shape, not about five", () => {
@@ -302,6 +311,10 @@ describe("a ticking clock cannot reflow the heading row", () => {
       "five in a row does not fit the head's right column; it fitted the head's full width");
     assert.match(grid.body, /repeat\(auto-fit,\s*minmax\(/,
       "the table needs a shape rule, not a count: auto-fit over a floor");
+    // 14rem, since the strip: the box's inner width is 1,526px at 1600, so five
+    // tiles hold in one row down to a ~1,124px strip; at 16rem the fifth
+    // wrapped under four at 1440. Still a floor over auto-fit — never a count.
+    assert.match(grid.body, /minmax\(14rem,/, "five tiles hold in one row only at a 14rem floor");
   });
 
   it("the panel wraps rather than clipping", () => {
