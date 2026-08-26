@@ -133,6 +133,7 @@ export function Plot({
   minWidth = 0,
   onSelect,
   sharedX,
+  viewBox,
   children,
 }: {
   height: number;
@@ -172,6 +173,23 @@ export function Plot({
    * how the crosshair ends up reading a position the drawing never uses.
    */
   sharedX?: (width: number) => SharedX;
+  /**
+   * A fixed coordinate system, for a drawing that has one.
+   *
+   * `Plot` normally hands a figure the measured width and draws in pixels, and
+   * that is right for anything laid out from data — a ladder, a curve, a bar
+   * per row. It is wrong for a diagram whose geometry is FIXED and scaled to
+   * fit: a state machine, a scope matrix, a donut. Those are authored in their
+   * own units against `preserveAspectRatio`, and forcing them onto a pixel
+   * viewBox would move every hand-placed coordinate.
+   *
+   * Passing this keeps the caller's box and lets the browser scale it, while
+   * the plot still collects the marks, takes one tab stop and speaks. Added
+   * 2026-08-26, when three such drawings turned out to be the only ones left
+   * that could not be made instruments — the primitive was the thing that did
+   * not fit, not the callers.
+   */
+  viewBox?: string;
   children: (width: number) => ReactNode;
 }) {
   const [ref, measured] = useMeasuredWidth<HTMLDivElement>(720);
@@ -205,9 +223,12 @@ export function Plot({
     >
       <svg
         ref={svgRef}
-        viewBox={`0 0 ${width} ${height}`}
-        width={width}
+        viewBox={viewBox ?? `0 0 ${width} ${height}`}
+        // A fixed box scales to the column; a measured one is already the
+        // column, so it keeps its pixel width and does not restate it.
+        width={viewBox ? "100%" : width}
         height={height}
+        preserveAspectRatio={viewBox ? "xMidYMid meet" : undefined}
         role="presentation"
         // ONE tab stop for the whole plot, and only once it has a mark to walk
         // to — an empty figure must not put an empty control in the tab order.

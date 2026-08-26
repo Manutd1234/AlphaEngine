@@ -275,10 +275,11 @@
   align-self: flex-start;
 }
 
-.mutation-map__diagram {
-  display: block;
-  width: 100%;
-}
+/* The class this replaced (`.mutation-map__diagram`) went with the svg when the
+   diagram moved through `Plot` on 2026-08-26. `Plot` sets `width: 100%` on a
+   fixed-viewBox drawing itself, so only the cap below is still this map's to
+   make — and it is made on the plot inside this map rather than on a class the
+   component no longer renders. */
 
 /* Eight columns of two-word cells. `.table-wrap` scrolls them horizontally, so
    the cells may refuse to wrap: a "left intact" broken across two lines in a
@@ -343,7 +344,7 @@
      breaker diagram answered the same waste by dropping its viewBox and laying
      out in percentages, which is the better fix and a bigger one than this
      map's owner asked for. */
-  .mutation-map__diagram {
+  .mutation-map .coh-plot svg {
     max-width: 720px;
     margin: 0 auto;
   }

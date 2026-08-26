@@ -10,12 +10,12 @@
  * figure computed at some other confidence.
  */
 
-import { linearScale, useMeasuredWidth } from "@/components/chart-kit";
+import { linearScale } from "@/components/chart-kit";
+import Figure, { Plot } from "@/components/coherence/Figure";
 import { mcUsd } from "@/components/risk/mc-degeneracy";
 import { mcLossConfidences, type McDistributionResult } from "@/lib/mc-distribution";
 
 export default function McHistogram({ result }: { result: McDistributionResult }) {
-  const [ref, width] = useMeasuredWidth<HTMLDivElement>();
   const height = 180;
   const bins = result.histogram;
   // Two silences, two returns. `width === 0` is the measuring pass: the ref
@@ -27,14 +27,14 @@ export default function McHistogram({ result }: { result: McDistributionResult }
   if (!bins) {
     return <p className="sub">No histogram: no path ended at a finite P&amp;L.</p>;
   }
-  if (width === 0) return <div ref={ref} />;
+  // The "not measured yet" branch is gone with the measurement: `Plot` owns the
+  // width and falls back to its own until the observer fires, so this no longer
+  // renders an empty div on the first paint and then swaps it for a chart.
 
   const lo = bins.edges[0];
   const hi = bins.edges[bins.edges.length - 1];
   const peak = Math.max(...bins.counts, 1);
-  const x = linearScale(lo, hi, 0, width);
   const y = linearScale(0, peak, height, 0);
-  const barW = width / bins.counts.length;
 
   // Labels come from the RESULT, never from a constant. With tail bands
   // selected these are 90/99/99.9, and printing a 99.9 % loss under a "P99"
@@ -52,14 +52,23 @@ export default function McHistogram({ result }: { result: McDistributionResult }
   ];
 
   return (
-    <div ref={ref}>
-      <svg
-        viewBox={`0 0 ${width} ${height + 18}`}
-        width="100%"
-        height={height + 18}
-        role="img"
-        aria-label={`Terminal P&L distribution of ${result.paths.toLocaleString()} paths between ${mcUsd(lo)} and ${mcUsd(hi)}, with P${c50}, P${c95} and P${c99} loss markers`}
+    <>
+      {/* Through `Figure` and `Plot` since 2026-08-26. The bars had no `<title>`
+          at all, so a reader could see the distribution's SHAPE and could not
+          get a single number off it by any means but a mouse hover that showed
+          nothing. Each bin now carries its own count and range, which is what
+          `Plot` walks. */}
+      <Figure
+        caption={`Terminal P&L over ${result.paths.toLocaleString()} paths`}
+        ariaLabel={`Terminal P&L distribution of ${result.paths.toLocaleString()} paths between ${mcUsd(lo)} and ${mcUsd(hi)}, with P${c50}, P${c95} and P${c99} loss markers`}
+        reading="Everything left of break-even ended in loss; the three markers are the loss bands, and they move with the confidences rather than sitting on a median nobody asked about."
       >
+        <Plot height={height + 18}>
+          {(measured) => {
+            const x = linearScale(lo, hi, 0, measured);
+            const barW = measured / bins.counts.length;
+            return (
+              <>
         {bins.counts.map((count, i) => (
           <rect
             key={bins.edges[i]}
@@ -70,7 +79,12 @@ export default function McHistogram({ result }: { result: McDistributionResult }
             fill="var(--series-1)"
             opacity={0.7}
             rx={1}
-          />
+          >
+            {/* The number the shape was hiding. Without this the histogram is a
+                silhouette: a reader can see where the mass sits and cannot get
+                one figure off it. */}
+            <title>{`${mcUsd(bins.edges[i])} to ${mcUsd(bins.edges[i + 1] ?? hi)}: ${count.toLocaleString()} of ${result.paths.toLocaleString()} paths`}</title>
+          </rect>
         ))}
         {/* Break-even line: everything left of it ended in loss. */}
         <line x1={x(0)} x2={x(0)} y1={0} y2={height} stroke="var(--axis)" strokeDasharray="2 3" />
@@ -95,7 +109,11 @@ export default function McHistogram({ result }: { result: McDistributionResult }
             </text>
           </g>
         ))}
-      </svg>
+              </>
+            );
+          }}
+        </Plot>
+      </Figure>
       <div
         className="muted num"
         style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--fs-2xs)" }}
@@ -108,6 +126,6 @@ export default function McHistogram({ result }: { result: McDistributionResult }
         <span>break-even at $0</span>
         <span>{mcUsd(hi)}</span>
       </div>
-    </div>
+    </>
   );
 }

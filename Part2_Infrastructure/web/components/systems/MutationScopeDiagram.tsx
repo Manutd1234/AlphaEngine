@@ -31,6 +31,7 @@ import {
   SERVER_MUTATIONS,
   type StoreQuantity,
 } from "@/components/systems/mutation-scope";
+import Figure, { Plot } from "@/components/coherence/Figure";
 
 /** Geometry. Written out rather than computed so the labels can be checked
  *  against the boxes they have to fit inside. */
@@ -61,15 +62,21 @@ export default function MutationScopeDiagram({
   const active = SERVER_MUTATIONS.find((row) => row.id === selected) ?? null;
   const byStore = new Map(quantities.map((store) => [store.id, store]));
 
+  // Through `Figure` and `Plot` since 2026-08-26, keeping its own 560x266 box —
+  // `Plot` learned to take a fixed coordinate system for exactly this drawing
+  // and its two siblings, because a hand-placed diagram cannot be re-laid-out
+  // onto a pixel viewBox without moving every coordinate. What it gains is what
+  // it never had: the cells carry their own words, so the matrix is walkable
+  // from a keyboard instead of being one image with one sentence.
   return (
-    <svg
-      className="mutation-map__diagram"
-      viewBox="0 0 560 266"
-      width="100%"
-      preserveAspectRatio="xMidYMid meet"
-      role="img"
-      aria-label={label}
+    <Figure
+      caption="What each server mutation clears, and what it leaves intact"
+      ariaLabel={label}
+      reading="The sparseness is the finding: an edge is drawn only where something is actually cleared or re-read, so the empty space is everything a mutation leaves alone."
     >
+      <Plot height={266} viewBox="0 0 560 266">
+        {() => (
+          <>
       <text x={LEFT_X + 2} y={8} fontSize={10} fill="var(--text-muted)" letterSpacing="0.06em">
         SERVER MUTATIONS
       </text>
@@ -127,6 +134,15 @@ export default function MutationScopeDiagram({
             <text x={LEFT_X + 12} y={y + 22} fontSize={13} fontWeight={650} fill="var(--text-primary)">
               {row.short}
             </text>
+            {/* The mark. Without one this whole matrix was a single image with
+                a single sentence: `Plot` walks elements that carry their own
+                `<title>`, and thirty-five cells carrying none meant no tab
+                stop, no crosshair and nothing to say. */}
+            <title>{`${row.short}: clears ${
+              MUTATION_STORES.filter((st) => row.effects[st.id]?.effect === "clears").length
+            }, re-reads ${
+              MUTATION_STORES.filter((st) => row.effects[st.id]?.effect === "rereads").length
+            }, leaves the rest intact`}</title>
           </g>
         );
       })}
@@ -144,6 +160,15 @@ export default function MutationScopeDiagram({
         const touched = cell?.effect === "clears" || cell?.effect === "rereads";
         return (
           <g key={store.id} opacity={active && !touched && !outside ? 0.55 : 1}>
+            <title>{`${store.label}: ${
+              outside
+                ? "outside this deployment — not a box this instance can open"
+                : cell
+                  ? `${cell.effect} on ${active?.short}`
+                  : active
+                    ? `left intact by ${active.short}`
+                    : "select a mutation to see what it does here"
+            }${quantity ? `, ${quantity.label}` : ""}`}</title>
             <rect
               x={RIGHT_X}
               y={y}
@@ -184,6 +209,9 @@ export default function MutationScopeDiagram({
           </g>
         );
       })}
-    </svg>
+          </>
+        )}
+      </Plot>
+    </Figure>
   );
 }

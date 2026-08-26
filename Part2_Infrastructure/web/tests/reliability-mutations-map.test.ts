@@ -232,8 +232,18 @@ describe("the diagram is not the only route to any fact", () => {
   });
 
   it("keeps the drawing one labelled image rather than thirty-five focus stops", () => {
-    assert.match(diagram, /role="img"/);
-    assert.match(diagram, /aria-label=\{label\}/);
+    // The drawing moved through `Figure`/`Plot` on 2026-08-26, so the image
+    // role and the name are the FIGURE's now — a `role="img"` on the svg inside
+    // one would be an image nested in an image. The property under test is
+    // unchanged and is now enforced rather than conventional: `Plot` takes
+    // exactly one tab stop, so thirty-five cells cannot become thirty-five
+    // focus stops even if someone makes them focusable.
+    assert.match(diagram, /ariaLabel=\{label\}/,
+      "the diagram no longer names itself, so the matrix is an unlabelled image");
+    assert.match(diagram, /<Plot height=\{266\} viewBox="0 0 560 266">/,
+      "the diagram no longer keeps its own coordinate system");
+    assert.match(read("../components/coherence/Figure.tsx"), /tabIndex=\{interactive \? 0 : undefined\}/,
+      "the plot is no longer a single tab stop");
     assert.doesNotMatch(code(diagram), /tabIndex|onClick|onFocus/,
       "a focusable SVG node is a keyboard trap wearing a diagram's clothes");
   });
