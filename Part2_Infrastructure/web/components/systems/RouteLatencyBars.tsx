@@ -20,7 +20,8 @@
  * bar prints its own numbers beside it, so colour is never the only carrier.
  */
 
-import { Grid, linearScale, ticks, useMeasuredWidth } from "@/components/chart-kit";
+import { Grid, linearScale, ticks } from "@/components/chart-kit";
+import Figure, { Plot } from "@/components/coherence/Figure";
 import type { GatewayOpsSnapshot } from "@/components/systems/types";
 
 /** The same floor the rest of the desk uses before it states a percentile. */
@@ -35,7 +36,6 @@ export default function RouteLatencyBars({
 }: {
   platform: GatewayOpsSnapshot | undefined;
 }) {
-  const [ref, width] = useMeasuredWidth<HTMLDivElement>(720);
 
   if (!platform) {
     return (
@@ -79,9 +79,6 @@ export default function RouteLatencyBars({
   // would make the slowest route look identical to the fastest.
   const top = Math.max(...plottable.map((r) => r.p99_ms), 1) * 1.08;
   const height = MARGIN.top + routes.length * ROW_H + MARGIN.bottom;
-  const plotW = Math.max(140, width - MARGIN.left - MARGIN.right);
-  const x = linearScale(0, top, MARGIN.left, MARGIN.left + plotW);
-  const xTicks = ticks(0, top, 4);
 
   const label = (route: Route) => route.route.replace(/^\/api\//, "");
 
@@ -95,9 +92,31 @@ export default function RouteLatencyBars({
         <span className="section-note">{routes.length} routes, {windowMinutes}-minute window</span>
       </div>
 
-      <div ref={ref}>
-        <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} role="img"
-          aria-label={`Response time by gateway route, ${routes.length} routes over a ${windowMinutes} minute window`}>
+      {/* THROUGH `Figure` AND `Plot` SINCE 2026-08-26, and the reason is not
+          decoration. This drawing carried a `<title>` on all three marks of
+          every row and had no way to say any of them: a `<title>` is a native
+          tooltip, reachable with a mouse and by nothing else — not from a
+          keyboard, not on a touch screen, and not to a screen reader. Fourteen
+          drawings across five tabs were in that state and NONE of them carried
+          a live region. `Plot` walks the titles this file already wrote, so the
+          figure gets a crosshair, one tab stop, arrow-key mark walking and a
+          spoken readout by having done nothing; `Figure` puts the region
+          OUTSIDE the `role="img"` wrapper, where assistive technology can
+          reach it. */}
+      <Figure
+        caption="Response time by gateway route, slowest first"
+        ariaLabel={`Response time by gateway route, ${routes.length} routes over a ${windowMinutes} minute window`}
+        reading="Each bar is a span, not a stack: p50 sits inside p95 sits inside p99, and the tick is the tail."
+      >
+        <Plot height={height}>
+          {(measured) => {
+            // Scales move inside, because the width is the plot's now rather
+            // than a `useMeasuredWidth` this file kept for itself.
+            const plotW = Math.max(140, measured - MARGIN.left - MARGIN.right);
+            const x = linearScale(0, top, MARGIN.left, MARGIN.left + plotW);
+            const xTicks = ticks(0, top, 4);
+            return (
+              <>
           <Grid
             yTicks={[]} yScale={() => 0}
             x0={MARGIN.left} x1={MARGIN.left + plotW} format={() => ""}
@@ -162,8 +181,11 @@ export default function RouteLatencyBars({
               </g>
             );
           })}
-        </svg>
-      </div>
+              </>
+            );
+          }}
+        </Plot>
+      </Figure>
 
       <ul className="legend">
         <li><i aria-hidden style={{ background: "var(--series-1)" }} /> p50</li>
