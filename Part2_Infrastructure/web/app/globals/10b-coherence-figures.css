@@ -317,3 +317,23 @@
   fill: var(--text-primary);
   font-size: var(--fs-tick);
 }
+
+/* ── The live number beside a caption ────────────────────────────────────
+
+   The tapes' latest reading, buffered and counted by `NumberTicker`. Pushed
+   to the caption's far end so the sentence and the number never fight for
+   the same start; tabular figures through `.num` on the ticker itself, so
+   the count cannot widen the row. `--fs-tick`, like every other figure on
+   the plane: it is a reading, not a heading. */
+.coh-figure__caption {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.coh-figure__readout {
+  flex: 0 0 auto;
+  font-size: var(--fs-tick);
+  color: var(--text-primary);
+}

@@ -91,6 +91,16 @@ export interface FigureProps {
   notes?: readonly string[] | null;
   /** Screen-reader description of the drawing itself. */
   ariaLabel: string;
+  /**
+   * A live number beside the caption — the one figure a reader watches move.
+   *
+   * Added 2026-08-26 for the tapes, whose latest reading until then lived only
+   * in the latest mark's `<title>`. It sits in the caption row rather than in
+   * the plot because it is what a reader looks at FIRST, and a number that
+   * glides inside an SVG is one the figure's own text cannot reserve width
+   * for. `NumberTicker` reserves its own.
+   */
+  readout?: ReactNode;
   children: ReactNode;
 }
 
@@ -111,11 +121,14 @@ export interface FigureProps {
  */
 const AnnounceContext = createContext<((text: string) => void) | null>(null);
 
-export default function Figure({ caption, reading, missing, notes, ariaLabel, children }: FigureProps) {
+export default function Figure({ caption, reading, missing, notes, ariaLabel, readout = null, children }: FigureProps) {
   const [announced, setAnnounced] = useState("");
   return (
     <figure className="coh-figure">
-      <figcaption className="coh-figure__caption">{caption}</figcaption>
+      <figcaption className="coh-figure__caption">
+        {caption}
+        {readout ? <span className="coh-figure__readout">{readout}</span> : null}
+      </figcaption>
       <AnnounceContext.Provider value={setAnnounced}>
         <div className="coh-figure__plot" role="img" aria-label={ariaLabel}>
           {children}

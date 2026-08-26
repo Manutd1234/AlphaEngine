@@ -39,6 +39,8 @@ import { extent, linePath, linearScale, ticks } from "@/components/chart-kit";
 import { DIAGRAM_LABEL_PX, advancePx } from "@/lib/coherence/label-metrics";
 import type { LivePoint } from "@/lib/coherence/use-live-series";
 import Figure, { FigureEmpty, Plot } from "./Figure";
+import NumberTicker from "@/components/common/NumberTicker";
+import { useBufferedValue } from "@/lib/coherence/use-buffered-value";
 
 const HEIGHT = 132;
 const MARGIN = { top: 12, right: 14, bottom: 20, left: 8 };
@@ -75,6 +77,21 @@ export default function LiveTape({
 }: LiveTapeProps) {
   const measured = points.filter((point) => point.value != null);
   const gaps = points.length - measured.length;
+  /* THE NUMBER THAT MOVES. Until now the latest reading lived only in the
+     latest mark's `<title>` — reachable by hovering one circle — and every
+     poll repainted it as a cut. Buffered into one 300ms window with every
+     other tape on the desk, then handed to the ticker, which counts to it and
+     reserves its width so the count cannot reflow the caption beside it.
+     Keyed like the series, so two tapes never share a window slot.
+
+     ABOVE THE EMPTY BRANCH, and that is not a style choice. A hook below a
+     conditional return is invisible on a warm cache — the branch never fires,
+     React sees the same hook count every render, and a browser check passes.
+     On a COLD load it sees fewer hooks then more, throws #310, and tears down
+     the whole dashboard rather than this section. `engine-hook-order` caught
+     it in the working tree; a browser had already said it was fine. */
+  const latestValue = measured.length ? measured[measured.length - 1].value : null;
+  const shown = useBufferedValue(`${caption}:latest`, latestValue);
   // The scope, said in the caption itself rather than in a footnote, because it
   // is what the axis MEANS and a reader who misses it misreads the figure
   // rather than merely learning less from it.
@@ -107,6 +124,11 @@ export default function LiveTape({
   return (
     <Figure
       caption={full}
+      readout={
+        shown == null
+          ? null
+          : <NumberTicker value={shown} format={format} className="coh-tape__now num" />
+      }
       ariaLabel={ariaLabel}
       reading={reading}
       missing={
