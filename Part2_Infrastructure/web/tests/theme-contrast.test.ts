@@ -69,32 +69,44 @@ const AA_NORMAL = 4.5;
 /** Resolved palettes, kept here rather than re-parsed so the expectation is explicit. */
 const LIGHT = {
   "surface-1": "#ffffff",
-  // Zinc, since the graphite repaint. Every role below is re-checked against
-  // it — --json-accent clears AA here by 0.20, so this value is not free to
-  // drift darker without moving the accent with it.
-  "surface-2": "#f4f4f5",
+  // SLATE since 2026-08-26, zinc before it. The move is a HUE shift at matched
+  // luminance — every neutral kept its lightness to within 0.01 and the two
+  // that moved more (--axis, --border) carry no text — so every ratio below is
+  // the ratio it was, and none of them was recomputed to fit. Re-run rather
+  // than assumed: --json-accent still clears AA here by 0.20, so this value is
+  // not free to drift darker without moving the accent with it.
+  "surface-2": "#f1f5f9",
   "success-text": "#087552",
   "warning-text": "#85570b",
   "critical-text": "#b3242e",
   "notice-text": "#9a4415",
-  "text-secondary": "#52525b",
-  "text-muted": "#65656e",
+  "text-secondary": "#4e5764",
+  "text-muted": "#616a79",
   "json-accent": "#2563eb",
 } as const;
 
 const DARK = {
-  // Zinc-900 and up, since the palette moved off near-black. The two roles below
-  // that carry a comment moved WITH the planes rather than being left behind:
-  // lightening a surface reduces the contrast of everything on it, and both were
-  // inside 0.15 of the AA floor at the new values before they were nudged.
-  "surface-1": "#1f1f23",
-  "surface-2": "#27272a",
-  "success-text": "#0ca50c",
+  // Slate-900 and up since 2026-08-26, zinc before it, near-black before that.
+  // The two roles below that carry a comment moved WITH the planes rather than
+  // being left behind: lightening a surface reduces the contrast of everything
+  // on it, and both were inside 0.15 of the AA floor before they were nudged.
+  // The slate move lifted dark text-secondary and text-muted slightly, which
+  // in dark mode is MORE contrast against the plane, not less.
+  "surface-1": "#1c222b",
+  "surface-2": "#232a34",
+  // LIFTED with the slate move, and it is the only role that needed it.
+  // #0ca50c cleared AA on zinc's --surface-2 by 0.041 — 4.541 against a floor
+  // of 4.5, which the note above already called "inside 0.15". Slate's
+  // --surface-2 is a hair lighter, and a hair was all it had: 4.409. So the
+  // token moved rather than the ramp, which is the rule this palette is
+  // changed under. #12b312 clears by 0.65 on the inset and 1.20 on the card,
+  // so it is not sitting on the edge any more.
+  "success-text": "#12b312",
   "warning-text": "#e8ab3d",
   "critical-text": "#f0737c",
   "notice-text": "#f08a5a",
-  "text-secondary": "#b1b1b9",
-  "text-muted": "#8d8d97",
+  "text-secondary": "#aeb8c6",
+  "text-muted": "#8b94a4",
   "json-accent": "#5a9ceb",
 } as const;
 

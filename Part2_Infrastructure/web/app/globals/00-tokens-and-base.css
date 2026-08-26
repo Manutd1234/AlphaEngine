@@ -17,17 +17,17 @@
      than by the ground. Every text role was re-computed against the new
      --surface-2; the contrast contract lives in tests/theme-contrast.test.ts. */
   --surface-1: #ffffff; /* card / chart surface */
-  --surface-0: #fafafa; /* page plane — zinc */
-  --surface-2: #f4f4f5; /* inset controls */
-  --surface-3: #ececee;
+  --surface-0: #f8fafc; /* page plane — slate */
+  --surface-2: #f1f5f9; /* inset controls */
+  --surface-3: #e8edf3;
 
-  --text-primary: #18181b;
-  --text-secondary: #52525b;
-  --text-muted: #65656e;
+  --text-primary: #171c25;
+  --text-secondary: #4e5764;
+  --text-muted: #616a79;
 
-  --grid: #eeeef0;
-  --axis: #b4b4bb;
-  --border: #e4e4e7;
+  --grid: #ebeff5;
+  --axis: #b1bccb;
+  --border: #e2e8f0;
 
   /* Light-blue tints. The accent below is the AA-safe step for text and lines;
      these two are the fill steps that carry the blue into surfaces. */
@@ -43,7 +43,7 @@
   /* Diverging poles for signed measures (Sharpe surface, drawdown) */
   --diverging-pos: #2563eb;
   --diverging-neg: #e34948;
-  --diverging-mid: #f0f0f1;
+  --diverging-mid: #eef1f5;
 
   /* Status — reserved, never reused as a series colour.
      These three are FILL steps: dots, meter fills, swatches. Against white they
@@ -327,18 +327,18 @@ p, li, .sub, .console-footnote, .research-note, .page-heading p, small {
   :root:where(:not([data-theme="light"])) {
     color-scheme: dark;
 
-    --surface-1: #1f1f23;
-    --surface-0: #18181b;
-    --surface-2: #27272a;
-    --surface-3: #323238;
+    --surface-1: #1c222b;
+    --surface-0: #151a22;
+    --surface-2: #232a34;
+    --surface-3: #2e3743;
 
-    --text-primary: #f4f4f5;
-    --text-secondary: #b1b1b9;
-    --text-muted: #8d8d97;
+    --text-primary: #f1f5f9;
+    --text-secondary: #aeb8c6;
+    --text-muted: #8b94a4;
 
-    --grid: #2a2a2d;
-    --axis: #47474d;
-    --border: #2f2f33;
+    --grid: #262d37;
+    --axis: #434b59;
+    --border: #2b323d;
 
     --series-1: #3987e5;
     --series-2: #d96e3e;
@@ -346,9 +346,9 @@ p, li, .sub, .console-footnote, .research-note, .page-heading p, small {
 
     --diverging-pos: #3987e5;
     --diverging-neg: #e66767;
-    --diverging-mid: #303034;
+    --diverging-mid: #2c333d;
 
-    --success-text: #0ca50c;
+    --success-text: #12b312;
 
     /* The three status hues are the light-theme steps and were inherited
        unchanged into dark, where #159467 and #d99216 on #0f1c2c fall below AA
@@ -394,18 +394,18 @@ p, li, .sub, .console-footnote, .research-note, .page-heading p, small {
 [data-plane="inverted"] {
   color-scheme: dark;
 
-  --surface-1: #1f1f23;
-  --surface-0: #18181b;
-  --surface-2: #27272a;
-  --surface-3: #323238;
+  --surface-1: #1c222b;
+  --surface-0: #151a22;
+  --surface-2: #232a34;
+  --surface-3: #2e3743;
 
-  --text-primary: #f4f4f5;
-  --text-secondary: #b1b1b9;
-  --text-muted: #8d8d97;
+  --text-primary: #f1f5f9;
+  --text-secondary: #aeb8c6;
+  --text-muted: #8b94a4;
 
-  --grid: #2a2a2d;
-  --axis: #47474d;
-  --border: #2f2f33;
+  --grid: #262d37;
+  --axis: #434b59;
+  --border: #2b323d;
 
   --series-1: #3987e5;
   --series-2: #d96e3e;
@@ -413,9 +413,9 @@ p, li, .sub, .console-footnote, .research-note, .page-heading p, small {
 
   --diverging-pos: #3987e5;
   --diverging-neg: #e66767;
-  --diverging-mid: #303034;
+  --diverging-mid: #2c333d;
 
-  --success-text: #0ca50c;
+  --success-text: #12b312;
 
   /* See the note in the prefers-color-scheme block above — same fix, same
      reason. These two dark blocks MUST stay identical: this one wins on
