@@ -22,7 +22,8 @@
  */
 
 import { fmt, pct } from "@/lib/format";
-import { DEFAULT_MARGIN, Grid, extent, linearScale, ticks, useMeasuredWidth } from "@/components/chart-kit";
+import { DEFAULT_MARGIN, Grid, extent, linearScale, ticks } from "@/components/chart-kit";
+import Figure, { Plot } from "@/components/coherence/Figure";
 import type { WalkForwardReport } from "@/lib/types";
 
 const LEVEL_TONE: Record<string, string> = {
@@ -34,7 +35,6 @@ const LEVEL_TONE: Record<string, string> = {
 const LEVEL_GLYPH: Record<string, string> = { pass: "✓", marginal: "▲", fail: "✕" };
 
 export default function WalkForwardTimeline({ report }: { report: WalkForwardReport }) {
-  const [ref, width] = useMeasuredWidth<HTMLDivElement>();
   const folds = report.folds;
 
   if (!folds.length) {
@@ -57,7 +57,6 @@ export default function WalkForwardTimeline({ report }: { report: WalkForwardRep
   const height = 190;
   const m = { ...DEFAULT_MARGIN, right: 16, left: 46, bottom: 34 };
   const x0 = m.left;
-  const x1 = Math.max(x0 + 40, width - m.right);
   const y0 = height - m.bottom;
   const y1 = m.top;
 
@@ -67,8 +66,6 @@ export default function WalkForwardTimeline({ report }: { report: WalkForwardRep
   const yTicks = ticks(lo, hi, 4);
   const zero = yScale(0);
 
-  const slot = (x1 - x0) / folds.length;
-  const barW = Math.max(4, Math.min(26, slot / 2.6));
 
   return (
     <div className="card">
@@ -106,14 +103,23 @@ export default function WalkForwardTimeline({ report }: { report: WalkForwardRep
         </span>
       </div>
 
-      <div ref={ref}>
-        <svg
-          viewBox={`0 0 ${width} ${height}`}
-          width="100%"
-          height={height}
-          role="img"
-          aria-label={`In-sample and out-of-sample Sharpe for ${folds.length} walk-forward folds`}
-        >
+      {/* Through `Figure` and `Plot` since 2026-08-26, and the first instrument
+          on this tab — Research drew five SVGs and none of them could be read
+          by anything but a mouse. Each fold's pair carries its own words, so
+          the question this figure exists to answer, "did it hold out of
+          sample", is now answerable one fold at a time from a keyboard. */}
+      <Figure
+        caption={`In-sample against out-of-sample Sharpe, ${folds.length} folds`}
+        ariaLabel={`In-sample and out-of-sample Sharpe for ${folds.length} walk-forward folds`}
+        reading="The pair is the point: in-sample is what the fit saw, out-of-sample is what it did not, and the gap between them is what the walk-forward is measuring."
+      >
+        <Plot height={height}>
+          {(measured) => {
+            const x1 = Math.max(x0 + 40, measured - m.right);
+            const slot = (x1 - x0) / folds.length;
+            const barW = Math.max(4, Math.min(26, slot / 2.6));
+            return (
+              <>
           <Grid yTicks={yTicks} yScale={yScale} x0={x0} x1={x1} format={(v) => fmt(v, 1)} />
           {/* The zero line is the one that matters here, so it is drawn on top of
               the grid rather than being one hairline among several. */}
@@ -131,15 +137,23 @@ export default function WalkForwardTimeline({ report }: { report: WalkForwardRep
             const centre = x0 + slot * (i + 0.5);
             const isX = centre - barW - 1;
             const oosX = centre + 1;
-            const bar = (x: number, v: number, fill: string) => {
+            // THE MARK, and without it this figure had none: `Plot` walks
+            // elements carrying their own `<title>`, and a chart of bars with
+            // no words is a shape a reader cannot get a number off by any
+            // means but a hover that shows nothing.
+            const bar = (x: number, v: number, fill: string, which: string) => {
               const top = Math.min(yScale(v), zero);
               const h = Math.max(1, Math.abs(yScale(v) - zero));
-              return <rect x={x} y={top} width={barW} height={h} fill={fill} rx={2} />;
+              return (
+                <rect x={x} y={top} width={barW} height={h} fill={fill} rx={2}>
+                  <title>{`Fold ${f.fold} ${which}: Sharpe ${fmt(v, 2)}, on ${f.chosenFast}/${f.chosenSlow}`}</title>
+                </rect>
+              );
             };
             return (
               <g key={f.fold}>
-                {bar(isX, f.isSharpe, "var(--series-1)")}
-                {bar(oosX, f.oosSharpe, "var(--series-2)")}
+                {bar(isX, f.isSharpe, "var(--series-1)", "in-sample")}
+                {bar(oosX, f.oosSharpe, "var(--series-2)", "out-of-sample, blind")}
                 <text
                   x={centre}
                   y={height - m.bottom + 14}
@@ -163,8 +177,11 @@ export default function WalkForwardTimeline({ report }: { report: WalkForwardRep
               </g>
             );
           })}
-        </svg>
-      </div>
+              </>
+            );
+          }}
+        </Plot>
+      </Figure>
       </div>
 
       <div className="tiles stability-tiles">
