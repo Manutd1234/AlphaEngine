@@ -178,3 +178,27 @@
   fill: var(--text-muted);
   font-size: var(--fs-sm);
 }
+
+/* ── The freshness stamp, over the metric it belongs above ───────────────── */
+
+/* `14v` sets `justify-content: flex-start` for the whole engine plane, and its
+   reasoning is sound where it was written: on Proofs and Markets that slot
+   carries four chips and the stamp — about 1,346px of pills across several
+   wrapped rows — and starting them left gives every row the same vertical as
+   the table beneath, which a right-aligned row of variable-width pills never
+   shares.
+
+   DIFFUSION PUTS ONE THING IN THAT SLOT. `DiffusionConsole` passes only the
+   stamp, so there are no rows to align with each other, and left-start left it
+   measured at x662 in a slot running 662 to 1580 — a lone pill in the middle of
+   the head, sharing an edge with nothing above or below it.
+
+   Right, so it ends on the same vertical as the metric row underneath: the
+   stamp's right edge and the Estimator card's right edge are both 1580. That is
+   the same principle 14v argues for, applied to the one item this tab has
+   rather than to rows it does not. Scoped to this plane, so the wrap behaviour
+   the other two engine tabs rely on is untouched. (0,3,0) against 14v's
+   (0,2,0), so it wins on specificity and not on partial order. */
+.coherence-plane.diffusion-plane .page-heading__actions {
+  justify-content: flex-end;
+}
