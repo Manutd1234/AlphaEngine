@@ -130,3 +130,51 @@ describe("the two figures that are not drawn are recorded as decisions", () => {
     );
   });
 });
+
+describe("the watch says which round trip it carries, and follows the payload rather than a comment", () => {
+  // THE DEFECT, 2026-08-26. The gateway started timing its own reads and put
+  // `round_trip_source` on the wire — "assumed" for the query default echoed
+  // back, "measured" for the median of real reads. `EpisodeWatch`'s header was
+  // updated the same day to say the figure follows that field. The sentence it
+  // rendered was not: on a payload saying `measured`, the live desk still read
+  // "the 270ms round trip is an ASSUMPTION … nothing on this desk has timed
+  // it". A comment describing a fix is not the fix, and no suite compared the
+  // two — so this one pins the SENTENCE to the FIELD, not to the prose.
+  //
+  // Comments are blanked first. Every one of these files argues in prose about
+  // the very strings this looks for, and a raw scan would find the word
+  // "ASSUMPTION" in the explanation of why it must not always be said.
+  const watch = read("../components/coherence/diffusion/EpisodeWatch.tsx")
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    .replace(/^[ \t]*\/\/.*$/gm, " ");
+
+  it("reads the source field off the payload", () => {
+    assert.match(watch, /data\.round_trip_source/,
+      "the watch no longer reads `round_trip_source`, so it cannot know whether the number was timed");
+  });
+
+  it("the assumption sentence is reachable only when the source is not measured", () => {
+    // The word may be rendered — it is the honest label for the default — but
+    // only behind a branch on the field. An unconditional "ASSUMPTION" is the
+    // exact shape that lied on the live desk.
+    const at = watch.indexOf("is an ASSUMPTION");
+    assert.notEqual(at, -1, "the assumed case no longer names itself as one");
+    const before = watch.slice(Math.max(0, at - 700), at);
+    assert.match(before, /roundTripSource === "measured"/,
+      "\"ASSUMPTION\" is rendered without a branch on `round_trip_source` above it — a measured read would be called an assumption");
+  });
+
+  it("the measured sentence carries the gateway's own caveat: a read bounds an order from below", () => {
+    // `coherence_history.py`'s contract: "a surface may not present a measured
+    // read as the cost of trading … every surface drawing it has to say so."
+    assert.match(watch, /is measured/, "the measured case is never named as measured");
+    assert.match(watch, /lower bound on an order/,
+      "a measured read is shown without saying it bounds an order from below, which the gateway forbids");
+  });
+
+  it("the field is typed on the wire, so a rename fails here rather than rendering the default silently", () => {
+    const wire = read("../lib/coherence/types.ts");
+    assert.match(wire, /round_trip_source\?: string;/);
+    assert.match(wire, /round_trip_samples\?: number;/);
+  });
+});

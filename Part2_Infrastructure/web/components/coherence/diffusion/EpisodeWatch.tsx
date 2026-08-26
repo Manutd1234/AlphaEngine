@@ -133,6 +133,14 @@ export default function EpisodeWatch({ data, status, points }: {
 }) {
   const recorder = status?.recorder ?? null;
   const roundTrip = Number(data.round_trip_s);
+  // THE PAYLOAD SAYS WHICH IT CARRIES, since 2026-08-26. "assumed" is the query
+  // parameter's default echoed back; "measured" is the median of the reads this
+  // deployment has actually made. The figure must say the right thing in BOTH
+  // cases — and for a while it did not: the header above was updated to say it
+  // follows this field while the sentence below still called a measured 271ms
+  // an assumption. A comment describing a fix is not the fix.
+  const roundTripSource = data.round_trip_source ?? "assumed";
+  const roundTripSamples = data.round_trip_samples ?? null;
   const pollSeconds = recorder?.poll_seconds ?? null;
   const snapshots = tapeCount(status, "book_snapshots");
   const indexRows = tapeCount(status, "coherence_index_rows");
@@ -208,10 +216,20 @@ export default function EpisodeWatch({ data, status, points }: {
               + `not looking, and about ${missed} poll${missed === 1 ? "" : "s"} that would have fallen inside `
               + "them were never taken."
             : null,
-          Number.isFinite(roundTrip)
-            ? `The ${seconds(roundTrip)} round trip is an ASSUMPTION, not a reading — it is a query `
-              + "parameter's default that the gateway echoes back, and nothing on this desk has timed it."
-            : null,
+          // Two honest sentences, one per source. The measured one still has a
+          // caveat, and it is the gateway's own: what was timed is a READ, and
+          // an order carries a signature, is written rather than read, and
+          // queues behind a matching engine — so the number is a lower bound on
+          // the cost of trading, and a verdict built on it is optimistic.
+          !Number.isFinite(roundTrip)
+            ? null
+            : roundTripSource === "measured"
+              ? `The ${seconds(roundTrip)} round trip is measured — the median of `
+                + `${roundTripSamples != null ? `${roundTripSamples.toLocaleString("en-GB")} ` : ""}`
+                + "reads this deployment has made — and a read is a lower bound on an order, which "
+                + "carries a signature and queues behind a matching engine."
+              : `The ${seconds(roundTrip)} round trip is an ASSUMPTION, not a reading — it is a query `
+                + "parameter's default that the gateway echoes back, and nothing on this desk has timed it.",
         ].filter(Boolean).join(" ") || null}
       >
         {polls.length >= 2 && pollSeconds ? (
