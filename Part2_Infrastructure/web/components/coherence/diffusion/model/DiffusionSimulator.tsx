@@ -235,7 +235,7 @@ export default function DiffusionSimulator() {
       </div>
 
       <Figure
-        caption="The simulated abnormal return, against the decay it was drawn from"
+        caption="The simulated return, against the decay it was drawn from"
         ariaLabel={`A simulated path over ${TERMINAL / 60} minutes with a true half-life of ${trueHalfLife} seconds`}
         reading={
           run.signal === "ok"

@@ -50,12 +50,16 @@ import {
 import Figure, { FigureEmpty, Plot } from "../Figure";
 import type { AbsorptionRead } from "./types";
 
-const HEIGHT = 318;
-// `top: 58` is two rows, not padding: the quantity's name on one, and each
-// panel's own head on the next. At a single row the y-axis title sat at x=0 and
-// the panel head at x=58, and "abnormal return" ran straight into "statement" —
-// which only appeared once the head stopped being centred.
-const MARGIN = { top: 58, right: 14, bottom: 34, left: 58 };
+const HEIGHT = 300;
+// `top: 40`, one row, since 2026-08-27. The axis used to carry its own name
+// ("abnormal return") on a row above the panel heads, which is why `top` was
+// 58 — two rows, not padding. The word "bps" already sat on the axis at the
+// bottom (`:MARGIN.bottom + 16` below); it now does the naming at the top too,
+// left-anchored at x=0 in the margin gutter, clear of each panel's head text
+// which starts at `x = MARGIN.left`. `HEIGHT` drops by the same 18 the top
+// margin does, so the plot area itself — and every y position inside it — is
+// unchanged.
+const MARGIN = { top: 40, right: 14, bottom: 34, left: 58 };
 const ALLEY = 40;
 const STAGE_WORD: Record<string, string> = { release: "statement", call: "press conference" };
 
@@ -210,7 +214,7 @@ function ReturnFan({ read }: { read: AbsorptionRead }) {
   return (
     <Figure
       caption="Every measured path in basis points, including the ones the noise floor refused"
-      ariaLabel={`Abnormal return against horizon for ${paths.length} runs over ${stages.length} stages, `
+      ariaLabel={`Return against horizon, in basis points, for ${paths.length} runs over ${stages.length} stages, `
         + `${refused} of them below the noise floor, on an axis reaching ${Math.round(bound)} basis points`}
       reading={refused && refusedPeak != null && clearedPeak != null
         ? `The floor refused ${refused} of ${paths.length} runs, and every one still carries a measured `
@@ -239,7 +243,6 @@ function ReturnFan({ read }: { read: AbsorptionRead }) {
             const panelW = stages.length > 1 ? (span - ALLEY) / stages.length : span;
             return (
               <>
-                <text className="coh-svg-label" x={0} y={MARGIN.top - 42}>abnormal return</text>
                 {/* Decade ticks, labelled in bps. The scale is a drawing
                     device; a reader should not have to decode it. */}
                 {logTicks(bound).flatMap((tick) => {
@@ -248,12 +251,21 @@ function ReturnFan({ read }: { read: AbsorptionRead }) {
                   const at = (bps: number) =>
                     MARGIN.top + plotH / 2 - (signedLog(bps) / unit) * (plotH / 2);
                   const rows = tick === 0 ? [0] : [tick, -tick];
+                  // Right-anchored at the plot's own left edge, a digit column
+                  // — the `AbsorptionCurve` `Grid` idiom — rather than
+                  // start-anchored at x=0, which spread the five labels'
+                  // right edges across 19.45px with nothing lining up.
                   return rows.map((value) => (
-                    <text key={value} className="coh-ladder__tick" x={0} y={at(value) + 3}>
-                      {value > 0 ? `+${value}` : value}
+                    <text key={value} className="coh-ladder__tick" x={MARGIN.left - 8} y={at(value) + 3} textAnchor="end">
+                      {value > 0 ? `+${value}` : value < 0 ? `−${-value}` : value}
                     </text>
                   ));
                 })}
+                {/* The axis's title now, not only its bottom tick: left-anchored
+                    at x=0, the row the panel heads sit on used to hold only
+                    "abnormal return" above it — deleted 2026-08-27, this word
+                    does both jobs. */}
+                <text className="coh-svg-label" x={0} y={MARGIN.top - 18}>bps</text>
                 <text className="coh-ladder__tick" x={0} y={HEIGHT - MARGIN.bottom + 16}>bps</text>
                 {stages.map((stage, index) => (
                   <Panel
@@ -273,7 +285,7 @@ function ReturnFan({ read }: { read: AbsorptionRead }) {
           }}
         </Plot>
       ) : (
-        <FigureEmpty reason="No run carries a measured abnormal return yet." />
+        <FigureEmpty reason="No run carries a measured return yet." />
       )}
     </Figure>
   );

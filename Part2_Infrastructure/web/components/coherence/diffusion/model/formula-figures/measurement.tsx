@@ -22,7 +22,7 @@ const rise = (n: number, k = 3.2) =>
 export function Absorbed() {
   const pts = rise(24);
   return (
-    <Frame label="One stage's abnormal return rising to its terminal, with the absorbed fraction read as the height at a horizon over the height at the terminal; a dashed shorter window is drawn where that ratio would be one by construction">
+    <Frame label="One stage's return rising to its terminal, with the absorbed fraction read as the height at a horizon over the height at the terminal; a dashed shorter window is drawn where that ratio would be one by construction">
       <Axes yWord="ar" />
       <Rule at={1} word="ar(T*)" why="The terminal move — the denominator every absorbed fraction is read against." />
       <path className="coh-index__line" d={path(pts)} fill="none" />
