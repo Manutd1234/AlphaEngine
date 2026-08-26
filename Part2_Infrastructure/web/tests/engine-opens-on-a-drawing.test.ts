@@ -124,7 +124,7 @@ const VIEWS: Record<string, View> = {
   // right about BANDS — so what leads this view is not one. `ParlayLegs` draws
   // the LEGS at their implied p, which is what both bounds are built from and
   // what every card below keeps behind a `<details>`.
-  "Parlays / Parlays": { at: "../components/coherence/CombosViews.tsx#ParlaysView" },
+  "Parlays / Parlays": { at: "../components/coherence/ParlaysView.tsx#ParlaysView" },
   "Parlays / Bounds": { at: "../components/coherence/CombosBounds.tsx#BoundsView" },
   // NO LONGER EXEMPT, as of 2026-08-25, and the exemption was retired by
   // building rather than by argument. It covered the engine caveat — the one

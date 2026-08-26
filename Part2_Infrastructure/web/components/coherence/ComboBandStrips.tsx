@@ -18,6 +18,7 @@
 
 import { DOLLAR_CC, fromCenticents, toCenticents } from "@/lib/coherence/fixed-point";
 import { DIAGRAM_LABEL_PX, gutterFor, truncateMiddle } from "@/lib/coherence/label-metrics";
+import { parlayName } from "@/lib/coherence/parlay-name";
 import type { CoherenceCombo } from "@/lib/coherence/types-lab";
 import Figure, { Plot } from "./Figure";
 
@@ -31,6 +32,8 @@ const AXIS_GAP = 8;
 export default function ComboBandStrips({ combos }: { combos: CoherenceCombo[] }) {
   const rows = combos.map((combo) => ({
     ticker: combo.ticker,
+    // Drawn in the gutter, and therefore what the gutter is measured against.
+    name: parlayName(combo),
     lo: toCenticents(combo.lower_bound),
     hi: toCenticents(combo.upper_bound),
     price: toCenticents(combo.price),
@@ -65,8 +68,8 @@ export default function ComboBandStrips({ combos }: { combos: CoherenceCombo[] }
       caption="Every parlay against the Fréchet–Hoeffding band its own legs impose, on one dollar axis"
       ariaLabel={rows
         .map((row) => row.lo == null || row.hi == null
-          ? `${row.ticker}: no band`
-          : `${row.ticker}: ${fromCenticents(row.lo)} to ${fromCenticents(row.hi)}, price ${row.price == null ? "unquoted" : fromCenticents(row.price)}`)
+          ? `${row.name}: no band`
+          : `${row.name}: ${fromCenticents(row.lo)} to ${fromCenticents(row.hi)}, price ${row.price == null ? "unquoted" : fromCenticents(row.price)}`)
         .join(". ")}
       missing={[
         unpriced
@@ -85,20 +88,21 @@ export default function ComboBandStrips({ combos }: { combos: CoherenceCombo[] }
           // fixed 205px derived from a tabular-mono advance for text that is set
           // in Inter, so every full-length ticker ran past it. See
           // `lib/coherence/label-metrics.ts` for the measurement and the method.
-          const labelW = gutterFor(rows.map((row) => row.ticker), width, DIAGRAM_LABEL_PX, {
+          const labelW = gutterFor(rows.map((row) => row.name), width, DIAGRAM_LABEL_PX, {
             min: 96, maxFraction: 0.34, max: 260,
           });
           const trackW = Math.max(60, width - labelW);
           const x = (cc: number) => labelW + (Math.min(cc, DOLLAR_CC) / DOLLAR_CC) * trackW;
           return (
             <>
-              {/* TRACKS AND MARKS FIRST, LABELS AFTER. `.coh-combo__track` is an
-                  opaque fill, so with the labels emitted first SVG paint order
-                  turned an overrun into a silent CLIP — the tail of a long
-                  ticker was painted over by the bar beside it, which is
-                  indistinguishable from a shorter ticker. Drawn last, an overrun
-                  that the gutter arithmetic ever gets wrong again is visible as
-                  an overlap instead of hidden as a truncation. */}
+              {/* TRACKS AND MARKS FIRST, LABELS AFTER. The track was an opaque
+                  fill until 2026-08-26 and is a hairline now, but the BAND
+                  drawn on it still is opaque — so with the labels emitted
+                  first SVG paint order turned an overrun into a silent CLIP:
+                  the tail of a long label painted over by the bar beside it,
+                  which is indistinguishable from a shorter one. Drawn last, an
+                  overrun the gutter arithmetic ever gets wrong again is visible
+                  as an overlap instead of hidden as a truncation. */}
               {rows.map((row, index) => {
                 const y = TOP + index * ROW_H;
                 return (
@@ -139,11 +143,11 @@ export default function ComboBandStrips({ combos }: { combos: CoherenceCombo[] }
               })}
               {rows.map((row, index) => (
                 <text key={`${row.ticker}-label`} x={0} y={TOP + index * ROW_H + 20} className="coh-combo__label">
-                  {/* Both ends kept. A combo ticker's tail is what tells it from
-                      every other parlay in the same series, so a trailing
-                      ellipsis leaves six rows reading identically. */}
-                  {truncateMiddle(row.ticker, labelW - 10, DIAGRAM_LABEL_PX)}
-                  <title>{row.ticker}</title>
+                  {/* Both ends kept. An unnamed parlay is named by its
+                      ticker's TAIL, so a trailing ellipsis would leave those
+                      rows reading identically. */}
+                  {truncateMiddle(row.name, labelW - 10, DIAGRAM_LABEL_PX)}
+                  <title>{`${row.name} — ${row.ticker}`}</title>
                 </text>
               ))}
               <line x1={labelW} x2={width} y1={axisY} y2={axisY} className="coh-ladder__axis" />

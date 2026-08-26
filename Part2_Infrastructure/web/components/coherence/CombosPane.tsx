@@ -69,7 +69,10 @@ import { useState } from "react";
 
 import { combosRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
-import { BandsView, caveatCount, GatewayNotes, NotesView, ParlaysView } from "./CombosViews";
+import { BandsView, caveatCount, GatewayNotes, NotesView } from "./CombosViews";
+// The Parlays view left `CombosViews` when the 2026-08-26 redo would have put
+// that file over the ceiling; it carries the card and the leg table with it.
+import { ParlaysView } from "./ParlaysView";
 // The Bounds view left `CombosViews` when that file crossed the ceiling: it
 // draws the PORTFOLIO a bound is tested with, where the other two draw a
 // parlay against its band.

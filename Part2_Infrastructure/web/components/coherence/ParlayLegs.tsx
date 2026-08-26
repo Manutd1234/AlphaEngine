@@ -37,6 +37,7 @@
 
 import { DOLLAR_CC, priceLabel, toCenticents } from "@/lib/coherence/fixed-point";
 import { DIAGRAM_LABEL_PX, gutterFor, truncateMiddle } from "@/lib/coherence/label-metrics";
+import { parlayName } from "@/lib/coherence/parlay-name";
 import type { CoherenceCombo } from "@/lib/coherence/types-lab";
 import Figure, { Plot } from "./Figure";
 
@@ -55,6 +56,9 @@ export default function ParlayLegs({ combos }: { combos: CoherenceCombo[] }) {
     }));
     return {
       ticker: combo.ticker,
+      // What the row is CALLED. The gutter is measured against this because it
+      // is what is drawn in it; the ticker stays for the title and the key.
+      name: parlayName(combo),
       legs,
       quoted: legs.filter((leg) => leg.p != null),
       unquoted: legs.filter((leg) => leg.p == null).length,
@@ -71,7 +75,7 @@ export default function ParlayLegs({ combos }: { combos: CoherenceCombo[] }) {
       caption="Every parlay's legs at their implied p, the two prices its band is built from"
       ariaLabel={rows
         .map((row) =>
-          `${row.ticker}: ${row.legs.length} legs, ${row.quoted
+          `${row.name}: ${row.legs.length} legs, ${row.quoted
             .map((leg) => leg.text)
             .join(", ") || "none quoted"}`)
         .join(". ")}
@@ -89,7 +93,7 @@ export default function ParlayLegs({ combos }: { combos: CoherenceCombo[] }) {
     >
       <Plot height={height}>
         {(width) => {
-          const labelW = gutterFor(rows.map((row) => row.ticker), width, DIAGRAM_LABEL_PX, {
+          const labelW = gutterFor(rows.map((row) => row.name), width, DIAGRAM_LABEL_PX, {
             min: 96, maxFraction: 0.34, max: 260,
           });
           const trackW = Math.max(60, width - labelW);
@@ -97,9 +101,10 @@ export default function ParlayLegs({ combos }: { combos: CoherenceCombo[] }) {
           return (
             <>
               {/* TRACKS AND MARKS FIRST, LABELS AFTER — the paint-order rule
-                  `ComboBandStrips` records: the track is an opaque fill, so a
-                  label emitted first turns any gutter overrun into a silent
-                  clip that looks exactly like a shorter ticker. */}
+                  `ComboBandStrips` records. The track itself is a hairline
+                  since 2026-08-26, but the marks on it are not, so a label
+                  emitted first still turns a gutter overrun into a silent clip
+                  that looks exactly like a shorter name. */}
               {rows.map((row, index) => {
                 const y = TOP + index * ROW_H;
                 return (
@@ -132,8 +137,8 @@ export default function ParlayLegs({ combos }: { combos: CoherenceCombo[] }) {
               })}
               {rows.map((row, index) => (
                 <text key={`${row.ticker}-label`} x={0} y={TOP + index * ROW_H + 20} className="coh-combo__label">
-                  {truncateMiddle(row.ticker, labelW - 10, DIAGRAM_LABEL_PX)}
-                  <title>{`${row.ticker} — ${row.legs.length} legs`}</title>
+                  {truncateMiddle(row.name, labelW - 10, DIAGRAM_LABEL_PX)}
+                  <title>{`${row.name} — ${row.ticker}, ${row.legs.length} legs`}</title>
                 </text>
               ))}
               <line x1={labelW} x2={width} y1={axisY} y2={axisY} className="coh-ladder__axis" />

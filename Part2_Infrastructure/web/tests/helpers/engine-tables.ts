@@ -70,7 +70,10 @@ export const TABLES: readonly TableDecl[] = [
     rowKey: "identifier", wrapper: "open",
   },
   {
-    file: "components/coherence/CombosViews.tsx", nth: 0, tab: "coherence",
+    // Both combos tables moved to `ParlaysView.tsx` on 2026-08-26 with the
+    // view they belong to; the leg table travels inside the card behind each
+    // parlay's fold.
+    file: "components/coherence/ParlaysView.tsx", nth: 0, tab: "coherence",
     what: "a parlay's legs",
     columns: [
       ["Leg", "leg.ticker", "text"], ["Must land", "leg.side", "text"], ["Implied p", "leg.probability", "num"],
@@ -79,10 +82,12 @@ export const TABLES: readonly TableDecl[] = [
     rowKey: "identifier", wrapper: "folded",
   },
   {
-    file: "components/coherence/CombosViews.tsx", nth: 1, tab: "coherence",
+    file: "components/coherence/ParlaysView.tsx", nth: 1, tab: "coherence",
     what: "every listed parlay against its band",
     columns: [
-      ["Parlay", "combo.ticker", "text"], ["Legs", "combo.legs.length", "num"], ["Lower bound", "combo.lower_bound", "num"],
+      // The row header leads with the parlay's NAME since 2026-08-26; the
+      // ticker follows it in a `<code>` as the identifier it is.
+      ["Parlay", "parlayName(combo)", "text"], ["Legs", "combo.legs.length", "num"], ["Lower bound", "combo.lower_bound", "num"],
       ["Upper bound", "combo.upper_bound", "num"], ["Band width", "combo.band_width", "num"], ["Price", "combo.price", "num"],
       ["In band", "position", "num"],
     ],

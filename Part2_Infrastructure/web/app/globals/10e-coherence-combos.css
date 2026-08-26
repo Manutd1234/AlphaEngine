@@ -41,11 +41,14 @@
 /* The band inequality, set as a display line rather than run into the prose:
    it is the whole claim the pane rests on, and a reader checking a figure
    against it should not have to find it inside a sentence. */
+/* A LEFT-RULED ASIDE, NOT A CODE SLAB (2026-08-26). The filled block was the
+   second-largest grey object on the view and it sat above the switcher on
+   every one of the three, so a reader met it before anything it explains. The
+   rule carries the same "this is set apart" without a fill. */
 .coh-combo__formula {
   display: block;
-  padding: 6px 8px;
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
+  padding: 2px 0 2px 10px;
+  border-left: 2px solid var(--rule);
   font-size: var(--fs-xs);
   overflow-x: auto;
 }
@@ -55,8 +58,8 @@
   gap: 8px;
   min-width: 0;
   padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
   background: var(--surface-1);
 }
 
@@ -68,7 +71,6 @@
 }
 
 .coh-combo__meta,
-.coh-combo__legend,
 .coh-combo__caveat,
 .coh-combo__note {
   margin: 0;
@@ -77,12 +79,19 @@
   color: var(--text-secondary);
 }
 
-/* `.coh-combo__where` went on 2026-08-25 with the position sentence it styled.
-   The band position is a column of the Parlays table now, and the judgement the
-   sentence carried — a location, never a verdict — is on that table's caption.
-   `dead-css.test.ts` holds the unreferenced count at a baseline and its
-   prescribed fix is to delete the rule, not to keep it warm. */
-.coh-combo__legend { overflow-wrap: anywhere; }
+/* `.coh-combo__where` went on 2026-08-25 with the position sentence it styled,
+   and `.coh-combo__legend` on 2026-08-26 with the paragraph that printed the
+   venue's words inside a closed fold — the name is on the row header and the
+   summary now. `dead-css.test.ts` holds the unreferenced count at a baseline
+   and its prescribed fix is to delete the rule, not to keep it warm. */
+
+/* The parlay's identifier beside its name. Mono and quiet: the name is the
+   sentence, this is the string a reader copies. */
+.coh-combo__ticker {
+  font-family: var(--mono);
+  font-size: var(--fs-tick);
+  color: var(--text-muted);
+}
 
 .coh-combo__chips { display: flex; flex-wrap: wrap; gap: 6px; }
 
@@ -108,8 +117,8 @@
   gap: 8px;
   min-width: 0;
   padding: 10px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
 }
 
 .coh-combo__because {
@@ -121,7 +130,17 @@
 
 /* ── The band figure ─────────────────────────────────────────────────────── */
 
-.coh-combo__track { fill: var(--surface-2); }
+/* THE GREY WAS HERE. Six ~900x14 rects filled `--surface-2`, stacked at the
+   top of the Parlays view and repeated inside every band figure and every
+   fold — the largest grey object on the tab, drawn behind marks that carry all
+   of the meaning. A hairline says the same thing: this is the $0-to-$1 extent
+   the marks are placed on. Fixing it at the class fixed `ParlayLegs`,
+   `ComboBandStrips` and every `FrechetBand` at once. */
+.coh-combo__track {
+  fill: none;
+  stroke: var(--rule-soft);
+  vector-effect: non-scaling-stroke;
+}
 
 /* Neutral, not approving: the band is the set of prices the legs admit, and
    admitting a price is not endorsing it. */

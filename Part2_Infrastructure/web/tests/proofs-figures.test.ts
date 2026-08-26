@@ -57,7 +57,7 @@ const FIGURES: Record<string, { file: string; drawnIn: string }> = {
   },
   ParlayLegs: {
     file: "../components/coherence/ParlayLegs.tsx",
-    drawnIn: "../components/coherence/CombosViews.tsx",
+    drawnIn: "../components/coherence/ParlaysView.tsx",
   },
   HorizonAxis: {
     // MOVED TO Bands ON 2026-08-26. It stood over every view in the section,
@@ -216,25 +216,33 @@ describe("the guards this file replaces are gone rather than duplicated", () => 
 });
 
 describe("the Parlays view is a table, and its columns are measurements", () => {
-  const source = read("../components/coherence/CombosViews.tsx");
+  const source = read("../components/coherence/ParlaysView.tsx");
 
   /**
    * The ParlaysView function alone, not the file.
    *
    * EVERY ASSERTION BELOW IS SCOPED TO THIS, and that is not tidiness: the file
-   * also holds `LegTable`, which draws a `coh-table` of its own, and `NotesView`,
-   * which keeps its own `<details>`. Both of the first two assertions written
-   * here were file-scoped and both were VACUOUS — replacing the view's whole
-   * table with a `<div>` left `LegTable`'s behind and the rule stayed green.
-   * Found by mutating the source, which is the only thing that ever finds this.
+   * also holds `LegTable`, which draws a `coh-table` of its own. Both of the
+   * first two assertions written here were file-scoped and both were VACUOUS —
+   * replacing the view's whole table with a `<div>` left `LegTable`'s behind
+   * and the rule stayed green. Found by mutating the source, which is the only
+   * thing that ever finds this.
+   *
+   * THE END BOUND IS THE END OF THE FILE, and that is only safe because
+   * `ParlaysView` is the last thing in it — which the assertion below checks.
+   * It used to be `indexOf("export function NotesView(")`, and after the
+   * 2026-08-26 split that call would return -1 and `slice(start, -1)` would
+   * quietly scan everything but the final character: green, and measuring
+   * almost nothing.
    */
-  const view = source.slice(
-    source.indexOf("export function ParlaysView("),
-    source.indexOf("export function NotesView("),
-  );
+  const start = source.indexOf("export function ParlaysView(");
+  const view = source.slice(start);
 
-  it("locates the view, so nothing below is asserted against an empty string", () => {
-    assert.ok(view.length > 400, "ParlaysView was not found — every rule below would pass vacuously");
+  it("locates the view, and it is the last export so the slice ends where it does", () => {
+    assert.ok(start !== -1, "ParlaysView was not found — every rule below would pass vacuously");
+    assert.ok(view.length > 400, "the slice is too short to be the view");
+    assert.equal(source.indexOf("export ", start + 1), -1,
+      "something is exported after ParlaysView, so this slice is no longer the view alone");
   });
 
   it("draws a table with a head, and one row per parlay", () => {
