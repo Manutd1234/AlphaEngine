@@ -78,6 +78,11 @@ const SHARED_X: Row[] = [
   { file: "LadderChart.tsx", geometry: "x(", byValue: true, arriveAt: "first" },
   // Published readings, per minute, thinned to the drawn points.
   { file: "IndexBasisChart.tsx", geometry: "x(", byValue: true, arriveAt: "last" },
+  // The modelled fee, sampled at 49ths of a dollar — the one Markets axis
+  // figure whose marks ARE evenly spaced, so it takes no positions. Its axis
+  // is anchored to the first and last SAMPLE rather than the plot edges,
+  // because the curve is not drawn at $0 or $1: a contract there is settled.
+  { file: "FeeParabola.tsx", geometry: "xOf(", byValue: false, arriveAt: "first" },
 ];
 
 describe("every crosshair figure on the engine", () => {
@@ -133,6 +138,6 @@ describe("every crosshair figure on the engine", () => {
     // index. Every one of the five is drawn BY VALUE — polls, reads, the
     // venue's price grid, quoted levels, published minutes — which is why
     // `positions` is the field that carried this slice.
-    assert.equal(SHARED_X.length, 15);
+    assert.equal(SHARED_X.length, 16);
   });
 });

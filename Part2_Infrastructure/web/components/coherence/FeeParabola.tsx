@@ -23,9 +23,8 @@
  * reason `Figure` requires one.
  */
 
-import { useMeasuredWidth } from "@/components/chart-kit";
 import { DOLLAR_CC, fromCenticents, toCenticents } from "@/lib/coherence/fixed-point";
-import Figure from "./Figure";
+import Figure, { Plot } from "./Figure";
 
 const HEIGHT = 164;
 /**
@@ -56,7 +55,6 @@ export default function FeeParabola({
   taker?: number;
   feeAwareThreshold: string | null;
 }) {
-  const [plotRef, plotW] = useMeasuredWidth<HTMLDivElement>(720);
   const mult = Number(multiplier) || 1;
   const rate = mult * taker;
 
@@ -68,14 +66,13 @@ export default function FeeParabola({
   }
   const peak = Math.max(...points.map((point) => point.fee), 1);
 
-  const plotWidth = plotW - MARGIN.left - MARGIN.right;
   const base = HEIGHT - MARGIN.bottom;
-  const x = (p: number) => MARGIN.left + p * plotWidth;
+  /* The one geometry both the curve and the crosshair position through. It was
+     a closure over a measured width until 2026-08-26, when this figure came off
+     its own `<svg>` and onto `Plot`: the width now arrives per layout pass, so
+     the mapping takes it as an argument rather than capturing it. */
+  const xOf = (p: number, width: number) => MARGIN.left + p * (width - MARGIN.left - MARGIN.right);
   const y = (fee: number) => base - (fee / peak) * (base - MARGIN.top);
-
-  const path = points
-    .map((point, index) => `${index === 0 ? "M" : "L"}${x(point.p).toFixed(2)},${y(point.fee).toFixed(2)}`)
-    .join("");
 
   const threshold = toCenticents(feeAwareThreshold);
   const gap = threshold == null ? null : DOLLAR_CC - threshold;
@@ -90,13 +87,55 @@ export default function FeeParabola({
           : `The fee peaks at ${fromCenticents(Math.round(peak))} per contract at fifty cents. A basket priced there is only an arbitrage below ${feeAwareThreshold}, not below $1.0000 — the naive test invents opportunities across a ${fromCenticents(gap)} band.`
       }
       missing={`Drawn at the taker rate of ${taker} times the series multiplier. It models no maker fee, so a resting order's cost is not on this curve.`}
+      notes={[
+        `The closed form the curve draws: rate x contracts x p x (1 - p), at the ${rate} taker rate. It is `
+        + "Bernoulli variance — the fee is largest where the outcome is least certain — which is why the naive "
+        + "test is furthest wrong in the middle of the book.",
+      ]}
     >
-      <div ref={plotRef} style={{ width: "100%" }}>
-        <svg viewBox={`0 0 ${plotW} ${HEIGHT}`} width={plotW} height={HEIGHT} className="coh-parabola">
-        <line x1={MARGIN.left} x2={plotW - MARGIN.right} y1={base} y2={base} className="coh-ladder__axis" />
-        <path d={path} className="coh-parabola__curve" fill="none">
-          <title>{`rate x C x p x (1 - p) at the ${rate} taker rate`}</title>
-        </path>
+      <Plot
+        height={HEIGHT}
+        /* THE LAST MARKETS FIGURE ON A BARE `<svg>`, until 2026-08-26. It drew
+           into its own element over `useMeasuredWidth`, so it had no tab stop,
+           no arrow keys and no live region: its one `<title>` — the closed form
+           — was a native tooltip, reachable with a mouse and by nothing else,
+           and `figure-arrival-measure.mjs` counted the whole figure as undrawn
+           with no reason to give. The formula it named is a fact about the
+           CURVE rather than about any price on it, so it is a note now, and
+           what the crosshair says at a position is what that position costs.
+           NO `positions`: these samples are the one evenly spaced axis on the
+           tab — 49ths of a dollar by construction — so the even division the
+           hook does is exact. The axis is anchored to the first and last
+           SAMPLE and not to the plot edges, because the curve is not drawn at
+           $0 or $1: a contract at either is settled rather than quoted. */
+        sharedX={(width) => ({
+          count: points.length,
+          x0: xOf(points[0].p, width),
+          x1: xOf(points[points.length - 1].p, width),
+          read: (index) => {
+            const point = points[index];
+            return {
+              title: fromCenticents(Math.round(point.p * DOLLAR_CC)) ?? "—",
+              rows: [{
+                label: "Trade fee, per contract",
+                value: fromCenticents(Math.round(point.fee)) ?? "—",
+                raw: point.fee,
+              }],
+            };
+          },
+          width: 240,
+          arriveAt: "first",
+        })}
+      >
+        {(width) => {
+        const x = (p: number) => xOf(p, width);
+        const path = points
+          .map((point, index) => `${index === 0 ? "M" : "L"}${x(point.p).toFixed(2)},${y(point.fee).toFixed(2)}`)
+          .join("");
+        return (
+          <>
+        <line x1={MARGIN.left} x2={width - MARGIN.right} y1={base} y2={base} className="coh-ladder__axis" />
+        <path d={path} className="coh-parabola__curve" fill="none" />
         <line x1={x(0.5)} x2={x(0.5)} y1={y(peak)} y2={base} className="coh-parabola__peak" />
         {/* The peak figure is the curve's own reading, not a tick: it takes
             the diagram ladder's 13px note rung (coh-svg-note, 14r) while the
@@ -118,11 +157,13 @@ export default function FeeParabola({
         <text x={x(0.5)} y={HEIGHT - 5} textAnchor="middle" className="coh-ladder__tick">
           $0.50
         </text>
-        <text x={plotW - MARGIN.right} y={HEIGHT - 5} textAnchor="end" className="coh-ladder__tick">
+        <text x={width - MARGIN.right} y={HEIGHT - 5} textAnchor="end" className="coh-ladder__tick">
           $1.00
         </text>
-        </svg>
-      </div>
+          </>
+        );
+        }}
+      </Plot>
     </Figure>
   );
 }

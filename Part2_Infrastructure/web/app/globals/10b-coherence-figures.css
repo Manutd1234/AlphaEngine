@@ -81,7 +81,6 @@
 .coh-identity__label,
 .coh-identity__dollar-label { fill: var(--text-secondary); font-size: var(--fs-tick); }
 
-.coh-parabola { height: 150px; }
 
 .coh-parabola__curve {
   stroke: var(--series-2);
