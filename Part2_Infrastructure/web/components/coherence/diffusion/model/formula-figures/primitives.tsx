@@ -177,7 +177,7 @@ export function Band({ from, to, word, why }: {
   return (
     <>
       <rect
-        className="diff-effect__band"
+        className="diff-band"
         x={x(from)} y={y(1)} width={Math.max(0, x(to) - x(from))} height={y(0) - y(1)}
       >
         {why ? <title>{why}</title> : null}

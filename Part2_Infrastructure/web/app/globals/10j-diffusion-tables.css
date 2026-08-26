@@ -170,14 +170,6 @@
   font-weight: 600;
 }
 
-/* The note column on the effect plot: a `○` per row that carries a
-   `Finding.note`, whose title IS that sentence. The glyph is the house's status
-   vocabulary rather than a colour, so it survives forced colours and a reader
-   who cannot separate two hues. */
-.coherence-plane.diffusion-plane .diff-effect__note {
-  fill: var(--text-muted);
-  font-size: var(--fs-sm);
-}
 
 /* ── The freshness stamp, over the metric it belongs above ───────────────── */
 

@@ -75,6 +75,8 @@ const RUNG: Record<string, number> = {
   // The Control view's head row, 2026-08-26. Both read `--fs-sm`.
   "diff-floor__head": DIAGRAM_LABEL_PX,
   "diff-floor__count": DIAGRAM_LABEL_PX,
+  // The evidence matrix's column heads, 2026-08-26. Reads `--fs-sm`.
+  "diff-matrix__head": DIAGRAM_LABEL_PX,
   "coh-surface__tick": TICK_PX,
   "coh-ladder__tick": TICK_PX,
   // The decade scale's axis words, added 2026-08-26 with `ShortfallScale`. The

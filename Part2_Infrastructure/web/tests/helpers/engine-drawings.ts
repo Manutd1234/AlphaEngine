@@ -47,6 +47,11 @@ export const DRAWINGS = [
   // below the noise floor, and the ranked percentiles as a dot strip. Both
   // open on a `<Figure>` themselves; replaced two HTML-era bar charts.
   "FloorDistance", "ControlRank",
+  // Findings, 2026-08-26: the evidence field (t across, shuffled p up, area
+  // from n) replaced a one-axis dot plot, and the evidence matrix replaced a
+  // `ValueStrip` of `n` that carried three distinct values over fourteen bars.
+  // Both open on a `<Figure>` themselves.
+  "EffectField", "EvidenceMatrix",
   // Findings / Instrument, 2026-08-25. It replaced a `ValueStrip` that drew
   // two rows of "not measured" on the live read — an empty frame that also
   // duplicated the last two rows of the table beneath it.

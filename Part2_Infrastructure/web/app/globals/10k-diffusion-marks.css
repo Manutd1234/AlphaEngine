@@ -199,7 +199,7 @@
   vector-effect: non-scaling-stroke;
 }
 
-/* The rank strip. Coincident ranks stack upward so each stays its own mark;
+/* The rank strip. Coincident ranks stack downward so each stays its own mark;
    the 0.5 rule is the reading — "indistinguishable from an ordinary half
    hour" — and the unranked column is hatched because a missing rank is a gap,
    never a rank of nought. */
@@ -219,6 +219,104 @@
 }
 
 .coherence-plane.diffusion-plane .diff-rank__unranked {
+  fill: url(#diff-hatch);
+  stroke: var(--rule-soft);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+/* ── The chance band, the evidence field and the evidence matrix ─────────── */
+
+/* The band a shuffled pairing reaches, drawn by three figures: the field, the
+   matrix, and the model's formula cards (`formula-figures/primitives.tsx`). It
+   was `.diff-effect__band` in `10c` while the effect plot owned it; the plot
+   left on 2026-08-26 and the class took a name for what it is rather than for
+   who first drew it. */
+.coherence-plane.diffusion-plane .diff-band {
+  fill: color-mix(in srgb, var(--text-muted) 9%, transparent);
+  stroke: var(--border);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+/* The field: t across, shuffled p up. The rule is the one line on the p axis
+   with a name, so it is the darkest stroke; the zero line is a hairline. */
+.coherence-plane.diffusion-plane .diff-field__axis {
+  stroke: var(--axis);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.coherence-plane.diffusion-plane .diff-field__zero {
+  stroke: var(--axis);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+}
+
+.coherence-plane.diffusion-plane .diff-field__rule {
+  stroke: var(--text-primary);
+  stroke-width: 1.2;
+  stroke-dasharray: 5 3;
+  vector-effect: non-scaling-stroke;
+}
+
+/* A mark is a circle for the statement and a triangle for the press
+   conference; hue follows the stage AND the shape does, so the two stay
+   tellable with the hues forced together. Hollow is absent — the verdict is
+   fill against no fill, never a third colour. */
+.coherence-plane.diffusion-plane .diff-field__mark { stroke-width: 2; }
+.coherence-plane.diffusion-plane .diff-field__mark--release { fill: var(--series-1); stroke: var(--series-1); }
+.coherence-plane.diffusion-plane .diff-field__mark--call { fill: var(--series-2); stroke: var(--series-2); }
+.coherence-plane.diffusion-plane .diff-field__mark.is-absent { fill: var(--surface-1); }
+
+.coherence-plane.diffusion-plane .diff-field__label {
+  fill: var(--text-secondary);
+  font-size: var(--fs-sm);
+}
+
+/* One line per distinct wire note, under the axis, counting the rows it
+   applies to. The `○` is the house mark for a note, not a colour. */
+.coherence-plane.diffusion-plane .diff-field__note {
+  fill: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+/* The matrix: a row per relationship, a column per stage, a signed bar from
+   each column's own zero. */
+.coherence-plane.diffusion-plane .diff-matrix__head {
+  fill: var(--text-primary);
+  font-size: var(--fs-sm);
+  font-weight: 650;
+}
+
+.coherence-plane.diffusion-plane .diff-matrix__row {
+  fill: var(--text-secondary);
+  font-size: var(--fs-diagram-label);
+}
+
+.coherence-plane.diffusion-plane .diff-matrix__zero {
+  stroke: var(--axis);
+  stroke-width: 1;
+}
+
+.coherence-plane.diffusion-plane .diff-matrix__axis {
+  stroke: var(--axis);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.coherence-plane.diffusion-plane .diff-matrix__bar { stroke-width: 1.5; }
+.coherence-plane.diffusion-plane .diff-matrix__bar--release { fill: var(--series-1); stroke: var(--series-1); }
+.coherence-plane.diffusion-plane .diff-matrix__bar--call { fill: var(--series-2); stroke: var(--series-2); }
+.coherence-plane.diffusion-plane .diff-matrix__bar.is-absent { fill: var(--surface-1); }
+
+.coherence-plane.diffusion-plane .diff-matrix__n {
+  fill: var(--text-secondary);
+  font-size: var(--fs-sm);
+}
+
+/* A cell with no measurement, hatched like every other gap on the tab. */
+.coherence-plane.diffusion-plane .diff-matrix__unmeasured {
   fill: url(#diff-hatch);
   stroke: var(--rule-soft);
   stroke-width: 1;

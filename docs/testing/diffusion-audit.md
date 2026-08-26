@@ -926,3 +926,70 @@ The `controls_used` guard in `diffusion-figures.test.ts` ate `FloorDistance`'s
 own docblock — which explains why the figure does NOT read that field — and
 now blanks comments first, proven red against a real read. Measured after:
 22 and 23 marks, 0 text clashes at 1600/1100, nothing clips.
+
+## Findings, 2026-08-26 — the field, the matrix, and the sentence the wire decides
+
+Three views, measured on the live read at 1600, 1280 and 1100 before and after.
+
+**The dot plot drew one number.** `EffectPlot` placed each of the 14 rows by
+`t` on one axis; `shuffled_p` was hover text and `n` was a bar chart on a
+different button. Live, the two rows that hold rest on 61 meetings and every
+one of the twelve nulls on 26 or 29 — the section's most important caveat —
+and no figure carried it. `EffectField` places each row by `t` across and
+`shuffled_p` up, sizes the mark's AREA by `n`, and keeps the ±2 band and a
+p 0.05 rule. The p axis is LINEAR, and the reason is measured: the nulls span
+p 0.26 to 0.95, which a log axis to 0.001 folds into the bottom fifth of the
+plot; linear they take seventy per cent of it, and the conference control's
+p of exactly 0 sits on the top edge with no clamp inventing a floor for it.
+Stage is the mark's shape (● / ▲, the Control view's pair) and the verdict is
+filled against hollow. The ten wire notes — two distinct sentences — are two
+counted lines under the axis, not ten marks in a cloud.
+
+    before   14 dots on 14 rows       t only          n on another button
+    after    14 marks, 2 axes         p 0.05 rule     18 keyboard stops, 0 text clashes at all three widths
+
+**The table view opened on a bar chart of three values.** A `ValueStrip` of
+`Finding.n` — fourteen bars reading 61, 26 or 29 — under a caption about
+counts, above a folded table whose Events column is the same field.
+`EvidenceMatrix` replaces it: a row per relationship, a column per stage, a
+signed t bar from each column's own zero with the band behind it, the verdict
+mark and `n` beside each bar. The reading is derived: "7 of 7 paired
+relationships read the same in both stages". A cell with no measurement is
+hatched, never a bar of nought (none on this ledger). 23 stops, 0 clashes.
+The 1600px screenshot showed the widest name eliding to "resolution centro…
+absorption speed" at every width, and the probe could not see it — an elided
+label clashes with nothing. The cause was not the gutter cap (raised 280 → 320
+first, which changed nothing): `gutterFor` pads the widest label by a 16px
+clearance and the label was truncated at `gutter − 18`, so the widest name was
+two pixels over its own budget by construction. Budget is `gutter − 14` now,
+the room the end-anchored label actually has, less two.
+
+**A fixed sentence was true of the wrong run.** `FindingsPane`'s docblock and
+disclosure D3 asserted the clock is predictable out of sample — "R² +0.14 on
+57 meetings". The wire says `skill_meetings: 0`, every `skill_*` null. Read
+off `data/data_ops.sqlite` directly:
+
+    prior:decision:d6:s7    skill_meetings 0     (the study the desk REPORTS)
+    prior:guidance:d10:s7   skill_meetings 57    baseline R² +0.144  gain −0.343  p 0.875  +6.98 min
+
+The score exists — on a study the selection rule does not report. The rule
+picks "whichever run best recovers the known fact among the well conditioned",
+fixed in advance; the scoring ran on a different run. So the sentence was true
+of a run the reader was not looking at. Both places now branch on
+`study.skill_meetings`: the ladder's row reads "not scored for this run" (it
+read "0 meetings scored out of sample", a measurement of nothing rather than
+no measurement), and D3 says the ladder WOULD report it and on this run has
+not. A guard pins both branches and was proven red by making either
+unconditional. Whether the reporting rule should prefer a scored run is a
+gateway question, recorded here and not decided here.
+
+**One clash the new column found in an old figure.** `InstrumentFit`'s first
+row names the fact it recovers since 2026-08-25 — forty characters — and at
+1100px it ran into the value end-anchored beside it ("Recovers the policy move
+<> R² +0.74"). Elided to the room the value leaves; the track's title carries
+the phrase.
+
+`.diff-effect__*` left `10c`, `10j` and two `14r` lists with the plot. The
+chance band, which the model's formula cards also draw, is `.diff-band` in
+`10k` now — one name for one thing with three owners. `dead-css` unchanged at
+its baseline.

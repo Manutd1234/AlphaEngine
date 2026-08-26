@@ -15,18 +15,22 @@
  * price response, over sixty-one meetings, at t of about four. The pipeline
  * works. The predictor does not.
  *
- * THE HEADLINE IS NOW SCORED OUT OF SAMPLE, and the null survived the move.
- * It used to rest on the largest of eight in-sample regressions against a
+ * THE OUT-OF-SAMPLE SCORE IS A WIRE FIELD, NOT A SENTENCE HERE. The headline
+ * used to rest on the largest of eight in-sample regressions against a
  * half-life that only existed where the move cleared two sigma — 26 of 62
  * release meetings. `modules/coherence/diffusion/skill.py` replaced that with
  * a residence time defined for every meeting, precision weights instead of the
  * gate, both stages pooled, and leave-one-meeting-out scoring against a
- * baseline that already knows the stage and the rate move. On 57 meetings the
- * clock is predictable — out-of-sample R² +0.14, and the press conference runs
- * about seven minutes slower than the statement — and the text subtracts from
- * that. So the finding is no longer "nothing here predicts anything": it is
- * that this clock has structure and the statement's spectrum is not part of
- * it, which is a sharper claim and a falsifiable one.
+ * baseline that already knows the stage and the rate move. It lands on the
+ * wire as `study.skill_*`, PER STUDY — and the study this pane reports is the
+ * one a rule fixed in advance picks among the well conditioned, which is not
+ * the rule that decides which study gets scored. On this deployment the
+ * reported run has `skill_meetings: 0`: the score exists in the ledger on a
+ * different run, and the wire does not carry it. So the Instrument ladder's
+ * last two rows say "not scored for this run", the fold beneath says the null
+ * rests on the control alone, and no fixed prose on this pane asserts a
+ * number the payload can contradict. This docblock did, until 2026-08-26, and
+ * the number was true of a run the reader was not looking at.
  *
  * The calendar strip above it is the other half of the claim. Every stated
  * timestamp was checked against the issuer's own release line, not against a
@@ -51,9 +55,9 @@ import { useState } from "react";
 
 import { findingsRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
-import Figure, { FigureEmpty, StateChip } from "../Figure";
-import ValueStrip from "../ValueStrip";
-import EffectPlot from "./EffectPlot";
+import { StateChip } from "../Figure";
+import EffectField from "./EffectField";
+import EvidenceMatrix from "./EvidenceMatrix";
 import FindingsTable from "./FindingsTable";
 import InstrumentFit from "./InstrumentFit";
 import type { FindingsRead, GateCheck } from "./types";
@@ -93,7 +97,6 @@ export default function FindingsPane({ active }: { active: boolean }) {
   // statement has verified nothing, and a tick beside that would be the exact
   // claim this section exists to avoid making.
   const allVerified = Boolean(calendar && calendar.of > 0 && calendar.verified === calendar.of);
-  const measured = data.findings.some((row) => row.t_statistic != null);
 
   return (
     <div className="diff-results">
@@ -141,42 +144,15 @@ export default function FindingsPane({ active }: { active: boolean }) {
       </div>
 
       {view === "plot" ? (
-      <Figure
-        caption="Every relationship measured, against the band a shuffled pairing would reach"
-        ariaLabel={`Dot plot of t statistics for ${data.findings.length} measured relationships, ${held} outside the plus or minus two band`}
-        reading={
-          !measured
-            ? null
-            : held
-              ? "The rows outside the band are the control; Instrument says why the rows inside can be read as absent at all."
-              : "Nothing clears the band, the control included — so no row can be read as absence rather than broken measurement."
-        }
-        missing="A row is drawn only where enough meetings carry both quantities; the counts are in the table."
-      >
-        {measured ? (
-          <EffectPlot findings={data.findings} />
-        ) : (
-          <FigureEmpty reason="No relationship has enough meetings behind it yet." />
-        )}
-      </Figure>
+        <EffectField findings={data.findings} />
       ) : view === "table" ? (
       <>
-      <ValueStrip
-        caption="How many meetings sit behind each verdict"
-        ariaLabel={`Meetings with both quantities for each of ${data.findings.length} relationships`}
-        rows={data.findings.map((row) => ({
-          label: `${row.name} (${row.stage})`,
-          value: row.n,
-          text: String(row.n),
-          title: `${row.name} (${row.stage}): ${row.n} meetings — ${row.question}`,
-        }))}
-      />
-      {/* FOLDED, following `MeetingTable` on this same tab: the strip above is
-          the view and the table is its audit. The two were drawing the same 14
-          rows twice — the strip bars `row.n` and the table's Events column IS
-          `row.n` — and the Effect plot draws `t` for the same rows one button
-          away. At 7px cells over 14 rows the table was 1,227px, the tallest
-          live-data view on the tab.
+      <EvidenceMatrix findings={data.findings} />
+      {/* FOLDED, following `MeetingTable` on this same tab: the matrix above is
+          the view and the table is its audit. Until 2026-08-26 the opener was
+          a strip of `row.n` — fourteen bars of three distinct values, the same
+          column the table prints as Events — and at 7px cells over 14 rows the
+          table was 1,227px, the tallest live-data view on the tab.
 
           The length gate is not decoration: `FindingsTable` renders a
           `.console-empty` line when there is nothing to show, and folding an
@@ -246,10 +222,20 @@ export default function FindingsPane({ active }: { active: boolean }) {
         <p>
           A null is only worthless when nobody can tell it from a measurement that could not have
           found anything. Two things fix that here: the control rows are the same pipeline on a
-          relationship it does detect at four standard errors, and the ladder above reports whether
-          the clock is predictable <em>without</em> the text — the target has to have structure
-          before the text can fail to explain it. Deleting the empty rows would leave the next
-          reader to rediscover them over the same weeks.
+          relationship it does detect at four standard errors, and{" "}
+          {study && study.skill_meetings > 0 ? (
+            <>
+              the ladder above reports whether the clock is predictable <em>without</em> the text,
+              on {study.skill_meetings} meetings the fit never saw
+            </>
+          ) : (
+            <>
+              the ladder above would report whether the clock is predictable <em>without</em> the
+              text — on this run it has not been scored, so the null rests on the control alone
+            </>
+          )}
+          {" "}— the target has to have structure before the text can fail to explain it. Deleting
+          the empty rows would leave the next reader to rediscover them over the same weeks.
         </p>
       </details>
       </>

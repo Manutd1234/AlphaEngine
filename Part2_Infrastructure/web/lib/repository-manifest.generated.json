@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-26",
-  "commit": "a226aff",
+  "commit": "8db8a53",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -903,10 +903,11 @@
     "Part2_Infrastructure/web/components/coherence/diffusion/ArmSection.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/ClockAgreement.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/ControlRank.tsx",
-    "Part2_Infrastructure/web/components/coherence/diffusion/EffectPlot.tsx",
+    "Part2_Infrastructure/web/components/coherence/diffusion/EffectField.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/EpisodesSection.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/EpisodeTape.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/EpisodeWatch.tsx",
+    "Part2_Infrastructure/web/components/coherence/diffusion/EvidenceMatrix.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/FindingsPane.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/FindingsSection.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/FindingsTable.tsx",

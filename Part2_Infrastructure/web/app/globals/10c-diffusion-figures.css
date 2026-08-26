@@ -73,48 +73,10 @@
    way to tell them apart and never the only way, which is the house rule
    stated as a design constraint rather than as a media query. */
 
-/* ---------------------------------------------------------------------------
- * Effect plot — every measured relationship on one t axis.
- *
- * The band behind the dots is where a shuffled pairing lands about as often as
- * the real one, so a dot inside it is a null. It is drawn once, at the same
- * place for every row, which is the only way the nulls and the hit can be
- * compared by eye. Filled marks hold, hollow marks do not — the hue carries the
- * stage and never the verdict, so nothing here is colour-only.
- * ------------------------------------------------------------------------- */
-.diff-effect__band {
-  fill: color-mix(in srgb, var(--text-muted) 9%, transparent);
-  stroke: var(--border);
-  stroke-width: 1;
-  stroke-dasharray: 3 3;
-}
-.diff-effect__bandlabel { fill: var(--text-muted); }
-/* The row label's rung, added 2026-08-26. It carried only a `fill`, and the
-   size arrived as a `fontSize` attribute on the element — a rung the sheet
-   could not see and `type-diagram-ladder` could not check. Same 13px it was
-   drawing at, read off the ladder now. `EffectPlot` still derives its label
-   gutter from `DIAGRAM_LABEL_PX`, so the two agree by construction. */
-.diff-effect__row { fill: var(--text-secondary); font-size: var(--fs-diagram-label); }
-/* A true axis numeral, so the ladder's floor. It was a bare `fontSize={10}`
-   on the element: the right VALUE and no way for the sheet to say so. */
-.diff-effect__tick { fill: var(--text-muted); font-size: var(--fs-tick); }
-.diff-effect__value { fill: var(--text-primary); font-weight: 650; }
-.diff-effect__zero {
-  stroke: var(--axis);
-  stroke-width: 1;
-}
-.diff-effect__axis {
-  stroke: var(--axis);
-  stroke-width: 1;
-}
-.diff-effect__stem {
-  stroke: var(--border);
-  stroke-width: 2;
-}
-.diff-effect__dot { stroke-width: 2; }
-.diff-effect__dot--release { fill: var(--series-1); stroke: var(--series-1); }
-.diff-effect__dot--call { fill: var(--series-2); stroke: var(--series-2); }
-.diff-effect__dot--absent { fill: var(--surface-1); }
+/* `.diff-effect__*` LEFT THIS FILE on 2026-08-26 with `EffectPlot`. Its
+   replacement, `EffectField`, draws under `.diff-field__*` in `10k`; the
+   chance band the plot drew is `.diff-band` there now, shared with the
+   evidence matrix and the model's formula cards. */
 /* `.diff-bars*` AND `.coh-floor__bucket*` LEFT THIS FILE on 2026-08-25, with
    the HTML they styled. Both figures are SVG inside `<Plot>` now — they were
    HTML with `title` ATTRIBUTES, and `useMarkReadout` collects SVG `<title>`

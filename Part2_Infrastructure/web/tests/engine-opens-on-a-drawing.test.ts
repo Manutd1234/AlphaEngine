@@ -341,6 +341,8 @@ describe("every Proofs view opens on a drawing", () => {
       StageWindows: "../components/coherence/diffusion/StageWindows.tsx#StageWindows",
       FloorDistance: "../components/coherence/diffusion/FloorDistance.tsx#FloorDistance",
       ControlRank: "../components/coherence/diffusion/ControlRank.tsx#ControlRank",
+      EffectField: "../components/coherence/diffusion/EffectField.tsx#EffectField",
+      EvidenceMatrix: "../components/coherence/diffusion/EvidenceMatrix.tsx#EvidenceMatrix",
       ConstraintLadder: "../components/coherence/ConstraintLadder.tsx#ConstraintLadder",
       ShortfallScale: "../components/coherence/ShortfallScale.tsx#ShortfallScale",
       FamilyRidge: "../components/coherence/FamilyRidge.tsx#FamilyRidge",

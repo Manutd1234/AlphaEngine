@@ -746,7 +746,7 @@ because neither is shared with another section.
 do — `DollarBar`, `FrechetBand`, `IdentityStrip`, `IndexBasisChart`,
 `LessonCoverage`, `MurphyBars`, `PayoffByState`, `PmfChart`,
 `ReliabilityDiagram`, `ShellTree`, `SurvivalChart`, `surface/StakeView` and
-`diffusion/EffectPlot`. The reason is one attribute: that wrapper's `<svg>` carries
+`diffusion/EffectField`. The reason is one attribute: that wrapper's `<svg>` carries
 `role="presentation"`, so a figure inside it is not exposed as an image at all —
 correct for a decorative panel, wrong for two charts that *are* the finding.
 Both reach for `components/chart-kit` instead, whose own `<svg>` is `role="img"`

@@ -31,7 +31,10 @@
  * first four are measured blind to absorption speed, so reporting them cannot
  * manufacture a relationship with it. The last two ARE the headline, scored on
  * meetings the fit never saw — both stages of a meeting leave together, so a
- * statement can never help predict its own absorption.
+ * statement can never help predict its own absorption. Scored PER STUDY: when
+ * the reported run carries `skill_meetings: 0`, as this deployment's does, the
+ * two rows say "not scored for this run" rather than "0 meetings scored", which
+ * reads as a measurement of nothing rather than as no measurement.
  *
  * An unmeasured requirement is a gap with a reason beside it, never a bar of
  * length zero: "nothing predicts the clock" and "nobody has scored the clock
@@ -40,6 +43,7 @@
 
 import { Fragment } from "react";
 
+import { DIAGRAM_LABEL_PX, advancePx, truncateMiddle } from "@/lib/coherence/label-metrics";
 import { fmt } from "@/lib/format";
 import Figure, { Plot } from "../Figure";
 import type { DiffusionStudy, GateCheck } from "./types";
@@ -163,7 +167,9 @@ function groupsOf(study: DiffusionStudy, gate: GateCheck | null): Group[] {
           met: study.skill_baseline_r2 == null ? null : study.skill_baseline_r2 > 0,
           room: study.skill_baseline_r2 != null
             ? `${fmt(study.skill_baseline_r2, 3)} above a baseline that already knows the stage and the rate move`
-            : `${scored} meetings scored out of sample`,
+            : scored
+              ? `${scored} meetings scored out of sample, no R² reported`
+              : "not scored for this run",
           why: "Nothing predicts absorption speed, so no null measured against it is about the text.",
         },
         {
@@ -209,10 +215,15 @@ function SvgRow({ check, y, width }: { check: Check; y: number; width: number })
   const trackX = width * COL.trackFrom;
   const trackW = Math.max(40, width * (COL.trackTo - COL.trackFrom));
   const mid = y + ROW / 2;
+  // The requirement names the fact it recovers — forty characters on the live
+  // read — and at 1100px that ran into the value end-anchored beside it. It
+  // is elided to the room the value leaves; the track's own title carries the
+  // whole phrase, so nothing is lost to a keyboard reader.
+  const whatRoom = width * COL.value - advancePx(check.value, DIAGRAM_LABEL_PX) - 14;
 
   return (
     <g>
-      <text className="diff-fit__svgwhat" x={0} y={mid + 4}>{check.what}</text>
+      <text className="diff-fit__svgwhat" x={0} y={mid + 4}>{truncateMiddle(check.what, whatRoom, DIAGRAM_LABEL_PX)}</text>
       <text className="diff-fit__svgvalue" x={width * COL.value} y={mid + 4} textAnchor="end">
         {check.value}
       </text>

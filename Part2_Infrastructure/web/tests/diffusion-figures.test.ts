@@ -198,3 +198,72 @@ describe("the watch says which round trip it carries, and follows the payload ra
     assert.match(wire, /round_trip_samples\?: number;/);
   });
 });
+
+/**
+ * The Findings section's two figures, and the one sentence on it that a
+ * payload can contradict.
+ *
+ * `EffectPlot` drew `t` on one axis; the sample behind each row was on another
+ * button. `EffectField` places every row by `t` AND `shuffled_p` and sizes the
+ * mark by `n`, so "every null rests on 26 or 29 meetings while the control
+ * rests on 61" is the figure's shape. `EvidenceMatrix` pairs the two stages of
+ * each relationship in a grid, which is the one question a fourteen-row list
+ * cannot answer at a glance.
+ *
+ * THE SCORED SENTENCE. The desk once asserted, in fixed prose, that the clock
+ * is predictable out of sample on 57 meetings. That is true of a study in the
+ * ledger and false of the one on the wire, whose `skill_meetings` is 0. Both
+ * places that speak of the score now branch on that field, and this pins the
+ * branch — proven red by making either sentence unconditional.
+ */
+describe("Findings: the field, the matrix, and the sentence the wire decides", () => {
+  const codeOf = (file: string) =>
+    read(`../components/coherence/diffusion/${file}.tsx`)
+      .replace(/\/\*[\s\S]*?\*\//g, " ")
+      .replace(/^[ \t]*\/\/.*$/gm, " ");
+  const pane = codeOf("FindingsPane");
+  const field = codeOf("EffectField");
+  const matrix = codeOf("EvidenceMatrix");
+  const fit = codeOf("InstrumentFit");
+
+  it("both views open on the new figures and the old ones are gone", () => {
+    assert.match(pane, /<EffectField findings=/);
+    assert.match(pane, /<EvidenceMatrix findings=/);
+    assert.doesNotMatch(pane, /EffectPlot|ValueStrip/, "an old Findings figure is still mounted");
+  });
+
+  it("the field draws two axes and an area, not one axis", () => {
+    assert.match(field, /shuffled_p/, "the p axis is not read");
+    assert.match(field, /Math\.sqrt\(Math\.max\(0, n\)\)/, "mark area does not follow n");
+    assert.match(field, /P_RULE = 0\.05/, "the p rule is not 0.05");
+    assert.match(field, /p === 0 \? "under 0\.001"/, "a p of exactly zero would print as 0.000");
+    assert.doesNotMatch(field, /Math\.log/, "the p axis went logarithmic; the docblock says why it must not");
+  });
+
+  it("the matrix pairs the two stages and hatches a cell it cannot draw", () => {
+    assert.match(matrix, /STAGES = \["release", "call"\] as const/);
+    assert.match(matrix, /diff-matrix__unmeasured/, "an unmeasured cell has no hatched shape");
+    assert.doesNotMatch(matrix, /\?\? 0/, "a missing t was coerced to a bar of nought");
+  });
+
+  it("no fixed prose on the pane asserts the out-of-sample number", () => {
+    assert.doesNotMatch(pane, /\+0\.14|57 meetings|R² \+/, "a number the wire can contradict is asserted in fixed prose");
+  });
+
+  it("the fold's claim about the ladder branches on skill_meetings", () => {
+    const at = pane.indexOf("the ladder above reports whether the clock is predictable");
+    assert.notEqual(at, -1, "the ladder sentence is gone");
+    const before = pane.slice(Math.max(0, at - 200), at);
+    assert.match(before, /study\.skill_meetings > 0 \?/,
+      "\"the ladder above reports\" is rendered without a branch on `skill_meetings` — on this deployment it is false");
+    assert.match(pane, /on this run it has not been scored/, "the unscored case has no sentence of its own");
+  });
+
+  it("the ladder's unscored row says it was not scored, and only when it was not", () => {
+    const at = fit.indexOf('"not scored for this run"');
+    assert.notEqual(at, -1, "the unscored reading is gone");
+    const before = fit.slice(Math.max(0, at - 120), at);
+    assert.match(before, /scored\s*\?/, "\"not scored for this run\" is not conditional on the meeting count");
+    assert.match(fit, /const scored = study\.skill_meetings;/, "`scored` no longer reads the wire field");
+  });
+});

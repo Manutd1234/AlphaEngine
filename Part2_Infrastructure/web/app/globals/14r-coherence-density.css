@@ -147,7 +147,6 @@
   .coh-form__note,
   .coh-combo__label,
   .coh-combo__axis,
-  .diff-effect__value,
   .diff-curve__gap,
 ) {
   font-size: var(--fs-diagram-label);
@@ -165,7 +164,6 @@
   .coh-calib__keytext,
   .coh-form__value,
   .coh-combo__state,
-  .diff-effect__bandlabel,
   .diff-curve__key,
   .diff-curve__note
 ) {
