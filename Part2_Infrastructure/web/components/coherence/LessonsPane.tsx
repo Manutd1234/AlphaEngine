@@ -123,7 +123,7 @@ function LessonCard({ lesson }: { lesson: CoherenceLesson }) {
           list of <code> with "pinned by" in front of half of them, a module
           and a suite were told apart by one word of prose. */}
       <details className="coh-lesson__mechanics">
-        <summary>Which code carries this, and which test holds it</summary>
+        <summary>{`Which code carries this, and which test holds it, ${lesson.guards.length + lesson.pinnedBy.length} paths`}</summary>
         <div className="table-wrap">
         <table className="coh-table">
           <tbody>

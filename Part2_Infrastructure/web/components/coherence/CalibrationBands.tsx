@@ -69,11 +69,13 @@ export default function CalibrationBands({
         />
       </div>
 
-      <details className="disclosure">
-        <summary>Every price band as a row, and the isotonic correction</summary>
       {/* The band table's decisive column drawn (third review, 2026-08-24):
           outcome minus price, signed against zero. An empty band declines its
-          bar — nobody quoting there is not a deviation of nought. */}
+          bar — nobody quoting there is not a deviation of nought.
+
+          OUTSIDE THE FOLD since 2026-08-26: it sat inside the band table's
+          disclosure, and a drawing behind a fold is a drawing nobody meets. The
+          table stays folded; the strip is the reading of it. */}
       <ValueStrip
         caption="Calibration residual: realised frequency minus quoted price, band by band"
         ariaLabel={`Signed deviation for ${populated} of ${data.bins.length} price bands`}
@@ -86,13 +88,13 @@ export default function CalibrationBands({
             bin.count === 0 ? "nobody quoted" : statValue(bin.deviation) == null ? "not computed" : undefined,
         }))}
       />
-      {/* A SIBLING, not the figure's `notes` prop. `Figure` renders `notes`
-          behind a "What this figure cannot say, N" disclosure — and this strip
-          sits inside the fold above, so that made a dropdown inside a dropdown
-          for a single sentence. Both branches of the ternary yielded exactly
-          one note, so the inner fold was never anything but one line hidden
-          behind two clicks. The fold above already names the isotonic
-          correction; this is the sentence it promised. */}
+      <details className="disclosure">
+        <summary>{`Every price band as a row, ${data.bins.length} bands, and the isotonic correction`}</summary>
+      {/* A SIBLING of the table, not the strip's `notes` prop. `Figure` renders
+          `notes` behind a "What this figure cannot say, N" disclosure, and both
+          branches of this ternary yield exactly one sentence — so a notes fold
+          would have been one line hidden behind two clicks. The summary above
+          names the isotonic correction; this is the sentence it promised. */}
       <p className="coh-event__note">
         {data.isotonic_map.length
           ? `${data.isotonic_map.length} isotonic step(s), non-decreasing by construction — a higher price `

@@ -174,9 +174,14 @@ export default function MurphyBars({
    * temporal-dead-zone throw, not a hoist. Moving the note is the fix; moving
    * the reading would put it above the values it is computed from.
    */
+  // THE INSET'S WITHHELD REASON RIDES HERE TOO, not on the inset. The inset is
+  // folded, and a `missing=` inside a fold is drawn with a ◌ that a reader who
+  // never opens the fold never sees — `summarised-coherence` refuses it. So
+  // the sentence saying why Uncertainty is out sits on the figure that is open,
+  // beside the ratio it explains.
   const floorNote = floored.length
-    ? `${flooredNames} ${floored.length === 1 ? "is" : "are"} drawn at a ${FLOOR_PX}-pixel floor beside Uncertainty — read the printed number, not the height. ${insetReading}`
-    : null;
+    ? `${flooredNames} ${floored.length === 1 ? "is" : "are"} drawn at a ${FLOOR_PX}-pixel floor beside Uncertainty — read the printed number, not the height. ${insetReading} ${insetMissing}`
+    : `${insetReading} ${insetMissing}`;
 
   return (
     <div className="coh-calib__murphy">
@@ -279,7 +284,6 @@ export default function MurphyBars({
             .map((bar) => `${bar.term.name} ${cut(bar.term.raw)}`)
             .join(", ")}${insetThin.length ? `; ${thinNames} too small to draw and named instead` : ""}`}
           reading={insetReading}
-          missing={insetMissing}
         >
           <Plot height={INSET_HEIGHT}>
             {(width) => {
@@ -310,7 +314,7 @@ export default function MurphyBars({
                           />
                         ) : (
                           <text x={centre(index)} y={base - 6} textAnchor="middle" className="coh-calib__barlabel">
-                            {bar.value === 0 ? "○ exactly zero" : "○ under a pixel"}
+                            {bar.value === 0 ? "exactly zero" : "under a pixel"}
                           </text>
                         )}
                         <text x={centre(index)} y={base + 14} textAnchor="middle" className="coh-calib__barlabel">

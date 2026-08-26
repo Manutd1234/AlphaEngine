@@ -69,7 +69,7 @@ import { useState } from "react";
 
 import { combosRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
-import { BandsView, GatewayNotes, NotesView, ParlaysView } from "./CombosViews";
+import { BandsView, caveatCount, GatewayNotes, NotesView, ParlaysView } from "./CombosViews";
 // The Bounds view left `CombosViews` when that file crossed the ceiling: it
 // draws the PORTFOLIO a bound is tested with, where the other two draw a
 // parlay against its band.
@@ -218,7 +218,7 @@ export default function CombosPane({ active, view }: { active: boolean; view: Co
               needs them. The summary names what is inside, so nobody has to
               open it to find out whether it is worth opening. */}
           <details className="disclosure">
-            <summary>What this read reports, and what it cannot</summary>
+            <summary>{`What this read reports, and what it cannot, ${caveatCount(data.combos)} ${caveatCount(data.combos) === 1 ? "caveat" : "caveats"}`}</summary>
             <NotesView combos={data.combos} />
           </details>
           {/* A SIBLING, not a child. These two were nested — the gateway's

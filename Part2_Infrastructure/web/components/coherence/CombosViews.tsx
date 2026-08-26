@@ -298,6 +298,12 @@ export function ParlaysView({ combos }: { combos: CoherenceCombo[] }) {
   );
 }
 
+/** How many caveats `NotesView` prints: one per price basis present, plus one when any parlay is unquoted. */
+export function caveatCount(combos: CoherenceCombo[]): number {
+  const bases = new Set(combos.map((combo) => combo.price_basis)).size;
+  return bases + (combos.some((combo) => combo.independence == null) ? 1 : 0);
+}
+
 export function NotesView({ combos }: { combos: CoherenceCombo[] }) {
   // One caveat per basis actually present in the read, not one per card: on a
   // normal read every parlay is quoted on the ask and this is a single line.
