@@ -210,3 +210,56 @@
   position: relative;
   min-width: 0;
 }
+
+/* Every lesson figure's one-line claim, at one baseline in the frame rather
+   than placed by each of the fourteen. They all had one and they all put it
+   somewhere slightly different — `HEIGHT - 6`, `- 8`, `- 10`, left-anchored or
+   centred — so a reader moving between cards met the same kind of sentence at a
+   different height each time. */
+.coh-lessonfig__claim {
+  fill: var(--text-secondary);
+  font-size: var(--fs-diagram-label);
+}
+
+/* ── Marks the lesson figures gained on 2026-08-26 ──────────────────────────
+   Each exists because a quantity the claim turns on was only in a `<title>`,
+   and a figure whose numbers are reachable by hover alone is a picture a reader
+   has to be told the meaning of. */
+
+/* A span brace, so a step size is attached to the band it describes rather than
+   floating near it. */
+.coh-lessonfig__brace {
+  fill: none;
+  stroke: var(--rule);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+/* A leader from a mark to the words naming it. Hairline and unfilled: it points,
+   it does not measure. */
+.coh-lessonfig__callout {
+  stroke: var(--rule);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+/* The typographic mark for a price that is ABSENT, as opposed to a price of
+   nothing. `◌` rather than a tint, because the whole lesson is that the two are
+   different in kind and a colour would make them two shades of the same thing. */
+.coh-lessonfig__gap {
+  fill: var(--text-muted);
+  font-size: var(--fs-diagram-label);
+}
+
+.coh-lessonfig__gap-note {
+  fill: var(--status-warning);
+  font-size: var(--fs-diagram-label);
+}
+
+/* The half of a curve a reader must not aim at. Tinted rather than only
+   described, because the lesson is that the two sides of the peak are not
+   symmetric and an untinted curve says nothing about which side is which; the
+   word beside it says so too, so the tint is never the only carrier. */
+.coh-lessonfig__danger {
+  fill: color-mix(in srgb, var(--status-critical) 10%, transparent);
+}

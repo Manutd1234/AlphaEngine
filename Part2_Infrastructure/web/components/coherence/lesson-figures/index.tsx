@@ -29,7 +29,7 @@
 
 import type { ReactNode } from "react";
 
-import { Frame, HEIGHT, WIDTH } from "./frame";
+import { Frame, WIDTH } from "./frame";
 import { Fees } from "./bounds";
 import { Absence, Book, Grid } from "./prices";
 import { HalfLife, Index } from "./record";
@@ -48,19 +48,41 @@ function Frechet() {
   const low = Math.max(0, p + q - 1);
   const high = Math.min(p, q);
   const product = p * q;
-  const x = (value: number) => 20 + value * (WIDTH - 40);
+  const left = 24;
+  const x = (value: number) => left + value * (WIDTH - 2 * left);
+  const bandY = 52;
+  const bandH = 26;
   return (
-    <Frame label={`Fréchet band from ${low.toFixed(2)} to ${high.toFixed(2)} with the independence product at ${product.toFixed(2)}`}>
-      <line x1={20} x2={WIDTH - 20} y1={62} y2={62} className="coh-ladder__axis" />
-      <rect x={x(low)} y={40} width={x(high) - x(low)} height={22} className="coh-lessonfig__band">
+    <Frame
+      label={`Fréchet band from ${low.toFixed(2)} to ${high.toFixed(2)} with the independence product at ${product.toFixed(2)}`}
+      claim="the band is the answer; the product is one point inside it"
+    >
+      <text x={left} y={26} className="coh-form__note">
+        {`two legs at ${p.toFixed(2)}, and every joint they permit`}
+      </text>
+      <line x1={x(0)} x2={x(1)} y1={bandY + bandH} y2={bandY + bandH} className="coh-lessonfig__rule" />
+      <text x={x(0)} y={bandY + bandH + 15} className="coh-lessonfig__tick">0</text>
+      <text x={x(1)} y={bandY + bandH + 15} textAnchor="end" className="coh-lessonfig__tick">1</text>
+
+      <rect x={x(low)} y={bandY} width={x(high) - x(low)} height={bandH} className="coh-lessonfig__band">
         <title>{`Every joint probability consistent with these two legs lies between ${low.toFixed(2)} and ${high.toFixed(2)}. The band is the answer; a point is not.`}</title>
       </rect>
-      <line x1={x(product)} x2={x(product)} y1={34} y2={68} className="coh-survival__median">
+      <line x1={x(product)} x2={x(product)} y1={bandY - 10} y2={bandY + bandH + 6}
+            className="coh-survival__median">
         <title>{`Independence would give ${product.toFixed(2)} — one point inside the band, and only correct if the legs are independent, which the venue never promises.`}</title>
       </line>
-      <text x={x(low)} y={32} className="coh-form__note">{low.toFixed(2)}</text>
-      <text x={x(high)} y={32} textAnchor="end" className="coh-form__note">{high.toFixed(2)}</text>
-      <text x={x(product)} y={80} textAnchor="middle" className="coh-form__note">Πp</text>
+
+      {/* THE THREE NUMBERS, EACH ON ITS OWN MARK. The band's ends were labelled
+          and its WIDTH was not, which is the quantity the lesson is about — how
+          much a pair of marginals leaves undetermined. */}
+      <text x={x(low)} y={bandY - 6} className="coh-lessonfig__tick">{low.toFixed(2)}</text>
+      <text x={x(high)} y={bandY - 6} textAnchor="end" className="coh-lessonfig__tick">{high.toFixed(2)}</text>
+      <text x={x(product)} y={bandY + bandH + 15} textAnchor="middle" className="coh-form__note">
+        {`Πp = ${product.toFixed(2)}`}
+      </text>
+      <text x={(x(low) + x(high)) / 2} y={bandY + 17} textAnchor="middle" className="coh-lessonfig__gap-note">
+        {`${(high - low).toFixed(2)} wide`}
+      </text>
     </Frame>
   );
 }
@@ -75,27 +97,48 @@ function Frechet() {
 function Kelly() {
   const edge = 0.08;
   const growth = (f: number) => 0.5 * Math.log(1 + f * (1 + edge)) + 0.5 * Math.log(1 - f);
-  const full = edge / 1;
-  const points = Array.from({ length: 60 }, (_, i) => i / 59 * 0.35);
+  const full = edge;
+  const points = Array.from({ length: 72 }, (_, i) => (i / 71) * 0.35);
   const values = points.map(growth);
   const peak = Math.max(...values);
-  const x = (f: number) => 20 + (f / 0.35) * (WIDTH - 40);
-  const y = (v: number) => 70 - (v / peak) * 44;
+  const left = 26;
+  const floor = 92;
+  const x = (f: number) => left + (f / 0.35) * (WIDTH - 2 * left);
+  const y = (v: number) => floor - (v / peak) * 58;
   const path = points.map((f, i) => `${i ? "L" : "M"}${x(f).toFixed(1)},${y(values[i]).toFixed(1)}`).join("");
   return (
-    <Frame label="Log growth against stake fraction, with full and shrunk Kelly marked">
-      <line x1={20} x2={WIDTH - 20} y1={70} y2={70} className="coh-ladder__axis" />
+    <Frame
+      label="Log growth against stake fraction, with full and shrunk Kelly marked and the region past the peak named"
+      claim="past the peak, growth falls away faster than it rose"
+    >
+      <line x1={left} x2={WIDTH - left} y1={floor} y2={floor} className="coh-form__arrow" />
+      <text x={left} y={floor + 14} className="coh-lessonfig__tick">0</text>
+      <text x={WIDTH - left} y={floor + 14} textAnchor="end" className="coh-lessonfig__tick">
+        fraction staked
+      </text>
+      {/* THE RUINOUS HALF, TINTED. The curve showed that growth turns over; the
+          lesson is that the far side is not symmetric with the near one, and a
+          reader met that as a sentence under an untinted curve. */}
+      <rect x={x(full)} y={26} width={WIDTH - left - x(full)} height={floor - 26}
+            className="coh-lessonfig__danger">
+        <title>
+          Everything right of the peak. Growth falls away here faster than it rose, so overstaking costs
+          more than the same distance of understaking saves — which is why the engine shrinks rather
+          than aiming at the maximum.
+        </title>
+      </rect>
       <path d={path} fill="none" className="coh-index__line">
         <title>Expected log growth against the fraction staked. It is a curve with a maximum, not a line that keeps rising.</title>
       </path>
-      <line x1={x(full)} x2={x(full)} y1={20} y2={70} className="coh-survival__median">
-        <title>{`Full Kelly maximises growth. Past it, growth falls away faster than it rose — which is why the engine stakes a shrunk fraction.`}</title>
+      <line x1={x(full)} x2={x(full)} y1={26} y2={floor} className="coh-survival__median">
+        <title>Full Kelly maximises growth. Past it, growth falls away faster than it rose — which is why the engine stakes a shrunk fraction.</title>
       </line>
-      <line x1={x(full / 2)} x2={x(full / 2)} y1={30} y2={70} className="coh-form__arrow">
+      <line x1={x(full / 2)} x2={x(full / 2)} y1={38} y2={floor} className="coh-form__arrow">
         <title>Half Kelly gives up a quarter of the growth for half the variance, which is the trade the shrinkage is making.</title>
       </line>
-      <text x={x(full)} y={16} textAnchor="middle" className="coh-form__note">full</text>
-      <text x={x(full / 2)} y={26} textAnchor="middle" className="coh-form__note">shrunk</text>
+      <text x={x(full)} y={22} textAnchor="middle" className="coh-form__note">full</text>
+      <text x={x(full / 2)} y={34} textAnchor="middle" className="coh-form__note">shrunk</text>
+      <text x={x(full) + 8} y={52} className="coh-lessonfig__gap-note">ruinous</text>
     </Frame>
   );
 }
@@ -108,25 +151,39 @@ function Kelly() {
  * what the coherence index measures.
  */
 function FixedPoint() {
-  const left = 40;
-  const right = WIDTH - 40;
-  const top = 20;
-  const bottom = 76;
-  // An incoherent pair summing to 1.12 — off the simplex by 0.12.
+  const left = 44;
+  const right = WIDTH - 84;
+  const top = 26;
+  const bottom = 96;
+  // A pair summing to 1.12 — off the simplex by 0.12, which is the length drawn.
   const point = { x: left + 0.62 * (right - left), y: bottom - 0.5 * (bottom - top) };
+  const foot = { x: point.x - 15, y: point.y + 15 };
   return (
-    <Frame label="The simplex for a two-outcome family, with an incoherent price vector sitting off it">
+    <Frame
+      label="The simplex for a two-outcome family, with an incoherent price vector sitting off it and the distance back marked"
+      claim="a family summing over a dollar sits off the line, and the gap is the trade"
+    >
       <line x1={left} x2={right} y1={bottom} y2={top} className="coh-lessonfig__simplex">
         <title>Every price vector on this line sums to a dollar and admits a probability measure. This is the set the solver projects onto.</title>
       </line>
-      <circle cx={point.x} cy={point.y} r={4} className="coh-lessonfig__off">
+      <circle cx={point.x} cy={point.y} r={4.5} className="coh-lessonfig__off">
         <title>A family whose prices sum to more than a dollar sits off the line. Buying every outcome costs more than the dollar it is certain to pay — which is the Dutch book, seen as a distance.</title>
       </circle>
-      <line x1={point.x} x2={point.x - 13} y1={point.y} y2={point.y + 13} className="coh-survival__median">
+      <line x1={point.x} x2={foot.x} y1={point.y} y2={foot.y} className="coh-survival__median">
         <title>The L1 distance to the nearest coherent vector. This length IS the coherence index.</title>
       </line>
-      <text x={left} y={bottom + 14} className="coh-form__note">all on NO</text>
-      <text x={right} y={top - 6} textAnchor="end" className="coh-form__note">all on YES</text>
+      <circle cx={foot.x} cy={foot.y} r={3.5} className="coh-lessonfig__ring">
+        <title>The nearest vector that sums to a dollar — what these quotes would have to become.</title>
+      </circle>
+
+      {/* WHAT THE POINT SUMS TO, AND WHAT THE GAP IS WORTH. The figure drew a
+          dot off a line and named neither, so "sits off the simplex" was a
+          shape with no magnitude — and the magnitude is the lesson. */}
+      <text x={point.x + 8} y={point.y - 6} className="coh-lessonfig__tick">Σp = 1.12</text>
+      <text x={right + 8} y={top + 10} className="coh-form__note">Σp = 1</text>
+      <text x={foot.x - 6} y={foot.y + 14} textAnchor="end" className="coh-lessonfig__gap-note">0.12</text>
+      <text x={left} y={bottom + 15} className="coh-form__note">all on NO</text>
+      <text x={right} y={top - 8} textAnchor="end" className="coh-form__note">all on YES</text>
     </Frame>
   );
 }
@@ -139,18 +196,22 @@ function FixedPoint() {
  * easy to get backwards, so the picture states it.
  */
 function Calibration() {
-  const left = 30;
-  const right = WIDTH - 30;
-  const top = 18;
-  const bottom = 76;
+  const left = 40;
+  const right = WIDTH - 62;
+  const top = 26;
+  const bottom = 96;
   const slope = 1.25;
   const at = (t: number) => {
     const value = Math.min(1, Math.max(0, 0.5 + slope * (t - 0.5)));
     return { x: left + t * (right - left), y: bottom - value * (bottom - top) };
   };
   const fitted = [0, 0.25, 0.5, 0.75, 1].map(at);
+  const longshot = at(0.2);
   return (
-    <Frame label="A reliability diagram's diagonal, with a fitted slope steeper than one">
+    <Frame
+      label="A reliability diagram's diagonal, with a fitted slope steeper than one and the longshot gap marked"
+      claim="steeper than the diagonal is the favourite–longshot shape"
+    >
       <line x1={left} x2={right} y1={bottom} y2={top} className="coh-lessonfig__simplex">
         <title>Perfect calibration: of the contracts priced at p, exactly p of them pay.</title>
       </line>
@@ -161,8 +222,25 @@ function Calibration() {
       >
         <title>{`A slope of ${slope} — steeper than the diagonal. Longshots happen LESS often than their price says and favourites more, which is the favourite–longshot shape.`}</title>
       </path>
-      <text x={left} y={bottom + 14} className="coh-form__note">price quoted</text>
-      <text x={right} y={top - 4} textAnchor="end" className="coh-form__note">how often it paid</text>
+
+      {/* WHICH WAY THE SIGN GOES, DRAWN AT ONE PRICE. The lesson's own docstring
+          says the sign is easy to get backwards, and the figure answered that
+          with two crossing lines — which shows there IS a difference and not
+          which side is which. One vertical at a longshot price, between the
+          diagonal and the fit, names the direction where a reader is looking. */}
+      <line x1={longshot.x} x2={longshot.x} y1={longshot.y} y2={bottom - 0.2 * (bottom - top)}
+            className="coh-lessonfig__mark-line">
+        <title>
+          At a quoted 0.20 the fitted line sits BELOW the diagonal: these paid less often than their
+          price said. That is the longshot half of the shape, and it is the half whose sign is easy to
+          state backwards.
+        </title>
+      </line>
+      <text x={longshot.x + 8} y={bottom - 0.2 * (bottom - top) + 14} className="coh-lessonfig__gap-note">
+        overpriced
+      </text>
+      <text x={left} y={bottom + 15} className="coh-form__note">price quoted</text>
+      <text x={right + 6} y={top + 10} className="coh-form__note">how often it paid</text>
     </Frame>
   );
 }

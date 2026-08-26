@@ -35,10 +35,59 @@ import type { ReactNode } from "react";
 import { Readout } from "../Figure";
 import { useMarkReadout } from "@/lib/coherence/use-mark-readout";
 
-export const WIDTH = 260;
-export const HEIGHT = 96;
+/**
+ * The canvas, and why it is this size rather than any other.
+ *
+ * IT WAS 260×96 AND IT WAS TOO SMALL, which is a layout fact rather than a
+ * drawing one: the lesson cards are about 490px wide at three columns, so a 260
+ * unit drawing sat in half its card with the other half empty. Widening the
+ * CANVAS rather than scaling the drawing is the only move that adds room
+ * without touching the type — `meet` scales by `min(cardW/WIDTH, cardH/HEIGHT)`
+ * and the height is pinned in px, so that minimum stays 1 and every word keeps
+ * the size it declares.
+ *
+ * 320 IS THE LARGEST WIDTH A PHONE CARD STILL HOLDS AT 1:1. Measured: a 390px
+ * viewport gives the shell 362 after its 14px gutters and the card 338 after
+ * its 12px padding. Past 338 the minimum stops being 1 and the text starts
+ * shrinking with the drawing, which is the thing this file exists to prevent.
+ *
+ * The height is free — nothing constrains it but the card — so it takes what
+ * the drawings needed: a band under every figure for its claim, and room above
+ * for the labels that were sitting on top of their own marks.
+ */
+export const WIDTH = 320;
+export const HEIGHT = 132;
 
-export function Frame({ label, children }: { label: string; children: ReactNode }) {
+/**
+ * Where every figure's one-line claim sits, in the frame rather than in each
+ * figure.
+ *
+ * All fourteen already ended with a sentence, and all fourteen placed it
+ * themselves: `y={HEIGHT - 6}`, `HEIGHT - 8`, `HEIGHT - 10`, some anchored
+ * left and some centred. Fourteen decisions about one thing, none of them
+ * wrong on its own and no two agreeing — so a reader moving between cards met
+ * the same sentence at a different baseline each time. It is one baseline now,
+ * and the figures pass the words instead of positioning them.
+ */
+export const CLAIM_Y = HEIGHT - 9;
+
+/**
+ * The lowest a figure may draw before it is inside the claim's band.
+ *
+ * Published because the first three figures redrawn onto this canvas all put
+ * something at 116 or 122 and it printed over the claim — SVG text neither
+ * wraps nor clips, so a baseline eight pixels above another baseline is two
+ * sentences on one line. One number, exported, rather than each figure
+ * subtracting its own guess from `HEIGHT`.
+ */
+export const FLOOR = CLAIM_Y - 15;
+
+export function Frame({ label, claim, children }: {
+  label: string;
+  /** The one line under the drawing. Not a sentence — a clause. */
+  claim?: string;
+  children: ReactNode;
+}) {
   const { svgRef, readout, interactive, announce, handlers } = useMarkReadout(HEIGHT);
   return (
     <div className="coh-lessonfig__frame">
@@ -66,6 +115,11 @@ export function Frame({ label, children }: { label: string; children: ReactNode 
         {...handlers}
       >
         {children}
+        {/* Above the readout, so a claim can never be drawn over the card a
+            reader has just opened with a keypress. */}
+        {claim ? (
+          <text x={0} y={CLAIM_Y} className="coh-lessonfig__claim">{claim}</text>
+        ) : null}
         {readout ? <Readout {...readout} chartWidth={WIDTH} /> : null}
       </svg>
       {/* OUTSIDE the `role="img"` element. Its subtree is presentational to

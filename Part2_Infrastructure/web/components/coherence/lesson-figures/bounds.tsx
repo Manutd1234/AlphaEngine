@@ -4,7 +4,7 @@
  * Split out of `index.tsx` on 2026-08-25 with the rest of the registry.
  */
 
-import { Frame, HEIGHT, WIDTH } from "./frame";
+import { FLOOR, Frame, WIDTH } from "./frame";
 
 /**
  * The fee has three components and everyone models one.
@@ -40,10 +40,15 @@ export function Fees() {
   const total = parts.reduce((a, p) => a + p.value, 0);
   const left = 16;
   const span = WIDTH - 32;
+  const barY = 56;
   let run = 0;
   return (
-    <Frame label="A fee bar in which the rounding component dwarfs the trading component">
-      <rect x={left} y={36} width={span} height={22} className="coh-lessonfig__track">
+    <Frame
+      label="A fee bar in which the rounding component dwarfs the trading component"
+      claim="nineteen times the one every bot models"
+    >
+      <text x={left} y={26} className="coh-form__note">one fill, at the clip size where the split hurts</text>
+      <rect x={left} y={barY} width={span} height={26} className="coh-lessonfig__track">
         <title>
           The whole fee on one fill, at the clip size where the split hurts. Drawn to the proportions of
           Kalshi&rsquo;s own published example; the lengths are the ratio, not a reading off a live book.
@@ -52,19 +57,36 @@ export function Fees() {
       {parts.map((part) => {
         const from = run;
         run += part.value;
+        const mid = left + ((from + part.value / 2) / total) * span;
         return (
           <g key={part.label}>
-            <rect x={left + (from / total) * span} y={36} width={(part.value / total) * span} height={22}
+            <rect x={left + (from / total) * span} y={barY} width={(part.value / total) * span} height={26}
                   className={part.className}>
               <title>{part.says}</title>
             </rect>
-            <text x={left + ((from + part.value / 2) / total) * span} y={30} textAnchor="middle"
-                  className="coh-form__note">{part.label}</text>
+            <text x={mid} y={barY - 8} textAnchor="middle" className="coh-form__note">{part.label}</text>
+            {/* THE TWO AMOUNTS, PRINTED. The lesson is a RATIO and the figure
+                drew it as two lengths with neither one named — so a reader could
+                see that one was bigger and not by how much, which is the whole
+                claim. The trading slice is too narrow to hold its own figure, so
+                it hangs below its own end. */}
+            {part.value / total > 0.2 ? (
+              <text x={mid} y={barY + 17} textAnchor="middle" className="coh-lessonfig__tick">
+                {part.value.toFixed(4)}
+              </text>
+            ) : (
+              <>
+                <line x1={mid} x2={mid} y1={barY + 26} y2={barY + 36} className="coh-lessonfig__callout" />
+                <text x={mid} y={barY + 48} textAnchor="middle" className="coh-lessonfig__tick">
+                  {part.value.toFixed(4)}
+                </text>
+              </>
+            )}
           </g>
         );
       })}
-      <text x={left} y={HEIGHT - 8} className="coh-form__note">
-        nineteen times the one every bot models
+      <text x={left + span} y={FLOOR} textAnchor="end" className="coh-lessonfig__gap-note">
+        {`the whole fee: ${total.toFixed(4)}`}
       </text>
     </Frame>
   );
