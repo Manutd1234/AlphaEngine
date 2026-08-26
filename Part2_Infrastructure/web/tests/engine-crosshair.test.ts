@@ -61,6 +61,8 @@ const SHARED_X: Row[] = [
   { file: "PayoffByState.tsx", geometry: "cx(", byValue: false, arriveAt: "first", link: "basket-states" },
   // Drawn alone on the no-basket branch too, so the key is the caller's.
   { file: "StateCoverage.tsx", geometry: "cx(", byValue: false, arriveAt: "first", link: "prop" },
+  // Ten equal price bands: even by construction; read through reliability-read.ts.
+  { file: "ReliabilityDiagram.tsx", geometry: "px(", byValue: false, arriveAt: "first" },
 ];
 
 describe("every crosshair figure on the engine", () => {
@@ -111,7 +113,7 @@ describe("every crosshair figure on the engine", () => {
   }
 
   it("counts the rows it has", () => {
-    // Nine on Proofs now; the Markets session appends theirs.
-    assert.equal(SHARED_X.length, 9);
+    // Ten on Proofs now; the Markets session appends theirs.
+    assert.equal(SHARED_X.length, 10);
   });
 });

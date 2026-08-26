@@ -23,15 +23,17 @@
  * of 354 are not the same evidence, and a diagram that draws them the same size
  * invites a reader to weight them the same.
  *
- * This file also holds the section's decimal readers. The gateway sends these
- * statistics as thirty-digit Python `Decimal`s; one parser in one place, so the
- * same string never gets two different readings across the three files here.
+ * The section's decimal readers live in `lib/coherence/decimals.ts` since
+ * 2026-08-26, and the per-band reading the crosshair speaks in
+ * `lib/coherence/reliability-read.ts` — one parser in one place, so the same
+ * wire string never gets two readings.
  */
 
 import { DOLLAR_CC, toCenticents } from "@/lib/coherence/fixed-point";
 import type { CoherenceMapPoint, CoherenceReliabilityBin } from "@/lib/coherence/types-lab";
 import Figure, { FigureEmpty, Plot } from "./Figure";
-import { decimalLabel, statValue, truncateDecimal, unitOf } from "@/lib/coherence/decimals";
+import { unitOf } from "@/lib/coherence/decimals";
+import { readBand } from "@/lib/coherence/reliability-read";
 
 const HEIGHT = 310;
 const MARGIN = { top: 14, right: 10, bottom: 40, left: 36 };
@@ -51,9 +53,6 @@ interface Point {
   count: number;
   priced: number;
   happened: number;
-  /** The wire strings, kept so every printed number is cut from the source. */
-  pricedText: string;
-  happenedText: string;
 }
 
 export default function ReliabilityDiagram({
@@ -79,8 +78,6 @@ export default function ReliabilityDiagram({
       count: bin.count,
       priced,
       happened,
-      pricedText: decimalLabel(bin.mean_forecast),
-      happenedText: decimalLabel(bin.outcome_rate),
     });
   }
 
@@ -118,6 +115,16 @@ export default function ReliabilityDiagram({
     Math.abs(point.happened - point.priced) > Math.abs(carry.happened - carry.priced) ? point : carry,
   );
 
+  /** The square, and the two maps into it — shared by the marks and the crosshair. */
+  const geometry = (width: number) => {
+    const side = Math.max(80, Math.min(width - MARGIN.left - MARGIN.right, MAX_SIDE));
+    const left = MARGIN.left;
+    const floor = MARGIN.top + side;
+    const px = (value: number) => left + value * side;
+    const py = (value: number) => floor - value * side;
+    return { side, left, floor, px, py };
+  };
+
   return (
     <Figure
       caption={`Reliability diagram: quoted price against realised frequency, band by band — ${horizonNote}`}
@@ -138,13 +145,28 @@ export default function ReliabilityDiagram({
       reading={`Each gap from the diagonal is that band's contribution to the reliability term.${steps.length ? ` The step line is the isotonic correction; its knots are sized by the settled markets each was fitted on${steps.some((step) => step.weight === 1) ? ", and one of them rests on a single observation" : ""}.` : ""}`}
       missing={emptyNote}
     >
-      <Plot height={HEIGHT}>
+      <Plot
+        height={HEIGHT}
+        // ONE CROSSHAIR PER BAND, since 2026-08-26, in place of three kinds of
+        // title. A reader walks the ten bands in price order and hears, at
+        // each, what settled there, what it was priced at, what happened, the
+        // gap, and the isotonic knot if one rests in it — or that nobody
+        // quoted the band. Bands are equal tenths, so the axis is even by
+        // construction. The same `px` the marks use.
+        sharedX={(width) => {
+          const { px } = geometry(width);
+          return {
+            count: bins.length,
+            x0: px(0.5 / bins.length),
+            x1: px((bins.length - 0.5) / bins.length),
+            read: (index) => readBand(bins, map, index),
+            width: 300,
+            arriveAt: "first",
+          };
+        }}
+      >
         {(width) => {
-          const side = Math.max(80, Math.min(width - MARGIN.left - MARGIN.right, MAX_SIDE));
-          const left = MARGIN.left;
-          const floor = MARGIN.top + side;
-          const px = (value: number) => left + value * side;
-          const py = (value: number) => floor - value * side;
+          const { side, left, floor, px, py } = geometry(width);
           const keyX = left + side + 20;
           const showKey = width - keyX >= KEY_WIDTH;
           const radius = (count: number) => DOT_MIN + (DOT_MAX - DOT_MIN) * Math.sqrt(count / heaviest);
@@ -176,17 +198,15 @@ export default function ReliabilityDiagram({
 
               {bins.map((bin, index) =>
                 bin.count === 0 ? (
-                  <g key={`gap-${bin.label}`}>
-                    <title>{`${bin.label}: nobody quoted this band, so it has no outcome rate`}</title>
-                    <text
-                      x={px((index + 0.5) / bins.length)}
-                      y={floor + 12}
-                      textAnchor="middle"
-                      className="coh-calib__gapmark"
-                    >
-                      ◌
-                    </text>
-                  </g>
+                  <text
+                    key={`gap-${bin.label}`}
+                    x={px((index + 0.5) / bins.length)}
+                    y={floor + 12}
+                    textAnchor="middle"
+                    className="coh-calib__gapmark"
+                  >
+                    ◌
+                  </text>
                 ) : null,
               )}
 
@@ -209,19 +229,13 @@ export default function ReliabilityDiagram({
                   is one observation is not the same claim as one whose knots
                   are hundreds, and the drawing said nothing either way. */}
               {steps.map((step, index) => (
-                <g key={`knot-${index}`}>
-                  <title>
-                    {`Isotonic knot: quoted ${step.x.toFixed(4)} maps to ${step.y.toFixed(4)}, fitted on `
-                     + `${step.weight} settled market${step.weight === 1 ? "" : "s"}`
-                     + `${step.weight === 1 ? " — a single observation" : ""}`}
-                  </title>
-                  <circle
-                    cx={px(step.x)}
-                    cy={py(step.y)}
-                    r={DOT_MIN + (DOT_MAX - DOT_MIN) * Math.sqrt(step.weight / heaviestKnot)}
-                    className="coh-calib__knot"
-                  />
-                </g>
+                <circle
+                  key={`knot-${index}`}
+                  cx={px(step.x)}
+                  cy={py(step.y)}
+                  r={DOT_MIN + (DOT_MAX - DOT_MIN) * Math.sqrt(step.weight / heaviestKnot)}
+                  className="coh-calib__knot"
+                />
               ))}
 
               {points.map((point) => (
@@ -240,11 +254,8 @@ export default function ReliabilityDiagram({
                 const anchorRight = px(point.priced) + r + 6 > left + side - 24;
                 return (
                   <g key={`point-${point.label}`}>
-                    {/* The residual line already DRAWS the gap; this is the
-                        number for it, which lived only in the table beside the
-                        figure. A reader walking the marks was told the two
-                        prices and left to subtract. */}
-                    <title>{`${point.label}: ${point.count} settled market(s), priced ${point.pricedText}, happened ${point.happenedText}, gap ${(point.happened - point.priced >= 0 ? "+" : "")}${(point.happened - point.priced).toFixed(4)}`}</title>
+                    {/* The residual line DRAWS the gap; the crosshair's rows
+                        carry the number for it, with the two prices. */}
                     <circle cx={px(point.priced)} cy={py(point.happened)} r={r} className="coh-calib__point" />
                     <text
                       x={anchorRight ? px(point.priced) - r - 4 : px(point.priced) + r + 4}

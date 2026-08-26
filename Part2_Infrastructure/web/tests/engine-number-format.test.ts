@@ -143,7 +143,7 @@ ratchet("toFixed(", /\.toFixed\(/g, {
   // Axis ticks and geometry on float scales — a pixel is not a fixed-point quantity.
   "components/coherence/BasketWhatIf.tsx": { count: 10, reason: "the reader's slider cents: integer cents ÷ 100 is exact at two places" },
   "components/coherence/surface/MomentsShape.tsx": { count: 9, reason: "float moments drawn on a float axis; the table prints the wire strings" },
-  "components/coherence/ReliabilityDiagram.tsx": { count: 11, reason: "axis ticks and dot geometry on a float scale; every printed statistic goes through decimalLabel" },
+  "components/coherence/ReliabilityDiagram.tsx": { count: 8, reason: "axis ticks and dot geometry on a float scale; every printed statistic goes through decimalLabel" },
   "components/coherence/ShortfallScale.tsx": { count: 1, reason: "orders of magnitude, a float by nature" },
   "components/coherence/LadderChart.tsx": { count: 8, reason: "its own comment: cumulative depth at a float level" },
   "components/coherence/SurvivalChart.tsx": { count: 6, reason: "strike-axis ticks" },
