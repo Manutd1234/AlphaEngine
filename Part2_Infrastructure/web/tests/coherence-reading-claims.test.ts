@@ -120,6 +120,10 @@ const FILES = [
   "../components/coherence/ShellListing.tsx",
   "../components/coherence/ShellTree.tsx",
   "../components/coherence/ShellCommandReference.tsx",
+  // The declined branch's figure, 2026-08-26. It absorbed three paragraphs from
+  // `StakeDeclined` into its counted notes, and one of them carries a pinned
+  // claim — so it joins the scan in the same change the claim moved.
+  "../components/coherence/surface/StakeEligibility.tsx",
   "../components/coherence/surface/DistributionView.tsx",
   "../components/coherence/surface/FamilyView.tsx",
   "../components/coherence/surface/StakeView.tsx",

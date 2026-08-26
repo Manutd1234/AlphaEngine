@@ -40,6 +40,7 @@
 
 import type { CoherenceEventView } from "@/lib/coherence/types";
 import type { CoherenceKelly } from "@/lib/coherence/types-lab";
+import StakeEligibility from "./StakeEligibility";
 
 export default function StakeDeclined({
   kelly,
@@ -83,22 +84,16 @@ export default function StakeDeclined({
         <span aria-hidden="true">◌</span> No stake was sized for {target}: {kelly.detail}
       </p>
 
-      {current && !current.mutually_exclusive ? (
-        <p className="coh-kelly__note">
-          Correct rather than a gap: on a strike ladder a threshold wins wherever the one above it wins,
-          so one market pays in several bins; the exclusive-family solver states one market per state and declines
-          this family by name.
-        </p>
-      ) : null}
+      {/* THE DRAWING, added 2026-08-26. Three paragraphs stood here — why a
+          ladder is declined, how many other families carry the flag, and where
+          the measure is still readable — and all three are the same picture:
+          every watched family, marked by whether the solver can take it. They
+          are the figure's counted notes now; what stays open below is the
+          picker and the sentences that explain an ABSENCE, which never fold. */}
+      <StakeEligibility events={events} target={target} />
 
       {solvable.length ? (
         <>
-          <p className="coh-kelly__note">
-            {solvable.length === 1 ? "One other watched family carries" : `${solvable.length} other watched families carry`}{" "}
-            the exchange&rsquo;s own mutually-exclusive flag, which is the flag the solver needs. It can still refuse
-            one of them: a family with an unquoted leg is refused too, because dropping the leg would let a partial
-            basket read as certain.
-          </p>
           <div className="seg coh-books__picker" role="group" aria-label="Try a family the solver accepts">
             {solvable.map((event) => (
               <button
@@ -121,11 +116,6 @@ export default function StakeDeclined({
         </p>
       )}
 
-      <p className="coh-kelly__note">
-        <span aria-hidden="true">→</span> Lattice draws this family in full: the survival curve, the mass between the
-        strikes and the moments all come from the distribution read, which a ladder answers. The measure is readable
-        here; only the bet is not.
-      </p>
     </div>
   );
 }
