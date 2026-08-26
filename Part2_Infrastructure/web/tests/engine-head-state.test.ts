@@ -364,3 +364,34 @@ describe("the panel's partial is scoped to both engine tabs", () => {
       "14v declares a font-size; the ladder is 14q's to set");
   });
 });
+
+describe("below 1120 the slot's basis is auto, because in a column a rem basis is a height", () => {
+  // SEEN IN A BROWSER, 2026-08-26, on both engine tabs: at 1120 the head was
+  // 580px tall and at 900 it was 602, with the two chip rows spread through
+  // 480px of white. `12` stacks `.page-heading` into a column at that width,
+  // and the slot's `flex: 1 1 30rem` — right beside the title, where the main
+  // axis is horizontal — becomes a HEIGHT of 30rem once the main axis turns
+  // vertical. The 30rem stays where it is measured for; the column gets its
+  // own basis.
+  const desk = read("../app/globals/12-workspace-standardisation.css");
+  const engine = read("../app/globals/14v-engine-head-state.css");
+
+  it("the desk really does stack the head into a column there", () => {
+    const at = desk.indexOf("@media (max-width: 1120px)");
+    assert.ok(at !== -1, "12 no longer has a 1120 block — re-derive this");
+    const block = desk.slice(at, desk.indexOf("\n}\n", at));
+    assert.match(block, /\.page-heading \{[^}]*flex-direction: column/,
+      "the head no longer stacks at 1120, so the basis is a width again and this override is dead");
+  });
+
+  it("the engine override gives the stacked slot a content-sized basis", () => {
+    const at = engine.indexOf("@media (max-width: 1120px)");
+    assert.ok(at !== -1, "14v no longer has a 1120 block");
+    const block = engine.slice(at);
+    const rule = block.match(/\.coherence-plane \.page-heading \.page-heading__actions \{([^}]*)\}/);
+    assert.ok(rule, "the 1120 override for the slot is gone");
+    assert.match(rule[1], /width:\s*100%/, "the stacked slot no longer takes the row");
+    assert.match(rule[1], /flex:\s*0 0 auto/,
+      "the stacked slot keeps its 30rem basis, which is a 480px height once the head is a column");
+  });
+});

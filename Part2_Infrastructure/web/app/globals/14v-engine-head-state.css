@@ -231,6 +231,13 @@
      DOM tree, not the box tree.) */
   .coherence-plane .page-heading .page-heading__actions {
     width: 100%;
+    /* A BASIS IS A HEIGHT ONCE THE HEAD IS A COLUMN. `12` stacks
+       `.page-heading` here, so the `flex: 1 1 30rem` above — measured for the
+       slot beside the title, where the main axis is horizontal — became a
+       480px TALL slot with two chip rows spread through it. Seen at 1120 and
+       900 on both engine tabs, 2026-08-26: a 580px head. Content-sized here;
+       the 30rem stays where its argument holds. */
+    flex: 0 0 auto;
   }
 
   /* A COLUMN THAT WRAPS MAKES A SECOND COLUMN, which is the one thing about
