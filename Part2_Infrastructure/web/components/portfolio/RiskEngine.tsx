@@ -23,6 +23,7 @@ import RiskContributions from "@/components/portfolio/RiskContributions";
 import StatTile from "@/components/StatTile";
 import { pct, usd } from "@/lib/format";
 import VarBacktestChart from "@/components/portfolio/VarBacktestChart";
+import ExceedanceCalendar from "@/components/risk/ExceedanceCalendar";
 import type { CovarianceModel, PortfolioRisk, VarBacktest, VarSeries } from "@/lib/portfolio-risk";
 
 interface RiskEngineProps {
@@ -240,12 +241,19 @@ export default function RiskEngine({
     )}
 
     {showDiagram && (varSeries ? (
-      <VarBacktestChart
-        series={varSeries}
-        validation={validation ?? null}
-        sandbox={sandbox}
-        missing={missing}
-      />
+      <>
+        <VarBacktestChart
+          series={varSeries}
+          validation={validation ?? null}
+          sandbox={sandbox}
+          missing={missing}
+        />
+        {/* The other half of the verdict. The band above says whether the model
+            was tight; this says whether its breaches came at the promised rate
+            and whether they bunched — which Kupiec, scoring the count alone,
+            cannot tell apart. Same series, same validation, drawn once each. */}
+        <ExceedanceCalendar series={varSeries} validation={validation ?? null} />
+      </>
     ) : (
       /* The null state is not optional. `rollingVarSeries` refuses twice
          (var-validation.ts:176, :179) and only the second refusal is reachable
