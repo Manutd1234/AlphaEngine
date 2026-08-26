@@ -102,6 +102,7 @@
      the seg, the primary action — sitting one pixel off --radius-sm with no
      way to retune them together. Named, the choice is visible and movable. */
   --radius-control: 9px;
+  --control-h: 32px;
   --radius-md: 10px;
   --radius-lg: 14px;
   --radius-pill: 999px;
@@ -708,7 +709,6 @@ a:not([class]):active {
 .grow {
   flex: 1;
 }
-
 
 @media (max-width: 900px) {
   .sidebar {
@@ -1518,7 +1518,7 @@ button {
   background: var(--surface-2);
   color: var(--text-primary);
   padding: 9px 14px;
-  min-height: 32px;
+  min-height: var(--control-h);
   font-size: var(--fs-xl);
   font-weight: 550;
   transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease), color var(--dur) var(--ease), transform var(--dur) var(--ease);
