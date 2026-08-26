@@ -290,7 +290,7 @@ export default function WalkForwardTimeline({ report }: { report: WalkForwardRep
                     `${f.paramDrift} step${f.paramDrift === 1 ? "" : "s"}`
                   )}
                 </td>
-                <td>{fmt(f.isSharpe, 2)}</td>
+                <td className="num">{fmt(f.isSharpe, 2)}</td>
                 <td className={f.oosSharpe >= 0 ? "pos" : "neg"}>{fmt(f.oosSharpe, 2)}</td>
                 <td className={f.oosReturn >= 0 ? "pos" : "neg"}>{pct(f.oosReturn)}</td>
                 <td>

@@ -288,7 +288,7 @@ export default function StressTest({
               <tr key={p.symbol}>
                 <td>{p.symbol}</td>
                 <td className={p.signedNotional >= 0 ? "pos" : "neg"}>{usd(p.signedNotional, 0)}</td>
-                <td>{pct(p.appliedMove, 1)}</td>
+                <td className="num">{pct(p.appliedMove, 1)}</td>
                 <td>
                   {p.viaBeta ? (
                     // `?? 0` here printed "β 0.00" for a beta this panel could

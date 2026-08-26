@@ -121,7 +121,7 @@ export default function PositionsSection({
               <span className="page-kicker">{bookLabel}</span>
               <h2>Positions</h2>
             </div>
-            <span>{usd(book.exposure.gross, 0)} gross</span>
+            <span className="num">{usd(book.exposure.gross, 0)} gross</span>
           </div>
 
           {positions.length ? (
@@ -149,7 +149,7 @@ export default function PositionsSection({
                     <tr key={position.symbol}>
                       <th scope="row">{position.symbol}</th>
                       <td className={position.side === "SHORT" ? "neg" : "pos"}>{position.side}</td>
-                      <td>{usd(position.notional, 0)}</td>
+                      <td className="num">{usd(position.notional, 0)}</td>
                       <td>
                         {fmt(position.share_of_gross * 100, 1)}%
                         {/* Ranks four positions at a glance; the number stays first
@@ -161,7 +161,7 @@ export default function PositionsSection({
                           style={{ "--fill": `${position.share_of_gross * 100}%` } as CSSProperties}
                         />
                       </td>
-                      <td>{fmt(position.mark_price, position.mark_price < 10 ? 4 : 2)}</td>
+                      <td className="num">{fmt(position.mark_price, position.mark_price < 10 ? 4 : 2)}</td>
                       <td className={position.total_pnl >= 0 ? "pos" : "neg"}>{usd(position.total_pnl, 0)}</td>
                       <td>
                         {betaBySymbol.get(position.symbol) == null ? (

@@ -209,7 +209,7 @@ export default function FactorPanel({ report }: { report: FactorReport | null })
                   <td>
                     {c.a} against {c.b}
                   </td>
-                  <td>{fmt(c.corr, 3)}</td>
+                  <td className="num">{fmt(c.corr, 3)}</td>
                 </tr>
               ))}
             </tbody>

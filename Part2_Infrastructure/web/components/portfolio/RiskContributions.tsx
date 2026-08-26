@@ -73,8 +73,8 @@ export default function RiskContributions({ contributions }: RiskContributionsPr
                 <tr key={c.symbol}>
                   <td>{c.symbol}</td>
                   <td className={c.signedNotional >= 0 ? "pos" : "neg"}>{usd(c.signedNotional, 0)}</td>
-                  <td>{pct(notionalShare, 1)}</td>
-                  <td>{pct(c.standaloneVol, 1)}</td>
+                  <td className="num">{pct(notionalShare, 1)}</td>
+                  <td className="num">{pct(c.standaloneVol, 1)}</td>
                   <td className={c.contributionShare < 0 ? "pos" : undefined}>
                     {pct(c.contributionShare, 1)}
                     {/* A hedge takes risk OUT. Worth naming, since a negative

@@ -334,7 +334,7 @@ export default function AllocationPanel({ positions, model, limits }: Allocation
             {trades.map((trade) => (
               <li key={trade.symbol}>
                 <span className={trade.side === "BUY" ? "pos" : "neg"}>{trade.side}</span>
-                <strong>{usd(trade.notional)}</strong>
+                <strong className="num">{usd(trade.notional)}</strong>
                 <span>{trade.symbol}</span>
                 <small className="muted">{trade.reason}</small>
               </li>

@@ -137,7 +137,7 @@ export default function OverviewBook({
                   <tr key={position.symbol}>
                     <th scope="row">{position.symbol}</th>
                     <td className={position.side === "SHORT" ? "neg" : "pos"}>{position.side}</td>
-                    <td>{usd(position.notional, 0)}</td>
+                    <td className="num">{usd(position.notional, 0)}</td>
                     <td>
                       {fmt(position.share_of_gross * 100, 1)}%
                       {/* Ranks four positions at a glance; the number stays first

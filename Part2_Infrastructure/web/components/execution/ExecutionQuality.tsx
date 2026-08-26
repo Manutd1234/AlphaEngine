@@ -72,7 +72,7 @@ export default function ExecutionQuality({ summary, symbol, symbolOrders, rows =
           <dl className="cockpit-quality__metrics">
             <div>
               <dt>Fill rate</dt>
-              <dd>{pct(summary.fillRate, 0)}</dd>
+              <dd className="num">{pct(summary.fillRate, 0)}</dd>
               <span className="muted">{summary.accepted} filled, {summary.rejected} rejected</span>
             </div>
             <div>
@@ -109,7 +109,7 @@ export default function ExecutionQuality({ summary, symbol, symbolOrders, rows =
               {/* The wire carries ms; the desk shows the unit the value earns
                   (a 0.21 ms decision reads 210 µs). Null stays a dash inside
                   the formatter — never "0 ns". */}
-              <dd>{formatDuration(summary.p50LatencyMs, "ms")}</dd>
+              <dd className="num">{formatDuration(summary.p50LatencyMs, "ms")}</dd>
               <span className="muted">
                 p90 {formatDuration(summary.p90LatencyMs, "ms")},
                 p99 {formatDuration(summary.p99LatencyMs, "ms")}

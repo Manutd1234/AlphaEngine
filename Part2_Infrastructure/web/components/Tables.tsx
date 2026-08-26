@@ -65,15 +65,15 @@ export function ResultsTable({
                 <th scope="row">
                   {r.fast}/{r.slow}
                 </th>
-                <td className={sign(r.sharpe)}>{fmt(r.sharpe, 2)}</td>
-                <td className={sign(r.totalReturn)}>{pct(r.totalReturn)}</td>
-                <td className={sign(r.cagr)}>{pct(r.cagr)}</td>
-                <td className="neg">{pct(r.maxDrawdown)}</td>
-                <td className="muted">{fmt(r.calmar, 2)}</td>
+                <td className={`num ${sign(r.sharpe)}`}>{fmt(r.sharpe, 2)}</td>
+                <td className={`num ${sign(r.totalReturn)}`}>{pct(r.totalReturn)}</td>
+                <td className={`num ${sign(r.cagr)}`}>{pct(r.cagr)}</td>
+                <td className="num neg">{pct(r.maxDrawdown)}</td>
+                <td className="num muted">{fmt(r.calmar, 2)}</td>
                 <td className="muted">{r.trades}</td>
-                <td className="muted">{pct(r.winRate, 0)}</td>
-                <td className="muted">{pct(r.exposure, 0)}</td>
-                <td className="muted">{usd(r.feesPaid)}</td>
+                <td className="num muted">{pct(r.winRate, 0)}</td>
+                <td className="num muted">{pct(r.exposure, 0)}</td>
+                <td className="num muted">{usd(r.feesPaid)}</td>
               </tr>
             );
           })}

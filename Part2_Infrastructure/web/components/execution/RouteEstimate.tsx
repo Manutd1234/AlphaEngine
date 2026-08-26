@@ -64,7 +64,7 @@ export default function RouteEstimate({ tca, dp, capBps, whatIfActive, part }: R
                         {e.venue}
                         {excluded ? <span className="pill pill--info" style={{ marginLeft: 6 }}>excluded</span> : null}
                       </th>
-                      <td>{fmt(e.vwap, dp)}</td>
+                      <td className="num">{fmt(e.vwap, dp)}</td>
                       <td className={(e.slippageBps ?? 0) > 10 ? "neg" : ""}>{fmt(e.slippageBps, 2)} bps</td>
                       <td className="muted">{e.levelsConsumed}</td>
                       <td className={e.fillable ? "pos" : "neg"}>

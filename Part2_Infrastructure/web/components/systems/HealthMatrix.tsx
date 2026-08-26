@@ -47,7 +47,7 @@ function latencyCell(latency: LatencyStats) {
   }
   return (
     <span className="console-latency-cell">
-      <strong>{fmt(latency.p95 ?? 0, 0)}ms</strong>
+      <strong className="num">{fmt(latency.p95 ?? 0, 0)}ms</strong>
       <small className="muted num">
         {metricRow([`p50 ${fmt(latency.p50 ?? 0, 0)}`, `p99 ${fmt(latency.p99 ?? 0, 0)}`, `n=${latency.n}`])}
       </small>

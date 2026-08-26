@@ -264,14 +264,14 @@ export default function ExperimentHistory({
                           {r.note ? <small className="run-note">{r.note}</small> : null}
                         </div>
                       </td>
-                      <td>{fmt(r.sharpe, 2)}</td>
-                      <td>{fmt(r.deflatedSharpeRatio, 3)}</td>
+                      <td className="num">{fmt(r.sharpe, 2)}</td>
+                      <td className="num">{fmt(r.deflatedSharpeRatio, 3)}</td>
                       {/* No tone on the dash: `?? 0` gave a null OOS the green
                           `pos` class — a sign asserted for an absent value. */}
                       <td className={r.walkForwardOosSharpe === null ? undefined : r.walkForwardOosSharpe >= 0 ? "pos" : "neg"}>
                         {r.walkForwardOosSharpe === null ? "—" : fmt(r.walkForwardOosSharpe, 2)}
                       </td>
-                      <td className="neg">{pct(r.maxDrawdown)}</td>
+                      <td className="num neg">{pct(r.maxDrawdown)}</td>
                       <td>
                         {r.promotionTotal ? `${r.promotionPassed}/${r.promotionTotal}` : "—"}
                       </td>

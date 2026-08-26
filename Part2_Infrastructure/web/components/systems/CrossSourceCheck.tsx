@@ -253,7 +253,7 @@ export default function CrossSourceCheck({ symbol }: CrossSourceCheckProps) {
                           {leg.delayed && <span className="muted"> (delayed)</span>}
                           {outlier && <span className="muted"> — outlier</span>}
                         </td>
-                        <td>{fmt(leg.price, leg.price < 10 ? 4 : 2)}</td>
+                        <td className="num">{fmt(leg.price, leg.price < 10 ? 4 : 2)}</td>
                         <td><time dateTime={leg.asOf}>{absoluteAsOf(leg.asOf)}</time></td>
                         <td>
                           {leg.deviationBps >= 0 ? "+" : ""}

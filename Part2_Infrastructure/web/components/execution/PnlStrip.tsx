@@ -154,15 +154,15 @@ export default function PnlStrip({
           <div>
             <dt>Realised / open</dt>
             <dd>
-              <span className={sign(book.equity.realized_pnl)}>{usd(book.equity.realized_pnl)}</span>
+              <span className={`num ${sign(book.equity.realized_pnl)}`}>{usd(book.equity.realized_pnl)}</span>
               {" / "}
-              <span className={sign(book.equity.unrealized_pnl)}>{usd(book.equity.unrealized_pnl)}</span>
+              <span className={`num ${sign(book.equity.unrealized_pnl)}`}>{usd(book.equity.unrealized_pnl)}</span>
             </dd>
           </div>
         ) : null}
         <div>
           <dt>Gross / net</dt>
-          <dd>{usd(book.exposure.gross)} <small>net {usd(book.exposure.net)}</small></dd>
+          <dd className="num">{usd(book.exposure.gross)} <small>net {usd(book.exposure.net)}</small></dd>
         </div>
         {!compact ? (
           <div>
