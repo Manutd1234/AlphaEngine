@@ -127,9 +127,6 @@ export default function MurphyBars({
     { name: "Brier", drawn: (Math.abs(total) / span) * plotHeight },
   ].filter((bar) => bar.drawn < FLOOR_PX);
   const flooredNames = floored.map((bar) => bar.name).join(", ");
-  const floorNote = floored.length
-    ? `${flooredNames} ${floored.length === 1 ? "is" : "are"} drawn at a ${FLOOR_PX}-pixel floor beside Uncertainty — read the printed number, not the height. The inset below redraws the other three at their own scale.`
-    : null;
 
   const identity = `${cut(reliability)} − ${cut(resolution)} + ${cut(uncertainty)} + ${cut(binning)} = ${cut(brier)}`;
 
@@ -162,6 +159,24 @@ export default function MurphyBars({
     Math.abs(smallest.value) > 0
       ? `${biggest.term.name} ${cut(biggest.term.raw)} against ${smallest.term.name} ${cut(smallest.term.raw)} — about ${ratioOf(Math.abs(biggest.value), Math.abs(smallest.value))} to one, the comparison the waterfall cannot carry.`
       : `${smallest.term.name} is zero at every place the engine sent; ${biggest.term.name}, at ${cut(biggest.term.raw)}, is the largest of the three.`;
+
+  /**
+   * THE RATIO STAYS UNFOLDED even though the inset that draws it does not.
+   *
+   * What the inset ADDS to this waterfall is the comparison between the three
+   * small terms; everything else it shows is printed above it. Folding the
+   * drawing without carrying that sentence up would have hidden the one thing
+   * it was for — which is the difference between folding an aside and folding a
+   * finding.
+   *
+   * DECLARED HERE RATHER THAN WITH ITS SIBLINGS FIFTY LINES UP, because it now
+   * cites `insetReading` and a `const` read before its declaration is a
+   * temporal-dead-zone throw, not a hoist. Moving the note is the fix; moving
+   * the reading would put it above the values it is computed from.
+   */
+  const floorNote = floored.length
+    ? `${flooredNames} ${floored.length === 1 ? "is" : "are"} drawn at a ${FLOOR_PX}-pixel floor beside Uncertainty — read the printed number, not the height. ${insetReading}`
+    : null;
 
   return (
     <div className="coh-calib__murphy">
@@ -240,7 +255,24 @@ export default function MurphyBars({
         </Plot>
       </Figure>
 
+      {/* FOLDED SINCE 2026-08-26, and counted. "why am i scrolling so much for
+          the score tab" — measured, this inset is about 340px of the Scorecard,
+          and it only appears when the corpus is non-degenerate, so the section
+          measured 943px on one poll and 1,548px on another with nothing
+          changing but the data.
+
+          It passes the fold test `13-warm-bright-pass.css` states — hiding it
+          must not change what someone believes about the desk — because the
+          waterfall above PRINTS all four terms with their values. What the
+          inset adds is the RATIO between the three small ones, and that
+          sentence moves up into the waterfall's own note rather than going
+          behind the fold with the drawing.
+
+          The summary says what is inside and names the comparison, so nobody
+          opens it to find out whether it is worth opening. */}
       {insetMax > 0 ? (
+        <details className="disclosure">
+          <summary>{`The same three terms at their own scale, ${insetBars.length} of them, Uncertainty excluded`}</summary>
         <Figure
           caption="Inset — the same terms at their own scale, Uncertainty excluded"
           ariaLabel={`Three bars scaled against each other: ${insetBars
@@ -295,6 +327,7 @@ export default function MurphyBars({
             }}
           </Plot>
         </Figure>
+        </details>
       ) : (
         <Figure
           caption="Inset — the same terms at their own scale, Uncertainty excluded"
