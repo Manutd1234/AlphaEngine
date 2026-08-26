@@ -21,15 +21,13 @@ import { useMemo } from "react";
 import {
   DEFAULT_MARGIN,
   Grid,
-  Tooltip,
   XAxis,
   extent,
   linePath,
   linearScale,
   ticks,
-  useCrosshair,
-  useMeasuredWidth,
 } from "@/components/chart-kit";
+import Figure, { Plot } from "@/components/coherence/Figure";
 import { shortDate, usd } from "@/lib/format";
 import type { VarBacktest, VarSeries } from "@/lib/portfolio-risk";
 
@@ -55,16 +53,15 @@ export default function VarBacktestChart({
   missing,
   show99 = true,
 }: VarBacktestChartProps) {
-  const [ref, width] = useMeasuredWidth<HTMLDivElement>();
   const points = series.points;
 
-  const geometry = useMemo(() => {
+  // Only the width-FREE half stays memoised. The old memo keyed on width too,
+  // which meant it recomputed on every resize anyway — what it was saving was
+  // the extent over the points, and that is what is kept.
+  const { y0, y1, lo, hi, yScale } = useMemo(() => {
     const m = DEFAULT_MARGIN;
-    const x0 = m.left;
-    const x1 = Math.max(x0 + 10, width - m.right);
     const y0 = HEIGHT - m.bottom;
     const y1 = m.top;
-
     // The band's lower edge is part of the extent: a forecast that never gets
     // near the realised series still has to be on screen, or the chart shows a
     // model that looks tighter than it is.
@@ -73,25 +70,13 @@ export default function VarBacktestChart({
       ...points.map((p) => -(show99 ? p.var99 : p.var95)),
       0,
     ]);
-    const xScale = linearScale(0, Math.max(1, points.length - 1), x0, x1);
-    const yScale = linearScale(lo, hi, y0, y1);
-    return { x0, x1, y0, y1, lo, hi, xScale, yScale };
-  }, [points, width, show99]);
-
-  const { x0, x1, y0, y1, lo, hi, xScale, yScale } = geometry;
-  const crosshair = useCrosshair(points.length, x0, x1);
-  const hovered = crosshair.index === null ? null : points[crosshair.index];
+    return { y0, y1, lo, hi, yScale: linearScale(lo, hi, y0, y1) };
+  }, [points, show99]);
+  const x0 = DEFAULT_MARGIN.left;
 
   const exceptions = points.filter((p) => p.exception95);
   const dated = series.timesAligned && points.every((p) => p.t !== null);
 
-  const pnlPath = linePath(points.map((p, i) => ({ x: xScale(i), y: yScale(p.pnl) })));
-  const var95Path = linePath(points.map((p, i) => ({ x: xScale(i), y: yScale(-p.var95) })));
-  const var99Path = linePath(points.map((p, i) => ({ x: xScale(i), y: yScale(-p.var99) })));
-  // The region the forecast says losses should stay inside. Closed against the
-  // zero rule rather than the axis floor, so the fill means "inside the
-  // forecast" and not "anywhere below the top of the chart".
-  const bandPathD = `${var95Path} L ${xScale(points.length - 1)} ${yScale(0)} L ${xScale(0)} ${yScale(0)} Z`;
 
   const stamp = (p: (typeof points)[number]) =>
     p.t === null ? `#${p.index}` : shortDate(p.t);
@@ -124,23 +109,59 @@ export default function VarBacktestChart({
         </span>
       </div>
 
-      <div ref={ref}>
-        <svg
-          viewBox={`0 0 ${width} ${HEIGHT}`}
-          width="100%"
+      {/* Through `Figure` and `Plot` since 2026-08-26. This chart already had a
+          crosshair and a multi-row tooltip of its own — hand-rolled from the
+          same `useCrosshair` and `Tooltip` the plot's `sharedX` is built on —
+          and what it lacked was everything AROUND them: a live region, a tab
+          stop, arrow keys. So the tooltip is now the plot's `read`, the
+          crosshair is the plot's, and the figure speaks. The touch-action rule
+          that stopped a finger scrubbing the chart while scrolling is the
+          plot's too. */}
+      <Figure
+        caption={`Rolling ${series.window}-bar 95% VaR against realised book P&L`}
+        ariaLabel={
+          `Rolling ${series.window}-bar 95% value-at-risk forecast against realised counterfactual `
+          + `book profit and loss over ${points.length} days. ${exceptions.length} days breached the `
+          + `forecast${validation ? `, against ${validation.expectedExceptions} expected` : ""}.`
+        }
+        reading="Every exception is measured downward from break-even; the shaded band is where the forecast said losses would stay, and a breach is a day that left it."
+        missing={validation ? null : "No Kupiec validation for this window, so the breach count has no expected count to be judged against."}
+      >
+        <Plot
           height={HEIGHT}
-          role="img"
-          aria-label={
-            `Rolling ${series.window}-bar 95% value-at-risk forecast against realised counterfactual `
-            + `book profit and loss over ${points.length} days. ${exceptions.length} days breached the `
-            + `forecast${validation ? `, against ${validation.expectedExceptions} expected` : ""}.`
-          }
-          {...crosshair.handlers}
-          /* The crosshair is pointer-driven, so without this a finger dragging
-             to scroll the page scrubs the chart instead. Matches the other
-             three charts that already take pointer input. */
-          style={{ touchAction: "pan-y" }}
+          sharedX={(measured) => {
+            const x1 = Math.max(x0 + 10, measured - DEFAULT_MARGIN.right);
+            return {
+              count: points.length,
+              x0,
+              x1,
+              width: 186,
+              read: (index) => {
+                const p = points[index];
+                return {
+                  title: stamp(p),
+                  rows: [
+                    { label: "Book P&L", value: usd(p.pnl, 0) },
+                    { label: "VaR 95", value: usd(-p.var95, 0) },
+                    { label: "Breach", value: p.exception95 ? "yes" : "no" },
+                  ],
+                };
+              },
+            };
+          }}
         >
+          {(measured) => {
+            const x1 = Math.max(x0 + 10, measured - DEFAULT_MARGIN.right);
+            const xScale = linearScale(0, Math.max(1, points.length - 1), x0, x1);
+            const pnlPath = linePath(points.map((p, i) => ({ x: xScale(i), y: yScale(p.pnl) })));
+            const var95Path = linePath(points.map((p, i) => ({ x: xScale(i), y: yScale(-p.var95) })));
+            const var99Path = linePath(points.map((p, i) => ({ x: xScale(i), y: yScale(-p.var99) })));
+            // The region the forecast says losses should stay inside. Closed
+            // against the zero rule rather than the axis floor, so the fill
+            // means "inside the forecast" and not "anywhere below the top".
+            const bandPathD = `${var95Path} L ${xScale(points.length - 1)} ${yScale(0)} L ${xScale(0)} ${yScale(0)} Z`;
+            return (
+              <>
           <Grid yTicks={ticks(lo, hi, 5)} yScale={yScale} x0={x0} x1={x1} format={(v) => usd(v, 0)} />
 
           <path d={bandPathD} fill="color-mix(in oklab, var(--diverging-neg) 10%, transparent)" />
@@ -228,36 +249,11 @@ export default function VarBacktestChart({
             format={(v) => (dated ? shortDate(v) : `#${Math.round(v)}`)}
           />
 
-          {hovered && (
-            <>
-              <line
-                x1={xScale(crosshair.index as number)}
-                x2={xScale(crosshair.index as number)}
-                y1={y1}
-                y2={y0}
-                stroke="var(--axis)"
-                strokeWidth={1}
-                shapeRendering="crispEdges"
-              />
-              <Tooltip
-                x={xScale(crosshair.index as number)}
-                width={186}
-                chartWidth={width}
-                title={stamp(hovered)}
-                rows={[
-                  { label: "Book P&L", value: usd(hovered.pnl, 0), color: "var(--series-1)" },
-                  { label: "VaR 95", value: usd(-hovered.var95, 0), color: "var(--diverging-neg)" },
-                  {
-                    label: "Breach",
-                    value: hovered.exception95 ? "yes" : "no",
-                    color: hovered.exception95 ? "var(--critical-text)" : undefined,
-                  },
-                ]}
-              />
-            </>
-          )}
-        </svg>
-      </div>
+              </>
+            );
+          }}
+        </Plot>
+      </Figure>
 
       {/* The reason, not the axis. "#0, #12, #24" stays drawn above; what folds
           is why it reads that way, which a reader needs once. The summary sits
