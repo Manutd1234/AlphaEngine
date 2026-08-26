@@ -28,7 +28,8 @@
 
 import { useMemo } from "react";
 
-import { linearScale, useMeasuredWidth } from "@/components/chart-kit";
+import { linearScale } from "@/components/chart-kit";
+import Figure, { Plot } from "@/components/coherence/Figure";
 import { pct, usd } from "@/lib/format";
 import { exposureCells } from "@/lib/portfolio-analytics";
 import type { PortfolioPosition } from "@/lib/portfolio";
@@ -51,7 +52,6 @@ export default function ExposureHeatmap({
   generated: boolean;
 }) {
   const cells = exposureCells(positions);
-  const [ref, width] = useMeasuredWidth<HTMLDivElement>(620);
 
   /**
    * Ranked by limit pressure, nulls last — deliberately NOT by share, which is
@@ -89,10 +89,6 @@ export default function ExposureHeatmap({
   const withheld = cells.filter((cell) => cell.utilisation == null).length;
 
   const height = MARGIN.top + rows.length * ROW + MARGIN.bottom;
-  const plotRight = Math.max(MARGIN.left + 40, width - MARGIN.right);
-  // FIXED 0→1 domain, never `extent`. A limit chart's axis ends at the limit;
-  // auto-scaling to the observed maximum makes 40% of a cap look full.
-  const x = linearScale(0, 1, MARGIN.left, plotRight);
   const base = MARGIN.top + rows.length * ROW;
 
   return (
@@ -107,18 +103,31 @@ export default function ExposureHeatmap({
         </span>
       </div>
 
-      <div ref={ref}>
-        <svg
-          width="100%"
-          height={height}
-          viewBox={`0 0 ${Math.max(width, 320)} ${height}`}
-          role="img"
-          aria-label={
-            `Symbol-limit utilisation for ${rows.length} positions, ranked. `
-            + `${withheld} have no published limit; ${tight.length} at or above `
-            + `${pct(TIGHT, 0)} of their limit. Same figures in the table below.`
-          }
-        >
+      {/* Through `Figure` and `Plot` since 2026-08-26. Every bar carried its
+          reading in a `<title>` — including the withheld ones, whose reason is
+          the most useful sentence here — and a `<title>` is reachable with a
+          mouse and by nothing else. `Plot` walks the marks already written;
+          `Figure` puts the live region outside the `role="img"` wrapper, where
+          a presentational subtree cannot. */}
+      <Figure
+        caption="Symbol-limit utilisation, ranked"
+        ariaLabel={
+          `Symbol-limit utilisation for ${rows.length} positions, ranked. `
+          + `${withheld} have no published limit; ${tight.length} at or above `
+          + `${pct(TIGHT, 0)} of their limit. Same figures in the table below.`
+        }
+        reading="A limit chart's axis ends at the limit: the domain is fixed nought to one, never the observed maximum, so a position at 40% of its cap cannot be drawn looking full."
+        missing={withheld > 0 ? `${withheld} of ${cells.length} positions publish no limit, and are drawn withheld rather than at zero.` : null}
+      >
+        <Plot height={height} minWidth={320}>
+          {(measured) => {
+            const plotRight = Math.max(MARGIN.left + 40, measured - MARGIN.right);
+            // FIXED 0→1 domain, never `extent`. A limit chart's axis ends at
+            // the limit; auto-scaling to the observed maximum makes 40% of a
+            // cap look full.
+            const x = linearScale(0, 1, MARGIN.left, plotRight);
+            return (
+              <>
           {/* The limit itself, and the pressure threshold. Both solid — dashing
               is reserved for withheld, and a dashed limit would read as one. */}
           <line x1={x(1)} y1={MARGIN.top - 4} x2={x(1)} y2={base + 4}
@@ -190,8 +199,11 @@ export default function ExposureHeatmap({
               {mark === 1 ? "limit" : pct(mark, 0)}
             </text>
           ))}
-        </svg>
-      </div>
+              </>
+            );
+          }}
+        </Plot>
+      </Figure>
 
       <ul className="legend">
         <li><i aria-hidden style={{ background: FILL_NORMAL }} /> Inside its limit</li>

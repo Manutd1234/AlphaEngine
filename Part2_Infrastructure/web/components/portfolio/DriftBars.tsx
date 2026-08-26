@@ -32,7 +32,8 @@
  * nothing to do.
  */
 
-import { linearScale, useMeasuredWidth } from "@/components/chart-kit";
+import { linearScale } from "@/components/chart-kit";
+import Figure, { Plot } from "@/components/coherence/Figure";
 import { placeDriftFigure } from "@/components/portfolio/drift-label";
 import { pct, signedPct, usd } from "@/lib/format";
 import type { RebalanceTrade, TargetWeight } from "@/lib/portfolio-risk";
@@ -77,13 +78,11 @@ export default function DriftBars({
   /** Weight sum when a manual override does not balance; null when it does. */
   unbalancedSum: number | null;
 }) {
-  const [ref, width] = useMeasuredWidth<HTMLDivElement>(620);
   if (!targets.length) return null;
 
   const tradeBySymbol = new Map(trades.map((trade) => [trade.symbol, trade]));
 
   const height = MARGIN.top + targets.length * ROW + MARGIN.bottom;
-  const plotRight = Math.max(MARGIN.left + 60, width - MARGIN.right);
   /**
    * The extent the data actually needs, then a little more.
    *
@@ -95,7 +94,6 @@ export default function DriftBars({
    */
   const extent = Math.max(driftBand * 1.25, ...targets.map((t) => Math.abs(t.drift)));
   const domain = extent * 1.08;
-  const x = linearScale(-domain, domain, MARGIN.left, plotRight);
   const base = MARGIN.top + targets.length * ROW;
   const outside = targets.filter((t) => Math.abs(t.drift) >= driftBand).length;
   const clipped = targets.filter((t) => t.clippedBy).map((t) => t.symbol);
@@ -109,18 +107,27 @@ export default function DriftBars({
   const onTarget = only != null && Math.abs(only.drift) < 1e-9;
 
   return (
-    <div ref={ref}>
-      <svg
-        width="100%"
-        height={height}
-        viewBox={`0 0 ${Math.max(width, 320)} ${height}`}
-        role="img"
-        aria-label={
+    <>
+      {/* Through `Figure` and `Plot` since 2026-08-26: each bar's drift was
+          written into a `<title>`, reachable with a mouse and by nothing else.
+          `Plot` walks the marks; `Figure` puts the live region outside the
+          `role="img"` wrapper, where a presentational subtree cannot. */}
+      <Figure
+        caption="Drift from target weight, as a share of gross"
+        ariaLabel={
           `Drift from target weight for ${targets.length} positions, as a share of current gross. `
           + `${outside} sit outside the ${pct(driftBand, 0)} band and would be traded. `
           + `The same figures are in the table below.`
         }
+        reading="Zero is the target, not the middle of the data: the domain is symmetric about it, so a book that is drifted one way cannot be drawn looking balanced."
+        missing={unbalancedSum == null ? null : `Weights sum to ${pct(unbalancedSum, 1)}, so trades are withheld rather than sized against a book that does not balance.`}
       >
+        <Plot height={height} minWidth={320}>
+          {(measured) => {
+            const plotRight = Math.max(MARGIN.left + 60, measured - MARGIN.right);
+            const x = linearScale(-domain, domain, MARGIN.left, plotRight);
+            return (
+              <>
         {/* The band. Filled when it means something — when it does not balance,
             an outline, because no trade set is being proposed to sit inside it. */}
         <rect
@@ -236,7 +243,11 @@ export default function DriftBars({
             trades withheld — weights sum to {pct(unbalancedSum, 1)}
           </text>
         )}
-      </svg>
+              </>
+            );
+          }}
+        </Plot>
+      </Figure>
 
       {/* The three rules, quoting the band on screen now, so moving the slider
           rewrites the legend along with the bars. */}
@@ -310,6 +321,6 @@ export default function DriftBars({
           )}
         </p>
       )}
-    </div>
+    </>
   );
 }
