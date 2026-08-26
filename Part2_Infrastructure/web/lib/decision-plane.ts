@@ -219,6 +219,19 @@ export function formatDecisionChip(
       DECISION_ENGINE_LABEL[core.engine],
       `core p50 ${ns(core.p50Ns)}`,
       `core max ${ns(core.maxNs)}`,
+      // APPENDED, never inserted at the front: two suites pin this caveat's
+      // opening clause (`overview-state-decision-plane.test.ts:202`) and the
+      // adjacency of "from the startup self-measure; no orders yet"
+      // (`decision-latency.test.ts:66`). Every figure above is a bucket's
+      // UPPER EDGE — `quantile()` in `metrics/decision_latency.py` returns
+      // `self.edges[index]`, rounded up, on a log-linear grid whose core
+      // edges run …104, 112, 120, 128, 144, 160… — so a p50 of three ticks
+      // (125 ns) prints as 128, and the clock only resolves 41.7 ns steps
+      // to begin with. Measured 2026-08-26: the same core re-benched on the
+      // same Mac read p50 83 ns, exactly the doc's quiet-machine figure, so
+      // the header's 128 was never the core being slower. A number this
+      // easy to misread as a regression has to carry the reason it is not.
+      "each core figure is its histogram bucket's upper edge on a 41.7 ns clock",
       core.selfTestSamples != null ? `n=${core.selfTestSamples.toLocaleString("en-US")} self-measure samples` : null,
       "decision µs awaits the first order",
       networkCaveat,

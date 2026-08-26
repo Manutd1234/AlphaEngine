@@ -149,7 +149,6 @@
   .coh-combo__axis,
   .diff-effect__value,
   .diff-curve__gap,
-  .diff-time__label
 ) {
   font-size: var(--fs-diagram-label);
 }

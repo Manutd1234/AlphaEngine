@@ -60,50 +60,8 @@
 .diff-curve__key { font-weight: 650; }
 .diff-curve__key--release { fill: var(--series-1); }
 .diff-curve__key--call { fill: var(--series-2); }
-/* ---------- the two-stage timeline ---------- */
-
-.diff-time__axis {
-  stroke: var(--border);
-  stroke-width: 1;
-}
 /* As above: `fontSize={10}` on the element became the tick rung, which is
    the same 10px declared where every other axis numeral declares it. */
-.diff-time__ticklabel { fill: var(--text-muted); font-size: var(--fs-tick); }
-.diff-time__band {
-  fill: color-mix(in srgb, var(--surface-2) 70%, transparent);
-  stroke: var(--border);
-  stroke-width: 0.6;
-  vector-effect: non-scaling-stroke;
-}
-.diff-time__band--release { stroke: color-mix(in srgb, var(--series-1) 55%, var(--border)); }
-.diff-time__band--call { stroke: color-mix(in srgb, var(--series-2) 55%, var(--border)); }
-/* A second stage nobody publishes a time for is drawn hollow and dashed. The
-   absence is the point on the earnings arm, so it is drawn rather than left
-   out of the picture. */
-.diff-time__band--unknown {
-  stroke: var(--text-muted);
-  stroke-dasharray: 2 2;
-}
-/* The base every node shares. Only the three modifiers were declared until
-   2026-08-25, so the bare class carried nothing and a node rendered without a
-   modifier would have drawn an unstroked default fill. A modifier is always
-   present today; this stops that being load-bearing. */
-.diff-time__node { stroke: var(--surface-1); stroke-width: 0.5; vector-effect: non-scaling-stroke; }
-.diff-time__node--release { fill: var(--series-1); }
-.diff-time__node--call { fill: var(--series-2); }
-.diff-time__node--unknown { fill: none; stroke: var(--text-muted); stroke-width: 1; }
-.diff-time__tick {
-  stroke: var(--border);
-  stroke-width: 0.6;
-  vector-effect: non-scaling-stroke;
-}
-.diff-time__gap {
-  stroke: var(--text-secondary);
-  stroke-width: 0.8;
-  stroke-dasharray: 1 2;
-  vector-effect: non-scaling-stroke;
-}
-.diff-time__label { fill: var(--text-secondary); }
 /* NO forced-colors block here, and none is needed.
    `forced-colors.test.ts` pins the desk at exactly one authoritative block
    (in 15), and that file is at its length ratchet — but the real reason is
@@ -164,6 +122,12 @@
    stops. Their replacements are `.diff-bars__svg*` and `.coh-floor__svgbucket`
    in `10j-diffusion-tables.css`. Deleted rather than left: a rule whose class
    has no render site is what `dead-css` counts, and its baseline is two-sided. */
+
+/* `.diff-time__*` LEFT THIS FILE on 2026-08-26 with `StageTimeline`, the
+   constant-only mechanism figure it styled. Its replacement, `StageWindows`,
+   draws the same two windows with the ledger's meetings on them and is styled
+   as `.diff-win__*` in `10k-diffusion-marks.css`. Deleted rather than left:
+   a rule whose class has no render site is what `dead-css` counts. */
 
 /* The findings table: the verdict column is a word, so it needs no colour. */
 .diff-findings th[scope="row"] { font-weight: 600; }

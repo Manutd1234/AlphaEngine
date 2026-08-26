@@ -1,0 +1,181 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   DIFFUSION — the figures that draw the CALENDAR: when a meeting happened,
+   and where inside its own window each stage finished.
+
+   SPLIT OUT OF `10k` ON 2026-08-26 AT THE 400-LINE CEILING, which is a one-way
+   ratchet, and split rather than trimmed because that is the rule and because
+   the seam is real. `10k` keeps the figures drawn against a horizon or a poll
+   tape; this file keeps the two drawn against TIME — the meeting calendar, and
+   the stage windows with the ledger's half-lives on them.
+
+   Nothing here names the at-import keyword, even in prose: the manifest suite
+   greps each partial's raw text for it to prove no partial pulls in another.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── The meeting calendar ────────────────────────────────────────────────── */
+
+/* Shape carries the stage and fill carries the gate, so neither rests on a hue:
+   a filled mark cleared the noise floor and a hollow one did not. */
+.coherence-plane.diffusion-plane .diff-cal__dot--release {
+  fill: color-mix(in srgb, var(--series-1) 72%, transparent);
+}
+
+.coherence-plane.diffusion-plane .diff-cal__dot--call {
+  fill: color-mix(in srgb, var(--series-2) 72%, transparent);
+}
+
+.coherence-plane.diffusion-plane .diff-cal__dot.is-refused {
+  fill: var(--surface-1);
+  stroke: var(--text-muted);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+/* One tick per decision, under the axis: a meeting whose every run sits near
+   zero still shows that it happened. */
+.coherence-plane.diffusion-plane .diff-cal__rug {
+  stroke: var(--text-secondary);
+  stroke-width: 1.2;
+  vector-effect: non-scaling-stroke;
+}
+
+.coherence-plane.diffusion-plane .diff-cal__year {
+  stroke: var(--grid);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+/* ── The recorder's watch ────────────────────────────────────────────────── */
+
+/* One stroke per poll. A tick rather than a dot because the quantity is "the
+   recorder looked at this instant" — an event on a time axis, not a value. At
+   218 polls over a day the ticks merge into a comb wherever the cadence held,
+   and that merging IS the reading: an even comb means it never stopped. */
+.coherence-plane.diffusion-plane .diff-watch__poll {
+  stroke: color-mix(in srgb, var(--series-1) 62%, transparent);
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Where it was NOT looking. Hatched with the pattern `Plot` ships, because a
+   blank stretch on a tape of ticks reads as "nothing happened" when it means
+   "nobody was watching" — the opposite claim. */
+.coherence-plane.diffusion-plane .diff-watch__outage {
+  fill: url(#diff-hatch);
+}
+
+.coherence-plane.diffusion-plane .diff-watch__count {
+  fill: var(--text-secondary);
+  font-size: var(--fs-sm);
+}
+
+/* The interval in progress, on its own scale and visibly its own object: an
+   empty track with the elapsed part filled. */
+.coherence-plane.diffusion-plane .diff-watch__track {
+  fill: var(--surface-2);
+  stroke: var(--rule-soft);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.coherence-plane.diffusion-plane .diff-watch__elapsed {
+  fill: color-mix(in srgb, var(--series-1) 70%, transparent);
+}
+
+/* Overdue is a different fact, not a fuller bar — the track is full either way,
+   so the word in the label carries it and this only agrees with the word. */
+.coherence-plane.diffusion-plane .diff-watch__elapsed.is-overdue {
+  fill: color-mix(in srgb, var(--status-warn, var(--series-2)) 62%, transparent);
+}
+
+/* ── The stage windows, with the meetings on them ────────────────────────── */
+
+/* Two bands on two rows, the same length by construction. The statement's
+   band is tinted with series one, the conference's with series two, and an
+   unscheduled meeting's conference window — drawn where it actually was, an
+   hour out — is a thin third band under the second so it reads as the
+   exception it is. */
+.coherence-plane.diffusion-plane .diff-win__band {
+  stroke: var(--rule-soft);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.coherence-plane.diffusion-plane .diff-win__band--release {
+  fill: color-mix(in srgb, var(--series-1) 10%, transparent);
+}
+
+.coherence-plane.diffusion-plane .diff-win__band--call {
+  fill: color-mix(in srgb, var(--series-2) 10%, transparent);
+}
+
+.coherence-plane.diffusion-plane .diff-win__band--unusual {
+  fill: color-mix(in srgb, var(--series-2) 34%, transparent);
+  stroke: none;
+}
+
+/* The horizons that resolve for nobody, hatched inside the band with the
+   pattern `Plot` ships — the same rule `HorizonResolution` states. */
+.coherence-plane.diffusion-plane .diff-win__unmeasured {
+  fill: url(#diff-hatch);
+}
+
+.coherence-plane.diffusion-plane .diff-win__tick {
+  stroke: var(--rule-soft);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+/* One stroke per measured half-life, overhanging the band top and bottom so
+   a tick at the same x as a horizon rule is still tellable from it. */
+.coherence-plane.diffusion-plane .diff-win__hl {
+  stroke-width: 1.3;
+  vector-effect: non-scaling-stroke;
+}
+
+.coherence-plane.diffusion-plane .diff-win__hl--release {
+  stroke: color-mix(in srgb, var(--series-1) 72%, transparent);
+}
+
+.coherence-plane.diffusion-plane .diff-win__hl--call {
+  stroke: color-mix(in srgb, var(--series-2) 72%, transparent);
+}
+
+/* Halved before the first measurable bar: a hollow mark under the band at the
+   resolution limit, because that is a fact about what can be seen and not a
+   position on the axis. */
+.coherence-plane.diffusion-plane .diff-win__early {
+  fill: var(--surface-1);
+  stroke: var(--text-muted);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.coherence-plane.diffusion-plane .diff-win__median {
+  stroke: var(--text-primary);
+  stroke-width: 1.6;
+  vector-effect: non-scaling-stroke;
+}
+
+.coherence-plane.diffusion-plane .diff-win__gap {
+  stroke: var(--text-secondary);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.coherence-plane.diffusion-plane .diff-win__axis {
+  stroke: var(--axis);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.coherence-plane.diffusion-plane .diff-win__label {
+  fill: var(--text-secondary);
+  font-size: var(--fs-diagram-label);
+}
+
+.coherence-plane.diffusion-plane .diff-win__earlycount {
+  fill: var(--text-muted);
+  font-size: var(--fs-diagram-label);
+}

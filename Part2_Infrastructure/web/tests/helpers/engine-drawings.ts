@@ -40,6 +40,9 @@ export const DRAWINGS = [
   // are local to `KalshiArm` and `MeetingTable`; both open on a `<Figure>`.
   "ClockAgreement", "EpisodeWatch", "MeetingTable", "SurvivalChart", "MeetingsEmpty",
   "MeetingCalendar",
+  // The mechanism's windows with the ledger's meetings on them, 2026-08-26.
+  // Replaced a constant-only timeline; opens on a `<Figure>` itself.
+  "StageWindows",
   // Findings / Instrument, 2026-08-25. It replaced a `ValueStrip` that drew
   // two rows of "not measured" on the live read — an empty frame that also
   // duplicated the last two rows of the table beneath it.

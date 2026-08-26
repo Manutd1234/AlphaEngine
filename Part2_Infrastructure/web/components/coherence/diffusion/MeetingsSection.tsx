@@ -22,13 +22,12 @@
 
 import { memo, useState } from "react";
 
-import Figure from "../Figure";
 import PaneHead from "../PaneHead";
-import { STAGE_GAP_MIN, STAGE_TERMINAL_MIN, absorptionNotice, absorptionReady } from "./AbsorptionGate";
+import { absorptionNotice, absorptionReady } from "./AbsorptionGate";
 import MeetingTable from "./MeetingTable";
 import HorizonResolution from "./HorizonResolution";
 import MeetingCalendar from "./MeetingCalendar";
-import StageTimeline from "./StageTimeline";
+import StageWindows from "./StageWindows";
 import type { AbsorptionRead } from "./types";
 
 type MeetingsView = "table" | "calendar" | "mechanism";
@@ -71,25 +70,19 @@ function MeetingsBody({ view, data, error }: {
   data: AbsorptionRead | null;
   error: string | null;
 }) {
-  // Drawn from constants, so it answers before the ledger does and is reachable
-  // on a deployment that has recorded nothing at all.
+  // Reachable before the ledger answers: `StageWindows` takes the read or
+  // null and falls back to the two constants on an empty deployment, so this
+  // branch still opens on a drawing when nothing has been recorded — the same
+  // guarantee the constant-only timeline used to give, kept without keeping
+  // the constant-only figure.
   if (view === "mechanism") {
     return (
       <div className="diff-pane">
-        <Figure
-          caption="Why a rate decision can be measured twice"
-          ariaLabel={`Two stages ${STAGE_GAP_MIN} minutes apart, each measured over its own ${STAGE_TERMINAL_MIN} minute window`}
-          reading="Both windows are the same length and each is measured from its own start, so a difference between them is a difference in absorption, not in the grid."
-        >
-          <StageTimeline gapMinutes={STAGE_GAP_MIN} terminalMinutes={STAGE_TERMINAL_MIN} />
-        </Figure>
+        <StageWindows read={absorptionReady(data) ? data : null} />
 
-        {/* The grid above, then what the ledger actually resolved INSIDE it —
-            grid first, fill second, which is the order a reader meets them in.
-            The timeline draws from constants and answers before the ledger
-            does, so it stays unconditional; this appends only once there is a
-            read to report. `cell.state` and `cell.bars` were both on the wire
-            and drawn nowhere. */}
+        {/* The grid above with the meetings on it, then what the ledger
+            resolved INSIDE that grid — grid first, fill second. `cell.state`
+            and `cell.bars` were both on the wire and drawn nowhere. */}
         {absorptionReady(data) ? <HorizonResolution read={data} /> : null}
       </div>
     );

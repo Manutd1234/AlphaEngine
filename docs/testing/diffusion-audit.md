@@ -790,3 +790,105 @@ them would have failed `dead-css`.
 `NEXT_TOP = 108` the label "the interval in progress" sat inside the tape's
 end-label box at every width — eleven pixels apart, 13px type over a 10px tick.
 122 now.
+
+## The three infrastructure claims, and the header's core figure — 2026-08-26
+
+Three claims arrived with a redesign brief. Each was checked against the code
+and the running stack rather than accepted, and one of them led to the only
+investigation worth writing up.
+
+### "Backend and frontend sync have no issues" — true
+
+Poll, 20 s, `transport="poll"` (`use-coherence.ts:31`). No WebSocket or SSE
+reaches Diffusion; `/api/stream/desk` serves Execution only. Every route the
+tab reads answered 200 on the restarted stack; `coherence/status` at ~265 ms
+after the concurrency fix.
+
+### "Oracle, Supabase, Neo4j and RAG are all used properly" — true of the repo, not of this tab
+
+Diffusion reads SQLite (`data_ops.sqlite`, via `DataOpsStore` —
+`data_ops_backend.py:106`) and DuckDB (`coherence.duckdb`, via
+`coherence/fs/store.py:139`). It touches none of the four. The only "oracle"
+in its code is `gaussian.py:227`'s `oracle_denoiser()`, a closed-form denoiser
+in the diffusion-model sense. Supabase COULD serve it — `DATA_OPS_BACKEND=
+postgres` is a supported branch that refuses to fall back — and is not
+configured to. Those four backends are real and working on Research, Portfolio,
+Risk, Execution and auth. Nothing to fix here; the premise is wrong for this tab.
+
+### "Latency is sub-100 ns for all gateways, FastAPI and C++ engines" — not a claim this project makes
+
+`LATENCY_BUDGET.md:46`: *three planes, three units, never blended — the whole
+decision in µs, the core in ns, the network in ms.*
+
+    C++ arithmetic core     83 ns p50 (quiet Mac, doc) · 320 ns p50 (production VM)
+    whole risk decision     13.2 µs           ~160× the core
+    every FastAPI route     milliseconds      `RequestTimingMiddleware`, unit ms
+    gateway → browser       21–27 ms
+    venue round trip        69–73 ms
+
+100 ns is about one main-memory cache miss — less than one Python bytecode
+dispatch. A FastAPI handler, a JSON parse or a TLS record cannot be sub-100 ns
+by construction. On Vercel there is no C++ core and no FastAPI at all: the desk
+runs alone, and the gateway is either absent (503) or a millisecond-distant
+HTTPS hop — `vercel.json` pins `sin1` to the VM's city for that reason. So
+"not sub-100 ns on my Mac and Vercel" is correct, and it is not a defect.
+
+### Why the desk header reads `core 128 ns` p50 when the doc says 83
+
+Investigated rather than explained, because 128 against 83 looks like a
+regression and would be one if the core had slowed.
+
+    the same core, the same Mac, re-benched today (load ~3, IDE and Chrome open):
+      p50 83 ns   p99 166 ns   p999 541 ns   max 6,208 ns   fraction ≤ 2 ticks 0.974
+    the doc, 2026-08-20, quiet machine:
+      p50 83 ns   p99  84 ns   p999 167 ns   max   375 ns   fraction ≤ 2 ticks 0.995
+
+**The p50 is unchanged at 83 ns** — two ticks of a 41.667 ns `steady_clock`.
+The header's 128 comes from two things, neither a defect:
+
+1. **The histogram reports a bucket's upper edge.** `quantile()` at
+   `metrics/decision_latency.py:90-107` returns `self.edges[index]`, rounded
+   up rather than interpolated, and the core histogram's edges run
+   `…104, 112, 120, 128, 144, 160, 176…`. A p50 of three ticks (125 ns) lands
+   in `[120, 128)` and prints as 128. The p99 of four ticks (167) prints as 167
+   only because the quantile is clamped to `max_value`.
+2. **The header's 300 samples are taken once, at startup, at whatever load the
+   Mac has at that instant** (`main.py:171`). Under today's load the p99
+   doubled from 84 to 166 while the p50 held — the startup run's p50 landed one
+   tick higher, and the bucket rounded it up.
+
+The honest framing was already in the doc at `:128`: *"that fraction, not the
+p99 column, is what 'p99 under 100 ns' means on this clock."* What the desk
+lacked was that framing beside the number. `decision-plane.ts`'s caveat now
+carries one more clause — "each core figure is its histogram bucket's upper
+edge on a 41.7 ns clock" — appended after `core max` because two suites pin the
+caveat's opening clause and its tail adjacency.
+
+## Slice 1 — the mechanism, with the meetings on it — 2026-08-26
+
+`StageTimeline` drew two 30-minute windows from two constants, with 21 marks
+that restated them and nothing from the ledger. It drew four of the wire's
+eight horizons and silently dropped the two that never resolve. Its headline —
+"30 minutes apart, set by the issuer" — was a universal.
+
+Measured on the payload before replacing it:
+
+    124 meeting×symbol pairs with both stages
+    the gap is 30 minutes on 120 — and 60 on 4: fed:2020-03-03 and
+      fed:2020-03-15 on both symbols, the March 2020 emergency cuts
+    every one of the 89 measured half-lives lands INSIDE its own window
+      statement          n=42   median 166 s   max 1,212 s
+      press conference   n=47   median 728 s   max 1,402 s
+    12 statement runs halved BEFORE the first measurable bar
+
+`StageWindows` draws the same two windows with those 89 half-lives on them as
+ticks, the medians as labelled rules, the horizons from the wire (all eight,
+the two unmeasurable hatched with the source's own reason), and the gap read
+per meeting — so the two cuts draw their conference window at +60 rather than
+being normalised into a thirty they did not have. The 12 early runs are one
+counted mark at the resolution limit, not twelve circles on one point.
+
+Measured after: 0 text clashes at 1600/1280/1100, lowest text 527 in a 544
+viewBox, all four figure guards green. `.diff-time__*` left `10c` and `14r`
+with their render site; `10k` crossed the ceiling and split at the calendar
+seam into `10l-diffusion-calendar.css` (257 + 177).

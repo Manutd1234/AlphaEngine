@@ -69,7 +69,9 @@ const RUNG: Record<string, number> = {
   "coh-surface__value": DIAGRAM_LABEL_PX,
   "coh-surface__rise": DIAGRAM_LABEL_PX,
   "coh-calib__barlabel": DIAGRAM_LABEL_PX,
-  "diff-time__label": DIAGRAM_LABEL_PX,
+  // `diff-time__label` left with `StageTimeline` on 2026-08-26; `StageWindows`
+  // draws the same rung under its own name.
+  "diff-win__label": DIAGRAM_LABEL_PX,
   "coh-surface__tick": TICK_PX,
   "coh-ladder__tick": TICK_PX,
   // The decade scale's axis words, added 2026-08-26 with `ShortfallScale`. The
