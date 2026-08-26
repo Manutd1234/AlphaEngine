@@ -581,7 +581,7 @@
     border-radius: var(--radius-sm);
   }
 
-  .codex-table tr.is-active > th {
+  .codex-table tr.is-active > th, .coherence-plane .coh-table tr.is-chosen > th {
     outline: 2px solid Highlight;
     outline-offset: -2px;
     box-shadow: none;

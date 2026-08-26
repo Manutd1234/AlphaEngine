@@ -21,3 +21,27 @@
   fill: var(--text-secondary);
   font-size: var(--fs-tick);
 }
+
+/* The row a reader CHOSE from a figure, and the row under their hand.
+
+   Drawn on the row's HEADER CELL rather than on the `<tr>`: under
+   `border-collapse` a shadow on a row paints unreliably outside Chrome, and
+   the header cell is a box in every engine. Three pixels for a choice against
+   two for a hover, and the primary ink against the secondary — a decision
+   reads heavier than a pointer passing over. */
+.coherence-plane .coh-table tr.is-chosen > th[scope="row"] {
+  box-shadow: inset 3px 0 0 var(--text-primary);
+}
+
+.coherence-plane .coh-table tr.is-hot > th[scope="row"] {
+  box-shadow: inset 2px 0 0 var(--text-secondary);
+}
+
+/* A hot MARK thickens; it never changes fill. A fill would be meaning carried
+   by colour, and hot is not meaning — it is where the reader's hand is, and it
+   is gone the moment the hand moves. */
+.coherence-plane .coh-plot .is-hot {
+  stroke: var(--text-primary);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}

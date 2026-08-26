@@ -25,6 +25,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 
 import { useMeasuredWidth } from "@/components/chart-kit";
 import { useSharedXReadout, type SharedX } from "@/lib/coherence/use-shared-x-readout";
+import { useHot } from "@/lib/coherence/use-hot";
 import { useMarkReadout } from "@/lib/coherence/use-mark-readout";
 
 import { Readout, ReferenceLabel, ReferenceLine, SharedXReadout } from "./plot-overlays";
@@ -278,6 +279,12 @@ export function Plot({
   // way to write this. The cost is one extra commit per readout change, which
   // is a keypress, not a frame loop.
   useEffect(() => { publish?.(announce); }, [publish, announce]);
+  // WHICH mark is under the reader's hand, offered to whatever pair this plot
+  // belongs to. Inert outside a `HotSource`, so a figure standing alone
+  // behaves exactly as it did before this existed — and in an effect for the
+  // same reason as the line above: this sets a PARENT's state.
+  const { setHot } = useHot();
+  useEffect(() => { setHot(marks.hotIndex); }, [setHot, marks.hotIndex]);
 
   return (
     <div

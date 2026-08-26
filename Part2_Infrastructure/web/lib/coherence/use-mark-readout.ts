@@ -71,6 +71,15 @@ export function useMarkReadout(height: number, onSelect?: (index: number) => voi
   const svgRef = useRef<SVGSVGElement>(null);
   const [readout, setReadout] = useState<MarkReadout | null>(null);
   const [focusIndex, setFocusIndex] = useState<number | null>(null);
+  /**
+   * WHICH mark is being shown, for the table beside this figure.
+   *
+   * The readout says WHAT the mark is; a linked table needs to know which ROW
+   * that is, and the honest answer is the mark's place in the list this hook
+   * already holds — so the two halves cannot disagree about which entity is
+   * meant. Never announced and never kept: it is where the reader's hand is.
+   */
+  const [hotIndex, setHotIndex] = useState<number | null>(null);
   // Kept in a ref rather than state: it is recomputed from the DOM on every
   // interaction, and storing it would re-render the figure to describe itself.
   const marks = useRef<Element[]>([]);
@@ -154,13 +163,19 @@ export function useMarkReadout(height: number, onSelect?: (index: number) => voi
     if (!text) return;
     const svg = svgRef.current;
     if (!svg) return;
+    // The list this hook already holds, not a second DOM walk. A mark that is
+    // somehow not in it publishes null rather than -1: an index nothing has
+    // is not a row.
+    const found = marks.current.length ? marks.current : collect();
+    const at = found.indexOf(element);
+    setHotIndex(at >= 0 ? at : null);
     // The mark's own box, in user units — the same space the plot draws in, so
     // the readout lands beside the thing it describes at any rendered size.
     const box = (element as SVGGraphicsElement).getBBox?.();
     setReadout(box
       ? { text, x: box.x + box.width / 2, y: box.y }
       : { text, x: svg.viewBox.baseVal.width / 2, y: height / 2 });
-  }, [height]);
+  }, [collect, height]);
 
   const onPointerMove = useCallback((event: React.PointerEvent<SVGSVGElement>) => {
     let node = event.target as Element | null;
@@ -171,7 +186,7 @@ export function useMarkReadout(height: number, onSelect?: (index: number) => voi
     setReadout(null);
   }, [show]);
 
-  const clear = useCallback(() => { setReadout(null); setFocusIndex(null); }, []);
+  const clear = useCallback(() => { setReadout(null); setFocusIndex(null); setHotIndex(null); }, []);
   focusIndexRef.current = focusIndex;
   clearRef.current = clear;
 
@@ -236,6 +251,8 @@ export function useMarkReadout(height: number, onSelect?: (index: number) => voi
     svgRef,
     readout,
     interactive,
+    /** The index of the mark being shown, for a table linked to this figure. */
+    hotIndex,
     /** Spoken by a live region OUTSIDE the `role="img"` wrapper. */
     announce: readout?.text ?? "",
     /** True only where a caller passed `onSelect` AND there is a mark to choose. */

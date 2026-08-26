@@ -113,8 +113,12 @@ export const TABLES: readonly TableDecl[] = [
     file: "components/coherence/CalibrationCorpus.tsx", tab: "coherence",
     what: "the corpus by series",
     columns: [
-      ["Series", "row.series_ticker", "text"], ["Settled markets", "row.count", "num"],
-      ["Share of the corpus", "row.count", "num"], ["Its own slope", "own", "num"],
+      // The cells read one SORTED array since 2026-08-26 — `corpusRows` — so
+      // this table's row order is the figure's mark order and a mark can be
+      // linked to a row by index. The share and the slope are fields on that
+      // row now rather than sums and lookups rebuilt per cell.
+      ["Series", "row.ticker", "text"], ["Settled markets", "row.count", "num"],
+      ["Share of the corpus", "row.share", "num"], ["Its own slope", "row.slopeRaw", "num"],
     ],
     rowKey: "identifier", wrapper: "folded",
   },

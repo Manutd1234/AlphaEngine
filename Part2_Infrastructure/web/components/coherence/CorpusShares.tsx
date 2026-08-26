@@ -34,6 +34,7 @@
  */
 
 import Figure, { FigureEmpty, Plot } from "./Figure";
+import { corpusRows, type CorpusRow } from "@/lib/coherence/corpus-rows";
 import { DIAGRAM_LABEL_PX, advancePx } from "@/lib/coherence/label-metrics";
 import { pct } from "@/lib/format";
 import type { CoherenceCalibration } from "@/lib/coherence/types-lab";
@@ -46,37 +47,23 @@ const BAR_MAX = 19;
 /** How far either side of the calibrated slope the axis reaches. */
 const SPREAD = 0.6;
 
-interface Row {
-  ticker: string;
-  count: number;
-  share: number | null;
-  slope: number | null;
-  slopeText: string;
-}
 
-function rowsOf(data: CoherenceCalibration): { rows: Row[]; corpus: number } {
-  const corpus = data.composition.reduce((sum, row) => sum + row.count, 0);
-  const slopes = new Map((data.bias_by_series ?? []).map((row) => [row.series_ticker, row.slope]));
-  const rows = [...data.composition]
-    .sort((a, b) => b.count - a.count)
-    .map((row) => {
-      const raw = slopes.get(row.series_ticker);
-      const slope = raw == null ? null : Number(raw);
-      return {
-        ticker: row.series_ticker,
-        count: row.count,
-        share: corpus > 0 ? row.count / corpus : null,
-        // NOT `|| null`: a slope of exactly zero is a real reading — prices that
-        // did not move with the outcome at all — and would be erased by it.
-        slope: slope != null && Number.isFinite(slope) ? slope : null,
-        slopeText: raw == null ? "no slope reported" : raw.slice(0, 6),
-      };
-    });
-  return { rows, corpus };
-}
-
-export default function CorpusShares({ data }: { data: CoherenceCalibration }) {
-  const { rows, corpus } = rowsOf(data);
+export default function CorpusShares({ data, onSelect, hot }: {
+  data: CoherenceCalibration;
+  /**
+   * Called with the series a reader chose, when the section gave a handler.
+   * Passed only when given: an always-passed handler would make every one of
+   * these figures selectable with a click that does nothing.
+   */
+  onSelect?: (row: CorpusRow) => void;
+  /** Which mark the reader's hand is on, from the table beside this figure. */
+  hot?: number | null;
+}) {
+  // ONE SORTED ARRAY, shared with the table that explains it. The sort used to
+  // live here and the table iterated the wire's order, which is fine to look
+  // at and wrong to link: a mark's index and a row's index named different
+  // series.
+  const { rows, corpus } = corpusRows(data);
   const heaviest = rows[0] ?? null;
   const scored = rows.filter((row) => row.slope != null);
 
@@ -121,7 +108,10 @@ export default function CorpusShares({ data }: { data: CoherenceCalibration }) {
         + "happened.",
       ]}
     >
-      <Plot height={height}>
+      <Plot
+        height={height}
+        onSelect={onSelect ? (index) => onSelect(rows[index]) : undefined}
+      >
         {(width: number) => {
           const gutter = Math.max(...rows.map((row) => advancePx(row.ticker, DIAGRAM_LABEL_PX)));
           // "89.3%, slope no slope reported" — the word was prefixed to a
@@ -166,7 +156,7 @@ export default function CorpusShares({ data }: { data: CoherenceCalibration }) {
                             one rather than silently absent from the mixture. */}
                         <rect
                           x={mid - bar / 2} y={y - bar / 2} width={bar} height={bar}
-                          className="coh-mix__unscored"
+                          className={`coh-mix__unscored${index === hot ? " is-hot" : ""}`}
                         >
                           <title>{`${row.ticker}: ${row.count} settled, ${row.slopeText}`}</title>
                         </rect>
@@ -178,7 +168,7 @@ export default function CorpusShares({ data }: { data: CoherenceCalibration }) {
                         y={y - bar / 2}
                         width={Math.max(2, Math.abs(at - mid))}
                         height={bar}
-                        className={`coh-mix__bar${row.slope != null && row.slope > 1 ? " is-over" : " is-under"}`}
+                        className={`coh-mix__bar${row.slope != null && row.slope > 1 ? " is-over" : " is-under"}${index === hot ? " is-hot" : ""}`}
                       >
                         <title>
                           {`${row.ticker}: ${row.count} of ${corpus} settled markets, slope ${row.slopeText} — `

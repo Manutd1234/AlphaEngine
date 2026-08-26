@@ -21,19 +21,18 @@
  * together.
  */
 
+import { useCallback, useState } from "react";
+
 import { pct } from "@/lib/format";
 import type { CoherenceCalibration } from "@/lib/coherence/types-lab";
 
 import CorpusShares from "./CorpusShares";
+import { ChosenStatus, useChosen } from "@/lib/coherence/use-chosen";
+import { corpusRows, type CorpusRow } from "@/lib/coherence/corpus-rows";
 import { decimalLabel } from "@/lib/coherence/decimals";
+import { HotSource, useHot } from "@/lib/coherence/use-hot";
 
 export default function CalibrationCorpus({ data }: { data: CoherenceCalibration }) {
-  const corpus = data.composition.reduce((sum, row) => sum + row.count, 0);
-  const heaviest = data.composition.reduce<{ series_ticker: string; count: number } | null>(
-    (carry, row) => (carry == null || row.count > carry.count ? row : carry),
-    null,
-  );
-
   return (
     <>
       <section className="coh-calib__composition">
@@ -42,70 +41,14 @@ export default function CalibrationCorpus({ data }: { data: CoherenceCalibration
             first line — and the two peer views, Score and Bands, draw none.
             The strip's caption says what is being counted. */}
         {data.composition.length ? (
-          <>
-          {/* ONE FIGURE FOR TWO FACTS, 2026-08-26. Two `ValueStrip`s stood
-              here — a share strip and a slope strip — over the same four
-              labels, on two axes, with a reader asked to join them by name.
-              "the information is too cluttered", and the clutter was that the
-              two facts only mean anything TOGETHER: an aggregate slope sitting
-              at one can be two series pointing opposite ways, which is the
-              whole argument this view makes and neither strip could show.
-
-              `CorpusShares` carries the slope as position against the rule at
-              one and the share as bar HEIGHT, so a heavy mark far from the rule
-              is the finding rather than something a reader assembles. The
-              paragraph that restated the first strip's reading is that figure's
-              own `reading` now — same sentence, one place. */}
-          <CorpusShares data={data} />
-
-          {/* THE FINDING STAYS OPEN, THE ROWS GO BEHIND A SUMMARY (fourth
-              review of 2026-08-24). It used to be one caption carrying both,
-              which meant a reader met the mixture claim only if they read a
-              table's caption — and the whole point of the view is that one
-              series is usually most of the picture, which the strip above now
-              draws. What is behind the summary is the per-series detail: the
-              exact share and the series' own slope, one row each. */}
-          {/* THE FINDING MOVED INTO THE FIGURE. It was this paragraph AND the
-              share strip's `reading` — the same sentence twice on one view, in
-              two voices. `CorpusShares` says it once, under the drawing that
-              makes it. */}
-
-          <details className="disclosure">
-            <summary>{`Every series in the corpus, its share and its own slope, ${data.composition.length} rows`}</summary>
-          <div className="table-wrap">
-            <table className="coh-table">
-              <caption className="coh-table__caption">
-                Shares divide by the {corpus} in this composition, not the {data.count} scored. A series with no
-                slope of its own shows a dash; the corpus figure never stands in for it, because the aggregate
-                averages series that are not the same question.
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col">Series</th>
-                  <th scope="col" className="num">Settled markets</th>
-                  <th scope="col" className="num">Share of the corpus</th>
-                  <th scope="col" className="num">Its own slope</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.composition.map((row) => {
-                  const own = (data.bias_by_series ?? []).find(
-                    (item) => item.series_ticker === row.series_ticker,
-                  );
-                  return (
-                    <tr key={row.series_ticker}>
-                      <th scope="row">{row.series_ticker}</th>
-                      <td className="num">{row.count}</td>
-                      <td className="num">{corpus > 0 ? pct(row.count / corpus) : "—"}</td>
-                      <td className="num">{own ? decimalLabel(own.slope, 4) : "—"}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          </details>
-          </>
+          // THE PROVIDER SCOPES THE HOT INDEX TO THIS PAIR, and that scope is
+          // the whole reason it is here rather than around the section: a row
+          // hover redraws the figure and its table, not every figure on the
+          // view. The child below holds both halves, so the index they share
+          // is an index into one array.
+          <HotSource>
+            <Composition data={data} />
+          </HotSource>
         ) : (
           <p className="coh-event__note">
             <span aria-hidden="true">◌</span> The engine did not say which series these came from, so the selection
@@ -126,6 +69,95 @@ export default function CalibrationCorpus({ data }: { data: CoherenceCalibration
           <p>{data.detail}</p>
         </details>
       ) : null}
+    </>
+  );
+}
+
+/**
+ * The figure and the table that explains it, over ONE sorted array.
+ *
+ * Both halves map `corpusRows`, so a mark's index and a row's index name the
+ * same series — the condition every link on this engine is built on. Two
+ * directions, and they are different questions: HOT is where the reader's hand
+ * is (either half publishes it, neither speaks it, and it is gone when the
+ * hand moves), CHOSEN is a decision (Enter or a click on a mark), which opens
+ * the fold, marks the row, moves focus to it and says so once.
+ *
+ * A CHOICE HAS TO OPEN THE FOLD. The rows live behind a summary, so choosing a
+ * bar while it is shut would scroll a reader to nothing and read as a dead
+ * control. The fold is controlled from here and still closes by hand, because
+ * `onToggle` hands its own state back.
+ */
+function Composition({ data }: { data: CoherenceCalibration }) {
+  const { hot, setHot } = useHot();
+  const { chosen, choose, announced } = useChosen<string>();
+  const [open, setOpen] = useState(false);
+  const { rows, corpus } = corpusRows(data);
+
+  const pick = useCallback((row: CorpusRow) => {
+    setOpen(true);
+    choose(
+      row.ticker,
+      `${row.ticker}: ${row.count} settled markets, `
+      + `${row.share == null ? "share not known" : `${pct(row.share)} of the corpus`}`
+      + `, ${row.slope == null ? "no slope of its own" : `slope ${row.slopeText}`}. Its row is open below.`,
+    );
+    // AFTER the commit that opens the fold and marks the row, never during it:
+    // a row inside a shut `<details>` cannot take focus.
+    requestAnimationFrame(() => {
+      document.getElementById(`coh-corpus-${row.ticker}`)?.focus();
+    });
+  }, [choose]);
+
+  return (
+    <>
+      <CorpusShares data={data} onSelect={pick} hot={hot} />
+      {/* OUTSIDE the figure's `role="img"`, which is presentational to
+          assistive technology — a sentence placed inside it would be drawn and
+          announced to nobody. */}
+      <ChosenStatus announced={announced} />
+
+      <details className="disclosure" open={open} onToggle={(event) => setOpen(event.currentTarget.open)}>
+        <summary>{`Every series in the corpus, its share and its own slope, ${rows.length} rows`}</summary>
+        <div className="table-wrap">
+          <table className="coh-table">
+            <caption className="coh-table__caption">
+              Shares divide by the {corpus} in this composition, not the {data.count} scored. A series with no
+              slope of its own shows a dash; the corpus figure never stands in for it, because the aggregate
+              averages series that are not the same question.
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Series</th>
+                <th scope="col" className="num">Settled markets</th>
+                <th scope="col" className="num">Share of the corpus</th>
+                <th scope="col" className="num">Its own slope</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, index) => (
+                <tr
+                  key={row.ticker}
+                  id={`coh-corpus-${row.ticker}`}
+                  tabIndex={-1}
+                  className={[row.ticker === chosen ? "is-chosen" : null, index === hot ? "is-hot" : null]
+                    .filter(Boolean)
+                    .join(" ") || undefined}
+                  onPointerEnter={() => setHot(index)}
+                  onPointerLeave={() => setHot(null)}
+                  onFocus={() => setHot(index)}
+                  onBlur={() => setHot(null)}
+                >
+                  <th scope="row">{row.ticker}</th>
+                  <td className="num">{row.count}</td>
+                  <td className="num">{row.share == null ? "—" : pct(row.share)}</td>
+                  <td className="num">{decimalLabel(row.slopeRaw, 4)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </details>
     </>
   );
 }
