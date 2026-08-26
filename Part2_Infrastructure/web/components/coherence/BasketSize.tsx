@@ -63,6 +63,7 @@ import {
   exposureBands,
   liquidityDepth,
 } from "@/lib/coherence/universe-metrics";
+import { pct } from "@/lib/format";
 
 /** Cents, exactly. Every band edge is a whole number of 1/8 dollars, so this
  *  never produces a repeating decimal — 0, 12.5, 25, 37.5 and so on. */
@@ -101,22 +102,22 @@ export default function BasketSize({ universe }: { universe: CoherenceUniverse }
       <dl className="coh-status__facts coh-facts--boxed">
         <div>
           <dt>Total basket value</dt>
-          <dd>{dollarsLabel(value.totalCc)}</dd>
+          <dd className="num">{dollarsLabel(value.totalCc)}</dd>
           <dd className="coh-event__meta">{valueNote}</dd>
         </div>
         <div>
           <dt>Active contracts</dt>
-          <dd>{contractsLabel(contracts.totalCc)}</dd>
+          <dd className="num">{contractsLabel(contracts.totalCc)}</dd>
           <dd className="coh-event__meta">{strictNote(contracts, "open interest")}</dd>
         </div>
         <div>
           <dt>Liquidity depth</dt>
-          <dd>{dollarsLabel(depth.totalCc)}</dd>
+          <dd className="num">{dollarsLabel(depth.totalCc)}</dd>
           <dd className="coh-event__meta">{strictNote(depth, "resting order book")}</dd>
         </div>
       </dl>
 
-      <div className="table-wrap">
+      <div className="table-wrap" tabIndex={0}>
         <table className="coh-table">
           <caption className="coh-table__caption">
             Where each family&rsquo;s open interest is offered. A cell is that band&rsquo;s share of its own
@@ -151,12 +152,12 @@ export default function BasketSize({ universe }: { universe: CoherenceUniverse }
                          figure is what carries the meaning; the fill only
                          speeds up finding it, and forced-colors drops it. */
                       style={band.share == null ? undefined : {
-                        background: `color-mix(in srgb, var(--series-1) ${Math.round(band.share * 100)}%, var(--surface-1))`,
+                        background: `color-mix(in srgb, var(--series-1) ${pct(band.share, 0)}, var(--surface-1))`,
                       }}
                       title={`${event.event_ticker}, outcomes offered from ${centsOf(band.lowCc)}c to `
                         + `${centsOf(band.highCc)}c: ${contractsLabel(band.contractsCc)} contracts`}
                     >
-                      {band.share == null ? "—" : `${Math.round(band.share * 100)}%`}
+                      {pct(band.share, 0)}
                     </td>
                   ))}
                 </tr>

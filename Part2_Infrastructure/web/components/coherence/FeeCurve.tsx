@@ -70,10 +70,29 @@ export default function FeeCurve({ curve, error }: {
   }
 
   const points = curve.points;
-  const price = points.map((point) => toUnit(point.price) ?? 0);
-  const net = points.map((point) => toUnit(point.net));
-  const trade = points.map((point) => toUnit(point.trade_fee));
-  const peak = Math.max(...net.map((v) => v ?? 0), ...trade.map((v) => v ?? 0));
+  /* A point is drawn only when all three of its wire strings parse. Before
+     2026-08-26 a null here became 0 — a price at zero, a fee at zero — and the
+     line ran through a value the wire never carried. Withheld points are
+     counted in `missing` instead, and a curve with fewer than two draws its
+     empty branch. */
+  const drawable = points.flatMap((point) => {
+    const p = toUnit(point.price);
+    const n = toUnit(point.net);
+    const t = toUnit(point.trade_fee);
+    return p === null || n === null || t === null ? [] : [{ point, p, n, t }];
+  });
+  const withheld = points.length - drawable.length;
+  if (drawable.length < 2) {
+    return (
+      <Figure caption={caption} ariaLabel={aria}>
+        <FigureEmpty reason={`${withheld} of ${points.length} points carried no readable price, net or trade fee, and a line needs two.`} />
+      </Figure>
+    );
+  }
+  const price = drawable.map((d) => d.p);
+  const net = drawable.map((d) => d.n);
+  const trade = drawable.map((d) => d.t);
+  const peak = Math.max(...net, ...trade);
   /* Where the two lines are furthest apart, which is the reading this figure
      adds — and the gap is NOT the rounding fee, which is the mistake the first
      version of this sentence made. `net` is `max(0, trade + rounding − rebate)`,
@@ -83,9 +102,9 @@ export default function FeeCurve({ curve, error }: {
      they disagreed: the widest gap is at 0.2100 and the largest raw rounding at
      0.3200. The gap is what the figure draws, so the gap is what it reports. */
   let widest = 0;
-  let widestAt = points[0];
-  points.forEach((point, index) => {
-    const gap = (net[index] ?? 0) - (trade[index] ?? 0);
+  let widestAt = drawable[0].point;
+  drawable.forEach(({ point, n, t }) => {
+    const gap = n - t;
     if (gap > widest) { widest = gap; widestAt = point; }
   });
 
@@ -103,7 +122,8 @@ export default function FeeCurve({ curve, error }: {
             + "trade fee alone."
       }
       missing={`Drawn at the taker rate ${curve.multiplier} and a balance precision of ${curve.balance_precision}; `
-        + "a resting order pays the maker rate and is not on this figure."}
+        + "a resting order pays the maker rate and is not on this figure."
+        + (withheld > 0 ? ` ${withheld} of ${points.length} points carried no readable price, net or trade fee and are not drawn.` : "")}
       notes={[
         "Computed by the gateway's own fee kernel — the same one the worked example above runs — rather than "
         + "from a formula in the browser. The three-component fee is not closed form: it depends on the fill "
@@ -139,13 +159,13 @@ export default function FeeCurve({ curve, error }: {
                   one that includes it sits on top. */}
               <path
                 className="coh-fee-curve__trade"
-                d={linePath(price.map((p, i) => ({ x: x(p), y: trade[i] == null ? null : y(trade[i]!) })))}
+                d={linePath(price.map((p, i) => ({ x: x(p), y: y(trade[i]) })))}
               >
                 <title>The trade fee alone — rate x contracts x p x (1 - p)</title>
               </path>
               <path
                 className="coh-fee-curve__net"
-                d={linePath(price.map((p, i) => ({ x: x(p), y: net[i] == null ? null : y(net[i]!) })))}
+                d={linePath(price.map((p, i) => ({ x: x(p), y: y(net[i]) })))}
               >
                 <title>The net fee the gateway computes, rounding included</title>
               </path>

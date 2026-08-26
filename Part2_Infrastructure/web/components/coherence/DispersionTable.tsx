@@ -71,7 +71,7 @@ export default function DispersionTable({ rows }: { rows: CoherenceDispersion[] 
         Every maker panel across twelve columns, {rows.length}{" "}
         {rows.length === 1 ? "market" : "markets"}
       </summary>
-    <div className="table-wrap">
+    <div className="table-wrap" tabIndex={0}>
       <table className="coh-table">
         <caption className="coh-table__caption">
           Spread is the disagreement between makers, median width is one maker&rsquo;s own bid-offer — opposite

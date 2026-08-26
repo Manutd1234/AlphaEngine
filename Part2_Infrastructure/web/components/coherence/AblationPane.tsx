@@ -64,7 +64,10 @@ function Bars({ ablations }: { ablations: CoherenceAblation[] }) {
   const peak = Math.max(...ablations.map((row) => row.worth_doing), 1);
   const naive = ablations.find((row) => row.name === "no_fees");
   const full = ablations.find((row) => row.name === "full");
-  const invented = (naive?.worth_doing ?? 0) - (full?.worth_doing ?? 0);
+  // A configuration the tape did not run is not a configuration that found
+  // zero. With either missing there is no difference to report, and the
+  // reading says so rather than announcing agreement (null-honest, 2026-08-26).
+  const invented = naive && full ? naive.worth_doing - full.worth_doing : null;
   const missing = untestableNote(ablations);
 
   if (!ablations.some((row) => row.violations > 0)) {
@@ -85,11 +88,13 @@ function Bars({ ablations }: { ablations: CoherenceAblation[] }) {
   return (
     <Figure
       caption={CAPTION}
-      ariaLabel={`${ablations.length} configurations compared; the naive test finds ${naive?.worth_doing ?? 0} and the full model finds ${full?.worth_doing ?? 0}`}
+      ariaLabel={`${ablations.length} configurations compared; ${naive ? `the naive test finds ${naive.worth_doing}` : "the naive test did not run"} and ${full ? `the full model finds ${full.worth_doing}` : "the full model did not run"}`}
       reading={
-        invented > 0
-          ? `Fees off reports ${invented} more tradable arbitrage(s) than fees on — opportunities that do not exist.`
-          : "The naive and fee-aware tests agree on this tape."
+        invented === null
+          ? `The tape ran ${!naive && !full ? "neither the fee-free nor the full-model" : naive ? "no full-model" : "no fee-free"} configuration, so the two cannot be compared.`
+          : invented > 0
+            ? `Fees off reports ${invented} more tradable arbitrage(s) than fees on — opportunities that do not exist.`
+            : "The naive and fee-aware tests agree on this tape."
       }
       missing={missing}
     >
@@ -201,7 +206,7 @@ export default function AblationPane({ view, active }: { view: AblationView; act
           noBar: statValue(row.net_total) == null ? "not readable" : undefined,
         }))}
       />
-      <div className="table-wrap">
+      <div className="table-wrap" tabIndex={0}>
         <table className="coh-table">
           <caption className="coh-table__caption">
             The same tape under every configuration — {data.rows} books, {data.observations} families.{" "}

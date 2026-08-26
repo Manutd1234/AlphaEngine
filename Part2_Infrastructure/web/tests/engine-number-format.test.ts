@@ -112,7 +112,9 @@ describe("a formatter is declared once, in lib/coherence/decimals.ts", () => {
 describe("a share printed in JSX goes through pct(), a cut string through decimalLabel", () => {
   it("no Math.round(x * 100)% in rendered text", () => {
     // The Markets session's one, applied with slice 19; asserted to still exist.
-    const KNOWN = ["components/coherence/BasketSize.tsx"];
+    // Repaid 2026-08-26 (BasketSize prints `pct(share, 0)`); the list stays so
+    // the next debt has somewhere to be declared, and is asserted empty-or-red.
+    const KNOWN: string[] = [];
     const offenders: string[] = [];
     const debts: string[] = [];
     for (const [file, source] of SOURCES) {
@@ -124,7 +126,7 @@ describe("a share printed in JSX goes through pct(), a cut string through decima
       }
     }
     assert.deepEqual(offenders, []);
-    assert.ok(debts.length, "BasketSize's rounded share is repaid — remove it from KNOWN");
+    if (KNOWN.length) assert.ok(debts.length, "a KNOWN rounded share is repaid — remove it from KNOWN");
   });
   it("no wire string is shortened with .slice() in a cell", () => {
     const offenders: string[] = [];
@@ -164,25 +166,20 @@ ratchet("toFixed(", /\.toFixed\(/g, {
 });
 
 ratchet("?? 0 / || 0", /\?\? 0\b|\|\| 0\b/g, {
-  "components/coherence/AblationPane.tsx": { count: 4, reason: "the Markets session's to judge: a null worth_doing coerced in a difference and an aria-label" },
   "components/coherence/ValueStrip.tsx": { count: 2, reason: "an axis extent seeded at zero — geometry, the values themselves are never coerced" },
   "components/coherence/IndexSeriesChart.tsx": { count: 1, reason: "a counter: (map.get(k) ?? 0) + 1" },
   "components/coherence/UniverseSection.tsx": { count: 1, reason: "a counter" },
   "components/coherence/IndexPane.tsx": { count: 1, reason: "a counter" },
   "components/coherence/HorizonAxis.tsx": { count: 1, reason: "axis width only, argued in place; the null mark is withheld" },
-  "components/coherence/FeeCurve.tsx": { count: 5, reason: "the Markets session's: float points on the fee curve" },
   "components/coherence/ConstraintLadder.tsx": { count: 2, reason: "counts of rows a missing set contributes none of" },
   "components/coherence/surface/StakeBars.tsx": { count: 1, reason: "a track width floor" },
   "components/coherence/FamilyRidge.tsx": { count: 2, reason: "an ordinal slot lookup that cannot miss, and a shared-y scale floor — geometry; the peak itself prints through fromCenticents" },
   "components/coherence/FrechetBand.tsx": { count: 1, reason: "violated_rows is a row COUNT the wire omits when it checked none; the reading names the rows, so a null here is not a metric coerced" },
-  "components/coherence/BasketComposition.tsx": { count: 1, reason: "the Markets session's: a counter" },
+  "components/coherence/BasketComposition.tsx": { count: 1, reason: "a counter: (map.get(k) ?? 0) + 1" },
 });
 
 ratchet("$-template", /`\$\$\{|\$\$\{/g, {
   "components/coherence/BasketWhatIf.tsx": { count: 3, reason: "the reader's own slider total, in cents ÷ 100" },
-  "components/coherence/PriceHistogram.tsx": { count: 1, reason: "the Markets session's: an axis label built from cents" },
-  "components/coherence/BasketOverview.tsx": { count: 1, reason: "the Markets session's: dollarsLabel is the helper" },
-  "components/coherence/BasketComposition.tsx": { count: 1, reason: "the Markets session's: dollarsLabel is the helper" },
 });
 
 describe("the tabular-numerals ratchet knows every engine formatter", () => {

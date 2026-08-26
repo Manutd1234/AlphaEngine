@@ -33,7 +33,7 @@
 import { DOLLAR_CC, fromCenticents, sumPrices } from "@/lib/coherence/fixed-point";
 import type { CoherenceEventView } from "@/lib/coherence/types";
 import { DIAGRAM_LABEL_PX, glyphClassOf, glyphsWithin } from "@/lib/coherence/label-metrics";
-import { groupDigits } from "@/lib/coherence/universe-metrics";
+import { dollarsLabel } from "@/lib/coherence/universe-metrics";
 import Figure, { FigureEmpty, Plot } from "./Figure";
 
 /** Matches `DollarBar`, so a reader moving between the two is not re-scaled. */
@@ -192,10 +192,7 @@ export default function BasketOverview({ rows, caption }: { rows: BasketOverview
                    The two marks stay ON the bar: a filled disc where buying
                    every outcome lands, a hollow square where selling does. */
                 const extent = ask ?? bid;
-                const money = (cc: number | null) => {
-                  const raw = fromCenticents(cc);
-                  return raw == null ? "not priced" : `$${groupDigits(raw)}`;
-                };
+                const money = (cc: number | null) => (cc == null ? "not priced" : dollarsLabel(cc));
                 const status = !row.mutuallyExclusive
                   ? "not mutually exclusive"
                   : ask == null && bid == null

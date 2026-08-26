@@ -39,16 +39,11 @@ import { read } from "./helpers/workspace-sources";
 
 const MARKS = /[●▲✕○◌✓→]/;
 
-/** `file#nth → rule` debts that are asserted red until the session that holds the file lands them. */
+/** `file#nth → rule` debts that are asserted red until the session that holds the file lands them.
+ *  Empty since 2026-08-26 — the eight Markets debts were repaid in one slice, each proved by this
+ *  list's own "now satisfies" assertion going red before its entry left. The list stays so the next
+ *  debt has a place to be declared rather than an allow-list to hide in. */
 const KNOWN_RED: ReadonlyArray<readonly [key: string, rule: string]> = [
-  ["components/coherence/AblationPane.tsx#0", "focusable-wrap"],
-  ["components/coherence/BasketSize.tsx#0", "focusable-wrap"],
-  ["components/coherence/DispersionTable.tsx#0", "focusable-wrap"],
-  ["components/coherence/FeesPane.tsx#0", "focusable-wrap"],
-  ["components/coherence/UniversePane.tsx#0", "focusable-wrap"],
-  ["components/coherence/surface/StakeView.tsx#0", "focusable-wrap"],
-  ["components/coherence/UniversePane.tsx#0", "num-column:Grid"],
-  ["components/coherence/FeesPane.tsx#0", "total-row"],
 ];
 const known = new Set(KNOWN_RED.map(([key, rule]) => `${key} ${rule}`));
 

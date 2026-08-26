@@ -82,14 +82,11 @@ const RIGHT = 10;
  *  are anchored inward so neither overhangs the frame. */
 const LABEL_EVERY = 4;
 
-/** Whole centicents to a dollar string, by integer arithmetic. `toFixed` on a
- *  divided price is the binary64 the whole fixed-point module exists to avoid,
- *  and every boundary here is a whole number of cents. */
-function dollars(cc: number): string {
-  const whole = Math.floor(cc / DOLLAR_CC);
-  const cents = Math.round((cc % DOLLAR_CC) / 100);
-  return `$${whole}.${String(cents).padStart(2, "0")}`;
-}
+/** A band boundary in cents — every one here is a whole number of them, so
+ *  the division is exact and the label matches how BasketSize names the same
+ *  bands ("5c to 10c"). Until 2026-08-26 this was a `$0.05` built by hand,
+ *  the one `$` template on the engine that was not the reader's own slider. */
+const cents = (cc: number): string => `${cc / 100}c`;
 
 export interface PriceHistogramProps {
   markets: CoherenceMarketView[];
@@ -138,10 +135,10 @@ export default function PriceHistogram({ markets, caption }: PriceHistogramProps
   // the first would be the figure choosing a reading the drawing does not make.
   const tied = counts.filter((count) => count === max).length;
   const reading = `${quoted} of ${markets.length} outcomes carry an ask, and the busiest five-cent band holds `
-    + `${max} of them, from ${dollars(peak * BUCKET_CC)} to ${dollars((peak + 1) * BUCKET_CC)}`
+    + `${max} of them, from ${cents(peak * BUCKET_CC)} to ${cents((peak + 1) * BUCKET_CC)}`
     + `${tied > 1 ? `, one of ${tied} bands that tall` : ""}.`;
   const ariaLabel = counts
-    .map((count, index) => `${dollars(index * BUCKET_CC)} to ${dollars((index + 1) * BUCKET_CC)}: ${count}`)
+    .map((count, index) => `${cents(index * BUCKET_CC)} to ${cents((index + 1) * BUCKET_CC)}: ${count}`)
     .join(". ");
 
   return (
@@ -164,8 +161,8 @@ export default function PriceHistogram({ markets, caption }: PriceHistogramProps
               {counts.map((count, index) => {
                 if (!count) return null;
                 const top = yOf(count);
-                const lo = dollars(index * BUCKET_CC);
-                const hi = dollars((index + 1) * BUCKET_CC);
+                const lo = cents(index * BUCKET_CC);
+                const hi = cents((index + 1) * BUCKET_CC);
                 return (
                   <rect
                     key={lo}
@@ -194,7 +191,7 @@ export default function PriceHistogram({ markets, caption }: PriceHistogramProps
                     textAnchor={index === 0 ? "start" : index === BUCKETS ? "end" : "middle"}
                     className="coh-axis__label"
                   >
-                    {dollars(index * BUCKET_CC)}
+                    {cents(index * BUCKET_CC)}
                   </text>
                 );
               })}

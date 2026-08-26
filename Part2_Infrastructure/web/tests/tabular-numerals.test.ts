@@ -75,11 +75,6 @@ const ALLOWED = new Set<string>([
   // The utilisation figure sits inside a positioned span whose colour IS the
   // reading; it is one number under a bar, not a column of them.
   "components/execution/LiquidityBook.tsx",
-  // DEBT, not an exemption: three <dd> cells printing dollarsLabel and
-  // contractsLabel, surfaced when NUMERIC learned the engine's six helpers on
-  // 2026-08-26. The Markets session applies `.num` with its layout slice; the
-  // entry leaves then, or the stale check below throws it out.
-  "components/coherence/BasketSize.tsx",
 ]);
 
 describe("the scan is finding what it counts", () => {

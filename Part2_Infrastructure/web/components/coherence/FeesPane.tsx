@@ -282,7 +282,7 @@ export default function FeesPane({
           Every fill through all three components, {fees.per_fill.length}{" "}
           {fees.per_fill.length === 1 ? "fill" : "fills"} and the total
         </summary>
-      <div className="table-wrap">
+      <div className="table-wrap" tabIndex={0}>
         <table className="coh-table">
           <caption className="coh-table__caption">
             The rebate is the accumulator giving back whole cents.
@@ -308,7 +308,9 @@ export default function FeesPane({
                 <td className="num">{fill.notional}</td>
               </tr>
             ))}
-            {fees.total ? (
+          </tbody>
+          {fees.total ? (
+            <tfoot>
               <tr className="coh-table__total">
                 <th scope="row">Total</th>
                 <td className="num">{fees.total.trade_fee}</td>
@@ -317,8 +319,8 @@ export default function FeesPane({
                 <td className="num">{fees.total.net}</td>
                 <td className="num">{fees.total.notional}</td>
               </tr>
-            ) : null}
-          </tbody>
+            </tfoot>
+          ) : null}
         </table>
       </div>
       </details>

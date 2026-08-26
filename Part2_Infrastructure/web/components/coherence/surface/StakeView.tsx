@@ -106,7 +106,7 @@ function CapitalBar({ kelly }: { kelly: CoherenceKelly }) {
 /** The stake ledger, over whichever slice of the family it is handed. */
 export function StakeTable({ stakes, caption }: { stakes: CoherenceKelly["stakes"]; caption: string }) {
   return (
-    <div className="table-wrap">
+    <div className="table-wrap" tabIndex={0}>
       <table className="coh-table">
         <caption className="coh-table__caption">{caption}</caption>
         <thead>

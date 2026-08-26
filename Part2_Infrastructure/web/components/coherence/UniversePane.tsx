@@ -145,7 +145,7 @@ function EventCard({ event }: { event: CoherenceEventView }) {
 
       <details className="coh-event__outcomes">
         <summary>Every outcome as quoted, {event.markets.length} rows</summary>
-        <div className="table-wrap">
+        <div className="table-wrap" tabIndex={0}>
           <table className="coh-table">
             <caption className="coh-table__caption">
               {unquoted
@@ -159,7 +159,7 @@ function EventCard({ event }: { event: CoherenceEventView }) {
                 <th scope="col" className="num">YES bid</th>
                 <th scope="col" className="num">YES ask</th>
                 <th scope="col" className="num">Spread</th>
-                <th scope="col">Grid</th>
+                <th scope="col" className="num">Grid</th>
               </tr>
             </thead>
             <tbody>
@@ -170,7 +170,7 @@ function EventCard({ event }: { event: CoherenceEventView }) {
                   <td className="num">{market.yes_bid ?? "—"}</td>
                   <td className="num">{market.yes_ask ?? "—"}</td>
                   <td className="num">{market.spread ?? "—"}</td>
-                  <td>{market.price_grid}</td>
+                  <td className="num">{market.price_grid}</td>
                 </tr>
               ))}
             </tbody>
