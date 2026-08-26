@@ -5641,6 +5641,17 @@
             "title": "Run Id",
             "type": "string"
           },
+          "sigma_pre_per_bar": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sigma Pre Per Bar"
+          },
           "signal_reason": {
             "anyOf": [
               {
@@ -5693,6 +5704,17 @@
               }
             ],
             "title": "Terminal Return"
+          },
+          "terminal_sigmas": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Terminal Sigmas"
           }
         },
         "required": [

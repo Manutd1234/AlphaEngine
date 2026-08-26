@@ -21,12 +21,14 @@
  * fraction of the refused set sits just under the gate. That is a fact about
  * the floor a reader should see, and the attrition block hid it.
  *
- * THE ACCEPTED RUNS ARE NOT ON THIS AXIS, and the figure says so rather than
- * drawing them at the floor. Their sigma is `sigma_pre_per_bar` — persisted in
- * the run dataclass, not yet on the wire — so the 89 that cleared are counted
- * above the floor in the header and placed nowhere. The gateway change that
- * closes this is one field; until it lands, "cleared" is the only honest
- * position for them.
+ * EVERY STAGE IS ON THIS AXIS since 2026-08-26. The wire carries
+ * `terminal_sigmas` — the judged ratio, computed on the gateway from the one
+ * formula `_judge` uses — for the 89 that cleared as well as the 159 refused,
+ * so the histogram runs past the floor and the accepted stages sit where the
+ * floor actually saw them: from just over 2σ to the far end. The refusal
+ * sentence is read only as a fallback against a gateway that predates the
+ * field, and a stage with neither is counted off the axis, never drawn at
+ * nought.
  *
  * Every pin from `diffusion-figures.test.ts` is kept: `controls_used` is not
  * read (it is the windows FOUND, not the rank's population), this is a sigma
@@ -37,6 +39,7 @@
 import { memo } from "react";
 
 import { refusalSigma, sigmaBuckets } from "@/lib/coherence/signal-sigma";
+import { fmt } from "@/lib/format";
 import Figure, { FigureEmpty, Plot } from "../Figure";
 import { STAGE_WORD } from "./AbsorptionGate";
 import type { StageRun, StageSummary } from "./types";
@@ -57,14 +60,25 @@ const ROW = 118;
 const MARGIN = { top: 40, right: 18, bottom: 8, left: 44 };
 const HIST_H = 60;
 const BUCKET_SIGMA = 0.2;
+/** The axis ends here; a stage past it lands in the last bucket, which says so. */
+const AXIS_MAX_SIGMA = 8;
 const STAGE_MARK: Record<string, string> = { release: "●", call: "▲" };
 
 interface StageSigmas {
   readonly stage: "release" | "call";
+  /** Every placed stage's sigma, refused and cleared alike. */
   readonly sigmas: number[];
   readonly floor: number;
-  readonly unparsed: number;
+  /** Stages with neither the wire number nor a readable sentence. */
+  readonly unplaced: number;
   readonly accepted: number;
+  readonly refused: number;
+}
+
+/** The wire's judged ratio first; the sentence only where the wire has none. */
+function sigmaOf(run: StageRun): number | null {
+  if (run.terminal_sigmas != null && Number.isFinite(run.terminal_sigmas)) return run.terminal_sigmas;
+  return refusalSigma(run.signal_reason)?.sigma ?? null;
 }
 
 function sigmasOf(runs: readonly StageRun[]): StageSigmas[] {
@@ -72,59 +86,68 @@ function sigmasOf(runs: readonly StageRun[]): StageSigmas[] {
     const mine = runs.filter((run) => run.stage === stage);
     const sigmas: number[] = [];
     let floor = 2;
-    let unparsed = 0;
+    let unplaced = 0;
     for (const run of mine) {
-      if (run.signal_state === "ok") continue;
       const parsed = refusalSigma(run.signal_reason);
-      if (parsed) { sigmas.push(parsed.sigma); floor = parsed.floor; }
-      else unparsed += 1;
+      if (parsed) floor = parsed.floor;
+      const sigma = sigmaOf(run);
+      if (sigma == null) unplaced += 1;
+      else sigmas.push(sigma);
     }
-    return { stage, sigmas, floor, unparsed, accepted: mine.filter((run) => run.signal_state === "ok").length };
+    return {
+      stage, sigmas, floor, unplaced,
+      accepted: mine.filter((run) => run.signal_state === "ok").length,
+      refused: mine.filter((run) => run.signal_state !== "ok").length,
+    };
   });
 }
 
 function FloorDistance({ runs, stages }: { runs: readonly StageRun[]; stages: readonly StageSummary[] }) {
-  const rows = sigmasOf(runs).filter((row) => row.sigmas.length || row.accepted);
-  const refused = rows.reduce((total, row) => total + row.sigmas.length, 0);
+  const rows = sigmasOf(runs).filter((row) => row.sigmas.length || row.accepted || row.refused);
+  const refused = rows.reduce((total, row) => total + row.refused, 0);
   const accepted = rows.reduce((total, row) => total + row.accepted, 0);
-  const unparsed = rows.reduce((total, row) => total + row.unparsed, 0);
+  const placed = rows.reduce((total, row) => total + row.sigmas.length, 0);
+  const unplaced = rows.reduce((total, row) => total + row.unplaced, 0);
   const floor = rows[0]?.floor ?? 2;
   const near = rows.map((row) => ({
     stage: row.stage,
-    count: row.sigmas.filter((sigma) => sigma >= floor - 2 * BUCKET_SIGMA).length,
+    count: row.sigmas.filter((sigma) => sigma < floor && sigma >= floor - 2 * BUCKET_SIGMA).length,
   }));
+  const cleared = rows.flatMap((row) => row.sigmas.filter((sigma) => sigma >= floor)).sort((a, b) => a - b);
+  const clearedMedian = cleared.length ? cleared[Math.floor(cleared.length / 2)] : null;
+  const clearedMax = cleared.length ? cleared[cleared.length - 1] : null;
   const height = MARGIN.top + rows.length * ROW + MARGIN.bottom;
   const medianOf = (stage: string) => stages.find((s) => s.stage === stage)?.median_half_life_s ?? null;
 
   return (
     <Figure
-      caption="How close every refused stage came to the noise floor, in pre-event sigmas"
-      ariaLabel={`${refused} refused runs over ${rows.length} stages, each placed by the sigma its terminal move `
-        + `represented against a floor of ${floor}; ${accepted} accepted runs counted above the floor`}
-      reading={refused
+      caption="Every stage by the sigma its terminal move represented, against the noise floor it was judged on"
+      ariaLabel={`${placed} stages over ${rows.length} rows, each placed by its terminal move in pre-event sigmas `
+        + `against a floor of ${floor}; ${refused} refused below it, ${accepted} cleared above it`}
+      reading={placed
         ? `The floor is a gradient, not a cliff: refusals spread across the whole span below ${floor}σ, and `
           + near.map((n) => `${n.count} ${STAGE_WORD[n.stage] ?? n.stage}`).join(" and ")
-          + ` runs sat within ${(2 * BUCKET_SIGMA).toFixed(1)}σ of clearing.`
-        : "No stage was refused, so there is no distance to draw."}
-      missing={[
-        accepted
-          ? `The ${accepted} runs that cleared are counted above the floor and placed nowhere: their sigma is `
-            + "not on the wire, and drawing them at the line would invent a position."
-          : null,
-        unparsed ? `${unparsed} refusals carried no sigma the figure could read, and are counted off the axis.` : null,
-      ].filter(Boolean).join(" ") || null}
+          + ` runs sat within ${(2 * BUCKET_SIGMA).toFixed(1)}σ of clearing`
+          + (clearedMedian != null && clearedMax != null
+            ? `; the ${cleared.length} that cleared reach ${fmt(clearedMax, 1)}σ, half of them past ${fmt(clearedMedian, 1)}σ.`
+            : ".")
+        : "No stage has a sigma this figure can place."}
+      missing={unplaced
+        ? `${unplaced} stage${unplaced === 1 ? "" : "s"} carried neither the wire's sigma nor a readable refusal, `
+          + "and are counted off the axis rather than drawn at nought."
+        : null}
     >
-      {refused ? (
+      {placed ? (
         <Plot height={height} minWidth={480}>
           {(width) => {
             const span = Math.max(120, width - MARGIN.left - MARGIN.right);
-            const x = (sigma: number) => MARGIN.left + (Math.min(sigma, floor) / floor) * span;
+            const x = (sigma: number) => MARGIN.left + (Math.min(sigma, AXIS_MAX_SIGMA) / AXIS_MAX_SIGMA) * span;
             return (
               <>
                 {rows.map((row, index) => {
                   const top = MARGIN.top + index * ROW;
                   const base = top + 22 + HIST_H;
-                  const counts = sigmaBuckets(row.sigmas, row.floor, BUCKET_SIGMA);
+                  const counts = sigmaBuckets(row.sigmas, AXIS_MAX_SIGMA, BUCKET_SIGMA);
                   const tallest = Math.max(1, ...counts);
                   const word = STAGE_WORD[row.stage] ?? row.stage;
                   const median = medianOf(row.stage);
@@ -134,27 +157,29 @@ function FloorDistance({ runs, stages }: { runs: readonly StageRun[]; stages: re
                         <tspan aria-hidden="true">{STAGE_MARK[row.stage]}</tspan> {word}
                       </text>
                       <text className="diff-floor__count" x={MARGIN.left + span} y={top + 12} textAnchor="end">
-                        {row.sigmas.length} refused, {row.accepted} cleared
+                        {row.refused} refused, {row.accepted} cleared
                         {median != null ? ` — half absorbed in ${Math.round(median)}s` : ""}
                       </text>
 
                       {counts.map((count, bucket) => {
                         const lo = bucket * BUCKET_SIGMA;
-                        const hi = Math.min(row.floor, lo + BUCKET_SIGMA);
+                        const hi = lo + BUCKET_SIGMA;
+                        const last = bucket === counts.length - 1;
                         const h = (count / tallest) * HIST_H;
-                        const nearFloor = hi >= row.floor - 2 * BUCKET_SIGMA;
+                        const past = lo >= row.floor;
+                        const nearFloor = !past && hi >= row.floor - 2 * BUCKET_SIGMA;
                         return (
                           <rect
                             key={bucket}
-                            className={`diff-floor__bucket${nearFloor ? " is-near" : ""}`}
+                            className={`diff-floor__bucket${nearFloor ? " is-near" : ""}${past ? " is-cleared" : ""}`}
                             x={x(lo) + 1}
                             y={base - h}
                             width={Math.max(1, x(hi) - x(lo) - 2)}
                             height={h}
                           >
                             <title>
-                              {`${word}: ${count} run${count === 1 ? "" : "s"} at ${lo.toFixed(1)}–${hi.toFixed(1)}σ`
-                                + (nearFloor ? " — within reach of the floor" : "")}
+                              {`${word}: ${count} run${count === 1 ? "" : "s"} at ${last ? `${lo.toFixed(1)}σ and past` : `${lo.toFixed(1)}–${hi.toFixed(1)}σ`}`
+                                + (nearFloor ? " — within reach of the floor" : past ? " — cleared" : "")}
                             </title>
                           </rect>
                         );
@@ -165,11 +190,14 @@ function FloorDistance({ runs, stages }: { runs: readonly StageRun[]; stages: re
                         <title>{`The floor: a terminal move of ${row.floor} pre-event sigmas. ${row.accepted} ${word} runs cleared it.`}</title>
                       </line>
                       <text className="coh-ladder__tick" x={MARGIN.left} y={base + 14}>0σ</text>
-                      <text className="coh-ladder__tick" x={x(row.floor / 2)} y={base + 14} textAnchor="middle">
-                        {(row.floor / 2).toFixed(0)}σ
-                      </text>
-                      <text className="coh-ladder__tick" x={x(row.floor)} y={base + 14} textAnchor="end">
+                      <text className="coh-ladder__tick" x={x(row.floor)} y={base + 14} textAnchor="middle">
                         {row.floor}σ floor
+                      </text>
+                      <text className="coh-ladder__tick" x={x(AXIS_MAX_SIGMA / 2)} y={base + 14} textAnchor="middle">
+                        {AXIS_MAX_SIGMA / 2}σ
+                      </text>
+                      <text className="coh-ladder__tick" x={x(AXIS_MAX_SIGMA)} y={base + 14} textAnchor="end">
+                        {AXIS_MAX_SIGMA}σ and past
                       </text>
                     </g>
                   );
@@ -179,7 +207,7 @@ function FloorDistance({ runs, stages }: { runs: readonly StageRun[]; stages: re
           }}
         </Plot>
       ) : (
-        <FigureEmpty reason="No stage has been refused yet, so there is no distance to the floor to draw." />
+        <FigureEmpty reason="No stage carries a sigma yet, so there is no distance to the floor to draw." />
       )}
     </Figure>
   );

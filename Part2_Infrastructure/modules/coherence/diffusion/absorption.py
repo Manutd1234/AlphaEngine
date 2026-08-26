@@ -223,8 +223,7 @@ def abnormal_path(
     terminal_return = terminal_point.abnormal_return if terminal_point is not None else None
     sigma_terminal: float | None = None
     if sigma_bar is not None:
-        bars_to_terminal = max(1.0, terminal.seconds * 1000.0 / asset.step_ms)
-        sigma_terminal = sigma_bar * float(np.sqrt(bars_to_terminal))
+        sigma_terminal = sigma_at_terminal(sigma_bar, interval=asset.interval, terminal_seconds=terminal.seconds)
 
     signal_state, signal_reason = _judge(terminal_return, sigma_bar, sigma_terminal, floor_sigma,
                                          pre_bars, pre_min_bars)
@@ -239,6 +238,33 @@ def abnormal_path(
         market_adjusted=market is not None and m0 is not None,
         data_hash=asset.data_hash(),
     )
+
+
+def sigma_at_terminal(sigma_bar: float, *, interval: str, terminal_seconds: float) -> float:
+    """The pre-event scale grown to the terminal horizon: one bar's sigma times √bars.
+
+    THE ONE PLACE THE FORMULA LIVES. `_judge` compares `|terminal_return|` with
+    `floor × this`, and since 2026-08-26 the API computes the same ratio for
+    the wire (`DiffusionStageRun.terminal_sigmas`) so the desk can place every
+    stage — accepted and refused — on the axis the floor judged it on, without
+    carrying a second copy of the arithmetic.
+    """
+    from modules.coherence.diffusion.bars import INTERVAL_MS
+
+    bars_to_terminal = max(1.0, terminal_seconds * 1000.0 / INTERVAL_MS[interval])
+    return sigma_bar * float(np.sqrt(bars_to_terminal))
+
+
+def terminal_sigmas(terminal_return: float | None, sigma_bar: float | None, *,
+                    interval: str, terminal_seconds: float) -> float | None:
+    """The terminal move in pre-event sigmas — the number the floor was compared with.
+
+    None when there is no move or no scale: a stage refused for want of a
+    pre-window has no position on this axis, and nought would be a position.
+    """
+    if terminal_return is None or sigma_bar is None or sigma_bar <= 0.0:
+        return None
+    return abs(terminal_return) / sigma_at_terminal(sigma_bar, interval=interval, terminal_seconds=terminal_seconds)
 
 
 def _judge(terminal_return: float | None, sigma_bar: float | None, sigma_terminal: float | None,

@@ -101,6 +101,17 @@ class DiffusionStageRun(BaseModel):
     half_life_state: str | None = None
     half_life_vol: float | None = None
     control_percentile: float | None = None
+    #: The pre-event scale the floor judged this stage against: the standard
+    #: deviation of one bar's return over the sessions before t0. Persisted in
+    #: the ledger since the first run and absent from the wire until
+    #: 2026-08-26, which left the desk able to place a REFUSED stage by the
+    #: sigma its refusal sentence quoted and unable to place an accepted one.
+    sigma_pre_per_bar: float | None = None
+    #: The terminal move in those sigmas — `|terminal_return| / (sigma_pre_per_bar
+    #: × √bars_to_terminal)`, the exact quantity `_judge` compared with the floor.
+    #: Computed once, on the gateway, from the same formula, so the desk never
+    #: carries a second copy of it. None when there was no scale to judge by.
+    terminal_sigmas: float | None = None
     controls_used: int = 0
     measured_horizons: int = 0
     of_horizons: int = 0

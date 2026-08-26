@@ -1146,3 +1146,49 @@ n=300 self-measure samples; decision µs awaits the first order; network,
 polled — desk hop p99 59.0 ms, upstream p99 33.0 ms". Three planes, three
 units, each named. The core is under 100 ns at the p50 (83 ns, two ticks);
 the gateway routes are milliseconds and are meant to be.
+
+## Slice 2a, 2026-08-26 — the judged sigma on the wire, and every stage on the axis
+
+The Control view's histogram placed the 159 refusals by the sigma their
+refusal sentence quoted and could place none of the 89 that cleared: their
+scale, `sigma_pre_per_bar`, was in the ledger (populated on all 248 rows,
+checked directly) and not on the wire. The plan's one gateway change.
+
+Two fields join `DiffusionStageRun`, not one. `sigma_pre_per_bar` is the raw
+scale. `terminal_sigmas` is the number the floor was actually compared with —
+`|terminal_return| / (sigma_bar × √(terminal.seconds × 1000 / step_ms))` —
+computed in `_run()` from `absorption.py`'s own `sigma_at_terminal`, which
+`_judge`'s scale now also calls, so the formula lives once and the desk never
+carries a copy. Shipping the raw sigma alone would have left the desk to
+re-derive √bars from the interval string: a second implementation of the
+gateway's arithmetic, which is the thing the parity fixtures exist to stop.
+
+Parity, measured in-process over every ledger row before the restart:
+
+    248 rows: refused 159 (wire sigma missing on 0), accepted 89 (missing on 0)
+    refused: max |sentence − wire| after rounding to 2dp = 0.0000
+    accepted: min 2.00σ  median 3.03σ  p90 6.68σ  max 8.00σ  (one at exactly 8)
+
+A test in `test_diffusion_runs.py` pins the first ledger refusal — per-bar
+sigma 0.00047305, move −0.0018434, 1m bars, 30m terminal → 30 bars → "0.71" —
+and that a stage with no scale gets `None`, not nought.
+
+`FloorDistance` reads `terminal_sigmas` first and the sentence only where the
+wire has none (a gateway that predates the field degrades to the old figure,
+not to a blank one). The axis runs to 8σ, the floor rule at 2σ, the last
+bucket open-ended and titled "8.0σ and past"; buckets past the floor take
+their own fill and the title says "cleared". Its `missing` line about the 89
+placed nowhere is gone. Measured after: 105 keyboard stops on the view (45
+before), 0 text clashes and 0 marks over text at 1600 and 1100.
+
+`tools/openapi.json` (+22 lines), the digest (`d8f7e72c…`) and the generated
+client were regenerated in that order; `test_openapi_contract` is green.
+
+**One cost, recorded.** Restarting 8912 for the new code: the old process
+held the DuckDB ledger lock through SIGTERM for over a minute and the
+replacement exited on the conflict twice, so the port had no gateway for
+about ninety seconds until a SIGKILL. That is one more hatched stretch on the
+Survival tape — the kind the tape has explained since slice 5 — and the reason
+`lsof -ti tcp:8912` is the wrong PID source: it lists the client sockets too.
+`pgrep -f "uvicorn main:app.*8912"`, SIGTERM, then wait for the lock, not the
+port.

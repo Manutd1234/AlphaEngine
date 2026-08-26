@@ -27,6 +27,14 @@ export interface StageRun {
   half_life_state: string | null;
   half_life_vol: number | null;
   control_percentile: number | null;
+  /** The pre-event scale the floor judged against: one bar's return sigma over the sessions before t0. */
+  sigma_pre_per_bar: number | null;
+  /**
+   * The terminal move in those sigmas — the number the floor compared with 2.
+   * Computed on the gateway from its own formula; the desk reads it and never
+   * re-derives it. Null when there was no scale to judge by.
+   */
+  terminal_sigmas: number | null;
   controls_used: number;
   measured_horizons: number;
   of_horizons: number;

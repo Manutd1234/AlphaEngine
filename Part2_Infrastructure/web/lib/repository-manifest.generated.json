@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-26",
-  "commit": "b5ac23f",
+  "commit": "5609157",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -1526,6 +1526,7 @@
     "Part2_Infrastructure/web/scripts/desk-sweep-cdp.mjs",
     "Part2_Infrastructure/web/scripts/desk-sweep-plan.mjs",
     "Part2_Infrastructure/web/scripts/desk-sweep.mjs",
+    "Part2_Infrastructure/web/scripts/engine-prose-measure.mjs",
     "Part2_Infrastructure/web/scripts/figure-arrival-measure.mjs",
     "Part2_Infrastructure/web/scripts/generate-codebase-manifest.mjs",
     "Part2_Infrastructure/web/scripts/generate-gateway-client.ts",
@@ -1725,6 +1726,7 @@
     "Part2_Infrastructure/web/tests/helpers/deterministic-bars.ts",
     "Part2_Infrastructure/web/tests/helpers/developer-sources.ts",
     "Part2_Infrastructure/web/tests/helpers/engine-drawings.ts",
+    "Part2_Infrastructure/web/tests/helpers/engine-sources.ts",
     "Part2_Infrastructure/web/tests/helpers/execution-controls-sources.ts",
     "Part2_Infrastructure/web/tests/helpers/fake-clock.ts",
     "Part2_Infrastructure/web/tests/helpers/next-step-prose.ts",
@@ -1894,6 +1896,7 @@
     "Part2_Infrastructure/web/tests/strategy-registry.test.ts",
     "Part2_Infrastructure/web/tests/stress-scenarios.test.ts",
     "Part2_Infrastructure/web/tests/subtab-chrome-stability.test.ts",
+    "Part2_Infrastructure/web/tests/summarised-coherence.test.ts",
     "Part2_Infrastructure/web/tests/summarised-data.test.ts",
     "Part2_Infrastructure/web/tests/summarised-developer.test.ts",
     "Part2_Infrastructure/web/tests/summarised-execution.test.ts",

@@ -21,6 +21,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query
 
 from modules.api.deps import trader_identity
+from modules.coherence.diffusion.absorption import STAGE_HORIZONS, terminal_sigmas
 from modules.coherence.diffusion.events import DiffusionEventStore
 from modules.coherence.diffusion.findings import collect as collect_findings
 from modules.coherence.diffusion.runs import AbsorptionRunStore
@@ -86,6 +87,9 @@ def _runs() -> AbsorptionRunStore:
     return AbsorptionRunStore()
 
 
+_HORIZON_SECONDS: dict[str, float] = {horizon.label: horizon.seconds for horizon in STAGE_HORIZONS}
+
+
 def _run(row: dict[str, Any]) -> DiffusionStageRun:
     cells = [
         DiffusionHorizonCell(
@@ -102,6 +106,15 @@ def _run(row: dict[str, Any]) -> DiffusionStageRun:
         terminal_return=row.get("terminal_return"), half_life_s=row.get("half_life_s"),
         half_life_state=row.get("half_life_state"), half_life_vol=row.get("half_life_vol"),
         control_percentile=row.get("control_percentile"),
+        sigma_pre_per_bar=row.get("sigma_pre_per_bar"),
+        # The judged ratio, from the reference formula in `absorption.py`. The
+        # terminal is the LAST cell's horizon, as `measure_stage` defines it;
+        # a ledger row whose cells name no known horizon gets None, not nought.
+        terminal_sigmas=terminal_sigmas(
+            row.get("terminal_return"), row.get("sigma_pre_per_bar"),
+            interval=str(row["interval"]),
+            terminal_seconds=_HORIZON_SECONDS.get(cells[-1].horizon if cells else "", 0.0),
+        ) if cells and cells[-1].horizon in _HORIZON_SECONDS else None,
         controls_used=int(row.get("controls_used") or 0),
         measured_horizons=int(row.get("measured_horizons") or 0),
         of_horizons=int(row.get("of_horizons") or 0),

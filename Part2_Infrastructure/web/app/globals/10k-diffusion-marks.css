@@ -192,6 +192,13 @@
   fill: color-mix(in srgb, var(--series-2) 62%, transparent);
 }
 
+/* A bucket past the floor: the stages that cleared, on the same axis since
+   2026-08-26. The floor rule and each bucket's title say which side it is on;
+   the fill only agrees with them. */
+.coherence-plane.diffusion-plane .diff-floor__bucket.is-cleared {
+  fill: color-mix(in srgb, var(--series-1) 62%, transparent);
+}
+
 /* The floor itself: the one line on this figure a run had to cross. */
 .coherence-plane.diffusion-plane .diff-floor__floor {
   stroke: var(--text-primary);

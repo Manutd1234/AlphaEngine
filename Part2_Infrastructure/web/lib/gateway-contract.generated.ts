@@ -914,6 +914,7 @@ export interface DiffusionStageRun {
   of_horizons?: number;
   params_version: string;
   run_id: string;
+  sigma_pre_per_bar?: number | null;
   signal_reason?: string | null;
   signal_state: "ok" | "no_signal" | "insufficient_pre_window" | "unavailable";
   source_ref: string;
@@ -921,6 +922,7 @@ export interface DiffusionStageRun {
   symbol: string;
   t0: string;
   terminal_return?: number | null;
+  terminal_sigmas?: number | null;
 }
 
 export interface DiffusionStageSummary {

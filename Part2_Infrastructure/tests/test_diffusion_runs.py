@@ -10,6 +10,7 @@ ones that were refused, and the summary counts both.
 from __future__ import annotations
 
 import asyncio
+import json
 import tempfile
 from pathlib import Path
 
@@ -126,3 +127,41 @@ class TestTheRouteSummarisesWithoutHidingTheAttrition:
                            absorbed={"1m": 0.9}), computed_at=NOW)
         body = self._call(ledger)
         assert body.release_curve[body.horizons.index("1m")] == pytest.approx(0.2)
+
+
+class TestTheWireCarriesTheJudgedSigma:
+    """`terminal_sigmas` on the wire is the number the refusal sentence quotes.
+
+    The ledger's own first refusal: terminal_return −0.0018434 on a per-bar
+    sigma of 0.00047305, 1m bars, a 30m terminal → 30 bars → the move is 0.71
+    pre-event sigmas, which is what `_judge` wrote into `signal_reason`. The
+    API must land on the same two decimals from the same row, or the desk is
+    placing a stage somewhere the floor never judged it.
+    """
+
+    def test_the_api_reproduces_the_sentence_from_the_row(self):
+        from modules.api.diffusion import _run
+
+        row = {
+            "run_id": "fed:2024-01-31|BTCUSDT|release", "source_ref": "fed:2024-01-31",
+            "symbol": "BTCUSDT", "stage": "release", "interval": "1m", "signal_state": "no_signal",
+            "signal_reason": "the terminal move is 0.71 pre-event sigmas, below the floor of 2",
+            "t0_ms": NOW, "terminal_return": -0.0018433557169003387,
+            "sigma_pre_per_bar": 0.00047305343208206785, "params_version": "v1",
+            "points_json": json.dumps([{"horizon": "1m", "state": "ok"}, {"horizon": "30m", "state": "ok"}]),
+        }
+        run = _run(row)
+        assert run.sigma_pre_per_bar == row["sigma_pre_per_bar"]
+        assert run.terminal_sigmas is not None
+        assert f"{run.terminal_sigmas:.2f}" == "0.71", run.terminal_sigmas
+
+    def test_no_scale_means_no_position(self):
+        from modules.api.diffusion import _run
+
+        row = {
+            "run_id": "x", "source_ref": "fed:2024-01-31", "symbol": "BTCUSDT", "stage": "release",
+            "interval": "1m", "signal_state": "no_signal", "signal_reason": "3 pre-event returns is below the floor of 20, so there is no scale",
+            "t0_ms": NOW, "terminal_return": 0.01, "sigma_pre_per_bar": None, "params_version": "v1",
+            "points_json": json.dumps([{"horizon": "30m", "state": "ok"}]),
+        }
+        assert _run(row).terminal_sigmas is None

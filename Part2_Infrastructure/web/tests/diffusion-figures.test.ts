@@ -81,6 +81,21 @@ describe("the noise floor shows its distribution, not only two medians", () => {
 });
 
 describe("the two figures that are not drawn are recorded as decisions", () => {
+  it("the floor figure places every stage by the wire's judged sigma, and falls back to the sentence", () => {
+    // Since 2026-08-26 `StageRun.terminal_sigmas` is on the wire for all 248
+    // stages — computed on the gateway from the one formula `_judge` uses —
+    // so the figure reads it FIRST and the sentence only where it is null.
+    // Two pins: the wire field is read, and it is never coerced to nought.
+    assert.match(floor, /run\.terminal_sigmas != null/, "the wire's judged sigma is not read");
+    assert.match(floor, /refusalSigma\(run\.signal_reason\)\?\.sigma \?\? null/,
+      "the sentence is not the fallback — a gateway that predates the field would blank the figure");
+    assert.doesNotMatch(floor, /terminal_sigmas \?\? 0/, "a missing sigma was coerced to nought");
+    assert.match(floor, /is-cleared/, "the stages that cleared are not told apart from the refused");
+    const wire = read("../components/coherence/diffusion/types.ts");
+    assert.match(wire, /terminal_sigmas: number \| null;/, "the field is not typed on the wire");
+    assert.match(wire, /sigma_pre_per_bar: number \| null;/, "the raw scale is not typed on the wire");
+  });
+
   it("the floor figure reads the refusal sentence and fetches nothing", () => {
     // 159 of 159 refusals on the live ledger carry "N pre-event sigmas, below
     // the floor of M" and no numeric field beside it. The figure parses that
