@@ -141,6 +141,37 @@ export default function LiveTape({
     >
       <Plot
         height={HEIGHT}
+        /* A CROSSHAIR, not a title per mark. A tape's question is "what was it
+           THEN", which is a fact about a position on the axis, and the only
+           title this figure carried named the latest point — a fact the
+           readout beside the caption already shows, live. `positions` because
+           polls are not evenly spaced: a read that took a second longer sits a
+           second further along, and a poll that failed leaves the width it
+           took rather than closing up. Even spacing would put the cursor
+           between the marks it names, worst exactly where the tape stuttered. */
+        sharedX={(width) => {
+          const right = width - MARGIN.right - advancePx(format(hi), DIAGRAM_LABEL_PX) - 6;
+          const x = linearScale(first, last, MARGIN.left, Math.max(MARGIN.left + 1, right));
+          return {
+            count: points.length,
+            x0: MARGIN.left,
+            x1: Math.max(MARGIN.left + 1, right),
+            positions: points.map((point) => x(point.at)),
+            read: (index) => {
+              const point = points[index];
+              const when = index === points.length - 1 ? "now" : `${spanLabel(last - point.at)} ago`;
+              return {
+                title: when,
+                rows: point.value == null
+                  ? [{ label: "Reading", value: "—", raw: null },
+                     { label: "Why", value: "this poll carried no figure" }]
+                  : [{ label: "Reading", value: format(point.value), raw: point.value }],
+              };
+            },
+            width: 200,
+            arriveAt: "last",
+          };
+        }}
         /* UNDER the series now, not over it, and the reversal is deliberate.
            "Over the series, never under it" was this figure's own rule, on the
            reasoning that a reference hidden behind a line is no reference. But
@@ -186,9 +217,12 @@ export default function LiveTape({
               {/* The newest reading, marked, because "what is it now" is the
                   question a live figure is asked first and a line's right-hand
                   end is not obviously the answer when the tape has gaps. */}
-              <circle className="coh-tape__latest" cx={x(latest.at)} cy={y(latest.value!)} r={3}>
-                <title>{`Latest, ${format(latest.value!)}`}</title>
-              </circle>
+              {/* Still marked — "what is it now" is the question a live figure
+                  is asked first — but no longer titled: a title here would make
+                  the mark readout interactive beside the crosshair, two tab
+                  stops and two voices on one figure. The value it named is the
+                  live readout beside the caption. */}
+              <circle className="coh-tape__latest" cx={x(latest.at)} cy={y(latest.value!)} r={3} />
 
               <text className="coh-tape__tick" x={MARGIN.left} y={HEIGHT - 5}>
                 {`${spanLabel(last - first)} ago`}

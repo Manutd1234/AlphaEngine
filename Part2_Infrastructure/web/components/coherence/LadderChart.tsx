@@ -118,31 +118,56 @@ function contractsLabel(value: number): string {
  * wrong end would report the depth behind a price as the depth in front of it,
  * which is the one number a marketable order actually meets.
  */
+/** The bars, and only the bars. What rests at a level and the depth to it are
+ *  `levelsOf`'s, which is what the crosshair reads — one accumulation, not two
+ *  that could disagree about the same book. */
 function barsFor(
   pts: Point[],
   x: (v: number) => number,
   y: (v: number) => number,
   base: number,
   width: number,
-  inwards: "from-high" | "from-low",
 ) {
-  const order = inwards === "from-high" ? [...pts].reverse() : pts;
-  const cumulative = new Map<number, number>();
-  let running = 0;
-  for (const point of order) {
-    running += point.size;
-    cumulative.set(point.x, running);
-  }
   return pts.map((point) => ({
     at: `${point.x}`,
     x: x(point.x) - width / 2,
     y: y(point.size),
     width,
     height: Math.max(0.6, base - y(point.size)),
-    price: fromCenticents(point.x) as string,
-    size: point.size,
-    depth: cumulative.get(point.x) ?? point.size,
   }));
+}
+
+/**
+ * Every price either side quotes, with what rests there and the depth to it.
+ *
+ * The two ladders are drawn against ONE axis, so the crosshair's index space
+ * is their UNION: at a price a reader is told both sides, or which of them is
+ * empty there. Depth accumulates the way each side is queued — YES from the
+ * best bid down, NO from the best offer up — which is exactly what the bars
+ * draw, so the number in the readout is the number in the picture.
+ */
+interface Level {
+  cc: number;
+  yes: { size: number; depth: number } | null;
+  no: { size: number; depth: number } | null;
+}
+
+function depthBy(pts: Point[], inwards: "from-high" | "from-low"): Map<number, { size: number; depth: number }> {
+  const order = inwards === "from-high" ? [...pts].reverse() : pts;
+  const out = new Map<number, { size: number; depth: number }>();
+  let running = 0;
+  for (const point of order) {
+    running += point.size;
+    out.set(point.x, { size: point.size, depth: running });
+  }
+  return out;
+}
+
+function levelsOf(yesPoints: Point[], noPoints: Point[]): Level[] {
+  const yes = depthBy(yesPoints, "from-high");
+  const no = depthBy(noPoints, "from-low");
+  const prices = [...new Set([...yes.keys(), ...no.keys()])].sort((a, b) => a - b);
+  return prices.map((cc) => ({ cc, yes: yes.get(cc) ?? null, no: no.get(cc) ?? null }));
 }
 
 export default function LadderChart({ yesBids, noBids, yesAsks, caption, unquotedReason }: LadderChartProps) {
@@ -171,6 +196,7 @@ export default function LadderChart({ yesBids, noBids, yesAsks, caption, unquote
 
   const bestYesBid = yesPoints.length ? yesPoints[yesPoints.length - 1].x : null;
   const bestAsk = askPoints.length ? askPoints[0].x : null;
+  const levels = levelsOf(yesPoints, noPoints);
 
   return (
     <Figure
@@ -187,7 +213,48 @@ export default function LadderChart({ yesBids, noBids, yesAsks, caption, unquote
       }
       missing={unquotedReason}
     >
-      <Plot height={HEIGHT}>
+      <Plot
+        height={HEIGHT}
+        /* A CROSSHAIR over the union of the two ladders. Every bar carried a
+           title before this — a fact about ONE side at one price, reachable
+           only by hitting a bar that can be half a pixel wide on a 188-strike
+           family — and the question a book is read with is what is resting on
+           BOTH sides at a price. `positions` because a ladder is quoted where
+           it is quoted: the levels are the venue's, never an even sweep, and
+           an evenly stepped cursor would name prices nobody is bidding. */
+        sharedX={(plotW) => {
+          const plotWidth = plotW - MARGIN.left - MARGIN.right;
+          const x = (v: number) => MARGIN.left + ((v - domainLo) / Math.max(1, domainHi - domainLo)) * plotWidth;
+          return {
+            count: levels.length,
+            x0: MARGIN.left,
+            x1: plotW - MARGIN.right,
+            positions: levels.map((level) => x(level.cc)),
+            read: (index) => {
+              const level = levels[index];
+              return {
+                title: fromCenticents(level.cc) as string,
+                rows: [
+                  level.yes
+                    ? { label: "YES bid", value: `${contractsLabel(level.yes.size)} contracts`, raw: level.yes.size }
+                    : { label: "YES bid", value: "—", raw: null },
+                  ...(level.yes
+                    ? [{ label: "Resting at that bid or better", value: contractsLabel(level.yes.depth), raw: level.yes.depth }]
+                    : []),
+                  level.no
+                    ? { label: "NO bid implying this YES price", value: `${contractsLabel(level.no.size)} contracts`, raw: level.no.size }
+                    : { label: "NO bid implying this YES price", value: "—", raw: null },
+                  ...(level.no
+                    ? [{ label: "Resting at that offer or better", value: contractsLabel(level.no.depth), raw: level.no.depth }]
+                    : []),
+                ],
+              };
+            },
+            width: 300,
+            arriveAt: "first",
+          };
+        }}
+      >
         {(plotW) => {
           const plotWidth = plotW - MARGIN.left - MARGIN.right;
           const x = (v: number) => MARGIN.left + ((v - domainLo) / Math.max(1, domainHi - domainLo)) * plotWidth;
@@ -195,21 +262,14 @@ export default function LadderChart({ yesBids, noBids, yesAsks, caption, unquote
           return (
             <g className="coh-ladder">
               <line x1={MARGIN.left} x2={plotW - MARGIN.right} y1={base} y2={base} className="coh-ladder__axis" />
-              {barsFor(noPoints, x, y, base, barWidth, "from-low").map(({ at, price, size, depth, ...bar }) => (
-                <rect key={`no-${at}`} {...bar} className="coh-ladder__no">
-                  <title>
-                    {`NO bid implying YES ${price} for ${contractsLabel(size)} contracts; `
-                     + `${contractsLabel(depth)} resting at that offer or better`}
-                  </title>
-                </rect>
+              {/* Untitled: what rests at a price is the crosshair's reading
+                  now, for both sides at once, and a bar this narrow was never
+                  a hit target worth aiming at. */}
+              {barsFor(noPoints, x, y, base, barWidth).map(({ at, x: bx, y: by, width: bw, height: bh }) => (
+                <rect key={`no-${at}`} x={bx} y={by} width={bw} height={bh} className="coh-ladder__no" />
               ))}
-              {barsFor(yesPoints, x, y, base, barWidth, "from-high").map(({ at, price, size, depth, ...bar }) => (
-                <rect key={`yes-${at}`} {...bar} className="coh-ladder__yes">
-                  <title>
-                    {`YES bid ${price} for ${contractsLabel(size)} contracts; `
-                     + `${contractsLabel(depth)} resting at that bid or better`}
-                  </title>
-                </rect>
+              {barsFor(yesPoints, x, y, base, barWidth).map(({ at, x: bx, y: by, width: bw, height: bh }) => (
+                <rect key={`yes-${at}`} x={bx} y={by} width={bw} height={bh} className="coh-ladder__yes" />
               ))}
               <path d={stepPath(askPoints, x, y, base)} className="coh-ladder__implied" fill="none" />
               {bestYesBid != null ? (

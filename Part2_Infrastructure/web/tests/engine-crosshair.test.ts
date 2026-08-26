@@ -63,6 +63,21 @@ const SHARED_X: Row[] = [
   { file: "StateCoverage.tsx", geometry: "cx(", byValue: false, arriveAt: "first", link: "prop" },
   // Ten equal price bands: even by construction; read through reliability-read.ts.
   { file: "ReliabilityDiagram.tsx", geometry: "px(", byValue: false, arriveAt: "first" },
+  // ---------------------------------------------------------- Markets --
+  // The live tape: polls at the times they answered. A read that took a
+  // second longer sits a second further along and a poll that failed leaves
+  // the width it took, so the axis is drawn by value on every one of the
+  // eight sections that mount it.
+  { file: "LiveTape.tsx", geometry: "x(", byValue: true, arriveAt: "last" },
+  // The recorder's own reads of one book, at their own stamps.
+  { file: "BookHistory.tsx", geometry: "at(", byValue: true, arriveAt: "last" },
+  // The fee kernel priced at the venue's own grid: a price axis, read from $0.
+  { file: "FeeCurve.tsx", geometry: "x(", byValue: true, arriveAt: "first" },
+  // The resting book: one position per price level either side quotes, which
+  // is the union of the two ladders and never an even step.
+  { file: "LadderChart.tsx", geometry: "x(", byValue: true, arriveAt: "first" },
+  // Published readings, per minute, thinned to the drawn points.
+  { file: "IndexBasisChart.tsx", geometry: "x(", byValue: true, arriveAt: "last" },
 ];
 
 describe("every crosshair figure on the engine", () => {
@@ -113,7 +128,11 @@ describe("every crosshair figure on the engine", () => {
   }
 
   it("counts the rows it has", () => {
-    // Ten on Proofs now; the Markets session appends theirs.
-    assert.equal(SHARED_X.length, 10);
+    // Ten on Proofs, five on Markets (2026-08-26): the tape and the recorded
+    // book, the fee kernel's curve, the resting ladder and the published
+    // index. Every one of the five is drawn BY VALUE — polls, reads, the
+    // venue's price grid, quoted levels, published minutes — which is why
+    // `positions` is the field that carried this slice.
+    assert.equal(SHARED_X.length, 15);
   });
 });

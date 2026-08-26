@@ -147,7 +147,7 @@ ratchet("toFixed(", /\.toFixed\(/g, {
   "components/coherence/ShortfallScale.tsx": { count: 1, reason: "orders of magnitude, a float by nature" },
   "components/coherence/LadderChart.tsx": { count: 8, reason: "its own comment: cumulative depth at a float level" },
   "components/coherence/SurvivalChart.tsx": { count: 6, reason: "strike-axis ticks" },
-  "components/coherence/FeeCurve.tsx": { count: 3, reason: "float points — use-live-series does not retain the wire string" },
+  "components/coherence/FeeCurve.tsx": { count: 3, reason: "the tick gutter and two axis ticks on a float fee scale; every printed fee is the wire string it arrived as" },
   "components/coherence/surface/EdgeScatter.tsx": { count: 2, reason: "scatter axis ticks" },
   "components/coherence/IndexSeriesChart.tsx": { count: 4, reason: "lane ticks on a float scale" },
   "components/coherence/CorpusShares.tsx": { count: 2, reason: "slope-axis ticks" },

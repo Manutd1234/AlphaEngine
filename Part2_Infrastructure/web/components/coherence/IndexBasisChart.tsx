@@ -183,7 +183,49 @@ export default function IndexBasisChart({
       reading={reading}
       missing={notes.join(" ")}
     >
-      <Plot height={HEIGHT}>
+      <Plot
+        height={HEIGHT}
+        /* A CROSSHAIR over the drawn points. The only title this figure carried
+           was on a flagged minute — a fact about one sample, reachable only by
+           hitting a 14px tick — and every OTHER minute answered nothing at all.
+           `positions` from the thinned points because the feed publishes per
+           minute and a minute it skipped is a gap in the axis, not a closed-up
+           step. `kept` and not `points`: the crosshair names the marks that are
+           drawn, which is what a reader is pointing at. */
+        sharedX={(width) => {
+          const right = Math.max(MARGIN.left + 80, width - MARGIN.right);
+          const x = (ts: number) => MARGIN.left + ((ts - first) / span) * (right - MARGIN.left);
+          return {
+            count: kept.length,
+            x0: MARGIN.left,
+            x1: right,
+            positions: kept.map((point) => x(point.ts)),
+            read: (index) => {
+              const point = kept[index];
+              return {
+                title: `${clock(point.ts)} UTC`,
+                rows: [
+                  point.cc == null
+                    ? { label: "Published", value: "—", raw: null }
+                    : { label: "Published", value: plain(point.cc), raw: point.cc },
+                  ...(point.cc == null
+                    ? [{ label: "Why", value: "the feed published no reading for this minute" }]
+                    : average == null
+                      ? []
+                      : [{
+                        label: `Against the ${windowMinutes}-minute average`,
+                        value: plain(Math.round(point.cc - average)),
+                        raw: point.cc - average,
+                      }]),
+                  ...(point.flagged ? [{ label: "Feed", value: "▲ flagged degraded" }] : []),
+                ],
+              };
+            },
+            width: 300,
+            arriveAt: "last",
+          };
+        }}
+      >
         {(width) => {
           const right = Math.max(MARGIN.left + 80, width - MARGIN.right);
           const base = HEIGHT - MARGIN.bottom;
@@ -238,7 +280,6 @@ export default function IndexBasisChart({
                     <text x={x(point.ts)} y={y(point.cc) - 16} textAnchor="middle" className="coh-settle__flag-mark">
                       ▲
                     </text>
-                    <title>{`flagged degraded at ${clock(point.ts)} UTC, ${plain(point.cc)}`}</title>
                   </g>
                 ),
               )}

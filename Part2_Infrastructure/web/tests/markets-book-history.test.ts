@@ -106,10 +106,24 @@ describe("all four answers are drawn, not written", () => {
 });
 
 describe("the derived price says it is derived", () => {
-  it("the ask is dashed and titled, and the bid is not", () => {
+  it("the ask is dashed and named as derived, and the bid is not", () => {
     assert.match(figure, /coh-book-tape__ask/);
-    assert.match(figure, /<title>Implied YES ask, a dollar less the NO bid<\/title>/);
-    assert.match(figure, /<title>Best YES bid, as the venue sends it<\/title>/);
+    // The two titles this replaced named the LINES, and a `<title>` is a
+    // native tooltip — mouse-only. Since 2026-08-26 the figure declares
+    // `sharedX`, so the names are the crosshair's row labels, read beside the
+    // numbers they belong to and reachable from a keyboard; a title left
+    // beside a shared axis would make both readouts interactive
+    // (`engine-crosshair.test.ts`). RAW source, because these are string
+    // literals and `stripNonCode` blanks them.
+    assert.doesNotMatch(stripNonCode(figure), /<title>/,
+      "a line carries a title again, so the figure has two readouts");
+    assert.match(figure, /label: "Implied YES ask"/);
+    assert.match(figure, /label: "Best YES bid"/);
+    // And HOW the offer is derived is a fact about the series, not about any
+    // one read, so it moved to the notes rather than into a row that changes
+    // with the cursor. Losing it entirely is what this assertion refuses.
+    assert.match(figure, /a dollar less the best NO bid/,
+      "nothing says the offer is derived, so a dashed line is the only clue");
   });
 
   it("and the dash is in the sheet rather than on the element", () => {

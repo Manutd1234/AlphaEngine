@@ -169,9 +169,52 @@ export default function BookHistory({ history, error }: {
         + `which is ${spanLabel(last - first)} of tape here and not the market's whole life.`,
         `Read from ${points[points.length - 1].depth === "full" ? "full ladders" : "top-of-book fields"}; `
         + `the driver that wrote it reports itself as "${points[points.length - 1].source}".`,
+        // Where the ask comes from. It was a `<title>` on the dashed line until
+        // 2026-08-26 — reachable with a mouse and by nothing else — and it is a
+        // fact about the SERIES rather than about any one read, so it belongs
+        // here, where it is read without hovering, rather than in the
+        // crosshair's rows beside the numbers that change.
+        "The offer is derived, not quoted: it is a dollar less the best NO bid, which is why it is drawn dashed.",
       ]}
     >
-      <Plot height={HEIGHT}>
+      <Plot
+        height={HEIGHT}
+        /* A CROSSHAIR over both lines. The two titles this replaced named the
+           LINES — "best YES bid", "implied YES ask" — which is a fact about a
+           series and not the question a reader brings to a tape: what were both
+           sides, at this moment. Those names are the readout's row labels now.
+           `positions` because the recorder's reads are not evenly spaced: it
+           writes when it polls, and a gap in the tape is a gap in time. */
+        sharedX={(width) => {
+          const right = width - MARGIN.right - advancePx(format(hi), DIAGRAM_LABEL_PX) - 6;
+          const x = linearScale(first, last, MARGIN.left, Math.max(MARGIN.left + 1, right));
+          const at = (i: number) => x(points[i].ts_ns / 1e6);
+          return {
+            count: points.length,
+            x0: MARGIN.left,
+            x1: Math.max(MARGIN.left + 1, right),
+            positions: points.map((_, i) => at(i)),
+            read: (index) => ({
+              title: index === points.length - 1
+                ? "newest"
+                : `${spanLabel(last - points[index].ts_ns / 1e6)} before newest`,
+              rows: [
+                bids[index] == null
+                  ? { label: "Best YES bid", value: "—", raw: null }
+                  : { label: "Best YES bid", value: format(bids[index]!), raw: bids[index] },
+                asks[index] == null
+                  ? { label: "Implied YES ask", value: "—", raw: null }
+                  : { label: "Implied YES ask", value: format(asks[index]!), raw: asks[index] },
+                ...(bids[index] == null || asks[index] == null
+                  ? [{ label: "Why", value: bids[index] == null ? "no YES bid at this read" : "no NO bid behind the offer" }]
+                  : [{ label: "Spread", value: format(asks[index]! - bids[index]!), raw: asks[index]! - bids[index]! }]),
+              ],
+            }),
+            width: 260,
+            arriveAt: "last",
+          };
+        }}
+      >
         {(width) => {
           const right = width - MARGIN.right - advancePx(format(hi), DIAGRAM_LABEL_PX) - 6;
           const x = linearScale(first, last, MARGIN.left, Math.max(MARGIN.left + 1, right));
@@ -189,12 +232,10 @@ export default function BookHistory({ history, error }: {
                 </g>
               ))}
 
-              <path className="coh-book-tape__ask" d={askPath}>
-                <title>Implied YES ask, a dollar less the NO bid</title>
-              </path>
-              <path className="coh-tape__line" d={bidPath}>
-                <title>Best YES bid, as the venue sends it</title>
-              </path>
+              {/* Untitled: both names are the crosshair's row labels, where
+                  they are read beside the numbers they belong to. */}
+              <path className="coh-book-tape__ask" d={askPath} />
+              <path className="coh-tape__line" d={bidPath} />
 
               <text className="coh-tape__tick" x={MARGIN.left} y={HEIGHT - 5}>
                 {`${spanLabel(last - first)} of tape`}

@@ -93,6 +93,10 @@ export default function FeeCurve({ curve, error }: {
   const net = drawable.map((d) => d.n);
   const trade = drawable.map((d) => d.t);
   const peak = Math.max(...net, ...trade);
+  /* The right-hand gutter the tallest tick numeral needs. Hoisted out of the
+     two layout passes (the crosshair's and the drawing's) so the axis is
+     measured once from one string rather than each pass re-deriving it. */
+  const tickGutter = advancePx(peak.toFixed(4), DIAGRAM_LABEL_PX) + 4;
   /* Where the two lines are furthest apart, which is the reading this figure
      adds — and the gap is NOT the rounding fee, which is the mistake the first
      version of this sentence made. `net` is `max(0, trade + rounding − rebate)`,
@@ -132,9 +136,41 @@ export default function FeeCurve({ curve, error }: {
         + "fee there would describe a trade nobody can make.",
       ]}
     >
-      <Plot height={HEIGHT}>
+      <Plot
+        height={HEIGHT}
+        /* A CROSSHAIR at the venue's own prices. The two titles this replaced
+           named the LINES — the trade fee's closed form, the kernel's net —
+           and the question the figure is built to answer is what BOTH cost at
+           one price, which is a fact about a position. `positions` because the
+           gateway prices its own grid: the points are where it computed, not
+           an even sweep, and a cursor stepped evenly would name a price the
+           kernel never quoted. Both numbers are printed from the wire strings
+           they arrived as, never re-derived through a float. */
+        sharedX={(width) => {
+          const right = width - MARGIN.right - tickGutter;
+          const x = linearScale(0, 1, MARGIN.left, Math.max(MARGIN.left + 1, right));
+          return {
+            count: drawable.length,
+            x0: MARGIN.left,
+            x1: Math.max(MARGIN.left + 1, right),
+            positions: price.map((p) => x(p)),
+            read: (index) => {
+              const { point, n, t } = drawable[index];
+              return {
+                title: point.price,
+                rows: [
+                  { label: "Trade fee", value: point.trade_fee, raw: t },
+                  { label: "Net fee, rounding included", value: point.net, raw: n },
+                ],
+              };
+            },
+            width: 280,
+            arriveAt: "first",
+          };
+        }}
+      >
         {(width) => {
-          const right = width - MARGIN.right - advancePx(peak.toFixed(4), DIAGRAM_LABEL_PX) - 4;
+          const right = width - MARGIN.right - tickGutter;
           const x = linearScale(0, 1, MARGIN.left, Math.max(MARGIN.left + 1, right));
           const y = linearScale(0, peak || 1, HEIGHT - MARGIN.bottom, MARGIN.top);
 
@@ -157,18 +193,17 @@ export default function FeeCurve({ curve, error }: {
               {/* The trade fee under, the net over: the reader is being asked
                   to judge the GAP, so the smaller curve is drawn first and the
                   one that includes it sits on top. */}
+              {/* Untitled: both names are the crosshair's row labels now, read
+                  beside the numbers they belong to rather than as a tooltip on
+                  a line a reader has to hit. */}
               <path
                 className="coh-fee-curve__trade"
                 d={linePath(price.map((p, i) => ({ x: x(p), y: y(trade[i]) })))}
-              >
-                <title>The trade fee alone — rate x contracts x p x (1 - p)</title>
-              </path>
+              />
               <path
                 className="coh-fee-curve__net"
                 d={linePath(price.map((p, i) => ({ x: x(p), y: y(net[i]) })))}
-              >
-                <title>The net fee the gateway computes, rounding included</title>
-              </path>
+              />
 
               <text className="coh-tape__tick" x={(MARGIN.left + right) / 2} y={HEIGHT - 5} textAnchor="middle">
                 contract price
