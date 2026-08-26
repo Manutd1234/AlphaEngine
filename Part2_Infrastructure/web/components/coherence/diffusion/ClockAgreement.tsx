@@ -163,8 +163,8 @@ export default function ClockAgreement({ runs }: { runs: StageRun[] }) {
                       <text className="coh-svg-note" x={(left + right) / 2} y={MARGIN.top - 20} textAnchor="middle">
                         {STAGE_WORD[panel.stage]}
                       </text>
-                      <text className="coh-ladder__tick" x={left} y={MARGIN.top - 6} textAnchor="middle">wall</text>
-                      <text className="coh-ladder__tick" x={right} y={MARGIN.top - 6} textAnchor="middle">vol</text>
+                      <text className="coh-ladder__tick" x={left} y={MARGIN.top - 9} textAnchor="middle">wall</text>
+                      <text className="coh-ladder__tick" x={right} y={MARGIN.top - 9} textAnchor="middle">vol</text>
                       <line className="coh-ladder__axis" x1={left} x2={left} y1={MARGIN.top} y2={HEIGHT - MARGIN.bottom} />
                       <line className="coh-ladder__axis" x1={right} x2={right} y1={MARGIN.top} y2={HEIGHT - MARGIN.bottom} />
                       <text className="coh-ladder__tick" x={left - 6} y={MARGIN.top + 4} textAnchor="end">fastest</text>

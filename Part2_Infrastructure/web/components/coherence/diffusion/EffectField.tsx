@@ -202,7 +202,7 @@ function EffectField({ findings }: { findings: readonly Finding[] }) {
 
                 {holds.map((pt) => {
                   const r = rOf(pt.row.n);
-                  const wanted = y(pt.p) + r + 14;
+                  const wanted = y(pt.p) + r + 17;
                   const at = wanted < lastLabelY + 17 ? lastLabelY + 17 : wanted;
                   lastLabelY = at;
                   return (

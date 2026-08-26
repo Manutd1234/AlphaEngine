@@ -187,7 +187,7 @@ function Curve({ width, horizons, release, call, stages, runs }: AbsorptionCurve
         <XAxis points={points} y={y0} x0={x0} x1={x1}
                format={(value) => horizons[Math.round(value)] ?? ""} minGap={34} />
 
-        <text x={x0} y={16} className="diff-curve__key diff-curve__key--release">
+        <text x={x0} y={13} className="diff-curve__key diff-curve__key--release">
           <tspan aria-hidden="true">●</tspan> statement
           {summaryOf("release")?.median_half_life_s
             ? ` — half in ${Math.round(summaryOf("release")!.median_half_life_s!)}s`

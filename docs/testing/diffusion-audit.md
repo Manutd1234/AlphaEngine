@@ -1059,3 +1059,90 @@ poller's state across restarts was considered and declined: the loop is
 peer-owned, and a gap the recorder did not see is still a gap; carrying state
 over would change what the tape means, not what it shows. 3202 (gone) and
 3210 (serving `main`) needed nothing.
+
+## The sweep, 2026-08-26 — all seven sections, sixteen views, three widths
+
+Run after the five slices above landed, with `viewprobe.mjs` driving every
+section's own switcher through Chrome DevTools at 1600, 1280 and 1100, and a
+screenshot of every view at 1600 looked at, not just measured.
+
+    section     view                 opens on           marks  focusable  words   px
+    arm         Absorption           svg                  270          2    183  1023
+    arm         Control              svg                   45          2    200  1143
+    arm         Clocks               svg                   89          1    153  1023
+    meetings    Meeting by meeting   svg                   24          1     27   871
+    meetings    Calendar             svg                  310          1    110   625
+    meetings    Mechanism            svg                  112          2    227  1021
+    episodes    Survival             svg                  415          1    176   573
+    episodes    Episodes             svg                    3          1    119   644
+    model       (single)             p.sub                 17          0     31   921
+    instrument  (single)             p.sub                  9          0     30   650
+    sandbox     Half-life            svg                    9          1     80   762
+    sandbox     Simulator            svg                    3          1     80   752
+    sandbox     Spectrum             p.coh-event__note      3          1    111   815
+    findings    Effect plot          svg                   18          1     92   698
+    findings    Findings table       svg                   23          2     77   666
+    findings    Instrument           svg                    6          3    103   766
+
+Held to the six lines the plan set:
+
+**Every view opens on a drawing** — 13 of 16 on an `svg`; the three that open
+on a paragraph are the two formula-card sections (Measurement, Instrument),
+whose lede is the card, and Sandbox / Spectrum, all named exemptions in
+`engine-opens-on-a-drawing`. **Every figure interrogable** — no `<Plot>` view
+has 0 keyboard stops; the two card sections carry 17 and 9 hover titles and 0
+focusable drawings, because their cards skip `<Plot>` on purpose (its `<svg>`
+is `role="presentation"`), and that is the one census line not met — recorded
+as the next thing to do, not done here. **One type ladder** — 12.75 / 13 / 14
+on every fold and figure measured (`foldprobe`, `findprobe`). **No text
+overlap at 1600 / 1280 / 1100** — every pair of `<text>` boxes checked on every
+`svg` of every view. Before the sweep, three views clashed at all three widths
+by under a pixel each: the Absorption fan's two key lines (14px glyphs 14px
+apart), the Clocks figure's "wall" over "fastest" (two 10px boxes meeting at
+the plot edge), and the Episodes legend. The first two are fixed in this
+commit (17px and 3px); the third is `IndexSection`'s child, outside
+`diffusion/**`, and is recorded here for its owner. **Nothing clips its
+viewBox** — 0 of 16. **No `?? 0`** — `null-honesty` is green and every gap on
+the tab is hatched.
+
+Marks over text, checked separately: after the fixes the only remaining pairs
+are a `ValueStrip` row group carrying its own label (Meeting by meeting) and
+count text sitting inside the chance-band REGION on the matrix and the field
+— a region, not a mark — and the formula cards' bands under their own words,
+which the `Band` primitive draws by design.
+
+**One defect no probe was written for.** `StageWindows.tsx` — committed on
+2026-08-26 in slice 1 — carried two NUL bytes: the pair key was
+`${ref}\0${symbol}` and the split was on `"\0"`. It rendered, because a NUL in
+a JS string is legal; it made the file binary to `file` and to BSD `grep`,
+which printed nothing for it three times before anyone asked why. A space
+now, and `file` says text. Every other source under `diffusion/`, `app/globals`,
+`tests` and `lib/coherence` was scanned for control bytes: none.
+
+### The three infrastructure bullets, answered by measurement
+
+**Backend and frontend sync.** Every diffusion read is a 20-second poll
+(`COHERENCE_POLL_MS = 20_000`), `revalidateOnVisible`, no socket. The route
+table end to end, three runs each, the desk's proxy against the gateway direct
+(bearer from `.env.local`, localhost only):
+
+    route                                     proxy 3100        gateway 8912 direct
+    coherence/status                          248–259 ms        253–260 ms
+    research/diffusion/absorption?limit=400   12.5–15.5 ms      8.2–11.1 ms
+    research/diffusion/findings               47–49 ms          46.6–47.9 ms
+    coherence/episodes?limit=500              3.4–3.8 ms        1.0–1.3 ms
+    coherence/index?limit=2000                9.1–10.0 ms       5.1–5.5 ms
+
+The proxy adds one to four milliseconds; `status` is the gateway's own
+quarter-second, unchanged since the concurrency fix. All 200. Nothing to fix.
+
+**Oracle, Supabase, Neo4j, RAG.** Unchanged from the verdict above: this tab
+reads SQLite and DuckDB and touches none of the four.
+
+**Latency, and the header's core figure.** Read off the live page after slice
+0: the stamp prints `core 167 ns` and its title now ends "…core max 167 ns;
+each core figure is its histogram bucket's upper edge on a 41.7 ns clock;
+n=300 self-measure samples; decision µs awaits the first order; network,
+polled — desk hop p99 59.0 ms, upstream p99 33.0 ms". Three planes, three
+units, each named. The core is under 100 ns at the p50 (83 ns, two ticks);
+the gateway routes are milliseconds and are meant to be.
