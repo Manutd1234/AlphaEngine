@@ -38,9 +38,19 @@ const BOTTOM = 8;
 const LABEL_W = 170;
 const VALUE_W = 74;
 
-export default function StakeBars({ stakes, caption }: {
+export default function StakeBars({ stakes, caption, hot = null }: {
   stakes: CoherenceKelly["stakes"];
   caption: string;
+  /**
+   * The row a reader's hand is on, from a `HotSource` the caller holds.
+   *
+   * This figure also PUBLISHES one, and that is why the marks below carry a
+   * single `<title>` per row rather than two. `use-mark-readout` indexes marks
+   * by walking `<title>` elements, so a label title AND a bar title made row
+   * three the fifth mark — and the table beside it would have lit the wrong
+   * line. One title per row is what makes the two lists the same list.
+   */
+  hot?: number | null;
 }) {
   if (!stakes.length) {
     return (
@@ -67,15 +77,25 @@ export default function StakeBars({ stakes, caption }: {
             const label = stake.label.length > 24 ? `${stake.label.slice(0, 23)}…` : stake.label;
             return (
               <g key={stake.ticker}>
+                {/* ONE mark per row: the full label (which the drawn one
+                    truncates at 24 characters) and what the row is worth. */}
+                <title>
+                  {`${stake.label} — ${stake.admitted
+                    ? `stake ${decimalLabel(stake.fraction, 6)} of the bankroll`
+                    : "passed over"}`}
+                </title>
                 <text x={0} y={y + 13} className="coh-axis__label">
                   {label}
-                  <title>{stake.label}</title>
                 </text>
                 {stake.admitted && ratio != null ? (
-                  <rect x={LABEL_W} y={y + 4} width={Math.max(1, (ratio / widest) * plotW)} height={ROW_H - 10}
-                        className="coh-kelly__bar-staked">
-                    <title>{`stake ${decimalLabel(stake.fraction, 6)} of the bankroll`}</title>
-                  </rect>
+                  <rect
+                    x={LABEL_W}
+                    y={y + 4}
+                    width={Math.max(1, (ratio / widest) * plotW)}
+                    height={ROW_H - 10}
+                    /* A hot bar thickens; it never changes fill (10n). */
+                    className={`coh-kelly__bar-staked${index === hot ? " is-hot" : ""}`}
+                  />
                 ) : (
                   <text x={LABEL_W} y={y + 13} className="coh-axis__label">
                     {stake.admitted ? "— no parseable fraction" : "○ passed over"}

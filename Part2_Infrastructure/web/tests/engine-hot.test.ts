@@ -72,6 +72,16 @@ interface Site {
   inner: string;
   /** The figure that takes `hot` and publishes its own. */
   figure: string;
+  /**
+   * The component in the same file whose body holds the ROWS, when they are
+   * not inline in the inner.
+   *
+   * `StakeTable` is rendered by two callers — the plan and the whole-family
+   * view — so its markup cannot move into either of them. It takes `hot` and
+   * an `onHot` publisher instead, which shares the index exactly as inline
+   * rows do; what changes is only where this file looks for the handlers.
+   */
+  rowsIn?: string;
 }
 
 const HOT_SITES: Site[] = [
@@ -81,6 +91,10 @@ const HOT_SITES: Site[] = [
   // first, which is what disqualified the Stake pair, whose table sits inside a
   // `<details>` where a lit row would be lit behind a closed door.
   { file: "AblationPane.tsx", inner: "ReplayTable", figure: "ValueStrip" },
+  // The plan's bars against the numbers behind them. Its table is FOLDED, so
+  // the lit row is worth nothing until a reader opens the disclosure — and
+  // everything to the reader who does, which is the one checking a bar.
+  { file: "surface/StakeView.tsx", inner: "AdmittedPlan", figure: "StakeBars", rowsIn: "StakeTable" },
 ];
 
 /** A top-level function's body: from its declaration to the next one, or the end. */
@@ -109,12 +123,29 @@ describe("every hot site", () => {
       assert.ok(inner.length > 200, `${site.inner} is not a top-level function in this file`);
       assert.match(inner, /useHot\(\)/, "nothing inside the provider consumes the hot index");
       assert.match(inner, new RegExp(`<${site.figure}\\b`), `${site.figure} is outside the provider's child`);
-      assert.match(inner, /<table/, "the table is not in the same child as the figure");
       assert.match(inner, /hot=\{hot\}/, "the figure is not told what is hot");
-      for (const handler of ["onPointerEnter", "onPointerLeave", "onFocus", "onBlur"]) {
-        assert.match(inner, new RegExp(`${handler}=\\{`), `a row has no ${handler}, so hot is one-directional`);
+      // The rows: inline in the inner, or in a component the inner renders and
+      // hands the index to. Either way ONE index, published and consumed.
+      const rows = site.rowsIn ? bodyOf(code, site.rowsIn) : inner;
+      assert.ok(rows.length > 100, `${site.rowsIn ?? site.inner} is not a top-level function in this file`);
+      assert.match(rows, /<table/, "the rows are not a table");
+      if (site.rowsIn) {
+        assert.match(inner, new RegExp(`<${site.rowsIn}\\b`), `${site.rowsIn} is not rendered by the provider's child`);
+        assert.match(inner, /onHot=\{setHot\}/, "the table cannot publish, so hot is one-directional");
       }
-      assert.match(bodyOf(source, site.inner), /is-hot/, "a hot row is not marked");
+      for (const handler of ["onPointerEnter", "onPointerLeave", "onFocus", "onBlur"]) {
+        assert.match(rows, new RegExp(`${handler}=\\{`), `a row has no ${handler}, so hot is one-directional`);
+      }
+      assert.match(site.rowsIn ? bodyOf(source, site.rowsIn) : bodyOf(source, site.inner), /is-hot/, "a hot row is not marked");
+      // AND THE FIGURE MARKS ITS OWN. Found by mutation on 2026-08-27: with
+      // `is-hot` deleted from the figure's mark this file stayed green, so the
+      // table→figure direction — the whole point of handing `hot` down — was
+      // unguarded. A pair where only the table lights is half a pair.
+      const dir = site.file.includes("/") ? `${site.file.slice(0, site.file.lastIndexOf("/"))}/` : "";
+      const drawing = read(`../components/coherence/${dir}${site.figure}.tsx`);
+      assert.ok(drawing.trim().length > 500, `${site.figure} is not where this expects it`);
+      assert.match(stripNonCode(drawing), /hot\?: number \| null/, `${site.figure} takes no hot index`);
+      assert.match(drawing, /is-hot/, `${site.figure} never marks the row it is told is hot`);
 
       // Hooks first: the child is a component, and a hook below a conditional
       // return tears the tab down on a cold load.
@@ -124,7 +155,7 @@ describe("every hot site", () => {
     });
   }
   it("counts the sites it has", () => {
-    assert.equal(HOT_SITES.length, 2);
+    assert.equal(HOT_SITES.length, 3);
   });
 });
 

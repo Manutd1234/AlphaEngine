@@ -43,6 +43,7 @@ import type { CoherenceKelly } from "@/lib/coherence/types-lab";
 import Figure, { FigureEmpty, Plot, StateChip } from "../Figure";
 import { FactTable, row, type Fact } from "./DistributionView";
 import { decimalLabel } from "@/lib/coherence/decimals";
+import { HotSource, useHot } from "@/lib/coherence/use-hot";
 import EdgeScatter from "./EdgeScatter";
 import StakeBars, { GrowthBars, toRatio } from "./StakeBars";
 
@@ -104,7 +105,14 @@ function CapitalBar({ kelly }: { kelly: CoherenceKelly }) {
 }
 
 /** The stake ledger, over whichever slice of the family it is handed. */
-export function StakeTable({ stakes, caption }: { stakes: CoherenceKelly["stakes"]; caption: string }) {
+export function StakeTable({ stakes, caption, hot = null, onHot }: {
+  stakes: CoherenceKelly["stakes"];
+  caption: string;
+  /** The row the reader's hand is on, when a caller shares one. */
+  hot?: number | null;
+  /** Publish the row the hand moved to, or null on leaving. */
+  onHot?: (index: number | null) => void;
+}) {
   return (
     <div className="table-wrap" tabIndex={0}>
       <table className="coh-table">
@@ -121,8 +129,15 @@ export function StakeTable({ stakes, caption }: { stakes: CoherenceKelly["stakes
           </tr>
         </thead>
         <tbody>
-          {stakes.map((stake) => (
-            <tr key={stake.ticker}>
+          {stakes.map((stake, index) => (
+            <tr
+              key={stake.ticker}
+              className={index === hot ? "is-hot" : undefined}
+              onPointerEnter={() => onHot?.(index)}
+              onPointerLeave={() => onHot?.(null)}
+              onFocus={() => onHot?.(index)}
+              onBlur={() => onHot?.(null)}
+            >
               <th scope="row">{stake.label}</th>
               <td>{stake.admitted ? "✓ admitted" : "○ passed over"}</td>
               <td className="num">{priceLabel(stake.probability)}</td>
@@ -165,6 +180,46 @@ function planFacts(kelly: CoherenceKelly): Fact[] {
 
 /** The stake section's three views, driven by `SurfacePane`'s switcher. */
 export type StakeViewName = "plan" | "capital" | "method";
+
+/**
+ * The bars, the folded table, and the one index they share.
+ *
+ * These are the same admitted stakes in the same order, drawn once as lengths
+ * and once as figures. The link runs both ways: `StakeBars` draws through
+ * `Plot`, so the mark it is showing reaches the context, and the rows publish
+ * theirs on hover and on focus.
+ *
+ * THE TABLE IS FOLDED, and that is why this pair was left until last. A lit
+ * row inside a closed `<details>` is lit behind a closed door — worth nothing
+ * to the reader who never opens it, and worth having for the reader who does,
+ * which is the one comparing a bar against the numbers behind it. The fold
+ * stays: it is the fourth 2026-08-24 pass's decision and the summary counts
+ * what is inside. What changes is that opening it now costs no bookkeeping.
+ */
+function AdmittedPlan({ admitted }: { admitted: CoherenceKelly["stakes"] }) {
+  const { hot, setHot } = useHot();
+  return (
+    <>
+      <StakeBars hot={hot} stakes={admitted} caption="The admitted stakes, as shares of the bankroll" />
+      {/* The bars draw the Stake column and nothing else, which is the ranking
+          a reader came for. Measure, price, edge and full Kelly are how the
+          ranking was arrived at — per-row detail, folded since the fourth pass
+          of 2026-08-24 and counted in its own summary. */}
+      <details className="disclosure">
+        <summary>
+          Every admitted stake with its measure, price, edge and full-Kelly fraction, {admitted.length}{" "}
+          {admitted.length === 1 ? "row" : "rows"}
+        </summary>
+        <StakeTable
+          hot={hot}
+          onHot={setHot}
+          stakes={admitted}
+          caption="Only the outcomes the plan stakes; the ones it passed over are the All outcomes view."
+        />
+      </details>
+    </>
+  );
+}
 
 export default function StakeView({
   kelly,
@@ -222,23 +277,11 @@ export default function StakeView({
       ) : null}
 
       {admitted.length ? (
-        <>
-          <StakeBars stakes={admitted} caption="The admitted stakes, as shares of the bankroll" />
-          {/* The bars draw the Stake column and nothing else, which is the
-              ranking a reader came for. Measure, price, edge and full Kelly are
-              how the ranking was arrived at — per-row detail, folded since the
-              fourth pass of 2026-08-24 and counted in its own summary. */}
-          <details className="disclosure">
-            <summary>
-              Every admitted stake with its measure, price, edge and full-Kelly fraction, {admitted.length}{" "}
-              {admitted.length === 1 ? "row" : "rows"}
-            </summary>
-            <StakeTable
-              stakes={admitted}
-              caption="Only the outcomes the plan stakes; the ones it passed over are the All outcomes view."
-            />
-          </details>
-        </>
+        /* The provider wraps a CHILD: a component cannot consume the context it
+           renders, so the pair that shares the index lives one level down. */
+        <HotSource>
+          <AdmittedPlan admitted={admitted} />
+        </HotSource>
       ) : (
         <p className="coh-kelly__note">
           <span aria-hidden="true">○</span> No outcome is admitted: {kelly.detail}. That is a result, not a failure.
