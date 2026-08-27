@@ -153,8 +153,11 @@ export default function InformationDiffusionPane({ view, read, error }: {
             : null,
           // The band and the line are drawn at the same weight whatever the
           // sample, so the count is the only thing that says which is which.
+          // The "which overshoot makes them" clause left on 2026-08-27: the fan
+          // below is the only figure on this view that SHOWS an overshoot, and
+          // it carries the sentence.
           coverage
-            ? `Each band is the middle half of ${coverage}; the line through it is a MEAN, so it can sit off-centre wherever the runs are skewed — which overshoot makes them.`
+            ? `Each band is the middle half of ${coverage}; the line through it is a MEAN, so it can sit off-centre where the runs are skewed.`
             : null,
         ].filter(Boolean).join(" ") || null}
       >

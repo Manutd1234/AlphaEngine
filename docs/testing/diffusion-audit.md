@@ -1209,3 +1209,143 @@ Survival tape — the kind the tape has explained since slice 5 — and the reas
 `lsof -ti tcp:8912` is the wrong PID source: it lists the client sockets too.
 `pgrep -f "uvicorn main:app.*8912"`, SIGTERM, then wait for the lock, not the
 port.
+
+## Round two, 2026-08-27 — counts off the headers, the instrument redrawn, and a second sweep
+
+Six asks off five screenshots of the running tab. Everything below was measured
+on the live desk at the user's own viewport (1700×900) unless another width is
+named.
+
+### The five counted accordion headers (asks 1–3)
+
+`6`, `3 rows`, `12 rows`, `14 rows`, `24 rows` read as leftover plumbing once
+the fold beneath each was already a table. None was required by the desk-wide
+"a fold counts what is inside" convention: that guard exists for `Figure`'s
+`notes=` fold, whose list may be empty and needs the count to tell an empty
+fold from a full one. Every fold here is gated on a non-empty body, so the case
+cannot arise. The count moved to where it measures something and was dropped
+where it did not:
+
+    Findings table       14 rows → the table's own caption, "All 14 relationships measured…"
+    Meeting by meeting   24 rows → "The last 16 meetings with a measured stage, of a cap of 16"
+    Instrument's why-list, the run fold, the timestamp fold — dropped outright
+
+`KalshiArm`'s sixth counted summary went the same way for one grammar across
+the tab. Two assertions in `diffusion-figures.test.ts` were re-cut to the
+plain-text form with a new negative, so a count cannot creep back into a fold
+header. The dormant `copy-audit.test.ts` phrase guard — which wakes once a
+summary stops being a template literal — was run by hand against all six
+edited strings before the change and re-run after: clean.
+
+### The Absorption legend and "abnormal return" (asks 4–5)
+
+The legend overlapped its own caption and the topmost gridline label BY
+CONSTRUCTION: `MARGIN.top` was 34, holding two 17px stacked keys and the "100%"
+label with zero slack. Measured before: the first key's ink box started 1px
+ABOVE the svg's own viewBox — surviving only because the plot sets
+`overflow: visible` — the caption gap was 5px, and the second key overlapped
+the gridline label by 8.42px. The two keys measure 179px and 237px in a plot
+over 1500px wide, so stacking was never necessary: one row now, left- and
+right-anchored on the axis ends, `MARGIN.top` 34→40 and `HEIGHT` 210→216 so the
+plot area is unchanged. Caption→key gap measured after: 20px.
+
+"abnormal return" left all three sites — the fan's y-axis title, the
+Simulator's caption, one formula card's accessible label — and the fan's own
+`ariaLabel`, which is where the words would otherwise have survived invisibly.
+The axis keeps its unit: "bps" already sat at the bottom of the y column and
+now names the axis at the top too, which let `MARGIN.top` drop 58→40 (it was
+two rows only to hold the deleted title). The decade ticks moved from
+start-anchored at x=0 — a measured 19.45px spread on their right edges — to a
+right-aligned digit column.
+
+**One defect the rewrite introduced and a live read caught**: the zero tick
+printed `−0`, because `value > 0 ? … : \`−${-value}\`` takes the minus branch
+for zero too. A third branch fixes it.
+
+### The instrument, redrawn (ask 4)
+
+The ladder was a bar chart and a sparse one: at 1504px the six tracks were
+391px of the width, two of six rows drew no bar at all, and the strongest fact
+— how far past its floor a check sat — was the gap between a fill edge and a
+2px tick. It could not compare rows, which is what makes "all four blind checks
+clear" worth reading.
+
+`InstrumentThreshold` puts floor across and reading up, with the diagonal as
+the verdict. Both numbers are already on each check's own 0–1 scale, so the
+field invents nothing. The live read draws the argument the tracks flattened:
+the gate far above the line at a lenient floor of 0.20, the rank and the spread
+hugging it at a strict 0.9. The two unscored requirements get no position — a
+point at y=0 would say "scored, and scored nought" — and sit in a hatched band
+below the axis at the floor they would have been held to, stepping sideways
+because both share a floor of nought.
+
+`InstrumentFit` keeps `groupsOf` verbatim, including the `scored` branch and
+the pinned "not scored for this run" string, and keeps the fold.
+
+Four defects the probe caught before a reader could, and one it could not:
+
+    key rows stacked a name and its reading 13px apart at a 13px rung   → one line each
+    both unscored capsules drew at the same floor                        → they step sideways
+    the x-axis word ran through the hatched band                         → it sits below it
+    the y-axis word shared a baseline with the topmost tick              → rotated beside the axis
+    the key was sized from an ESTIMATE (387px) in 1,218px of free room   → only the screenshot showed it
+
+That last one is the round's lesson repeated: `gutterFor` returns what labels
+NEED, and using it as what the key may HAVE elided every name to fit a column
+with no reason to be narrow. A probe cannot see it — an elided label clashes
+with nothing.
+
+**A probe artefact, left alone rather than "fixed":** `getBBox` reports the
+UNROTATED box for rotated text, so the y-axis word reads as overlapping the 0.5
+tick. Measured with transform-aware rects it clears by 15px.
+
+### The second sweep (ask 6)
+
+All sixteen views at 1700×900 after the round: **0 text clashes, 0 clipped
+viewBoxes, 0 elided labels** (the one reported clash is the rotation artefact
+above).
+
+Height, before → after:
+
+    arm / Control                1110 → 815   two stages side by side, not four stacked rows
+    arm / Clocks                 1023 → 783   slopegraph 620 → 400, its own arithmetic corrected
+    meetings / Meeting by meeting 871 → 695   strip cap 24 → 16
+    findings / Findings table     666 → 610   matrix row pitch 30 → 22
+    arm / Absorption             1023 → 973   the fan's deleted title row, and two duplicated clauses
+    meetings / Mechanism         1021 → 1001  a duplicated footnote dropped
+    findings / Instrument         766 → 850   the new field costs 84px, and is the ask
+
+Every label on the Meeting-by-meeting strip was elided before this round — all
+24 of 24, `2026-07-… BTCUSDT` — and none needed to be. `gutterFor` returns
+`Math.round(widest + clearance)`, so the clearance is already inside the gutter
+it hands back; `ValueStrip` then budgeted `gutter - 14` and subtracted it a
+second time, flooring one glyph off any label that measured its own gutter
+exactly. `gutter - 13` gives the pixel back. All 24 render whole.
+
+Axis alignment: the horizon ladder's `1s 30s 1m 2m 5m 10m 15m 30m` were
+start-anchored at x=0 with a 13px spread on their right edges; right-anchored
+they form a column. The fan's decade ticks likewise.
+
+Repeated explanations removed, one keeper each: the 1s/30s "no sub-minute bar
+source" reason was on four figures and twice on one view (kept on the horizon
+grid and the curve, dropped from the windows figure and the fan, each of which
+carries the wire's words in its marks' own titles); the overshoot clause was on
+both Absorption figures (kept on the fan, the only one that shows an
+overshoot); the "blank stage" sentence was on the meetings caption and its
+section lede (kept on the lede).
+
+**A `?? 0` on a nullable metric, found while shortening the sentence around
+it.** `StageWindows` printed `median ${Math.round(median(releaseHl) ?? 0)}s`,
+so a stage with no drawn half-life reported "median 0s" — a missing
+measurement reading as a fine one, the defect this codebase is most alert to.
+Each clause is conditional on its own median now.
+
+### What is still heavy, and why it was not cut
+
+`arm / Absorption` (973) and `meetings / Mechanism` (1001) each carry two
+figures that are both the view's evidence, and `model` (921) is a seven-card
+grid whose `.coh-lessons__grid` is a Proofs-owned class. Of the fixed 372px
+above every panel, 215 is the desk-wide page heading and 138 is the section
+head and switcher — neither is Diffusion's to cut. Those three views need a
+scroll on a 900px window, and the honest fix is desk-wide chrome rather than
+anything on this tab.

@@ -224,12 +224,9 @@ function ReturnFan({ read }: { read: AbsorptionRead }) {
           ? `The floor refused ${refused} of ${paths.length} runs, and every one still carries a measured path.`
           : "Every run cleared the noise floor."}
       missing={[
-        // The wire's own reason, and it ends without a full stop — so one is
-        // added here rather than letting the join run it into the next clause,
-        // which is what it did on the first build.
-        unresolved.length && why
-          ? `${unresolved.join(" and ")} resolve for no run: ${why.replace(/\.?$/, ".")}`
-          : null,
+        // The 1s/30s reason left on 2026-08-27: the curve above says it, and
+        // each hatched region here carries the wire's own words in its title.
+        // Two figures on one view stating one absence read as two absences.
         overshoots
           ? `${overshoots} paths pass fully absorbed and come back. The axis is not clipped, because a `
             + "clamp would draw an overshoot as a path that merely arrived."
