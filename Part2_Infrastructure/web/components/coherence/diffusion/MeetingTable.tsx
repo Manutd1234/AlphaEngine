@@ -21,7 +21,11 @@ import ValueStrip from "../ValueStrip";
 import type { StageRun } from "./types";
 
 /** The strip shows the tail of the ledger; its caption states the cap. */
-const RECENT_MEETINGS = 24;
+// 16, not 24: measured on the live ledger, nine of the twenty-four rows drew
+// no bar at all ("below the floor") and seven more shared one identical 60s
+// bar, so the tail was 176px of strip for eight distinguishable values. The
+// caption and the folded table both read this constant, so they follow.
+const RECENT_MEETINGS = 16;
 
 export default function MeetingTable({ runs }: { runs: StageRun[] }) {
   const byEvent = new Map<string, { release?: StageRun; call?: StageRun }>();

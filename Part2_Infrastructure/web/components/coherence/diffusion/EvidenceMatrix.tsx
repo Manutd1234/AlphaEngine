@@ -31,7 +31,10 @@ import { STAGE_WORD } from "./AbsorptionGate";
 import type { Finding } from "./types";
 
 const MARGIN = { top: 34, right: 18, bottom: 30 };
-const ROW = 30;
+// 22, the pitch `ValueStrip` uses for a 13px label, not 30: fourteen rows at
+// 30 spent 112px on air the labels did not need. `BAR_H` stays 12, so a bar
+// still clears its row by 5px either side.
+const ROW = 22;
 const BAR_H = 12;
 const COL_GAP = 28;
 /** Beyond this a column stops growing; a larger t is drawn at the edge with its value in the title. */

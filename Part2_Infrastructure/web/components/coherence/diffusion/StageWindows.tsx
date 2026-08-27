@@ -127,11 +127,13 @@ function StageWindows({ read }: { read: AbsorptionRead | null }) {
           + `with ${releaseHl.length} statement and ${callHl.length} press-conference half-lives drawn inside`
         : `Two ${terminal}-minute windows ${STAGE_GAP_MIN} minutes apart, from the constants the ledger is measured against`}
       reading={total
-        ? `Both windows are the same length and each is measured from its own start, so a difference between `
-          + `them is a difference in absorption, not in the grid. The statement's half-lives crowd toward its `
-          + `start (median ${Math.round(median(releaseHl) ?? 0)}s); the conference's spread across its window `
-          + `(median ${Math.round(median(callHl) ?? 0)}s).`
-        : "Both windows are the same length and each is measured from its own start, so a difference between them is a difference in absorption, not in the grid."}
+        ? "Equal windows, each measured from its own start, so a difference between them is absorption and "
+          + "not the grid."
+          // NOT `?? 0`: a median of nothing is not a median of nought, and this
+          // printed "median 0s" on a stage with no drawn half-life.
+          + (median(releaseHl) != null ? ` Statement half-lives crowd its start (median ${Math.round(median(releaseHl) as number)}s)` : "")
+          + (median(callHl) != null ? `; the conference's spread across its window (median ${Math.round(median(callHl) as number)}s).` : ".")
+        : "Equal windows, each measured from its own start, so a difference between them is absorption and not the grid."}
       missing={[
         unusual.length
           ? `${unusual.length} pair${unusual.length === 1 ? "" : "s"} — ${[...new Set(unusual.map((m) => m.ref))].join(", ")} — `
@@ -142,7 +144,9 @@ function StageWindows({ read }: { read: AbsorptionRead | null }) {
           ? `${early("release").length} statement runs had halved before the first measurable bar; they are marked `
             + "at that bar, which is the resolution limit, not their half-life."
           : null,
-        unresolved.length && why ? `${unresolved.join(" and ")} resolve for no run: ${why.replace(/\.?$/, ".")}` : null,
+        // The 1s/30s reason is NOT repeated here: the horizon ladder one figure
+        // below states it, and each band's own title carries the wire's words.
+        // Said twice on one view it read as two different facts.
       ].filter(Boolean).join(" ") || null}
     >
       <Plot height={HEIGHT} minWidth={520}>

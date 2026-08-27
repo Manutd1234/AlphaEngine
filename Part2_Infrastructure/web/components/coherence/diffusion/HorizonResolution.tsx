@@ -123,7 +123,10 @@ function HorizonResolution({ read }: { read: AbsorptionRead }) {
                   let cursor = MARGIN.left;
                   return (
                     <g key={row.horizon}>
-                      <text className="diff-res__label" x={0} y={mid + 4}>{row.horizon}</text>
+                      {/* Right-anchored at the track's own edge, so `1s 30s 1m 2m 5m 10m 15m 30m`
+                          form a column. Start-anchored at x=0 their right edges spread
+                          13px and the ladder read as ragged. */}
+                      <text className="diff-res__label" x={MARGIN.left - 8} y={mid + 4} textAnchor="end">{row.horizon}</text>
 
                       {[...row.counts.entries()].map(([state, count]) => {
                         const w = row.total ? (count / row.total) * stateW : 0;
