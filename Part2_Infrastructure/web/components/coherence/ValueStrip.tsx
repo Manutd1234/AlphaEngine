@@ -143,7 +143,17 @@ export default function ValueStrip({
           const gutter = gutterFor(rows.map((row) => row.label), width, DIAGRAM_LABEL_PX, {
             min: GUTTER_MIN, max: GUTTER_MAX, maxFraction: 0.38, clearance: 14,
           });
-          const short = (text: string) => truncateMiddle(text, gutter - 14, DIAGRAM_LABEL_PX);
+          // `gutter` is already `Math.round(widest + clearance)` from
+          // `gutterFor` — it rounds UP the space a label needs, so budgeting
+          // `gutter - 14` here re-subtracts the same 14px clearance a second
+          // time and floors one glyph off a label that measures its own
+          // gutter exactly. Measured: an 18-glyph ticker label rounds to a
+          // gutter of 175, budgets to 161, and `glyphsWithin` floors 161px to
+          // 17 glyphs — eliding a label with 14px of real room to spare. One
+          // pixel less of the double-subtraction (13, not 14) is real slack,
+          // not slack borrowed from the track: the label still ends 8px
+          // before it (`x={gutter - 8}` below).
+          const short = (text: string) => truncateMiddle(text, gutter - 13, DIAGRAM_LABEL_PX);
           const plotW = Math.max(80, width - gutter - PAD.right);
           const x = (value: number) => gutter + ((value - lo) / span) * plotW;
           const zero = x(anchor);

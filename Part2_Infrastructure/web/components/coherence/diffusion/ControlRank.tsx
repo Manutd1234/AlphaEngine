@@ -25,6 +25,13 @@
  *
  * `percentileWord` is imported from `FloorDistance`, where it moved with the
  * attrition figure, so the two axes on this view keep one vocabulary.
+ *
+ * SIDE BY SIDE, NOT STACKED, since 2026-08-27, the same move `FloorDistance`
+ * made one commit over: two full-width rows become two half-width panels at
+ * one row's height. `ROW` is unchanged — it was set by the worst-case stack
+ * (nine statement runs sharing a rank of 0.0) and that stack is exactly as
+ * tall sideways as it was stacked; only the axis carrying the stage split
+ * moved.
  */
 
 import { memo } from "react";
@@ -39,6 +46,8 @@ const MARGIN = { top: 36, right: 18, bottom: 8, left: 44 };
 const STRIP_H = 30;
 const DOT_R = 4.5;
 const UNRANKED_W = 26;
+/** Between the two panels — the `ReturnFan.tsx` `ALLEY` idiom, same value. */
+const PANEL_GAP = 40;
 const STAGE_MARK: Record<string, string> = { release: "●", call: "▲" };
 
 interface RankedRow {
@@ -64,7 +73,7 @@ function ControlRank({ runs }: { runs: readonly StageRun[] }) {
   const rows = rowsOf(runs);
   const ranked = rows.reduce((total, row) => total + row.ranked.length, 0);
   const unranked = rows.reduce((total, row) => total + row.unranked, 0);
-  const height = MARGIN.top + rows.length * ROW + MARGIN.bottom;
+  const height = MARGIN.top + ROW + MARGIN.bottom;
   const distinct = new Set(rows.flatMap((row) => row.ranked.map((run) => run.control_percentile))).size;
 
   return (
@@ -73,9 +82,8 @@ function ControlRank({ runs }: { runs: readonly StageRun[] }) {
       ariaLabel={`${ranked} ranked runs over ${rows.length} stages, each a mark at its control percentile, `
         + `with ${unranked} unranked runs counted off the axis`}
       reading={ranked
-        ? `Mass at the left is absorption faster than an ordinary half hour; mass at the middle is a stage that `
-          + `finished no faster than the market finishes anything. On this ledger the ${ranked} ranks take `
-          + `${distinct} distinct value${distinct === 1 ? "" : "s"}, which is why they are drawn as marks and not as bars.`
+        ? `Left is faster than an ordinary half hour; the middle is no faster than the market moves anyway. `
+          + `The ${ranked} ranks take ${distinct} distinct value${distinct === 1 ? "" : "s"}, so they are marks, not bars.`
         : "No measured stage has a rank yet."}
       missing={unranked
         ? `Only ${ranked} of ${ranked + unranked} measured stages are ranked: the rest had no matched window `
@@ -83,32 +91,35 @@ function ControlRank({ runs }: { runs: readonly StageRun[] }) {
         : null}
     >
       {ranked || unranked ? (
-        <Plot height={height} minWidth={480}>
+        <Plot height={height} minWidth={560}>
           {(width) => {
-            const span = Math.max(120, width - MARGIN.left - MARGIN.right - (unranked ? UNRANKED_W + 14 : 0));
-            const x = (p: number) => MARGIN.left + p * span;
+            const span = Math.max(120, width - MARGIN.left - MARGIN.right);
+            const panelWidth = rows.length > 1 ? (span - PANEL_GAP) / rows.length : span;
             return (
               <>
                 {rows.map((row, index) => {
-                  const top = MARGIN.top + index * ROW;
+                  const left = MARGIN.left + index * (panelWidth + PANEL_GAP);
+                  const rowUnrankedGap = row.unranked ? UNRANKED_W + 14 : 0;
+                  const rowSpan = Math.max(60, panelWidth - rowUnrankedGap);
+                  const x = (p: number) => left + p * rowSpan;
+                  const top = MARGIN.top;
                   // The axis sits high in the row; coincident ranks stack DOWNWARD from it
                   // into the room below, and the tick labels sit UNDER that room — room
-                  // for nine, because nine statement runs share a rank of 0.0 here. Stacked upward they overprinted the head text on
-                  // the live ledger, where nine statement runs share a rank of 0.0.
+                  // for nine, because nine statement runs share a rank of 0.0 here.
                   const mid = top + 22 + STRIP_H / 2;
                   const word = STAGE_WORD[row.stage] ?? row.stage;
                   // Coincident ranks stack downward so each stays a mark of its own.
                   const seen = new Map<number, number>();
                   return (
                     <g key={row.stage}>
-                      <text className="diff-floor__head" x={MARGIN.left} y={top + 12}>
+                      <text className="diff-floor__head" x={left} y={top + 12}>
                         <tspan aria-hidden="true">{STAGE_MARK[row.stage]}</tspan> {word}
                       </text>
-                      <text className="diff-floor__count" x={MARGIN.left + span} y={top + 12} textAnchor="end">
+                      <text className="diff-floor__count" x={left + panelWidth} y={top + 12} textAnchor="end">
                         {row.ranked.length} of {row.ranked.length + row.unranked} ranked
                       </text>
 
-                      <line className="diff-floor__axis" x1={MARGIN.left} x2={MARGIN.left + span} y1={mid} y2={mid} />
+                      <line className="diff-floor__axis" x1={left} x2={left + rowSpan} y1={mid} y2={mid} />
                       <line className="diff-rank__half" x1={x(0.5)} x2={x(0.5)} y1={mid - STRIP_H / 2} y2={mid + STRIP_H / 2}>
                         <title>{`0.5 — ${percentileWord(0.5)}`}</title>
                       </line>
@@ -132,7 +143,7 @@ function ControlRank({ runs }: { runs: readonly StageRun[] }) {
                       })}
 
                       {row.unranked ? (
-                        <rect className="diff-rank__unranked" x={MARGIN.left + span + 14} y={mid - STRIP_H / 2}
+                        <rect className="diff-rank__unranked" x={left + rowSpan + 14} y={mid - STRIP_H / 2}
                               width={UNRANKED_W} height={STRIP_H}>
                           <title>{`${row.unranked} ${word} run${row.unranked === 1 ? "" : "s"} with no percentile: ${percentileWord(null)}`}</title>
                         </rect>

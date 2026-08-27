@@ -27,16 +27,21 @@ import Figure, { FigureEmpty, Plot } from "../Figure";
 import type { StageRun } from "./types";
 
 /**
- * Tall enough to aim at one line.
+ * Tall enough to aim at one line, and no taller than that needs.
  *
  * 240 put 89 ranks into 176px of plot — two pixels a rank, so the lines were a
  * hatch rather than 89 things a reader could tell apart, and hitting the one
- * you wanted with a pointer was luck. 520 gives about five pixels a rank. The
- * figure is taller than a screenful of the card and that is the right trade:
- * this view exists to be read line by line, and a reader who wants the headline
- * has it in the sentence underneath.
+ * you wanted with a pointer was luck. This is a SLOPEGRAPH split per stage —
+ * the y scale each panel draws is its OWN row count, not 89 — and the taller
+ * panel on the live ledger is the 47-row press-conference one; the 42-row
+ * statement panel is more forgiving. 400 gives that taller panel
+ * `(400 − 40 − 24) / 46` ≈ 7.3px between adjacent ranks, comfortably above
+ * the 5px this file used to call enough for the full 89. The figure is still
+ * taller than a screenful of the card, and that is still the right trade:
+ * this view exists to be read line by line, and a reader who wants the
+ * headline has it in the sentence underneath.
  */
-const HEIGHT = 620;
+const HEIGHT = 400;
 const MARGIN = { top: 40, right: 12, bottom: 24, left: 12 };
 /** Room outside the left axis for "fastest" and "slowest", both right-anchored. */
 const LABEL_GUTTER = 58;
@@ -113,9 +118,8 @@ export default function ClockAgreement({ runs }: { runs: StageRun[] }) {
       }
       reading={
         totalRows
-          ? `${totalMoved} of ${totalRows} stages move more than a tenth of their own field between the two clocks — `
-            + "those are the ones where a path stopped moving because the market had run out of volatility rather "
-            + "than because absorption had finished, and the clock decides which."
+          ? `${totalMoved} of ${totalRows} stages move more than a tenth of their own field between the clocks — `
+            + "the ones where a path stopped because volatility ran out, not because absorption finished."
           : null
       }
       missing={[

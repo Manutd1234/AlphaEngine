@@ -34,6 +34,14 @@
  * read (it is the windows FOUND, not the rank's population), this is a sigma
  * histogram and not the half-life histogram the Meetings strip already draws,
  * and the wire carries no placebo to strip.
+ *
+ * SIDE BY SIDE, NOT STACKED, since 2026-08-27. The two stages used to be two
+ * full-width rows, `ROW` tall each; they are two half-width panels at one
+ * row's height now — the `ReturnFan` two-panel idiom, applied to a figure
+ * that already had its own two stages and only needed them placed across
+ * instead of down. Every constant below the panel split — bucket width, the
+ * floor line, the tick labels — is unchanged; only which axis carries the
+ * stage split moved.
  */
 
 import { memo } from "react";
@@ -62,6 +70,8 @@ const HIST_H = 60;
 const BUCKET_SIGMA = 0.2;
 /** The axis ends here; a stage past it lands in the last bucket, which says so. */
 const AXIS_MAX_SIGMA = 8;
+/** Between the two panels — the `ReturnFan.tsx` `ALLEY` idiom, same value. */
+const PANEL_GAP = 40;
 const STAGE_MARK: Record<string, string> = { release: "●", call: "▲" };
 
 interface StageSigmas {
@@ -116,7 +126,7 @@ function FloorDistance({ runs, stages }: { runs: readonly StageRun[]; stages: re
   const cleared = rows.flatMap((row) => row.sigmas.filter((sigma) => sigma >= floor)).sort((a, b) => a - b);
   const clearedMedian = cleared.length ? cleared[Math.floor(cleared.length / 2)] : null;
   const clearedMax = cleared.length ? cleared[cleared.length - 1] : null;
-  const height = MARGIN.top + rows.length * ROW + MARGIN.bottom;
+  const height = MARGIN.top + ROW + MARGIN.bottom;
   const medianOf = (stage: string) => stages.find((s) => s.stage === stage)?.median_half_life_s ?? null;
 
   return (
@@ -125,11 +135,11 @@ function FloorDistance({ runs, stages }: { runs: readonly StageRun[]; stages: re
       ariaLabel={`${placed} stages over ${rows.length} rows, each placed by its terminal move in pre-event sigmas `
         + `against a floor of ${floor}; ${refused} refused below it, ${accepted} cleared above it`}
       reading={placed
-        ? `The floor is a gradient, not a cliff: refusals spread across the whole span below ${floor}σ, and `
+        ? `The floor is a gradient, not a cliff: `
           + near.map((n) => `${n.count} ${STAGE_WORD[n.stage] ?? n.stage}`).join(" and ")
           + ` runs sat within ${(2 * BUCKET_SIGMA).toFixed(1)}σ of clearing`
           + (clearedMedian != null && clearedMax != null
-            ? `; the ${cleared.length} that cleared reach ${fmt(clearedMax, 1)}σ, half of them past ${fmt(clearedMedian, 1)}σ.`
+            ? `, and the ${cleared.length} that cleared reach ${fmt(clearedMax, 1)}σ, half past ${fmt(clearedMedian, 1)}σ.`
             : ".")
         : "No stage has a sigma this figure can place."}
       missing={unplaced
@@ -138,14 +148,16 @@ function FloorDistance({ runs, stages }: { runs: readonly StageRun[]; stages: re
         : null}
     >
       {placed ? (
-        <Plot height={height} minWidth={480}>
+        <Plot height={height} minWidth={560}>
           {(width) => {
             const span = Math.max(120, width - MARGIN.left - MARGIN.right);
-            const x = (sigma: number) => MARGIN.left + (Math.min(sigma, AXIS_MAX_SIGMA) / AXIS_MAX_SIGMA) * span;
+            const panelWidth = rows.length > 1 ? (span - PANEL_GAP) / rows.length : span;
             return (
               <>
                 {rows.map((row, index) => {
-                  const top = MARGIN.top + index * ROW;
+                  const left = MARGIN.left + index * (panelWidth + PANEL_GAP);
+                  const x = (sigma: number) => left + (Math.min(sigma, AXIS_MAX_SIGMA) / AXIS_MAX_SIGMA) * panelWidth;
+                  const top = MARGIN.top;
                   const base = top + 22 + HIST_H;
                   const counts = sigmaBuckets(row.sigmas, AXIS_MAX_SIGMA, BUCKET_SIGMA);
                   const tallest = Math.max(1, ...counts);
@@ -153,10 +165,10 @@ function FloorDistance({ runs, stages }: { runs: readonly StageRun[]; stages: re
                   const median = medianOf(row.stage);
                   return (
                     <g key={row.stage}>
-                      <text className="diff-floor__head" x={MARGIN.left} y={top + 12}>
+                      <text className="diff-floor__head" x={left} y={top + 12}>
                         <tspan aria-hidden="true">{STAGE_MARK[row.stage]}</tspan> {word}
                       </text>
-                      <text className="diff-floor__count" x={MARGIN.left + span} y={top + 12} textAnchor="end">
+                      <text className="diff-floor__count" x={left + panelWidth} y={top + 12} textAnchor="end">
                         {row.refused} refused, {row.accepted} cleared
                         {median != null ? ` — half absorbed in ${Math.round(median)}s` : ""}
                       </text>
@@ -185,11 +197,11 @@ function FloorDistance({ runs, stages }: { runs: readonly StageRun[]; stages: re
                         );
                       })}
 
-                      <line className="diff-floor__axis" x1={MARGIN.left} x2={MARGIN.left + span} y1={base} y2={base} />
+                      <line className="diff-floor__axis" x1={left} x2={left + panelWidth} y1={base} y2={base} />
                       <line className="diff-floor__floor" x1={x(row.floor)} x2={x(row.floor)} y1={top + 18} y2={base + 4}>
                         <title>{`The floor: a terminal move of ${row.floor} pre-event sigmas. ${row.accepted} ${word} runs cleared it.`}</title>
                       </line>
-                      <text className="coh-ladder__tick" x={MARGIN.left} y={base + 14}>0σ</text>
+                      <text className="coh-ladder__tick" x={left} y={base + 14}>0σ</text>
                       <text className="coh-ladder__tick" x={x(row.floor)} y={base + 14} textAnchor="middle">
                         {row.floor}σ floor
                       </text>
