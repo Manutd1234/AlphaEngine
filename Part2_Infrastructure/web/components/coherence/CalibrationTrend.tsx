@@ -35,6 +35,7 @@ import { calibrationHistoryRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import Figure, { Plot, StateChip } from "./Figure";
 import MeasurabilityStrip from "./MeasurabilityStrip";
+import CorpusAccrual from "./CorpusAccrual";
 import CorpusHistory from "./CorpusHistory";
 import SectionVerdict from "./SectionVerdict";
 
@@ -106,6 +107,11 @@ export default function CalibrationTrend({ active }: { active: boolean }) {
     return (
       <>
         {chips}
+        {/* WHAT THE CORPUS IS BECOMING, before what it is. On this branch every
+            recorded run declined to score, so the only question worth asking is
+            whether the corpus is filling and when it crosses — which is exactly
+            what the view could not answer. */}
+        <CorpusAccrual data={data} />
         <MeasurabilityStrip
           subject="run"
           caption="When the recorder ran, and what each run could score"
@@ -257,6 +263,11 @@ export default function CalibrationTrend({ active }: { active: boolean }) {
           )}
         </Plot>
       </Figure>
+
+      {/* HOW THE CORPUS IS ACCRUING, under the score it produced. The trend
+          says how well the venue is calibrated; this says how much of a corpus
+          that verdict rests on and whether it is growing. */}
+      <CorpusAccrual data={data} />
 
       {/* THE OTHER SIX MEASURES, from the same payload. This route ships seven
           figures per run and this component drew one of them; the rest were on

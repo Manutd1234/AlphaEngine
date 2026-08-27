@@ -17,10 +17,18 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { MEANINGFUL_EDGE } from "../lib/coherence/thresholds";
+import { MEANINGFUL_EDGE, MIN_TAPE_FORECASTS, THIN_CORPUS } from "../lib/coherence/thresholds";
 
 const dutchbook = readFileSync(
   fileURLToPath(new URL("../../modules/coherence/kernel/dutchbook.py", import.meta.url)),
+  "utf8",
+);
+const calibration = readFileSync(
+  fileURLToPath(new URL("../../modules/coherence/kernel/calibration.py", import.meta.url)),
+  "utf8",
+);
+const calibrate = readFileSync(
+  fileURLToPath(new URL("../../modules/coherence/syscalls/calibrate.py", import.meta.url)),
   "utf8",
 );
 
@@ -74,5 +82,32 @@ describe("the figure that draws the line reads it from the mirror", () => {
     // fifty; scaled to the value, `-0.000001` would draw as a mark at the edge
     // of the plot and read as an enormous something.
     assert.match(axis, /Math\.max\(MEANINGFUL_EDGE \* 5/);
+  });
+});
+
+describe("the corpus thresholds are the gateway's own numbers too", () => {
+  // Both were drawn on this desk before they were named: the Scorecard has
+  // shown a `thin` flag and an engine word since it existed, and neither said
+  // what number decided it. A reader could see "thin" without knowing whether
+  // the corpus was five markets short or forty-five.
+  it("finds THIN_CORPUS where it expects it, and agrees exactly", () => {
+    const found = calibration.match(/^THIN_CORPUS: int = (\d+)$/m);
+    assert.ok(found, "THIN_CORPUS is not declared as this expects; the assertion below would compare nothing");
+    assert.equal(THIN_CORPUS, Number(found[1]),
+      "the browser and the gateway disagree about when a corpus is thin");
+  });
+
+  it("finds MIN_TAPE_FORECASTS where it expects it, and agrees exactly", () => {
+    const found = calibrate.match(/^MIN_TAPE_FORECASTS = (\d+)$/m);
+    assert.ok(found, "MIN_TAPE_FORECASTS is not declared as this expects");
+    assert.equal(MIN_TAPE_FORECASTS, Number(found[1]),
+      "the browser and the gateway disagree about when a forecast test becomes a convergence test");
+  });
+
+  it("keeps them apart, because they decide different things", () => {
+    // One decides whether the reliability term can be trusted; the other
+    // decides which measurement was taken at all. A single number standing for
+    // both would let a corpus over one floor read as over the other.
+    assert.notEqual(THIN_CORPUS, MIN_TAPE_FORECASTS);
   });
 });

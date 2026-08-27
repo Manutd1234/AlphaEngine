@@ -38,6 +38,9 @@ export const DRAWINGS = [
   "LadderPrices", "LegSizes",
   // Basket / Size, 2026-08-26: each leg against the interest outstanding at it.
   "BasketFootprint",
+  // Corpus / Score trend, 2026-08-26: how the corpus is accruing towards the
+  // two floors that decide what it can say. Opens on a `<Figure>` itself.
+  "CorpusAccrual",
   // The one figure on the tab whose name says nothing about being one; it is
   // local to `IndexPane` and there is no second `Chart` under `coherence/`.
   "Chart",

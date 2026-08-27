@@ -344,3 +344,37 @@
   stroke: var(--rule);
   stroke-width: 1;
 }
+
+/* The two floors the corpus is accruing towards. Dashed, because they are
+   thresholds rather than readings. */
+.coh-accrual__floor {
+  stroke: var(--rule);
+  stroke-dasharray: 3 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.coh-accrual__floorword {
+  fill: var(--text-secondary);
+  font-size: var(--fs-tick);
+  font-variant-numeric: tabular-nums;
+}
+
+.coh-accrual__run {
+  fill: var(--series-1);
+}
+
+/* A run scored on a corpus too small for its reliability term to mean much.
+   Hollow rather than tinted: the distinction has to survive forced colours. */
+.coh-accrual__run.is-thin {
+  fill: var(--surface-1);
+  stroke: var(--series-1);
+  stroke-width: 1.5;
+}
+
+/* Where the corpus would cross, if it keeps the rate it has been keeping.
+   Dashed and thin: it is a claim about the future, not a measurement. */
+.coh-accrual__projection {
+  stroke: var(--text-muted);
+  stroke-dasharray: 2 4;
+  vector-effect: non-scaling-stroke;
+}

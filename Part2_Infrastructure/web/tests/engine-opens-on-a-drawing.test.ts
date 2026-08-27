@@ -349,6 +349,7 @@ describe("every Proofs view opens on a drawing", () => {
       LadderPrices: "../components/coherence/LadderPrices.tsx#LadderPrices",
       LegSizes: "../components/coherence/LegSizes.tsx#LegSizes",
       BasketFootprint: "../components/coherence/BasketFootprint.tsx#BasketFootprint",
+      CorpusAccrual: "../components/coherence/CorpusAccrual.tsx#CorpusAccrual",
       GroupPins: "../components/coherence/GroupPins.tsx#GroupPins",
       InstrumentFit: "../components/coherence/diffusion/InstrumentFit.tsx#InstrumentFit",
       InstrumentThreshold: "../components/coherence/diffusion/InstrumentThreshold.tsx#InstrumentThreshold",
