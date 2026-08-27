@@ -70,6 +70,7 @@ export default function ValueStrip({
   rows,
   mark,
   anchorOnMark = false,
+  hot = null,
 }: {
   caption: string;
   ariaLabel: string;
@@ -88,6 +89,16 @@ export default function ValueStrip({
   rows: StripRow[];
   /** An optional dashed reference rule with its own meaning, e.g. 1. */
   mark?: { at: number; label: string };
+  /**
+   * The row a reader's hand is on, from a `HotSource` the caller holds.
+   *
+   * This figure already PUBLISHES one — it draws through `Plot` with a single
+   * `<title>` per row, so `use-mark-readout` hands the plot's hot index up and
+   * `Plot` puts it in the context. What it could not do until 2026-08-26 was
+   * take one back, which is the direction that lets a TABLE beside it light
+   * the bar. Absent, nothing is ever hot and the figure is unchanged.
+   */
+  hot?: number | null;
   /**
    * Measure each bar FROM the mark rather than from zero.
    *
@@ -194,7 +205,16 @@ export default function ValueStrip({
                       {short(row.label)}
                     </text>
                     {barless ? null : (
-                      <rect x={bx} y={y} width={w} height={BAR_H} className="coh-ablation__bar" />
+                      <rect
+                        x={bx}
+                        y={y}
+                        width={w}
+                        height={BAR_H}
+                        /* A hot bar thickens; it never changes fill, because a
+                           fill would be meaning carried by colour and hot is
+                           not meaning — it is where the hand is (10n). */
+                        className={`coh-ablation__bar${index === hot ? " is-hot" : ""}`}
+                      />
                     )}
                     <text x={tx} y={cy + 3.5} textAnchor={anchor} className="coh-ablation__value">
                       {valueText}

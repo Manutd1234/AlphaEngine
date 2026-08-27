@@ -41,6 +41,7 @@ import { replayRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import Figure, { FigureEmpty, StateChip } from "./Figure";
 import { statValue } from "@/lib/coherence/decimals";
+import { HotSource, useHot } from "@/lib/coherence/use-hot";
 import ValueStrip from "./ValueStrip";
 
 const HEIGHT = 120;
@@ -191,11 +192,37 @@ export default function AblationPane({ view, active }: { view: AblationView; act
       {view === "comparison" ? (
         <Bars ablations={data.ablations} />
       ) : (
-        <>
+        /* The provider, and it wraps a CHILD rather than this component's own
+           body: a component cannot consume the context it renders, so the pair
+           that shares the index has to live one level down. */
+        <HotSource>
+          <ReplayTable data={data} />
+        </HotSource>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The strip, the table and the one index they share.
+ *
+ * These are the same six configurations in the same order, drawn once as
+ * lengths and once as figures, and until 2026-08-26 a reader comparing them
+ * had to hold a row's position in their head while moving between the two.
+ * Now the hand is the link, in both directions: the strip publishes the mark
+ * it is showing (it draws through `Plot`, which puts its hot index in the
+ * context), and the rows below publish theirs, so hovering either lights the
+ * other. A stroke, never a fill — hot is where the hand is, not a meaning.
+ */
+function ReplayTable({ data }: { data: CoherenceReplay }) {
+  const { hot, setHot } = useHot();
+  return (
+    <>
       {/* The table's decisive column, drawn: what each cost model says the
           whole tape netted. The Comparison bars count opportunities; this
           strip prices them, which is the other half of the ablation. */}
       <ValueStrip
+        hot={hot}
         caption="Net edge per configuration over the whole tape, against zero"
         ariaLabel={`Net total per configuration for ${data.ablations.length} cost models`}
         rows={data.ablations.map((row) => ({
@@ -223,8 +250,15 @@ export default function AblationPane({ view, active }: { view: AblationView; act
             </tr>
           </thead>
           <tbody>
-            {data.ablations.map((row) => (
-              <tr key={row.name}>
+            {data.ablations.map((row, index) => (
+              <tr
+                key={row.name}
+                className={index === hot ? "is-hot" : undefined}
+                onPointerEnter={() => setHot(index)}
+                onPointerLeave={() => setHot(null)}
+                onFocus={() => setHot(index)}
+                onBlur={() => setHot(null)}
+              >
                 <th scope="row">{row.name}</th>
                 <td>{row.description}</td>
                 <td className="num">{row.violations}</td>
@@ -255,8 +289,6 @@ export default function AblationPane({ view, active }: { view: AblationView; act
           ))}
         </details>
       ) : null}
-        </>
-      )}
-    </div>
+    </>
   );
 }

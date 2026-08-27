@@ -76,6 +76,11 @@ interface Site {
 
 const HOT_SITES: Site[] = [
   { file: "CalibrationCorpus.tsx", inner: "Composition", figure: "CorpusShares" },
+  // Markets. The replay's table and the strip that prices it are the same six
+  // configurations in the same order, both open on the page — no fold to open
+  // first, which is what disqualified the Stake pair, whose table sits inside a
+  // `<details>` where a lit row would be lit behind a closed door.
+  { file: "AblationPane.tsx", inner: "ReplayTable", figure: "ValueStrip" },
 ];
 
 /** A top-level function's body: from its declaration to the next one, or the end. */
@@ -119,7 +124,7 @@ describe("every hot site", () => {
     });
   }
   it("counts the sites it has", () => {
-    assert.equal(HOT_SITES.length, 1);
+    assert.equal(HOT_SITES.length, 2);
   });
 });
 
