@@ -242,6 +242,23 @@ const LINKED: Pair[] = [
       /<LinkedX>[\s\S]*?states=\{states\}[\s\S]*?states=\{states\}[\s\S]*?<\/LinkedX>/,
     ],
   },
+  {
+    // The fee at a price, measured and modelled. The section derives the
+    // drawable points ONCE with `drawableFeePoints` — the set the curve itself
+    // draws — and samples the parabola at those same prices, so index three is
+    // one price on both. Before that derivation existed the parabola swept
+    // 49ths of a dollar and the pair was refused for exactly this reason.
+    key: "fee-price",
+    holder: "FeesSection.tsx",
+    members: [
+      { file: "FeeCurve.tsx", count: "drawable.length", link: "literal" },
+      { file: "FeeParabola.tsx", count: "points.length", link: "prop" },
+    ],
+    derivation: [
+      /const pricedAt = drawableFeePoints\(curve\.data\)\.map\(\(d\) => d\.p\);/,
+      /<LinkedX>[\s\S]*?parabolaAt=\{pricedAt\}[\s\S]*?<FeeCurve /,
+    ],
+  },
 ];
 
 const escape = (literal: string) => literal.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -255,7 +272,12 @@ describe("every linked pair shares one index space", () => {
         assert.match(holder, shape, `${pair.holder} no longer shows: ${shape}`);
       }
       if (pair.members.some((m) => m.link === "prop")) {
-        assert.match(holder, new RegExp(`link="${pair.key}"`), `${pair.holder} passes no key to its shared member`);
+        // A holder may forward the key under a NAMED prop when the member is
+        // reached through an intermediary — `FeesSection` hands `parabolaLink`
+        // to `FeesPane`, which renders the parabola. What matters is that the
+        // key is a literal in the holder, so this file can read which space
+        // the pair shares; where it lands is the intermediary's business.
+        assert.match(holder, new RegExp(`[Ll]ink="${pair.key}"`), `${pair.holder} passes no key to its shared member`);
       }
       for (const member of pair.members) {
         const source = read(`../components/coherence/${member.file}`);
@@ -267,7 +289,7 @@ describe("every linked pair shares one index space", () => {
     });
   }
   it("declares the pairs it has, and only those", () => {
-    assert.equal(LINKED.length, 3);
+    assert.equal(LINKED.length, 4);
   });
 });
 

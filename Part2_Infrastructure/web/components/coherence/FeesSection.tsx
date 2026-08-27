@@ -45,9 +45,10 @@
 import { useState } from "react";
 
 import type { CoherenceFees } from "@/lib/coherence/types";
+import { LinkedX } from "@/lib/coherence/linked-x";
 import type { CoherenceFeeCurve } from "@/lib/coherence/types-history";
 import { feesCurveRoute, feesRoute } from "@/lib/coherence/routes";
-import FeeCurve from "./FeeCurve";
+import FeeCurve, { drawableFeePoints } from "./FeeCurve";
 import LiveTape from "./LiveTape";
 import { toUnit } from "@/lib/coherence/decimals";
 import { useLiveSeries } from "@/lib/coherence/use-live-series";
@@ -93,6 +94,11 @@ export default function FeesSection(
     feesCurveRoute(example.contracts, example.fills),
     active && view === "shape",
   );
+
+  /* The shared index space, derived ONCE from the curve the gateway priced —
+     `drawableFeePoints` is what the curve itself draws, so the parabola cannot
+     drift from it. */
+  const pricedAt = drawableFeePoints(curve.data).map((d) => d.p);
 
   const share = fees.data?.net_as_fraction_of_notional ?? null;
   const overNotional = feesExceedNotional(share);
@@ -171,7 +177,22 @@ export default function FeesSection(
       {onReplay ? (
         <AblationPane view={view as AblationView} active={active && onReplay} />
       ) : (
-        <FeesPane fees={fees.data} error={fees.error} view={view as FeesView} />
+        /* ONE index space for both fee figures, derived here and handed to
+           each: the measured curve draws the gateway's own points, and the
+           modelled parabola is sampled at those same prices, so a reader
+           walking one walks the other. Unlinked before 2026-08-27, correctly —
+           the parabola swept 49ths of a dollar, so the same index named two
+           different prices and a shared cursor would have lied. */
+        <LinkedX>
+          <FeesPane
+            fees={fees.data}
+            error={fees.error}
+            view={view as FeesView}
+            parabolaAt={pricedAt}
+            parabolaLink="fee-price"
+          />
+          {view === "shape" ? <FeeCurve curve={curve.data} error={curve.error} /> : null}
+        </LinkedX>
       )}
 
       {/* MEASURED, beside the modelled parabola rather than instead of it. That
@@ -181,7 +202,6 @@ export default function FeesSection(
           rounding component the section opens by claiming is nineteen times the
           trading one becomes a gap a reader can see rather than a sentence they
           are asked to take. */}
-      {view === "shape" ? <FeeCurve curve={curve.data} error={curve.error} /> : null}
 
       <LiveTape
         points={shareTape}

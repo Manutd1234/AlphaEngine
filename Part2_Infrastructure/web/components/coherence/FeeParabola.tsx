@@ -49,21 +49,37 @@ export default function FeeParabola({
   multiplier,
   taker = 0.07,
   feeAwareThreshold,
+  at,
+  link,
 }: {
   multiplier: string;
   /** The taker rate the curve is drawn at. There is no maker curve to draw. */
   taker?: number;
   feeAwareThreshold: string | null;
+  /**
+   * The prices to sample, in units, when a caller has a set worth matching.
+   *
+   * Absent, the curve is its own even sweep of 49ths — which is the honest
+   * default and the reason this figure was NOT linked to the measured curve
+   * until 2026-08-27: a parabola sampled at 49ths beside a curve drawn on the
+   * venue's grid means index three is two different prices, and a shared
+   * crosshair would have named one while pointing at the other. Handed the
+   * curve's own prices, the two index spaces are the same space.
+   */
+  at?: readonly number[];
+  /** The pair's key, from the caller that draws both halves. */
+  link?: string;
 }) {
   const mult = Number(multiplier) || 1;
   const rate = mult * taker;
 
   // Fee per contract at each price, in centicents.
-  const points: Array<{ p: number; fee: number }> = [];
-  for (let i = 1; i < SAMPLES; i += 1) {
-    const p = i / SAMPLES;
-    points.push({ p, fee: rate * p * (1 - p) * DOLLAR_CC });
-  }
+  const feeAt = (p: number) => ({ p, fee: rate * p * (1 - p) * DOLLAR_CC });
+  const sampled: Array<{ p: number; fee: number }> = [];
+  for (let i = 1; i < SAMPLES; i += 1) sampled.push(feeAt(i / SAMPLES));
+  // A line needs two: a caller whose curve refused leaves the even sweep in
+  // place rather than drawing a parabola through one point.
+  const points = at && at.length >= 2 ? at.map(feeAt) : sampled;
   const peak = Math.max(...points.map((point) => point.fee), 1);
 
   const base = HEIGHT - MARGIN.bottom;
@@ -125,6 +141,7 @@ export default function FeeParabola({
           },
           width: 240,
           arriveAt: "first",
+          link,
         })}
       >
         {(width) => {

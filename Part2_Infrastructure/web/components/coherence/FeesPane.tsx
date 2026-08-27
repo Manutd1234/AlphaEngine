@@ -191,11 +191,16 @@ export default function FeesPane({
   fees,
   error,
   view,
+  parabolaAt,
+  parabolaLink,
 }: {
   /** The worked example as the gateway priced it, or null until it answers. */
   fees: CoherenceFees | null;
   error: string | null;
   view: FeesView;
+  /** The curve's own prices and pair key, forwarded to the parabola. */
+  parabolaAt?: readonly number[];
+  parabolaLink?: string;
 }) {
   const heading = <h4 className="console-subhead">{HEADINGS[view]}</h4>;
 
@@ -222,7 +227,12 @@ export default function FeesPane({
     return (
       <>
         {heading}
-        <FeeParabola multiplier={fees.multiplier} feeAwareThreshold={fees.fee_aware_threshold} />
+        <FeeParabola
+          at={parabolaAt}
+          link={parabolaLink}
+          multiplier={fees.multiplier}
+          feeAwareThreshold={fees.fee_aware_threshold}
+        />
 
         <dl className="coh-status__facts">
           <div>

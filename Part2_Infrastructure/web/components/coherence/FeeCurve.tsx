@@ -36,6 +36,23 @@ import { toUnit } from "@/lib/coherence/decimals";
 import Figure, { FigureEmpty, Plot } from "./Figure";
 
 const HEIGHT = 200;
+
+/**
+ * The points the curve can actually draw: those whose price, net and trade fee
+ * all parse. Exported because the modelled parabola beside it is sampled at
+ * exactly these prices — that is what makes one index name one price on both
+ * figures, which is the condition `linked-x` puts on sharing a key. Derived
+ * once, here, so the two cannot drift apart.
+ */
+export function drawableFeePoints(curve: CoherenceFeeCurve | null) {
+  if (!curve || curve.state !== "ok") return [];
+  return curve.points.flatMap((point) => {
+    const p = toUnit(point.price);
+    const n = toUnit(point.net);
+    const t = toUnit(point.trade_fee);
+    return p === null || n === null || t === null ? [] : [{ point, p, n, t }];
+  });
+}
 const MARGIN = { top: 16, right: 16, bottom: 34, left: 46 };
 
 export default function FeeCurve({ curve, error }: {
@@ -75,12 +92,7 @@ export default function FeeCurve({ curve, error }: {
      line ran through a value the wire never carried. Withheld points are
      counted in `missing` instead, and a curve with fewer than two draws its
      empty branch. */
-  const drawable = points.flatMap((point) => {
-    const p = toUnit(point.price);
-    const n = toUnit(point.net);
-    const t = toUnit(point.trade_fee);
-    return p === null || n === null || t === null ? [] : [{ point, p, n, t }];
-  });
+  const drawable = drawableFeePoints(curve);
   const withheld = points.length - drawable.length;
   if (drawable.length < 2) {
     return (
@@ -166,6 +178,10 @@ export default function FeeCurve({ curve, error }: {
             },
             width: 280,
             arriveAt: "first",
+            // The modelled parabola is drawn at these same prices, so walking
+            // one walks the other: at a position a reader sees what the fee
+            // kernel charges and what the closed form says it should.
+            link: "fee-price",
           };
         }}
       >

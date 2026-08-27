@@ -72,7 +72,7 @@ const SHARED_X: Row[] = [
   // The recorder's own reads of one book, at their own stamps.
   { file: "BookHistory.tsx", geometry: "at(", byValue: true, arriveAt: "last" },
   // The fee kernel priced at the venue's own grid: a price axis, read from $0.
-  { file: "FeeCurve.tsx", geometry: "x(", byValue: true, arriveAt: "first" },
+  { file: "FeeCurve.tsx", geometry: "x(", byValue: true, arriveAt: "first", link: "fee-price" },
   // The resting book: one position per price level either side quotes, which
   // is the union of the two ladders and never an even step.
   { file: "LadderChart.tsx", geometry: "x(", byValue: true, arriveAt: "first" },
@@ -82,7 +82,10 @@ const SHARED_X: Row[] = [
   // figure whose marks ARE evenly spaced, so it takes no positions. Its axis
   // is anchored to the first and last SAMPLE rather than the plot edges,
   // because the curve is not drawn at $0 or $1: a contract there is settled.
-  { file: "FeeParabola.tsx", geometry: "xOf(", byValue: false, arriveAt: "first" },
+  // Sampled at the curve's own prices when the section has them, which is what
+  // lets it share the curve's key; drawn alone it keeps its even sweep and its
+  // caller passes no key at all.
+  { file: "FeeParabola.tsx", geometry: "xOf(", byValue: false, arriveAt: "first", link: "prop" },
 ];
 
 describe("every crosshair figure on the engine", () => {
