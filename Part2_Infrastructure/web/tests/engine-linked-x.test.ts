@@ -189,8 +189,15 @@ interface Pair {
   /** The component that wraps both in `<LinkedX>` and derives the space once. */
   holder: string;
   members: [Member, Member];
-  /** The one derivation in the holder that both counts come from. */
-  derivation: RegExp;
+  /**
+   * What the holder must show, unordered: each of these is asserted on its own.
+   *
+   * A single ordered regex was how this broke — the Basket redo moved the
+   * provider into a view function ABOVE the dispatcher that derives the space,
+   * so the two facts stopped appearing in reading order while both stayed
+   * true.
+   */
+  derivation: RegExp[];
 }
 
 const LINKED: Pair[] = [
@@ -204,7 +211,7 @@ const LINKED: Pair[] = [
       { file: "IndexSeriesChart.tsx", count: "stamps.length", link: "literal" },
       { file: "MeasurabilityStrip.tsx", count: "marks.length", link: "prop" },
     ],
-    derivation: /const stamps = stampsOf\(data\.points\);[\s\S]*?marks=\{marksAtStamps\(data\.points, stamps\)\}/,
+    derivation: [/const stamps = stampsOf\(data\.points\);[\s\S]*?marks=\{marksAtStamps\(data\.points, stamps\)\}/],
   },
   {
     // The settled record: the skill line maps `data.points` one to one and
@@ -215,7 +222,7 @@ const LINKED: Pair[] = [
       { file: "CalibrationTrend.tsx", count: "points.length", link: "literal" },
       { file: "CorpusHistory.tsx", count: "points.length", link: "literal" },
     ],
-    derivation: /const points = data\.points\.map\([\s\S]*?<LinkedX>[\s\S]*?<CorpusHistory data=\{data\} skillDrawnAbove \/>/,
+    derivation: [/const points = data\.points\.map\([\s\S]*?<LinkedX>[\s\S]*?<CorpusHistory data=\{data\} skillDrawnAbove \/>/],
   },
   {
     // The basket: both figures map the same `states` array to their columns.
@@ -225,7 +232,15 @@ const LINKED: Pair[] = [
       { file: "PayoffByState.tsx", count: "columns.length", link: "literal" },
       { file: "StateCoverage.tsx", count: "columns.length", link: "prop" },
     ],
-    derivation: /const states: CoverageState\[\] = [\s\S]*?<LinkedX>[\s\S]*?<PayoffByState certificate=\{certificate\} states=\{states\} \/>[\s\S]*?<StateCoverage certificate=\{certificate\} states=\{states\} exact=\{exact\} link="basket-states" \/>/,
+    // Two facts, unordered: the pane derives the state space exactly once, and
+    // both members receive THAT array inside the provider. Since the
+    // 2026-08-26 redo the provider sits in `BasketView` and the derivation in
+    // the dispatcher below it, so an ordered regex would fail on a pane that
+    // is entirely correct.
+    derivation: [
+      /const states: CoverageState\[\] = /,
+      /<LinkedX>[\s\S]*?states=\{states\}[\s\S]*?states=\{states\}[\s\S]*?<\/LinkedX>/,
+    ],
   },
 ];
 
@@ -236,7 +251,9 @@ describe("every linked pair shares one index space", () => {
     it(`${pair.key}: ${pair.members.map((m) => m.file).join(" and ")} count one derivation`, () => {
       const holder = read(`../components/coherence/${pair.holder}`);
       assert.match(holder, /<LinkedX>/, `${pair.holder} does not wrap the pair in a provider`);
-      assert.match(holder, pair.derivation, `${pair.holder} no longer derives the pair's index space once`);
+      for (const shape of pair.derivation) {
+        assert.match(holder, shape, `${pair.holder} no longer shows: ${shape}`);
+      }
       if (pair.members.some((m) => m.link === "prop")) {
         assert.match(holder, new RegExp(`link="${pair.key}"`), `${pair.holder} passes no key to its shared member`);
       }

@@ -31,8 +31,18 @@ import { verdictChip } from "./certificate-verdict";
 import FamilyChoice, { type FamilySectionProps } from "./FamilyChoice";
 import { StateChip } from "./Figure";
 import BasketWhatIf from "./BasketWhatIf";
-import PortfolioPane from "./PortfolioPane";
+import PortfolioPane, { type BasketViewId } from "./PortfolioPane";
 import SectionVerdict from "./SectionVerdict";
+
+/**
+ * Three questions, in the order a reader asks them: what a cover would cost,
+ * what the test handed back, and whether it could be put on.
+ */
+const VIEWS: ReadonlyArray<[BasketViewId, string]> = [
+  ["cover", "Cover"],
+  ["basket", "Basket"],
+  ["size", "Size"],
+];
 
 export default function BasketSection({
   events,
@@ -41,7 +51,12 @@ export default function BasketSection({
   active,
   eventsPending = false,
   eventsError = null,
-}: FamilySectionProps) {
+  view,
+  onView,
+}: FamilySectionProps & {
+  view: BasketViewId;
+  onView: (next: BasketViewId) => void;
+}) {
   // The same URL Coherence test reads, so the cache answers this one for free.
   const { data, error } = useCoherenceRead<CoherenceCertificate>(
     certifyRoute(target),
@@ -69,9 +84,9 @@ export default function BasketSection({
         label="Choose a family to price"
         verdict={answer?.verdict ?? null}
       >
-        {/* The same band, in the same place, as the other five sections. This
-            one has no switcher — it is a single-view section — so the pinned
-            row above it carries the family picker alone. */}
+        {/* The same band, in the same place, as the other five sections. The
+            switcher joined it on 2026-08-26 with the three-view redo; the
+            pinned row above carries it beside the family picker. */}
         <SectionVerdict
           pending={
             error && !answer
@@ -100,16 +115,27 @@ export default function BasketSection({
           ) : null}
         </SectionVerdict>
 
+        <div className="coh-bar">
+          <div className="seg" role="group" aria-label="Basket view">
+            {VIEWS.map(([name, label]) => (
+              <button key={name} type="button" aria-pressed={view === name} onClick={() => onView(name)}>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* NOT GATED ON `answer`, and that is the point of drawing it here.
             The certificate takes seconds on a 188-strike family; the QUOTES it
             is about are already in memory, off the universe read the picker
             above is built from. Gated, the one operated figure on this tab
             vanished exactly while a reader was waiting for something to look
             at. `BasketWhatIf` moved here from the Coherence test on 2026-08-26:
-            it is the cost of a cover, which is this section's subject. */}
-        {chosen ? <BasketWhatIf event={chosen} /> : null}
+            it is the cost of a cover, which is this view's subject — so it
+            rides on Cover and stays ungated. */}
+        {view === "cover" && chosen ? <BasketWhatIf event={chosen} /> : null}
 
-        {answer ? <PortfolioPane certificate={answer} chosen={chosen} /> : null}
+        {answer ? <PortfolioPane certificate={answer} chosen={chosen} view={view} /> : null}
       </FamilyChoice>
     </section>
   );

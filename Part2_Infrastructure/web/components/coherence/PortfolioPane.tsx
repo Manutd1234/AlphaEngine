@@ -39,6 +39,8 @@
  */
 
 import type { CoherenceCertificate, CoherenceEventView } from "@/lib/coherence/types";
+import BasketFootprint from "./BasketFootprint";
+import Figure, { FigureEmpty } from "./Figure";
 import ShortfallScale from "./ShortfallScale";
 import { LinkedX } from "@/lib/coherence/linked-x";
 import PayoffByState from "./PayoffByState";
@@ -124,11 +126,146 @@ function LegTable({ certificate }: { certificate: CoherenceCertificate }) {
   );
 }
 
-export default function PortfolioPane({ certificate, chosen }: {
+/**
+ * Which of the section's three questions is showing.
+ *
+ * Declared here rather than in `BasketSection` because the section imports the
+ * pane: the same direction `CombosPane` and `CombosSection` already run in.
+ */
+export type BasketViewId = "cover" | "basket" | "size";
+
+/**
+ * What buying the cover COSTS — the question that is drawable on every read.
+ *
+ * It needs the quotes and not the certificate, which is why this is the view
+ * the section opens on: a 188-strike family takes seconds to certify, and this
+ * has something to say the whole time. `BasketWhatIf` sits above it, mounted
+ * by the section so it is not gated on an answer this pane cannot draw
+ * without.
+ */
+export function CoverView({ certificate, states, exact }: {
+  certificate: CoherenceCertificate;
+  states: CoverageState[];
+  exact: boolean;
+}) {
+  return (
+    <div className="coh-grid coh-grid--2">
+      {/* NOT `MarginAxis`, which stays on the Coherence test's verdict view
+          where it answers a yes/no beside the check ladder. Here the question
+          is HOW FAR, and on the ordinary answer — no basket, because the
+          family is coherent — a linear axis puts the optimum, the threshold
+          and zero on one pixel. */}
+      <ShortfallScale
+        margin={certificate.margin}
+        verdict={certificate.verdict}
+        engine={certificate.engine}
+      />
+      {/* What a cover would have to COVER, which is a property of the family
+          and therefore exists whether or not a portfolio does. */}
+      <StateCoverage certificate={certificate} states={states} exact={exact} />
+    </div>
+  );
+}
+
+/**
+ * The portfolio the test handed back, state by state.
+ *
+ * HONESTLY EMPTY ON THE ORDINARY ANSWER, and it names which answer that is.
+ * The exchange is almost always coherent, so the solver almost always hands
+ * back nothing — and an empty frame that does not say "coherent" is
+ * indistinguishable from a feed that failed. That distinction is the whole
+ * argument this tab makes.
+ */
+export function BasketView({ certificate, states, exact }: {
+  certificate: CoherenceCertificate;
+  states: CoverageState[];
+  exact: boolean;
+}) {
+  if (!certificate.legs.length) {
+    return (
+      <Figure
+        caption="What the portfolio pays in each state this family can settle into"
+        ariaLabel="No portfolio was returned for this family"
+        missing={
+          `Coherent — the programme's optimum is ${certificate.margin ?? "not reported"}, so no portfolio of these`
+          + " quotes pays more than it costs in every state. Cover shows how far the best available one fell short."
+        }
+      >
+        <FigureEmpty reason="Coherent — no portfolio to hold." />
+      </Figure>
+    );
+  }
+
+  return (
+    <>
+      {/* ONE CROSSHAIR OVER BOTH: the payoff columns and the coverage blocks
+          are the same states in the same order, so a pointer on either draws
+          the state on both. */}
+      <LinkedX>
+      {/* Gated on a mutually exclusive family because one state per market is
+          the only state space this side can rebuild without re-deriving the
+          strikes, and a state space guessed wrong draws a different world
+          confidently. */}
+      {exact ? (
+        <PayoffByState certificate={certificate} states={states} />
+      ) : (
+        <p className="coh-figure__missing">
+          <span aria-hidden="true">◌</span> No payoff figure: the family is not marked mutually exclusive, so there
+          is no state space to price against.
+        </p>
+      )}
+
+      {/* WHICH states the basket touches, under what it PAYS in them. The
+          payoff figure needs legs, prices and sizes and is absent whenever any
+          of the three cannot be read; this one needs only the tickers, so it
+          still draws on exactly the reads where the figure above cannot. */}
+      <StateCoverage certificate={certificate} states={states} exact={exact} link="basket-states" />
+      </LinkedX>
+
+      <details className="disclosure">
+        <summary>Every leg through all three fee components, and what the basket comes to</summary>
+        <LegTable certificate={certificate} />
+      </details>
+    </>
+  );
+}
+
+/**
+ * Whether the basket can be put on — the question the section never asked.
+ *
+ * Three views drew what the portfolio PAYS and none asked whether it could be
+ * bought. A basket needing four times the open interest of one leg is a
+ * certificate and not a trade, and the figures that said so were on the wire
+ * the whole time.
+ */
+export function SizeView({ certificate, chosen }: {
+  certificate: CoherenceCertificate;
+  chosen: CoherenceEventView | null;
+}) {
+  if (!certificate.legs.length) {
+    return (
+      <Figure
+        caption="What the basket needs, against what is outstanding at each leg"
+        ariaLabel="No portfolio was returned, so there is nothing to size"
+        missing={
+          "Coherent — no portfolio was returned, so there is no size to check. Cover shows how far the best"
+          + " available basket fell short."
+        }
+      >
+        <FigureEmpty reason="Coherent — no basket to size." />
+      </Figure>
+    );
+  }
+  return <BasketFootprint certificate={certificate} event={chosen} />;
+}
+
+export default function PortfolioPane({ certificate, chosen, view }: {
   /** The section's own `certify` answer, already read and already cached. */
   certificate: CoherenceCertificate;
   /** The family being solved, for the state space the payoff figure prices. */
   chosen: CoherenceEventView | null;
+  /** Which of the section's three questions is showing. */
+  view: BasketViewId;
 }) {
   // The state space, read once for both branches. It comes off the universe
   // read the console already holds, so neither branch fetches anything, and it
@@ -140,86 +277,10 @@ export default function PortfolioPane({ certificate, chosen }: {
   }));
   const exact = Boolean(chosen?.mutually_exclusive);
 
-  if (!certificate.legs.length) {
-    // NOT A SENTENCE ON ITS OWN ANY MORE. This is the answer on the common
-    // path — the exchange is almost always coherent, so the solver almost
-    // always hands back nothing — and a rail section whose usual state is one
-    // line of absence is a dead end the desk sweep would be right to flag.
-    //
-    // What the solver DID conclude is its own optimum, and the gateway reports
-    // it on every solve now. So the section opens on how far the best available
-    // basket fell short, and the sentence explains the drawing rather than
-    // standing in for one.
-    return (
-      <>
-        {/* TWO FIGURES ON THE ORDINARY ANSWER, not one and a sentence. The
-            margin says how far the best available basket fell short; the
-            coverage strip says what it would have had to cover, which is a
-            property of the FAMILY and therefore exists whether or not a
-            portfolio does. The sentence that used to stand in for a drawing
-            here is now one clause under two of them. */}
-        <div className="coh-grid coh-grid--2">
-          {/* NOT `MarginAxis`, which stays on the Coherence test's verdict view
-              where it answers a yes/no beside the check ladder. Here the
-              question is HOW FAR, and on the answer this branch exists for —
-              no basket, because the family is coherent — a linear axis puts the
-              optimum, the threshold and zero on one pixel. That is the straight
-              line the reader reported. */}
-          <ShortfallScale
-            margin={certificate.margin}
-            verdict={certificate.verdict}
-            engine={certificate.engine}
-          />
-          <StateCoverage certificate={certificate} states={states} exact={exact} />
-        </div>
-        <p className="console-empty">
-          <span aria-hidden="true">◌</span> No basket to price: no portfolio of these quotes pays more than it
-          costs in every state.
-        </p>
-      </>
-    );
-  }
-
-  return (
-    <>
-      {/* The duality claim — the certificate of infeasibility IS the trade —
-          moved up to `BasketSection`'s lede on 2026-08-25, when this pane's
-          group became a section again and got a head of its own to carry it.
-          It is the same sentence in the same reading position, one element
-          higher; repeating it here would be a reader meeting it twice on one
-          screen. `coherence-proof-claims.test.ts` still counts two places for
-          it, and the other is the tab's own description. */}
-
-      {/* Gated on a mutually exclusive family because one state per market is
-          the only state space this side can rebuild without re-deriving the
-          strikes, and a state space guessed wrong draws a different world
-          confidently. Without one the figure says which claim is therefore not
-          drawn, and the leg table below still carries the portfolio. */}
-      {/* ONE CROSSHAIR OVER BOTH: the payoff columns and the coverage blocks
-          are the same states in the same order, so a pointer on either draws
-          the state on both. */}
-      <LinkedX>
-      {exact ? (
-        <PayoffByState certificate={certificate} states={states} />
-      ) : (
-        <p className="coh-figure__missing">
-          <span aria-hidden="true">◌</span> No payoff figure: the family is not marked mutually exclusive, so there
-          is no state space to price against.
-        </p>
-      )}
-
-      {/* WHICH states the basket touches, under what it PAYS in them. Two
-          different claims about the same space: the payoff figure needs legs,
-          prices and sizes and is absent whenever any of the three cannot be
-          read, and this one needs only the tickers — so it still draws on
-          exactly the reads where the figure above cannot. */}
-      <StateCoverage certificate={certificate} states={states} exact={exact} link="basket-states" />
-      </LinkedX>
-
-      <details className="disclosure">
-        <summary>Every leg through all three fee components, and what the basket comes to</summary>
-        <LegTable certificate={certificate} />
-      </details>
-    </>
-  );
+  // ONE DISPATCH, and the state space above is computed once for all three:
+  // rebuilding it per view is how two views come to disagree about whether a
+  // covering is exact.
+  if (view === "basket") return <BasketView certificate={certificate} states={states} exact={exact} />;
+  if (view === "size") return <SizeView certificate={certificate} chosen={chosen} />;
+  return <CoverView certificate={certificate} states={states} exact={exact} />;
 }

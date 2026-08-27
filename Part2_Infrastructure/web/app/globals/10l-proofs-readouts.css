@@ -296,3 +296,29 @@
 .coh-legsize__column {
   fill: transparent;
 }
+
+/* The basket's footprint: one column per leg, its share of what is
+   outstanding at that leg's strike. */
+.coh-footprint__bar {
+  fill: var(--series-1);
+}
+
+/* A leg the solver sized past everything anybody holds. Hatched rather than
+   recoloured, so the distinction survives forced colours. */
+.coh-footprint__bar.is-over {
+  fill: url(#diff-hatch);
+  stroke: var(--text-primary);
+  stroke-width: 1;
+}
+
+/* The same size against contracts TRADED — a second reading of one column. */
+.coh-footprint__traded {
+  stroke: var(--text-primary);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.coh-footprint__label {
+  fill: var(--text-secondary);
+  font-size: var(--fs-tick);
+}

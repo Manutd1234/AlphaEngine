@@ -301,6 +301,7 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
           active={active && section === "portfolio"}
           eventsPending={familiesPending}
           eventsError={universe.error}
+          {...viewProps("portfolio")}
         />
       </WorkspaceSubtabPanel>
 

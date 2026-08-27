@@ -36,6 +36,8 @@ export const DRAWINGS = [
   // axis, and the same legs' three size fields under it on the same strike
   // extent. Both open on a `<Figure>` themselves; both are in LOCAL below.
   "LadderPrices", "LegSizes",
+  // Basket / Size, 2026-08-26: each leg against the interest outstanding at it.
+  "BasketFootprint",
   // The one figure on the tab whose name says nothing about being one; it is
   // local to `IndexPane` and there is no second `Chart` under `coherence/`.
   "Chart",
@@ -60,6 +62,10 @@ export const DRAWINGS = [
   // two rows of "not measured" on the live read — an empty frame that also
   // duplicated the last two rows of the table beneath it.
   "InstrumentFit",
+  // The threshold field, 2026-08-27: floor demanded across, reading up, the
+  // diagonal as the verdict. `InstrumentFit` keeps the rows and the fold and
+  // opens on this.
+  "InstrumentThreshold",
   // Coherence test / Proof, 2026-08-26. It replaced a `ValueStrip` of the
   // certificate's own two row counts — 189 against 0, the second floored to a
   // 1px hairline and excluded from that strip's floor note — with the room

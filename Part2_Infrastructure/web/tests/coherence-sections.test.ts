@@ -127,7 +127,10 @@ describe("exactly one subtab rail on the tab", () => {
     // The other half of the rule above, and the reason relaxing the count did
     // not relax the contract: a section that drew no seg because its views got
     // lost would look exactly like one that draws none because it has one view.
-    const SINGLE_VIEW = new Set(["portfolio"]);
+    // EMPTY since 2026-08-26: Basket was the last single-view section and its
+    // redo gave it three. A name left here would be a section allowed to draw
+    // no switcher, which is the hole this set exists to close.
+    const SINGLE_VIEW = new Set<string>();
     for (const [id, file] of Object.entries(SECTION_FILES)) {
       const source = read(file);
       const segs = (source.match(/className="seg[ "]/g) ?? []).length;
@@ -185,7 +188,7 @@ describe("exactly one subtab rail on the tab", () => {
       calibration: ["Score", "Bands"],
       corpus: ["Composition", "Score trend"],
       index: ["By poll", "By family"],
-      portfolio: [],
+      portfolio: ["Cover", "Basket", "Size"],
       lessons: [],
     };
     for (const [id, file] of Object.entries(SECTION_FILES)) {

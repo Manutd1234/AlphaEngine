@@ -138,12 +138,19 @@ describe("each figure says what it cannot say", () => {
     // it rather than one of them hard-coding the flattering answer. A single
     // `assert.match` was green with one of the two sites mutated to a literal —
     // caught by mutating it, which is the only way this was ever going to show.
+    // SCOPED TO EACH SITE since 2026-08-26. Counting `exact={exact}` across the
+    // file counted the pane's own dispatch too — it hands `exact` to each of
+    // the three views — so the totals stopped matching for a reason that had
+    // nothing to do with a hard-coded flag. Each call site is checked where it
+    // stands instead, which is what the rule was always about.
     const pane = stripNonCode(read(FIGURES.StateCoverage.drawnIn));
-    const sites = (pane.match(/<StateCoverage\b/g) ?? []).length;
-    const derived = (pane.match(/exact=\{exact\}/g) ?? []).length;
-    assert.ok(sites >= 2, `PortfolioPane draws the coverage strip ${sites} time(s); both branches need it`);
-    assert.equal(derived, sites,
-      "a StateCoverage call site hard-codes `exact` instead of deriving it from the family");
+    const sites = [...pane.matchAll(/<StateCoverage\b/g)];
+    assert.ok(sites.length >= 2, `PortfolioPane draws the coverage strip ${sites.length} time(s); both views need it`);
+    for (const site of sites) {
+      const call = pane.slice(site.index ?? 0, (site.index ?? 0) + 220);
+      assert.match(call, /exact=\{exact\}/,
+        "a StateCoverage call site hard-codes `exact` instead of deriving it from the family");
+    }
     assert.match(pane, /const exact = Boolean\(chosen\?\.mutually_exclusive\)/,
       "PortfolioPane no longer reads exactness off the venue's own mutually-exclusive flag");
   });

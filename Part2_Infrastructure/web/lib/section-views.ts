@@ -98,7 +98,7 @@ const MARKETS_VIEWS = {
  */
 const COHERENCE_VIEWS = {
   certificate: [["verdict", "Verdict"], ["proof", "Proof"], ["prices", "Prices"]],
-  portfolio: [],
+  portfolio: [["cover", "Cover"], ["basket", "Basket"], ["size", "Size"]],
   combos: [["bands", "Bands"], ["parlays", "Parlays"], ["bounds", "Bounds"]],
   index: [["series", "By poll"], ["families", "By family"]],
   calibration: [["score", "Score"], ["bands", "Bands"]],

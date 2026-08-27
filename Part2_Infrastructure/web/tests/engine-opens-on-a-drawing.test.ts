@@ -117,7 +117,12 @@ const VIEWS: Record<string, View> = {
   // The prices the test is about, given a view of their own on 2026-08-26
   // rather than a place below the verdict.
   "Coherence test / Prices": { at: "../components/coherence/CertificateViews.tsx#PricesView" },
-  "Basket": { at: "../components/coherence/PortfolioPane.tsx#PortfolioPane" },
+  // Three questions since 2026-08-26: what a cover costs, what the test handed
+  // back, and whether it could be put on. Cover is the one drawable on every
+  // read, which is why the section opens there.
+  "Basket / Cover": { at: "../components/coherence/PortfolioPane.tsx#CoverView" },
+  "Basket / Basket": { at: "../components/coherence/PortfolioPane.tsx#BasketView" },
+  "Basket / Size": { at: "../components/coherence/PortfolioPane.tsx#SizeView" },
   "Parlays / Bands": { at: "../components/coherence/CombosViews.tsx#BandsView" },
   // NO LONGER EXEMPT, as of 2026-08-25. The exemption said a figure here would
   // be the same six bands the Bands view already draws together, and it was
@@ -322,7 +327,7 @@ describe("every Proofs view opens on a drawing", () => {
     // Eleven views over six Proofs sections, plus sixteen over Diffusion's
     // seven. A view added without a line here is a view this contract does not
     // reach, and the failure would be silence.
-    assert.equal(Object.keys(VIEWS).length, 28);
+    assert.equal(Object.keys(VIEWS).length, 30);
   });
 
   it("every named drawing is one, so the allow-list is not a loophole", () => {
@@ -343,8 +348,10 @@ describe("every Proofs view opens on a drawing", () => {
       MeasurabilityStrip: "../components/coherence/MeasurabilityStrip.tsx#MeasurabilityStrip",
       LadderPrices: "../components/coherence/LadderPrices.tsx#LadderPrices",
       LegSizes: "../components/coherence/LegSizes.tsx#LegSizes",
+      BasketFootprint: "../components/coherence/BasketFootprint.tsx#BasketFootprint",
       GroupPins: "../components/coherence/GroupPins.tsx#GroupPins",
       InstrumentFit: "../components/coherence/diffusion/InstrumentFit.tsx#InstrumentFit",
+      InstrumentThreshold: "../components/coherence/diffusion/InstrumentThreshold.tsx#InstrumentThreshold",
       MeetingCalendar: "../components/coherence/diffusion/MeetingCalendar.tsx#MeetingCalendar",
       StageWindows: "../components/coherence/diffusion/StageWindows.tsx#StageWindows",
       FloorDistance: "../components/coherence/diffusion/FloorDistance.tsx#FloorDistance",

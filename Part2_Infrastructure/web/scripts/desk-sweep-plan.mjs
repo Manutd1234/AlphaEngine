@@ -74,6 +74,7 @@ const VIEW_CELLS = {
   },
   coherence: {
     certificate: ["proof", "prices"],
+    portfolio: ["basket", "size"],
     combos: ["parlays", "bounds"],
     index: ["families"],
     calibration: ["bands"],
@@ -82,7 +83,7 @@ const VIEW_CELLS = {
   },
 };
 
-const EXPECTED_VIEW_CELLS = 27;
+const EXPECTED_VIEW_CELLS = 29;
 
 /**
  * The two tabs whose job is to report infrastructure truth.

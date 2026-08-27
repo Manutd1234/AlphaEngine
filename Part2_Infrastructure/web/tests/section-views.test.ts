@@ -51,7 +51,11 @@ const RAILS: Record<string, readonly string[]> = { markets: MARKETS_SECTION_IDS,
  * Sections that draw no switcher and declare no views — `coherence-sections`
  * names the same set. Basket is one view until its redo.
  */
-const SINGLE_VIEW: Record<string, readonly string[]> = { markets: [], coherence: ["portfolio"] };
+// EMPTY BOTH SIDES since 2026-08-26: Basket was the last single-view section
+// on either engine tab and its redo gave it three. Kept as a table rather than
+// deleted, because the next section to arrive with one view needs somewhere to
+// say so rather than silently failing the checks below.
+const SINGLE_VIEW: Record<string, readonly string[]> = { markets: [], coherence: [] };
 /**
  * Where the default is NOT the first listed, and why: Lessons leads with its
  * four curriculum slices ("segregate the content better", the reader's own
@@ -217,7 +221,13 @@ describe("resolving the third segment", () => {
     assert.equal(railView("coherence", "certificate", "bands"), "verdict", "a sibling's id must land on the default");
     assert.equal(railView("coherence", "lessons", ""), "coverage", "bare #coherence/lessons opens the map, not the first slice");
     assert.equal(railView("coherence", "lessons", "nonsense"), "coverage");
-    assert.equal(railView("coherence", "portfolio", "anything"), null, "a single-view section resolves nothing");
+    // Basket stopped being single-view on 2026-08-26, so an unknown segment
+    // there now falls back to its default like every other section rather than
+    // resolving to nothing. What still resolves to null is a tab with no table
+    // at all, which the next case covers.
+    assert.equal(railView("coherence", "portfolio", "anything"), "cover",
+      "an unknown Basket view must land on Cover, the one drawable on every read");
+    assert.equal(railView("coherence", "portfolio", "size"), "size");
   });
 
   it("returns null for a tab that declares no views, so the router leaves it alone", () => {
