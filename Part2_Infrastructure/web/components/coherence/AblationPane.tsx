@@ -35,11 +35,10 @@
  * this pane's lede leads both views.
  */
 
-import { useMeasuredWidth } from "@/components/chart-kit";
 import type { CoherenceAblation, CoherenceReplay } from "@/lib/coherence/types";
 import { replayRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
-import Figure, { FigureEmpty, StateChip } from "./Figure";
+import Figure, { FigureEmpty, Plot, StateChip } from "./Figure";
 import { statValue } from "@/lib/coherence/decimals";
 import { HotSource, useHot } from "@/lib/coherence/use-hot";
 import ValueStrip from "./ValueStrip";
@@ -61,7 +60,6 @@ function untestableNote(ablations: CoherenceAblation[]): string | null {
 }
 
 function Bars({ ablations }: { ablations: CoherenceAblation[] }) {
-  const [plotRef, plotW] = useMeasuredWidth<HTMLDivElement>(720);
   const peak = Math.max(...ablations.map((row) => row.worth_doing), 1);
   const naive = ablations.find((row) => row.name === "no_fees");
   const full = ablations.find((row) => row.name === "full");
@@ -99,13 +97,21 @@ function Bars({ ablations }: { ablations: CoherenceAblation[] }) {
       }
       missing={missing}
     >
-      <div ref={plotRef} style={{ width: "100%" }}>
-        <svg viewBox={`0 0 ${plotW} ${height}`} width={plotW} height={height} className="coh-ablation">
+      {/* THROUGH `Plot` since 2026-08-27. It drew into its own `<svg>` over
+          `useMeasuredWidth`, which is the shape that left the fee parabola and
+          the strike ladder mouse-only: no tab stop, no arrow keys, no live
+          region, and each bar's `<title>` reachable only by hovering it. The
+          titles were already one per row, so the mark readout walks them as
+          they stand — and the plot publishes the walked row into any
+          `HotSource` above it, the way the strip beside the table does. */}
+      <Plot height={height}>
+        {(width) => (
+          <g className="coh-ablation">
         {ablations.map((row, index) => {
           // 96px of label column against the longest configuration name the
           // gateway declares — "direct_member", 13 chars x 6.72px/char at the
           // 12px label rung (14r) = 87px — so no name is elided mid-word.
-          const width = (row.worth_doing / peak) * (plotW - 140);
+          const barW = (row.worth_doing / peak) * (width - 140);
           const y = 6 + index * ROW_HEIGHT;
           return (
             <g key={row.name}>
@@ -116,18 +122,19 @@ function Bars({ ablations }: { ablations: CoherenceAblation[] }) {
               <rect
                 x="96"
                 y={y}
-                width={Math.max(0.4, width)}
+                width={Math.max(0.4, barW)}
                 height={12}
                 className={`coh-ablation__bar ${row.name === "no_fees" ? "is-naive" : ""}`}
               />
-              <text x={Math.min(plotW - 6, 100 + width)} y={y + 9} className="coh-ablation__value">
+              <text x={Math.min(width - 6, 100 + barW)} y={y + 9} className="coh-ablation__value">
                 {row.worth_doing}
               </text>
             </g>
           );
         })}
-        </svg>
-      </div>
+          </g>
+        )}
+      </Plot>
     </Figure>
   );
 }
