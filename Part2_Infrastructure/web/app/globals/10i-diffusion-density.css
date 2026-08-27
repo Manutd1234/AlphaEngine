@@ -132,12 +132,13 @@
    fill — every row carries its mark and its margin in words — so there is no
    forced-colors block here for the same reason `.diff-bars` needs none. */
 .diff-fit { display: grid; gap: var(--space-3); min-width: 0; }
-/* `.diff-fit__ladder/__group/__grouphead/__row/__what/__value/__room/__track/
-   __fill/__floor` LEFT THIS FILE on 2026-08-25 with the HTML grid they styled.
-   The ladder is SVG inside `<Plot>` now — it was HTML with `title` ATTRIBUTES
-   and `useMarkReadout` collects SVG `<title>` CHILDREN, so it had ten hoverable
-   facts and no keyboard route. Replacements are `.diff-fit__svg*` in
-   `10j-diffusion-tables.css`. `.diff-fit` and `.diff-fit__why` stay: the first
+/* The ladder's own classes left this file on 2026-08-25 with the HTML grid they
+   styled, and the ladder itself left on 2026-08-27. It was HTML with `title`
+   ATTRIBUTES, and `useMarkReadout` collects SVG `<title>` CHILDREN, so it had
+   ten hoverable facts and no keyboard route; then it was six SVG tracks, which
+   spent a quarter of the width on ink and drew two of six rows empty. The
+   drawing is the threshold field now, `.diff-thresh__*` in
+   `10k-diffusion-marks.css`. `.diff-fit` and `.diff-fit__why` stay: the first
    is the stack, the second is a definition list inside a disclosure. */
 .diff-fit__why {
   display: grid;

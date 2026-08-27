@@ -43,9 +43,8 @@
 
 import { Fragment } from "react";
 
-import { DIAGRAM_LABEL_PX, advancePx, truncateMiddle } from "@/lib/coherence/label-metrics";
 import { fmt } from "@/lib/format";
-import Figure, { Plot } from "../Figure";
+import InstrumentThreshold from "./InstrumentThreshold";
 import type { DiffusionStudy, GateCheck } from "./types";
 
 /** Both diagnostics are reported on one nought-to-ten scale so they can be read
@@ -194,135 +193,16 @@ function groupsOf(study: DiffusionStudy, gate: GateCheck | null): Group[] {
   ];
 }
 
-function stateWord(met: boolean | null): string {
-  return met == null ? "not measured" : met ? "met" : "not met";
-}
-
-const ROW = 27;
-const GROUP_HEAD = 22;
-const PAD = { top: 4, bottom: 6 };
-const TRACK = 10;
-
-/** Column boundaries as fractions of the plot width, so the four columns keep
- *  their proportions at every desk width instead of being pinned in pixels. */
-const COL = { what: 0, value: 0.30, trackFrom: 0.34, trackTo: 0.60, room: 0.62 };
-
-function SvgRow({ check, y, width }: { check: Check; y: number; width: number }) {
-  const mark = check.met == null ? "◌" : check.met ? "✓" : "✗";
-  // Under ~90 characters, because `Readout` truncates past the plot width and
-  // the whole sentence is what a keyboard reader hears.
-  const title = `${check.value}, needed ${check.needed} — ${stateWord(check.met)}; ${check.room}`;
-  const trackX = width * COL.trackFrom;
-  const trackW = Math.max(40, width * (COL.trackTo - COL.trackFrom));
-  const mid = y + ROW / 2;
-  // The requirement names the fact it recovers — forty characters on the live
-  // read — and at 1100px that ran into the value end-anchored beside it. It
-  // is elided to the room the value leaves; the track's own title carries the
-  // whole phrase, so nothing is lost to a keyboard reader.
-  const whatRoom = width * COL.value - advancePx(check.value, DIAGRAM_LABEL_PX) - 14;
-
-  return (
-    <g>
-      <text className="diff-fit__svgwhat" x={0} y={mid + 4}>{truncateMiddle(check.what, whatRoom, DIAGRAM_LABEL_PX)}</text>
-      <text className="diff-fit__svgvalue" x={width * COL.value} y={mid + 4} textAnchor="end">
-        {check.value}
-      </text>
-
-      <rect
-        className={`diff-fit__svgtrack${check.at == null ? " is-absent" : ""}`}
-        x={trackX}
-        y={mid - TRACK / 2}
-        width={trackW}
-        height={TRACK}
-      >
-        <title>{`${check.what}: ${title}`}</title>
-      </rect>
-      {check.at == null ? null : (
-        <>
-          <rect className="diff-fit__svgfill" x={trackX} y={mid - TRACK / 2}
-                width={trackW * check.at} height={TRACK} pointerEvents="none" />
-          {/* The threshold, drawn on the same track rather than beside it: the
-              reader's question is how far past the line the measurement sits,
-              and a second track cannot answer a question about one. */}
-          <rect className="diff-fit__svgfloor" x={trackX + trackW * check.floor - 1}
-                y={mid - TRACK / 2 - 1} width={2} height={TRACK + 2} pointerEvents="none" />
-        </>
-      )}
-
-      <text className="diff-fit__svgroom" x={width * COL.room} y={mid + 4}>
-        {mark} {check.room}
-      </text>
-    </g>
-  );
-}
-
 export default function InstrumentFit({ study, gate }: {
   study: DiffusionStudy;
   gate: GateCheck | null;
 }) {
   const groups = groupsOf(study, gate);
   const rows = groups.flatMap((group) => group.rows);
-  const blind = groups[0].rows;
-  const absent = rows.filter((check) => check.at == null);
-  const allBlindMet = blind.every((check) => check.met === true);
-  const ladderHeight = PAD.top + PAD.bottom
-    + groups.length * GROUP_HEAD + rows.length * ROW;
 
   return (
     <div className="diff-fit">
-      <Figure
-        caption="Every requirement against the threshold it had to clear, on its own scale"
-        // The whole table in one string, because everything below sits inside
-        // the figure's `role="img"` and is presentational to a screen reader.
-        ariaLabel={`${rows.length} requirements. ` + rows
-          .map((check) => `${check.what}: ${check.value}, needed ${check.needed}, ${stateWord(check.met)}`)
-          .join("; ")}
-        // ONE LINE, because this rung is `--fs-title` across the engine
-        // (`14q-markets-density.css`) and a three-clause reading at 17px is the
-        // largest thing on the view, over the drawing it is meant to gloss.
-        reading={allBlindMet
-          ? "All four blind checks clear, and by very different margins: the gate has room to spare where the rank and the spread sit just past their floors."
-          : "A check made blind to absorption speed has not cleared its threshold, so nothing above is evidence yet."}
-        // The COUNT and the rule, not the reasons: each absent row already
-        // carries its own beside its own track, and repeating them here is the
-        // one-fact-said-twice this tab spent a pass removing.
-        missing={absent.length
-          ? `${absent.length} of ${rows.length} requirements have no measurement, and each says why on its own row `
-            + "rather than drawing a bar of length zero."
-          : null}
-      >
-        {/* SVG INSIDE `<Plot>` SINCE 2026-08-25. This was an HTML grid with
-            `title` ATTRIBUTES, and `useMarkReadout` collects SVG `<title>`
-            CHILDREN — so measured, this view had ten hoverable facts and zero
-            keyboard stops, one of three on the tab in that state. The columns
-            and the threshold tick are unchanged; what it gains is the tab stop,
-            the arrow walk, the readout and the announcement. */}
-        <Plot height={ladderHeight} minWidth={520}>
-          {(width) => {
-            let y = PAD.top;
-            return (
-              <>
-                {groups.map((group) => {
-                  const headY = y;
-                  y += GROUP_HEAD;
-                  const rows = group.rows.map((check) => {
-                    const rowY = y;
-                    y += ROW;
-                    return <SvgRow key={check.what} check={check} y={rowY} width={width} />;
-                  });
-                  return (
-                    <g key={group.title}>
-                      <text className="diff-fit__svggroup" x={0} y={headY + 12}>{group.title}</text>
-                      <line className="diff-fit__svgrule" x1={0} x2={width} y1={headY + 17} y2={headY + 17} />
-                      {rows}
-                    </g>
-                  );
-                })}
-              </>
-            );
-          }}
-        </Plot>
-      </Figure>
+      <InstrumentThreshold groups={groups} />
 
       {/* Six fixed sentences that never move with the data. They were the
           table's widest column and most of this view's height; folded, because

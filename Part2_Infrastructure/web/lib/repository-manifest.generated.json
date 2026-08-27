@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-27",
-  "commit": "b770a48",
+  "commit": "c074519",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -874,6 +874,7 @@
     "Part2_Infrastructure/web/components/charts/GappedSparkline.tsx",
     "Part2_Infrastructure/web/components/coherence/AblationPane.tsx",
     "Part2_Infrastructure/web/components/coherence/BasketComposition.tsx",
+    "Part2_Infrastructure/web/components/coherence/BasketFootprint.tsx",
     "Part2_Infrastructure/web/components/coherence/BasketOverview.tsx",
     "Part2_Infrastructure/web/components/coherence/BasketSection.tsx",
     "Part2_Infrastructure/web/components/coherence/BasketSize.tsx",
@@ -921,6 +922,7 @@
     "Part2_Infrastructure/web/components/coherence/diffusion/InformationDiffusionPane.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/InstrumentFit.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/InstrumentSection.tsx",
+    "Part2_Infrastructure/web/components/coherence/diffusion/InstrumentThreshold.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/KalshiArm.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/MeetingCalendar.tsx",
     "Part2_Infrastructure/web/components/coherence/diffusion/MeetingsSection.tsx",
@@ -1575,6 +1577,7 @@
     "Part2_Infrastructure/web/tests/auth-session.test.ts",
     "Part2_Infrastructure/web/tests/auth-signout.test.ts",
     "Part2_Infrastructure/web/tests/axis-labels.test.ts",
+    "Part2_Infrastructure/web/tests/basket-views.test.ts",
     "Part2_Infrastructure/web/tests/benchmark.test.ts",
     "Part2_Infrastructure/web/tests/blotter-views.test.ts",
     "Part2_Infrastructure/web/tests/bookchrome-stability.test.ts",

@@ -64,6 +64,9 @@ const RUNG: Record<string, number> = {
   // The Absorption legend, moved above MARGIN.top as one row, 2026-08-27.
   // Reads `--fs-diagram-legend` (14px, `14r-coherence-density.css`).
   "diff-curve__key": DIAGRAM_LEGEND_PX,
+  // The threshold field's y-axis word, 2026-08-27: it sits above the plot top
+  // because that is where a vertical axis names itself. Reads `--fs-tick`.
+  "diff-thresh__axisword": TICK_PX,
   "diff-curve__key--release": DIAGRAM_LEGEND_PX,
   "diff-curve__key--call": DIAGRAM_LEGEND_PX,
   "diff-fan__count": DIAGRAM_LABEL_PX,

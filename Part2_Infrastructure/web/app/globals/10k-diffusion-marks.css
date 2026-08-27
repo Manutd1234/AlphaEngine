@@ -9,55 +9,92 @@
    refusal's distance below the noise floor, and a dot strip of the nineteen
    ranked percentiles that a ten-bucket histogram was flattening. */
 
-/* ── The instrument ladder, in SVG ───────────────────────────────────────── */
+/* ── The instrument threshold field ──────────────────────────────────────── */
 
-/* Same four columns and the same threshold tick the HTML grid drew; the medium
-   moved so the figure could be reached by keyboard. `.diff-fit__why` stays HTML
-   — it is a definition list inside a disclosure, prose rather than a drawing. */
-.coherence-plane.diffusion-plane .diff-fit__svgwhat {
-  fill: var(--text-primary);
-  font-size: var(--fs-sm);
-  font-weight: 600;
+/* Floor demanded across, reading up, the diagonal as the verdict. Replaced the
+   six horizontal tracks on 2026-08-27: those spent 26% of the width on ink and
+   drew two of six rows as empty. `.diff-fit__why` stays HTML — it is a
+   definition list inside a disclosure, prose rather than a drawing. */
+.coherence-plane.diffusion-plane .diff-thresh__ref {
+  stroke: var(--text-muted);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+  vector-effect: non-scaling-stroke;
 }
-.coherence-plane.diffusion-plane .diff-fit__svgvalue {
-  fill: var(--text-primary);
-  font-family: var(--mono);
-  font-variant-numeric: tabular-nums;
-  font-size: var(--fs-sm);
+.coherence-plane.diffusion-plane .diff-thresh__reflabel {
+  fill: var(--text-muted);
+  font-size: var(--fs-tick);
 }
-.coherence-plane.diffusion-plane .diff-fit__svgroom {
-  fill: var(--text-secondary);
-  font-size: var(--fs-sm);
-}
-/* One rung under the rows it labels, the same relationship `thead th` has to
-   its cells. */
-.coherence-plane.diffusion-plane .diff-fit__svggroup {
-  fill: var(--text-secondary);
-  font-size: var(--fs-xs);
-  font-weight: 650;
-}
-.coherence-plane.diffusion-plane .diff-fit__svgrule {
-  stroke: var(--border);
+.coherence-plane.diffusion-plane .diff-thresh__axis {
+  stroke: var(--axis);
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
 }
-.coherence-plane.diffusion-plane .diff-fit__svgtrack {
-  fill: var(--surface-2);
+/* Where each floor and each reading falls on its own axis. Decoration, not a
+   mark: no title, so the arrow walk is the six requirements and nothing else. */
+.coherence-plane.diffusion-plane .diff-thresh__rug {
+  stroke: var(--text-muted);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.coherence-plane.diffusion-plane .diff-thresh__tick {
+  fill: var(--text-muted);
+  font-size: var(--fs-tick);
+  font-variant-numeric: tabular-nums;
+}
+.coherence-plane.diffusion-plane .diff-thresh__axisword {
+  fill: var(--text-secondary);
+  font-size: var(--fs-tick);
+}
+/* A measured requirement. `is-short` would fall below the diagonal; the number
+   inside the mark and the key's own ✓/✗ carry the verdict too, so nothing here
+   is colour-alone. */
+.coherence-plane.diffusion-plane .diff-thresh__dot {
+  fill: color-mix(in srgb, var(--series-1) 82%, transparent);
+  stroke: var(--series-1);
+  stroke-width: 1.5;
+}
+.coherence-plane.diffusion-plane .diff-thresh__dot.is-short {
+  fill: var(--surface-1);
+  stroke: var(--status-critical);
+}
+.coherence-plane.diffusion-plane .diff-thresh__dotnum {
+  fill: var(--surface-1);
+  font-size: var(--fs-tick);
+  font-weight: 700;
+}
+.coherence-plane.diffusion-plane .diff-thresh__dot.is-short + .diff-thresh__dotnum {
+  fill: var(--text-primary);
+}
+/* No reading at all: hatched, below the axis, at the floor it would have been
+   held to. A point at nought would read as "measured, and it read nought". */
+.coherence-plane.diffusion-plane .diff-thresh__gap {
+  fill: url(#diff-hatch);
   stroke: var(--rule-soft);
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
 }
-/* Hatched, not empty: a requirement with no measurement is a gap, and an empty
-   track at this size is indistinguishable from a bar of length zero — which
-   would read as "measured, and it failed". */
-.coherence-plane.diffusion-plane .diff-fit__svgtrack.is-absent {
-  fill: url(#diff-hatch);
+.coherence-plane.diffusion-plane .diff-thresh__gapmark {
+  fill: var(--text-secondary);
+  font-size: var(--fs-tick);
 }
-.coherence-plane.diffusion-plane .diff-fit__svgfill {
-  fill: color-mix(in srgb, var(--series-1) 70%, transparent);
+/* The key, right of the field: number, verdict mark, name, reading against
+   requirement. */
+.coherence-plane.diffusion-plane .diff-thresh__keygroup {
+  fill: var(--text-secondary);
+  font-size: var(--fs-xs);
+  font-weight: 650;
 }
-.coherence-plane.diffusion-plane .diff-fit__svgfloor {
+.coherence-plane.diffusion-plane .diff-thresh__key {
   fill: var(--text-primary);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+.coherence-plane.diffusion-plane .diff-thresh__keyvalue {
+  fill: var(--text-secondary);
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
 }
 /* The transparent hit shape behind a card figure's hairlines. A 1px stroke in a
    260-unit box scaled to a ~480px card is not a pointer target; this is what
