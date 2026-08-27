@@ -173,7 +173,7 @@ ratchet("?? 0 / || 0", /\?\? 0\b|\|\| 0\b/g, {
   "components/coherence/HorizonAxis.tsx": { count: 1, reason: "axis width only, argued in place; the null mark is withheld" },
   "components/coherence/ConstraintLadder.tsx": { count: 2, reason: "counts of rows a missing set contributes none of" },
   "components/coherence/surface/StakeBars.tsx": { count: 1, reason: "a track width floor" },
-  "components/coherence/FamilyRidge.tsx": { count: 2, reason: "an ordinal slot lookup that cannot miss, and a shared-y scale floor — geometry; the peak itself prints through fromCenticents" },
+  "components/coherence/FamilyRidge.tsx": { count: 3, reason: "an ordinal slot lookup that cannot miss, and TWO shared-y scale floors — the lane view's and, from 2026-08-26, the one-poll view's. Geometry: a family never measured contributes nothing to a maximum already floored at 1, and the peak itself prints through fromCenticents" },
   "components/coherence/FrechetBand.tsx": { count: 1, reason: "violated_rows is a row COUNT the wire omits when it checked none; the reading names the rows, so a null here is not a metric coerced" },
   "components/coherence/BasketComposition.tsx": { count: 1, reason: "a counter: (map.get(k) ?? 0) + 1" },
 });

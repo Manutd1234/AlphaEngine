@@ -145,6 +145,19 @@ export default function IndexPane({ active, view }: {
           tone={data.unmeasurable > data.measured ? "warn" : "muted"}
         />
         <StateChip mark="◇" word="Series watched" value={String(data.series.length)} tone="muted" />
+        {/* THE ESTIMATOR IS THE DECISION BEHIND THE NUMBER. Which of the three
+            the engine used depends on the book's shape — isotonic where a
+            threshold ladder has three or more nodes, the mid sum on a mutually
+            exclusive family, the ask side otherwise — and it was named in the
+            chart's notes and nowhere a reader meets first. More than one in a
+            record means the readings on this tab were not all produced the
+            same way, which is worth knowing before comparing two of them. */}
+        <StateChip
+          mark="◇"
+          word="Estimators"
+          value={String(new Set(data.points.map((point) => point.engine)).size)}
+          tone={new Set(data.points.map((point) => point.engine)).size > 1 ? "warn" : "muted"}
+        />
       </SectionVerdict>
 
       {/* THE TWO TRAILING PARAGRAPHS WENT ON 2026-08-25 and neither claim did.

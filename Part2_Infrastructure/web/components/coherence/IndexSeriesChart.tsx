@@ -43,7 +43,11 @@ import { clock, thin, type IndexPoint } from "./IndexBasisChart";
 const NS_PER_MS = 1_000_000;
 const LANE_H = 132;
 const LANE_GAP = 26;
-const MARGIN = { top: 20, right: 4, bottom: 22, left: 4 };
+// A GUTTER ON THE LEFT, since 2026-08-26. The lanes were drawn against a
+// shared peak with the peak nowhere on the figure: one lane sitting higher
+// than another was visible and unreadable. 36px holds a four-decimal dollar
+// figure on the tick rung with a hair of separation from the line.
+const MARGIN = { top: 20, right: 4, bottom: 22, left: 36 };
 
 interface Lane {
   series: string;
@@ -111,9 +115,58 @@ export default function IndexSeriesChart({ points, stamps }: {
 
   const measured = points.filter((p) => toCenticents(p.ci) != null);
   if (!lanes.length || !measured.length) {
+    // A DRAWING, NOT A SENTENCE, and this is the read where that matters most.
+    // A watchlist whose every poll failed to measure is a record of the
+    // recorder RUNNING against books it could not read — which is a different
+    // fact from an empty record, and the only thing that distinguishes them is
+    // a picture of the polls that were taken. Each is a hatched tick on the
+    // baseline: refused, in the texture this desk uses for every refusal,
+    // because in forced colours two fills collapse and the texture survives.
+    const why = [...new Set(points.map((point) => point.detail).filter(Boolean))] as string[];
     return (
-      <Figure caption={CAPTION} ariaLabel="No index reading could be measured">
-        <FigureEmpty reason="Nothing measurable recorded yet." />
+      <Figure
+        caption={CAPTION}
+        ariaLabel={`${points.length} polls recorded, none of them measurable`}
+        reading={
+          points.length
+            ? `${points.length} polls are on the record and none of them produced a reading — the recorder ran`
+              + " every time and the books could not be measured."
+            : "No poll has been recorded yet."
+        }
+        missing={why.length ? `The venue's reason: ${why.join("; ")}.` : "No reason was recorded for any of them."}
+      >
+        <Plot height={72}>
+          {(width) => {
+            const plotW = width - MARGIN.left - MARGIN.right;
+            const base = 44;
+            const at = (index: number) =>
+              MARGIN.left + (points.length < 2 ? plotW / 2 : (index / (points.length - 1)) * plotW);
+            return (
+              <>
+                <line x1={MARGIN.left} x2={width - MARGIN.right} y1={base} y2={base} className="coh-ladder__axis" />
+                {points.map((point, index) => (
+                  <rect
+                    key={`${point.ts_ns}-${index}`}
+                    x={at(index) - 2}
+                    y={base - 18}
+                    width={4}
+                    height={18}
+                    fill="url(#diff-hatch)"
+                    className="coh-indexlane__refused"
+                  >
+                    <title>
+                      {`Poll ${index + 1} of ${points.length}, ${clock(point.ts_ns / NS_PER_MS)} UTC: not measurable`
+                        + `${point.detail ? ` — ${point.detail}` : " — no reason recorded"}`}
+                    </title>
+                  </rect>
+                ))}
+                <text x={MARGIN.left} y={base + 16} className="coh-ladder__tick">
+                  {points.length ? `${points.length} polls, none measurable` : "no polls yet"}
+                </text>
+              </>
+            );
+          }}
+        </Plot>
       </Figure>
     );
   }
@@ -218,6 +271,7 @@ const CAPTION = "L1 distance from the nearest coherent price vector, one lane pe
 function LaneRow({ lane, top, peak, x, width }: {
   lane: Lane;
   top: number;
+  /** The peak EVERY lane is scaled to — same quantity, same units, one axis. */
   peak: number;
   x: (ts: number) => number;
   width: number;
@@ -249,6 +303,16 @@ function LaneRow({ lane, top, peak, x, width }: {
 
   return (
     <g className="coh-indexlane">
+      {/* THE SCALE, on every lane, because every lane is drawn against the
+          same peak — which is what makes two lanes comparable and was the one
+          thing the figure never said. Nought at the baseline, the shared peak
+          at the top, and a dashed rule at half of it. */}
+      <line x1={MARGIN.left} x2={width - MARGIN.right} y1={y(peak / 2)} y2={y(peak / 2)}
+            className="coh-indexlane__half" />
+      <text x={MARGIN.left - 5} y={base + 3} textAnchor="end" className="coh-indexlane__scale">0</text>
+      <text x={MARGIN.left - 5} y={y(peak) + 9} textAnchor="end" className="coh-indexlane__scale">
+        {fromCenticents(peak)}
+      </text>
       <text x={MARGIN.left} y={top - 6} className="coh-indexlane__name">
         {lane.series}
       </text>

@@ -322,3 +322,25 @@
   fill: var(--text-secondary);
   font-size: var(--fs-tick);
 }
+
+/* The index lanes' shared scale: nought at the baseline, the peak every lane
+   is drawn against at the top, and a dashed rule at half of it. */
+.coh-indexlane__scale {
+  fill: var(--text-muted);
+  font-size: var(--fs-tick);
+  font-variant-numeric: tabular-nums;
+}
+
+.coh-indexlane__half {
+  stroke: var(--rule-soft);
+  stroke-dasharray: 2 3;
+  vector-effect: non-scaling-stroke;
+}
+
+/* A poll the recorder took and could not measure. Hatched rather than paler:
+   in forced colours two fills collapse to one and the texture is what
+   survives. */
+.coh-indexlane__refused {
+  stroke: var(--rule);
+  stroke-width: 1;
+}

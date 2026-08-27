@@ -126,19 +126,67 @@ export default function FamilyRidge({ data }: { data: CoherenceIndexSeries }) {
   const highest = Math.max(1, ...lanes.map((lane) => lane.peak ?? 0));
 
   if (!drawn.length || stamps.length < 2) {
+    // ONE POLL IS A POINT, AND A POINT IS STILL A READING. This branch drew a
+    // sentence, which on a fresh recorder is the whole view — so the families
+    // that HAVE been measured were invisible until a second poll landed. They
+    // are drawn as one ordinal column of dots now, ringed at the peak, with
+    // the sentence explaining why there is no lane rather than standing in for
+    // one.
+    if (!lanes.length) {
+      return (
+        <Figure
+          caption="Every watched family's distance from coherence, one lane each"
+          ariaLabel="No family has been polled yet"
+          missing={data.notes[0] ?? null}
+        >
+          <FigureEmpty reason="No family has been polled yet, so there is nothing to lay out." />
+        </Figure>
+      );
+    }
+    const seen = lanes.slice(0, LANES);
+    const top = Math.max(1, ...seen.map((lane) => lane.peak ?? 0));
     return (
       <Figure
         caption="Every watched family's distance from coherence, one lane each"
-        ariaLabel="No family has produced two readings yet"
+        ariaLabel={`${seen.length} families with one reading each, on a dollar axis peaking at ${fromCenticents(top)}`}
+        reading={
+          `${seen.length} families have been read once. One poll is a point, not a lane: a shape needs two`
+          + " readings, so these are drawn as the single measurements they are."
+        }
         missing={data.notes[0] ?? null}
       >
-        <FigureEmpty
-          reason={
-            lanes.length
-              ? "One poll is a point, not a lane: this view needs two readings before a family has a shape."
-              : "No family has been polled yet, so there is nothing to lay out."
-          }
-        />
+        <Plot height={MARGIN.top + seen.length * 22 + 18}>
+          {(width) => {
+            const gutter = Math.max(...seen.map((lane) => advancePx(lane.ticker, DIAGRAM_LABEL_PX)));
+            const x0 = gutter + 10;
+            const x1 = width - 60;
+            const at = (cc: number | null) => (cc === null ? null : x0 + (cc / top) * (x1 - x0));
+            return (
+              <>
+                {seen.map((lane, index) => {
+                  const y = MARGIN.top + index * 22;
+                  const cx = at(lane.peak ?? null);
+                  return (
+                    <g key={lane.ticker}>
+                      <text x={gutter} y={y + 4} textAnchor="end" className="coh-ridge__name">{lane.ticker}</text>
+                      <line x1={x0} x2={x1} y1={y} y2={y} className="coh-ridge__base" />
+                      {cx === null ? (
+                        <text x={x0 + 4} y={y + 4} className="coh-ridge__meta">◌ not measurable</text>
+                      ) : (
+                        <circle cx={cx} cy={y} r={4} className="coh-ridge__peak">
+                          <title>{`${lane.ticker}: one reading, ${fromCenticents(lane.peak)}`}</title>
+                        </circle>
+                      )}
+                    </g>
+                  );
+                })}
+                <text x={x0} y={MARGIN.top + seen.length * 22 + 12} className="coh-ridge__meta">
+                  {`$0 to ${fromCenticents(top)}`}
+                </text>
+              </>
+            );
+          }}
+        </Plot>
       </Figure>
     );
   }

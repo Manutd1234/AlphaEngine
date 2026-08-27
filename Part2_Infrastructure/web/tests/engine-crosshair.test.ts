@@ -98,8 +98,27 @@ describe("every crosshair figure on the engine", () => {
 
       it("shares one axis and carries no per-mark title", () => {
         assert.ok(at !== -1, `${row.file} no longer declares sharedX`);
-        assert.doesNotMatch(code, /<title>/,
-          "a title beside sharedX makes both readouts interactive — two tab stops on one figure");
+        /**
+         * SCOPED TO THE SHARED-AXIS PLOT, not the file.
+         *
+         * `Plot` picks its readout by whether an axis was handed to it, so a
+         * title INSIDE a shared-axis plot makes both hooks interactive — two
+         * tab stops and two voices on one figure. That is the defect. A title
+         * inside a DIFFERENT plot in the same file is not: several of these
+         * figures draw an empty-state plot of their own, with per-mark titles,
+         * on a branch that returns before the shared axis exists. The
+         * file-wide scan could not tell those apart and would have forced a
+         * drawn absence back into a sentence to stay green.
+         */
+        const plots = [...code.matchAll(/<Plot\b/g)].map((match) => {
+          const start = match.index ?? 0;
+          const end = code.indexOf("</Plot>", start);
+          return code.slice(start, end === -1 ? code.length : end);
+        });
+        const shared = plots.filter((plot) => /sharedX/.test(plot));
+        assert.equal(shared.length, 1, `${row.file} has ${shared.length} shared-axis plots; expected exactly one`);
+        assert.doesNotMatch(shared[0], /<title>/,
+          "a title inside the shared-axis plot makes both readouts interactive — two tab stops on one figure");
       });
 
       it("declares which end a keyboard reader arrives at", () => {
