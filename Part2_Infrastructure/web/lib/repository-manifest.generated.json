@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-27",
-  "commit": "c074519",
+  "commit": "477bde7",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -1779,6 +1779,7 @@
     "Part2_Infrastructure/web/tests/helpers/venue-books.ts",
     "Part2_Infrastructure/web/tests/helpers/workspace-sources.ts",
     "Part2_Infrastructure/web/tests/house-rules.test.ts",
+    "Part2_Infrastructure/web/tests/index-drawings.test.ts",
     "Part2_Infrastructure/web/tests/index-stamps.test.ts",
     "Part2_Infrastructure/web/tests/interaction.test.ts",
     "Part2_Infrastructure/web/tests/kill-switch-probe.test.ts",
