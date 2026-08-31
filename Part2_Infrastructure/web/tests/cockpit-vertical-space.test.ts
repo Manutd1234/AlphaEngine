@@ -38,5 +38,7 @@ describe("execution spends vertical space only where the active task needs it", 
     assert.match(cockpit, /compact=\{section === "trade"\}/);
     assert.match(pnlStrip, /cockpit-strip--compact/);
     assert.match(pnlStrip, /!compact \? \(/);
+    assert.match(pnlStrip, /<dd className=\{`cockpit-strip__gauge[\s\S]*?cockpit-meter[\s\S]*?<\/dd>/,
+      "the meter must remain inside dd so the definition-list group contains only dt/dd content");
   });
 });
