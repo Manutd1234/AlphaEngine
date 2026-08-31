@@ -33,6 +33,10 @@ import { StateChip } from "./Figure";
 import BasketWhatIf from "./BasketWhatIf";
 import PortfolioPane, { type BasketViewId } from "./PortfolioPane";
 import SectionVerdict from "./SectionVerdict";
+import ProofsViewControl from "./ProofsViewControl";
+import ProofsTransportNotice from "./ProofsTransportNotice";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 
 /**
  * Three questions, in the order a reader asks them: what a cover would cost,
@@ -43,6 +47,68 @@ const VIEWS: ReadonlyArray<[BasketViewId, string]> = [
   ["basket", "Basket"],
   ["size", "Size"],
 ];
+
+type DeferredBasketView = Exclude<BasketViewId, "cover">;
+type BasketReadState = "pending" | "stale-target" | "unavailable";
+
+/**
+ * Basket and Size both depend on the matching certificate. Keep the selected
+ * view visible while that read changes underneath it: a blank body makes a
+ * working view control indistinguishable from a dead one, especially during a
+ * family switch when the cache still holds the previous family's answer.
+ */
+function BasketViewReadStatus({
+  view,
+  state,
+  target,
+  onRetry,
+}: {
+  view: DeferredBasketView;
+  state: BasketReadState;
+  target: string;
+  onRetry: () => void;
+}) {
+  const subject = view === "basket" ? "Basket" : "Size";
+  const copy = state === "unavailable"
+    ? {
+        title: `${subject} view unavailable`,
+        detail: "The matching coherence certificate could not be read. No result from another family is substituted.",
+      }
+    : state === "stale-target"
+      ? {
+          title: `Switching ${subject} to the selected family`,
+          detail: "The cached certificate belongs to the previous family, so it stays hidden until this family's read arrives.",
+        }
+      : {
+          title: `Preparing the ${subject} view`,
+          detail: view === "basket"
+            ? "Waiting for the matching certificate before drawing returned legs and their state-by-state payoff."
+            : "Waiting for the matching certificate before comparing every returned leg with venue capacity.",
+        };
+
+  return (
+    <Alert
+      variant={state === "unavailable" ? "destructive" : "default"}
+      className="basket-view-read-state"
+      data-basket-view-state={state}
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+      aria-busy={state !== "unavailable"}
+    >
+      <AlertTitle>{copy.title}</AlertTitle>
+      <AlertDescription>
+        <p>{copy.detail}</p>
+        {target ? <code>{target}</code> : null}
+        {state === "unavailable" ? (
+          <Button type="button" variant="outline" size="sm" onClick={onRetry}>
+            Retry {subject.toLowerCase()} read
+          </Button>
+        ) : null}
+      </AlertDescription>
+    </Alert>
+  );
+}
 
 export default function BasketSection({
   events,
@@ -58,21 +124,28 @@ export default function BasketSection({
   onView: (next: BasketViewId) => void;
 }) {
   // The same URL Coherence test reads, so the cache answers this one for free.
-  const { data, error } = useCoherenceRead<CoherenceCertificate>(
+  const read = useCoherenceRead<CoherenceCertificate>(
     certifyRoute(target),
     active && Boolean(target),
   );
+  const { data, error } = read;
   const answer: CoherenceCertificate | null = data && data.component_id === target ? data : null;
+  const readState: BasketReadState = error
+    ? "unavailable"
+    : data && data.component_id !== target
+      ? "stale-target"
+      : "pending";
   const chosen = events.find((event) => event.event_ticker === target) ?? null;
 
   return (
     <section className="card console-card coh-certificate" aria-labelledby="coherence-portfolio-heading">
       <PaneHead
         kicker="Basket"
-        title="The portfolio the test hands back"
+        title="Infeasibility dual basket"
         id="coherence-portfolio-heading"
-        note="one basket per family, priced through all three fee components"
-        lede="Where no probability measure fits, duality hands back a basket that wins in every state: the certificate of infeasibility IS the trade."
+        note="one basket per family; three fees"
+        ledeSummary="Duality condition"
+        lede="If no measure fits, Farkas duality returns the basket that wins in every state."
       />
 
       <FamilyChoice
@@ -83,17 +156,31 @@ export default function BasketSection({
         eventsError={eventsError}
         label="Choose a family to price"
         verdict={answer?.verdict ?? null}
+        switcher={
+          <ProofsViewControl
+            className="seg"
+            label="Basket view"
+            options={VIEWS}
+            value={view}
+            onValue={onView}
+          />
+        }
       >
+        <ProofsTransportNotice
+          subject="Basket read"
+          error={error}
+          hasSnapshot={Boolean(answer)}
+          transport={read.transport}
+          retryAt={read.retryAt}
+          consecutiveFailures={read.consecutiveFailures}
+          onRetry={read.refresh}
+        />
         {/* The same band, in the same place, as the other five sections. The
             switcher joined it on 2026-08-26 with the three-view redo; the
             pinned row above carries it beside the family picker. */}
         <SectionVerdict
           pending={
-            error && !answer
-              ? <><span aria-hidden="true">✕</span> The test could not be run: {error}</>
-              : !answer
-                ? "Pricing this family…"
-                : null
+            !error && !answer ? "Pricing this family…" : null
           }
         >
           {answer ? (
@@ -115,16 +202,6 @@ export default function BasketSection({
           ) : null}
         </SectionVerdict>
 
-        <div className="coh-bar">
-          <div className="seg" role="group" aria-label="Basket view">
-            {VIEWS.map(([name, label]) => (
-              <button key={name} type="button" aria-pressed={view === name} onClick={() => onView(name)}>
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* NOT GATED ON `answer`, and that is the point of drawing it here.
             The certificate takes seconds on a 188-strike family; the QUOTES it
             is about are already in memory, off the universe read the picker
@@ -133,9 +210,19 @@ export default function BasketSection({
             at. `BasketWhatIf` moved here from the Coherence test on 2026-08-26:
             it is the cost of a cover, which is this view's subject — so it
             rides on Cover and stays ungated. */}
-        {view === "cover" && chosen ? <BasketWhatIf event={chosen} /> : null}
+        {view === "cover" && chosen ? (
+          /* The sliders are a local counterfactual over one family. A family
+             change must start from that family's own quotes: without the key,
+             React preserves the previous family's `asks` array and can pair
+             stale prices with a different (or shorter) market list. */
+          <BasketWhatIf key={chosen.event_ticker} event={chosen} />
+        ) : null}
 
-        {answer ? <PortfolioPane certificate={answer} chosen={chosen} view={view} /> : null}
+        {answer ? (
+          <PortfolioPane certificate={answer} chosen={chosen} view={view} />
+        ) : view === "basket" || view === "size" ? (
+          <BasketViewReadStatus view={view} state={readState} target={target} onRetry={read.refresh} />
+        ) : null}
       </FamilyChoice>
     </section>
   );
