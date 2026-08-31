@@ -2,7 +2,7 @@
  * Every table on the two engine tabs, declared: what it is, what each column
  * is headed, what kind of cell sits under it, and how it is framed.
  *
- * Twenty-two `<table>` elements in nineteen files, measured on 2026-08-26 by
+ * Twenty-seven `<table>` elements in twenty-five files, measured on 2026-08-31 by
  * reading every `<table` under `components/coherence/` (surface included,
  * Diffusion excluded — it has its own contract). `engine-data-contract.test.ts`
  * derives the same list by scanning, so a table added without a row here is
@@ -62,12 +62,30 @@ export const TABLES: readonly TableDecl[] = [
     rowKey: "identifier", wrapper: "folded",
   },
   {
-    file: "components/coherence/CertificateViews.tsx", nth: 1, tab: "coherence",
-    what: "what the solver concluded",
-    // A reading table's value cell is a figure by role even when the row holds
-    // a word: the column right-aligns in the numerals face. Red until slice 12.
-    columns: [["Reading", "row.label", "text"], ["Value", "row.of(data)", "num"]],
-    rowKey: "identifier", wrapper: "open",
+    file: "components/coherence/ConstraintLadder.tsx", tab: "coherence",
+    what: "every evaluated constraint behind the six tightest proof checks",
+    columns: [
+      ["Constraint", "KIND_WORD[constraint.kind]", "text"],
+      ["Subject", "constraint.subject", "text"],
+      ["Room", "money(constraint.slack)", "num"],
+      ["Result", "constraint.violated", "marks"],
+    ],
+    rowKey: "identifier", wrapper: "folded",
+  },
+  {
+    file: "components/coherence/SolverProofLoom.tsx", tab: "coherence",
+    what: "the named quote checks attached to the exact solver run",
+    columns: [
+      ["Check", "row.family", "text"], ["Reason", "row.because", "text"],
+      ["Cost", "money(row.cost)", "num"], ["Bound", "money(row.bound)", "num"],
+      ["Room", "money(row.slack)", "num"], ["Result", "row.testable", "text"],
+    ],
+    rowKey: "identifier", wrapper: "folded",
+  },
+  {
+    file: "components/coherence/ProofsMethodMap.tsx", tab: "coherence",
+    what: "the inputs, operation, output, and hand-off for each proof stage",
+    columns: [], rowKey: "identifier", wrapper: "open", headless: true, nested: true,
   },
   {
     // Both combos tables moved to `ParlaysView.tsx` on 2026-08-26 with the
@@ -82,14 +100,12 @@ export const TABLES: readonly TableDecl[] = [
     rowKey: "identifier", wrapper: "folded",
   },
   {
-    file: "components/coherence/ParlaysView.tsx", nth: 1, tab: "coherence",
-    what: "every listed parlay against its band",
+    file: "components/coherence/BandsTable.tsx", tab: "coherence",
+    what: "the loaded parlays available to the local Fréchet-band inspector",
     columns: [
-      // The row header leads with the parlay's NAME since 2026-08-26; the
-      // ticker follows it in a `<code>` as the identifier it is.
-      ["Parlay", "parlayName(combo)", "text"], ["Legs", "combo.legs.length", "num"], ["Lower bound", "combo.lower_bound", "num"],
-      ["Upper bound", "combo.upper_bound", "num"], ["Band width", "combo.band_width", "num"], ["Price", "combo.price", "num"],
-      ["In band", "position", "num"],
+      ["Parlay", "parlayName(combo)", "text"], ["Legs", "combo.legs.length", "num"],
+      ["Allowed range", "rangeLabel(combo)", "num"], ["Quote", "priceLabel(combo.price)", "num"],
+      ["Position", "readingLabel(combo)", "marks"],
     ],
     rowKey: "identifier", wrapper: "open",
   },
@@ -100,10 +116,13 @@ export const TABLES: readonly TableDecl[] = [
     rowKey: "identifier", wrapper: "open",
   },
   {
-    file: "components/coherence/CombosBounds.tsx", nth: 1, tab: "coherence",
-    what: "the bound, the cost and the slack",
-    columns: [["Bound", "row.bound", "num"], ["Portfolio cost", "row.cost", "num"], ["Slack", "row.slack", "num"], ["Scope", "row.scope", "text"]],
-    rowKey: "quantity", wrapper: "open",
+    file: "components/coherence/MurphyTermTable.tsx", tab: "coherence",
+    what: "the signed Murphy decomposition glossary",
+    columns: [
+      ["Sign", "term.sign", "text"], ["Term", "term.name", "text"], ["Value", "term.raw", "num"],
+      ["Good direction", "term.direction", "text"], ["Meaning", "term.meaning", "text"],
+    ],
+    rowKey: "identifier", wrapper: "folded",
   },
   {
     file: "components/coherence/CalibrationBands.tsx", tab: "coherence",
@@ -143,9 +162,45 @@ export const TABLES: readonly TableDecl[] = [
     rowKey: "identifier", wrapper: "folded",
   },
   {
-    file: "components/coherence/LessonsPane.tsx", tab: "coherence",
-    what: "which code carries a lesson and which test holds it",
-    columns: [], rowKey: "identifier", wrapper: "folded", headless: true, nested: true,
+    file: "components/coherence/GroupPins.tsx", tab: "coherence",
+    what: "guarded module and pinning suite counts for every lesson in the selected slice",
+    columns: [
+      ["Lesson", "cell.lesson.title", "text"], ["Taught in", "sectionLabel(cell.lesson.pane)", "text"],
+      ["Guarded modules", "cell.modules", "num"], ["Pinning suites", "cell.suites", "num"],
+      ["Suite coverage", "coverageLabel(cell)", "marks"], ["Full lesson", "onInspect(cell.lesson)", "text"],
+    ],
+    rowKey: "identifier", wrapper: "open",
+  },
+  {
+    file: "components/coherence/LessonsPane.tsx", nth: 0, tab: "coherence",
+    what: "the conditions under which the selected lesson holds or fails",
+    columns: [["Condition", "When it holds", "text"], ["Technical reading", "lesson.whenItHolds", "text"]],
+    rowKey: "identifier", wrapper: "open", nested: true,
+  },
+  {
+    file: "components/coherence/LessonsPane.tsx", nth: 1, tab: "coherence",
+    what: "which code carries the selected lesson and which tests pin it",
+    columns: [], rowKey: "identifier", wrapper: "open", headless: true, nested: true,
+  },
+  {
+    file: "components/coherence/LessonsPane.tsx", nth: 2, tab: "coherence",
+    what: "every lesson in the selected curriculum slice",
+    columns: [
+      ["Lesson", "lesson.title", "text"], ["Status", "lesson.shipped", "marks"],
+      ["Taught in", "sectionLabel(lesson.pane)", "text"], ["Technical reading", "lesson.summary", "text"],
+      ["Formula", "lesson.formula", "text"], ["Open detail", "onOpen", "text"],
+    ],
+    rowKey: "identifier", wrapper: "open", cellsElsewhere: true,
+  },
+  {
+    file: "components/coherence/ParlayLegs.tsx", tab: "coherence",
+    what: "the exact required legs behind the selected parlay bound",
+    columns: [
+      ["#", "index + 1", "num"], ["Required leg", "leg.ticker", "text"],
+      ["Must land", "leg.side", "text"], ["Price", "leg.text", "num"],
+      ["Effect on range", "parlayLegBandRole", "text"],
+    ],
+    rowKey: "identifier", wrapper: "open",
   },
   {
     file: "components/coherence/PortfolioPane.tsx", tab: "coherence",
@@ -157,27 +212,22 @@ export const TABLES: readonly TableDecl[] = [
     ],
     rowKey: "identifier", wrapper: "open", total: "tfoot",
   },
-  {
-    file: "components/coherence/StatusPane.tsx", tab: "both",
-    what: "the exchange's shards",
-    columns: [["Shard", "shard.exchange_index", "text"], ["Carries", "shard.description", "text"], ["Exchange", "shard.exchange_active", "text"], ["Trading", "shard.trading_active", "text"]],
-    rowKey: "identifier", wrapper: "folded",
-  },
   // ------------------------------------------------------------ Markets --
   {
-    file: "components/coherence/AblationPane.tsx", tab: "markets",
-    what: "the replay under each configuration",
-    columns: [
-      ["Configuration", "row.name", "text"], ["What it models", "row.description", "text"], ["Violations", "row.violations", "num"],
-      ["worth_doing", "row.worth_doing", "num"], ["Gross", "row.gross_total", "num"], ["Net", "row.net_total", "num"],
-    ],
-    rowKey: "identifier", wrapper: "open",
+    file: "components/coherence/OrderBookDepthHeatmap.tsx", tab: "markets",
+    what: "cumulative YES and NO ladder depth at every observed price",
+    columns: [["Side", "side", "text"], ["YES px {fromCenticents(level.cc)}", "level[side]", "num"]],
+    rowKey: "identifier", wrapper: "open", generated: true,
   },
   {
-    file: "components/coherence/BasketSize.tsx", tab: "markets",
-    what: "a basket's share of open interest by price band",
-    columns: [["Family", "event.event_ticker", "text"], ["{centsOf(band.lowCc)}c", "band.share", "num"]],
-    rowKey: "identifier", wrapper: "open", generated: true,
+    file: "components/coherence/BooksInstruments.tsx", tab: "markets",
+    what: "exact native and mirrored book levels behind the depth explorer",
+    columns: [
+      ["Side", "row.side.toUpperCase()", "text"], ["Native", "row.nativePrice", "num"],
+      ["YES axis", "row.yesPrice", "num"], ["At level", "row.size", "num"],
+      ["At or better", "row.depth", "num"],
+    ],
+    rowKey: "identifier", wrapper: "folded",
   },
   {
     file: "components/coherence/DispersionTable.tsx", tab: "markets",
