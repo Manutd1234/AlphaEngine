@@ -137,25 +137,27 @@ describe("the work-queue source pill must not alternate with its gateway", () =>
       "a genuine recovery must promote after the streak");
   });
 
-  /**
-   * SKIPPED: needs a machinery change in `lib/use-data-work-queue.ts`, which
-   * is shared workspace wiring this sweep may not edit.
-   *
-   * The change: route the hook's `source` decision through
-   * `DeskSourceMachine` (or `useDeskSource`) so that one failed `reload`
-   * demotes to "local" immediately but promotion back to "gateway" waits for
-   * `PROMOTION_STREAK` consecutive successful loads — today one successful
-   * load promotes at once, so a gateway answering every other 60s poll flips
-   * the pill, the scope paragraph and the queue section's Persistence tile
-   * once a minute. While there, make the poll's tick report a failed load as
-   * a rejection (the `useSystemHealth` wrapper pattern) — `reload` never
-   * rejects, so the hook's configured `maxBackoffMs: 300_000` is unreachable
-   * and an unreachable gateway is re-asked at full cadence forever.
-   */
-  it.skip("lib/use-data-work-queue routes its source decision through the machine", () => {
-    assert.match(stripCode(queueHook), /DeskSourceMachine|useDeskSource/);
-    assert.match(stripCode(queueHook), /throw new Error/,
-      "reload never rejects, so the configured maxBackoffMs is dead code");
+  it("lib/use-data-work-queue routes its source decision through the machine", () => {
+    const source = stripCode(queueHook);
+    assert.match(source, /useDeskSource<DataWorkItem\[\]>/,
+      "the work queue bypasses the shared anti-flap source machine");
+    assert.match(source, /sourceState\.tier === "live" && gatewaySource/,
+      "one successful probe can promote the visible source directly");
+    assert.match(source, /return pollingFailure\(result\.reason\)/,
+      "a failed load resolves as success, so maxBackoffMs is unreachable");
+    assert.match(source, /tick: loadOnce/,
+      "the polling loop does not receive the typed load failure");
+    assert.match(source, /immediate: true/,
+      "the first failed load happens outside the controller and cannot start backoff");
+  });
+
+  it("a failed first read leaves the browser queue empty instead of seeding facts", () => {
+    const source = stripCode(queueHook);
+    assert.match(source, /useState<DataWorkItem\[\]>\(\[\]\)/,
+      "the browser still starts from a populated queue before the gateway answers");
+    assert.doesNotMatch(source, /createInitialDataWorkItems|DATA_WORK_SEEDS/);
+    assert.doesNotMatch(stripCode(readSource("lib/data-work-queue.ts")), /BUG-091|REQ-184/,
+      "the production data client still embeds the fallback queue");
   });
 });
 
