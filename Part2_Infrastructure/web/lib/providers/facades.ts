@@ -9,7 +9,12 @@
  */
 
 import { applicableAssets, inapplicableReason, isApplicable } from "./capabilities";
-import { checkBars, checkFundamentals, checkNews, checkQuote } from "./contracts";
+import {
+  checkBars,
+  checkFundamentals,
+  checkNews,
+  checkQuote,
+} from "./contracts";
 import { dispatch } from "./runtime";
 import { candidatesFor, type Options } from "./adapters";
 import { classify } from "./symbols";
@@ -63,8 +68,9 @@ export const cacheKeys = {
     `news:${symbols.join(",")}:${limit}:${provider ?? "*"}`,
   fundamentals: (symbol: string, provider?: string | null) =>
     `fundamentals:${symbol}:${provider ?? "*"}`,
-  search: (query: string, limit: number) => `search:${query}:${limit}`,
-  scrape: (url: string) => `scrape:${url}`,
+  search: (query: string, limit: number, provider?: string | null) =>
+    `search:${query}:${limit}:${provider ?? "*"}`,
+  scrape: (url: string, provider?: string | null) => `scrape:${url}:${provider ?? "*"}`,
 } as const;
 
 // --------------------------------------------------------------------------
@@ -160,7 +166,7 @@ export async function getFundamentals(
   );
 }
 
-export function searchWeb(
+export async function searchWeb(
   query: string,
   limit: number,
   opts: Options = {},
@@ -168,7 +174,12 @@ export function searchWeb(
   return dispatch(
     candidatesFor("search", "equity"),
     (a, ctx) => a.search!(query, limit, ctx),
-    { capability: "search", cacheKey: cacheKeys.search(query, limit), pin: opts.provider, ...opts },
+    {
+      capability: "search",
+      cacheKey: cacheKeys.search(query, limit, opts.provider),
+      pin: opts.provider,
+      ...opts,
+    },
   );
 }
 
@@ -176,6 +187,11 @@ export function scrapeUrl(url: string, opts: Options = {}): Promise<Sourced<Docu
   return dispatch(
     candidatesFor("scrape", "equity"),
     (a, ctx) => a.scrape!(url, ctx),
-    { capability: "scrape", cacheKey: cacheKeys.scrape(url), pin: opts.provider, ...opts },
+    {
+      capability: "scrape",
+      cacheKey: cacheKeys.scrape(url, opts.provider),
+      pin: opts.provider,
+      ...opts,
+    },
   );
 }
