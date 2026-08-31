@@ -1017,7 +1017,38 @@ The pushed alert on gross exposure over equity also defaults to
 deliberate leverage would be paged constantly, and the right number is a house
 decision.
 
-=== What this chapter's subject matter does not have
+== Part C: the quant-engine workbench as a research instrument
+
+Markets, Proofs and Diffusion are not three galleries of explanatory charts.
+They are one addressable inspection system that lets a researcher select an
+entity, perturb an assumption and read the exact consequence without asking a
+pixel for a number. The current registry exposes #measured[64 engine views - 23
+Markets, 25 Proofs and 16 Diffusion][`web/lib/section-views.ts`, counted
+2026-08-30] beneath #measured[22 rail sections across the three engine tabs][
+`web/lib/sections.ts`, counted 2026-08-30]. Each destination has a canonical
+`#tab/section/view` address, so an investment note can cite the state that
+produced a claim rather than a screenshot of an unrepeatable hover.
+
+#table(
+  columns: (auto, 1.15fr, 1.2fr),
+  [Plane], [Question it makes executable], [Interaction contract],
+  [Markets], [How fees, stake, books, lattice mass and moments, settlement and the instrument universe change a tradable claim.], [Stable keyed selection; a single keyboard tab stop in listboxes; Arrow, Home and End traversal; exact atomic readouts; explicit absent sides rather than synthetic zeroes.],
+  [Proofs], [Whether quoted prices, baskets and parlays satisfy the relevant coherence bounds, and which observation drives a verdict.], [Linked selections keep the formula, selected datum and verdict on the same identity; quant-inspection pairs expose the exact value and its interpretation; a changed result is announced as one fact.],
+  [Diffusion], [How an event propagates into price, how long a dislocation survives, and when absorption is supported by the sample.], [Event-study controls drive the fitted study and episode tape; sparse states remain visible and typed; all sixteen views remain individually addressable.],
+)
+
+The keyboard model is deliberate. A list of market levels is one listbox owner,
+not two visual columns with two incompatible indices. Exactly one option is in
+the tab order; movement changes both focus and the stable selected key; the
+result appears in an `output` with polite, atomic live semantics. This prevents
+the common failure in dense quant screens where a mouse can reveal a value that
+cannot be reached, retained or announced from the keyboard. The regression
+contracts live in `web/tests/markets-quant-workbench.test.ts`,
+`web/tests/workspace-routing-sections.test.ts`,
+`web/tests/diffusion-upgrade.test.ts` and the focused interaction tests beside
+the individual instruments.
+
+== What this chapter's subject matter does not have
 
 Collected so that no reader has to infer it from silence:
 
