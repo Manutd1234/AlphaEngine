@@ -158,11 +158,10 @@ function KillSwitchControl({
         title={halted ? "Trading is halted" : "Guarded circuit breaker — halts all execution intents"}
         className={
           halted
-            /* Sanctioned fixed red: --status-critical fails contrast with white
-               text in dark theme (2.82:1); #b3242e carries it at 6.55:1 in both
-               themes — same rationale as .handoff-fire in globals.css. */
-            ? "inline-flex items-center gap-1.5 rounded-[9px] border border-[#b3242e] bg-[#b3242e] px-2.5 py-1.5 text-fs-chrome-chip font-bold uppercase tracking-[0.04em] text-white"
-            : "inline-flex items-center gap-1.5 rounded-[9px] border border-transparent bg-transparent px-2 py-1.5 text-fs-chrome-chip font-semibold text-text-secondary hover:border-border hover:bg-surface-2"
+            /* The destructive action token remains deep in both themes so its
+               white label keeps AA while ordinary status marks can lift. */
+            ? "header-kill-trigger inline-flex items-center gap-1.5 rounded-[9px] border border-[var(--critical-action-bg)] bg-[var(--critical-action-bg)] px-2.5 py-1.5 text-fs-chrome-chip font-bold uppercase tracking-[0.04em] text-[var(--critical-action-fg)]"
+            : "header-kill-trigger inline-flex items-center gap-1.5 rounded-[9px] border border-transparent bg-transparent px-2 py-1.5 text-fs-chrome-chip font-semibold text-text-secondary hover:border-border hover:bg-surface-2"
         }
       >
         <OctagonX size={14} aria-hidden />
@@ -170,7 +169,7 @@ function KillSwitchControl({
             The resting label follows the header's priority ladder (globals.css)
             and the ≤520px rule; aria-label and title carry it throughout. */}
         <span className={halted ? undefined : "header-kill-label max-[520px]:hidden"}>
-          {halted ? "HALTED" : "Kill switch"}
+          {halted ? "HALTED" : "Kill"}
         </span>
       </button>
 
