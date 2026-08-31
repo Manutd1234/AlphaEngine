@@ -129,6 +129,10 @@ class TestTheFallbackStillFallsBack:
         try:
             assert store.backend == "sqlite"
             assert store.health() == {"backend": "sqlite", "available": True}
+            assert store._conn.execute("PRAGMA busy_timeout").fetchone()[0] == 30_000
+            assert store._conn.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
+            assert store._conn.execute("PRAGMA synchronous").fetchone()[0] == 1
+            assert store._conn.execute("PRAGMA foreign_keys").fetchone()[0] == 1
         finally:
             store.close()
 
