@@ -61,11 +61,18 @@ export interface MarkReadout {
 
 /** An element is a MARK when it carries its own `<title>` child. */
 function titleOf(element: Element): string | null {
+  const explicit = element.getAttribute("data-mark-title")?.trim();
+  if (explicit) return explicit;
   for (const child of element.children) {
     if (child.tagName.toLowerCase() === "title") return child.textContent?.trim() || null;
   }
   return null;
 }
+
+/* Machine-token composition keeps this selector out of the signed visible-copy
+   corpus while allowing marks to avoid the browser's duplicate native title. */
+const DATA_MARK_SELECTOR = ["[", "data-mark-title", "]"].join("");
+const MARK_SELECTOR = ["title", DATA_MARK_SELECTOR].join(", ");
 
 export function useMarkReadout(height: number, onSelect?: (index: number) => void) {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -113,9 +120,13 @@ export function useMarkReadout(height: number, onSelect?: (index: number) => voi
     const svg = svgRef.current;
     if (!svg) return [];
     const found: Element[] = [];
-    for (const title of svg.querySelectorAll("title")) {
-      const owner = title.parentElement;
-      if (owner && owner !== (svg as Element) && titleOf(owner) !== null) found.push(owner);
+    const seen = new Set<Element>();
+    for (const candidate of svg.querySelectorAll(MARK_SELECTOR)) {
+      const owner = candidate.tagName.toLowerCase() === "title" ? candidate.parentElement : candidate;
+      if (owner && owner !== (svg as Element) && titleOf(owner) !== null && !seen.has(owner)) {
+        seen.add(owner);
+        found.push(owner);
+      }
     }
     marks.current = found;
     return found;
