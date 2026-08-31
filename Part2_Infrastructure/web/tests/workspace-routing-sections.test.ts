@@ -107,6 +107,11 @@ describe("dense role workspaces expose accessible feature sections", () => {
       "locationHash no longer writes tab and section");
     assert.match(sectionViews, /`\$\{tab\}\/\$\{section\}\/\$\{view\}`/,
       "locationHash no longer carries the view for a tab that has one");
+    assert.match(
+      routingHook,
+      /url\.hash = locationHash\(workspace, next, viewBySectionRef\.current\[workspace\]\?\.\[next\]\)/,
+      "returning to a section drops its retained non-default view from the URL",
+    );
     assert.ok(
       !/if \(next === "data"\) setDataSection\("overview"\)/.test(routingHook),
       "the forced data reset is back — it hid the desync instead of fixing it",
@@ -152,7 +157,8 @@ describe("dense role workspaces expose accessible feature sections", () => {
     assert.match(tabShortcuts, /e\.code/);
     assert.ok(tabShortcuts.includes("Digit[0-9]"), "workspace shortcuts no longer match Digit codes");
     assert.match(tabShortcuts, /isContentEditable/);
-    // Ten tabs, nine digits and a zero. The mapping is the part that rots:
+    // Ten digit-addressable positions on an eleven-tab row: nine digits and a
+    // zero. The mapping is the part that rots:
     // a reader pressing Alt+0 must reach the tenth tab, never the first.
     assert.match(tabShortcuts, /digit === 0 \? 9 : digit - 1/, "Alt+0 no longer names the tenth tab");
     const palette = read("../lib/workspace-commands.ts");
@@ -279,7 +285,7 @@ describe("dense role workspaces expose accessible feature sections", () => {
     );
     assert.ok(
       routingHook.includes('data: bind("data", setDataSection)')
-        && routingHook.includes("url.hash = `${workspace}/${next}`"),
+        && routingHook.includes("url.hash = locationHash(workspace, next"),
       "data subtabs are not addressable by URL hash",
     );
     assert.ok(
