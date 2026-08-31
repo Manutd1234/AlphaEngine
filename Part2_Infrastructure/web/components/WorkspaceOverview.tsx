@@ -181,21 +181,11 @@ export default function WorkspaceOverview({
 
   return (
     <div className="overview-page">
-      {/* The command centre band. Two things are true of it at once, and the
-          combination is the point.
-
-          It keeps the dark plane the overview has always opened on — this is
-          the desk's landing surface and it is meant to read as one. But it no
-          longer owns a private colour system to do it. `data-plane="inverted"`
-          scopes the DARK THEME'S OWN tokens to this subtree, so the head, the
-          chips, the loop tiles, the button and the sparkline all render dark
-          through the ordinary names. The ten `--hero-*` tokens that used to
-          exist for this one band — a plane, five ink steps and a duplicate of
-          the status ramp — are gone, and status colour has one spelling again.
-
-          Inside it, the head is the same `PageHead` the other seven tabs
-          render, with the same chip anatomy and the same height. */}
-      <section className="overview-hero" data-plane="inverted">
+      {/* The command-centre band uses the same semantic surfaces as the rest of
+          the desk: white over warm ivory in light mode, navy over blue-black in
+          dark mode. With no local theme scope, the saved or OS preference owns
+          the whole viewport consistently. */}
+      <section className="overview-hero">
       <PageHead
         kicker="AlphaEngine command centre"
         /* The tagline, not "Overview" — the user's explicit choice for the
@@ -236,6 +226,7 @@ export default function WorkspaceOverview({
             note: equity ? `start ${usd(equity.start_of_day, 0)}; gateway snapshot` : "book connecting",
             spark: equitySpark.length >= 2 ? (
               <Sparkline
+                interactive
                 variant="area"
                 points={equitySpark}
                 width={90}
@@ -347,9 +338,8 @@ export default function WorkspaceOverview({
       <WorkspaceSubtabPanel workspaceId="overview" tabId="audit" activeId={section}>
         {/* The same seed the rest of the desk generates from, so the audit
             rows here are the orders the Execution blotter lists. */}
-        <AuditTrail active={active && section === "audit"} seed={book.seed} />
+        <AuditTrail active={active && section === "audit"} />
       </WorkspaceSubtabPanel>
     </div>
   );
 }
-
