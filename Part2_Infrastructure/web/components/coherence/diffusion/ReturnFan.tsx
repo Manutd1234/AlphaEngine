@@ -36,14 +36,13 @@
  * and legible were not in tension; a linear scale just made them look it.
  */
 
-import { memo } from "react";
+import { memo, useState } from "react";
 
 import {
   type RunPath,
   bpsBound,
   brokenPath,
   logTicks,
-  quartileBand,
   runPaths,
   signedLog,
 } from "@/lib/coherence/return-path";
@@ -63,7 +62,34 @@ const MARGIN = { top: 40, right: 14, bottom: 34, left: 58 };
 const ALLEY = 40;
 const STAGE_WORD: Record<string, string> = { release: "statement", call: "press conference" };
 
-/** One stage's panel: band behind, paths over it, zero rule through it. */
+export type ReturnFanPathMode = "solid" | "dotted" | "all";
+
+/** Cleared runs are solid; floor-refused runs are dotted. */
+export function returnFanPathsForMode(
+  paths: readonly RunPath[],
+  mode: ReturnFanPathMode,
+): RunPath[] {
+  if (mode === "all") return [...paths];
+  return paths.filter((path) => path.cleared === (mode === "solid"));
+}
+
+export function returnFanReading({ pathCount, refused, refusedPeak, clearedPeak }: {
+  pathCount: number;
+  refused: number;
+  refusedPeak: number | null;
+  clearedPeak: number | null;
+}): string | null {
+  if (pathCount === 0) return null;
+  if (refused && refusedPeak != null && clearedPeak != null) {
+    return `The floor refused ${refused} of ${pathCount} runs, and every one still carries a measured `
+      + `path — they are the flat ones, peaking at a median ${refusedPeak} bps against ${clearedPeak}. `
+      + "Drawn, so the floor can be checked rather than taken.";
+  }
+  if (refused) return `The floor refused ${refused} of ${pathCount} runs, and every one still carries a measured path.`;
+  return "Every recorded run cleared the noise floor.";
+}
+
+/** One stage's panel: selectable paths over a shared zero rule. */
 function Panel({ paths, horizons, bound, left, width, label, firstMeasured, why }: {
   paths: readonly RunPath[];
   horizons: readonly string[];
@@ -83,14 +109,13 @@ function Panel({ paths, horizons, bound, left, width, label, firstMeasured, why 
   // axis puts half the sample inside 3% of the height wherever it is bounded.
   const unit = signedLog(bound) || 1;
   const y = (bps: number) => MARGIN.top + plotH / 2 - (signedLog(bps) / unit) * (plotH / 2);
-  const band = quartileBand(paths, horizons.length);
   const refused = paths.filter((path) => !path.cleared).length;
-
-  const bandPath = band.length
-    ? band.map((point, i) => `${i ? "L" : "M"}${x(point.index)},${y(point.high)}`).join("")
-      + band.slice().reverse().map((point) => `L${x(point.index)},${y(point.low)}`).join("")
-      + "Z"
-    : "";
+  const historyWidth = firstMeasured > 0 ? Math.max(0, x(firstMeasured) - left) : 0;
+  const historyMidpoint = left + historyWidth / 2;
+  const historyLabelY = MARGIN.top + (HEIGHT - MARGIN.top - MARGIN.bottom) / 2 - 15;
+  const historyRange = firstMeasured > 1
+    ? `${horizons[0]}–${horizons[firstMeasured - 1]}`
+    : horizons[0] ?? "";
 
   return (
     <g>
@@ -106,31 +131,55 @@ function Panel({ paths, horizons, bound, left, width, label, firstMeasured, why 
         </text>
       ) : null}
 
-      {/* THE GAP, DRAWN AS A GAP. The first horizons resolve for no run at
-          all, and this span was 201 of each 703px panel — 29% of the figure
-          carrying no ink, with ticks underneath labelling the blank. Hatched
-          with the pattern `Plot` ships for exactly this, and titled with the
-          source's own reason rather than a paraphrase, so the emptiness reads
-          as "never measured" instead of as a rendering fault. */}
+      {/* THE GAP, DRAWN AS A GAP. A missing horizon remains part of the full
+          eight-horizon domain and is never compressed into a legend token. */}
       {firstMeasured > 0 ? (
-        <rect
-          className="diff-fan__unmeasured"
-          x={left}
-          y={MARGIN.top}
-          width={Math.max(0, x(firstMeasured) - left)}
-          height={HEIGHT - MARGIN.top - MARGIN.bottom}
-        >
-          <title>
-            {`${horizons.slice(0, firstMeasured).join(" and ")} resolve for no run`
-              + (why ? `: ${why.replace(/\.?$/, "")}` : "")}
-          </title>
-        </rect>
-      ) : null}
-
-      {bandPath ? (
-        <path className="diff-fan__band" d={bandPath}>
-          <title>{`${label}: the middle half of ${paths.length} paths at each horizon`}</title>
-        </path>
+        <g className="diff-fan__history-gap">
+          {/* The hatch is transparent by design, so it needs a historical
+              ground beneath it. Without this first rect the plot's white
+              paper showed through as two blank cards and looked like an
+              overlay failure rather than a measured absence. */}
+          <rect
+            className="diff-fan__unmeasured-ground"
+            x={left}
+            y={MARGIN.top}
+            width={Math.max(0, x(firstMeasured) - left)}
+            height={HEIGHT - MARGIN.top - MARGIN.bottom}
+          />
+          <rect
+            className="diff-fan__unmeasured"
+            x={left}
+            y={MARGIN.top}
+            width={Math.max(0, x(firstMeasured) - left)}
+            height={HEIGHT - MARGIN.top - MARGIN.bottom}
+          >
+            <title>
+              {`${horizons.slice(0, firstMeasured).join(" and ")} resolve for no run`
+                + (why ? `: ${why.replace(/\.?$/, "")}` : "")}
+            </title>
+          </rect>
+          {/* Real SVG text rather than generated CSS content inside a
+              foreignObject. It survives print/High Contrast and scales in the
+              same coordinate system as the gap it names. The rect's title is
+              still the keyboard-read detail; this label is its visible twin. */}
+          <text
+            className="diff-fan__history-label"
+            x={historyMidpoint}
+            y={historyLabelY}
+            textAnchor="middle"
+            aria-hidden="true"
+          >
+            {/* The gap is only 2/7 of a panel at the 560px geometry floor.
+                Stacking the two-word label keeps it inside that measured span
+                instead of letting a desktop-width phrase cross into the 1m
+                observations when the figure is horizontally scrolled. */}
+            <tspan x={historyMidpoint}>older</tspan>
+            <tspan x={historyMidpoint} dy="14">history</tspan>
+            <tspan className="diff-fan__history-range" x={historyMidpoint} dy="17">
+              {historyRange}
+            </tspan>
+          </text>
+        </g>
       ) : null}
 
       <line className="diff-fan__zero" x1={left} x2={left + width} y1={y(0)} y2={y(0)}>
@@ -177,7 +226,9 @@ function Panel({ paths, horizons, bound, left, width, label, firstMeasured, why 
 }
 
 function ReturnFan({ read }: { read: AbsorptionRead }) {
+  const [pathMode, setPathMode] = useState<ReturnFanPathMode>("all");
   const paths = runPaths(read.runs, read.horizons);
+  const visiblePaths = returnFanPathsForMode(paths, pathMode);
   const bound = bpsBound(paths);
   const stages = ["release", "call"].filter((stage) => paths.some((path) => path.stage === stage));
   const refused = paths.filter((path) => !path.cleared).length;
@@ -195,34 +246,20 @@ function ReturnFan({ read }: { read: AbsorptionRead }) {
   };
   const refusedPeak = peakOf(false);
   const clearedPeak = peakOf(true);
-  // The horizons that resolved for nobody, named from the wire's own reason
-  // rather than paraphrased.
-  const unresolved = read.horizons.filter(
-    (horizon) => !read.runs.some((run) =>
-      run.cells.some((cell) => cell.horizon === horizon && cell.abnormal_return != null)),
-  );
-  const why = read.runs
-    .flatMap((run) => run.cells)
-    .find((cell) => cell.abnormal_return == null && cell.reason)?.reason ?? null;
-  // Where the ink actually starts. Taken from the grid rather than assumed to
-  // be the count of unresolved horizons: a gap in the MIDDLE would make those
-  // two numbers disagree, and the hatch must only cover a leading run.
+  // Where the ink actually starts. The full domain remains in place to show
+  // the unresolved 1s/30s interval as quantitative missingness.
   const firstMeasured = read.horizons.findIndex((horizon) =>
     read.runs.some((run) =>
       run.cells.some((cell) => cell.horizon === horizon && cell.abnormal_return != null)));
-
+  const why = read.runs
+    .flatMap((run) => run.cells)
+    .find((cell) => cell.abnormal_return == null && cell.reason)?.reason ?? null;
   return (
     <Figure
       caption="Every measured path in basis points, including the ones the noise floor refused"
       ariaLabel={`Return against horizon, in basis points, for ${paths.length} runs over ${stages.length} stages, `
         + `${refused} of them below the noise floor, on an axis reaching ${Math.round(bound)} basis points`}
-      reading={refused && refusedPeak != null && clearedPeak != null
-        ? `The floor refused ${refused} of ${paths.length} runs, and every one still carries a measured `
-          + `path — they are the flat ones, peaking at a median ${refusedPeak} bps against ${clearedPeak}. `
-          + "Drawn, so the floor can be checked rather than taken."
-        : refused
-          ? `The floor refused ${refused} of ${paths.length} runs, and every one still carries a measured path.`
-          : "Every run cleared the noise floor."}
+      reading={returnFanReading({ pathCount: paths.length, refused, refusedPeak, clearedPeak })}
       missing={[
         // The 1s/30s reason left on 2026-08-27: the curve above says it, and
         // each hatched region here carries the wire's own words in its title.
@@ -233,8 +270,21 @@ function ReturnFan({ read }: { read: AbsorptionRead }) {
           : null,
       ].filter(Boolean).join(" ") || null}
     >
+      <div className="diff-lens diff-lens--inside" role="group" aria-label="Measured return paths">
+        <button type="button" aria-pressed={pathMode === "solid"}
+                onClick={() => setPathMode("solid")}>
+          Solid, cleared — {paths.length - refused}
+        </button>
+        <button type="button" aria-pressed={pathMode === "dotted"}
+                onClick={() => setPathMode("dotted")}>
+          Dotted, refused — {refused}
+        </button>
+        <button type="button" aria-pressed={pathMode === "all"}
+                onClick={() => setPathMode("all")}>All paths — {paths.length}</button>
+        <span className="diff-lens__readout" aria-live="polite">{visiblePaths.length} shown</span>
+      </div>
       {paths.length ? (
-        <Plot height={HEIGHT} minWidth={560}>
+        <Plot height={HEIGHT} minWidth={560} scrollLabel="Measured return paths">
           {(width) => {
             const span = Math.max(80, width - MARGIN.left - MARGIN.right);
             const panelW = stages.length > 1 ? (span - ALLEY) / stages.length : span;
@@ -267,7 +317,7 @@ function ReturnFan({ read }: { read: AbsorptionRead }) {
                 {stages.map((stage, index) => (
                   <Panel
                     key={stage}
-                    paths={paths.filter((path) => path.stage === stage)}
+                    paths={visiblePaths.filter((path) => path.stage === stage)}
                     horizons={read.horizons}
                     bound={bound}
                     left={MARGIN.left + index * (panelW + ALLEY)}
