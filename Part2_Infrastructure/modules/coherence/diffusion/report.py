@@ -36,6 +36,13 @@ def calendar_verification(rows: list[dict[str, Any]]) -> dict[str, Any]:
     Missing store, missing rows and disagreeing rows are three different
     answers.
     """
+    if not rows:
+        return {
+            "state": "empty",
+            "reason": "no observed events were supplied",
+            "verified": 0,
+            "of": 0,
+        }
     try:
         from modules.coherence.diffusion.texts import DiffusionTextStore
 
