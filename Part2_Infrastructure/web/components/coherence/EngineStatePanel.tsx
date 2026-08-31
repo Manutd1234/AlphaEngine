@@ -28,17 +28,26 @@
  * a UNIVERSE figure, not a status one — and the head's second row gets shorter
  * rather than longer.
  *
- * WHAT STAYS AT THE FOOT, and why it is not an oversight: the shard table and
- * the gateway's notes. Both are detail rather than state, both are wide, and
- * the shard fold opens itself when a shard stops trading — a status may never
- * be hidden, and there is no room in a header box for a four-column table that
- * has to be able to appear.
+ * A live shard halt remains actionable status, so the detail sheet can repeat
+ * its compact warning. Routine shard rows and raw gateway notes do not render:
+ * the top bar already owns bounded transport and provenance evidence.
  */
 
+import type { ReactNode } from "react";
+
 import type { CoherenceStatus } from "@/lib/coherence/types";
-import { groupDigits } from "@/lib/coherence/universe-metrics";
 import FreshnessStamp from "@/components/workspace/FreshnessStamp";
+import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { StateChip } from "./Figure";
+import StatusPane from "./StatusPane";
 import { countLabel } from "@/lib/coherence/decimals";
 
 function schemaTone(schema: unknown): "good" | "warn" | "critical" | "muted" {
@@ -60,28 +69,43 @@ function schemaTone(schema: unknown): "good" | "warn" | "critical" | "muted" {
  * slots of the same heading. They still read one `status`, so they cannot
  * disagree about what the engine is doing.
  */
+interface EngineStatusProps {
+  status: CoherenceStatus | null;
+  error: string | null;
+  /** False on registry-backed static views that make no transport request. */
+  visible?: boolean;
+  /** Bounded engine provenance, aligned with the venue row instead of below it. */
+  detail?: ReactNode;
+}
+
+export interface EngineChipsProps extends EngineStatusProps {
+  updatedAt: Date | null;
+  pollMs: number | null;
+  paused: boolean;
+}
+
 export function EngineChips({
   status,
   error,
   updatedAt,
   pollMs,
   paused,
-}: {
-  status: CoherenceStatus | null;
-  error: string | null;
-  updatedAt: Date | null;
-  pollMs: number | null;
-  paused: boolean;
-}) {
+  visible = true,
+  detail,
+}: EngineChipsProps) {
+  if (!visible) return null;
   const stamp = (
     <FreshnessStamp updatedAt={updatedAt} pollMs={pollMs} paused={paused} transport="poll" />
   );
   if (error && !status) {
     return (
       <div className="coh-headchips">
-        <p className="console-empty">
-          <span aria-hidden="true">✕</span> The engine could not report its own state: {error}
-        </p>
+        <div className="coh-status__chips coh-headchips__venue">
+          <p className="console-empty">
+            <span aria-hidden="true">✕</span> The engine could not report its own state: {error}
+          </p>
+          {detail}
+        </div>
         {stamp}
       </div>
     );
@@ -89,7 +113,10 @@ export function EngineChips({
   if (!status) {
     return (
       <div className="coh-headchips">
-        <p className="console-empty muted">Asking the engine how it is…</p>
+        <div className="coh-status__chips coh-headchips__venue">
+          <p className="console-empty muted">Asking the engine how it is…</p>
+          {detail}
+        </div>
         {stamp}
       </div>
     );
@@ -122,6 +149,7 @@ export function EngineChips({
           word={schema === "fp-2026" ? "Fixed-point schema" : `Schema ${schema}`}
           tone={schemaTone(schema)}
         />
+        {detail}
       </div>
       <div className="coh-status__chips coh-headchips__desk">
         <StateChip
@@ -136,6 +164,80 @@ export function EngineChips({
     </div>
   );
 }
+
+/**
+ * The shared Markets/Proofs status hierarchy: venue truth first, then recorder
+ * and polling truth. Explicit rows keep their order stable as values change.
+ */
+export function EngineTopbarStatus({
+  status,
+  error,
+  visible = true,
+  controls,
+  detail,
+}: EngineStatusProps & { controls: ReactNode }) {
+  if (!visible) return null;
+
+  const schema = String((status?.schema_probe as { schema?: string } | undefined)?.schema ?? "unavailable");
+  const reachable = status?.hosts.some((host) => host.reachable) ?? false;
+  const recorder = status?.recorder ?? null;
+  const reading = status?.state === "ok";
+
+  const readingChip = error && !status
+    ? { mark: "✕", word: "Exchange unavailable", value: error, tone: "critical" as const }
+    : status && !reading
+      ? { mark: "▲", word: `Exchange ${status.state}`, value: null, tone: "warn" as const }
+      : status
+        ? { mark: "●", word: "Reading exchange", value: null, tone: "good" as const }
+        : { mark: "◌", word: "Reading exchange", value: "awaiting", tone: "muted" as const };
+
+  return (
+    <div className="engine-topbar-status" aria-label="Engine status and polling controls">
+      <div
+        className="engine-topbar-status__row engine-topbar-status__venue"
+        role="group"
+        aria-label="Exchange status"
+      >
+        <StateChip {...readingChip} />
+        <StateChip
+          mark={status ? (reachable ? "●" : "✕") : "◌"}
+          word={status ? (reachable ? "Exchange reachable" : "Exchange unreachable") : "Exchange pending"}
+          tone={status ? (reachable ? "good" : "critical") : "muted"}
+        />
+        <StateChip
+          mark={status ? (schema === "fp-2026" ? "✓" : "▲") : "◌"}
+          word={status ? (schema === "fp-2026" ? "Fixed-point schema" : `Schema ${schema}`) : "Schema pending"}
+          tone={status ? schemaTone(schema) : "muted"}
+        />
+        <StateChip
+          mark={status ? (status.dry_run ? "✓" : "✕") : "◌"}
+          word={status ? (status.dry_run ? "Read-only" : "Order path enabled") : "Read-only"}
+          tone={status ? (status.dry_run ? "muted" : "critical") : "muted"}
+        />
+        {detail}
+      </div>
+      <div
+        className="engine-topbar-status__row engine-topbar-status__recorder"
+        role="group"
+        aria-label="Recorder and polling status"
+      >
+        <StateChip
+          mark={recorder ? (recorder.running ? "●" : "○") : "◌"}
+          word="Recorder"
+          value={recorder ? `${countLabel(recorder.books_written)} books` : "awaiting"}
+          tone={recorder ? (recorder.running ? "good" : recorder.configured ? "warn" : "muted") : "muted"}
+        />
+        <span className="sr-only">
+          Recorder state: {recorder ? (recorder.running ? "running" : recorder.configured ? "idle" : "off") : "awaiting status"}.
+        </span>
+        {controls}
+      </div>
+    </div>
+  );
+}
+
+/** Compatibility name for the first console that adopted the shared top bar. */
+export const MarketsEngineStatus = EngineTopbarStatus;
 
 export default function EngineStatePanel({
   status,
@@ -176,58 +278,73 @@ export default function EngineStatePanel({
   const recorder = status.recorder;
   const tape = status.tape as { state?: string; book_snapshots?: number; tickers_seen?: number };
   const solver = String((status.solver as { linear_programme?: string }).linear_programme ?? "unknown");
+  const hasHaltedShard = status.state === "ok" && status.shards.some(
+    (shard) => !shard.exchange_active || !shard.trading_active,
+  );
 
   return (
     <div className="coh-headstate">
-      {/* A TABLE, which is what the reader asked for, and a `<dl>`, which is
-          what these are. Four label-and-figure pairs are a description list;
-          the borders are what make it read as a table. `PnlStrip`'s compact
-          metrics do exactly this a few directories away and say so. */}
-      <dl className="coh-status__facts coh-facts--tabled">
-        <div>
-          <dt>Recorded so far</dt>
-          <dd>
-            {tape.state === "ok"
-              ? `${countLabel(tape.book_snapshots)} snapshots across ${countLabel(tape.tickers_seen)} markets`
-              : "—"}
-          </dd>
-        </div>
-        <div>
-          <dt>Last poll</dt>
-          <dd>
-            {recorder.seconds_since_last_poll == null
-              ? "— not polled yet"
-              : `${recorder.seconds_since_last_poll}s ago`}
-          </dd>
-        </div>
-        <div>
-          <dt>Read budget</dt>
-          <dd>
-            {countLabel(status.budget.tokens_per_second)} per second, {countLabel(status.budget.tokens_spent)} spent
-          </dd>
-          {/* Provenance for THIS row, so it sits under this row — and folded,
-              because it is a whole gateway sentence beside three neighbours
-              that carry a figure, and unfolded it makes one cell three times
-              the height of the rest. */}
-          <dd className="coh-status__basis">
-            <details className="disclosure">
-              <summary>How this budget was chosen</summary>
-              {status.budget.basis}
-            </details>
-          </dd>
-        </div>
-        <div>
-          <dt>Coherence solver</dt>
-          <dd>{solver}</dd>
-        </div>
-        {familiesPriced ? (
-          <div>
-            <dt>Families priced</dt>
-            <dd>{familiesPriced}</dd>
+      <Sheet>
+        <SheetTrigger asChild>
+          <Button className="coh-headstate__detail-trigger" type="button" variant="outline" size="sm">
+            Engine detail
+          </Button>
+        </SheetTrigger>
+        <SheetContent className="coh-engine-detail-content w-[min(48rem,calc(100vw-1rem))] overflow-y-auto min-[521px]:max-w-none">
+          <div className="coherence-plane coh-engine-detail-sheet">
+            <SheetHeader>
+              <SheetTitle>Engine state detail</SheetTitle>
+              <SheetDescription>
+                Recorder, budget, solver and any live trading pause for this coherence read.
+              </SheetDescription>
+            </SheetHeader>
+            {/* Secondary provenance remains exact, but no longer repeats above
+                every one of the 55 Markets/Proofs routes. The live state chips
+                remain in the header; this bounded Sheet owns the audit depth. */}
+            <dl className="coh-status__facts coh-facts--tabled">
+              <div>
+                <dt>Recorded so far</dt>
+                <dd>
+                  {tape.state === "ok"
+                    ? `${countLabel(tape.book_snapshots)} snapshots across ${countLabel(tape.tickers_seen)} markets`
+                    : "—"}
+                </dd>
+              </div>
+              <div>
+                <dt>Last poll</dt>
+                <dd>
+                  {recorder.seconds_since_last_poll == null
+                    ? "— not polled yet"
+                    : `${recorder.seconds_since_last_poll}s ago`}
+                </dd>
+              </div>
+              <div>
+                <dt>Read budget</dt>
+                <dd>
+                  {countLabel(status.budget.tokens_per_second)} per second, {countLabel(status.budget.tokens_spent)} spent
+                </dd>
+                <dd className="coh-status__basis">
+                  <details className="disclosure">
+                    <summary>How this budget was chosen</summary>
+                    {status.budget.basis}
+                  </details>
+                </dd>
+              </div>
+              <div>
+                <dt>Coherence solver</dt>
+                <dd>{solver}</dd>
+              </div>
+              {familiesPriced ? (
+                <div>
+                  <dt>Families priced</dt>
+                  <dd>{familiesPriced}</dd>
+                </div>
+              ) : null}
+            </dl>
+            {hasHaltedShard ? <StatusPane status={status} /> : null}
           </div>
-        ) : null}
-      </dl>
-
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
