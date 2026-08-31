@@ -43,8 +43,8 @@
  * SO THE CHANGE IS DESK-WIDE, and that is a real widening of the ask
  * ------------------------------------------------------------------------
  * The rung moved in `12-workspace-standardisation.css`, the one place the
- * control is sized, so the seg is 14px on all ten tabs and all twenty-two
- * components that render one. That is more than two tabs were asked for. It is
+ * control is sized, so the seg is 14px across every workspace tab and every
+ * component that renders one. That is more than two tabs were asked for. It is
  * also the only way to satisfy the ask without re-opening the defect those
  * three suites were written against — and it is what "standardize" means: the
  * level keeps ONE size, which is the property it had before and still has.
