@@ -46,6 +46,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { DIFFUSION_SECTIONS } from "../lib/sections";
+import { viewsFor } from "../lib/section-views";
 import { read } from "./helpers/workspace-sources";
 
 const FORMULAS_FILE = "../components/coherence/diffusion/model/ModelFormulas.tsx";
@@ -91,10 +92,10 @@ describe("the estimator's three sections are offered and are reachable", () => {
   });
 
   it("the three a reader can drive are named on the Sandbox switcher", () => {
-    const sandbox = read(SECTION_FILES.sandbox);
-    for (const label of ["Half-life", "Simulator", "Spectrum"]) {
-      assert.ok(sandbox.includes(`"${label}"`), `the Sandbox section lost its ${label} view`);
-    }
+    assert.deepEqual(viewsFor("diffusion", "sandbox").map(([, label]) => label),
+      ["Half-life", "Simulator", "Spectrum"]);
+    assert.match(read(SECTION_FILES.sandbox), /viewsFor\("diffusion", "sandbox"\)/,
+      "Sandbox stopped consuming the canonical view registry");
   });
 
   it("the rail offers all three", () => {
