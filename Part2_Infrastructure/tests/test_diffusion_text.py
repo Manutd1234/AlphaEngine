@@ -9,6 +9,7 @@ is to survive those differences without a DOM.
 from __future__ import annotations
 
 import httpx
+from helpers.diffusion_fomc_fixture import fixture_rows
 
 from modules.coherence.diffusion.text import (
     MIN_STATEMENT_CHARS,
@@ -19,6 +20,7 @@ from modules.coherence.diffusion.text import (
     strip_html,
 )
 from modules.coherence.diffusion.texts import verify_calendar
+from tools import diffusion_text as text_runner
 
 BODY = (
     "Recent indicators point to modest growth in spending and production. "
@@ -175,3 +177,31 @@ class TestTheHeadlineIsTheOpeningSentences:
 
     def test_two_sentences_is_more_than_one(self):
         assert len(headline_of(BODY, sentences=2)) > len(headline_of(BODY, sentences=1))
+
+
+class TestTheFetchToolUsesOnlyObservedRows:
+    @staticmethod
+    def _args():
+        return text_runner.build_parser().parse_args(["--delay", "0"])
+
+    def test_an_empty_ledger_stays_empty(self):
+        report = text_runner.run(self._args(), meetings=[])
+        assert report == {
+            "checked": 0,
+            "verified": [],
+            "mismatched": [],
+            "unavailable": [],
+            "persisted": False,
+        }
+
+    def test_a_row_without_an_issuer_url_is_refused_without_fetching(self):
+        row = {**fixture_rows()[0], "statement_url": None}
+        report = text_runner.run(self._args(), meetings=[row], client=object())
+        assert report["verified"] == []
+        assert report["unavailable"] == [
+            (row["source_ref"], "the observed event carries no issuer statement URL"),
+        ]
+
+    def test_the_expected_hour_is_derived_from_the_observed_timestamp(self):
+        row = next(row for row in fixture_rows() if row["source_ref"] == "fed:2020-03-15")
+        assert text_runner._expected_time(row) == "17:00"
