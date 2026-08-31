@@ -50,12 +50,14 @@ describe("the mark hook publishes what it shows", () => {
     assert.match(clear, /setHotIndex\(null\)/, "leaving the figure leaves the row lit");
   });
 
-  it("the plot publishes it in an effect, never during render", () => {
+  it("the plot publishes the active mark or shared-axis index in an effect", () => {
     // Setting a PARENT's state during render is the one thing React refuses
     // outright, and it is the obvious way to write this.
     assert.match(figure, /const \{ setHot \} = useHot\(\);/, "Plot does not reach the hot context");
-    assert.match(figure, /useEffect\(\(\) => \{ setHot\(marks\.hotIndex\); \}, \[setHot, marks\.hotIndex\]\);/,
-      "the hot index is published during render, or not at all");
+    assert.match(figure, /const hotIndex = axis \? shared\.index : marks\.hotIndex;/,
+      "a shared-x crosshair does not publish its semantic axis index");
+    assert.match(figure, /useEffect\(\(\) => \{ setHot\(hotIndex\); \}, \[setHot, hotIndex\]\);/,
+      "the selected interaction index is published during render, or not at all");
   });
 });
 
@@ -86,12 +88,7 @@ interface Site {
 
 const HOT_SITES: Site[] = [
   { file: "CalibrationCorpus.tsx", inner: "Composition", figure: "CorpusShares" },
-  // Markets. The replay's table and the strip that prices it are the same six
-  // configurations in the same order, both open on the page — no fold to open
-  // first, which is what disqualified the Stake pair, whose table sits inside a
-  // `<details>` where a lit row would be lit behind a closed door.
-  { file: "AblationPane.tsx", inner: "ReplayTable", figure: "ValueStrip" },
-  // The plan's bars against the numbers behind them. Its table is FOLDED, so
+  // The plan's outcome field against the numbers behind it. Its table is FOLDED, so
   // the lit row is worth nothing until a reader opens the disclosure — and
   // everything to the reader who does, which is the one checking a bar.
   { file: "surface/StakeView.tsx", inner: "AdmittedPlan", figure: "StakeBars", rowsIn: "StakeTable" },
@@ -155,7 +152,7 @@ describe("every hot site", () => {
     });
   }
   it("counts the sites it has", () => {
-    assert.equal(HOT_SITES.length, 3);
+    assert.equal(HOT_SITES.length, 2);
   });
 });
 
