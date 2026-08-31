@@ -23,11 +23,13 @@ import { memo, useMemo } from "react";
 
 import DepthChart from "@/components/DepthChart";
 import StatTile from "@/components/StatTile";
+import Figure from "@/components/coherence/Figure";
 import { compact, fmt } from "@/lib/format";
 import type { LiveSnapshot } from "@/lib/livebook";
 import { DEPTH_BAND_BPS, type Side } from "@/lib/venues";
 
 import { type HideablePanelProps, skipWhileHidden } from "./hidden-panel";
+import DepthHeatmap from "./DepthHeatmap";
 
 interface LiquidityBookProps extends HideablePanelProps {
   symbol: string;
@@ -38,8 +40,15 @@ interface LiquidityBookProps extends HideablePanelProps {
   onPriceSelect?: (pick: { side: Side; price: number }) => void;
 }
 
-/** Levels shown per side. The card reserves its height from this count. */
-const LADDER_DEPTH = 12;
+/**
+ * Levels shown per side.
+ *
+ * Eight keeps the actionable near-touch book in one compact card without an
+ * inner scroll. Deeper shape is still visible in the cumulative-depth chart;
+ * the ladder is for choosing a price, where the closest levels are the useful
+ * ones.
+ */
+const LADDER_DEPTH = 8;
 
 /**
  * One side of the ladder as rows. Module-level rather than a closure so the
@@ -61,6 +70,7 @@ function ladderRows(
   });
   const max = withCum.at(-1)?.cum ?? 1;
   const colour = kind === "bid" ? "var(--diverging-pos)" : "var(--diverging-neg)";
+  const textColour = kind === "bid" ? "var(--diverging-pos)" : "var(--critical-text)";
   const rowsOut = kind === "ask" ? [...withCum].reverse() : withCum;
 
   // Lifting an ask is a BUY at that price; hitting a bid is a SELL.
@@ -89,11 +99,11 @@ function ladderRows(
           borderRadius: 3,
         }}
       />
-      <span style={{ position: "relative", color: colour }}>{fmt(p, dp)}</span>
+      <span style={{ position: "relative", color: textColour }}>{fmt(p, dp)}</span>
       <span style={{ position: "relative", textAlign: "right", color: "var(--text-secondary)" }}>
         {fmt(q, 4)}
       </span>
-      <span style={{ position: "relative", textAlign: "right", color: "var(--text-muted)" }}>
+      <span style={{ position: "relative", textAlign: "right", color: "var(--text-secondary)" }}>
         {compact(c)}
       </span>
     </button>
@@ -180,36 +190,37 @@ function LiquidityBook({ symbol, snap, dp, onPriceSelect }: LiquidityBookProps) 
         />
       </div>
 
-      {/* The curve and the ladder are the same book read two ways, so they
-          share one baseline: the chart takes the ladder's height instead of
-          sitting 210px tall beside 570px of levels. The pair stretches to the
-          chart card, and the chart's box is a fixed 430px whether or not a
-          book has arrived — so the row is the same height before the first
-          ladder, during a venue outage and at rest. */}
+      {/* The first row reads one book as latest shape and bounded history. The
+          exact ladder spans below it, keeping click-to-stage room without
+          shrinking either quantitative view. */}
       <div className="compact-grid-2col liquidity-pair">
-        <div className="card">
-          <h2>Cumulative depth</h2>
-          <DepthChart
-            bids={snap?.merged.bids ?? []}
-            asks={snap?.merged.asks ?? []}
-            mid={snap?.consolidatedMid ?? null}
-            height={430}
-          />
-          {/* How to read the shape, which is methodology rather than
-              measurement — and the chart is never left bare by folding it:
-              DepthChart draws its own legend, its own axis labels and its own
-              "waiting for book…" empty state. */}
+        <div className="card liquidity-pair__depth">
+          <Figure
+            caption="Cumulative resting depth through the current consolidated book"
+            ariaLabel="Cumulative bid and ask notional by distance from the consolidated mid price"
+            reserveInteractionRow={false}
+          >
+            <DepthChart
+              bids={snap?.merged.bids ?? []}
+              asks={snap?.merged.asks ?? []}
+              mid={snap?.consolidatedMid ?? null}
+              height={500}
+            />
+          </Figure>
           <details className="disclosure">
             <summary>How should this curve be read?</summary>
             <p className="research-note">
-              Size resting between the mid and any price. A near-vertical step is a wall; a shallow
-              ramp is a thin book that costs to cross.
+              Size resting between the mid and any price. A near-vertical step is a wall; a shallow ramp is a thin book that costs to cross.
             </p>
           </details>
         </div>
 
-        <div className="card">
-          <h2>Consolidated ladder</h2>
+        <div className="card liquidity-pair__history" data-depth-history="">
+          <DepthHeatmap history={snap?.depthHistory ?? []} dp={dp} />
+        </div>
+
+        <div className="card liquidity-pair__ladder">
+          <h2 id="execution-liquidity-ladder-title">Consolidated ladder</h2>
           {/* The sentence split: the click-to-trade affordance is the only
               at-rest discovery of what a row does, so it stays here while the
               descriptive half folds under the ladder — matching the depth card
@@ -217,37 +228,22 @@ function LiquidityBook({ symbol, snap, dp, onPriceSelect }: LiquidityBookProps) 
           <p className="sub">
             Click a level to stage it as a limit in the ticket.
           </p>
-          <div className="liquidity-pair__book">
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr 1fr",
-                fontSize: "var(--fs-2xs)",
-                textTransform: "uppercase",
-                letterSpacing: "0.06em",
-                color: "var(--text-muted)",
-                padding: "0 6px 6px",
-              }}
-            >
+          <div
+            className="liquidity-pair__book"
+            role="region"
+            aria-labelledby="execution-liquidity-ladder-title"
+          >
+            <div className="liquidity-ladder__head">
               <span>Price</span>
               <span style={{ textAlign: "right" }}>Size</span>
               <span style={{ textAlign: "right" }}>Cum $</span>
             </div>
             {askRows}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                padding: "8px 6px",
-                margin: "4px 0",
-                borderTop: "1px solid var(--grid)",
-                borderBottom: "1px solid var(--grid)",
-              }}
-            >
-              <span className="num" style={{ fontSize: "var(--fs-h2)", fontWeight: 650 }}>
+            <div className="liquidity-ladder__mid">
+              <span className="num liquidity-ladder__mid-price">
                 {fmt(snap?.consolidatedMid, dp)}
               </span>
-              <span className="num muted" style={{ fontSize: "var(--fs-body)" }}>
+              <span className="num muted liquidity-ladder__spread">
                 spread {fmt(snap?.spreadBps, 2)} bps
               </span>
             </div>
