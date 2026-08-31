@@ -44,6 +44,24 @@ interface EquityCurveProps {
   backfilled?: boolean;
 }
 
+/**
+ * Close the region between the high-water mark and equity without collapsing
+ * an unread observation out of the time axis. EquityPoint is numeric on the
+ * wire, but the finite guard keeps a malformed rolling-deploy payload from
+ * turning one missing point into a plausible bridge.
+ */
+export function drawdownAreaPath(
+  points: ReadonlyArray<Pick<EquityPoint, "equity" | "highWaterMark">>,
+  x: (index: number) => number,
+  y: (value: number) => number,
+): string {
+  if (points.length < 2 || points.some((point) =>
+    !Number.isFinite(point.equity) || !Number.isFinite(point.highWaterMark))) return "";
+  const high = points.map((point, index) => `${x(index).toFixed(2)},${y(point.highWaterMark).toFixed(2)}`);
+  const book = points.map((point, index) => `${x(index).toFixed(2)},${y(point.equity).toFixed(2)}`).reverse();
+  return `M${high.join("L")}L${book.join("L")}Z`;
+}
+
 const PERIOD_LABELS: Array<[string, string]> = [
   ["day", "Day"],
   ["month_to_date", "Month to date"],
@@ -98,6 +116,8 @@ export default function EquityCurve({
 
   const last = points[points.length - 1];
   const drawdown = last.highWaterMark > 0 ? last.equity / last.highWaterMark - 1 : 0;
+  const maxDrawdown = Math.min(0, ...points.map((point) =>
+    point.highWaterMark > 0 ? point.equity / point.highWaterMark - 1 : 0));
   const peak = Math.max(...hwm);
 
   const stamp = (t: number) =>
@@ -151,9 +171,27 @@ export default function EquityCurve({
             // The paths follow the scale, so they follow the width too.
             const equityPath = linePath(points.map((p, i) => ({ x: xScale(i), y: yScale(p.equity) })));
             const hwmPath = linePath(points.map((p, i) => ({ x: xScale(i), y: yScale(p.highWaterMark) })));
+            const drawdownPath = drawdownAreaPath(points, xScale, yScale);
             return (
               <>
           <Grid yTicks={yTicks} yScale={yScale} x0={x0} x1={x1} format={(v) => `$${compact(v)}`} />
+
+          {/* This fill is the drawdown itself: the exact region between the
+              running peak and equity. Halt shading below remains a separate
+              vertical band because "below peak" and "not allowed to trade"
+              are different states. The title makes the area a keyboard-walked
+              mark through Figure/Plot; forced colours replace the wash with
+              the shared hatch while both boundary lines remain visible. */}
+          {drawdownPath && (
+            <path
+              className="equity-drawdown-area"
+              d={drawdownPath}
+              fill="color-mix(in srgb, var(--status-critical) 14%, transparent)"
+              stroke="none"
+            >
+              <title>{`Drawdown area — deepest ${pct(maxDrawdown, 2)}, current ${pct(drawdown, 2)}`}</title>
+            </path>
+          )}
 
           {/* Halted stretches, shaded behind the line. The endpoint has always
               recorded the kill-switch state per observation and the client threw
