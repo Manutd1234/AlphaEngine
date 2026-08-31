@@ -22,6 +22,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { DIFFUSION_SECTIONS, DIFFUSION_SECTION_IDS } from "../lib/sections";
+import { viewsFor } from "../lib/section-views";
 import { read, stripNonCode } from "./helpers/workspace-sources";
 
 const console_ = read("../components/DiffusionConsole.tsx");
@@ -113,10 +114,10 @@ describe("each switcher names its options", () => {
       // The view labels are the only route a reader has to a view: pane ids are
       // component state and are not addressable, so a renamed view is
       // unreachable by any link and only its label says it exists.
-      const source = read(SECTION_FILES[id]);
-      for (const label of labels) {
-        assert.ok(source.includes(`"${label}"`), `${id} lost its ${label} view`);
-      }
+      assert.deepEqual(viewsFor("diffusion", id).map(([, label]) => label), labels,
+        `${id}'s canonical views no longer match its switcher`);
+      assert.match(read(SECTION_FILES[id]), new RegExp(`viewsFor\\("diffusion", "${id}"\\)`),
+        `${id} stopped consuming the canonical view registry`);
     });
   }
 });
