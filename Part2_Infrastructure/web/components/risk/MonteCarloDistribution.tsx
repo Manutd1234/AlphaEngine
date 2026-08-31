@@ -10,24 +10,16 @@
  * between them is signal, not error. The computation runs in a dedicated
  * worker; the main thread only draws the result.
  *
- * Every parameter the simulation runs on is a control (McParameterRail), and
- * where one is displayed it is read from the RESULT rather than from the
- * request — the resampler through `mcResamplerOf`, the confidences through
- * `mcLossConfidences`. A card that named a parameter from what it asked for
- * could not tell a reader when the two disagreed, which is the only case worth
- * reporting.
- *
- * What the desk removed was the STANDALONE line reporting the seed, the block
- * length and the path count, and `directed-removals.test.ts` (entry O.7) is
- * what keeps it from coming back, not this comment. The facts did not all go
- * with it: the run is still reproducible from the sweep-derived seed, and the
- * block the run resolved survives as a derivation inside the disclosure below.
+ * Displayed parameters come from the result, never merely from the request.
+ * Reproducibility stays in the controls and method disclosure rather than a
+ * duplicate standalone seed/block/path sentence.
  */
 
 import { useMemo, useState } from "react";
 
 import McDegenerateNotice from "@/components/risk/McDegenerateNotice";
 import McHistogram from "@/components/risk/McHistogram";
+import McTailGauge from "@/components/risk/McTailGauge";
 import McParameterRail, {
   MC_SEED_MAX,
   parseMcSeed,
@@ -148,6 +140,10 @@ export default function MonteCarloDistribution({
 
   const state = useMcDistribution(request);
   const result = state.result;
+  const displayedHorizonDays = result && driver
+    ? Math.max(1, Math.round(result.horizonBars / (24 / hoursPerBar(driver.interval))))
+    : horizonDays;
+  const displayedEquityForRun = result?.equity ?? equityForRun;
   // Read once, off the result, beside the figures they describe. Every label
   // below is built from these rather than from a literal, so a figure cannot
   // be printed under a confidence or a resampler it was not computed at.
@@ -165,6 +161,12 @@ export default function MonteCarloDistribution({
   const resultDefect = result ? mcResultDegeneracy(result) : null;
   // What was asked for, printed under either refusal.
   const asked = `${paths.toLocaleString()} paths, ${horizonDays}-day horizon, seed ${seedOverride ?? driver?.seed ?? "—"}`;
+  const progressStatus = (
+    <p className="muted num" style={{ fontSize: "var(--fs-body)" }}>
+      Simulating {(state.progress?.done ?? 0).toLocaleString()} /{" "}
+      {(state.progress?.total ?? paths).toLocaleString()} paths
+    </p>
+  );
 
   if (!driver || driver.returns.length === 0) {
     return (
@@ -223,7 +225,7 @@ export default function MonteCarloDistribution({
         <summary>How is this simulated?</summary>
         <p className="research-note">
           Resamples <strong>{driver.label}</strong>&apos;s realised {driver.interval} returns with the{" "}
-          {MC_RESAMPLER_LABELS[ran]} over a {horizonDays}-day forward horizon, keeping where each
+          {MC_RESAMPLER_LABELS[ran]} over a {displayedHorizonDays}-day forward horizon, keeping where each
           path ends. Blocks average {blocksRan}.
         </p>
       </details>
@@ -239,7 +241,7 @@ export default function MonteCarloDistribution({
           the defect, not the restraint. See BookConcentration for the rest. */}
       <p className="sub mc-live-equity">
         Book equity <NumberTicker value={equity} format={(value) => usd(value, 0)} /> on the live
-        feed; this run holds the {usd(equityForRun, 0)} bucket and re-simulates when the book
+        feed; this run holds the {usd(displayedEquityForRun, 0)} bucket and re-simulates when the book
         crosses into the next $1,000.
       </p>
 
@@ -279,32 +281,24 @@ export default function MonteCarloDistribution({
         />
       )}
 
-      {state.status === "running" && (
+      {state.status === "running" && !result && (
         <>
-          {/* Reserved at the shape of the result it precedes — the histogram
-              with its range row (198px of svg plus the min/max line), then
-              the tile block — rather than one short shimmer. A single 180px
-              skeleton collapsed the card by roughly 200px on every re-run,
-              so each horizon or parameter change bounced whatever sat below
-              it: the twitch, not the simulation, was what the reader saw.
-              The tile reserve is two rows: the five tiles land 4 + 1 on the
-              four-track stability grid, so a single-row reserve still let
-              every re-run collapse the card by a tile row. 196 is two 92px
-              rows plus the 12px grid gap — the fallback below. At desk width
-              the density partial (14e) lays the five tiles on five tracks,
-              one 92px row, and narrows `--mc-tile-reserve` alongside that
-              grid rule, so reserve and result stay the same shape at every
-              width rather than only below the desk breakpoint. */}
+          {/* Reserve the loaded histogram and responsive tile geometry so the
+              analytical surface never collapses during the first run. */}
           <div className="skeleton" style={{ height: 212 }} />
           <div className="skeleton" style={{ height: "var(--mc-tile-reserve, 196px)", marginTop: 12 }} />
-          <p className="muted num" style={{ fontSize: "var(--fs-body)" }}>
-            Simulating {(state.progress?.done ?? 0).toLocaleString()} /{" "}
-            {(state.progress?.total ?? paths).toLocaleString()} paths
-          </p>
+          {progressStatus}
           <span className="sr-only" role="status">
             Monte Carlo running.
           </span>
         </>
+      )}
+
+      {state.status === "running" && result && (
+        <div className="mc-refresh-status" role="status" aria-live="polite">
+          <span className="live-dot" aria-hidden />
+          {progressStatus}
+        </div>
       )}
 
       {state.status === "error" && (
@@ -318,7 +312,7 @@ export default function MonteCarloDistribution({
           verdict are skipped together — the verdict especially, because
           "Within headroom. P95 loss $0" is the sentence a trader acts on and
           it would be safety claimed from a simulation that measured nothing. */}
-      {state.status === "done" && resultDefect && (
+      {result && resultDefect && state.status !== "running" && (
         <McDegenerateNotice
           headline={resultDefect.headline}
           detail={resultDefect.detail}
@@ -326,9 +320,9 @@ export default function MonteCarloDistribution({
         />
       )}
 
-      {state.status === "done" && result && !resultDefect && (
+      {result && !resultDefect && (
         <>
-          <McHistogram result={result} />
+          <div className="mc-distribution-figures"><McHistogram result={result} /><McTailGauge result={result} cushionUsd={cushionUsd} /></div>
 
           {/* `<StatTile>`, not five hand-typed copies of what it renders.
               `mcUsd`, never `usd`: the loss figures are negated percentiles, so
@@ -370,13 +364,13 @@ export default function MonteCarloDistribution({
               </span>
               <div>
                 <strong>{withinHeadroom ? "Within headroom." : "Breaches headroom."}</strong>{" "}
-                P{lossBands[1]} loss {mcUsd(result.loss.p95)} over {horizonDays} day{horizonDays === 1 ? "" : "s"}{" "}
+                P{lossBands[1]} loss {mcUsd(result.loss.p95)} over {displayedHorizonDays} day{displayedHorizonDays === 1 ? "" : "s"}{" "}
                 against the {usd(cushionUsd, 0)} left in the drawdown-to-halt budget on the Limits tab
                 {withinHeadroom ? "." : " — a tail outcome this size would trip the halt."}{" "}
                 {/* Gone at 1d, the seg's first choice, where it stops being true: this screen is
                     conservative BECAUSE a multi-day tail meets one day's cushion, and over one day
                     the spans match. `disclosure-risk.test.ts` pins the sentence, so WHEN is the lever. */}
-                {horizonDays > 1 && <>A multi-day loss against today&apos;s budget is a conservative screen.</>}
+                {displayedHorizonDays > 1 && <>A multi-day loss against today&apos;s budget is a conservative screen.</>}
                 {sandbox ? " Sandbox book, same limits." : ""}
               </div>
             </div>
