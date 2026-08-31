@@ -3,10 +3,11 @@
 /**
  * The Universe section: the watched families, priced against the dollar they pay.
  *
- * ONE subject, TWO views — and since the split of 2026-08-25 the subject and
- * the switcher finally agree. Baskets is the one figure that compares every family
- * against the dollar it pays — the section's headline question, so it is the
- * default. Families is the per-family detail, and since the THIRD review of
+ * ONE subject, THREE focused views. Basket pricing compares every family
+ * against the dollar it pays — the section's headline question, so it remains
+ * the default and existing links still land there. Positions gives open
+ * interest its own canvas instead of stacking it under that comparison.
+ * Families is the per-family detail, and since the THIRD review of
  * 2026-08-24 it is ONE family at a time: the second pass drew every family
  * card in a packed grid, and with each card's outcome disclosure open that was
  * three 188-row tables side by side, running under each other's borders. "we
@@ -56,7 +57,7 @@
  * difference cost — "the universe section has too many subtabs" — and three of
  * the five were the settlement feed's.
  *
- * So this section is two views over one read, and `SettlementSection` is three
+ * So this section is three views over one read, and `SettlementSection` is three
  * views over another. What is left here is one question: a mutually exclusive
  * family is a dollar sold in pieces, and what the pieces cost is the answer.
  */
@@ -65,17 +66,15 @@ import { useMemo, useState } from "react";
 
 import type { CoherenceUniverse } from "@/lib/coherence/types";
 import FamilyPicker from "./FamilyPicker";
-import LiveTape from "./LiveTape";
-import { toUnit } from "@/lib/coherence/decimals";
-import { fromCenticents, sumPrices } from "@/lib/coherence/fixed-point";
-import { useLiveSeries } from "@/lib/coherence/use-live-series";
 import PaneHead from "./PaneHead";
 import SectionFrame from "./SectionFrame";
 import UniversePane, { type UniverseView } from "./UniversePane";
+import universeStyles from "./UniverseInstruments.module.css";
 
-/** The two views, in the order they are pressed. */
+/** The three focused views, in the order they are pressed. */
 const VIEWS: ReadonlyArray<[UniverseView, string]> = [
-  ["baskets", "Baskets"],
+  ["baskets", "Basket pricing"],
+  ["positions", "Positions"],
   ["families", "Families"],
 ];
 
@@ -128,6 +127,8 @@ export default function UniverseSection({ universe, error, view, onView, updated
     [events, categories, category],
   );
 
+  const selected = events.find((event) => event.event_ticker === picked) ?? events[0] ?? null;
+
   // The one family the Families view draws. Derived, not stored alone: when
   // the filter changes and the picked ticker leaves the shown set, the view
   // falls back to the first family of the new set instead of a blank card.
@@ -141,11 +142,6 @@ export default function UniverseSection({ universe, error, view, onView, updated
      Keyed by the family, so choosing another starts a new series rather than
      drawing a step between two watchlists. Only on Families: the Baskets view
      compares every family at once and has no single number to plot. */
-  const basketTape = useLiveSeries(
-    `universe:${family?.event_ticker ?? ""}:ask`,
-    updatedAt,
-    family ? toUnit(fromCenticents(sumPrices(family.markets.map((market) => market.yes_ask)))) : null,
-  );
   /* The subject, and it is TWO halves of one choice rather than two decisions:
      the filter narrows the picker's options and the picker chooses one of them.
      Drawn at all only when there is something to choose — one option is no
@@ -181,22 +177,32 @@ export default function UniverseSection({ universe, error, view, onView, updated
         />
       ) : null}
     </>
+  ) : view === "positions" && events.length > 1 ? (
+    <FamilyPicker
+      options={events.map((event) => ({
+        ticker: event.event_ticker,
+        shard: event.exchange_index,
+      }))}
+      selected={selected?.event_ticker ?? ""}
+      onSelect={setPicked}
+      label="Choose a family"
+    />
   ) : null;
 
   return (
     <SectionFrame
-      className="coh-universe"
+      className={`coh-universe ${universeStyles.universeScope}`}
       aria-labelledby="markets-universe-heading"
       head={
         <PaneHead
           kicker="Universe"
-          title="Watched families & what a dollar of one costs"
+          title="Watched-family basket pricing"
           id="markets-universe-heading"
           note={universe
             ? `${events.length} ${events.length === 1 ? "family" : "families"} read live from `
               + `${universe.watchlist.length} series`
             : "reading the exchange"}
-          lede="A mutually exclusive family is one dollar sold in pieces, so what the pieces cost says whether its prices admit a probability."
+          lede="Compare basket cost, open positions, and outcome prices."
         />
       }
       views={VIEWS}
@@ -225,18 +231,15 @@ export default function UniverseSection({ universe, error, view, onView, updated
         events={view === "families" ? (family ? [family] : []) : events}
         error={error}
         filtered={view === "families" && category !== ALL}
+        selectedTicker={selected?.event_ticker ?? null}
+        onSelectFamily={setPicked}
+        onExploreFamily={(ticker) => {
+          setCategory(ALL);
+          setPicked(ticker);
+          onView("families");
+        }}
       />
 
-      {view === "families" && family ? (
-        <LiveTape
-          points={basketTape}
-          caption={`What a whole dollar of ${family.event_ticker} has cost, poll by poll`}
-          ariaLabel="The cost of buying every outcome, over the polls seen since this tab opened"
-          reference={{ value: 1, label: "the dollar it pays" }}
-          reading="Above the line, buying every outcome costs more than the dollar the family pays out; below it, the whole basket is on offer for less than it settles at."
-          missing="Every leg has to be quoted for a total to exist, so a poll where one outcome lost its ask is a break rather than a cheaper basket."
-        />
-      ) : null}
     </SectionFrame>
   );
 }
