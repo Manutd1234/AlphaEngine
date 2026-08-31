@@ -1,11 +1,13 @@
 "use client";
 
 /**
- * The gateway's own components, its timing, and what this snapshot can prove.
+ * The gateway's own components, timing, and evidence boundary.
  *
- * Split out of `ReliabilityOverview` when that file passed the length ceiling;
- * it is the Platform view of the Dependencies section, mounted by
- * `ReliabilityPlanes` only while that view is on screen.
+ * Split out of `ReliabilityOverview` when that file passed the length ceiling.
+ * It now backs two focused views in Dependencies. Latency contains the tall
+ * per-route chart and distribution; Platform contains component state,
+ * decision timing and the evidence boundary. `ReliabilityPlanes` mounts only
+ * the selected part, so the chart does not keep observing while it is hidden.
  *
  * Two honesty rules do the work here and neither is decoration.
  *
@@ -30,11 +32,19 @@ import type { SystemHealthView } from "@/lib/use-system-health";
 export default function ReliabilityPlatform({
   view,
   onOpenData,
+  part = "platform",
 }: {
   view: SystemHealthView;
   onOpenData: () => void;
+  part?: "platform" | "latency";
 }) {
   const { health } = view;
+  const platform = health?.platform;
+
+  if (part === "latency") {
+    return <RouteLatencyBars platform={platform} />;
+  }
+
   /**
    * Null, never zero: with no snapshot there is no quarantine count, and
    * `quarantine` is optional on the wire — an older instance's snapshot has
@@ -52,7 +62,6 @@ export default function ReliabilityPlatform({
       <small>{posture?.paths[plane].reason ?? waiting}</small>
     </div>
   );
-  const platform = health?.platform;
   const gatewaySource = health?.sources?.gateway;
   const realFeeds = platform?.market_data.feeds.filter((feed) => !feed.synthetic) ?? [];
   const connectedFeeds = realFeeds.filter((feed) => feed.connected).length;
@@ -62,8 +71,6 @@ export default function ReliabilityPlatform({
 
   return (
     <>
-      <RouteLatencyBars platform={platform} />
-
       {platform ? (
         <section className="card reliability-platform" aria-labelledby="reliability-platform-title">
           <div className="section-heading compact">
