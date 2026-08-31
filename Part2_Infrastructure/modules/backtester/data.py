@@ -1,10 +1,11 @@
-"""Bars in: Binance, then the DuckDB cache, then a synthetic series that says so."""
+"""Observed bars by default; synthetic demo bars only when explicitly requested."""
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import math
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 import pandas as pd
@@ -14,16 +15,36 @@ from modules.backtester._common import _utcnow, bars_per_year
 
 log = logging.getLogger("alphaengine.backtest")
 
+DataMode = Literal["observed", "synthetic_demo"]
+
+
+class MarketDataUnavailable(RuntimeError):
+    """Neither the venue nor the recorded cache could satisfy an observed-data request."""
+
 # --------------------------------------------------------------------------- #
 # Market data
 # --------------------------------------------------------------------------- #
-def fetch_ohlcv(symbol: str, interval: str, bars: int) -> tuple[pd.DataFrame, str]:
-    """Binance public klines -> DuckDB cache -> synthetic, in that order.
+def fetch_ohlcv(
+    symbol: str,
+    interval: str,
+    bars: int,
+    *,
+    data_mode: DataMode = "observed",
+) -> tuple[pd.DataFrame, str]:
+    """Read Binance then DuckDB, or build an explicitly requested demo series.
 
     The cache is what makes an offline grading environment work: the first
     successful online run seeds it, and every later run is served locally.
+    Observed mode fails closed when neither source has enough bars. It never
+    turns a transport, parsing, or storage error into authored market data.
     """
     symbol, interval = symbol.upper(), interval.lower()
+    if data_mode == "synthetic_demo":
+        return _synthetic_ohlcv(symbol, interval, bars), "synthetic"
+    if data_mode != "observed":
+        raise ValueError(f"unsupported backtest data mode: {data_mode}")
+
+    failures: list[str] = []
 
     try:
         df = _fetch_binance_klines(symbol, interval, bars)
@@ -39,7 +60,9 @@ def fetch_ohlcv(symbol: str, interval: str, bars: int) -> tuple[pd.DataFrame, st
             except Exception as exc:
                 log.warning("ohlcv cache write skipped: %s", exc)
             return df, "binance_rest"
+        failures.append(f"Binance returned {len(df)} bars")
     except Exception as exc:
+        failures.append(f"Binance failed ({type(exc).__name__})")
         log.warning("binance klines fetch failed (%s) — trying cache", exc)
 
     try:
@@ -50,10 +73,16 @@ def fetch_ohlcv(symbol: str, interval: str, bars: int) -> tuple[pd.DataFrame, st
             df = pd.DataFrame(rows).rename(columns={"ts": "ts"}).sort_values("ts")
             df["ts"] = pd.to_datetime(df["ts"])
             return df.set_index("ts"), "duckdb_cache"
+        failures.append(f"cache contained {len(rows)} bars")
     except Exception as exc:
+        failures.append(f"cache failed ({type(exc).__name__})")
         log.warning("ohlcv cache read failed: %s", exc)
 
-    return _synthetic_ohlcv(symbol, interval, bars), "synthetic"
+    detail = "; ".join(failures) or "no source returned data"
+    raise MarketDataUnavailable(
+        f"observed OHLCV unavailable for {symbol} {interval}: {detail}; "
+        "request data_mode='synthetic_demo' only for a labelled demonstration"
+    )
 
 
 def fetch_binance_range(
@@ -140,7 +169,7 @@ def _fetch_binance_klines(symbol: str, interval: str, bars: int) -> pd.DataFrame
 def _synthetic_ohlcv(symbol: str, interval: str, bars: int) -> pd.DataFrame:
     """Deterministic GBM with a mild regime shift. Seeded off the symbol so the
     same request always reproduces the same series (results stay comparable)."""
-    seed = abs(hash(symbol)) % (2**31)
+    seed = int.from_bytes(hashlib.sha256(symbol.encode("utf-8")).digest()[:8], "big")
     rng = np.random.default_rng(seed)
     anchor = {"BTCUSDT": 68000.0, "ETHUSDT": 3500.0, "SOLUSDT": 160.0}.get(symbol, 100.0)
     ann = bars_per_year(interval)
