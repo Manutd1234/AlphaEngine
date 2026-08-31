@@ -104,11 +104,11 @@ describe("the readout says what the mark says, where the mark is", () => {
 });
 
 describe("what it does to the accessibility tree", () => {
-  it("keeps the svg presentational and the wrapper an image", () => {
-    // The figure's one-sentence description is the useful thing to announce for
-    // the drawing as a whole; the marks are detail underneath it.
+  it("keeps the svg presentational and the wrapper a labelled group", () => {
+    // The group keeps the one-sentence description without making its
+    // keyboard-focusable plot an illegal descendant of role=img.
     assert.match(figure, /role="presentation"/);
-    assert.match(figure, /role="img" aria-label=\{ariaLabel\}/);
+    assert.match(figure, /role="group" aria-label=\{ariaLabel\}/);
   });
 
   it("announces through a live region OUTSIDE that image", () => {
@@ -127,14 +127,14 @@ describe("what it does to the accessibility tree", () => {
     // across the whole file, so it was satisfied by `Plot` being DEFINED after
     // `Figure` — a fact about source order that says nothing about nesting.
     const body = figure.slice(figure.indexOf("export default function Figure"), figure.indexOf("export function Plot"));
-    const imageOpen = body.indexOf('role="img"');
-    const imageClose = body.indexOf("</div>", imageOpen);
+    const groupOpen = body.indexOf('role="group"');
+    const groupClose = body.indexOf("</div>", groupOpen);
     const liveAt = body.indexOf("coh-plot__live");
-    assert.ok(imageOpen !== -1, "Figure no longer renders the image wrapper this scan can find");
+    assert.ok(groupOpen !== -1, "Figure no longer renders the labelled plot group this scan can find");
     assert.ok(liveAt !== -1, "Figure does not render the live region; the plot cannot put it outside itself");
     assert.ok(
-      liveAt > imageClose,
-      "the live region is inside the role=img element, where a presentational subtree swallows it",
+      liveAt > groupClose,
+      "the live region is inside the plot group instead of remaining its single sibling",
     );
   });
 
