@@ -1,39 +1,30 @@
-"use client";
-
 /**
  * The Strategy Codex — the catalogue as a reference library.
  *
- * Forty-six models, seven families, browsable before any run exists: a
- * reference library that demands a completed sweep is wrong, which is why the
- * page renders this section outside the no-data empty-state map. Nothing is
- * ever locked — gating capability behind usage is the navigation fork the
- * complexity-tier system exists to prohibit.
- *
- * Explored-state is derived from the experiment log on every render
- * (`lib/strategy-progress.ts`) and says so in the group header, because it can
- * regress: the log caps at 60 records and can be cleared, and a marker that
- * cannot regress would be claiming memory the system does not have.
- *
- * Family identity uses no new colour tokens (the theme test pins the dark
- * palettes byte-for-byte): a two-letter monogram, the printed family name, and
- * a `--codex-accent` mixed inline from the existing series tokens. The accent
- * decorates — borders and tints only, never text — so the AA contract stays
- * with the `-text` tokens.
+ * Forty-six models remain available before any run exists. The seven families
+ * are now addressable tabs, and each family keeps a compact strategy index
+ * beside one complete strategy record. Only presentation is reduced: the
+ * shared registry, documentation, progress, relationships and adopt action are
+ * unchanged.
  */
 
-import { Fragment, type CSSProperties } from "react";
+import { Fragment, type CSSProperties, useEffect, useRef, useState } from "react";
 
 import NumberTicker from "@/components/common/NumberTicker";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ExperimentRecord } from "@/lib/experiments";
 import { STRATEGY_DOCS } from "@/lib/strategy-docs";
 import {
+  FAMILY_ORDER,
   progressFor,
   strategiesByFamily,
   strategyProgress,
+  type StrategyProgress,
 } from "@/lib/strategy-progress";
-import { STRATEGY_LABELS, type Strategy, type StrategyFamily } from "@/lib/types";
+import { STRATEGY_FAMILY, STRATEGY_LABELS, type Strategy, type StrategyFamily } from "@/lib/types";
 
-const FAMILY_THESIS: Record<StrategyFamily, string> = {
+export const FAMILY_THESIS: Record<StrategyFamily, string> = {
   Trend: "Hold while a direction persists — give up the turn to keep the middle.",
   Breakout: "Enter when price leaves a level it respected; the old range is the risk.",
   "Mean reversion": "Fade the stretch toward an anchor. A stretch that keeps going is called a trend.",
@@ -64,10 +55,22 @@ const FAMILY_ACCENT: Record<StrategyFamily, string> = {
   Fitted: "color-mix(in srgb, var(--series-1) 45%, var(--text-muted))",
 };
 
-/** The honest half of the doc, cut to its first sentence for the card. */
-function firstSentence(prose: string): string {
-  const stop = prose.indexOf(". ");
-  return stop === -1 ? prose : `${prose.slice(0, stop)}.`;
+const STRATEGY_FAMILIES = [...strategiesByFamily()];
+
+function familyId(family: StrategyFamily): string {
+  return family.toLowerCase().replace(/\s+/g, "-");
+}
+
+/** Glyph plus word: the result never depends on colour alone. */
+function StrategyRunState({ state }: { state: StrategyProgress }) {
+  const explored = state.runs > 0;
+  return (
+    <span className="codex-chip" data-verdict={explored ? state.bestVerdict : undefined}>
+      {explored
+        ? <><span aria-hidden>●</span> {state.bestVerdict?.toUpperCase()}</>
+        : <><span aria-hidden>◌</span> not yet run</>}
+    </span>
+  );
 }
 
 export default function StrategyCodex({
@@ -81,28 +84,95 @@ export default function StrategyCodex({
   onSelect: (strategy: Strategy) => void;
 }) {
   const progress = strategyProgress(records);
+  const selectedFamily = STRATEGY_FAMILY[activeStrategy];
+  const [activeFamily, setActiveFamily] = useState<StrategyFamily>(selectedFamily);
+  const [browsedByFamily, setBrowsedByFamily] = useState<Partial<Record<StrategyFamily, Strategy>>>(
+    { [selectedFamily]: activeStrategy },
+  );
+  const pendingFocus = useRef<Strategy | null>(null);
 
-  // A lateral move stays lateral: similar-model links walk the shelf rather
-  // than adopting the model, so browsing never silently changes the picker.
-  const jumpToCard = (strategy: Strategy) => {
+  useEffect(() => {
+    const family = STRATEGY_FAMILY[activeStrategy];
+    setActiveFamily(family);
+    setBrowsedByFamily((current) => (
+      current[family] === activeStrategy
+        ? current
+        : { ...current, [family]: activeStrategy }
+    ));
+  }, [activeStrategy]);
+
+  useEffect(() => {
+    const strategy = pendingFocus.current;
+    if (!strategy || STRATEGY_FAMILY[strategy] !== activeFamily) return;
     const card = document.getElementById(`codex-card-${strategy}`);
     if (!card) return;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    card.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "center" });
-    card.querySelector<HTMLButtonElement>(".codex-card__select")?.focus({ preventScroll: true });
+    card.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "nearest" });
+    card.focus({ preventScroll: true });
+    pendingFocus.current = null;
+  }, [activeFamily, browsedByFamily]);
+
+  const setBrowsedStrategy = (strategy: Strategy) => {
+    const family = STRATEGY_FAMILY[strategy];
+    setBrowsedByFamily((current) => ({ ...current, [family]: strategy }));
+  };
+
+  const handleFamilyChange = (value: string) => {
+    const family = value as StrategyFamily;
+    if (FAMILY_ORDER.includes(family)) setActiveFamily(family);
+  };
+
+  // Similar-model links browse instead of silently changing the live picker.
+  const jumpToCard = (strategy: Strategy) => {
+    setBrowsedStrategy(strategy);
+    setActiveFamily(STRATEGY_FAMILY[strategy]);
+    pendingFocus.current = strategy;
   };
 
   return (
-    <div className="strategy-codex">
+    <Tabs
+      className="strategy-codex"
+      value={activeFamily}
+      onValueChange={handleFamilyChange}
+      orientation="horizontal"
+    >
       {/* The next-bar / exit-wins convention was stated here and was removed on
           request. It is not lost: `lib/export-python.ts` carries it for anyone
           reading the generated code, which is where it decides something. */}
-      {[...strategiesByFamily()].map(([family, strategies]) => {
-        const explored = strategies.filter((s) => progress.has(s)).length;
+      <TabsList className="strategy-codex__tabs-list" aria-label={FAMILY_ORDER.join(", ")}>
+        {STRATEGY_FAMILIES.map(([family, strategies]) => {
+          const explored = strategies.filter((strategy) => progress.has(strategy)).length;
+          return (
+            <TabsTrigger
+              key={family}
+              id={`strategy-family-${familyId(family)}-tab`}
+              className="strategy-codex__tab"
+              value={family}
+              aria-controls={`strategy-family-${familyId(family)}-panel`}
+              style={{ "--codex-accent": FAMILY_ACCENT[family] } as CSSProperties}
+            >
+              <span className="codex-monogram" aria-hidden>{FAMILY_MONOGRAM[family]}</span>
+              <span>{family}</span>
+              <span className="strategy-codex__tab-count num">{explored}/{strategies.length}</span>
+            </TabsTrigger>
+          );
+        })}
+      </TabsList>
+
+      {STRATEGY_FAMILIES.map(([family, strategies]) => {
+        const explored = strategies.filter((strategy) => progress.has(strategy)).length;
+        const browsedStrategy = browsedByFamily[family] ?? strategies[0];
+        const doc = STRATEGY_DOCS[browsedStrategy];
+        const state = progressFor(progress, browsedStrategy);
+        const active = browsedStrategy === activeStrategy;
         return (
-          <section
+          <TabsContent
             key={family}
+            id={`strategy-family-${familyId(family)}-panel`}
+            value={family}
+            forceMount
             className="codex-family"
+            aria-labelledby={`strategy-family-${familyId(family)}-tab`}
             aria-label={`${family} models`}
             style={{ "--codex-accent": FAMILY_ACCENT[family] } as CSSProperties}
           >
@@ -113,100 +183,100 @@ export default function StrategyCodex({
                 <p className="codex-family__thesis">{FAMILY_THESIS[family]}</p>
               </div>
               <span className="codex-family__progress">
-                {/* The sentence is ONE element. Its container is a grid, and a
-                    grid wraps every run of bare text in an anonymous item of
-                    its own — so "explored", the ticker and "of 46" were three
-                    rows rather than three words. */}
                 <span className="codex-family__progress-count">
                   explored <NumberTicker value={explored} /> of {strategies.length}
                 </span>
                 <small>from this browser&apos;s run log (last 60 runs)</small>
               </span>
             </header>
-            {/* One real table per family, the same five columns at the same
-                widths in all seven (14a fixes the layout), one strategy per
-                row. The subgrid-aligned tiles this replaces shared row tracks
-                but still read as seven uneven grids; the ask was one shape.
-                `.table-wrap` is focusable so a keyboard reader can reach the
-                sideways scroll on a narrow screen, the idiom every wide table
-                on the desk uses. */}
-            <div className="table-wrap" tabIndex={0}>
-              <table className="codex-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Strategy</th>
-                    <th scope="col">What it does</th>
-                    <th scope="col">Fails when</th>
-                    <th scope="col">Best result</th>
-                    <th scope="col">Similar</th>
-                  </tr>
-                </thead>
-                <tbody>
+
+            <ScrollArea className="codex-family__scroll">
+              <div className="codex-family__body">
+                <div className="codex-strategy-selector" role="group" aria-label={family}>
                   {strategies.map((strategy) => {
-                    const doc = STRATEGY_DOCS[strategy];
-                    const state = progressFor(progress, strategy);
-                    const explored_ = state.runs > 0;
-                    const active = strategy === activeStrategy;
+                    const selected = strategy === browsedStrategy;
                     return (
-                      <tr
+                      <button
                         key={strategy}
-                        id={`codex-card-${strategy}`}
-                        className={active ? "is-active" : undefined}
+                        id={`codex-index-${strategy}`}
+                        type="button"
+                        className="codex-strategy-selector__item"
+                        data-selected={selected || undefined}
+                        aria-pressed={selected}
+                        aria-current={strategy === activeStrategy || undefined}
+                        onClick={() => setBrowsedStrategy(strategy)}
                       >
-                        <th scope="row">
-                          <button
-                            type="button"
-                            className="codex-card__select"
-                            onClick={() => onSelect(strategy)}
-                            aria-current={active || undefined}
-                            title={`Select ${STRATEGY_LABELS[strategy]} and open Summary`}
-                          >
-                            <strong>{STRATEGY_LABELS[strategy]}</strong>
-                          </button>
-                        </th>
-                        <td className="codex-card__summary">{doc.summary}</td>
-                        <td className="codex-card__fails">{firstSentence(doc.whenItFails)}</td>
-                        <td>
-                          {/* Glyph + word, never colour alone. */}
-                          <span
-                            className="codex-chip"
-                            data-verdict={explored_ ? state.bestVerdict : undefined}
-                          >
-                            {explored_
-                              ? <><span aria-hidden>●</span> {state.bestVerdict?.toUpperCase()}</>
-                              : <><span aria-hidden>◌</span> not yet run</>}
-                          </span>
-                        </td>
-                        <td className="codex-card__similar">
-                          {/* A packed comma run. The comma rides INSIDE the
-                              label it follows so it cannot orphan onto a line
-                              of its own; the space between buttons is the
-                              break opportunity. Commas, not middle dots —
-                              middle-dot.test.ts holds those at zero outside
-                              tabular mono. */}
-                          {doc.similar.map((s, index) => (
-                            <Fragment key={s}>
-                              {index > 0 ? " " : null}
-                              <button
-                                type="button"
-                                className="text-action"
-                                onClick={() => jumpToCard(s)}
-                                title={`Jump to ${STRATEGY_LABELS[s]}`}
-                              >
-                                {STRATEGY_LABELS[s]}{index < doc.similar.length - 1 ? "," : ""}
-                              </button>
-                            </Fragment>
-                          ))}
-                        </td>
-                      </tr>
+                        <strong>{STRATEGY_LABELS[strategy]}</strong>
+                        <StrategyRunState state={progressFor(progress, strategy)} />
+                      </button>
                     );
                   })}
-                </tbody>
-              </table>
-            </div>
-          </section>
+                </div>
+
+                <article
+                  id={`codex-card-${browsedStrategy}`}
+                  className="codex-strategy-detail"
+                  data-active={active || undefined}
+                  tabIndex={-1}
+                >
+                  <header className="codex-strategy-detail__head">
+                    <div>
+                      <span className="codex-strategy-detail__label">Strategy</span>
+                      <button
+                        type="button"
+                        className="codex-card__select"
+                        onClick={() => onSelect(browsedStrategy)}
+                        aria-current={active || undefined}
+                        title={`Select ${STRATEGY_LABELS[browsedStrategy]} and open Summary`}
+                      >
+                        <strong>{STRATEGY_LABELS[browsedStrategy]}</strong>
+                      </button>
+                    </div>
+                    <div className="codex-strategy-detail__result">
+                      <span className="codex-strategy-detail__label">Best result</span>
+                      <StrategyRunState state={state} />
+                    </div>
+                  </header>
+
+                  <dl className="codex-table codex-strategy-detail__facts">
+                    <div>
+                      <dt>What it does</dt>
+                      <dd className="codex-card__summary">
+                        <p>{doc.summary}</p>
+                        <code>{doc.formula}</code>
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Fails when</dt>
+                      <dd className="codex-card__fails">{doc.whenItFails}</dd>
+                    </div>
+                  </dl>
+
+                  <div className="codex-card__similar">
+                    <strong>Similar</strong>
+                    <span>
+                      {doc.similar.map((strategy, index) => (
+                        <Fragment key={strategy}>
+                          {index > 0 ? " " : null}
+                          <button
+                            type="button"
+                            className="text-action"
+                            onClick={() => jumpToCard(strategy)}
+                            title={`Jump to ${STRATEGY_LABELS[strategy]}`}
+                          >
+                            {STRATEGY_LABELS[strategy]}
+                            {index < doc.similar.length - 1 ? "," : ""}
+                          </button>
+                        </Fragment>
+                      ))}
+                    </span>
+                  </div>
+                </article>
+              </div>
+            </ScrollArea>
+          </TabsContent>
         );
       })}
-    </div>
+    </Tabs>
   );
 }
