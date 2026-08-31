@@ -7,7 +7,9 @@ own — see the banner comments preserved below.
 from __future__ import annotations
 
 import re
+from copy import deepcopy
 from typing import Any
+from urllib.parse import urlsplit
 
 from config import settings
 from modules.telegram.registry import _COMMAND_BY_NAME, _category_names
@@ -94,6 +96,30 @@ def kb(rows: list[list[tuple[str, str]]]) -> dict[str, Any]:
         raise ValueError(f"a keyboard carries at most 100 buttons, got {total}")
     return {"inline_keyboard": keyboard}
 
+
+def add_url_row(markup: dict[str, Any], label: str, url: str) -> dict[str, Any]:
+    """Return a copy with one verified HTTPS deep-link row.
+
+    Callback data remains the capability boundary for bot actions.  This helper
+    is narrower: the URL can only open a configured web origin and carries no
+    token, chat id or command.  Refusing non-HTTPS links prevents a production
+    card from training an operator to follow an insecure workspace link.
+    """
+    text = str(label)
+    parts = urlsplit(str(url))
+    if not 1 <= len(text) <= 40:
+        raise ValueError(f"button labels are 1-40 characters, got {text!r}")
+    if parts.scheme != "https" or not parts.netloc or parts.username or parts.password:
+        raise ValueError("web-view buttons require an HTTPS URL without embedded credentials")
+    out = deepcopy(markup)
+    rows = out.get("inline_keyboard")
+    if not isinstance(rows, list):
+        raise ValueError("inline keyboard is missing its row list")
+    if sum(len(row) for row in rows) >= 100:
+        raise ValueError("a keyboard carries at most 100 buttons")
+    rows.insert(max(0, len(rows) - 1), [{"text": text, "url": url}])
+    return out
+
 # --------------------------------------------------------------------------- #
 # Standard keyboards
 # --------------------------------------------------------------------------- #
@@ -120,6 +146,11 @@ def _menu_keyboard() -> dict[str, Any]:
             ("📊 Data", cb("data")),
             ("🛡️ Reliability", cb("reliability")),
             ("💻 Developer", cb("developer")),
+        ],
+        [
+            ("Markets", cb("markets")),
+            ("Proofs", cb("proofs")),
+            ("Diffusion", cb("diffusion")),
         ],
         [
             ("🗞 Digest", cb("digest")),
