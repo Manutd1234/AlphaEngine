@@ -27,7 +27,15 @@ from typing import Any, Literal
 from modules.data_ops_backend import DataOpsStore, get_data_ops_store
 
 EventKind = Literal["earnings", "fomc", "macro"]
-StageSource = Literal["vendor", "fed_seed", "estimated_offset", "parsed_release", "recorded"]
+StageSource = Literal["vendor", "issuer", "estimated_offset", "parsed_release", "recorded"]
+
+# ``fed_seed`` was the source attached to an authored FOMC calendar that used
+# to ship in this package.  It is deliberately absent from the accepted set:
+# new rows must originate with a provider/issuer or an explicit observation.
+# The string remains only as a read filter below so an existing desk database
+# cannot surface an old authored row after the production seed is removed.
+STAGE_SOURCES = frozenset({"vendor", "issuer", "estimated_offset", "parsed_release", "recorded"})
+_LEGACY_AUTHORED_SOURCE = "fed_seed"
 
 #: What a vendor's session-placement word is allowed to be. `exact` is ours,
 #: for a decision stamped to the minute; the rest are Yahoo's own vocabulary.
@@ -53,6 +61,13 @@ class EventUpsert:
     surprise_pct: float | None = None
     scheduled: bool = True
     statement_url: str | None = None
+
+    def __post_init__(self) -> None:
+        """Reject source labels that cannot establish where a timestamp came from."""
+        if self.release_at_source not in STAGE_SOURCES:
+            raise ValueError(f"unsupported release stage source: {self.release_at_source!r}")
+        if self.call_at_source is not None and self.call_at_source not in STAGE_SOURCES:
+            raise ValueError(f"unsupported call stage source: {self.call_at_source!r}")
 
     def as_row(self, *, now_ms: float, desk_id: str) -> dict[str, Any]:
         return {
@@ -113,7 +128,7 @@ class DiffusionEventStore:
 
     def __init__(self, store: DataOpsStore | None = None, *, desk_id: str = "default") -> None:
         self._store = store if store is not None else get_data_ops_store()
-        self._desk_id = desk_id
+        self._desk_id = str(getattr(self._store, "desk_id", None) or desk_id)
         self._store.migrate(self._DDL)
 
     @property
@@ -135,11 +150,24 @@ class DiffusionEventStore:
         if existing is None:
             self._store.add("diffusion_events", row)
             return row
+        if existing.get("release_at_source") == _LEGACY_AUTHORED_SOURCE:
+            # A genuine observation with the same natural key replaces the
+            # authored row wholesale.  Keeping the old first-seen clock, call
+            # time or generated URL would contaminate the new observation.
+            self._store.remove("diffusion_events", filters={"source_ref": event.source_ref})
+            self._store.add("diffusion_events", row)
+            return row
         patch: dict[str, Any] = {"last_seen_at": now_ms}
+        if existing.get("call_at_source") == _LEGACY_AUTHORED_SOURCE:
+            # The successor Postgres CHECK is NOT VALID so an honest legacy row
+            # can remain, but it is enforced on every later UPDATE. Repair the
+            # retired call provenance before any ordinary observation patch so
+            # that row cannot become permanently unwritable.
+            patch.update({"call_at": None, "call_at_source": None, "call_offset_min": None})
         if _moved(existing.get("release_at"), row["release_at"]):
             patch["release_at"] = row["release_at"]
             patch["revised_count"] = int(existing.get("revised_count") or 0) + 1
-        for field in ("call_at", "call_at_source", "call_offset_min", "release_timing",
+        for field in ("release_at_source", "call_at", "call_at_source", "call_offset_min", "release_timing",
                       "eps_estimate", "eps_actual", "surprise_pct", "statement_url", "title"):
             incoming = row.get(field)
             if incoming is not None and existing.get(field) != incoming:
@@ -152,6 +180,8 @@ class DiffusionEventStore:
     def record_stage(self, source_ref: str, *, at_ms: float, source: StageSource = "recorded",
                      now_ms: float) -> dict[str, Any] | None:
         """Set the second stage from something better than an assumption."""
+        if source not in STAGE_SOURCES:
+            raise ValueError(f"unsupported recorded stage source: {source!r}")
         existing = self.get(source_ref)
         if existing is None:
             return None
@@ -168,7 +198,10 @@ class DiffusionEventStore:
         return merged
 
     def get(self, source_ref: str) -> dict[str, Any] | None:
-        return self._store.fetch_one("diffusion_events", filters={"source_ref": source_ref})
+        row = self._store.fetch_one("diffusion_events", filters={"source_ref": source_ref})
+        if row is None or row.get("release_at_source") == _LEGACY_AUTHORED_SOURCE:
+            return None
+        return _without_legacy_call(row)
 
     def list_events(self, *, kind: str | None = None, symbol: str | None = None,
                     from_ms: float | None = None, to_ms: float | None = None,
@@ -181,7 +214,14 @@ class DiffusionEventStore:
         can be handed fewer rows than exist without the second flag saying so.
         The flag is that second thing, and every response carries it.
         """
-        filters: dict[str, Any] = {"desk_id": self._desk_id}
+        filters: dict[str, Any] = {
+            "desk_id": self._desk_id,
+            # Old ``fed_seed`` rows may still exist in a user's durable store.
+            # They are historical authored fixtures, not observations, and do
+            # not become live data merely because the code that made them is
+            # gone.  Filter at the store so they cannot consume a page either.
+            "release_at_source": f"neq.{_LEGACY_AUTHORED_SOURCE}",
+        }
         if kind is not None:
             filters["kind"] = kind
         if symbol is not None:
@@ -192,12 +232,22 @@ class DiffusionEventStore:
             "diffusion_events", filters=filters, order="release_at.asc",
             limit=max(1, int(limit)) + 1,
         )
-        clipped = [row for row in fetched if to_ms is None or float(row["release_at"]) <= float(to_ms)]
+        clipped = [
+            _without_legacy_call(row)
+            for row in fetched
+            if to_ms is None or float(row["release_at"]) <= float(to_ms)
+        ]
         truncated = len(clipped) > limit or len(fetched) > len(clipped) and len(fetched) > limit
         return clipped[:limit], truncated
 
     def count(self) -> int:
-        return self._store.count("diffusion_events", filters={"desk_id": self._desk_id})
+        return self._store.count(
+            "diffusion_events",
+            filters={
+                "desk_id": self._desk_id,
+                "release_at_source": f"neq.{_LEGACY_AUTHORED_SOURCE}",
+            },
+        )
 
     def close(self) -> None:
         self._store.close()
@@ -210,3 +260,12 @@ def _moved(stored: Any, incoming: float) -> bool:
         return abs(float(stored) - float(incoming)) >= 1.0
     except (TypeError, ValueError):
         return False
+
+
+def _without_legacy_call(row: dict[str, Any]) -> dict[str, Any]:
+    """Withhold a call timestamp that came from the retired authored calendar."""
+    if row.get("call_at_source") != _LEGACY_AUTHORED_SOURCE:
+        return row
+    clean = dict(row)
+    clean.update({"call_at": None, "call_at_source": None, "call_offset_min": None})
+    return clean
