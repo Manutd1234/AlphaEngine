@@ -33,6 +33,7 @@ export default function GappedSparkline({
   tone = "accent",
   ariaLabel,
   emptyNote,
+  unit = "ms",
 }: {
   /** `null` is an absence and is never bridged. */
   points: Array<number | null>;
@@ -41,6 +42,8 @@ export default function GappedSparkline({
   tone?: keyof typeof TONE | string;
   ariaLabel: string;
   emptyNote: string;
+  /** Unit spoken with the latest finite value; response-time callers keep ms. */
+  unit?: string;
 }) {
   const finite = points.filter((v): v is number => v != null && Number.isFinite(v));
 
@@ -62,7 +65,7 @@ export default function GappedSparkline({
       height={height}
       viewBox={`0 0 ${width} ${height}`}
       role="img"
-      aria-label={`${ariaLabel} — last ${finite[finite.length - 1].toFixed(0)}ms${
+      aria-label={`${ariaLabel} — last ${finite[finite.length - 1].toFixed(2)} ${unit}${
         gaps ? `, ${gaps} of ${points.length} intervals with too little traffic to measure` : ""
       }`}
     >
