@@ -25,6 +25,7 @@ from env_coerce import env_bool as _env_bool
 from env_coerce import env_float as _env_float
 from env_coerce import env_int as _env_int
 from env_coerce import env_list as _env_list
+from env_coerce import supabase_desk_id as _supabase_desk_id
 
 __all__ = ["BASE_DIR", "Settings", "settings"]
 
@@ -76,9 +77,6 @@ class Settings:
     data_quality_escalate_fail_rate: float = field(default_factory=lambda: _env_float("DATA_QUALITY_ESCALATE_FAIL_RATE", 0.25))
     data_quality_escalate_min_samples: int = field(default_factory=lambda: _env_int("DATA_QUALITY_ESCALATE_MIN_SAMPLES", 8))
     data_quality_escalate_cooldown_minutes: int = field(default_factory=lambda: _env_int("DATA_QUALITY_ESCALATE_COOLDOWN_MINUTES", 60))
-    # Seed the Data tab's work queue with its nine sample rows the first time
-    # the table is empty; they are marked as samples and can be edited away.
-    data_work_seed: bool = field(default_factory=lambda: _env_bool("DATA_WORK_SEED", True))
     # Replay and backfill jobs. Replay re-runs a capability through the web
     # workspace's own validated fetch path (its adapters, credentials and
     # contracts live only there); the base URL defaults to the origin of the
@@ -111,9 +109,9 @@ class Settings:
     ws_reconnect_base_s: float = field(default_factory=lambda: _env_float("WS_RECONNECT_BASE_S", 1.0))
     ws_reconnect_max_s: float = field(default_factory=lambda: _env_float("WS_RECONNECT_MAX_S", 30.0))
     enable_market_data: bool = field(default_factory=lambda: _env_bool("ENABLE_MARKET_DATA", True))
-    # When every venue feed is down (e.g. offline grading environment) synthesise a
-    # book so the UI stays demonstrable. ALWAYS tagged `synthetic: true` in payloads.
-    allow_synthetic_book: bool = field(default_factory=lambda: _env_bool("ALLOW_SYNTHETIC_BOOK", True))
+    # Explicit demo opt-in. When enabled and every real venue is down, the
+    # substitute book is always tagged `synthetic: true` in payloads.
+    allow_synthetic_book: bool = field(default_factory=lambda: _env_bool("ALLOW_SYNTHETIC_BOOK", False))
 
     binance_ws_url: str = field(default_factory=lambda: _env("BINANCE_WS_URL", "wss://stream.binance.com:9443/stream"))
     binance_rest_url: str = field(default_factory=lambda: _env("BINANCE_REST_URL", "https://api.binance.com"))
@@ -136,7 +134,8 @@ class Settings:
     gemini_model: str = field(default_factory=lambda: _env("GEMINI_MODEL", "gemini-2.5-flash"))
     rerank_model_path: str = field(default_factory=lambda: _env("RERANK_MODEL_PATH", ""))
     supabase_mirror_enabled: bool = field(default_factory=lambda: _env_bool("SUPABASE_MIRROR_ENABLED", False))
-    supabase_desk_id: str = field(default_factory=lambda: _env("SUPABASE_DESK_ID", "00000000-0000-0000-0000-000000000001"))
+    # Tenant ownership is deployment-specific; a demo UUID would merge unrelated installs.
+    supabase_desk_id: str = field(default_factory=_supabase_desk_id)
     supabase_timeout_s: float = field(default_factory=lambda: _env_float("SUPABASE_TIMEOUT_S", 5.0))
     supabase_mirror_queue_max: int = field(default_factory=lambda: _env_int("SUPABASE_MIRROR_QUEUE_MAX", 1000))
     research_rag_enabled: bool = field(default_factory=lambda: _env_bool("RESEARCH_RAG_ENABLED", False))
