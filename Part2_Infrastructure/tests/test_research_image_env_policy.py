@@ -140,7 +140,7 @@ class TestTheScanReadsSomethingWorthScanning:
         )
         assert len(setdefaulted()) >= 4, (
             f"the setdefault scan harvested {sorted(setdefaulted())}, which is too few "
-            "for a conftest that still defaults DATA_DIR, DB_PATH and REQUIRE_AUTH"
+            "for the four explicitly opt-in Supabase/Neo4j variables"
         )
 
     def test_the_two_scans_disagree_about_every_name(self) -> None:
