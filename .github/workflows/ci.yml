@@ -95,6 +95,68 @@ jobs:
       - name: Money-path probe
         run: python tools/synthetic_probe.py
 
+  native-sanitizers:
+    name: Native decision core (ASan + UBSan)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: Part2_Infrastructure
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            Part2_Infrastructure/requirements-dev.txt
+            Part2_Infrastructure/requirements-core.txt
+            Part2_Infrastructure/requirements-native.txt
+            Part2_Infrastructure/requirements-communities.txt
+            Part2_Infrastructure/requirements-ml.txt
+      - run: pip install -r requirements-dev.txt
+
+      # Separate from the production build above: its O3/float contract stays
+      # untouched, while this extension carries memory/UB instrumentation and
+      # promotes every supported compiler warning to a build failure.
+      - name: Build strict sanitized decision core
+        env:
+          ALPHAENGINE_NATIVE_SANITIZERS: "1"
+        run: >-
+          python native/decision_core/setup.py build_ext --inplace --force
+          --build-temp build/native-sanitize
+
+      - name: Verify sanitizer runtimes are linked
+        run: |
+          set -euo pipefail
+          ldd modules/_decision_core*.so | tee /tmp/decision-core-libraries.txt
+          grep -q 'libasan' /tmp/decision-core-libraries.txt
+          grep -q 'libubsan' /tmp/decision-core-libraries.txt
+
+      - name: Native parity and breakage corpus under ASan and UBSan
+        env:
+          DECISION_CORE: native
+          ASAN_OPTIONS: detect_leaks=0:halt_on_error=1:abort_on_error=1:detect_stack_use_after_return=1:strict_string_checks=1
+          UBSAN_OPTIONS: halt_on_error=1:abort_on_error=1:print_stacktrace=1
+        run: |
+          set -euo pipefail
+          asan_runtime="$(gcc -print-file-name=libasan.so)"
+          ubsan_runtime="$(gcc -print-file-name=libubsan.so)"
+          test -f "$asan_runtime"
+          test -f "$ubsan_runtime"
+          export LD_PRELOAD="$asan_runtime:$ubsan_runtime"
+          python -m pytest \
+            tests/test_decision_core_contract.py \
+            tests/test_decision_core_native.py \
+            tests/test_native_input_validation.py \
+            tests/test_native_loader_symbols.py \
+            tests/test_native_result_boundary.py \
+            tests/test_position_book_parity.py \
+            tests/test_core_self_measure.py \
+            tests/test_gate_parity.py \
+            tests/test_file_size.py \
+            tests/test_container_contract.py
+
   openbb-service:
     name: OpenBB research service
     runs-on: ubuntu-latest
