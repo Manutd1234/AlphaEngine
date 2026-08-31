@@ -41,6 +41,7 @@ import { useMemo, useState } from "react";
 
 import { gaussianInformation, gaussianSpectrum } from "@/lib/coherence/diffusion-model";
 import Figure, { Plot, StateChip } from "../../Figure";
+import { spectrumYDomain, spectrumYPosition } from "./spectrum-layout";
 
 const HEIGHT = 206;
 // `top` clears the 14px `coh-svg-note` rung the resolution note draws at
@@ -77,8 +78,9 @@ export default function SpectrumExplorer() {
     else setLogMu(update);
   };
 
-  const base = HEIGHT - MARGIN.bottom;
-  const peak = Math.max(...density, 1e-6);
+  const plotBottom = HEIGHT - MARGIN.bottom;
+  const domain = spectrumYDomain(density);
+  const baseline = spectrumYPosition(0, domain, MARGIN.top, plotBottom);
 
   const flat = Math.abs(exact) < 1e-9;
 
@@ -139,14 +141,15 @@ export default function SpectrumExplorer() {
             const plotWidth = Math.max(1, plotW - MARGIN.left - MARGIN.right);
             const x = (alpha: number) =>
               MARGIN.left + ((alpha - ALPHA_LOW) / (ALPHA_HIGH - ALPHA_LOW)) * plotWidth;
-            const y = (value: number) => base - (value / peak) * (base - MARGIN.top);
+            const y = (value: number) =>
+              spectrumYPosition(value, domain, MARGIN.top, plotBottom);
             const path = density
               .map((value, index) => `${index ? "L" : "M"}${x(ALPHAS[index]).toFixed(2)},${y(value).toFixed(2)}`)
               .join("");
-            const area = `${path}L${x(ALPHA_HIGH).toFixed(2)},${base}L${x(ALPHA_LOW).toFixed(2)},${base}Z`;
+            const area = `${path}L${x(ALPHA_HIGH).toFixed(2)},${baseline.toFixed(2)}L${x(ALPHA_LOW).toFixed(2)},${baseline.toFixed(2)}Z`;
             return (
               <>
-            <line x1={MARGIN.left} x2={plotW - MARGIN.right} y1={base} y2={base} className="coh-ladder__axis" />
+            <line x1={MARGIN.left} x2={plotW - MARGIN.right} y1={baseline} y2={baseline} className="coh-ladder__axis" />
             <path d={area} className="coh-model__area">
               <title>{`Area ${integral.toFixed(6)} nats, which is I(x;c)`}</title>
             </path>
@@ -154,7 +157,7 @@ export default function SpectrumExplorer() {
               <title>{`g(α) over ${ALPHA_LOW} to ${ALPHA_HIGH} log-SNR`}</title>
             </path>
             {centroid != null ? (
-              <line x1={x(centroid)} x2={x(centroid)} y1={MARGIN.top} y2={base} className="coh-survival__median">
+              <line x1={x(centroid)} x2={x(centroid)} y1={MARGIN.top} y2={plotBottom} className="coh-survival__median">
                 <title>{`Centroid at α = ${centroid.toFixed(3)}`}</title>
               </line>
             ) : null}
