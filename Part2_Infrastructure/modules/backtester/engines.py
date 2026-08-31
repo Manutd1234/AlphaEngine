@@ -315,10 +315,10 @@ def dataset_fingerprint(df: pd.DataFrame) -> str:
     """SHA-256 over the price series this run actually saw.
 
     A symbol and a date range do not identify a dataset. The same window can be
-    a live Binance pull, a cached copy, or the synthetic fallback, and the
-    synthetic series is not even stable across processes. Two runs that share
-    this hash provably compared the same bars; two that do not are not
-    comparable however similar their headers look.
+    a live Binance pull, a cached copy, or an explicitly requested synthetic
+    demonstration. Two runs that share this hash provably compared the same
+    bars; two that do not are not comparable however similar their headers
+    look.
 
     Every price column is hashed, not just the close: ``donchian`` reads highs
     and lows, so a vendor revising a session high changes the signal while the
