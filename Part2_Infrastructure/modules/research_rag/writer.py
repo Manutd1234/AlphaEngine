@@ -22,9 +22,12 @@ import httpx
 from config import settings
 from modules.research_cards import classify_anomaly, render_backtest_documents, render_incident_card, render_ml_card
 from modules.research_graph import persist_edges
-from modules.research_image_ingest import IMAGE_PNG_FIELD, attach_chart_pngs, image_columns
-from modules.research_image_store_write import CHART_PNG_FIELD, persist_chart_image
+from modules.research_image_ingest import attach_chart_pngs
+from modules.research_image_store_write import persist_chart_image
 from modules.research_ingest_delivery import REASON_ERROR, DeadLetterBook, Delivered, Undelivered, deliver
+from modules.research_rag.chunking import parent_source_ref
+from modules.research_rag.query_cache import invalidate
+from modules.research_rag.replacement import REPLACE_PATH, prepare_replacement
 from modules.research_rag.retrieval import EMBEDDING_MODEL, _RetrievalMixin
 from modules.research_rag.session import _SessionIngestMixin
 
@@ -33,7 +36,6 @@ if TYPE_CHECKING:
 
 log = logging.getLogger("alphaengine.rag")
 
-
 class ResearchRag(_RetrievalMixin, _SessionIngestMixin):
     """Write path + retrieval; a no-op when unconfigured."""
 
@@ -41,6 +43,7 @@ class ResearchRag(_RetrievalMixin, _SessionIngestMixin):
         self.enabled = bool(
             settings.supabase_url
             and settings.supabase_service_role_key
+            and str(settings.supabase_desk_id or "").strip()
             and settings.research_rag_enabled
         )
         self._client: httpx.AsyncClient | None = None
@@ -119,9 +122,10 @@ class ResearchRag(_RetrievalMixin, _SessionIngestMixin):
         """
         if not self.enabled:
             return
+        # One queue item per LOGICAL document.  Splitting before the bounded
+        # queue could accept three siblings and drop the fourth; no later code
+        # could know that the set was incomplete.
         if self._loop is None:
-            # Never started: no loop owns the queue yet, so this thread may as
-            # well be the one that binds it.
             self._offer(document)
         else:
             self._loop.call_soon_threadsafe(self._offer, document)
@@ -304,25 +308,16 @@ class ResearchRag(_RetrievalMixin, _SessionIngestMixin):
                 )
 
     async def _index_one(self, document: dict[str, Any]) -> None:
-        """Embed, insert, link, and retrieve neighbours for an anomaly card."""
+        """Atomically replace one logical document, then write its sidecars."""
         assert self._client is not None
-        retrieve_after = document.pop("_retrieve_after", False)
-        # Popped BEFORE the row is built, like every private key here: an
-        # instruction to this loop, and a column PostgREST does not have.
-        chart_png = document.pop(CHART_PNG_FIELD, None)
-        vector = await self._embed(document["body"])
-        # The image arm's write half: an instruction to this loop, never a
-        # column. EMPTY unless configured — see `research_image_ingest`.
-        image = await image_columns(document.pop(IMAGE_PNG_FIELD, None))
-        row = {
-            **document,
-            "desk_id": settings.supabase_desk_id,
-            "embedding": vector,
-            "embedding_model": EMBEDDING_MODEL if vector else None,
-            "embedding_status": "ready" if vector else "pending",
-            **image,
-        }
-        outcome = await deliver(self._client, row)
+        prepared = await prepare_replacement(
+            document, desk_id=settings.supabase_desk_id,
+            embedding_model=EMBEDDING_MODEL, embed=self._embed,
+        )
+        outcome = await deliver(
+            self._client, prepared.payload, path=REPLACE_PATH,
+            prefer="return=representation", identity=document,
+        )
         if not isinstance(outcome, Delivered):
             # Counted AND kept. The counter alone said a number of documents had
             # been lost and never which ones, so there was nothing to replay and
@@ -335,23 +330,26 @@ class ResearchRag(_RetrievalMixin, _SessionIngestMixin):
                 outcome.attempts, outcome.reason, outcome.detail,
             )
             return
-        await persist_edges(self._client, outcome.response, desk_id=settings.supabase_desk_id)
+        invalidate(self)
+        if not prepared.pending:
+            await persist_edges(self._client, outcome.response, desk_id=settings.supabase_desk_id)
         # The chart's pixels, keyed to the document that just landed, so an
         # answer can show the model a chart drawn by a Celery worker or by a
         # process that has since restarted. Separate table, separate request,
         # after the document is safe — `research_image_store_write` argues why.
-        await persist_chart_image(self._client, outcome.response, chart_png, document)
-        if vector:
-            self._indexed += 1
-        else:
-            self._pending += 1
-        if retrieve_after and vector:
-            matches = await self._match(vector, match_count=3)
+        if prepared.chart is not None and not prepared.pending:
+            chart_png, chart_document = prepared.chart
+            await persist_chart_image(self._client, outcome.response, chart_png, chart_document)
+        self._indexed += prepared.indexed
+        self._pending += prepared.pending
+        if prepared.retrieve is not None:
+            vector, retrieved_document = prepared.retrieve
+            # Always scope the neighbour read to the row just written.
+            matches = await self._match(vector, match_count=3, desk_id=settings.supabase_desk_id)
             # The document itself is in the index now; drop self-matches.
             self._last_matches = [
-                m for m in matches if m.get("source_ref") != document["source_ref"]
+                m for m in matches if m.get("source_ref") != parent_source_ref(retrieved_document)
             ][:3]
-
     def status(self) -> dict[str, Any]:
         """Counters and the cached anomaly matches — no URL, no key."""
         return {
