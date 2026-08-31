@@ -35,33 +35,42 @@ import Figure, { Plot } from "./Figure";
 
 type Kind = "always" | "family" | "read";
 
-const BAND: ReadonlyArray<{ kind: Kind; title: string; mark: string; means: string }> = [
+const BAND: ReadonlyArray<{ kind: Kind; title: string; mark: string; means: string; breakBefore: string }> = [
   { kind: "always", title: "Always answers", mark: "●",
-    means: "A blank one is a defect, not a reading." },
+    means: "A blank one is a defect, not a reading.", breakBefore: "not a reading." },
   { kind: "family", title: "Not for this family", mark: "○",
-    means: "The family's own shape decides it. Asking again gets the same nothing." },
+    means: "The family's own shape decides it. Asking again gets the same nothing.",
+    breakBefore: "Asking again gets the same nothing." },
   { kind: "read", title: "Not in this read", mark: "◌",
-    means: "Solved on demand. This is the one worth asking again." },
+    means: "Solved on demand. This is the one worth asking again.",
+    breakBefore: "This is the one worth asking again." },
 ];
 
-/** Which kind a reading's own `silent` sentence puts it in. */
-export function kindOf(silent: string): Kind {
-  if (/^Never\./.test(silent.trim())) return "always";
-  if (/in this read/i.test(silent)) return "read";
-  return "family";
+/** Empty-state semantics are data, not an inference from display prose. */
+export function kindOf(file: { emptyKind: Kind }): Kind {
+  return file.emptyKind;
 }
 
 const ROW_H = 26;
 const HEAD_H = 22;
 const PAD = 10;
+const NOTE_LINE_H = 14;
+const READINGS_MIN_WIDTH = 720;
+
+function meaningLines(means: string, breakBefore: string): [string, string] {
+  const split = means.indexOf(breakBefore);
+  return split <= 0
+    ? [means, ""]
+    : [means.slice(0, split).trim(), means.slice(split).trim()];
+}
 
 export default function ShellReadings() {
   const grouped = BAND.map((band) => ({
     ...band,
-    names: DERIVED_FILES.filter((file) => kindOf(file.silent) === band.kind).map((f) => f.name),
+    names: DERIVED_FILES.filter((file) => kindOf(file) === band.kind).map((f) => f.name),
   }));
   const tallest = Math.max(...grouped.map((g) => g.names.length));
-  const height = HEAD_H + tallest * ROW_H + 30;
+  const height = HEAD_H + tallest * ROW_H + NOTE_LINE_H * 2 + 20;
 
   return (
     <Figure
@@ -74,7 +83,7 @@ export default function ShellReadings() {
       }
       missing="Which readings exist is fixed by the gateway; which are ANSWERABLE depends on the event, and only a listing says which of them this event carries."
     >
-      <Plot height={height}>
+      <Plot height={height} minWidth={READINGS_MIN_WIDTH} scrollLabel="Derived-reading empty-state groups">
         {(width) => {
           const colW = Math.max(120, (width - PAD * 2) / grouped.length);
           return (
@@ -113,7 +122,9 @@ export default function ShellReadings() {
                       ))
                     )}
                     <text x={x} y={HEAD_H + tallest * ROW_H + 14} className="coh-surface__tick">
-                      {band.means}
+                      {meaningLines(band.means, band.breakBefore).map((line, lineIndex) => (
+                        <tspan key={line || lineIndex} x={x} dy={lineIndex === 0 ? 0 : NOTE_LINE_H}>{line}</tspan>
+                      ))}
                     </text>
                   </g>
                 );
