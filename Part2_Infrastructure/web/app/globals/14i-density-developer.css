@@ -252,10 +252,8 @@
  * the plane the diagram is drawn on is 1168px wide. In the >=1280px
  * arrangement pairing 1 above builds, the inner grid is eight of twelve
  * 85.33px tracks plus seven 16px gutters — 794.7px of card, 762.7px of plane.
- * Against those two numbers the head of the diagram was:
- *
- *   .developer-cp-edge            width: min(420px, 72%);      margin: 0 auto
- *   .developer-cp-topology__line  width: calc(66.666% + 1px);  margin: 0 auto
+ * Against those two numbers the head of the diagram was
+ * `width: min(420px, 72%)` with `margin: 0 auto`.
  *
  * A 420px band on a 1168px plane leaves 374px of bare grid paper on EACH side,
  * and 171px each side even in the narrowed arrangement. Worth recording what
@@ -264,9 +262,8 @@
  * all DOM and CSS — so no `viewBox` and no `preserveAspectRatio` letterboxing
  * to undo; there is no `max-width` on the card or the section; and the node
  * track list is already `repeat(3, minmax(0, 1fr))`, which grows on its own.
- * The cause is a fixed centred measure written onto the diagram's own head
- * element, plus one dead grid band described under 7b. Overriding the symptom
- * with a `width: 100%` somewhere lower would have left both in place.
+ * The cause was a fixed centred measure written onto the diagram's own head
+ * element, plus one dead grid band described under 7b.
  */
 
 /* 7a. The band names the runtime that CONTAINS all three deployables, so it is
@@ -285,11 +282,24 @@
   margin-inline: 0;
 }
 
-/* One source of truth for the node track gutter. The bracket below is drawn
-   from it, so the two cannot drift apart the way `66.666% + 1px` already had
-   drifted from the 11px gap it was meant to account for. */
+/* One source of truth for the node track gutter. */
 .developer-cp-topology {
   --developer-topology-gap: 11px;
+}
+
+/* The grid-paper field belongs to this runtime map and nowhere else. A later
+   shared `.card` background intentionally normalises generic panels, so this
+   selector names both the owning overview grid and this specific card. That
+   restores the full-card field without leaking it onto sibling cards or the
+   workspace canvas. */
+.developer-cp-overview__grid > .card.developer-cp-topology {
+  background-color: var(--surface-1);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+    linear-gradient(125deg, color-mix(in srgb, var(--developer-accent) 5%, var(--surface-1)), var(--surface-1) 44%);
+  background-repeat: repeat, repeat, no-repeat;
+  background-size: 34px 34px, 34px 34px, auto;
 }
 
 @media (min-width: 901px) {
@@ -311,27 +321,13 @@
 
 @media (min-width: 721px) {
 
-  /* 7c. The bracket now lands ON the node centres.
-     Three tracks and a gutter g make each track (100% - 2g)/3, so the span from
-     the centre of the first node to the centre of the third is
-     100% - (100% - 2g)/3 = (200% + 2g)/3. At g = 11px that is 66.667% + 7.33px;
-     the rule it replaces was 66.666% + 1px, which stopped 3.2px inside each
-     node's centre — an arm that visibly misses the box it points at. Written
-     as arithmetic over the same custom property the columns use, so it stays
-     true if the gutter is ever retuned.
-
-     Scoped to >=721px because `@media (max-width: 720px)` in 10 redraws this
-     element as a 1px vertical stem for the stacked column. Media queries carry
-     no extra specificity, so an unscoped width here would sit later in the
-     cascade and silently win on a phone. */
+  /* 7c. The three node cards share one gutter and five row lines. The former
+     dashed fork is deliberately absent: the runtime band and this shared card
+     already express containment without ornamental guide marks. */
   .developer-cp-topology__nodes {
     column-gap: var(--developer-topology-gap);
     row-gap: 0;
     grid-template-rows: repeat(5, auto);
-  }
-
-  .developer-cp-topology__line {
-    width: calc((200% + 2 * var(--developer-topology-gap)) / 3);
   }
 
   /* 7d. "The words are not aligned properly."
