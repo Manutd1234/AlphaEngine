@@ -15,7 +15,7 @@
 import { type Level } from "@/lib/venues";
 import { compact, fmt, priceDp } from "@/lib/format";
 import { DEFAULT_MARGIN, Grid, Tooltip, linearScale, ticks, useMeasuredWidth } from "./chart-kit";
-import { memo, useState } from "react";
+import { memo, useId, useState } from "react";
 
 /** Default height. Callers that sit beside a taller panel pass their own so the
  *  pair lands on one baseline instead of leaving a column half empty. */
@@ -90,6 +90,7 @@ function DepthChart({
 }) {
   const [ref, width] = useMeasuredWidth<HTMLDivElement>();
   const [hover, setHover] = useState<{ x: number; price: number; bid: number; ask: number } | null>(null);
+  const liveId = useId();
 
   const m = { ...DEFAULT_MARGIN, right: 20 };
   const x0 = m.left;
@@ -103,10 +104,10 @@ function DepthChart({
   if (!bidPts.length || !askPts.length || !mid) {
     return (
       <div ref={ref}>
-        {LEGEND}
         <div style={{ height, display: "grid", placeItems: "center", color: "var(--text-muted)", fontSize: "var(--fs-xl)" }}>
           waiting for book…
         </div>
+        {LEGEND}
       </div>
     );
   }
@@ -124,10 +125,7 @@ function DepthChart({
   // Local pointer math on purpose: chart-kit's useCrosshair is index-based
   // over uniformly spaced points, and this axis is continuous price with two
   // independent step series. Only the Tooltip rendering is shared.
-  const onMove = (e: React.PointerEvent<SVGSVGElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const scale = rect.width / e.currentTarget.viewBox.baseVal.width || 1;
-    const px = (e.clientX - rect.left) / scale;
+  const inspectAt = (px: number) => {
     if (px < x0 || px > x1) return setHover(null);
     const price = lo + ((px - x0) / (x1 - x0)) * (hi - lo);
     const bid = bidPts.filter((p) => p.price >= price).at(-1)?.cum ?? 0;
@@ -135,18 +133,48 @@ function DepthChart({
     setHover({ x: px, price, bid, ask });
   };
 
+  const onMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const scale = rect.width / e.currentTarget.viewBox.baseVal.width || 1;
+    inspectAt((e.clientX - rect.left) / scale);
+  };
+
+  const onKeyDown = (event: React.KeyboardEvent<SVGSVGElement>) => {
+    const step = Math.max(4, (x1 - x0) / 40);
+    const current = hover?.x ?? x(mid);
+    let next: number | null = null;
+    if (event.key === "ArrowLeft") next = Math.max(x0, current - step);
+    if (event.key === "ArrowRight") next = Math.min(x1, current + step);
+    if (event.key === "Home") next = x0;
+    if (event.key === "End") next = x1;
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setHover(null);
+      return;
+    }
+    if (next == null) return;
+    event.preventDefault();
+    inspectAt(next);
+  };
+
   return (
     <div ref={ref}>
-      {LEGEND}
-
       <svg
         viewBox={`0 0 ${width} ${height}`}
         width="100%"
         height={height}
         role="img"
         aria-label="Cumulative order book depth on each side of the mid price"
+        aria-describedby={liveId}
+        tabIndex={0}
+        onFocus={() => inspectAt(x(mid))}
+        onBlur={() => setHover(null)}
+        onKeyDown={onKeyDown}
+        onPointerDown={(event) => event.currentTarget.focus({ preventScroll: true })}
         onPointerMove={onMove}
-        onPointerLeave={() => setHover(null)}
+        onPointerLeave={(event) => {
+          if (document.activeElement !== event.currentTarget) setHover(null);
+        }}
         style={{ touchAction: "pan-y" }}
       >
         <Grid yTicks={ticks(0, maxCum * 1.05, 4)} yScale={y} x0={x0} x1={x1} format={(v) => `$${compact(v)}`} />
@@ -193,6 +221,12 @@ function DepthChart({
           </>
         )}
       </svg>
+      <p id={liveId} className="sr-only" role="status" aria-live="polite">
+        {hover
+          ? `Price ${fmt(hover.price, dp)}. Cumulative bid ${compact(hover.bid)} dollars. Cumulative ask ${compact(hover.ask)} dollars.`
+          : "Use Left and Right Arrow keys to inspect cumulative depth by price."}
+      </p>
+      {LEGEND}
     </div>
   );
 }
