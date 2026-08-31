@@ -41,6 +41,8 @@
  */
 
 import type { CoherenceCertificate } from "@/lib/coherence/types";
+import { toMicros } from "@/lib/coherence/payoff-by-state";
+import { MEANINGFUL_EDGE } from "@/lib/coherence/thresholds";
 import FormationDiagram, { type FormationStage } from "./FormationDiagram";
 
 /** The wire's engine names, as a reader should meet them. */
@@ -49,64 +51,92 @@ const ENGINE_WORD: Record<string, string> = {
   closed_form: "Closed-form checks",
 };
 
+const DECISION_LINE_MICROS = Math.round(MEANINGFUL_EDGE * 1_000_000);
+
+function marginCrossesDecisionLine(margin: string | null): boolean | null {
+  const marginMicros = toMicros(margin);
+  return marginMicros == null ? null : marginMicros > DECISION_LINE_MICROS;
+}
+
 function stagesOf(certificate: CoherenceCertificate): FormationStage[] {
   const solved = certificate.engine === "highs";
-  const incoherent = certificate.verdict === "incoherent";
+  const programmeIncoherent = certificate.verdict === "incoherent";
+  // `priced_out` is intentionally allowed beside a coherent fee-aware LP
+  // verdict: the raw quotes still fail the probability test, but fees remove
+  // the executable edge. The final box must carry the price conclusion rather
+  // than silently inheriting the programme conclusion from the box before it.
+  const priceIncoherent = programmeIncoherent || Boolean(certificate.priced_out);
   const untestable = certificate.verdict === "untestable";
+  const crossesDecisionLine = marginCrossesDecisionLine(certificate.margin);
   const total = certificate.rows_tested + certificate.rows_untestable;
+  const verdictWord = untestable
+    ? "Untestable"
+    : priceIncoherent
+      ? certificate.priced_out ? "Incoherent, priced out" : "Incoherent"
+      : "Coherent";
 
   return [
     {
-      title: "Constraints",
-      value: `${certificate.rows_tested} of ${total}`,
-      // Not "N tested": the row's own label says tested. What a reader cannot
-      // get from the count is that the remainder was SKIPPED rather than passed.
+      title: "Quote set",
+      value: `${total} constraints`,
       note: certificate.rows_untestable
-        ? `${certificate.rows_untestable} skipped, a leg unquoted`
-        : "every state quoted on both sides",
+        ? `${certificate.rows_tested} tested; ${certificate.rows_untestable} skipped because a leg was unquoted`
+        : `all ${certificate.rows_tested} were testable`,
       holds: certificate.rows_tested > 0 ? true : null,
     },
     {
-      title: "Engine",
+      title: "Feasibility test",
       value: ENGINE_WORD[certificate.engine] ?? certificate.engine,
       note: `scope ${certificate.scope}, legging tier ${certificate.tier}`,
       holds: untestable ? null : true,
     },
     {
-      title: "Optimum t*",
-      value: certificate.margin ?? "—",
+      title: "Decision line",
+      value: certificate.margin == null ? "No LP optimum" : `${certificate.margin} vs 0.0001`,
       note: solved
-        ? "the most any basket guarantees itself"
-        : "no programme was solved, so there is none",
-      // ◌ rather than ▲ when the closed form answered: an absent optimum here
-      // is a stage that could not be asked, not a stage that failed.
-      holds: certificate.margin == null ? null : incoherent ? false : true,
+        ? "t* must stay at or below the exchange-precision line"
+        : "closed-form checks answer without solving for t*",
+      // The mark belongs to the number printed in this box, not to the final
+      // verdict. A solved LP can cross the line and still finish untestable if
+      // no whole-hundredth position can hold the continuous optimum.
+      holds: crossesDecisionLine == null ? null : !crossesDecisionLine,
     },
     {
-      title: "After fees",
-      value: certificate.net_edge ?? "—",
+      title: "Verdict",
+      value: verdictWord,
       note: certificate.priced_out
-        ? "a violation the fees remove"
-        : incoherent
-          ? "the edge survives all three components"
-          : "no portfolio to charge",
-      holds: incoherent && !certificate.priced_out ? false : true,
+        ? `the quote violation remains, but fees reduce its net edge to ${certificate.net_edge ?? "no executable edge"}`
+        : programmeIncoherent
+          ? `the edge survives fees at ${certificate.net_edge ?? "an unreported amount"}`
+          : untestable
+            ? crossesDecisionLine
+              ? "the continuous optimum crossed the line, but no whole-hundredth position could hold it"
+              : "the test did not reach a decision from the available inputs"
+            : "the quoted prices admit a probability measure",
+      holds: untestable ? null : priceIncoherent ? false : true,
     },
   ];
 }
 
 export default function CheckLadder({ certificate }: { certificate: CoherenceCertificate }) {
   const stages = stagesOf(certificate);
+  const crossesDecisionLine = marginCrossesDecisionLine(certificate.margin);
 
   return (
     <FormationDiagram
       stages={stages}
-      caption="How this verdict was reached, one box per decision"
-      keyLine="Each box is a decision, not a reading; the verdict is what the last one leaves."
+      caption="Quoted prices → feasibility test → decision line → verdict"
+      keyLine="Read left to right: each box hands one decision to the next."
       reading={
-        certificate.verdict === "incoherent"
-          ? "The failure is the box marked ▲; everything right of it is what the fees did to it."
-          : "Every box answered, and none found a portfolio worth putting on."
+        certificate.priced_out
+          ? "The quote test failed, but fees kept the programme inside its trade line; the final box keeps those two conclusions separate."
+          : certificate.verdict === "incoherent"
+          ? "The decision line was crossed; the last box separates the mathematical violation from whether fees leave a trade."
+          : certificate.verdict === "untestable"
+            ? crossesDecisionLine
+              ? "The continuous optimum crossed the line, but the chain ends untestable because no whole-hundredth position could hold it."
+              : "The chain stops where the available inputs could no longer support a decision."
+            : "The chain completed without crossing the line, so these quotes are coherent."
       }
       missing={
         certificate.engine === "highs"
