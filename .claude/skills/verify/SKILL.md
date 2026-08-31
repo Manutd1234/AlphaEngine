@@ -5,6 +5,9 @@ description: Run every AlphaEngine check and report the real measured numbers �
 
 # Verify AlphaEngine
 
+**Last verified: 2026-08-29.** Read `docs/CURRENT_STATE.md` for the current
+release record, but still re-run every requested check before reporting it.
+
 ## The one rule
 
 **Never report a number you did not just read off a command's output.** Not from
@@ -67,8 +70,8 @@ line from step 6 and the per-step table from step 7.
 **pytest** ends with a line like `N passed, M skipped in Xs`. Report the skip
 count too; a skip is not a pass, and run `-rs` if you need the reasons.
 
-Expect **two skips** on the gateway suite in a normal clean-shell run, both
-named and both correct:
+Do not expect one universal skip count. Two explicit opt-ins can change the
+collected shape, and both must be named when absent:
 
 1. `tests/test_data_ops_postgrest.py` — no `SUPABASE_URL` /
    `SUPABASE_SERVICE_ROLE_KEY`, so the Postgres backend was not exercised. One
@@ -77,9 +80,10 @@ named and both correct:
    cross-encoder weights were offered. This one skips at MODULE level, so its
    eight tests are not collected at all.
 
-That is why there are two green gateway totals and neither is wrong. Measured
-2026-08-24: without the opt-ins **3,031 passed, 2 skipped**; with re-ranker
-weights seeded **3,039 passed, 1 skipped** — 8 passes gained, 1 skip lost.
+The 2026-08-29 release run reported **3,254 passed, 1 skipped; 3,255 total**
+with the local re-ranker available. A clean CI-shaped environment does not seed
+those weights and can therefore collect a different total. `pytest -rs` is the
+authority, not a memorised delta.
 
 **Check which shape you are in before reporting, because the machine may have
 chosen for you.** `tests/conftest.py` does not blank `RERANK_TEST_MODEL_PATH`,
@@ -90,9 +94,8 @@ exported. `grep RERANK_TEST_MODEL_PATH Part2_Infrastructure/.env` answers it;
 which one you ran. Do not "reconcile" the number against
 `web/lib/test-counts.generated.ts`: that file's gateway line is a dated record
 and is NOT checked by CI. Only its web line is
-(`node scripts/check-test-counts.mjs web <log>`) — and as of 2026-08-22 that
-line is behind the suite, so expect a mismatch there until someone runs
-`npm run counts:refresh`.
+(`node scripts/check-test-counts.mjs web <log>`). It was refreshed on
+2026-08-29; refresh it again whenever the suites change.
 
 **`npm test`** ends with a `node:test` summary block. Report `tests`, `pass`,
 `fail` and `suites`. `fail 0` is the thing that matters.
@@ -110,11 +113,10 @@ stale. Expected <hash>; update <path>` and exit 1. Then
 `Repository manifest is stale (N added, M removed) — run npm run catalog:refresh`
 and exits 1.
 
-**On 2026-08-22 the second one fails on this tree** — 32 files added, none
-removed — so a verify run today reports the build as RED with that named cause,
-and the fix is `npm run catalog:refresh`, not a code change. Report it as an
-index that is behind the tree rather than as a broken build, and check whether
-it is still true before repeating this paragraph.
+The 2026-08-29 production build passed both gates. That is a dated result, not a
+promise: if the repository catalogue has drifted, refresh it with
+`npm run catalog:refresh`; if the OpenAPI digest has drifted, regenerate and
+review the contract deliberately.
 
 **Neither stale-artefact failure is a broken build.** The digest one is the committed
 OpenAPI contract asserting itself between two separately deployed units — the
@@ -151,17 +153,18 @@ Then one line: everything green, or exactly what is red and where.
 Do not run the desk sweep here. `web/scripts/desk-sweep.mjs` needs a dev server
 on **port 3100** (not 3000) plus a Chrome with `--remote-debugging-port=9222`,
 and its flags are `--name=value` form only. It is a separate, advanced check —
-mention it exists if the user wants browser-level coverage of the 47 rail
-sections under fault injection, but do not fold it into the standard verify run.
+mention it exists if the user wants browser-level coverage of the 70 rail
+sections under fault injection. `npm run audit:layout --
+--url=http://localhost:3000` is the complementary Playwright geometry audit over
+the addressable view catalogue. Do not fold either into the standard verify run.
 
 Do not run CI's live-connectivity jobs. `live-smoke` is `workflow_dispatch`
 only and needs Oracle and Supabase secrets; `rerank-real` needs a
 `workflow_dispatch` or a `rerank` label and downloads 1.05 GiB of weights. Both
 skip cleanly without them by design.
 
-Do not compile the whitepaper as part of a verify run either. `docs/whitepaper/`
-is Typst source with no PDF committed, `typst` is in no requirements file, and
-no CI job builds it — so it is a real check nobody gates, but it is not one of
-the seven above. If the user asks, the command is
-`typst compile docs/whitepaper/main.typ out.pdf`; report that it completed and
-count the pages in the PDF it produced, never a remembered figure.
+Do not compile the whitepaper as part of a routine code verify run either.
+`docs/whitepaper/` is Typst source, PDFs are ignored and no CI job builds it. If
+the user asks, run
+`typst compile docs/whitepaper/main.typ docs/whitepaper/AlphaEngine_Institutional_Whitepaper.pdf`,
+render the result and report the page count from `pdfinfo`, never from memory.
