@@ -435,20 +435,73 @@ function headers() {
   if (API_TOKEN) h['Authorization'] = 'Bearer ' + API_TOKEN;
   return h;
 }
-async function api(path, opts = {}) {
+const API_READ_DEADLINE_MS = 12000;
+const API_MUTATION_DEADLINE_MS = 25000;
+const inFlightReads = new Map();
+
+function cancelInFlightReads() {
+  for (const flight of inFlightReads.values()) flight.controller.abort();
+  inFlightReads.clear();
+}
+
+async function requestApi(path, opts, controller, method) {
   if (CFG.auth_required && !API_TOKEN) throw new Error('Access token required.');
-  const r = await fetch(path, { headers: headers(), ...opts });
-  const body = await r.json().catch(() => ({}));
-  if (r.status === 401 && CFG.auth_required) {
-    API_TOKEN = '';
-    showAuth('Access token rejected. Check the token and try again.');
+  const deadline = method === 'GET' ? API_READ_DEADLINE_MS : API_MUTATION_DEADLINE_MS;
+  const callerSignal = opts.signal;
+  let deadlineElapsed = false;
+  const cancel = () => controller.abort();
+  if (callerSignal && callerSignal.aborted) cancel();
+  else if (callerSignal) callerSignal.addEventListener('abort', cancel, { once: true });
+  const timer = setTimeout(() => {
+    deadlineElapsed = true;
+    controller.abort();
+  }, deadline);
+  const { signal, headers: extraHeaders, ...requestOptions } = opts;
+  try {
+    const r = await fetch(path, {
+      ...requestOptions,
+      headers: { ...headers(), ...(extraHeaders || {}) },
+      signal: controller.signal,
+    });
+    const body = await r.json().catch(() => ({}));
+    if (r.status === 401 && CFG.auth_required) {
+      API_TOKEN = '';
+      showAuth('Access token rejected. Check the token and try again.');
+    }
+    if (!r.ok) throw new Error(body.error || body.detail || ('HTTP ' + r.status));
+    if (method !== 'GET') cancelInFlightReads();
+    return body;
+  } catch (error) {
+    if (deadlineElapsed) {
+      throw new Error(method === 'GET'
+        ? `Gateway read did not answer within ${API_READ_DEADLINE_MS / 1000}s.`
+        : `No confirmation within ${API_MUTATION_DEADLINE_MS / 1000}s; the outcome is unknown. Check the audit before retrying.`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+    if (callerSignal) callerSignal.removeEventListener('abort', cancel);
   }
-  if (!r.ok) throw new Error(body.error || body.detail || ('HTTP ' + r.status));
-  return body;
+}
+
+function api(path, opts = {}) {
+  const method = String(opts.method || 'GET').toUpperCase();
+  if (method === 'GET') {
+    const existing = inFlightReads.get(path);
+    if (existing) return existing.promise;
+  }
+  const controller = new AbortController();
+  const promise = requestApi(path, opts, controller, method).finally(() => {
+    if (inFlightReads.get(path)?.promise === promise) inFlightReads.delete(path);
+  });
+  if (method === 'GET') inFlightReads.set(path, { controller, promise });
+  return promise;
 }
 const post = (p, b) => api(p, { method: 'POST', body: JSON.stringify(b || {}) });
 
 function showAuth(message = '') {
+  cancelInFlightReads();
+  if (consoleBooted) suspendBookSocket();
   $('authError').textContent = message;
   $('authGate').hidden = false;
   $('pillAuth').textContent = 'access required';
@@ -466,7 +519,11 @@ async function unlockConsole(token) {
     $('authToken').value = '';
     $('pillAuth').textContent = 'secured';
     $('pillAuth').className = 'pill live';
-    bootConsole();
+    if (consoleBooted) {
+      openBook(true);
+      refreshRisk(); refreshPortfolio(); refreshAudit();
+    }
+    else bootConsole();
   } catch (e) {
     if (API_TOKEN) showAuth(e.message || 'Unable to verify access.');
   }
@@ -496,6 +553,16 @@ let VENUE = 'ALL';
 let SIDE = 'BUY';
 let ORDER_SIDE = 'BUY';
 let ws = null, lastBook = null, tcaTimer = null;
+let bookSocketEpoch = 0;
+let bookRetryTimer = null;
+let bookHandshakeTimer = null;
+let bookSilenceTimer = null;
+let bookStableTimer = null;
+let bookBackoffMs = 1000;
+const BOOK_HANDSHAKE_DEADLINE_MS = 10000;
+const BOOK_SILENCE_DEADLINE_MS = 5000;
+const BOOK_STABLE_AFTER_MS = 10000;
+const BOOK_MAX_BACKOFF_MS = 20000;
 
 /* ---------- tabs ---------- */
 document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
@@ -511,7 +578,7 @@ function buildChips() {
   $('symChips').innerHTML = CFG.symbols
     .map(s => `<div class="chip ${s === SYM ? 'on' : ''}" data-s="${s}">${s}</div>`).join('');
   $('symChips').querySelectorAll('.chip').forEach(c => c.onclick = () => {
-    haptic(); SYM = c.dataset.s; buildChips(); openBook(); refreshTCA();
+    haptic(); SYM = c.dataset.s; buildChips(); openBook(true); refreshTCA();
   });
 
   const venues = ['ALL', ...(lastBook ? lastBook.books.map(b => b.venue) : CFG.venues)];
@@ -533,12 +600,150 @@ function buildChips() {
 }
 
 /* ═══════════════ MODULE A — order book ═══════════════ */
-function openBook() {
-  if (ws) { try { ws.close(); } catch (e) {} }
+function clearBookAttemptTimers() {
+  if (bookHandshakeTimer) clearTimeout(bookHandshakeTimer);
+  if (bookSilenceTimer) clearTimeout(bookSilenceTimer);
+  if (bookStableTimer) clearTimeout(bookStableTimer);
+  bookHandshakeTimer = null;
+  bookSilenceTimer = null;
+  bookStableTimer = null;
+}
+
+function detachBookSocket() {
+  const current = ws;
+  ws = null;
+  bookSocketEpoch += 1;
+  if (!current) return;
+  current.onopen = null;
+  current.onmessage = null;
+  current.onerror = null;
+  current.onclose = null;
+  try { current.close(1000, 'supervised replacement'); } catch (e) {}
+}
+
+function suspendBookSocket() {
+  if (bookRetryTimer) clearTimeout(bookRetryTimer);
+  bookRetryTimer = null;
+  clearBookAttemptTimers();
+  detachBookSocket();
+}
+
+function scheduleBookReconnect(reason) {
+  clearBookAttemptTimers();
+  detachBookSocket();
+  if (!consoleBooted || document.visibilityState === 'hidden' || bookRetryTimer) return;
+  $('pillFeed').textContent = reason || 'feed reconnecting';
+  $('pillFeed').className = 'pill warn';
+  const delay = bookBackoffMs + Math.random() * bookBackoffMs * 0.3;
+  bookRetryTimer = setTimeout(() => {
+    bookRetryTimer = null;
+    openBook();
+  }, delay);
+  bookBackoffMs = Math.min(bookBackoffMs * 2, BOOK_MAX_BACKOFF_MS);
+}
+
+function isValidBookPayload(payload) {
+  const validLevel = (level) => level && Number.isFinite(level.price) && Number.isFinite(level.size)
+    && Number.isFinite(level.notional) && Number.isFinite(level.cum_notional);
+  const validBook = (book) => book && typeof book.venue === 'string'
+    && Array.isArray(book.bids) && book.bids.every(validLevel)
+    && Array.isArray(book.asks) && book.asks.every(validLevel);
+  return payload && payload.type === 'book' && payload.symbol === SYM
+    && Array.isArray(payload.venues_online) && payload.venues_online.every(v => typeof v === 'string')
+    && Array.isArray(payload.books) && payload.books.every(validBook);
+}
+
+function bookProtocols() {
+  const protocols = ['alphaengine.v1'];
+  if (!CFG.auth_required || !API_TOKEN) return protocols;
+  const bytes = new TextEncoder().encode(API_TOKEN);
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  const encoded = btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+  protocols.push('alphaengine.token.' + encoded);
+  return protocols;
+}
+
+function openBook(resetBackoff = false) {
+  if (!consoleBooted || document.visibilityState === 'hidden') return;
+  if (resetBackoff) bookBackoffMs = 1000;
+  if (bookRetryTimer) clearTimeout(bookRetryTimer);
+  bookRetryTimer = null;
+  clearBookAttemptTimers();
+  detachBookSocket();
+
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-  ws = new WebSocket(`${proto}://${location.host}/ws/book/${SYM}`);
-  ws.onmessage = (e) => { lastBook = JSON.parse(e.data); renderBook(lastBook); };
-  ws.onclose = () => setTimeout(() => { if (document.visibilityState !== 'hidden') openBook(); }, 2000);
+  let socket;
+  try {
+    socket = new WebSocket(
+      `${proto}://${location.host}/ws/book/${encodeURIComponent(SYM)}`,
+      bookProtocols(),
+    );
+  } catch (error) {
+    scheduleBookReconnect(error.message || 'feed connection failed');
+    return;
+  }
+  const epoch = ++bookSocketEpoch;
+  ws = socket;
+  const isCurrent = () => ws === socket && bookSocketEpoch === epoch;
+
+  bookHandshakeTimer = setTimeout(() => {
+    if (isCurrent()) scheduleBookReconnect('feed handshake timed out');
+  }, BOOK_HANDSHAKE_DEADLINE_MS);
+
+  const armSilenceWatchdog = () => {
+    if (bookSilenceTimer) clearTimeout(bookSilenceTimer);
+    bookSilenceTimer = setTimeout(() => {
+      if (isCurrent()) scheduleBookReconnect('feed went silent');
+    }, BOOK_SILENCE_DEADLINE_MS);
+  };
+
+  socket.onopen = () => {
+    if (!isCurrent()) return;
+    if (bookHandshakeTimer) clearTimeout(bookHandshakeTimer);
+    bookHandshakeTimer = null;
+    armSilenceWatchdog();
+    bookStableTimer = setTimeout(() => {
+      if (isCurrent()) bookBackoffMs = 1000;
+    }, BOOK_STABLE_AFTER_MS);
+  };
+  socket.onmessage = (event) => {
+    if (!isCurrent()) return;
+    let payload;
+    try { payload = JSON.parse(event.data); } catch (error) { return; }
+    if (!isValidBookPayload(payload)) return;
+    const previousBook = lastBook;
+    lastBook = payload;
+    try { renderBook(lastBook); }
+    catch (error) {
+      lastBook = previousBook;
+      scheduleBookReconnect('feed returned an invalid book');
+      return;
+    }
+    armSilenceWatchdog();
+  };
+  // Browsers normally follow `error` with `close`; let close carry the policy
+  // code. If it never arrives, the handshake/silence watchdog still recycles.
+  socket.onerror = () => {
+    if (!isCurrent()) return;
+    $('pillFeed').textContent = 'feed socket error';
+    $('pillFeed').className = 'pill warn';
+  };
+  socket.onclose = (event) => {
+    if (!isCurrent()) return;
+    if (event.code === 1008) {
+      clearBookAttemptTimers();
+      ws = null;
+      bookSocketEpoch += 1;
+      if (CFG.auth_required) showAuth('The live feed rejected this access token. Re-authenticate to reconnect.');
+      else {
+        $('pillFeed').textContent = 'feed configuration rejected';
+        $('pillFeed').className = 'pill halt';
+      }
+      return;
+    }
+    scheduleBookReconnect(event.code === 1013 ? 'feed busy; retrying' : 'feed socket closed');
+  };
 }
 
 function mergeBooks(books) {
@@ -909,14 +1114,27 @@ function renderResult(r) {
 }
 
 /* ═══════════════ boot ═══════════════ */
+function schedulePoll(task, intervalMs, active = () => true) {
+  const run = async () => {
+    try {
+      if (consoleBooted && document.visibilityState === 'visible'
+          && (!CFG.auth_required || API_TOKEN) && active()) await task();
+    } finally {
+      setTimeout(run, intervalMs);
+    }
+  };
+  setTimeout(run, intervalMs);
+}
+
 function bootConsole() {
   if (consoleBooted) return;
   consoleBooted = true;
   $('btEngine').textContent = CFG.engine + ' engine';
   buildChips(); syncSweep(); openBook(); refreshRisk(); refreshPortfolio(); refreshAudit();
-  setInterval(refreshRisk, 4000);
-  setInterval(() => { if (document.querySelector('nav button.on').dataset.v === 'risk') { refreshPortfolio(); refreshAudit(); } }, 6000);
-  setInterval(() => { if (document.querySelector('nav button.on').dataset.v === 'tca') refreshTCA(); }, 3000);
+  schedulePoll(refreshRisk, 4000);
+  schedulePoll(async () => { await Promise.all([refreshPortfolio(), refreshAudit()]); }, 6000,
+    () => document.querySelector('nav button.on').dataset.v === 'risk');
+  schedulePoll(refreshTCA, 3000, () => document.querySelector('nav button.on').dataset.v === 'tca');
 }
 if (CFG.auth_required) {
   showAuth();
@@ -926,8 +1144,20 @@ if (CFG.auth_required) {
   bootConsole();
 }
 document.addEventListener('visibilitychange', () => {
-  if (consoleBooted && document.visibilityState === 'visible' && (!ws || ws.readyState > 1)) openBook();
+  if (!consoleBooted) return;
+  if (document.visibilityState === 'hidden') {
+    cancelInFlightReads();
+    suspendBookSocket();
+  } else {
+    openBook();
+    refreshRisk();
+    if (document.querySelector('nav button.on').dataset.v === 'risk') {
+      refreshPortfolio(); refreshAudit();
+    }
+    if (document.querySelector('nav button.on').dataset.v === 'tca') refreshTCA();
+  }
 });
+window.addEventListener('pagehide', suspendBookSocket);
 </script>
 </body>
 </html>
