@@ -82,6 +82,11 @@ const OVER_CEILING: Record<string, number> = {
   // and watching `tsc` name it.
   "components/Controls.tsx": 522,
   "lib/use-system-health.ts": 483,
+  // The server-only gateway boundary owns typed failures, bounded streaming,
+  // correlation, and safe GET-only ingress recovery in one auditable place.
+  // Splitting credential selection away from dispatch would make the token
+  // separation invariant enforced here harder to review.
+  "lib/gateway.ts": 436,
   "components/portfolio/StressTest.tsx": 430,
   "lib/experiments.ts": 429,
   "components/ReliabilityConsole.tsx": 408,
@@ -92,7 +97,6 @@ const OVER_CEILING: Record<string, number> = {
   // convention every other tab follows.
   "components/portfolio/WorkingOrders.tsx": 408,
   "components/research/ExperimentHistory.tsx": 408,
-  "lib/data-work-queue.ts": 404,
   "lib/delivery-readiness.ts": 404,
 
   // ---- stylesheets -------------------------------------------------------
@@ -124,6 +128,10 @@ const OVER_CEILING: Record<string, number> = {
   "app/globals/04-portfolio-command-centre.css": 653,
   "app/globals/03-research-lab.css": 608,
   "app/globals/09-reliability-consolidation.css": 589,
+  // One late cascade layer for the protected diagram instruments. Keeping the
+  // selectors together preserves their deliberate source-order overrides; the
+  // coherent-partial rationale above applies here as well.
+  "app/globals/14zze-protected-diagram-instruments.css": 567,
 
   /* `tests/` joined this scan on 2026-08-21, and these 25 files are what it
      found. They had never been measured: the walk read only app, components,
