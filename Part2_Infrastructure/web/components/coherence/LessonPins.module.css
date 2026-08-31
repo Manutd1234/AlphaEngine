@@ -1,0 +1,134 @@
+.tableWrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-gutter: stable;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+
+.coverageTable {
+  width: 100%;
+  min-width: 58rem;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.coverageTable :is(th, td) {
+  min-width: 0;
+  padding: var(--space-3);
+  vertical-align: middle;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--rule-soft);
+}
+
+.coverageTable thead th {
+  background: color-mix(in srgb, var(--surface-2) 82%, var(--surface-1));
+  color: var(--text-secondary);
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+.coverageTable thead th:nth-child(1) { width: 34%; }
+.coverageTable thead th:nth-child(2) { width: 13%; }
+.coverageTable thead th:nth-child(3) { width: 11%; }
+.coverageTable thead th:nth-child(4) { width: 11%; }
+.coverageTable thead th:nth-child(5) { width: 19%; }
+.coverageTable thead th:nth-child(6) { width: 12%; }
+
+.coverageTable thead th:first-child,
+.coverageTable tbody th[scope="row"] {
+  position: sticky;
+  left: 0;
+  border-right-color: var(--border-strong);
+}
+
+.coverageTable thead th:first-child {
+  z-index: 3;
+}
+
+.coverageTable tbody th[scope="row"] {
+  z-index: 2;
+  background: var(--surface-1);
+}
+
+.coverageTable tbody tr {
+  background: var(--surface-1);
+  transition: background-color var(--dur-fast) var(--ease);
+}
+
+.coverageTable tbody tr:is(:hover, :focus-within) {
+  background: color-mix(in srgb, var(--surface-2) 35%, var(--surface-1));
+}
+
+.coverageTable tbody tr:is(:hover, :focus-within) th[scope="row"] {
+  background: color-mix(in srgb, var(--surface-2) 35%, var(--surface-1));
+}
+
+.coverageTable tbody tr[data-count-gap="short"] > th:first-child {
+  box-shadow: inset 3px 0 0 var(--status-warning);
+}
+
+.lessonIdentity {
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-2);
+  min-width: 0;
+  color: var(--text-primary);
+  font-family: var(--sans);
+  font-weight: 720;
+  line-height: var(--lh-snug);
+}
+
+.lessonIdentity > span:last-child {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.lessonNumber {
+  display: inline-grid;
+  place-items: center;
+  min-height: 1.75rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.coverageReading {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  color: var(--success-text);
+  font-family: var(--sans);
+  font-weight: 700;
+  line-height: var(--lh-snug);
+}
+
+tr[data-count-gap="short"] .coverageReading {
+  color: var(--warning-text);
+}
+
+.inspectAction {
+  width: 100%;
+  max-width: 100%;
+  justify-content: space-between;
+  white-space: normal;
+}
+
+@media (max-width: 620px) {
+  .coverageTable thead th:first-child { width: 13rem; }
+
+  .lessonIdentity {
+    grid-template-columns: 2rem minmax(0, 1fr);
+    gap: var(--space-1);
+  }
+}
