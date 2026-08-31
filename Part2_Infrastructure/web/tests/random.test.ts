@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import { mulberry32, seedFromString } from "../lib/random";
-import { syntheticBars } from "../lib/marketdata";
+import { syntheticBars } from "./helpers/synthetic-bars";
 
 test("mulberry32 stream is pinned (refactor regression)", () => {
   // First draws for seed 1 — the sequence syntheticBars has produced since the
