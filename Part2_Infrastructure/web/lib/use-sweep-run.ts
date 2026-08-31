@@ -26,13 +26,10 @@ import { fmt } from "@/lib/format";
 import { mcSeedFor } from "@/lib/montecarlo";
 import { emitPrefChange } from "@/lib/pref-sync-bus";
 import { mcDriverDegeneracy } from "@/components/risk/mc-degeneracy";
-import seedRunJson from "@/lib/seed-run.json";
 import { strategyProgress } from "@/lib/strategy-progress";
 import {
   DEFAULT_REQUEST, ParamResult, STRATEGY_LABELS, SweepRequest, SweepResponse,
 } from "@/lib/types";
-
-const SEED_RUN = seedRunJson as unknown as SweepResponse;
 
 /**
  * The one way to start a sweep, as the panels that offer a rerun see it.
@@ -69,11 +66,10 @@ const AUTO_RUN_BUDGET_MS = 1500;
 
 export function useSweepRun({ view }: { view: WorkspaceView }) {
   const [req, setReq] = useState<SweepRequest>(DEFAULT_REQUEST);
-  // Seeded, clearly-labelled demo run: real bars (committed parity fixture),
-  // the real engine, computed ahead of time — so the first paint shows a real
-  // verdict and a real OOS Sharpe instead of skeletons. Its warning banner
-  // says exactly what it is, and the mount auto-sweep replaces it.
-  const [data, setData] = useState<SweepResponse | null>(SEED_RUN);
+  // A result exists only after this browser receives one from /api/backtest.
+  // The former committed seed run made a failed first request look successful
+  // by leaving a plausible verdict and chart behind it.
+  const [data, setData] = useState<SweepResponse | null>(null);
   const [inspectionData, setInspectionData] = useState<SweepResponse | null>(null);
   const [inspect, setInspect] = useState<ParamResult | null>(null);
   const [running, setRunning] = useState(false);
