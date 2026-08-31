@@ -22,7 +22,7 @@
 
 .reliability-source-state.is-fresh {
   border-color: color-mix(in srgb, var(--status-good) 34%, var(--border));
-  background: color-mix(in srgb, var(--status-good) 7%, var(--surface-1));
+  background: var(--state-good-bg);
   color: var(--success-text);
 }
 
@@ -30,13 +30,13 @@
 .reliability-source-state.is-not_configured,
 .reliability-source-state.is-invalid {
   border-color: color-mix(in srgb, var(--status-warning) 34%, var(--border));
-  background: color-mix(in srgb, var(--status-warning) 7%, var(--surface-1));
+  background: var(--state-warning-bg);
   color: var(--warning-text);
 }
 
 .reliability-source-state.is-unreachable {
   border-color: color-mix(in srgb, var(--status-critical) 34%, var(--border));
-  background: color-mix(in srgb, var(--status-critical) 7%, var(--surface-1));
+  background: var(--state-critical-bg);
   color: var(--critical-text);
 }
 
@@ -276,7 +276,7 @@
 
 .console-trace-split .console-log__line {
   display: grid;
-  grid-template-columns: 80px 42px 28px minmax(72px, auto) minmax(160px, 1fr);
+  grid-template-columns: max-content max-content minmax(36px, max-content) minmax(72px, auto) minmax(160px, 1fr);
   gap: 0 7px;
   align-items: start;
   width: 100%;
@@ -314,11 +314,10 @@
   background: color-mix(in srgb, var(--status-critical) 9%, var(--surface-1));
 }
 
+.console-trace-split .console-log__msg,
 .console-trace-split .console-log__fields {
   grid-column: 5;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0; overflow-wrap: anywhere; white-space: normal;
 }
 
 .console-trace-detail {
@@ -556,7 +555,7 @@
   }
 
   .console-trace-split .console-log__line {
-    grid-template-columns: 76px 40px 27px minmax(0, 1fr);
+    grid-template-columns: max-content max-content minmax(36px, max-content) minmax(0, 1fr);
   }
 
   .console-trace-split .console-log__msg,
@@ -585,4 +584,3 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
-
