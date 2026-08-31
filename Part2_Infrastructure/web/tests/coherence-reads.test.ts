@@ -32,6 +32,7 @@ import { read, stripNonCode } from "./helpers/workspace-sources";
 
 const console_ = read("../components/CoherenceConsole.tsx");
 const code = stripNonCode(console_);
+const stableSelection = read("../components/coherence/use-stable-selection-key.ts");
 
 /** Every component that owns a section, by the id it draws. Mirrors its sibling. */
 const SECTION_FILES: Record<string, string> = {
@@ -74,11 +75,11 @@ describe("the reads are gated by section, and the folded reads by view", () => {
     // is what stops a third section quietly joining them.
     assert.match(console_, /const onFamily = section === "certificate" \|\| section === "portfolio"/,
       "the universe read is not gated on exactly the sections that choose a family");
-    assert.match(console_, /universeRoute\(\), active && onFamily/,
+    assert.match(console_, /universeRoute\(\), statusLive && onFamily/,
       "the universe read does not use that gate");
   });
 
-  it("the two certify sections read one family, chosen once", () => {
+  it("the two certify sections read one family, chosen once, with live removals committed", () => {
     // The defect this replaces the parlay gate with. Coherence test and Basket
     // are two sections over ONE certify answer; if each owned its own choice,
     // a reader could put them on different families and neither would say so.
@@ -86,8 +87,19 @@ describe("the reads are gated by section, and the folded reads by view", () => {
       "Coherence test owns a family choice, so it can disagree with Basket");
     assert.doesNotMatch(read(SECTION_FILES.portfolio), /useState<string \| null>/,
       "Basket owns a family choice, so it can disagree with Coherence test");
-    assert.match(console_, /const \[family, setFamily\] = useState<string \| null>\(null\)/,
-      "the console does not own the family the two sections share");
+    assert.match(console_, /import \{ useStableSelectionKey \} from "@\/components\/coherence\/use-stable-selection-key"/,
+      "the console does not use the shared stable-key selection contract");
+    assert.match(console_, /const \[family, setFamily\] = useStableSelectionKey\(events\.map\(\(event\) => event\.event_ticker\)\)/,
+      "the console does not own one selection over the current family roster");
+    assert.match(console_, /const target = family \?\? "";/,
+      "the read target is not the committed stable family");
+    assert.doesNotMatch(console_, /const target = events\.some/,
+      "the console derives a one-render fallback that can snap back when a removed family returns");
+
+    assert.match(stableSelection, /const selected = requested != null && keys\.includes\(requested\) \? requested : first/,
+      "the stable-key helper does not fall back when the requested family disappears");
+    assert.match(stableSelection, /if \(requested !== selected\) setRequested\(selected\)/,
+      "the fallback is only derived for one render instead of being committed");
   });
 
   it("a section never draws an answer about a family other than the one it names", () => {
