@@ -187,6 +187,10 @@ function deploymentEnvironment() {
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // The repository's Playwright/layout audits intentionally use the numeric
+  // loopback host. Explicitly allow it so Next's dev asset guard does not turn
+  // an otherwise healthy localhost session into a partial, style-less render.
+  allowedDevOrigins: ["127.0.0.1"],
   // node-oracledb loads its protocol implementation at runtime and is the
   // largest dependency in the tree. Bundling it breaks the dynamic requires and
   // inflates every function that merely imports the route graph; leaving it
