@@ -18,7 +18,7 @@
  * relationship that is not there — which is exactly what it did while the three
  * views sat behind a control the other two groups needed.
  *
- * The three views are one `combos` read, so pressing between them re-arms
+ * The five views are one `combos` read, so pressing between them re-arms
  * nothing. `CombosPane` draws them and owns no switcher of its own; the section
  * owns the one control row, which is the rule every section on this rail keeps.
  */
@@ -26,11 +26,14 @@
 
 import CombosPane, { type ComboView } from "./CombosPane";
 import PaneHead from "./PaneHead";
+import ProofsViewControl from "./ProofsViewControl";
 
 const VIEWS: ReadonlyArray<[ComboView, string]> = [
-  ["bands", "Bands"],
-  ["parlays", "Parlays"],
-  ["bounds", "Bounds"],
+  ["bands", "Ranges"],
+  ["parlays", "Test quote"],
+  ["inputs", "Leg prices"],
+  ["legs", "Test legs"],
+  ["bounds", "Checks"],
 ];
 
 export default function CombosSection({ active, view, onView }: { active: boolean; view: ComboView; onView: (next: ComboView) => void }) {
@@ -39,23 +42,23 @@ export default function CombosSection({ active, view, onView }: { active: boolea
     <section className="card console-card coh-certificate" aria-labelledby="coherence-combos-heading">
       <PaneHead
         kicker="Parlays"
-        title="The bounds a parlay's own legs impose on it"
+        title="Price ranges"
         id="coherence-combos-heading"
-        note="one band per parlay, from the legs the venue lists"
-        lede="Two marginals do not determine a joint — the Fréchet–Hoeffding inequalities say they bound it."
+        ledeSummary="Method"
+        lede="The leg prices set the lowest and highest possible parlay price."
       />
 
       {/* The control row is pinned (`14u`), so a reader deep in the body can
           switch view without scrolling back to the head. One row per section is
           the rule this rail already kept; wrapping it is what made it pinnable. */}
       <div className="coh-bar">
-        <div className="seg" role="group" aria-label="Parlay view">
-          {VIEWS.map(([name, label]) => (
-            <button key={name} type="button" aria-pressed={view === name} onClick={() => onView(name)}>
-              {label}
-            </button>
-          ))}
-        </div>
+        <ProofsViewControl
+          className="seg"
+          label="Parlay view"
+          options={VIEWS}
+          value={view}
+          onValue={onView}
+        />
       </div>
 
       <div className="coh-combos">
