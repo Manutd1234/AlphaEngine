@@ -141,18 +141,29 @@ class AlertsMixin:
         "python" on a deployment that expected "native" is a silent
         degradation — the gateway starts fine either way.
         """
-        from modules.decision_core import ENGINE, IMPORT_ERROR, REQUESTED
+        from modules.decision_core import snapshot as decision_core_snapshot
 
         core_ns = getattr(self.gateway, "last_decision_core_ns", None) if self.gateway else None
+        status = self.gateway.decision_core_status() if self.gateway else decision_core_snapshot()
         lines = [
-            f"Engine    <code>{esc(ENGINE)}</code> (requested <code>{esc(REQUESTED)}</code>)",
+            f"Engine    <code>{esc(status['effective'])}</code> "
+            f"(configured <code>{esc(status['configured'])}</code>, "
+            f"selected <code>{esc(status['selected'])}</code>)",
             f"Core      <code>{f'{core_ns} ns' if core_ns else 'not yet measured'}</code>"
             " — the compiled battery only, not the whole decision",
         ]
-        if ENGINE != "native" and IMPORT_ERROR is not None:
-            lines.append(f"Fell back <code>{esc(str(IMPORT_ERROR)[:120])}</code>")
+        if status["fallback_reason"] is not None:
+            lines.append(
+                f"Fallback  <code>{esc(status['fallback_reason'])}</code> · "
+                f"<code>{status['fallback_total']}</code> order(s)"
+            )
+        if status["build_id"] is not None:
+            lines.append(
+                f"Build     <code>{esc(status['build_id'])}</code> · ABI "
+                f"<code>{status['abi_version']}</code> · <code>{status['decide_argument_count']}</code> args"
+            )
         await self.send_message(chat_id, text_card(
-            "⚙️ Decision engine", ENGINE.upper(), lines,
+            "⚙️ Decision engine", str(status["effective"]).upper(), lines,
             source="modules.decision_core + gateway self-measure",
             next_commands="/status · /ops"))
 
