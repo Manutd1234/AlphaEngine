@@ -51,17 +51,17 @@
  * the wrapper that used to give this pane a head of its own is deleted.
  */
 
-import { useState } from "react";
-
 import { findingsRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
+import { viewsFor } from "@/lib/section-views";
 import { StateChip } from "../Figure";
+import DiffusionViewControl from "./DiffusionViewControl";
 import EffectField from "./EffectField";
 import EvidenceMatrix from "./EvidenceMatrix";
 import FindingsFolds from "./FindingsFolds";
 import FindingsTable from "./FindingsTable";
 import InstrumentFit from "./InstrumentFit";
-import type { FindingsRead, GateCheck } from "./types";
+import type { Finding, FindingsRead, GateCheck } from "./types";
 
 const GATE_MARK: Record<GateCheck["state"], string> = {
   passed: "✓",
@@ -69,31 +69,39 @@ const GATE_MARK: Record<GateCheck["state"], string> = {
   not_assessable: "◌",
 };
 
-export default function FindingsPane({ active }: { active: boolean }) {
+const EMPTY_FINDINGS: Finding[] = [];
+
+export type FindingsView = "plot" | "table" | "instrument";
+const VIEWS = viewsFor("diffusion", "findings") as ReadonlyArray<readonly [FindingsView, string]>;
+
+export default function FindingsPane({ active, view, onView }: {
+  active: boolean;
+  view: FindingsView;
+  onView: (next: FindingsView) => void;
+}) {
   const { data, error } = useCoherenceRead<FindingsRead>(findingsRoute(), active);
-  const [view, setView] = useState<"plot" | "table" | "instrument">("plot");
-
-  if (error && !data) {
-    return (
-      <p className="console-empty">
-        <span aria-hidden="true">✕</span> The findings could not be read: {error}
-      </p>
-    );
-  }
-  if (!data) return <p className="console-empty muted">Measuring the relationships…</p>;
-  if (data.state !== "ok") {
-    return (
-      <p className="console-empty">
-        <span aria-hidden="true">◌</span>{" "}
-        {data.reason ?? "Nothing has been measured yet — not the same as nothing being there."}
-      </p>
-    );
-  }
-
-  const held = data.findings.filter((row) => row.verdict === "holds").length;
-  const calendar = data.calendar;
-  const gate = data.gate;
-  const study = data.study;
+  const read = data?.state === "ok" ? data : null;
+  const findings = read?.findings ?? EMPTY_FINDINGS;
+  const held = findings.filter((row) => row.verdict === "holds").length;
+  const calendar = read?.calendar ?? null;
+  const gate = read?.gate ?? null;
+  const study = read?.study ?? null;
+  const studyAbsenceReason = read
+    ? "the study has not been built"
+    : error && !data
+      ? "the study could not be read"
+      : !data
+        ? "the study has not been read yet"
+        : (data.reason ?? `the findings source is ${data.state}`);
+  const notice = error && !data
+    ? <>The findings could not be read: {error}</>
+    : !data
+      ? <>Measuring the relationships…</>
+      : data.state !== "ok"
+        ? <>{data.reason ?? "Nothing has been measured yet — not the same as nothing being there."}</>
+        : findings.length === 0
+          ? <>Zero relationships have been measured; the structures below show what will be assessed, not a result.</>
+          : null;
   // "0 of 0" is not a clean bill of health. A desk that has fetched no
   // statement has verified nothing, and a tick beside that would be the exact
   // claim this section exists to avoid making.
@@ -101,6 +109,11 @@ export default function FindingsPane({ active }: { active: boolean }) {
 
   return (
     <div className="diff-results">
+      {notice ? (
+        <p className="console-empty">
+          <span aria-hidden="true">◌</span> {notice}
+        </p>
+      ) : null}
       <div className="coh-status__chips">
         <StateChip
           mark={allVerified ? "✓" : "◌"}
@@ -115,7 +128,8 @@ export default function FindingsPane({ active }: { active: boolean }) {
           tone="muted"
         />
         <StateChip mark={held ? "✓" : "◌"} word="Relationships that hold"
-                   value={`${held} of ${data.findings.length}`} tone={held ? "good" : "muted"} />
+                   value={findings.length ? `${held} of ${findings.length}` : "not measured"}
+                   tone={held ? "good" : "muted"} />
         <StateChip
           mark={gate ? GATE_MARK[gate.state] : "◌"}
           word="Representation gate"
@@ -131,24 +145,20 @@ export default function FindingsPane({ active }: { active: boolean }) {
       {/* Wrapped 2026-08-25: a bare `.seg` could be reached by neither
           the sticky rule nor the wrap rule, both `.coh-bar`-scoped. */}
       <div className="coh-bar">
-        <div className="seg" role="group" aria-label="Findings view">
-          <button type="button" aria-pressed={view === "plot"} onClick={() => setView("plot")}>
-            Effect plot
-          </button>
-          <button type="button" aria-pressed={view === "table"} onClick={() => setView("table")}>
-            Findings table
-          </button>
-          <button type="button" aria-pressed={view === "instrument"} onClick={() => setView("instrument")}>
-            Instrument
-          </button>
-        </div>
+        <DiffusionViewControl
+          className="seg diff-view-control"
+          label="Findings view"
+          value={view}
+          views={VIEWS}
+          onValueChange={onView}
+        />
       </div>
 
       {view === "plot" ? (
-        <EffectField findings={data.findings} />
+        <EffectField findings={findings} />
       ) : view === "table" ? (
       <>
-      <EvidenceMatrix findings={data.findings} />
+      <EvidenceMatrix findings={findings} />
       {/* FOLDED, following `MeetingTable` on this same tab: the matrix above is
           the view and the table is its audit. Until 2026-08-26 the opener was
           a strip of `row.n` — fourteen bars of three distinct values, the same
@@ -159,13 +169,13 @@ export default function FindingsPane({ active }: { active: boolean }) {
           `.console-empty` line when there is nothing to show, and folding an
           empty state away would break the house rule that an empty result is
           reported rather than hidden. The 32-word caption survives inside. */}
-      {data.findings.length ? (
+      {findings.length ? (
         <details className="disclosure">
           <summary>Every relationship measured, with its count, its statistics and its verdict</summary>
-          <FindingsTable findings={data.findings} />
+          <FindingsTable findings={findings} />
         </details>
       ) : (
-        <FindingsTable findings={data.findings} />
+        <FindingsTable findings={findings} />
       )}
       </>
       ) : (
@@ -175,11 +185,9 @@ export default function FindingsPane({ active }: { active: boolean }) {
           drawing under it. The words survive as the section's accessible name:
           a screen reader still gets them, a sighted reader gets the figure
           first. */}
-      {study ? (
-        <section aria-label="Was the instrument fit to answer?">
-          <InstrumentFit study={study} gate={gate} />
-        </section>
-      ) : null}
+      <section aria-label="Was the instrument fit to answer?">
+        <InstrumentFit study={study} gate={gate} absenceReason={studyAbsenceReason} />
+      </section>
 
       {/* THE METHOD, FOLDED AS TABLES since 2026-08-26. Two prose folds and a
           third beneath them used to sit here; both bodies were numbers wearing
