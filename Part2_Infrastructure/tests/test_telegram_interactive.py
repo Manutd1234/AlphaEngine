@@ -390,7 +390,7 @@ class TestKeyboardResolutionSweep:
                 continue
             for row in keyboard["inline_keyboard"]:
                 for button in row:
-                    buttons.append(button["callback_data"])
+                    buttons += [button["callback_data"]] if "callback_data" in button else []
         assert buttons, "no keyboard was sent by any example"
 
         unique = sorted(set(buttons))
