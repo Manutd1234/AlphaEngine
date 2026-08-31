@@ -38,6 +38,7 @@ const trend = read("../components/coherence/CalibrationTrend.tsx");
 const routes = read("../lib/coherence/routes.ts");
 const score = read("../components/coherence/CalibrationScore.tsx");
 const horizon = read("../components/coherence/HorizonAxis.tsx");
+const settled = read("../components/coherence/CalibrationSettled.tsx");
 
 /**
  * The same source with comments blanked, for the checks that are about CODE.
@@ -78,6 +79,24 @@ describe("the gauge refuses to call three things a pass", () => {
     // zero at the floor would hide half the range that matters.
     assert.match(gauge, /worse than/i,
       "the sub-zero region must be drawn and labelled: negative skill is worse than knowing nothing");
+  });
+});
+
+describe("the settled status row appears only when it changes the reading", () => {
+  it("keeps the healthy state silent instead of repeating its count above every view", () => {
+    const settledCode = code(settled);
+    assert.doesNotMatch(settledCode, /Not flagged thin/);
+    assert.doesNotMatch(settledCode, /word="Settled markets scored"|value=\{String\(data\.count\)\}/);
+    assert.match(settledCode, /\{data\.thin \? \([\s\S]*?<SectionVerdict>[\s\S]*?word="Thin sample"[\s\S]*?: null\}/);
+  });
+
+  it("retains the settled count as an exact Measures fact", () => {
+    assert.match(score, /label: "Settled markets scored",\s*value: String\(data\.count\)/);
+    assert.match(score, /export function ScoreMeasuresView[\s\S]*?\{facts\.map\(\(fact\) => \(/);
+    assert.match(score, /export function ScoreOverview[\s\S]*?facts\.slice\(0, 4\)/,
+      "the count returned to the compact Overview instead of remaining in Measures");
+    assert.match(score, /<dd className="coh-score-overview__note">\{fact\.note\}<\/dd>/,
+      "overview notes are not associated with their definition-list term");
   });
 });
 
