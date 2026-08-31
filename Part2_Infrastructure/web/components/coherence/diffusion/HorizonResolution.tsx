@@ -101,7 +101,7 @@ function HorizonResolution({ read }: { read: AbsorptionRead }) {
         : null}
     >
       {cells ? (
-        <Plot height={height} minWidth={460}>
+        <Plot height={height} minWidth={460} scrollLabel="Horizon resolution diagram">
           {(width) => {
             const span = Math.max(120, width - MARGIN.left - MARGIN.right);
             const stateW = span * SPLIT.stateTo;
