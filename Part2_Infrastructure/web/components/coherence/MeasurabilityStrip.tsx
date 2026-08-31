@@ -173,6 +173,7 @@ export default function MeasurabilityStrip({
             read: readAt,
             width: 300,
             arriveAt: "last",
+            pin: link === "index-polls",
             link,
           };
         }}
