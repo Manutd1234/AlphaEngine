@@ -145,8 +145,8 @@ export async function probeGateway<T>(
  *
  * Split out and exported because it is the decision this whole module exists to
  * make, and it is worth being able to assert directly: a failure with a cache
- * is `cached`, a failure without one is `sandbox`, and a sandbox payload is
- * never reported as either of the measured tiers.
+ * is `cached`; without one, no payload is returned and the tier is
+ * `unavailable`. Generation happens only in the explicit paused mode.
  */
 export function resolveTier(
   ok: boolean,
@@ -158,12 +158,12 @@ export function resolveTier(
   // `gateway_not_configured` is the deployed workspace's normal state, not a
   // fault. Anything else — refused, timed out, 5xx — is an incident, and the
   // badge says so rather than implying this desk never had a gateway.
-  const configured = failure?.code === "gateway_not_configured";
-  return { tier: "sandbox", cause: configured ? "not-configured" : "incident" };
+  const notConfigured = failure?.code === "gateway_not_configured";
+  return { tier: "unavailable", cause: notConfigured ? "not-configured" : "incident" };
 }
 
 export interface GatewayConnection<T> extends Provenance {
-  /** Never null once the fallback is supplied: that is the point of the ladder. */
+  /** Null until a measured read succeeds, unless the caller explicitly pauses in sandbox mode. */
   payload: T | null;
   failure: GatewayFailure | null;
   loading: boolean;
@@ -185,8 +185,8 @@ export interface GatewayConnectionOptions<T> {
   /** Steady-state poll while healthy. */
   intervalMs: number;
   /**
-   * The generated stand-in. Called only when there is no cache to fall back to,
-   * and given the caller's seed so two visitors get two self-consistent desks.
+   * The generated stand-in for an explicitly paused sandbox. A failed live
+   * probe never calls it.
    */
   fallback?: (seed: string | null) => T;
   seed?: string | null;
@@ -200,13 +200,15 @@ export function useGatewayConnection<T>(options: GatewayConnectionOptions<T>): G
 
   const [payload, setPayload] = useState<T | null>(null);
   const [failure, setFailure] = useState<GatewayFailure | null>(null);
-  const [tier, setTier] = useState<DataTier>("sandbox");
+  const [tier, setTier] = useState<DataTier>("unavailable");
   const [cause, setCause] = useState<TierCause | null>(null);
   const [lastGoodAt, setLastGoodAt] = useState<Date | null>(null);
   const [loading, setLoading] = useState(true);
   const [retryInSeconds, setRetryInSeconds] = useState<number | null>(null);
 
   const alive = useRef(true);
+  const fallbackRef = useRef(fallback);
+  fallbackRef.current = fallback;
 
   const apply = useCallback((outcome: FetchOutcome<T>) => {
     if (!alive.current) return;
@@ -227,13 +229,11 @@ export function useGatewayConnection<T>(options: GatewayConnectionOptions<T>): G
     if (resolved.tier === "cached" && cached) {
       setPayload(cached.payload as T);
       setLastGoodAt(cached.observedAt);
-    } else if (fallback) {
-      // Generated, and labelled generated. The alternative here is the dead end
-      // this module exists to remove.
-      setPayload(fallback(seed));
+    } else {
+      setPayload(null);
       setLastGoodAt(null);
     }
-  }, [resource, fallback, seed]);
+  }, [resource]);
 
   const refresh = useCallback(async (quiet = false): Promise<boolean> => {
     if (!quiet) setLoading(true);
@@ -245,11 +245,19 @@ export function useGatewayConnection<T>(options: GatewayConnectionOptions<T>): G
 
   useEffect(() => {
     alive.current = true;
-    // A paused caller has chosen the sandbox: nothing will ever land here, so
-    // the spinner must not be left running behind a loop that is not polling.
-    if (paused) setLoading(false);
+    // Paused is the explicit sandbox path. Only this branch may call the
+    // generator; a live probe failure above always leaves payload null.
+    if (paused) {
+      const generate = fallbackRef.current;
+      setPayload(generate ? generate(seed) : null);
+      setFailure(null);
+      setTier("sandbox");
+      setCause(generate ? "chosen" : null);
+      setLastGoodAt(null);
+      setLoading(false);
+    }
     return () => { alive.current = false; };
-  }, [paused]);
+  }, [paused, seed]);
 
   /**
    * A changed resource is a different question, and it must not wait for the
