@@ -4,8 +4,9 @@ Hybrid search answers "what is similar to this"; it cannot answer "what is CONNE
 and the question worth building for is the second kind — *every run sharing this data_hash that
 later tripped the breaker*. No keyword ranking answers that. It is a join over ``research_edges``,
 the link table `modules/research_graph.persist_edges` writes from STRUCTURED columns with no LLM
-in the ingest path, traversed by ``traverse_research_graph``: the recursive CTE from migration
-20260820090500, capped at depth 4, refusing revisits, carrying the relation that reached each row.
+in the ingest path, traversed by ``traverse_research_graph``: the recursive CTE from migrations
+20260820090500 / 20260831130000, desk-scoped, capped at depth 4, refusing revisits, and carrying
+the relation that reached each row.
 
 CLAUDE IS A NARRATOR, NEVER THE RETRIEVAL. The traversal runs first, is deterministic, and IS the
 answer; ``--narrate`` pipes the finished rows to the `claude` CLI for prose about them and the
@@ -167,7 +168,7 @@ def from_run(corpus: Corpus, ref: str, question: str, *, depth: int = 2, limit: 
         return _none_found(question, f"the reference {ref}" + (f" with kind {kind}" if kind else ""))
 
     payload: dict[str, Any] = {"start_id": found[0]["id"], "max_depth": max(1, min(depth, 4)),
-                               "match_count": max(1, min(limit, 100))}
+                               "match_count": max(1, min(limit, 100)), "filter_desk_id": corpus.desk_id}
     if relations:
         payload["relations"] = list(relations)
     try:
@@ -327,7 +328,6 @@ def render_narration(narration: Narration, rows: int) -> str:
             f"and not evidence; the rows are the answer.\n{narration.text}")
 
 
-# -- CLI ------------------------------------------------------------------------------------- #
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="graph_recall.py",
@@ -376,12 +376,13 @@ def recall_for(corpus: Corpus, args: argparse.Namespace) -> Recall:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    client, reason = open_client()
+    desk = str(settings.supabase_desk_id or "").strip()
+    client, reason = (open_client() if desk else (None, "SUPABASE_DESK_ID is unset; graph recall refused"))
     if client is None:
         result = Recall("unavailable", question_for(args), reason=reason)
     else:
         with client:
-            result = recall_for(Corpus(client, settings.supabase_desk_id), args)
+            result = recall_for(Corpus(client, desk), args)
     narration = narrate(result) if args.narrate else None
     if args.json:
         print(json.dumps({**result.as_dict(), "narration": narration.as_dict() if narration else None},
@@ -391,8 +392,6 @@ def main(argv: list[str] | None = None) -> int:
         if narration is not None:
             print(render_narration(narration, len(result.rows)))
     return {"ok": 0, "partial": 1}.get(result.state, 2)
-
-
 
 if __name__ == "__main__":
     raise SystemExit(main())
