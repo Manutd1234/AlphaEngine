@@ -8,8 +8,8 @@ import { ImageResponse } from "next/og";
  * renders the mark as a real 180×180 PNG at build time — no new dependency,
  * `next/og` ships with the framework.
  *
- * Drawn rather than imported so it cannot drift from the brand ramp: the same
- * three blues as app/icon.svg and the accent used across the workspace.
+ * Drawn rather than imported so it cannot drift from the coffee-brown brand
+ * ramp in app/icon.svg and the accent used across the workspace.
  */
 export const size = { width: 180, height: 180 };
 export const contentType = "image/png";
@@ -24,7 +24,7 @@ export default function AppleIcon() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "linear-gradient(145deg, #3B82F6 0%, #2563EB 55%, #1E40AF 100%)",
+          background: "linear-gradient(145deg, #9A5B20 0%, #7C3F16 55%, #4A2410 100%)",
           color: "#ffffff",
           fontSize: 104,
           fontWeight: 700,
