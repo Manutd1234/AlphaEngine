@@ -9,12 +9,15 @@ about the response would say so.
 
 from __future__ import annotations
 
+import asyncio
 import pathlib
 import time
+from types import SimpleNamespace
 
 import pytest
 
 from modules.coherence import tunables, warm
+from modules.coherence.kernel.certificate import Certificate
 from modules.schemas import CoherenceCertificate
 
 
@@ -158,6 +161,107 @@ class TestTheRouteDoesNotTouchTheVenueWhenAnAnswerIsHeld:
                 event_ticker="NOT-WARMED", max_contracts=1000, _actor="test",
             )
         assert reached["live"], "the route answered without reading, for a family it never warmed"
+
+
+class TestTheColdCertificateRouteKeepsTheGatewayResponsive:
+    @staticmethod
+    def _slow_solver(monkeypatch, delay_s: float):
+        from modules.api import coherence as route
+
+        observation = SimpleNamespace(
+            event=SimpleNamespace(event_ticker="KXTEST-1", series_ticker="KXTEST", exchange_index=0),
+        )
+
+        async def observe(*_args, **_kwargs):
+            return observation
+
+        async def schedule(*_args, **_kwargs):
+            return object()
+
+        def solve(*_args, **_kwargs):
+            time.sleep(delay_s)
+            return Certificate(
+                verdict="coherent", engine="highs", component_id="KXTEST-1",
+                series_ticker="KXTEST", exchange_index=0,
+            )
+
+        monkeypatch.setattr(route, "observe_event", observe)
+        monkeypatch.setattr(route.fee_meta, "schedule_for_event", schedule)
+        monkeypatch.setattr(route, "certify", solve)
+        return route
+
+    @pytest.mark.asyncio
+    async def test_the_scipy_solve_runs_off_the_event_loop(self, monkeypatch):
+        route = self._slow_solver(monkeypatch, 0.15)
+        started = time.perf_counter()
+        task = asyncio.create_task(route.coherence_certify("KXTEST-1", 1000, "test"))
+
+        await asyncio.sleep(0.02)
+
+        assert time.perf_counter() - started < 0.10, "the solver blocked the gateway event loop"
+        assert not task.done(), "the blocking stand-in should still be running in its worker"
+        answer = await task
+        assert answer.verdict == "coherent"
+
+    @pytest.mark.asyncio
+    async def test_a_solver_over_the_route_deadline_returns_a_typed_non_verdict(self, monkeypatch):
+        route = self._slow_solver(monkeypatch, 0.05)
+        monkeypatch.setattr(route, "CERTIFY_SOLVE_DEADLINE_S", 0.01)
+
+        answer = await route.coherence_certify("KXTEST-1", 1000, "test")
+
+        assert answer.verdict == "untestable"
+        assert "gateway stayed available" in answer.notes[0]
+        await asyncio.sleep(0.06)  # let the cancelled worker finish before monkeypatch restores the seam
+
+    @pytest.mark.asyncio
+    async def test_the_shell_certificate_uses_the_same_non_blocking_solver_boundary(self, monkeypatch):
+        from modules.api import coherence as route
+        from modules.api import coherence_lab as lab
+
+        observation = SimpleNamespace(event=SimpleNamespace(
+            event_ticker="KXTEST-1", series_ticker="KXTEST", exchange_index=0,
+        ))
+
+        async def schedule(*_args, **_kwargs):
+            return object()
+
+        def solve(*_args, **_kwargs):
+            time.sleep(0.15)
+            return Certificate(
+                verdict="coherent", engine="highs", component_id="KXTEST-1",
+                series_ticker="KXTEST", exchange_index=0,
+            )
+
+        monkeypatch.setattr(lab.fee_meta, "schedule_for_event", schedule)
+        monkeypatch.setattr(route, "certify", solve)
+        task = asyncio.create_task(lab._certificate_for(
+            [observation], "/shards/0/KXTEST/KXTEST-1/certificate",
+        ))
+
+        await asyncio.sleep(0.02)
+
+        assert not task.done(), "the Shell solver blocked or completed on the event loop"
+        assert (await task).verdict == "coherent"
+
+    @pytest.mark.asyncio
+    async def test_a_consumed_proxy_budget_starts_no_solver_work(self, monkeypatch):
+        from modules.api import coherence as route
+
+        class ConsumedBudget:
+            def remaining_s(self):
+                return route.CERTIFY_RESPONSE_MARGIN_S
+
+        observation = SimpleNamespace(event=SimpleNamespace(
+            event_ticker="KXTEST-1", series_ticker="KXTEST", exchange_index=0,
+        ))
+        monkeypatch.setattr(route, "current_request_budget", lambda: ConsumedBudget())
+        monkeypatch.setattr(route, "certify", lambda *_args, **_kwargs: pytest.fail("solver started"))
+
+        answer = await route.bounded_certify(observation, object())
+
+        assert answer.verdict == "untestable"
+        assert "gateway stayed available" in answer.notes[0]
 
 
 class TestTheWarmSetMatchesWhatTheDeskAsksFor:
