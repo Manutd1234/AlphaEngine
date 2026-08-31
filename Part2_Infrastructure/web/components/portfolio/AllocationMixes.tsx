@@ -18,7 +18,7 @@
  *    a chart this data cannot draw.
  */
 
-import DonutChart, { type DonutSlice } from "@/components/common/DonutChart";
+import { compact } from "@/lib/format";
 import { assetClassMix, currencyMix, sleeveMix } from "@/lib/portfolio-analytics";
 import type { PortfolioPosition, StrategyAttribution } from "@/lib/portfolio";
 
@@ -31,12 +31,53 @@ const COLORS = [
   "color-mix(in srgb, var(--series-3) 55%, var(--surface-3))",
 ];
 
-const toSlices = (mix: ReturnType<typeof assetClassMix>): DonutSlice[] =>
-  mix.map((entry, index) => ({
-    label: entry.label,
-    value: entry.value,
-    colour: COLORS[index % COLORS.length],
-  }));
+export interface CompositionStackRow {
+  label: string;
+  scope: string;
+  provenance: "measured" | "inferred" | "flow";
+  entries: ReturnType<typeof assetClassMix>;
+}
+
+export function compositionStackRows(
+  positions: PortfolioPosition[],
+  attribution: StrategyAttribution[],
+): CompositionStackRow[] {
+  return [
+    { label: "Asset class", scope: "current gross exposure", provenance: "measured", entries: assetClassMix(positions) },
+    { label: "Settlement", scope: "current gross exposure", provenance: "inferred", entries: currencyMix(positions) },
+    { label: "Sleeve", scope: "lifetime traded notional", provenance: "flow", entries: sleeveMix(attribution) },
+  ];
+}
+
+function CompositionStack({ row }: { row: CompositionStackRow }) {
+  if (!row.entries.length) return <p className="muted">No {row.scope} to attribute.</p>;
+  const spoken = row.entries.map((entry) => `${entry.label} ${Math.round(entry.share * 100)} percent`).join(", ");
+  return (
+    <div className="allocation-stack">
+      <div className="allocation-stack__head">
+        <strong>{row.label}</strong>
+        <span>{row.scope}, {row.provenance}</span>
+      </div>
+      <div className="allocation-stack__track" role="img" aria-label={`${row.label}, ${row.scope}: ${spoken}`}>
+        {row.entries.map((entry, index) => (
+          <span key={entry.label} aria-hidden style={{
+            width: `${entry.share * 100}%`, background: COLORS[index % COLORS.length],
+          }} />
+        ))}
+      </div>
+      <ul className="allocation-stack__legend">
+        {row.entries.map((entry, index) => (
+          <li key={entry.label} title={`${entry.value}`}>
+            <i aria-hidden style={{ background: COLORS[index % COLORS.length] }} />
+            <span>{entry.label}</span>
+            <strong className="num">{Math.round(entry.share * 100)}%</strong>
+            <small className="num">{compact(entry.value)}</small>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 export default function AllocationMixes({
   positions,
@@ -47,9 +88,7 @@ export default function AllocationMixes({
   attribution: StrategyAttribution[];
   generated: boolean;
 }) {
-  const byClass = assetClassMix(positions);
-  const byCurrency = currencyMix(positions);
-  const bySleeve = sleeveMix(attribution);
+  const rows = compositionStackRows(positions, attribution);
 
   return (
     <section className="card">
@@ -65,39 +104,13 @@ export default function AllocationMixes({
         {generated && <span className="section-note">generated book</span>}
       </div>
 
-      <div className="allocation-mixes">
-        <div>
-          <span className="field">Asset class</span>
-          <DonutChart
-            slices={toSlices(byClass)}
-            emptyNote="No open position to classify."
-            ariaLabel="Gross exposure by asset class"
-          />
-        </div>
-
-        <div>
-          <span className="field">Settlement currency</span>
-          <DonutChart
-            slices={toSlices(byCurrency)}
-            emptyNote="No open position to attribute."
-            ariaLabel="Gross exposure by settlement currency"
-          />
-        </div>
-
-        <div>
-          <span className="field">Sleeve</span>
-          <DonutChart
-            slices={toSlices(bySleeve)}
-            emptyNote="No sleeve has traded yet."
-            ariaLabel="Traded notional by strategy sleeve"
-          />
-        </div>
+      <div className="allocation-stacks" role="group" aria-label="Portfolio composition as separate allocation scopes">
+        {rows.map((row) => <CompositionStack key={row.label} row={row} />)}
       </div>
 
       {/* One disclosure, not three. The summary names all three provenances,
-          so the claims that each ring means something different — and that two
-          of them are not measurements — stay on screen while the ~450
-          characters explaining them do not. */}
+          so the claims behind each stack stay on screen while the derivation
+          stays available without crowding the comparison. */}
       <details className="disclosure">
         <summary>
           What each cut measures: classified by the router, inferred from the ticker, traded flow
@@ -108,11 +121,11 @@ export default function AllocationMixes({
         </p>
         <p className="research-note">
           <strong>Settlement currency is derived from the ticker.</strong> Positions record no
-          currency, so a symbol with no quote suffix counts as unknown, not as dollars.
+          currency, so a ticker with no quote suffix counts as unknown, not as dollars.
         </p>
         <p className="research-note">
           <strong>Sleeve is traded notional, not holdings.</strong> Positions carry no sleeve tag,
-          so current exposure by sleeve cannot be derived.
+          so current exposure by sleeve cannot be derived or crossed with asset class.
         </p>
       </details>
     </section>
