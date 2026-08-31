@@ -27,6 +27,10 @@
   gap: 14px;
 }
 
+.coherence-plane > * {
+  min-width: 0;
+}
+
 /* ── The shared figure frame ─────────────────────────────────────────────── */
 
 .coh-figure {
@@ -248,9 +252,6 @@
 .coh-lesson__bounds .is-holds dt { color: var(--series-3); }
 .coh-lesson__bounds .is-fails dt { color: var(--series-2); }
 
-.coh-lesson__mechanics summary { font-size: var(--fs-body); cursor: pointer; }
-.coh-lesson__mechanics ul { margin: 6px 0 0; padding-left: 18px; font-size: var(--fs-xs); }
-
 .coh-console__status { border-top: 1px solid var(--border); padding-top: 12px; }
 
 /* `.coh-views` was DELETED on 2026-08-25, with the second switcher level it
@@ -305,7 +306,7 @@
   align-items: center;
   gap: 8px;
   padding: 6px 10px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-control);
   background: var(--surface-1);
   color: var(--text-primary);
@@ -339,13 +340,16 @@
   position: absolute;
   z-index: var(--z-popover);
   top: calc(100% + 4px);
-  left: 0;
   right: 0;
+  width: min(34rem, calc(100vw - var(--space-3) - var(--space-3)));
+  min-width: 100%;
   margin: 0;
   padding: 4px;
   list-style: none;
-  max-height: 320px;
-  overflow-y: auto;
+  max-height: min(320px, calc(100dvh - var(--header-h) - var(--rail-h) - 5rem));
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface-1);
@@ -353,7 +357,8 @@
 }
 
 .coh-family__option {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
   align-items: center;
   gap: 10px;
   padding: 6px 8px;
