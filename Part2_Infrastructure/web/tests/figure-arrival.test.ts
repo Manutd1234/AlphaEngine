@@ -59,17 +59,16 @@ describe("the sources these assertions read were actually loaded", () => {
   }
 });
 
-describe("one figure, one live region, outside the image", () => {
-  it("the figure renders the region as a sibling of its `role=\"img\"` wrapper", () => {
-    // A `role="img"` subtree is presentational to assistive technology:
-    // everything under it loses its role and its name, a live region included.
-    // The region must therefore be a SIBLING of the wrapper, never a child.
-    const wrapper = figure.indexOf('role="img"');
+describe("one figure, one live region, outside the labelled plot group", () => {
+  it("the figure renders the region as a sibling of its `role=\"group\"` wrapper", () => {
+    // The labelled group may contain the focusable plot; role=img may not.
+    // The single live region remains a sibling, never a duplicated child.
+    const wrapper = figure.indexOf('role="group"');
     const region = figure.indexOf('className="coh-plot__live"', wrapper);
-    assert.ok(wrapper > 0, "Figure no longer marks its plot area as an image");
-    assert.ok(region > wrapper, "Figure's live region is no longer after the image wrapper");
+    assert.ok(wrapper > 0, "Figure no longer marks its plot area as a labelled group");
+    assert.ok(region > wrapper, "Figure's live region is no longer after the plot group");
     const between = figure.slice(wrapper, region);
-    assert.match(between, /<\/div>/, "the live region is inside the `role=\"img\"` element, where nothing can hear it");
+    assert.match(between, /<\/div>/, "the live region is inside the plot group instead of remaining its sibling");
   });
 
   it("the plot renders a region of its own ONLY when it is not inside a figure", () => {
