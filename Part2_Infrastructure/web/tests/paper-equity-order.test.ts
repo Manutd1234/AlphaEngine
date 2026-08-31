@@ -86,6 +86,12 @@ describe("trusted paper-equity reference", () => {
     };
     assert.throws(() => buildPaperExecutionReference("AAPL", candidate), /data contract/);
   });
+
+  it("never turns a synthetic fallback into executable paper evidence", () => {
+    const candidate = quote();
+    (candidate.provenance as typeof candidate.provenance & { synthetic: boolean }).synthetic = true;
+    assert.throws(() => buildPaperExecutionReference("AAPL", candidate), /synthetic/i);
+  });
 });
 
 describe("order route equity enrichment boundary", () => {
@@ -116,6 +122,8 @@ describe("covered equity execution UI", () => {
   it("previews provider provenance but leaves authoritative pricing to the order route", () => {
     assert.match(LIVE_MARKET, /fetch\(`\/api\/quote\?symbols=/);
     assert.match(LIVE_MARKET, /Covered US ticker/);
+    assert.match(LIVE_MARKET, /Sandbox preview — not execution evidence/);
+    assert.match(LIVE_MARKET, /quotePreview && !quotePreview\.synthetic/);
     assert.match(LIVE_MARKET, /no L2 routing/);
   });
 
