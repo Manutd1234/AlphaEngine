@@ -1,0 +1,171 @@
+/* Exact-value inspector for the solver loom. Dividers, not nested cards, keep
+   the evidence readable without turning the proof back into a box diagram. */
+
+.proofs-plane .coh-proof-path__inspector {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-4);
+  border: 0;
+  border-block: 1px solid var(--rule);
+  border-inline-start: 3px solid var(--series-1);
+  background:
+    linear-gradient(110deg, color-mix(in srgb, var(--series-1) 7%, transparent), transparent 42%),
+    var(--surface-1);
+  color: var(--text-primary);
+}
+
+.proofs-plane .coh-proof-path__inspector-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.proofs-plane .coh-proof-path__inspector h4,
+.proofs-plane .coh-proof-path__inspector p,
+.proofs-plane .coh-proof-path__metrics { margin: 0; }
+
+.proofs-plane .coh-proof-path__inspector h4 { font-size: var(--fs-title); }
+.proofs-plane .coh-proof-path__inspector-head > strong { font-size: var(--fs-md); }
+
+.proofs-plane .coh-proof-path__inspector p {
+  max-width: 82ch;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.proofs-plane .coh-proof-path__inspector > small { color: var(--text-muted); }
+
+.proofs-plane .coh-proof-path__metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 0;
+  border-block: 1px solid var(--rule-soft);
+}
+
+.proofs-plane .coh-proof-path__metrics > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  border-inline-end: 1px solid var(--rule-soft);
+}
+
+.proofs-plane .coh-proof-path__metrics > div:last-child { border-inline-end: 0; }
+
+.proofs-plane .coh-proof-path__metrics dt {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+}
+
+.proofs-plane .coh-proof-path__metrics dd {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.proofs-plane .coh-proof-boundary {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.proofs-plane .coh-proof-boundary__track {
+  position: relative;
+  height: 1.5rem;
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--series-2) 13%, transparent),
+    transparent 48%,
+    color-mix(in srgb, var(--status-critical) 10%, transparent));
+}
+
+.proofs-plane .coh-proof-boundary__track::before {
+  position: absolute;
+  top: calc(50% - .5px);
+  right: 0;
+  left: 0;
+  height: 1px;
+  background: var(--axis);
+  content: "";
+}
+
+.proofs-plane .coh-proof-boundary__zero,
+.proofs-plane .coh-proof-boundary__threshold,
+.proofs-plane .coh-proof-boundary__mark {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.proofs-plane .coh-proof-boundary__zero {
+  left: 50%;
+  width: 1px;
+  height: 100%;
+  background: var(--axis);
+}
+
+.proofs-plane .coh-proof-boundary__threshold {
+  left: var(--proof-axis-x);
+  height: 100%;
+  border-inline-start: 1px dashed var(--text-muted);
+}
+
+.proofs-plane .coh-proof-boundary__mark {
+  left: var(--proof-axis-x);
+  width: .85rem;
+  height: .85rem;
+  border: 2px solid var(--surface-1);
+  border-radius: 50%;
+  background: var(--series-1);
+  box-shadow: 0 0 0 1px var(--series-1);
+}
+
+.proofs-plane .coh-proof-boundary__labels {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: baseline;
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+}
+
+.proofs-plane .coh-proof-boundary__labels strong {
+  color: var(--text-primary);
+  font-size: var(--fs-xs);
+}
+
+.proofs-plane .coh-proof-boundary__labels > :last-child { text-align: right; }
+
+.proofs-plane .coh-proof-named-row {
+  display: grid;
+  grid-template-columns: auto minmax(8rem, .5fr) minmax(16rem, 1fr) auto;
+  gap: var(--space-2);
+  align-items: baseline;
+  min-width: 0;
+  padding-block-start: var(--space-2);
+  border-block-start: 1px dotted var(--rule);
+}
+
+.proofs-plane .coh-proof-named-row > span:nth-child(3) {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.proofs-plane .coh-proof-named-row[data-state="flagged"] > strong { color: var(--critical-text); }
+
+@media (max-width: 760px) {
+  .proofs-plane .coh-proof-path__metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .proofs-plane .coh-proof-path__metrics > div:nth-child(2) { border-inline-end: 0; }
+  .proofs-plane .coh-proof-path__metrics > div:nth-child(-n + 2) { border-block-end: 1px solid var(--rule-soft); }
+  .proofs-plane .coh-proof-named-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .proofs-plane .coh-proof-named-row > :first-child,
+  .proofs-plane .coh-proof-named-row > span:nth-child(3) { grid-column: 1 / -1; }
+}
