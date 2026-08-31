@@ -4,39 +4,36 @@
  * `lib/sections.ts` is the single source for the rails: which sections a tab
  * has, in what order, under what label. This is the level below it — which
  * VIEWS a section draws — and it exists for the same reason that file does. The
- * eight Prices sections carry twenty-five views between them, and seventeen of
- * those were component state: not in the URL, not in the command palette, and
- * not walked by `scripts/desk-sweep.mjs`, whose count was 70 rather than the
- * number of destinations a reader can actually reach. A view could break and
- * stay broken with every suite green, because nothing could open it.
+ * quantitative engine registers **71** views: Markets 26, Proofs 29 and
+ * Diffusion 16. Before this table, many were component state: not in the URL,
+ * command palette or `scripts/desk-sweep.mjs`, whose 70 rail sections are only
+ * one level of the destination graph. A view could break and stay broken with
+ * every suite green because nothing could open it.
  *
  * THE THIRD SEGMENT IS OPAQUE TO THE ROUTER. `followLocation` carries the
  * string and hands it to the tab; the TAB resolves it. This is cheap
- * future-proofing rather than a response to a case that exists: every consumer
- * on the desk today — the eight Prices sections and the five Diffusion ones —
- * is ONE picker over FLAT views, which a router that understood the segment
- * itself would model perfectly well. It is written this way because the router
- * gains nothing from knowing, and a tab that later wants a different meaning
- * changes its own table instead of this module.
+ * future-proofing rather than a response to nested routing: current consumers
+ * across Research, Markets, Proofs and all seven Diffusion sections use flat
+ * view ids. It is written this way because the router gains nothing from
+ * knowing their meaning, and a tab can change its own table without changing
+ * the router.
  *
  * IT IS NOT WRITTEN THIS WAY BECAUSE OF `FindingsPane`, and the correction is
- * recorded because the wrong version was nearly committed. That pane was cited
- * as three views nested inside one section; it is `useState<"plot" | "table" |
- * "instrument">` at `FindingsPane.tsx:69` — a flat three-way picker,
- * structurally identical to `ArmSection`, fully expressed by
- * `#diffusion/findings/plot`. The nesting it once had was deliberately removed
- * on 2026-08-25, so a `<view>.<sub>` vocabulary would have put back into the
- * URL exactly the third control level the tree had just finished deleting.
+ * recorded because the wrong version was nearly committed. That pane has a
+ * flat three-way controlled picker, structurally identical to `ArmSection` and
+ * fully expressed by `#diffusion/findings/plot`. The nesting it once had was
+ * deliberately removed on 2026-08-25, so a `<view>.<sub>` vocabulary would
+ * have put back into the URL exactly the third control level the tree had just
+ * finished deleting.
  * What IS unusual about that pane is orthogonal: its switcher lives in a folded
  * pane rather than on the parent's row, which `coherence-sections.test.ts`
  * carries as a named exemption.
  *
  * SO A TAB THAT DECLARES NOTHING HERE IS UNTOUCHED. `railView` answers `null`
  * for it, `followLocation` skips the view step, and every existing link behaves
- * exactly as it did. Prices is the first adopter; Diffusion has five sections
- * carrying local view state and is the intended second, and designing against
- * both is what stops this becoming a Prices-shaped rule that the next tab has
- * to escape.
+ * exactly as it did. Markets, Proofs, Diffusion and Research all use the same
+ * contract; designing against all four stops this becoming a Markets-shaped
+ * rule that the next tab has to escape.
  *
  * THE DEFAULT IS THE FIRST VIEW LISTED. Not a separate field, because two
  * places to say the same thing is two places to disagree, and the failure is
@@ -59,55 +56,99 @@ import { LESSON_GROUPS } from "@/lib/coherence/lessons";
 export type SectionViewDef = readonly [id: string, label: string];
 
 /**
- * Prices, section by section.
+ * Research keeps its published Summary section while making its two jobs
+ * explicit. Results stays first so every existing two-segment link remains the
+ * canonical result view; Setup alone earns the optional third segment.
+ */
+export const RESEARCH_SUMMARY_VIEWS = [
+  ["results", "Results"],
+  ["setup", "Setup"],
+] as const satisfies readonly SectionViewDef[];
+
+/** Presentation-only tabs inside Setup; they do not add another URL level. */
+export const RESEARCH_SETUP_VIEWS = [
+  ["core", "Core parameters"],
+  ["adjustments", "Adjustments"],
+] as const satisfies readonly SectionViewDef[];
+
+const RESEARCH_VIEWS = {
+  summary: RESEARCH_SUMMARY_VIEWS,
+} as const satisfies Record<string, readonly SectionViewDef[]>;
+
+/**
+ * Markets, section by section — 26 views across eight rail sections.
  *
  * Every id here is what the section's own switcher already uses, so nothing is
- * renamed into existence: these strings were component state yesterday and are
- * addresses today. `section-views.test.ts` reads each owning component and
+ * renamed into existence: these strings began as component state and are now
+ * addresses. `section-views.test.ts` reads each owning component and
  * fails if a declared default drifts from the one the component opens on.
  */
 const MARKETS_VIEWS = {
-  universe: [["baskets", "Baskets"], ["families", "Families"]],
+  universe: [["baskets", "Basket pricing"], ["positions", "Positions"], ["families", "Families"]],
   settlement: [["reading", "Index"], ["formation", "Formation"], ["pending", "Pending"]],
   books: [["ladder", "Ladder"], ["identity", "Identity"], ["history", "History"]],
   // The id is `dispersion` and the label is "Makers", which is house practice on
   // this rail rather than drift — `live` renders "Execution", `activity` renders
   // "Blotter". Its two view ids keep the same split.
   dispersion: [["quotes", "Dispersion"], ["channel", "Channel"]],
-  lattice: [["survival", "Survival"], ["mass", "Mass"], ["moments", "Moments"]],
+  lattice: [["survival", "Survival"], ["mass", "Mass"], ["moments", "Moment shape"], ["support", "Moment support"]],
   stake: [["plan", "Plan"], ["capital", "Capital"], ["method", "Method"], ["family", "All outcomes"]],
   fees: [["example", "Worked example"], ["shape", "Cost shape"], ["comparison", "Ablation"], ["table", "Replay table"]],
-  // TWO SINCE 2026-08-26. `reading` merged into `tree` (selecting a file was
+  // THREE SINCE 2026-08-31. `reading` merged into `tree` (selecting a file was
   // already switching the view for the reader) and `commands` onto `layout`
   // (both read nothing and answer what the filesystem IS). Neither id is
   // reachable now, and neither needs an entry anywhere: `railView` falls back
   // to the section's default for a view it does not have, so `#markets/shell/
   // commands` opens Map — the section that absorbed it — rather than nothing.
-  shell: [["layout", "Map"], ["tree", "Browse"]],
+  // The former Map now separates the namespace from the collateral decision;
+  // both remain static views over the same bounded root read.
+  shell: [["layout", "Namespace"], ["route", "Routing"], ["tree", "Browse"]],
 } as const satisfies Record<string, readonly SectionViewDef[]>;
 
 /**
- * Proofs, section by section — the second adopter, 2026-08-26.
+ * Proofs, section by section — 29 views across seven rail sections.
  *
  * Every id is the string the section's own `useState` used to hold, so nothing
  * is renamed into existence; the labels are the ones `coherence-sections`
- * pins. `portfolio` declares none: Basket is single-view until its redo, and
- * `section-views.test.ts` names it so. Lessons' six ids come from the data —
- * the four slices are `LESSON_GROUPS`, and the two views ABOUT the catalogue
- * follow them, in the order the row presses.
+ * pins. Basket now declares Cover, Basket and Size. Lessons' six ids come from
+ * the data — the four slices are `LESSON_GROUPS`, and the two views ABOUT the
+ * catalogue follow them, in the order the row presses.
  */
 const COHERENCE_VIEWS = {
-  certificate: [["verdict", "Verdict"], ["proof", "Proof"], ["prices", "Prices"]],
+  certificate: [
+    ["verdict", "Verdict"],
+    ["proof", "Proof"],
+    ["checks", "Checks"],
+    ["prices", "Prices"],
+    ["sizes", "Sizes"],
+  ],
   portfolio: [["cover", "Cover"], ["basket", "Basket"], ["size", "Size"]],
-  combos: [["bands", "Bands"], ["parlays", "Parlays"], ["bounds", "Bounds"]],
+  combos: [["bands", "Ranges"], ["parlays", "Test quote"], ["inputs", "Leg prices"], ["legs", "Test legs"], ["bounds", "Checks"]],
   index: [["series", "By poll"], ["families", "By family"]],
-  calibration: [["score", "Score"], ["bands", "Bands"]],
+  calibration: [["score", "Overview"], ["decomposition", "Equation"], ["components", "Component scale"], ["measures", "Measures"], ["reliability", "Reliability"], ["bands", "Bands"]],
   corpus: [["composition", "Composition"], ["trend", "Score trend"]],
   lessons: [
     ...LESSON_GROUPS.map((group) => [group.id, group.label] as const),
     ["coverage", "Coverage"],
     ["states", "Episode states"],
   ],
+} as const satisfies Record<string, readonly SectionViewDef[]>;
+
+/**
+ * Diffusion's complete sixteen-destination surface.
+ *
+ * Measurement and Instrument each have one structural landing. They still
+ * belong here: a one-view row gives the router, sweep and command inventory a
+ * complete destination count without drawing a one-option switcher.
+ */
+const DIFFUSION_VIEWS = {
+  arm: [["absorption", "Absorption"], ["floor", "Control"], ["clocks", "Clocks"]],
+  meetings: [["table", "Meeting by meeting"], ["calendar", "Calendar"], ["mechanism", "Mechanism"]],
+  episodes: [["survival", "Survival"], ["episodes", "Episodes"]],
+  model: [["measurement", "Measurement"]],
+  instrument: [["instrument", "Instrument"]],
+  sandbox: [["halflife", "Half-life"], ["simulator", "Simulator"], ["spectrum", "Spectrum"]],
+  findings: [["plot", "Effect plot"], ["table", "Findings table"], ["instrument", "Instrument"]],
 } as const satisfies Record<string, readonly SectionViewDef[]>;
 
 /**
@@ -128,13 +169,16 @@ const DEFAULTS: Partial<Record<WorkspaceView, Record<string, string>>> = {
 /**
  * Every tab that has taught the hash about its views.
  *
- * Two entries. A tab joins by adding its table and nothing else — the router,
- * the sweep and the palette all read this rather than a list of their own,
- * which is the drift `lib/sections.ts` was written to end one level up.
+ * Four entries: Research, Markets, Proofs and Diffusion. A tab joins by adding
+ * its table and nothing else — the router, sweep and palette all read this
+ * rather than lists of their own, which is the drift `lib/sections.ts` was
+ * written to end one level up.
  */
 export const VIEWS_BY_TAB: Partial<Record<WorkspaceView, Record<string, readonly SectionViewDef[]>>> = {
+  research: RESEARCH_VIEWS,
   markets: MARKETS_VIEWS,
   coherence: COHERENCE_VIEWS,
+  diffusion: DIFFUSION_VIEWS,
 };
 
 /** The views a section draws, or empty when the tab has declared none. */
