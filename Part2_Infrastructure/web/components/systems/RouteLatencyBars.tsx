@@ -28,8 +28,106 @@ import type { GatewayOpsSnapshot } from "@/components/systems/types";
 const MIN_SAMPLES = 20;
 const ROW_H = 30;
 const MARGIN = { top: 8, right: 132, bottom: 26, left: 148 };
+const DISTRIBUTION_HEIGHT = 168;
+const DISTRIBUTION_MARGIN = { top: 12, right: 18, bottom: 30, left: 52 };
 
 type Route = GatewayOpsSnapshot["route_latency"]["routes"][number];
+
+/**
+ * An empirical CDF rather than a histogram. Route p99s are one aggregate per
+ * route, so there are commonly only three or four observations; binning that
+ * sample creates one peak-height bar per bin and paints a solid rectangle.
+ * The stepped line preserves every observed value and shows the distribution
+ * without pretending those route summaries are raw request samples.
+ */
+function RouteP99Distribution({ routes }: { routes: Route[] }) {
+  const ordered = [...routes].sort((a, b) => a.p99_ms - b.p99_ms);
+  const lo = ordered[0].p99_ms;
+  const hi = ordered[ordered.length - 1].p99_ms;
+  const span = Math.max(hi - lo, Math.max(hi, 1) * 0.04);
+  const domainLo = Math.max(0, lo - span * 0.08);
+  const domainHi = hi + span * 0.08;
+  const xTicks = ticks(domainLo, domainHi, 5);
+  const yTicks = [0.25, 0.5, 0.75, 1];
+
+  return (
+    <div className="route-p99-distribution">
+      <Figure
+        caption="Distribution of route p99s"
+        ariaLabel="Distribution across measured gateway route p99 values"
+        reading="One observed p99 per route. This compares routes; it is not raw request latency and is not traffic-weighted."
+      >
+        <Plot height={DISTRIBUTION_HEIGHT}>
+          {(measured) => {
+            const x0 = DISTRIBUTION_MARGIN.left;
+            const x1 = Math.max(x0 + 40, measured - DISTRIBUTION_MARGIN.right);
+            const y0 = DISTRIBUTION_HEIGHT - DISTRIBUTION_MARGIN.bottom;
+            const y1 = DISTRIBUTION_MARGIN.top;
+            const x = linearScale(domainLo, domainHi, x0, x1);
+            const y = linearScale(0, 1, y0, y1);
+            let path = `M${x(domainLo)},${y(0)}`;
+            ordered.forEach((route, index) => {
+              path += ` H${x(route.p99_ms)} V${y((index + 1) / ordered.length)}`;
+            });
+            path += ` H${x(domainHi)}`;
+
+            return (
+              <>
+                <Grid
+                  yTicks={yTicks}
+                  yScale={y}
+                  x0={x0}
+                  x1={x1}
+                  format={(value) => `${Math.round(value * 100)}%`}
+                />
+                {xTicks.map((tick) => (
+                  <g key={tick} aria-hidden="true">
+                    <line
+                      className="route-p99-distribution__grid"
+                      x1={x(tick)}
+                      x2={x(tick)}
+                      y1={y1}
+                      y2={y0}
+                    />
+                    <text
+                      x={x(tick)}
+                      y={DISTRIBUTION_HEIGHT - 8}
+                      textAnchor="middle"
+                      fill="var(--text-muted)"
+                      fontSize={13}
+                      fontFamily="var(--mono)"
+                    >
+                      {Math.round(tick * 100) / 100}
+                    </text>
+                  </g>
+                ))}
+                <line
+                  className="route-p99-distribution__axis"
+                  x1={x0}
+                  x2={x1}
+                  y1={y0}
+                  y2={y0}
+                />
+                <path className="route-p99-distribution__cdf" d={path} />
+                {ordered.map((route, index) => (
+                  <circle
+                    key={route.route}
+                    className="route-p99-distribution__mark"
+                    cx={x(route.p99_ms)}
+                    cy={y((index + 1) / ordered.length)}
+                    r={4}
+                  >
+                    <title>{`${route.route} p99 ${route.p99_ms.toFixed(2)}ms`}</title>
+                  </circle>
+                ))}
+              </>
+            );
+          }}
+        </Plot>
+      </Figure>
+    </div>
+  );
+}
 
 export default function RouteLatencyBars({
   platform,
@@ -159,7 +257,8 @@ export default function RouteLatencyBars({
                     </rect>
                     <rect x={x(route.p50_ms)} y={mid - 5}
                       width={Math.max(1, x(route.p95_ms) - x(route.p50_ms))} height={10}
-                      fill="color-mix(in srgb, var(--series-1) 38%, var(--surface-2))" rx={2}>
+                      fill="color-mix(in srgb, var(--series-1) 55%, var(--surface-2))"
+                      stroke="var(--surface-1)" strokeWidth={1} rx={2}>
                       <title>{`${route.route} p95 ${Math.round(route.p95_ms)}ms`}</title>
                     </rect>
                     {/* stroke, not fill — the forced-colors rule targets it */}
@@ -189,9 +288,22 @@ export default function RouteLatencyBars({
 
       <ul className="legend">
         <li><i aria-hidden style={{ background: "var(--series-1)" }} /> p50</li>
-        <li><i aria-hidden style={{ background: "color-mix(in srgb, var(--series-1) 38%, var(--surface-2))" }} /> to p95</li>
+        <li><i aria-hidden style={{
+          background: "color-mix(in srgb, var(--series-1) 55%, var(--surface-2))",
+          border: "1px solid var(--border)",
+          height: 5,
+        }} /> to p95</li>
         <li><i aria-hidden style={{ background: "var(--critical-text)" }} /> p99</li>
       </ul>
+
+      {plottable.length >= 2 ? (
+        <RouteP99Distribution routes={plottable} />
+      ) : (
+        <div className="route-p99-distribution">
+          <h3>Distribution of route p99s</h3>
+          <p className="muted">Need two routes with at least {MIN_SAMPLES} samples; n={plottable.length}.</p>
+        </div>
+      )}
 
       {/* No window figure here: the section-note above this card already prints
           "{routes} routes, {windowMinutes}-minute window", and a note that
