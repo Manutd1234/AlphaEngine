@@ -53,7 +53,7 @@ const STAGE_ICON: Record<StageId, typeof Database> = {
 
 const STATE_STYLE: Record<StageState, { Icon: typeof Circle; word: string; hex: string }> = {
   ok: { Icon: CircleCheck, word: "ok", hex: "var(--success-text)" },
-  active: { Icon: LoaderCircle, word: "active", hex: "var(--notice-text)" },
+  active: { Icon: LoaderCircle, word: "active", hex: "var(--series-1)" },
   attention: { Icon: TriangleAlert, word: "attention", hex: "var(--warning-text)" },
   halted: { Icon: OctagonX, word: "halted", hex: "var(--critical-text)" },
   idle: { Icon: Circle, word: "idle", hex: "var(--text-muted)" },
@@ -100,6 +100,7 @@ export default function DecisionLoopPipeline({
                   control in the same voice as every other one. */}
               <button
                 type="button"
+                data-state={stage.state}
                 onClick={() => onOpenStage(stage.id)}
                 title={`Open ${stage.label}`}
                 /* These were `rgba(255,255,255,0.10)` and `rgba(11,23,40,0.55)`
