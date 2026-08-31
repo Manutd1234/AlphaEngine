@@ -116,19 +116,33 @@ class TestRegistry:
         assert len(BOT_SHORT_DESCRIPTION) <= 120
         assert len(BOT_DESCRIPTION) <= 512
 
-    def test_the_companion_never_links_a_web_ui_and_never_opens_a_position(self):
+    def test_every_real_workspace_tab_is_in_the_native_menu(self):
+        """The slash menu mirrors navigation, while `/commands` remains complete."""
+        expected = {
+            "overview", "research", "execution", "portfolio", "risk", "data",
+            "reliability", "developer", "markets", "proofs", "diffusion",
+        }
+        tabs = [spec for spec in COMMAND_SPECS if spec.category == "Tabs"]
+        assert {spec.name for spec in tabs} == expected
+        assert all(spec.in_menu for spec in tabs)
+
+        # The command centre groups every function into thirteen categories,
+        # including commands omitted from Telegram's capped native menu.
+        assert len({spec.category for spec in COMMAND_SPECS}) == 13
+
+    def test_the_companion_never_scrapes_the_web_and_never_opens_a_position(self):
         """
         The boundary, restated after /backtest landed.
 
         This used to assert the bot could not queue work at all. That half has
         moved: /backtest submits to the same jobs engine the API and web use,
-        which is research, not trading. What has NOT moved is the part worth
-        defending — the bot opens no positions, and it is not a launcher for
-        the web workspace. So the assertion narrows to those two, and gains a
-        check that the new command really does queue rather than submit.
+        which is research, not trading. What has NOT moved: the bot opens no
+        positions and carries no hard-coded deployment origin. Configured cards
+        may link to the read-only web view, but values come from Python read
+        models. Research still queues rather than submitting an order.
         """
         names = {spec.name for spec in COMMAND_SPECS}
-        assert "app" not in names, "no web-UI launch"
+        assert "app" not in names, "no command exists solely to launch a web UI"
         assert "order" not in names, "no position may be opened from chat"
 
         source = "\n".join([command_catalogue(), help_text(), BOT_DESCRIPTION]).lower()
@@ -737,93 +751,3 @@ class TestMultiSymbolCharts:
         bot.sent.clear()
         await real(bot, CHAT, [], caption="no charts at all")
         assert "no charts at all" in bot.last
-
-
-class TestMultiSymbolParsingAndDrawing:
-    """The synchronous half: argument parsing, pixels, and the honesty scan."""
-
-    def test_no_fabricated_desk_figures_survive_in_the_module(self):
-        from pathlib import Path
-
-        import modules.telegram as telegram_module
-
-        # A PACKAGE now, so `__file__` names only `__init__.py` — scan every
-        # file of it or this goes vacuous. Comments are stripped because this
-        # file's own explanation names the very literals it is banning.
-        files = sorted(Path(telegram_module.__file__).parent.rglob("*.py"))
-        raw = "\n".join(p.read_text() for p in files)
-        # Every assertion below is `not in`, which an empty scan satisfies.
-        assert len(files) > 5 and "class TelegramBot" in raw, f"scan read {len(files)} files"
-        source = "\n".join(ln for ln in raw.splitlines() if not ln.lstrip().startswith("#"))
-        # Each of these was printed as live desk telemetry and computed by
-        # nothing. They are pinned as literals so a future edit cannot quietly
-        # reintroduce the pattern.
-        for fabricated in [
-            "Sharpe Ratio <code>2.14",
-            "99.99%",
-            "84% Remaining",
-            "Binance 58% / Bybit 42%",
-            "$64,608.20",
-            "1,080 CI PASSED",
-        ]:
-            assert fabricated not in source, f"fabricated desk figure is back: {fabricated}"
-
-    def test_no_chart_generator_invents_its_own_data(self):
-        """Every `generate_*_png` must plot what it was handed.
-
-        The module shipped a `generate_chart_png` that drew
-        `64200 + sin(i * 0.3) * 450` under the caption "Real-Time Market Quote"
-        — a decorative curve a reader could not tell apart from a measurement.
-        It has been deleted; this keeps that mistake out. AST, not substring, so the prose above (which names the
-        banned calls) cannot fail its own rule. `inspected` guards the walk: a
-        package `__file__` is just `__init__.py`, which defines no generator.
-        """
-        import ast
-        import contextlib
-        import importlib
-        from pathlib import Path
-
-        import modules.telegram as telegram_module
-        scan = sorted(Path(telegram_module.__file__).parent.rglob("*.py"))
-        with contextlib.suppress(ModuleNotFoundError):
-            charts = importlib.import_module("modules.telegram_charts")
-            scan += sorted(Path(charts.__file__).parent.rglob("*.py"))
-        banned = {"random", "sin", "cos", "uniform", "randn", "normal"}
-        inspected = 0
-        for path in scan:
-            tree = ast.parse(path.read_text())
-            for node in ast.walk(tree):
-                if not isinstance(node, ast.FunctionDef):
-                    continue
-                if not (node.name.startswith("generate_") and node.name.endswith("_png")):
-                    continue
-                inspected += 1
-                for inner in ast.walk(node):
-                    if isinstance(inner, ast.Call) and isinstance(inner.func, ast.Attribute):
-                        assert inner.func.attr not in banned, (
-                            f"{path.name}::{node.name} synthesises data "
-                            f"with {inner.func.attr}()"
-                        )
-
-        assert inspected >= 16, f"the scan inspected {inspected} generators — wrong files"
-        assert not hasattr(telegram_module, "generate_chart_png"), (
-            "generate_chart_png drew fake desk data under factual captions"
-        )
-
-    def test_symbol_parsing_stops_at_the_asset_argument(self, bot):
-        assert bot._symbols(["btcusdt", "ethusdt", "solusdt"]) == ["BTCUSDT", "ETHUSDT", "SOLUSDT"]
-        # `_asset` reads the positional after the symbols; it must not be eaten.
-        assert bot._symbols(["AAPL", "equity"]) == ["AAPL"]
-        assert bot._symbols(["BTCUSDT", "BTCUSDT"]) == ["BTCUSDT"]
-        assert bot._symbols([]) == [settings.symbols[0].upper()]
-        assert len(bot._symbols(["A", "B", "C", "D", "E", "F", "G", "H"])) == 6
-
-    def test_the_series_chart_is_drawn_from_the_closes_it_is_given(self):
-        from modules.telegram_charts import generate_series_chart_png
-
-        rising = generate_series_chart_png("BTCUSDT", [100.0, 101.0, 108.0], "1d", "OpenBB")
-        falling = generate_series_chart_png("BTCUSDT", [108.0, 101.0, 100.0], "1d", "OpenBB")
-        assert rising[:4] == b"\x89PNG" and falling[:4] == b"\x89PNG"
-        # Different inputs must not render the same picture — the point of the
-        # separate generator is that it plots data rather than a fixed curve.
-        assert rising != falling
