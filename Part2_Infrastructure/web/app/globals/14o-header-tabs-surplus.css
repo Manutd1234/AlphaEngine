@@ -2,10 +2,9 @@
    The header's surplus — what the ten workspace tabs do with the room the
    row has left over once every chip is painted.
 
-   The tabs themselves grow into it, in 01-workspace-shell.css: each button is
-   `flex: 1 1 auto`, so every one takes the SAME increment of the spare and
-   the word gaps stay even at every width. This partial holds the one rule
-   that keeps the nav from running flush into the chip cluster.
+   The tabs divide the available rail in 01-workspace-shell.css. This partial
+   keeps the trailing pseudo-item at zero and gives the operator controls one
+   tactile outline system without changing their measured boxes.
 
    Its own partial because 01, 12 and 14 — the three homes
    tab-chrome-metrics.test.ts allows the tabs' box — are all at the
@@ -13,16 +12,92 @@
    here is a box metric, which is what lets it live outside those homes.
    ========================================================================== */
 
-/* Separation from the chip cluster, paid ONLY out of surplus. A padding or a
-   margin on the strip would add to the row's MINIMUM, which the clipping
-   bands cannot pay: the width ladder in 14 was measured with 0px of slack at
-   1700 and 1500 (header-wide-width.test.ts says what a 20px basis cost at
-   1728). A 0-basis pseudo flex item adds nothing to the minimum, and at grow 2
-   beside eight grow-1 buttons it takes a fifth of whatever is spare — 27px at
-   1728, where the buttons share the other four-fifths. Below 900px the strip
-   is `display: none` (14) and the <select> switcher stands in, so there is no
-   narrow case to restate. */
+/* Do not manufacture a trailing flex item. The row's 6px gap now separates
+   Diffusion from Telegram exactly as it separates every other neighbour. */
 .workspace-tabs::after {
-  content: "";
-  flex: 2 0 0;
+  content: none;
+}
+
+/* The six operator signals share one quiet edge and shallow lift. Status still
+   tints the line, but only lightly enough to keep the controls in the header
+   plane instead of reading as six separate floating cards. */
+.workspace-header__utility > :is(.telegram-cta, .header-command-button, .latency-chip, .system-health-action),
+.workspace-header__utility > .header-anchor > :is(.data-tier, .header-kill-trigger) {
+  border-color: color-mix(in srgb, var(--border-strong) 24%, transparent);
+  border-radius: var(--radius-control);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--text-primary) 3%, transparent),
+    0 1px 2px color-mix(in srgb, var(--text-primary) 6%, transparent),
+    0 5px 12px -10px color-mix(in srgb, var(--text-primary) 18%, transparent);
+}
+
+.workspace-header__utility > .telegram-cta {
+  border-color: color-mix(in srgb, var(--series-1) 22%, transparent);
+}
+
+.workspace-header__utility > :is(.header-command-button, .latency-chip) {
+  border-color: color-mix(in srgb, var(--series-1) 18%, transparent);
+}
+
+.workspace-header__utility > .header-anchor > .data-tier--good,
+.workspace-header__utility > .system-health-action:not(.is-warn) {
+  border-color: color-mix(in srgb, var(--status-good) 20%, transparent);
+}
+
+.workspace-header__utility > .header-anchor > .header-kill-trigger {
+  border-color: color-mix(in srgb, var(--status-critical) 22%, transparent);
+}
+
+.workspace-header__utility > .system-health-action.is-warn {
+  border-color: color-mix(in srgb, var(--status-warning) 24%, transparent);
+}
+
+/* The hidden width-reservation label occupies the same compact track as the
+   live 2/8 label. Max-content tracks centre the dot + count as one unit; the
+   old `auto 1fr` second track visibly pulled the count toward the right edge. */
+.workspace-header__utility > .system-health-action {
+  grid-template-columns: max-content max-content;
+  justify-content: center;
+  align-content: center;
+}
+
+.workspace-header__utility > .system-health-action > :is(i, span),
+.workspace-header__utility > .system-health-action::before,
+.workspace-header__utility > .system-health-action::after {
+  align-self: center;
+  justify-self: center;
+}
+
+.workspace-header__utility > :is(.telegram-cta, .header-command-button, .latency-chip, .system-health-action):hover,
+.workspace-header__utility > .header-anchor > :is(.data-tier, .header-kill-trigger):hover {
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--text-primary) 4%, transparent),
+    0 2px 4px color-mix(in srgb, var(--text-primary) 10%, transparent),
+    0 7px 14px -11px color-mix(in srgb, var(--text-primary) 26%, transparent);
+}
+
+.workspace-header__utility > :is(.telegram-cta, .header-command-button, .latency-chip, .system-health-action):focus-visible,
+.workspace-header__utility > .header-anchor > :is(.data-tier, .header-kill-trigger):focus-visible {
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--series-1) 18%, transparent),
+    0 4px 10px -8px color-mix(in srgb, var(--text-primary) 30%, transparent);
+}
+
+/* The plane boundary remains semantic in data-plane, but no longer paints an
+   extra rule that made one otherwise uniform tab gap look wider. */
+.workspace-tabs button[data-plane="workflow"] + button[data-plane="market-engine"] {
+  background-image: none;
+}
+
+/* Compact actions share one target width even when their live labels differ.
+   Long status controls remain content-led; only the previously undersized
+   command, kill and account controls receive this common floor. */
+.header-kill-trigger {
+  min-width: 48px;
+  justify-content: center;
+}
+
+.header-account-trigger {
+  min-width: 44px;
+  justify-content: center;
 }
