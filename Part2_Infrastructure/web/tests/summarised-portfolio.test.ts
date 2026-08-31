@@ -144,7 +144,7 @@ const REWRITES: Rewrite[] = [
 
   [CHROME, "why a serverless deployment has no gateway",
     "This site runs the sandbox instead",
-    ["Serverless cannot host a long-lived process", "the gateway is one", "The sandbox runs instead",
+    ["Serverless cannot host a long-lived process", "the gateway is one", "No book has been substituted",
       "a generated book judged by the same gate logic"]],
   [CHROME, "the stale-data banner",
     "Last successful refresh was {lastRefreshLabel}",
