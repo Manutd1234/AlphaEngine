@@ -7,10 +7,8 @@
  *  order path row above to the top right corner"
  *
  * Both rows moved out of `StatusPane`'s foot and into `EngineStatePanel`. The
- * chips render through `PageHead`'s `actions` slot; the facts table, since the
- * evening of 2026-08-26, is a STRIP under the head — a sibling inside the top
- * bar — after two arrangements the reader corrected (full-width children with
- * an empty right half; a right column taller than the title's). Three things
+ * chips and the bounded Engine detail disclosure render together through
+ * `PageHead`'s `actions` slot. Three things
  * about that are load-bearing and none of them is visible in any one file,
  * which is what this suite is for.
  *
@@ -50,50 +48,24 @@ describe("the read-state sits in the head, once", () => {
     // it is what this reunites: both halves ride `actions` now, and the head's
     // right slot is a COLUMN rather than a full-width row.
     //
-    // `.coh-headlive` is spelled out rather than allowed as `<div[^>]*>`, and
-    // BOTH consoles carry it now: it is `display: contents`, so it costs no box,
-    // and naming it is what makes "any OTHER component slipped in front still
-    // fails" true of the regex rather than only of this comment.
     for (const file of CONSOLES) {
       const source = strip(read(file));
       assert.match(source, /<div className="coh-topbar">\s*<PageHead/,
         `${file} does not wrap its head in the top-bar box`);
-      // `\s*`, not `[\s\S]{0,400}?`. The wildcard was carried in while the two
-      // consoles were being edited in parallel and it quietly gave up the
-      // property the comment above claims: four hundred arbitrary characters
-      // is room for a whole component.
-      assert.match(source, /actions=\{\s*<div className="coh-headlive">\s*<EngineChips/,
-        `${file} does not open its head's right slot on the chip row`);
-
-      // THE PANEL IS IN `actions`, AND THE OLD ASSERTION COULD NOT SEE THE
-      // DIFFERENCE. It read `/<EngineStatePanel[\s\S]*?<\/PageHead>/` under the
-      // message "does not pass the facts table as PageHead children" — but a
-      // panel inside `actions={…}` is also before `</PageHead>`, so the regex
-      // would have passed either shape. It measured nothing. Bounded to the
-      // slot itself now, and paired with the closing check below so the two
-      // together can only be satisfied by one arrangement.
-      // `status=\{$` — the outer prop opens a multi-line ternary and so ends its
-      // line. Without the anchor the lazy match stops at the FIRST `status={`
-      // it meets, which is `status={status.data}` on `EngineChips` itself, and
-      // the slot then excludes everything after the chips — including the very
-      // component this is looking for.
-      const slot = source.match(/actions=\{([\s\S]*?)\n\s*status=\{$/m);
-      assert.ok(slot, `${file} declares no actions slot before its status pill`);
-      // THE PANEL LEFT THE SLOT on the evening of 2026-08-26. In the slot it
-      // stacked under two chip rows in a ~1,000px column and left the title's
-      // column white under its lede — "so much white space on the left". It is
-      // a SIBLING of the head inside the box now, a strip under both columns.
-      // Written so the morning's arrangement fails: the slot may not hold it.
-      assert.doesNotMatch(slot[1], /<EngineStatePanel/,
-        `${file} puts the facts table in the head's right slot; it is a strip under the head now`);
-      // `strip` leaves a JSX comment as an empty `{}`, which is what the
-      // optional group allows between the head's `/>` and the strip.
-      assert.match(source, /<PageHead[\s\S]*?\n\s*\/>\s*(?:\{\s*\}\s*)?<EngineStatePanel\b/,
-        `${file} does not render the facts table as the sibling right after its self-closing <PageHead />`);
+      if (file.endsWith("MarketsConsole.tsx")) {
+        assert.match(source, /actions=\{\s*<MarketsEngineStatus/,
+          `${file} does not open its head's right slot on the Markets two-row status`);
+      } else {
+        assert.match(source, /actions=\{\s*<EngineTopbarStatus/,
+          `${file} does not use the shared two-row engine status`);
+        assert.doesNotMatch(source, /<EngineChips\b/,
+          `${file} still uses the retired Proofs-only chip grouping`);
+      }
+      assert.match(source, /detail=\{\s*<EngineStatePanel\b/,
+        `${file} does not place Engine detail in the page head's status row`);
 
       // `PageHead` takes no children on either engine tab, which is the other
       // half of the same claim: nothing renders after `</header>` by accident.
-      // The strip is a sibling inside `.coh-topbar` by decision.
       assert.doesNotMatch(source, /<\/PageHead>/,
         `${file} still passes PageHead children, which render at the head's full width`);
     }
@@ -122,10 +94,15 @@ describe("the read-state sits in the head, once", () => {
     // absence is reported, by the sibling, in the same words, once. Same
     // argument the head's metric tiles retired under.
     const panel = strip(read("../components/coherence/EngineStatePanel.tsx"));
-    const chips = panel.slice(0, panel.indexOf("export default function"));
+    const topbar = panel.slice(
+      panel.indexOf("export function EngineTopbarStatus"),
+      panel.indexOf("export default function"),
+    );
     const table = panel.slice(panel.indexOf("export default function"));
-    assert.match(chips, /Asking the engine how it is/,
-      "the chip row no longer says what it is waiting for");
+    assert.match(topbar, /word: "Reading exchange", value: "awaiting"/,
+      "the shared top bar no longer says what it is waiting for");
+    assert.match(topbar, /word: "Exchange unavailable", value: error/,
+      "the shared top bar no longer reports a failed status read");
     assert.doesNotMatch(table, /Asking the engine how it is/,
       "the facts table prints the sentence its slot-mate already prints");
     assert.doesNotMatch(table, /could not report its own state/,
@@ -152,35 +129,54 @@ describe("the read-state sits in the head, once", () => {
     }
   });
 
-  it("the hostname is printed once on each tab", () => {
-    // The Proofs Exchange tile used to withhold the hostname BECAUSE the strip
-    // at the foot carried it — "one figure printed twice on one screen is a
-    // reader checking whether they are two measurements". Quotes printed it in
-    // its tile note instead. Both tiles are gone; the chip is the one site.
+  it("both tabs derive reachability from the shared status once", () => {
     for (const file of CONSOLES) {
       const source = strip(read(file));
       assert.doesNotMatch(source, /hosts\[0\]\?\.host/,
-        `${file} prints the hostname the chip already carries`);
+        `${file} re-derives host status outside the shared top bar`);
     }
-    assert.match(strip(read("../components/coherence/EngineStatePanel.tsx")), /hosts\[0\]\?\.host/,
-      "the chip is where the hostname lives now");
+    const panel = strip(read("../components/coherence/EngineStatePanel.tsx"));
+    const topbar = panel.slice(
+      panel.indexOf("export function EngineTopbarStatus"),
+      panel.indexOf("export default function"),
+    );
+    assert.match(topbar, /status\?\.hosts\.some\(\(host\) => host\.reachable\)/,
+      "the shared top bar no longer derives exchange reachability");
+    assert.match(topbar, /word=\{status \? \(reachable \? "Exchange reachable" : "Exchange unreachable"\) : "Exchange pending"\}/,
+      "reachable, unreachable and pending exchange states are no longer distinct");
   });
 
-  it("StatusPane keeps only what cannot fit in a header box", () => {
+  it("StatusPane keeps a live halt visible without restoring either removed disclosure", () => {
     const pane = read("../components/coherence/StatusPane.tsx");
-    // The shard fold must still SELF-OPEN. A halted shard is a status, and a
-    // status may never be hidden — this is the one fold on the desk that
-    // decides for itself, and it is why the shard table did not move up.
-    assert.match(pane, /open=\{halted\.length > 0\}/,
-      "the shard fold no longer opens itself when a shard stops trading");
-    assert.match(pane, /\$\{status\.notes\.length\}/,
-      "the gateway notes fold lost the count in its summary");
+    const source = strip(pane);
+    assert.match(source, /Trading is paused on \{halted\.length\}/,
+      "a real halt has no concise status evidence");
+    assert.doesNotMatch(source, /return null|<details|<table|status\.notes/,
+      "a removed shard or gateway-note disclosure returned");
     assert.doesNotMatch(strip(pane), /coh-status__chips/,
       "the chip row is supposed to be in the head now");
   });
+
+  it("keeps routine engine detail on demand while surfacing only a live halt", () => {
+    const panel = strip(read("../components/coherence/EngineStatePanel.tsx"));
+    assert.match(panel, /from "@\/components\/ui\/sheet"/,
+      "routine engine detail has no bounded disclosure");
+    assert.match(panel, /<StatusPane status=\{status\}/,
+      "the on-demand engine detail dropped the compact live-halt notice");
+    assert.match(panel, /<SheetTrigger asChild>/,
+      "routine status is still permanently appended to every Markets and Proofs route");
+
+    for (const file of CONSOLES) {
+      const source = strip(read(file));
+      assert.match(source, /status\.data\?\.state === "ok" && status\.data\.shards\.some\(\s*\(shard\) => !shard\.exchange_active \|\| !shard\.trading_active,?\s*\)/,
+        `${file} can mistake fallback shard data for an actionable live halt`);
+      assert.doesNotMatch(source, /\{\s*(?:live && )?status\.data && \(\s*<div className="coh-console__status">/,
+        `${file} still appends routine status beneath every analytical view`);
+    }
+  });
 });
 
-describe("a ticking clock cannot reflow the heading row", () => {
+describe("the shared live rows cannot reflow or escape the heading", () => {
   // COMMENT BODIES BLANKED BEFORE PARSING, and this is a trap rather than a
   // preference. `cssRules` takes everything between the previous `}` and the
   // `{` as the selector — comments included — so a rule preceded by a comment
@@ -197,41 +193,24 @@ describe("a ticking clock cannot reflow the heading row", () => {
     locateInGlobals,
   );
 
-  const reservation = rules.find((rule) =>
-    rule.selector.includes(".page-heading__actions .coh-headchips"));
-  // THE RESERVATION MOVED ONTO THE THING THAT TICKS on 2026-08-25, and this is
-  // the selector that now carries it.
-  const clock = rules.find((rule) =>
-    rule.selector.includes(".coh-headchips .freshness-stamp"));
+  const topbar = rules.find((rule) =>
+    rule.selector.trim() === ".coherence-plane .engine-topbar-status");
+  const changingValues = rules.find((rule) =>
+    rule.selector.includes("engine-topbar-status :is(.coh-live__updated, .coh-live__next) .coh-chip__value"));
 
-  it("the clock reserves its width in ch", () => {
-    // `FreshnessStamp` re-renders every second and its string changes length,
-    // and it sits in a `flex-end` row — so a content-sized stamp drags every
-    // chip left of it once a second, beside a title that is not moving. Same
-    // rule shape `page-status-book.test.ts` pins for the Portfolio strip.
-    //
-    // IT USED TO BE PINNED ON THE WHOLE CHIPS COLUMN, at 34ch, and that is why
-    // this assertion moved rather than relaxed: a column narrow enough to be
-    // stable was too narrow to hold the four chips and the clock on one line,
-    // so they stacked five deep. Pinning the clock is the same guarantee at the
-    // source — the chips are static, the only thing that changes width is
-    // fixed, and nothing moves. Asserting it HERE rather than on the column is
-    // what stops the fix being undone by dropping the width altogether.
-    assert.ok(clock, "nothing reserves the clock's width, so it breathes and drags the chips with it");
-    assert.match(clock.body, /min-width:\s*\d+ch/,
-      "a ch reservation steps with the reader's Text-size preference; px does not");
+  it("the two ticking values reserve the same tabular width", () => {
+    assert.ok(changingValues, "Updated and Next read have no stable value reservation");
+    assert.match(changingValues.body, /inline-size:\s*\d+ch/,
+      "the ticking clock/countdown needs a text-relative reservation");
+    assert.match(changingValues.body, /text-align:\s*end/,
+      "shorter live values no longer align inside their reservation");
   });
 
-  it("and the rows it sits in wrap rather than overflowing", () => {
-    // THE WRAPPERS ARE NOT BOXES ANY MORE. `PageHead` renders its own status
-    // pill as a sibling of `actions`, so the chips can only share a line with
-    // it if the wrappers between them are `display: contents` — and a box that
-    // does not exist cannot carry a `max-width`. The constraint moved to the
-    // things that are now the flex items: each declared row wraps inside
-    // itself, and the slot holding them wraps too.
-    assert.ok(reservation, "the chips wrapper declares no rule at all");
-    assert.match(reservation.body, /display:\s*contents/,
-      "the wrapper is a box again, so the status pill cannot share a line with the chips");
+  it("authors two wrapping rows inside one shrinkable status grid", () => {
+    assert.ok(topbar, "the shared engine top bar declares no grid");
+    assert.match(topbar.body, /display:\s*grid/);
+    assert.match(topbar.body, /min-inline-size:\s*0/,
+      "the shared status grid can enlarge the page-heading track");
     // EXACTLY ONE rule for the slot, and that is half the assertion. Two rules
     // for one selector in two partials is how this sheet has drifted before,
     // and a `.includes()` lookup silently reads whichever comes first — which
@@ -244,22 +223,15 @@ describe("a ticking clock cannot reflow the heading row", () => {
     const slot = slots[0];
     assert.match(slot.body, /flex-wrap:\s*wrap/,
       "without this the declared rows run out of the card instead of taking a line");
-    // DESCENDANT, not `>`. `display: contents` removes the wrappers' boxes but
-    // reparents nothing, and a child combinator matches the DOM tree — so a `>`
-    // here matches nothing at all and the rows wrap by luck. Asserted by shape
-    // so the combinator cannot creep back.
     const row = rules.find((rule) =>
-      rule.selector.includes(".page-heading__actions .coh-status__chips"));
-    assert.ok(row, "the chip rows declare no rule");
+      rule.selector.trim() === ".coherence-plane .engine-topbar-status__row");
+    assert.ok(row, "the two shared status rows declare no rule");
+    assert.match(row.body, /min-inline-size:\s*0/);
     assert.match(row.body, /flex-wrap:\s*wrap/,
       "a row that cannot wrap inside itself pushes past the card at a narrow width");
-    const breaks = rules.find((rule) => rule.selector.includes(".coh-headchips__desk"));
-    assert.ok(breaks, "nothing forces the recorder row onto its own line");
-    assert.doesNotMatch(breaks.selector, /page-heading__actions\s*>/,
-      "a child combinator under `display: contents` matches nothing — the rows then wrap by luck");
   });
 
-  it("the head's right slot is a column, not a row of its own", () => {
+  it("the head's right slot carries the detail control without creating a strip", () => {
     // WHAT IAN CIRCLED. `.page-heading__copy` is capped at 58ch above 1121px, so
     // the head has roughly a thousand pixels of free width to the right of the
     // title — and `flex: 1 1 100%` on this slot was what stopped anything ever
@@ -280,19 +252,16 @@ describe("a ticking clock cannot reflow the heading row", () => {
     assert.match(basis[1], /\d+rem/,
       "the slot needs a basis in rem so it steps with the reader's Text-size preference");
 
-    // AND THE TABLE IS NOT IN THAT COLUMN AT ALL. It was, for one morning, and
-    // it made the column taller than the title's. No rule may place the panel
-    // as a descendant of the slot any more; its one rule is as the box's
-    // sibling strip, with no `flex` of its own to break a line it is not on.
-    // EXACT SELECTOR, NOT `.includes`, for the reason the block above records.
     const inSlot = rules.filter((rule) =>
       rule.selector.split(",").some((part) => part.includes("page-heading__actions") && part.includes("coh-headstate")));
-    assert.deepEqual(inSlot.map((rule) => rule.where), [],
-      "a rule still places the facts table inside the head's right slot");
+    assert.equal(inSlot.length, 1,
+      "Engine detail must have one shared placement rule inside the head actions");
+    assert.match(inSlot[0].body, /flex:\s*0 0 auto/);
+    assert.match(inSlot[0].body, /margin-inline-start:\s*auto/,
+      "Engine detail no longer holds the venue row's top-right edge");
     const strip = rules.filter((rule) =>
       rule.selector.trim() === ".coherence-plane .coh-topbar .coh-headstate");
-    assert.equal(strip.length, 1, "the strip's rule is missing or declared more than once");
-    assert.doesNotMatch(strip[0].body, /flex:/, "the strip is a grid under the head, not a flex item of anything");
+    assert.equal(strip.length, 0, "Engine detail regressed to a dedicated strip below the head");
   });
 
   it("the facts table is a grid about its shape, not about five", () => {
@@ -318,13 +287,9 @@ describe("a ticking clock cannot reflow the heading row", () => {
   });
 
   it("the panel wraps rather than clipping", () => {
-    assert.ok(reservation);
-    // The CLOCK is exempt from `nowrap` and always was: `.freshness-stamp` sets
-    // it in `13-warm-bright-pass.css` because a timestamp broken across two
-    // lines is unreadable, and a reserved width means it never needs to wrap.
-    // What may not clip is the row, which is where a chip would be lost.
+    assert.ok(topbar);
     for (const banned of [/white-space:\s*nowrap/, /text-overflow:\s*ellipsis/, /overflow:\s*hidden/]) {
-      assert.doesNotMatch(reservation.body, banned,
+      assert.doesNotMatch(topbar.body, banned,
         "a fixed box that also clips hides the figure instead of wrapping it");
     }
   });
