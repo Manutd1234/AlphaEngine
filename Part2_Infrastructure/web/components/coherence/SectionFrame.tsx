@@ -53,6 +53,8 @@
 
 import { type ReactNode } from "react";
 
+import QuantViewSwitcher from "@/components/workspace/QuantViewSwitcher";
+
 import KpiRow, { type Reading } from "./KpiRow";
 
 export interface SectionFrameProps<V extends string> {
@@ -73,6 +75,8 @@ export interface SectionFrameProps<V extends string> {
   onView?: (next: V) => void;
   /** The switcher's accessible name — "Books view", "Which question". */
   viewsLabel?: string;
+  /** Optional one-line orientation beneath each view label. */
+  viewDescriptions?: Partial<Record<V, string>>;
   /**
    * What every view here is a question ABOUT: a family picker, a market picker,
    * an asset filter. Right of the switcher on one row, never under it.
@@ -105,6 +109,7 @@ export default function SectionFrame<V extends string>({
   view,
   onView,
   viewsLabel,
+  viewDescriptions,
   subject,
   kpis,
   kpiSource,
@@ -114,21 +119,28 @@ export default function SectionFrame<V extends string>({
 }: SectionFrameProps<V>) {
   const switcher = views && views.length > 1 && view !== undefined && onView;
   const controls = Boolean(switcher || subject);
+  const currentLabel = views?.find(([name]) => name === view)?.[1];
 
   return (
-    <section className={`card console-card coh-section ${className}`} aria-labelledby={labelledBy}>
+    <section
+      className={`card console-card coh-section ${className}`}
+      aria-labelledby={labelledBy}
+      data-market-section={className.replace(/^coh-/, "")}
+      data-market-view={view}
+    >
       {head}
 
       {controls ? (
         <div className="coh-section__controls">
           {switcher ? (
-            <div className="seg" role="group" aria-label={viewsLabel}>
-              {views!.map(([name, label]) => (
-                <button key={name} type="button" aria-pressed={view === name} onClick={() => onView!(name)}>
-                  {label}
-                </button>
-              ))}
-            </div>
+            <QuantViewSwitcher
+              label={viewsLabel ?? "Section view"}
+              options={views!}
+              value={view}
+              onValue={(next) => onView(next as V)}
+              optionLabel={(label) => label}
+              optionDescription={(value) => viewDescriptions?.[value]}
+            />
           ) : (
             // A spacer, so a section with a subject and no switcher puts its
             // picker where every other section's picker is. Without it the lone
@@ -142,7 +154,13 @@ export default function SectionFrame<V extends string>({
 
       {kpis?.length ? <KpiRow readings={kpis} source={kpiSource} /> : null}
 
-      {layout ? <div className={`coh-grid coh-grid--${layout}`}>{children}</div> : children}
+      <div
+        className="coh-section__body"
+        role="region"
+        aria-label={viewsLabel && currentLabel ? `${viewsLabel}: ${currentLabel}` : undefined}
+      >
+        {layout ? <div className={`coh-grid coh-grid--${layout}`}>{children}</div> : children}
+      </div>
 
       {notes ? (
         <details className="disclosure">
