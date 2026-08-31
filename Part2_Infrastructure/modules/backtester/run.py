@@ -53,9 +53,16 @@ def run_backtest(req_dict: dict[str, Any], job_id: str = "local",
         log.info("[%s] %.0f%% %s", job_id, pct * 100, msg)
 
     report(0.05, f"loading {req.bars} × {req.interval} bars of {req.symbol}")
-    df, source = fetch_ohlcv(req.symbol, req.interval, req.bars)
+    df, source = fetch_ohlcv(
+        req.symbol,
+        req.interval,
+        req.bars,
+        data_mode=req.data_mode,
+    )
     if source == "synthetic":
-        warnings.append("Live market data unreachable — this run uses a deterministic synthetic price series.")
+        warnings.append(
+            "Synthetic demo mode was explicitly requested; these generated bars are not observed market data."
+        )
     if len(df) < 200:
         raise RuntimeError(f"insufficient data: {len(df)} bars")
 
