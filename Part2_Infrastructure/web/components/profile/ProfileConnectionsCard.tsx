@@ -116,7 +116,7 @@ export default function ProfileConnectionsCard({
                   disabled={!canUnlink(identityCount) || linkBusy === identity.provider}
                   onClick={() => void onUnlink(identity)}
                   aria-describedby={canUnlink(identityCount) ? undefined : "profile-unlink-note"}
-                  className="rounded-[8px] border border-border bg-surface-1 px-2.5 py-1.5 text-fs-sm font-semibold text-text-secondary hover:bg-surface-2 disabled:opacity-[0.55]"
+                  className="rounded-[8px] border border-border bg-surface-1 px-2.5 py-1.5 text-fs-sm font-semibold text-text-secondary hover:bg-surface-2"
                 >
                   {linkBusy === identity.provider ? "Working…" : "Unlink"}
                 </button>
@@ -143,7 +143,7 @@ export default function ProfileConnectionsCard({
                     disabled={!known || linkBusy === provider.id}
                     title={known ? undefined : "Not configured for this deployment"}
                     onClick={() => void onLink(provider.id)}
-                    className="inline-flex items-center gap-1.5 rounded-[9px] border border-border bg-surface-1 px-3 py-2 text-fs-body font-semibold text-text-primary hover:bg-surface-2 disabled:opacity-[0.55]"
+                    className="inline-flex items-center gap-1.5 rounded-[9px] border border-border bg-surface-1 px-3 py-2 text-fs-body font-semibold text-text-primary hover:bg-surface-2"
                   >
                     <Link2 size={13} aria-hidden />
                     {provider.label}
