@@ -1,0 +1,335 @@
+/* Proofs Lessons is a bordered catalogue first and one complete case study second. */
+
+.proofs-plane .coh-lessons > .coh-bar {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.proofs-plane .coh-lessons .quant-view-switcher {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: visible;
+}
+
+/* Detach a viewport-height catalogue from the shared scroll timeline so it can
+   never remain translucent after a route or tab change. */
+.proofs-plane .workspace-subtab-panel > .coh-lessons {
+  animation-name: proofs-lessons-fade-in;
+  animation-timeline: auto;
+}
+
+@keyframes proofs-lessons-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* The table deliberately keeps a readable desktop floor, but its intrinsic
+   width must not enlarge this grid item (and, by extension, the view switcher
+   and technical figure above it). The labelled grid below owns narrow-screen
+   scrolling locally. */
+.proofs-plane .coh-lessons__catalogue {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+/* One semantic row per lesson. The local horizontal viewport is intentional:
+   preserving all six columns is more useful than collapsing labels into cards
+   whose heights and alignments change with their prose. */
+.proofs-plane .coh-lessons__grid {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-gutter: stable;
+  border: 1px solid var(--quant-surface-border);
+  border-radius: var(--radius-card);
+  background: var(--quant-surface-bg);
+}
+
+.proofs-plane .coh-lessons__table {
+  width: 100%;
+  min-width: 64rem;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.proofs-plane .coh-lessons__table :is(th, td) {
+  min-width: 0;
+  padding: var(--space-3);
+  vertical-align: top;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--rule-soft);
+}
+
+.proofs-plane .coh-lessons__table thead th {
+  background: color-mix(in srgb, var(--surface-2) 82%, var(--surface-1));
+  color: var(--text-secondary);
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+.proofs-plane .coh-lessons__table thead th:nth-child(1) { width: 19%; }
+.proofs-plane .coh-lessons__table thead th:nth-child(2) { width: 10%; }
+.proofs-plane .coh-lessons__table thead th:nth-child(3) { width: 10%; }
+.proofs-plane .coh-lessons__table thead th:nth-child(4) { width: 31%; }
+.proofs-plane .coh-lessons__table thead th:nth-child(5) { width: 21%; }
+.proofs-plane .coh-lessons__table thead th:nth-child(6) { width: 9%; }
+
+.proofs-plane .coh-lesson-index-card {
+  min-width: 0;
+  overflow: hidden;
+  background: var(--surface-1);
+  transition: background-color var(--dur-fast) var(--ease);
+}
+
+.proofs-plane .coh-lesson-index-card:is(:hover, :focus-within) {
+  background: color-mix(in srgb, var(--surface-2) 35%, var(--surface-1));
+}
+
+.proofs-plane .coh-lesson-index-card.is-pending > :first-child {
+  box-shadow: inset 3px 0 0 var(--text-muted);
+}
+
+.proofs-plane .coh-lesson-index-card .console-subhead {
+  display: block;
+  color: var(--text-primary);
+  line-height: var(--lh-snug);
+  overflow-wrap: anywhere;
+}
+
+.proofs-plane .coh-lesson-index-card .coh-lesson__state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--success-text);
+  font-weight: 700;
+}
+
+.proofs-plane .coh-lesson-index-card.is-pending .coh-lesson__state {
+  color: var(--text-muted);
+}
+
+.proofs-plane .coh-lesson-index-card .coh-lesson__summary {
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.proofs-plane .coh-lesson-index-card .coh-lesson__formula {
+  display: block;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.proofs-plane .coh-lesson-index-card [data-lesson-action] {
+  width: 100%;
+  max-inline-size: 100%;
+  justify-content: space-between;
+  white-space: normal;
+}
+
+.proofs-plane .coh-lesson-sheet {
+  min-height: 0;
+  max-height: none;
+  overflow: visible;
+}
+
+.proofs-plane .coh-lesson-detail {
+  display: grid;
+  align-content: start;
+  min-width: 0;
+  width: 100%;
+}
+
+.proofs-plane .coh-lesson-detail__header {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-4) 3rem var(--space-4) var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.proofs-plane .coh-lesson-detail__header :is(h2, p) {
+  max-width: 72ch;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.proofs-plane .coh-lesson-detail__eyebrow {
+  color: var(--text-secondary);
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  font-weight: 720;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+.proofs-plane .coh-lesson-detail__body {
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-4) var(--space-4) var(--space-5);
+  background: var(--surface-0);
+}
+
+.proofs-plane .coh-lesson-detail__section {
+  display: grid;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+
+.proofs-plane .coh-lesson-detail__section-head {
+  display: grid;
+  grid-template-columns: 2.75rem minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface-2) 76%, var(--surface-1));
+}
+
+.proofs-plane .coh-lesson-detail__section-head h3 {
+  min-width: 0;
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--fs-title);
+  line-height: var(--lh-snug);
+  overflow-wrap: anywhere;
+}
+
+.proofs-plane .coh-lesson-detail__section-number {
+  display: inline-grid;
+  place-items: center;
+  min-height: 2rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  color: var(--axis);
+  font-family: var(--mono);
+  font-size: var(--fs-sm);
+  font-weight: 760;
+  font-variant-numeric: tabular-nums;
+}
+
+.proofs-plane .coh-lesson-detail__section-body {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-3);
+}
+
+/* Lessons returns to the warm stone/white contrast used by its control rail.
+   Keep the analytical SVG marks intact, but remove the blue wash from the
+   explanatory bands that frame the comparison and the detail readout. */
+.proofs-plane .coh-lessons .coh-figure__reading,
+.proofs-plane.coh-lesson-sheet .coh-lessonfig__readout {
+  border-inline-start-color: var(--axis);
+  background: color-mix(in srgb, var(--surface-2) 35%, var(--surface-1));
+}
+
+.proofs-plane .coh-lesson-detail__claim,
+.proofs-plane .coh-lesson-detail__no-formula {
+  max-width: 72ch;
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.proofs-plane .coh-lesson-detail__no-formula {
+  font-size: var(--fs-sm);
+  font-style: italic;
+}
+
+.proofs-plane .coh-lesson-detail__section-body > .coh-lesson__formula {
+  font-size: var(--fs-body);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.proofs-plane .coh-lesson-detail__body :is(code, a) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.proofs-plane .coh-lesson-detail__section-body > .coh-lessonfig {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  scrollbar-gutter: stable;
+}
+
+.proofs-plane .coh-lesson-detail__section-body > .coh-lessonfig:focus-visible {
+  outline: 2px solid var(--series-1);
+  outline-offset: 2px;
+}
+
+/* The diagram is authored on a 320px canvas. Preserve that reading floor and
+   let this one labelled region scroll on narrower Sheets; shrinking the SVG
+   made its words unreadable, while hiding overflow cut several labels off. */
+.proofs-plane .coh-lesson-detail__body .coh-lessonfig__frame {
+  width: 100%;
+  min-inline-size: calc(320px + var(--space-3) + var(--space-3) + 2px);
+  overflow: visible;
+}
+
+.proofs-plane .coh-lesson-detail__body .coh-lessonfig__frame svg {
+  width: min(100%, 32rem);
+  min-inline-size: 320px;
+  max-width: 32rem;
+  height: auto;
+  aspect-ratio: 320 / 132;
+  overflow: visible;
+}
+
+.proofs-plane .coh-lesson-detail__body [data-slot="table-container"] {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.proofs-plane .coh-lesson__criteria-wrap {
+  margin: 0;
+}
+
+.proofs-plane .coh-lesson__criteria {
+  table-layout: fixed;
+}
+
+.proofs-plane .coh-lesson__criteria :is(th, td) {
+  vertical-align: top;
+  line-height: 1.5;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--rule-soft);
+}
+
+.proofs-plane .coh-lesson__criteria th:first-child { width: 10rem; }
+.proofs-plane .coh-lesson__criteria .is-holds > th { color: var(--success-text); }
+.proofs-plane .coh-lesson__criteria .is-fails > th { color: var(--critical-text); }
+
+@media (max-width: 620px) {
+  .proofs-plane .coh-lesson-detail__body {
+    padding-inline: var(--space-3);
+  }
+
+  .proofs-plane .coh-lesson-detail__section-head {
+    grid-template-columns: 2.25rem minmax(0, 1fr);
+    gap: var(--space-2);
+    padding: var(--space-2);
+  }
+
+  .proofs-plane .coh-lesson-detail__section-body { padding: var(--space-2); }
+
+  .proofs-plane .coh-lesson__criteria th:first-child { width: 7.5rem; }
+}
