@@ -81,17 +81,17 @@ const DENSE_BAND = 24;
  */
 const DENSE_PX = 16;
 /**
- * The width the density is judged at, since the real one is not known yet.
+ * The narrowest supported plot width the density is judged at.
  *
  * `Plot` measures its container and hands the width to the render callback, but
  * the plot's HEIGHT — which is what reserves the label band — has to be decided
  * before that. So one estimate decides both, and it is deliberately the narrow
- * case: this figure is drawn inside a two-column pair at desk width, so about
- * half of a 1,360px card. Erring narrow drops a label that would have fitted;
+ * case after the phone shell and card padding, not a desktop half-column.
+ * Erring narrow drops a label that would have fitted;
  * erring wide draws one that is clipped, and only one of those is recoverable
  * by hovering.
  */
-const REFERENCE_W = 680;
+const REFERENCE_W = 264;
 
 /** "buy", "sell", or both — what the basket does in this state. */
 function sideWord(directions: string[]): string {
@@ -176,6 +176,7 @@ export default function StateCoverage({
           : `No leg in any of the ${columns.length} states: the solver found no basket worth assembling here.`
       }
       notes={notes}
+      readout={<span className="num">{`${covered}/${columns.length} states named`}</span>}
     >
       <Plot
         height={BLOCK_TOP + BLOCK_H + (dense ? DENSE_BAND : LABEL_BAND)}
@@ -205,6 +206,7 @@ export default function StateCoverage({
             },
             width: 300,
             arriveAt: "first",
+            pin: true,
             link,
           };
         }}
