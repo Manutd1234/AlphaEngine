@@ -8,8 +8,8 @@
  * "redo the Parlays subtab... redo the entire thing" — which would have put
  * that file over the 400-line ceiling. The seam is the view: `BandsView` and
  * `NotesView` are readings of the same payload and stay there; everything
- * under the Parlays switcher, including the card behind each fold and the leg
- * table inside the card, is here.
+ * under the Parlays, Inputs and Legs switcher destinations, including the card
+ * behind each fold and the leg table inside the card, is here.
  *
  * THE NAME LEADS. `combo.label` carries the venue's own words and this view
  * rendered it in exactly one place — a paragraph inside a closed fold — while
@@ -19,14 +19,20 @@
  * cannot be confused.
  */
 
+import { Button } from "@/components/ui/button";
 import type { CoherenceCombo } from "@/lib/coherence/types-lab";
 import { priceLabel } from "@/lib/coherence/fixed-point";
 import { parlayName } from "@/lib/coherence/parlay-name";
-import { probLabel, toUnit } from "@/lib/coherence/decimals";
-import FrechetBand from "./FrechetBand";
 import { StateChip } from "./Figure";
-import ParlayLegs from "./ParlayLegs";
-import { pct } from "@/lib/format";
+import ParlayLegs, { ParlayLegInputs } from "./ParlayLegs";
+import { ParlaySimulator } from "./ParlaySimulator";
+import tableStyles from "./CombosTables.module.css";
+
+interface ParlayViewProps {
+  combos: CoherenceCombo[];
+  selectedTicker: string | null;
+  onSelectTicker: (ticker: string | null) => void;
+}
 
 function LegTable({ combo }: { combo: CoherenceCombo }) {
   const unpriced = combo.legs.filter((leg) => leg.probability == null).length;
@@ -40,11 +46,15 @@ function LegTable({ combo }: { combo: CoherenceCombo }) {
   return (
     <section className="coh-combo__legs">
       <div className="table-wrap">
+        <div
+          className={tableStyles.scrollport}
+          role="region"
+          aria-label={`Parlay legs for ${parlayName(combo)}`}
+          tabIndex={0}
+        >
         <table className="coh-table">
           <caption className="coh-table__caption">
-            {`The ${combo.legs.length} legs this band is built from. `}
-            Implied p is the mid of the side the parlay needs, what both bounds are built from; opposite cost is
-            the offer the cover portfolio pays.
+            {`${combo.legs.length} required sides. Mids set the bounds; opposite cost prices the cover.`}
           </caption>
           <thead>
             <tr>
@@ -69,6 +79,7 @@ function LegTable({ combo }: { combo: CoherenceCombo }) {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
       {unpriced ? (
         <p className="coh-combo__note">
@@ -110,14 +121,16 @@ function ComboCard({ combo }: { combo: CoherenceCombo }) {
         <StateChip mark="◇" word="Listed in" value={combo.collection_ticker || "no collection"} tone="muted" />
         <StateChip mark="→" word={combo.scope} tone={combo.scope === "cross-shard" ? "warn" : "muted"} />
       </div>
-      {/* Neither the ask caveat nor the unquoted-leg caveat repeats here:
-          FrechetBand's missing line and the leg table's own note carry them
-          on this card, and NO_INDEPENDENCE stays on the Notes view. */}
-      <FrechetBand reading={combo} />
+      <ParlaySimulator combo={combo} mode="legs" />
       <LegTable combo={combo} />
       {/* The gateway's own account of how this parlay's band was built. It has
           been on the wire since the route was written and drawn nowhere. */}
-      {combo.detail ? <p className="coh-combo__note">The gateway says: {combo.detail}</p> : null}
+      {combo.detail ? (
+        <details className="disclosure">
+          <summary>Gateway construction note, 1 detail</summary>
+          <p className="coh-combo__note">{combo.detail}</p>
+        </details>
+      ) : null}
     </article>
   );
 }
@@ -137,116 +150,82 @@ function positionMark(combo: CoherenceCombo): string {
   return combo.inside_band ? "●" : "▲";
 }
 
-export function ParlaysView({ combos }: { combos: CoherenceCombo[] }) {
-  const unquoted = combos.filter((combo) => combo.inside_band == null).length;
+function pickerDescription(combo: CoherenceCombo): string {
+  return `Inspect ${parlayName(combo)}, ${combo.ticker}`;
+}
+
+function ParlayPicker({ combos, selected, onSelectTicker }: {
+  combos: CoherenceCombo[];
+  selected: CoherenceCombo;
+  onSelectTicker: (ticker: string | null) => void;
+}) {
+  return (
+    <nav className="coh-parlay-picker" aria-label="Choose a parlay">
+      {combos.map((combo) => (
+        <Button
+          key={combo.ticker}
+          type="button"
+          variant={selected.ticker === combo.ticker ? "secondary" : "outline"}
+          size="sm"
+          title={pickerDescription(combo)}
+          aria-label={pickerDescription(combo)}
+          aria-pressed={selected.ticker === combo.ticker}
+          onClick={() => onSelectTicker(combo.ticker)}
+        >
+          <span className="coh-parlay-picker__mark" aria-hidden="true">{positionMark(combo)}</span>
+          <span className="coh-parlay-picker__label">{parlayName(combo)}</span>
+        </Button>
+      ))}
+    </nav>
+  );
+}
+
+export function ParlaysView({ combos, selectedTicker, onSelectTicker }: ParlayViewProps) {
+  const selected = combos.find((combo) => combo.ticker === selectedTicker) ?? combos[0] ?? null;
+
+  if (!selected) return null;
 
   return (
     <section className="coh-combos__rows">
-      {/* THE VIEW'S OWN DRAWING, and what deleted its exemption in
-          `engine-opens-on-a-drawing.test.ts`. That exemption said a figure here
-          would be the same six bands the Bands view already draws together, and
-          it was right about BANDS — so this is not one. It is the legs, at their
-          implied p, which is what both bounds are built from. */}
-      <ParlayLegs combos={combos} />
-
-      {/* A TABLE, 2026-08-25: "reformat parlays as a table with proper headings,
-          rows and columns". It was six folded cards, each a title, a meta line,
-          a legend, a chip row, a band figure, a position sentence and a leg
-          table — so comparing two parlays' band widths meant opening two folds
-          and holding one number in your head. Six of the seven facts on a card
-          are one measurement each, which is what a column is for; they are read
-          DOWN now.
-
-          What a cell cannot be — the band drawn, and the legs priced — is the
-          one fold below, which is where the cards went rather than away. */}
-      {/* tabIndex on the wrap: seven columns scroll inside it at narrow widths, and a
-          scroll region nobody can focus is unreachable by keyboard. */}
-      <div className="table-wrap" tabIndex={0}>
-        <table className="coh-table">
-          <caption className="coh-table__caption">
-            One row per listed parlay, worst position first. ● inside the band its legs impose, ▲ outside it —
-            the only reading on this view that is a mispricing — ◌ unquoted, so there is no position to take.
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">Parlay</th>
-              <th scope="col" className="num">Legs</th>
-              <th scope="col" className="num">Lower bound</th>
-              <th scope="col" className="num">Upper bound</th>
-              <th scope="col" className="num">Band width</th>
-              <th scope="col" className="num">Price</th>
-              <th scope="col" className="num">In band</th>
-            </tr>
-          </thead>
-          <tbody>
-            {combos.map((combo) => {
-              const position = toUnit(combo.band_position);
-              return (
-                <tr key={combo.ticker}>
-                  {/* The NAME, then the ticker whole. `ParlayLegs` above
-                      truncates its labels to a measured gutter; a table cell
-                      wraps instead, so this is the one place both the name and
-                      the full ticker are readable without a hover. */}
-                  <th scope="row">
-                    <span aria-hidden="true">{positionMark(combo)}</span> {parlayName(combo)}{" "}
-                    <code className="coh-combo__ticker">{combo.ticker}</code>
-                  </th>
-                  <td className="num">{combo.legs.length}</td>
-                  <td className="num">{probLabel(combo.lower_bound)}</td>
-                  <td className="num">{probLabel(combo.upper_bound)}</td>
-                  <td className="num">{probLabel(combo.band_width)}</td>
-                  <td className="num">{probLabel(combo.price)}</td>
-                  {/* A LOCATION, NEVER A VERDICT — the failure mode this whole
-                      section is built around. A price inside its band is not
-                      "fairly priced": every price between the two bounds is
-                      consistent with some dependence between the legs, and
-                      nothing on this exchange quotes dependence. */}
-                  <td className="num">
-                    {position == null ? "—" : pct(position, 0)}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      {unquoted ? (
-        <p className="coh-combo__meta">
-          {`${unquoted} of ${combos.length} parlays are unquoted on a side they need, so they have no band and no position.`}
-        </p>
-      ) : null}
-
-      {/* SIX FULL CARDS WAS 3,567px AT DESK WIDTH — measured, and the longest
-          view on the desk by a factor of nearly two. The cards are trimmed to
-          the two things the table cannot hold and folded into ONE disclosure
-          rather than six: six summaries were six lines of chrome above the
-          content, and the table above now carries the verdict they existed to
-          preview. Nothing was removed. */}
-      {/* ONE FOLD PER PARLAY, NAMED — and it is a restoration rather than a new
-          idea. Collapsing six named folds into one lost the only way to reach a
-          NAMED parlay: a reader after a particular ticker had to open a fold
-          reading "…6 parlays" and scroll six cards to find it. The summary
-          carries the ticker and its verdict again, so the closed state is six
-          readings rather than one drawer.
-
-          It also un-nests the leg table. That table lived inside a `<details>`
-          inside this one, and self-opened when a leg was unpriced — a visibly
-          open drawer inside a closed one. Now the parlay's fold is the only
-          fold, and everything about that parlay is behind exactly one click. */}
-      {combos.map((combo) => (
-        <details className="disclosure" key={combo.ticker}>
-          <summary>
-            <span aria-hidden="true">{positionMark(combo)}</span> {parlayName(combo)}{" "}
-            <code className="coh-combo__ticker">{combo.ticker}</code>
-            {" — "}
-            {combo.legs.length} legs, {combo.scope}
-          </summary>
-          <ComboCard combo={combo} />
-        </details>
-      ))}
+      <ParlaySimulator combo={selected} mode="quote" />
+      <ParlayPicker combos={combos} selected={selected} onSelectTicker={onSelectTicker} />
     </section>
   );
 }
 
-/** How many caveats `NotesView` prints: one per price basis present, plus one when any parlay is unquoted. */
+/** Required-side inputs get a full-width figure and exact table of their own. */
+export function ParlayInputsView({ combos, selectedTicker, onSelectTicker }: ParlayViewProps) {
+  const selected = combos.find((combo) => combo.ticker === selectedTicker) ?? combos[0] ?? null;
+
+  return (
+    <section className="coh-combos__rows">
+      <ParlayLegs
+        combos={combos}
+        selectedTicker={selected?.ticker ?? null}
+      />
+      {selected ? <ParlayPicker combos={combos} selected={selected} onSelectTicker={onSelectTicker} /> : null}
+      <ParlayLegInputs combos={combos} selectedTicker={selected?.ticker ?? null} />
+    </section>
+  );
+}
+
+/** One selected parlay at a time: the long leg audit now has its own view. */
+export function ParlayDetailsView({ combos, selectedTicker, onSelectTicker }: ParlayViewProps) {
+  const selected = combos.find((combo) => combo.ticker === selectedTicker) ?? combos[0] ?? null;
+
+  if (!selected) return null;
+
+  return (
+    <section className="coh-combos__rows">
+      <ParlayPicker combos={combos} selected={selected} onSelectTicker={onSelectTicker} />
+      <header className="coh-parlay-detail__head">
+        <div>
+          <span className="coh-kicker">Selected parlay</span>
+          <h3>{parlayName(selected)}</h3>
+        </div>
+        <code className="coh-combo__ticker">{selected.ticker}</code>
+      </header>
+      <ComboCard combo={selected} />
+    </section>
+  );
+}
