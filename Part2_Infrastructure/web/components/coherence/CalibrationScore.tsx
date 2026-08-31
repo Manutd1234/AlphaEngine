@@ -54,7 +54,6 @@
 import type { CoherenceCalibration } from "@/lib/coherence/types-lab";
 import MurphyBars from "./MurphyBars";
 import { decimalLabel, secondsLabel, statValue } from "@/lib/coherence/decimals";
-import ValueStrip, { type StripRow } from "./ValueStrip";
 
 const PLACES = 8;
 /** A weighted least-squares line through two points is fitted, not measured. */
@@ -147,42 +146,30 @@ export function scoreFacts(data: CoherenceCalibration): Fact[] {
   ];
 }
 
-/** The six headline figures as strip rows: four drawn, two printed. */
-function scoreRows(data: CoherenceCalibration, facts: Fact[]): StripRow[] {
-  const drawn: Array<[Fact, string | null]> = [
-    [facts[0], data.brier],
-    [facts[1], data.skill],
-    [facts[2], data.base_rate],
-    [facts[3], data.bias_slope],
-  ];
-  const rows: StripRow[] = drawn.map(([fact, raw]) => ({
-    label: fact.label,
-    value: statValue(raw),
-    text: fact.value,
-    title: `${fact.label}: ${fact.value}`,
-    noBar: statValue(raw) == null ? "withheld" : undefined,
-  }));
-  for (const fact of [facts[4], facts[5]]) {
-    rows.push({
-      label: fact.label,
-      value: null,
-      text: fact.value,
-      title: `${fact.label}: ${fact.value}`,
-      noBar: fact.label === "Median horizon" ? "a time, not a score" : "a count, not a score",
-    });
-  }
-  return rows;
+/** A compact overview; exact measures and decomposition live on their own tabs. */
+export function ScoreOverview({ facts }: { facts: Fact[] }) {
+  return (
+    <dl className="coh-score-overview" aria-label="Scorecard headline measures">
+      {facts.slice(0, 4).map((fact) => (
+        <div key={fact.label}>
+          <dt>{fact.label}</dt>
+          <dd className="num">{fact.value}</dd>
+          {fact.note ? <dd className="coh-score-overview__note">{fact.note}</dd> : null}
+        </div>
+      ))}
+    </dl>
+  );
 }
 
-export function ScoreView({ data, facts }: { data: CoherenceCalibration; facts: Fact[] }) {
+export function ScoreDecompositionView({ data }: { data: CoherenceCalibration }) {
   return (
-    <>
-      {/* THE SIX-ROW STRIP LEFT ON 2026-08-26, and its departure is the whole
+    <div className="coh-calib__figures">
+      {/* THE HEADLINE STRIP LEFT ON 2026-08-26, and its departure is the whole
           of "why am i scrolling so much for the score tab".
 
-          It drew the same six quantities the table below prints, off the same
-          `scoreFacts` call, four of them as bars on a nought-to-one axis and
-          two of them declining a bar because a count of markets is not a length.
+          It drew the same quantities the Measures view prints, off the same
+          `scoreFacts` call, some as bars on a nought-to-one axis and others
+          declining a bar because a count or horizon is not a score.
           So the view carried the score twice, once as a picture of itself: five
           `Figure` frames and a table where two figures and a table say more.
 
@@ -203,52 +190,78 @@ export function ScoreView({ data, facts }: { data: CoherenceCalibration; facts: 
           hiding it must not change what someone believes about the desk. This
           failed that test — it was the one drawing on the view that changes
           what the headline number means. */}
-      <div className="coh-calib__figures">
-        <MurphyBars
-          brier={data.brier}
-          reliability={data.reliability}
-          resolution={data.resolution}
-          uncertainty={data.uncertainty}
-          binning={data.binning}
-          bandCount={data.bins.length}
-        />
-      </div>
+      <MurphyBars
+        mode="equation"
+        brier={data.brier}
+        reliability={data.reliability}
+        resolution={data.resolution}
+        uncertainty={data.uncertainty}
+        binning={data.binning}
+        bandCount={data.bins.length}
+      />
+    </div>
+  );
+}
 
-      <div className="table-wrap">
-        <table className="coh-table">
-          {/* "The banner above says which are forecast scores" went on
-              2026-08-25 — it was a pointer at something on the same screen, and
-              the third time this view mentioned the banner. What is left is the
-              fact the numbers themselves cannot carry: they are truncated, not
-              rounded, so a figure that looks like a tie is not one. */}
-          <caption className="coh-table__caption">
-            The six headline figures, truncated at {PLACES} places, never rounded.
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">Measure</th>
-              <th scope="col" className="num">Value</th>
-              {/* Kept, unlike the Bands table's "Reading" column, and the
-                  difference is what the cells hold. That one restated the SIGN
-                  of the number beside it, eleven times. These are definitions —
-                  what a Brier score measures, why "untestable" is a skip — and
-                  the rows whose notes DID restate their own figure now carry
-                  none rather than the column being dropped from under the ones
-                  that teach. */}
-              <th scope="col">What it reads</th>
+/** The signed geometry gets its own view so the exact five-box identity can lead. */
+export function ScoreComponentsView({ data }: { data: CoherenceCalibration }) {
+  return (
+    <div className="coh-calib__figures">
+      <MurphyBars
+        mode="components"
+        brier={data.brier}
+        reliability={data.reliability}
+        resolution={data.resolution}
+        uncertainty={data.uncertainty}
+        binning={data.binning}
+        bandCount={data.bins.length}
+      />
+    </div>
+  );
+}
+
+export function ScoreMeasuresView({ facts }: { facts: Fact[] }) {
+  return (
+    <div
+      className="table-wrap"
+      data-calibration-score-scroll
+      tabIndex={0}
+      role="region"
+      aria-label="Calibration score table; scroll horizontally"
+    >
+      <table className="coh-table">
+        {/* "The banner above says which are forecast scores" went on
+            2026-08-25 — it was a pointer at something on the same screen, and
+            the third time this view mentioned the banner. What is left is the
+            fact the numbers themselves cannot carry: they are truncated, not
+            rounded, so a figure that looks like a tie is not one. */}
+        <caption className="coh-table__caption">
+          The seven headline figures, truncated at {PLACES} places, never rounded.
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Measure</th>
+            <th scope="col" className="num">Value</th>
+            {/* Kept, unlike the Bands table's "Reading" column, and the
+                difference is what the cells hold. That one restated the SIGN
+                of the number beside it, eleven times. These are definitions —
+                what a Brier score measures, why "untestable" is a skip — and
+                the rows whose notes DID restate their own figure now carry
+                none rather than the column being dropped from under the ones
+                that teach. */}
+            <th scope="col">What it reads</th>
+          </tr>
+        </thead>
+        <tbody>
+          {facts.map((fact) => (
+            <tr key={fact.label}>
+              <th scope="row">{fact.label}</th>
+              <td className="num">{fact.value}</td>
+              <td>{fact.note}</td>
             </tr>
-          </thead>
-          <tbody>
-            {facts.map((fact) => (
-              <tr key={fact.label}>
-                <th scope="row">{fact.label}</th>
-                <td className="num">{fact.value}</td>
-                <td>{fact.note}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
