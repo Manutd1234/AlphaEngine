@@ -5,13 +5,18 @@ from most style guides: **almost every rule here is enforced by a test**, so
 breaking one turns a suite red rather than starting an argument in review. The
 enforcement suites are named beside each rule; where a rule is convention only,
 that is said, and where a rule was convention until recently, that is said too.
-Facts checked against the tree on 24 August 2026.
+Current rules and enforcement paths last verified against the tree on
+**29 August 2026**. Dates attached to incidents and measurements below are the
+dates of those records; this verification stamp does not retime them.
 
 The deep arguments live in
 [`Part2_Infrastructure/README.md`](../../Part2_Infrastructure/README.md) and
 [`CLAUDE.md`](../../CLAUDE.md); this page states each rule, its reason, and
 where it is held. The suites themselves are argued in
 [`TESTING.md`](../testing/TESTING.md).
+Changing release facts are centralised in
+[`CURRENT_STATE.md`](../CURRENT_STATE.md); this file owns rules, not a second
+copy of the release ledger.
 
 ---
 
@@ -125,9 +130,9 @@ halves cost something to obey, and this section is where the cost is paid. Three
 items that stood in the "not built" list below have now shipped, and the correct
 edit is to *state what shipped* rather than to leave a plausible sentence:
 
-| Was written as not built | What is true on 2026-08-24 |
+| Was written as not built | Closed by 2026-08-24; still true on 2026-08-29 |
 |---|---|
-| "`tests/conftest.py` does not blank `RESEARCH_IMAGE_MODEL_PATH` the way it blanks `RERANK_MODEL_PATH`" | It does, at `conftest.py:78`, and the conftest's own note names this document and `modules/research_image.py` as the two places that recorded the hole without closing it. The constant is read at **import**, so a per-file fixture was structurally too late for every file but its own. |
+| "`tests/conftest.py` does not blank `RESEARCH_IMAGE_MODEL_PATH` the way it blanks `RERANK_MODEL_PATH`" | It does, at `conftest.py:80`, and the conftest's own note names this document and `modules/research_image.py` as the two places that recorded the hole without closing it. The constant is read at **import**, so a per-file fixture was structurally too late for every file but its own. |
 | "`supabase/apply_all.generated.sql` does not yet carry `20260822110000_research_chart_images.sql`" | It carries it, along with `20260823120000_diffusion_events.sql` and `20260823130000_diffusion_studies.sql`. |
 | "`execution_summary` documents have no in-process producer (only the backfill tool emits them)" | `modules/research_rag/session.py` (`_SessionIngestMixin` on `ResearchRag`) is the in-process caller: the risk monitor's UTC rollover hands it the session it has just closed, and the document leaves through the **same** bounded queue every other kind uses. Its header is worth reading for two arguments — why the work is deferred off the loop rather than done at the boundary (`session_figures` runs four aggregates over a whole UTC day of the `orders` table, and `_roll_session_if_needed` is called with the gateway's lock **held**), and why there is a settle delay (`unique (desk_id, kind, source_ref)` plus `resolution=ignore-duplicates` means the **first** writer wins permanently, so a wrong summary is worse than a late one). |
 
@@ -140,7 +145,8 @@ edit is to *state what shipped* rather than to leave a plausible sentence:
 - the CLIP image retrieval arm is built but **off by default**, because it
   measured 0.671 nDCG@3 alone against the computed description's 0.687 and only
   earns +0.06 in fusion — a price, stated with its number, not an aspiration;
-- `tools/bench_image_retrieval.py` is still not wired into CI (re-verified:
+- `tools/bench_image_retrieval.py` is still not wired into CI (re-verified
+  2026-08-29:
   it appears nowhere in `.github/workflows/ci.yml`);
 - the durable chart store's PostgREST GET (`research_image_store._fetch`) still
   runs on the event loop's thread, with the fix written down as one owed line —
@@ -154,8 +160,9 @@ edit is to *state what shipped* rather than to leave a plausible sentence:
   which is equidistant from everything and would come back as "similar" to any
   query — and the recovery path is a *full re-run* of
   `tools/backfill_research_rag.py`, which re-derives every document from source
-  and upserts with `merge-duplicates`. That works and it is not a targeted
-  retry; the distinction is the point of writing it down;
+  through the same atomic replacement RPC. That works and it is not a targeted
+  retry; the distinction is the point of writing it down. Migration
+  `20260831131000` must be applied before deploying that replacement path;
 - RLS is enabled on `research_documents` and **bypassed by the service role**,
   by design, because the gateway needs the aggregate. What landed is an optional
   `filter_desk_id` predicate on the retrieval RPCs, off by default (`None` means
@@ -222,7 +229,8 @@ its inference API takes an image. What changed is *where the vision model runs*
   Send order, Sign in, Promote strategy, Retry connection. It had also been
   given to `.seg button[aria-pressed="true"]` — the *selected* state of a
   segmented control — and twenty-two components rendered a `.seg` when that was
-  written (**forty-six do today**), so choosing a log level or a blotter filter
+  written (the control is now used throughout the workspace), so choosing a log
+  level or a blotter filter
   shouted in exactly the voice reserved for submitting an order, on every tab.
   Emphasis that is everywhere carries nothing. One exception is deliberate and
   is asserted as hard as the rule: the order ticket's BUY/SELL picker keeps it,
@@ -230,7 +238,7 @@ its inference API takes an image. What changed is *where the vision model runs*
   *which direction an order goes* exactly as loud as a filter, on the one screen
   where misreading it sends a wrong-way trade. Held by `accent-budget.test.ts`.
 - **No chrome metric may follow selection.** The three controls a reader might
-  call "subtabs" — the ten role tabs (`.workspace-tabs`), the section rail
+  call "subtabs" — the eleven workspace tabs (`.workspace-tabs`), the section rail
   (`.workspace-subtabs`) and the in-panel pane switcher (`.seg`) — declare one
   metric set each, and no size, padding, border or inset varies with selection,
   hover, focus or a variant class. A control that grows when pressed moves
@@ -256,7 +264,9 @@ is a matter of taste, which is how a tree ends up with two dialects and no
 record of the split. These four were each surveyed across the whole workspace on
 2026-08-22 by the tab sweeps, found genuinely divided, and left alone on purpose
 — because a unilateral fix in one tab converts a tree-wide split into a tab-wide
-oddity, which is worse. Each needs one decision applied everywhere, not nine.
+oddity, which is worse. No later repository-wide rule was present on 2026-08-29;
+the counts below remain the dated 2026-08-22 survey rather than current totals.
+Each needs one decision applied everywhere, not one tab at a time.
 
 | Split | The count | Why it was not fixed locally |
 |---|---|---|
@@ -272,9 +282,9 @@ a second dialect and the memory of why.
 
 ## 4. The figure frame: caption, drawing, reading, missing
 
-Every diagram on Quotes and Proofs is drawn inside one frame —
+Shared quantitative diagrams on Markets and Proofs are drawn inside one frame —
 [`web/components/coherence/Figure.tsx`](../../Part2_Infrastructure/web/components/coherence/Figure.tsx),
-rendered by **21 components** — and the frame's four parts are the standard:
+and the frame's four parts are the standard:
 
 | Prop | Required? | What it is for |
 |---|---|---|
@@ -284,101 +294,65 @@ rendered by **21 components** — and the frame's four parts are the standard:
 | `missing` | when something is | **what the drawing could not say** |
 
 `missing` is the part that matters and the reason this is a rule rather than a
-component. Every diagram on that tab can be missing a leg, a side or a whole
+component. Every diagram on those tabs can be missing a leg, a side or a whole
 book, and — the header's sentence, which is the rule in one line — *a chart that
 quietly omits what it could not measure reads as a complete picture of a smaller
 world*. So the footnote renders in the same place, in the same voice, every
 time, prefixed with `◌` marked `aria-hidden`. It is §1 and §2 applied to a
 drawing: an absence gets a named state and a reason instead of a smaller chart.
 
-Two attached conventions:
+An attached convention:
 
-- **`Plot` measures its own width.** Every chart on the tab used
+- **`Plot` measures its own width.** These charts once used
   `preserveAspectRatio="none"` over a 0–100 `viewBox`, which stretches the
   drawing to the container *and stretches the text with it* — on a 1,400px
   column "$1 payoff" rendered as "$ 1  p a y o f f". Measuring instead means the
   `viewBox` is in real pixels, the aspect ratio is one, and a label is the size
   it says it is.
-- **Two diffusion charts deliberately skip `<Plot>`**:
-  `coherence/diffusion/AbsorptionCurve.tsx` and `StageTimeline.tsx`. `Plot`
-  emits `role="presentation"`, which would leave them unnamed. The exception is
-  written at the call sites rather than worked around in the wrapper.
 
-## 5. `.seg` inside a section, never a nested rail
+## 5. One rail, addressable views, and one keyboard model
 
 A section's in-pane view switcher is a `.seg` group — plain CSS at
-`app/globals/00-tokens-and-base.css:1560`, styled off `aria-pressed`. It is
-**never** a nested `<WorkspaceSubtabs>`, and the reason is mechanical rather than
-aesthetic: `WorkspaceSubtabs.tsx` publishes the rail's measured height onto
-`document.documentElement` as `--rail-h`, against what is already on the element
-rather than a local memo *because eight rails share that one property*. A second
-instance inside a section fights the first over it. `CoherenceConsole.tsx`'s
-header states the rule and cites `ReliabilityConsole` as the place it was
-learned.
+`app/globals/00-tokens-and-base.css`, styled off `aria-pressed`. It is **never**
+a nested `<WorkspaceSubtabs>`. The reason is mechanical: the rail publishes its
+measured height as the root-level `--rail-h`; a second instance inside a section
+would fight the owning rail over one global publisher.
 
-This is what all nine of the Kalshi engine's sections, across **Quotes**
-(`#markets`) and **Proofs** (`#coherence`), are built on — Universe (Baskets ·
-Families · Settlement · Formation · Pending), Books (Ladder · Identity ·
-Dispersion · Channel), Lattice (Survival · Mass · Moments · Whole family ·
-Stake, which opens a second seg of Plan · Capital · Method), Fees (Worked
-example · Cost shape · Ablation · Replay table), Shell (Tree · Reading ·
-Commands · Layout), Dutch book (Verdict · Proof · Certificate · Bands · Parlays
-· Bounds), Scorecard (Score · Bands · Corpus · Index series · Index families),
-Diffusion (Absorption · Noise floor · Meetings · Mechanism · Kalshi survival ·
-Kalshi episodes · Findings) and Lessons (Coverage · Prices · Structure · Bounds
-· Record — the four groups read from
-`lib/coherence/lessons.ts::LESSON_GROUPS`, so the switcher cannot drift from the
-curriculum). A six-view seg is still ONE seg: Dutch book's wraps to a second
-line rather than shrinking its type.
+Views are no longer private component state. `lib/section-views.ts` is the
+registry below `lib/sections.ts`: **23 Markets views, 25 Proofs views and 16
+Diffusion views**. The default view preserves the canonical two-segment hash;
+non-default views use the optional third segment. Routing, copy-link, command
+inventory and the desk sweep all read that registry, and
+`desk-sweep-views.test.ts` holds its 43 non-default cells. A new picker option
+must therefore be registered, deep-linkable and sweepable in the same change.
 
-**The limit of this control, argued in both directions on 2026-08-24.** A `.seg`
-is the right control for several VIEWS of one subject; it is the wrong control
-for two SUBJECTS. That test still stands, and the test is: write down the
-question each view answers, and if it is not the question the section's other
-views answer, it is a section. In the morning it was applied and six views —
-Settlement, Dispersion, Stake, Certificate, Ablation, Findings — became rail
-sections, because behind an `aria-pressed` button a subject is unreachable by
-URL, invisible on the rail, unnamed in the palette and never walked by
-`desk-sweep.mjs`, which enumerates sections.
+The question test still decides the level: several readings of one subject are
+views; a different question earns a rail section. The rail cost is real too,
+which is why the result is 70 sections across eleven tabs rather than one rail
+entry per drawing. Public ids never change. If ownership moves,
+`RELOCATED_SECTIONS` in `lib/workspace-hash.ts` preserves the old link instead
+of stranding it on a default pane.
 
-**By evening all six were views again, and that is not the rule being
-abandoned.** It is the rule meeting its cost: the promotions took the engine to
-seventeen rail entries across two tabs, and a rail long enough to hold every
-subject is a rail nobody reads. Both halves are true at once — the subjects were
-genuinely distinct, *and* the reader could no longer find any of them. What
-resolved it was not demotion but the second axis: nine sections divided across
-two feature-named tabs, so each rail is short enough to scan while each subject
-still sits under a heading that names it.
+**An expensive read is gated on the section, and on the view when only one view
+consumes it.** The signed RFQ channel is isolated in Makers rather than fired
+beside the public Books read. `/replay?limit=20000` runs only for the Fees views
+that consume it and is warmed by nothing. A switcher that changes only what is
+painted while leaving its private read running is incomplete.
 
-So the standard is now two-part. Apply the question test to decide whether a
-view is really a second subject; then check what the rail costs. Where the
-answer is "distinct subject, but the rail cannot afford it", the subject stays a
-view and the section's heading and lede must name it, because the seg label is
-the only place a reader will meet it. Never let a rail grow past what someone
-can hold to avoid writing that sentence.
+Inside a quantitative figure, use one of two interaction contracts:
 
-**What a view gives up, stated once so nobody has to rediscover it.** A view is
-not in the URL, not in the command palette, and not walked by `desk-sweep.mjs`.
-That is why the sweep's `EXPECTED_SECTIONS` is 57 and not the 65 the promotion
-pass briefly produced. **What it does not cost is a broken link:**
-`RELOCATED_SECTIONS` in `lib/workspace-hash.ts` maps every id that stopped being
-a section, and every id that changed tab, to the tab and section that now
-carries it — `index` and `combos` included, both of them published on
-`origin/main`. Demoting a section is a rename in the rail and a redirect in the
-table, never a 404. `coherence-sections.test.ts` drives every link the engine
-has ever shipped to prove it.
+- a small persistent choice is a native button group with `aria-pressed`;
+- a repeated or dense field is one listbox with one roving tab stop, stable
+  data-key selection, Arrow keys, Home and End. Reuse
+  `components/coherence/use-stable-selection-key.ts` rather than rebuilding the
+  index and focus rules in a component.
 
-A second convention travels with all of this, and it is a performance rule
-rather than a layout one: **an expensive read is gated on the section — or on
-the view, where a view alone is expensive.** The RFQ route (a signed
-private-channel call on a 25 s budget) runs only while Books is showing
-Dispersion or Channel, and `/replay?limit=20000`, the largest read on either
-tab, only on Fees → Ablation or Replay table — which is also the one read the
-rail deliberately does not warm. With Dispersion a view again, `BooksSection`
-expresses that with one predicate over its four views rather than reporting a
-view upward through `onViewChange`, which is the same convention at a different
-granularity rather than a return to the old plumbing. A `.seg` that only changed
-what was rendered would leave those reads running.
+Changing numerical readouts are named `<output>` regions with polite,
+`aria-atomic="true"` announcements, and every custom control has a visible
+`:focus-visible` state. The Markets instrument suites hold the dense contract;
+the Proofs targeted-behaviour and Lessons suites hold the corresponding proof
+and full-detail paths. Twenty visual capital tokens are one keyboard stop, not
+twenty.
 
 ## 6. File length: a 400-line ceiling with a one-way ledger
 
@@ -409,8 +383,8 @@ lines, and writing down why cost more.
 The rule interacts with §7 in a way worth knowing: `modules/research_rag/session.py`
 exists as a mixin rather than a method on `writer.py` **only** because of this
 ceiling, and its header says so — `writer.py` was 382 lines when that was
-written and is 398 today, so the argument does not fit in what is left of the
-400, and shortening the argument to fit is how the next reader "simplifies" a
+written and is 399 as of 2026-08-29, so the argument does not fit in what is
+left of the 400, and shortening the argument to fit is how the next reader "simplifies" a
 deliberate deferral back into a blocking call. `ResearchRag` is still one class;
 the mixin is a file boundary, not a design one, exactly as
 `retrieval._RetrievalMixin` is the read half.
@@ -574,13 +548,17 @@ and the two cases the fixture currently cannot see are named in
 
 ## 13. Dependencies: the burden of proof is on the package
 
-**No new npm dependencies.** The workspace's runtime dependencies are `next`,
-`react`, `react-dom`, `lucide-react`, `@supabase/supabase-js` and `oracledb`,
-and nothing else; everything else — charts, engines, state machines — is written
-here. Reach for a package and you are changing the argument the project makes
-about itself. There is no chart library, no test framework and no ESLint for the
-same reason (`web/package.json` has no `lint` script at all —
-`npm run lint` fails as a missing script, not as a broken linter).
+**Exact npm dependency allowlist.** The former blanket ban was replaced by the
+2026-08-27 source-owned shadcn ADR. In addition to the original framework,
+icon, Supabase, and Oracle packages, only exact `radix-ui`,
+`class-variance-authority`, `clsx`, and `tailwind-merge` are permitted at
+runtime. Playwright is development-only and drives opt-in rendered checks;
+`@axe-core/playwright` is pinned but has no invocation yet, so it is a reserved
+dependency rather than a release gate.
+`web/tests/dependency-policy.test.ts` pins the complete manifest. Charts,
+engines, state machines, and quantitative scales remain written here. There is
+still no chart library or ESLint, and `npm run lint` still fails as a missing
+script rather than a broken linter.
 
 Python optionality is expressed as split requirements files
 (`requirements-core.txt` is the guaranteed-installable floor, and it is what the
@@ -616,11 +594,11 @@ from their assertions.** They read stylesheet *text* — `tests/globals-css.ts`
 concatenates the partials in import order, so a rule is judged against the
 cascade a browser would apply rather than against whichever partial declared it
 last, which is what makes the "declared in one place" rule checkable at all.
-What they cannot do is run the layout: there is no jsdom and no headless
-browser in `web/`, so a rule that is present and correct can still wrap or
-overflow at a width nobody tried. Geometry is therefore **derived, never
-observed**, and a change to it is walked by a human before it ships — see
-[`TESTING.md` §"No DOM, and therefore no layout"](../testing/TESTING.md), which
-names the surfaces currently standing on a derivation, the Kalshi engine's ten
-`.seg` groups among them — one per section, plus Lattice's second seg under
-Stake.
+Those source-level assertions do not run layout. Rendered verification is a
+separate, explicit layer: four Node-test cases run Chromium only when
+`ALPHAENGINE_BROWSER_ORIGIN` is set, and `npm run audit:layout` walks 109
+addressable states at eight viewports against a ready origin. Neither is in the
+push-gating web job. The 2026-08-29 release report is an executed one: 872/872
+state/viewport combinations passed with no geometry failure or console error.
+A source assertion may therefore claim a CSS contract; only an executed browser report may claim geometry. See
+[`TESTING.md` §"Not built, on purpose"](../testing/TESTING.md).
