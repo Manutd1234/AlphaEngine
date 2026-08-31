@@ -1,0 +1,398 @@
+.instrument {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface-1);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--grid);
+}
+
+.head > span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+  font-weight: 680;
+  overflow-wrap: anywhere;
+}
+
+.head small,
+.readout small,
+.vaultReadout small,
+.growthReadout small,
+.historyReadout small,
+.familyReadout small {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 720;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+.head > strong {
+  max-width: 45%;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  font: 720 var(--fs-xs) var(--font-mono);
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.shellDepth,
+.shellFiles {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+}
+
+.nodeButton,
+.fileButton {
+  display: grid;
+  gap: 2px;
+  min-height: 48px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.nodeButton[aria-pressed="true"],
+.fileButton[aria-pressed="true"] {
+  border-color: var(--series-1);
+  color: var(--text-primary);
+  box-shadow: inset 3px 0 0 var(--series-1);
+}
+
+.nodeButton:focus-visible,
+.fileButton:focus-visible,
+.coin:focus-visible,
+.growthCard:focus-visible,
+.outcomeToken:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 2px;
+}
+
+.nodeButton small,
+.fileButton small {
+  color: var(--text-muted);
+}
+
+.shellCore {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: var(--space-3);
+  min-height: 250px;
+  padding: var(--space-4);
+  border: 1px solid var(--grid);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface-2) 72%, transparent);
+  text-align: center;
+}
+
+.shellOrb {
+  display: grid;
+  width: 126px;
+  height: 126px;
+  place-items: center;
+  border: 1px solid var(--series-1);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, var(--surface-1) 0 34%, transparent 35%),
+    repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--series-1) 18%, transparent) 0 11deg, transparent 11deg 28deg);
+  box-shadow: inset 0 0 0 18px var(--surface-2), 0 0 0 7px color-mix(in srgb, var(--series-1) 8%, transparent);
+  font: 760 var(--fs-sm) var(--font-mono);
+}
+
+.shellCore p,
+.readout p,
+.growthReadout p,
+.historyReadout p,
+.familyReadout p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+}
+
+.boundary {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--critical-text);
+  font-size: var(--fs-xs);
+}
+
+.boundary::before,
+.boundary::after {
+  height: 1px;
+  flex: 1;
+  background: repeating-linear-gradient(90deg, currentColor 0 5px, transparent 5px 9px);
+  content: "";
+}
+
+/* One connected traversal and event fan-out. Every track may shrink to zero;
+   narrow containers reflow the topology instead of inheriting a desktop-wide
+   canvas and forcing the whole Markets pane sideways. */
+.shellStage {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-3);
+  min-width: 0;
+  overflow: hidden;
+  padding: var(--space-4);
+  background:
+    linear-gradient(90deg, transparent 49.8%, color-mix(in srgb, var(--series-1) 12%, transparent) 50%, transparent 50.2%),
+    color-mix(in srgb, var(--surface-2) 22%, var(--surface-1));
+}
+
+.commandTrace {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 9px 12px;
+  border: 1px solid var(--grid);
+  border-radius: var(--radius-md);
+  background: var(--text-primary);
+  color: var(--surface-1);
+}
+
+.commandTrace > span { color: var(--series-3); font-weight: 800; }
+.commandTrace code { color: inherit; overflow-wrap: anywhere; white-space: normal; }
+.commandTrace > strong { font-size: var(--fs-xs); }
+
+.pathTopology {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: stretch;
+  min-width: 0;
+  padding: var(--space-2) 0;
+}
+
+.pathStep {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(12px, .18fr);
+  align-items: center;
+  min-width: 0;
+}
+
+.pathStep:last-child { grid-template-columns: minmax(0, 1fr); }
+
+.pathStep:not(:last-child)::after {
+  width: 100%;
+  height: 2px;
+  background: var(--grid);
+  content: "";
+}
+
+.pathStep:not(:last-child)::before {
+  position: absolute;
+  z-index: 2;
+  inset-inline-end: -1px;
+  color: var(--text-secondary);
+  content: "›";
+  font-size: var(--fs-lg);
+}
+
+.pathStep[data-active="true"]::after { background: var(--series-1); }
+
+.pathTopology .nodeButton {
+  z-index: 3;
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  min-height: 76px;
+  gap: 6px;
+  padding: 10px;
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  text-align: center;
+}
+
+.pathTopology .nodeButton[aria-pressed="true"] {
+  color: var(--text-primary);
+  box-shadow: inset 0 -4px 0 var(--series-1), 0 0 0 4px color-mix(in srgb, var(--series-1) 9%, transparent);
+}
+
+.fileFan {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, .75fr) repeat(5, minmax(0, 1fr));
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  padding-block: var(--space-3);
+}
+
+.fileFan::before {
+  position: absolute;
+  z-index: 0;
+  inset: 50% 2% auto 118px;
+  height: 1px;
+  background: var(--grid);
+  content: "";
+}
+
+.fanHub {
+  z-index: 1;
+  display: grid;
+  width: 106px;
+  height: 106px;
+  place-items: center;
+  border: 2px solid var(--series-1);
+  border-radius: 50%;
+  background: var(--surface-1);
+  text-align: center;
+  box-shadow: 0 0 0 8px color-mix(in srgb, var(--series-1) 8%, transparent);
+}
+
+.fanHub small { color: var(--text-muted); }
+
+.fileFan .fileButton {
+  z-index: 1;
+  min-width: 0;
+  min-height: 92px;
+  align-content: center;
+  justify-items: center;
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  text-align: center;
+}
+
+.fileFan .fileButton > span { color: var(--series-1); font-size: var(--fs-lg); }
+.fileFan .fileButton[aria-pressed="true"] { box-shadow: inset 0 -4px 0 var(--series-1); }
+
+.shellStage .boundary {
+  min-width: 0;
+  justify-content: center;
+  padding: 9px;
+  border: 1px dashed var(--status-critical);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--status-critical) 5%, var(--surface-1));
+}
+
+.shellStage .boundary::before,
+.shellStage .boundary::after { display: none; }
+.shellStage .boundary span { font: 720 var(--fs-xs) var(--font-mono); }
+
+.growthChoices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+
+.growthCard,
+.outcomeToken {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.growthCard[aria-pressed="true"],
+.outcomeToken[aria-selected="true"] {
+  border-color: var(--series-1);
+  box-shadow: inset 0 3px 0 var(--series-1);
+}
+
+.growthCard > strong {
+  font: 760 clamp(1.25rem, 3vw, 2rem) var(--font-mono);
+}
+
+.growthReadout {
+  margin: 0 var(--space-3) var(--space-3);
+}
+
+.outcomeField {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(138px, 1fr));
+  gap: var(--space-2);
+  max-height: 360px;
+  overflow: auto;
+  padding: var(--space-3);
+}
+
+.outcomeToken[data-admitted="false"] {
+  border-style: dashed;
+  opacity: .78;
+}
+
+.outcomeToken span {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.outcomeToken small {
+  color: var(--text-muted);
+}
+
+.familyReadout {
+  grid-template-columns: minmax(180px, 1fr) repeat(4, minmax(90px, .55fr));
+  margin: 0 var(--space-3) var(--space-3);
+}
+
+.familyReadout > span {
+  display: grid;
+  gap: 3px;
+}
+
+@media (max-width: 760px) {
+  .shellStage, .familyReadout { grid-template-columns: 1fr; }
+
+  .boundary {
+    grid-column: auto;
+  }
+
+  .growthChoices {
+    grid-template-columns: 1fr;
+  }
+
+  .shellStage { padding: var(--space-3); }
+
+  .commandTrace {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .commandTrace > strong { grid-column: 2; }
+
+  .pathTopology { grid-template-columns: 1fr; gap: 1px; padding: 0; background: var(--grid); }
+  .pathStep,
+  .pathStep:last-child { grid-template-columns: 1fr; }
+  .pathStep::before,
+  .pathStep::after { display: none; }
+  .pathTopology .nodeButton { min-height: 0; border-radius: 0; text-align: left; }
+
+  .fileFan { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; padding-block: 0; background: var(--grid); }
+  .fileFan::before { display: none; }
+  .fanHub { grid-column: 1 / -1; width: 100%; height: auto; min-height: 4.5rem; border-radius: var(--radius-md); box-shadow: none; }
+  .fileFan .fileButton { min-height: 5.5rem; border-radius: 0; }
+  .shellStage .boundary { flex-wrap: wrap; border-radius: var(--radius-md); text-align: center; }
+}
+
+@media (max-width: 420px) {
+  .fileFan { grid-template-columns: 1fr; }
+  .fanHub { grid-column: auto; }
+}
