@@ -90,6 +90,8 @@ export default function EnginePanels({
           <DiffusionTab
             section={diffusionSection}
             onSectionChange={changeDiffusionSection}
+            views={sectionViews.diffusion ?? {}}
+            onViewChange={(section, next) => setSectionView("diffusion", section, next)}
             active={view === "diffusion"}
           />
           <NextStepFooter currentView="diffusion" currentSection={diffusionSection} onNavigate={openSection} />
