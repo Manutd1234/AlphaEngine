@@ -1,9 +1,11 @@
 """The data-operations store, over PostgREST instead of a SQLite file.
 
-Same four tables, same semantics, a different place to keep them. What this
-buys is the half of Boundary 1 that is actually removable: the findings,
-escalations, schedule runs and work items stop being local to one container's
-filesystem. What it does NOT buy is a second gateway process — the position
+The original four operational tables share the SQLite semantics in a different
+place: findings, escalations, schedule runs and work items stop being local to
+one container's filesystem. Diffusion now composes additional logical stores
+over the same row interface; its four-table Postgres contract lives in the
+Diffusion parity migration. What PostgREST does NOT buy is a second gateway
+process — the position
 book, the resting-order book, the token bucket and the kill switch are still
 process-local mutable state, and `test_container_contract.py` still fails the
 build on `--workers`. That boundary is a design decision with a test behind it.
@@ -14,9 +16,9 @@ and `supabase-py` are all rejected by name, the last of which would drag
 gotrue/postgrest/realtime/storage3 into the import graph of a deliberately
 network-free CI. httpx is already a dependency.
 
-**Why this is synchronous.** `SqliteStore` is sync, and the three stores that
-use it are called from sync code inside async routes. Making this async would
-mean an await at every call site in three modules and their tests, for a
+**Why this is synchronous.** `SqliteStore` is sync, and its domain adapters are
+called from sync code inside async routes. Making this async would mean an await
+at every call site and its tests, for a
 backend that is not the default. So it mirrors the sync interface — with the
 cost stated plainly rather than hidden: a Postgres-backed call blocks the event
 loop for the duration of one HTTP round trip, where SQLite blocked it for a
@@ -68,10 +70,12 @@ class PostgrestStore:
 
     backend = "postgres"
 
-    def __init__(self, url: str, key: str, *, desk_id: str = "default") -> None:
+    def __init__(self, url: str, key: str, *, desk_id: str) -> None:
         if not url or not key:
             raise ValueError("PostgrestStore needs a Supabase URL and a service-role key")
-        self.desk_id = desk_id
+        self.desk_id = str(desk_id).strip()
+        if not self.desk_id:
+            raise ValueError("PostgrestStore needs a nonblank desk_id")
         self._client = httpx.Client(
             base_url=url.rstrip("/") + "/rest/v1",
             headers={
@@ -106,13 +110,17 @@ class PostgrestStore:
         return body if isinstance(body, list) else [body]
 
     def _scoped(self, filters: dict[str, Any] | None) -> dict[str, str]:
-        """Every query is desk-scoped, and callers cannot forget to do it."""
-        params = {"desk_id": f"eq.{self.desk_id}"}
+        """Every query is store-scoped, even when a caller supplies another desk."""
+        params: dict[str, str] = {}
         for column, value in (filters or {}).items():
             params[column] = value if isinstance(value, str) and "." in value[:12] else f"eq.{value}"
+        # LAST deliberately: a domain adapter may carry its SQLite desk filter,
+        # but a PostgREST store has exactly one configured tenant boundary and a
+        # caller must not be able to replace it through an ordinary filter.
+        params["desk_id"] = f"eq.{self.desk_id}"
         return params
 
-    # -- the interface the three stores use -------------------------------- #
+    # -- the shared row-store interface ------------------------------------ #
 
     def migrate(self, _ddl: list[str]) -> None:
         """A no-op, and not a silent one.
@@ -157,7 +165,9 @@ class PostgrestStore:
         payload = [rows] if isinstance(rows, dict) else list(rows)
         if not payload:
             return []
-        payload = [{"desk_id": self.desk_id, **row} for row in payload]
+        # The store, not a row assembled by a domain adapter, owns tenancy.
+        # Stamping last makes a supplied ``desk_id`` incapable of crossing it.
+        payload = [{**row, "desk_id": self.desk_id} for row in payload]
         prefer = ["return=representation" if returning else "return=minimal"]
         if resolution:
             prefer.append(f"resolution={resolution}")
@@ -187,7 +197,9 @@ class PostgrestStore:
         length, where SQLite read it off `cursor.rowcount` under a lock.
         """
         response = self._send(
-            "PATCH", f"/{quote(table)}", json=patch,
+            # Preserve the same invariant on updates: neither the WHERE side nor
+            # the replacement body may move a row into another desk.
+            "PATCH", f"/{quote(table)}", json={**patch, "desk_id": self.desk_id},
             params=self._scoped(filters), headers={"Prefer": "return=representation"},
         )
         return self._rows(response)
@@ -200,7 +212,9 @@ class PostgrestStore:
         than streaming the table back to count it.
         """
         params = self._scoped(filters)
-        params["select"] = "id"
+        # ``desk_id`` is the one column shared by every logical data-ops table;
+        # Diffusion events are keyed by ``source_ref`` and have no generic ``id``.
+        params["select"] = "desk_id"
         params["limit"] = "1"
         response = self._send(
             "GET", f"/{quote(table)}", params=params,
