@@ -201,7 +201,7 @@ export default function HealthMatrix({
               const quota = provider.quota;
               const quotaPct = quota && quota.limit > 0 ? quota.used / quota.limit : null;
               return (
-                <tr key={provider.id}>
+                <tr key={provider.id} id={`provider-row-${provider.id.replace(/[^A-Za-z0-9_-]/g, "-")}`} tabIndex={-1}>
                   <td>
                     <div className="console-provider">
                       <strong>{provider.label}</strong>
