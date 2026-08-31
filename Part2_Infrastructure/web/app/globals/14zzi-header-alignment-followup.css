@@ -1,0 +1,139 @@
+/* Final shared heading specificity and compact-rail containment. Kept in a
+   small trailing partial so the long standardisation sheet's size ratchet
+   remains useful and later page-specific rules cannot reintroduce drift. */
+.page-heading__copy.is-role-only { align-self: flex-start; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; }
+.page-role-title { margin: 0; color: var(--text-primary); font-size: var(--fs-hero-sub); font-weight: 700; line-height: var(--lh-tight); letter-spacing: var(--ls-tight); }
+.page-heading__copy.is-role-only p { margin: 0; font-size: var(--fs-xl); }
+.page-heading h1.page-role-title {
+  font-size: var(--fs-hero-sub);
+  font-weight: 700;
+}
+
+/* Engine identities are the primary wayfinding words. The explanatory title
+   remains directly below at a smaller rung, keeping the box shallow without
+   moving its controls. */
+:is(.markets-plane, .proofs-plane, .diffusion-plane) .page-heading__copy {
+  min-height: 0;
+  padding-block: 0;
+  justify-content: flex-start;
+  gap: 1px;
+}
+
+:is(.markets-plane, .proofs-plane, .diffusion-plane) .page-kicker {
+  color: var(--text-primary);
+  font-size: var(--fs-hero-line);
+  font-weight: 750;
+  line-height: 1.05;
+  letter-spacing: var(--ls-tight);
+  text-transform: none;
+}
+
+:is(.markets-plane, .proofs-plane, .diffusion-plane) .page-heading h1 {
+  color: var(--text-secondary);
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  line-height: var(--lh-snug);
+  letter-spacing: 0;
+}
+
+/* Data's densest heading uses seven tracks: the freshness label owns two and
+   every other metric owns one. All desktop sections share the same row height. */
+.data-control-plane .page-insight {
+  block-size: 78px;
+  min-height: 78px;
+  padding-inline-end: 38px;
+}
+
+.data-control-plane[data-data-section="feeds"] .page-heading__insights {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.data-control-plane[data-data-section="feeds"] .page-insight.is-wide {
+  grid-column: span 2;
+}
+
+.data-control-plane .page-insight.is-wide .page-context-strip__label {
+  overflow-wrap: normal;
+  white-space: nowrap;
+}
+
+@media (max-width: 1120px) {
+  .data-control-plane .page-insight {
+    block-size: auto;
+    min-height: 78px;
+  }
+
+  .data-control-plane[data-data-section="feeds"] .page-heading__insights {
+    grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr));
+  }
+
+  .data-control-plane[data-data-section="feeds"] .page-insight.is-wide {
+    grid-column: auto;
+  }
+
+  .data-control-plane .page-insight.is-wide .page-context-strip__label {
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+}
+
+/* Announcement-arm recorder facts are a six-cell matrix, not a wrapping chip
+   row. This late, plane-specific owner prevents the shared chip rule from
+   letting the long "Families watched" value choose the second row's starting
+   position. Every column now has the same geometry and every value remains
+   readable rather than being ellipsised. */
+.coherence-plane.diffusion-plane .coh-status__chips.coh-episode-watch-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: minmax(68px, 1fr);
+  align-items: stretch;
+  inline-size: 100%;
+  min-inline-size: 0;
+}
+
+.coherence-plane.diffusion-plane .coh-episode-watch-stats > * {
+  inline-size: 100%;
+  min-inline-size: 0;
+  block-size: 100%;
+  align-content: center;
+  justify-content: flex-start;
+}
+
+.coherence-plane.diffusion-plane .coh-episode-watch-stats :is(.coh-chip__word, .coh-chip__value) {
+  max-inline-size: 100%;
+  min-inline-size: 0;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 760px) {
+  .coherence-plane.diffusion-plane .coh-status__chips.coh-episode-watch-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Diffusion uses the shared Focus frame too, but its inline caption was not
+     included in the Markets/Proofs mobile rule. Long live readouts now wrap
+     within the card instead of shrinking the caption into an unreadable sliver. */
+  .coherence-plane.diffusion-plane .coh-figure__caption {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .coherence-plane.diffusion-plane .coh-figure__caption-copy {
+    flex-basis: min(100%, 22rem);
+  }
+
+  .coherence-plane.diffusion-plane .coh-figure__tools {
+    flex-wrap: wrap;
+    max-inline-size: 100%;
+    margin-inline-start: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .coherence-plane.diffusion-plane .coh-status__chips.coh-episode-watch-stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
