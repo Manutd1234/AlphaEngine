@@ -40,17 +40,77 @@ const IDLE: McDistributionState = {
 /** Chunk size for the fallback path — small enough to keep the frame budget. */
 const FALLBACK_CHUNK = 1_000;
 
+/**
+ * Deterministic runs are safe to reuse when a reader toggles back to a recent
+ * parameter set. The limit keeps the return arrays/results bounded even during
+ * a long exploratory session.
+ */
+const RESULT_CACHE_LIMIT = 12;
+const RESULT_CACHE = new Map<string, {
+  result: McDistributionResult;
+  engine: "worker" | "main-thread";
+}>();
+
+function requestKey(request: McDistributionRequest): string {
+  return JSON.stringify(request);
+}
+
+function requestDriverKey(request: McDistributionRequest): string {
+  return JSON.stringify(request.returns);
+}
+
+function rememberResult(
+  key: string,
+  result: McDistributionResult,
+  engine: "worker" | "main-thread",
+): void {
+  RESULT_CACHE.delete(key);
+  RESULT_CACHE.set(key, { result, engine });
+  if (RESULT_CACHE.size <= RESULT_CACHE_LIMIT) return;
+  const oldest = RESULT_CACHE.keys().next().value as string | undefined;
+  if (oldest !== undefined) RESULT_CACHE.delete(oldest);
+}
+
 export function useMcDistribution(request: McDistributionRequest | null): McDistributionState {
   const [state, setState] = useState<McDistributionState>(IDLE);
   const generation = useRef(0);
+  const lastDriverKey = useRef<string | null>(null);
 
   useEffect(() => {
     const current = ++generation.current;
     if (!request || request.returns.length === 0 || !Number.isFinite(request.equity)) {
-      setState(IDLE);
+      // An invalid half-typed seed should not collapse a completed figure. The
+      // card explains the invalid request while the last proven run remains a
+      // stable reference. A genuinely absent driver is handled by the card's
+      // dedicated empty state before this result can be shown.
+      setState((previous) => previous.result
+        ? { ...previous, status: "idle", progress: null, error: null }
+        : IDLE);
       return;
     }
-    setState({ status: "running", progress: { done: 0, total: request.paths }, result: null, error: null, engine: "worker" });
+    const key = requestKey(request);
+    const nextDriverKey = requestDriverKey(request);
+    const sameDriver = lastDriverKey.current === nextDriverKey;
+    lastDriverKey.current = nextDriverKey;
+    const cached = RESULT_CACHE.get(key);
+    if (cached) {
+      // Refresh LRU recency. There is no loading frame: this exact seeded run
+      // has already completed and therefore cannot produce another answer.
+      RESULT_CACHE.delete(key);
+      RESULT_CACHE.set(key, cached);
+      setState({ status: "done", progress: null, result: cached.result, error: null, engine: cached.engine });
+      return;
+    }
+    setState((previous) => {
+      const retainedResult = sameDriver ? previous.result : null;
+      return {
+        status: "running",
+        progress: { done: 0, total: request.paths },
+        result: retainedResult,
+        error: null,
+        engine: "worker",
+      };
+    });
 
     let worker: Worker | null = null;
     let workerUrl: string | null = null;
@@ -58,11 +118,18 @@ export function useMcDistribution(request: McDistributionRequest | null): McDist
 
     const finish = (result: McDistributionResult, engine: "worker" | "main-thread") => {
       if (current !== generation.current) return;
+      rememberResult(key, result, engine);
       setState({ status: "done", progress: null, result, error: null, engine });
     };
     const fail = (error: string, engine: "worker" | "main-thread") => {
       if (current !== generation.current) return;
-      setState({ status: "error", progress: null, result: null, error, engine });
+      setState((previous) => ({
+        status: "error",
+        progress: null,
+        result: previous.result,
+        error,
+        engine,
+      }));
     };
 
     const runFallback = async () => {
