@@ -12,8 +12,22 @@
  */
 
 import type { CoherenceKelly } from "@/lib/coherence/types-lab";
+import { HotSource, useHot } from "@/lib/coherence/use-hot";
 import StakeBars from "./StakeBars";
 import { StakeTable } from "./StakeView";
+
+function RankedFamily({ kelly }: { kelly: CoherenceKelly }) {
+  const { hot, setHot } = useHot();
+  return (
+    <>
+      <StakeBars hot={hot} onHot={setHot} reserveRate={kelly.reserve_rate} stakes={kelly.stakes} caption="Every outcome against the cash-rate threshold" />
+      <details className="disclosure">
+        <summary>The exact ranking and stake inputs, {kelly.stakes.length} rows</summary>
+        <StakeTable hot={hot} onHot={setHot} stakes={kelly.stakes} caption="Solver order: measure over price" />
+      </details>
+    </>
+  );
+}
 
 export default function FamilyView({ kelly }: { kelly: CoherenceKelly }) {
   return (
@@ -21,13 +35,7 @@ export default function FamilyView({ kelly }: { kelly: CoherenceKelly }) {
       {/* No heading of its own: the table's caption is the sentence, and the
           switcher button that reaches this view is the label. */}
       {kelly.stakes.length ? (
-        <>
-          <StakeBars stakes={kelly.stakes} caption="The whole family's ranking, drawn" />
-          <StakeTable
-            stakes={kelly.stakes}
-            caption="In the order the solver ranked it, by measure over price"
-          />
-        </>
+        <HotSource><RankedFamily kelly={kelly} /></HotSource>
       ) : (
         <p className="console-empty">
           <span aria-hidden="true">◌</span> The solver ranked no outcome in this family.
