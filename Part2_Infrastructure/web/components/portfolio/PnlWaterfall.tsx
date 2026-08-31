@@ -140,7 +140,7 @@ export default function PnlWaterfall({ waterfall, generated }: PnlWaterfallProps
         missing={legs.some((l) => l.value === null)
           ? `${legs.filter((l) => l.value === null).length} of ${legs.length} legs are withheld, not zero.` : null}
       >
-        <Plot height={HEIGHT} minWidth={320}>
+        <Plot height={HEIGHT} minWidth={300}>
           {(measured) => {
             // The plot owns the width; this file kept a second observer on it.
             const x1 = Math.max(x0 + 120, measured - margin.right);
