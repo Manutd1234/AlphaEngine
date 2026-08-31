@@ -46,41 +46,8 @@
 .coh-dollarbar__total { fill: var(--text-primary); font-weight: 650; }
 .coh-dollarbar__total.is-dutch { fill: var(--series-2); }
 
-/* ── The ladder: two bid stacks and the offers they imply ────────────────── */
-
-.coh-ladder { height: 150px; }
-
 .coh-ladder__axis { stroke: var(--border); stroke-width: 1; vector-effect: non-scaling-stroke; }
-.coh-ladder__yes { fill: color-mix(in srgb, var(--series-1) 55%, var(--surface-1)); }
-.coh-ladder__no { fill: color-mix(in srgb, var(--series-2) 42%, var(--surface-1)); }
-
-/* The implied offers are drawn as a line rather than filled: they are derived
-   from the opposite ladder, not resting orders of their own, and a solid block
-   would claim a queue Kalshi never published. */
-.coh-ladder__implied {
-  stroke: var(--text-primary);
-  stroke-width: 1;
-  stroke-dasharray: 3 2;
-  vector-effect: non-scaling-stroke;
-}
-
-.coh-ladder__mark { stroke: var(--series-1); stroke-width: 1; vector-effect: non-scaling-stroke; }
-.coh-ladder__mark.is-ask { stroke: var(--series-2); }
 .coh-ladder__tick { fill: var(--text-secondary); font-size: var(--fs-tick); font-variant-numeric: tabular-nums; }
-
-/* ── The identity strip: Lesson 0, drawn ─────────────────────────────────── */
-
-.coh-identity__part { stroke: var(--surface-1); stroke-width: 0.3; vector-effect: non-scaling-stroke; }
-.coh-identity__part.is-yes { fill: color-mix(in srgb, var(--series-1) 58%, var(--surface-1)); }
-.coh-identity__part.is-no { fill: color-mix(in srgb, var(--series-2) 44%, var(--surface-1)); }
-.coh-identity__part.is-dollar { fill: color-mix(in srgb, var(--series-3) 34%, var(--surface-1)); }
-.coh-identity__part.is-spread { fill: color-mix(in srgb, var(--text-primary) 26%, var(--surface-1)); }
-
-.coh-identity__dollar { stroke: var(--text-secondary); stroke-width: 0.8; stroke-dasharray: 2 2; vector-effect: non-scaling-stroke; }
-.coh-identity__meet { stroke: var(--text-primary); stroke-width: 1.2; vector-effect: non-scaling-stroke; }
-.coh-identity__label,
-.coh-identity__dollar-label { fill: var(--text-secondary); font-size: var(--fs-tick); }
-
 
 .coh-parabola__curve {
   stroke: var(--series-2);
@@ -136,8 +103,6 @@
 
 /* ── The ablation bars ───────────────────────────────────────────────────── */
 
-.coh-ablation { height: 120px; }
-
 .coh-ablation__bar { fill: color-mix(in srgb, var(--series-1) 50%, var(--surface-1)); }
 
 /* The naive configuration is marked, not just coloured: it is the one the
@@ -184,7 +149,17 @@
 /* A plot with a width FLOOR scrolls rather than compressing. For a figure whose
    text sits at fixed positions and cannot thin, a narrow column has to move the
    drawing sideways instead of squeezing its geometry into the column. */
-.coh-plot.is-floored { overflow-x: auto; }
+.coh-plot.is-floored {
+  max-inline-size: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+
+.coh-plot.is-floored:focus-visible {
+  border-radius: var(--radius-sm);
+  outline: 2px solid var(--series-1);
+  outline-offset: 2px;
+}
 
 /* A plot whose marks can be CHOSEN, not merely read. Only the marks take the
    pointer cursor — a plot is mostly empty space, and pointing at the gap
@@ -261,7 +236,11 @@
  * as tinted, because a wash that carries meaning alone is what forced-colours
  * and a monochrome reader both lose.
  */
-.coh-margin__tradable { fill: var(--sky-2); opacity: 0.55; }
+.coh-margin__tradable {
+  /* Still a restrained wash: the named threshold and labels carry the
+     verdict. Opaque mixing keeps its strength stable across plot planes. */
+  fill: color-mix(in srgb, var(--series-1) 22%, var(--surface-1));
+}
 
 .coh-margin__zone {
   fill: var(--text-secondary);
