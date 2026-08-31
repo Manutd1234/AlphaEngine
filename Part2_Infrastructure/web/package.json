@@ -7,26 +7,34 @@
     "node": ">=20.9.0 <27"
   },
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/start-dev-all.mjs",
+    "dev:web": "next dev",
     "dev:gateway": "cd .. && ./venv/bin/python -m uvicorn main:app --reload --port 8000",
     "dev:all": "node scripts/start-dev-all.mjs",
     "prebuild": "node scripts/check-gateway-openapi-digest.mjs && node scripts/generate-codebase-manifest.mjs --check",
-    "build": "next build",
+    "build": "next build --webpack",
     "catalog:refresh": "node scripts/generate-codebase-manifest.mjs",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test tests/*.test.ts",
+    "audit:layout": "node scripts/engine-layout-audit.mjs",
     "counts:refresh": "node scripts/refresh-test-counts.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.2",
+    "class-variance-authority": "0.7.1",
+    "clsx": "2.1.1",
     "lucide-react": "^1.28.0",
     "next": "16.3.0",
     "oracledb": "^6.9.0",
+    "radix-ui": "1.6.7",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "tailwind-merge": "3.6.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@playwright/test": "1.62.1",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^22",
     "@types/oracledb": "^7.0.2",
@@ -36,5 +44,8 @@
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.5",
     "typescript": "^5.6"
+  },
+  "overrides": {
+    "nanoid": "3.3.18"
   }
 }
