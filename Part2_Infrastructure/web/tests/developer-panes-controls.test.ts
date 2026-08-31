@@ -7,7 +7,7 @@
  * next-status button offered one of the five transitions the select beside it
  * already offered; the three composer buttons were one action with a three-way
  * parameter that the composer's own Type select carries; the reset rebuilt a
- * fixture a reload rebuilds; and the refresh called the shared 30s health poll
+ * fixture; and the refresh called the shared 30s health poll
  * a second time.
  *
  * Deleting controls can also strip a panel to nothing. `scripts/desk-sweep.mjs`
@@ -74,10 +74,9 @@ describe("one control per capability in the engineering queue", () => {
     assert.match(source, /New \{KIND_LABEL\[draft\.kind\]\.toLocaleLowerCase\(\)\}/);
   });
 
-  it("drops the demo reset without dropping the fixture", () => {
-    // The developer panel is this browser's storage; the items are
-    // built by `createInitialDeveloperWorkItems` in page.tsx on mount, so a
-    // reload is the reset. A button that re-seeds a fixture is demo furniture.
+  it("ships neither a demo reset nor a production fixture", () => {
+    // The Developer panel contains only work entered in this browser. A reset
+    // that re-seeds invented tickets would make the fixture the product.
     const source = stripCode(queue);
     assert.doesNotMatch(source, /createInitialDeveloperWorkItems/);
     assert.ok(!source.includes("Reset sample queue"));
