@@ -178,7 +178,7 @@ const ROLES: Record<string, Role> = {
       + "reads. It is not a kicker-only rung — the bare `small` rule, table bodies and "
       + "21 controls read it too, which is why type-ladder-presets.test.ts holds it "
       + "clear of --fs-tick at the compact preset.",
-    anchors: [".page-kicker", "small", ".page-insight > small", ".next-step-footer__kicker"],
+    anchors: [".page-kicker", "small", ".page-context-strip__note", ".next-step-footer__kicker"],
   },
   "figure and KPI": {
     rung: "--fs-figure",
