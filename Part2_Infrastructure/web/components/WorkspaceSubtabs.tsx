@@ -1,6 +1,6 @@
 "use client";
 
-import { KeyboardEvent, ReactNode, useEffect, useRef, useState } from "react";
+import { KeyboardEvent, ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 export interface WorkspaceSubtab<T extends string> {
   id: T;
@@ -101,7 +101,7 @@ export default function WorkspaceSubtabs<T extends string>({
    * on the desk's only scroller presents as the whole page freezing. The
    * `frame` latch also collapses a burst of observations into one write.
    */
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!active) return;
     const node = railRef.current;
     if (!node || typeof ResizeObserver === "undefined") return;
