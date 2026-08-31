@@ -132,20 +132,15 @@ export default function DeveloperOverview({
             <div><span>Runtime map</span><h2>Deployment topology</h2></div>
             <button className="text-action" type="button" onClick={() => onOpenSection("quality")}>Open CI / CD →</button>
           </div>
-          {/* Three elements, one diagram, and its geometry is entirely CSS:
-              the runtime band, the dashed bracket that forks from it, and the
-              three node cards the bracket's arms point at. There is no SVG
-              here — no viewBox and no preserveAspectRatio — so anything about
-              how WIDE the diagram draws, where the arms land or which rows the
-              node labels sit on is a stylesheet question. Section 7 of
-              `app/globals/14i-density-developer.css` is the answer to all
-              three, and says what it measured. Nothing in this markup sets a
-              width, and nothing here should start to. */}
+          {/* One runtime band and three deployable cards. The previous dashed
+              fork repeated a relationship the shared container already says,
+              and read as stray guide marks between states. Geometry stays in
+              section 7 of `app/globals/14i-density-developer.css`; nothing in
+              this markup fixes a width or paints a connector. */}
           <div className="developer-cp-edge">
             <span>{IS_VERCEL_DEPLOYMENT ? "Vercel edge" : "Local runtime"}</span>
             <StatusPill state={currentWorkspace} compact live={currentWorkspace.tone === "good"} />
           </div>
-          <div className="developer-cp-topology__line" aria-hidden="true" />
           <div className="developer-cp-topology__nodes">
             {deploymentStates.map(({ deployable, state }, index) => (
               <article
