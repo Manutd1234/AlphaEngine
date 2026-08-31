@@ -31,12 +31,6 @@
    in ascending order — so the leftmost stem is the one the family came closest
    to breaking and the rest is the shape of how much room the others had. */
 
-.coh-room__stem {
-  stroke: color-mix(in srgb, var(--series-1) 62%, var(--surface-1));
-  stroke-width: 1.6;
-  vector-effect: non-scaling-stroke;
-}
-
 /* A BAR AT A LOW COUNT, A RULE AT A HIGH ONE, and the fill has to follow: the
    same class carries both marks so the kind modifiers apply either way, and a
    `<rect>` painted with a stroke and no fill is an outline rather than a bar.
@@ -47,68 +41,20 @@
    are fill steps at 3.0–3.8:1 on white and are not safe as text. It went red
    on exactly that, which is the guard doing its job on a rule that never sets
    any text. */
-.coh-room__stem.is-filled { stroke: none; }
-
-.coh-room__stem.is-book.is-filled { fill: color-mix(in srgb, var(--series-1) 42%, var(--surface-1)); }
-.coh-room__stem.is-ladder.is-filled { fill: var(--series-1); }
-.coh-room__stem.is-partition.is-filled { fill: var(--series-3); }
-.coh-room__stem.is-violated.is-filled { fill: var(--status-critical); }
-
 /* The three kinds, distinguished by weight rather than by hue alone — a ladder
    pair is the constraint this tab is about and reads darkest, a book spread is
    the one every market carries whatever its family's shape, and a partition sum
    is the whole family at once and gets the third series so it cannot be mistaken
    for either. The key names all three in words. */
-.coh-room__stem.is-ladder { stroke: var(--series-1); }
-.coh-room__stem.is-book { stroke: color-mix(in srgb, var(--series-1) 42%, var(--surface-1)); }
-.coh-room__stem.is-partition { stroke: var(--series-3); stroke-width: 2.4; }
-.coh-room__stem.is-violated { stroke: var(--status-critical); stroke-width: 2.4; }
-
 /* The outline along the tops. At 87 constraints the stems are eight pixels
    apart and read as a block; the edge is what makes the block a curve. */
-.coh-room__edge {
-  fill: none;
-  stroke: var(--text-primary);
-  stroke-width: 1;
-  stroke-opacity: 0.5;
-  vector-effect: non-scaling-stroke;
-}
-
 /* THE WALL. Zero room is not a small margin, it is the boundary — everything
    below it is a portfolio that pays more than it costs in every state. Drawn
    solid and dark where the axis rules on this tab are hairlines, because it is
    the only line on the figure that means a verdict. */
-.coh-room__wall {
-  stroke: var(--text-primary);
-  stroke-width: 1.2;
-  vector-effect: non-scaling-stroke;
-}
-
 /* The half-plane under it, tinted only when a constraint actually reaches into
    it: a permanently tinted danger band on a figure whose answer is almost
    always "none" trains a reader to stop seeing it. */
-.coh-room__danger {
-  fill: color-mix(in srgb, var(--status-critical) 14%, transparent);
-}
-
-.coh-room__breach {
-  fill: var(--status-critical);
-  font-size: var(--fs-diagram-label);
-  font-weight: 640;
-  text-anchor: middle;
-}
-
-.coh-room__tick {
-  fill: var(--text-secondary);
-  font-size: var(--fs-tick);
-  font-variant-numeric: tabular-nums;
-}
-
-.coh-room__note {
-  fill: var(--text-secondary);
-  font-size: var(--fs-diagram-label);
-}
-
 /* ── The coverage rail ──────────────────────────────────────────────────────
    What the profile is drawn FROM, against what it could not read. It is the
    honest half of the bar this figure replaces — the old drawing was only this,
@@ -116,22 +62,6 @@
    with nothing saying it was a floor. Here it is a rail under the axis: a
    proportion rather than a comparison, subordinate to the thing it qualifies,
    and the counts are printed rather than inferred from length. */
-
-.coh-room__rail-tested {
-  fill: color-mix(in srgb, var(--series-1) 45%, var(--surface-1));
-}
-
-.coh-room__rail-skipped {
-  fill: url(#diff-hatch);
-  stroke: var(--border);
-  stroke-width: 1;
-  vector-effect: non-scaling-stroke;
-}
-
-.coh-room__rail-label {
-  fill: var(--text-secondary);
-  font-size: var(--fs-tick);
-}
 
 /* ── The decade scale ───────────────────────────────────────────────────────
    Four magnitudes on a logarithmic axis, drawn for the Basket section because
