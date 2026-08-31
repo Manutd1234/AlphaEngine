@@ -1104,6 +1104,44 @@ no card could report afterwards.
 input series, so refreshing the same book redraws the same cone without any
 stored state, and a different book draws a fresh one.
 
+== Proofs as executable visual contracts
+
+The Proofs workspace turns the chapter's distinction between a theorem, its
+inputs and an empirical verdict into an interaction contract. Its
+#measured[25 views across seven rail sections][`web/lib/section-views.ts` and
+`web/lib/sections.ts`, counted 2026-08-30] are not alternate illustrations of
+one static page. Each view binds a canonical proof target to the exact data row,
+constraint or score contribution being inspected.
+
+The coherence views couple price identities, a constraint ladder and the
+verdict they imply. Basket views expose composition and size as selectable
+objects, then recompute the null or shortfall inspection against that stable
+selection. Parlay views join the leg state, Frechet band and bound rather than
+asking a reader to reconcile three unrelated panels. Scorecard views preserve
+the calibration and Murphy-decomposition idea while adding a selected bin,
+exact score term and corpus denominator. Corpus composition and accrual retain
+source identity and sample count, so a changing share cannot be mistaken for a
+change in model quality.
+
+Three rules make those surfaces mathematical rather than decorative:
+
+- Selection is keyed by domain identity rather than array position, so a refresh
+  or sort cannot silently move the reader to a different market.
+- Every visual selection has a paired exact `output`: the number, unit,
+  denominator and interpretation travel together. Missing remains missing and
+  measured zero remains zero.
+- Linked figures update atomically and announce one result. Keyboard listboxes
+  use one tab stop with Arrow, Home and End movement; plots expose selectable
+  points without flattening their interactive children under image semantics.
+
+These properties are pinned in `web/tests/coherence-proof-claims.test.ts`,
+`web/tests/proofs-targeted-instruments.test.ts`,
+`web/tests/parlay-score-interactions.test.ts`,
+`web/tests/proofs-brier-calibration-surface.test.ts` and the basket and corpus
+contract suites. The testable object is not the colour or the curve alone. It is
+the chain from selected data, through exact arithmetic, to the rendered and
+announced conclusion.
+
 == Summary of departures from the textbook form
 
 #table(
