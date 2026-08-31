@@ -105,7 +105,7 @@ async def data_quality_findings(
 
 @router.get("/api/data/work-items", response_model=WorkItemsResponse)
 async def list_work_items(_actor: str = Depends(trader_identity)) -> WorkItemsResponse:
-    """The Data tab's work queue — persisted, versioned, audit-logged; seeded rows say so."""
+    """The Data tab's work queue — persisted, versioned and audit-logged."""
     return get_work_items().response()
 
 
