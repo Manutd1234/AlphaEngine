@@ -68,3 +68,9 @@ export function useComplexity(): Complexity {
 
   return tier;
 }
+
+export function useDisclosurePreference(preferredOpen: boolean) {
+  const [open, setOpen] = useState(preferredOpen);
+  useEffect(() => setOpen(preferredOpen), [preferredOpen]);
+  return [open, setOpen] as const;
+}
