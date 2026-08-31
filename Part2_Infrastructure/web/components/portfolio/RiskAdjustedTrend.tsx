@@ -17,6 +17,8 @@
  * nobody measured.
  */
 
+import { useState } from "react";
+
 import {
   DEFAULT_MARGIN,
   Grid,
@@ -40,6 +42,17 @@ import type { EquityPoint } from "@/lib/portfolio";
 const HEIGHT = 150;
 const MARGIN = { ...DEFAULT_MARGIN, right: 16 };
 
+export function trendIndexAt(
+  clientX: number,
+  left: number,
+  width: number,
+  count: number,
+): number | null {
+  if (!Number.isFinite(clientX) || !Number.isFinite(left) || !Number.isFinite(width)
+      || width <= 0 || count <= 0) return null;
+  return Math.round(Math.min(1, Math.max(0, (clientX - left) / width)) * (count - 1));
+}
+
 function Plot({
   values,
   format,
@@ -56,6 +69,7 @@ function Plot({
   times: number[];
 }) {
   const [ref, width] = useMeasuredWidth<HTMLDivElement>(560);
+  const [active, setActive] = useState<number | null>(null);
   const finite = values.filter((v): v is number => v != null);
 
   if (finite.length < 2) {
@@ -82,10 +96,30 @@ function Plot({
 
   const points = values.map((v, i) => ({ x: xScale(i), y: v == null ? null : yScale(v) }));
   const zero = yScale(0);
+  const reading = active === null ? null : points[Math.min(values.length - 1, Math.max(0, active))];
 
   return (
     <div ref={ref}>
-      <svg width="100%" height={HEIGHT} viewBox={`0 0 ${width} ${HEIGHT}`} role="img" aria-label={label}>
+      <svg
+        className="protected-chart-instrument"
+        width="100%" height={HEIGHT} viewBox={`0 0 ${width} ${HEIGHT}`}
+        role="img" aria-label={label} tabIndex={0}
+        onFocus={() => setActive((at) => at ?? values.length - 1)}
+        onBlur={() => setActive(null)}
+        onPointerLeave={() => setActive(null)}
+        onPointerMove={(event) => {
+          const rect = event.currentTarget.getBoundingClientRect();
+          const left = rect.left + (MARGIN.left / width) * rect.width;
+          setActive(trendIndexAt(event.clientX, left, (plotW / width) * rect.width, values.length));
+        }}
+        onKeyDown={(event) => {
+          const at = active ?? values.length - 1;
+          const next = event.keyCode === 36 ? 0 : event.keyCode === 35 ? values.length - 1
+            : event.keyCode === 37 || event.keyCode === 38 ? Math.max(0, at - 1)
+            : event.keyCode === 39 || event.keyCode === 40 ? Math.min(values.length - 1, at + 1) : null;
+          if (next !== null) { event.preventDefault(); setActive(next); }
+        }}
+      >
         <Grid yTicks={yTicks} yScale={yScale} x0={MARGIN.left} x1={MARGIN.left + plotW} format={format} />
         {fill && (
           <path
@@ -105,6 +139,12 @@ function Plot({
           x1={MARGIN.left} x2={MARGIN.left + plotW} y1={zero} y2={zero}
           stroke="var(--axis)" strokeWidth={1} shapeRendering="crispEdges"
         />
+        {reading?.y != null && (
+          <g className="protected-chart-reading" data-linked="true">
+            <line x1={reading.x} x2={reading.x} y1={MARGIN.top} y2={MARGIN.top + plotH} />
+            <circle cx={reading.x} cy={reading.y} r={3.25} fill={tone} />
+          </g>
+        )}
         <XAxis
           points={times}
           y={MARGIN.top + plotH}
