@@ -74,15 +74,19 @@ class _Corpus:
         self.state = state
         self.searched: list[tuple[str, int, str | None]] = []
         self.walked: list[str] = []
+        self.search_scopes: list[str | None] = []
+        self.graph_scopes: list[str | None] = []
 
-    async def search(self, text, match_count=3, kind=None):
+    async def search(self, text, match_count=3, kind=None, desk_id=None):
         self.searched.append((text, match_count, kind))
+        self.search_scopes.append(desk_id)
         if self.state != "ok":
             return {"state": self.state, "matches": []}
         return {"state": "ok", "matches": list(self.matches), "corpus_size": 412}
 
-    async def connected(self, document_id, match_count=10):
+    async def connected(self, document_id, match_count=10, desk_id=None):
         self.walked.append(document_id)
+        self.graph_scopes.append(desk_id)
         return {"state": "ok", "connected": list(self.neighbours)}
 
 
@@ -138,6 +142,19 @@ async def test_the_graph_row_records_the_document_it_walked_from(audit):
     assert graph["seed"] == corpus.walked[0] == "doc-1", (
         "a traversal is entirely determined by its seed; without it the row is unreplayable"
     )
+
+
+async def test_one_scope_reaches_search_and_graph_arms(audit):
+    corpus = _Corpus()
+    router = ResearchRouter(audit=audit)
+
+    await router.execute(
+        router.plan("what happened after the 9f9602c7 promotion"),
+        corpus, desk_id="desk-7",
+    )
+
+    assert corpus.search_scopes and set(corpus.search_scopes) == {"desk-7"}
+    assert corpus.graph_scopes == ["desk-7"]
 
 
 async def test_every_call_is_timed(audit):
