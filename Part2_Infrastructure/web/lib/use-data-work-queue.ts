@@ -26,14 +26,15 @@
  * until the gateway said so.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import type { DataWorkMutation } from "@/components/data/DataWorkBoard";
 import { deleteDataWorkItem, removeDataWorkItem } from "@/lib/data-work-delete";
+import { pollingFailure, type PollingTickResult } from "@/lib/polling";
+import { useDeskSource } from "@/lib/use-desk-source";
 import { usePolling } from "@/lib/use-polling";
 import {
   createDataWorkItem,
-  createInitialDataWorkItems,
   loadDataWorkItems,
   patchDataWorkItem,
   upsertDataWorkItem,
@@ -59,15 +60,30 @@ export interface DataWorkQueueView {
 }
 
 export function useDataWorkQueue(options: { token: string | null; active: boolean }): DataWorkQueueView {
-  const [items, setItems] = useState<DataWorkItem[]>(createInitialDataWorkItems);
-  const [source, setSource] = useState<DataWorkSource>({ kind: "local", reason: "not loaded yet" });
+  // Empty until the gateway returns rows. The gateway may itself return
+  // explicitly marked seed rows, but a failed browser read must not invent the
+  // same queue locally and make an unavailable backend look populated.
+  const [items, setItems] = useState<DataWorkItem[]>([]);
+  const [gatewaySource, setGatewaySource] = useState<Extract<DataWorkSource, { kind: "gateway" }> | null>(null);
   const [held, setHeld] = useState<HeldWrite[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
+  const { state: sourceState, observe: observeSource } = useDeskSource<DataWorkItem[]>();
+  const localReason = useRef("not loaded yet");
   const token = options.token;
-  const itemsRef = useRef(items);
-  itemsRef.current = items;
   const heldRef = useRef(held);
   heldRef.current = held;
+
+  // One failed probe demotes persistence immediately. Promotion back to a live
+  // gateway needs the shared two-success streak, so an alternating endpoint
+  // cannot flip the source pill and Persistence tile once per poll.
+  const source: DataWorkSource = sourceState.tier === "live" && gatewaySource
+    ? gatewaySource
+    : { kind: "local", reason: sourceState.failure?.message ?? localReason.current };
+
+  const markUnavailable = useCallback((reason: string) => {
+    localReason.current = reason;
+    observeSource({ ok: false, failure: { code: "gateway_unreachable", message: reason } });
+  }, [observeSource]);
 
   const replayHeld = useCallback(async (fresh: DataWorkItem[]) => {
     const pending = heldRef.current;
@@ -116,26 +132,29 @@ export function useDataWorkQueue(options: { token: string | null; active: boolea
     return list;
   }, [token]);
 
-  const reload = useCallback(async () => {
+  const loadOnce = useCallback(async (): Promise<PollingTickResult> => {
     const result = await loadDataWorkItems();
     if (!result.ok) {
-      setSource({ kind: "local", reason: result.reason });
-      return;
+      markUnavailable(result.reason);
+      return pollingFailure(result.reason);
     }
     const merged = await replayHeld(result.items);
     setItems(merged);
-    setSource(result.source);
-  }, [replayHeld]);
+    setGatewaySource(result.source);
+    observeSource({ ok: true, payload: merged });
+  }, [markUnavailable, observeSource, replayHeld]);
 
-  useEffect(() => {
-    if (!options.active) return;
-    void reload();
-  }, [options.active, reload]);
+  // Manual refresh stays a quiet Promise<void>. The polling loop consumes the
+  // typed failure result from `loadOnce`, which is what makes backoff reachable.
+  const reload = useCallback(async () => {
+    await loadOnce();
+  }, [loadOnce]);
 
   usePolling({
-    tick: reload,
+    tick: loadOnce,
     intervalMs: DATA_WORK_REFRESH_MS,
     maxBackoffMs: 300_000,
+    immediate: true,
     enabled: options.active,
   });
 
@@ -150,10 +169,10 @@ export function useDataWorkQueue(options: { token: string | null; active: boolea
         if (result.ok) {
           setItems((current) => upsertDataWorkItem(current.filter((i) => i.id !== m.item.id), result.item));
           setNotice(`${result.item.id} saved on the gateway.`);
-          setSource((s) => (s.kind === "gateway" ? { ...s, count: s.count + 1 } : s));
+          setGatewaySource((s) => (s ? { ...s, count: s.count + 1 } : s));
         } else if (result.code === "unreachable") {
           setHeld((h) => [...h, { mutation }]);
-          setSource({ kind: "local", reason: result.error });
+          markUnavailable(result.error);
           setNotice(`${m.item.id} is held locally until the gateway answers.`);
         } else {
           // Rejected or unauthorised: roll the optimistic row back and say why.
@@ -168,10 +187,10 @@ export function useDataWorkQueue(options: { token: string | null; active: boolea
         if (result.ok || result.code === "not_found") {
           // Gone, or already gone: either way the row the reader removed is not there.
           setNotice(`${m.item.id} deleted${result.ok ? " on the gateway" : ""}.`);
-          setSource((s) => (s.kind === "gateway" && result.ok ? { ...s, count: Math.max(0, s.count - 1) } : s));
+          setGatewaySource((s) => (s && result.ok ? { ...s, count: Math.max(0, s.count - 1) } : s));
         } else if (result.code === "unreachable") {
           setHeld((h) => [...h, { mutation }]);
-          setSource({ kind: "local", reason: result.error });
+          markUnavailable(result.error);
           setNotice(`${m.item.id} delete is held locally until the gateway answers.`);
         } else {
           // Rejected or unauthorised: the row comes back, and the reason with it.
@@ -189,7 +208,7 @@ export function useDataWorkQueue(options: { token: string | null; active: boolea
         setNotice(`${m.item.id} was changed elsewhere; showing the current version.`);
       } else if (result.code === "unreachable") {
         setHeld((h) => [...h, { mutation }]);
-        setSource({ kind: "local", reason: result.error });
+        markUnavailable(result.error);
         setNotice(`${m.item.id} move is held locally until the gateway answers.`);
       } else {
         // Roll back to the last known row and say why.
@@ -197,7 +216,7 @@ export function useDataWorkQueue(options: { token: string | null; active: boolea
         setNotice(`${m.item.id} was not moved: ${result.error}`);
       }
     })();
-  }, [token]);
+  }, [markUnavailable, token]);
 
   return { items, setItems, source, pendingWrites: held.length, notice, mutate, reload };
 }
