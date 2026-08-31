@@ -1,0 +1,2553 @@
+{
+  "generated_at": "2026-08-27T16:23:51.678170+00:00",
+  "environment": {
+    "platform": "macOS-26.5.1-arm64-arm-64bit",
+    "machine": "arm64",
+    "python": "3.12.14",
+    "executable": "/Users/ian/Projects/Developer Analyst/IAN_WANGSA_NUSSIF_INFRA/Part2_Infrastructure/venv/bin/python",
+    "cpu_count": 18,
+    "pinning": "unavailable"
+  },
+  "native": {
+    "configured": "auto",
+    "selected": "native",
+    "effective": "native",
+    "fallback_reason": null,
+    "fallback_total": 0,
+    "fallback_counts": {},
+    "abi_version": 1,
+    "capability_version": 1,
+    "capabilities": [
+      "bit_exact_ieee754_v1",
+      "persistent_book_ladder_v1",
+      "position_book_mirror_v1",
+      "routed_slippage_v1",
+      "steady_clock_telemetry_v1",
+      "roundtrip_probe_v1"
+    ],
+    "build_id": "alphaengine-decision-core/abi-1/src-94496015fabbd11f/flags-d34044f7b7dc/arm64/cpython-312-darwin",
+    "compiler": "clang 21.0.0 (clang-2100.1.1.101)",
+    "pybind11_version": "3.1.0",
+    "decide_argument_count": 28
+  },
+  "orders_per_run": 100000,
+  "warmup": 5000,
+  "gateway_orders_per_run": 5000,
+  "gateway_warmup": 500,
+  "repeat": 9,
+  "raw_samples_included": false,
+  "claim_boundary": "Only direct.canonical_two_venue.kernel_ns is judged against 100 ns; python/C++ round-trip and whole_gateway are separate populations.",
+  "runs": [
+    {
+      "python_timer_floor_ns": {
+        "summary": {
+          "n": 100000,
+          "min": 0,
+          "p50": 0,
+          "p99": 42,
+          "p999": 42,
+          "max": 209,
+          "mean": 20.58468
+        }
+      },
+      "cpp_timer_floor_ns": {
+        "summary": {
+          "n": 100000,
+          "min": 0,
+          "p50": 0,
+          "p99": 42,
+          "p999": 42,
+          "max": 125,
+          "mean": 12.11646
+        }
+      },
+      "python_cpp_roundtrip_ns": {
+        "summary": {
+          "n": 100000,
+          "min": 0,
+          "p50": 42,
+          "p99": 84,
+          "p999": 84,
+          "max": 625,
+          "mean": 47.34396
+        }
+      },
+      "direct": {
+        "canonical_two_venue": {
+          "venues": 2,
+          "inputs": "canonical_constant",
+          "wall_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 458,
+              "p50": 542,
+              "p99": 625,
+              "p999": 708,
+              "max": 12291,
+              "mean": 544.91255
+            }
+          },
+          "kernel_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 0,
+              "p50": 42,
+              "p99": 84,
+              "p999": 84,
+              "max": 8375,
+              "mean": 47.56084
+            }
+          },
+          "materialized_boundary": {
+            "accelerated_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 833,
+                "p50": 958,
+                "p99": 1042,
+                "p999": 1209,
+                "max": 19416,
+                "mean": 950.04192
+              }
+            },
+            "legacy_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 1709,
+                "p50": 1916,
+                "p99": 2041,
+                "p999": 2458,
+                "max": 88709,
+                "mean": 1914.33703
+              }
+            }
+          }
+        },
+        "varied_two_venue": {
+          "venues": 2,
+          "inputs": "varied",
+          "wall_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 458,
+              "p50": 542,
+              "p99": 625,
+              "p999": 667,
+              "max": 17875,
+              "mean": 554.72988
+            }
+          },
+          "kernel_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 0,
+              "p50": 42,
+              "p99": 84,
+              "p999": 84,
+              "max": 13917,
+              "mean": 48.76952
+            }
+          },
+          "materialized_boundary": {
+            "accelerated_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 833,
+                "p50": 958,
+                "p99": 1042,
+                "p999": 1125,
+                "max": 18167,
+                "mean": 949.00781
+              }
+            },
+            "legacy_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 1791,
+                "p50": 1917,
+                "p99": 2000,
+                "p999": 2292,
+                "max": 21042,
+                "mean": 1914.78253
+              }
+            }
+          }
+        },
+        "varied_four_venue": {
+          "venues": 4,
+          "inputs": "varied",
+          "wall_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 500,
+              "p50": 584,
+              "p99": 666,
+              "p999": 708,
+              "max": 20291,
+              "mean": 597.70158
+            }
+          },
+          "kernel_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 0,
+              "p50": 83,
+              "p99": 84,
+              "p999": 84,
+              "max": 209,
+              "mean": 68.68844
+            }
+          },
+          "materialized_boundary": {
+            "accelerated_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 875,
+                "p50": 1000,
+                "p99": 1084,
+                "p999": 1208,
+                "max": 20584,
+                "mean": 1011.11169
+              }
+            },
+            "legacy_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 1834,
+                "p50": 2000,
+                "p99": 2125,
+                "p999": 2375,
+                "max": 24208,
+                "mean": 2002.58638
+              }
+            }
+          }
+        }
+      },
+      "whole_gateway": {
+        "inputs": "four_order_shapes",
+        "result_conversion": "eager_tuple",
+        "wall_ns": {
+          "summary": {
+            "n": 5000,
+            "min": 49125,
+            "p50": 64875,
+            "p99": 80459,
+            "p999": 105541,
+            "max": 143000,
+            "mean": 62791.9398
+          }
+        },
+        "decision_us": {
+          "summary": {
+            "n": 5000,
+            "min": 44.875,
+            "p50": 48.0,
+            "p99": 60.0,
+            "p999": 87.25,
+            "max": 104.417,
+            "mean": 48.5543944
+          }
+        },
+        "kernel_ns": {
+          "summary": {
+            "n": 5000,
+            "min": 0,
+            "p50": 83,
+            "p99": 125,
+            "p999": 209,
+            "max": 2916,
+            "mean": 84.3102
+          }
+        }
+      },
+      "whole_gateway_legacy_result_conversion": {
+        "inputs": "four_order_shapes",
+        "result_conversion": "legacy_attributes",
+        "wall_ns": {
+          "summary": {
+            "n": 5000,
+            "min": 50916,
+            "p50": 66458,
+            "p99": 80625,
+            "p999": 97833,
+            "max": 121291,
+            "mean": 64484.686
+          }
+        },
+        "decision_us": {
+          "summary": {
+            "n": 5000,
+            "min": 47.166,
+            "p50": 49.75,
+            "p99": 63.125,
+            "p999": 82.333,
+            "max": 91.875,
+            "mean": 50.338887400000004
+          }
+        },
+        "kernel_ns": {
+          "summary": {
+            "n": 5000,
+            "min": 0,
+            "p50": 83,
+            "p99": 125,
+            "p999": 125,
+            "max": 208,
+            "mean": 83.0966
+          }
+        }
+      },
+      "release_contract": {
+        "passed": true,
+        "reason": null,
+        "target_ns_exclusive": 100,
+        "required_fraction": 0.99,
+        "inside_target": 99973,
+        "fraction_inside_target": 0.99973,
+        "p99_ns": 84
+      },
+      "stretch_contract": {
+        "passed": true,
+        "reason": null,
+        "target_ns_exclusive": 50,
+        "required_fraction": 0.5,
+        "inside_target": 86159,
+        "fraction_inside_target": 0.86159,
+        "p99_ns": 84
+      }
+    },
+    {
+      "python_timer_floor_ns": {
+        "summary": {
+          "n": 100000,
+          "min": 0,
+          "p50": 0,
+          "p99": 42,
+          "p999": 42,
+          "max": 4875,
+          "mean": 19.40369
+        }
+      },
+      "cpp_timer_floor_ns": {
+        "summary": {
+          "n": 100000,
+          "min": 0,
+          "p50": 0,
+          "p99": 42,
+          "p999": 42,
+          "max": 84,
+          "mean": 12.14097
+        }
+      },
+      "python_cpp_roundtrip_ns": {
+        "summary": {
+          "n": 100000,
+          "min": 0,
+          "p50": 42,
+          "p99": 84,
+          "p999": 84,
+          "max": 16583,
+          "mean": 48.43946
+        }
+      },
+      "direct": {
+        "canonical_two_venue": {
+          "venues": 2,
+          "inputs": "canonical_constant",
+          "wall_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 458,
+              "p50": 542,
+              "p99": 625,
+              "p999": 667,
+              "max": 21500,
+              "mean": 544.19478
+            }
+          },
+          "kernel_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 0,
+              "p50": 42,
+              "p99": 84,
+              "p999": 84,
+              "max": 12541,
+              "mean": 47.2696
+            }
+          },
+          "materialized_boundary": {
+            "accelerated_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 833,
+                "p50": 959,
+                "p99": 1042,
+                "p999": 1125,
+                "max": 19875,
+                "mean": 962.56173
+              }
+            },
+            "legacy_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 1791,
+                "p50": 1917,
+                "p99": 2041,
+                "p999": 2125,
+                "max": 22917,
+                "mean": 1935.4594
+              }
+            }
+          }
+        },
+        "varied_two_venue": {
+          "venues": 2,
+          "inputs": "varied",
+          "wall_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 458,
+              "p50": 542,
+              "p99": 625,
+              "p999": 667,
+              "max": 19750,
+              "mean": 549.0892
+            }
+          },
+          "kernel_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 0,
+              "p50": 42,
+              "p99": 84,
+              "p999": 84,
+              "max": 291,
+              "mean": 48.67111
+            }
+          },
+          "materialized_boundary": {
+            "accelerated_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 833,
+                "p50": 958,
+                "p99": 1042,
+                "p999": 1166,
+                "max": 11542,
+                "mean": 962.97446
+              }
+            },
+            "legacy_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 1833,
+                "p50": 1917,
+                "p99": 2042,
+                "p999": 2250,
+                "max": 37625,
+                "mean": 1939.32891
+              }
+            }
+          }
+        },
+        "varied_four_venue": {
+          "venues": 4,
+          "inputs": "varied",
+          "wall_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 500,
+              "p50": 584,
+              "p99": 667,
+              "p999": 750,
+              "max": 17583,
+              "mean": 601.92264
+            }
+          },
+          "kernel_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 0,
+              "p50": 83,
+              "p99": 84,
+              "p999": 84,
+              "max": 292,
+              "mean": 68.85675
+            }
+          },
+          "materialized_boundary": {
+            "accelerated_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 875,
+                "p50": 1000,
+                "p99": 1125,
+                "p999": 1250,
+                "max": 22042,
+                "mean": 1020.11872
+              }
+            },
+            "legacy_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 1833,
+                "p50": 2000,
+                "p99": 2084,
+                "p999": 2500,
+                "max": 22667,
+                "mean": 1993.49951
+              }
+            }
+          }
+        }
+      },
+      "whole_gateway": {
+        "inputs": "four_order_shapes",
+        "result_conversion": "eager_tuple",
+        "wall_ns": {
+          "summary": {
+            "n": 5000,
+            "min": 50667,
+            "p50": 65708,
+            "p99": 88166,
+            "p999": 115750,
+            "max": 168708,
+            "mean": 64737.8328
+          }
+        },
+        "decision_us": {
+          "summary": {
+            "n": 5000,
+            "min": 46.625,
+            "p50": 48.958,
+            "p99": 71.958,
+            "p999": 86.29199999999999,
+            "max": 129.0,
+            "mean": 50.5579118
+          }
+        },
+        "kernel_ns": {
+          "summary": {
+            "n": 5000,
+            "min": 0,
+            "p50": 83,
+            "p99": 125,
+            "p999": 208,
+            "max": 16792,
+            "mean": 87.9782
+          }
+        }
+      },
+      "whole_gateway_legacy_result_conversion": {
+        "inputs": "four_order_shapes",
+        "result_conversion": "legacy_attributes",
+        "wall_ns": {
+          "summary": {
+            "n": 5000,
+            "min": 51917,
+            "p50": 67125,
+            "p99": 88875,
+            "p999": 116292,
+            "max": 167666,
+            "mean": 65939.9034
+          }
+        },
+        "decision_us": {
+          "summary": {
+            "n": 5000,
+            "min": 47.5,
+            "p50": 50.25,
+            "p99": 71.04199999999999,
+            "p999": 103.20899999999999,
+            "max": 126.54099999999998,
+            "mean": 51.6427666
+          }
+        },
+        "kernel_ns": {
+          "summary": {
+            "n": 5000,
+            "min": 0,
+            "p50": 83,
+            "p99": 125,
+            "p999": 208,
+            "max": 334,
+            "mean": 84.6444
+          }
+        }
+      },
+      "release_contract": {
+        "passed": true,
+        "reason": null,
+        "target_ns_exclusive": 100,
+        "required_fraction": 0.99,
+        "inside_target": 99964,
+        "fraction_inside_target": 0.99964,
+        "p99_ns": 84
+      },
+      "stretch_contract": {
+        "passed": true,
+        "reason": null,
+        "target_ns_exclusive": 50,
+        "required_fraction": 0.5,
+        "inside_target": 87024,
+        "fraction_inside_target": 0.87024,
+        "p99_ns": 84
+      }
+    },
+    {
+      "python_timer_floor_ns": {
+        "summary": {
+          "n": 100000,
+          "min": 0,
+          "p50": 0,
+          "p99": 42,
+          "p999": 42,
+          "max": 250,
+          "mean": 20.54564
+        }
+      },
+      "cpp_timer_floor_ns": {
+        "summary": {
+          "n": 100000,
+          "min": 0,
+          "p50": 0,
+          "p99": 42,
+          "p999": 42,
+          "max": 125,
+          "mean": 12.08692
+        }
+      },
+      "python_cpp_roundtrip_ns": {
+        "summary": {
+          "n": 100000,
+          "min": 0,
+          "p50": 42,
+          "p99": 84,
+          "p999": 84,
+          "max": 16500,
+          "mean": 47.3179
+        }
+      },
+      "direct": {
+        "canonical_two_venue": {
+          "venues": 2,
+          "inputs": "canonical_constant",
+          "wall_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 458,
+              "p50": 541,
+              "p99": 584,
+              "p999": 667,
+              "max": 8417,
+              "mean": 529.04333
+            }
+          },
+          "kernel_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 0,
+              "p50": 42,
+              "p99": 84,
+              "p999": 84,
+              "max": 167,
+              "mean": 47.82579
+            }
+          },
+          "materialized_boundary": {
+            "accelerated_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 833,
+                "p50": 958,
+                "p99": 1042,
+                "p999": 1209,
+                "max": 19625,
+                "mean": 964.42476
+              }
+            },
+            "legacy_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 1750,
+                "p50": 1917,
+                "p99": 2042,
+                "p999": 2459,
+                "max": 67166,
+                "mean": 1928.63183
+              }
+            }
+          }
+        },
+        "varied_two_venue": {
+          "venues": 2,
+          "inputs": "varied",
+          "wall_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 458,
+              "p50": 542,
+              "p99": 625,
+              "p999": 708,
+              "max": 18958,
+              "mean": 550.58351
+            }
+          },
+          "kernel_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 0,
+              "p50": 42,
+              "p99": 84,
+              "p999": 84,
+              "max": 167,
+              "mean": 48.70877
+            }
+          },
+          "materialized_boundary": {
+            "accelerated_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 833,
+                "p50": 959,
+                "p99": 1083,
+                "p999": 1250,
+                "max": 22375,
+                "mean": 964.88093
+              }
+            },
+            "legacy_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 1792,
+                "p50": 1917,
+                "p99": 2042,
+                "p999": 2541,
+                "max": 31916,
+                "mean": 1938.71306
+              }
+            }
+          }
+        },
+        "varied_four_venue": {
+          "venues": 4,
+          "inputs": "varied",
+          "wall_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 500,
+              "p50": 584,
+              "p99": 667,
+              "p999": 750,
+              "max": 19709,
+              "mean": 604.6122
+            }
+          },
+          "kernel_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 0,
+              "p50": 83,
+              "p99": 84,
+              "p999": 125,
+              "max": 7584,
+              "mean": 69.64582
+            }
+          },
+          "materialized_boundary": {
+            "accelerated_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 833,
+                "p50": 1000,
+                "p99": 1084,
+                "p999": 1334,
+                "max": 19375,
+                "mean": 981.8364
+              }
+            },
+            "legacy_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 1750,
+                "p50": 1959,
+                "p99": 2125,
+                "p999": 3750,
+                "max": 29541,
+                "mean": 1967.50285
+              }
+            }
+          }
+        }
+      },
+      "whole_gateway": {
+        "inputs": "four_order_shapes",
+        "result_conversion": "eager_tuple",
+        "wall_ns": {
+          "summary": {
+            "n": 5000,
+            "min": 49500,
+            "p50": 64833,
+            "p99": 81667,
+            "p999": 111333,
+            "max": 126625,
+            "mean": 62897.9074
+          }
+        },
+        "decision_us": {
+          "summary": {
+            "n": 5000,
+            "min": 45.667,
+            "p50": 48.208,
+            "p99": 61.875,
+            "p999": 84.333,
+            "max": 103.792,
+            "mean": 48.7705702
+          }
+        },
+        "kernel_ns": {
+          "summary": {
+            "n": 5000,
+            "min": 0,
+            "p50": 83,
+            "p99": 125,
+            "p999": 167,
+            "max": 333,
+            "mean": 84.3072
+          }
+        }
+      },
+      "whole_gateway_legacy_result_conversion": {
+        "inputs": "four_order_shapes",
+        "result_conversion": "legacy_attributes",
+        "wall_ns": {
+          "summary": {
+            "n": 5000,
+            "min": 52209,
+            "p50": 66750,
+            "p99": 81583,
+            "p999": 101250,
+            "max": 115084,
+            "mean": 64656.244
+          }
+        },
+        "decision_us": {
+          "summary": {
+            "n": 5000,
+            "min": 47.25,
+            "p50": 49.917,
+            "p99": 63.458,
+            "p999": 80.625,
+            "max": 93.208,
+            "mean": 50.423196600000004
+          }
+        },
+        "kernel_ns": {
+          "summary": {
+            "n": 5000,
+            "min": 0,
+            "p50": 83,
+            "p99": 125,
+            "p999": 167,
+            "max": 250,
+            "mean": 83.8786
+          }
+        }
+      },
+      "release_contract": {
+        "passed": true,
+        "reason": null,
+        "target_ns_exclusive": 100,
+        "required_fraction": 0.99,
+        "inside_target": 99974,
+        "fraction_inside_target": 0.99974,
+        "p99_ns": 84
+      },
+      "stretch_contract": {
+        "passed": true,
+        "reason": null,
+        "target_ns_exclusive": 50,
+        "required_fraction": 0.5,
+        "inside_target": 84715,
+        "fraction_inside_target": 0.84715,
+        "p99_ns": 84
+      }
+    },
+    {
+      "python_timer_floor_ns": {
+        "summary": {
+          "n": 100000,
+          "min": 0,
+          "p50": 0,
+          "p99": 42,
+          "p999": 42,
+          "max": 7541,
+          "mean": 20.79939
+        }
+      },
+      "cpp_timer_floor_ns": {
+        "summary": {
+          "n": 100000,
+          "min": 0,
+          "p50": 0,
+          "p99": 42,
+          "p999": 42,
+          "max": 125,
+          "mean": 11.31402
+        }
+      },
+      "python_cpp_roundtrip_ns": {
+        "summary": {
+          "n": 100000,
+          "min": 0,
+          "p50": 42,
+          "p99": 83,
+          "p999": 84,
+          "max": 17166,
+          "mean": 45.27819
+        }
+      },
+      "direct": {
+        "canonical_two_venue": {
+          "venues": 2,
+          "inputs": "canonical_constant",
+          "wall_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 416,
+              "p50": 541,
+              "p99": 625,
+              "p999": 709,
+              "max": 19792,
+              "mean": 529.46385
+            }
+          },
+          "kernel_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 0,
+              "p50": 42,
+              "p99": 84,
+              "p999": 84,
+              "max": 7916,
+              "mean": 46.65557
+            }
+          },
+          "materialized_boundary": {
+            "accelerated_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 750,
+                "p50": 917,
+                "p99": 1042,
+                "p999": 1333,
+                "max": 24000,
+                "mean": 924.60684
+              }
+            },
+            "legacy_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 1666,
+                "p50": 1875,
+                "p99": 2042,
+                "p999": 3791,
+                "max": 25875,
+                "mean": 1876.00094
+              }
+            }
+          }
+        },
+        "varied_two_venue": {
+          "venues": 2,
+          "inputs": "varied",
+          "wall_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 416,
+              "p50": 542,
+              "p99": 625,
+              "p999": 750,
+              "max": 19334,
+              "mean": 540.56024
+            }
+          },
+          "kernel_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 0,
+              "p50": 42,
+              "p99": 84,
+              "p999": 84,
+              "max": 8209,
+              "mean": 47.67242
+            }
+          },
+          "materialized_boundary": {
+            "accelerated_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 791,
+                "p50": 958,
+                "p99": 1167,
+                "p999": 1750,
+                "max": 23917,
+                "mean": 959.30429
+              }
+            },
+            "legacy_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 1708,
+                "p50": 1917,
+                "p99": 2334,
+                "p999": 5000,
+                "max": 25209,
+                "mean": 1933.65678
+              }
+            }
+          }
+        },
+        "varied_four_venue": {
+          "venues": 4,
+          "inputs": "varied",
+          "wall_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 458,
+              "p50": 583,
+              "p99": 667,
+              "p999": 792,
+              "max": 20292,
+              "mean": 590.76447
+            }
+          },
+          "kernel_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 0,
+              "p50": 83,
+              "p99": 84,
+              "p999": 125,
+              "max": 13875,
+              "mean": 67.94028
+            }
+          },
+          "materialized_boundary": {
+            "accelerated_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 833,
+                "p50": 958,
+                "p99": 1084,
+                "p999": 1375,
+                "max": 24750,
+                "mean": 966.63814
+              }
+            },
+            "legacy_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 1709,
+                "p50": 1958,
+                "p99": 2167,
+                "p999": 4167,
+                "max": 26667,
+                "mean": 1939.46964
+              }
+            }
+          }
+        }
+      },
+      "whole_gateway": {
+        "inputs": "four_order_shapes",
+        "result_conversion": "eager_tuple",
+        "wall_ns": {
+          "summary": {
+            "n": 5000,
+            "min": 47291,
+            "p50": 61625,
+            "p99": 78958,
+            "p999": 98959,
+            "max": 106292,
+            "mean": 60129.2688
+          }
+        },
+        "decision_us": {
+          "summary": {
+            "n": 5000,
+            "min": 43.333000000000006,
+            "p50": 45.917,
+            "p99": 58.625,
+            "p999": 78.708,
+            "max": 90.25,
+            "mean": 46.6018562
+          }
+        },
+        "kernel_ns": {
+          "summary": {
+            "n": 5000,
+            "min": 0,
+            "p50": 83,
+            "p99": 125,
+            "p999": 125,
+            "max": 209,
+            "mean": 79.0812
+          }
+        }
+      },
+      "whole_gateway_legacy_result_conversion": {
+        "inputs": "four_order_shapes",
+        "result_conversion": "legacy_attributes",
+        "wall_ns": {
+          "summary": {
+            "n": 5000,
+            "min": 48875,
+            "p50": 63750,
+            "p99": 83041,
+            "p999": 111792,
+            "max": 125375,
+            "mean": 62585.6588
+          }
+        },
+        "decision_us": {
+          "summary": {
+            "n": 5000,
+            "min": 44.875,
+            "p50": 48.167,
+            "p99": 67.583,
+            "p999": 87.208,
+            "max": 101.54199999999999,
+            "mean": 48.8561124
+          }
+        },
+        "kernel_ns": {
+          "summary": {
+            "n": 5000,
+            "min": 0,
+            "p50": 83,
+            "p99": 125,
+            "p999": 125,
+            "max": 209,
+            "mean": 80.3956
+          }
+        }
+      },
+      "release_contract": {
+        "passed": true,
+        "reason": null,
+        "target_ns_exclusive": 100,
+        "required_fraction": 0.99,
+        "inside_target": 99954,
+        "fraction_inside_target": 0.99954,
+        "p99_ns": 84
+      },
+      "stretch_contract": {
+        "passed": true,
+        "reason": null,
+        "target_ns_exclusive": 50,
+        "required_fraction": 0.5,
+        "inside_target": 88116,
+        "fraction_inside_target": 0.88116,
+        "p99_ns": 84
+      }
+    },
+    {
+      "python_timer_floor_ns": {
+        "summary": {
+          "n": 100000,
+          "min": 0,
+          "p50": 41,
+          "p99": 42,
+          "p999": 42,
+          "max": 6750,
+          "mean": 23.0666
+        }
+      },
+      "cpp_timer_floor_ns": {
+        "summary": {
+          "n": 100000,
+          "min": 0,
+          "p50": 0,
+          "p99": 42,
+          "p999": 42,
+          "max": 4125,
+          "mean": 11.40868
+        }
+      },
+      "python_cpp_roundtrip_ns": {
+        "summary": {
+          "n": 100000,
+          "min": 0,
+          "p50": 42,
+          "p99": 83,
+          "p999": 84,
+          "max": 18375,
+          "mean": 45.00495
+        }
+      },
+      "direct": {
+        "canonical_two_venue": {
+          "venues": 2,
+          "inputs": "canonical_constant",
+          "wall_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 416,
+              "p50": 541,
+              "p99": 584,
+              "p999": 709,
+              "max": 21542,
+              "mean": 526.95726
+            }
+          },
+          "kernel_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 0,
+              "p50": 42,
+              "p99": 84,
+              "p999": 84,
+              "max": 16542,
+              "mean": 46.78739
+            }
+          },
+          "materialized_boundary": {
+            "accelerated_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 750,
+                "p50": 917,
+                "p99": 1041,
+                "p999": 1292,
+                "max": 20417,
+                "mean": 915.84062
+              }
+            },
+            "legacy_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 1666,
+                "p50": 1875,
+                "p99": 2041,
+                "p999": 2584,
+                "max": 26458,
+                "mean": 1863.7446
+              }
+            }
+          }
+        },
+        "varied_two_venue": {
+          "venues": 2,
+          "inputs": "varied",
+          "wall_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 416,
+              "p50": 542,
+              "p99": 625,
+              "p999": 750,
+              "max": 22542,
+              "mean": 547.33769
+            }
+          },
+          "kernel_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 0,
+              "p50": 42,
+              "p99": 84,
+              "p999": 84,
+              "max": 9792,
+              "mean": 46.95223
+            }
+          },
+          "materialized_boundary": {
+            "accelerated_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 791,
+                "p50": 917,
+                "p99": 1041,
+                "p999": 1292,
+                "max": 20083,
+                "mean": 929.88371
+              }
+            },
+            "legacy_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 1667,
+                "p50": 1875,
+                "p99": 2041,
+                "p999": 2750,
+                "max": 26875,
+                "mean": 1887.61112
+              }
+            }
+          }
+        },
+        "varied_four_venue": {
+          "venues": 4,
+          "inputs": "varied",
+          "wall_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 458,
+              "p50": 583,
+              "p99": 666,
+              "p999": 792,
+              "max": 21875,
+              "mean": 579.30115
+            }
+          },
+          "kernel_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 0,
+              "p50": 83,
+              "p99": 84,
+              "p999": 125,
+              "max": 291,
+              "mean": 66.47074
+            }
+          },
+          "materialized_boundary": {
+            "accelerated_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 833,
+                "p50": 958,
+                "p99": 1083,
+                "p999": 1334,
+                "max": 26750,
+                "mean": 970.31609
+              }
+            },
+            "legacy_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 1709,
+                "p50": 1917,
+                "p99": 2167,
+                "p999": 3250,
+                "max": 28042,
+                "mean": 1928.38993
+              }
+            }
+          }
+        }
+      },
+      "whole_gateway": {
+        "inputs": "four_order_shapes",
+        "result_conversion": "eager_tuple",
+        "wall_ns": {
+          "summary": {
+            "n": 5000,
+            "min": 46958,
+            "p50": 61625,
+            "p99": 81541,
+            "p999": 110750,
+            "max": 125958,
+            "mean": 60273.161
+          }
+        },
+        "decision_us": {
+          "summary": {
+            "n": 5000,
+            "min": 43.0,
+            "p50": 45.958,
+            "p99": 65.875,
+            "p999": 85.66699999999999,
+            "max": 120.375,
+            "mean": 46.7478536
+          }
+        },
+        "kernel_ns": {
+          "summary": {
+            "n": 5000,
+            "min": 0,
+            "p50": 83,
+            "p99": 125,
+            "p999": 167,
+            "max": 208,
+            "mean": 80.9346
+          }
+        }
+      },
+      "whole_gateway_legacy_result_conversion": {
+        "inputs": "four_order_shapes",
+        "result_conversion": "legacy_attributes",
+        "wall_ns": {
+          "summary": {
+            "n": 5000,
+            "min": 48375,
+            "p50": 63459,
+            "p99": 81625,
+            "p999": 102000,
+            "max": 210875,
+            "mean": 61946.4124
+          }
+        },
+        "decision_us": {
+          "summary": {
+            "n": 5000,
+            "min": 44.292,
+            "p50": 47.5,
+            "p99": 64.292,
+            "p999": 80.125,
+            "max": 184.25,
+            "mean": 48.1997968
+          }
+        },
+        "kernel_ns": {
+          "summary": {
+            "n": 5000,
+            "min": 0,
+            "p50": 83,
+            "p99": 125,
+            "p999": 125,
+            "max": 541,
+            "mean": 79.3492
+          }
+        }
+      },
+      "release_contract": {
+        "passed": true,
+        "reason": null,
+        "target_ns_exclusive": 100,
+        "required_fraction": 0.99,
+        "inside_target": 99960,
+        "fraction_inside_target": 0.9996,
+        "p99_ns": 84
+      },
+      "stretch_contract": {
+        "passed": true,
+        "reason": null,
+        "target_ns_exclusive": 50,
+        "required_fraction": 0.5,
+        "inside_target": 88385,
+        "fraction_inside_target": 0.88385,
+        "p99_ns": 84
+      }
+    },
+    {
+      "python_timer_floor_ns": {
+        "summary": {
+          "n": 100000,
+          "min": 0,
+          "p50": 0,
+          "p99": 42,
+          "p999": 42,
+          "max": 208,
+          "mean": 16.57789
+        }
+      },
+      "cpp_timer_floor_ns": {
+        "summary": {
+          "n": 100000,
+          "min": 0,
+          "p50": 0,
+          "p99": 42,
+          "p999": 42,
+          "max": 125,
+          "mean": 11.33069
+        }
+      },
+      "python_cpp_roundtrip_ns": {
+        "summary": {
+          "n": 100000,
+          "min": 0,
+          "p50": 42,
+          "p99": 84,
+          "p999": 84,
+          "max": 7583,
+          "mean": 46.35238
+        }
+      },
+      "direct": {
+        "canonical_two_venue": {
+          "venues": 2,
+          "inputs": "canonical_constant",
+          "wall_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 416,
+              "p50": 542,
+              "p99": 667,
+              "p999": 792,
+              "max": 24709,
+              "mean": 532.66739
+            }
+          },
+          "kernel_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 0,
+              "p50": 42,
+              "p99": 84,
+              "p999": 84,
+              "max": 7417,
+              "mean": 47.76115
+            }
+          },
+          "materialized_boundary": {
+            "accelerated_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 750,
+                "p50": 917,
+                "p99": 1041,
+                "p999": 1333,
+                "max": 23625,
+                "mean": 917.06288
+              }
+            },
+            "legacy_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 1666,
+                "p50": 1875,
+                "p99": 2042,
+                "p999": 2667,
+                "max": 24792,
+                "mean": 1866.22985
+              }
+            }
+          }
+        },
+        "varied_two_venue": {
+          "venues": 2,
+          "inputs": "varied",
+          "wall_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 416,
+              "p50": 541,
+              "p99": 584,
+              "p999": 750,
+              "max": 20417,
+              "mean": 534.94047
+            }
+          },
+          "kernel_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 0,
+              "p50": 42,
+              "p99": 84,
+              "p999": 84,
+              "max": 208,
+              "mean": 46.5219
+            }
+          },
+          "materialized_boundary": {
+            "accelerated_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 791,
+                "p50": 917,
+                "p99": 1042,
+                "p999": 1375,
+                "max": 23042,
+                "mean": 934.63917
+              }
+            },
+            "legacy_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 1666,
+                "p50": 1875,
+                "p99": 2083,
+                "p999": 3541,
+                "max": 25500,
+                "mean": 1889.11363
+              }
+            }
+          }
+        },
+        "varied_four_venue": {
+          "venues": 4,
+          "inputs": "varied",
+          "wall_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 458,
+              "p50": 583,
+              "p99": 667,
+              "p999": 792,
+              "max": 24750,
+              "mean": 578.55081
+            }
+          },
+          "kernel_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 0,
+              "p50": 83,
+              "p99": 84,
+              "p999": 125,
+              "max": 22416,
+              "mean": 66.32065
+            }
+          },
+          "materialized_boundary": {
+            "accelerated_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 833,
+                "p50": 1000,
+                "p99": 1125,
+                "p999": 1375,
+                "max": 21667,
+                "mean": 994.67634
+              }
+            },
+            "legacy_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 1750,
+                "p50": 1959,
+                "p99": 2125,
+                "p999": 2625,
+                "max": 20291,
+                "mean": 1969.60652
+              }
+            }
+          }
+        }
+      },
+      "whole_gateway": {
+        "inputs": "four_order_shapes",
+        "result_conversion": "eager_tuple",
+        "wall_ns": {
+          "summary": {
+            "n": 5000,
+            "min": 47125,
+            "p50": 61667,
+            "p99": 80541,
+            "p999": 98083,
+            "max": 104375,
+            "mean": 60208.774
+          }
+        },
+        "decision_us": {
+          "summary": {
+            "n": 5000,
+            "min": 43.375,
+            "p50": 45.917,
+            "p99": 61.167,
+            "p999": 78.042,
+            "max": 84.084,
+            "mean": 46.6392874
+          }
+        },
+        "kernel_ns": {
+          "summary": {
+            "n": 5000,
+            "min": 0,
+            "p50": 83,
+            "p99": 125,
+            "p999": 125,
+            "max": 167,
+            "mean": 78.9718
+          }
+        }
+      },
+      "whole_gateway_legacy_result_conversion": {
+        "inputs": "four_order_shapes",
+        "result_conversion": "legacy_attributes",
+        "wall_ns": {
+          "summary": {
+            "n": 5000,
+            "min": 48709,
+            "p50": 63250,
+            "p99": 85084,
+            "p999": 100833,
+            "max": 108750,
+            "mean": 61832.2174
+          }
+        },
+        "decision_us": {
+          "summary": {
+            "n": 5000,
+            "min": 44.75,
+            "p50": 47.417,
+            "p99": 63.042,
+            "p999": 79.5,
+            "max": 92.625,
+            "mean": 48.200432
+          }
+        },
+        "kernel_ns": {
+          "summary": {
+            "n": 5000,
+            "min": 0,
+            "p50": 83,
+            "p99": 125,
+            "p999": 125,
+            "max": 209,
+            "mean": 79.918
+          }
+        }
+      },
+      "release_contract": {
+        "passed": true,
+        "reason": null,
+        "target_ns_exclusive": 100,
+        "required_fraction": 0.99,
+        "inside_target": 99929,
+        "fraction_inside_target": 0.99929,
+        "p99_ns": 84
+      },
+      "stretch_contract": {
+        "passed": true,
+        "reason": null,
+        "target_ns_exclusive": 50,
+        "required_fraction": 0.5,
+        "inside_target": 85423,
+        "fraction_inside_target": 0.85423,
+        "p99_ns": 84
+      }
+    },
+    {
+      "python_timer_floor_ns": {
+        "summary": {
+          "n": 100000,
+          "min": 0,
+          "p50": 0,
+          "p99": 42,
+          "p999": 42,
+          "max": 167,
+          "mean": 20.33863
+        }
+      },
+      "cpp_timer_floor_ns": {
+        "summary": {
+          "n": 100000,
+          "min": 0,
+          "p50": 0,
+          "p99": 42,
+          "p999": 42,
+          "max": 14709,
+          "mean": 12.31665
+        }
+      },
+      "python_cpp_roundtrip_ns": {
+        "summary": {
+          "n": 100000,
+          "min": 0,
+          "p50": 42,
+          "p99": 83,
+          "p999": 84,
+          "max": 11250,
+          "mean": 46.08392
+        }
+      },
+      "direct": {
+        "canonical_two_venue": {
+          "venues": 2,
+          "inputs": "canonical_constant",
+          "wall_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 416,
+              "p50": 542,
+              "p99": 625,
+              "p999": 709,
+              "max": 16708,
+              "mean": 534.87293
+            }
+          },
+          "kernel_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 0,
+              "p50": 42,
+              "p99": 84,
+              "p999": 84,
+              "max": 208,
+              "mean": 46.03473
+            }
+          },
+          "materialized_boundary": {
+            "accelerated_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 750,
+                "p50": 917,
+                "p99": 1042,
+                "p999": 1333,
+                "max": 20208,
+                "mean": 929.03124
+              }
+            },
+            "legacy_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 1667,
+                "p50": 1916,
+                "p99": 2083,
+                "p999": 2666,
+                "max": 25500,
+                "mean": 1901.12382
+              }
+            }
+          }
+        },
+        "varied_two_venue": {
+          "venues": 2,
+          "inputs": "varied",
+          "wall_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 458,
+              "p50": 542,
+              "p99": 666,
+              "p999": 833,
+              "max": 20042,
+              "mean": 555.04804
+            }
+          },
+          "kernel_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 0,
+              "p50": 42,
+              "p99": 84,
+              "p999": 84,
+              "max": 7958,
+              "mean": 48.82792
+            }
+          },
+          "materialized_boundary": {
+            "accelerated_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 833,
+                "p50": 958,
+                "p99": 1083,
+                "p999": 1333,
+                "max": 18459,
+                "mean": 955.44605
+              }
+            },
+            "legacy_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 1792,
+                "p50": 1917,
+                "p99": 2125,
+                "p999": 2666,
+                "max": 37500,
+                "mean": 1938.09137
+              }
+            }
+          }
+        },
+        "varied_four_venue": {
+          "venues": 4,
+          "inputs": "varied",
+          "wall_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 500,
+              "p50": 584,
+              "p99": 667,
+              "p999": 750,
+              "max": 23500,
+              "mean": 603.13103
+            }
+          },
+          "kernel_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 0,
+              "p50": 83,
+              "p99": 84,
+              "p999": 125,
+              "max": 5416,
+              "mean": 68.83523
+            }
+          },
+          "materialized_boundary": {
+            "accelerated_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 875,
+                "p50": 1000,
+                "p99": 1084,
+                "p999": 1250,
+                "max": 26583,
+                "mean": 1003.35661
+              }
+            },
+            "legacy_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 1792,
+                "p50": 1958,
+                "p99": 2083,
+                "p999": 2541,
+                "max": 24917,
+                "mean": 1961.50397
+              }
+            }
+          }
+        }
+      },
+      "whole_gateway": {
+        "inputs": "four_order_shapes",
+        "result_conversion": "eager_tuple",
+        "wall_ns": {
+          "summary": {
+            "n": 5000,
+            "min": 47041,
+            "p50": 64833,
+            "p99": 84791,
+            "p999": 115750,
+            "max": 138458,
+            "mean": 63299.1834
+          }
+        },
+        "decision_us": {
+          "summary": {
+            "n": 5000,
+            "min": 43.458,
+            "p50": 48.625,
+            "p99": 67.875,
+            "p999": 90.916,
+            "max": 103.958,
+            "mean": 49.4043322
+          }
+        },
+        "kernel_ns": {
+          "summary": {
+            "n": 5000,
+            "min": 0,
+            "p50": 83,
+            "p99": 125,
+            "p999": 208,
+            "max": 13166,
+            "mean": 85.701
+          }
+        }
+      },
+      "whole_gateway_legacy_result_conversion": {
+        "inputs": "four_order_shapes",
+        "result_conversion": "legacy_attributes",
+        "wall_ns": {
+          "summary": {
+            "n": 5000,
+            "min": 49875,
+            "p50": 67541,
+            "p99": 87541,
+            "p999": 118916,
+            "max": 144334,
+            "mean": 65820.0834
+          }
+        },
+        "decision_us": {
+          "summary": {
+            "n": 5000,
+            "min": 46.167,
+            "p50": 50.708999999999996,
+            "p99": 67.458,
+            "p999": 93.25,
+            "max": 105.792,
+            "mean": 51.490032400000004
+          }
+        },
+        "kernel_ns": {
+          "summary": {
+            "n": 5000,
+            "min": 0,
+            "p50": 83,
+            "p99": 125,
+            "p999": 209,
+            "max": 375,
+            "mean": 84.1786
+          }
+        }
+      },
+      "release_contract": {
+        "passed": true,
+        "reason": null,
+        "target_ns_exclusive": 100,
+        "required_fraction": 0.99,
+        "inside_target": 99952,
+        "fraction_inside_target": 0.99952,
+        "p99_ns": 84
+      },
+      "stretch_contract": {
+        "passed": true,
+        "reason": null,
+        "target_ns_exclusive": 50,
+        "required_fraction": 0.5,
+        "inside_target": 89003,
+        "fraction_inside_target": 0.89003,
+        "p99_ns": 84
+      }
+    },
+    {
+      "python_timer_floor_ns": {
+        "summary": {
+          "n": 100000,
+          "min": 0,
+          "p50": 41,
+          "p99": 42,
+          "p999": 42,
+          "max": 7709,
+          "mean": 20.99612
+        }
+      },
+      "cpp_timer_floor_ns": {
+        "summary": {
+          "n": 100000,
+          "min": 0,
+          "p50": 0,
+          "p99": 42,
+          "p999": 42,
+          "max": 84,
+          "mean": 11.96661
+        }
+      },
+      "python_cpp_roundtrip_ns": {
+        "summary": {
+          "n": 100000,
+          "min": 0,
+          "p50": 42,
+          "p99": 83,
+          "p999": 84,
+          "max": 5792,
+          "mean": 45.9727
+        }
+      },
+      "direct": {
+        "canonical_two_venue": {
+          "venues": 2,
+          "inputs": "canonical_constant",
+          "wall_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 416,
+              "p50": 542,
+              "p99": 625,
+              "p999": 667,
+              "max": 20250,
+              "mean": 546.08977
+            }
+          },
+          "kernel_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 0,
+              "p50": 42,
+              "p99": 84,
+              "p999": 84,
+              "max": 8541,
+              "mean": 47.53548
+            }
+          },
+          "materialized_boundary": {
+            "accelerated_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 792,
+                "p50": 958,
+                "p99": 1041,
+                "p999": 1209,
+                "max": 16000,
+                "mean": 941.33102
+              }
+            },
+            "legacy_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 1750,
+                "p50": 1916,
+                "p99": 2041,
+                "p999": 2541,
+                "max": 22833,
+                "mean": 1915.58805
+              }
+            }
+          }
+        },
+        "varied_two_venue": {
+          "venues": 2,
+          "inputs": "varied",
+          "wall_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 458,
+              "p50": 542,
+              "p99": 625,
+              "p999": 708,
+              "max": 9084,
+              "mean": 551.54786
+            }
+          },
+          "kernel_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 0,
+              "p50": 42,
+              "p99": 84,
+              "p999": 84,
+              "max": 7542,
+              "mean": 49.23172
+            }
+          },
+          "materialized_boundary": {
+            "accelerated_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 833,
+                "p50": 958,
+                "p99": 1042,
+                "p999": 1250,
+                "max": 23459,
+                "mean": 952.33678
+              }
+            },
+            "legacy_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 1750,
+                "p50": 1917,
+                "p99": 2083,
+                "p999": 2917,
+                "max": 46083,
+                "mean": 1935.42072
+              }
+            }
+          }
+        },
+        "varied_four_venue": {
+          "venues": 4,
+          "inputs": "varied",
+          "wall_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 500,
+              "p50": 584,
+              "p99": 667,
+              "p999": 792,
+              "max": 22667,
+              "mean": 600.99976
+            }
+          },
+          "kernel_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 0,
+              "p50": 83,
+              "p99": 84,
+              "p999": 125,
+              "max": 8333,
+              "mean": 68.76986
+            }
+          },
+          "materialized_boundary": {
+            "accelerated_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 875,
+                "p50": 1000,
+                "p99": 1125,
+                "p999": 1375,
+                "max": 20875,
+                "mean": 999.09706
+              }
+            },
+            "legacy_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 1792,
+                "p50": 1959,
+                "p99": 2125,
+                "p999": 3000,
+                "max": 26375,
+                "mean": 1987.44531
+              }
+            }
+          }
+        }
+      },
+      "whole_gateway": {
+        "inputs": "four_order_shapes",
+        "result_conversion": "eager_tuple",
+        "wall_ns": {
+          "summary": {
+            "n": 5000,
+            "min": 49167,
+            "p50": 65375,
+            "p99": 90666,
+            "p999": 117209,
+            "max": 153167,
+            "mean": 64537.032
+          }
+        },
+        "decision_us": {
+          "summary": {
+            "n": 5000,
+            "min": 45.042,
+            "p50": 48.792,
+            "p99": 74.042,
+            "p999": 93.292,
+            "max": 116.08300000000001,
+            "mean": 50.4124378
+          }
+        },
+        "kernel_ns": {
+          "summary": {
+            "n": 5000,
+            "min": 0,
+            "p50": 83,
+            "p99": 125,
+            "p999": 167,
+            "max": 2958,
+            "mean": 83.0634
+          }
+        }
+      },
+      "whole_gateway_legacy_result_conversion": {
+        "inputs": "four_order_shapes",
+        "result_conversion": "legacy_attributes",
+        "wall_ns": {
+          "summary": {
+            "n": 5000,
+            "min": 51167,
+            "p50": 67417,
+            "p99": 88250,
+            "p999": 117583,
+            "max": 149167,
+            "mean": 66070.5906
+          }
+        },
+        "decision_us": {
+          "summary": {
+            "n": 5000,
+            "min": 45.917,
+            "p50": 50.625,
+            "p99": 68.25,
+            "p999": 89.5,
+            "max": 109.584,
+            "mean": 51.7750262
+          }
+        },
+        "kernel_ns": {
+          "summary": {
+            "n": 5000,
+            "min": 0,
+            "p50": 83,
+            "p99": 125,
+            "p999": 167,
+            "max": 292,
+            "mean": 83.5952
+          }
+        }
+      },
+      "release_contract": {
+        "passed": true,
+        "reason": null,
+        "target_ns_exclusive": 100,
+        "required_fraction": 0.99,
+        "inside_target": 99965,
+        "fraction_inside_target": 0.99965,
+        "p99_ns": 84
+      },
+      "stretch_contract": {
+        "passed": true,
+        "reason": null,
+        "target_ns_exclusive": 50,
+        "required_fraction": 0.5,
+        "inside_target": 86422,
+        "fraction_inside_target": 0.86422,
+        "p99_ns": 84
+      }
+    },
+    {
+      "python_timer_floor_ns": {
+        "summary": {
+          "n": 100000,
+          "min": 0,
+          "p50": 0,
+          "p99": 42,
+          "p999": 42,
+          "max": 250,
+          "mean": 19.08956
+        }
+      },
+      "cpp_timer_floor_ns": {
+        "summary": {
+          "n": 100000,
+          "min": 0,
+          "p50": 0,
+          "p99": 42,
+          "p999": 42,
+          "max": 125,
+          "mean": 11.81542
+        }
+      },
+      "python_cpp_roundtrip_ns": {
+        "summary": {
+          "n": 100000,
+          "min": 0,
+          "p50": 42,
+          "p99": 84,
+          "p999": 125,
+          "max": 1125,
+          "mean": 48.67379
+        }
+      },
+      "direct": {
+        "canonical_two_venue": {
+          "venues": 2,
+          "inputs": "canonical_constant",
+          "wall_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 458,
+              "p50": 542,
+              "p99": 625,
+              "p999": 709,
+              "max": 10375,
+              "mean": 539.94996
+            }
+          },
+          "kernel_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 0,
+              "p50": 42,
+              "p99": 84,
+              "p999": 84,
+              "max": 500,
+              "mean": 45.86261
+            }
+          },
+          "materialized_boundary": {
+            "accelerated_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 833,
+                "p50": 958,
+                "p99": 1042,
+                "p999": 1208,
+                "max": 16417,
+                "mean": 952.3665
+              }
+            },
+            "legacy_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 1750,
+                "p50": 1917,
+                "p99": 2042,
+                "p999": 2500,
+                "max": 29709,
+                "mean": 1927.23926
+              }
+            }
+          }
+        },
+        "varied_two_venue": {
+          "venues": 2,
+          "inputs": "varied",
+          "wall_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 458,
+              "p50": 542,
+              "p99": 667,
+              "p999": 833,
+              "max": 18500,
+              "mean": 555.78782
+            }
+          },
+          "kernel_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 0,
+              "p50": 42,
+              "p99": 84,
+              "p999": 84,
+              "max": 15250,
+              "mean": 50.13436
+            }
+          },
+          "materialized_boundary": {
+            "accelerated_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 833,
+                "p50": 958,
+                "p99": 1166,
+                "p999": 1459,
+                "max": 18125,
+                "mean": 959.00814
+              }
+            },
+            "legacy_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 1750,
+                "p50": 1917,
+                "p99": 2334,
+                "p999": 4834,
+                "max": 76333,
+                "mean": 1951.27
+              }
+            }
+          }
+        },
+        "varied_four_venue": {
+          "venues": 4,
+          "inputs": "varied",
+          "wall_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 500,
+              "p50": 584,
+              "p99": 750,
+              "p999": 958,
+              "max": 14166,
+              "mean": 604.51431
+            }
+          },
+          "kernel_ns": {
+            "summary": {
+              "n": 100000,
+              "min": 0,
+              "p50": 83,
+              "p99": 84,
+              "p999": 167,
+              "max": 4084,
+              "mean": 70.29556
+            }
+          },
+          "materialized_boundary": {
+            "accelerated_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 875,
+                "p50": 1000,
+                "p99": 1167,
+                "p999": 1417,
+                "max": 16834,
+                "mean": 999.67806
+              }
+            },
+            "legacy_wall_ns": {
+              "summary": {
+                "n": 100000,
+                "min": 1750,
+                "p50": 1958,
+                "p99": 2291,
+                "p999": 2667,
+                "max": 24500,
+                "mean": 1973.87798
+              }
+            }
+          }
+        }
+      },
+      "whole_gateway": {
+        "inputs": "four_order_shapes",
+        "result_conversion": "eager_tuple",
+        "wall_ns": {
+          "summary": {
+            "n": 5000,
+            "min": 48000,
+            "p50": 65042,
+            "p99": 87166,
+            "p999": 129042,
+            "max": 150000,
+            "mean": 63834.8684
+          }
+        },
+        "decision_us": {
+          "summary": {
+            "n": 5000,
+            "min": 44.458,
+            "p50": 48.417,
+            "p99": 67.375,
+            "p999": 104.25,
+            "max": 112.292,
+            "mean": 49.6801782
+          }
+        },
+        "kernel_ns": {
+          "summary": {
+            "n": 5000,
+            "min": 0,
+            "p50": 83,
+            "p99": 125,
+            "p999": 209,
+            "max": 416,
+            "mean": 83.963
+          }
+        }
+      },
+      "whole_gateway_legacy_result_conversion": {
+        "inputs": "four_order_shapes",
+        "result_conversion": "legacy_attributes",
+        "wall_ns": {
+          "summary": {
+            "n": 5000,
+            "min": 51125,
+            "p50": 67125,
+            "p99": 86875,
+            "p999": 135584,
+            "max": 252750,
+            "mean": 65955.4664
+          }
+        },
+        "decision_us": {
+          "summary": {
+            "n": 5000,
+            "min": 46.625,
+            "p50": 50.333999999999996,
+            "p99": 66.5,
+            "p999": 110.417,
+            "max": 207.25,
+            "mean": 51.6309582
+          }
+        },
+        "kernel_ns": {
+          "summary": {
+            "n": 5000,
+            "min": 0,
+            "p50": 83,
+            "p99": 125,
+            "p999": 250,
+            "max": 375,
+            "mean": 82.4072
+          }
+        }
+      },
+      "release_contract": {
+        "passed": true,
+        "reason": null,
+        "target_ns_exclusive": 100,
+        "required_fraction": 0.99,
+        "inside_target": 99941,
+        "fraction_inside_target": 0.99941,
+        "p99_ns": 84
+      },
+      "stretch_contract": {
+        "passed": true,
+        "reason": null,
+        "target_ns_exclusive": 50,
+        "required_fraction": 0.5,
+        "inside_target": 89636,
+        "fraction_inside_target": 0.89636,
+        "p99_ns": 84
+      }
+    }
+  ]
+}
