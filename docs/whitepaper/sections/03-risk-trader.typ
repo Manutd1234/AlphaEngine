@@ -1,4 +1,5 @@
 // Chapter 3 — Risk Manager and Quant Trader.
+// Last verified: 2026-08-29.
 //
 // Two roles, one chapter, because they share one object: the in-memory book
 // and the consolidated ladder it is marked against. Splitting them would have
@@ -840,6 +841,54 @@ tail says the same thing from the other end of the scale: about six samples per
 5\u{2009}000 land at 10 to 23 ticks, and they arrive in *bursts* — one slow call
 immediately following another — which is the signature of preemption on a shared
 hypervisor, not of a branch in the decision.
+
+=== The later native qualification is a separate population
+
+The historical decision figures above retain their 2026-08-20 measurement
+date. A later qualification run on 2026-08-28 measures a narrower and more
+explicit boundary rather than restamping them. In that artefact all nine warmed
+canonical two-venue native-kernel repetitions reported p99 of
+#measured[84 ns][`Part2_Infrastructure/docs/native-latency.generated.json`], with
+#measured[99.929% to 99.974% of 100,000 calls per repetition strictly below
+100 ns][same]. The claim belongs only to `CoreResult.elapsed_ns` inside the C++
+arithmetic kernel. The same run reports the complete eager Python-to-C++-to-
+Python operation at #measured[958 ns p50 and 1,042 ns p99][same], and the whole
+gateway at #measured[64.833 µs p50 and 81.667 µs p99][same]. Those populations
+must not be merged into a single flattering number.
+
+The generated record also carries ABI and capability version 1, the source and
+flag hashes embedded in the native build identity, the selected and effective
+engine, and any fallback reason. `DECISION_CORE=native` remains fail-closed;
+auto mode may fall back to the bit-exact Python reference with a stable reason
+counter. This turns selection, compatibility and rollback into observable
+operating state rather than import-time folklore.
+
+== Service-owned execution and bounded transport
+
+The route layer no longer owns execution objects. An immutable
+`ApplicationContext` supplies `MarketDataProvider`, `ExecutionGatewayService`
+and `RiskEngineManager` facades over the one lifespan-owned domain graph.
+Handlers adapt HTTP to those services, preserving a single position book,
+single token bucket and single risk authority. Partial-start cleanup and route
+delegation are pinned separately in `tests/test_application_lifecycle.py` and
+`tests/test_application_runtime_contracts.py`.
+
+Synchronous DuckDB, SQLite and optional PostgREST reads cross one owned
+`BackendRuntime`: four workers and twelve queued admissions by default, not the
+unbounded global queue behind `asyncio.to_thread`. Fixed request classes H1 to
+H5 carry 3,000, 8,000, 15,000, 25,000 and 3,000 ms ceilings. The middleware
+validates the request identity and remaining budget, propagates the tighter
+deadline, publishes queue and blocking time in `Server-Timing`, and maps an
+expired budget to 504 while saturation returns 503 with `Retry-After`. The
+runtime reports queue and duration p95 plus event-loop lag, so pressure is a
+measured boundary rather than a slow request with no owner.
+
+Book WebSockets use one `LatestStateFeed` producer for each `book:{SYMBOL}`
+topic, a queue of one frame per consumer and a 300 ms publication interval. A
+slow reader may lose a superseded market snapshot and receives the cumulative
+coalescing count and freshness in the next heartbeat. Order, execution,
+rejection, kill-switch and audit events never enter this channel: coalescing a
+replaceable view is flow control; coalescing a safety fact is data loss.
 
 == What is not built, and why it waits <sec-absent>
 
