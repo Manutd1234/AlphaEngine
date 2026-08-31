@@ -11,8 +11,8 @@ export const dynamic = "force-dynamic";
  * POST /api/gateway/data/work-items         — create one item (operator-gated, like every other write)
  *
  * The Data tab's work queue lives in the gateway's data-operations SQLite
- * file: versioned rows, audit-logged mutations, seeded samples marked as
- * such. Reads are open like the audit feed; writes go through the same
+ * file: versioned rows created by authenticated writes, with audit-logged
+ * mutations. Reads are open like the audit feed; writes go through the same
  * operator gate the risk controls use, and the gateway token never reaches
  * the browser.
  */
@@ -21,7 +21,7 @@ const KINDS = new Set(["request", "ticket", "bug"]);
 const PRIORITIES = new Set(["P0", "P1", "P2", "P3"]);
 const TIMEOUT_MS = 8_000;
 
-interface WorkItemsPayload { backend: string; items: unknown[]; count: number; seeded: number }
+interface WorkItemsPayload { backend: string; items: unknown[]; count: number }
 
 export async function GET() {
   const result = await callGateway<WorkItemsPayload>("/api/data/work-items", {
