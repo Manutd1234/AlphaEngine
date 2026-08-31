@@ -284,35 +284,28 @@ describe("a model re-fetch never blanks a rendered model", () => {
 });
 
 // --------------------------------------------------------------------------
-// 4. Known gap, named
+// 4. The stale write gate
 // --------------------------------------------------------------------------
 
 describe("the stale banner's claim about handoffs", () => {
-  // `BookChrome`'s stale banner tells the reader "Execution handoffs are
-  // disabled until the gateway reconnects", and on the Portfolio tab
-  // `WorkingOrders` honours the claim by folding `isStale` into
-  // `writesDisabled`. `ExecutionHandoff` — the component behind the Risk
-  // tab's Flatten and Halt buttons — takes no staleness input at all: its
-  // gateway guard is fetched once on mount, so a gateway that dies afterwards
-  // leaves the fire button armed while the banner above says otherwise. The
-  // server still refuses, so nothing executes on a stale book; the defect is
-  // the unkept promise, not a live risk path.
-  //
-  // Skipped, not asserted: the fix needs a `stale` prop on
-  // `components/portfolio/ExecutionHandoff.tsx`, folded into `canExecute` and
-  // `blockedReason`, and passed from its three call sites — two of which are
-  // Portfolio-owned files a Risk sweep must not edit. Unskip when it lands.
-  it.skip("is enforced where the handoff executes, not only claimed in the banner", () => {
+  it("is enforced where the handoff executes, not only claimed in the banner", () => {
     const handoff = readSource("components/portfolio/ExecutionHandoff.tsx");
-    assert.match(handoff, /stale/, "ExecutionHandoff needs a staleness input");
+    assert.match(handoff, /stale: boolean/, "ExecutionHandoff needs a staleness input");
+    assert.match(handoff, /!sandbox && !stale && !locked && !noGateway/,
+      "the action gate ignores a stale book");
+    assert.match(handoff, /if \(!canExecute\) return;/,
+      "the event handler relies only on the button's disabled attribute");
+    assert.match(handoff, /disabled=\{sandbox \|\| stale \|\| locked \|\| noGateway\}/,
+      "the confirmation input remains armed under a stale book");
     const workspace = readSource("components/RiskWorkspace.tsx");
     assert.match(workspace, /stale=\{view\.isStale\}/,
       "the risk tab must pass the staleness it already banners on");
+    const portfolio = readSource("components/PortfolioWorkspace.tsx");
+    assert.match(portfolio, /stale=\{isStale\}/,
+      "the portfolio tab must pass the staleness it already banners on");
   });
 
-  it("still stands in the banner, so the gap above stays a gap and not a ghost", () => {
-    // If this copy changes or moves, the skipped pin above loses its subject:
-    // re-read both and either unskip or retire the pair together.
+  it("keeps the banner and the executing control on the same promise", () => {
     const chrome = readSource("components/portfolio/BookChrome.tsx");
     assert.match(chrome, /Execution handoffs are[\s\S]{0,30}disabled until the gateway reconnects/);
   });
