@@ -73,6 +73,14 @@
     align-content: start;
   }
 
+  /* The paired lifetime cards can resolve onto fractional grid rows at this
+     exact desktop boundary. Keep the final card border inside the section's
+     geometry instead of letting its last disclosure cross the owner by a
+     device pixel. This is a real block-end reserve, not clipped overflow. */
+  #portfolio-subpanel-performance {
+    padding-block-end: var(--space-4);
+  }
+
   #portfolio-subpanel-overview > *,
   #portfolio-subpanel-positions > *,
   #portfolio-subpanel-performance > * {
