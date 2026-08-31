@@ -183,11 +183,10 @@ const MUST_SURVIVE: { file: Owned; text: string }[] = [
   { file: "components/overview/KpiDeck.tsx", text: "no lookups yet" },
   { file: "components/overview/KpiDeck.tsx", text: "modelled cost" },
   { file: "components/overview/AuditTrail.tsx", text: "Every paper order, accepted or refused, with the refusing gate." },
-  { file: "components/overview/AuditTrail.tsx", text: "Generated ledger — these orders were not sent." },
-  { file: "components/overview/AuditTrail.tsx", text: "The same orders the Execution blotter shows, so the two tabs reconcile." },
+  { file: "components/overview/AuditTrail.tsx", text: "Audit feed unavailable." },
+  { file: "components/overview/AuditTrail.tsx", text: "No rows are substituted." },
   { file: "components/overview/AuditTrail.tsx", text: "No orders in the audit window yet — send a paper order from Execution." },
   { file: "components/overview/AuditTrail.tsx", text: "paper-only, recorded by the gateway itself." },
-  { file: "components/overview/AuditTrail.tsx", text: "generated for this session; paper-only, recorded by nothing." },
 ];
 
 // ---------------------------------------------------------------------------
@@ -219,10 +218,10 @@ const MUST_STAY_VISIBLE: { file: Owned; text: string; kind: string }[] = [
   { file: "components/overview/KpiDeck.tsx", text: "book connecting", kind: "null explanation under the Gross exposure dash" },
   { file: "components/overview/KpiDeck.tsx", text: "needs price history", kind: "null explanation under the CVaR dash" },
   { file: "components/overview/KpiDeck.tsx", text: "; sandbox", kind: "safety statement on the order intent card" },
-  { file: "components/overview/AuditTrail.tsx", text: "Generated ledger — these orders were not sent.", kind: "safety statement" },
+  { file: "components/overview/AuditTrail.tsx", text: "Audit feed unavailable.", kind: "live-data absence" },
+  { file: "components/overview/AuditTrail.tsx", text: "No rows are substituted.", kind: "safety statement" },
   { file: "components/overview/AuditTrail.tsx", text: "No orders in the audit window yet — send a paper order from Execution.", kind: "empty state" },
   { file: "components/overview/AuditTrail.tsx", text: "paper-only, recorded by the gateway itself.", kind: "safety statement" },
-  { file: "components/overview/AuditTrail.tsx", text: "generated for this session; paper-only, recorded by nothing.", kind: "safety statement" },
 ];
 
 // ---------------------------------------------------------------------------
