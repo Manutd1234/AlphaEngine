@@ -19,15 +19,29 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { NextRequest } from "next/server";
+
+import { GET as quoteRoute } from "../app/api/quote/route";
 import {
   applicableAssets,
   inapplicableReason,
   isApplicable,
   ROUTE_MATRIX,
 } from "../lib/providers/capabilities";
-import { classify, candidatesFor, getFundamentals, isValidSymbol } from "../lib/providers/registry";
+import { cacheHeaders } from "../lib/providers/http";
+import {
+  classify,
+  cacheKeys,
+  candidatesFor,
+  getFundamentals,
+  getNews,
+  getQuote,
+  isValidSymbol,
+  searchWeb,
+} from "../lib/providers/registry";
 import { MemoryStore } from "../lib/providers/runtime";
-import { NotApplicableError } from "../lib/providers/types";
+import { NotApplicableError, ProviderError } from "../lib/providers/types";
+import { withEnvironment } from "./helpers/reliability-fixtures";
 
 test("classify: pairs are crypto, bare bases are not", () => {
   assert.equal(classify("BTCUSDT"), "crypto");
@@ -116,4 +130,89 @@ test("inapplicableReason names the capability, the scope and the symbol", () => 
     "Fundamentals describe an issuer, so the capability is equity-only; BTCUSDT is classified as crypto, so no provider is asked and nothing is spent.",
   );
   assert.doesNotMatch(inapplicableReason("fundamentals", "ETHUSDT", "crypto"), / · /);
+});
+
+test("unpinned provider exhaustion fails closed with its upstream evidence", async () => {
+  const env = {} as NodeJS.ProcessEnv;
+  const quoteStore = new MemoryStore();
+  const requests = [
+    getQuote("AAPL", { env, store: quoteStore }),
+    getNews(["AAPL"], 5, { env, store: new MemoryStore() }),
+    getFundamentals("AAPL", { env, store: new MemoryStore() }),
+    searchWeb("Federal Reserve policy", 5, { env, store: new MemoryStore() }),
+  ];
+
+  for (const request of requests) {
+    await assert.rejects(request, (error: unknown) => {
+      assert.ok(error instanceof ProviderError);
+      const attempts = (error as ProviderError & { attempts: Array<{ provider: string }> }).attempts;
+      assert.ok(attempts.length > 0, "the upstream failure evidence was dropped");
+      assert.ok(attempts.every((attempt) => attempt.provider !== "sandbox"));
+      return true;
+    });
+  }
+  assert.deepEqual(quoteStore.keys("quote:"), [], "provider exhaustion must not enter the quote cache");
+});
+
+test("an explicit provider pin also fails closed", async () => {
+  await assert.rejects(
+    getQuote("AAPL", {
+      provider: "fmp",
+      env: {} as NodeJS.ProcessEnv,
+      store: new MemoryStore(),
+    }),
+    ProviderError,
+  );
+});
+
+test("a warm response from another provider cannot satisfy an explicit pin", async () => {
+  const store = new MemoryStore();
+  store.set(cacheKeys.search("inflation", 3, "firecrawl"), {
+    data: [{ title: "wrong provider", url: "https://example.test", snippet: "cached" }],
+    provenance: {
+      provider: "tavily",
+      label: "Tavily",
+      fetchedAt: new Date(0).toISOString(),
+      latencyMs: 1,
+      cached: false,
+      delayed: false,
+      quotaRemaining: null,
+      quotaLimit: null,
+      quotaWindow: null,
+    },
+    attempts: [],
+  }, 5_000);
+
+  await assert.rejects(
+    searchWeb("inflation", 3, {
+      provider: "firecrawl",
+      env: {} as NodeJS.ProcessEnv,
+      store,
+    }),
+    ProviderError,
+  );
+});
+
+test("synthetic responses are never cacheable at the HTTP edge", () => {
+  assert.deepEqual(cacheHeaders(15, true), { "cache-control": "no-store" });
+  assert.match(String((cacheHeaders(15, false) as Record<string, string>)["cache-control"]), /s-maxage=15/);
+});
+
+test("the quote route reports provider exhaustion without fabricating a quote", async () => {
+  await withEnvironment({
+    FMP_API_KEY: undefined,
+    TIINGO_API_KEY: undefined,
+    MASSIVE_API_KEY: undefined,
+    ALPHAVANTAGE_API_KEY: undefined,
+    OPENBB_API_URL: undefined,
+  }, async () => {
+    const response = await quoteRoute(new NextRequest("http://local.test/api/quote?symbol=ZZZQ"));
+    const body = await response.json() as {
+      quotes: Array<{ error?: string; attempts?: Array<{ provider?: string }>; provenance?: unknown }>;
+    };
+    assert.equal(response.status, 200);
+    assert.match(body.quotes[0]?.error ?? "", /provider/i);
+    assert.ok((body.quotes[0]?.attempts?.length ?? 0) > 0);
+    assert.equal(body.quotes[0]?.provenance, undefined);
+  });
 });
