@@ -16,7 +16,7 @@
  * thing just read.
  */
 
-import { NAV_ITEMS, type WorkspaceView } from "@/components/WorkspaceHeader";
+import { NAV_ITEMS, nextWorkspaceView, type WorkspaceView } from "@/lib/workspace-nav";
 import {
   DATA_SECTIONS,
   COHERENCE_SECTIONS,
@@ -227,69 +227,58 @@ const NEXT_FROM: Record<string, { view: WorkspaceView; section: string; why: str
 /* Sentence case and British spelling, like the contextual variant above it —
    the ring used to shout Title Case and American "Center" while the measured
    steps spoke the house voice, two registers in one footer. */
-const FLOW_MAP: Record<WorkspaceView, { nextId: WorkspaceView; kicker: string; title: string; hint: string }> = {
+const FLOW_MAP: Record<WorkspaceView, { kicker: string; title: string; hint: string }> = {
   overview: {
-    nextId: "research",
     kicker: "Next step for the quant researcher",
     title: "Validate strategy and signal evidence",
     hint: "Parameter sweeps, stability and walk-forward.",
   },
   research: {
-    nextId: "live",
     kicker: "Next step for the quant trader",
     title: "Stage paper execution and market depth",
     hint: "L2 depth, routing costs, pre-trade gates.",
   },
   live: {
-    nextId: "portfolio",
     kicker: "Next step for the portfolio manager",
     title: "Review positions and P&L attribution",
     hint: "Equity curve, sleeves, concentration, P&L waterfall.",
   },
   portfolio: {
-    nextId: "risk",
     kicker: "Next step for the risk manager",
     title: "Audit pre-trade risk and limits",
     hint: "Headroom, VaR, stress scenarios, kill switch.",
   },
   risk: {
-    nextId: "data",
     kicker: "Next step for the data engineer",
     title: "Verify data lineage and feed freshness",
     hint: "Provider quotas, contract evidence, pipeline DAG.",
   },
   data: {
-    nextId: "reliability",
     kicker: "Next step for DevOps and SRE",
     title: "Check SRE telemetry and circuit health",
     hint: "Latency percentiles, incidents, recovery workflows.",
   },
   reliability: {
-    nextId: "developer",
     kicker: "Next step for the quant developer",
     title: "Inspect CI/CD and schema contracts",
     hint: "Deployment topology, OpenAPI diffs, task queue.",
   },
   developer: {
-    nextId: "markets",
     kicker: "Next step for the quant researcher",
     title: "Read the exchange as it is quoted",
     hint: "Basket totals, book identities, the fee model, recorded tape.",
   },
   markets: {
-    nextId: "coherence",
     kicker: "Next step for the quant researcher",
     title: "Test those prices against their own probabilities",
     hint: "The coherence test, the basket it hands back, the settled scorecard.",
   },
   coherence: {
-    nextId: "diffusion",
     kicker: "Next step for the quant researcher",
     title: "Ask how fast any of it is absorbed",
     hint: "Announcement arm, episode survival, the model worked in the browser.",
   },
   diffusion: {
-    nextId: "overview",
     kicker: "Next step around the decision loop",
     title: "Return to the desk overview",
     hint: "Equity, decision pipeline, audit trail.",
@@ -325,7 +314,7 @@ export default function NextStepFooter({ currentView, currentSection, onNavigate
         action: `Open ${destination.label}`,
       }
     : {
-        view: ring.nextId,
+        view: nextWorkspaceView(currentView),
         section: undefined,
         kicker: ring.kicker,
         title: ring.title,
@@ -337,9 +326,14 @@ export default function NextStepFooter({ currentView, currentSection, onNavigate
     <footer className="next-step-footer" aria-label="Suggested next step">
       <div className="next-step-footer__content">
         <div className="next-step-footer__info">
-          <span className="next-step-footer__kicker">{step.kicker}</span>
           <h3 className="next-step-footer__title">{step.title}</h3>
-          <p className="next-step-footer__hint">{step.hint}</p>
+          <details className="next-step-footer__detail">
+            <summary>Context</summary>
+            <div className="next-step-footer__detail-body">
+              <span className="next-step-footer__kicker">{step.kicker}</span>
+              <p className="next-step-footer__hint">{step.hint}</p>
+            </div>
+          </details>
         </div>
         <button
           type="button"
