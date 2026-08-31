@@ -186,33 +186,23 @@ class TestStatistics:
 
 
 class TestEndToEnd:
-    def test_full_run_offline(self, monkeypatch):
-        """Complete pipeline with the network unavailable — the path a grader
-        without internet access will exercise."""
-        # Patched where each name is LOOKED UP, not where it is re-exported.
-        # `fetch_ohlcv` resolves `_fetch_binance_klines` against its own module,
-        # and `run_backtest` resolves `get_engine` against its own — so patching
-        # the package's `__init__` would bind a name nothing reads. This is the
-        # module-reference hazard docs/REFACTOR_RULES.md opens with, and the
-        # split is what surfaced it.
-        import modules.backtester.data as bt_data
+    def test_full_run_with_explicit_synthetic_demo(self, monkeypatch):
+        """The complete offline demo remains available only by request."""
         import modules.backtester.run as bt_run
 
-        monkeypatch.setattr(
-            bt_data, "_fetch_binance_klines",
-            lambda *a, **k: (_ for _ in ()).throw(RuntimeError("offline")),
-        )
         monkeypatch.setattr(bt_run, "get_engine", lambda prefer_vectorbt=True: NumpyEngine())
 
         seen: list[float] = []
         out = run_backtest(
             BacktestRequest(symbol="BTCUSDT", interval="1h", bars=800, fast_min=5, fast_max=20,
-                            fast_step=5, slow_min=30, slow_max=90, slow_step=30, folds=2).model_dump(),
+                            fast_step=5, slow_min=30, slow_max=90, slow_step=30, folds=2,
+                            data_mode="synthetic_demo").model_dump(),
             job_id="test-1",
             progress=lambda p, m="": seen.append(p),
         )
 
-        assert out["data_source"] in {"synthetic", "duckdb_cache"}
+        assert out["request"]["data_mode"] == "synthetic_demo"
+        assert out["data_source"] == "synthetic"
         assert out["combos_tested"] > 0
         assert out["best"]["fast"] < out["best"]["slow"]
         assert 0.0 <= out["deflated_sharpe_ratio"] <= 1.0
@@ -221,7 +211,7 @@ class TestEndToEnd:
         assert out["equity_curve"]["strategy"]
         assert len(out["walk_forward"]) >= 1
         assert seen and seen[-1] == 1.0                     # progress reached 100%
-        assert any("synthetic" in w.lower() for w in out["warnings"]) or out["data_source"] == "duckdb_cache"
+        assert any("explicitly requested" in w.lower() for w in out["warnings"])
 
     def test_walk_forward_reports_is_and_oos_separately(self):
         from modules.backtester import walk_forward
