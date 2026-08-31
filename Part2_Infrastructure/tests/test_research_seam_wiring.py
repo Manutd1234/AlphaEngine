@@ -52,6 +52,7 @@ from modules import research_graph_offload as offload
 from modules.research_graph_projection import RELATION_TYPES
 from modules.research_graph_relations import RELATIONS
 from modules.research_rag import EMBEDDING_DIMENSIONS, get_rag, reset_rag
+from modules.research_rag.replacement import REPLACE_PATH
 
 DESK = "00000000-0000-0000-0000-0000000000aa"
 QUERY = "deflated sharpe drawdown sweep"
@@ -114,6 +115,9 @@ class Corpus:
             return Reply({"embeddings": [[0.02] * EMBEDDING_DIMENSIONS for _ in json["texts"]]})
         if path == INSERT_PATH:
             self.inserts.append(dict(json or {}))
+            return Reply([], 201)
+        if path == REPLACE_PATH:
+            self.inserts.extend(dict(row) for row in (json or {}).get("p_rows", []))
             return Reply([], 201)
         name = path.rsplit("/", 1)[-1]
         self.rpc.append((name, dict(json or {})))
