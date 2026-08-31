@@ -31,6 +31,12 @@ import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { LIVE_READS, isLiveRead } from "../lib/coherence/routes";
+import { GATEWAY_BUDGETS_MS, type GatewayBudgetClass } from "../lib/gateway-request-context";
+import {
+  COHERENCE_BROWSER_HEADROOM_MS,
+  COHERENCE_DEFAULT_BROWSER_DEADLINE_MS,
+  COHERENCE_LIVE_BROWSER_DEADLINE_MS,
+} from "../lib/coherence/use-coherence";
 import { read, stripNonCode } from "./helpers/workspace-sources";
 
 const ROUTES_DIR = fileURLToPath(new URL("../app/api/gateway/coherence", import.meta.url));
@@ -102,12 +108,24 @@ describe("the coherence boundary is one contract, eighteen times", () => {
         // THE ASSERTION THIS FILE EXISTS FOR. Both directions, so neither a
         // route that quietly takes the live budget nor a name left off the list
         // can pass.
-        const live = code.includes("timeoutMs: 25_000");
+        const budgetClass = declared.match(
+          /gatewayRequestContext\(request,\s*"(H[1-4])"\)/,
+        )?.[1] as GatewayBudgetClass | undefined;
+        assert.ok(budgetClass, `${route.name} does not declare a recognised gateway budget class`);
+        const live = budgetClass === "H4";
         const listed = (LIVE_READS as readonly string[]).includes(leafOf(route.name));
         assert.equal(live, listed,
           live
-            ? `${route.name} takes the live-read budget but is not in LIVE_READS, so the browser gives up on it at 9s`
-            : `${route.name} is in LIVE_READS but takes the default budget, so the browser waits 28s for a route that quits at 8`);
+            ? `${route.name} takes the live-read budget but is not in LIVE_READS`
+            : `${route.name} is in LIVE_READS but does not take the live-read budget`);
+
+        const browserDeadline = listed
+          ? COHERENCE_LIVE_BROWSER_DEADLINE_MS
+          : COHERENCE_DEFAULT_BROWSER_DEADLINE_MS;
+        assert.ok(
+          browserDeadline - GATEWAY_BUDGETS_MS[budgetClass] >= COHERENCE_BROWSER_HEADROOM_MS,
+          `${route.name} leaves less than ${COHERENCE_BROWSER_HEADROOM_MS}ms for cold start and response delivery`,
+        );
       });
     });
   }
