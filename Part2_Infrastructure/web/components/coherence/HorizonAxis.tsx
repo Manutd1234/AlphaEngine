@@ -113,9 +113,9 @@ export default function HorizonAxis({ data }: { data: CoherenceCalibration }) {
   // mark is withheld entirely below and `missing` says the engine did not record
   // one. This `?? 0` only decides how wide the axis is, and `Math.max` makes it
   // the default hour — the same span an unrecorded horizon would get from any
-  // other arm. A peer found the real version of this bug in `StatusPane`'s
-  // `count()`, where a null budget printed "0 tokens per second" and a working
-  // engine read as a stopped one.
+  // other arm. A peer found the real version of this bug in the engine-state
+  // count printer, where a null budget printed "0 tokens per second" and a
+  // working engine read as a stopped one.
   const span = Math.max(HOUR_S, (seconds ?? 0) * 1.2);
 
   return (
