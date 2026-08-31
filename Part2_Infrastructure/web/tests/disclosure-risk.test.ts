@@ -104,12 +104,12 @@ const MOVED: Pinned[] = [
     path: "components/risk/MonteCarloDistribution.tsx",
     text:
       "Resamples <strong>{driver.label}</strong>&apos;s realised {driver.interval} returns with "
-      + "the{\" \"} {MC_RESAMPLER_LABELS[ran]} over a {horizonDays}-day forward horizon, keeping "
+      + "the{\" \"} {MC_RESAMPLER_LABELS[ran]} over a {displayedHorizonDays}-day forward horizon, keeping "
       + "where each path ends.",
     because:
       "Method and provenance, plus the chart-reading rule that a path counts where it ENDS. "
       + "Every parameter it names is also a control at rest in the rail above — the Resampler "
-      + "select, the workspace's horizon seg — so the prose was the restatement, not the source. "
+      + "select and the workspace's horizon seg — while the result-derived horizon stops an in-flight replacement relabelling the old figure. "
       + "Histogram, markers, four tiles and the headroom verdict all stay on screen.",
   },
   {
