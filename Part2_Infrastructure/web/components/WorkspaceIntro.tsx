@@ -12,6 +12,8 @@ interface WorkspaceIntroProps {
   kicker: string;
   title: string;
   description: React.ReactNode;
+  /** Keep the signed source copy available while a role header needs only its name. */
+  showDescription?: boolean;
   insights: WorkspaceInsight[];
   /** The one-word verdict, when the surface has one. */
   status?: PageStatus | null;
@@ -31,6 +33,7 @@ export default function WorkspaceIntro({
   kicker,
   title,
   description,
+  showDescription = true,
   insights,
   status = null,
   actions,
@@ -54,7 +57,8 @@ export default function WorkspaceIntro({
     <PageHead
       kicker={kicker}
       title={title}
-      description={description}
+      showTitle={false}
+      description={showDescription ? description : undefined}
       metrics={metrics}
       status={status}
       actions={actions}
