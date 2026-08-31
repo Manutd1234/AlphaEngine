@@ -19,8 +19,8 @@
  * This page DOES guard the door now, and the sentence that used to sit here
  * saying otherwise was true until the desk moved behind a routing guard. What is
  * unchanged is that nobody is turned away: "Continue as guest" mints a pass and
- * opens the full workspace on generated data. An account buys preferences that
- * follow you between devices, not access.
+ * opens the same workspace. An account buys preferences that follow you between
+ * devices, not access or a different data source.
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -28,6 +28,9 @@ import type { Provider } from "@supabase/supabase-js";
 
 import BrandLockup from "@/components/common/BrandLockup";
 import LoginCard from "@/components/auth/LoginCard";
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import {
   MODE_COPY,
   PROVIDERS,
@@ -43,9 +46,9 @@ import { submitLogin } from "@/lib/auth-submit";
 /**
  * Short, because the desk opens whether or not this lands — the middleware
  * grants a guest pass itself on a deployment with no auth, so the entire cost of
- * giving up early is a sandbox seeded from a different id than the cookie
- * carries. Making someone wait longer than that for a button labelled "open the
- * desk" trades a visible delay for an invisible detail.
+ * giving up early is a pass stored under a different id than the cookie carries.
+ * Making someone wait longer than that for a button labelled "open the desk"
+ * trades a visible delay for an invisible detail.
  */
 const GUEST_PASS_DEADLINE_MS = 4_000;
 
@@ -286,27 +289,28 @@ export default function LoginScreen() {
     return (
       <main className="auth-shell standalone-scroll">
         <BrandLockup size="lg" />
-        <div className="card auth-card">
+        <Card className="card auth-card auth-card--guest">
           <h1>Open the desk</h1>
-          <div className="banner warn mt-3" role="status">
+          <Alert className="banner warn mt-3" role="status">
             <span aria-hidden>◌</span>
             <div>
               Accounts are not configured in this deployment, so there is nothing to sign in to.
               The desk opens as a guest instead.
             </div>
-          </div>
-          <button
+          </Alert>
+          <Button
             type="button"
             className="primary-action mt-3 w-full"
             disabled={guestBusy}
             onClick={() => void enterAsGuest()}
           >
             {guestBusy ? "Opening the desk…" : "Open the workspace"}
-          </button>
-        </div>
+          </Button>
+        </Card>
         <p className="auth-guest__note">
-          Each browser gets its own seeded desk — the full workspace, on generated data. Nothing
-          is shared, and nothing here reaches a real venue.
+          Guest access opens the same live-data workspace. Missing feeds stay visibly unavailable;
+          no generated values are substituted. Nothing is shared between guests, and no order
+          reaches a real venue.
         </p>
       </main>
     );
@@ -368,17 +372,18 @@ export default function LoginScreen() {
       {/* A first-class action, at the weight of the provider buttons above it.
           It was a low-contrast underlined link to "/" — which worked only while
           the desk was ungated, and now has to mint a real guest pass. */}
-      <button
+      <Button
         type="button"
+        variant="outline"
         className="auth-guest"
         disabled={guestBusy}
         onClick={() => void enterAsGuest()}
       >
         {guestBusy ? "Opening the desk…" : "Continue as guest"}
-      </button>
+      </Button>
       <p className="auth-guest__note">
-        A guest desk is seeded for this browser: the full workspace, on generated data. Without
-        an account, preferences stay on this device.
+        Guest access uses the same live-data workspace. Missing feeds stay unavailable, no order
+        reaches a real venue, and preferences stay on this device.
       </p>
     </main>
   );
