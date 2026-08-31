@@ -49,8 +49,7 @@ const SHARED_X: Row[] = [
   // construction (runs, polls, strikes and tiers as ordinals).
   { file: "CorpusHistory.tsx", geometry: "geometry(width", byValue: false, arriveAt: "last", link: "calibration-runs" },
   { file: "FamilyRidge.tsx", geometry: "advancePx(lane.ticker", byValue: false, arriveAt: "last" },
-  { file: "ConstraintLadder.tsx", geometry: "x0", byValue: false, arriveAt: "first" },
-  { file: "SurvivalChart.tsx", geometry: "x(", byValue: false, arriveAt: "first" },
+  // Survival is now a direct-select probability current, not a shared-axis Plot.
   // The index pair: polls at their own stamps, one index space for both.
   { file: "IndexSeriesChart.tsx", geometry: "x(", byValue: true, arriveAt: "last", link: "index-polls" },
   // Shared with the settled trend, which links it to nothing: the key is the caller's.
@@ -63,19 +62,19 @@ const SHARED_X: Row[] = [
   { file: "StateCoverage.tsx", geometry: "cx(", byValue: false, arriveAt: "first", link: "prop" },
   // Ten equal price bands: even by construction; read through reliability-read.ts.
   { file: "ReliabilityDiagram.tsx", geometry: "px(", byValue: false, arriveAt: "first" },
+  // One horizon reads both selectable announcement lines and the shared gap.
+  { file: "diffusion/AbsorptionCurve.tsx", geometry: "x(", byValue: false, arriveAt: "first" },
   // ---------------------------------------------------------- Markets --
   // The live tape: polls at the times they answered. A read that took a
   // second longer sits a second further along and a poll that failed leaves
   // the width it took, so the axis is drawn by value on every one of the
   // eight sections that mount it.
   { file: "LiveTape.tsx", geometry: "x(", byValue: true, arriveAt: "last" },
-  // The recorder's own reads of one book, at their own stamps.
-  { file: "BookHistory.tsx", geometry: "at(", byValue: true, arriveAt: "last" },
+  // Recorded books are now an explicit snapshot flipbook rather than an axis.
   // The fee kernel priced at the venue's own grid: a price axis, read from $0.
   { file: "FeeCurve.tsx", geometry: "x(", byValue: true, arriveAt: "first", link: "fee-price" },
-  // The resting book: one position per price level either side quotes, which
-  // is the union of the two ladders and never an even step.
-  { file: "LadderChart.tsx", geometry: "x(", byValue: true, arriveAt: "first" },
+  // The resting book is now a keyboard-operated two-sided ladder console,
+  // rather than an axis figure with a shared-x crosshair.
   // Published readings, per minute, thinned to the drawn points.
   { file: "IndexBasisChart.tsx", geometry: "x(", byValue: true, arriveAt: "last" },
   // The modelled fee, sampled at 49ths of a dollar — the one Markets axis
@@ -155,11 +154,8 @@ describe("every crosshair figure on the engine", () => {
   }
 
   it("counts the rows it has", () => {
-    // Ten on Proofs, five on Markets (2026-08-26): the tape and the recorded
-    // book, the fee kernel's curve, the resting ladder and the published
-    // index. Every one of the five is drawn BY VALUE — polls, reads, the
-    // venue's price grid, quoted levels, published minutes — which is why
-    // `positions` is the field that carried this slice.
-    assert.equal(SHARED_X.length, 16);
+    // Nine across Proofs and Diffusion, then four on Markets: the tape, the
+    // fee kernel's curve and parabola, and the published index.
+    assert.equal(SHARED_X.length, 13);
   });
 });
