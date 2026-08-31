@@ -143,9 +143,9 @@ describe("a switched-away pane is unmounted, not hidden", () => {
     assert.match(pipelinePane, /developer-cp-section-hero/);
     assert.match(pipelinePane, /<PipelineStrip \/>/);
     assert.match(verificationPane, /developer-cp-jobs/);
-    assert.match(verificationPane, /<CategoryBars/);
+    assert.match(verificationPane, /<CiCountBars/);
     assert.match(verificationPane, /<ArtifactLineage/);
-    assert.doesNotMatch(pipelinePane, /<CategoryBars|<ArtifactLineage/);
+    assert.doesNotMatch(pipelinePane, /<CiCountBars|<ArtifactLineage/);
     assert.doesNotMatch(verificationPane, /<PipelineStrip/);
 
     assert.equal(interfaces.match(/<SchemaGateTable/g)?.length, 1);
