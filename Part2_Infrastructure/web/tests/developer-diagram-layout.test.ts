@@ -4,24 +4,24 @@
  * REPORTED, against the Overview subtab: "use the empty space on the left and
  * right, the words are not aligned properly and the diagram seems very
  * compressed." The surface is `.developer-cp-topology` — kicker "Runtime map",
- * heading "Deployment topology" — a runtime band, a dashed bracket forking from
- * it and three deployable cards. It is the only surface on the tab whose
+ * heading "Deployment topology" — a runtime band and three deployable cards on
+ * one scoped grid-paper field. It is the only surface on the tab whose
  * geometry was written as fixed centred measures, and it is drawn in DOM and
  * CSS: there is no SVG on this tab at all, so no `viewBox` and no
  * `preserveAspectRatio` were ever in play, and none may arrive to reinstate the
  * letterboxing under a different name.
  *
- * Three defects, three claims here, and each is pinned as ARITHMETIC rather
- * than as a remembered pixel value, because the numbers are derived from the
- * grid the diagram is drawn on and a copied constant is what let the bracket
- * drift 3.2px off the node centres it points at in the first place.
+ * Four defects, four claims here. Geometry is pinned to the layout contract
+ * rather than a remembered screenshot.
  *
  *  1. The head of the diagram may not be boxed into a centred measure while the
  *     plane around it is empty. `.developer-cp-edge` was `min(420px, 72%)` on a
- *     1168px plane — 374px of bare grid paper on each side.
- *  2. The bracket's arms must land on the node centres, and the span must be
- *     computed from the same gutter the node columns use.
- *  3. The five rows of the three node cards must share row lines, so a path
+ *     1168px plane — 374px of bare space on each side.
+ *  2. The topology card uses the ordinary panel surface; the former foolscap
+ *     grid competed with the node paths and status pills.
+ *  3. The ornamental dashed fork must not return. The enclosing runtime map
+ *     already expresses the relationship and the fork read as stray guides.
+ *  4. The five rows of the three node cards must share row lines, so a path
  *     that wraps to two lines in one card does not drop that card's detail
  *     sentence a line below its neighbours'.
  *
@@ -108,27 +108,25 @@ describe("the deployment topology is drawn on the plane it has", () => {
       "the 901px-1120px band must give the diagram the whole row, as >=1121px already does");
   });
 
-  it("the bracket's arms land on the node centres, derived from the node gutter", () => {
-    // Three tracks and a gutter g make each track (100% - 2g)/3, so centre to
-    // centre is 100% - (100% - 2g)/3 = (200% + 2g)/3. Both the columns and the
-    // bracket must read the same g, or they drift the way `66.666% + 1px` had.
-    const nodes = blocks(".developer-cp-topology__nodes").at(-1) ?? "";
-    assert.match(nodes, /column-gap: var\(--developer-topology-gap\)/);
-    const line = blocks(".developer-cp-topology__line").at(-1) ?? "";
-    assert.match(line, /width: calc\(\(200% \+ 2 \* var\(--developer-topology-gap\)\) \/ 3\)/,
-      "the bracket span must be the node-centre arithmetic, not a copied percentage");
-    assert.match(density, /--developer-topology-gap: 11px/, "the gutter has no value to derive from");
+  it("uses a plain topology surface without foolscap ruling", () => {
+    const plane = blocks(".developer-cp-overview__grid > .card.developer-cp-topology").at(-1) ?? "";
+    assert.match(plane, /background-color: var\(--surface-1\)/);
+    assert.match(plane, /background-image: none/,
+      "the foolscap ruling returned to the deployment topology card");
+    assert.doesNotMatch(density, /\.developer-cp-overview__grid > \.card \{[\s\S]*?background-image/,
+      "the topology field leaked onto every card in the overview grid");
   });
 
-  it("keeps the phone's stacked geometry, which is a different diagram", () => {
-    // `@media (max-width: 720px)` in 10 redraws the bracket as a 1px vertical
-    // stem. Media queries add no specificity, so an unscoped width in 14i would
-    // sit later in the cascade and win there. The override must be behind a
-    // min-width query, and 721px is the complement of that block.
-    const scoped = /@media \(min-width: 721px\) \{[\s\S]*?\.developer-cp-topology__line \{/;
-    assert.match(density, scoped, "the bracket width must not apply below 721px");
-    assert.match(readGlobalsPartial(BASE_PARTIAL), /@media \(max-width: 720px\)/,
-      "the stacked breakpoint this scoping complements has moved");
+  it("removes the ornamental dashed fork instead of restyling it", () => {
+    const nodes = blocks(".developer-cp-topology__nodes").at(-1) ?? "";
+    assert.match(nodes, /column-gap: var\(--developer-topology-gap\)/);
+    assert.match(density, /--developer-topology-gap: 11px/, "the gutter has no value to derive from");
+    assert.doesNotMatch(stripCode(overview_), /developer-cp-topology__line/,
+      "the connector node returned to the component");
+    assert.doesNotMatch(readGlobalsPartial(BASE_PARTIAL), /\.developer-cp-topology__line/,
+      "the removed connector still has base styling");
+    assert.doesNotMatch(density, /\.developer-cp-topology__line/,
+      "the removed connector still has a late override");
   });
 
   it("puts the three node cards' five rows on shared row lines", () => {
