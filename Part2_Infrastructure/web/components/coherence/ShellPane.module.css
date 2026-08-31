@@ -1,0 +1,6 @@
+.mapContainment {
+  inline-size: 100%;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  animation: none;
+}
