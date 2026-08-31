@@ -1,10 +1,11 @@
 # docs/ — the index
 
-*As of 24 August 2026.* One line per document, honest about what each one is
-**for** — so a reader can pick one rather than opening five. Documents are filed
-by their path, which is the only arrangement an index cannot drift away from.
-Where a document and the tree disagree, the tree is right; every file here
-stamps its own date.
+**Source/worktree audited: 2026-08-31.** One line per document, honest about
+what each one is **for** — so a reader can pick one rather than opening five.
+Documents are filed by their path, which is the only arrangement an index
+cannot drift away from. Where a document and the tree disagree, the tree is
+right; every file here stamps its own date. This stamp does not claim a fresh
+probe of any external deployment.
 
 Everything in this folder is a *distillation*. The operating authority on the
 gateway, the workspace and the service is
@@ -17,6 +18,7 @@ those at length.
 
 | If you want to… | Read |
 |---|---|
+| verify today's counts, versions and release evidence | [`CURRENT_STATE.md`](CURRENT_STATE.md) |
 | understand the system in one sitting | [`architecture/ARCHITECTURE.md`](architecture/ARCHITECTURE.md) |
 | see the desk, tab by tab | [`product/FEATURE_TOUR.md`](product/FEATURE_TOUR.md) |
 | know why a number on screen is allowed to say what it says | [`product/PRODUCT_GUIDE.md`](product/PRODUCT_GUIDE.md) |
@@ -30,12 +32,14 @@ those at length.
 
 | Document | What it is for |
 |---|---|
+| [`CURRENT_STATE.md`](CURRENT_STATE.md) | The reproducible current-worktree ledger: deployable units, tabs, sections, views, route counts, migration state, toolchain versions and dated verification results. This is the one short current-state summary; external and measured observations keep their original dates in their owning documents. |
 | [`architecture/ARCHITECTURE.md`](architecture/ARCHITECTURE.md) | The system in one sitting: the three deployment units and why they are three, the two-implementation parity argument, the three latency planes. Figures read off the tree, files named beside them. Start here if you are reviewing the repository. |
 | [`architecture/DATA_PROCESSING_FLOW.md`](architecture/DATA_PROCESSING_FLOW.md) | Every hop data takes, end to end — vendor bytes to rendered number, and order to audit row. Names the hops and links the arguments rather than repeating them. Read it when you need to know *where* something happens, not *why*. |
-| [`architecture/UML_DIAGRAMS.md`](architecture/UML_DIAGRAMS.md) | Class and sequence diagrams for the anti-twitch machinery and the research pipeline. Every member drawn exists in the named source file, which is what makes the diagrams checkable rather than decorative. |
-| [`architecture/LATENCY_BUDGET.md`](architecture/LATENCY_BUDGET.md) | Every latency number the desk claims, measured with the method and machine stated; where something could not be measured, it says so. It deliberately carries **two** decision readings and refuses to average them — read its §2.1 before quoting a microsecond figure anywhere. |
+| [`architecture/UML_DIAGRAMS.md`](architecture/UML_DIAGRAMS.md) | Class, state, sequence and component diagrams for anti-twitch state, research, parity and the 22-section prediction-market workspace. Every member drawn exists in the named source file, which is what makes the diagrams checkable rather than decorative. |
+| [`architecture/LATENCY_BUDGET.md`](architecture/LATENCY_BUDGET.md) | Every latency number the desk claims, with method, machine and measurement date. It keeps the 2026-08-28 native qualification separate from the retained 2026-08-17→20 production/decision history and never averages unlike populations. |
 | [`architecture/latency-bench.generated.json`](architecture/latency-bench.generated.json) | The generated bench data behind that §2.1 table (`tools/bench_decision.py`). Regenerated, never edited by hand. |
-| [`architecture/DATA_OPS_BACKEND.md`](architecture/DATA_OPS_BACKEND.md) | The four tables the gateway must not forget across a restart, and the SQLite/Postgres choice that decides where they live. Read it before adding a fifth. |
+| [`architecture/DATA_OPS_BACKEND.md`](architecture/DATA_OPS_BACKEND.md) | The strict data-operations store: four operational tables, four diffusion ledgers, the SQLite/Postgres selector, the now-complete source parity contract, and the migration/desk prerequisites that still separate a bundled schema from a deployed live one. |
+| [`architecture/ADR_2026-08-27_SHADCN_SOURCE_PRIMITIVES.md`](architecture/ADR_2026-08-27_SHADCN_SOURCE_PRIMITIVES.md) | The accepted, landed boundary for source-owned shadcn primitives: four exact runtime packages, two browser-test packages, domain-owned quantitative figures, and the dependency/rollback gates that keep that exception narrow. |
 
 ## Engineering
 
@@ -58,7 +62,7 @@ those at length.
 | Document | What it is for |
 |---|---|
 | [`product/PRODUCT_GUIDE.md`](product/PRODUCT_GUIDE.md) | The what-and-why of the workspace: what each tab is for, what a number on screen is allowed to be, what a click is allowed to change. The honesty doctrine in product terms. |
-| [`product/FEATURE_TOUR.md`](product/FEATURE_TOUR.md) | The guided walkthrough, structured as the desk's decision loop across all **ten** tabs and 57 rail sections. Its rail lists are pinned to `web/lib/sections.ts` by a test, so it cannot silently drift from the app — which is why it is the reference when this index and the app disagree. |
+| [`product/FEATURE_TOUR.md`](product/FEATURE_TOUR.md) | The guided walkthrough, structured as the desk's decision loop across all **eleven** tabs and 70 rail sections. Its rail lists are pinned to `web/lib/sections.ts` by a test, so it cannot silently drift from the app — which is why it is the reference when this index and the app disagree. |
 
 ## Testing
 
