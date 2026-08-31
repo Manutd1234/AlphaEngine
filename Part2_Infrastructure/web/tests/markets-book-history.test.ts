@@ -15,9 +15,8 @@
  *     otherwise, and on a deployment whose recorder never ran the empty branch
  *     IS the view. The standing instruction on this desk is that an empty branch
  *     gets a figure, not a grey sentence.
- *  3. THE IMPLIED ASK IS NAMED AS DERIVED wherever it is drawn. A dashed line
- *     and a `<title>` saying which side it was read off is the difference
- *     between a chart of two quotes and a chart of one quote and an inference.
+ *  3. THE IMPLIED ASK IS NAMED AS DERIVED wherever it is drawn. The snapshot
+ *     card says which rail supplied it, beside the native bid it is compared to.
  *
  * Derived, never observed: this proves the markup and the wiring, not that a
  * reader met the figure (CLAUDE.md, fact 6).
@@ -31,6 +30,8 @@ import { read, stripNonCode } from "./helpers/workspace-sources";
 
 const section = read("../components/coherence/BooksSection.tsx");
 const figure = read("../components/coherence/BookHistory.tsx");
+const instrument = read("../components/coherence/BooksInstruments.tsx");
+const css = read("../components/coherence/BooksInstruments.module.css");
 
 describe("the route names one market and a window", () => {
   it("carries the ticker encoded, so a slash in one cannot escape the query", () => {
@@ -52,6 +53,7 @@ describe("the route names one market and a window", () => {
     // too because a NEW route is exactly when someone inlines one.
     assert.doesNotMatch(stripNonCode(section), /\/api\/gateway\/coherence/);
     assert.doesNotMatch(stripNonCode(figure), /\/api\/gateway\/coherence/);
+    assert.doesNotMatch(stripNonCode(instrument), /\/api\/gateway\/coherence/);
   });
 });
 
@@ -106,75 +108,79 @@ describe("all four answers are drawn, not written", () => {
 });
 
 describe("the derived price says it is derived", () => {
-  it("the ask is dashed and named as derived, and the bid is not", () => {
-    assert.match(figure, /coh-book-tape__ask/);
-    // The two titles this replaced named the LINES, and a `<title>` is a
-    // native tooltip — mouse-only. Since 2026-08-26 the figure declares
-    // `sharedX`, so the names are the crosshair's row labels, read beside the
-    // numbers they belong to and reachable from a keyboard; a title left
-    // beside a shared axis would make both readouts interactive
-    // (`engine-crosshair.test.ts`). RAW source, because these are string
-    // literals and `stripNonCode` blanks them.
-    assert.doesNotMatch(stripNonCode(figure), /<title>/,
-      "a line carries a title again, so the figure has two readouts");
-    assert.match(figure, /label: "Implied YES ask"/);
-    assert.match(figure, /label: "Best YES bid"/);
-    // And HOW the offer is derived is a fact about the series, not about any
-    // one read, so it moved to the notes rather than into a row that changes
-    // with the cursor. Losing it entirely is what this assertion refuses.
-    assert.match(figure, /a dollar less the best NO bid/,
-      "nothing says the offer is derived, so a dashed line is the only clue");
+  it("names the native bid and implied ask separately on the ribbon and readout", () => {
+    assert.match(instrument, /data-mark="bid">YES bid, native/);
+    assert.match(instrument, /data-mark="ask">YES ask, implied/);
+    assert.match(instrument, /active\.implied_yes_ask/);
+    assert.match(instrument, /Ask read off the NO rail/);
+    assert.match(instrument, /Native bid → implied ask/);
   });
 
-  it("and the dash is in the sheet rather than on the element", () => {
-    const css = read("../app/globals/14x-markets-frame.css");
-    assert.match(css, /\.coh-book-tape__ask \{[^}]*stroke-dasharray/,
-      "the derived line is not dashed, so it reads as a quote the venue sent");
+  it("gives the two series distinct labels, shapes, and accents", () => {
+    assert.match(css, /\.bidPoint,[\s\S]*?\.askPoint\s*\{[^}]*var\(--series-1\)/);
+    assert.match(css, /\.askPoint\s*\{[^}]*var\(--series-3\)[^}]*border-radius:\s*0[^}]*rotate\(45deg\)/s);
+    assert.match(instrument, /className=\{styles\.bidPoint\}/);
+    assert.match(instrument, /className=\{styles\.askPoint\}/);
   });
 });
 
-describe("the figure claims only what it drew", () => {
-  it("a market with no NO bid on any read is not described as having two lines", () => {
-    // FOUND IN THE BROWSER, against this desk's own tape. Every recorded read
-    // of the market Books opens on had an unquoted NO side, so the implied-ask
-    // series was empty — and the reading still said "the gap between the two
-    // lines is the spread a position crosses". One line was drawn.
-    assert.match(figure, /noAsk === points\.length/,
-      "the reading does not branch on whether the offer series exists");
-    assert.match(figure, /no implied offer to draw/);
-    assert.match(figure, /noBid === points\.length/,
-      "the mirror case — no YES bid on any read — is not distinguished");
+describe("the flipbook claims only what the selected snapshot holds", () => {
+  it("keeps a missing side absent rather than turning it into zero", () => {
+    assert.match(instrument, /bid == null \|\| ask == null \? "One side is absent, never zero\."/);
+    assert.match(instrument, /ask == null \? "No NO bid behind the ask" : "Ask read off the NO rail"/);
+    assert.match(instrument, /active\.best_yes_bid \?\? "—"/);
+    assert.match(instrument, /toCenticents\(active\.best_yes_bid\)/);
+    assert.match(instrument, /toCenticents\(active\.implied_yes_ask\)/);
+    assert.match(instrument, /values\.bid != null && values\.ask != null \? <i className=\{styles\.spreadStitch\}/,
+      "a spread band is drawn for a snapshot that did not measure both sides");
   });
 
-  it("and it counts the two sides apart, because they fail apart", () => {
-    // "11 of 11 reads had one side unquoted" beside an unbroken bid line is a
-    // footnote contradicting the drawing it qualifies.
-    assert.match(figure, /const noBid = bids\.filter/);
-    assert.match(figure, /const noAsk = asks\.filter/);
+  it("starts at the newest stable timestamp key and exposes every recorded position", () => {
+    assert.match(instrument, /const keys = history\.points\.map\(\(point\) => `\$\{history\.ticker \?\? point\.ticker\}:\$\{point\.ts_ns\}`\)/);
+    assert.match(instrument, /const \[requestedKey, setRequestedKey\] = useState<string \| null>\(null\)/);
+    assert.match(instrument, /requestedKey != null && keys\.includes\(requestedKey\) \? requestedKey : keys\.at\(-1\)!/);
+    assert.match(instrument, /min=\{0\} max=\{history\.points\.length - 1\} value=\{index\}/);
+    assert.match(instrument, /onChange=\{\(event\) => setIndex\(Number\(event\.target\.value\)\)\}/);
+    assert.match(instrument, /aria-valuetext=\{valueText\}/);
+    assert.match(instrument, /aria-live="polite" aria-atomic="true"/);
+  });
+
+  it("offers bounded previous and next controls beside the range", () => {
+    assert.match(instrument, /onClick=\{\(\) => setIndex\(index - 1\)\} disabled=\{index === 0\} aria-label="Previous recorded snapshot"/);
+    assert.match(instrument, /type="range"/);
+    assert.match(instrument, /onClick=\{\(\) => setIndex\(index \+ 1\)\} disabled=\{index === history\.points\.length - 1\} aria-label="Next recorded snapshot"/);
+    assert.match(instrument, /Math\.max\(0, Math\.min\(keys\.length - 1, next\)\)/,
+      "a direct history selection can escape the recorded range");
+  });
+
+  it("positions samples by their real timestamps rather than equal snapshot slots", () => {
+    assert.match(instrument, /const firstTs = history\.points\[0\]\.ts_ns/);
+    assert.match(instrument, /const lastTs = history\.points\.at\(-1\)!\.ts_ns/);
+    assert.match(instrument, /\(point\.ts_ns - firstTs\) \/ Math\.max\(1, lastTs - firstTs\)/);
+    assert.match(instrument, /const timeTicks = Array\.from\(\{ length: 5 \}/);
+    assert.match(instrument, /timeTicks\.map\(\(value, tick\) => <span/);
+    assert.match(instrument, /axisTimeLabel\(value, !sameDay\)/);
+    assert.doesNotMatch(instrument, /const x = `\$\{\(pointIndex \/|const x = `\$\{\(i \/\s*\(?history\.points\.length/,
+      "the ribbon reverted to evenly spaced snapshots and erased polling gaps");
+  });
+
+  it("uses one full-ribbon pointer target while the scrubber owns keyboard access", () => {
+    assert.match(instrument, /role="img" aria-label=\{`[^`]*history\.points\.length[^`]*Snapshot control below/);
+    assert.match(instrument, /onPointerDown=\{inspectPointer\}/);
+    assert.match(instrument, /const targetTs = firstTs \+ \(lastTs - firstTs\) \* ratio/);
+    assert.match(instrument, /Math\.abs\(history\.points\[pointIndex\]\.ts_ns - targetTs\)/);
+    assert.match(instrument, /className=\{styles\.historyPoint\} data-selected=\{pointIndex === index \? true : undefined\} aria-hidden="true"/);
+    assert.doesNotMatch(instrument, /<button[^>]*className=\{styles\.historyPoint\}/,
+      "overlapping plotted marks became separate pointer targets again");
   });
 });
 
-describe("the axis draws prices a contract can carry", () => {
-  it("a flat series is padded by a tick, not by half a dollar", () => {
-    // `chart-kit`'s `extent` pads a degenerate range by ±0.5, which is right in
-    // general and wrong here: a bid flat at 1.0000 came out on an axis running
-    // 0.6000 to 1.4000, and 1.4000 is not a price this venue can quote. The
-    // axis was drawing values that cannot exist beside values that do.
-    assert.match(figure, /function priceExtent/);
-    assert.doesNotMatch(figure, /\bextent\(/,
-      "the general extent is back, so a flat price series gets a half-dollar axis again");
-    // The VALUE, not just the function. Naming the helper and then padding by
-    // half a dollar inside it passes a check that only asks whether the helper
-    // exists — which is what the first version of this assertion did.
-    const pad = /const pad = Math\.max\(\(hi - lo\) \* ([\d.]+), ([\d.]+)\);/.exec(figure);
-    assert.ok(pad, "the pad is no longer a proportion of the range with a floor");
-    assert.ok(Number(pad[2]) <= 0.05,
-      `the flat-series pad is ${pad[2]} of a dollar; a tick is 0.01 and anything near half draws impossible prices`);
-    assert.ok(Number(pad[1]) <= 0.25, `the proportional pad is ${pad[1]} of the range, which swamps the series`);
-  });
-
-  it("and the range never leaves the dollar a contract lives in", () => {
-    assert.match(figure, /Math\.max\(0, lo - pad\)/);
-    assert.match(figure, /Math\.min\(1, hi \+ pad\)/);
+describe("the snapshot arithmetic stays on the contract's fixed-point grid", () => {
+  it("derives spread and the visible price window from centicents", () => {
+    assert.match(instrument, /fromCenticents\(ask - bid\)/);
+    assert.match(instrument, /priceWindow\(parsed\.flatMap\(\(point\) => \[point\.bid, point\.ask\]\)\)/);
+    assert.match(instrument, /verticalPosition\(values\.bid, low, high\)/);
+    assert.match(instrument, /verticalPosition\(values\.ask, low, high\)/);
+    assert.doesNotMatch(stripNonCode(instrument), /\.toFixed\(|<Plot|linearScale|priceExtent/);
   });
 });
