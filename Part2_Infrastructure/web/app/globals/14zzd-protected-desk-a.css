@@ -1,0 +1,190 @@
+/* Wave 3A — presentation only for Overview, Research, Execution and Portfolio.
+ *
+ * This is the final owner for the four protected desk surfaces. It changes no
+ * component text, routing, mount policy or request boundary. The earlier tab
+ * sheets still own their domain-specific figures; this layer supplies the
+ * common evidence, overflow and interaction grammar that those sheets predate.
+ */
+
+/* These are the only four roots this partial may affect. Container ownership
+   lets the desk respond to the actual work surface rather than the viewport. */
+:is(#panel-overview, #panel-research, #panel-live, #panel-portfolio) {
+  container-name: protected-desk-a;
+  container-type: inline-size;
+  isolation: isolate;
+}
+
+/* A wide table, chart or long identifier must be allowed to shrink its grid
+   track before its own scroll region takes over. */
+:is(#panel-overview, #panel-research, #panel-live, #panel-portfolio) :is(.workspace-subtab-panel, .card, .table-wrap) {
+  min-inline-size: 0;
+}
+
+/* One section boundary below the sticky rail. It separates navigation from
+   evidence without wrapping every panel in another card. */
+:is(#panel-overview, #panel-research, #panel-live, #panel-portfolio) .workspace-subtab-panel:not([hidden]) {
+  padding-block-start: var(--space-3);
+  border-block-start: 1px solid var(--border);
+}
+
+:is(#panel-overview, #panel-research, #panel-live, #panel-portfolio) .table-wrap {
+  max-inline-size: 100%;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+  scroll-padding-inline: var(--space-3);
+  -webkit-overflow-scrolling: touch;
+}
+
+/* A focus ring outside the framed evidence region remains visible at both
+   light and dark themes. */
+:is(#panel-overview, #panel-research, #panel-live, #panel-portfolio) .table-wrap:focus-visible {
+  outline: 2px solid var(--series-1);
+  outline-offset: 2px;
+}
+
+/* Column identity remains in view while a bounded evidence table scrolls.
+   The opaque surface prevents moving rows from painting through the header. */
+:is(#panel-overview, #panel-research, #panel-live, #panel-portfolio) .table-wrap > table > thead th {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: var(--z-sticky-cell);
+  background: var(--surface-2);
+}
+
+/* Quiet row tracking gives dense numerical tables an interaction affordance
+   without making a non-clickable row look like a button. */
+@media (hover: hover) and (pointer: fine) {
+  :is(#panel-overview, #panel-research, #panel-live, #panel-portfolio) .table-wrap > table > tbody > tr:hover > * {
+    background: color-mix(in srgb, var(--series-1) 4%, var(--surface-1));
+  }
+}
+
+/* The lead operational surface on each workbench carries the same restrained
+   accent seam. Overview already owns an inverted lead canvas. */
+:is(#panel-research .research-layout > .sidebar, #panel-live .cockpit-ticket, #panel-portfolio .portfolio-metrics) {
+  border-inline-start: 2px solid color-mix(in srgb, var(--series-1) 62%, var(--border));
+  box-shadow: var(--shadow-sm);
+}
+
+/* A card containing the keyboard cursor becomes locatable as a region; the
+   control keeps its own stronger focus ring. */
+:is(#panel-overview, #panel-research, #panel-live, #panel-portfolio) .card:has(:focus-visible) {
+  border-color: color-mix(in srgb, var(--series-1) 46%, var(--border));
+}
+
+/* -----------------------------------------------------------------------
+   Protected content: override historical visual truncation
+   ----------------------------------------------------------------------- */
+
+/* The KPI notes and role cards previously stopped after two lines; pipeline
+   labels and detail used Tailwind's truncate utilities. All remain complete. */
+#panel-overview :is(.kpi-card__note, .role-card .pipeline-card__value, .role-card .pipeline-card__status, .overview-loop .truncate, .overview-loop .text-ellipsis) {
+  display: block;
+  min-block-size: 0;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: initial;
+  -webkit-line-clamp: unset;
+}
+
+/* The KPI headline used the same hover-recovery pattern as its note. The
+   structural :has keeps this override local without changing protected JSX. */
+#panel-overview strong:has(+ div > .kpi-card__note) {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* The editor is full-width now. Keep its protected state text complete without
+   undoing the disclosure's source-owned marker and two-column alignment. */
+#panel-research .friction-group__row {
+  min-inline-size: 0;
+}
+
+#panel-research .friction-group__label {
+  min-inline-size: 0;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+#panel-research .friction-badge {
+  max-inline-size: 100%;
+  text-align: end;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* Mobile context beneath the Research panel title carried a two-line clamp.
+   It may grow instead; its height is not part of the mounted-state contract. */
+#panel-research .experiment-panel__heading .sub {
+  overflow: visible;
+  -webkit-box-orient: initial;
+  -webkit-line-clamp: unset;
+}
+
+/* Every summary figure, binder name and qualifier remains visible. The grid
+   already stretches a row to the tallest cell, so wrapping preserves parity. */
+#panel-portfolio .portfolio-metrics :is(strong, small) {
+  display: block;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: initial;
+  -webkit-line-clamp: unset;
+}
+
+/* The navigation hand-off is protected information too. A phone may spend an
+   extra line on the reason rather than removing or clamping it. */
+:is(#panel-overview, #panel-research, #panel-live, #panel-portfolio) .next-step-footer__hint {
+  display: block;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: initial;
+  -webkit-line-clamp: unset;
+}
+
+/* Responsive evidence layout. The shared sheets already collapse most grids;
+   these explicit owners cover the paired charts and workbench-only grids that
+   otherwise retain a desktop declaration from a later, more specific rule. */
+@media (max-width: 720px) {
+  :is(#panel-portfolio .portfolio-chart-pair, #panel-live .cockpit-grid, #panel-research .research-param-pair, #panel-research .walkforward-flank) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  :is(#panel-overview, #panel-research, #panel-live, #panel-portfolio) .page-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  :is(#panel-overview, #panel-research, #panel-live, #panel-portfolio) .page-actions > :is(button, a) {
+    inline-size: 100%;
+    justify-content: center;
+  }
+
+  #panel-portfolio .portfolio-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #panel-research .friction-group__row {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+
+  #panel-research .friction-badge {
+    justify-self: start;
+    text-align: start;
+  }
+}
+
+@media (max-width: 480px) {
+  #panel-portfolio .portfolio-metrics {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
