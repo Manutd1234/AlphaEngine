@@ -15,6 +15,13 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
+from modules.schemas_coherence_proof import CoherenceProofConstraintLeg as CoherenceProofConstraintLeg
+from modules.schemas_coherence_proof import CoherenceProofConstraintRow as CoherenceProofConstraintRow
+from modules.schemas_coherence_proof import CoherenceProofConstraints as CoherenceProofConstraints
+from modules.schemas_coherence_proof import CoherenceProofEvidence as CoherenceProofEvidence
+from modules.schemas_coherence_proof import CoherenceProofObservation as CoherenceProofObservation
+from modules.schemas_coherence_proof import CoherenceProofSolver as CoherenceProofSolver
+
 
 class CoherenceHostStatus(BaseModel):
     """Whether Kalshi answered, and which host did."""
@@ -270,6 +277,7 @@ class CoherenceCertificate(BaseModel):
     rows_untestable: int = 0
     notes: list[str] = Field(default_factory=list)
     proof: str = ""
+    proof_evidence: CoherenceProofEvidence | None = None
 
 
 class CoherenceFeeFill(BaseModel):
