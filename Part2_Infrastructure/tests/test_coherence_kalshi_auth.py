@@ -13,6 +13,7 @@ silently on the deployment image would report green for a signer that never ran.
 from __future__ import annotations
 
 from importlib.util import find_spec
+from pathlib import Path
 
 import pytest
 
@@ -66,6 +67,19 @@ class TestRefusals:
         with pytest.raises(SigningUnavailable, match="demo environment"):
             kalshi_auth.sign("GET", "/trade-api/v2/x", tunables.PUBLIC_BASE_URL)
 
+    def test_refuses_a_host_whose_name_only_prefixes_the_demo_origin(self, monkeypatch):
+        monkeypatch.setattr(tunables, "DEMO_KEY_ID", "key-id")
+        monkeypatch.setattr(tunables, "DEMO_PRIVATE_KEY_PATH", "/nowhere.pem")
+        lookalike = "https://external-api.demo.kalshi.co.evil.example/trade-api/v2"
+        with pytest.raises(SigningUnavailable, match="demo environment"):
+            kalshi_auth.sign("GET", "/trade-api/v2/x", lookalike)
+
+    def test_refuses_a_path_outside_the_validated_api_root(self, monkeypatch):
+        monkeypatch.setattr(tunables, "DEMO_KEY_ID", "key-id")
+        monkeypatch.setattr(tunables, "DEMO_PRIVATE_KEY_PATH", "/nowhere.pem")
+        with pytest.raises(SigningUnavailable, match="signed path"):
+            kalshi_auth.sign("GET", "/portfolio/balance", tunables.DEMO_BASE_URL)
+
     def test_refuses_a_key_path_that_is_not_there(self, monkeypatch, tmp_path):
         monkeypatch.setattr(tunables, "DEMO_KEY_ID", "key-id")
         monkeypatch.setattr(tunables, "DEMO_PRIVATE_KEY_PATH", str(tmp_path / "absent.pem"))
@@ -83,6 +97,11 @@ class TestRefusals:
         kalshi_auth._load_key.cache_clear()
         if find_spec("cryptography") is None:
             pytest.skip("the library check fires first without cryptography installed")
+        report = status()
+        assert not kalshi_auth.signing_available()
+        assert report["available"] is False
+        assert report["reason"] == "private_key_malformed"
+        assert bad.name not in str(report["detail"])
         with pytest.raises(SigningUnavailable, match="did not parse"):
             kalshi_auth.sign("GET", "/trade-api/v2/x", tunables.DEMO_BASE_URL)
 
@@ -103,9 +122,118 @@ class TestWhatTheSurfaceIsTold:
         monkeypatch.setattr(tunables, "DEMO_PRIVATE_KEY_PATH", "")
         assert not tunables.signing_configured()
 
+    def test_a_nonexistent_configured_path_is_not_reported_available(self, monkeypatch, tmp_path):
+        missing = tmp_path / "do-not-disclose-this-key-name.pem"
+        monkeypatch.setattr(tunables, "DEMO_KEY_ID", "key-id")
+        monkeypatch.setattr(tunables, "DEMO_PRIVATE_KEY_PATH", str(missing))
+        assert not kalshi_auth.signing_available()
+        report = status()
+        assert report["reason"] == "private_key_missing"
+        assert "missing file" in str(report["detail"])
+        assert missing.name not in str(report)
+
 
 @cryptography_required
 class TestARealSignature:
+    def test_an_encrypted_rsa_key_is_a_typed_unavailable_state(self, monkeypatch, tmp_path):
+        from cryptography.hazmat.primitives import serialization
+        from cryptography.hazmat.primitives.asymmetric import rsa
+
+        private = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        pem = tmp_path / "encrypted-do-not-disclose.pem"
+        pem.write_bytes(
+            private.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.PKCS8,
+                encryption_algorithm=serialization.BestAvailableEncryption(b"test-only-password"),
+            )
+        )
+        monkeypatch.setattr(tunables, "DEMO_KEY_ID", "test-key-id")
+        monkeypatch.setattr(tunables, "DEMO_PRIVATE_KEY_PATH", str(pem))
+        kalshi_auth._load_key.cache_clear()
+
+        report = status()
+
+        assert not kalshi_auth.signing_available()
+        assert report["reason"] == "private_key_encrypted"
+        assert "encrypted" in str(report["detail"])
+        assert pem.name not in str(report)
+
+    def test_a_non_rsa_private_key_is_rejected_before_signing(self, monkeypatch, tmp_path):
+        from cryptography.hazmat.primitives import serialization
+        from cryptography.hazmat.primitives.asymmetric import ec
+
+        private = ec.generate_private_key(ec.SECP256R1())
+        pem = tmp_path / "elliptic-curve-do-not-disclose.pem"
+        pem.write_bytes(
+            private.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.PKCS8,
+                encryption_algorithm=serialization.NoEncryption(),
+            )
+        )
+        monkeypatch.setattr(tunables, "DEMO_KEY_ID", "test-key-id")
+        monkeypatch.setattr(tunables, "DEMO_PRIVATE_KEY_PATH", str(pem))
+        kalshi_auth._load_key.cache_clear()
+
+        report = status()
+
+        assert not kalshi_auth.signing_available()
+        assert report["reason"] == "private_key_not_rsa"
+        assert "not an RSA private key" in str(report["detail"])
+        assert pem.name not in str(report)
+
+    def test_an_unreadable_key_is_a_typed_state_without_the_path(self, monkeypatch, tmp_path):
+        from cryptography.hazmat.primitives import serialization
+        from cryptography.hazmat.primitives.asymmetric import rsa
+
+        private = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        pem = tmp_path / "unreadable-do-not-disclose.pem"
+        pem.write_bytes(
+            private.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.PKCS8,
+                encryption_algorithm=serialization.NoEncryption(),
+            )
+        )
+        read_bytes = Path.read_bytes
+
+        def refuse_configured_key(path: Path) -> bytes:
+            if path == pem:
+                raise PermissionError("test-only filesystem detail")
+            return read_bytes(path)
+
+        monkeypatch.setattr(Path, "read_bytes", refuse_configured_key)
+        monkeypatch.setattr(tunables, "DEMO_KEY_ID", "test-key-id")
+        monkeypatch.setattr(tunables, "DEMO_PRIVATE_KEY_PATH", str(pem))
+        kalshi_auth._load_key.cache_clear()
+
+        report = status()
+
+        assert not kalshi_auth.signing_available()
+        assert report["reason"] == "private_key_unreadable"
+        assert pem.name not in str(report)
+        assert "test-only filesystem detail" not in str(report)
+
+    @pytest.mark.parametrize("failure", [TypeError, ValueError])
+    def test_a_crypto_signing_error_becomes_signing_unavailable(self, monkeypatch, failure):
+        class BrokenRsaKey:
+            def sign(self, *_args, **_kwargs):
+                raise failure("test-only crypto detail")
+
+        configured_path = "/configured/do-not-disclose.pem"
+        monkeypatch.setattr(tunables, "DEMO_KEY_ID", "test-key-id")
+        monkeypatch.setattr(tunables, "DEMO_PRIVATE_KEY_PATH", configured_path)
+        monkeypatch.setattr(kalshi_auth, "_load_key", lambda _path: BrokenRsaKey())
+
+        with pytest.raises(SigningUnavailable) as raised:
+            kalshi_auth.sign("GET", "/trade-api/v2/portfolio/balance", tunables.DEMO_BASE_URL)
+
+        assert raised.value.code == "private_key_sign_failed"
+        assert "could not sign" in raised.value.reason
+        assert "do-not-disclose.pem" not in str(raised.value)
+        assert "test-only crypto detail" not in str(raised.value)
+
     def test_signs_a_known_vector_and_verifies_against_the_public_key(self, monkeypatch, tmp_path):
         """The only test that needs the library, and it proves the whole shape.
 
