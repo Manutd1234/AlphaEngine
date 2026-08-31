@@ -28,7 +28,7 @@ export const CLAIMS: ReadonlyArray<{ claim: string; phrase: string; at?: number;
   // ---- the books ---------------------------------------------------------
   {
     claim: "Kalshi sends two bid ladders and no asks, so every offer is implied",
-    phrase: "no asks at all, so every offer on this section is read off the opposite ladder",
+    phrase: "two bid ladders, not asks; each offer mirrors the opposite ladder",
   },
   {
     claim: "yes ask + no ask is always $1 + spread, so buying both sides under a dollar is unreachable",
@@ -77,7 +77,7 @@ export const CLAIMS: ReadonlyArray<{ claim: string; phrase: string; at?: number;
   // ---- settlement --------------------------------------------------------
   {
     claim: "a contract settles on a published index over a window, not on the price on screen",
-    phrase: "never on the price on screen",
+    phrase: "not screen price",
   },
   {
     claim: "the CF Benchmarks passthrough is gated on an entitlement, not on signing",
@@ -142,17 +142,13 @@ export const CLAIMS: ReadonlyArray<{ claim: string; phrase: string; at?: number;
       + "when there is no arbitrage and the first is not",
   },
   {
-    claim: "values are truncated, never rounded",
-    phrase: "truncated, never rounded",
-  },
-  {
     claim: "the exclusive-family solver declines a strike ladder by name",
     phrase: "declines this family by name",
   },
   // ---- the shell ---------------------------------------------------------
   {
-    claim: "a path that names nothing is a different answer from a read that failed",
-    phrase: "a different answer from a read that failed",
+    claim: "a path that names nothing is named explicitly",
+    phrase: "No such path",
   },
   {
     claim: "a listed file whose reading this read could not produce can come back later",
@@ -168,16 +164,13 @@ export const CLAIMS: ReadonlyArray<{ claim: string; phrase: string; at?: number;
   },
   {
     claim: "collateral is held per shard, so one order group cannot span two",
-    phrase: "one order group cannot",
-    at: 2,
-    why: "the note over the shard directories in a listing, and ShellTree's reading on the "
-      + "Layout view — Layout returns before the listing is drawn, so they never co-render",
+    phrase: "collateral never crosses their boundary",
+    why: "the Routing readout states the consequence beside the activity diagram that applies it",
   },
   {
-    claim: "the tree is the watchlist and not the venue's thirteen thousand series",
-    phrase: "thirteen thousand series",
+    claim: "the namespace and browser are the configured watchlist, not the whole exchange",
+    phrase: "not the whole exchange",
     at: 2,
-    why: "same pair of views as the shard boundary, and for the same reason",
+    why: "Namespace and Browse state their scope independently and never co-render",
   },
 ];
-
