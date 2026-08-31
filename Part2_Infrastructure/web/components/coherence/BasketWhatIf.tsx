@@ -29,28 +29,18 @@
  * gateway's own words, carried through rather than paraphrased.
  */
 
-import { useState } from "react";
-
 import Figure, { FigureEmpty, Plot, StateChip } from "./Figure";
 import type { CoherenceEventView } from "@/lib/coherence/types";
+import { DOLLAR_CC, fromCenticents, sumPrices, toCenticents } from "@/lib/coherence/fixed-point";
+import { useBasketScenario } from "./use-basket-scenario";
 
 const HEIGHT = 104;
 const MARGIN = { top: 26, right: 12, bottom: 30, left: 12 };
 /** The axis runs to here, so a basket may be dragged well past a dollar. */
 const AXIS_MAX = 1.5;
 
-/** Cents, not dollars: the exchange's own grid, and no float drift to explain. */
-const centsOf = (raw: string | null): number | null => {
-  if (raw === null) return null;
-  const value = Number(raw);
-  return Number.isFinite(value) ? Math.round(value * 100) : null;
-};
-
 export default function BasketWhatIf({ event }: { event: CoherenceEventView }) {
-  const quoted = event.markets.map((market) => centsOf(market.yes_ask));
-  const initial = quoted.filter((c): c is number => c !== null);
-  const [asks, setAsks] = useState<number[] | null>(null);
-  const live = asks ?? initial;
+  const scenario = useBasketScenario(event);
 
   if (!event.mutually_exclusive) {
     return (
@@ -64,8 +54,8 @@ export default function BasketWhatIf({ event }: { event: CoherenceEventView }) {
       </Figure>
     );
   }
-  if (initial.length !== event.markets.length) {
-    const missing = event.markets.length - initial.length;
+  if (!scenario) {
+    const missing = event.markets.filter((market) => market.yes_ask == null).length;
     return (
       <Figure
         caption={CAPTION}
@@ -81,15 +71,29 @@ export default function BasketWhatIf({ event }: { event: CoherenceEventView }) {
     );
   }
 
-  const total = live.reduce((sum, c) => sum + c, 0) / 100;
-  const start = initial.reduce((sum, c) => sum + c, 0) / 100;
-  const arb = total < 1;
-  const moved = asks !== null && live.some((c, i) => c !== initial[i]);
+  const { asks: live, moved } = scenario;
+  const totalCc = sumPrices(live.map(String));
+  const startCc = sumPrices(event.markets.map((market) => market.yes_ask));
+  if (totalCc == null || startCc == null) {
+    return (
+      <Figure
+        caption={CAPTION}
+        ariaLabel="This basket scenario is not on the venue's price grid"
+        missing="The paper vector could not be represented in exact centicents, so no total or verdict is shown."
+      >
+        <FigureEmpty reason="Paper vector off-grid — basket withheld." />
+      </Figure>
+    );
+  }
+  const total = totalCc / DOLLAR_CC;
+  const totalLabel = fromCenticents(totalCc) as string;
+  const startLabel = fromCenticents(startCc) as string;
+  const arb = totalCc < DOLLAR_CC;
 
   return (
     <Figure
       caption={CAPTION}
-      ariaLabel={`The basket costs ${total.toFixed(2)} against a guaranteed one dollar`}
+      ariaLabel={`The basket costs ${totalLabel} against a guaranteed one dollar`}
       reading={
         arb
           // NOT the phrase "wins in every state", deliberately.
@@ -98,17 +102,13 @@ export default function BasketWhatIf({ event }: { event: CoherenceEventView }) {
           // as different objects on purpose. A third carrier would not be a
           // stronger claim, it would be the same claim said in one more place,
           // which is what the count exists to prevent.
-          ? `Buying all ${live.length} outcomes costs ${total.toFixed(2)} for a guaranteed $1 — riskless`
-            + " before fees. Basket draws that portfolio and prices it through all three fee components."
-          : `Buying all ${live.length} outcomes costs ${total.toFixed(2)} for a guaranteed $1, so there is`
-            + " nothing to buy. Selling the set whole would need a bid on every leg, which is the half"
-            + " the venue does not publish."
+          ? `${live.length} outcomes cost ${totalLabel} for a guaranteed $1 — a gross edge before fees.`
+          : `${live.length} outcomes cost ${totalLabel} for $1, so the buy-side cover has no gross edge.`
       }
       notes={[
         moved
-          ? `These are your prices, not the venue's — the read had them summing to ${start.toFixed(2)}.`
-            + " Nothing here is sent anywhere; the sliders move a copy."
-          : `The venue's own offers, summing to ${start.toFixed(2)}.`,
+          ? `Paper prices; the venue total was ${startLabel}. Nothing is submitted.`
+          : `Venue offers total ${startLabel}.`,
         "On a partition exactly one outcome settles, so the set pays exactly $1 whatever happens. That"
         + " is why the sum of the offers IS the test and no solver is needed for it.",
         "Offers only. A basket bought at the offer can be sold only into bids, and a leg with no bid"
@@ -121,11 +121,11 @@ export default function BasketWhatIf({ event }: { event: CoherenceEventView }) {
         <StateChip
           mark={arb ? "▲" : "●"}
           word={arb ? "Costs less than it is certain to pay" : "Costs at least what it pays"}
-          value={`$${total.toFixed(2)}`}
+          value={"$" + totalLabel}
           tone={arb ? "warn" : "good"}
         />
         {moved ? (
-          <StateChip mark="◇" word="Moved from the venue's prices" value={`was $${start.toFixed(2)}`} tone="muted" />
+          <StateChip mark="◇" word="Moved from the venue's prices" value={"was $" + startLabel} tone="muted" />
         ) : null}
       </div>
 
@@ -136,17 +136,17 @@ export default function BasketWhatIf({ event }: { event: CoherenceEventView }) {
           let run = 0;
           return (
             <>
-              {live.map((cents, index) => {
-                const from = run / 100;
-                run += cents;
-                const to = run / 100;
+              {live.map((price, index) => {
+                const from = run;
+                run += price;
+                const to = run;
                 return (
                   <rect key={event.markets[index].ticker}
                         x={x(from)} y={MARGIN.top} width={Math.max(0.5, x(to) - x(from))}
                         height={HEIGHT - MARGIN.top - MARGIN.bottom}
                         className={`coh-whatif__leg${index % 2 ? " is-alt" : ""}`}>
                     <title>
-                      {`${event.markets[index].yes_sub_title || event.markets[index].ticker}: ${(cents / 100).toFixed(2)}`}
+                      {`${event.markets[index].yes_sub_title || event.markets[index].ticker}: ${fromCenticents(toCenticents(String(price))) ?? "—"}`}
                     </title>
                   </rect>
                 );
@@ -160,7 +160,7 @@ export default function BasketWhatIf({ event }: { event: CoherenceEventView }) {
               </text>
               <text x={x(Math.min(total, AXIS_MAX))} y={HEIGHT - MARGIN.bottom + 18} textAnchor="middle"
                     className="coh-whatif__total">
-                {`$${total.toFixed(2)}`}
+                {"$" + totalLabel}
               </text>
             </>
           );
@@ -168,23 +168,25 @@ export default function BasketWhatIf({ event }: { event: CoherenceEventView }) {
       </Plot>
 
       <div className="coh-whatif__controls">
-        {live.map((cents, index) => (
+        {live.map((price, index) => {
+          const stepCc = toCenticents(event.markets[index].price_grid);
+          const step = stepCc != null && stepCc > 0 ? stepCc / DOLLAR_CC : 0.01;
+          return (
           <label key={event.markets[index].ticker}>
             <span className="field">
-              {`${event.markets[index].yes_sub_title || event.markets[index].ticker} — ${(cents / 100).toFixed(2)}`}
+              {`${event.markets[index].yes_sub_title || event.markets[index].ticker} — ${fromCenticents(toCenticents(String(price))) ?? "—"}`}
             </span>
             <input
-              type="range" min={1} max={99} step={1} value={cents}
+              type="range" min={0} max={1} step={step} value={price}
               onChange={(change) => {
-                const next = [...live];
-                next[index] = Number(change.target.value);
-                setAsks(next);
+                scenario.setAsk(index, Number(change.target.value));
               }}
             />
           </label>
-        ))}
+          );
+        })}
         {moved ? (
-          <button type="button" className="coh-whatif__reset" onClick={() => setAsks(null)}>
+          <button type="button" className="coh-whatif__reset" onClick={scenario.reset}>
             Back to the venue’s prices
           </button>
         ) : null}
