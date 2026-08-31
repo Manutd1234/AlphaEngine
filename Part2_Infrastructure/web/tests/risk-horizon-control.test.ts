@@ -12,7 +12,7 @@
  *
  * What stays here is the constraint that outlived both answers, and it is the
  * interesting half. `.seg` and `.seg button` are converged in
- * `12-workspace-standardisation.css` onto one size for all eight tabs, with the
+ * `12-workspace-standardisation.css` onto one size across the workspace, with the
  * note "the ask was consistent and NOT bigger", and
  * `15-navigator-and-trailing-layer.css` raises the same floor to 40px for
  * coarse pointers. Whatever this partial does to the horizon row, it must do
