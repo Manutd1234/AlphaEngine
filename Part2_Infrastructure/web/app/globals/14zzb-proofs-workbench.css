@@ -1,0 +1,261 @@
+/* Proofs-only quant OS layer. Imported by the root integrator after wave merge. */
+
+/*
+ * The workspace reveal translates top-level cards by 14px while they enter.
+ * These Proofs cards are also the full height of their tabpanel, so that paint
+ * translation crosses the owner's bottom even though their layout boxes are
+ * identical. Keep the reveal as a fade; other workspace surfaces keep rise-in.
+ */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .proofs-plane .workspace-subtab-panel > :is(.coh-certificate, .coh-calib) {
+      animation-name: proofs-surface-fade-in;
+    }
+  }
+}
+
+@keyframes proofs-surface-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.proofs-plane .coh-evidence {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: var(--space-2);
+}
+
+.proofs-plane .coh-evidence__tools {
+  display: grid;
+  min-width: 0;
+}
+
+.proofs-plane .proofs-method-trigger {
+  width: 100%;
+  height: 100%;
+  min-height: 3.25rem;
+  justify-content: center;
+  gap: var(--space-2);
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.proofs-plane .proofs-method-trigger__count {
+  min-width: 1.4rem;
+  padding-inline: 5px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.proofs-plane .proofs-method-sheet__body {
+  display: grid;
+  align-content: start;
+  min-height: 100%;
+  min-width: 0;
+}
+
+.proofs-plane .proofs-method-note {
+  width: fit-content;
+  max-width: min(100%, 72rem);
+  margin-block: -2px 2px;
+}
+
+.proofs-plane .proofs-method-note [data-slot="collapsible-trigger"] {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.proofs-plane .proofs-method-note [data-slot="collapsible-trigger"] > span {
+  transition: transform var(--dur-fast) var(--ease);
+}
+
+.proofs-plane .proofs-method-note [data-slot="collapsible-trigger"][data-state="open"] > span {
+  transform: rotate(45deg);
+}
+
+.proofs-plane .proofs-method-note [data-slot="collapsible-content"] {
+  margin-block-start: 3px;
+  padding: 8px 10px;
+  border-inline-start: 2px solid var(--axis);
+  background: var(--surface-2);
+}
+
+.proofs-plane .proofs-method-note .sub {
+  margin: 0;
+  max-width: 82ch;
+}
+
+.proofs-plane .proofs-method-note .sub p {
+  margin: 0;
+}
+
+.proofs-plane .proofs-view-control[data-slot="toggle-group"],
+.proofs-plane [data-slot="toggle-group"].seg {
+  width: 100%;
+  min-width: 0;
+  padding: 3px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.proofs-plane [data-slot="toggle-group-item"] {
+  min-width: 0;
+  flex: 1 1 7.5rem;
+  white-space: normal;
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
+
+.proofs-plane [data-slot="toggle-group-item"][data-state="on"] {
+  border-color: var(--axis);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-card);
+}
+
+.proofs-plane [data-slot="toggle-group-item"]:focus-visible,
+.proofs-plane .proofs-transport button:focus-visible {
+  outline: 2px solid var(--series-1);
+  outline-offset: 2px;
+}
+
+.proofs-plane .proofs-transport {
+  grid-template-columns: 1.25rem minmax(0, 1fr);
+  border-inline-start-width: 3px;
+}
+
+.proofs-plane .proofs-transport[data-state="unavailable"] {
+  border-style: double;
+}
+
+.proofs-plane .proofs-transport[data-state="stale"] {
+  border-style: dashed;
+}
+
+.proofs-plane .proofs-transport__mark {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  font-family: var(--font-mono);
+  font-weight: 750;
+}
+
+.proofs-plane .proofs-transport__telemetry {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: var(--space-3);
+  width: fit-content;
+  max-width: 100%;
+  margin: var(--space-2) 0;
+  padding: 4px var(--space-3);
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--surface-2) 72%, transparent);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  white-space: nowrap;
+}
+
+.proofs-plane .proofs-transport__status {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+}
+
+.proofs-plane .proofs-transport__status::before {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 50%;
+  content: "";
+}
+
+.proofs-plane .proofs-transport__status.is-budget::before {
+  background: var(--status-good);
+}
+
+.proofs-plane .proofs-transport__status.is-retry::before {
+  background: var(--status-warning);
+}
+
+.proofs-plane .proofs-transport__status dt,
+.proofs-plane .proofs-transport__status dd {
+  display: inline;
+  margin: 0;
+}
+
+.proofs-plane .proofs-transport__status dt {
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+
+.proofs-plane .proofs-transport__status dt::after {
+  content: ":";
+}
+
+.proofs-plane .proofs-transport__facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  width: 100%;
+  margin: 4px 0;
+  border-block: 1px solid var(--border);
+}
+
+.proofs-plane .proofs-transport__facts > div {
+  min-width: 0;
+  padding: 5px 8px;
+  border-inline-end: 1px solid var(--border);
+}
+
+.proofs-plane .proofs-transport__facts > div:last-child {
+  border-inline-end: 0;
+}
+
+.proofs-plane .proofs-transport__facts dt {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.proofs-plane .proofs-transport__facts dd {
+  overflow: hidden;
+  margin: 2px 0 0;
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.proofs-plane .coh-figure {
+  background: linear-gradient(180deg, var(--surface-1), var(--surface-0));
+  box-shadow: inset 0 1px 0 var(--surface-2), var(--shadow-card);
+}
+
+.proofs-plane .coh-table thead {
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  background: var(--surface-2);
+  box-shadow: 0 1px 0 var(--border);
+}
+
+/* These five certificate views now use literal, in-flow evidence. Avoid
+   relocating the same cards into a pan-and-zoom modal: one scroll owner is
+   both simpler for the reader and stable across the five views. */
+.coherence-plane.proofs-plane .coh-certificate-workbench .coh-figure__focus {
+  display: none;
+}
+
+.coherence-plane.proofs-plane .coh-certificate .proofs-view-control--certificate {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(9rem, 100%), 1fr));
+}
