@@ -24,7 +24,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { loadBars, syntheticBars } from "@/lib/marketdata";
+import { loadBars, MarketDataUnavailableError } from "@/lib/marketdata";
 import { ADAPTERS } from "@/lib/providers/registry";
 import { classify } from "@/lib/providers/symbols";
 import { DATA_SOURCES } from "@/lib/types";
@@ -43,26 +43,25 @@ describe("the symbol decides the feed", () => {
   });
 
   it("an equity never reaches Binance, even when every provider is unavailable", async () => {
-    // The strong form of the fix. With no keys configured the result must be
-    // synthetic — but it must be synthetic because the *equity* providers
-    // declined, never because a crypto endpoint was asked a question it cannot
-    // answer.
-    const out = await loadBars("AAPL", "1d", 300, hermetic);
-    assert.equal(out.source, "synthetic");
-    assert.doesNotMatch(
-      out.warnings.join(" "), /binance/i,
+    // With no keys configured there is no result. The error must still prove
+    // the equity router was used rather than a crypto venue.
+    await assert.rejects(
+      () => loadBars("AAPL", "1d", 300, hermetic),
+      (cause: unknown) => cause instanceof MarketDataUnavailableError
+        && !/binance/i.test(cause.message),
       "an equity request still consulted Binance",
     );
   });
 });
 
-describe("a fallback says which door was closed", () => {
+describe("an unavailable result says which door was closed", () => {
   it("names every provider that declined and why", async () => {
     // "Data unavailable" is one sentence for four different problems. A missing
     // key is fixed by adding a key; a spent quota is fixed by waiting; an open
     // breaker is fixed by neither. Collapsing them means none get fixed.
-    const [warning] = (await loadBars("MSFT", "1d", 300, hermetic)).warnings;
-    assert.ok(warning, "the synthetic fallback produced no warning at all");
+    const cause = await loadBars("MSFT", "1d", 300, hermetic).catch((error) => error as Error);
+    assert.ok(cause instanceof MarketDataUnavailableError);
+    const warning = cause.message;
 
     for (const adapter of ADAPTERS.filter((a) => a.meta.capabilities.includes("bars"))) {
       // Skipped by asset class, not by name. This was `id === "binance"` — a
@@ -81,24 +80,11 @@ describe("a fallback says which door was closed", () => {
     assert.match(warning, /not_configured/);
   });
 
-  it("still says the prices are not real", async () => {
-    // The one sentence that must survive every rewrite of this path.
-    const out = await loadBars("NVDA", "1d", 300, hermetic);
-    assert.match(out.warnings.join(" "), /the workflow is real, the prices are not/);
-  });
-
-  it("returns a usable series rather than an error", async () => {
-    // A research portal that 500s when no key is set is a portal nobody can
-    // evaluate. The fallback is a demonstration path, and it stays one.
-    const out = await loadBars("AAPL", "1d", 300, hermetic);
-    assert.equal(out.bars.length, 300);
-    assert.ok(out.bars.every((b) => b.c > 0 && b.h >= b.l));
-  });
-
-  it("is deterministic, so two runs of the same symbol stay comparable", async () => {
-    const a = await loadBars("AAPL", "1d", 300, hermetic);
-    const b = syntheticBars("AAPL", "1d", 300);
-    assert.deepEqual(a.bars.map((x) => x.c), b.map((x) => x.c));
+  it("returns no substitute series", async () => {
+    await assert.rejects(
+      () => loadBars("AAPL", "1d", 300, hermetic),
+      MarketDataUnavailableError,
+    );
   });
 });
 
