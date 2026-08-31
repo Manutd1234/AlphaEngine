@@ -264,6 +264,20 @@ describe("the panel renders the score rather than a second version of it", () =>
     assert.match(code(panel), /score\.categories\.map/);
   });
 
+  it("opens the secondary breakdown only at Full and preserves a user's toggle", () => {
+    // Standard is the default workspace tier. Keeping the six-row derivation
+    // closed there trims visible copy without hiding either the lead score or
+    // its verdict. Full opens it, while an owned disclosure state means a
+    // parent render cannot immediately undo the reader's native toggle.
+    assert.match(panel, /import \{ atLeast, COMPLEXITY_TIERS \} from "@\/lib\/complexity"/);
+    assert.match(panel, /const breakdownOpen = atLeast\(tier, "standard"\)/);
+    assert.match(panel, /const breakdownDefaultOpen = breakdownOpen && tier !== COMPLEXITY_TIERS\[1\]/);
+    assert.match(panel, /useDisclosurePreference\(breakdownDefaultOpen\)/);
+    assert.match(panel, /open=\{breakdownExpanded\}/);
+    assert.match(panel, /onToggle=\{\(event\) => setBreakdownExpanded\(event\.currentTarget\.open\)\}/);
+    assert.doesNotMatch(panel, /\sopen=\{breakdownOpen\}/);
+  });
+
   it("names the promotion gate as a footnote rather than a rival headline", () => {
     assert.match(code(panel), /gate\.passed/);
     assert.match(code(panel), /promotion criteria met/);
