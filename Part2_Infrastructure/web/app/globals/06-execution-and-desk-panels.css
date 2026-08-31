@@ -136,7 +136,7 @@
 .cockpit-strip--compact .cockpit-strip__metrics dt {
   padding: 3px var(--space-3);
   border-bottom: 1px solid var(--rule-soft);
-  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+  background: var(--table-header-bg);
   font-size: var(--fs-2xs);
 }
 
@@ -158,7 +158,7 @@
 
 .cockpit-strip--compact .cockpit-meter {
   height: 4px;
-  margin: 0 var(--space-3) var(--space-2);
+  margin: 4px 0 0;
 }
 
 @media (max-width: 980px) {
@@ -247,6 +247,8 @@
 .cockpit-strip__gauge.is-neg { color: var(--critical-text); }
 
 .cockpit-meter {
+  display: block;
+  width: 100%;
   margin-top: 6px;
   height: 6px;
   border-radius: var(--radius-pill);
@@ -380,7 +382,7 @@
   font-size: var(--fs-xl);
   padding: 7px 10px;
   border-radius: 8px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   background: var(--surface-2);
   color: var(--text-primary);
   width: 100%;
@@ -389,7 +391,7 @@
 .cockpit-ticket__form select {
   width: 100%;
   min-height: 34px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: 8px;
   padding: 7px 30px 7px 10px;
   background: var(--surface-2);
@@ -430,21 +432,6 @@
   margin: 2px 0 0;
   font-size: var(--fs-body);
   color: var(--warning-text);
-}
-
-/* Gate-tripping demo presets carry their risk intent; a fat-finger trigger
-   must never look like a neutral chip. Colour is a text step (AA-asserted);
-   the status token appears only inside color-mix fills. */
-.cockpit-ticket__presets .preset--warn {
-  border-color: color-mix(in srgb, var(--status-warning) 45%, var(--border));
-  background: color-mix(in srgb, var(--status-warning) 14%, var(--surface-1));
-  color: var(--warning-text);
-}
-
-.cockpit-ticket__presets .preset--notice {
-  border-color: color-mix(in srgb, var(--notice-text) 40%, var(--border));
-  background: color-mix(in srgb, var(--notice-text) 12%, var(--surface-1));
-  color: var(--notice-text);
 }
 
 /* -- blotter toolbar (filters + export) -- */
@@ -704,8 +691,12 @@
 /* The caption beside the `dd` above, which already had tabular figures. It
    carries "{accepted} filled, {rejected} rejected" and the p90/p99 pair, all
    of them re-counted as fills arrive. */
-.cockpit-quality__metrics span {
+.cockpit-quality__metrics dd small {
+  display: block;
+  margin-top: 2px;
   font-size: var(--fs-sm);
+  font-family: var(--sans);
+  font-weight: 400;
   font-variant-numeric: tabular-nums;
 }
 
@@ -841,7 +832,7 @@
   font-size: var(--fs-lg);
   padding: 7px 9px;
   border-radius: 8px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   background: var(--surface-1);
   color: var(--text-primary);
   resize: vertical;
@@ -1279,6 +1270,5 @@
 
 .workspace-subtab-panel:focus-visible {
   border-radius: var(--radius-lg);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--series-1) 35%, transparent);
+  outline: 3px solid var(--focus-ring); outline-offset: 2px;
 }
-
