@@ -23,6 +23,7 @@
 
 import { useCallback, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { pct } from "@/lib/format";
 import type { CoherenceCalibration } from "@/lib/coherence/types-lab";
 
@@ -118,8 +119,11 @@ function Composition({ data }: { data: CoherenceCalibration }) {
       <ChosenStatus announced={announced} />
 
       <details className="disclosure" open={open} onToggle={(event) => setOpen(event.currentTarget.open)}>
-        <summary>{`Every series in the corpus, its share and its own slope, ${rows.length} rows`}</summary>
-        <div className="table-wrap">
+        <summary>
+          Every series in the corpus, its share and its own slope
+          <span className="sr-only">{`, ${rows.length} rows`}</span>
+        </summary>
+        <div className="table-wrap" role="region" aria-label="Calibration corpus series" tabIndex={0}>
           <table className="coh-table">
             <caption className="coh-table__caption">
               Shares divide by the {corpus} in this composition, not the {data.count} scored. A series with no
@@ -148,7 +152,17 @@ function Composition({ data }: { data: CoherenceCalibration }) {
                   onFocus={() => setHot(index)}
                   onBlur={() => setHot(null)}
                 >
-                  <th scope="row">{row.ticker}</th>
+                  <th scope="row">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      aria-pressed={row.ticker === chosen}
+                      onClick={() => pick(row)}
+                    >
+                      {row.ticker}
+                    </Button>
+                  </th>
                   <td className="num">{row.count}</td>
                   <td className="num">{row.share == null ? "—" : pct(row.share)}</td>
                   <td className="num">{decimalLabel(row.slopeRaw, 4)}</td>
