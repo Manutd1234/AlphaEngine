@@ -60,17 +60,24 @@ export function Breadcrumb({
   onNavigate: (next: string) => void;
 }) {
   const segments = segmentsOf(path);
-  // On a `cat` the last segment is the file being read, so it is a label
-  // rather than a link: clicking it would re-run the read it is already showing.
-  const last = command === "cat" ? segments.length - 1 : -1;
+  // The final segment names the current location for both commands. Ancestors
+  // navigate; the current folder or file is a label rather than a redundant
+  // request for the answer already on screen.
+  const last = segments.length - 1;
   return (
-    <nav className="coh-shell__crumbs" aria-label="Current path">
-      <button type="button" className="coh-shell__crumb" onClick={() => onNavigate("/")}>
+    <nav className="coh-shell__crumbs" aria-label={`${command} current path`}>
+      <button
+        type="button"
+        className="coh-shell__crumb"
+        aria-current={segments.length === 0 ? "location" : undefined}
+        onClick={() => onNavigate("/")}
+      >
         /
       </button>
+      {segments.length > 2 ? <span className="coh-shell__ellipsis" aria-hidden="true">…</span> : null}
       {segments.map((segment, index) =>
         index === last ? (
-          <span key={`${segment}-${index}`} className="coh-shell__crumb is-current">
+          <span key={`${segment}-${index}`} className="coh-shell__crumb is-current" aria-current="location">
             {segment}
           </span>
         ) : (
