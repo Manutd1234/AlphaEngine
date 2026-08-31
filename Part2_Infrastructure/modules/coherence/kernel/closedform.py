@@ -21,7 +21,16 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Sequence
 
-from modules.coherence.kernel.certificate import Certificate, CertificateLeg
+from modules.coherence.kernel.certificate import (
+    Certificate,
+    CertificateLeg,
+    ProofConstraintLeg,
+    ProofConstraintRow,
+    ProofConstraints,
+    ProofEvidence,
+    ProofObservation,
+    ProofSolver,
+)
 from modules.coherence.kernel.constraints import Row
 from modules.coherence.kernel.costs import FeeSchedule, Fill, OrderFees
 from modules.coherence.kernel.lattice import Component
@@ -31,6 +40,33 @@ from modules.coherence.kernel.money import contracts
 # component. One is the optimistic reading and the engine does not take it:
 # a resting order gets picked apart, and each piece pays its own rounding.
 ASSUMED_FILLS_PER_LEG = 3
+
+
+def _proof_row(row: Row) -> ProofConstraintRow:
+    """Preserve the inputs and outputs of one check for wire consumers."""
+    return ProofConstraintRow(
+        family=row.family,
+        scope=row.scope,
+        because=row.because,
+        bound=row.bound,
+        cost=row.cost,
+        slack=row.slack,
+        testable=row.testable,
+        violated=row.violated if row.testable else None,
+        untestable_reason=row.untestable_reason,
+        executable_size_hundredths=row.executable_size_hundredths if row.testable else None,
+        legs=tuple(
+            ProofConstraintLeg(
+                ticker=leg.ticker,
+                label=leg.label,
+                direction=leg.direction,
+                side=leg.side,
+                price=leg.price,
+                size_hundredths=leg.size_hundredths,
+            )
+            for leg in row.legs
+        ),
+    )
 
 
 def price_row(row: Row, schedule: FeeSchedule, size_hundredths: int | None = None) -> tuple[Decimal, Decimal, tuple[CertificateLeg, ...]]:
@@ -83,6 +119,33 @@ def solve(
     """Test every row and return the best violation, or a coherent verdict."""
     testable = [row for row in rows if row.testable]
     untestable = [row for row in rows if not row.testable]
+    slacks = [row.slack for row in testable if row.slack is not None]
+    evidence = ProofEvidence(
+        # The kernel can count the outcomes it received, but only the syscall
+        # still has the containing Event and Observation. Those fields are
+        # filled there rather than guessed here.
+        observation=ProofObservation(
+            markets_observed=None,
+            markets_in_event=None,
+            outcomes_in_component=len(component.nodes),
+            executable_buy_sides=None,
+            executable_sell_sides=None,
+        ),
+        solver=ProofSolver(
+            engine="closed_form",
+            variables=None,
+            state_rows=None,
+            optimum=min(slacks) if slacks else None,
+            optimum_kind="minimum_constraint_slack",
+            decision_boundary=Decimal(0),
+            verdict="coherent",
+        ),
+        constraints=ProofConstraints(
+            tested=len(testable),
+            untestable=len(untestable),
+            rows=tuple(_proof_row(row) for row in rows),
+        ),
+    )
 
     base = Certificate(
         verdict="coherent",
@@ -93,10 +156,12 @@ def solve(
         rows_tested=len(testable),
         rows_untestable=len(untestable),
         notes=list(component.notes),
+        proof_evidence=evidence,
     )
 
     if not testable:
         base.verdict = "untestable"
+        evidence.solver.verdict = "untestable"
         base.notes.extend(row.untestable_reason or "" for row in untestable[:3])
         if not rows:
             base.notes.append("this event's structure supports no constraint the engine can test")
@@ -123,6 +188,7 @@ def solve(
     assert best_row is not None and best is not None
     gross, fees, legs = best
     base.verdict = "incoherent"
+    evidence.solver.verdict = "incoherent"
     base.family = best_row.family
     base.because = best_row.because
     base.scope = best_row.scope
