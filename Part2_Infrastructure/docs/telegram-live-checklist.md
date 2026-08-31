@@ -1,6 +1,10 @@
 # Telegram live checklist
 
-The automated suite dispatches all 136 commands on every push and asserts their
+**Source/worktree audited: 2026-08-31.** The generated catalogue currently
+contains 138 commands, 100 menu entries and 6 guarded controls. The live-phone
+steps remain manual by design and were not re-run by this source audit.
+
+The automated suite dispatches all 138 commands on every push and asserts their
 replies. What it cannot do is prove the bot is reachable from *your* Telegram
 account, that BotFather is showing the right menu, or that a photo actually
 renders on a phone. That is what this is for: fifteen minutes of tapping,
@@ -27,8 +31,9 @@ start in webhook mode otherwise, rather than silently falling back. Polling
 needs neither. Either is fine for this checklist.
 
 **The command menu.** The bot re-registers its BotFather menu on every startup,
-so after a deploy, typing `/` in the chat should list the current commands
-including `/equity`, `/backtest`, `/rag`, `/ops`, `/timeline` and `/working`.
+so after a deploy, typing `/` in the chat should list every workspace destination,
+including `/markets`, `/proofs` and `/diffusion`, alongside representative functions
+such as `/equity`, `/backtest`, `/rag`, `/timeline` and `/working`.
 If it shows an older set, the client has cached it — reopen the chat.
 
 ---
@@ -61,7 +66,7 @@ automated suite cannot check: that a tap actually edits the card in place.
 
 | Tap | Expect |
 |---|---|
-| `/menu` | the eight desk tabs plus Digest / Status / Help, each a button |
+| `/menu` | all eleven workspace tabs plus Digest / Status / Help, each a button |
 | A tab button (e.g. **Risk**) | the tab's card, replacing the menu **in place** — not a new message below it |
 | A tab footer button (e.g. **Feeds** on `/data`) | that command's card, edited into the same message |
 | A switcher row — the interval on `/montecarlo`, the method on `/allocation`, the symbols on `/beta` | the card redraws for the new choice, with the active option bulleted (`•`) |
@@ -122,13 +127,20 @@ illustrating the assumption, not the book.
 | `/quote BTCUSDT ETHUSDT` | both symbols in one card |
 | `/trend BTCUSDT 1h 50` | return, per-bar σ, and the move stated in σ of its own noise |
 | `/range`, `/volume` | median beside mean, latest bar's percentile |
-| `/rag momentum drawdown` | three matches, or an honest *unavailable* / *embedding failed* |
+| `/rag momentum drawdown` | three matches, or an honest *unavailable* / *embedding failed* / scope refusal |
 | `/backtest BTCUSDT 1h ma_cross` | a job id — then either a pushed result (if subscribed) or `/job <id>` |
 | `/backtests` | recent runs with Sharpe bars coloured by verdict |
 
-`/rag` distinguishes three states on purpose. "Index unavailable" is not the
-same claim as "nothing similar recorded"; if an outage ever reads as the
-latter, that is a defect worth reporting.
+`/rag` keeps its outcome states distinct on purpose. "Index unavailable" is
+not the same claim as "nothing similar recorded"; if an outage ever reads as
+the latter, that is a defect worth reporting.
+
+Its tenancy follows the same feature flag as the HTTP research routes:
+similarity search is over the research corpus; it is desk-scoped when
+`RESEARCH_SCOPE_TO_DESK=1`, otherwise unscoped. With the flag on, the bot uses
+`SUPABASE_DESK_ID` and refuses before searching if that scope is absent or
+cannot cross the retrieval call chain. Apply migration `20260831130000` before
+enabling the flag.
 
 ---
 
