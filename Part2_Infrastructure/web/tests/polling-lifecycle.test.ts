@@ -103,6 +103,28 @@ describe("a slow tick does not stack", () => {
 });
 
 describe("stop means stop", () => {
+  it("aborts the in-flight tick owned by a stopped loop", async () => {
+    const h = fakeClock();
+    let cancelled = false;
+    const loop = new PollingController({
+      intervalMs: 1_000,
+      immediate: true,
+      tick: ({ signal }) => new Promise<void>((resolve) => {
+        signal.addEventListener("abort", () => {
+          cancelled = true;
+          resolve();
+        }, { once: true });
+      }),
+      environment: h.environment,
+    });
+    loop.start();
+    await Promise.resolve();
+    loop.stop();
+    await Promise.resolve();
+    assert.equal(cancelled, true, "unmount left an abandoned request working in the background");
+    assert.equal(h.pending(), 0);
+  });
+
   it("cancels the timer and unsubscribes", async () => {
     const h = fakeClock();
     let ticks = 0;
