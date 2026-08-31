@@ -33,6 +33,7 @@ import { read, stripNonCode } from "./helpers/workspace-sources";
 
 const section = read("../components/coherence/BasketSection.tsx");
 const pane = read("../components/coherence/PortfolioPane.tsx");
+const nullInstrument = read("../components/coherence/BasketNullInstrument.tsx");
 const footprint = existsSync(new URL("../components/coherence/BasketFootprint.tsx", import.meta.url))
   ? read("../components/coherence/BasketFootprint.tsx")
   : "";
@@ -42,8 +43,11 @@ describe("the section carries the switcher and the views are addressable", () =>
   it("declares the three, in the order a reader meets them", () => {
     assert.match(section, /\["cover", "Cover"\][\s\S]{0,80}\["basket", "Basket"\][\s\S]{0,80}\["size", "Size"\]/,
       "BasketSection has no three-view pairs array");
-    assert.match(section, /<div className="seg" role="group" aria-label="Basket view">/,
-      "the section draws no switcher");
+    assert.match(
+      section,
+      /<ProofsViewControl[\s\S]{0,180}className="seg"[\s\S]{0,180}label="Basket view"[\s\S]{0,180}options=\{VIEWS\}[\s\S]{0,180}value=\{view\}[\s\S]{0,180}onValue=\{onView\}/,
+      "the section no longer draws the canonical, addressable Basket switcher",
+    );
   });
 
   it("section-views declares them, so each has a URL, a palette entry and a sweep cell", () => {
@@ -54,8 +58,28 @@ describe("the section carries the switcher and the views are addressable", () =>
   it("the cover figure is still ungated on the certificate", () => {
     // A 188-strike family takes seconds to certify. Gated, the one operated
     // figure on this tab vanishes exactly while a reader is waiting.
-    assert.match(section, /view === "cover" && chosen \? <BasketWhatIf event=\{chosen\} \/> : null/,
+    assert.match(
+      section,
+      /view === "cover" && chosen \?[\s\S]{0,420}<BasketWhatIf key=\{chosen\.event_ticker\} event=\{chosen\} \/>[\s\S]{0,80}: null/,
       "BasketWhatIf is gated on the answer, or is no longer on the Cover view");
+  });
+
+  it("keeps Basket and Size visibly operable while their matching certificate is absent", () => {
+    assert.match(section, /type BasketReadState = "pending" \| "stale-target" \| "unavailable"/,
+      "the view cannot distinguish an arriving read, a previous-family snapshot and a failed read");
+    assert.match(section, /data && data\.component_id !== target[\s\S]*?"stale-target"/,
+      "a cached certificate for the previous family is not named as a transition");
+    assert.match(
+      section,
+      /view === "basket" \|\| view === "size" \?[\s\S]*?<BasketViewReadStatus[\s\S]*?onRetry=\{read\.refresh\}/,
+      "Basket and Size still render no body before the matching certificate arrives",
+    );
+    assert.match(section, /role="status"[\s\S]*?aria-live="polite"[\s\S]*?aria-busy=/,
+      "the non-settled view state is not announced as an accessible status");
+    assert.match(section, /state === "unavailable"[\s\S]*?<Button[\s\S]*?onClick=\{onRetry\}/,
+      "a failed Basket or Size read has no local retry action");
+    assert.doesNotMatch(section, /\{answer \? <PortfolioPane[^\n]+: null\}/,
+      "the old answer gate still reduces Basket and Size to an empty body");
   });
 });
 
@@ -80,14 +104,23 @@ describe("the pane is a dispatcher over three views", () => {
     assert.match(body, /<StateCoverage/, "what the cover would have to cover is not drawn");
   });
 
-  it("Basket says which answer it is empty for, rather than drawing nothing", () => {
+  it("Basket draws the coherent zero-leg lifecycle rather than a weak empty frame", () => {
     const body = pane.slice(pane.indexOf("export function BasketView("), pane.indexOf("export function SizeView("));
     assert.ok(body.length > 200, "BasketView was not found");
-    // The REASON on the empty frame, not merely the word somewhere in the
-    // function: `missing` also says "Coherent", so a file-scoped match was
-    // green with the drawn reason mutated to "Nothing to draw."
-    assert.match(body, /<FigureEmpty reason="Coherent[^"]*" \/>/,
-      "the empty frame does not name the verdict that produced it, so it reads like a feed that failed");
+    assert.match(body, /<BasketNullInstrument variant="basket"/,
+      "the ordinary coherent result is back to an undifferentiated empty frame");
+    assert.match(nullInstrument, /value: `\|L\| = \$\{legCount\} returned`/,
+      "the lifecycle hard-codes the zero-leg result instead of reading the certificate");
+    assert.match(nullInstrument, /undefined, not zero|withheld/i,
+      "the lifecycle can be mistaken for a measured zero payoff");
+    assert.match(nullInstrument, /className=\{styles\.dependencyRail\}/,
+      "the zero-leg answer fell back to three inert boxes");
+    assert.match(nullInstrument, /className=\{styles\.dependencyGauge\}/,
+      "the dependency circuit has no selected-stage progress measure");
+    assert.match(nullInstrument, /className=\{styles\.dependencyInspector\}/,
+      "the dependency circuit has no full selected-stage explanation");
+    assert.match(nullInstrument, /className=\{styles\.settlementStrip\}/,
+      "the Basket circuit no longer shows the exact settlement field it declined to score");
     assert.match(body, /<PayoffByState/, "the payoff figure is gone");
     assert.match(body, /<LinkedX>/, "the payoff and the covering no longer share a crosshair");
     assert.match(body, /Every leg through all three fee components/, "the leg table's fold lost its summary");
@@ -96,6 +129,10 @@ describe("the pane is a dispatcher over three views", () => {
   it("Size draws the footprint and nothing that needs a certificate it may not have", () => {
     const body = pane.slice(pane.indexOf("export function SizeView("));
     assert.ok(body.length > 100, "SizeView was not found");
+    assert.match(body, /return <BasketNullInstrument variant="size" certificate=\{certificate\} event=\{chosen\} \/>/,
+      "the zero-leg Size view does not lead with its own capacity gate");
+    assert.doesNotMatch(body, /<LegSizes\b/,
+      "Basket Size is still the same family-size curve as Coherence Test Sizes");
     assert.match(body, /<BasketFootprint/, "the footprint is not on the Size view");
   });
 });
@@ -119,7 +156,16 @@ describe("BasketFootprint measures a size against what is outstanding", () => {
       "a leg naming a market outside the family vanishes, so the figure draws a smaller basket than the solver built");
   });
 
-  it("draws the whole outstanding interest as the rule the shares are read against", () => {
-    assert.match(footprint, /reference=\{/, "there is no rule at the whole open interest");
+  it("puts the requirement and whole outstanding interest on the same capacity row", () => {
+    assert.match(footprint, /label="Requirement"/, "the certificate requirement is not visible");
+    assert.match(footprint, /label="Available \/ open interest"/, "the available open interest is not visible");
+    assert.match(footprint, /scale=\{scale\}/, "the two capacity bars do not share one per-leg scale");
+    assert.match(footprint, /aria-pressed=\{selected === index\}/,
+      "the capacity row does not expose its selected state");
+    for (const event of ["onPointerEnter", "onFocus", "onClick"]) {
+      assert.match(footprint, new RegExp(event), `${event} does not inspect a capacity row`);
+    }
+    assert.match(footprint, /data-selected-detail=""[\s\S]*?aria-live="polite"/,
+      "the selected leg's exact numerator and denominators are not announced");
   });
 });
