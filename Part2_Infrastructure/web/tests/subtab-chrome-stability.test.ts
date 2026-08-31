@@ -317,8 +317,8 @@ describe("selection is still visible, and not by colour", () => {
     assert.ok(selected, "the rail's selected rule is gone");
     assert.match(
       selected!.body,
-      /box-shadow: inset 0 -2px 0/,
-      "an inset rule, so the ≤820px scroll container cannot clip it",
+      /background: var\(--nav-selected-bg\);.*box-shadow: inset 0 -2px 0/,
+      "the stronger wash and inset rule both survive the ≤820px scroll container",
     );
     const paint = declared(selected!.body).filter((property) => movesABox(property));
     assert.deepEqual(paint, [], "the selected rule may only paint");
