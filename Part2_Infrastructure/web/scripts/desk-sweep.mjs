@@ -5,8 +5,9 @@
  * The claim this pass makes is "no surface can dead-end". That claim is not
  * checkable by the unit suite, because the failures it describes are layout and
  * data-flow states that only exist in a browser talking to a backend that is
- * refusing. So this walks all 47 rail sections across all 8 tabs under six
- * fault profiles and asserts, per cell, that the panel is populated and honest.
+ * refusing. So this walks all 70 rail sections across all 11 tabs, plus the 39
+ * non-default third-segment view cells, under six fault profiles and asserts,
+ * per cell, that the panel is populated and honest.
  *
  * WHY CDP FAULT INJECTION rather than restarting the dev server with different
  * env: because one of the six profiles cannot be produced any other way. A
