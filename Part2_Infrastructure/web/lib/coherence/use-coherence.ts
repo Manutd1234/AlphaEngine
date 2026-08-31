@@ -22,8 +22,15 @@
 import { useCallback, useRef, useState } from "react";
 
 import { usePolling } from "@/lib/use-polling";
+import { pollingFailure, type PollingTickContext } from "@/lib/polling";
 import { peek, read, warm } from "./read-cache";
 import { isLiveRead } from "./routes";
+import {
+  COHERENCE_REQUEST_ID_HEADER,
+  coherenceRequestId,
+  coherenceTransportMeta,
+  localTransportMeta,
+} from "./transport-state";
 import type { CoherenceLoad } from "./types";
 
 /** Slow by choice. The exchange publishes no budget for keyless traffic, and
@@ -38,8 +45,14 @@ export const COHERENCE_POLL_MS = 20_000;
  * and take seconds. One deadline for both meant the browser gave up on the slow
  * ones while the gateway was still doing exactly what it was asked to.
  */
-const DEADLINE_MS = 9_000;
-const LIVE_READ_DEADLINE_MS = 28_000;
+/**
+ * Browser guards deliberately outlive the route that they supervise. The
+ * extra time covers browser-to-function routing, a cold Next.js worker, and
+ * transferring the route's typed timeout response after its own budget ends.
+ */
+export const COHERENCE_BROWSER_HEADROOM_MS = 3_000;
+export const COHERENCE_DEFAULT_BROWSER_DEADLINE_MS = 12_000;
+export const COHERENCE_LIVE_BROWSER_DEADLINE_MS = 28_000;
 
 /**
  * WHICH reads are the slow ones is `routes.ts`'s to say, not a regex here.
@@ -56,31 +69,70 @@ const LIVE_READ_DEADLINE_MS = 28_000;
  * contract now, and `coherence-gateway-contract.test.ts` holds both ends.
  */
 function deadlineFor(url: string): number {
-  return isLiveRead(url) ? LIVE_READ_DEADLINE_MS : DEADLINE_MS;
+  return isLiveRead(url)
+    ? COHERENCE_LIVE_BROWSER_DEADLINE_MS
+    : COHERENCE_DEFAULT_BROWSER_DEADLINE_MS;
 }
 
-async function readJson<T>(url: string): Promise<{ data: T | null; error: string | null }> {
+async function readJson<T>(url: string, signal: AbortSignal) {
   const controller = new AbortController();
   const deadline = deadlineFor(url);
-  const timer = setTimeout(() => controller.abort(), deadline);
+  const requestId = coherenceRequestId();
+  let deadlineElapsed = false;
+  const timer = setTimeout(() => {
+    deadlineElapsed = true;
+    controller.abort();
+  }, deadline);
+  const cancel = () => controller.abort();
+  if (signal.aborted) cancel();
+  else signal.addEventListener("abort", cancel, { once: true });
   try {
-    const response = await fetch(url, { signal: controller.signal, cache: "no-store" });
-    const payload = (await response.json().catch(() => null)) as (T & { detail?: string; error?: string }) | null;
+    const response = await fetch(url, {
+      signal: controller.signal,
+      cache: "no-store",
+      headers: { [COHERENCE_REQUEST_ID_HEADER]: requestId },
+    });
+    const payload = (await response.json().catch(() => null)) as (T & {
+      code?: string;
+      detail?: string;
+      endpointClass?: string;
+      error?: string;
+      hint?: string;
+      requestId?: string;
+    }) | null;
+    const transport = coherenceTransportMeta(response, payload, requestId, deadline);
     if (!response.ok) {
       const detail = payload?.detail ?? payload?.error ?? `the gateway answered ${response.status}`;
-      return { data: null, error: String(detail) };
+      return { data: null as T | null, error: String(detail), transport };
     }
-    return { data: payload as T, error: null };
+    return { data: payload as T | null, error: null, transport };
   } catch (error) {
     // The abort and a dead network read the same to a user and differently to
     // an operator, so they are told apart here rather than merged into "failed".
     const aborted = error instanceof DOMException && error.name === "AbortError";
+    const cancelled = aborted && signal.aborted && !deadlineElapsed;
+    const message = deadlineElapsed
+      ? `no answer within ${deadline / 1000}s`
+      : cancelled
+        ? "the read was cancelled"
+        : "the desk could not reach its own gateway";
     return {
-      data: null,
-      error: aborted ? `no answer within ${deadline / 1000}s` : "the desk could not reach its own gateway",
+      data: null as T | null,
+      error: message,
+      transport: localTransportMeta(
+        requestId,
+        deadline,
+        deadlineElapsed ? "client_deadline" : cancelled ? "client_cancelled" : "gateway_unreachable",
+        deadlineElapsed
+          ? "The browser stopped this read at its fixed deadline."
+          : cancelled
+            ? "The view closed before the read completed."
+            : "Check the same-origin gateway route and risk gateway listener.",
+      ),
     };
   } finally {
     clearTimeout(timer);
+    signal.removeEventListener("abort", cancel);
   }
 }
 
@@ -91,8 +143,8 @@ async function readJson<T>(url: string): Promise<{ data: T | null; error: string
  * It is a hint: it reports nothing, it refuses to duplicate a read already in
  * flight, and it declines entirely when a recent answer is already held.
  */
-export function warmCoherenceRead(url: string): void {
-  warm(url, readJson);
+export function warmCoherenceRead(url: string, signal?: AbortSignal): Promise<void> {
+  return warm(url, readJson, signal);
 }
 
 /**
@@ -178,9 +230,15 @@ export function useCoherenceRead<T>(url: string, enabled: boolean, pollMs = COHE
     const cached = peek<T>(url);
     return {
       data: cached?.data ?? null,
-      error: null,
+      // A cached answer may deliberately be last-good data plus the transport
+      // failure that followed it. Preserve both on remount: hiding the incident
+      // while drawing its stale payload makes a fast tab switch look live.
+      error: cached?.error ?? null,
       loading: enabled && !cached,
       updatedAt: cached?.updatedAt ?? null,
+      transport: cached?.transport ?? null,
+      retryAt: null,
+      consecutiveFailures: 0,
     };
   };
   const [state, setState] = useState<CoherenceLoad<T>>(seed);
@@ -215,16 +273,17 @@ export function useCoherenceRead<T>(url: string, enabled: boolean, pollMs = COHE
   // The in-flight latch moved to the cache, where it is shared. Three panes
   // read `universe` and each held its own, so a tab switch could put three
   // identical live reads on the exchange's token bucket at once.
-  const tick = useCallback(async () => {
-    const { data, error } = await read<T>(url, readJson);
+  const tick = useCallback(async ({ signal }: PollingTickContext) => {
+    const { data, error, transport } = await read<T>(url, readJson, signal);
     if (!data) {
-      setState((previous) => ({ ...previous, error, loading: false }));
-      return;
+      setState((previous) => ({ ...previous, error, loading: false, transport: transport ?? null }));
+      return pollingFailure(error ?? "invalid_payload");
     }
     const reading = readingOf(data);
     const unchanged = reading === lastReading.current;
     lastReading.current = reading;
     setState((previous) => ({
+      ...previous,
       // IDENTITY KEPT WHEN NOTHING DRAWABLE CHANGED, so a memoised section can
       // bail out. `updatedAt` still advances — the freshness stamp is a clock
       // and has to tick — so this component still re-renders every poll; what
@@ -232,11 +291,15 @@ export function useCoherenceRead<T>(url: string, enabled: boolean, pollMs = COHE
       data: unchanged && previous.data ? previous.data : data,
       error,
       loading: false,
+      transport: transport ?? null,
       // The BOOK's age when the payload says, this machine's clock when it does
       // not. A read that went to the exchange on this request carries no age
       // and is as fresh as the request, so `new Date()` is the truth there.
       updatedAt: observedAt(data) ?? new Date(),
     }));
+    // A last-good payload remains drawable after a failed poll, but the error
+    // still drives incident backoff until a fresh gateway answer replaces it.
+    if (error) return pollingFailure(error);
   }, [url]);
 
   // `immediate` is not a nicety here, it is the difference between a working
@@ -244,7 +307,28 @@ export function useCoherenceRead<T>(url: string, enabled: boolean, pollMs = COHE
   // before its first tick, so every pane on this tab sat on "Reading…" for
   // twenty seconds — and a reader clicking between sections faster than that
   // never saw data at all. It read as a broken tab, which is what it was.
-  usePolling({ tick, enabled, intervalMs: pollMs, revalidateOnVisible: true, immediate: true });
+  usePolling({
+    tick,
+    enabled,
+    intervalMs: pollMs,
+    revalidateOnVisible: true,
+    immediate: true,
+    firstRetryMs: 2_500,
+    maxBackoffMs: 30_000,
+    circuit: { failureThreshold: 3, cooldownMs: 30_000 },
+    onSchedule: (delayMs, consecutiveFailures) => {
+      setState((previous) => ({
+        ...previous,
+        consecutiveFailures,
+        retryAt: consecutiveFailures > 0
+          ? new Date(Date.now() + Math.min(delayMs, 30_000))
+          : null,
+      }));
+    },
+  });
 
-  return { ...state, refresh: () => void tick() };
+  return {
+    ...state,
+    refresh: () => void tick({ signal: new AbortController().signal }),
+  };
 }
