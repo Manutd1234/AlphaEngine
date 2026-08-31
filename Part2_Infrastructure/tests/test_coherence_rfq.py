@@ -23,6 +23,7 @@ from typing import Any
 import httpx
 import pytest
 
+from modules.coherence.drivers.kalshi_auth import SigningUnavailable
 from modules.coherence.drivers.kalshi_rest import KalshiClient
 from modules.coherence.drivers.rfq import THIN_PANEL, Quote, disperse, parse_quotes, parse_rfqs, read_panel
 from modules.coherence.scheduler.budget import ReadBudget
@@ -199,6 +200,31 @@ class TestReadingTheChannel:
         assert result["state"] == "refused"
         assert "a demo key signs demo, never production" in result["detail"]
         assert result["dispersions"] == []
+
+    @pytest.mark.anyio
+    async def test_a_key_failure_is_a_setup_state_instead_of_a_gateway_error(self, monkeypatch):
+        """A present key path can still disappear or contain an invalid PEM.
+
+        The signer raises before an HTTP request exists, so the panel must keep
+        that failure separate from both a venue refusal and a network outage.
+        """
+        def fail_sign(*_args, **_kwargs):
+            raise SigningUnavailable("private key did not parse")
+
+        monkeypatch.setattr("modules.coherence.drivers.kalshi_rest.kalshi_auth.sign", fail_sign)
+        made = KalshiClient(
+            base_url="https://external-api.demo.kalshi.co/trade-api/v2",
+            failover_url="",
+            signed=True,
+            transport=httpx.MockTransport(lambda _request: httpx.Response(200, json={})),
+            budget=ReadBudget(),
+        )
+
+        result = await read_panel(made)
+
+        assert result["state"] == "signing_unavailable"
+        assert "private key did not parse" in result["detail"]
+        assert result["rfqs"] == [] and result["dispersions"] == []
 
     @pytest.mark.anyio
     async def test_a_server_fault_is_an_outage_rather_than_a_refusal(self):
