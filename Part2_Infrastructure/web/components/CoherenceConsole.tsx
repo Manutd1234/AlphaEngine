@@ -52,7 +52,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import PageHead from "@/components/workspace/PageHead";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
-import EngineStatePanel, { EngineChips } from "@/components/coherence/EngineStatePanel";
+import EngineStatePanel, { EngineTopbarStatus } from "@/components/coherence/EngineStatePanel";
+import EngineViewEvidence from "@/components/coherence/EngineViewEvidence";
+import ProofsMethodMap from "@/components/coherence/ProofsMethodMap";
+import ProofsTransportNotice from "@/components/coherence/ProofsTransportNotice";
 import BasketSection from "@/components/coherence/BasketSection";
 import CalibrationPane from "@/components/coherence/CalibrationPane";
 import CertificatePane from "@/components/coherence/CertificatePane";
@@ -60,6 +63,7 @@ import CombosSection from "@/components/coherence/CombosSection";
 import CorpusSection from "@/components/coherence/CorpusSection";
 import IndexSection from "@/components/coherence/IndexSection";
 import LessonsPane from "@/components/coherence/LessonsPane";
+import LiveControls from "@/components/coherence/LiveControls";
 import StatusPane from "@/components/coherence/StatusPane";
 import { COHERENCE_SECTIONS, type CoherenceSection } from "@/lib/sections";
 import {
@@ -69,7 +73,8 @@ import {
 import { COHERENCE_POLL_MS, useCoherenceRead, warmCoherenceRead } from "@/lib/coherence/use-coherence";
 import type { CoherenceStatus, CoherenceUniverse } from "@/lib/coherence/types";
 import type { WorkspaceView } from "@/lib/workspace-nav";
-import { useSectionWarming } from "@/lib/coherence/use-section-warming";
+import { useSectionWarming, warmSequentially } from "@/lib/coherence/use-section-warming";
+import { useStableSelectionKey } from "@/components/coherence/use-stable-selection-key";
 
 export { type CoherenceSection } from "@/lib/sections";
 
@@ -137,9 +142,22 @@ export interface CoherenceConsoleProps {
 }
 
 export default function CoherenceConsole({ section, onSectionChange, active = true, views, onViewChange, onOpenSection }: CoherenceConsoleProps) {
-  const status = useCoherenceRead<CoherenceStatus>(statusRoute(), active);
+  const [paused, setPaused] = useState(false);
+  const [rearming, setRearming] = useState(false);
+  const [detailsVisible, setDetailsVisible] = useState(false);
+  useEffect(() => {
+    if (rearming) setRearming(false);
+  }, [rearming]);
+
+  const statusLive = active && !paused && !rearming;
+  const sectionLive = statusLive && section !== "lessons";
+  const sectionVisible = active && section !== "lessons";
+  const status = useCoherenceRead<CoherenceStatus>(statusRoute(), statusLive);
+  const hasHaltedShard = status.data?.state === "ok" && status.data.shards.some(
+    (shard) => !shard.exchange_active || !shard.trading_active,
+  );
   const onFamily = section === "certificate" || section === "portfolio";
-  const universe = useCoherenceRead<CoherenceUniverse>(universeRoute(), active && onFamily);
+  const universe = useCoherenceRead<CoherenceUniverse>(universeRoute(), statusLive && onFamily);
 
   // THE FAMILY IS THE CONSOLE'S, AND THAT REVERSES A RECORDED REJECTION.
   // `FamilyPicker` argued against hoisting it here on the grounds that the
@@ -151,25 +169,30 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
   // verdict hands back — so a reader who picks a family on one and finds the
   // other on a different family has been told something false about which
   // answer they are looking at. Parlays needs no family and takes none.
-  const [family, setFamily] = useState<string | null>(null);
   const events = useMemo(() => universe.data?.events ?? [], [universe.data]);
-  const target = family ?? events[0]?.event_ticker ?? "";
+  // A watchlist poll may remove the selected family. Commit the first remaining
+  // family as the new selection rather than only deriving it for one render;
+  // otherwise a later poll that restores the old id silently snaps every view
+  // back without a reader action.
+  const [family, setFamily] = useStableSelectionKey(events.map((event) => event.event_ticker));
+  const target = family ?? "";
   // "Has not answered either way" rather than the hook's own `loading`, which
   // is false-until-mount-with-enabled and misses the section-switch case: a
   // reader landing on the certificate mid-flight must see reading, not "none
   // has been read".
   const familiesPending = !universe.data && !universe.error;
 
-  useSectionWarming(SECTION_READS, active);
+  useSectionWarming(SECTION_READS, sectionLive);
 
 
   const openSection = (next: CoherenceSection) => {
     onSectionChange(next);
-    requestAnimationFrame(() => document.getElementById(`coherence-subtab-${next}`)?.focus());
+    requestAnimationFrame(() => document.getElementById(`coherence-subtab-${next}`)?.focus({ preventScroll: true }));
   };
   const warmSection = useCallback((next: CoherenceSection) => {
-    for (const url of SECTION_READS[next]) warmCoherenceRead(url);
-  }, []);
+    if (!statusLive) return;
+    void warmSequentially(SECTION_READS[next], warmCoherenceRead, { priority: SECTION_READS[next] });
+  }, [statusLive]);
 
   /**
    * Start the certificate as soon as a family is known, rather than when a
@@ -189,9 +212,11 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
    * they reach the test. One warm and the read-cache answers all of them.
    */
   useEffect(() => {
-    if (!active || !target) return;
-    warmCoherenceRead(certifyRoute(target));
-  }, [active, target]);
+    if (!sectionLive || !target) return;
+    const controller = new AbortController();
+    void warmCoherenceRead(certifyRoute(target), controller.signal);
+    return () => controller.abort();
+  }, [sectionLive, target]);
 
   /**
    * The view props for one section, built once here rather than six times
@@ -205,64 +230,38 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
   });
 
   return (
-    <div className="coherence-plane proofs-plane">
-      {/* ONE BOX FOR THE TOP BAR: the head, its chips in the right slot, and the
-          facts table as a strip under both. `PageHead` returns a fragment — its
-          `<header>` and then its `children` — so wrapping the element is what
-          puts the title and the engine's read-state inside one frame.
-
-          THREE SHAPES IN THREE DAYS, each a reader's correction of the last.
-          2026-08-25: chips in `actions`, table in `children` — full-width by
-          construction, and the head's right half stayed empty ("move the
-          entire stuff … to the empty space at the top right which i have
-          circled"). 2026-08-26, morning: both in `actions`, a column — and the
-          right column grew taller than the title's, leaving white under the
-          lede ("so much white space on the left"). 2026-08-26, evening: chips
-          in `actions`, the table a sibling strip under the head. The chips are
-          the only thing that belongs beside the title; the table wants the
-          whole width, and gets it by decision rather than by accident.
-
-          `.coh-headlive` is `display: contents` (14w), so the wrapper costs no
-          box and its children are flex items of the slot itself — which is what
-          lets the two chip rows each take their own line. Markets has always
-          carried this wrapper for its poll controls; Proofs carries it so the
-          two heads are one shape. */}
+    <div className="coherence-plane proofs-plane" data-workbench-details={detailsVisible ? "true" : "false"}>
+      {/* The shared status component gives Markets and Proofs the same two-row
+          hierarchy: exchange truth first, recorder and polling controls next. */}
       <div className="coh-topbar">
         <PageHead
           kicker="Proofs"
-          title="Prices as probabilities, tested for coherence"
-          description="A family of contracts admitting no probability measure hands back a basket that wins in every state, and this is the test."
+          title="Prices tested as probabilities"
           actions={
-            <div className="coh-headlive">
-              <EngineChips
-                status={status.data}
-                error={status.error}
-                updatedAt={status.updatedAt}
-                pollMs={COHERENCE_POLL_MS}
-                paused={!active}
-              />
-            </div>
+            <EngineTopbarStatus
+              status={status.data}
+              error={status.error}
+              detail={
+                <EngineStatePanel
+                  status={status.data}
+                  familiesPriced={universe.data ? `${universe.data.events.length} read live` : null}
+                />
+              }
+              controls={
+                <LiveControls
+                  updatedAt={status.updatedAt}
+                  pollMs={COHERENCE_POLL_MS}
+                  paused={paused}
+                  onPause={setPaused}
+                  onReadNow={() => {
+                    setPaused(false);
+                    setRearming(true);
+                  }}
+                    variant="markets"
+                />
+              }
+            />
           }
-          status={
-            status.data
-              ? { label: status.data.state === "ok" ? "Reading the exchange" : status.data.state, tone: status.data.state === "ok" ? "good" : "warn" }
-              : undefined
-          }
-        />
-        {/* THE FACTS TABLE IS A STRIP UNDER THE HEAD, since 2026-08-26, and a
-            SIBLING of `PageHead` rather than its `children` or its `actions`.
-            In `actions` it stacked under two chip rows in a ~1,000px column,
-            wrapping five tiles into two rows beside a 58ch title column that
-            had nothing under its lede — the reader was looking at that white:
-            "there is so much white space on the left". As `children` it would
-            be full-width too, but `engine-head-state` refuses `PageHead`
-            children on the engine tabs (nothing may be full-width by accident);
-            a sibling inside the box is full-width by decision. Five tiles in
-            one row at desk widths (14v's `auto-fit` over a 14rem floor); the
-            chips keep the head's right slot beside the title. */}
-        <EngineStatePanel
-          status={status.data}
-          familiesPriced={universe.data ? `${universe.data.events.length} read live` : null}
         />
       </div>
 
@@ -277,6 +276,34 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
         active={active}
       />
 
+      <EngineViewEvidence
+        tab="coherence"
+        section={section}
+        view={views[section]}
+        status={status.data}
+        error={status.error}
+        updatedAt={status.updatedAt}
+        showTransport={sectionVisible}
+        deskContext="LP feasibility returns a basket that wins in every state; settled calibration tests the record."
+        detailsVisible={detailsVisible}
+        onDetailsVisibleChange={setDetailsVisible}
+        contextAction={
+          <ProofsMethodMap activeSection={section} onSection={openSection} />
+        }
+      />
+
+      {sectionVisible && status.error && (
+        <ProofsTransportNotice
+          subject="Engine state"
+          error={status.error}
+          hasSnapshot={Boolean(status.data)}
+          transport={status.transport}
+          retryAt={status.retryAt}
+          consecutiveFailures={status.consecutiveFailures}
+          onRetry={status.refresh}
+        />
+      )}
+
       {/* Three sections over two reads. Coherence test and Basket share the
           `certify` answer for one family — the read cache holds one answer per
           URL, so the second costs nothing — and Parlays is the `combos` call,
@@ -286,7 +313,7 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
           events={events}
           target={target}
           onFamily={setFamily}
-          active={active && section === "certificate"}
+          active={sectionLive && section === "certificate"}
           eventsPending={familiesPending}
           eventsError={universe.error}
           {...viewProps("certificate")}
@@ -298,7 +325,7 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
           events={events}
           target={target}
           onFamily={setFamily}
-          active={active && section === "portfolio"}
+          active={sectionLive && section === "portfolio"}
           eventsPending={familiesPending}
           eventsError={universe.error}
           {...viewProps("portfolio")}
@@ -306,7 +333,7 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="coherence" tabId="combos" activeId={section}>
-        <CombosSection active={active && section === "combos"} {...viewProps("combos")} />
+        <CombosSection active={sectionLive && section === "combos"} {...viewProps("combos")} />
       </WorkspaceSubtabPanel>
 
       {/* PANELS IN RAIL ORDER, which `coherence-sections` deep-equals against
@@ -315,27 +342,29 @@ export default function CoherenceConsole({ section, onSectionChange, active = tr
           Scorecard reads a different one, so the two numbers no longer sit
           adjacent with nothing between them saying which is which. */}
       <WorkspaceSubtabPanel workspaceId="coherence" tabId="index" activeId={section}>
-        <IndexSection active={active && section === "index"} {...viewProps("index")} />
+        <IndexSection active={sectionLive && section === "index"} {...viewProps("index")} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="coherence" tabId="calibration" activeId={section}>
-        <CalibrationPane active={active && section === "calibration"} {...viewProps("calibration")} />
+        <CalibrationPane active={sectionLive && section === "calibration"} {...viewProps("calibration")} />
       </WorkspaceSubtabPanel>
 
       {/* What that score was computed on, and how it accrued — the question
           Scorecard carried as a third view and `index` as a first one. It
           follows the score now, because a score is a score OF something. */}
       <WorkspaceSubtabPanel workspaceId="coherence" tabId="corpus" activeId={section}>
-        <CorpusSection active={active && section === "corpus"} {...viewProps("corpus")} />
+        <CorpusSection active={sectionLive && section === "corpus"} {...viewProps("corpus")} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="coherence" tabId="lessons" activeId={section}>
         <LessonsPane {...viewProps("lessons")} onOpenSection={onOpenSection} />
       </WorkspaceSubtabPanel>
 
-      <div className="coh-console__status">
-        <StatusPane status={status.data} error={status.error} />
-      </div>
+      {sectionVisible && hasHaltedShard && status.data && (
+        <div className="coh-console__status">
+          <StatusPane status={status.data} />
+        </div>
+      )}
     </div>
   );
 }
