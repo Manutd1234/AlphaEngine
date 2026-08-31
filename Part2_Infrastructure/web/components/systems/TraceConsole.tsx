@@ -23,6 +23,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { eventsSince } from "@/lib/observability";
 import { usePolling } from "@/lib/use-polling";
+import { useWorkspaceEntity } from "@/lib/use-workspace-entity";
+import TraceTimeline, { type Line } from "./TraceTimeline";
 import type { EventsResponse, TraceEvent } from "./types";
 
 const LEVELS = ["debug", "info", "warn", "error"] as const;
@@ -30,8 +32,8 @@ type Level = (typeof LEVELS)[number];
 
 const LEVEL_RANK: Record<Level, number> = { debug: 0, info: 1, warn: 2, error: 3 };
 const MAX_LINES = 800;
-
-type Line = TraceEvent & { key: string };
+const TRACE_PAGE_SIZE = 40;
+const TIMELINE_LABEL = "Timeline";
 
 export interface TraceFilterRequest {
   id: number;
@@ -48,6 +50,7 @@ interface TraceConsoleProps {
 }
 
 export default function TraceConsole({ pollMs, active, filterRequest }: TraceConsoleProps) {
+  const selectedTrace = useWorkspaceEntity("trace");
   const [lines, setLines] = useState<Line[]>([]);
   const [minLevel, setMinLevel] = useState<Level>("debug");
   const [filter, setFilter] = useState("");
@@ -57,6 +60,8 @@ export default function TraceConsole({ pollMs, active, filterRequest }: TraceCon
   const [gaps, setGaps] = useState(0);
   const [connected, setConnected] = useState(true);
   const [paused, setPaused] = useState(false);
+  /** Null follows the newest page; a number pins an operator-selected page. */
+  const [timelinePageIndex, setTimelinePageIndex] = useState<number | null>(null);
   /** Per-instance server cursors: instance id → the last seq read from its ring. */
   const serverCursors = useRef<Map<string, number>>(new Map());
   const browserCursor = useRef(0);
@@ -132,7 +137,19 @@ export default function TraceConsole({ pollMs, active, filterRequest }: TraceCon
     setFilterContext(filterRequest.label);
     setMinLevel("debug");
     setSelectedKey(null);
+    setTimelinePageIndex(null);
+    setFollow(true);
   }, [filterRequest]);
+
+  useEffect(() => {
+    if (!selectedTrace) return;
+    setFilter(selectedTrace.value);
+    setFilterContext(`Correlation ${selectedTrace.value}`);
+    setMinLevel("debug");
+    setSelectedKey(null);
+    setTimelinePageIndex(null);
+    setFollow(true);
+  }, [selectedTrace]);
 
   useEffect(() => {
     if (!active || paused) return;
@@ -163,28 +180,50 @@ export default function TraceConsole({ pollMs, active, filterRequest }: TraceCon
     });
   }, [lines, minLevel, filter]);
 
+  const pageCount = Math.max(1, Math.ceil(visible.length / TRACE_PAGE_SIZE));
+  const activePage = timelinePageIndex === null
+    ? pageCount - 1
+    : Math.min(timelinePageIndex, pageCount - 1);
+  const pageStart = activePage * TRACE_PAGE_SIZE;
+  const pagedVisible = useMemo(
+    () => visible.slice(pageStart, pageStart + TRACE_PAGE_SIZE),
+    [visible, pageStart],
+  );
+
   useEffect(() => {
     if (!follow) return;
     const node = viewport.current;
     if (node) node.scrollTop = node.scrollHeight;
-  }, [visible, follow]);
+  }, [pagedVisible, follow]);
 
   const selected = useMemo(() => {
-    const explicit = selectedKey ? visible.find((line) => line.key === selectedKey) : null;
-    return explicit ?? visible[visible.length - 1] ?? null;
-  }, [selectedKey, visible]);
+    const explicit = selectedKey ? pagedVisible.find((line) => line.key === selectedKey) : null;
+    return explicit ?? pagedVisible[pagedVisible.length - 1] ?? null;
+  }, [selectedKey, pagedVisible]);
 
   const onScroll = () => {
     const node = viewport.current;
     if (!node) return;
     const atBottom = node.scrollHeight - node.scrollTop - node.clientHeight < 24;
-    setFollow(atBottom);
+    setFollow(activePage === pageCount - 1 && atBottom);
+  };
+
+  const setTimelinePage = (nextPage: number) => {
+    const bounded = Math.max(0, Math.min(nextPage, pageCount - 1));
+    const isLatest = bounded === pageCount - 1;
+    setTimelinePageIndex(isLatest ? null : bounded);
+    setFollow(isLatest);
+    setSelectedKey(null);
+    const node = viewport.current;
+    if (node) node.scrollTop = 0;
   };
 
   const clearFilter = () => {
     setFilter("");
     setFilterContext(null);
     setSelectedKey(null);
+    setTimelinePageIndex(null);
+    setFollow(true);
   };
 
   return (
@@ -222,6 +261,8 @@ export default function TraceConsole({ pollMs, active, filterRequest }: TraceCon
               setFilter(event.target.value);
               setFilterContext(null);
               setSelectedKey(null);
+              setTimelinePageIndex(null);
+              setFollow(true);
             }}
             placeholder="source, message, field or value…"
             aria-label="Filter log entries"
@@ -241,6 +282,8 @@ export default function TraceConsole({ pollMs, active, filterRequest }: TraceCon
             setLines([]);
             setGaps(0);
             setSelectedKey(null);
+            setTimelinePageIndex(null);
+            setFollow(true);
           }}
         >
           Clear view
@@ -260,139 +303,29 @@ export default function TraceConsole({ pollMs, active, filterRequest }: TraceCon
         </p>
       ) : null}
 
-      <div className="console-trace-split">
-        <div className="console-trace-master">
-          <div className="console-trace-pane-heading">
-            <strong>Timeline</strong>
-            <span>{follow ? "Following latest" : "Follow disengaged"}</span>
-          </div>
-          <ol
-            className="console-log"
-            ref={viewport}
-            onScroll={onScroll}
-            role="log"
-            aria-label="System event timeline"
-            aria-live="off"
-            tabIndex={0}
-          >
-            {visible.length === 0 ? (
-              <li className="console-log__empty">
-                {lines.length ? "No entries match the current filter." : "No entries yet. Trace a symbol or trip a provider to populate the stream."}
-              </li>
-            ) : null}
-            {/* A line that arrived within the last poll window wears the
-                fresh tint; the next pull's re-render ages it out. Emphasis
-                only — the row is identical without it. */}
-            {visible.map((line) => (
-              <li
-                className={`console-log__entry${Date.now() - line.ts < (pollMs || 5_000) ? " row-fresh" : ""}`}
-                key={line.key}
-              >
-                <button
-                  type="button"
-                  className={`console-log__line is-${line.level}`}
-                  aria-pressed={selected?.key === line.key}
-                  aria-controls="trace-event-detail"
-                  onClick={() => {
-                    setSelectedKey(line.key);
-                    if (line.key !== visible[visible.length - 1]?.key) setFollow(false);
-                  }}
-                >
-                  <time className="console-log__ts" dateTime={new Date(line.ts).toISOString()}>{stamp(line.ts)}</time>
-                  <span className={`console-log__level is-${line.level}`}>{line.level.toUpperCase()}</span>
-                  <span
-                    className="console-log__origin"
-                    title={line.origin === "server" ? "Produced on the server instance" : "Produced in this browser tab"}
-                  >
-                    {line.origin === "server" ? "srv" : "web"}
-                  </span>
-                  <span className="console-log__source">[{line.source}]</span>
-                  <span className="console-log__msg">{line.message}</span>
-                  {Object.keys(line.fields ?? {}).length ? (
-                    <span className="console-log__fields">{fieldSummary(line.fields)}</span>
-                  ) : null}
-                </button>
-              </li>
-            ))}
-          </ol>
-
-          {!follow ? (
-            <button
-              type="button"
-              className="console-log-jump"
-              onClick={() => {
-                setFollow(true);
-                setSelectedKey(null);
-                const node = viewport.current;
-                if (node) node.scrollTop = node.scrollHeight;
-              }}
-            >
-              Follow latest ↓
-            </button>
-          ) : null}
-        </div>
-
-        <aside className="console-trace-detail" id="trace-event-detail" aria-labelledby="trace-event-detail-title">
-          <div className="console-trace-pane-heading">
-            <strong id="trace-event-detail-title">Structured detail</strong>
-            <span>{selected ? `Event ${selected.seq}` : "No selection"}</span>
-          </div>
-          {selected ? (
-            <div className="console-trace-detail__body">
-              <div className="console-trace-detail__title">
-                <span className={`console-log__level is-${selected.level}`}>{selected.level.toUpperCase()}</span>
-                <h3>{selected.message}</h3>
-              </div>
-              <dl className="console-trace-meta">
-                <div><dt>Time (UTC)</dt><dd>{new Date(selected.ts).toISOString()}</dd></div>
-                <div><dt>Source</dt><dd><code>{selected.source}</code></dd></div>
-                <div><dt>Origin</dt><dd>{selected.origin === "server" ? "Server instance" : "This browser tab"}</dd></div>
-                <div><dt>Sequence</dt><dd className="num">{selected.seq}</dd></div>
-              </dl>
-
-              <div className="console-trace-fields-heading">
-                <strong>Fields</strong>
-                <span>{Object.keys(selected.fields ?? {}).length}</span>
-              </div>
-              {Object.keys(selected.fields ?? {}).length ? (
-                <dl className="console-trace-fields">
-                  {Object.entries(selected.fields).map(([key, value]) => (
-                    <div key={key}>
-                      <dt>{key}</dt>
-                      <dd>{formatFieldValue(value)}</dd>
-                    </div>
-                  ))}
-                </dl>
-              ) : (
-                <p className="muted console-trace-empty-detail">This event has no structured fields.</p>
-              )}
-            </div>
-          ) : (
-            <p className="muted console-trace-empty-detail">Select an entry to inspect its timestamp, source and fields.</p>
-          )}
-        </aside>
-      </div>
+      <TraceTimeline
+        pagedVisible={pagedVisible}
+        retainedCount={lines.length}
+        pollMs={pollMs}
+        follow={follow}
+        selected={selected}
+        viewport={viewport}
+        activePage={activePage}
+        pageCount={pageCount}
+        timelineLabel={TIMELINE_LABEL}
+        onScroll={onScroll}
+        onPage={setTimelinePage}
+        onSelect={(line) => {
+          setSelectedKey(line.key);
+          if (line.key !== pagedVisible[pagedVisible.length - 1]?.key) setFollow(false);
+        }}
+        onFollowLatest={() => {
+          setFollow(true);
+          setSelectedKey(null);
+          const node = viewport.current;
+          if (node) node.scrollTop = node.scrollHeight;
+        }}
+      />
     </div>
   );
-}
-
-function fieldSummary(fields: TraceEvent["fields"]): string {
-  return Object.entries(fields)
-    .filter(([, value]) => value !== null && value !== "")
-    .slice(0, 4)
-    .map(([key, value]) => `${key}=${String(value)}`)
-    .join(" ");
-}
-
-function formatFieldValue(value: string | number | boolean | null): string {
-  if (value === null) return "null";
-  if (typeof value === "boolean") return value ? "true" : "false";
-  return String(value);
-}
-
-/** Millisecond precision, because the interesting gaps here are sub-second. */
-function stamp(ts: number): string {
-  const date = new Date(ts);
-  const pad = (value: number, width = 2) => String(value).padStart(width, "0");
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}.${pad(date.getMilliseconds(), 3)}`;
 }
