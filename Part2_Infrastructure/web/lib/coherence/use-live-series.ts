@@ -37,7 +37,7 @@
  * rather than a typed union — the sections do not agree on what a subject is.
  */
 
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
 
 /** One reading, at the moment the poll that carried it landed. */
 export interface LivePoint {
@@ -145,21 +145,24 @@ function subscribeTo(key: string) {
 }
 
 /**
- * Records this poll's reading and returns everything seen so far.
+ * Records this poll's reading after commit and returns everything seen so far.
  *
- * Recording HERE rather than in an effect is deliberate and safe, because the
- * idempotence above makes it a no-op on every render that is not a new poll.
- * An effect would be the conventional shape and would cost a second commit per
- * poll for no gain — and, on the two sections that unmount, would drop the
- * reading the render already had in hand.
+ * The store has existing subscribers after the first render. Publishing a new
+ * point during a later render synchronously wakes those subscribers, which is
+ * a cross-render state update even when the timestamp guard makes the write
+ * idempotent. Commit first, then publish: `useSyncExternalStore` observes the
+ * new version and schedules the one follow-up render that draws the point.
  */
 export function useLiveSeries(key: string, at: Date | null, value: number | null): readonly LivePoint[] {
-  recordLive(key, at?.getTime(), value);
+  const atMs = at?.getTime() ?? null;
   // Stable per key, or `useSyncExternalStore` resubscribes on every render and
   // trades one wasted render for another.
   const subscribe = useCallback(subscribeTo(key), [key]);
   const snapshot = useCallback(() => versions.get(key) ?? 0, [key]);
   useSyncExternalStore(subscribe, snapshot, snapshot);
+  useEffect(() => {
+    recordLive(key, atMs, value);
+  }, [atMs, key, value]);
   return readLive(key);
 }
 
