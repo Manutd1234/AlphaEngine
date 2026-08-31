@@ -21,6 +21,7 @@ import { DIAGRAM_LABEL_PX, gutterFor, truncateMiddle } from "@/lib/coherence/lab
 import { parlayName } from "@/lib/coherence/parlay-name";
 import type { CoherenceCombo } from "@/lib/coherence/types-lab";
 import Figure, { Plot } from "./Figure";
+import instrumentStyles from "./ProofsTargetInstruments.module.css";
 
 /** 40, from 34. Two adjacent price markers are 22px tall in a row that was 34,
  *  so they came within 12px of touching and read as one mark spanning two
@@ -29,7 +30,15 @@ const ROW_H = 40;
 const TOP = 4;
 const AXIS_GAP = 8;
 
-export default function ComboBandStrips({ combos }: { combos: CoherenceCombo[] }) {
+export default function ComboBandStrips({
+  combos,
+  selectedTicker,
+  onSelectTicker,
+}: {
+  combos: CoherenceCombo[];
+  selectedTicker: string | null;
+  onSelectTicker: (ticker: string | null) => void;
+}) {
   const rows = combos.map((combo) => ({
     ticker: combo.ticker,
     // Drawn in the gutter, and therefore what the gutter is measured against.
@@ -62,27 +71,45 @@ export default function ComboBandStrips({ combos }: { combos: CoherenceCombo[] }
   const height = axisY + 16;
   const unpriced = rows.filter((row) => row.lo == null || row.hi == null).length;
   const twoSided = rows.filter((row) => row.bid != null && row.ask != null).length;
+  const describe = (row: (typeof rows)[number]) => [
+    `${row.name} — ${row.ticker}`,
+    row.lo == null || row.hi == null
+      ? "No band because at least one required leg quote is missing"
+      : `Band ${fromCenticents(row.lo)} to ${fromCenticents(row.hi)}${row.width ? `, ${row.width} wide` : ""}`,
+    row.price == null
+      ? "Parlay price unquoted"
+      : `Price ${fromCenticents(row.price)}${row.inside == null ? "" : row.inside ? ", inside the band" : ", outside the band"}`,
+    row.independence == null
+      ? "Independence product unavailable"
+      : `Independence product ${fromCenticents(row.independence)}, a leg assumption rather than fair value`,
+    row.bid != null && row.ask != null
+      ? `Book ${fromCenticents(row.bid)} bid to ${fromCenticents(row.ask)} ask`
+      : "One-sided book; no spread is inferred",
+  ].join(". ");
 
   return (
     <Figure
-      caption="Every parlay against the Fréchet–Hoeffding band its own legs impose, on one dollar axis"
+      caption="Allowed range and quote for each parlay"
       ariaLabel={rows
         .map((row) => row.lo == null || row.hi == null
           ? `${row.name}: no band`
           : `${row.name}: ${fromCenticents(row.lo)} to ${fromCenticents(row.hi)}, price ${row.price == null ? "unquoted" : fromCenticents(row.price)}`)
         .join(". ")}
-      missing={[
-        unpriced
-          ? `${unpriced} of ${rows.length} parlays have no band: a leg is unquoted on the side the parlay needs.`
-          : "",
+      reading="Shaded span: allowed range. Vertical line: quote. Circle: leg-product reference."
+      missing={unpriced
+        ? `${unpriced} of ${rows.length} parlays have no range because a required leg is unquoted.`
+        : null}
+      notes={[
         twoSided
-          ? `${twoSided} of ${rows.length} parlays are quoted on both sides; those rows draw a spread rather`
-            + " than a single price."
-          : `No parlay in this read is quoted on both sides, so every price mark here is one side of a book`
-            + " — there is no spread to draw, which is not the same as a spread of nothing.",
-      ].filter(Boolean).join(" ") || null}
+          ? `${twoSided} of ${rows.length} rows show a bid-to-ask spread.`
+          : "Only one side of each book is quoted, so no spread is inferred.",
+        "The circle assumes independent legs; it is a reference, not a fair-price claim.",
+      ]}
     >
-      <Plot height={height}>
+      <Plot
+        height={height}
+        onSelect={(index) => onSelectTicker(rows[index]?.ticker ?? null)}
+      >
         {(width) => {
           // MEASURED, not multiplied out by hand. The gutter this replaces was a
           // fixed 205px derived from a tabular-mono advance for text that is set
@@ -106,20 +133,22 @@ export default function ComboBandStrips({ combos }: { combos: CoherenceCombo[] }
               {rows.map((row, index) => {
                 const y = TOP + index * ROW_H;
                 return (
-                  <g key={`${row.ticker}-track`}>
+                  <g
+                    key={`${row.ticker}-track`}
+                    className={instrumentStyles.interactiveRow}
+                    data-selected={row.ticker === selectedTicker}
+                    onPointerEnter={() => onSelectTicker(row.ticker)}
+                  >
+                    <title>{describe(row)}</title>
                     <rect x={labelW} y={y + 9} width={trackW} height={14} className="coh-combo__track" />
                     {row.lo != null && row.hi != null ? (
                       <rect x={x(row.lo)} y={y + 9} width={Math.max(1, x(row.hi) - x(row.lo))} height={14}
-                            className="coh-combo__band">
-                        <title>{`band ${fromCenticents(row.lo)} to ${fromCenticents(row.hi)}${row.width ? `, ${row.width} wide` : ""}`}</title>
-                      </rect>
+                            className="coh-combo__band" />
                     ) : (
                       <text x={labelW + 4} y={y + 20} className="coh-combo__label">◌ no band</text>
                     )}
                     {row.independence != null ? (
-                      <circle cx={x(row.independence)} cy={y + 16} r={4} className="coh-combo__independence">
-                        <title>{`independence Πpᵢ would put this at ${fromCenticents(row.independence)} — a guess about the legs, never a fair value`}</title>
-                      </circle>
+                      <circle cx={x(row.independence)} cy={y + 16} r={4} className="coh-combo__independence" />
                     ) : null}
                     {/* Where both sides are quoted, the gap between them is
                         the spread and is drawn as one; where only one is, the
@@ -128,35 +157,32 @@ export default function ComboBandStrips({ combos }: { combos: CoherenceCombo[] }
                         reaching to a price nobody has offered. */}
                     {row.bid != null && row.ask != null ? (
                       <rect x={x(row.bid)} y={y + 11} width={Math.max(1, x(row.ask) - x(row.bid))} height={10}
-                            className="coh-combo__spread">
-                        <title>{`book ${fromCenticents(row.bid)} bid, ${fromCenticents(row.ask)} ask`}</title>
-                      </rect>
+                            className="coh-combo__spread" />
                     ) : null}
                     {row.price != null ? (
                       <line x1={x(row.price)} x2={x(row.price)} y1={y + 5} y2={y + 27}
-                            className="coh-combo__price">
-                        <title>{`price ${fromCenticents(row.price)}${row.inside == null ? "" : row.inside ? ", inside the band" : ", outside the band"}${row.bid == null ? ", one side of the book only — no bid" : ""}`}</title>
-                      </line>
+                            className="coh-combo__price" />
                     ) : null}
+                    <text x={0} y={y + 20} className="coh-combo__label">
+                      {truncateMiddle(row.name, labelW - 10, DIAGRAM_LABEL_PX)}
+                    </text>
+                    <rect
+                      x={0}
+                      y={y}
+                      width={width}
+                      height={ROW_H}
+                      className={instrumentStyles.rowHitTarget}
+                    />
                   </g>
                 );
               })}
-              {rows.map((row, index) => (
-                <text key={`${row.ticker}-label`} x={0} y={TOP + index * ROW_H + 20} className="coh-combo__label">
-                  {/* Both ends kept. An unnamed parlay is named by its
-                      ticker's TAIL, so a trailing ellipsis would leave those
-                      rows reading identically. */}
-                  {truncateMiddle(row.name, labelW - 10, DIAGRAM_LABEL_PX)}
-                  <title>{`${row.name} — ${row.ticker}`}</title>
-                </text>
-              ))}
               <line x1={labelW} x2={width} y1={axisY} y2={axisY} className="coh-ladder__axis" />
               <text x={labelW} y={axisY + 13} className="coh-combo__axis">$0</text>
               <text x={width} y={axisY + 13} textAnchor="end" className="coh-combo__axis">$1</text>
               {/* The key names both marks in words, so the figure carries no
                   meaning in shape alone any more than in colour alone. */}
               <text x={(labelW + width) / 2} y={axisY + 13} textAnchor="middle" className="coh-combo__key">
-                | quoted price ○ independence Πpᵢ
+                | quote   ○ leg-product reference
               </text>
             </>
           );
