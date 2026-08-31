@@ -143,13 +143,18 @@ export default function ResearchCorpus() {
             <li key={match.id}>
               <div className="corpus-result__head">
                 <span className="corpus-result__title">{match.title}</span>
-                {/*
-                  Similarity is shown, not hidden behind a rank. A 0.86 and a
-                  0.31 are both "the closest thing we have" and a reader who
-                  only sees the ordering cannot tell those apart.
-                */}
-                <span className="num corpus-result__score" title="Cosine similarity">
-                  {fmt(match.similarity, 3)}
+                {/* Text and image retrieval publish different comparable-score
+                    domains. Show the score from the arm that actually found
+                    the row; never render a missing cosine score as zero. */}
+                <span
+                  className="num corpus-result__score"
+                  title={match.similarity != null ? "Cosine similarity" : "Image similarity"}
+                >
+                  {match.similarity != null
+                    ? fmt(match.similarity, 3)
+                    : match.image_similarity != null
+                      ? `img ${fmt(match.image_similarity, 3)}`
+                      : match.image_rank != null ? `img #${match.image_rank}` : "score n/a"}
                 </span>
               </div>
               <CorpusResultFacts match={match} />
