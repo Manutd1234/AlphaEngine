@@ -107,7 +107,7 @@
   .coh-combo__legs,
   .coh-lessons__grid,
   .coh-lesson,
-  .coh-lesson__mechanics,
+  details.disclosure,
   .table-wrap,
   .diff-results > section
 ) {
@@ -127,12 +127,7 @@
    and gap marks; the stage timeline's stage labels. */
 .coherence-plane :is(
   .coh-axis__label,
-  .coh-identity__label,
-  .coh-kelly__bar-label,
   .coh-surface__value,
-  .coh-surface__rise,
-  .coh-surface__down-mark,
-  .coh-surface__down-word,
   .coh-surface__unread,
   .coh-settle__avg-label,
   .coh-settle__basis-label,
@@ -153,16 +148,11 @@
 }
 
 /* Legends, in-plot scale notes and each figure's one headline mark — the 14px
-   rung. `.coh-form__value` is pinned here rather than to a stepping prose rung
-   because the component's truncation arithmetic is derived from this rung, and
-   `.coh-combo__state` because the band figure's price label carries the verdict
-   word. */
+   rung. `.coh-combo__state` carries the band figure's verdict word. */
 .coherence-plane :is(
   .coh-dollarbar__dollar-label,
   .coh-dollarbar__total,
-  .coh-identity__dollar-label,
   .coh-calib__keytext,
-  .coh-form__value,
   .coh-combo__state,
   .diff-curve__key,
   .diff-curve__note
@@ -264,8 +254,7 @@
   /* Chip rows are one line of state above the thing they describe. 6px of grid
      gap plus the section's own 12px left ~18px between a chip row and its
      figure; the row is part of the figure's frame, not a section of its own. */
-  .coherence-plane .coh-status__chips,
-  .coherence-plane .coh-combo__chips {
+  .coherence-plane .coh-status__chips {
     gap: var(--space-1) 6px;
   }
 }
