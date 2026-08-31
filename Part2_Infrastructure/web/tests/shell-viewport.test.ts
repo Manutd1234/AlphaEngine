@@ -64,6 +64,14 @@ const ruleFor = (selector: string) => {
   return matches.map((m) => declarations.slice(m.index, declarations.indexOf("\n}", m.index)));
 };
 
+/** The last declaration of one property across every exact-selector rule. */
+const finalValueFor = (selector: string, property: string) => {
+  const values = ruleFor(selector)
+    .flatMap((block) => [...block.matchAll(new RegExp(`${property}:\\s*([^;]+)`, "g"))])
+    .map((match) => match[1].trim());
+  return values.at(-1) ?? null;
+};
+
 describe("the document is locked to one viewport", () => {
   it("body is exactly a viewport tall and does not scroll", () => {
     const bodyBlocks = [...declarations.matchAll(/\nbody \{/g)]
@@ -199,6 +207,18 @@ describe("the rail docks inside the shell, not against the document", () => {
       "the scroll root is the shell now, so the anchor offset belongs on it");
     assert.match(declarations, /scroll-margin-top:\s*calc\(var\(--rail-h\)/,
       "focused targets read scroll-margin, not the container's scroll-padding");
+  });
+});
+
+describe("sticky chrome is an opaque visual barrier", () => {
+  it("the global header resolves to an opaque card plane", () => {
+    assert.equal(finalValueFor(".workspace-header", "background"), "var(--surface-1)");
+  });
+
+  it("the section rail itself owns its opaque plane and boundary", () => {
+    assert.equal(finalValueFor(".workspace-subtabs", "background"), "var(--surface-0)");
+    assert.equal(finalValueFor(".workspace-subtabs", "border-bottom"), "1px solid var(--border)");
+    assert.equal(finalValueFor(".workspace-subtabs", "isolation"), "isolate");
   });
 });
 
@@ -348,6 +368,7 @@ describe("the subtab strip reads as a strip", () => {
     assert.ok(start > 0, "the active subtab has no rule in the stylesheet");
     const active = declarations.slice(start).split("\n}")[0];
     assert.match(active, /box-shadow:\s*inset 0 -2px 0 var\(--series-1\)/);
+    assert.match(active, /border-color:\s*var\(--border\) var\(--border\) transparent/);
     // And the rule is not the only signal — contrast and the tint carry it too,
     // which is the no-colour-only rule applied to navigation.
     assert.match(active, /color:\s*var\(--text-primary\)/);
