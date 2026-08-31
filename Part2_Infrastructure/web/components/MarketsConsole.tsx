@@ -64,7 +64,9 @@ import { useCallback, useEffect, useState } from "react";
 
 import PageHead from "@/components/workspace/PageHead";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
-import EngineStatePanel, { EngineChips } from "@/components/coherence/EngineStatePanel";
+import EngineStatePanel, { MarketsEngineStatus } from "@/components/coherence/EngineStatePanel";
+import EngineViewEvidence from "@/components/coherence/EngineViewEvidence";
+import MarketsViewBar from "@/components/coherence/MarketsViewBar";
 import LiveControls from "@/components/coherence/LiveControls";
 import BooksSection from "@/components/coherence/BooksSection";
 import FeesSection from "@/components/coherence/FeesSection";
@@ -82,6 +84,7 @@ import { booksRoute, feesRoute, settlementRoute, shellRoute, statusRoute, univer
 import { COHERENCE_POLL_MS, useCoherenceRead, warmCoherenceRead } from "@/lib/coherence/use-coherence";
 import type { CoherenceStatus, CoherenceUniverse } from "@/lib/coherence/types";
 import { useSectionWarming } from "@/lib/coherence/use-section-warming";
+import { marketsDefaultView } from "@/lib/markets/view-contracts";
 
 export { type MarketsSection } from "@/lib/sections";
 
@@ -174,6 +177,7 @@ export default function MarketsConsole({ section, onSectionChange, views, onView
    * would be unable to leave it.
    */
   const [paused, setPaused] = useState(false);
+  const [detailsVisible, setDetailsVisible] = useState(false);
   /**
    * A one-render dip in that gate, which is what "Read now" IS.
    *
@@ -202,6 +206,9 @@ export default function MarketsConsole({ section, onSectionChange, views, onView
   const live = active && !paused && !rearming;
 
   const status = useCoherenceRead<CoherenceStatus>(statusRoute(), live);
+  const hasHaltedShard = status.data?.state === "ok" && status.data.shards.some(
+    (shard) => !shard.exchange_active || !shard.trading_active,
+  );
   // Three sections here share this one read — the baskets, the lattice's family
   // picker and the stake's — and the Proofs tab's certificate shares it across
   // the tab boundary, because `read-cache.ts` holds one answer per URL. It is
@@ -238,56 +245,39 @@ export default function MarketsConsole({ section, onSectionChange, views, onView
   }, []);
 
   return (
-    <div className="coherence-plane markets-plane">
+    <div className="coherence-plane markets-plane" data-workbench-details={detailsVisible ? "true" : "false"}>
       {/* ONE BOX FOR THE TOP BAR, matching Proofs. See CoherenceConsole for the
           argument; the shape is the reader's, asked for on both engine tabs. */}
       <div className="coh-topbar">
       <PageHead
         kicker="Markets"
-        title="The exchange as it is quoted"
-        description="A contract paying $1 is a probability with a price on it, and these are the families, ladders and costs it is quoted at."
+        title="The exchange as quoted"
         actions={
-          /* One COLUMN in the head's right slot: what the venue is doing, the
-             reader's hold on it, then what this engine has read. A wrapper
-             because `.page-heading__actions` is a flex row — bare children there
-             sit side by side — and `display: contents` (14w) is what makes each
-             of these a flex item of the slot with a line of its own.
-
-             THE FACTS TABLE LEFT THEM AGAIN on the evening of 2026-08-26, for the
-             strip under the head: two chip rows and a two-row grid made this
-             column taller than the title's and left white under the lede. The
-             slot holds the chips and the poll controls now, nothing else. */
-          <div className="coh-headlive">
-            <EngineChips
-              status={status.data}
-              error={status.error}
-              updatedAt={status.updatedAt}
-              pollMs={COHERENCE_POLL_MS}
-              paused={!live}
-            />
-            <LiveControls
-              updatedAt={status.updatedAt}
-              pollMs={COHERENCE_POLL_MS}
-              paused={paused}
-              onPause={setPaused}
-              onReadNow={() => setRearming(true)}
-            />
-          </div>
+          /* Markets has exactly two live rows. Proofs retains the shared
+             EngineChips grouping; this variant keeps the four venue states on
+             row one and recorder/clock/controls on row two without relying on
+             incidental flex wrapping. */
+          <MarketsEngineStatus
+            status={status.data}
+            error={status.error}
+            detail={
+              <EngineStatePanel
+                status={status.data}
+                familiesPriced={universe.data ? `${universe.data.events.length} read live` : null}
+              />
+            }
+            controls={
+              <LiveControls
+                updatedAt={status.updatedAt}
+                pollMs={COHERENCE_POLL_MS}
+                paused={paused}
+                onPause={setPaused}
+                onReadNow={() => setRearming(true)}
+                variant="markets"
+              />
+            }
+          />
         }
-        status={
-          status.data
-            ? { label: status.data.state === "ok" ? "Reading the exchange" : status.data.state, tone: status.data.state === "ok" ? "good" : "warn" }
-            : undefined
-        }
-      />
-      {/* The facts table as a strip under the head — a sibling, not `children`
-          and not `actions`. Same change on Proofs, same commit: the layout is
-          `.coherence-plane`-scoped, so one console moving alone would leave the
-          other's panel beside its desk row. See CoherenceConsole for the three
-          shapes this head has had and why this is the third. */}
-      <EngineStatePanel
-        status={status.data}
-        familiesPriced={universe.data ? `${universe.data.events.length} read live` : null}
       />
       </div>
 
@@ -299,6 +289,27 @@ export default function MarketsConsole({ section, onSectionChange, views, onView
         onChange={openSection}
         onIntent={warmSection}
         active={active}
+      />
+
+      <EngineViewEvidence
+        tab="markets"
+        section={section}
+        view={views[section]}
+        status={status.data}
+        error={status.error}
+        updatedAt={status.updatedAt}
+        showTransport={false}
+        deskContext="Executable family totals, two-sided ladders, implied distributions, constrained stakes and venue fees."
+        detailsVisible={detailsVisible}
+        onDetailsVisibleChange={setDetailsVisible}
+        contextAction={
+          <MarketsViewBar
+            section={section}
+            view={views[section]}
+            canReset={views[section] !== marketsDefaultView(section)}
+            onReset={() => onViewChange(section, marketsDefaultView(section) ?? views[section])}
+          />
+        }
       />
 
       <WorkspaceSubtabPanel workspaceId="markets" tabId="universe" activeId={section}>
@@ -358,9 +369,11 @@ export default function MarketsConsole({ section, onSectionChange, views, onView
         <ShellPane active={live && section === "shell"} {...viewProps("shell")} />
       </WorkspaceSubtabPanel>
 
-      <div className="coh-console__status">
-        <StatusPane status={status.data} error={status.error} />
-      </div>
+      {hasHaltedShard && status.data ? (
+        <div className="coh-console__status">
+          <StatusPane status={status.data} />
+        </div>
+      ) : null}
     </div>
   );
 }
