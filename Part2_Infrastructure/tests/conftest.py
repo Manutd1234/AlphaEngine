@@ -17,11 +17,13 @@ sys.path.insert(0, str(ROOT))
 # developer's deployment file must not decide whether the suite passes — the
 # tests that care about authentication turn it on themselves via monkeypatch.
 _TMP = Path(tempfile.mkdtemp(prefix="alphaengine-test-"))
-os.environ.setdefault("DATA_DIR", str(_TMP))
-os.environ.setdefault("DB_PATH", str(_TMP / "test.duckdb"))
-os.environ.setdefault("ENABLE_MARKET_DATA", "0")
-os.environ.setdefault("TELEGRAM_BOT_TOKEN", "")
-os.environ.setdefault("REQUIRE_AUTH", "0")
+os.environ["DATA_DIR"] = str(_TMP)
+os.environ["DB_PATH"] = str(_TMP / "test.duckdb")
+# Keep ordinary singletons local; PostgREST tests construct their store explicitly.
+os.environ["DATA_OPS_BACKEND"] = "sqlite"
+os.environ["ENABLE_MARKET_DATA"] = "0"
+os.environ["TELEGRAM_BOT_TOKEN"] = ""
+os.environ["REQUIRE_AUTH"] = "0"
 # The research plane's three optional extras, blanked for the same reason as the
 # bot token. `POST /api/research/rag/ask` now calls `research_generate` on every
 # graded answer, so a developer whose `.env` holds a real GEMINI_API_KEY — and
@@ -312,13 +314,9 @@ def completed_backtest(bot):
 
 @pytest.fixture(autouse=True)
 def _reset_data_ops_backend(tmp_path, monkeypatch):
-    """Every test starts with no cached data-ops store, on a file of its own,
-    and closes that store when it is done.
+    """Give every test a fresh local store and close it deterministically.
 
-    The store is a process-wide singleton now, because four call sites share
-    one backend and under Postgres each one is an httpx client with its own
-    pool. That cache defeats the way tests redirect `data_ops_db_path`: the
-    redirect lands after something already built a store against the real path.
+    The process-wide singleton must be cleared before its path is redirected.
 
     Three decisions here, each the answer to a real failure:
 
@@ -353,7 +351,7 @@ def _reset_data_ops_backend(tmp_path, monkeypatch):
     clear_data_ops_cache()
     monkeypatch.setattr(
         config, "settings",
-        replace(config.settings, data_ops_db_path=tmp_path / "data_ops.sqlite"),
+        replace(config.settings, data_ops_backend="sqlite", data_ops_db_path=tmp_path / "data_ops.sqlite"),
     )
     yield
     reset_data_ops_store()
