@@ -15,22 +15,33 @@ export interface Shock {
 
 /**
  * A hand-set shock table, in percent, converted to the fractional moves
- * `applyScenario` takes.
+ * `applyScenario` takes. `"*"` is the broad-book baseline; named values are
+ * symbol-specific overlays, so both controls remain causal on a one-name book.
  *
- * A zero survives conversion rather than being dropped. "This instrument does
- * not move" is a hypothesis the operator can state, and it is a *different*
- * hypothesis from "propagate this one by its beta" — the first is a pinned
- * zero, the second is an omission. Collapsing them would quietly delete a
- * position's exposure from the total.
+ * A zero survives conversion rather than being dropped. Without a broad move
+ * it pins the symbol flat; with one, it states a zero symbol overlay and leaves
+ * the broad move intact. Both differ from an omission, which returns ownership
+ * to beta propagation when there is no broad move.
  *
  * This has no Python mirror on purpose and is excluded from the parity fixture,
  * the same as `applyManualWeights`: it is an interaction surface over
  * `applyScenario`, which is mirrored, and the Telegram companion has no sliders.
  */
-export function manualShocks(percentBySymbol: Record<string, number>): Shock[] {
-  return Object.entries(percentBySymbol)
-    .filter(([, move]) => Number.isFinite(move))
-    .map(([symbol, move]) => ({ symbol, move: move / 100 }));
+export function manualShocks(
+  percentBySymbol: Record<string, number>,
+  positionSymbols: readonly string[],
+): Shock[] {
+  const valid = new Map(
+    Object.entries(percentBySymbol).filter(([, move]) => Number.isFinite(move)),
+  );
+  const broad = valid.get("*");
+  if (broad === undefined) {
+    return [...valid].map(([symbol, move]) => ({ symbol, move: move / 100 }));
+  }
+  return [...new Set(positionSymbols)].map((symbol) => ({
+    symbol,
+    move: (broad + (valid.get(symbol) ?? 0)) / 100,
+  }));
 }
 
 export interface ScenarioResult {
