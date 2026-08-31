@@ -1,11 +1,11 @@
 # Latency budget
 
-*Paths and mechanisms re-checked against the tree on 24 August 2026. **No figure
-below was re-measured on that date** — this pass verified that the code each
+**Last verified: 2026-08-29.** Code paths and mechanisms were re-checked;
+**no figure below was re-measured on that date**. This pass verified that the code each
 number describes still exists at the path it is cited at, and stamped every
 number with the day it was taken. A latency document that quietly refreshes its
 prose while keeping old numbers is the exact failure its own method section
-exists to prevent.*
+exists to prevent.
 
 Every number here was measured, with the method and the machine stated. Where
 something could not be measured, it says so rather than estimating.
@@ -14,34 +14,34 @@ something could not be measured, it says so rather than estimating.
 
 | Figures | Source | Measured |
 |---|---|---|
+| Current native-boundary and whole-gateway qualification | [`Part2_Infrastructure/docs/NATIVE_LATENCY_OPERABILITY.md`](../../Part2_Infrastructure/docs/NATIVE_LATENCY_OPERABILITY.md), generated evidence in `native-latency.generated.json` | **2026-08-28**, Python 3.12.14, arm64 macOS, unpinned |
 | The decision and core table in §2.1 | `tools/bench_decision.py`, regenerated in place between `<!-- bench:start -->` markers; mirrored in [`latency-bench.generated.json`](latency-bench.generated.json) | **2026-08-20**, dev Mac, unpinned |
 | The interleaved A/B ladders in §2.1–2.3 | alternating builds at identical flags, per change | 2026-08-19 → 2026-08-20 |
 | The production `/metrics` block in §3 | read off the live gateway | **2026-08-17** |
 | The venue round trips in §2.3 | `tools/colocation_probe.py`, from the OCI VM | 2026-08-19 |
-| The tab-switch and request-count tables in §4 | `web/scripts/tab-switch-measure.mjs`, `request-count-measure.mjs`, production build over CDP at 4× CPU throttle | **2026-08-20**, and they cover **eight** tabs — Prices (`markets`) and Proofs (`coherence`) are in both harnesses' tab lists now and neither has ever been measured |
+| The tab-switch and request-count tables in §4 | `web/scripts/tab-switch-measure.mjs`, `request-count-measure.mjs`, production build over CDP at 4× CPU throttle | **2026-08-20**, and they cover **eight** tabs — Markets (`markets`), Proofs (`coherence`) and Diffusion (`diffusion`) are in the current harness now and none has been measured by that dated run |
 | The research-plane table in §4b | `tools/bench_rerank.py` (median of seven runs) and two live model calls | 2026-08-22 |
 
-Those are different measurements on different machines and are never merged into
-one figure. The block in §2.1 stamps its own UTC date; that is the one to quote.
+Those are different populations, harnesses and machines and are never merged
+into one figure. The 2026-08-28 qualification is the newest code-level record;
+the generated block in §2.1 remains the dated 2026-08-20 decision benchmark and
+must still be quoted with that date rather than silently overwritten.
 
-**The conclusion first.** The desk's own risk decision runs in **13.2 µs** on
-the compiled engine and **25.3 µs** on the Python reference — p50, dev Mac,
-whole decision under the lock, and those are the figures the generated block in
-§2.1 carries, so they are the ones to quote anywhere else. On a *quiet* machine
-the same code measures 12.4 µs and 23.1 µs; §2.1 explains why the regenerated
-run is the slower pair (unpinned, on a laptop with another session working the
-same tree) and why the interleaved A/B evidence below, not this table, is what
-each change was adopted on. Both pairs are honest and the difference is the
-machine, not the code — but a document quoting "~12 / ~23" while the generated
-file says 13.2 / 25.3 invites a reader to "correct" one into the other, which is
-why this paragraph now leads with the generated pair and names the other as a
-quiet-machine reading. The arithmetic battery inside the decision takes **83 ns**
-on that Mac and **~320 ns** on the shared production VM. The market data it decides
-on is ~34 ms old when it arrives, and the order takes ~70 ms to reach the venue.
-The compute is **0.02 %** of the path, and no amount of further optimisation to
-it changes the system's latency in any way a trader could observe. The only
-lever that moves the number by orders of magnitude is moving the gateway to the
-region the matching engine is already in.
+**The current conclusion first.** On 2026-08-28 the canonical warmed two-venue
+C++ kernel measured **42 ns p50 / 84 ns p99** and passed its sub-100 ns
+qualification in all nine runs. The complete native operation, including eager
+conversion of all nineteen result fields, measured **958 ns / 1,042 ns**. The
+whole gateway measured **64.833 µs / 81.667 µs** at the external wall
+(48.208 µs / 65.875 µs on its internal interval), so the current N4 target of
+10/20 µs did **not** pass. Those four populations answer different questions;
+none may wear another's label.
+
+The older §2.1 run measured 13.2 µs native / 25.3 µs Python p50 and an 83 ns
+core on 2026-08-20; it remains useful historical evidence, not the current
+qualification headline. The production-VM and venue observations are older
+still: ~320 ns core on 2026-08-17 and ~70 ms to the venue on 2026-08-19. The
+network remains orders of magnitude larger, but the historical **0.02 %** ratio
+belongs to its dated population and is not recomputed here from unlike runs.
 
 Three planes, three units, never blended: the whole decision in µs, the core in
 ns, the network in ms. Every surface that shows one names which.
@@ -101,6 +101,11 @@ every sample for the life of the process rather than a sliding window.
 ---
 
 ## 2. The trading path
+
+The current release qualification and its exact population boundaries live in
+[`NATIVE_LATENCY_OPERABILITY.md`](../../Part2_Infrastructure/docs/NATIVE_LATENCY_OPERABILITY.md).
+The remainder of §2 is the retained 2026-08-19 → 2026-08-20 optimisation and
+measurement record; its numbers have not been rewritten to look current.
 
 ### 2.1 The pre-trade risk decision — measured
 
@@ -650,14 +655,14 @@ Separate budget, and much less demanding.
 4x CPU throttle — so every figure below is roughly four times worse than the
 machine a reader is on.
 
-**The table has eight rows and the desk has ten tabs.** `tab-switch-measure.mjs`
-now lists `markets` and `coherence` in its `tabs` array (as
-`request-count-measure.mjs` does in its `TABS`), but the Kalshi engine was added
-to the harness *after* this run and **has never been measured** — on either side
-of its 2026-08-24 split. Both are left out of the table rather than given
-plausible rows, and they are the ones to measure first: they are the only tabs
-whose sections poll the live exchange, and their `universe` read carries a
-28-second browser deadline against every other read's 9 (§4.2).
+**The table has eight rows and the desk now has eleven tabs.** The current
+`tab-switch-measure.mjs` and `request-count-measure.mjs` arrays include
+`markets`, `coherence` and `diffusion`, but all three were added after this
+2026-08-20 run and **none has been measured by it**. They are left out rather
+than assigned plausible rows. Markets and Proofs are the first priority because
+their live-exchange reads can take the 28-second browser budget; Diffusion is
+also unmeasured but primarily reads recorded research/tape state or computes in
+the browser (§4.2).
 
 | tab | click → paint | click → idle | longest task | blocking |
 |---|---|---|---|---|
@@ -817,14 +822,16 @@ Measured from a development machine to the gateway: 21–27 ms total, 9–13 ms 
 connect. Vercel serves the web project from `sin1`, the same city as the VM.
 *(Measured 2026-08-20; not re-measured since.)*
 
-### 4.2 The Kalshi engine has its own read budget, and it is gated twice
+### 4.2 The prediction-market workspaces have their own read budget
 
-Prices (`#markets`) and Proofs (`#coherence`) are the surfaces on the desk whose
-reads go **through** the gateway **to a live exchange**, so they are budgeted
-separately from the eight measured above. Nothing in this subsection is a timing
-measurement — these are the deadlines and the gating the code declares, re-read
-on 2026-08-24 after the engine was resplit into those two tabs. Neither has been
-through `tab-switch-measure.mjs`.
+Markets (`#markets`) and Proofs (`#coherence`) contain the reads that go
+**through** the gateway **to a live exchange**. Diffusion (`#diffusion`) reads
+recorded announcement/coherence state and computes three sections locally, but
+it shares the same polling/cache machinery. All three are budgeted separately
+from the eight measured above. Nothing in this subsection is a new timing
+measurement — these are the deadlines and gates re-read from the code on
+2026-08-29. None of the three has been through the dated
+`tab-switch-measure.mjs` run.
 
 **A third gate joined the two on 2026-08-24, and it spends budget rather than
 saving it.** Gating a read on its open section is right for the exchange and was
@@ -833,38 +840,43 @@ wrong for the reader: a first visit to a section waited the whole live read. So
 `requestIdleCallback`, **one URL every 600 ms** — deliberately inside the ~5
 requests/second the gateway budgets itself (`READ_TOKENS_PER_S = 50`, default
 cost 10) — and `read-cache.ts` joins any read already in flight rather than
-duplicating it, which removed a case where three panes sharing the universe read
-each held their own latch. None of this has been timed either; the stagger is
+duplicating it, which removed the class of defect where several sections sharing
+the universe read each held their own latch. None of this has been timed either; the stagger is
 chosen against the declared token bucket, not measured against it.
 
 **Two deadlines, because the reads are not alike.**
 `web/lib/coherence/use-coherence.ts` chooses per URL: `DEADLINE_MS = 9_000` for
-anything served from the recorded tape (which answers in milliseconds) and
-`LIVE_READ_DEADLINE_MS = 28_000` for `universe` and `certify`, which read the
-live exchange and take seconds. Its header says why one deadline for both was
+recorded, derived and local-store reads, and
+`LIVE_READ_DEADLINE_MS = 28_000` for the nine paths in
+`lib/coherence/routes.ts::LIVE_READS` — `calibration`, `certify`, `combos`,
+`rfq`, `settlement`, `shell`, `stake`, `surface`, `universe` — which can reach
+the live exchange and take seconds. Its header says why one deadline for both was
 wrong: *the browser gave up on the slow ones while the gateway was still doing
 exactly what it was asked to.* The abort and a dead network are told apart in
 the error text rather than merged into "failed" — "no answer within 28s" is an
 operator's fact, "the desk could not reach its own gateway" is a different one.
-The server side of those routes budgets 25 s (`timeoutMs: 25_000` on
-`app/api/gateway/coherence/{universe,certify,rfq,calibration,combos,settlement,shell}/route.ts`),
-inside the browser's 28.
+The server side of exactly those nine routes budgets 25 s (`timeoutMs: 25_000`
+on their `app/api/gateway/coherence/*/route.ts` handlers), inside the browser's
+28. The route list and the timeout-bearing handlers are held as two sides of one
+contract by `coherence-gateway-contract.test.ts`.
 
-**The polls are gated on `active` *and* on which `.seg` view is open**, which is
-the part worth copying. `COHERENCE_POLL_MS` is 20 s, and
-`CoherenceConsole.tsx` decides per read:
+**The polls are gated on the visible tab, then their owning section, and where
+useful their addressable view.** `COHERENCE_POLL_MS` is 20 s:
 
 | Read | Gated on | Why |
 |---|---|---|
-| `/coherence/status` | `active` only | cheap, and every section's chrome quotes it |
-| `/coherence/universe?max_events=2` | `active` **and** section ∈ {`universe`, `certificate`, `lattice`} | shared by three sections, so **not** gated on the sub-view. `max_events=2` is a latency decision with the measurement written beside it: four events took **10.1 s** before the reads were parallelised and **6.4 s** after, against `callGateway`'s 8-second default (`lib/gateway.ts:22`) — inside the deadline but not comfortably. Two answers in about four and a half. |
-| `/coherence/books` | `active`, section `books`, **and** view ≠ `dispersion` | the Dispersion view draws no book, so it does not ask for one — and the RFQ route beside it is a signed private-channel call on the 25 s budget. `BooksSection` reports its view upward through `onViewChange` precisely so the console, which is where `active` and `section` live, can stop the poll |
-| `/coherence/fees?…` | `active` and view ∈ {`example`, `shape`} | held at section level in `FeesSection.tsx` |
-| `/coherence/replay?limit=20000` | `active` and view = `ablation` | the largest read on the tab, and it runs on one view of one section |
+| `/coherence/status` | active Markets or Proofs; also Diffusion `episodes` | cheap engine state used by the visible chrome or episode explanation |
+| `/coherence/universe?max_events=2` | Markets section ∈ {`universe`, `lattice`, `stake`} or Proofs section ∈ {`certificate`, `portfolio`} | one URL-keyed cache serves five sections. The historical four-event readings remain **10.1 s** before parallelism and **6.4 s** after; the bounded two-event request keeps the declared headroom |
+| `/coherence/books` and `/books/history` | Markets `books`; history additionally requires the History view and a selected ticker | the public current book is section-level, while a tape history nobody opened is not fetched |
+| `/coherence/rfq` | Markets `dispersion` only | signed, slow, and deliberately not warmed on deployments that will answer unsigned |
+| `/coherence/fees`, `/fees/curve`, `/replay?limit=20000` | Markets `fees`; curve only on Cost shape, replay only on Ablation or Replay table | the base fee receipt is visible on every view; the 99-point curve and largest tape read are not |
+| certificate/surface/stake/combos/calibration/index reads | the Proofs or Markets section that owns the result, with the selected family where required | a section warm never guesses a family; once a target exists, the URL-keyed cache joins consumers |
+| diffusion absorption, episodes and findings | Diffusion `arm` or `meetings`; `episodes`; `findings`, respectively | `model`, `instrument` and `sandbox` make no gateway call and compute from the in-browser parity implementation |
 
-The general rule this encodes: **a `.seg` that only changed what was rendered
-would leave every read running.** Reporting the open view upward costs one
-callback and takes the tab's idle cost down to a single 20 s status poll.
+The general rule this encodes: **a view switch that only changed what was
+rendered would leave every read running.** Keeping the selected view in the
+workspace router makes the URL, visible panel and read gate one state instead
+of three plausible states that can drift.
 
 ---
 
@@ -917,24 +929,28 @@ inside a model call anyway.
 
 ## 5. Summary
 
-**Every row carries the day it was taken.** None was re-measured on 2026-08-24;
-that pass checked the paths, not the numbers.
+**Every row carries the day it was taken.** None was re-measured on 2026-08-29;
+that pass checked the paths and declared budgets, not the numbers.
 
 | Hop | Measured | When | Notes |
 |---|---|---|---|
-| Risk decision (crypto path, up to 15 of 17 gates) | **12.4 µs** p50 native · 23.1 µs Python | 2026-08-20 | whole `submit()` under the lock, dev Mac, `tools/bench_decision.py`; in-process, excludes kernel and wire. These are the **quiet-machine** readings from the interleaved A/B ladder in §2.3; the generated block in §2.1 reads 13.2 / 25.3 µs on a loaded laptop and is the pair to quote outside this document |
+| Whole gateway, current native qualification | **64.833 µs p50 · 81.667 µs p99** external wall; 48.208 / 65.875 µs internal | 2026-08-28 | nine matched 5,000-order runs; N4's 10/20 µs target misses. Different harness/population from `bench_decision.py`; see `NATIVE_LATENCY_OPERABILITY.md` |
+| Complete native operation, eager result materialisation | **958 ns p50 · 1,042 ns p99** | 2026-08-28 | `decide()` plus conversion of all nineteen result fields; N3 passes |
+| Historical risk decision (crypto path, up to 15 of 17 gates) | **12.4 µs** p50 native · 23.1 µs Python | 2026-08-20 | whole `submit()` under the lock, dev Mac, `tools/bench_decision.py`; in-process, excludes kernel and wire. Quiet-machine readings; the generated §2.1 block reads 13.2 / 25.3 µs on a loaded laptop |
 | Cross-encoder re-rank (research plane) | **197 ms** at short rows · **1,523 ms** at the truncation ceiling | 2026-08-22 | a different plane entirely; §4b, and never quoted under the decision's label |
-| Decision tail | 36.8 µs p99.9 native · 49.2 µs Python | 2026-08-20 | scheduler jitter, not GC |
-| Arithmetic core (inside the decision) | **83 ns** p50 · **84 ns** p99 dev Mac · **320 ns** p50 / 352 ns p99 production VM | Mac 2026-08-20 · VM 2026-08-17 | C++ battery incl. the routed walk, timed with `steady_clock` inside the engine; p50 and p99 are both 2 ticks of a ~41.67 ns clock — 0.9952 of calls finish inside 2 ticks, which is the figure with the resolution and the one to quote (§2); self-measured at startup, bit-exact vs Python |
+| Historical decision tail | 36.8 µs p99.9 native · 49.2 µs Python | 2026-08-20 | scheduler jitter, not GC |
+| Canonical two-venue arithmetic kernel | **42 ns p50 · 84 ns p99** | 2026-08-28 | all nine 100,000-call runs passed; 99.929%–99.974% strictly below 100 ns; ~41.7 ns clock ticks |
+| Historical core / production self-measure | **83 ns** p50 · **84 ns** p99 dev Mac · **320 ns** p50 / 352 ns p99 production VM | Mac 2026-08-20 · VM 2026-08-17 | different dated populations retained for chronology; do not merge with the 2026-08-28 canonical qualification |
 | Market data → gateway | **69.1 ms** RTT | 2026-08-19 | Binance, Tokyo → Singapore; **the constraint** |
 | Order entry → venue | **72.7 ms** origin RTT | 2026-08-19 | Binance; 1.6 ms to the CDN edge, which is not where it matches |
 | Order entry → Bybit | **6.2 ms** origin RTT | 2026-08-19 | the free alternative, measured on the same host |
 | Gateway → browser (dev machine) | 21–27 ms | 2026-08-20 | |
 | Book recompute | 1 s | declared, not timed | `RISK_MONITOR_INTERVAL_S` in `modules/risk_proxy/monitor.py`; the browser polls (4–15 s) are now the observability floor |
 | Browser order book | 100 ms in · **≈3.3 Hz out** | declared, not timed | Binance `@depth20@100ms` straight to the browser; published to React at `1000 / THROTTLE_INTERVAL_MS` (300 ms), which is the desk's one shared throttle rather than a second number. Already optimal — one hop, no backend |
-| Kalshi engine live reads | 9 s / 28 s browser deadlines, 25 s server budget | declared, not timed | §4.2; neither Prices nor Proofs has been through the switch harness |
+| Prediction-market reads | 9 s / 28 s browser deadlines, 25 s server budget for the nine live paths | declared, not timed | §4.2; Markets, Proofs and Diffusion have not been through the dated switch run |
 
-The honest headline: **the decision is fast, the system is not, and the gap is
-entirely geography.** A sub-microsecond claim about this deployment is true of
-the arithmetic core, a sub-millisecond one is true of the whole decision, and
-both are false of everything the decision depends on.
+The honest headline: **the kernel passes; the current whole-gateway N4 target
+does not; end-to-end latency is still dominated by geography.** A
+sub-microsecond p50 claim is true of the complete native operation, a
+sub-millisecond one is true of the whole gateway, and both are false of the
+network path the decision depends on.
