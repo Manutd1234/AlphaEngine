@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
         count: result.data.length,
         ...result,
       },
-      { headers: cacheHeaders(900) },
+      { headers: cacheHeaders(900, result.provenance.synthetic === true) },
     );
   } catch (err) {
     return failure(err);
