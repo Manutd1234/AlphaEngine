@@ -14,11 +14,16 @@ stop at 40 requests?" has no answer if the limit moved while it ran.
 from __future__ import annotations
 
 import os
+import re
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Final
+from urllib.parse import urlsplit, urlunsplit
 
 from env_coerce import BASE_DIR
+
+API_ROOT_PATH: Final = "/trade-api/v2"
+_SERIES_TICKER: Final = re.compile(r"KX[A-Z0-9][A-Z0-9._-]{0,125}\Z")
 
 
 def _env(name: str, default: str) -> str:
@@ -59,22 +64,109 @@ def _env_optional_decimal(name: str) -> Decimal | None:
         return None
 
 
+def normalize_base_url(value: str, *, name: str = "Kalshi base URL") -> str:
+    """Validate and canonicalise one Kalshi API root without exposing it.
+
+    The client appends route paths and signs the resulting request path. An
+    origin-only URL, a second path prefix, or credentials embedded in the URL
+    would therefore either address a different endpoint or make provenance and
+    signing disagree. Keep the one accepted shape explicit.
+    """
+    raw = value.strip()
+    if not raw or any(char.isspace() for char in raw):
+        raise ValueError(f"{name} must be an absolute HTTP(S) URL")
+    try:
+        parsed = urlsplit(raw)
+        port = parsed.port
+    except ValueError as exc:
+        raise ValueError(f"{name} is not a valid URL") from exc
+    scheme = parsed.scheme.lower()
+    if scheme not in {"http", "https"} or not parsed.hostname:
+        raise ValueError(f"{name} must be an absolute HTTP(S) URL")
+    if parsed.username is not None or parsed.password is not None:
+        raise ValueError(f"{name} must not contain user information")
+    if parsed.query or parsed.fragment or "?" in raw or "#" in raw:
+        raise ValueError(f"{name} must not contain a query string or fragment")
+    if parsed.path not in {API_ROOT_PATH, f"{API_ROOT_PATH}/"}:
+        raise ValueError(f"{name} path must be exactly {API_ROOT_PATH}")
+
+    hostname = parsed.hostname.lower()
+    if ":" in hostname:
+        hostname = f"[{hostname}]"
+    netloc = f"{hostname}:{port}" if port is not None else hostname
+    return urlunsplit((scheme, netloc, API_ROOT_PATH, "", ""))
+
+
+def parse_series_watchlist(value: str) -> tuple[str, ...]:
+    """Upper-case, validate and de-duplicate configured series tickers."""
+    tickers: list[str] = []
+    seen: set[str] = set()
+    for item in value.split(","):
+        ticker = item.strip().upper()
+        if not ticker:
+            continue
+        if _SERIES_TICKER.fullmatch(ticker) is None:
+            raise ValueError(
+                "COHERENCE_SERIES contains an invalid ticker; expected a KX-prefixed "
+                "series name using only letters, digits, dots, underscores, or hyphens"
+            )
+        if ticker not in seen:
+            seen.add(ticker)
+            tickers.append(ticker)
+    return tuple(tickers)
+
+
+def resolve_private_key_path(value: str, *, base_dir: Path = BASE_DIR) -> str:
+    """Return one stable filesystem path for the configured demo key.
+
+    ``uvicorn``, the recorder tools, and the container do not necessarily start
+    in the same working directory.  Resolving a relative credential path from
+    ``cwd`` therefore makes a valid configuration appear and disappear based
+    on the launch command.  Relative paths are gateway-root relative; ``~`` and
+    environment-variable prefixes remain available for local operator paths.
+    """
+    raw = value.strip()
+    if not raw:
+        return ""
+    path = Path(os.path.expandvars(raw)).expanduser()
+    if not path.is_absolute():
+        path = base_dir / path
+    return str(path.resolve(strict=False))
+
+
 # ── Hosts ────────────────────────────────────────────────────────────────────
 # Production for reads: the prices have to be real ones. `api.elections` is the
 # documented shared host, kept as a failover rather than a default — Kalshi
 # calls it "also supported", not deprecated.
-PUBLIC_BASE_URL: Final = _env("KALSHI_PUBLIC_BASE_URL", "https://external-api.kalshi.com/trade-api/v2")
-PUBLIC_FAILOVER_URL: Final = _env("KALSHI_PUBLIC_FAILOVER_URL", "https://api.elections.kalshi.com/trade-api/v2")
+PUBLIC_BASE_URL: Final = normalize_base_url(
+    _env("KALSHI_PUBLIC_BASE_URL", "https://external-api.kalshi.com/trade-api/v2"),
+    name="KALSHI_PUBLIC_BASE_URL",
+)
+PUBLIC_FAILOVER_URL: Final = normalize_base_url(
+    _env("KALSHI_PUBLIC_FAILOVER_URL", "https://api.elections.kalshi.com/trade-api/v2"),
+    name="KALSHI_PUBLIC_FAILOVER_URL",
+)
 # Demo for anything signed. A demo key cannot sign a production request, so
 # these two hosts are not interchangeable and the client keeps them apart.
-DEMO_BASE_URL: Final = _env("KALSHI_DEMO_BASE_URL", "https://external-api.demo.kalshi.co/trade-api/v2")
+DEMO_BASE_URL: Final = normalize_base_url(
+    _env("KALSHI_DEMO_BASE_URL", "https://external-api.demo.kalshi.co/trade-api/v2"),
+    name="KALSHI_DEMO_BASE_URL",
+)
+DEMO_FAILOVER_URL: Final = normalize_base_url(
+    _env("KALSHI_DEMO_FAILOVER_URL", "https://demo-api.kalshi.co/trade-api/v2"),
+    name="KALSHI_DEMO_FAILOVER_URL",
+)
+if {PUBLIC_BASE_URL, PUBLIC_FAILOVER_URL} & {DEMO_BASE_URL, DEMO_FAILOVER_URL}:
+    raise ValueError("Kalshi public and demo API hosts must not overlap")
 DEMO_KEY_ID: Final = os.environ.get("KALSHI_DEMO_KEY_ID", "").strip()
-DEMO_PRIVATE_KEY_PATH: Final = os.environ.get("KALSHI_DEMO_PRIVATE_KEY_PATH", "").strip()
+DEMO_PRIVATE_KEY_PATH: Final = resolve_private_key_path(
+    os.environ.get("KALSHI_DEMO_PRIVATE_KEY_PATH", "")
+)
 
 # ── What to watch ────────────────────────────────────────────────────────────
 # Series tickers, comma separated. Empty means the recorder has nothing to do
 # and says so rather than inventing a universe.
-SERIES_WATCHLIST: Final = tuple(s.strip() for s in _env("COHERENCE_SERIES", "").split(",") if s.strip())
+SERIES_WATCHLIST: Final = parse_series_watchlist(_env("COHERENCE_SERIES", ""))
 POLL_SECONDS: Final = _env_int("COHERENCE_POLL_S", 0)  # 0 keeps the recorder off
 
 # How often the recorder scores the SETTLED corpus, which is a different
@@ -94,6 +186,8 @@ CALIBRATION_EVERY_SECONDS: Final = _env_int("COHERENCE_CALIBRATION_EVERY_S", 0)
 # volume fills up in six weeks and the failure looks like a disk problem rather
 # than like a configuration choice nobody made deliberately.
 MAX_EVENTS_PER_SERIES: Final = _env_int("COHERENCE_MAX_EVENTS", 2)
+# On-demand Shell reads need the complete namespace; unlike the recorder they do not persist every book.
+SHELL_MAX_EVENTS_PER_SERIES: Final = _env_int("COHERENCE_SHELL_MAX_EVENTS", 50)
 
 # ── Budget ───────────────────────────────────────────────────────────────────
 # Kalshi documents token buckets per ACCOUNT and says nothing about keyless
