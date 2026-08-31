@@ -52,13 +52,23 @@ const rules = cssRules(declarations, locateInGlobals);
 /** The bare token behind a declaration: `var(--fs-sm)` → `--fs-sm`. */
 const token = (declaration: string) => declaration.replace(/^var\(|\)$/g, "");
 
-/** The winning `font-size` for a selector: the LAST context-free rule naming it. */
+/** The last font-size or size-bearing font shorthand inside one rule. */
+function typeRung(body: string): string | null {
+  let found: string | null = null;
+  for (const match of body.matchAll(/(?:^|;\s*)(font-size|font)\s*:\s*([^;]+)/g)) {
+    if (match[1] === "font-size") found = match[2].trim();
+    else found = match[2].match(/var\(--fs-[a-z0-9-]+\)/)?.[0] ?? found;
+  }
+  return found;
+}
+
+/** The winning type rung for a selector: the LAST context-free rule naming it. */
 function shipped(selector: string): { rung: string; where: string } | null {
   let found: { rung: string; where: string } | null = null;
   for (const rule of rules) {
     if (rule.context.length) continue;
     if (!selectorList(rule.selector).includes(selector)) continue;
-    const rung = declaredRung(rule.body);
+    const rung = typeRung(rule.body);
     if (rung) found = { rung, where: rule.where };
   }
   return found;
@@ -96,7 +106,7 @@ const ROLES: Record<string, Role> = {
       + "marker — but it is read as a sentence, so it takes the prose rung named for "
       + "the job rather than the --fs-xl the control family reads. Unchanged by this "
       + "pass: it was already right, and the body under it was what disagreed.",
-    anchors: [".console-card summary"],
+    anchors: [".console-card summary", ".developer-cp-state-guide > summary"],
   },
   "disclosure body": {
     rung: "--fs-sm",
@@ -106,7 +116,7 @@ const ROLES: Record<string, Role> = {
       + "`> p`, because half these bodies are a <dl>, a <ul> or a <div> — a `> p` rung "
       + "sizes the ones that happen to be prose and leaves the rest inheriting the "
       + "17px card-title rung that `body` carries.",
-    anchors: [".console-card details.disclosure"],
+    anchors: [".console-card details.disclosure", ".developer-cp-state-guide > p"],
   },
 };
 
@@ -185,14 +195,17 @@ describe("a fold is quieter than the card it sits on", () => {
     // comparison that says whether folded detail is quieter than the prose it
     // was folded out of.
     const body = shipped("body");
-    const fold = shipped(".console-card details.disclosure");
-    assert.ok(body && fold, "body or the disclosure declares no font-size");
+    assert.ok(body, "body declares no font-size");
     const prose = px.get(token(body.rung));
-    const hidden = px.get(token(fold.rung));
-    assert.ok(prose != null && hidden != null, "a rung on this comparison is off-ladder");
-    assert.ok(hidden < prose,
-      `folded detail ships ${hidden}px against ${prose}px of surrounding prose — `
-      + "a disclosure that comes back larger than the page is the defect this file was written for");
+    for (const anchor of ROLES["disclosure body"].anchors) {
+      const fold = shipped(anchor);
+      assert.ok(fold, `${anchor} declares no font-size`);
+      const hidden = px.get(token(fold.rung));
+      assert.ok(prose != null && hidden != null, "a rung on this comparison is off-ladder");
+      assert.ok(hidden < prose,
+        `${anchor} ships ${hidden}px against ${prose}px of surrounding prose — `
+        + "a disclosure that comes back larger than the page is the defect this file was written for");
+    }
   });
 
   it("the summary and its body are exactly one rung apart", () => {
@@ -203,14 +216,20 @@ describe("a fold is quieter than the card it sits on", () => {
       .filter(([name]) => /^--fs-(2xs|xs|sm|body|md|lg|xl|2xl|title)$/.test(name))
       .sort((a, b) => a[1] - b[1])
       .map(([name]) => name);
-    const ask = shipped(".console-card summary");
-    const answer = shipped(".console-card details.disclosure");
-    assert.ok(ask && answer, "a disclosure rule declares no font-size");
-    const summary = steps.indexOf(token(ask.rung));
-    const hidden = steps.indexOf(token(answer.rung));
-    assert.ok(summary >= 0 && hidden >= 0, "a shipped disclosure rung is not on the content ladder");
-    assert.equal(summary - hidden, 1,
-      `summary ships ${token(ask.rung)} and body ships ${token(answer.rung)}, `
-      + `${summary - hidden} rungs apart on ${steps.join(" < ")}`);
+    const pairs = [
+      [".console-card summary", ".console-card details.disclosure"],
+      [".developer-cp-state-guide > summary", ".developer-cp-state-guide > p"],
+    ] as const;
+    for (const [summaryAnchor, bodyAnchor] of pairs) {
+      const ask = shipped(summaryAnchor);
+      const answer = shipped(bodyAnchor);
+      assert.ok(ask && answer, `${summaryAnchor} or ${bodyAnchor} declares no font-size`);
+      const summary = steps.indexOf(token(ask.rung));
+      const hidden = steps.indexOf(token(answer.rung));
+      assert.ok(summary >= 0 && hidden >= 0, "a shipped disclosure rung is not on the content ladder");
+      assert.equal(summary - hidden, 1,
+        `${summaryAnchor} ships ${token(ask.rung)} and ${bodyAnchor} ships ${token(answer.rung)}, `
+        + `${summary - hidden} rungs apart on ${steps.join(" < ")}`);
+    }
   });
 });
