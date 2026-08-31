@@ -15,8 +15,9 @@
  * graphs" could ever show.
  */
 
-import CategoryBars, { type BarRow } from "@/components/charts/CategoryBars";
+import type { BarRow } from "@/components/charts/CategoryBars";
 import DonutChart, { type DonutSlice } from "@/components/common/DonutChart";
+import SupplyDepthBars from "@/components/data/SupplyDepthBars";
 import type { RouteState, SystemHealth } from "@/components/systems/types";
 import { deriveFailoverDepth, deriveProviderSupply } from "@/lib/data-trust";
 import { routeLabel } from "@/lib/providers/route-labels";
@@ -86,7 +87,7 @@ export default function SupplyPosture({ health }: { health: SystemHealth | null 
           ariaLabel="Every registered provider, by whether it can answer a request now."
           emptyNote="No provider registry in this snapshot, so nothing can be said about supply."
         />
-        <CategoryBars
+        <SupplyDepthBars
           rows={rows}
           ariaLabel="Ranked failover chain per capability and asset, by node routing state."
           emptyNote="No failover chain is exposed in this snapshot."
