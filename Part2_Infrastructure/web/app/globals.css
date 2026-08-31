@@ -57,9 +57,15 @@
    tailwind-bridge.test.ts locate as the light palette. */
 @import "./globals/00-tokens-and-base.css";
 
+/* Mobile projection of the canonical cross-workspace decision loop. */
+@import "./globals/00a-mobile-workspace-flow.css";
+
 /* Integrated workspace shell — header, sign-in, provenance badge, overview,
    module pages, role launcher and the responsive workspace tail. */
 @import "./globals/01-workspace-shell.css";
+
+/* Research's compact experiment editor, after the shell defaults it replaces. */
+@import "./globals/01a-research-setup-disclosure.css";
 
 /* Systems console. Appended as a self-contained block: every selector is new,
    so it cannot collide with the workspace responsive tail above it. */
@@ -159,6 +165,11 @@
    idiom and must be able to override it. */
 @import "./globals/14k-login-layout-stability.css";
 
+/* Presentation-only access-portal polish: analytical grid, source-owned
+   control treatment and responsive density. After 14k so its form chrome can
+   improve without changing the measured async reserve. */
+@import "./globals/14kk-login-quant-ui.css";
+
 /* The Data work card's inner rules and its delete control. After 14g, whose
    card paddings it restates region by region. */
 @import "./globals/14l-work-queues.css";
@@ -224,4 +235,66 @@
    scoped `.coherence-plane` like 14v and 14w. Geometry only: no size, no
    colour, no motion. After 14x, before 15, which stays last. */
 @import "./globals/14y-engine-grid.css";
+
+/* Canonical view evidence for Markets and Proofs only. The partial names both
+   tab planes explicitly, so Diffusion and the protected eight are untouched. */
+@import "./globals/14z-engine-evidence.css";
+
+/* Geometry-matched cold-chunk and shared state surfaces. Scoped to `.quant-*`
+   and deliberately before the trailing contrast layer. */
+@import "./globals/14zz-quant-shell.css";
+
+/* Markets-only technical workbench and result-region polish. The source-owned
+   controls inherit the house tokens, while the trailing accessibility layer
+   below remains the last word in the cascade. */
+@import "./globals/14zza-markets-quant-workbench.css";
+
+/* Proofs-only state, evidence and compact workbench geometry. Transport truth
+   stays explicit; this layer changes presentation, not gateway semantics. */
+@import "./globals/14zzb-proofs-workbench.css";
+
+/* Progressive-disclosure layout for the Lessons index and detail Sheet. */
+@import "./globals/14zzba-proofs-lessons.css";
+
+@import "./globals/14zzbb-proofs-contrast.css";
+
+/* Certificate diagrams and their responsive flow follow the shared Proofs
+   layers, so the filename prefixes remain the visible cascade order. */
+@import "./globals/14zzbc-proofs-certificate-flow.css";
+@import "./globals/14zzbd-proofs-responsive.css";
+@import "./globals/14zzbe-proofs-path-inspector.css";
+
+/* Diffusion-only structural sparse-state instruments and compact evidence
+   controls. Empty research ledgers keep honest geometry instead of blankness. */
+@import "./globals/14zzc-diffusion-workbench.css";
+
+/* Shared exact-value inspection for the Markets depth and Proofs probability
+   figures. Plot focus and tabular evidence stay coordinated without changing
+   any feed, formula or null-state semantics. */
+@import "./globals/14zzc-quant-inspection.css";
+
+/* Presentation-only resilience for the immutable Overview, Research,
+   Execution and Portfolio surfaces. Content and component ownership remain
+   untouched; this layer only closes overflow, focus and responsive gaps. */
+@import "./globals/14zzd-protected-desk-a.css";
+
+/* Presentation-only evidence containment and keyboard-reachable horizontal
+   scroll regions for the immutable Risk, Data, Reliability and Developer
+   surfaces. */
+@import "./globals/14zzd-protected-desk-b.css";
+
+/* Data-derived focus, selection and exact-readout instruments for the seven
+   audited protected desks. Content and quantitative inputs remain unchanged. */
+@import "./globals/14zze-protected-diagram-instruments.css";
+
+/* Research Strategies family tabs: one bounded strategy surface at a time,
+   with its complete technical catalogue retained behind explicit selection. */
+@import "./globals/14zze-strategy-codex-tabs.css";
+@import "./globals/14zzf-bounded-pagers.css";
+@import "./globals/14zzg-residual-quant-figures.css";
+@import "./globals/14zzh-interface-density.css";
+@import "./globals/14zzi-header-alignment-followup.css";
+@import "./globals/14zzj-layout-review-followup.css";
+@import "./globals/14zzk-execution-layout-followup.css";
+@import "./globals/14zzl-risk-systems-layout-followup.css";
 @import "./globals/15-navigator-and-trailing-layer.css";
