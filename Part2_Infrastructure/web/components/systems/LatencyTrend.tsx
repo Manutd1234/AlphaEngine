@@ -19,7 +19,7 @@
  * flat at the axis would invent a recovery that never happened.
  */
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import {
   Grid,
@@ -32,6 +32,7 @@ import {
   useMeasuredWidth,
 } from "@/components/chart-kit";
 import { LATENCY_MIN_SAMPLES, type LatencyHistoryPoint } from "@/lib/overview-state";
+import { metricRow } from "@/lib/format";
 
 const MARGIN = { top: 12, right: 48, bottom: 26, left: 48 };
 /* 140, down from 168, on the day this card moved ABOVE the triage list — the
@@ -44,9 +45,33 @@ const MARGIN = { top: 12, right: 48, bottom: 26, left: 48 };
    under that this stops being a second reading of the same series and becomes
    a smaller copy of the one the header already shows. */
 const HEIGHT = 140;
+const TIME_OPTIONS = { hour: "2-digit", minute: "2-digit" } as const;
+const latencyTick = (value: number) => `${Math.round(value)}ms`;
+
+export function latencyTrendIndexAt(
+  clientX: number,
+  left: number,
+  width: number,
+  count: number,
+): number | null {
+  if (!Number.isFinite(clientX) || !Number.isFinite(left) || !Number.isFinite(width)
+      || !Number.isFinite(count) || width <= 0 || count <= 0) return null;
+  const fraction = Math.min(1, Math.max(0, (clientX - left) / width));
+  return Math.round(fraction * Math.max(0, count - 1));
+}
+
+export function nextLatencyTrendIndex(current: number, keyCode: number, count: number): number | null {
+  if (count <= 0) return null;
+  if (keyCode === 36) return 0;
+  if (keyCode === 35) return count - 1;
+  if (keyCode === 39 || keyCode === 40) return Math.min(count - 1, current + 1);
+  if (keyCode === 37 || keyCode === 38) return Math.max(0, current - 1);
+  return null;
+}
 
 export default function LatencyTrend({ history }: { history: LatencyHistoryPoint[] }) {
   const [ref, width] = useMeasuredWidth<HTMLDivElement>(680);
+  const [pointed, setPointed] = useState<number | null>(null);
 
   const view = useMemo(() => {
     // Only samples that clear the floor carry a usable percentile.
@@ -92,11 +117,19 @@ export default function LatencyTrend({ history }: { history: LatencyHistoryPoint
       x1: MARGIN.left + innerW,
       baseline: MARGIN.top + innerH,
       times: history.map((p) => p.t),
-      latest: usable[usable.length - 1],
+      positions: history.map((_, i) => x(i)),
+      yError,
+      latest: history[history.length - 1],
       peak: Math.round(observedPeak),
       worstError: hiError,
     };
   }, [history, width]);
+
+  const active = view && pointed !== null
+    ? Math.min(history.length - 1, Math.max(0, pointed))
+    : null;
+  const activePoint = active === null ? null : history[active];
+  const activeMeasured = activePoint?.p99 != null && activePoint.n >= LATENCY_MIN_SAMPLES;
 
   return (
     /* `.section-heading compact`, the grammar every other panel on this tab
@@ -123,6 +156,33 @@ export default function LatencyTrend({ history }: { history: LatencyHistoryPoint
               height={HEIGHT}
               viewBox={`0 0 ${Math.max(width, 240)} ${HEIGHT}`}
               role="img"
+              tabIndex={0}
+              onFocus={() => setPointed((current) => current ?? history.length - 1)}
+              onBlur={() => setPointed(null)}
+              onKeyDown={(event) => {
+                if (event.keyCode === 27) {
+                  setPointed(null);
+                  event.currentTarget.blur();
+                  return;
+                }
+                const next = nextLatencyTrendIndex(pointed ?? history.length - 1, event.keyCode, history.length);
+                if (next === null) return;
+                event.preventDefault();
+                setPointed(next);
+              }}
+              onPointerMove={(event) => {
+                const rect = event.currentTarget.getBoundingClientRect();
+                const boxWidth = Math.max(width, 240);
+                const plotLeft = rect.left + (view.x0 / boxWidth) * rect.width;
+                const plotWidth = ((view.x1 - view.x0) / boxWidth) * rect.width;
+                setPointed(latencyTrendIndexAt(
+                  event.clientX,
+                  plotLeft,
+                  plotWidth,
+                  history.length,
+                ));
+              }}
+              onPointerLeave={() => setPointed(null)}
               aria-label={
                 `Upstream p99 latency across ${history.length} polls, peaking at ${view.peak} milliseconds`
                 // Withheld rather than zeroed: `?? 0` told a screen-reader user
@@ -139,28 +199,67 @@ export default function LatencyTrend({ history }: { history: LatencyHistoryPoint
                 yScale={view.yLatency}
                 x0={view.x0}
                 x1={view.x1}
-                format={(v) => `${Math.round(v)}ms`}
+                format={latencyTick}
               />
               <path d={view.errorArea} fill="var(--series-2)" fillOpacity={0.14} />
               {view.runs.map((run, i) => (
-                <path
-                  key={i}
-                  d={linePath(run)}
-                  fill="none"
-                  stroke="var(--series-1)"
-                  strokeWidth={1.75}
-                  strokeLinejoin="round"
-                  strokeLinecap="round"
-                />
+                <g key={i}>
+                  <path
+                    className="latency-trend__band"
+                    d={areaPath(run, view.baseline)}
+                  />
+                  <path
+                    d={linePath(run)}
+                    fill="none"
+                    stroke="var(--series-1)"
+                    strokeWidth={1.75}
+                    strokeLinejoin="round"
+                    strokeLinecap="round"
+                  />
+                </g>
               ))}
+              {active !== null && activePoint && (
+                <g className="protected-chart-reading" data-linked="true">
+                  <line
+                    x1={view.positions[active]}
+                    x2={view.positions[active]}
+                    y1={MARGIN.top}
+                    y2={view.baseline}
+                  />
+                  <circle
+                    cx={view.positions[active]}
+                    cy={view.yError(activePoint.errorRate)}
+                    r={3}
+                    fill="var(--series-2)"
+                  />
+                  {activeMeasured && activePoint.p99 != null && (
+                    <circle
+                      cx={view.positions[active]}
+                      cy={view.yLatency(activePoint.p99)}
+                      r={3}
+                      fill="var(--series-1)"
+                    />
+                  )}
+                </g>
+              )}
               <XAxis
                 points={view.times}
                 y={view.baseline}
                 x0={view.x0}
                 x1={view.x1}
-                format={(t) => new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                format={(t) => new Date(t).toLocaleTimeString([], TIME_OPTIONS)}
               />
             </svg>
+            {activePoint && (
+              <output className="protected-chart-output num" aria-live="polite">
+                {metricRow([
+                  new Date(activePoint.t).toLocaleTimeString([], TIME_OPTIONS),
+                  activeMeasured && activePoint.p99 != null ? latencyTick(activePoint.p99) : "—",
+                  `${(activePoint.errorRate * 100).toFixed(1)}%`,
+                  activePoint.n,
+                ])}
+              </output>
+            )}
             <div className="legend">
               <span><i style={{ background: "var(--series-1)" }} /> p99 latency</span>
               <span><i style={{ background: "var(--series-2)", opacity: 0.5 }} /> error rate (peak {(view.worstError * 100).toFixed(1)}%)</span>
