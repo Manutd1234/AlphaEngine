@@ -22,7 +22,13 @@ export interface Margin {
 
 export const DEFAULT_MARGIN: Margin = { top: 10, right: 56, bottom: 26, left: 52 };
 
-export function useMeasuredWidth<T extends HTMLElement>(fallback = 720) {
+/**
+ * Observe an element's content width. `remeasureKey` is for a DOM node whose
+ * measurement semantics can change while React keeps the node in place; a key
+ * transition performs an immediate client-width read instead of waiting for a
+ * resize event that may never occur.
+ */
+export function useMeasuredWidth<T extends HTMLElement>(fallback = 720, remeasureKey: unknown = null) {
   const ref = useRef<T | null>(null);
   const [width, setWidth] = useState(fallback);
 
@@ -32,16 +38,14 @@ export function useMeasuredWidth<T extends HTMLElement>(fallback = 720) {
     const observer = new ResizeObserver((entries) => {
       const w = entries[0]?.contentRect.width;
       // Compared against the CURRENT width through the updater, not the closed-over
-      // one: with `[]` deps that variable is the first-render fallback forever, so
-      // the epsilon never applied and every sub-pixel observation re-rendered the
-      // chart. Returning `prev` unchanged lets React bail out of the render.
+      // one. Returning `prev` unchanged lets React bail out when ResizeObserver
+      // repeats a sub-pixel reading within the same measurement lifecycle.
       if (w) setWidth((prev) => (Math.abs(w - prev) > 1 ? w : prev));
     });
     observer.observe(el);
     setWidth(el.clientWidth || fallback);
     return () => observer.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fallback, remeasureKey]);
 
   return [ref, width] as const;
 }
@@ -290,7 +294,7 @@ export function Tooltip({
   rows: Array<{ label: string; value: string; color?: string }>;
 }) {
   const w = width;
-  const h = 22 + rows.length * 16;
+  const h = 28 + rows.length * 18;
   const left = Math.min(Math.max(x + 12, 4), chartWidth - w - 4);
   return (
     <g pointerEvents="none">
@@ -303,26 +307,26 @@ export function Tooltip({
         fill="var(--surface-1)"
         stroke="var(--border)"
       />
-      <text x={left + 10} y={24} fontSize={13} fill="var(--text-muted)" fontFamily="var(--mono)">
+      <text x={left + 10} y={25} fontSize={12} fill="var(--text-muted)" fontFamily="var(--mono)">
         {title}
       </text>
       {rows.map((r, i) => (
         <g key={r.label}>
           {r.color && (
-            <rect x={left + 10} y={33 + i * 16} width={8} height={3} rx={1.5} fill={r.color} />
+            <rect x={left + 10} y={36 + i * 18} width={8} height={3} rx={1.5} fill={r.color} />
           )}
           <text
             x={left + (r.color ? 23 : 10)}
-            y={38 + i * 16}
-            fontSize={14}
+            y={41 + i * 18}
+            fontSize={12}
             fill="var(--text-secondary)"
           >
             {r.label}
           </text>
           <text
             x={left + w - 10}
-            y={38 + i * 16}
-            fontSize={14}
+            y={41 + i * 18}
+            fontSize={12}
             textAnchor="end"
             fill="var(--text-primary)"
             fontFamily="var(--mono)"
