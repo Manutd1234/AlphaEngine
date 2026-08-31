@@ -12,7 +12,6 @@
  * to say; that is the hooks' job. This decides where the saying is drawn.
  */
 
-import { Tooltip } from "@/components/chart-kit";
 import { DIAGRAM_LABEL_PX, advancePx, truncateMiddle } from "@/lib/coherence/label-metrics";
 import type { MarkReadout } from "@/lib/coherence/use-mark-readout";
 
@@ -131,6 +130,12 @@ export function SharedXReadout({ at, pinnedAt, height, width, chartWidth, readin
   chartWidth: number;
   reading: { title: string; rows: Array<{ label: string; value: string; color?: string }> };
 }) {
+  // The exact rows are rendered by FigureDialogFrame in a dedicated inspector
+  // outside the SVG. This fragment now owns position only: current and pinned
+  // rules can never cover a point, axis label, or neighbouring annotation.
+  void width;
+  void chartWidth;
+  void reading;
   return (
     <g pointerEvents="none">
       {pinnedAt != null && pinnedAt !== at ? (
@@ -140,7 +145,6 @@ export function SharedXReadout({ at, pinnedAt, height, width, chartWidth, readin
         </>
       ) : null}
       <line x1={at} x2={at} y1={0} y2={height} className="coh-plot__crosshair" />
-      <Tooltip x={at} width={width} chartWidth={chartWidth} title={reading.title} rows={reading.rows} />
     </g>
   );
 }
