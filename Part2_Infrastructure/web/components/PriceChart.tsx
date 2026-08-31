@@ -41,7 +41,10 @@ export default function PriceChart({
   symbol: string;
 }) {
   const [ref, width] = useMeasuredWidth<HTMLDivElement>();
-  const m = DEFAULT_MARGIN;
+  // Six-figure prices need more than the shared 52px label gutter. Keeping the
+  // extra room local to this chart prevents the first digit of 100,000+ ticks
+  // from being clipped by the SVG/card edge.
+  const m = { ...DEFAULT_MARGIN, left: 78 };
   const x0 = m.left;
   const x1 = Math.max(x0 + 10, width - m.right);
   const y0 = HEIGHT - m.bottom;
