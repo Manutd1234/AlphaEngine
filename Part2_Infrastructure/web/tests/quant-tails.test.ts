@@ -20,7 +20,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { monthlyReturns, tailReport } from "../lib/quant";
-import { syntheticBars } from "../lib/marketdata";
+import { syntheticBars } from "./helpers/synthetic-bars";
 
 import { close, lcg } from "./helpers/quant-fixtures";
 
