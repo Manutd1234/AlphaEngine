@@ -273,6 +273,7 @@ export default function RiskWorkspace({
             intent={handoff}
             onClose={() => setHandoff(null)}
             sandbox={Boolean(book.sandbox)}
+            stale={view.isStale}
             onExecuted={() => void refresh(true)}
             operatorToken={operatorToken}
           />
