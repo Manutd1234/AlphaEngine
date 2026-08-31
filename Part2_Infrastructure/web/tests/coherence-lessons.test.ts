@@ -123,15 +123,12 @@ describe("the curriculum draws what it can, and nothing it cannot", () => {
   const registry = read("../components/coherence/lesson-figures/index.tsx");
   const pane = read("../components/coherence/LessonsPane.tsx");
 
-  it("every id in the figure registry is a real lesson", () => {
-    // A figure keyed to an id nobody teaches renders for nobody, and would sit
-    // in the tree looking like coverage.
-    const ids = new Set(COHERENCE_LESSONS.map((lesson) => lesson.id));
+  it("every published lesson has exactly one registered figure", () => {
+    // Equality in both directions: a stray figure renders for nobody, while a
+    // missing figure leaves an Inspect action that cannot show its model.
+    const ids = COHERENCE_LESSONS.map((lesson) => lesson.id).sort();
     const keyed = [...registry.matchAll(/^  ([a-z]+): [A-Z]/gm)].map((match) => match[1]);
-    assert.ok(keyed.length >= 4, `only ${keyed.length} lesson figures found — has the registry moved?`);
-    for (const id of keyed) {
-      assert.ok(ids.has(id), `the registry draws a figure for "${id}", which is not a lesson`);
-    }
+    assert.deepEqual(keyed.sort(), ids, "the lesson catalogue and diagram registry diverged");
   });
 
   it("a lesson with no figure still renders its card", () => {
@@ -140,6 +137,12 @@ describe("the curriculum draws what it can, and nothing it cannot", () => {
     // picture of an equals sign. A fifteenth lesson must not arrive with a gap.
     assert.match(registry, /if \(!Drawing\) return null;/,
       "a lesson with no entry must draw nothing, not a placeholder");
+  });
+
+  it("puts every technical diagram in a named keyboard-scrollable region", () => {
+    assert.match(registry, /role="region"/);
+    assert.match(registry, /aria-label=\{`\$\{id\} lesson technical diagram`\}/);
+    assert.match(registry, /tabIndex=\{0\}/);
   });
 
   it("the figures read nothing, because a lesson is a claim about every poll", () => {
@@ -155,5 +158,39 @@ describe("the curriculum draws what it can, and nothing it cannot", () => {
       "the still-open state must say it has no lifetime — it is why the survival curve uses closed episodes only");
     assert.doesNotMatch(states, /useCoherenceRead|Route\(/,
       "the state diagram is structural: it draws what the recorder CAN write, not what it has");
+  });
+});
+
+describe("Lessons is a static proof surface", () => {
+  const console_ = read("../components/CoherenceConsole.tsx");
+
+  it("keeps global status live without starting section reads or certificate transport", () => {
+    assert.match(console_, /const statusLive = active && !paused && !rearming;/,
+      "Pause and one-shot re-arm no longer gate the shared top-bar read");
+    assert.match(console_, /const sectionLive = statusLive && section !== "lessons";/);
+    assert.match(console_, /const sectionVisible = active && section !== "lessons";/);
+    assert.match(console_, /useCoherenceRead<CoherenceStatus>\(statusRoute\(\), statusLive\)/);
+    assert.match(console_, /useCoherenceRead<CoherenceUniverse>\(universeRoute\(\), statusLive && onFamily\)/);
+    assert.match(console_, /const onFamily = section === "certificate" \|\| section === "portfolio";/);
+    assert.match(console_, /useSectionWarming\(SECTION_READS, sectionLive\)/);
+    assert.match(console_, /if \(!sectionLive \|\| !target\) return;/);
+    assert.match(console_, /return \(\) => controller\.abort\(\);/,
+      "leaving a live proof for Lessons did not cancel its certificate warm");
+  });
+
+  it("does not draw a transport banner over the static curriculum", () => {
+    const evidence = read("../components/coherence/EngineViewEvidence.tsx");
+    const state = read("../components/coherence/EngineStatePanel.tsx");
+    assert.match(console_, /<EngineTopbarStatus/,
+      "Lessons lost the same visible global engine status used by live Proofs views");
+    assert.match(state, /if \(!visible\) return null;/);
+    assert.match(console_, /\{sectionVisible && hasHaltedShard && status\.data && \(\s*<div className="coh-console__status">/);
+    assert.match(console_, /status\.data\?\.state === "ok" && status\.data\.shards\.some\(/,
+      "fallback shard data can still draw a halt over the static curriculum");
+    assert.match(console_, /showTransport=\{sectionVisible\}/);
+    assert.match(console_, /\{sectionVisible && status\.error && \(/,
+      "the transport notice is not gated off on Lessons");
+    assert.match(evidence, /\{showTransport && \(\s*<div className="coh-evidence__transport"/);
+    for (const label of ["Lead readout", "Unit", "Method", "Source"]) assert.match(evidence, new RegExp(label));
   });
 });
