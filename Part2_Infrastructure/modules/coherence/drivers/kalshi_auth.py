@@ -19,14 +19,16 @@ hosts apart and this module refuses to sign for a host it was not given a key
 for. Getting that wrong produces a 401 that looks like a bad signature rather
 than like the wrong environment.
 
-``cryptography`` is imported through a seam because it is not on the deployment
-image. Absent, the state is reported and the signed endpoints are skipped; the
-public ones are unaffected, which is nearly all of them.
+``cryptography`` is imported through a seam so an image built without the
+optional signing dependency still reports a typed setup state. The signed
+endpoints are skipped in that case; the public ones are unaffected, which is
+nearly all of them.
 """
 
 from __future__ import annotations
 
 import base64
+import stat
 import time
 from dataclasses import dataclass
 from functools import lru_cache
@@ -36,8 +38,21 @@ from types import ModuleType
 from modules.coherence import tunables
 
 
+@dataclass(frozen=True, slots=True)
+class SigningProblem:
+    """One operator-safe reason signing cannot start."""
+
+    code: str
+    detail: str
+
+
 class SigningUnavailable(RuntimeError):
-    """No key, no library, or a key that could not be read. Never a fallback."""
+    """No usable RSA key or signing library. Never an unsigned fallback."""
+
+    def __init__(self, reason: str, *, code: str = "signing_unavailable") -> None:
+        super().__init__(reason)
+        self.reason = reason
+        self.code = code
 
 
 @lru_cache(maxsize=1)
@@ -50,7 +65,7 @@ def import_rsa() -> tuple[ModuleType | None, str | None]:
     """
     try:
         from cryptography.hazmat.primitives import hashes, serialization
-        from cryptography.hazmat.primitives.asymmetric import padding
+        from cryptography.hazmat.primitives.asymmetric import padding, rsa
     except ImportError as exc:
         return None, f"cryptography is not installed here ({exc})"
 
@@ -58,14 +73,45 @@ def import_rsa() -> tuple[ModuleType | None, str | None]:
         def __init__(self) -> None:
             self.hashes = hashes
             self.padding = padding
+            self.rsa = rsa
             self.serialization = serialization
 
     return _Primitives(), None  # type: ignore[return-value]
 
 
 def signing_available() -> bool:
-    """Both a key pair and the library. Either alone is not enough."""
-    return tunables.signing_configured() and import_rsa()[0] is not None
+    """A complete configuration whose key parses as an RSA private key."""
+    return _availability_problem() is None
+
+
+def _configuration_problem() -> SigningProblem | None:
+    """Name the incomplete half without exposing a configured path."""
+    if not tunables.DEMO_KEY_ID:
+        return SigningProblem("key_id_missing", "KALSHI_DEMO_KEY_ID is not set on the gateway")
+    if not tunables.DEMO_PRIVATE_KEY_PATH:
+        return SigningProblem(
+            "private_key_path_missing",
+            "KALSHI_DEMO_PRIVATE_KEY_PATH is not set on the gateway",
+        )
+    path = Path(tunables.DEMO_PRIVATE_KEY_PATH)
+    try:
+        mode = path.stat().st_mode
+    except FileNotFoundError:
+        return SigningProblem(
+            "private_key_missing",
+            "KALSHI_DEMO_PRIVATE_KEY_PATH points to a missing file",
+        )
+    except OSError:
+        return SigningProblem(
+            "private_key_unreadable",
+            "the configured private key file is unreadable",
+        )
+    if not stat.S_ISREG(mode):
+        return SigningProblem(
+            "private_key_not_file",
+            "KALSHI_DEMO_PRIVATE_KEY_PATH must point to a regular PEM file",
+        )
+    return None
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,7 +144,7 @@ def signing_message(timestamp_ms: int, method: str, path: str) -> bytes:
 
 @lru_cache(maxsize=4)
 def _load_key(pem_path: str):
-    """Read and parse a private key once.
+    """Read and parse one unencrypted RSA private key once.
 
     Cached because parsing an RSA key is not free and the key does not change
     within a process. The path is the cache key rather than the contents, so
@@ -107,18 +153,59 @@ def _load_key(pem_path: str):
     """
     primitives, error = import_rsa()
     if primitives is None:
-        raise SigningUnavailable(error or "cryptography is unavailable")
+        raise SigningUnavailable(
+            error or "cryptography is unavailable",
+            code="cryptography_unavailable",
+        )
     path = Path(pem_path)
-    if not path.exists():
-        raise SigningUnavailable(f"no private key at the configured path ({path.name})")
     try:
         data = path.read_bytes()
+    except FileNotFoundError as exc:
+        raise SigningUnavailable(
+            "no private key exists at the configured location",
+            code="private_key_missing",
+        ) from exc
     except OSError as exc:
-        raise SigningUnavailable(f"the private key could not be read: {type(exc).__name__}") from exc
+        raise SigningUnavailable(
+            "the configured private key file is unreadable",
+            code="private_key_unreadable",
+        ) from exc
+    if b"-----BEGIN ENCRYPTED PRIVATE KEY-----" in data or b"Proc-Type: 4,ENCRYPTED" in data:
+        raise SigningUnavailable(
+            "the configured private key is encrypted; provide an unencrypted RSA PEM",
+            code="private_key_encrypted",
+        )
     try:
-        return primitives.serialization.load_pem_private_key(data, password=None)
+        key = primitives.serialization.load_pem_private_key(data, password=None)
     except (ValueError, TypeError) as exc:
-        raise SigningUnavailable(f"the private key did not parse as PEM: {type(exc).__name__}") from exc
+        raise SigningUnavailable(
+            "the configured private key did not parse as an unencrypted PEM private key",
+            code="private_key_malformed",
+        ) from exc
+    if not isinstance(key, primitives.rsa.RSAPrivateKey):
+        raise SigningUnavailable(
+            "the configured private key is not an RSA private key",
+            code="private_key_not_rsa",
+        )
+    return key
+
+
+def _availability_problem() -> SigningProblem | None:
+    """Validate every local prerequisite without sending or signing a request."""
+    configuration_problem = _configuration_problem()
+    if configuration_problem is not None:
+        return configuration_problem
+    primitives, error = import_rsa()
+    if primitives is None:
+        return SigningProblem(
+            "cryptography_unavailable",
+            error or "cryptography is unavailable",
+        )
+    try:
+        _load_key(tunables.DEMO_PRIVATE_KEY_PATH)
+    except SigningUnavailable as exc:
+        return SigningProblem(exc.code, exc.reason)
+    return None
 
 
 def sign(method: str, path: str, host: str, timestamp_ms: int | None = None) -> SignedHeaders:
@@ -133,31 +220,49 @@ def sign(method: str, path: str, host: str, timestamp_ms: int | None = None) -> 
         raise SigningUnavailable(
             "no demo key configured; set KALSHI_DEMO_KEY_ID and KALSHI_DEMO_PRIVATE_KEY_PATH"
         )
-    if not host.startswith(tunables.DEMO_BASE_URL.rsplit("/trade-api", 1)[0]):
+    try:
+        signing_host = tunables.normalize_base_url(host, name="signing host")
+    except ValueError as exc:
+        raise SigningUnavailable("the signing host is not a valid Kalshi API root") from exc
+    if signing_host not in {tunables.DEMO_BASE_URL, tunables.DEMO_FAILOVER_URL}:
         raise SigningUnavailable(
             "this key belongs to the demo environment and cannot sign a production request; "
             "the public read path needs no key at all"
         )
+    path_without_query = path.split("?", 1)[0]
+    if path_without_query != tunables.API_ROOT_PATH and not path_without_query.startswith(
+        f"{tunables.API_ROOT_PATH}/"
+    ):
+        raise SigningUnavailable(f"the signed path must start at {tunables.API_ROOT_PATH}")
 
     primitives, error = import_rsa()
     if primitives is None:
-        raise SigningUnavailable(error or "cryptography is unavailable")
+        raise SigningUnavailable(
+            error or "cryptography is unavailable",
+            code="cryptography_unavailable",
+        )
 
     stamp = timestamp_ms if timestamp_ms is not None else int(time.time() * 1000)
     key = _load_key(tunables.DEMO_PRIVATE_KEY_PATH)
-    signature = key.sign(
-        signing_message(stamp, method, path),
-        primitives.padding.PSS(
-            mgf=primitives.padding.MGF1(primitives.hashes.SHA256()),
-            salt_length=primitives.padding.PSS.DIGEST_LENGTH,
-        ),
-        primitives.hashes.SHA256(),
-    )
+    try:
+        signature = key.sign(
+            signing_message(stamp, method, path),
+            primitives.padding.PSS(
+                mgf=primitives.padding.MGF1(primitives.hashes.SHA256()),
+                salt_length=primitives.padding.PSS.DIGEST_LENGTH,
+            ),
+            primitives.hashes.SHA256(),
+        )
+    except (TypeError, ValueError) as exc:
+        raise SigningUnavailable(
+            "the configured RSA private key could not sign this request",
+            code="private_key_sign_failed",
+        ) from exc
     return SignedHeaders(
         key_id=tunables.DEMO_KEY_ID,
         timestamp_ms=str(stamp),
         signature=base64.b64encode(signature).decode("ascii"),
-        host=host,
+        host=signing_host,
     )
 
 
@@ -165,14 +270,19 @@ def status() -> dict[str, object]:
     """What the surface reports about signing. Never a bare boolean."""
     primitives, error = import_rsa()
     configured = tunables.signing_configured()
+    problem = _availability_problem()
+    available = problem is None
     return {
         "configured": configured,
+        "available": available,
+        "reason": problem.code if problem is not None else None,
         "library": "available" if primitives is not None else "unavailable",
         "library_detail": error,
-        "environment": "demo" if configured else None,
+        "environment": "demo" if available else None,
         "detail": (
             "signed demo reads are available"
-            if configured and primitives is not None
-            else "public production reads need no key; signed demo reads are not configured"
+            if available
+            else f"{problem.detail if problem is not None else 'signed demo reads are unavailable'}; "
+            "public production reads need no key"
         ),
     }
