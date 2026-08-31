@@ -47,7 +47,10 @@ export function Fees() {
       label="A fee bar in which the rounding component dwarfs the trading component"
       claim="nineteen times the one every bot models"
     >
-      <text x={left} y={26} className="coh-form__note">one fill, at the clip size where the split hurts</text>
+      <text x={left} y={18} className="coh-form__note">
+        <tspan x={left} dy={0}>one fill at the clip size</tspan>
+        <tspan x={left} dy={12}>where the split hurts</tspan>
+      </text>
       <rect x={left} y={barY} width={span} height={26} className="coh-lessonfig__track">
         <title>
           The whole fee on one fill, at the clip size where the split hurts. Drawn to the proportions of
@@ -58,13 +61,21 @@ export function Fees() {
         const from = run;
         run += part.value;
         const mid = left + ((from + part.value / 2) / total) * span;
+        const narrow = part.value / total <= 0.2;
         return (
           <g key={part.label}>
             <rect x={left + (from / total) * span} y={barY} width={(part.value / total) * span} height={26}
                   className={part.className}>
               <title>{part.says}</title>
             </rect>
-            <text x={mid} y={barY - 8} textAnchor="middle" className="coh-form__note">{part.label}</text>
+            <text
+              x={narrow ? left : mid}
+              y={barY - 8}
+              textAnchor={narrow ? "start" : "middle"}
+              className="coh-form__note"
+            >
+              {part.label}
+            </text>
             {/* THE TWO AMOUNTS, PRINTED. The lesson is a RATIO and the figure
                 drew it as two lengths with neither one named — so a reader could
                 see that one was bigger and not by how much, which is the whole
