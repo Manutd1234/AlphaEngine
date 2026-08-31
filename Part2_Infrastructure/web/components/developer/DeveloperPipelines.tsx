@@ -22,7 +22,7 @@
 
 import { useState, type CSSProperties } from "react";
 
-import CategoryBars from "@/components/charts/CategoryBars";
+import CiCountBars, { nextCiCountIndex } from "@/components/developer/CiCountBars";
 import type { SystemHealthView } from "@/lib/use-system-health";
 import { TEST_COUNTS } from "@/lib/test-counts.generated";
 import { APP_COMMIT } from "@/lib/version";
@@ -70,6 +70,9 @@ const CI_JOBS = [
   },
 ] as const;
 
+/** Only suites with a numeric baseline belong to the count diagram. */
+const COUNTED_CI_JOBS = CI_JOBS.filter((job) => job.count !== null);
+
 type QualityPane = "pipeline" | "verification";
 
 const QUALITY_PANES: Array<{ id: QualityPane; label: string; hint: string }> = [
@@ -85,6 +88,7 @@ export default function DeveloperPipelines({ view, workspaceHealth }: {
   workspaceHealth: ControlState;
 }) {
   const [pane, setPane] = useState<QualityPane>("pipeline");
+  const [selectedJob, setSelectedJob] = useState<string | null>(null);
   const totalTests = CI_JOBS.reduce((sum, job) => sum + (job.count ?? 0), 0);
   return (
     <>
@@ -158,7 +162,22 @@ export default function DeveloperPipelines({ view, workspaceHealth }: {
           <>
             <section className="card developer-cp-jobs stagger-reveal" style={{ "--stagger-i": 0 } as CSSProperties}>
               <div className="developer-cp-heading"><div><span>Verification matrix</span><h2>Configured jobs</h2></div><span>Every push; counts as of {TEST_COUNTS.generatedOn}</span></div>
-              <div className="developer-cp-jobs__table" role="table" aria-label="Continuous integration jobs">
+              <div
+                className="developer-cp-jobs__table"
+                tabIndex={0}
+                role="table"
+                aria-label="Continuous integration jobs"
+                onKeyDown={(event) => {
+                  if (event.target !== event.currentTarget) return;
+                  const selectedIndex = COUNTED_CI_JOBS.findIndex((job) => job.name === selectedJob);
+                  const current = selectedIndex < 0 ? null : selectedIndex;
+                  const next = nextCiCountIndex(current, event.keyCode, COUNTED_CI_JOBS.length);
+                  if (next !== null || event.keyCode === 27) {
+                    event.preventDefault();
+                    setSelectedJob(next === null ? null : COUNTED_CI_JOBS[next]?.name ?? null);
+                  }
+                }}
+              >
                 <div className="developer-cp-jobs__row is-head" role="row"><span role="columnheader">Job</span><span role="columnheader">Evidence</span><span role="columnheader">Command</span><span role="columnheader">Baseline</span></div>
                 {CI_JOBS.map((job, index) => (
                   <div
@@ -166,29 +185,42 @@ export default function DeveloperPipelines({ view, workspaceHealth }: {
                     style={{ "--stagger-i": index } as CSSProperties}
                     role="row"
                     key={job.name}
+                    data-linked={job.count !== null && selectedJob === job.name ? "true" : undefined}
+                    data-selectable={job.count !== null ? "true" : undefined}
                   >
-                    <strong role="cell">{job.name}</strong><span role="cell">{job.evidence}</span><code role="cell">{job.command}</code><span role="cell">{job.count === null ? "tree audit" : `${job.count} tests`}</span>
+                    <strong role="cell">
+                      {job.count === null ? job.name : (
+                        <button
+                          type="button"
+                          className="developer-cp-jobs__select"
+                          aria-pressed={selectedJob === job.name}
+                          onClick={() => setSelectedJob((current) => current === job.name ? null : job.name)}
+                        >
+                          {job.name}
+                        </button>
+                      )}
+                    </strong><span role="cell">{job.evidence}</span><code role="cell">{job.command}</code><span role="cell">{job.count === null ? "tree audit" : `${job.count} tests`}</span>
                   </div>
                 ))}
               </div>
 
-              {/* The same four rows as bars, on one shared scale. `CategoryBars`'
-                  own header names this exact caller — "CI test counts" — and the
-                  import sat unused since it was written, which is its own small
-                  evidence that nothing in this project catches a dead import.
+              {/* The three counted rows as bars, on one shared scale. The
+                  visible caption names this exact figure: "CI test counts".
 
                   Worth drawing rather than only tabulating: the numbers span an
                   order of magnitude, and a column of right-aligned figures hides
                   that the web suite is most of the estate. The tree audit has no
                   count and is deliberately absent rather than plotted as zero. */}
-              <CategoryBars
-                rows={CI_JOBS.filter((job) => job.count !== null).map((job) => ({
+              <CiCountBars
+                rows={COUNTED_CI_JOBS.map((job) => ({
                   label: job.name,
                   note: `${job.count} tests`,
                   segments: [{ label: "tests", value: job.count ?? 0, color: "var(--series-1)" }],
                 }))}
                 ariaLabel="Test count by continuous-integration suite"
                 emptyNote="No suite reports a documented baseline."
+                selectedLabel={selectedJob}
+                onSelect={setSelectedJob}
               />
             </section>
 
