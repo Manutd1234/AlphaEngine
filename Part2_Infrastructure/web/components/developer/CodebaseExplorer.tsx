@@ -12,11 +12,15 @@ import {
   type RepositoryAreaId,
 } from "@/lib/repository-catalog";
 
+const CODEBASE_PAGE_SIZE = 50;
+const REPOSITORY_FILES_LABEL = "Repository files";
+
 export default function CodebaseExplorer() {
   const summaryRef = useRef<HTMLDivElement | null>(null);
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
   const [area, setArea] = useState<RepositoryAreaId | "all">("all");
+  const [repositoryPageIndex, setRepositoryPageIndex] = useState<number | null>(null);
   const [selectedPath, setSelectedPath] = useState(
     () => REPOSITORY_FILES.find((file) => file.path.endsWith("/web/app/page.tsx"))?.path
       ?? REPOSITORY_FILES[0]?.path
@@ -40,6 +44,38 @@ export default function CodebaseExplorer() {
       files: visibleFiles.filter((file) => file.areaId === areaMeta.id),
     }))
     .filter((group) => group.files.length > 0), [visibleFiles]);
+
+  /** Area order is the explorer's canonical scan order; paging follows it. */
+  const orderedFiles = useMemo(
+    () => groupedFiles.flatMap((group) => group.files),
+    [groupedFiles],
+  );
+
+  const activeFile = visibleFiles.find((file) => file.path === selectedPath) ?? visibleFiles[0] ?? null;
+  const activeArea = activeFile ? repositoryArea(activeFile.areaId) : null;
+  const selectedIndex = activeFile
+    ? orderedFiles.findIndex((file) => file.path === activeFile.path)
+    : 0;
+  const pageCount = Math.max(1, Math.ceil(orderedFiles.length / CODEBASE_PAGE_SIZE));
+  const selectedPage = Math.max(0, Math.floor(selectedIndex / CODEBASE_PAGE_SIZE));
+  const activePage = repositoryPageIndex === null
+    ? selectedPage
+    : Math.min(repositoryPageIndex, pageCount - 1);
+  const pageStart = activePage * CODEBASE_PAGE_SIZE;
+  const pagedFiles = useMemo(
+    () => orderedFiles.slice(pageStart, pageStart + CODEBASE_PAGE_SIZE),
+    [orderedFiles, pageStart],
+  );
+  const pagedGroups = useMemo(() => {
+    const pagePaths = new Set(pagedFiles.map((file) => file.path));
+    return groupedFiles
+      .map((group) => ({
+        ...group,
+        total: group.files.length,
+        files: group.files.filter((file) => pagePaths.has(file.path)),
+      }))
+      .filter((group) => group.files.length > 0);
+  }, [groupedFiles, pagedFiles]);
 
   /**
    * Publishes the summary bar's measured height as `--codebase-summary-h`, which
@@ -69,8 +105,14 @@ export default function CodebaseExplorer() {
     return () => observer.disconnect();
   }, []);
 
-  const activeFile = visibleFiles.find((file) => file.path === selectedPath) ?? visibleFiles[0] ?? null;
-  const activeArea = activeFile ? repositoryArea(activeFile.areaId) : null;
+  const setRepositoryPage = (nextPage: number) => {
+    const bounded = Math.max(0, Math.min(nextPage, pageCount - 1));
+    setRepositoryPageIndex(bounded);
+    const firstFile = orderedFiles[bounded * CODEBASE_PAGE_SIZE];
+    if (firstFile) setSelectedPath(firstFile.path);
+    const scroller = summaryRef.current?.parentElement;
+    if (scroller) scroller.scrollTop = 0;
+  };
 
   return (
     <div className="card codebase-explorer">
@@ -113,29 +155,11 @@ export default function CodebaseExplorer() {
         </div>
       </div>
 
-      {/* Provenance and scope, folded: what the snapshot may not do, the
-          command that remakes it, and the commit it was generated at are read
-          once and not on every visit. Nothing measured moves — the "As of"
-          date and all four counts stay in the stats strip above, where they
-          qualify the figures a reader actually takes from this card, and the
-          strip is why folding this leaves numbers rather than a blank. The
-          summary names the three things inside and answers none of them.
-
-          The `<span>` is one line now so the sentence is one contiguous run of
-          source: the `{" "}` it used to need was an artefact of the wrap, not
-          rendered text, and the pinning assertion in
-          `tests/disclosure-developer.test.ts` compares collapsed source. Same
-          words, same spacing, same render. */}
-      <details className="codebase-explorer__notice disclosure">
-        <summary>Snapshot scope, refresh command and manifest commit</summary>
-        {/* One source line, deliberately: JSX strips newline-adjacent
-            whitespace between elements, so splitting these across lines glued
-            "snapshot." to "Refresh" on screen while the collapsed-source pin in
-            `tests/disclosure-developer.test.ts` — which sees the newline as a
-            space — kept passing. The renderer and the test must read the same
-            byte, and only a same-line space is the same byte in both. */}
-        <strong>Read-only repository snapshot.</strong> <span>Refresh with <code>npm run catalog:refresh</code> when files are added or removed; manifest <code>{REPOSITORY_MANIFEST_PROVENANCE.commit}</code>.</span>
-      </details>
+      <p className="codebase-explorer__provenance">
+        <strong>Read-only repository snapshot.</strong>{" "}
+        Refresh with <code>npm run catalog:refresh</code> when files are added or removed; manifest commit{" "}
+        <code>{REPOSITORY_MANIFEST_PROVENANCE.commit}</code>.
+      </p>
 
       <div className="codebase-explorer__toolbar">
         <label className="codebase-explorer__search">
@@ -143,13 +167,22 @@ export default function CodebaseExplorer() {
           <input
             type="search"
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setRepositoryPageIndex(null);
+            }}
             placeholder="Path, type, language or area…"
           />
         </label>
         <label>
           <span>Code area</span>
-          <select value={area} onChange={(event) => setArea(event.target.value as RepositoryAreaId | "all")}>
+          <select
+            value={area}
+            onChange={(event) => {
+              setArea(event.target.value as RepositoryAreaId | "all");
+              setRepositoryPageIndex(null);
+            }}
+          >
             <option value="all">All code areas</option>
             {REPOSITORY_AREAS.map((areaMeta) => (
               <option key={areaMeta.id} value={areaMeta.id}>{areaMeta.label}</option>
@@ -157,24 +190,56 @@ export default function CodebaseExplorer() {
           </select>
         </label>
         {(query || area !== "all") && (
-          <button type="button" onClick={() => { setQuery(""); setArea("all"); }}>
+          <button type="button" onClick={() => { setQuery(""); setArea("all"); setRepositoryPageIndex(null); }}>
             Clear filters
           </button>
         )}
       </div>
 
       <div className="codebase-explorer__layout">
-        <aside className="codebase-filelist" aria-label="Repository files">
+        <aside className="codebase-filelist" aria-label={REPOSITORY_FILES_LABEL}>
           <div className="codebase-filelist__summary" aria-live="polite" ref={summaryRef}>
-            <span>{visibleFiles.length} of {REPOSITORY_FILES.length} paths</span>
-            <small>{groupedFiles.length} code areas</small>
+            <div>
+              <span>{visibleFiles.length} of {REPOSITORY_FILES.length} paths</span>
+              <small>{groupedFiles.length} code areas</small>
+            </div>
+            {orderedFiles.length ? (
+              <div className="codebase-filelist__pagination" role="group" aria-label={REPOSITORY_FILES_LABEL}>
+                <button
+                  type="button"
+                  onClick={() => setRepositoryPage(activePage - 1)}
+                  disabled={activePage === 0}
+                  aria-label={[REPOSITORY_FILES_LABEL, activePage].join(" ")}
+                >
+                  ‹
+                </button>
+                <select
+                  value={activePage}
+                  onChange={(event) => setRepositoryPage(Number(event.target.value))}
+                  aria-label={REPOSITORY_FILES_LABEL}
+                >
+                  {Array.from({ length: pageCount }, (_, index) => (
+                    <option key={index} value={index}>{index + 1}</option>
+                  ))}
+                </select>
+                <span>/{pageCount}</span>
+                <button
+                  type="button"
+                  onClick={() => setRepositoryPage(activePage + 1)}
+                  disabled={activePage === pageCount - 1}
+                  aria-label={[REPOSITORY_FILES_LABEL, activePage + 2].join(" ")}
+                >
+                  ›
+                </button>
+              </div>
+            ) : null}
           </div>
           {groupedFiles.length ? (
-            groupedFiles.map((group) => (
+            pagedGroups.map((group) => (
               <section className="codebase-filegroup" key={group.area.id}>
                 <h3>
                   <span>{group.area.shortLabel}</span>
-                  <small className="num">{group.files.length}</small>
+                  <small className="num">{group.total}</small>
                 </h3>
                 <ul>
                   {group.files.map((file) => {
@@ -278,19 +343,6 @@ export default function CodebaseExplorer() {
                 <p>{activeArea.description}</p>
               </div>
 
-              {/* This was already a disclosure written as a div: a question in
-                  a <strong> above a <p> answering it. Making it one moves the
-                  question verbatim into the <summary>, so no new prose is
-                  invented and the answer is one click rather than always on.
-                  It is guidance about a workflow that happens elsewhere, not a
-                  fact about the selected path — the purpose line, the meta list,
-                  the area responsibility block and the source link all stay. */}
-              <details className="codebase-detail__safe-edit disclosure">
-                <summary>Ready to change it?</summary>
-                <p>
-                  File or link a work item; the contract, parity, type and build gates verify it.
-                </p>
-              </details>
             </>
           ) : (
             <div className="codebase-detail__empty">
