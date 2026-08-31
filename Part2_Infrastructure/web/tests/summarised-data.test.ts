@@ -153,9 +153,9 @@ const REWRITES: Rewrite[] = [
   },
   {
     file: "components/data/DataQualityLedger.tsx",
-    what: "the escalation-rule disclosure's summary",
+    what: "the escalation-rule context heading",
     before: "<summary>What opens one of these, and what closes it again?</summary>",
-    after: "<summary>What opens one of these, and what closes it?</summary>",
+    after: "<strong>What opens one of these, and what closes it?</strong>",
     facts: ["What opens one of these", "what closes it", "a fatal burst or a fail rate over threshold, per provider; auto-resolved when it clears."],
   },
   {
@@ -332,7 +332,6 @@ const VOCABULARY: Array<[token: string, where: string]> = [
   ["tick_seconds", "components/data/ReplayBackfillPanel.tsx"],
   ["retentionDays", "components/data/DataQualityLedger.tsx"],
   ["Telegram", "components/data/DataQualityLedger.tsx"],
-  ["‹sample›", "components/data/DataWorkBoard.tsx"],
   ["work-in-progress limit of", "components/data/DataWorkBoard.tsx"],
   ["PROGRESS_WIP_LIMIT", "components/data/data-console-metrics.tsx"],
   ["held in reserve", "components/data/QuotaHeadroom.tsx"],
