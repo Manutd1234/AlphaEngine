@@ -29,7 +29,7 @@ export default function FileReading({ data, requested, loading }: {
         // a pending state's clothes. Measured: `markets/shell` → Reading was
         // the only view on either tab that never stopped loading.
         loading ? (
-          <p className="console-empty muted">Reading {requested}…</p>
+          <p className="console-empty muted" role="status" aria-busy="true">Reading {requested}…</p>
         ) : (
           <>
             <p className="console-empty">
@@ -66,8 +66,10 @@ export default function FileReading({ data, requested, loading }: {
         </p>
       ) : (
         <p className="console-empty">
-          <span aria-hidden="true">◌</span> The file is listed and this read produced no body: the path exists, the
-          reading does not, in this read.
+          <span aria-hidden="true">◌</span>{" "}
+          {data.detail
+            ? `The file could not be read: ${data.detail}.`
+            : "The file is listed and this read produced no body: the path exists, the reading does not, in this read."}
         </p>
       )}
     </>
