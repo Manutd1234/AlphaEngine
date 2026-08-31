@@ -67,6 +67,13 @@ describe("the forced-colors contract", () => {
       .sort();
     assert.deepEqual(selectors, [".heatmap-cell", ".ladder-row > span[aria-hidden]"]);
   });
+
+  it("keeps the named older-history gap visible after decorative fills are removed", () => {
+    const block = blockBody(queries[0].index);
+    assert.match(block, /\.diff-fan__unmeasured-ground\s*\{\s*fill:\s*Canvas;/);
+    assert.match(block, /\.diff-fan__unmeasured\s*\{[^}]*fill:\s*none;[^}]*stroke:\s*CanvasText;[^}]*stroke-dasharray:\s*4 3;/s);
+    assert.match(block, /\.diff-fan__history-label, \.diff-fan__history-range\s*\{\s*fill:\s*CanvasText;/);
+  });
 });
 
 /**
@@ -99,6 +106,9 @@ describe("the heatmap's kind legend never relies on colour alone", () => {
     const marks = new Set(kinds.map((k) => k.glyph));
     assert.equal(marks.size, 5,
       "two kinds share a glyph, so telling them apart is back to being colour's job");
+
+    assert.match(heatmap, /showKinds \? "var\(--border\)" : "none"/,
+      "categorical cells need a boundary as well as a glyph when adjacent fills converge");
   });
 
   it("renders the glyph beside the label", () => {
