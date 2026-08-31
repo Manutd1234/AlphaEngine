@@ -8,7 +8,9 @@
 #  * requirements-core.txt, not requirements.txt. vectorbt/numba adds hundreds
 #    of megabytes and can fail to compile per-platform; the NumPy backtest
 #    engine is the documented, tested degradation and /health reports which
-#    engine is live. Opt back in with:
+#    engine is live. The focused coherence extra is installed separately below
+#    so the deployed gateway can parse and sign with a configured Kalshi key.
+#    Opt back into the full dependency set with:
 #      --build-arg REQUIREMENTS=requirements.txt
 #
 #  * ONE uvicorn process — no --workers, no gunicorn. The risk gateway holds a
@@ -32,8 +34,9 @@
 #    BUILDER stage — g++ lives there and nowhere else — and only the finished
 #    .so is copied into the runtime, which never sees a compiler. A build that
 #    fails to produce it would surface as `decision_engine: python` on /health,
-#    which deploy.yml treats as unhealthy and rolls back, so a silent fallback
-#    to the slower-to-parity Python path cannot ship unnoticed.
+#    which deploy.yml surfaces as a warning. A native core that loads but fails
+#    its startup known-answer canary sets `ready: false`; the health probe below
+#    then rejects the container so a corrupt compiled path cannot ship.
 
 ARG REQUIREMENTS=requirements-core.txt
 
@@ -47,8 +50,8 @@ WORKDIR /build
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements-core.txt requirements.txt requirements-native.txt ./
-RUN pip install --no-cache-dir --prefix=/install -r "${REQUIREMENTS}"
+COPY requirements-core.txt requirements.txt requirements-native.txt requirements-coherence.txt ./
+RUN pip install --no-cache-dir --prefix=/install -r "${REQUIREMENTS}" -r requirements-coherence.txt
 # The build toolchain (setuptools, pybind11) is builder-local, not in /install,
 # so it never reaches the runtime site-packages.
 RUN pip install --no-cache-dir -r requirements-native.txt
@@ -86,6 +89,6 @@ ENV DATA_DIR=/app/data \
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD ["python", "-c", "import urllib.request,sys;sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=4).status==200 else 1)"]
+  CMD ["python", "-c", "import json,os,pathlib,signal,sys,urllib.request;p=pathlib.Path('/tmp/alphaengine-health-failures');ok=False\ntry:\n r=urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=4);body=json.load(r);ok=r.status==200 and body.get('ready') is True\nexcept Exception:\n pass\nif ok:\n p.unlink(missing_ok=True);sys.exit(0)\ntry:n=int(p.read_text())+1\nexcept Exception:n=1\np.write_text(str(n))\nif n>=3:os.kill(1,signal.SIGTERM)\nsys.exit(1)"]
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
