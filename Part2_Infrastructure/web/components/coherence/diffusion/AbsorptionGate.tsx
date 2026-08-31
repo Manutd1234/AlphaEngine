@@ -65,7 +65,7 @@ export function absorptionNotice(read: AbsorptionRead | null, error: string | nu
       </p>
     );
   }
-  if (!read) return <p className="console-empty muted">Reading the absorption ledger…</p>;
+  if (!read) return <p className="console-empty muted" role="status" aria-busy="true">Reading the absorption ledger…</p>;
   if (read.state !== "ok") {
     return (
       <p className="console-empty">
