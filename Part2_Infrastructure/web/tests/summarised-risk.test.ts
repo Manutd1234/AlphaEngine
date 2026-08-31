@@ -376,9 +376,11 @@ describe("the tokens a rewrite is most likely to drop", () => {
    */
   it("the headroom verdict counts its days and claims multi-day only when it is", () => {
     const card = stripCode(readSource("components/risk/MonteCarloDistribution.tsx")).replace(/\s+/g, " ");
-    assert.ok(card.includes('over {horizonDays} day{horizonDays === 1 ? "" : "s"}'),
+    assert.ok(card.includes("const displayedHorizonDays = result && driver ? Math.max(1, Math.round(result.horizonBars / (24 / hoursPerBar(driver.interval)))) : horizonDays;"),
+      "the displayed horizon must come from the retained result while a replacement is running");
+    assert.ok(card.includes('over {displayedHorizonDays} day{displayedHorizonDays === 1 ? "" : "s"}'),
       'the banner is back to printing "over 1 days" at the seg\'s 1d choice');
-    assert.ok(card.includes("{horizonDays > 1 && <>A multi-day loss"),
+    assert.ok(card.includes("{displayedHorizonDays > 1 && <>A multi-day loss"),
       "the multi-day qualifier is ungated again: at a one-day horizon the card calls an "
       + "exact comparison a conservative one");
   });
