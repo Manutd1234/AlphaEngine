@@ -32,7 +32,7 @@
  * same information read once.
  */
 
-import { memo } from "react";
+import { memo, useState } from "react";
 
 import { DIAGRAM_LABEL_PX, truncateMiddle } from "@/lib/coherence/label-metrics";
 import { fmt } from "@/lib/format";
@@ -50,6 +50,23 @@ const BAND_T = 2;
 const P_RULE = 0.05;
 /** Mark AREA scales with n: r = sqrt(n) × this. Sixty-one meetings draw at r 9, twenty-six at r 5.9. */
 const R_PER_SQRT_N = 1.15;
+
+export type EvidenceStage = "all" | "release" | "call";
+
+export function qualifyingEvidence(
+  findings: readonly Finding[],
+  stage: EvidenceStage,
+  minAbsT: number,
+  maxP: number,
+): Finding[] {
+  return findings.filter((row) =>
+    (stage === "all" || row.stage === "both" || row.stage === stage)
+    && row.t_statistic != null
+    && row.shuffled_p != null
+    && Math.abs(row.t_statistic) >= minAbsT
+    && row.shuffled_p <= maxP,
+  );
+}
 
 const VERDICT_WORD: Record<Finding["verdict"], string> = {
   holds: "holds",
@@ -92,10 +109,22 @@ function noteGroups(findings: readonly Finding[]): { note: string; rows: number 
 }
 
 function EffectField({ findings }: { findings: readonly Finding[] }) {
-  const points = placed(findings);
-  const undrawn = findings.length - points.length;
+  const [stage, setStage] = useState<EvidenceStage>("all");
+  const [minAbsT, setMinAbsT] = useState(BAND_T);
+  const [maxP, setMaxP] = useState(P_RULE);
+  const allPoints = placed(findings);
+  const tSliderMax = Math.max(
+    AXIS_MAX,
+    Math.ceil(Math.max(0, ...allPoints.map((point) => Math.abs(point.t))) * 4) / 4,
+  );
+  const points = allPoints.filter((point) =>
+    stage === "all" || point.row.stage === "both" || point.row.stage === stage,
+  );
+  const undrawn = findings.length - allPoints.length;
   const holds = points.filter((pt) => pt.row.verdict === "holds");
   const nulls = points.filter((pt) => pt.row.verdict !== "holds");
+  const qualifying = qualifyingEvidence(findings, stage, minAbsT, maxP);
+  const qualifyingKeys = new Set(qualifying.map((row) => `${row.name}-${row.stage}`));
   const holdN = [...new Set(holds.map((pt) => pt.row.n))].sort((a, b) => a - b);
   const nullN = [...new Set(nulls.map((pt) => pt.row.n))].sort((a, b) => a - b);
   const notes = noteGroups(findings);
@@ -127,10 +156,31 @@ function EffectField({ findings }: { findings: readonly Finding[] }) {
           + `not placed; the table counts ${undrawn === 1 ? "it" : "them"}.`
         : null}
     >
+      <div className="diff-evidence-controls">
+        <div className="diff-lens diff-lens--inside" role="group" aria-label="Evidence stages">
+          {(["all", "release", "call"] as const).map((option) => (
+            <button key={option} type="button" aria-pressed={stage === option}
+                    onClick={() => setStage(option)}>
+              {option === "all" ? "All stages" : option === "release" ? "Statement" : "Conference"}
+            </button>
+          ))}
+          <span className="diff-lens__readout" aria-live="polite">{qualifying.length} clear rules</span>
+        </div>
+        <label>
+          <span>Minimum |t|</span><strong className="num">{minAbsT.toFixed(1)}</strong>
+          <input type="range" aria-label="Minimum absolute t" min={0} max={tSliderMax} step={0.25}
+                 value={minAbsT} onChange={(event) => setMinAbsT(Number(event.currentTarget.value))} />
+        </label>
+        <label>
+          <span>Maximum shuffled p</span><strong className="num">{maxP.toFixed(2)}</strong>
+          <input type="range" aria-label="Maximum shuffled p" min={0} max={1} step={0.01}
+                 value={maxP} onChange={(event) => setMaxP(Number(event.currentTarget.value))} />
+        </label>
+      </div>
       {points.length ? (
-        <Plot height={height} minWidth={560}>
+        <Plot height={height}>
           {(width) => {
-            const span = Math.max(240, width - MARGIN.left - MARGIN.right);
+            const span = Math.max(160, width - MARGIN.left - MARGIN.right);
             const x = (t: number) =>
               MARGIN.left + ((Math.max(-AXIS_MAX, Math.min(AXIS_MAX, t)) + AXIS_MAX) / (2 * AXIS_MAX)) * span;
             const y = (p: number) => MARGIN.top + Math.min(1, Math.max(0, p)) * PLOT_H;
@@ -148,14 +198,14 @@ function EffectField({ findings }: { findings: readonly Finding[] }) {
               <>
                 <text className="coh-svg-label" x={MARGIN.left} y={MARGIN.top - 22}>shuffled p</text>
                 <text className="coh-svg-note" x={x(0)} y={MARGIN.top - 8} textAnchor="middle">chance could do this</text>
-                <rect className="diff-band" x={x(-BAND_T)} y={MARGIN.top} width={x(BAND_T) - x(-BAND_T)} height={PLOT_H}>
+                <rect className="diff-band" x={x(-minAbsT)} y={MARGIN.top} width={x(minAbsT) - x(-minAbsT)} height={PLOT_H}>
                   <title>Inside this band a shuffled pairing reaches the same t about as often</title>
                 </rect>
                 <line className="diff-field__zero" x1={x(0)} x2={x(0)} y1={MARGIN.top} y2={base} />
-                <line className="diff-field__rule" x1={MARGIN.left} x2={MARGIN.left + span} y1={y(P_RULE)} y2={y(P_RULE)}>
-                  <title>{`p ${P_RULE}: above this rule a shuffled pairing did as well fewer than one time in twenty`}</title>
+                <line className="diff-field__rule" x1={MARGIN.left} x2={MARGIN.left + span} y1={y(maxP)} y2={y(maxP)}>
+                  <title>{`p ${maxP.toFixed(2)}: adjustable shuffled-p evidence rule`}</title>
                 </line>
-                <text className="coh-ladder__tick" x={MARGIN.left + 4} y={y(P_RULE) - 4}>{`p ${P_RULE}`}</text>
+                <text className="coh-ladder__tick" x={MARGIN.left + 4} y={y(maxP) - 4}>{`p ${maxP.toFixed(2)}`}</text>
                 <line className="diff-field__axis" x1={MARGIN.left} x2={MARGIN.left + span} y1={base} y2={base} />
                 <line className="diff-field__axis" x1={MARGIN.left} x2={MARGIN.left} y1={MARGIN.top} y2={base} />
                 {[0, 0.25, 0.5, 0.75, 1].map((p) => (
@@ -185,10 +235,11 @@ function EffectField({ findings }: { findings: readonly Finding[] }) {
                   const r = rOf(pt.row.n);
                   const stage = pt.row.stage === "call" ? "call" : "release";
                   const filled = pt.row.verdict === "holds";
-                  const cls = `diff-field__mark diff-field__mark--${stage}${filled ? "" : " is-absent"}`;
+                  const key = `${pt.row.name}-${pt.row.stage}`;
+                  const cls = `diff-field__mark diff-field__mark--${stage}${filled ? "" : " is-absent"}`
+                    + `${qualifyingKeys.has(key) ? " is-qualified" : ""}`;
                   const title = `${label(pt)}: t ${pt.t > 0 ? "+" : ""}${fmt(pt.t, 2)}, p ${pWord(pt.p)}, n ${pt.row.n}`
                     + ` — ${VERDICT_WORD[pt.row.verdict]}`;
-                  const key = `${pt.row.name}-${pt.row.stage}`;
                   return stage === "call" ? (
                     <path key={key} className={cls} d={triangle(cx, cy, r)}>
                       <title>{title}</title>
