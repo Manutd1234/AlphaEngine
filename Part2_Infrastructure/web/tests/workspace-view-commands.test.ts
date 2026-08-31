@@ -19,7 +19,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { buildCommands, type CommandDeps } from "../lib/workspace-commands";
-import { COHERENCE_SECTIONS, MARKETS_SECTIONS } from "../lib/sections";
+import { COHERENCE_SECTIONS, DIFFUSION_SECTIONS, MARKETS_SECTIONS, RESEARCH_SECTIONS } from "../lib/sections";
 import { defaultView, viewsFor, VIEWS_BY_TAB } from "../lib/section-views";
 import { NAV_ITEMS } from "../lib/workspace-nav";
 import { read } from "./helpers/workspace-sources";
@@ -37,7 +37,12 @@ function deps(): CommandDeps {
   });
 }
 
-const RAILS: Record<string, ReadonlyArray<{ id: string; label: string }>> = { markets: MARKETS_SECTIONS, coherence: COHERENCE_SECTIONS };
+const RAILS: Record<string, ReadonlyArray<{ id: string; label: string }>> = {
+  research: RESEARCH_SECTIONS,
+  markets: MARKETS_SECTIONS,
+  coherence: COHERENCE_SECTIONS,
+  diffusion: DIFFUSION_SECTIONS,
+};
 const navLabel = (tab: string) => NAV_ITEMS.find((item) => item.id === tab)?.label ?? tab;
 
 describe("one palette entry per non-default view, from the table", () => {
