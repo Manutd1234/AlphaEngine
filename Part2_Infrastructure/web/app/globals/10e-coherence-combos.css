@@ -63,13 +63,6 @@
   background: var(--surface-1);
 }
 
-.coh-combo__title {
-  margin: 0;
-  font-size: var(--fs-lg);
-  font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
-}
-
 .coh-combo__meta,
 .coh-combo__caveat,
 .coh-combo__note {
@@ -92,8 +85,6 @@
   font-size: var(--fs-tick);
   color: var(--text-muted);
 }
-
-.coh-combo__chips { display: flex; flex-wrap: wrap; gap: 6px; }
 
 /* The ask caveat sits against the dependence chip above it rather than in a
    footnote, because the chip is the thing it corrects. */
@@ -215,11 +206,15 @@
  * legible without the tint at all.
  */
 .coh-slack__span {
-  stroke: var(--sky-2);
+  /* This span is the measured quantity, not a background wash. Keep it
+     opaque and above 3:1 against the plot plane in both themes. */
+  stroke: color-mix(in srgb, var(--series-1) 62%, var(--surface-1));
   stroke-width: 6;
   stroke-linecap: round;
 }
-.coh-slack__span.is-violated { stroke: var(--status-critical); opacity: 0.4; }
+.coh-slack__span.is-violated {
+  stroke: color-mix(in srgb, var(--status-critical) 62%, var(--surface-1));
+}
 
 .coh-slack__bound {
   stroke: var(--text-primary);
