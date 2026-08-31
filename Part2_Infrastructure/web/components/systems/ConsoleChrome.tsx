@@ -45,6 +45,7 @@ export function ConsoleChrome({
   title,
   description,
   status = null,
+  deferMetrics = false,
 }: {
   view: SystemHealthView;
   tiles: ConsoleTile[];
@@ -53,6 +54,8 @@ export function ConsoleChrome({
   description: React.ReactNode;
   /** The one-word verdict, when the console has one. */
   status?: PageStatus | null;
+  /** Keep repeated operational telemetry reachable without restating it above every drill-down. */
+  deferMetrics?: boolean;
 }) {
   const { health, healthError, updatedAt, paused, pollMs, refresh, busyAction } = view;
 
@@ -69,8 +72,9 @@ export function ConsoleChrome({
     <PageHead
       kicker={kicker}
       title={title}
+      showTitle={false}
       description={description}
-      metrics={metrics}
+      metrics={deferMetrics ? [] : metrics}
       status={status}
       actions={
         <>
@@ -89,6 +93,39 @@ export function ConsoleChrome({
           </div>
         </div>
       )}
+      {deferMetrics && tiles.length > 0 ? (
+        <details className="console-metric-disclosure">
+          <summary>{tiles[0].label}</summary>
+          <dl
+            className="page-heading__insights page-context-strip"
+            data-count={tiles.length}
+            aria-label={title}
+          >
+            {tiles.map((tile) => (
+              <div
+                key={tile.label}
+                className={`page-insight page-context-strip__item is-${metricTone(tile.tone)}${tile.onClick ? " is-action" : ""}`}
+              >
+                <dt className="page-context-strip__label">{tile.label}</dt>
+                <dd className="page-context-strip__value"><strong className="num">{tile.value}</strong></dd>
+                <dd className="page-context-strip__note"><span>{tile.note}</span></dd>
+                {tile.onClick ? (
+                  <dd className="page-context-strip__interaction">
+                    <button
+                      type="button"
+                      className="page-context-strip__action"
+                      aria-label={tile.actionLabel}
+                      onClick={tile.onClick}
+                    >
+                      {tile.actionLabel ? <em>{tile.actionLabel}</em> : null}
+                    </button>
+                  </dd>
+                ) : null}
+              </div>
+            ))}
+          </dl>
+        </details>
+      ) : null}
     </PageHead>
   );
 }
