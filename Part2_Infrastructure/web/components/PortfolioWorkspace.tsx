@@ -225,6 +225,7 @@ export default function PortfolioWorkspace({
         intent={handoff}
         onClose={() => setHandoff(null)}
         sandbox={Boolean(book.sandbox)}
+        stale={isStale}
         onExecuted={() => void refresh(true)}
         operatorToken={operatorToken}
       />
