@@ -24,6 +24,7 @@
 
 import { type CSSProperties } from "react";
 
+import DsrSearchDistribution from "@/components/research/DsrSearchDistribution";
 import { SweepResponse } from "@/lib/types";
 import { fmt, trackRecordNote } from "@/lib/format";
 
@@ -122,6 +123,8 @@ export default function Verdict({ data }: { data: SweepResponse }) {
           </tbody>
         </table>
       </div>
+
+      <DsrSearchDistribution data={data} />
 
       {/* No benchmark figures here. The stat row immediately below this card
           carries them where they belong — beside the strategy's own numbers,
