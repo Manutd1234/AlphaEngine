@@ -300,7 +300,7 @@
 .promotion-handoff button.primary-action {
   background: var(--series-1);
   border-color: var(--series-1);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .promotion-handoff button.primary-action:disabled {
@@ -349,61 +349,87 @@
   border-radius: var(--radius-md);
   background: var(--surface-2);
   padding: 0;
+  overflow: hidden;
 }
 
-/* list-item, not flex: the disclosure marker only renders for a list-item, and
-   a summary that has been flexed shows no marker in any browser. This control
-   spent its life looking like a static label with a pill beside it, and the
-   pill — which is a STATE, "flat bps only" — was what people clicked. The row
-   inside carries the flex now, so the layout is unchanged and the marker is
-   back. */
+/* A source-owned marker column keeps the chevron, label and state badge on the
+   same baseline. The old list-item/inline-flex combination guessed the native
+   marker width with `calc(100% - 1.2em)`; that guess drifted between browsers
+   and collided with the late responsive wrapping rule. */
 .friction-group > summary {
   cursor: pointer;
-  display: list-item;
-  list-style-position: inside;
-  padding: 9px 11px;
+  display: grid;
+  grid-template-columns: 0.75rem minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--space-2);
+  min-block-size: 44px;
+  padding: 6px var(--space-3);
+  list-style: none;
   font-size: var(--fs-body);
   font-weight: 600;
   color: var(--text-secondary);
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 
-/* The marker is the affordance, so it gets the ink of a control rather than
-   the muted grey of the label it sits beside. */
-.friction-group > summary::marker {
+.friction-group > summary::-webkit-details-marker {
+  display: none;
+}
+
+.friction-group > summary::before {
+  content: "▸";
+  display: block;
   color: var(--text-secondary);
+  line-height: 1;
+  text-align: center;
+  transform-origin: center;
+  transition: transform var(--dur-fast) var(--ease);
 }
 
-/* inline-flex so it sits on the marker's own line rather than starting a new
-   one under it, which is what a block-level row would do. */
+.friction-group[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.friction-group > summary:hover {
+  background: var(--nav-hover-bg);
+  color: var(--text-primary);
+}
+
+.friction-group[open] > summary {
+  background: var(--control-selected-bg);
+  box-shadow: inset 0 -1px 0 var(--grid);
+}
+
 .friction-group__row {
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  /* One line. The badge is the state and must stay whole; if a narrower
-     viewport ever arrives, the label is what gives, not the answer. */
-  flex-wrap: nowrap;
-  gap: 8px;
-  width: calc(100% - 1.2em);
-  vertical-align: middle;
+  gap: var(--space-2);
+  width: 100%;
+  min-width: 0;
 }
 
 .friction-group__label {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .friction-group > summary:focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--series-1) 35%, transparent);
-  outline-offset: -1px;
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
 }
 
 .friction-group > *:not(summary) {
-  margin: 0 11px 10px;
+  margin: 0 var(--space-3) var(--space-3);
+}
+
+.friction-group > summary + * {
+  margin-top: var(--space-3);
 }
 
 .friction-badge {
+  justify-self: end;
+  max-inline-size: 100%;
+  border: 1px solid transparent;
   font-family: var(--mono);
   font-size: var(--fs-2xs);
   font-weight: 700;
@@ -413,11 +439,21 @@
   border-radius: var(--radius-pill);
   background: var(--surface-3);
   color: var(--text-muted);
+  text-align: end;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .friction-badge.is-on {
-  background: color-mix(in srgb, var(--status-warning) 22%, transparent);
+  border-color: color-mix(in srgb, var(--status-warning) 42%, var(--border));
+  background: var(--state-warning-bg);
   color: var(--warning-text);
+}
+
+.friction-badge.is-pending {
+  border-color: color-mix(in srgb, var(--series-1) 42%, var(--border));
+  background: var(--state-info-bg);
+  color: var(--series-1);
 }
 
 .friction-note {
@@ -565,4 +601,3 @@
   background: var(--surface-1);
   box-shadow: var(--shadow-sm);
 }
-
