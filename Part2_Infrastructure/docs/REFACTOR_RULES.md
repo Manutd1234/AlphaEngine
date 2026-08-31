@@ -1,5 +1,8 @@
 # Splitting a file in this codebase
 
+**Last verified: 2026-08-29.** Paths and examples below were checked after the
+Telegram, metrics and application-lifecycle package splits.
+
 Two ratchets hold the ceiling — `tests/test_file_size.py` and
 `web/tests/file-size.test.ts`. Both are allow-lists that may shrink and must
 not grow. Neither can catch the rule below, which is why it is written here.
@@ -7,9 +10,11 @@ not grow. Neither can catch the rule below, which is why it is written here.
 ## A moved method's function-scope import stays function-scope
 
 The Python import graph is acyclic **only because the cycles were already
-pushed into function bodies.** `modules/telegram.py` alone has 56 function-scope
-`modules.*` imports, and `metrics.py` carries the comment
-`# local: metrics imports first`.
+pushed into function bodies.** The Telegram implementation now lives under
+`modules/telegram/`; its mixins retain function-scope imports into portfolio,
+risk, operations and data-ops modules. `modules/metrics/render.py` and
+`modules/metrics/runtime.py` likewise import lifecycle-owned services inside
+their functions.
 
 The natural instinct when moving a method into a new file is to hoist its local
 import to the top of that file. Do that once — for `_latency_rows`, say, which
