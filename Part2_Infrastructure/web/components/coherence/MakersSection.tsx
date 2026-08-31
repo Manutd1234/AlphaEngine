@@ -47,8 +47,6 @@
  * DEMOTED map. The switcher is a `.seg` and never a nested `<WorkspaceSubtabs>`.
  */
 
-import { useState } from "react";
-
 import RfqPane, { type RfqView } from "./RfqPane";
 import PaneHead from "./PaneHead";
 import SectionFrame from "./SectionFrame";
@@ -70,10 +68,10 @@ export default function MakersSection(
       head={
         <PaneHead
           kicker="Makers"
-          title="What independent makers say about one event"
+          title="Independent maker views of one event"
           id="markets-dispersion-heading"
           note="a signed channel, read only when this section is open"
-          lede="A book publishes the most aggressive opinion on an event rather than the typical one, and this is the only place the venue exposes several professionals answering separately."
+          lede="The signed channel returns independent professional quotes beyond the book’s most aggressive opinion."
         />
       }
       views={VIEWS}
