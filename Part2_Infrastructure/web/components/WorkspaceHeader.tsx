@@ -1,6 +1,6 @@
 "use client";
 
-import { KeyboardEvent, useCallback, useMemo, useRef, useEffect, useState } from "react";
+import { KeyboardEvent, useCallback, useMemo, useRef, useLayoutEffect, useState } from "react";
 import LatencyChip from "@/components/header/LatencyChip";
 import KillSwitchControl, {
   type KillSwitchHaltState,
@@ -25,6 +25,11 @@ import { NAV_ITEMS, type WorkspaceView } from "@/lib/workspace-nav";
 
 export type { WorkspaceView } from "@/lib/workspace-nav";
 export { NAV_ITEMS } from "@/lib/workspace-nav";
+
+const planeLabel = (id: "desk" | "market-engine") =>
+  `${id[0].toUpperCase()}${id.slice(1).replace("-", " ")}`;
+const DESK_PLANE_LABEL = planeLabel("desk");
+const ENGINE_PLANE_LABEL = planeLabel("market-engine");
 
 interface WorkspaceHeaderProps {
   view: WorkspaceView;
@@ -119,7 +124,7 @@ export default function WorkspaceHeader({
    * loop and would read here as the whole desk freezing. WorkspaceSubtabs
    * carries the mirror of this for `--rail-h`, with the measurements.
    */
-  useEffect(() => {
+  useLayoutEffect(() => {
     const node = headerRef.current;
     if (!node || typeof ResizeObserver === "undefined") return;
     const root = document.documentElement;
@@ -197,7 +202,7 @@ export default function WorkspaceHeader({
    * and re-arming the kill switch's memo on that would undo the whole point.
    * Null stays null — a book that has not answered yet is not an un-halted one.
    */
-  const haltedKey = halt ? halt.haltedSymbols.join(" ") : null;
+  const haltedKey = halt ? halt.haltedSymbols.join("\0") : null;
   const haltState = useMemo<KillSwitchHaltState | null>(
     () => (halt ? { halted: halt.halted, haltedSymbols: halt.haltedSymbols, sandbox: halt.sandbox } : null),
     // eslint is not installed here; the deps are the fields, deliberately, and
@@ -231,7 +236,7 @@ export default function WorkspaceHeader({
     : providersTotal != null
       ? degraded
         ? `${degraded} degraded`
-        : `${providersReady ?? 0}/${providersTotal} providers`
+        : `${providersReady ?? 0}/${providersTotal}`
       : "Checking";
   const healthNeedsAttention =
     healthUnreachable
@@ -245,6 +250,12 @@ export default function WorkspaceHeader({
           onClick={() => onViewChange("overview")}
           label="Open AlphaEngine overview"
         />
+
+        {/* One keyboard sequence, two operator planes. These descriptions add
+            meaning for assistive technology without adding a second row or
+            changing any tab's public label. */}
+        <span id="workspace-plane-desk" className="sr-only">{DESK_PLANE_LABEL}</span>
+        <span id="workspace-plane-engine" className="sr-only">{ENGINE_PLANE_LABEL}</span>
 
         <nav
           className="workspace-tabs"
@@ -261,7 +272,11 @@ export default function WorkspaceHeader({
               role="tab"
               aria-label={item.accessibleLabel}
               aria-selected={view === item.id}
-              aria-controls={`panel-${item.id}`}
+              data-plane={index < 8 ? "workflow" : "market-engine"}
+              aria-describedby={index < 8 ? "workspace-plane-desk" : "workspace-plane-engine"}
+              /* Unvisited panels do not exist yet. The active panel always
+                 mounts in the same render, so never publish a dangling id. */
+              aria-controls={view === item.id ? `panel-${item.id}` : undefined}
               tabIndex={view === item.id ? 0 : -1}
               onClick={() => onViewChange(item.id)}
               /* Intent, not arrival. The three console panels are dynamic
@@ -295,15 +310,18 @@ export default function WorkspaceHeader({
             aria-label="Choose AlphaEngine workspace"
             onChange={(event) => onViewChange(event.target.value as WorkspaceView)}
           >
-            {NAV_ITEMS.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.label} — {item.role}
-              </option>
-            ))}
+            <optgroup label={DESK_PLANE_LABEL}>
+              {NAV_ITEMS.slice(0, 8).map((item) => (
+                <option key={item.id} value={item.id}>{item.label} — {item.role}</option>
+              ))}
+            </optgroup>
+            <optgroup label={ENGINE_PLANE_LABEL}>
+              {NAV_ITEMS.slice(8).map((item) => (
+                <option key={item.id} value={item.id}>{item.label} — {item.role}</option>
+              ))}
+            </optgroup>
           </select>
         </label>
-
-        <div className="header-spacer" />
 
         <TelegramCta />
         <button
@@ -339,7 +357,7 @@ export default function WorkspaceHeader({
              floor sized for a hypothetical fleet left ~26px of invisible slack
              here and tripled the visual gap to the account chip. */
           data-widest={providersTotal != null ? `${providersTotal}/${providersTotal} providers routable` : undefined}
-          data-widest-short={providersTotal != null ? `${providersTotal}/${providersTotal} providers` : undefined}
+          data-widest-short={providersTotal != null ? `${providersTotal}/${providersTotal}` : undefined}
         >
           {/* Keyed by snapshot time: each successful poll remounts the dot and
               replays one health-beat ring. Decoration only — the label beside
