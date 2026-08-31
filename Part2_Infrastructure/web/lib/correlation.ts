@@ -17,13 +17,11 @@
 /**
  * Alpha ceiling for a cell fill, in percent.
  *
- * At 75% the deepest tile still clears AA for --text-primary in both palettes
- * (4.64:1 dark, 4.96:1 light); at 80% dark falls to 4.24:1 and the printed
- * number — the whole point of the encoding — stops clearing. The previous value
- * was 55%, which was safe and also flat: 0.5 and 0.9 landed 22 percentage
- * points of alpha apart and read as the same blue.
+ * At 60% the deepest red and brown/blue tiles keep their printed values above
+ * AA in both palettes while the cell itself remains visibly distinct from its
+ * plane. The palette contract is exercised in correlation-colour-contrast.test.ts.
  */
-export const CORR_ALPHA_MAX = 75;
+export const CORR_ALPHA_MAX = 60;
 
 /**
  * Fill for a correlation in [-1, 1].
