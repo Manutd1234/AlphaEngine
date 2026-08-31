@@ -25,12 +25,10 @@
  * failure codes and never guessed:
  *
  *   live          the gateway answered; everything is authoritative
- *   sandbox       there IS no gateway in this deployment
- *                 (`gateway_not_configured` from every route) — the desk runs
- *                 on generated, banner-labelled data, and the ticket judges
- *                 orders locally with the gateway's own gate logic
- *   outage        a gateway is configured but failing — nothing is generated,
- *                 because fake data is most dangerous during a real incident
+ *   sandbox       the reader explicitly chose generated, banner-labelled data;
+ *                 the ticket judges orders locally with the gateway's gate logic
+ *   outage        no gateway payload is available — whether absent or failing,
+ *                 nothing is generated until the reader asks for the sandbox
  *
  * What is in THIS file is the composition: which panels exist, which subtab
  * each belongs to, and which pane of a subtab is open. The poll that feeds
