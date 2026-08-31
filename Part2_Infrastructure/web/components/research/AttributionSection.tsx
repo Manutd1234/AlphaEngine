@@ -42,6 +42,8 @@ export interface AttributionSectionProps {
   targetSymbol: string;
   targetInterval: string;
   onRerun: () => void;
+  onChooseBenchmark: () => void;
+  benchmarkReachNote: string | null;
 }
 
 export default function AttributionSection({
@@ -52,6 +54,8 @@ export default function AttributionSection({
   targetSymbol,
   targetInterval,
   onRerun,
+  onChooseBenchmark,
+  benchmarkReachNote,
 }: AttributionSectionProps) {
   // A pane inside Attribution, not a section: it is not a deep link. A fixed
   // default, never a tier-derived one; both panes exist at every level.
@@ -98,6 +102,8 @@ export default function AttributionSection({
             <BenchmarkPanel
               comparison={data.benchmarkComparison}
               requested={data.request.benchmarkSymbol}
+              onChooseBenchmark={onChooseBenchmark}
+              reachNote={benchmarkReachNote}
             />
           </div>
         )}
