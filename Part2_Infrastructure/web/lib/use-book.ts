@@ -73,8 +73,9 @@ export function useBook(): BookView {
   const { state: source, observe, choose, restore } = useDeskSource<PortfolioPayload>();
 
   const sandbox = source.showing.kind === "generated";
+  const gatewayUnconfigured = source.failure?.code === "gateway_not_configured";
   // An explicit click on either side of the Live/Sandbox toggle is a decision;
-  // the machine's auto-entry never overrides one. Session-scoped on purpose —
+  // background probes never override one. Session-scoped on purpose —
   // a fresh visit starts from the same defaults a reviewer's first visit does.
   const setSandbox = useCallback((on: boolean) => {
     try { sessionStorage.setItem("alphaengine-book-source", on ? "sandbox" : "live"); } catch { /* private mode */ }
@@ -109,8 +110,8 @@ export function useBook(): BookView {
    * and a real number on hydration — React would paint one generated book and
    * silently replace it with a different one, numbers and all, with no error to
    * say why. Resolving it in an effect makes the first client render match the
-   * server's by construction, and the sandbox is normally entered by an effect
-   * anyway once a probe has failed.
+   * server's by construction. The sandbox is entered only by an explicit
+   * interaction, which necessarily happens after that mount effect.
    */
   const [seed, setSeed] = useState<number | undefined>(undefined);
   useEffect(() => {
@@ -242,28 +243,31 @@ export function useBook(): BookView {
    * The poll stays underneath: the fallback for a deployment with no stream and
    * the backstop for one that dies quietly. A signal, never the only way.
    */
-  const stream = useStreamedRefresh(() => refresh(true), !sandbox);
+  const stream = useStreamedRefresh(
+    () => refresh(true),
+    !sandbox && !gatewayUnconfigured,
+  );
 
   /*
    * While the sandbox is on there is nothing to poll: the book is generated
-   * locally and the gateway probe already ran once. Leaving the interval
-   * running cost four dead 503s a minute and a needless re-render per tick.
+   * locally and the gateway probe already ran once. An explicitly unconfigured
+   * deployment also stays quiet until the reader retries or chooses Live.
+   * Leaving the interval running cost four dead 503s a minute and a needless
+   * re-render per tick.
    */
   usePolling({
     // `refresh` resolved either way, so maxBackoffMs below never engaged.
     tick: async () => { if (!await refresh(true)) throw new Error("book refresh failed"); },
     intervalMs: REFRESH_MS,
     maxBackoffMs: 120_000,
-    enabled: !sandbox,
+    enabled: !sandbox && !gatewayUnconfigured,
   });
 
   /*
-   * Auto-entry into the sandbox on a settled failure — for any reason, not
-   * only `gateway_not_configured` — used to be an effect here. It is now a
-   * rule in the machine, which is strictly stronger: the effect only ran while
-   * `portfolio` was null, so "a cached payload beats a generated one" was a
-   * guard to remember; the machine cannot enter the sandbox with a reading in
-   * hand at all. The doctrine and its argument are on `DeskSourceMachine`.
+   * Auto-entry into the sandbox on a settled failure used to be an effect here.
+   * The source machine now reports unavailable instead; only `setSandbox(true)`
+   * can generate a book. A cached measured payload still survives later
+   * failures, and the machine owns that hysteresis centrally.
    */
 
   // Daily closes for whatever the book holds. The gateway knows the positions
