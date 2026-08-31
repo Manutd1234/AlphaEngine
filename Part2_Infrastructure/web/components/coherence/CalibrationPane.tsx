@@ -29,32 +29,38 @@ import { calibrationRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import CalibrationSettled, { type SettledView } from "./CalibrationSettled";
 import PaneHead from "./PaneHead";
+import ProofsViewControl from "./ProofsViewControl";
+import ProofsTransportNotice from "./ProofsTransportNotice";
 
-// TWO VIEWS, NOT THREE. `corpus` moved to its own section on 2026-08-25: what
-// the score was computed on is a different question from what the score is,
-// and this section was the tallest on the tab at 2,273px carrying both.
-// `SettledView` keeps the third member because `CorpusSection` renders the
-// same shell with it — the chips, the horizon and the four absences are corpus
-// facts as much as score facts, and drawing them twice would be two answers.
+// Six short destinations keep each task within a single viewport: the
+// headline verdict, equation, component scale, exact measures, reliability,
+// and band records.
+// `corpus` remains a member because `CorpusSection` renders the same settled
+// shell with it.
 const VIEWS: ReadonlyArray<[SettledView, string]> = [
-  ["score", "Score"],
+  ["score", "Overview"],
+  ["decomposition", "Equation"],
+  ["components", "Component scale"],
+  ["measures", "Measures"],
+  ["reliability", "Reliability"],
   ["bands", "Bands"],
 ];
 
 export default function CalibrationPane({ active, view, onView }: { active: boolean; view: SettledView; onView: (next: SettledView) => void }) {
-  const { data, error } = useCoherenceRead<CoherenceCalibration>(calibrationRoute(), active);
+  const read = useCoherenceRead<CoherenceCalibration>(calibrationRoute(), active);
+  const { data, error } = read;
 
   return (
     <section className="card console-card coh-calib" aria-labelledby="coherence-calibration-heading">
       <PaneHead
         kicker="Scorecard"
-        title="Were the prices right, on what has settled"
+        title="Settled Brier calibration"
         id="coherence-calibration-heading"
-        note={data ? `${data.engine} prices` : "the settled corpus"}
+        note={data ? `${data.engine}; settled corpus` : "settled corpus"}
+        ledeSummary="Calibration question"
         lede={
           <>
-            A price vector can be arbitrage-free and still be wrong about the world, so this scores
-            calibration instead: of the contracts priced near a dime, how many paid?
+            Arbitrage-free does not mean calibrated: of contracts priced near 10¢, how many paid?
           </>
         }
       />
@@ -63,15 +69,24 @@ export default function CalibrationPane({ active, view, onView }: { active: bool
           switch view without scrolling back to the head. One row per section is
           the rule this rail already kept; wrapping it is what made it pinnable. */}
       <div className="coh-bar">
-        <div className="seg" role="group" aria-label="Scorecard view">
-          {VIEWS.map(([name, label]) => (
-            <button key={name} type="button" aria-pressed={view === name} onClick={() => onView(name)}>
-              {label}
-            </button>
-          ))}
-        </div>
+        <ProofsViewControl
+          className="seg"
+          label="Scorecard view"
+          options={VIEWS}
+          value={view}
+          onValue={onView}
+        />
       </div>
 
+      <ProofsTransportNotice
+        subject="Scorecard read"
+        error={error}
+        hasSnapshot={Boolean(data)}
+        transport={read.transport}
+        retryAt={read.retryAt}
+        consecutiveFailures={read.consecutiveFailures}
+        onRetry={read.refresh}
+      />
       <CalibrationSettled data={data} error={error} view={view} />
     </section>
   );
