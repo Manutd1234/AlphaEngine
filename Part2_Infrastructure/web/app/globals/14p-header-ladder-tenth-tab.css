@@ -46,9 +46,10 @@
      rung 2    1850      rung 6        1583      rung 10       1167
      rung 3    1790      rung 7        1518      rung 11       1059
 
-   Each rung is set at the PREVIOUS figure rounded up to a ten — the width at
-   which the state above it stops fitting — giving 2050, 1950, 1850, 1790,
-   1720, 1660, 1590, 1520, 1380, 1280, 1170.
+   Each rung is set at the width where the state above it stops fitting. The
+   command trigger is now a compact 56×40px target and the tab strip is
+   content-led. Re-swept on 2026-08-28: the six representative desktop widths
+   keep every tab unsqueezed with no more than one rounding pixel of overflow.
    `tests/header-wide-width.test.ts` holds that list as a snapshot and
    `tests/header-ladder.test.ts` holds what each rung sheds.
 
@@ -87,14 +88,13 @@
    tab with the reader's vocabulary is the trade this ladder's own ordering rule
    already refuses.
 
-   SO THE PADDING PAID, WHICH IS WHAT THE PARAGRAPH ABOVE RESERVED IT FOR. The
-   base inline pad goes 8px → 6px (`01-workspace-shell.css`), and rung 8's goes
-   5px → 4px. Eleven tabs at 4px a side is 44px at the wide end and 22px at the
+   SO THE PADDING PAID, WHICH IS WHAT THE PARAGRAPH ABOVE RESERVED IT FOR. Rung
+   1's inline pad is now 5px and rung 8's remains 4px. Eleven tabs at 4px a side is 44px at the wide end and 22px at the
    narrow end, and it hides nothing at any width: no word, no label, no font
    size — the type scale is untouched and rung 8's own font-size step is where
-   it was. Re-swept 2100 → 910 with both values in place: **no clipping at any
-   width**. The same sweep with only the base pad changed still clipped at seven
-   narrow widths, which is why rung 8 moved too.
+   it was. At the final one-row band the lead-in compacts 12px → 4px and the
+   button inset 4px → 2px; the 1120px browser probe then clears with one
+   subpixel rounding pixel and no squeezed label.
 
    WHAT WAS MEASURED AND REJECTED. Giving the word "Settings" back — the reader
    asked why it was "hidden" — costs more than the padding buys: restoring
@@ -108,9 +108,11 @@
    moved with the measurement: rung 8's `padding-inline` and the base
    `padding: 8px 8px` that `reader-round-tabs-and-figure-tables.test.ts` holds.
 
-   AND THE HEADROOM IS SPENT. A TWELFTH tab has nothing left to take: the
-   padding was the last thing on this row that could be given up without costing
-   a reader a word. The next tab needs the row to stop being one row.
+   AND THE HEADROOM IS SPENT. A TWELFTH tab cannot join the fully expanded
+   one-row layout without taking a reader's words. Below rung 7 the rail now
+   keeps those destinations intact inside its own horizontal scrollport; the
+   operator controls stay on the same row and remain fixed against the right
+   inset.
 
    ────────────────────────────────────────────────────────────────────────
    TWO ROWS WAS TRIED, MEASURED, AND REVERTED ON THE READER'S INSTRUCTION.
@@ -142,14 +144,21 @@
    "Settings". That is the price of one row, and it is a decision rather than a
    defect.
 
-   The measurement is a `flex: 1` trap worth recording: `header-spacer` absorbs
-   the surplus, so at any width the row FITS the rightmost control is flush
-   right and a right-edge measurement reports the viewport back at you. The
-   first attempt at this reported "2400px" nine times and looked like nine rungs
-   that saved nothing.
+   Measure the row's `scrollWidth`, never the rightmost child's position: flex
+   alignment can make the last edge report the viewport even when intermediate
+   whitespace is doing the work. The first attempt at this reported "2400px"
+   nine times and looked like nine rungs that saved nothing.
    ========================================================================== */
 
-/* Rung 4 (≤1790): the brand tagline, leaving the wordmark.
+/* Header navigation and operator controls share the requested h-10 target.
+   The wrappers remain unsized so anchored panels keep their positioning box;
+   only the interactive child receives the floor. */
+.workspace-header__utility > :is(button, a),
+.workspace-header__utility > .header-anchor > :is(button, a) {
+  min-height: 42px;
+}
+
+/* Rung 4 (≤1790): the brand tagline and the decision chip's verbose copy.
 
    Promoted here from the tab rung on 2026-08-24. It is the only thing on the
    row that is pure decoration — "QUANT OPERATING SYSTEM" restates the wordmark
@@ -182,7 +191,61 @@
   }
 }
 
-/* Rung 11 (≤1170): the wordmark itself, leaving the α mark alone.
+/* Rung 7 (≤1590): the complete borderless destination rail stays in the
+   header. It owns the remaining width and scrolls internally when its labels
+   need more, so the operator cluster never leaves the row and the Settings
+   control still reaches the right inset. Keyboard focus scrolls a tab into
+   view natively; touch and trackpad users can pan the same contained rail.
+
+   The labelled <select> remains the phone navigation below 900px. Showing it
+   here created a boxed 260px island that replaced every old-Alpha-style tab.
+   The provider destination still compacts to its state dot in this rung; its
+   complete sentence remains the accessible name. */
+@media (min-width: 901px) and (max-width: 1590px) {
+  .workspace-header__utility {
+    flex-wrap: nowrap;
+  }
+
+  .workspace-tabs {
+    display: flex;
+    flex: 1 1 0;
+    min-width: 0;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scroll-snap-type: inline proximity;
+    scrollbar-width: none;
+  }
+
+  .workspace-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .workspace-tabs button {
+    flex: 1 0 max-content;
+    scroll-snap-align: start;
+  }
+
+  .workspace-switcher {
+    display: none;
+  }
+
+  .system-health-action {
+    width: 44px;
+    min-width: 44px;
+    max-width: 44px;
+    justify-content: center;
+    gap: 0;
+    padding-inline: 0;
+    overflow: hidden;
+    font-size: 0;
+  }
+
+  .system-health-action i {
+    flex: 0 0 7px;
+  }
+}
+
+/* Rung 11 (≤1280): the wordmark itself, leaving the α mark alone.
 
    New with the tenth tab, and the reason the table above ends at 1167 rather
    than clipping on down to the switchover: after every other rung has fired
@@ -196,8 +259,14 @@
    same fold the ≤520px rule in 01-workspace-shell.css already makes, pulled up
    into the desk band, which is rung 9's pattern too. Measured saving ~140px,
    so the row clears the 1110 wrap with room. */
-@media (min-width: 901px) and (max-width: 1170px) {
+@media (min-width: 901px) and (max-width: 1280px) {
   .brand-copy {
     display: none;
+  }
+
+  /* Keep the final one-row band honest without hiding a destination: the
+     utility row's fixed gap remains the sole lead-in at every desktop rung. */
+  .workspace-tabs {
+    margin-left: 0;
   }
 }
