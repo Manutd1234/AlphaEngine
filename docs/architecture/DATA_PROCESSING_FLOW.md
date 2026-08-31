@@ -1,12 +1,13 @@
 # Data processing flow — end to end
 
-*Walked against the tree on 2026-08-24. Module paths are relative to
+**Source/worktree audited: 2026-08-31.** Module paths are relative to
 [`Part2_Infrastructure/`](../../Part2_Infrastructure/) unless they start with
 `web/` or `supabase/`. This document names the hops; the arguments behind each
 one live in [`Part2_Infrastructure/README.md`](../../Part2_Infrastructure/README.md)
 (§2 Architecture, §3 Module A, §4 Module B, §RAG & ML) and the measured numbers
 in [`LATENCY_BUDGET.md`](LATENCY_BUDGET.md). Where those documents argue a
-point at length, this one states the conclusion and links.
+point at length, this one states the conclusion and links. The audit describes
+source and bundled schema; it is not a fresh probe of an external deployment.
 [`ARCHITECTURE.md`](ARCHITECTURE.md) is the map — what the pieces are and where
 they run. This is the territory: what one request actually touches.*
 
@@ -15,7 +16,7 @@ button in a browser to a row in DuckDB and back, naming every file it passes
 through and every way it can degrade. Everything else here is a variation on
 that shape.
 
-Six planes, deliberately kept apart:
+Seven planes, deliberately kept apart:
 
 | Plane | Cadence | Authoritative store | What happens if its dependency is absent |
 |---|---|---|---|
@@ -24,6 +25,7 @@ Six planes, deliberately kept apart:
 | Corpus write (RAG) | per completed run / per anomaly / per closed session | Supabase `research_documents` | the write path is a no-op; retrieval reports `unavailable` |
 | Graph maintenance | 6 h sweep, daily partition | Postgres `research_edges` | Neo4j projection reports a named reason and the sweep carries on |
 | Kalshi book tape | one poll every `COHERENCE_POLL_S`, off by default | its **own** DuckDB file (`coherence.duckdb`) | the recorder does not start; every coherence route still answers with a `state` discriminator saying which part is missing |
+| Diffusion measurement ledger | per event, fetched text, measured stage and study run | strict data-ops store: SQLite by default; Postgres after the parity and desk-scope-guard migrations are deployed | routes report `unavailable`/`unreadable`; a writer raises. The current source and generated bundle cover runs, texts, current study columns and the shared `desk_id` count path. Live parity still depends on applying those migrations and setting `SUPABASE_DESK_ID` — `DATA_OPS_BACKEND.md` owns that rollout boundary |
 | In-database VaR | on demand, from the workspace | Oracle Autonomous Database | a typed `oracle_not_configured`; the client-side VaR on the same tab is unaffected |
 
 The separations are the design. The mirror cannot slow an order because its
@@ -41,6 +43,13 @@ separation survives the change intact, because those two try the projection and
 **fall back to the in-process computation**, saying which answered — so no
 request path depends on the graph being up, and request-time traversal is still
 the Postgres CTE.
+
+That optional read-back is not a multi-tenant boundary: projected Neo4j nodes
+and the community/centrality Cypher reads do not carry `desk_id`. When
+`RESEARCH_SCOPE_TO_DESK=1`, the source read-model guard refuses Neo4j before
+opening its driver and both reports automatically use the desk-scoped Postgres
+corpus fallback. With the flag off, use Neo4j only for one desk or an isolated
+database. This audit did not probe live Aura.
 
 ---
 
@@ -336,17 +345,19 @@ flowchart TD
     SE -->|"execution_summary card, DEFERRED off the trading lock<br/>and delayed SESSION_SUMMARY_SETTLE_S (5s)<br/>research_rag/session.py → research_ingest_session"| Q
     Q["bounded asyncio.Queue<br/>research_rag/writer.py — same discipline as the mirror:<br/>put_nowait, drop and COUNT, never blocks a caller"]
     Q --> DR["_drain task — one document at a time,<br/>inside a broad guard; _ensure_drain_alive()<br/>recreates a task that ended anyway"]
-    DR --> DEL["research_ingest_delivery.deliver()<br/>3 attempts on the mirror's own backoff<br/>(base 1s, ceiling 30s); auth kept apart<br/>from rejected"]
+    DR --> PREP["replacement.prepare_replacement<br/>plan and embed every physical chunk<br/>before one logical-document commit"]
+    PREP --> EF["supabase/functions/embed-research<br/>Supabase.ai gte-small, 384-dim, normalised<br/>service-role only; anon gets 401"]
+    EF -->|"all text embeddings ready"| DEL["deliver(replace_research_document_chunks)<br/>3 attempts on the mirror's own backoff<br/>(base 1s, ceiling 30s); auth kept apart<br/>from rejected"]
+    EF -.->|"any embed failure"| PEND["whole proposed generation stays pending;<br/>previous complete generation remains retrievable;<br/>never a zero vector"]
+    PEND --> DEL
     DEL -->|"never landed"| DL["bounded dead-letter book<br/>identity + reason + attempts, NOT the body;<br/>counts what it discarded when full"]
-    DEL --> EF["supabase/functions/embed-research<br/>Supabase.ai gte-small, 384-dim, normalised<br/>service-role only; anon gets 401"]
-    EF --> RD[("public.research_documents<br/>body = the exact embedded text<br/>pgvector HNSW, cosine")]
-    EF -.->|"embed failure"| PEND["embedding_status='pending'<br/>never a zero vector"]
-    DEL -.->|"OPTIONAL, only if an operator set<br/>RESEARCH_IMAGE_MODEL_PATH"| IMG["research_image_ingest<br/>CLIP ViT-B/32 over the sweep's PNGs<br/>→ 512-dim image_embedding on the SAME row"]
-    IMG --> RD
+    DEL -->|"RPC committed"| RD[("public.research_documents<br/>body = the exact embedded text<br/>pgvector HNSW, cosine")]
+    PREP -.->|"OPTIONAL, only if an operator set<br/>RESEARCH_IMAGE_MODEL_PATH"| IMG["research_image_ingest<br/>CLIP ViT-B/32 over the sweep's PNGs<br/>→ 512-dim image_embedding on the SAME row"]
+    IMG --> DEL
     RD -.->|"a SEPARATE request, AFTER the document lands,<br/>so a missing migration 404s here and nowhere else"| CI[("public.research_chart_images<br/>the PNG itself, for the generator;<br/>read: LRU → JobRecord → one GET")]
-    RD --> PE["modules/research_graph.persist_edges<br/>one statement per written document"]
+    RD -->|"complete generation only"| PE["modules/research_graph.persist_edges<br/>one statement per written document"]
     PE --> RE[("public.research_edges<br/>unique (src_id, dst_id, relation)")]
-    BF["tools/backfill_research_rag.py — HISTORY, not the live path<br/>replays backtest_runs + ml_runs and renders<br/>one execution_summary per CLOSED session;<br/>upserts merge-duplicates — it never<br/>selects on embedding_status"] --> EF
+    BF["tools/backfill_research_rag.py — HISTORY, not the live path<br/>replays backtest_runs + ml_runs and renders<br/>one execution_summary per CLOSED session;<br/>never selects on embedding_status"] --> PREP
 ```
 
 The rules that make the corpus trustworthy, each with its reason:
@@ -359,6 +370,14 @@ The rules that make the corpus trustworthy, each with its reason:
   ([`modules/research_cards.py`](../../Part2_Infrastructure/modules/research_cards.py)).
 - **`body` stores the exact text that was embedded**, so a renderer change can
   never silently invalidate stored vectors.
+- **Logical-document replacement is failure-atomic.**
+  `modules/research_rag/replacement.py` prepares every physical chunk before
+  calling the `replace_research_document_chunks` RPC from migration
+  `20260831131000`. Postgres removes stale siblings only when every incoming
+  text embedding is ready. If any is pending, the whole proposal stays out of
+  retrieval and the previous complete generation remains intact. Apply that
+  migration before deploying the new chunked ingest path; its presence in the
+  worktree and bundle is not evidence that a live project has applied it.
 - **Indexing may never fail the thing it indexes**, and the image path is
   arranged twice over to guarantee it. The CLIP columns sit *on*
   `research_documents`, so that half gates itself on an operator having set
@@ -375,7 +394,7 @@ The rules that make the corpus trustworthy, each with its reason:
   vector**, which is equidistant from everything and would rank as "similar"
   to any query. **The backfill tool does not sweep those rows.** It never
   selects on `embedding_status`; it re-derives every source row it can reach
-  and upserts `merge-duplicates`, so a pending document is rewritten with a
+  through the same replacement RPC, so a pending document is repaired with a
   fresh embedding as a *side effect* of its source row being re-rendered. A
   pending document whose source row falls outside `--limit` — or whose kind the
   backfill does not emit, which is every `chart` — is not repaired by it. A
@@ -482,6 +501,11 @@ answer that quietly claims to have seen a chart it was not sent. The surfaces ar
 `GET /api/research/rag/status`, `GET /api/research/graph/communities` and
 `GET /api/research/graph/centrality`
 ([`modules/api/research.py`](../../Part2_Infrastructure/modules/api/research.py)).
+Route-level desk scoping is deliberately staged: with
+`RESEARCH_SCOPE_TO_DESK=0` (the default), no desk predicate is added. After
+migration `20260831130000` is deployed, setting the flag to `1` makes `/search`,
+`/ask` and `/graph/{document_id}` carry `SUPABASE_DESK_ID` through the entire
+similarity/graph call chain or return typed `scope_unavailable` before retrieval.
 
 ---
 
@@ -522,10 +546,19 @@ re-project. A dual write was rejected because two writers are two systems that
 must agree, and drift between an authoritative store and a copy is only
 detectable if somebody goes looking.
 
+The current projection does not include `desk_id`, and its read-model queries
+match document ids without a desk predicate. It is therefore a single-desk (or
+per-desk-database) option, not a tenant boundary. The desk-scoped Postgres corpus
+path remains the safe fallback for a shared multi-desk deployment.
+
 **Two routes now read it back.** `GET /api/research/graph/communities` and
 `/centrality` try
 [`modules/research_graph_read_model.py`](../../Part2_Infrastructure/modules/research_graph_read_model.py)
-first and fall back to the in-process networkx computation, marking
+first, through the async boundary in
+[`modules/research_graph_offload.py`](../../Part2_Infrastructure/modules/research_graph_offload.py).
+The wrapper runs the synchronous Aura driver with `asyncio.to_thread` behind a
+two-slot bulkhead so a graph socket cannot occupy the gateway event loop. The
+routes fall back to the in-process networkx computation, marking
 `source: "neo4j" | "corpus"` and carrying the read model's refusal whole so the
 reason is always readable. Nothing is invented there: modularity, seed,
 resolution and damping are not stored in the graph and are absent rather than
@@ -594,11 +627,13 @@ partition of nothing, `detected: True` with zero communities.
 
 ---
 
-## 6. The Kalshi tape and one live read, end to end
+## 6. The Kalshi tape and its browser reads, end to end
 
-The coherence engine — the Prices and Proofs tabs — is a second data plane
-inside the same process, and it is
-worth tracing because it degrades differently from everything above: it depends
+The coherence engine — the Markets and Proofs tabs — is a second data plane
+inside the same process. Diffusion is a related but separate research tab over
+recorded announcement windows and coherence episodes; it does not read the live
+Kalshi book tape as its primary dataset. The live-book split is worth tracing
+because it degrades differently from everything above: it depends
 on a **third-party exchange answering right now**, and no fallback can invent
 what it would have said.
 
@@ -630,12 +665,13 @@ quarter of Kalshi's smallest published tier (`READ_TOKENS_PER_S = 50` against a
 default cost of 10 per request, about five requests a second), "because guessing
 high on someone else's infrastructure is not our risk to take."
 
-### The read side — `#coherence/universe`, traced
+### The read side — `#markets/universe`, traced
 
 1. `web/components/MarketsConsole.tsx` calls `useCoherenceRead` for
    `universeRoute()`, gated on `active` **and** on the open section being
-   `universe` or `lattice`; `CoherenceConsole.tsx` asks for the same URL on
-   `certificate`. The tab stays mounted behind `hidden` once visited, so an
+   `universe`, `lattice` or `stake`; `CoherenceConsole.tsx` asks for the same
+   URL on `certificate` or `portfolio`. A visited tab stays mounted behind
+   `hidden`, so an
    ungated loop would keep reading Kalshi for a reader three tabs away. The URL
    is built in `web/lib/coherence/routes.ts` and nowhere else — see step 2b for
    what depends on that.
@@ -648,8 +684,9 @@ high on someone else's infrastructure is not our risk to take."
    recorded tape. One deadline for both meant the browser gave up on the slow
    ones while the gateway was still doing exactly what it was asked to.
 2b. The read goes through `web/lib/coherence/read-cache.ts`, which holds one
-   answer per URL and JOINS a read already in flight. Three panes across two
-   tabs share this URL and each used to hold its own in-flight latch, so opening
+   answer per URL and JOINS a read already in flight. Five sections across two
+   tabs share this URL; before the shared cache, independently mounted readers
+   could each hold their own in-flight latch, so opening
    the tab could put three identical live reads on the token bucket above at
    once. `use-section-warming.ts` also sweeps the rest of the rail on
    `requestIdleCallback`, one URL every 600 ms — inside the ~5 requests/second
@@ -690,10 +727,23 @@ them cannot respond to any of them.
 
 `modules/api/diffusion.py` serves four routes —
 `GET /api/research/diffusion/events`, `/findings`, `/absorption` and
-`POST /api/research/diffusion/events/{source_ref}/stage`. Their storage is
-Supabase (`20260823120000_diffusion_events.sql`,
-`20260823130000_diffusion_studies.sql`), and their analysis is
-`modules/coherence/diffusion/`. Two facts belong in a data-flow document:
+`POST /api/research/diffusion/events/{source_ref}/stage`. Their stores compose
+over `DataOpsStore`: SQLite DDL lives beside the implementations in
+`modules/coherence/diffusion/`. Postgres starts with the event/study migrations
+(`20260823120000`, `20260823130000`); successor migration `20260831120000`
+adds runs and texts, `vote_line`, the current five `skill_*` columns and
+desk-qualified keys. The shared adapter now counts via `desk_id`, stamps its
+configured desk last on filters and payloads, and requires an explicit desk.
+Migration `20260831121000` refuses ambiguous legacy `desk_id='default'` rows
+under an exclusive eight-table lock, then drops unsafe defaults and installs
+constraints that permanently reject the sentinel. That is the current source/bundle contract,
+not a claim that the live project has applied it; [`DATA_OPS_BACKEND.md`](DATA_OPS_BACKEND.md)
+owns the deployment matrix. The analysis is `modules/coherence/diffusion/`. The
+workspace exposes it under the dedicated `#diffusion/*` tab:
+`DiffusionConsole.tsx` reads absorption for `arm` and
+`meetings`, the episode/status/index trio for `episodes`, and findings for
+`findings`; `model`, `instrument` and `sandbox` compute locally from the
+TypeScript parity implementation. Two facts belong in a data-flow document:
 
 - The study's verdict is computed **out of sample** by
   `modules/coherence/diffusion/skill.py`, on a target (`residence_time`, the area
@@ -725,11 +775,11 @@ Supabase (`20260823120000_diffusion_events.sql`,
 | `chart_docs` reconcile scope | declared, **unscheduled and unimplemented** — no entry point exists on `research_reconcile`; stale chart text is honestly not assessable |
 | Multimodal / image embedding | **Built, optional, off by default.** A chart's PNG is embedded by a local CLIP `ViT-B/32` pair into a 512-dim `image_embedding` column and ranked as a fourth arm; the computed-description index is unchanged and remains the default, because the arm measured 0.671 nDCG@3 alone against descriptions' 0.687 and only earns its keep in fusion (+0.06). Needs `RESEARCH_IMAGE_MODEL_PATH` and migration `20260822100000`; unset, the write path sends the row it sent before the module existed |
 | Multimodal generation (the chart shown to the model) | **Built, optional.** `research_generate_vision.py` attaches a chart document's PNG to the Gemini call as evidence, never a source; ≤2 images, ≤2 MB each, 45 s budget against text's 20 s. Every "no image" outcome is a named state |
-| Durable home for the chart pixels | **Built, with one debt.** `research_chart_images` (migration `20260822110000`) means a chart survives a restart, a Celery worker and a second replica, where the path used to answer `job_not_retained`. The debt: its PostgREST GET is synchronous and runs on the event loop's thread, bounded at 1,200 ms behind an LRU the write path warms — the one owed line is `documents = await hydrate(documents)` in `research_generate.generate`. (`supabase/apply_all.generated.sql` now carries that migration — all 37 — so the note that it did not has been removed) |
+| Durable home for the chart pixels | **Built, with one debt.** `research_chart_images` (migration `20260822110000`) means a chart survives a restart, a Celery worker and a second replica, where the path used to answer `job_not_retained`. The debt: its PostgREST GET is synchronous and runs on the event loop's thread, bounded at 1,200 ms behind an LRU the write path warms — the one owed line is `documents = await hydrate(documents)` in `research_generate.generate`. (`supabase/apply_all.generated.sql` carries that migration and is checked against the current migration directory.) |
 | A backfill for pre-migration chart rows | **NOT BUILT** — rows written before `20260822110000` report `image_not_stored` with re-indexing the run named as the fix; no tool re-stores them |
-| Neo4j on the request path | **partly** — `/communities` and `/centrality` read the sweep's labels back and fall back to the in-process computation, saying which answered (`source`); request-time *traversal* is still the Postgres CTE, and no request path depends on the graph being up. The algorithms are not run inside Neo4j: GDS is not on Aura Free and cannot be installed in CI |
+| Neo4j on the request path | **partly, in source** — `/communities` and `/centrality` can read the sweep's labels back and fall back to the in-process computation, saying which answered (`source`); request-time *traversal* is still the Postgres CTE, and no request path depends on the graph being up. No live Aura read was made in the 2026-08-31 audit. The projection/read model is not desk-scoped, so its source guard refuses Neo4j whenever `RESEARCH_SCOPE_TO_DESK=1` and the reports automatically use the desk-filtered corpus; with the flag off, Neo4j is single-desk/per-database only. The algorithms are not run inside Neo4j: GDS is not on Aura Free and cannot be installed in CI |
 | `/api/research/rag/ask` in the UI | **no consumer** — the workspace proxies `/search` only; `/ask` is reachable, contract-pinned and auth-covered, but nothing in `web/` calls it |
-| RLS on `research_documents` | **still bypassed** — the gateway reads with the service-role key and the writer sets no `user_id`. What landed is an optional `filter_desk_id` predicate on both retrieval RPCs, off by default, refusing rather than reading wide when it is on and cannot be applied |
+| RLS on `research_documents` | **still bypassed** — the gateway reads with the service-role key and the writer sets no `user_id`. The service-role query boundary now has optional `filter_desk_id` on both similarity RPCs and graph traversal. Route scoping stays off by default; when enabled, `/search`, `/ask` and `/graph/{document_id}` carry it through the whole pipeline or return typed `scope_unavailable`, never an unscoped fallback. The anomaly writer always scopes its immediate neighbour read to the desk it just wrote |
 | The re-ranker's real ONNX weights in CI | **NOT RUN on a push** — they would have to be downloaded and the default suite is network-free by construction; the ONNX path is exercised through a fake cross-encoder at the import seam. CI's opt-in `rerank-real` job (`workflow_dispatch`, or a PR labelled `rerank`) seeds them and runs eight cases against the real model |
 | The image arm's retrieval bench in CI | **NOT WIRED** — `tools/bench_image_retrieval.py` is an executable entry point with its corpus, answer key, metrics and degrade paths under test, and nothing runs it on a push; it wants the `rerank-real` treatment |
 | Supabase absent | mirror and corpus writes are no-ops; retrieval returns typed `unavailable`, never `[]` |
@@ -744,7 +794,8 @@ Related reading: [`ARCHITECTURE.md`](ARCHITECTURE.md) for what the pieces are an
 where each one runs, [`UML_DIAGRAMS.md`](UML_DIAGRAMS.md) for the same research
 plane drawn as classes and one sequence,
 [`FEATURE_TOUR.md`](../product/FEATURE_TOUR.md) for the same system walked as the
-desk's decision loop, [`DATA_OPS_BACKEND.md`](DATA_OPS_BACKEND.md) for the four
-data-operations tables and their storage choice, and
+desk's decision loop, [`DATA_OPS_BACKEND.md`](DATA_OPS_BACKEND.md) for the eight
+logical data-operations tables, their storage choice and the current Postgres
+coverage boundary, and
 [`TLS_FLIP.md`](../engineering/TLS_FLIP.md) for how the mirror's host is reached without
 the token crossing the internet in cleartext.
