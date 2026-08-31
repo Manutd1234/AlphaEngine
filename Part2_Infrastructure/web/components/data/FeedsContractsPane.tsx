@@ -16,6 +16,7 @@
 
 import type { InspectResponse } from "@/components/systems/types";
 import type { ValidationCounts } from "@/components/systems/types";
+import WorkspaceEntityLink from "@/components/workspace/WorkspaceEntityLink";
 import {
   type DataTrustDestination,
   type DataTrustModel,
@@ -116,7 +117,7 @@ export default function FeedsContractsPane({
               <tbody>
                 {providerValidation.map(([provider, counts]) => (
                   <tr key={provider}>
-                    <td><strong>{provider}</strong></td>
+                    <td><strong><WorkspaceEntityLink kind="provider" value={provider}>{provider}</WorkspaceEntityLink></strong></td>
                     <td className="num">{counts.evaluated}</td>
                     <td className="num">{counts.passed}</td>
                     <td className="num">{counts.fatal}</td>
