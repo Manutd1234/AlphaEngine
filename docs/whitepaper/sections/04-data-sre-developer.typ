@@ -548,12 +548,16 @@ The measured figures the desk quotes against these floors are in
 are never blended:
 
 #table(
-  columns: (auto, auto, 1fr),
-  [Plane], [Figure], [Source],
-  [Whole decision, µs], [#measured[12.4 µs p50 native, 23.1 µs Python][`LATENCY_BUDGET.md` §2.1]], [`tools/bench_decision.py`, dev Mac, `submit()` under the lock],
-  [Arithmetic core, ns], [#measured[83 ns p50, 84 ns p99][`latency-bench.generated.json`]], [`steady_clock` inside the C++ engine, same run],
-  [Same core, production], [#measured[320 ns p50, 352 ns p99][`LATENCY_BUDGET.md` §2.1]], [live `/metrics`, OCI `VM.Standard3.Flex`, 2026-08-17],
-  [Order entry, ms], [#measured[72.7 ms origin RTT to Binance, 6.2 ms to Bybit][`LATENCY_BUDGET.md` §2.3]], [`tools/colocation_probe.py`],
+  columns: (0.72fr, 2.28fr),
+  [Plane], [Measured figure and source],
+  [Whole decision, µs], [#measured[12.4 µs p50 native, 23.1 µs Python][`LATENCY_BUDGET.md` §2.1].
+    `tools/bench_decision.py`, dev Mac, `submit()` under the lock.],
+  [Arithmetic core, ns], [#measured[83 ns p50, 84 ns p99][`latency-bench.generated.json`].
+    `steady_clock` inside the C++ engine, same run.],
+  [Same core, production], [#measured[320 ns p50, 352 ns p99][`LATENCY_BUDGET.md` §2.1].
+    Live `/metrics`, OCI `VM.Standard3.Flex`, observed 2026-08-17.],
+  [Order entry, ms], [#measured[72.7 ms origin RTT to Binance, 6.2 ms to Bybit][`LATENCY_BUDGET.md` §2.3].
+    `tools/colocation_probe.py`.],
 )
 
 The nanosecond row carries a caveat the desk is required to repeat: on that
@@ -962,10 +966,29 @@ asserts that the running engine still decides the same, through one loader
 (`tools/gate_fixture.py`). A recorder and a checker that build their gateway
 differently are two things to keep in step; one loader is one.
 
+=== Application ownership and the bounded blocking boundary
+
+The current gateway composes one application in
+`modules/application_lifecycle.py`. An `AsyncExitStack` registers cleanup before
+each component starts and unwinds the graph in reverse order. The resulting
+frozen `ApplicationContext` is the route boundary: market data, execution, risk,
+jobs, audit, Telegram, health and the shared book stream are services owned by
+the lifespan, not globals re-created by individual handlers. Partial-start
+cleanup and context immutability have dedicated contract tests.
+
+Blocking datastore calls cross `BackendRuntime`, an owned pool with four
+workers and twelve queued admissions by default. It propagates the web proxy's
+fixed H1-H5 request budget, cancels work that has not started when the deadline
+expires, drains work already running, and records queue time, duration p95 and
+event-loop lag. `RequestBudgetMiddleware` answers an exhausted deadline with
+504 and a saturated admission boundary with 503. This is separate from the job
+queue below: the runtime protects bounded reads serving a request; the job
+system owns long-running research work.
+
 === The API and WebSocket protocols
 
-The REST surface is #measured[73 paths and 144 schemas][`tools/openapi.json`,
-counted 2026-08-24], exported from the running FastAPI application and
+The REST surface is #measured[76 paths, 79 operations and 150 component
+schemas][`tools/openapi.json`, counted 2026-08-29], exported from the running FastAPI application and
 committed. WebSockets are *deliberately outside* that contract --- OpenAPI does not describe them --- and
 their shapes are pinned by tests instead of by the schema, which the module
 docstring states rather than leaving a reader to infer that the socket was
@@ -979,10 +1002,14 @@ actually do:
   (`web/lib/livebook.ts`). One hop, no backend; routing it through the gateway
   would make it slower.
 + *Gateway `/ws/book/{symbol}`.* The consolidated ladder plus a live TCA report
-  at 4 Hz (`modules/api/tca.py`, a 0.25 s send loop), for the depth-of-market
-  visualiser. The payload is a tagged object
+  on one shared 300 ms latest-state producer per `book:{SYMBOL}` topic
+  (`modules/api/tca.py`, `modules/latest_state_stream.py`), for the depth-of-market
+  visualiser. Every consumer receives a size-one queue, so a slow browser
+  coalesces only a superseded snapshot instead of multiplying book computation.
+  The payload is a tagged object
   (`type: "book"`) carrying the consolidated mid, the venues online, each
-  venue's book and, when a report exists, the TCA block.
+  venue's book and, when a report exists, the TCA block, plus heartbeat,
+  freshness and cumulative coalescing state.
 + *Server-sent events, `/api/stream/desk`.* Risk state, proxied. A browser
   cannot open an `EventSource` to the gateway directly --- the page is HTTPS and
   the gateway is plain HTTP, which is blocked as mixed content with no override
@@ -1061,41 +1088,56 @@ database being slow must not be able to slow an order down or to lose one.
 
 === The generated-gate discipline
 
-Seven files in this repository are generated, and three of them are gated by a
+Eight files in this repository are generated, and three of them are gated by a
 checker that *recomputes the artefact itself*. Those three are the pattern worth
 reading, because it is the same each time: a generator writes a file, a checker
 recomputes it and fails the build on drift, and the file itself carries a header
 saying it must not be hand-edited.
 
 #table(
-  columns: (auto, auto, auto, 1fr),
-  [Artefact], [Generator], [Checker], [What drift would mean],
-  [`gateway-openapi-digest.generated.ts`], [`tools/export_openapi.py`], [`check-gateway-openapi-digest.mjs`], [the web tier's generated client describes a gateway that is no longer deployed],
-  [`repository-manifest.generated.json`], [`generate-codebase-manifest.mjs`], [same script, `--check`], [the repository catalogue on the Developer tab lists files that do not exist],
-  [`test-counts.generated.ts`], [`refresh-test-counts.mjs`], [`check-test-counts.mjs`, on the WEB line only], [the desk quotes a suite size nobody measured],
+  columns: (0.8fr, 2.2fr),
+  [Artefact], [Generator, checker and failure meaning],
+  [OpenAPI digest], [Path: `web/lib/gateway-openapi-digest.generated.ts`.
+    Generated by `tools/export_openapi.py`; checked by
+    `check-gateway-openapi-digest.mjs`. Drift means the web client describes a
+    gateway contract that is no longer deployed.],
+  [Repository catalogue], [Path: `web/lib/repository-manifest.generated.json`.
+    Generated and checked by `generate-codebase-manifest.mjs --check`. Drift
+    means the Developer catalogue lists missing files or omits current ones.],
+  [Test count record], [Path: `web/lib/test-counts.generated.ts`.
+    Generated by `refresh-test-counts.mjs`; the web line is checked by
+    `check-test-counts.mjs`. Drift means the desk quotes a suite size nobody
+    measured.],
 )
+
+The other five generated artefacts are the typed gateway contract, the Monte
+Carlo parity reference, the bundled Supabase migrations, the historical
+decision-latency record, and the native-boundary qualification record. They are
+owned respectively by their client, parity, migration and benchmark generators.
+The two latency files retain their own observation dates; being listed in a
+2026-08-29 architecture revision does not make either benchmark a live reading.
 
 The OpenAPI gate hashes *canonical* JSON --- keys sorted recursively --- so that
 a re-export which reorders a dictionary does not read as a contract change. The
 committed digest today is
-#measured[`a0263f96…0205`][`web/lib/gateway-openapi-digest.generated.ts`, verified
-against `tools/openapi.json` on 2026-08-24].
+#measured[`12b53e1…96be`][`web/lib/gateway-openapi-digest.generated.ts`, verified
+against `tools/openapi.json` on 2026-08-29].
 
 The manifest gate compares *only the file list*, not the commit or the
 generation date, because those change on every commit by design and gating on
 them would fail every push. It also skips itself, with a message, when git is
 unavailable --- a tarball build has nothing to compare against, and the gate
 holds where drift can actually happen. The current manifest carries
-#measured[1 770 files][`web/lib/repository-manifest.generated.json`] at commit
-`ba58a40`.
+#measured[2 283 files][`web/lib/repository-manifest.generated.json`] at commit
+`e5d9725`.
 
 The counts gate is the most interesting of the three, because it cannot live
 inside the thing it measures: *a test that checks the test count changes the
 test count*. So the check runs outside the suite, against the runner's own
 summary line teed to a log file. The committed figures, measured on
-#measured[2026-08-24][`web/lib/test-counts.generated.ts`], are
-#measured[2 998 gateway tests (2 996 passed, 2 skipped), in the CI shape][`web/lib/test-counts.generated.ts`, refreshed with `RERANK_TEST_MODEL_PATH` blanked],
-#measured[4 730 web tests across 1 028 suites][`web/lib/test-counts.generated.ts`]
+#measured[2026-08-29][`web/lib/test-counts.generated.ts`], are
+#measured[3 255 gateway tests - 3 254 passed and one skipped][`web/lib/test-counts.generated.ts`],
+#measured[6 519 web tests across 1 408 suites][`web/lib/test-counts.generated.ts`]
 and #measured[24 service tests][`web/lib/test-counts.generated.ts`]. Only the web
 figure is gated: CI runs `check-test-counts.mjs` with the argument `web` and it
 reads that line alone, so the gateway and service lines beside it are dated
@@ -1106,11 +1148,17 @@ regenerates them automatically, because running three suites inside a production
 build would make every deploy pay for them --- so the header names the date each
 figure was printed, and the desk renders that date beside the number.
 
+The separate rendered release qualification was also executed on 2026-08-29:
+#measured[872 of 872 geometry states passed][`web/scripts/engine-layout-audit.mjs`],
+covering 109 addressable workspace states at eight responsive viewports with no
+geometry failure and no console error. Typed gateway-unavailable responses were
+recorded separately rather than mistaken for successful live reads.
+
 This is what "keeping two deployed units honest with each other" means in
 practice. The web tier and the gateway are separate deployments on separate
 platforms with separate release cadences. Types shared through a generated
 client are an agreement between two *sources*; the digest, the runtime payload
-runtime payload gate on the ops snapshot and the parity fixture are agreements between two
+gate on the ops snapshot and the parity fixture are agreements between two
 *artefacts*. Only the second kind survives one side being redeployed and the
 other not.
 
