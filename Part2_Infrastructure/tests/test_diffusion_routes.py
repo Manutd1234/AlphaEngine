@@ -13,10 +13,10 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from helpers.diffusion_fomc_fixture import fixture_rows
 
 import main
 from modules.api import diffusion as diffusion_api
-from modules.coherence.diffusion import fomc
 from modules.coherence.diffusion.events import DiffusionEventStore, EventUpsert
 from modules.data_ops_store import SqliteStore
 
@@ -34,11 +34,11 @@ def client(monkeypatch):
 
 
 def _seed(store: DiffusionEventStore, count: int = 3) -> None:
-    for row in fomc.seed_rows()[:count]:
+    for row in fixture_rows()[:count]:
         store.upsert(EventUpsert(
             kind="fomc", source_ref=row["source_ref"], title=row["title"],
-            release_at=row["release_at"], release_at_source="fed_seed", release_timing="exact",
-            call_at=row["call_at"], call_at_source="fed_seed",
+            release_at=row["release_at"], release_at_source="issuer", release_timing="exact",
+            call_at=row["call_at"], call_at_source="issuer",
             call_offset_min=row["call_offset_min"], statement_url=row["statement_url"],
         ), now_ms=NOW)
 
@@ -98,7 +98,7 @@ class TestTheRowsArriveWhole:
 
 
 class TestRecordingAStage:
-    def test_an_observed_call_start_replaces_the_seed_and_names_its_source(self, client):
+    def test_an_observed_call_start_replaces_the_prior_stage_and_names_its_source(self, client):
         made, store = client
         _seed(store, 1)
         response = made.post(
