@@ -113,8 +113,13 @@ export async function dispatch<T>(
   const attempts: Attempt[] = [];
 
   const cached = s.get<Sourced<T>>(opts.cacheKey);
-  recordCacheLookup(opts.capability, Boolean(cached));
-  if (cached) {
+  // A pin is an operator instruction, not a ranking hint.  Never satisfy it
+  // with a response another provider placed in a shared/wildcard cache key.
+  const cacheMatchesPin = Boolean(
+    cached && (!opts.pin || cached.provenance.provider === opts.pin),
+  );
+  recordCacheLookup(opts.capability, cacheMatchesPin);
+  if (cached && cacheMatchesPin) {
     emit({
       level: "debug",
       source: "Cache",
