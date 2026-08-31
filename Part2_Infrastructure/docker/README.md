@@ -1,5 +1,10 @@
 # Docker — the always-on gateway
 
+**Last verified: 2026-08-29.** The image/compose contract was checked against
+the current single-process application-context architecture. Live host and TLS
+claims keep the dates of their last external probe; see
+[`../../docs/CURRENT_STATE.md`](../../docs/CURRENT_STATE.md).
+
 One container, one process, host port 8000. The compose file lives at the
 repository root; this directory holds the image definition.
 
