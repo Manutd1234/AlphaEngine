@@ -1,17 +1,6 @@
 /**
- * The page header is the one thing every workspace shares, so its height has to
- * be a property of its anatomy rather than of how long someone's copy happened
- * to be. It was not: `.page-insight` floored at 81px, which is the height of a
- * chip whose note is ONE line, while the rule's own comment claimed it was
- * "sized for the two-line note, on every tab". Data wraps five of six notes and
- * Reliability wraps one, so those two opened 171px against everyone else's 168,
- * and by 900px the spread was 47px.
- *
- * Two things close it, and both are asserted here: the floor is the arithmetic
- * of the anatomy, and the note slot reserves its second line whether or not the
- * note fills it. Neither is visible to a rendering test that only looks at one
- * tab — the divergence only exists BETWEEN tabs — so these assertions guard the
- * numbers directly.
+ * PageHead is shared by all eleven workspaces. These tests guard its semantic
+ * and responsive contract without pinning protected copy to a visual card.
  */
 
 import assert from "node:assert/strict";
@@ -22,117 +11,62 @@ import { describe, it } from "node:test";
 import { globalsCss } from "./globals-css";
 
 const root = join(import.meta.dirname, "..");
-const globals = globalsCss;
 const pageHead = readFileSync(join(root, "components/workspace/PageHead.tsx"), "utf8");
 
-/** The declaration body of the last rule matching `selector` exactly. */
-function ruleBody(css: string, selector: string): string {
-  const pattern = new RegExp(`(^|\\n)${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\{`, "g");
-  const matches = [...css.matchAll(pattern)];
+function ruleBody(selector: string): string {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const matches = [...globalsCss.matchAll(new RegExp(`(?:^|\\n)${escaped}\\s*\\{`, "g"))];
   assert.ok(matches.length > 0, `no rule found for ${selector}`);
-  const last = matches[matches.length - 1];
-  const start = css.indexOf("{", last.index);
-  const end = css.indexOf("}", start);
-  return css.slice(start + 1, end);
+  return matches.map((match) => {
+    const start = globalsCss.indexOf("{", match.index);
+    const end = globalsCss.indexOf("}", start);
+    return globalsCss.slice(start + 1, end);
+  }).join("\n");
 }
 
-/* The chip's fixed anatomy — border, padding and the two row gaps. The three
-   line-heights are read off the rules below and checked against the floor's
-   own arithmetic, so a change to any one of them has to be reflected in the
-   floor rather than silently outgrowing it. */
-const FIXED_PX = 1 * 2 + 9 * 2 + 2 * 2;
+describe("the decision context is stable without clipping its copy", () => {
+  it("uses a responsive grid and a token-derived item floor", () => {
+    const row = ruleBody(".page-heading__insights");
+    assert.match(row, /display:\s*grid/);
+    assert.match(row, /repeat\(auto-fit,\s*minmax\(min\(14rem, 100%\), 1fr\)\)/);
 
-/** The line-height a rule declares, resolving the --lh-* tokens. */
-function lineHeightOf(body: string): number {
-  const raw = /line-height:\s*([^;]+);/.exec(body)?.[1]?.trim();
-  assert.ok(raw, "rule declares no line-height");
-  const tokens: Record<string, number> = { "var(--lh-none)": 1, "var(--lh-tight)": 1.2, "var(--lh-snug)": 1.35, "var(--lh-body)": 1.5, "var(--lh-loose)": 1.6 };
-  const value = tokens[raw!] ?? Number(raw);
-  assert.ok(Number.isFinite(value), `unreadable line-height ${raw}`);
-  return value;
-}
-
-describe("the metric chip is sized by its anatomy, not by its copy", () => {
-  it("the floor is the anatomy's own arithmetic, in the tokens the rows are drawn with", () => {
-    const body = ruleBody(globals, ".page-insight");
-    const declared = /min-height:\s*calc\(([^;]+)\);/.exec(body);
-    assert.ok(declared, ".page-insight must declare a calc() min-height — a px number drifts from the anatomy, and did");
-    const calc = declared![1];
-    // Fixed part.
-    assert.match(calc, new RegExp(`^${FIXED_PX}px \\+`), `the fixed part must be ${FIXED_PX}px (border, padding, gaps)`);
-    // The three lines, each multiplier read from its rule.
-    const label = lineHeightOf(ruleBody(globals, ".page-insight > span"));
-    const value = lineHeightOf(ruleBody(globals, ".page-insight > strong"));
-    const note = lineHeightOf(ruleBody(globals, ".page-insight > small"));
-    assert.match(calc, new RegExp(`\\+ ${label} \\* var\\(--fs-2xs\\)`), `label line must be ${label} × --fs-2xs`);
-    assert.match(calc, new RegExp(`\\+ ${value} \\* var\\(--fs-title\\)`), `value line must be ${value} × --fs-title`);
-    assert.match(calc, new RegExp(`\\+ ${(note * 2).toFixed(2)} \\* var\\(--fs-2xs\\)`), `note lines must be ${note} × 2 × --fs-2xs`);
-    // And the label's rung and the value's rung are the ones the calc names.
-    assert.match(ruleBody(globals, ".page-insight > span"), /font-size:\s*var\(--fs-2xs\)/);
-    assert.match(ruleBody(globals, ".page-insight > strong"), /font-size:\s*var\(--fs-title\)/);
-    assert.match(ruleBody(globals, ".page-insight > small"), /font-size:\s*var\(--fs-2xs\)/);
+    const item = ruleBody(".page-insight");
+    const floor = /min-height:\s*calc\(([^;]+)\)/.exec(item)?.[1];
+    assert.ok(floor, "context cells need a text-scale-aware minimum height");
+    assert.match(floor!, /var\(--fs-2xs\)/);
+    assert.match(floor!, /var\(--fs-title\)/);
   });
 
-  it("the note slot reserves its second line whether or not the note fills it", () => {
-    const body = ruleBody(globals, ".page-insight > small");
-    assert.match(
-      body,
-      /min-height:\s*calc\(1\.34em\s*\*\s*2\)/,
-      "the note must reserve two lines. Without it a tab whose notes all fit on one " +
-        "line renders a shorter chip, and only the grid's row-stretch hides that — " +
-        "which works within a row and not at all between tabs.",
-    );
-    /* The clamp is on the text, not on the row: the row also holds an optional
-       sparkline, and a line count meant for words would clip an SVG. */
-    const text = ruleBody(globals, ".page-insight > small > span:first-child");
-    assert.match(text, /-webkit-line-clamp:\s*2/, "the note text is clamped to the two lines it reserves");
+  it("uses dt/dd relationships and never relies on hover-only recovery", () => {
+    assert.match(pageHead, /<dl\s+[\s\S]*?className="page-heading__insights page-context-strip"/);
+    assert.match(pageHead, /<dt className="page-context-strip__label">/);
+    assert.match(pageHead, /<dd className="page-context-strip__value">/);
+    assert.match(pageHead, /<dd className="page-context-strip__note">/);
+    assert.doesNotMatch(pageHead, /title=\{/);
+    assert.doesNotMatch(ruleBody(".page-context-strip__note"), /line-clamp|overflow:\s*hidden/);
   });
 
-  it("a chip carrying a sparkline is no taller than one without", () => {
-    const spark = ruleBody(globals, ".page-insight__spark");
-    assert.match(
-      spark,
-      /flex-shrink:\s*0/,
-      "the spark shares the note's reserved slot rather than adding a row below it; " +
-        "if it could be pushed to its own line the chip would outgrow the floor",
-    );
+  it("keeps a sparkline in the provenance row", () => {
+    const spark = ruleBody(".page-insight__spark");
+    assert.match(spark, /flex-shrink:\s*0/);
+    assert.match(spark, /align-items:\s*flex-end/);
   });
 
-  it("no chip opts out of the floor for being a button", () => {
-    const body = ruleBody(globals, "button.page-insight");
-    assert.doesNotMatch(
-      body,
-      /min-height:\s*auto/,
-      "a chip that happens to be a button is still a chip; opting it out meant a header " +
-        "whose metrics were all actionable opened shorter than one whose metrics were not",
-    );
+  it("uses a valid overlay action instead of wrapping definition terms in a button", () => {
+    assert.match(pageHead, /<button[\s\S]*?className="page-context-strip__action"/);
+    assert.doesNotMatch(pageHead, /<button[\s\S]*?<dt className=/);
+    const action = ruleBody(".page-context-strip__action");
+    assert.match(action, /position:\s*absolute/);
+    assert.match(action, /inset:\s*0/);
   });
 });
 
 describe("the header's status pill has a rule for every tone it declares", () => {
-  it("every PageStatus tone is styled", () => {
-    const declared = /tone:\s*("(?:good|warn|critical|neutral)"\s*\|\s*)+"(?:good|warn|critical|neutral)"/.exec(pageHead);
-    assert.ok(declared, "PageStatus must declare its tone union — parsing broke?");
-    const tones = [...declared[0].matchAll(/"([a-z]+)"/g)].map((m) => m[1]);
-    assert.ok(tones.length >= 4, `expected at least four tones, parsed ${tones.join(", ")}`);
-    for (const tone of tones) {
-      assert.ok(
-        globals.includes(`.page-status.is-${tone}`),
-        `PageStatus accepts "${tone}" but .page-status.is-${tone} has no rule, so it renders as ` +
-          "the bare pill — a state indistinguishable from an unstyled fallback",
-      );
+  it("styles every PageStatus tone", () => {
+    const declaration = /tone:\s*"good"\s*\|\s*"warn"\s*\|\s*"critical"\s*\|\s*"neutral"/.exec(pageHead);
+    assert.ok(declaration, "PageStatus tone union changed or could not be parsed");
+    for (const tone of ["good", "warn", "critical", "neutral"]) {
+      assert.ok(globalsCss.includes(`.page-status.is-${tone}`), `missing PageStatus rule for ${tone}`);
     }
-  });
-});
-
-describe("a clipped provenance line is recoverable", () => {
-  it("the note carries its full text as a title", () => {
-    assert.match(
-      pageHead,
-      /<span title=\{typeof metric\.note === "string" \? metric\.note : undefined\}>\{metric\.note\}<\/span>/,
-      "the note is clamped to two lines, so a long one is clipped. The provenance line is " +
-        "the half a reader checks when a number looks wrong; losing its tail silently is the " +
-        "worst way to lose it.",
-    );
   });
 });
