@@ -45,8 +45,6 @@
  * benchmark buys.
  */
 
-import { useState } from "react";
-
 import { fmt, pct } from "@/lib/format";
 import type { BenchmarkComparison } from "@/lib/types";
 
@@ -54,6 +52,10 @@ interface BenchmarkPanelProps {
   comparison: BenchmarkComparison | null | undefined;
   /** What was asked for, so the empty state can say which one failed. */
   requested: string | undefined;
+  /** The workspace owns the routed Setup view and its select ref. */
+  onChooseBenchmark: () => void;
+  /** Reports the rare case where the routed focus handoff could not land. */
+  reachNote: string | null;
 }
 
 /** Conventional threshold, stated rather than implied by a colour. */
@@ -62,14 +64,14 @@ const SIGNIFICANT_P = 0.05;
 /**
  * The id of the benchmark `<select>` in the research rail's setup panel.
  *
- * A jump to the one real control, never a second select rendered here: a copy
- * would own no part of the request and would drift from the one that does.
+ * A handoff to the one real control, never a second select rendered here: a
+ * copy would own no part of the request and would drift from the one that does.
  * `benchmark.test.ts` pins this id against `Controls.tsx` in both directions, so
- * the affordance cannot rot into a jump at an element that is no longer there.
+ * the affordance cannot rot into a route to an element that is no longer there.
  * The sentence this replaced could not fail that way, which sounds like a virtue
  * and is not: prose cannot miss, so nothing checked that it still resolved.
  */
-const BENCHMARK_CONTROL_ID = "benchmark";
+export const BENCHMARK_CONTROL_ID = "benchmark";
 
 /** Said when the control is in the DOM but the collapsed rail keeps it unfocusable. */
 const COLLAPSED_HINT =
@@ -79,28 +81,14 @@ const COLLAPSED_HINT =
 const ABSENT_HINT =
   "No benchmark control on this screen; it lives in the research rail's setup panel.";
 
-export default function BenchmarkPanel({ comparison, requested }: BenchmarkPanelProps) {
-  /**
-   * Whether the jump landed, reported rather than assumed.
-   *
-   * On a narrow viewport the setup panel collapses and the select is
-   * `display: none` — present in the DOM, unfocusable, and `focus()` there is a
-   * silent no-op. A button that appears to do nothing is worse than the
-   * sentence it replaced, so the result is checked and said out loud.
-   */
-  const [reachNote, setReachNote] = useState<string | null>(null);
+export { ABSENT_HINT as BENCHMARK_ABSENT_HINT, COLLAPSED_HINT as BENCHMARK_COLLAPSED_HINT };
 
-  const focusBenchmarkControl = () => {
-    const control = document.getElementById(BENCHMARK_CONTROL_ID);
-    if (!control) {
-      setReachNote(ABSENT_HINT);
-      return;
-    }
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    control.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "center" });
-    control.focus({ preventScroll: true });
-    setReachNote(document.activeElement === control ? null : COLLAPSED_HINT);
-  };
+export default function BenchmarkPanel({
+  comparison,
+  requested,
+  onChooseBenchmark,
+  reachNote,
+}: BenchmarkPanelProps) {
 
   if (!comparison) {
     // Two absent cases, two different actions: pick one, or pick a different
@@ -164,7 +152,12 @@ export default function BenchmarkPanel({ comparison, requested }: BenchmarkPanel
           instrument answers whether the <em>position</em> was worth holding.
         </p>
 
-        <button type="button" className="text-action" onClick={focusBenchmarkControl}>
+        <button
+          type="button"
+          className="text-action"
+          data-target-control={BENCHMARK_CONTROL_ID}
+          onClick={onChooseBenchmark}
+        >
           {failed ? "Choose a different benchmark →" : "Choose a benchmark →"}
         </button>
         {reachNote ? (
@@ -272,7 +265,12 @@ export default function BenchmarkPanel({ comparison, requested }: BenchmarkPanel
 
       {/* The same jump as the empty state's, kept here because a loaded
           comparison is the most common moment for wanting a different one. */}
-      <button type="button" className="text-action" onClick={focusBenchmarkControl}>
+      <button
+        type="button"
+        className="text-action"
+        data-target-control={BENCHMARK_CONTROL_ID}
+        onClick={onChooseBenchmark}
+      >
         Compare against another instrument →
       </button>
       {reachNote ? (
