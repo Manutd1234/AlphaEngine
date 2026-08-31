@@ -32,8 +32,8 @@ export async function GET(request: NextRequest) {
   const asset = classify(symbol);
 
   try {
-    // Crypto keeps the original Binance path: keyless, paginated to 5000 bars,
-    // and with the synthetic fallback so the research workflow always runs.
+    // Crypto keeps the venue path: keyless and paginated to 5000 bars. If both
+    // venues decline, this route reports 502 and returns no replacement bars.
     // Equities go through the provider registry (Massive → Tiingo → FMP →
     // Alpha Vantage) — an equity series has no keyless source, so
     // here failover is across vendors instead of down to synthetic data. An
