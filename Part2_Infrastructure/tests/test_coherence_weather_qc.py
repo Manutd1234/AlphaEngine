@@ -64,6 +64,15 @@ class TestTheIncompleteMinutesAreTheWholePoint:
         assert minutes[0].provisional() == Decimal("91.0")
         assert minutes[0].spread == Decimal("0.8")
 
+    def test_a_rejected_reading_cannot_move_the_provisional_value_or_spread(self):
+        minutes = parse_detailed({"timeseries": [
+            minute(BASE, None, [
+                ("A", 91.4, "pending"), ("B", 90.6, "pending"), ("C", 50.0, "rejected"),
+            ]),
+        ]})
+        assert minutes[0].provisional() == Decimal("91.0")
+        assert minutes[0].spread == Decimal("0.8")
+
     def test_a_minute_with_nothing_in_hand_has_no_provisional_rather_than_zero(self):
         """Zero on a temperature index is a reading, not an absence."""
         minutes = parse_detailed({"timeseries": [minute(BASE, None, [])]})
