@@ -135,7 +135,7 @@ export default function QuarantinePanel({
         )
       ) : (
         <>
-          <div className="table-wrap table-wrap--clamped">
+          <div className="table-wrap table-wrap--clamped" tabIndex={0}>
             <table>
               <caption className="sr-only">Flagged payload counts by provider.</caption>
               <thead>
