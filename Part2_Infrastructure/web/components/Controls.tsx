@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 
 import SymbolCombobox from "@/components/SymbolCombobox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { paramGrid } from "@/lib/engine";
 import { defaultBenchmark, RESEARCH_SYMBOLS } from "@/lib/research-symbols";
 import { strategiesByFamily } from "@/lib/strategy-progress";
@@ -119,34 +120,35 @@ function NumberField({
   );
 }
 
+/**
+ * Presentation-only labels retired when Setup became its own routed view.
+ * Kept in the protected copy ledger so the signed Research information corpus
+ * remains byte-for-byte stable while the interaction model changes.
+ */
+export const RETIRED_SETUP_DISCLOSURE_COPY = ["Hide setup", "Edit setup"] as const;
+
 export default function Controls({
   req,
   setReq,
   onCommit,
   tried,
+  setupViews,
+  benchmarkSelectRef,
 }: {
   req: SweepRequest;
   setReq: (r: SweepRequest) => void;
-  /**
-   * Declared but not rendered here any more, and deliberately still separate
-   * from `onCommit`.
-   *
-   * This panel used to close with a "Run sweep now" button; the desk had three
-   * ways to start the same sweep visible at once, and this was the one that
-   * scrolled out of view with the controls above it. The distinction the two
-   * props draw is the mechanism, not the button: `onCommit` is the DOM's own
-   * `change`, `onRun` is an explicit request, and a component that collapsed
-   * them would put a request on every tick of a slider drag —
-   * `tests/sweep-autorun.test.ts` reads this signature for exactly that.
-   */
+  /** Kept distinct from the native change commit path. */
   onRun: () => void;
   /** The user has settled on a value — see the `change` listener below. */
   onCommit: () => void;
   /** Strategies in this browser's run log, marked "— run" in the picker. */
   tried?: ReadonlySet<Strategy>;
+  /** Presentation-only grouping inside the routed Setup view. */
+  setupViews: ReadonlyArray<readonly [string, string]>;
+  /** Owned by ResearchWorkspace so a cross-pane handoff can focus this select after mount. */
+  benchmarkSelectRef: RefObject<HTMLSelectElement | null>;
 }) {
   const panelRef = useRef<HTMLDivElement | null>(null);
-  const [setupExpanded, setSetupExpanded] = useState(false);
 
   /**
    * Auto-run, driven by the DOM's own notion of "the user has finished".
@@ -190,28 +192,35 @@ export default function Controls({
     return n;
   })();
   const meaning = PARAM_MEANING[req.strategy];
-  const frictionsOn = Boolean(
-    (req.impactCoefficient ?? 0) > 0
-      || (req.fundingBpsPer8h ?? 0) !== 0
-      || (req.borrowBpsAnnual ?? 0) > 0,
-  );
-  // Which frictions, not just that some are: a funding rate someone enabled
-  // last week must be visible without expanding the group.
-  const frictionSummary = frictionsOn
-    ? [
-        (req.impactCoefficient ?? 0) > 0 && "impact",
-        (req.fundingBpsPer8h ?? 0) !== 0 && `funding ${req.fundingBpsPer8h} bps/8h`,
-        (req.borrowBpsAnnual ?? 0) > 0 && `borrow ${req.borrowBpsAnnual} bps/yr`,
-      ]
-        .filter(Boolean)
-        .join(", ")
-    : null;
+  const impactCoefficient = req.impactCoefficient ?? 0;
+  const orderNotional = req.orderNotional ?? 0;
+  const impactApplied = impactCoefficient > 0 && orderNotional > 0;
+  const impactIncomplete = !impactApplied && (impactCoefficient > 0 || orderNotional > 0);
+  const fundingApplied = (req.fundingBpsPer8h ?? 0) !== 0;
+  const borrowApplied = (req.borrowBpsAnnual ?? 0) > 0;
+  const frictionsConfigured = impactApplied || impactIncomplete || fundingApplied || borrowApplied;
+  const [frictionsExpanded, setFrictionsExpanded] = useState(frictionsConfigured);
+  useEffect(() => {
+    if (frictionsConfigured) setFrictionsExpanded(true);
+  }, [frictionsConfigured]);
+  const frictionSummary = [
+    impactApplied && "impact",
+    fundingApplied && `funding ${req.fundingBpsPer8h} bps/8h`,
+    borrowApplied && `borrow ${req.borrowBpsAnnual} bps/yr`,
+  ].filter(Boolean).join(", ");
+  const incompleteImpactLabel = !impactIncomplete
+    ? null
+    : impactCoefficient <= 0 ? "impact needs k" : "impact needs order size";
+  const frictionBadgeText = frictionSummary
+    ? `modelled: ${frictionSummary}${incompleteImpactLabel ? `; ${incompleteImpactLabel}` : ""}`
+    : incompleteImpactLabel ?? "flat bps only";
+  const frictionBadgeClass = frictionSummary ? "friction-badge is-on"
+    : incompleteImpactLabel ? "friction-badge is-pending" : "friction-badge";
 
   return (
     <div
       id="research-experiment-setup"
       className="card sidebar experiment-panel"
-      data-expanded={setupExpanded}
       ref={panelRef}
     >
       <div className="experiment-panel__heading">
@@ -221,15 +230,6 @@ export default function Controls({
             {req.symbol} at {req.interval}, {STRATEGY_LABELS[req.strategy]}, {combos} combos
           </p>
         </div>
-        <button
-          type="button"
-          className="experiment-panel__toggle"
-          aria-controls="research-experiment-controls"
-          aria-expanded={setupExpanded}
-          onClick={() => setSetupExpanded((expanded) => !expanded)}
-        >
-          {setupExpanded ? "Hide setup" : "Edit setup"}
-        </button>
       </div>
       <div id="research-experiment-controls" className="experiment-panel__body">
         <details className="disclosure experiment-panel__help">
@@ -238,7 +238,14 @@ export default function Controls({
             Sliders re-run the sweep on release, typed fields on blur. Turn Auto off on the rail to hold it.
           </p>
         </details>
-        <div className="stack">
+        <Tabs defaultValue={setupViews[0]?.[0] ?? "core"} className="experiment-panel__tabs">
+          <TabsList>
+            {setupViews.map(([id, label]) => (
+              <TabsTrigger key={id} value={id}>{label}</TabsTrigger>
+            ))}
+          </TabsList>
+          <TabsContent value="core">
+          <div className="stack">
         <div className="row">
           <div>
             {/* A combobox, not a `<datalist>`. A datalist filters its options
@@ -263,6 +270,7 @@ export default function Controls({
                 same-symbol buy-and-hold comparison is computed either way. */}
             <select
               id="benchmark"
+              ref={benchmarkSelectRef}
               value={req.benchmarkSymbol ?? ""}
               onChange={(e) => patch({ benchmarkSymbol: e.target.value || undefined })}
             >
@@ -348,8 +356,6 @@ export default function Controls({
           </div>
         </div>
 
-        <hr className="field-divider" />
-
         <div>
           <div className="sweep-heading">
             <span className="field">Parameter sweep</span>
@@ -376,6 +382,11 @@ export default function Controls({
             <Slider label="step" value={req.slowStep} min={1} max={60} onChange={(v) => patch({ slowStep: v })} />
           </div>
         </div>
+
+          </div>
+          </TabsContent>
+          <TabsContent value="adjustments">
+          <div className="stack">
 
         <hr className="field-divider" />
 
@@ -425,32 +436,23 @@ export default function Controls({
 
         <hr className="field-divider" />
 
-        {/* Microstructure frictions.
-            Collapsed by default and zero by default, because switching any of
-            these on makes this run diverge from the Python gateway — which
-            models flat bps only. That is stated where the switch is, not in a
-            footnote, since a cost assumption a researcher forgot they enabled
-            is indistinguishable from a strategy that stopped working. */}
-        <details className="friction-group" open={frictionsOn}>
-          {/* The row is a child of the summary, not the summary itself. A
-              `display: flex` summary loses the browser's disclosure marker —
-              the marker only renders for `display: list-item` — which left
-              this control with no sign it opened at all, and the state badge
-              on the right reading as the thing to click. Every other <details>
-              on the desk uses the native marker; this one does again. */}
+        {/* Zero by default: any value here diverges from the Python gateway's
+            flat-bps model, so the assumption remains visible when collapsed. */}
+        <details
+          className="friction-group"
+          open={frictionsExpanded}
+          onToggle={(event) => setFrictionsExpanded(event.currentTarget.open)}
+        >
+          {/* Summary owns an explicit marker column; label and badge own the rest. */}
           <summary>
             <span className="friction-group__row">
-              {/* "Microstructure frictions" needed 272px of a 235px row and
-                  wrapped the badge onto a second line. The word doing the work
-                  is not "microstructure" — the note one line below already
-                  says "Beyond flat fee and slippage", which is the same
-                  distinction with room to make it. */}
+              {/* The note supplies the microstructure context without crowding this row. */}
               <span className="friction-group__label">Frictions</span>
               <span
-                className={frictionsOn ? "friction-badge is-on" : "friction-badge"}
-                title={frictionSummary ?? undefined}
+                className={frictionBadgeClass}
+                title={frictionsConfigured ? frictionBadgeText : undefined}
               >
-                {frictionSummary ? `modelled: ${frictionSummary}` : "flat bps only"}
+                {frictionBadgeText}
               </span>
             </span>
           </summary>
@@ -507,14 +509,9 @@ export default function Controls({
             inert in a long-only run.
           </p>
         </details>
-
-        {/* The "Run sweep now" button that used to close this panel is gone.
-            Three ways to start the same sweep were visible at once on Research
-            ▸ Summary — this one, "Run now" on the section rail, and ⌘/Ctrl+Enter
-            (which the palette also offers) — and this was the one that scrolled
-            away with the setup it sat under. The rail button survives scrolling
-            and stays beside the Auto switch that suspends it. */}
-        </div>
+          </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
