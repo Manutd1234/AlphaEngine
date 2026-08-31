@@ -17,9 +17,9 @@ What is live vs. mocked
 * LIVE  — VWAP / slippage / depth analytics and the cross-venue router.
 * MOCK  — order *execution* is paper-only (see ``risk_proxy``); fills are priced
           off the live ladder rather than sent to an exchange.
-* MOCK  — if every feed is unreachable (offline environment) a synthetic
-          random-walk book is generated so the system stays demonstrable. Every
-          payload derived from it carries ``synthetic: true``.
+* MOCK  — when ``ALLOW_SYNTHETIC_BOOK=1`` is explicitly set and every feed is
+          unreachable, a synthetic random-walk book keeps a demo readable.
+          Every payload derived from it carries ``synthetic: true``.
 
 Design note — why partial-book streams
 --------------------------------------
