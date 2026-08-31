@@ -1,0 +1,393 @@
+/* Proofs certificate decision/proof flows and responsive projections. */
+
+/* One wide reading surface, with the Sheet as the only vertical scroll owner. */
+.proofs-method-sheet[data-slot="sheet-content"] {
+  width: min(96rem, calc(100vw - 1rem));
+  max-width: none;
+  overflow-y: auto;
+}
+
+/* Verdict pipeline: natural HTML wrapping replaces the fixed-height SVG that
+   clipped live engine names and notes inside its boxes. */
+.proofs-plane .coh-decision-flow {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+
+.proofs-plane .coh-decision-flow__rail {
+  display: flex;
+  align-items: stretch;
+  gap: 2.25rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.proofs-plane .coh-decision-flow__step {
+  position: relative;
+  display: block;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.proofs-plane .coh-decision-flow__card {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  min-width: 0;
+  min-height: 9.25rem;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-block-start: 3px solid var(--axis);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+}
+
+.proofs-plane .coh-decision-flow__card[data-state="flagged"] {
+  border-block-start-style: double;
+  border-block-start-color: var(--status-critical);
+}
+
+.proofs-plane .coh-decision-flow__card[data-state="unavailable"] {
+  border-block-start-style: dashed;
+}
+
+.proofs-plane .coh-decision-flow__card header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.proofs-plane .coh-decision-flow__index {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.proofs-plane .coh-decision-flow__status {
+  color: var(--text-secondary);
+  font-size: var(--fs-2xs);
+  font-weight: 650;
+  text-transform: uppercase;
+}
+
+.proofs-plane .coh-decision-flow__card h4 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--fs-title);
+  line-height: 1.25;
+}
+
+.proofs-plane .coh-decision-flow__value {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--fs-md);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.proofs-plane .coh-decision-flow__card p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.proofs-plane .coh-decision-flow__arrow {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 100%;
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  color: var(--text-muted);
+}
+
+.proofs-plane .coh-decision-flow__arrow svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  stroke-width: 1.5;
+}
+
+.proofs-plane .coh-decision-flow__key {
+  margin: 0;
+  padding-block-start: var(--space-2);
+  border-block-start: 1px solid var(--rule-soft);
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+}
+
+/* Proof view: evidence flows through one inspectable loom. Each strand is
+   derived from the returned component size; the stages are gates in the flow,
+   not cards pretending to be solver rows. */
+.proofs-plane .coh-proof-flow {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-3);
+}
+
+.proofs-plane .coh-proof-loom {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--series-1) 7%, transparent), transparent 31%),
+    linear-gradient(90deg, transparent, color-mix(in srgb, var(--surface-2) 72%, transparent) 50%, transparent);
+}
+
+.proofs-plane .coh-proof-loom svg {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1000 / 224;
+  min-height: 13rem;
+  overflow: visible;
+}
+
+.proofs-plane .coh-proof-loom__spine,
+.proofs-plane .coh-proof-loom__thread,
+.proofs-plane .coh-proof-loom__orbit {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.proofs-plane .coh-proof-loom__spine {
+  stroke: var(--rule);
+  stroke-width: 1;
+}
+
+.proofs-plane .coh-proof-loom__thread {
+  opacity: 0.42;
+  stroke-width: 1.6;
+  transition: opacity var(--dur) var(--ease), stroke-width var(--dur) var(--ease);
+}
+
+.proofs-plane .coh-proof-loom__thread[data-active="true"] {
+  opacity: 1;
+  stroke-width: 3;
+  stroke-dasharray: 3 9;
+}
+
+.proofs-plane .coh-proof-loom__orbit {
+  stroke: var(--series-1);
+  stroke-width: 1.5;
+  transition: r var(--dur) var(--ease), opacity var(--dur) var(--ease);
+}
+
+.proofs-plane .coh-proof-loom__gate:not([data-active="true"]) .coh-proof-loom__orbit {
+  opacity: 0.54;
+}
+
+.proofs-plane .coh-proof-loom__gate[data-state="flagged"] .coh-proof-loom__orbit {
+  stroke: var(--status-critical);
+}
+
+.proofs-plane .coh-proof-loom__gate[data-state="partial"] .coh-proof-loom__orbit {
+  stroke-dasharray: 3 3;
+}
+
+.proofs-plane .coh-proof-loom__core {
+  fill: var(--series-1);
+  stroke: var(--surface-1);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.proofs-plane .coh-proof-loom__gate[data-state="flagged"] .coh-proof-loom__core {
+  fill: var(--status-critical);
+}
+
+.proofs-plane .coh-proof-loom__gate text {
+  fill: var(--on-accent);
+  font-family: var(--mono);
+  font-size: var(--fs-tick);
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.proofs-plane .coh-proof-loom__stages {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  pointer-events: none;
+}
+
+.proofs-plane .coh-proof-loom__stages li {
+  position: absolute;
+  top: 50%;
+  left: var(--proof-node-x);
+  width: min(10rem, 21vw);
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+}
+
+.proofs-plane .coh-proof-loom__stages button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: end;
+  gap: 2px;
+  width: 100%;
+  min-height: 9rem;
+  padding: 0 2px 3px;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: center;
+}
+
+.proofs-plane .coh-proof-loom__stages button > span,
+.proofs-plane .coh-proof-loom__stages button > strong {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.proofs-plane .coh-proof-loom__stages button > span {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+}
+
+.proofs-plane .coh-proof-loom__stages button > strong {
+  color: var(--text-secondary);
+  font-size: var(--fs-2xs);
+}
+
+.proofs-plane .coh-proof-loom__stages button:hover > span,
+.proofs-plane .coh-proof-loom__stages button[aria-pressed="true"] > span {
+  color: var(--series-1);
+}
+
+.proofs-plane .coh-proof-loom__stages button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes coh-proof-current {
+  to { stroke-dashoffset: -24; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .proofs-plane .coh-proof-loom__thread[data-active="true"] {
+    animation: coh-proof-current var(--dur-pulse) linear infinite;
+    animation-delay: var(--proof-delay);
+  }
+}
+
+.proofs-plane .coh-proof-rank {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+}
+
+.proofs-plane .coh-proof-rank > header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-block-end: 1px solid var(--rule-soft);
+  background: var(--surface-2);
+}
+
+.proofs-plane .coh-proof-rank h4 {
+  margin: 2px 0 0;
+  color: var(--text-primary);
+  font-size: var(--fs-title);
+}
+
+.proofs-plane .coh-proof-rank ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.proofs-plane .coh-proof-rank li {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1fr) minmax(10rem, 1.5fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: 9px var(--space-3);
+  border-block-end: 1px solid var(--rule-soft);
+}
+
+.proofs-plane .coh-proof-rank li:last-child {
+  border-block-end: 0;
+}
+
+.proofs-plane .coh-proof-rank__label {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.proofs-plane .coh-proof-rank__label > :is(strong, span) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.proofs-plane .coh-proof-rank__label > strong {
+  color: var(--text-primary);
+  font-size: var(--fs-xs);
+}
+
+.proofs-plane .coh-proof-rank__label > span {
+  color: var(--text-secondary);
+  font-size: var(--fs-2xs);
+}
+
+.proofs-plane .coh-proof-rank__meter {
+  position: relative;
+  display: block;
+  height: 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: linear-gradient(90deg, var(--surface-2) 0 49.5%, var(--axis) 49.5% 50.5%, var(--surface-2) 50.5% 100%);
+}
+
+.proofs-plane .coh-proof-rank__meter i {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  left: 50%;
+  width: var(--constraint-room);
+  max-width: 50%;
+  border-radius: var(--radius-pill);
+  background: var(--series-1);
+}
+
+.proofs-plane .coh-proof-rank li[data-state="flagged"] .coh-proof-rank__meter i {
+  right: 50%;
+  left: auto;
+  border: 1px solid var(--status-critical);
+  background: repeating-linear-gradient(135deg, transparent 0 3px, var(--status-critical) 3px 4px);
+}
+
+.proofs-plane .coh-proof-rank__value {
+  min-width: 6.5rem;
+  color: var(--text-primary);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.proofs-plane .coh-proof-constraints {
+  margin: 0;
+}
+
+.proofs-plane .coh-proof-constraints .table-wrap {
+  max-height: 24rem;
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
