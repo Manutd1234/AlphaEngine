@@ -5,16 +5,15 @@
         --symbols BTCUSDT,ETHUSDT --interval 1m --from 2024-01-01 \
         --cache-dir /tmp/diffusion-cache --out report.json
 
-The question: an FOMC decision arrives in two stages thirty minutes apart —
-the statement, which is a number a machine can read, and the press conference,
-which is a person answering questions. Do prices finish absorbing the two at
-the same speed? If they do not differ at all, the premise the whole module
-rests on is wrong and the estimator is not worth building.
+The question: an FOMC decision arrives as a statement and, when the event
+ledger records one, a later press conference. Do prices finish absorbing the
+two at the same speed? If they do not differ at all, the premise the whole
+module rests on is wrong and the estimator is not worth building.
 
-Why this arm first. It needs no vendor, no key, no forward capture and no
-torch: the stage timestamps are public to the minute and Binance serves minute
-bars back to 2017 for nothing. It can therefore run today and can return
-`flat`, which is the outcome the plan commits to publishing.
+The calendar is not bundled here. The runner reads FOMC rows already captured
+in the desk's event ledger, including their timestamp sources. An empty ledger
+therefore produces an empty/not-assessable report instead of silently
+substituting an authored meeting list. Binance supplies only the price bars.
 
 The report is JSON and prints its own summary. Every number in it carries the
 count behind it, the clock it was measured on, and the placebo run beside it;
@@ -34,7 +33,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import numpy as np  # noqa: E402
 
-from modules.coherence.diffusion import fomc, tunables  # noqa: E402
+from modules.coherence.diffusion import tunables  # noqa: E402
 from modules.coherence.diffusion.absorption import (  # noqa: E402
     STAGE_HORIZONS,
     PathReport,
@@ -51,6 +50,7 @@ from modules.coherence.diffusion.clock import (  # noqa: E402
     volatility_clock,
 )
 from modules.coherence.diffusion.decay import HalfLife, half_life  # noqa: E402
+from modules.coherence.diffusion.events import DiffusionEventStore  # noqa: E402
 from modules.coherence.diffusion.phase0 import (  # noqa: E402
     StagePair,
     paired_stage_test,
@@ -155,10 +155,33 @@ def measure_stage(series: BarSeries, t0_ms: int, stage: str, *, pre_days: int, c
     }
 
 
-def run(args: argparse.Namespace, *, client: Any | None = None) -> dict[str, Any]:
+def _ledger_meetings(*, from_ms: int, now_ms: int) -> list[dict[str, Any]]:
+    """Read observed FOMC rows; never manufacture a calendar when it is empty."""
+    store = DiffusionEventStore()
+    try:
+        rows, _truncated = store.list_events(
+            kind="fomc", from_ms=from_ms, to_ms=now_ms, limit=10_000,
+        )
+        return rows
+    finally:
+        store.close()
+
+
+def run(
+    args: argparse.Namespace,
+    *,
+    client: Any | None = None,
+    meetings: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     now_ms = args.now_ms if args.now_ms is not None else int(datetime.now(timezone.utc).timestamp() * 1000)
     from_ms = _iso_ms(args.from_date)
-    meetings = [row for row in fomc.seed_rows(now_ms=now_ms) if row["release_at"] >= from_ms]
+    candidates = meetings if meetings is not None else _ledger_meetings(from_ms=from_ms, now_ms=now_ms)
+    meetings = [
+        row for row in candidates
+        if row.get("kind") == "fomc"
+        and from_ms <= float(row["release_at"]) <= now_ms
+    ]
+    meetings.sort(key=lambda row: float(row["release_at"]))
     if args.limit:
         meetings = meetings[-args.limit:]
     cache_dir = Path(args.cache_dir) if args.cache_dir else None
@@ -249,6 +272,9 @@ def _calendar_block(meetings: list[dict[str, Any]]) -> dict[str, Any]:
     """Whether the dates behind this report have been checked, and how far."""
     block = calendar_verification(meetings)
     block["note"] = (
+        "no observed FOMC event rows are present in the desk ledger"
+        if not meetings
+        else
         "every meeting's date and hour was confirmed against the issuer's own statement page"
         if block.get("state") == "ok" and block.get("verified")
         else "run tools/diffusion_text.py --persist to check these dates against "
