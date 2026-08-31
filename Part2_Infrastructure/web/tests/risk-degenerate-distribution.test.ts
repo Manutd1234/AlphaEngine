@@ -190,13 +190,24 @@ describe("the card consults the guard rather than carrying its own copy", () => 
     assert.match(code, /mcDriverDegeneracy\(driver\.returns\)/);
   });
 
-  it("the tiles, the histogram and the verdict are skipped together", () => {
-    // One condition guards all three. Skipping the tiles and keeping the
-    // verdict would leave "Within headroom. P95 loss $0" on screen, which is
-    // the exact sentence the report was about.
-    assert.match(code, /state\.status === "done" && result && !resultDefect/);
-    assert.match(code, /state\.status === "done" && resultDefect/,
-      "the refusal is rendered, not merely the result withheld");
+  it("the tiles, histogram and verdict stay atomic while a valid prior result refreshes in place", () => {
+    // One condition guards all three. It deliberately does NOT require `done`:
+    // a same-driver parameter refresh retains the last valid result so the
+    // analytical surface does not collapse or twitch while its replacement is
+    // running. A degenerate result still replaces all three with one refusal,
+    // but only after the replacement run has settled.
+    assert.match(code, /\{result && !resultDefect && \(/);
+    assert.doesNotMatch(code, /state\.status === "done" && result && !resultDefect/,
+      "a refresh must not hide the retained valid distribution until the replacement completes");
+    assert.match(code, /\{result && resultDefect && state\.status !== "running" && \(/,
+      "the refusal is rendered after completion, not merely the figures withheld");
+
+    const hook = stripCode(readSource("lib/use-mc-distribution.ts"));
+    assert.match(
+      hook,
+      /const retainedResult = sameDriver \? previous\.result : null;[\s\S]*?status:\s*"running"[\s\S]*?result:\s*retainedResult/,
+      "same-driver refreshes must retain the prior result; a new driver must clear it",
+    );
   });
 
   it("every figure read off the result goes through mcUsd", () => {
