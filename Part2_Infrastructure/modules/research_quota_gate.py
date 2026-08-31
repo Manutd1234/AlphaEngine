@@ -32,6 +32,7 @@ from modules.research_quota import SCOPE_UNAVAILABLE, Bound
 from modules.research_quota_scope import (
     SCOPE_PARAM,
     desk_scope,
+    missing_desk_bound,
     scope_bound,
     scope_parameter_accepted,
 )
@@ -106,6 +107,8 @@ def scope_for(callees: tuple[Any, ...]) -> tuple[str | None, Bound | None, dict[
     desk = desk_scope()
     if desk is None:
         return None, None, {}
+    if not desk:
+        return desk, missing_desk_bound(), {}
     for callee in callees:
         if not scope_parameter_accepted(callee):
             return desk, scope_bound(desk, getattr(callee, "__name__", "retrieval")), {}
