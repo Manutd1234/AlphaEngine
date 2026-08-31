@@ -87,9 +87,6 @@ describe("one series per key, and the key carries the subject", () => {
     // keying on the section alone would weld two families' readings into one
     // line and draw the reader's own pick as a move in the market.
     const sites: Array<[string, string]> = [
-      ["UniverseSection", "components/coherence/UniverseSection.tsx"],
-      ["BooksSection", "components/coherence/BooksSection.tsx"],
-      ["SurfacePane", "components/coherence/SurfacePane.tsx"],
       ["StakePane", "components/coherence/StakePane.tsx"],
       ["FeesSection", "components/coherence/FeesSection.tsx"],
       // The last three, 2026-08-26. Every section on the rail carries a tape
@@ -127,6 +124,14 @@ describe("the ring forgets from the front", () => {
 });
 
 describe("the figure says what its axis means", () => {
+  it("uses the recorded Books flipbook instead of a second generic session tape", () => {
+    const books = read("../components/coherence/BooksSection.tsx");
+    assert.match(books, /view === "history"[\s\S]*?<BookHistory\b/,
+      "Books History no longer opens its recorded snapshot instrument");
+    assert.doesNotMatch(books, /<LiveTape\b/,
+      "Books History duplicates its recorded flipbook with a generic in-session chart");
+  });
+
   it("every caption is scoped to this browser's own session", () => {
     // The one claim on this figure a reader cannot check for themselves, and
     // the one that would make it a lie: an x-axis that appears to mean "the
