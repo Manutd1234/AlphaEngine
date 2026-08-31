@@ -132,7 +132,12 @@ describe("where a family's size actually sits", () => {
   it("bands a real family's open interest by what its outcomes cost", () => {
     const fed = universe.events.find((event) => event.mutually_exclusive)!;
     const bands = exposureBands(fed);
-    assert.equal(bands.length, 8);
+    assert.equal(bands.length, 20);
+    assert.deepEqual(
+      bands.map(({ lowCc, highCc }) => [lowCc, highCc]),
+      Array.from({ length: 20 }, (_, index) => [index * 500, (index + 1) * 500]),
+      "the position histogram no longer shares the Families view's fixed five-cent axis",
+    );
     const placed = bands.reduce((sum, band) => sum + band.contractsCc, 0);
     assert.equal(placed, 21_126_400, "a leg's open interest was dropped between the bands");
     assert.ok(bands.some((band) => band.share !== null && band.share > 0), "every band came out empty");
