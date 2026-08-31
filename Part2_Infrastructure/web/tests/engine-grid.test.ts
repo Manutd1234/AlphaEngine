@@ -2,8 +2,8 @@
  * The engine grid family: one layout vocabulary for both engine tabs.
  *
  * Every section on Proofs and Markets was one column — head, verdict, control
- * row, figure, reading, fold, table — with exactly two two-up grids on the
- * whole Proofs tab (`.coh-figpair`, scoped to one plane) and none on Markets.
+ * row, figure, reading, fold, table — with a small number of deliberate packing
+ * grids on Proofs and none on Markets.
  * "Dense layouts, in the style of a quant desk's internal tools" is a layout
  * vocabulary that did not exist, so `14y-engine-grid.css` declares one and
  * this file holds it to four rules:
@@ -23,8 +23,9 @@
  *      and fails on a table or a paragraph first, and this file says the same
  *      thing one level down.
  *
- * `.coh-figpair` is retired: its two sites are the first two grid sites, and
- * the rule goes in the same commit, so `dead-css`'s zero slack is never spent.
+ * `.coh-figpair` is retired. The certificate verdict has since returned to one
+ * full-width decision chain; the remaining two-up site still exercises the
+ * shared grid vocabulary without forcing live verdict copy into narrow cards.
  */
 
 import assert from "node:assert/strict";
@@ -66,7 +67,6 @@ const SOURCES = engineSources();
  * its opener being checked.
  */
 const LAYOUT: ReadonlyArray<{ file: string; primitive: string; leads: string }> = [
-  { file: "components/coherence/CertificateViews.tsx", primitive: "coh-grid--2", leads: "MarginAxis" },
   { file: "components/coherence/PortfolioPane.tsx", primitive: "coh-grid--2", leads: "ShortfallScale" },
 ];
 
@@ -163,6 +163,18 @@ describe("SectionFrame takes the grid as a layout prop wrapping children only", 
 });
 
 describe("every Proofs grid opens on a drawing", () => {
+  it("keeps the certificate verdict as one full-width decision chain", () => {
+    const source = SOURCES.find(([file]) => file === "components/coherence/CertificateViews.tsx")?.[1] ?? "";
+    const verdictAt = source.indexOf("export function VerdictView(");
+    const proofAt = source.indexOf("export function ProofView(");
+    assert.ok(verdictAt > -1 && proofAt > verdictAt, "the certificate views cannot be isolated");
+    const verdict = source.slice(verdictAt, proofAt);
+    assert.match(verdict, /<CheckLadder certificate=\{data\} \/>/,
+      "the verdict does not open on its decision drawing");
+    assert.doesNotMatch(verdict, /coh-grid--2|coh-grid--aside/,
+      "the verdict decision chain is packed into a narrow multi-column grid");
+  });
+
   for (const site of LAYOUT) {
     it(`${site.file.split("/").pop()} leads its ${site.primitive} with ${site.leads}`, () => {
       const source = SOURCES.find(([file]) => file === site.file)?.[1] ?? "";
