@@ -82,7 +82,7 @@ def test_self_measure_touches_no_order_state(monkeypatch):
 def test_snapshot_publishes_the_core_figure_with_its_provenance_before_any_order(monkeypatch):
     gateway = _native_gateway(monkeypatch)
     gateway.run_core_self_measure()
-    snap = _decision_latency_snapshot()
+    snap = _decision_latency_snapshot(gateway)
 
     # `engine` reports the loader's choice (which DECISION_CORE=python may have
     # set to "python" for the process); the core figure is what this test owns.
@@ -102,7 +102,7 @@ def test_self_measure_is_a_silent_no_op_without_a_core(monkeypatch):
     assert gateway.run_core_self_measure() == 0
     core = metrics.core_latency_summary()
     assert core["samples"] == 0 and core["self_test_samples"] == 0
-    snap = _decision_latency_snapshot()
+    snap = _decision_latency_snapshot(gateway)
     assert snap.core_p99_ns is None
     assert snap.core_self_test_samples is None, "no core histogram at all is null, not zero"
 
@@ -122,3 +122,56 @@ def test_self_measure_never_raises_and_leaves_the_histogram_untouched_on_failure
     assert gateway.run_core_self_measure() == 0
     assert metrics.core_latency_summary()["samples"] == 0
     assert metrics.decision_latency_summary()["samples"] == 0
+    status = gateway.decision_core_status()
+    assert status["effective"] == "python"
+    assert status["fallback_reason"] == "native_self_measure_failed"
+    assert status["fallback_counts"] == {"native_self_measure_failed": 1}
+
+
+def test_wrong_native_probe_fails_the_known_answer_canary_and_readiness(monkeypatch):
+    """A callable, correctly shaped core cannot become ready with wrong numbers."""
+    from main import _measure_decision_core_readiness
+
+    gateway = _native_gateway(monkeypatch)
+    native = gateway._decision_core
+
+    class WrongResult:
+        elapsed_ns = 84
+        mark = 101.0  # planted defect: the fixed synthetic book's mark is 100.0
+        has_price = True
+        qty = 100.0
+        notional = 10_000.0
+        projected_sym = 10_050.0
+        projected_gross = 10_050.0
+        dev_bps = 0.0
+        dd = 0.0
+        reduce_only_active = False
+        reducing = False
+        budget_used = 0.0
+        route_ran = True
+        route_none = False
+        route_fillable = True
+        route_filled_notional = 10_000.0
+        route_has_slip = True
+        route_slippage_bps = 1.0
+        route_venue_order = [0]
+
+    class WrongCore:
+        BookLadder = native.BookLadder
+
+        @staticmethod
+        def decide(**_kwargs):
+            return WrongResult()
+
+    gateway._decision_core = WrongCore()
+    reasons: list[str] = []
+    runtime = type("Runtime", (), {"mark_unready": reasons.append})()
+
+    assert _measure_decision_core_readiness(gateway, runtime) == 0
+    assert metrics.core_latency_summary()["samples"] == 0
+    status = gateway.decision_core_status()
+    assert status["effective"] == "python"
+    assert status["fallback_reason"] == "native_self_measure_failed"
+    assert status["fallback_total"] == 1
+    assert status["fallback_counts"] == {"native_self_measure_failed": 1}
+    assert reasons == ["native decision core self-measure failed"]
