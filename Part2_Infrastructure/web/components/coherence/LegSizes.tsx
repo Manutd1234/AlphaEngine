@@ -1,208 +1,395 @@
 "use client";
 
-/**
- * The size quartet, drawn — three ribbons on the prices' own strike axis.
- *
- * `CoherenceMarketView` carries four size fields per leg, and its own type
- * says why they are worth drawing: they "disagree with each other,
- * legitimately — a market reporting zero liquidity while carrying open
- * interest and traded volume". Nothing on either tab drew any of them except
- * as `LadderPrices`' mark area. So a family could be quoted across eighty
- * strikes with every contract outstanding sitting on three of them, and no
- * figure said so.
- *
- * THREE RIBBONS, EACH NORMALISED TO ITS OWN MAXIMUM. Contracts outstanding,
- * contracts traded and dollars resting are three units, so one scale across
- * them would invent a comparison the payload explicitly denies. What IS
- * comparable is the shape along the strike axis, which is what a reader came
- * for: where the interest sits, whether anything traded there, and whether
- * there is anything to trade against now.
- *
- * UNDER THE PRICES, NEVER BESIDE THEM. Two figures sharing an x extent must
- * share a width; side by side, a strike would sit at two different pixels.
- * `lib/coherence/strike-axis.ts` is the placement rule both read.
- *
- * THREE ABSENCES, KEPT APART. A reported `"0.0000"` is the exchange having
- * looked and found nothing, and draws at the floor — a measurement. A null is
- * the venue having stopped sending the field, which is a protocol change and
- * not an empty market; it draws as a ringed cell so it cannot be read as a
- * zero. And a leg with no strike is not on this axis at all, and is counted.
- *
- * The family's own totals are the payload's, never a sum over the legs that
- * answered: `open_interest_total` is withheld entirely when one leg carries no
- * figure, because a sum that skips a leg understates the family by exactly
- * that leg, and a share read against it comes out too large.
- */
+/** One selectable size curve at a time, with exact values preserved in a compact ledger. */
 
-import Figure, { FigureEmpty, Plot } from "./Figure";
+import { useState } from "react";
+
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { money, placeStrikes } from "@/lib/coherence/strike-axis";
 import type { CoherenceEventView, CoherenceMarketView } from "@/lib/coherence/types";
+import { groupDigits } from "@/lib/coherence/universe-metrics";
 
-const HEIGHT = 178;
-const MARGIN = { top: 14, right: 12, bottom: 30, left: 84 };
-/** One ribbon's band, and the tallest a cell may draw inside it. */
-const BAND = 44;
-const BAR_MAX = BAND - 16;
-/** The height a MEASURED zero draws at, so it is a mark rather than a gap. */
-const FLOOR = 2;
+import Figure, { FigureEmpty, Plot } from "./Figure";
+import styles from "./CertificateSizes.module.css";
 
-const RIBBONS: ReadonlyArray<{
+type MetricKey = "open-interest" | "volume" | "liquidity";
+
+interface SizeMetric {
+  key: MetricKey;
   name: string;
-  of: (market: CoherenceMarketView) => string | null;
+  plainName: string;
+  description: string;
   unit: string;
-}> = [
-  { name: "open interest", of: (market) => market.open_interest, unit: "contracts outstanding" },
-  { name: "traded", of: (market) => market.volume, unit: "contracts traded" },
-  { name: "resting", of: (market) => market.liquidity, unit: "dollars resting" },
-];
+  prefix: string;
+  of: (market: CoherenceMarketView) => string | null;
+}
 
-const CAPTION = "The same legs, sized three ways: what is held, what has traded, what is resting";
+interface OrderedLeg {
+  market: CoherenceMarketView;
+  strike: number | null;
+}
 
-export default function LegSizes({ event }: { event: CoherenceEventView }) {
-  const { placed, unplaced, lo, hi } = placeStrikes(event.markets);
+interface SizeScale {
+  metric: SizeMetric;
+  rawValues: Array<string | null>;
+  values: Array<number | null>;
+  peak: number | null;
+  peakRaw: string | null;
+  unreported: number;
+  unscaled: number;
+}
 
-  if (!placed.length || lo === null || hi === null) {
+const METRICS: readonly SizeMetric[] = [
+  {
+    key: "open-interest",
+    name: "Open interest",
+    plainName: "open interest",
+    description: "Held",
+    unit: "contracts outstanding",
+    prefix: "",
+    of: (market) => market.open_interest,
+  },
+  {
+    key: "volume",
+    name: "Volume",
+    plainName: "traded volume",
+    description: "Traded",
+    unit: "contracts traded",
+    prefix: "",
+    of: (market) => market.volume,
+  },
+  {
+    key: "liquidity",
+    name: "Liquidity",
+    plainName: "resting liquidity",
+    description: "Resting",
+    unit: "dollars resting now",
+    prefix: "$",
+    of: (market) => market.liquidity,
+  },
+] as const;
+
+const CAPTION = "Size profile by outcome — held, traded, or resting";
+const CHART_HEIGHT = 278;
+const MARGIN = { top: 20, right: 18, bottom: 42, left: 62 } as const;
+
+const labelOf = (leg: OrderedLeg): string => leg.market.yes_sub_title || leg.market.ticker;
+const fmtStrike = (value: number | null): string => value === null ? "No strike" : groupDigits(String(value));
+
+function exactMetricValue(metric: SizeMetric, raw: string | null): string {
+  return raw === null ? "Not reported" : `${metric.prefix}${groupDigits(raw)}`;
+}
+
+function scaleMaximum(scale: SizeScale, rowCount: number): string {
+  if (scale.peakRaw !== null) return exactMetricValue(scale.metric, scale.peakRaw);
+  return scale.unreported === rowCount ? "Not reported" : "Not scalable";
+}
+
+/** Match the quote view: strike order first, then custom outcomes in venue order. */
+function orderedLegs(event: CoherenceEventView): { rows: OrderedLeg[]; unplaced: number } {
+  const { placed, unplaced } = placeStrikes(event.markets);
+  const placedMarkets = new Set(placed.map((leg) => leg.market));
+  return {
+    unplaced,
+    rows: [
+      ...placed.map((leg) => ({ market: leg.market, strike: leg.strike })),
+      ...event.markets
+        .filter((market) => !placedMarkets.has(market))
+        .map((market) => ({ market, strike: null })),
+    ],
+  };
+}
+
+function scaleFor(metric: SizeMetric, rows: readonly OrderedLeg[]): SizeScale {
+  const rawValues = rows.map((leg) => metric.of(leg.market));
+  const values = rawValues.map((raw) => {
+    const value = money(raw);
+    return value !== null && value >= 0 ? value : null;
+  });
+  let peak: number | null = null;
+  let peakRaw: string | null = null;
+  for (let index = 0; index < values.length; index += 1) {
+    const value = values[index];
+    if (value !== null && (peak === null || value > peak)) {
+      peak = value;
+      peakRaw = rawValues[index];
+    }
+  }
+  return {
+    metric,
+    rawValues,
+    values,
+    peak,
+    peakRaw,
+    unreported: rawValues.filter((raw) => raw === null).length,
+    unscaled: rawValues.filter((raw, index) => raw !== null && values[index] === null).length,
+  };
+}
+
+function xAt(index: number, count: number, width: number): number {
+  const span = width - MARGIN.left - MARGIN.right;
+  return count < 2 ? MARGIN.left + span / 2 : MARGIN.left + (index / (count - 1)) * span;
+}
+
+function yAt(value: number, peak: number): number {
+  const span = CHART_HEIGHT - MARGIN.top - MARGIN.bottom;
+  return MARGIN.top + (1 - Math.min(1, value / Math.max(peak, 1))) * span;
+}
+
+function linePath(values: readonly (number | null)[], width: number, peak: number): string {
+  let drawing = false;
+  const commands: string[] = [];
+  values.forEach((value, index) => {
+    if (value === null) {
+      drawing = false;
+      return;
+    }
+    commands.push(`${drawing ? "L" : "M"}${xAt(index, values.length, width).toFixed(2)},${yAt(value, peak).toFixed(2)}`);
+    drawing = true;
+  });
+  return commands.join(" ");
+}
+
+function areaPaths(values: readonly (number | null)[], width: number, peak: number): string[] {
+  const baseline = yAt(0, peak);
+  const paths: string[] = [];
+  let points: Array<[number, number]> = [];
+  const flush = () => {
+    if (!points.length) return;
+    const first = points[0];
+    const last = points[points.length - 1];
+    paths.push(
+      `M${first[0].toFixed(2)},${baseline.toFixed(2)} `
+      + points.map(([x, y]) => `L${x.toFixed(2)},${y.toFixed(2)}`).join(" ")
+      + ` L${last[0].toFixed(2)},${baseline.toFixed(2)} Z`,
+    );
+    points = [];
+  };
+  values.forEach((value, index) => {
+    if (value === null) {
+      flush();
+      return;
+    }
+    points.push([xAt(index, values.length, width), yAt(value, peak)]);
+  });
+  flush();
+  return paths;
+}
+
+function labelledIndexes(count: number): number[] {
+  if (count <= 6) return Array.from({ length: count }, (_, index) => index);
+  return [...new Set(Array.from({ length: 6 }, (_, index) => Math.round((index / 5) * (count - 1))))];
+}
+
+function shortAxisValue(metric: SizeMetric, value: number): string {
+  const rounded = value >= 100 ? value.toFixed(0) : value >= 10 ? value.toFixed(1) : value.toFixed(2);
+  const compact = rounded.includes(".")
+    ? rounded.replace(/0+$/, "").replace(/\.$/, "")
+    : rounded;
+  return `${metric.prefix}${groupDigits(compact)}`;
+}
+
+export default function LegSizes({
+  event,
+  caption = CAPTION,
+  context,
+}: {
+  event: CoherenceEventView;
+  caption?: string;
+  context?: string;
+}) {
+  const { rows, unplaced } = orderedLegs(event);
+  const [metricKey, setMetricKey] = useState<MetricKey>("open-interest");
+
+  if (!rows.length) {
     return (
       <Figure
-        caption={CAPTION}
-        ariaLabel="No leg of this family carries a strike"
-        missing={`No leg of this family carries a strike, so none can be placed on the price ladder's axis.`}
+        caption={caption}
+        ariaLabel="This family has no outcomes"
+        missing="The venue returned no outcome legs, so there are no size readings to show."
+        reserveInteractionRow={false}
       >
-        <FigureEmpty reason="Nothing to place on a strike axis." />
+        <FigureEmpty reason="No outcome legs returned." />
       </Figure>
     );
   }
 
-  // Each ribbon's own maximum, and how many legs it could not read. A ribbon
-  // whose every leg is null has no maximum and draws as a rule of rings.
-  const scales = RIBBONS.map((ribbon) => {
-    const values = placed.map((leg) => money(ribbon.of(leg.market)));
-    const known = values.filter((value): value is number => value !== null);
-    return {
-      ribbon,
-      values,
-      peak: known.length ? Math.max(...known) : null,
-      unreported: values.length - known.length,
-    };
-  });
-
-  const blind = scales.filter((scale) => scale.peak === null);
+  const scales = METRICS.map((metric) => scaleFor(metric, rows));
+  const selected = scales.find((scale) => scale.metric.key === metricKey) ?? scales[0];
+  const peak = selected.peak ?? 1;
+  const blind = scales.filter((scale) => scale.unreported === rows.length);
+  const partiallyMissing = scales.filter((scale) => scale.unreported > 0 && scale.unreported < rows.length);
+  const unscaled = scales.filter((scale) => scale.unscaled > 0);
+  const exactSizeLabel = `Exact size readings, ${rows.length} outcomes`;
   const totals = [
     event.open_interest_total === null
-      ? "the family's open interest is withheld: one leg carries no figure, and a sum over the legs that answered would understate it"
-      : `${event.open_interest_total} contracts outstanding across the family`,
+      ? "open-interest total withheld"
+      : `${groupDigits(event.open_interest_total)} contracts outstanding`,
     event.liquidity_total === null
-      ? "resting dollars are withheld for the same reason"
-      : `${event.liquidity_total} resting`,
-  ].join(", and ");
+      ? "liquidity total withheld"
+      : "$" + groupDigits(event.liquidity_total) + " resting liquidity",
+  ].join(", ");
 
   return (
-    <Figure
-      caption={CAPTION}
-      ariaLabel={
-        `${placed.length} legs of ${event.event_ticker} on the same strike axis as the prices above, `
-        + `in three ribbons: ${RIBBONS.map((ribbon) => ribbon.name).join(", ")}`
-      }
-      reading={`${placed.length} legs on the strike axis above — ${totals}.`}
-      missing={
-        blind.length
-          ? `${blind.map((scale) => scale.ribbon.name).join(" and ")} ${blind.length === 1 ? "is" : "are"} not`
-            + " reported for any leg of this family, so that ribbon is a rule of rings rather than a row of sizes."
-          : null
-      }
-      notes={[
-        "Each ribbon is normalised to its own maximum. These are three units — contracts outstanding,"
-        + " contracts traded, dollars resting — and the venue publishes them disagreeing with each other:"
-        + " a leg can rest no dollars while carrying open interest and traded volume. One scale across"
-        + " them would invent a comparison the exchange does not make.",
-        "What is comparable is the SHAPE along the strike axis, which is the same axis the prices above"
-        + " are drawn on: where the interest sits, whether anything traded there, and whether there is"
-        + " anything to trade against now.",
-        scales.some((scale) => scale.unreported && scale.peak !== null)
-          ? scales
-              .filter((scale) => scale.unreported && scale.peak !== null)
-              .map((scale) => `${scale.unreported} legs report no ${scale.ribbon.name}`)
-              .join("; ")
-            + ". Those cells are drawn ringed at the floor: the venue stopped sending the field, which is a"
-            + " protocol change rather than an empty market, and a reported 0.0000 — the exchange having"
-            + " looked and found nothing — draws filled at the floor beside them."
-          : "Every leg reports every size, so no cell on this figure is a ring.",
-        unplaced
-          ? `${unplaced} legs carry no strike and are not on this axis; they are still in the family the test ran on.`
-          : "",
-      ].filter(Boolean)}
-    >
-      <Plot height={HEIGHT}>
-        {(width) => {
-          const plotW = width - MARGIN.left - MARGIN.right;
-          const span = hi - lo || 1;
-          const x = (strike: number) => MARGIN.left + ((strike - lo) / span) * plotW;
-          const cell = Math.max(1.5, Math.min(14, plotW / placed.length - 1));
-          return (
-            <>
-              {scales.map((scale, band) => {
-                const base = MARGIN.top + band * BAND + BAND - 12;
-                return (
-                  <g key={scale.ribbon.name}>
-                    <text x={MARGIN.left - 8} y={base + 3} textAnchor="end" className="coh-legsize__name">
-                      {scale.ribbon.name}
-                    </text>
-                    <line x1={MARGIN.left} x2={width - MARGIN.right} y1={base} y2={base}
-                          className="coh-legsize__base" />
-                    {placed.map((leg, index) => {
-                      const value = scale.values[index];
-                      // A ring for a field the venue stopped sending; a filled
-                      // cell at the floor for a zero it measured.
-                      const high = value === null || scale.peak === null || scale.peak === 0
-                        ? FLOOR
-                        : FLOOR + (value / scale.peak) * (BAR_MAX - FLOOR);
-                      return (
-                        <rect
-                          key={leg.market.ticker}
-                          x={x(leg.strike) - cell / 2}
-                          y={base - high}
-                          width={cell}
-                          height={high}
-                          className={`coh-legsize__cell${value === null ? " is-null" : ""}`}
-                        />
-                      );
-                    })}
-                  </g>
-                );
-              })}
-              {/* ONE MARK PER LEG, not per cell: a reader walks legs, and the
-                  three figures for a leg are one answer. The group spans the
-                  ribbons, so its box is the column the reader is pointing at. */}
-              {placed.map((leg) => (
-                <g key={`mark-${leg.market.ticker}`} className="coh-legsize__leg">
-                  <rect
-                    x={x(leg.strike) - cell / 2}
-                    y={MARGIN.top}
-                    width={cell}
-                    height={RIBBONS.length * BAND - 12}
-                    className="coh-legsize__column"
-                  />
-                  <title>{legReading(leg.market)}</title>
-                </g>
-              ))}
-              <text x={MARGIN.left + plotW / 2} y={HEIGHT - 8} textAnchor="middle" className="coh-svg-note">
-                strike, the same axis as the prices above — ▪ measured, ▫ not reported
-              </text>
-            </>
-          );
-        }}
-      </Plot>
-    </Figure>
-  );
-}
+    <>
+      <Figure
+        caption={caption}
+        ariaLabel={`${rows.length} outcomes for ${event.event_ticker}; choose open interest, volume, or liquidity and inspect the curve by outcome`}
+        reading={`${rows.length} outcomes in the same order as Prices. ${totals}. Only one unit is plotted at a time.`}
+        missing={
+          blind.length
+            ? `${blind.map((scale) => scale.metric.name).join(" and ")} ${blind.length === 1 ? "is" : "are"} not reported for any outcome.`
+            : null
+        }
+        notes={[
+          context ?? "",
+          "The selector changes the whole y-axis, so contracts held, contracts traded, and dollars resting are never overlaid or compared as if they shared a unit.",
+          "A reported zero sits on the baseline with a visible point. A protocol absence breaks the curve; the two states never share a mark.",
+          partiallyMissing.length
+            ? partiallyMissing.map((scale) => `${scale.unreported} legs report no ${scale.metric.plainName}`).join("; ") + "."
+            : "Every outcome reports all three size fields.",
+          unscaled.length
+            ? unscaled.map((scale) => `${scale.unscaled} ${scale.metric.name} values cannot be scaled`).join("; ") + "."
+            : "",
+          unplaced ? `${unplaced} outcomes have no numeric strike and remain at the end in venue order.` : "",
+        ].filter(Boolean)}
+        readout={<span className="num">{`${selected.metric.name}, peak ${scaleMaximum(selected, rows.length)}`}</span>}
+      >
+        <div className={styles.metricSwitch} role="group" aria-label="Size measure">
+          {scales.map((scale) => (
+            <button
+              key={scale.metric.key}
+              type="button"
+              aria-pressed={scale.metric.key === metricKey}
+              onClick={() => setMetricKey(scale.metric.key)}
+            >
+              <span>{scale.metric.description}</span>
+              <strong>{scale.metric.name}</strong>
+              <small className="num">Peak {scaleMaximum(scale, rows.length)}</small>
+            </button>
+          ))}
+        </div>
 
-/** Every size this leg carries, each under its own name and none derived from another. */
-function legReading(market: CoherenceMarketView): string {
-  const parts = RIBBONS.map((ribbon) => {
-    const raw = ribbon.of(market);
-    return raw === null
-      ? `${ribbon.name} not reported — the venue stopped sending the field, a protocol change rather than an empty market`
-      : `${ribbon.name} ${raw} ${ribbon.unit}`;
-  });
-  return `${market.yes_sub_title || market.ticker}: ${parts.join("; ")}`;
+        <Plot
+          height={CHART_HEIGHT}
+          sharedX={(width) => ({
+            count: rows.length,
+            x0: MARGIN.left,
+            x1: width - MARGIN.right,
+            positions: rows.map((_, index) => xAt(index, rows.length, width)),
+            width: 300,
+            arriveAt: "first",
+            pin: true,
+            read: (index) => ({
+              title: `${String(index + 1).padStart(2, "0")} — ${labelOf(rows[index])}`,
+              rows: [
+                ...scales.map((scale) => ({
+                  label: scale.metric.name,
+                  value: exactMetricValue(scale.metric, scale.rawValues[index]),
+                  raw: scale.values[index],
+                })),
+                { label: "Strike", value: fmtStrike(rows[index].strike) },
+              ],
+            }),
+          })}
+        >
+          {(width) => {
+            const path = linePath(selected.values, width, peak);
+            const areas = areaPaths(selected.values, width, peak);
+            return (
+              <>
+                {[1, 0.5, 0].map((fraction) => (
+                  <g key={fraction}>
+                    <line
+                      x1={MARGIN.left}
+                      x2={width - MARGIN.right}
+                      y1={yAt(peak * fraction, peak)}
+                      y2={yAt(peak * fraction, peak)}
+                      className={styles.gridLine}
+                    />
+                    <text
+                      x={MARGIN.left - 8}
+                      y={yAt(peak * fraction, peak) + 4}
+                      textAnchor="end"
+                      className={styles.axisText}
+                    >
+                      {shortAxisValue(selected.metric, peak * fraction)}
+                    </text>
+                  </g>
+                ))}
+
+                {areas.map((area, index) => <path d={area} className={styles.area} key={index} />)}
+                {path ? <path d={path} className={styles.line} /> : null}
+
+                {selected.values.map((value, index) => value !== null ? (
+                  <circle
+                    key={rows[index].market.ticker}
+                    cx={xAt(index, rows.length, width)}
+                    cy={yAt(value, peak)}
+                    r={value === 0 ? 5 : 4.5}
+                    className={styles.point}
+                    data-zero={value === 0 ? "true" : undefined}
+                  >
+                    <title>{`${labelOf(rows[index])}: ${exactMetricValue(selected.metric, selected.rawValues[index])}`}</title>
+                  </circle>
+                ) : null)}
+
+                {!path ? (
+                  <text x={(MARGIN.left + width - MARGIN.right) / 2} y={CHART_HEIGHT / 2} textAnchor="middle" className={styles.emptyLabel}>
+                    {selected.metric.name} is not reported for this family
+                  </text>
+                ) : null}
+
+                {labelledIndexes(rows.length).map((index) => (
+                  <text
+                    key={`label-${rows[index].market.ticker}`}
+                    x={xAt(index, rows.length, width)}
+                    y={CHART_HEIGHT - 14}
+                    textAnchor="middle"
+                    className={styles.outcomeTick}
+                  >
+                    {String(index + 1).padStart(2, "0")}
+                  </text>
+                ))}
+                <text x={width - MARGIN.right} y={CHART_HEIGHT - 2} textAnchor="end" className={styles.axisCaption}>
+                  outcome order
+                </text>
+              </>
+            );
+          }}
+        </Plot>
+      </Figure>
+
+      <details className={`quant-inspection__table ${styles.exactTable}`}>
+        <summary>{`Exact size ledger, ${rows.length} rows`}</summary>
+        <Table scrollLabel={exactSizeLabel}>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Outcome</TableHead>
+              <TableHead>Strike</TableHead>
+              <TableHead>Open interest (contracts)</TableHead>
+              <TableHead>Volume (contracts)</TableHead>
+              <TableHead>Liquidity (dollars)</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((leg, index) => (
+              <TableRow key={leg.market.ticker}>
+                <TableCell>
+                  <strong>{labelOf(leg)}</strong>
+                  {leg.market.yes_sub_title ? <span className={styles.tableTicker}>{leg.market.ticker}</span> : null}
+                </TableCell>
+                <TableCell className="num">{fmtStrike(leg.strike)}</TableCell>
+                {scales.map((scale) => (
+                  <TableCell className="num" key={scale.metric.key}>
+                    {exactMetricValue(scale.metric, scale.rawValues[index])}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </details>
+    </>
+  );
 }
