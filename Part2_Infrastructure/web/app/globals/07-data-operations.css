@@ -827,12 +827,12 @@ button.data-trust-action > i {
 
 .data-work-kind.is-ticket {
   background: color-mix(in srgb, var(--series-3) 12%, var(--surface-2));
-  color: var(--series-3);
+  color: color-mix(in srgb, var(--series-3) 72%, var(--text-primary));
 }
 
 .data-work-kind.is-bug {
   background: color-mix(in srgb, var(--status-critical) 10%, var(--surface-2));
-  color: var(--critical-text);
+  color: color-mix(in srgb, var(--critical-text) 88%, var(--text-primary));
 }
 
 .data-work-priority {
@@ -1242,4 +1242,3 @@ button.data-trust-action > i {
     padding-left: 4px;
   }
 }
-
