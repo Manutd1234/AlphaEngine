@@ -155,32 +155,29 @@ describe("only live data may be acted on, decided once", () => {
   });
 });
 
-describe("the provenance union cannot express a dead end", () => {
-  it("DataTier has exactly three members and none of them is unavailable", () => {
+describe("the provenance union distinguishes absence from generated data", () => {
+  it("DataTier has an unavailable member that cannot be confused with sandbox", () => {
     const tier = code(join(webRoot, "lib/data-tier.ts"));
     const match = /export type DataTier =([^;]+);/.exec(tier);
     assert.ok(match, "DataTier is gone");
     const members = match[1].split("|").map((m) => m.trim().replace(/"/g, "")).filter(Boolean);
-    assert.deepEqual(members.sort(), ["cached", "live", "sandbox"]);
+    assert.deepEqual(members.sort(), ["cached", "live", "sandbox", "unavailable"]);
   });
 
   it("no provenance state renders nothing at all", () => {
     /**
      * The invariant, corrected by reading the code it was meant to police.
      *
-     * The plan for this pass said to delete `"unavailable"` from the shared
-     * `source` union outright, so every branch on it became a compile error.
-     * Reading the six branches showed that would have been wrong. `AlertFeed`
+     * `unavailable` is a payload fact, not permission to render nothing.
+     * `AlertFeed`
      * and `OrderBlotter` use it well — they explain WHY a list is empty, with
      * comments recording that "an empty table must say WHY it is empty" and that
      * "a quiet desk is the good case" is only true of a live feed reporting zero
      * events. That is the behaviour this pass wants, not a defect.
      *
-     * And the state is reachable only by pressing "Live gateway" on a deployment
-     * that has none — an explicit request for real data. Answering it with
-     * generated data would override an explicit human choice, which is the one
-     * thing the desk never does; `chose.current` in `useBook` and `sandboxOff`
-     * in the cockpit both exist to protect it.
+     * The state is also the first settled network failure when there is no last
+     * good reading. Answering it with generated data would make the failure look
+     * like a successful demo; explicit sandbox controls remain available.
      *
      * So the defect was never the state. It was one surface answering it by
      * rendering nothing: `FillQualityHeatmap` did `return null`, leaving a blank
@@ -242,44 +239,16 @@ describe("the provenance union cannot express a dead end", () => {
   });
 });
 
-describe("generated payloads are derived, never invented twice", () => {
-  it("every fallback adapter is built from the shared sandbox generators", () => {
-    /**
-     * The binding rule from the contract review: do not write a second
-     * generator. `sandboxBlotter` already reconciles to the cent with
-     * `sandboxBook`'s attribution table, so a fallback derived from it inherits
-     * that agreement; a fallback with its own numbers would have to re-earn it,
-     * and a generated desk that disagrees with itself is worse than an error
-     * because no banner can say which half is wrong.
-     */
+describe("observed views contain no generated fallback adapters", () => {
+  it("keeps the production fallback-adapter directory empty", () => {
     const dir = join(webRoot, "lib/fallbacks");
     const files = sourceFiles(dir);
-    assert.ok(files.length > 0, "lib/fallbacks is empty — no adapters to check");
-    for (const file of files) {
-      const source = code(file);
-      assert.match(
-        source,
-        /from "@\/lib\/(blotter|portfolio|portfolio-risk)"/,
-        `${rel(file)} generates its own data instead of deriving it from the sandbox desk`,
-      );
-    }
+    assert.deepEqual(files, [], "production fallback adapters can silently replace observed rows");
   });
 
-  it("the audit adapter emits the wire shape, not the parsed one", () => {
-    /**
-     * The trap this avoids, verbatim from the contract review: returning
-     * `BlotterRow` where the wire shape belongs is not a type error — the parser
-     * reads `symbol`, `ts` and `accepted`, which camelCase rows still satisfy —
-     * so every row survives and renders "—" for quantity, notional, fill, fee
-     * and latency, keyed on an undefined order_id. Green, and wrong.
-     */
-    const adapter = code(join(webRoot, "lib/fallbacks/audit.ts"));
-    for (const wireField of ["order_id", "fill_price", "fee_usd", "latency_ms", "rejected_by"]) {
-      assert.match(adapter, new RegExp(`${wireField}:`), `audit adapter omits ${wireField}`);
-    }
-    // And it must not quietly default a value the source did not have: a
-    // rejected order has no quantity, and 0 rendered as "0.0000" beside a
-    // max_order_notional rejection — a zero-size order refused for being large.
-    assert.doesNotMatch(adapter, /quantity:\s*row\.quantity\s*\?\?\s*0/);
+  it("the Overview audit ledger reports absence instead of importing sandbox rows", () => {
+    const audit = code(join(webRoot, "components/overview/AuditTrail.tsx"));
+    assert.doesNotMatch(audit, /sandboxAuditRows|fallbacks\/audit/);
+    assert.match(audit, /No rows are substituted/);
   });
 });
