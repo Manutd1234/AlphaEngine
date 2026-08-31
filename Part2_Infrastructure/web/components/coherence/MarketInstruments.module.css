@@ -1,0 +1,390 @@
+.instrument {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--surface-2) 84%, transparent), transparent 56%),
+    var(--surface-1);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text-primary) 8%, transparent);
+}
+.instrument > figcaption,
+.instrumentHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--grid);
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+  font-weight: 680;
+}
+.instrumentHead > span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+  overflow-wrap: anywhere;
+}
+.instrumentHead small,
+.receiptInspector small,
+.receiptComparison small,
+.fillReadout small,
+.consoleLabel,
+.cardKicker {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 720;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+.instrumentHead > strong {
+  max-width: 45%;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  font: 720 var(--fs-sm) var(--font-mono);
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+.alertValue {
+  border-color: color-mix(in srgb, var(--status-critical) 55%, var(--border)) !important;
+  color: var(--critical-text);
+}
+.empty {
+  margin: 0;
+  padding: var(--space-5);
+  color: var(--text-secondary);
+}
+.receiptStage {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(180px, .8fr);
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+.receiptStack {
+  display: grid;
+  gap: 5px;
+}
+.receiptLine {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+  color: var(--text-secondary);
+  text-align: left;
+  cursor: pointer;
+}
+.receiptLine::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0 auto 0 0;
+  width: var(--fee-ratio, 0%);
+  background: color-mix(in srgb, var(--series-1) 9%, transparent);
+  content: "";
+}
+.receiptLine strong {
+  color: var(--text-primary);
+}
+.receiptLine[aria-pressed="true"] {
+  border-style: solid;
+  border-color: var(--series-1);
+  background: color-mix(in srgb, var(--series-1) 12%, var(--surface-1));
+  color: var(--text-primary);
+  box-shadow: inset 3px 0 0 var(--series-1);
+}
+.receiptLine:focus-visible,
+.fillTickets button:focus-visible,
+.switchCard:focus-visible,
+.token:focus-visible,
+.shutter:focus-visible,
+.massTile:focus-visible,
+.nodeButton:focus-visible,
+.bookLevel:focus-visible,
+.equationPiece:focus-visible,
+.minuteCard:focus-visible,
+.familyCard:focus-visible,
+.bandCell:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 2px;
+}
+.receiptInspector {
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  min-height: 176px;
+  padding: var(--space-4);
+  border: 1px solid var(--grid);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+.receiptInspector > strong {
+  font-size: var(--fs-lg);
+}
+.receiptInspector > span {
+  font: 760 clamp(1.5rem, 4vw, 2.7rem)/1 var(--font-mono);
+  color: var(--series-1);
+}
+.receiptInspector p,
+.receiptComparison p {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+}
+.feeScenario {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(8rem, 1fr)) auto;
+  align-items: end;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.feeScenario label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  font-weight: 680;
+}
+.feeScenario input {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+.feeScenario button,
+.replayButton {
+  min-height: 38px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  font-weight: 700;
+  cursor: pointer;
+}
+.feeScenario button { border-color: var(--series-1); background: var(--series-1); color: var(--on-accent); }
+.feeScenario :is(input, button):focus-visible,
+.replayButton:focus-visible,
+.feeScrubber input:focus-visible,
+.feeGraph:focus-visible { outline: 2px solid var(--series-1); outline-offset: 2px; }
+.feeTerminal {
+  display: grid;
+  grid-template-columns: minmax(12rem, .62fr) minmax(24rem, 1.4fr) minmax(14rem, .7fr);
+  min-width: 0;
+  background: var(--surface-1);
+}
+.feeTerminal > .receiptStack,
+.feeTerminal > .receiptInspector {
+  padding: var(--space-3);
+}
+.feeGraph {
+  display: grid;
+  align-items: center;
+  min-width: 0;
+  min-height: 270px;
+  padding: var(--space-2);
+  border-inline: 1px solid var(--border);
+  background:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+    var(--surface-1);
+  background-size: 100% 25%, 12.5% 100%, auto;
+}
+.feeGraph svg { display: block; width: 100%; height: auto; min-height: 238px; }
+.feeGraph text { fill: var(--text-secondary); font: 11px var(--font-mono); }
+.feeGrid { stroke: var(--grid); stroke-width: 1; }
+.feeNotional { fill: none; stroke: var(--text-muted); stroke-width: 2; stroke-dasharray: 6 4; }
+.feeSelected { fill: none; stroke: var(--series-1); stroke-width: 3; }
+.feeNotionalPoint { fill: var(--surface-1); stroke: var(--text-muted); stroke-width: 2; }
+.feeSelectedPoint { fill: var(--surface-1); stroke: var(--series-1); stroke-width: 2.5; }
+.feeCursor { stroke: var(--series-2); stroke-width: 1.5; stroke-dasharray: 3 3; }
+.feeTerminal .receiptInspector {
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+}
+.feeFillFacts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--border);
+}
+.feeFillFacts > div { min-width: 0; padding: 7px; background: var(--surface-1); }
+.feeFillFacts dt { color: var(--text-muted); font-size: var(--fs-2xs); text-transform: uppercase; }
+.feeFillFacts dd { margin: 2px 0 0; overflow-wrap: anywhere; }
+.feeScrubber { display: grid; gap: 5px; color: var(--text-secondary); font-size: var(--fs-xs); }
+.feeScrubber input { width: 100%; accent-color: var(--series-1); }
+.replayButton:disabled { border-color: var(--grid); background: var(--surface-2); color: var(--text-muted); cursor: not-allowed; }
+.feeReceipt > .receiptComparison {
+  margin: 0 var(--space-3) var(--space-3);
+}
+.receiptComparison {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--grid);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface-2) 62%, transparent);
+}
+.receiptComparison > span:not([aria-hidden]) {
+  display: grid;
+  gap: 3px;
+}
+.receiptComparison > span:nth-child(3) {
+  text-align: right;
+}
+.receiptComparison > span[aria-hidden] {
+  color: var(--series-2);
+  font-size: var(--fs-xl);
+}
+.receiptComparison p {
+  grid-column: 1 / -1;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--grid);
+  text-align: center;
+}
+.fillRail {
+  margin-top: var(--space-3);
+}
+.fillTickets {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: var(--space-2);
+  padding: var(--space-3);
+}
+.fillTickets button {
+  display: grid;
+  gap: 2px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  text-align: left;
+  cursor: pointer;
+}
+.fillTickets button[aria-pressed="true"] {
+  border-color: var(--series-1);
+  box-shadow: inset 0 -3px 0 var(--series-1);
+}
+.fillTickets strong {
+  color: var(--text-primary);
+  font-size: var(--fs-lg);
+}
+.fillTickets small {
+  color: var(--text-muted);
+}
+.fillReadout {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-top: 1px solid var(--grid);
+}
+.fillReadout > span {
+  display: grid;
+  gap: 3px;
+  padding: var(--space-3);
+  border-inline-end: 1px solid var(--grid);
+}
+.fillReadout > span:last-child {
+  border-inline-end: 0;
+}
+.switchBoard {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-2);
+  padding: var(--space-3);
+}
+.switchCard {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: var(--space-2);
+  min-height: 148px;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+.switchCard[aria-selected="true"] {
+  border-color: var(--series-1);
+  background: color-mix(in srgb, var(--series-1) 9%, var(--surface-1));
+  box-shadow: inset 0 3px 0 var(--series-1);
+}
+.switchCard p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+}
+.switchPorts {
+  display: flex;
+  gap: 5px;
+}
+.switchPorts i {
+  width: 10px;
+  height: 10px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface-1);
+}
+.switchPorts i[data-on="true"] {
+  border-color: var(--series-3);
+  background: var(--series-3);
+}
+@media (max-width: 720px) {
+  .receiptStage {
+    grid-template-columns: 1fr;
+  }
+  .receiptComparison {
+    grid-column: auto;
+  }
+  .fillReadout > span {
+    border-inline-end: 0;
+    border-bottom: 1px solid var(--grid);
+  }
+  .fillReadout {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 980px) {
+  .feeScenario { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .feeScenario button { grid-column: 1 / -1; }
+  .feeTerminal { grid-template-columns: minmax(11rem, .7fr) minmax(0, 1.3fr); }
+  .feeTerminal > .receiptInspector { grid-column: 1 / -1; border-top: 1px solid var(--border); }
+}
+@media (max-width: 680px) {
+  .feeScenario,
+  .feeTerminal { grid-template-columns: 1fr; }
+  .feeScenario button,
+  .feeTerminal > .receiptInspector { grid-column: auto; }
+  .feeGraph { border-inline: 0; border-block: 1px solid var(--border); }
+  .feeGraph svg { min-width: 38rem; }
+  .feeGraph { overflow-x: auto; }
+  .feeFillFacts { grid-template-columns: 1fr; }
+}
+@media (forced-colors: active) {
+  .feeNotional, .feeSelected, .feeNotionalPoint, .feeSelectedPoint, .feeCursor { stroke: CanvasText; }
+}
