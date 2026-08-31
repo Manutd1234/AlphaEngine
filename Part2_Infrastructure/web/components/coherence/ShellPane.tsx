@@ -68,23 +68,21 @@ import { type ReactNode, useState } from "react";
 
 import type { CoherenceShell, CoherenceShellEntry } from "@/lib/coherence/types-lab";
 import CommandReference from "./ShellCommandReference";
-import type { Reading } from "./KpiRow";
 import PaneHead from "./PaneHead";
 import SectionFrame from "./SectionFrame";
-import { Breadcrumb, levelOf, pathOf, segmentsOf } from "./ShellPath";
+import { pathOf, segmentsOf } from "./ShellPath";
 import { shellRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import { useLiveSeries } from "@/lib/coherence/use-live-series";
-import LiveTape from "./LiveTape";
-import ShellListing, { READ_OK } from "./ShellListing";
-import FileReading from "./ShellFileReading";
-import ShellReadings from "./ShellReadings";
+import ShellBrowser from "./ShellBrowser";
+import ShellRouteFlow from "./ShellRouteFlow";
 import ShellTree from "./ShellTree";
+import styles from "./ShellPane.module.css";
 
 /**
- * TWO SINCE 2026-08-26, DOWN FROM FOUR, and both of the merges are the same
- * observation: a view is a QUESTION, and two of the four were answers to a
- * question another view had already asked.
+ * THREE SINCE 2026-08-31. `reading` merged into Browse and `commands` into the
+ * namespace view because both were answers to questions their parent views
+ * already asked; collateral Routing then became its own operational question.
  *
  * `reading` was not a view of its own. Selecting a file in Browse already ran
  * `onView(entry.kind === "dir" ? "tree" : "reading")` — one gesture crossing a
@@ -99,7 +97,7 @@ import ShellTree from "./ShellTree";
  * what is in it right now. Nothing was dropped to do it — `CommandReference`
  * already led with a drawing and folded its own table, so it moved whole.
  */
-type ShellView = "tree" | "layout";
+type ShellView = "tree" | "layout" | "route";
 
 /**
  * The switcher's options, in the order they are pressed.
@@ -128,7 +126,8 @@ type ShellView = "tree" | "layout";
  * branches that need a payload.
  */
 const VIEWS: ReadonlyArray<[ShellView, string]> = [
-  ["layout", "Map"],
+  ["layout", "Namespace"],
+  ["route", "Routing"],
   ["tree", "Browse"],
 ];
 
@@ -150,9 +149,22 @@ export default function ShellPane(
   const url = shellRoute(path, command);
   // Only the two views that answer FROM a read poll: Layout is the same at
   // every path and Commands is reference material, so neither asks.
-  const { data, error, loading, updatedAt } = useCoherenceRead<CoherenceShell>(
+  const browserRead = useCoherenceRead<CoherenceShell>(
     url,
     active && view === "tree",
+  );
+  const { data, error, loading, updatedAt } = browserRead;
+
+  // Map is now a live root instrument rather than a schema-only poster. It
+  // reads one bounded listing and never crawls the tree recursively.
+  const topology = useCoherenceRead<CoherenceShell>(
+    shellRoute("/", "ls"),
+    active && (view === "layout" || view === "route"),
+  );
+  const topologyTape = useLiveSeries(
+    "shell:/shards:entries",
+    topology.updatedAt,
+    topology.data?.state === "available" ? topology.data.entries.length : null,
   );
 
   /* How many entries sit under the path being walked, poll by poll.
@@ -163,7 +175,7 @@ export default function ShellPane(
   const entriesTape = useLiveSeries(
     `shell:${path}:entries`,
     updatedAt,
-    data?.entries == null ? null : data.entries.length,
+    command === "ls" && data?.state === "available" ? data.entries.length : null,
   );
 
   const navigate = (next: string) => {
@@ -200,8 +212,6 @@ export default function ShellPane(
   const framed = (
     note: string,
     body: ReactNode,
-    subject?: ReactNode,
-    kpis?: Reading[],
   ) => (
     <SectionFrame
       className="coh-shell"
@@ -214,8 +224,7 @@ export default function ShellPane(
           note={note}
           lede={
             <>
-              Every watched market has an address, and where it sits decides both which collateral pool can
-              protect it and which derived readings it can answer.
+              A market&rsquo;s path fixes its collateral pool and available derived readings.
             </>
           }
         />
@@ -224,132 +233,60 @@ export default function ShellPane(
       view={view}
       onView={onView}
       viewsLabel="Shell view"
-      subject={subject}
-      kpis={kpis}
-      kpiSource="this listing"
     >
       {body}
     </SectionFrame>
   );
 
   if (view === "layout") {
-    return framed(
-      "every path at once, and every command it answers",
-      <>
-        <ShellTree />
-        <CommandReference />
-      </>,
+    return (
+      <div className={styles.mapContainment}>
+        {framed(
+          "the namespace from watched root to derived file",
+          <>
+            <ShellTree
+              root={topology.data}
+              loading={topology.loading}
+              error={topology.error}
+              updatedAt={topology.updatedAt}
+              points={topologyTape}
+              onBrowse={(next = "/") => navigate(next)}
+            />
+            <details className="disclosure">
+              <summary>Command and derived-file reference</summary>
+              <CommandReference />
+            </details>
+          </>,
+        )}
+      </div>
     );
   }
 
-  const crumbs = (
-    <Breadcrumb path={data?.path ?? path} command={data?.command ?? command} onNavigate={navigate} />
-  );
-
-  if (error && !data)
+  if (view === "route") {
     return framed(
-      `${command} ${path}`,
-      <p className="console-empty">
-        <span aria-hidden="true">✕</span> The tree could not be read: {error}. That is a gateway failure, not an
-        answer about the path.
-      </p>,
-      crumbs,
+      "the shard decision behind a two-leg route",
+      <ShellRouteFlow
+        root={topology.data}
+        loading={topology.loading}
+        error={topology.error}
+        updatedAt={topology.updatedAt}
+        onBrowse={(next = "/") => navigate(next)}
+      />,
     );
-  if (!data)
-    return framed(`${command} ${path}`, <p className="console-empty muted">Listing the watched universe…</p>, crumbs);
-
-  // The root request is `/` and the gateway answers `/shards`, so a mismatch is
-  // only stale-payload evidence away from the root. A command mismatch says the
-  // same thing: the switcher has moved and this answer is the other one.
-  // `loading` and not merely "the two commands differ": asking to `cat` a
-  // directory is answered with a listing every time, so the command mismatch is
-  // permanent there and this banner claimed a read was under way for ever.
-  const stale = loading && ((path !== "/" && data.path !== path) || data.command !== command);
-  // `/shards` is the root listing's own path and its detail is the footer's sentence in other words. Suppressing it
-  // there leaves every other path's detail, and the outage detail, which is answered at the path as requested.
-  const repeatsFooter = data.command === "ls" && data.path === "/shards" && READ_OK.has(data.state);
-
-  /**
-   * What this read answered about the path, as the row every other section
-   * answers in.
-   *
-   * The two facts were a `StateChip` and a loose sentence — "✓ Path exists" in
-   * a pill, then "You are looking at one series." in prose a line below. They
-   * are the same kind of thing as `Strikes probed` on the lattice: what this
-   * read found. The kind mark stays in the value rather than in a tone, so the
-   * answer survives colour being stripped.
-   */
-  const kpis: Reading[] = [
-    {
-      label: "Path",
-      value: `${data.exists ? "✓" : "○"} ${data.exists ? "exists" : "no such path"}`,
-    },
-    // The segments are the venue's own names and none of them says its own
-    // kind, so a reader who has not studied the Map cannot tell a shard from a
-    // series from a ticker by looking. Depth can, and this is the tile that
-    // spends it.
-    { label: "You are looking at", value: levelOf(data.path) },
-  ];
+  }
 
   return framed(
-    `${data.command} ${data.path}`,
-    <>
-      {stale ? (
-        <p className="coh-shell__note">
-          <span aria-hidden="true">◌</span> Still showing <code>{data.command}</code> {data.path} while <code>{command}</code>{" "}
-          {path} is read.
-        </p>
-      ) : null}
-
-      {data.detail && !repeatsFooter ? <p className="coh-shell__detail-line">{data.detail}.</p> : null}
-
-      {mode === "cat" ? (
-        <FileReading data={data} requested={path} loading={loading} />
-      ) : data.command !== "ls" ? (
-        <p className="console-empty muted">Listing {path}…</p>
-      ) : !data.exists ? (
-        <p className="console-empty">
-          <span aria-hidden="true">○</span> No such path: {path}. Nothing is there to read — which is a different
-          answer from a read that failed.
-        </p>
-      ) : (
-        <ShellListing data={data} atShards={segmentsOf(data.path).length === 1} onOpen={open} />
-      )}
-
-      {/* FOLDED, NOT CUT, on 2026-08-26. This is a scope caveat and the section
-          head already carries the boundary — the rail calls it "the WATCHED
-          universe as a filesystem", so a reader is not left thinking they are
-          looking at all of Kalshi while this is closed. Same argument
-          `RouteLatencyBars` makes for its own boundary note, and the same limit:
-          it applies to a caveat, never to an absence or a finding. The summary
-          names what is inside so nobody opens it to find out how big it is. */}
-      <details className="disclosure">
-        <summary>What this tree covers, and what it leaves out</summary>
-        <p className="coh-shell__note">
-          This tree is the watchlist, not the exchange: Kalshi lists some thirteen thousand series, and only the set{" "}
-          <code>COHERENCE_SERIES</code> names has been read.
-        </p>
-      </details>
-      {error ? (
-        <p className="coh-shell__note">
-          <span aria-hidden="true">✕</span> The last refresh failed: {error}. What is above is the previous answer.
-        </p>
-      ) : null}
-
-      {/* Only where a listing is what is on screen. Reading a FILE, the entry
-          count belongs to the directory the reader left, and drawing it under
-          the file would be a number about somewhere else. */}
-      {mode === "ls" ? (
-        <LiveTape
-          points={entriesTape}
-          caption={`What has been under ${data.path}, poll by poll`}
-          ariaLabel="The number of entries listed under this path over the polls seen since this tab opened"
-          format={(value) => `${Math.round(value)}`}
-          reading="The watchlist growing or shrinking under the reader. A step here is a series the recorder started or stopped watching, not a price."
-        />
-      ) : null}
-    </>,
-    crumbs,
-    kpis,
+    data ? `${data.command} ${data.path}` : `${command} ${path}`,
+    <ShellBrowser
+      data={data}
+      requestedPath={path}
+      mode={mode}
+      loading={loading}
+      error={error}
+      points={entriesTape}
+      onNavigate={navigate}
+      onOpen={open}
+      onRetry={browserRead.refresh}
+    />,
   );
 }
