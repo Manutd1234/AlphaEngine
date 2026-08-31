@@ -125,7 +125,7 @@ export default function FailoverGraph({
               <small className="muted">{ENTRY_ROUTE[route.capability] ?? `/api/${route.capability}`}</small>
             </li>
 
-            <li className="console-edge" aria-hidden>→</li>
+            <li className="console-edge console-edge--request" aria-hidden>→</li>
 
             <li className="console-node console-node--fixed">
               <span className="console-node__role">Cache</span>
@@ -137,8 +137,8 @@ export default function FailoverGraph({
               </small>
             </li>
 
-            <li className="console-edge" aria-hidden>
-              <span className="console-edge__label">miss</span>→
+            <li className="console-edge console-edge--miss" aria-hidden>
+              <span className="console-edge__label">cache miss</span>↓
             </li>
 
             {route.nodes.map((node, index) => {
@@ -146,7 +146,7 @@ export default function FailoverGraph({
               return (
                 <li
                   key={node.provider}
-                  className={`console-node ${node.active ? "is-active" : ""} ${node.state !== "ready" ? "is-down" : ""}`}
+                  className={`console-node console-node--provider ${node.active ? "is-active" : ""} ${node.state !== "ready" ? "is-down" : ""}`}
                 >
                   <span className="console-node__role">
                     Rank {node.rank}
@@ -199,7 +199,7 @@ export default function FailoverGraph({
                   )}
                   {index < route.nodes.length - 1 && (
                     <span className="console-node__next" aria-hidden>
-                      falls through ↓
+                      falls through
                     </span>
                   )}
                 </li>
