@@ -34,7 +34,11 @@ import { DOLLAR_CC, fromCenticents, sumPrices } from "@/lib/coherence/fixed-poin
 import type { CoherenceEventView } from "@/lib/coherence/types";
 import { DIAGRAM_LABEL_PX, glyphClassOf, glyphsWithin } from "@/lib/coherence/label-metrics";
 import { dollarsLabel } from "@/lib/coherence/universe-metrics";
+import { useHot } from "@/lib/coherence/use-hot";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import Figure, { FigureEmpty, Plot } from "./Figure";
+import { QuantInspectionPair, QuantInspectionReadout, QuantInspectionRow } from "./QuantInspectionPair";
+import { UniverseBasketPassports } from "./UniverseInstruments";
 
 /** Matches `DollarBar`, so a reader moving between the two is not re-scaled. */
 const CEILING_CC = 13_000;
@@ -114,7 +118,36 @@ function short(label: string, chars: number): string {
   return label.length <= chars ? label : `${label.slice(0, chars - 1)}…`;
 }
 
-export default function BasketOverview({ rows, caption }: { rows: BasketOverviewRow[]; caption: string }) {
+export default function BasketOverview({
+  rows,
+  caption,
+  selectedTicker,
+  onSelect,
+}: {
+  rows: BasketOverviewRow[];
+  caption: string;
+  selectedTicker?: string | null;
+  onSelect?: (ticker: string) => void;
+}) {
+  if (!rows.length) {
+    return (
+      <Figure caption={caption} ariaLabel="No families to place against the dollar">
+        <FigureEmpty reason="No family was read on this poll." />
+      </Figure>
+    );
+  }
+  return (
+    <UniverseBasketPassports
+      rows={rows}
+      caption={caption}
+      selectedTicker={selectedTicker}
+      onSelect={onSelect}
+    />
+  );
+}
+
+function BasketOverviewWorkbench({ rows, caption }: { rows: BasketOverviewRow[]; caption: string }) {
+  const { hot } = useHot();
   const priced = rows.filter((row) => row.askTotalCc != null || row.bidTotalCc != null);
   const unpriced = rows.length - priced.length;
   const height = TOP + rows.length * ROW_H + BOTTOM;
@@ -140,16 +173,10 @@ export default function BasketOverview({ rows, caption }: { rows: BasketOverview
       return `${row.label}: buy total ${ask ?? "cannot be priced"}, sell total ${bid ?? "cannot be priced"}`;
     })
     .join(". ");
-
-  if (!rows.length) {
-    return (
-      <Figure caption={caption} ariaLabel="No families to place against the dollar">
-        <FigureEmpty reason="No family was read on this poll." />
-      </Figure>
-    );
-  }
+  const exactBasketLabel = `Exact basket totals, ${rows.length} rows`;
 
   return (
+    <>
     <Figure caption={caption} reading={reading} missing={missing} ariaLabel={ariaLabel}>
       <Plot height={height}>
         {(width) => {
@@ -203,7 +230,7 @@ export default function BasketOverview({ rows, caption }: { rows: BasketOverview
                         ? "can be bought, not sold"
                         : "priced both ways";
                 return (
-                  <g key={row.ticker}>
+                  <g key={row.ticker} className={hot === index ? "is-hot" : undefined}>
                     <text x={0} y={y + 4} className="coh-axis__label">
                       {short(row.label, labelBudget(plotLeft, row.label))}
                     </text>
@@ -275,5 +302,35 @@ export default function BasketOverview({ rows, caption }: { rows: BasketOverview
         }}
       </Plot>
     </Figure>
+    <QuantInspectionReadout rows={rows} reading={basketRowReading} />
+    <details className="quant-inspection__table">
+      <summary>Exact basket totals, {rows.length} rows</summary>
+      <Table scrollLabel={exactBasketLabel}>
+        <TableHeader><TableRow><TableHead>Family</TableHead><TableHead>Buy all asks</TableHead><TableHead>Sell all bids</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+        <TableBody>
+          {rows.map((row, index) => (
+            <QuantInspectionRow key={row.ticker} index={index}>
+              <TableCell><strong>{row.ticker}</strong><span className="quant-inspection__secondary">{row.label}</span></TableCell>
+              <TableCell>{fromCenticents(row.askTotalCc) ?? "not priced"}</TableCell>
+              <TableCell>{fromCenticents(row.bidTotalCc) ?? "not priced"}</TableCell>
+              <TableCell>{basketStatus(row)}</TableCell>
+            </QuantInspectionRow>
+          ))}
+        </TableBody>
+      </Table>
+    </details>
+    </>
   );
+}
+
+function basketStatus(row: BasketOverviewRow): string {
+  if (!row.mutuallyExclusive) return "not mutually exclusive";
+  if (row.askTotalCc === null && row.bidTotalCc === null) return "a leg is unquoted";
+  if (row.askTotalCc === null) return "sell only";
+  if (row.bidTotalCc === null) return "buy only";
+  return "priced both ways";
+}
+
+function basketRowReading(row: BasketOverviewRow): string {
+  return `${row.label}: buy ${fromCenticents(row.askTotalCc) ?? "not priced"}; sell ${fromCenticents(row.bidTotalCc) ?? "not priced"}; ${basketStatus(row)}.`;
 }
