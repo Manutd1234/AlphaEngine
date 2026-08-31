@@ -284,18 +284,22 @@ async def image_arm(
     if status >= 300:
         return matches, unavailable("unavailable", f"the image RPC answered HTTP {status}")
     try:
-        rows = list(response.json())
+        payload = response.json()
     except ValueError:
         return matches, unavailable(
             "failed", f"the image RPC answered HTTP {status} with a body that is not JSON",
         )
+    if not isinstance(payload, list) or not all(isinstance(row, dict) for row in payload):
+        return matches, unavailable(
+            "failed", f"the image RPC answered HTTP {status} with JSON that is not an array of documents",
+        )
 
-    fused, added = fuse(matches, rows)
+    fused, added = fuse(matches, payload)
     return fused, {
         "ranked": True,
         "state": "ranked",
         "reason": None,
         "model": IMAGE_MODEL_TEXT,
-        "candidates": len(rows),
+        "candidates": len(payload),
         "added": added,
     }
