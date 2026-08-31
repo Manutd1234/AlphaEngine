@@ -1,9 +1,8 @@
 """Module B: pre-trade risk, the working book, and the kill switch.
 
-The only path an order takes to a venue. Every handler here reads its singleton
-inside the request rather than at import, which is what lets a test swap the
-gateway between cases and what keeps the module importable before the lifespan
-has run.
+The only path an order takes to a venue. Primary order and risk-control handlers
+resolve lifespan-owned application services; audit/portfolio read models retain
+their existing adapters until those separate use cases are migrated.
 """
 
 from __future__ import annotations
@@ -18,7 +17,12 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
 from config import settings
-from modules.api.deps import trader_identity
+from modules.api.deps import (
+    execution_gateway_service,
+    risk_engine_manager,
+    trader_identity,
+)
+from modules.application_services import ExecutionGatewayService, RiskEngineManager
 from modules.audit import get_audit
 from modules.equity_quote import (
     EquityQuoteUnavailable,
@@ -47,14 +51,22 @@ router = APIRouter(tags=["B · Risk"])
 
 
 @router.post("/api/orders", response_model=RiskDecision)
-async def submit_order(order: OrderRequest, actor: str = Depends(trader_identity)) -> RiskDecision:
+async def submit_order(
+    order: OrderRequest,
+    actor: str = Depends(trader_identity),
+    execution: ExecutionGatewayService = Depends(execution_gateway_service),
+) -> RiskDecision:
     """The only way an order reaches a venue. Returns the full check vector for
     both accepted and rejected orders — a rejection is a result, not an error."""
-    if (
-        order.paper_execution is None
-        and settings.paper_equity_quote_url
-        and is_equity_symbol(order.symbol)
-    ):
+    # ``paper_execution`` remains in the wire model for compatibility with the
+    # Next server route, but it is not an authority: any direct API caller can
+    # construct that JSON too. Discard it before enrichment so only evidence
+    # fetched by this process can whitelist and price an equity order.
+    if order.paper_execution is not None:
+        log.warning("discarding caller-supplied paper execution evidence for %s", order.symbol)
+        order = order.model_copy(update={"paper_execution": None})
+
+    if settings.paper_equity_quote_url and is_equity_symbol(order.symbol):
         try:
             reference = await fetch_paper_equity_reference(
                 order.symbol,
@@ -67,13 +79,14 @@ async def submit_order(order: OrderRequest, actor: str = Depends(trader_identity
             # price-availability checks produce the evidence-rich rejection;
             # a provider outage never turns into a guessed fill.
             log.warning("paper equity quote unavailable for %s: %s", order.symbol, exc)
-    return await get_gateway().submit(order, source=actor)
+    return await execution.submit(order, actor=actor)
 
 
 @router.get("/api/orders", response_model=list[WorkingOrder])
 async def list_working_orders(
     symbol: str | None = Query(default=None, min_length=1, max_length=20, pattern=r"^[A-Za-z0-9.\-]+$"),
     _actor: str = Depends(trader_identity),
+    execution: ExecutionGatewayService = Depends(execution_gateway_service),
 ) -> list[WorkingOrder]:
     """Orders resting on the book right now.
 
@@ -81,7 +94,7 @@ async def list_working_orders(
     `/api/audit/orders`. This is only what is still open, which is the set a desk
     can still act on.
     """
-    return get_gateway().list_working(symbol)
+    return execution.list_working(symbol)
 
 
 @router.get("/api/orders/{order_id}", response_model=OrderTimeline)
@@ -113,6 +126,7 @@ async def cancel_order(
     order_id: str,
     req: CancelRequest = Body(default_factory=CancelRequest),
     actor: str = Depends(trader_identity),
+    execution: ExecutionGatewayService = Depends(execution_gateway_service),
 ) -> OrderAck:
     """Pull one resting order.
 
@@ -121,7 +135,7 @@ async def cancel_order(
     does not consume a rate-limit token — it only ever reduces risk, and a book in
     trouble must always be able to get out.
     """
-    ack = await get_gateway().cancel_working(order_id, actor=actor, reason=req.reason)
+    ack = await execution.cancel(order_id, actor=actor, reason=req.reason)
     if ack is None:
         raise HTTPException(
             status_code=404,
@@ -132,26 +146,35 @@ async def cancel_order(
 
 @router.post("/api/orders/{order_id}/replace", response_model=RiskDecision)
 async def replace_order(
-    order_id: str, req: ReplaceRequest, actor: str = Depends(trader_identity),
+    order_id: str,
+    req: ReplaceRequest,
+    actor: str = Depends(trader_identity),
+    execution: ExecutionGatewayService = Depends(execution_gateway_service),
 ) -> RiskDecision:
     """Cancel-and-new. Returns the **new** order's full check vector.
 
     A replacement faces every gate again and can be rejected where the original
     passed, so the evidence returned has to be the new evidence.
     """
-    decision = await get_gateway().replace_working(order_id, req, actor=actor)
+    decision = await execution.replace(order_id, req, actor=actor)
     if decision is None:
         raise HTTPException(status_code=404, detail=f"{order_id} is not resting")
     return decision
 
 
 @router.get("/api/risk/state", response_model=RiskState)
-async def risk_state(_actor: str = Depends(trader_identity)) -> RiskState:
-    return get_gateway().state()
+async def risk_state(
+    _actor: str = Depends(trader_identity),
+    risk: RiskEngineManager = Depends(risk_engine_manager),
+) -> RiskState:
+    return risk.state()
 
 
 @router.get("/api/stream/desk")
-async def stream_desk(_actor: str = Depends(trader_identity)) -> StreamingResponse:
+async def stream_desk(
+    _actor: str = Depends(trader_identity),
+    risk: RiskEngineManager = Depends(risk_engine_manager),
+) -> StreamingResponse:
     """Server-sent events: the risk state, pushed when it changes.
 
     The desk's equity, drawdown and kill-switch status were reaching the browser
@@ -183,8 +206,6 @@ async def stream_desk(_actor: str = Depends(trader_identity)) -> StreamingRespon
     the panel read "connecting" forever. This endpoint stays — it is correct and
     cheap — and re-proxying is a small change once a surface wants a stream.
     """
-    gateway = get_gateway()
-
     async def emit() -> AsyncIterator[str]:
         seq = 0
         last_body: str | None = None
@@ -194,7 +215,7 @@ async def stream_desk(_actor: str = Depends(trader_identity)) -> StreamingRespon
         interval = max(0.1, settings.risk_monitor_interval_s)
         try:
             while True:
-                body = gateway.state().model_dump_json()
+                body = risk.state().model_dump_json()
                 now = time.monotonic()
                 if body != last_body:
                     seq += 1
@@ -263,28 +284,34 @@ async def risk_limits(_actor: str = Depends(trader_identity)) -> dict[str, float
 
 @router.post("/api/risk/kill")
 async def engage_kill(req: KillSwitchRequest = Body(default=KillSwitchRequest()),
-                      actor: str = Depends(trader_identity)) -> dict[str, Any]:
-    kill = await get_gateway().trigger_kill(reason=req.reason, actor=actor, symbol=req.symbol)
+                      actor: str = Depends(trader_identity),
+                      risk: RiskEngineManager = Depends(risk_engine_manager)) -> dict[str, Any]:
+    kill = await risk.engage_kill(reason=req.reason, actor=actor, symbol=req.symbol)
     return {"kill_switch_active": kill.active, "halted_symbols": sorted(kill.halted_symbols),
             "reason": kill.reason, "actor": actor}
 
 
 @router.post("/api/risk/resume")
 async def release_kill(req: KillSwitchRequest = Body(default=KillSwitchRequest()),
-                       actor: str = Depends(trader_identity)) -> dict[str, Any]:
-    kill = await get_gateway().release_kill(actor=actor, symbol=req.symbol, reason=req.reason)
+                       actor: str = Depends(trader_identity),
+                       risk: RiskEngineManager = Depends(risk_engine_manager)) -> dict[str, Any]:
+    kill = await risk.release_kill(actor=actor, symbol=req.symbol, reason=req.reason)
     return {"kill_switch_active": kill.active, "halted_symbols": sorted(kill.halted_symbols),
             "reason": req.reason, "actor": actor}
 
 
 @router.post("/api/risk/reduce-only")
 async def toggle_reduce_only(req: ReduceOnlyRequest = Body(default=ReduceOnlyRequest()),
-                             actor: str = Depends(trader_identity)) -> dict[str, Any]:
-    state = await get_gateway().set_reduce_only(enabled=req.enabled, actor=actor, reason=req.reason)
+                             actor: str = Depends(trader_identity),
+                             risk: RiskEngineManager = Depends(risk_engine_manager)) -> dict[str, Any]:
+    state = await risk.set_reduce_only(enabled=req.enabled, actor=actor, reason=req.reason)
     return {"reduce_only": state.reduce_only, "reduce_only_source": state.reduce_only_source, "actor": actor}
 
 
 @router.post("/api/risk/reset")
-async def reset_book(actor: str = Depends(trader_identity)) -> dict[str, Any]:
-    get_gateway().reset_book(actor=actor)
+async def reset_book(
+    actor: str = Depends(trader_identity),
+    risk: RiskEngineManager = Depends(risk_engine_manager),
+) -> dict[str, Any]:
+    risk.reset_book(actor=actor)
     return {"ok": True, "actor": actor}
