@@ -121,12 +121,14 @@ class TestSwitchersAndTabs:
 
         tabs = {spec.name for spec in COMMAND_SPECS if spec.category == "Tabs"}
         assert {"portfolio", "risk"} <= tabs
-        # One per desk tab. `coherence` is the ninth and the only one kept off
-        # Telegram's `/` menu: that list caps at 100 and sits at 99, and a
-        # read-only research surface is the right thing to leave off it rather
-        # than pushing a desk role off.
-        assert len(tabs) == 9
-        assert {spec.name for spec in COMMAND_SPECS if spec.category == "Tabs" and not spec.in_menu} == {"coherence"}
+        # Eleven web tabs now have canonical companion entries. Telegram's
+        # menu caps at 100, so redundant utility reads move to `/commands`
+        # rather than hiding a workspace destination. The saved /coherence
+        # spelling is an alias of /proofs, not a twelfth tab.
+        assert len(tabs) == 11
+        assert all(spec.in_menu for spec in COMMAND_SPECS if spec.category == "Tabs")
+        proofs = next(spec for spec in COMMAND_SPECS if spec.name == "proofs")
+        assert "coherence" in proofs.aliases
 
     async def test_bars_now_carries_a_chart_and_switch_rows(self, bot, fake_market_data):
         await bot.handle_update(update("/bars BTCUSDT 1d 5", update_id=6300))
