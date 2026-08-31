@@ -99,6 +99,22 @@ def _apply_readme(text: str) -> str:
     text = re.sub(r"registers \*\*\d+ commands\*\*", f"registers **{total} commands**", text)
     text = re.sub(r"(; )\*\*\d+\*\*( of them change)", rf"\g<1>**{controls}**\g<2>", text)
     text = re.sub(r"(and )\*\*\d+\*\*( are pushed)", rf"\g<1>**{menu}**\g<2>", text)
+    engine_link_claim = (
+        "It does not render or scrape a web page, and it cannot open a\n"
+        "position. When `WEB_WORKSPACE_URL` is configured, the three engine cards may\n"
+        "carry an HTTPS link to the equivalent read-only view; the values still come\n"
+        "from gateway domain read models."
+    )
+    text = text.replace(
+        "It does not render a web page or send web links, and it cannot\nopen a position.",
+        engine_link_claim,
+    )
+    text = text.replace(
+        "It does not render or scrape a web page, and it cannot open a position. When\n"
+        "`WEB_WORKSPACE_URL` is configured, the three engine cards may carry an HTTPS link to\n"
+        "the equivalent read-only view; the values still come from gateway domain read models.",
+        engine_link_claim,
+    )
     return text
 
 
