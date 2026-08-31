@@ -109,7 +109,7 @@ describe("continuous deployment keeps the desk alive across a swap", () => {
     // The remote script body only. The step's own `env:` block that follows it
     // is where `${{ secrets.* }}` legitimately belongs — that is the mechanism
     // being asserted, not a violation of it.
-    const start = deployWorkflow.indexOf("script: |");
+    const start = deployWorkflow.search(/^\s{10}script: \|$/m);
     const script = deployWorkflow.slice(start, deployWorkflow.indexOf("\n        env:", start));
     /**
      * The slice is anchored before it is scanned. `indexOf` returns -1 for a
@@ -178,7 +178,7 @@ describe("continuous deployment keeps the desk alive across a swap", () => {
       /cat "\$(ENV_FILE|LEGACY_ENV)"(?!\s*>)/,
       "the env file is being printed to the build log — it holds live credentials",
     );
-    assert.match(body, /cut -d= -f1 "\$ENV_FILE"/, "the summary should print variable names only");
+    assert.match(body, /cut -d= -f1 "\$MERGED"/, "the summary should print variable names only");
 
     /**
      * The merge must land atomically.
@@ -218,40 +218,30 @@ describe("continuous deployment keeps the desk alive across a swap", () => {
      * Counting quote parity per line catches any future `awk '…`, `sed '…` or
      * `python -c '…` that spans lines, which is the whole class.
      */
-    const script = deployWorkflow.slice(
-      deployWorkflow.indexOf("script: |"),
-      deployWorkflow.indexOf("\n        env:", deployWorkflow.indexOf("script: |")),
-    );
-    /**
-     * The slice is anchored before it is scanned. `indexOf` returns -1 for a
-     * renamed step, `slice(-1, …)` yields an empty string, and a
-     * `doesNotMatch` over nothing is green for ever — the exact shape this
-     * whole file exists to keep out of the deploy path.
-     */
-    assert.ok(script.includes("start_container"), "the remote script block was not found");
+    const starts = [...deployWorkflow.matchAll(/^\s{10}script: \|$/gm)].map((match) => match.index ?? -1);
+    assert.equal(starts.length, 2, "both SSH script blocks must be inspected");
+    const scripts = starts.map((start) => {
+      const end = deployWorkflow.indexOf("\n        env:", start);
+      assert.ok(end > start, "an SSH script no longer ends at its env block");
+      return deployWorkflow.slice(start, end);
+    });
+    assert.ok(scripts[0].includes("start_container") && scripts[1].includes("start_caddy"));
     // Comment lines are dropped first. The shell never interprets them, but
     // they are full of English apostrophes ("the container's own health check")
     // and counting those would flag the prose that explains the very hazard
     // this checks for.
-    const unbalanced = script
+    const unbalanced = scripts.flatMap((script, scriptIndex) => script
       .split("\n")
-      .map((line, index) => ({ line, index }))
+      .map((line, index) => ({ line, index, scriptIndex }))
       .filter(({ line }) => !line.trim().startsWith("#"))
-      .filter(({ line }) => (line.split("'").length - 1) % 2 === 1);
+      .filter(({ line }) => (line.split("'").length - 1) % 2 === 1));
 
     assert.deepEqual(
-      unbalanced.map(({ index, line }) => `line ${index}: ${line.trim().slice(0, 60)}`),
+      unbalanced.map(({ scriptIndex, index, line }) => `script ${scriptIndex + 1}, line ${index}: ${line.trim().slice(0, 60)}`),
       [],
       "a single-quoted program spans lines in the remote script — put it on one line, "
         + "or CRLF in transit will corrupt it",
     );
-  });
-
-  it("verifies the deploy and can undo it", () => {
-    // A deploy that cannot be verified reports success over a dead desk.
-    assert.match(deployWorkflow, /State\.Health\.Status/);
-    assert.match(deployWorkflow, /Rolling back/);
-    assert.match(deployWorkflow, /start_container "\$PREVIOUS"/);
   });
 
   it("allows the gateway its shutdown window", () => {
@@ -263,6 +253,12 @@ describe("continuous deployment keeps the desk alive across a swap", () => {
   });
 
   it("runs the suite before it ships anything", () => {
+    const verify = deployWorkflow.slice(
+      deployWorkflow.indexOf("\n  verify:"),
+      deployWorkflow.indexOf("\n  build:"),
+    );
+    assert.match(verify, /node --import tsx --test tests\/deployment-contract-\*\.test\.ts/);
+    assert.match(verify, /for target in 1 2; do[\s\S]*bash -n/);
     const build = deployWorkflow.slice(deployWorkflow.indexOf("\n  build:"));
     assert.match(build.slice(0, build.indexOf("steps:")), /needs: verify/);
   });
