@@ -104,7 +104,8 @@ export function failure(err: unknown): NextResponse {
  * one) and spend real quota. `stale-while-revalidate` means a quota-exhausted
  * window still serves the last good answer rather than an error.
  */
-export function cacheHeaders(ttlSeconds: number): HeadersInit {
+export function cacheHeaders(ttlSeconds: number, synthetic = false): HeadersInit {
+  if (synthetic) return { "cache-control": "no-store" };
   return {
     "cache-control": `public, s-maxage=${ttlSeconds}, stale-while-revalidate=${ttlSeconds * 4}`,
   };
