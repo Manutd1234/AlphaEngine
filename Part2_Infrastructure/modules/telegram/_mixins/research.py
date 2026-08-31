@@ -100,7 +100,8 @@ class ResearchMixin:
         ))
 
     async def _cmd_rag(self, args, chat_id, actor) -> None:
-        """Similarity search over the desk's own history, not the open web."""
+        """Corpus search, desk-scoped when the shared rollout flag is enabled."""
+        from modules.research_quota_gate import scope_for
         from modules.research_rag import get_rag
 
         query = " ".join(args).strip()
@@ -113,7 +114,17 @@ class ResearchMixin:
             ))
             return
 
-        result = await get_rag().search(query, match_count=3)
+        rag = get_rag()
+        _desk, bound, scope = scope_for((rag.search,))
+        if bound is not None:
+            await self.send_message(chat_id, text_card(
+                "🧠 Desk recall", "SCOPE UNAVAILABLE",
+                [esc(bound.reason), "<i>No corpus search was run.</i>"],
+                source="research tenant gate", next_commands="/researchstatus",
+            ))
+            return
+
+        result = await rag.search(query, match_count=3, **scope)
         state = result.get("state")
         if state == "unavailable":
             await self.send_message(chat_id, text_card(
