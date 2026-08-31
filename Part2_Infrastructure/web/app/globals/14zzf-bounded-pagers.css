@@ -1,0 +1,144 @@
+/* Bounded evidence navigators shared by the Developer manifest and Reliability
+   trace ring. Kept late so their compact controls inherit the final desk tokens. */
+.codebase-filelist__summary > div:first-child {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.codebase-filelist__pagination,
+.console-trace-pagination,
+.cockpit-blotter__pagination {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.console-trace-pagination {
+  flex: 0 1 auto;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  white-space: nowrap;
+}
+
+.codebase-filelist__pagination {
+  flex: 0 0 auto;
+}
+
+.codebase-filelist__pagination button,
+.codebase-filelist__pagination select,
+.console-trace-pagination button,
+.console-trace-pagination select,
+.cockpit-blotter__pagination button {
+  min-width: 28px;
+  min-height: 26px;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  font: 600 var(--fs-2xs)/1 var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.codebase-filelist__pagination button,
+.console-trace-pagination button,
+.cockpit-blotter__pagination button {
+  cursor: pointer;
+}
+
+.codebase-filelist__pagination button:disabled,
+.console-trace-pagination button:disabled,
+.cockpit-blotter__pagination button:disabled {
+  cursor: default;
+  border-color: var(--disabled-border);
+  background: var(--disabled-bg);
+  color: var(--text-muted);
+}
+
+.codebase-filelist__pagination button:not(:disabled):hover,
+.codebase-filelist__pagination select:hover,
+.console-trace-pagination button:not(:disabled):hover,
+.console-trace-pagination select:hover,
+.cockpit-blotter__pagination button:not(:disabled):hover {
+  border-color: color-mix(in srgb, var(--series-1) 44%, var(--border));
+  background: color-mix(in srgb, var(--series-1) 7%, var(--surface-1));
+}
+
+.codebase-filelist__pagination button:focus-visible,
+.codebase-filelist__pagination select:focus-visible,
+.console-trace-pagination button:focus-visible,
+.console-trace-pagination select:focus-visible,
+.cockpit-blotter__pagination button:focus-visible {
+  outline: 2px solid var(--series-1);
+  outline-offset: 1px;
+}
+
+.codebase-filelist__pagination span,
+.console-trace-page-count,
+.cockpit-blotter__pagination span {
+  color: var(--text-muted);
+  font: 600 var(--fs-2xs)/1 var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.cockpit-blotter__pagination {
+  justify-content: flex-end;
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--rule-soft);
+  background: var(--surface-1);
+}
+
+.console-metric-disclosure {
+  margin-block-start: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-1);
+}
+
+.console-metric-disclosure > summary {
+  min-height: 36px;
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-secondary);
+  font: 700 var(--fs-xs)/var(--lh-tight) var(--sans);
+  cursor: pointer;
+}
+
+.console-metric-disclosure[open] > summary {
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.console-metric-disclosure > .page-context-strip {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+}
+
+.console-trace-page-count {
+  display: inline-flex;
+  min-height: 26px;
+  flex: 0 0 auto;
+  align-items: center;
+}
+
+/* The trace inspector is a light detail plane even when its timeline is dark;
+   use the plane's semantic text roles rather than the timeline chip inks. */
+.console-trace-detail__title .console-log__level:is(.is-debug, .is-info) {
+  color: var(--text-secondary);
+}
+
+.console-trace-detail__title .console-log__level.is-warn {
+  color: var(--warning-text);
+}
+
+.console-trace-detail__title .console-log__level.is-error {
+  color: var(--critical-text);
+}
+
+@media (max-width: 520px) {
+  .console-trace-pagination {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+}
