@@ -96,7 +96,7 @@ class Minute:
         make every incomplete minute look like a feed failure, which is the
         opposite of what it is.
         """
-        return tuple(s for s in self.stations if s.temp is not None and s.code != "")
+        return tuple(s for s in self.stations if s.temp is not None and s.code in {CODE_OK, CODE_PENDING})
 
     @property
     def spread(self) -> Decimal | None:
