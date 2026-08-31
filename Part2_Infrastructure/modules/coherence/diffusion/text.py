@@ -6,13 +6,11 @@ FOMC statement, which lives at a URL keyed by the decision date.
 
     https://www.federalreserve.gov/newsevents/pressreleases/monetary{YYYYMMDD}a.htm
 
-That URL does a second job worth as much as the first. The calendar in
-`fomc.py` is written knowledge rather than fetched data, so every row ships
-`verified_at: None` and no number built on it may be cited. A 200 from the
-date's own statement page falsifies nothing and confirms the date; a 404 says
-the row is wrong. Fetching the text and verifying the calendar are the same
-request, so the module that reads the news is also the one that retires the
-disclaimer.
+That URL does a second job worth as much as the first. Event rows arrive from
+the desk ledger rather than a bundled calendar; a 200 from an observed row's
+own statement page confirms its date, while a 404 says the observed row is
+wrong. Fetching the text and checking the calendar are the same request, so
+the module that reads the news also produces independent timestamp evidence.
 
 THE PARSER IS DELIBERATELY BLUNT. It strips tags, collapses whitespace and
 keeps the paragraphs between the release stamp and the voting record. A proper
