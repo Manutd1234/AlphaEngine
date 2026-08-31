@@ -196,7 +196,7 @@ function QuickSettings({
                 nothing. There is no i18n layer here: lib/format.ts hardwires
                 en-US numbers and en-GB dates through several dozen memoised
                 call sites, so a persisted locale preference would be a control
-                that remembers a choice it cannot act on. Dimmed and explained
+                that remembers a choice it cannot act on. Disabled and explained
                 is the honest version — the same reasoning as the stress panel's
                 fifth segment.
               */}
@@ -204,7 +204,7 @@ function QuickSettings({
                 type="button"
                 disabled
                 aria-describedby="quick-settings-locale-note"
-                className="rounded-[8px] border border-border bg-surface-2 px-2 py-1 text-fs-sm font-semibold text-text-secondary opacity-[0.55]"
+                className="cursor-not-allowed rounded-[8px] border border-[var(--disabled-border)] bg-[var(--disabled-bg)] px-2 py-1 text-fs-sm font-semibold text-[var(--disabled-text)]"
               >
                 English (US)
               </button>
