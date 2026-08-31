@@ -116,10 +116,7 @@
   color: var(--warning-text);
 }
 
-.codebase-explorer__notice {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 8px;
+.codebase-explorer__provenance {
   margin: 14px 0 12px;
   padding: 9px 11px;
   border-left: 3px solid color-mix(in srgb, var(--series-1) 60%, var(--border));
@@ -130,11 +127,11 @@
   line-height: var(--lh-body);
 }
 
-.codebase-explorer__notice strong {
+.codebase-explorer__provenance strong {
   color: var(--text-primary);
 }
 
-.codebase-explorer__notice code {
+.codebase-explorer__provenance code {
   color: var(--text-secondary);
 }
 
@@ -177,7 +174,7 @@
 .developer-api-catalog__toolbar input {
   width: 100%;
   min-width: 0;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: 8px;
   background: var(--surface-2);
   color: var(--text-primary);
@@ -241,8 +238,10 @@
   gap: 12px;
   padding: 10px 12px;
   border-bottom: 1px solid var(--border);
-  background: color-mix(in srgb, var(--surface-1) 94%, transparent);
-  backdrop-filter: blur(10px);
+  border-start-start-radius: calc(var(--radius-md) - 1px);
+  border-start-end-radius: calc(var(--radius-md) - 1px);
+  background: var(--surface-1);
+  backdrop-filter: none;
 }
 
 .codebase-filelist__summary span {
@@ -470,8 +469,7 @@
   font-size: var(--fs-2xs);
 }
 
-.codebase-detail__context,
-.codebase-detail__safe-edit {
+.codebase-detail__context {
   margin-top: 16px;
   padding: 14px;
   border: 1px solid var(--border);
@@ -483,20 +481,11 @@
   font-size: var(--fs-2xl);
 }
 
-.codebase-detail__context p,
-.codebase-detail__safe-edit p {
+.codebase-detail__context p {
   margin-top: 5px;
   color: var(--text-secondary);
   font-size: var(--fs-xs);
   line-height: var(--lh-body);
-}
-
-.codebase-detail__safe-edit {
-  background: color-mix(in srgb, var(--series-3) 5%, var(--surface-2));
-}
-
-.codebase-detail__safe-edit strong {
-  font-size: var(--fs-sm);
 }
 
 /* Engineering work queue */
@@ -601,6 +590,9 @@
 }
 
 .developer-work__table-wrap {
+  /* Anchor the table's absolute screen-reader labels to its own scrollport;
+     otherwise they extend the document even though the wide table scrolls. */
+  position: relative;
   overflow-x: auto;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -717,7 +709,7 @@
 }
 
 .developer-work-kind.is-ticket {
-  color: var(--series-3);
+  color: color-mix(in srgb, var(--series-3) 72%, var(--text-primary));
   background: color-mix(in srgb, var(--series-3) 10%, transparent);
 }
 
@@ -758,7 +750,7 @@
   width: 100%;
   min-width: 130px;
   height: 35px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: 7px;
   background: var(--surface-2);
   color: var(--text-primary);
@@ -1073,4 +1065,3 @@
     width: fit-content;
   }
 }
-
