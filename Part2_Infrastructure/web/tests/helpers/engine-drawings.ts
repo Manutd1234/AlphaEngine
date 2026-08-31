@@ -22,7 +22,7 @@
  * the suite below asserts that each of them still opens on a drawing too.
  */
 export const DRAWINGS = [
-  "Figure", "Plot", "svg",
+  "Figure", "Plot", "svg", "figure",
   "MarginAxis", "ValueStrip", "PayoffByState", "ComboBandStrips", "FrechetBand",
   "SlackStrip", "CalibrationGauge", "CalibrationTrend", "IndexPane",
   "ReliabilityDiagram", "MurphyBars", "LessonFigure", "DollarBar",
@@ -30,14 +30,18 @@ export const DRAWINGS = [
   // them are drawn with. Each is verified to open on a drawing ITSELF by the
   // LOCAL table at the foot of this file, which is what stops this list being
   // a way to exempt a view without writing down that you did.
-  "CheckLadder", "StateCoverage", "ParlayLegs", "HorizonAxis",
-  "MeasurabilityStrip", "GroupPins", "FormationDiagram",
+  "CheckLadder", "StateCoverage", "ParlayLegs", "ParlaySimulator", "SimulatorSession", "HorizonAxis",
+  "MeasurabilityStrip", "GroupPins", "FormationDiagram", "SettlementAssembly",
   // The Prices view's two, 2026-08-26: both sides of every leg on one dollar
   // axis, and the same legs' three size fields under it on the same strike
   // extent. Both open on a `<Figure>` themselves; both are in LOCAL below.
   "LadderPrices", "LegSizes",
   // Basket / Size, 2026-08-26: each leg against the interest outstanding at it.
   "BasketFootprint",
+  // Basket / Basket and Basket / Size, 2026-08-29: the truthful zero-leg
+  // lifecycle. It opens on a Figure and keeps withheld downstream quantities
+  // distinct from measured zeroes.
+  "BasketNullInstrument", "BasketScenarioTerminal",
   // Corpus / Score trend, 2026-08-26: how the corpus is accruing towards the
   // two floors that decide what it can say. Opens on a `<Figure>` itself.
   "CorpusAccrual",
@@ -86,4 +90,3 @@ export const DRAWINGS = [
   // twenty-six of them, and those are what this draws.
   "FamilyRidge",
 ];
-
