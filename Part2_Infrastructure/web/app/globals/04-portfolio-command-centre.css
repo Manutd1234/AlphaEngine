@@ -252,7 +252,7 @@
 }
 
 /* `opacity: 0` rather than `display: none` so the grid columns stay put as rows
-   are set and cleared. Beats the global `button:disabled { opacity: .5 }`. */
+   are set and cleared. This is layout preservation, not disabled-state dimming. */
 .shock-row__clear:disabled {
   opacity: 0;
 }
@@ -365,10 +365,10 @@
   padding: 12px;
   /* Same plane as .console-log — this is the other terminal block in the app,
      and the two should not read as different surfaces. */
-  border: 1px solid #34343c;
+  border: 1px solid #7f8c9c;
   border-radius: var(--radius-control);
-  background: #16161c;
-  color: #d4d4d8;
+  background: #0d1117;
+  color: #f7f9fc;
   font-family: var(--mono);
   font-size: var(--fs-sm);
   line-height: var(--lh-loose);
@@ -379,7 +379,7 @@
 }
 
 .handoff-request:focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--series-1) 45%, transparent);
+  outline: 3px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
@@ -616,14 +616,14 @@
 }
 
 .handoff-fire:not(:disabled) {
-  background: #b3242e;
-  border-color: #b3242e;
-  color: #fff;
+  background: var(--critical-action-bg);
+  border-color: var(--critical-action-bg);
+  color: var(--critical-action-fg);
 }
 
 .handoff-fire:not(:disabled):hover {
-  background: #9d1c27;
-  border-color: #9d1c27;
+  background: var(--critical-action-hover);
+  border-color: var(--critical-action-hover);
 }
 
 .handoff-execute > small {
@@ -649,4 +649,3 @@
   font-family: var(--mono);
   font-size: var(--fs-sm);
 }
-
