@@ -15,6 +15,7 @@ from pathlib import Path
 import httpx
 import numpy as np
 import pytest
+from helpers.diffusion_fomc_fixture import fixture_rows
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -27,7 +28,7 @@ DAY = 86_400_000
 def _fake_binance(*, release_half_life_min: float, call_half_life_min: float, jump: float = 0.02):
     """A tape that is quiet except for a decay after each stage of each meeting."""
     stages: list[tuple[int, float]] = []
-    for row in runner.fomc.seed_rows():
+    for row in fixture_rows():
         stages.append((int(row["release_at"]), release_half_life_min))
         if row["call_at"] is not None:
             stages.append((int(row["call_at"]), call_half_life_min))
@@ -71,11 +72,15 @@ def _args(tmp_path: Path, **overrides):
     return parser.parse_args(argv)
 
 
+def _run(args, *, client):
+    return runner.run(args, client=client, meetings=fixture_rows())
+
+
 @pytest.fixture()
 def slow_call(tmp_path):
     client = httpx.Client(transport=_fake_binance(release_half_life_min=1.0, call_half_life_min=9.0))
     try:
-        yield runner.run(_args(tmp_path), client=client)
+        yield _run(_args(tmp_path), client=client)
     finally:
         client.close()
 
@@ -110,7 +115,7 @@ class TestTheVerdictFollowsTheTape:
     def test_two_identical_stages_read_flat(self, tmp_path):
         client = httpx.Client(transport=_fake_binance(release_half_life_min=4.0, call_half_life_min=4.0))
         try:
-            report = runner.run(_args(tmp_path), client=client)
+            report = _run(_args(tmp_path), client=client)
         finally:
             client.close()
         assert report["verdict_vol_clock"]["verdict"] == "flat"
@@ -118,7 +123,7 @@ class TestTheVerdictFollowsTheTape:
     def test_too_few_meetings_is_refused_with_its_count(self, tmp_path):
         client = httpx.Client(transport=_fake_binance(release_half_life_min=1.0, call_half_life_min=9.0))
         try:
-            report = runner.run(_args(tmp_path, min_events=999), client=client)
+            report = _run(_args(tmp_path, min_events=999), client=client)
         finally:
             client.close()
         verdict = report["verdict_vol_clock"]
@@ -127,6 +132,12 @@ class TestTheVerdictFollowsTheTape:
 
 
 class TestTheReportDoesNotOverclaim:
+    def test_an_empty_observed_ledger_stays_empty(self, tmp_path):
+        report = runner.run(_args(tmp_path), meetings=[])
+        assert report["meetings_considered"] == 0
+        assert report["calendar"]["state"] == "empty"
+        assert report["verdict_vol_clock"]["state"] == "not_assessable"
+
     def test_it_reports_how_much_of_the_calendar_was_checked(self, slow_call):
         """The report states a count, not a boolean.
 
@@ -162,9 +173,9 @@ class TestTheCacheIsUsed:
 
         client = httpx.Client(transport=httpx.MockTransport(counting))
         try:
-            runner.run(_args(tmp_path), client=client)
+            _run(_args(tmp_path), client=client)
             first = calls["n"]
-            runner.run(_args(tmp_path), client=client)
+            _run(_args(tmp_path), client=client)
         finally:
             client.close()
         assert first > 0
