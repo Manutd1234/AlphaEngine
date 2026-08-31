@@ -29,11 +29,11 @@
  * THE FOUR GROUP VIEWS DRAW SOMETHING (fourth review of 2026-08-24, "a drawing
  * of the numbers in every subtab"). Coverage was the only view here with a
  * figure and the other four opened on a grid of prose cards. `GroupPins` is
- * its own file since 2026-08-25 and draws BOTH quantities a group of lessons
- * has — the modules each lesson is about against the suites that hold it — as
- * a dumbbell, because the catalogue's claim is a ratio between them and one bar
- * drew half of it. The cards' own path lists stay behind each card's mechanics
- * summary; the strip is their reading, not a replacement.
+ * its own file since 2026-08-25 and compares BOTH quantities a group of lessons
+ * has — the modules each lesson is about against the suites that hold it. The
+ * comparison is tabular so every lesson name remains readable; exact paths stay
+ * in the numbered detail Sheet, so the overview remains the reading rather than
+ * a second copy of the evidence.
  *
  * A lesson whose slice has not landed is shown as pending rather than omitted.
  * A curriculum that silently lists only what is finished cannot be read as a
@@ -41,6 +41,16 @@
  */
 
 
+import { useState, type ReactNode } from "react";
+
+import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { COHERENCE_LESSONS, LESSON_GROUPS, type CoherenceLesson, type LessonGroup } from "@/lib/coherence/lessons";
 import type { WorkspaceView } from "@/lib/workspace-nav";
 
@@ -50,6 +60,7 @@ import LessonCoverage from "./LessonCoverage";
 import LessonFigure from "./lesson-figures";
 import PaneHead from "./PaneHead";
 import ViolationStates from "./ViolationStates";
+import ProofsViewControl from "./ProofsViewControl";
 
 function PathList({ paths }: { paths: string[] }) {
   return (
@@ -63,90 +74,144 @@ function PathList({ paths }: { paths: string[] }) {
   );
 }
 
-function LessonCard({ lesson }: { lesson: CoherenceLesson }) {
+function LessonDetailSection({
+  number,
+  title,
+  id,
+  children,
+}: {
+  number: string;
+  title: string;
+  id: string;
+  children: ReactNode;
+}) {
   return (
-    <article className={`coh-lesson ${lesson.shipped ? "" : "is-pending"}`}>
-      <header className="coh-lesson__head">
-        <h4 className="console-subhead">{lesson.title}</h4>
+    <section className="coh-lesson-detail__section" aria-labelledby={id}>
+      <header className="coh-lesson-detail__section-head">
+        <span className="coh-lesson-detail__section-number" aria-hidden="true">{number}</span>
+        <h3 id={id}>
+          <span className="sr-only">Section {number}: </span>
+          {title}
+        </h3>
+      </header>
+      <div className="coh-lesson-detail__section-body">{children}</div>
+    </section>
+  );
+}
+
+function LessonDetail({ lesson }: { lesson: CoherenceLesson }) {
+  const ordinal = COHERENCE_LESSONS.findIndex((entry) => entry.id === lesson.id) + 1;
+  const groupLabel = LESSON_GROUPS.find((entry) => entry.id === lesson.group)?.label ?? lesson.group;
+  const sectionId = (name: string) => `coh-lesson-${lesson.id}-${name}`;
+
+  return (
+    <article className={`coh-lesson-detail ${lesson.shipped ? "" : "is-pending"}`}>
+      <SheetHeader className="coh-lesson-detail__header">
+        <p className="coh-lesson-detail__eyebrow">
+          Lesson {String(ordinal).padStart(2, "0")} of {COHERENCE_LESSONS.length}, {groupLabel}
+        </p>
+        <SheetTitle>{lesson.title}</SheetTitle>
+        <SheetDescription className="sr-only">{lesson.summary}</SheetDescription>
+        <div className="coh-status__chips">
+          <StateChip mark="◇" word="Taught in" value={sectionLabel(lesson.pane)} tone="muted" />
+          <StateChip
+            mark={lesson.shipped ? "✓" : "◌"}
+            word="Status"
+            value={lesson.shipped ? "shipped" : "not built yet"}
+            tone={lesson.shipped ? "good" : "muted"}
+          />
+        </div>
+      </SheetHeader>
+
+      <div className="coh-lesson-detail__body">
+        <LessonDetailSection number="01" title="Claim" id={sectionId("claim")}>
+          <p className="coh-lesson-detail__claim">{lesson.summary}</p>
+          {lesson.formula ? (
+            <code className="coh-lesson__formula">{lesson.formula}</code>
+          ) : (
+            <p className="coh-lesson-detail__no-formula">Conceptual claim; no standalone formula.</p>
+          )}
+        </LessonDetailSection>
+
+        <LessonDetailSection number="02" title="Technical model" id={sectionId("model")}>
+          <LessonFigure id={lesson.id} />
+        </LessonDetailSection>
+
+        <LessonDetailSection number="03" title="Proof conditions" id={sectionId("conditions")}>
+          <div className="table-wrap coh-lesson__criteria-wrap">
+            <table className="coh-table coh-lesson__criteria">
+              <caption className="coh-table__caption sr-only">Proof conditions</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Condition</th>
+                  <th scope="col">Technical reading</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="is-holds">
+                  <th scope="row">When it holds</th>
+                  <td>{lesson.whenItHolds}</td>
+                </tr>
+                <tr className="is-fails">
+                  <th scope="row">What breaks it</th>
+                  <td>{lesson.whenItFails}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </LessonDetailSection>
+
+        <LessonDetailSection number="04" title="Code and test evidence" id={sectionId("evidence")}>
+          <div className="table-wrap">
+            <table className="coh-table">
+              <caption className="coh-table__caption sr-only">Implementation and guard paths</caption>
+              <tbody>
+                <tr>
+                  <th scope="row">Carried by</th>
+                  <td><PathList paths={lesson.guards} /></td>
+                </tr>
+                <tr>
+                  <th scope="row">Pinned by</th>
+                  <td><PathList paths={lesson.pinnedBy} /></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </LessonDetailSection>
+      </div>
+    </article>
+  );
+}
+
+function LessonIndexCard({ lesson, onOpen }: { lesson: CoherenceLesson; onOpen: () => void }) {
+  return (
+    <tr
+      className={`coh-lesson-index-card ${lesson.shipped ? "" : "is-pending"}`}
+      data-lesson-id={lesson.id}
+    >
+      <th scope="row">
+        <strong className="console-subhead">{lesson.title}</strong>
+      </th>
+      <td>
         <span className="coh-lesson__state">
           <span aria-hidden="true">{lesson.shipped ? "✓" : "◌"}</span>{" "}
           {lesson.shipped ? "shipped" : "not built yet"}
         </span>
-      </header>
-
-      {/* Which section teaches this. `pane` has been in the data since the
-          catalogue was written and was rendered nowhere, so a reader who
-          wanted the worked example had no way to find out where it was. */}
-      <div className="coh-status__chips">
-        <StateChip mark="◇" word="Taught in" value={sectionLabel(lesson.pane)} tone="muted" />
-      </div>
-
-      <p className="coh-lesson__summary">{lesson.summary}</p>
-
-      {/* ALWAYS RENDERED, EVEN WHEN EMPTY, and that is the whole of the
-          alignment fix. Two of the fifteen lessons carry no formula, so this
-          slot used to be present on thirteen cards and absent on two — which
-          gave the grid two different row COUNTS and made
-          `grid-template-rows: subgrid` impossible to line up. An empty `<code>`
-          still claims its row line, so the tallest formula in a row sets the
-          height for every card beside it and everything below starts level.
-          `:empty` drops its box in the stylesheet, so a lesson without one
-          shows blank space rather than an empty grey chip. */}
-      <code className="coh-lesson__formula">{lesson.formula ?? ""}</code>
-
-      {/* Four of the fourteen make a claim about a SHAPE, and for those the
-          formula is the part a reader can already read. Every lesson has a
-          figure since 2026-08-25, so this slot is always filled too — which is
-          the other half of the fixed row count. */}
-      <LessonFigure id={lesson.id} />
-
-      {/* BOTH HALVES STAY OPEN, and that was re-tested rather than assumed.
-          The same fold that halved the Model group's formula wall was tried
-          here — keep "what breaks it", hide "when it holds" — and MEASURED at
-          2,198px to 2,109px, four per cent, because the hidden sentence is
-          short and the summary line replacing it costs nearly as much. That is
-          a click and a hidden half bought for nothing, so it was reverted. The
-          height in these views is the summary, the formula and the figure, and
-          hiding any of those would cost the card its subject. */}
-      <dl className="coh-lesson__bounds">
-        <div className="is-holds">
-          <dt>When it holds</dt>
-          <dd>{lesson.whenItHolds}</dd>
-        </div>
-        <div className="is-fails">
-          <dt>What breaks it</dt>
-          <dd>{lesson.whenItFails}</dd>
-        </div>
-      </dl>
-
-      {/* A table, because the two lists are different kinds of path. As a flat
-          list of <code> with "pinned by" in front of half of them, a module
-          and a suite were told apart by one word of prose. */}
-      <details className="coh-lesson__mechanics">
-        <summary>{`Which code carries this, and which test holds it, ${lesson.guards.length + lesson.pinnedBy.length} paths`}</summary>
-        <div className="table-wrap">
-        <table className="coh-table">
-          {/* Visually the fold's summary names this table; the caption is for
-              assistive technology, which does not read summaries as names. */}
-          <caption className="coh-table__caption sr-only">Which code carries this lesson, and which test holds it</caption>
-          <tbody>
-            <tr>
-              <th scope="row">Carried by</th>
-              <td>
-                <PathList paths={lesson.guards} />
-              </td>
-            </tr>
-            <tr>
-              <th scope="row">Pinned by</th>
-              <td>
-                <PathList paths={lesson.pinnedBy} />
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        </div>
-      </details>
-    </article>
+      </td>
+      <td>{sectionLabel(lesson.pane)}</td>
+      <td className="coh-lesson__summary">{lesson.summary}</td>
+      <td>
+        {lesson.formula ? (
+          <code className="coh-lesson__formula" data-lesson-formula>{lesson.formula}</code>
+        ) : <span className="muted">No formula</span>}
+      </td>
+      <td>
+        <Button type="button" variant="outline" size="sm" onClick={onOpen} data-lesson-action>
+          Inspect lesson
+          <span aria-hidden="true">→</span>
+        </Button>
+      </td>
+    </tr>
   );
 }
 
@@ -172,22 +237,24 @@ export default function LessonsPane({ view, onView, onOpenSection }: {
   /** Opens a section on any tab; wired by the coverage figure's link in a later slice. */
   onOpenSection?: (tab: WorkspaceView, section?: string) => void;
 }) {
-  void onOpenSection;
+  const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
   const shipped = COHERENCE_LESSONS.filter((lesson) => lesson.shipped).length;
   const group = LESSON_GROUPS.find((entry) => entry.id === view) ?? LESSON_GROUPS[0];
   const inView = COHERENCE_LESSONS.filter((lesson) => lesson.group === group.id);
+  const selectedLesson = COHERENCE_LESSONS.find((lesson) => lesson.id === selectedLessonId) ?? null;
 
   return (
     <section className="card console-card coh-lessons" aria-labelledby="coherence-lessons-heading">
       <PaneHead
         kicker="Lessons"
-        title="The curriculum & what guards it"
+        title="Claim-to-test guard graph"
         id="coherence-lessons-heading"
         note={`${shipped} of ${COHERENCE_LESSONS.length} built`}
+        ledeSummary="Curriculum contract"
         lede={
           shipped < COHERENCE_LESSONS.length
-            ? "Each lesson names the module it is about and the test that goes red if it stops being true; unbuilt ones are listed because a curriculum hiding unfinished work is not a plan."
-            : "Each lesson names the module it is about and the test that goes red if it stops being true, and each runs as a notebook under notebooks/coherence_lab against the same modules."
+            ? "Each lesson links its module and failing test; unbuilt lessons stay listed."
+            : "Each lesson links its module and failing test, then runs that module as a notebook under notebooks/coherence_lab."
         }
       />
 
@@ -221,25 +288,25 @@ export default function LessonsPane({ view, onView, onOpenSection }: {
           two that describe them follow. The default stays Coverage: opening on
           the map is right, and where the map SITS in the row is a separate
           question from what opens first. */}
-      <div className="seg" role="group" aria-label="Lessons view">
+      <ProofsViewControl
+        className="seg"
+        label="Lessons view"
+        options={LESSONS_VIEWS}
+        value={view}
+        onValue={onView}
+      />
         {/* Six buttons from one array: the four slices, then Coverage, then
             Episode states — the vocabulary the whole catalogue is written in,
             its own peer rather than a card because it defines the objects the
             other views make claims ABOUT. */}
-        {LESSONS_VIEWS.map(([name, label]) => (
-          <button key={name} type="button" aria-pressed={view === name} onClick={() => onView(name)}>
-            {label}
-          </button>
-        ))}
-      </div>
       </div>
 
       {view === "coverage" ? (
-        <LessonCoverage />
+        <LessonCoverage onOpenSection={onOpenSection} />
       ) : view === "states" ? (
         <ViolationStates />
       ) : (
-        <section aria-labelledby={`coh-lessons-${group.id}`}>
+        <section className="coh-lessons__catalogue" aria-labelledby={`coh-lessons-${group.id}`}>
           <div className="section-heading compact">
             <div>
               <h3 id={`coh-lessons-${group.id}`}>{group.label}</h3>
@@ -250,15 +317,53 @@ export default function LessonsPane({ view, onView, onOpenSection }: {
             </span>
           </div>
 
-          <GroupPins lessons={inView} />
+          <GroupPins lessons={inView} onInspect={(lesson) => setSelectedLessonId(lesson.id)} />
 
-          <div className="coh-lessons__grid">
-            {inView.map((lesson) => (
-              <LessonCard key={lesson.id} lesson={lesson} />
-            ))}
+          <div
+            className="table-wrap coh-lessons__grid"
+            data-lessons-grid
+            role="region"
+            aria-label={`${group.label} lesson catalogue`}
+            tabIndex={0}
+          >
+            <table className="coh-table coh-lessons__table">
+              <caption className="coh-table__caption sr-only">{group.label} lesson catalogue</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Lesson</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Taught in</th>
+                  <th scope="col">Technical reading</th>
+                  <th scope="col">Formula</th>
+                  <th scope="col"><span className="sr-only">Open detail</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {inView.map((lesson) => (
+                  <LessonIndexCard
+                    key={lesson.id}
+                    lesson={lesson}
+                    onOpen={() => setSelectedLessonId(lesson.id)}
+                  />
+                ))}
+              </tbody>
+            </table>
           </div>
         </section>
       )}
+
+      <Sheet
+        open={Boolean(selectedLesson)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedLessonId(null);
+        }}
+      >
+        <SheetContent className="w-[min(52rem,calc(100vw-1rem))] min-[521px]:max-w-none">
+          <div className="coherence-plane proofs-plane coh-lesson-sheet">
+            {selectedLesson ? <LessonDetail lesson={selectedLesson} /> : null}
+          </div>
+        </SheetContent>
+      </Sheet>
     </section>
   );
 }
