@@ -25,10 +25,6 @@
   color: var(--text-secondary);
 }
 
-.dislocation-strip.muted {
-  opacity: 0.75;
-}
-
 .dislocation-strip.marginal {
   border-left-color: var(--status-warning);
 }
@@ -80,4 +76,3 @@
   font-size: var(--fs-body);
   color: var(--text-muted);
 }
-
