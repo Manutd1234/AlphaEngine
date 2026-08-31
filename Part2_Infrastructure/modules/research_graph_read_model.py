@@ -61,21 +61,28 @@ import logging
 from typing import Any
 
 from config import settings
+from modules import research_quota_scope
 from modules.research_communities import _unavailable as _undetected
 from modules.research_communities import _unranked
 
-# Bound at import rather than reached through the module, so that patching
-# ``research_graph_projection._driver`` — which the projection's own suites do
-# to prove a GET never WRITES — does not silently redirect this read path too.
-# The two are different questions about the same driver.
+# Bound independently so patching the projection's writer driver cannot redirect reads.
 from modules.research_graph_projection import RELATION_TYPES, _driver
 
 log = logging.getLogger("alphaengine.research_graph_read_model")
 
-#: The community labels, grouped by the id the sweep wrote. The sweep stamp
-#: travels with them: ``(community_sweep, community)`` is the citable pair, and
-#: a bare integer a week later is unreadable — it may have been renumbered by
-#: one new document.
+_DESK_SCOPE_REASON = ("RESEARCH_SCOPE_TO_DESK is on, but the Neo4j projection carries no "
+                      "desk_id; the desk-scoped corpus fallback was used")
+
+
+def _read_model_refusal(offered: bool) -> str | None:
+    if not offered:
+        return "the caller asked for the corpus computation, so Neo4j was not consulted"
+    if research_quota_scope.SCOPE_TO_DESK:
+        return _DESK_SCOPE_REASON
+    return None
+
+#: Labels grouped by the sweep's id; only ``(community_sweep, community)`` is citable.
+#: A bare integer after the corpus moves may have been renumbered.
 READ_COMMUNITIES = (
     "MATCH (d:Document) WHERE d.community IS NOT NULL "
     "RETURN d.community AS community, d.community_sweep AS sweep, collect(d.id) AS members"
@@ -286,14 +293,14 @@ def community_labels(*, writing: bool = False, offered: bool = True) -> dict[str
     ``detected: False`` with a named reason and NO measurements, so a fallback
     can say which of the several absences it hit.
     """
-    if not offered:
-        return _undetected("the caller asked for the corpus computation, so Neo4j was not consulted")
+    refusal = _read_model_refusal(offered)
+    if refusal:
+        return _undetected(refusal)
     if writing:
         return _undetected(
             "this caller WRITES the labels, and a sweep that read its own last output back would "
             "be a fixpoint — the corpus could change every day and the partition never would"
         )
-
     def _read(session: Any) -> dict[str, Any]:
         return {
             "communities": _rows(session.run(READ_COMMUNITIES)),
@@ -313,9 +320,7 @@ def community_labels(*, writing: bool = False, offered: bool = True) -> dict[str
             "run against this graph yet"
         )
     if pairs is None:
-        # Refused rather than reported with the count omitted or zeroed: an edge
-        # count is how a reader tells a partition of the corpus from a partition
-        # of a fragment, and one that was never taken must not be printed.
+        # An untaken edge count cannot describe a complete partition.
         return _undetected("the projection's edge count could not be read, so the partition was not used")
     sweep, unusable = _one_sweep(rows)
     if sweep is None:
@@ -348,8 +353,9 @@ def centrality_scores(*, offered: bool = True) -> dict[str, Any]:
     Neo4j's, taken from the same score the sweep wrote, so the product — the
     ORDER — is the sweep's and not this reader's opinion of it.
     """
-    if not offered:
-        return _unranked("the caller asked for the corpus computation, so Neo4j was not consulted")
+    refusal = _read_model_refusal(offered)
+    if refusal:
+        return _unranked(refusal)
 
     def _read(session: Any) -> dict[str, Any]:
         return {"scores": _rows(session.run(READ_CENTRALITY)), "pairs": _count(session.run(COUNT_CENTRALITY_PAIRS))}
@@ -377,9 +383,7 @@ def centrality_scores(*, offered: bool = True) -> dict[str, Any]:
         if row.get("id") is not None and isinstance(row.get("score"), int | float)
     ]
     if len(ranking) != len(rows):
-        # A score that is not a number is not a small score. Refusing the whole
-        # read keeps "the graph holds something this reader cannot price" from
-        # being served as a ranking with rows silently missing from it.
+        # A non-number is not a small score; never serve a ranking with rows omitted.
         return _unranked("a projected centrality score was not a number, so the ranking was not used")
     incoherent = _impossible(pairs, len(ranking))
     if incoherent is not None:
