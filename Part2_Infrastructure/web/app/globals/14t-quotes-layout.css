@@ -31,7 +31,9 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .coh-market > span.muted {
@@ -44,16 +46,21 @@
    the row also holds the label. */
 .coh-market__control {
   position: relative;
+  flex: 1 1 18rem;
+  width: clamp(18rem, 24vw, 28rem);
+  max-width: 100%;
   min-width: 0;
 }
 
 .coh-market__button {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 8px;
+  width: 100%;
   max-width: 100%;
+  min-height: var(--control-h);
   padding: 4px 10px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--surface-1);
   color: var(--text-primary);
@@ -63,6 +70,8 @@
 .coh-market__button:hover { background: var(--surface-2); }
 
 .coh-market__ticker {
+  flex: 1 1 auto;
+  min-width: 0;
   font-family: var(--mono);
   font-variant-numeric: tabular-nums;
   overflow: hidden;
@@ -90,9 +99,12 @@
      picker's list reads the same rung. */
   z-index: var(--z-popover);
   top: calc(100% + 4px);
-  left: 0;
-  min-width: 300px;
-  max-width: min(460px, 90vw);
+  right: 0;
+  width: min(28.75rem, calc(100vw - var(--space-3) - var(--space-3)));
+  min-width: min(18.75rem, calc(100vw - var(--space-3) - var(--space-3)));
+  max-width: none;
+  max-height: calc(100dvh - var(--header-h) - var(--rail-h) - 5rem);
+  overflow: hidden;
   padding: 8px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -118,8 +130,10 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  max-height: 280px;
+  max-height: min(280px, calc(100dvh - var(--header-h) - var(--rail-h) - 11rem));
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 /* ONE LINE PER MARKET. `flex-wrap` was here and had to go: two hundred rows
@@ -170,24 +184,42 @@
   color: var(--text-secondary);
 }
 
-/* ── The moments silhouette ─────────────────────────────────────────────
+@media (max-width: 900px) {
+  .coherence-plane.markets-plane .coh-books .coh-section__controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
 
-   `MomentsShape` draws the quoted mass as a filled outline so the four moments
-   can be marked ON the shape they describe rather than listed in a table whose
-   third column explains its second. The fill is deliberately quiet: the mean
-   line, the standard-deviation band and the tail word are the marks a reader is
-   meant to read, and a saturated silhouette under them would compete with all
-   three. `--series-1` at low alpha is the same treatment the settlement chart
-   gives its window band, which is the other figure on this tab that shades a
-   REGION rather than drawing a series.
+  .coherence-plane.markets-plane .coh-books :is(
+    .coh-section__subject,
+    .coh-market,
+    .coh-market__control,
+    .coh-market__button
+  ) {
+    width: 100%;
+    max-width: 100%;
+  }
 
-   Here rather than in 10d, which is the shared surface partial both tabs read:
-   this figure is drawn on one view of one Quotes section. */
-.coh-surface__shape {
-  fill: color-mix(in srgb, var(--series-1) 22%, transparent);
-  stroke: var(--series-1);
-  stroke-width: 1;
-  stroke-linejoin: round;
+  .coherence-plane.markets-plane .coh-books .coh-market {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 620px) {
+  .coherence-plane.markets-plane .coh-books .coh-market {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .coherence-plane.markets-plane .coh-books .coh-market__panel {
+    right: auto;
+    left: 0;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
 }
 
 /* ── The Universe summary tiles get a card each ─────────────────────────
