@@ -47,6 +47,9 @@ export function buildPaperExecutionReference(
   if (sourced.provenance.contract && !sourced.provenance.contract.passed) {
     throw new PaperEquityReferenceError(`${expected} failed the provider data contract.`);
   }
+  if (sourced.provenance.synthetic) {
+    throw new PaperEquityReferenceError(`${expected} quote is synthetic display data, not execution evidence.`);
+  }
 
   const source = sourced.provenance.label.trim() || sourced.provenance.provider.trim();
   if (!source) {
