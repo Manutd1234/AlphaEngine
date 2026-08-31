@@ -84,8 +84,12 @@ export default function HalfLifeCalculator() {
   const logLow = Math.log(GRID[0]);
   const logHigh = Math.log(GRID[GRID.length - 1]);
   const base = HEIGHT - MARGIN.bottom;
-  const top = Math.max(...absorbed, 1);
-  const y = (value: number) => base - (value / top) * (base - MARGIN.top);
+  // The sliders deliberately extend below zero and above one. Fit that domain
+  // before drawing so a refusal/extreme remains evidence inside the plot,
+  // rather than a point clipped below the card or above its caption.
+  const low = Math.min(...absorbed, 0);
+  const high = Math.max(...absorbed, 1);
+  const y = (value: number) => base - ((value - low) / (high - low)) * (base - MARGIN.top);
 
   return (
     <div className="diff-pane">
