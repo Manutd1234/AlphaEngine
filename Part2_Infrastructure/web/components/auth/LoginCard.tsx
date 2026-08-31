@@ -13,6 +13,13 @@
  */
 
 import type { Banner, FormMode, PROVIDERS } from "@/components/auth/login-copy";
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import type { Provider } from "@supabase/supabase-js";
 
 interface LoginCardProps {
@@ -55,24 +62,28 @@ export default function LoginCard({
   probePending, probeFailed, providersOffered, offeredProviders, onProvider,
 }: LoginCardProps) {
   return (
-    <div className="card auth-card">
+    <Card className="card auth-card" data-auth-mode={mode}>
       <h1>{copy.title}</h1>
       <p className="auth-blurb">{copy.blurb}</p>
 
       {banner && (
-        <div className={`banner ${banner.tone} mt-3`} role={banner.tone === "error" ? "alert" : "status"}>
+        <Alert
+          className={`banner ${banner.tone} mt-3`}
+          variant={banner.tone === "error" ? "destructive" : "default"}
+          role={banner.tone === "error" ? "alert" : "status"}
+        >
           <span aria-hidden>{banner.tone === "error" ? "✕" : banner.tone === "warn" ? "◌" : "✓"}</span>
           <div>{banner.message}</div>
-        </div>
+        </Alert>
       )}
 
-      <form className="mt-5 flex flex-col gap-4" onSubmit={onSubmit}>
+      <form className="mt-5 flex flex-col gap-4" onSubmit={onSubmit} aria-busy={busy}>
         {mode !== "reset" && (
           <div>
-            <label className="block font-semibold text-text-secondary" htmlFor="auth-email">
+            <Label className="block font-semibold text-text-secondary" htmlFor="auth-email">
               Email
-            </label>
-            <input
+            </Label>
+            <Input
               id="auth-email"
               type="email"
               value={email}
@@ -89,11 +100,11 @@ export default function LoginCard({
 
         {showPasswordField && (
           <div>
-            <label className="block font-semibold text-text-secondary" htmlFor="auth-password">
+            <Label className="block font-semibold text-text-secondary" htmlFor="auth-password">
               {mode === "reset" ? "New password" : "Password"}
-            </label>
+            </Label>
             <div className="relative mt-1 flex">
-              <input
+              <Input
                 id="auth-password"
                 type={showPassword ? "text" : "password"}
                 value={password}
@@ -103,8 +114,10 @@ export default function LoginCard({
                 required
                 className="w-full pr-[68px]"
               />
-              <button
+              <Button
                 type="button"
+                variant="link"
+                size="sm"
                 onClick={() => onShowPasswordChange((shown) => !shown)}
                 aria-pressed={showPassword}
                 aria-controls="auth-password"
@@ -112,38 +125,39 @@ export default function LoginCard({
                 className="absolute right-2 top-1/2 -translate-y-1/2 border-none bg-transparent px-1.5 py-1 text-fs-md font-semibold text-text-secondary underline"
               >
                 {showPassword ? "Hide" : "Show"}
-              </button>
+              </Button>
             </div>
           </div>
         )}
 
         {showRemember && (
           <div className="flex items-center justify-between gap-3">
-            <label className="flex items-center gap-2 text-fs-lg text-text-secondary" htmlFor="auth-remember">
-              <input
+            <Label className="flex items-center gap-2 text-fs-lg text-text-secondary" htmlFor="auth-remember">
+              <Checkbox
                 id="auth-remember"
-                type="checkbox"
                 checked={remember}
-                onChange={(event) => onRememberChange(event.target.checked)}
+                onCheckedChange={(checked) => onRememberChange(checked === true)}
                 className="h-auto w-auto"
               />
               Remember me
-            </label>
+            </Label>
             {mode === "signin" && (
-              <button
+              <Button
                 type="button"
+                variant="link"
+                size="sm"
                 className="auth-link"
                 onClick={() => onSwitchMode("forgot")}
               >
                 Forgot password?
-              </button>
+              </Button>
             )}
           </div>
         )}
 
-        <button type="submit" className="primary-action" disabled={busy}>
+        <Button type="submit" className="primary-action" disabled={busy}>
           {busy ? "Working…" : copy.submit}
-        </button>
+        </Button>
       </form>
 
       {showProviderSlot && (
@@ -165,7 +179,9 @@ export default function LoginCard({
          * what finally settled into it. Same shape as `AuthCallback`.
          */
         <div className="auth-providers" role="status" aria-live="polite">
-          <p className="mt-5 mb-3 text-center text-fs-sm uppercase tracking-[0.08em] text-text-muted">
+          <div className="auth-provider-separator mt-5 mb-3">
+            <Separator aria-hidden="true" />
+            <p className="auth-provider-separator__label text-center text-fs-sm uppercase tracking-[0.08em] text-text-muted">
             {/* Not a bare "or" while the probe is out: a divider above nothing
                 is the headless-section case, and saying what is being waited
                 for costs one word. Not "or" once the answer is none either —
@@ -173,7 +189,9 @@ export default function LoginCard({
             {probePending
               ? "checking sign-in options"
               : providersOffered ? "or" : "sign-in options"}
-          </p>
+            </p>
+            <Separator aria-hidden="true" />
+          </div>
           {probeFailed && (
             /**
              * The buttons are drawn, and the warning is the price of drawing
@@ -191,15 +209,16 @@ export default function LoginCard({
           )}
           <div className="auth-providers__options flex flex-col gap-2">
             {offeredProviders.map((provider) => (
-              <button
+              <Button
                 key={provider.id}
                 type="button"
+                variant="outline"
                 disabled={busy}
                 onClick={() => onProvider(provider.id)}
                 className="auth-provider"
               >
                 Continue with {provider.label}
-              </button>
+              </Button>
             ))}
             {!probePending && !providersOffered && (
               /* Absence is a typed state with a named reason, and the reason
@@ -219,24 +238,28 @@ export default function LoginCard({
         {mode === "signin" ? (
           <>
             No account?{" "}
-            <button
+            <Button
               type="button"
+              variant="link"
+              size="sm"
               className="auth-link"
               onClick={() => onSwitchMode("signup")}
             >
               Create account
-            </button>
+            </Button>
           </>
         ) : (
-          <button
+          <Button
             type="button"
+            variant="link"
+            size="sm"
             className="auth-link"
             onClick={() => onSwitchMode("signin")}
           >
             Back to sign in
-          </button>
+          </Button>
         )}
       </div>
-    </div>
+    </Card>
   );
 }
