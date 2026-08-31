@@ -44,6 +44,8 @@ interface DataQualityLedgerProps {
   operatorToken?: string;
 }
 
+export const DATA_QUALITY_LEDGER_HEADING = "Quality ledger & escalations";
+
 const RULE_LABEL: Record<DataQualityEscalation["rule"], string> = {
   fatal_burst: "fatal burst",
   fail_rate: "fail rate",
@@ -164,43 +166,48 @@ export default function DataQualityLedger({
   ) ?? [];
 
   return (
-    <section className="card console-card" aria-labelledby="data-quality-ledger-heading">
-      <div className="section-heading compact">
-        <div>
-          <span className="page-kicker">Data quality</span>
-          {/* "&", not "and". Every other card title on this tab joins its two
-              halves with an ampersand — "Providers & failover depth", "Payload
-              verdict & findings", "Feed throughput & freshness", "Exact payload
-              & instance sample", "Requests, tickets & bugs" — and so does the
-              rail that routes to them ("Feeds & Contracts", "Lineage &
-              Payloads", "Providers & Capacity"). This heading and Replay &
-              backfill's were the two spelling it out, which put two title
-              styles in one scroll. Prose keeps "and": a sentence is not a
-              title, which is why the disabled-control notes below are
-              untouched. */}
-          <h2 id="data-quality-ledger-heading">Quality ledger &amp; escalations</h2>
-        </div>
-        <span className="section-note">
-          {ledger
-            ? `gateway SQLite, ${ledger.retentionDays}-day retention; ${ledger.instances} ${ledger.instances === 1 ? "instance" : "instances"} reporting`
-            : healthLoaded
-              ? "gateway ledger not returned"
-              : "waiting for health snapshot"}
+    <details className="card console-card data-quality-ledger" aria-labelledby="data-quality-ledger-heading">
+      <summary>
+        <span className="data-quality-ledger__summary">
+          <span>
+            <span className="page-kicker">Data quality</span>
+            {/* "&", not "and". Every other card title on this tab joins its two
+                halves with an ampersand — "Providers & failover depth", "Payload
+                verdict & findings", "Feed throughput & freshness", "Exact payload
+                & instance sample", "Requests, tickets & bugs" — and so does the
+                rail that routes to them ("Feeds & Contracts", "Lineage &
+                Payloads", "Providers & Capacity"). This heading and Replay &
+                backfill's were the two spelling it out, which put two title
+                styles in one scroll. Prose keeps "and": a sentence is not a
+                title, which is why the disabled-control notes below are
+                untouched. */}
+            <span id="data-quality-ledger-heading" className="data-quality-ledger__title" role="heading" aria-level={2}>
+              {DATA_QUALITY_LEDGER_HEADING}
+            </span>
+          </span>
+          <span className="section-note">
+            {ledger
+              ? `gateway SQLite, ${ledger.retentionDays}-day retention; ${ledger.instances} ${ledger.instances === 1 ? "instance" : "instances"} reporting`
+              : healthLoaded
+                ? "gateway ledger not returned"
+                : "waiting for health snapshot"}
+          </span>
         </span>
-      </div>
+      </summary>
 
-      {!ledger && (
-        // The absence, and what it does not prove. The other panels fall back
-        // to this instance's own window; that is not the fleet's history.
-        <p className="sub">
-          {healthLoaded
-            ? "The gateway did not return its quality ledger, so the counts here are this instance's own window and say nothing about other instances or earlier hours."
-            : "The ledger arrives with the first health snapshot."}
-        </p>
-      )}
+      <div className="data-quality-ledger__body" role="region" aria-labelledby="data-quality-ledger-heading">
+        {!ledger && (
+          // The absence, and what it does not prove. The other panels fall back
+          // to this instance's own window; that is not the fleet's history.
+          <p className="sub">
+            {healthLoaded
+              ? "The gateway did not return its quality ledger, so the counts here are this instance's own window and say nothing about other instances or earlier hours."
+              : "The ledger arrives with the first health snapshot."}
+          </p>
+        )}
 
-      {ledger && (
-        <>
+        {ledger && (
+          <>
           {/* Two tiles, not four. Payloads evaluated and the fatal/warn/drift
               split stand in the page head of this same section, read off this
               same `validation` object (`data-console-metrics.tsx`, the
@@ -220,16 +227,15 @@ export default function DataQualityLedger({
           </dl>
 
           <p className="console-subhead">Escalations</p>
-          {/* The rule definition folds; the vocabulary it defines does not.
+          {/* The rule definition remains adjacent to the vocabulary it defines.
               RULE_LABEL prints "fatal burst" and "fail rate" verbatim on every
               row below, beside Open / Taken / Cleared, so every escalation
-              stays readable with this closed — only the threshold semantics
-              move. The lock note beneath stays on screen: it is the reason a
-              visible control is dimmed, which is never a fold. */}
-          <details className="disclosure">
-            <summary>What opens one of these, and what closes it?</summary>
+              stays readable. The lock note beneath stays on screen: it is the
+              reason a visible control is dimmed, which is never a fold. */}
+          <div className="data-quality-ledger__context">
+            <strong>What opens one of these, and what closes it?</strong>
             <p className="sub"> — a fatal burst or a fail rate over threshold, per provider; auto-resolved when it clears.</p>
-          </details>
+          </div>
           {lockNote && takeable.length > 0 && (
             // On screen, not only in the disabled button's tooltip: a dimmed
             // control with no visible reason is the same dead end as a missing
@@ -297,7 +303,7 @@ export default function DataQualityLedger({
           {providers.length === 0 ? (
             <p className="sub">No provider has a finding in the window.</p>
           ) : (
-            <div className="table-wrap table-wrap--clamped">
+            <div className="table-wrap table-wrap--clamped" tabIndex={0}>
               <table>
                 <caption className="sr-only">Contract findings by provider in the ledger window.</caption>
                 <thead>
@@ -329,16 +335,15 @@ export default function DataQualityLedger({
           )}
 
           <p className="console-subhead">Recent findings</p>
-          {/* Provenance and an ordering rule, so it folds. Every row below
+          {/* Provenance and ordering remain beside the rows they qualify. Every row below
               prints its own observation time and its own source — the instance
-              id, or the replay job — so the list stays readable closed, and
-              what moves is only the claim about who else writes into it. The
-              empty state beneath, the fail-rate dash note above and the lock
-              note are all outside every fold in this file. */}
-          <details className="disclosure">
-            <summary>The order, and who writes here</summary>
+              id, or the replay job — so the list stays readable. The empty
+              state beneath, the fail-rate dash note above and the lock note all
+              remain inside the ledger's single disclosure owner. */}
+          <div className="data-quality-ledger__context">
+            <strong>The order, and who writes here</strong>
             <p className="sub"> — newest first; every instance and every replay job writes here.</p>
-          </details>
+          </div>
           {(older ?? ledger.recent).length === 0 ? (
             <p className="sub">No finding recorded in the window.</p>
           ) : (
@@ -371,8 +376,9 @@ export default function DataQualityLedger({
               <div>{olderError}</div>
             </div>
           )}
-        </>
-      )}
-    </section>
+          </>
+        )}
+      </div>
+    </details>
   );
 }
