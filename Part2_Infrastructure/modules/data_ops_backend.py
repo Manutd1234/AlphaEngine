@@ -111,13 +111,24 @@ def open_data_ops_store(settings: Any = None) -> DataOpsStore:
 
         url = getattr(settings, "supabase_url", "")
         key = getattr(settings, "supabase_service_role_key", "")
+        desk_id = str(getattr(settings, "supabase_desk_id", "")).strip()
         if not url or not key:
             raise ValueError(
                 "DATA_OPS_BACKEND=postgres needs SUPABASE_URL and "
                 "SUPABASE_SERVICE_ROLE_KEY; refusing to fall back to sqlite, "
                 "which would run a deployment that believes it is on Postgres"
             )
-        return PostgrestStore(url, key)
+        if not desk_id:
+            raise ValueError(
+                "DATA_OPS_BACKEND=postgres needs a nonblank SUPABASE_DESK_ID; "
+                "refusing a PostgREST store with no tenant boundary"
+            )
+        if desk_id.lower() == "default":
+            raise ValueError(
+                "DATA_OPS_BACKEND=postgres refuses SUPABASE_DESK_ID='default'; "
+                "configure a deployment-specific tenant id"
+            )
+        return PostgrestStore(url, key, desk_id=desk_id)
     raise ValueError(f"unknown DATA_OPS_BACKEND: {backend!r} (expected 'sqlite' or 'postgres')")
 
 
