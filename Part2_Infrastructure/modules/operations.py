@@ -213,15 +213,26 @@ def _route_latency_snapshot() -> RouteLatencyOperationsSnapshot:
     )
 
 
-def _decision_latency_snapshot() -> DecisionLatencySnapshot:
-    from modules.decision_core import ENGINE
-
+def _decision_latency_snapshot(gateway: Any) -> DecisionLatencySnapshot:
     decision = decision_latency_summary()
     samples = int(decision["samples"])
     core = core_latency_summary()
     core_samples = int(core["samples"])
+    # This is the Developer/Reliability read model, so it must report the
+    # engine that made the latest order rather than the loader's process-wide
+    # selection. A native per-order exception falls back to Python without
+    # changing that static selection; the gateway owns the live distinction.
+    status_reader = getattr(gateway, "decision_core_status", None)
+    if callable(status_reader):
+        effective_engine = status_reader()["effective"]
+    else:
+        # Small operations/read-model test doubles pre-date the live status
+        # accessor.  Real gateways always take the branch above; compatibility
+        # callers fall back to the loader's selected process engine rather than
+        # making the entire reliability snapshot unavailable.
+        from modules.decision_core import ENGINE as effective_engine
     return DecisionLatencySnapshot(
-        engine=ENGINE,  # type: ignore[arg-type]
+        engine=effective_engine,
         samples=samples,
         p50_us=decision["p50"] if samples else None,
         p99_us=decision["p99"] if samples else None,
@@ -300,6 +311,6 @@ def build_operations_snapshot(
         telegram=telegram,
         route_latency=_route_latency_snapshot(),
         supabase=SupabaseMirrorSnapshot(**mirror.health()) if mirror is not None else None,
-        decision_latency=_decision_latency_snapshot(),
+        decision_latency=_decision_latency_snapshot(gateway),
         oncall=oncall_snapshot(settings.data_oncall, webhook_url=settings.data_ops_webhook_url),
     )
