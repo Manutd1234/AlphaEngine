@@ -157,6 +157,7 @@ const OWNERS: Record<string, string> = {
 const QUOTED = ["universe", "settlement", "books", "dispersion", "lattice", "stake", "fees", "shell"];
 
 const COPY = new Map(Object.values(OWNERS).map((file) => [file, copyOf(file)] as const));
+const NOTELESS = new Set(["combos"]);
 
 describe("no section opens with a paragraph", () => {
   it("the two suites' owners add up to both rails, exactly once each", () => {
@@ -173,12 +174,14 @@ describe("no section opens with a paragraph", () => {
       assert.ok(region, `${id} draws no head this scan can find`);
       const fields = ["kicker", "title", "id", "note", "lede"];
       const at = fields.map((field) => fieldAt(region as string, field));
+      const required = fields.filter((field) => field !== "note" || !NOTELESS.has(id));
       assert.deepEqual(
-        fields.filter((_field, index) => at[index] === -1),
+        required.filter((field) => fieldAt(region as string, field) === -1),
         [],
         `${id}'s head is missing a field`,
       );
-      assert.deepEqual(at, [...at].sort((a, b) => a - b), `${id} writes its head out of order`);
+      const present = at.filter((index) => index !== -1);
+      assert.deepEqual(present, [...present].sort((a, b) => a - b), `${id} writes its head out of order`);
     });
 
     it(`${id}'s lede is one sentence`, () => {
@@ -209,6 +212,10 @@ describe("no section opens with a paragraph", () => {
       // dot is checked again here because a note is exactly the slot where a
       // two-part label gets joined with one.
       const region = headRegion(COPY.get(file) as string) as string;
+      if (NOTELESS.has(id)) {
+        assert.equal(fieldAt(region, "note"), -1, `${id} restored its redundant note`);
+        return;
+      }
       const note = region.slice(fieldAt(region, "note"), fieldAt(region, "lede"));
       const prose = proseOf(note);
       assert.ok(prose.length > 0, `${id} draws no note`);
