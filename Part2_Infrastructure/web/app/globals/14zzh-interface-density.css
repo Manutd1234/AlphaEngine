@@ -1,0 +1,294 @@
+/* Final screenshot-driven density pass. Quantitative content stays mounted;
+   the default engine view prioritises figures and exposes authored explanation
+   through one explicit control instead of repeating it under every chart. */
+
+:is(.markets-plane, .proofs-plane)[data-workbench-details="false"] :is(
+  .coh-figure__reading,
+  .coh-figure__notes,
+  [data-market-section] > .sub,
+  .coh-section__body > .sub
+) {
+  display: none;
+}
+
+:is(.markets-plane, .proofs-plane) .coh-evidence {
+  padding: 6px;
+}
+
+:is(.markets-plane, .proofs-plane) .coh-evidence__grid > div {
+  padding: 6px 8px;
+}
+
+:is(.markets-plane, .proofs-plane) .coh-evidence__tools {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  justify-content: flex-end;
+  gap: 6px;
+  width: auto;
+  min-width: 0;
+}
+
+:is(.markets-plane, .proofs-plane) .coh-evidence__context-action {
+  flex: 0 1 auto;
+  min-width: 2.5rem;
+}
+
+:is(.markets-plane, .proofs-plane) .coh-evidence__actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 6px;
+}
+
+:is(.markets-plane, .proofs-plane) :is(.coh-evidence__details-toggle, .coh-evidence__open) {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 2.5rem;
+  min-block-size: 2.5rem;
+}
+
+.proofs-plane .proofs-method-trigger {
+  min-width: 8.75rem;
+  min-height: 2.5rem;
+}
+
+/* Bounded analytical sheets: enough room for tables, no empty full-height
+   canvas when their evidence occupies only the first few rows. */
+@media (min-width: 521px) {
+  [data-slot="sheet-content"]:is(.coh-engine-detail-content, .coh-evidence-sheet, .proofs-method-sheet) {
+    inset-block: var(--space-3);
+    height: auto;
+    max-height: calc(100dvh - 2 * var(--space-3));
+    border-block: 1px solid var(--border);
+    border-radius: var(--radius-card) 0 0 var(--radius-card);
+    scrollbar-gutter: stable;
+  }
+}
+
+.coherence-plane.coh-engine-detail-sheet {
+  display: grid;
+  align-content: start;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0 var(--space-4) var(--space-4);
+}
+
+.coherence-plane.coh-engine-detail-sheet > [data-slot="sheet-header"] {
+  padding-inline: 0 2.75rem;
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.coh-evidence-sheet > :not([data-slot="sheet-header"]),
+.proofs-method-sheet > :not(.proofs-method-sheet__body) {
+  min-width: 0;
+}
+
+.candidate-ranking__search input::placeholder {
+  color: var(--text-secondary);
+  opacity: 1;
+}
+
+.candidate-ranking__search output {
+  padding-inline-start: 8px;
+  border-inline-start: 1px solid var(--border);
+  color: var(--text-primary);
+}
+
+.regime-method {
+  margin-top: var(--space-3);
+}
+
+/* Shared modal containment. Dialogs and sheets keep a real edge on screen,
+   reserve the close target, and scroll their content instead of spilling past
+   the viewport. Component-specific widths still win through their class. */
+[data-slot="dialog-content"],
+[data-slot="sheet-content"] {
+  isolation: isolate;
+  max-height: calc(100dvh - 2 * var(--space-3));
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+[data-slot="dialog-content"] {
+  max-width: calc(100vw - 2 * var(--space-3));
+}
+
+[data-slot="dialog-content"] > :is([data-slot="dialog-title"], [data-slot="dialog-header"]),
+[data-slot="sheet-content"] > [data-slot="sheet-header"] {
+  padding-inline-end: 2.75rem;
+}
+
+/* The restored Diffusion instruments retain their figures and data model. This
+   pass makes the existing keyboard/pointer lenses visually discoverable. */
+.coherence-plane.diffusion-plane .coh-figure {
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
+}
+
+.coherence-plane.diffusion-plane .coh-figure:hover {
+  border-color: color-mix(in srgb, var(--series-1) 42%, var(--border));
+  box-shadow: none;
+}
+
+.coherence-plane.diffusion-plane .coh-figure:focus-within {
+  border-color: color-mix(in srgb, var(--series-1) 68%, var(--border));
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+  box-shadow: none;
+}
+
+.coherence-plane.diffusion-plane .coh-figure__caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.coherence-plane.diffusion-plane .coh-figure__caption-copy {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 2px;
+  min-width: 0;
+}
+
+.coherence-plane.diffusion-plane .coh-figure__tools {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.coherence-plane.diffusion-plane .coh-figure__focus {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-block-size: 28px;
+  padding: 3px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.coherence-plane.diffusion-plane .coh-figure__focus:hover {
+  border-color: var(--text-secondary);
+  background: var(--surface-2);
+}
+
+.coherence-plane.diffusion-plane .coh-figure__focus:focus-visible {
+  outline: 2px solid var(--series-1);
+  outline-offset: 2px;
+}
+
+.coherence-plane.diffusion-plane :is(
+  .diff-fan__line,
+  .diff-control__line,
+  .diff-field__mark,
+  .diff-matrix__bar,
+  .coh-survival__probe-dot
+) {
+  transition:
+    opacity var(--dur-fast) var(--ease),
+    stroke-width var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
+}
+
+/* Keep authored chart geometry and data on one quiet analytical surface. The
+   focused outline and crosshair below preserve pointer/arrow-key discovery;
+   a full plot-wide coordinate grid competed with the data marks. */
+:is(
+  .markets-plane,
+  .proofs-plane,
+  .diffusion-plane
+) .coh-figure__plot {
+  background-color: var(--surface-1);
+  background-image: none;
+}
+
+:is(
+  .markets-plane,
+  .proofs-plane,
+  .diffusion-plane
+) .coh-plot > svg[tabindex="0"] {
+  cursor: crosshair;
+}
+
+:is(
+  .markets-plane,
+  .proofs-plane,
+  .diffusion-plane
+) .coh-plot > svg[tabindex="0"]:focus-visible {
+  outline: 2px solid var(--series-1);
+  outline-offset: 3px;
+}
+
+/* Diffusion keeps the same diagrams and authored explanations. The compact
+   surface leaves the primary caveat visible and moves the longer reading into
+   the existing Focus inspection surface, where it is shown in full. */
+.diffusion-plane > .workspace-subtab-panel .coh-figure__reading {
+  display: none;
+}
+
+.coh-figure--dialog .coh-figure__reading {
+  display: block;
+}
+
+/* The shell has a top gutter, so the sticky rail's opaque paint must extend
+   through that gutter. Otherwise scrolled headings remain visible in the
+   16px seam between the global header and the subtab rail. */
+.workspace-subtabs {
+  top: calc(var(--space-4) * -1 - 1px);
+}
+
+.workspace-subtabs::before {
+  inset-block-start: calc(var(--space-4) * -1);
+}
+
+/* The State guide is documentation, not another headline. Its summary keeps
+   the house 14px disclosure role and its explanation returns to body copy. */
+.developer-cp-state-guide {
+  font-family: var(--sans);
+}
+
+.developer-cp-state-guide > summary {
+  font-family: var(--sans);
+  font-size: var(--fs-body);
+  font-weight: 650;
+  line-height: var(--lh-body);
+}
+
+.developer-cp-state-guide > p {
+  max-width: none;
+  margin-block-start: var(--space-1);
+  color: var(--text-secondary);
+  font-family: var(--sans);
+  font-size: var(--fs-sm);
+  font-weight: 400;
+  line-height: var(--lh-body);
+}
+
+@media (max-width: 900px) {
+  :is(.markets-plane, .proofs-plane) .coh-evidence__tools {
+    flex-wrap: wrap;
+    justify-content: stretch;
+  }
+
+  :is(.markets-plane, .proofs-plane) .coh-evidence__context-action {
+    flex-basis: 100%;
+  }
+
+  :is(.markets-plane, .proofs-plane) .coh-evidence__actions {
+    flex: 1 1 auto;
+    justify-content: flex-end;
+  }
+}
