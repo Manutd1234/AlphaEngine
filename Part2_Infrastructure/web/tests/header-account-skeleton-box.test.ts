@@ -9,7 +9,7 @@
  * the signed-out control. That proxy passed for the whole time the box was
  * wrong. Measured in Chrome over the running desk, in the real header row at
  * 1920px, the placeholder came out 90x28 where the signed-out control it is
- * built against measures 77.3x32 — 12.7px too wide and 4px too short, so the
+ * built against measures 77.3x40 — 12.7px too wide and 12px too short, so the
  * probe answering reflowed the entire utility cluster sideways. A shared
  * padding string cannot see either error, because neither error is in the
  * padding: the width came from the label bar and the height from the fact that
@@ -19,8 +19,8 @@
  *
  *   icon 14 + gap-1.5 6 + bar 39 + px-1.5 12 + border 2 = 73px
  *
- * against the signed-out control's measured 77.3px, and a declared 32px of
- * height against its measured 32px. Every term is asserted separately, so a
+ * against the signed-out control's measured 77.3px, and a declared 40px of
+ * height against its measured 40px. Every term is asserted separately, so a
  * change to any one of them fails here with the term named rather than as a
  * mysterious total.
  *
@@ -53,13 +53,12 @@ const signedOutBranch = (() => {
 })();
 
 describe("the account placeholder reserves the box it measured", () => {
-  it("declares the row's 32px height rather than inheriting a short one", () => {
+  it("declares the row's 40px height rather than inheriting a short one", () => {
     // A 14px icon over an 11px bar raises a 28px box; the control it replaces
-    // raises 32px because its LABEL sets an 18px line box. Declaring the height
-    // fixes that without inflating the bar, which would have read as a second
-    // icon rather than as a word.
-    assert.match(loadingBranch, /min-h-\[32px\]/,
-      "the placeholder must declare min-h-[32px], the row's control height");
+    // declares the shared 40px utility floor. Matching that floor fixes the
+    // reflow without inflating the bar into a second icon.
+    assert.match(loadingBranch, /min-h-\[40px\]/,
+      "the placeholder must declare min-h-[40px], the row's control height");
   });
 
   it("sizes the label bar to the label it stands in for", () => {
@@ -80,8 +79,8 @@ describe("the account placeholder reserves the box it measured", () => {
   });
 
   it("reserves for the signed-out control, which is the wider outcome", () => {
-    // The signed-in monogram is 32x32 — SMALLER — so reserving it would grow
-    // the row by 45px on every signed-out load. Both outcomes are 32px tall,
+    // The signed-in monogram control is 32x40 — NARROWER — so reserving it would grow
+    // the row by 45px on every signed-out load. Both outcomes are 40px tall,
     // which is why the height fix needs no such trade.
     assert.match(signedOutBranch, /gap-1\.5 rounded-\[9px\] border border-transparent px-1.5 py-1\.5/,
       "the signed-out control must keep the padding the placeholder mirrors");
