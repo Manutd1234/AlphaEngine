@@ -134,8 +134,8 @@ describe("shape 5 — a reading does not read the axis aloud", () => {
     // stay is the claim the geometry does not make — that a crossing between
     // two quoted strikes is bracketed rather than located, because the exchange
     // quotes nothing inside the gap. Cutting that would be losing the point.
-    const survival = read("../components/coherence/SurvivalChart.tsx");
-    assert.match(survival, /the crossing is bracketed, not located/,
+    const survival = read("../components/coherence/surface/LatticeSurvival.tsx");
+    assert.match(survival, /no value is invented inside that unquoted gap/,
       "the bracketed-not-located judgement is the reason this reading exists");
     assert.doesNotMatch(code(survival), /Survival runs from \$\{/,
       "the opening sentence gave the curve's two endpoints — the axis, read aloud");
@@ -152,9 +152,8 @@ describe("shape 6 — wire prose is not a column of a table of measurements", ()
     for (const file of engineFiles()) {
       const source = code(readFileSync(file, "utf8"));
       // `<td>` was the only shape when this rule was written. Widened to the
-      // paragraph and list forms on 2026-08-25, once the four sinks that would
-      // have failed it were folded: two note lists, a solver's account of its
-      // ranking and the engine's account of a scoring run.
+      // paragraph and list forms on 2026-08-25, once bounded prose sinks were
+      // introduced for notes, solver ranking and scoring-run evidence.
       for (const match of source.matchAll(
         /<(?:td|p|li)[^>]*>\{(\w+)\.(\w+)(?:\s*\?\?\s*[^}]*)?\}<\/(?:td|p|li)>/g)) {
         const [, object, field] = match;
@@ -174,15 +173,11 @@ describe("shape 6 — wire prose is not a column of a table of measurements", ()
       `unbounded wire prose in a measured row — fold it behind a <details>:\n    ${offenders.join("\n    ")}`);
   });
 
-  it("every note list the engine sends is folded, and counted in its summary", () => {
-    // The positive half for the four sinks the widened rule covers. A fold that
-    // does not say how many notes are behind it is worse than the raw list: an
-    // empty fold and a fold hiding four look identical, so a reader cannot tell
-    // whether opening it is worth the click.
+  it("the remaining route-owned note list is folded and counted", () => {
+    // The Status and parlay transport-note disclosures were removed. The index
+    // still owns analytical notes, and its fold must say how many it contains.
     for (const [file, held] of [
       ["../components/coherence/IndexPane.tsx", "data.notes"],
-      ["../components/coherence/CombosViews.tsx", "notes"],
-      ["../components/coherence/StatusPane.tsx", "status.notes"],
     ] as const) {
       const source = read(file);
       assert.match(source, new RegExp(`\\$\\{${held.replace(".", "\\.")}\\.length\\}`),
