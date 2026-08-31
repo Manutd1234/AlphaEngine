@@ -19,6 +19,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { globalsCss } from "./globals-css";
 import { isRealLocation } from "./helpers/desk-rails";
 import { overview, pipeline, routingCode, tourCode } from "./helpers/desk-shell-sources";
 
@@ -47,6 +48,26 @@ describe("every pipeline stage links into its tab", () => {
     const button = pipeline.slice(pipeline.indexOf("<button"), pipeline.indexOf("</button>"));
     assert.match(button, /\{stage\.label\}/);
     assert.doesNotMatch(button, /aria-label=/);
+  });
+
+  it("uses semantic washes and keylines while keeping an icon and word", () => {
+    assert.match(pipeline, /data-state=\{stage\.state\}/);
+    assert.match(pipeline, /active:\s*\{ Icon: LoaderCircle, word: "active", hex: "var\(--series-1\)" \}/);
+
+    for (const [state, wash, keyline] of [
+      ["ok", "state-good-bg", "status-good"],
+      ["active", "state-info-bg", "series-1"],
+      ["attention", "state-warning-bg", "status-warning"],
+      ["halted", "state-critical-bg", "status-critical"],
+      ["idle", "surface-0", "axis"],
+    ]) {
+      const selector = `#panel-overview .overview-loop button[data-state="${state}"]`;
+      const start = globalsCss.indexOf(selector);
+      assert.ok(start >= 0, `${state} has no visual state rule`);
+      const body = globalsCss.slice(start, globalsCss.indexOf("}", start));
+      assert.match(body, new RegExp(`--loop-state-bg:\\s*var\\(--${wash}\\)`));
+      assert.match(body, new RegExp(`--loop-state-line:\\s*var\\(--${keyline}\\)`));
+    }
   });
 
   it("the shell decides where a stage lands, and covers all four", () => {
