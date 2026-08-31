@@ -42,6 +42,7 @@ import { marksAtStamps, stampsOf } from "@/lib/coherence/index-stamps";
 import { LinkedX } from "@/lib/coherence/linked-x";
 import SectionVerdict from "./SectionVerdict";
 import ValueStrip from "./ValueStrip";
+import ProofsTransportNotice from "./ProofsTransportNotice";
 
 const HEIGHT = 168;
 // `top` clears the 14px `coh-svg-note` rung the peak label draws at
@@ -96,29 +97,30 @@ export default function IndexPane({ active, view }: {
   /** Which of the section's two index views is showing. */
   view: "series" | "families";
 }) {
-  const { data, error } = useCoherenceRead<CoherenceIndexSeries>(indexRoute(), active);
+  const read = useCoherenceRead<CoherenceIndexSeries>(indexRoute(), active);
+  const { data, error } = read;
+  const notice = (
+    <ProofsTransportNotice
+      subject="Index read"
+      error={error}
+      hasSnapshot={Boolean(data)}
+      transport={read.transport}
+      retryAt={read.retryAt}
+      consecutiveFailures={read.consecutiveFailures}
+      onRetry={read.refresh}
+    />
+  );
 
   // No head on any of these branches. The section's head is `CalibrationPane`'s
   // and it is drawn above whatever this returns, so a reader always knows which
   // section they are standing in — which is the whole reason a demoted pane
   // must stop drawing one rather than keep a second.
   if (error && !data) {
-    return (
-      <SectionVerdict pending={<><span aria-hidden="true">✕</span> The index could not be read: {error}</>} />
-    );
+    return notice;
   }
   if (!data) return <SectionVerdict pending="Reading the index…" />;
   if (data.state === "empty") {
-    return (
-      <SectionVerdict
-        pending={
-          <>
-            <span aria-hidden="true">◌</span> {data.notes[0] ?? "Nothing indexed yet."} Set{" "}
-            <code>COHERENCE_SERIES</code> and <code>COHERENCE_POLL_S</code> on the gateway to start recording.
-          </>
-        }
-      />
-    );
+    return <>{notice}<SectionVerdict pending={<><span aria-hidden="true">◌</span> {data.notes[0] ?? "Nothing indexed yet."} Set{" "}<code>COHERENCE_SERIES</code> and <code>COHERENCE_POLL_S</code> on the gateway to start recording.</>} /></>;
   }
 
   // ONE INDEX SPACE for the chart and the strip: the distinct poll stamps,
@@ -134,6 +136,7 @@ export default function IndexPane({ active, view }: {
     // `CalibrationPane`, but the RHYTHM between the chips, the drawing and the
     // notes was never the section's — it was this content's.
     <div className="coh-index-pane">
+      {notice}
       {/* Outside the drawing: all four count both views' readings. */}
       <SectionVerdict>
         <StateChip mark="●" word="Readings" value={String(data.points.length)} tone="muted" />
