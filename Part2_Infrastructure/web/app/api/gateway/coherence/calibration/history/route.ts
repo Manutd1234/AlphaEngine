@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { callGateway, failureBody } from "@/lib/gateway";
 import { isCoherenceCalibrationHistory } from "@/lib/coherence/types-lab";
+import { gatewayRequestContext, gatewayResponseHeaders } from "@/lib/gateway-request-context";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,6 +20,7 @@ export const dynamic = "force-dynamic";
  * Never cached: this reads a tape that grows on the recorder's own cadence.
  */
 export async function GET(request: Request) {
+  const context = gatewayRequestContext(request, "H2");
   const incoming = new URL(request.url).searchParams;
   const forwarded = new URLSearchParams();
   for (const key of ["since_ts_ns", "limit"]) {
@@ -29,10 +31,18 @@ export async function GET(request: Request) {
   const result = await callGateway(`/api/coherence/calibration/history${query ? `?${query}` : ""}`, {
     subject: "the settled score over time",
     validate: isCoherenceCalibrationHistory,
+    context,
   });
+  const responseHeaders = {
+    ...gatewayResponseHeaders(context),
+    "Cache-Control": "no-store",
+  };
 
   if (!result.ok) {
-    return NextResponse.json(failureBody(result.failure), { status: result.failure.status });
+    return NextResponse.json(failureBody(result.failure, context), {
+      status: result.failure.status,
+      headers: responseHeaders,
+    });
   }
-  return NextResponse.json(result.data, { headers: { "Cache-Control": "no-store" } });
+  return NextResponse.json(result.data, { headers: responseHeaders });
 }
