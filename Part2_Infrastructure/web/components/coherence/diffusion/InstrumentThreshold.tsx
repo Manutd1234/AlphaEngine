@@ -39,7 +39,6 @@
 
 import { memo } from "react";
 
-import { DIAGRAM_LABEL_PX, truncateMiddle } from "@/lib/coherence/label-metrics";
 import Figure, { FigureEmpty, Plot } from "../Figure";
 
 /** The shape `InstrumentFit.groupsOf` builds; imported as a type only. */
@@ -69,12 +68,6 @@ const MARGIN = { top: 22, bottom: 46, left: 58 };
 /** The hatched band under the x axis where an unmeasured requirement sits. */
 const GAP_STRIP_H = 26;
 const FIELD = HEIGHT - MARGIN.top - MARGIN.bottom - GAP_STRIP_H;
-/** Between the field and its key. */
-const KEY_GAP = 34;
-/** One line per key row: a name and its reading, not a stacked pair. */
-const KEY_ROW = 24;
-/** Room at the far right, so the reading column is not flush to the edge. */
-const KEY_RIGHT = 16;
 const DOT_R = 6;
 /** Two requirements can share a floor, so their capsules step sideways. */
 const GAP_W = 46;
@@ -129,22 +122,15 @@ function InstrumentThreshold({ groups }: { groups: readonly ThresholdGroup[] }) 
         : null}
     >
       {rows.length ? (
-        <Plot height={HEIGHT} minWidth={560}>
+        <>
+          <Plot height={HEIGHT}>
           {(width) => {
             // THE FIELD IS SQUARE AND ITS SIDE COMES FROM THE HEIGHT, because
             // equal pixels per unit on both axes is what makes the diagonal a
-            // 45° line and the height above it a readable margin. The key then
-            // takes the whole of what is left — sized from the labels, but
-            // never smaller than the room actually available, which is the bug
-            // this replaced: `gutterFor` returned an ESTIMATE of 387px in a
-            // canvas with 1,218px free, and every name was elided to fit a
-            // column that had no reason to be narrow.
-            const side = FIELD;
-            const keyX = MARGIN.left + side + KEY_GAP;
-            const keyWidth = Math.max(200, width - keyX - KEY_RIGHT);
-            // The reading sits in its own column rather than flush right, so a
-            // long name and a short one line their figures up.
-            const nameCol = Math.min(360, keyWidth * 0.55);
+            // 45° line and the height above it a readable margin. The field
+            // contracts only when its owner is narrower; the key reflows as
+            // HTML below it so neither labels nor lifecycle states are clipped.
+            const side = Math.max(150, Math.min(FIELD, width - MARGIN.left - 16));
             const x = (unit: number) => MARGIN.left + unit * side;
             const y = (unit: number) => MARGIN.top + (1 - unit) * side;
             const base = MARGIN.top + side;
@@ -254,45 +240,33 @@ function InstrumentThreshold({ groups }: { groups: readonly ThresholdGroup[] }) 
                   </text>
                 ) : null}
 
-                {/* THE KEY, right of the field. ONE LINE per requirement —
-                    number and name left, reading against requirement right —
-                    because a stacked pair at this rung puts two 13px boxes 13px
-                    apart, which is an overlap by construction. */}
-                {(() => {
-                  let keyY = MARGIN.top + 4;
-                  return groups.map((group) => {
-                    const headY = keyY;
-                    keyY += 21;
-                    const drawn = group.rows.map((check) => {
-                      const rowY = keyY;
-                      keyY += KEY_ROW;
-                      const number = rows.indexOf(check) + 1;
-                      const reading = check.value === "—" ? check.room : `${check.value} / ${check.needed}`;
-                      return (
-                        <g key={check.what}>
-                          <text className="diff-thresh__key" x={keyX} y={rowY + 9}>
-                            <tspan aria-hidden="true">{number}</tspan>{" "}
-                            <tspan aria-hidden="true">{markOf(check)}</tspan>{" "}
-                            {truncateMiddle(check.what, nameCol - 30, DIAGRAM_LABEL_PX)}
-                          </text>
-                          <text className="diff-thresh__keyvalue" x={keyX + nameCol} y={rowY + 9}>
-                            {truncateMiddle(reading, keyWidth - nameCol - 8, DIAGRAM_LABEL_PX)}
-                          </text>
-                        </g>
-                      );
-                    });
-                    return (
-                      <g key={group.title}>
-                        <text className="diff-thresh__keygroup" x={keyX} y={headY + 9}>{group.title}</text>
-                        {drawn}
-                      </g>
-                    );
-                  });
-                })()}
               </>
             );
           }}
-        </Plot>
+          </Plot>
+          <div className="diff-thresh__legend" aria-label="Requirement key">
+          {groups.map((group) => (
+            <section key={group.title} className="diff-thresh__legend-group">
+              <p>{group.title}</p>
+              <ol>
+                {group.rows.map((check) => {
+                  const number = rows.indexOf(check) + 1;
+                  const reading = check.value === "—" ? check.room : `${check.value} / ${check.needed}`;
+                  return (
+                    <li key={check.what}>
+                      <span>
+                        <span aria-hidden="true">{number} {markOf(check)}</span>{" "}
+                        {check.what}
+                      </span>
+                      <span>{reading}</span>
+                    </li>
+                  );
+                })}
+              </ol>
+            </section>
+          ))}
+          </div>
+        </>
       ) : (
         <FigureEmpty reason="No requirement has been measured yet." />
       )}
