@@ -32,7 +32,7 @@
  * puts half the sample in a sliver.
  */
 
-import { memo } from "react";
+import { memo, useState } from "react";
 
 import { signedLog } from "@/lib/coherence/return-path";
 import Figure, { FigureEmpty, Plot } from "../Figure";
@@ -44,6 +44,15 @@ const RUG_DROP = 12;
 const NUDGE = 2.5;
 const STAGE_WORD: Record<string, string> = { release: "statement", call: "press conference" };
 const STAGE_MARK: Record<string, string> = { release: "●", call: "▲" };
+
+export type CalendarSample = "all" | "cleared" | "refused";
+
+export function filterCalendarRuns(runs: readonly StageRun[], sample: CalendarSample): StageRun[] {
+  if (sample === "all") return [...runs];
+  return runs.filter((run) => sample === "cleared"
+    ? run.signal_state === "ok"
+    : run.signal_state !== "ok");
+}
 
 /** A meeting is a source_ref: one decision, whatever it produced. */
 function meetingsOf(runs: readonly StageRun[]) {
@@ -60,14 +69,36 @@ function meetingsOf(runs: readonly StageRun[]) {
     .sort((a, b) => a.at - b.at);
 }
 
-function MeetingCalendar({ read }: { read: AbsorptionRead }) {
+function MeetingCalendar({ read }: { read: AbsorptionRead | null }) {
+  const [sample, setSample] = useState<CalendarSample>("all");
+  if (!read?.runs.length) {
+    return (
+      <Figure
+        caption="Every decision on the ledger, and the move each stage produced"
+        ariaLabel="No meeting timestamp or return is drawn"
+        missing="No date or return is placed without a recorded timestamp."
+      >
+        <FigureEmpty reason={read ? "No meeting has been recorded yet." : "The meeting ledger is not readable yet."} />
+      </Figure>
+    );
+  }
   const meetings = meetingsOf(read.runs);
+  if (!meetings.length) return (
+    <Figure
+      caption="Every decision on the ledger, and the move each stage produced"
+      ariaLabel="No meeting timestamp or return is drawn"
+      missing="No date or return is placed without a recorded timestamp."
+    >
+      <FigureEmpty reason="No run carries a valid meeting timestamp." />
+    </Figure>
+  );
   const stamps = meetings.map((meeting) => meeting.at);
   const first = Math.min(...stamps);
   const last = Math.max(...stamps);
   const bound = Math.max(1, ...read.runs.map((run) =>
     Math.abs((run.terminal_return ?? 0) * 10_000)));
   const cleared = read.runs.filter((run) => run.signal_state === "ok").length;
+  const visibleRuns = filterCalendarRuns(read.runs, sample);
   const symbols = [...new Set(read.runs.map((run) => run.symbol))].sort();
   const years = Array.from(
     { length: new Date(last).getUTCFullYear() - new Date(first).getUTCFullYear() + 1 },
@@ -89,8 +120,17 @@ function MeetingCalendar({ read }: { read: AbsorptionRead }) {
           + "drawing device, not a gap between them."
         : null}
     >
+      <div className="diff-lens diff-lens--inside" role="group" aria-label="Calendar sample">
+        {(["all", "cleared", "refused"] as const).map((option) => (
+          <button key={option} type="button" aria-pressed={sample === option}
+                  onClick={() => setSample(option)}>
+            {option === "all" ? "All runs" : option === "cleared" ? "Cleared floor" : "Refused"}
+          </button>
+        ))}
+        <span className="diff-lens__readout" aria-live="polite">{visibleRuns.length} shown</span>
+      </div>
       {meetings.length ? (
-        <Plot height={HEIGHT} minWidth={520}>
+        <Plot height={HEIGHT}>
           {(width) => {
             const span = Math.max(120, width - MARGIN.left - MARGIN.right);
             const plotH = HEIGHT - MARGIN.top - MARGIN.bottom;
@@ -146,7 +186,7 @@ function MeetingCalendar({ read }: { read: AbsorptionRead }) {
                   );
                 })}
 
-                {read.runs.map((run) => {
+                {visibleRuns.map((run) => {
                   const at = Date.parse(run.t0);
                   if (Number.isNaN(at) || run.terminal_return == null) return null;
                   const bps = run.terminal_return * 10_000;
