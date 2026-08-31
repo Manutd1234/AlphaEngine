@@ -7,7 +7,7 @@
  * between two strikes, and the moments of that mass. This reads and decides
  * nothing: what follows from the measure is the stake view's question.
  *
- * THREE VIEWS of one payload since the second 2026-08-24 pass, chosen by the
+ * FOUR VIEWS of one payload, chosen by the
  * `view` prop `SurfacePane`'s switcher drives. They rendered as one stack —
  * two figures and a seven-row table — which is a column a reader scrolls, not
  * a view that fits a screen.
@@ -19,7 +19,7 @@
  * Moments lost the four numbers that say what they are looking at — the exact
  * thing the reader complained about when he called the section broken. A
  * 140px auto-fit `<dl>` costs less height than four chips and answers on all
- * three views. The mass chart still marks its own negative bins.
+ * four views. The mass chart still marks its own negative bins.
  *
  * The decimal helper and the fact table are exported from here because this is
  * the first of the views to need them and the others read them from here —
@@ -27,18 +27,17 @@
  *
  * THE MOMENTS TABLE IS FOUR ROWS SINCE THE FOURTH PASS of 2026-08-24, not
  * seven. Rows five to seven — the total and the two tails — are exactly what
- * `MassSplitBar` prints along its own foot, so on one screen they were the same
+ * the mass reservoir prints along its own foot, so on one screen they were the same
  * three numbers twice. They are folded rather than deleted: each carries a
  * sentence the drawing has no room for.
  */
 
 import type { CoherenceSurface } from "@/lib/coherence/types-lab";
-import Figure, { FigureEmpty, Plot } from "../Figure";
-import { toUnit } from "@/lib/coherence/decimals";
 import MomentsShape from "./MomentsShape";
 import PmfChart from "../PmfChart";
 import SurvivalChart from "../SurvivalChart";
 import { decimalLabel } from "@/lib/coherence/decimals";
+import { MassReservoir } from "./LatticeInstruments";
 
 export interface Fact {
   label: string;
@@ -48,7 +47,7 @@ export interface Fact {
 
 export function FactTable({ caption, facts }: { caption: string; facts: Fact[] }) {
   return (
-    <div className="table-wrap">
+    <div className="table-wrap" role="region" aria-label={caption} tabIndex={0}>
       <table className="coh-table">
         <caption className="coh-table__caption">{caption}</caption>
         <thead>
@@ -98,7 +97,7 @@ function moments(surface: CoherenceSurface): Fact[] {
 }
 
 /**
- * The three readings `MassSplitBar` draws, split off the moments table on the
+ * The three readings the mass reservoir draws, split off the moments table on the
  * fourth pass of 2026-08-24.
  *
  * They were rows five to seven of one seven-row table, and the figure directly
@@ -122,73 +121,12 @@ function massReadings(surface: CoherenceSurface): Fact[] {
   ];
 }
 
-/**
- * The Moments view's own drawing (third 2026-08-24 review: a drawing on every
- * view): the mass the moments are taken over, split into the low tail, the
- * interior between the outermost strikes, and the high tail, on a 0-to-1 mass
- * axis. A tail the read did not compute is left OFF the bar and named in the
- * footnote — missing, never zero — because a zero-width segment would claim
- * the tail was measured empty.
- */
-function MassSplitBar({ surface }: { surface: CoherenceSurface }) {
-  const caption = "The mass the moments are taken over, and the tails they exclude";
-  const parts = [
-    { label: "low tail", raw: surface.tail_mass_low, leg: "is-leg-1" },
-    { label: "between the strikes", raw: surface.total_mass, leg: "is-leg-2" },
-    { label: "high tail", raw: surface.tail_mass_high, leg: "is-leg-3" },
-  ].map((part) => ({ ...part, value: part.raw == null ? null : toUnit(part.raw) }));
-  const known = parts.filter((part) => part.value != null);
-  const unknown = parts.filter((part) => part.value == null);
-  if (!known.length) {
-    return (
-      <Figure caption={caption} ariaLabel="No mass reading to draw">
-        <FigureEmpty reason="No mass figure came back, so there is nothing to split." />
-      </Figure>
-    );
-  }
-  return (
-    <Figure
-      caption={caption}
-      ariaLabel={known.map((part) => `${part.label} ${decimalLabel(part.raw, 4)}`).join(", ")}
-      missing={unknown.length
-        ? `${unknown.map((part) => part.label).join(" and ")} not computed on this read — missing, never zero — so the bar carries only what was.`
-        : null}
-    >
-      <Plot height={64}>
-        {(width) => {
-          let cursor = 0;
-          return (
-            <>
-              {known.map((part) => {
-                const x = cursor * width;
-                const w = Math.max(1, (part.value as number) * width);
-                cursor += part.value as number;
-                return (
-                  <rect key={part.label} x={x} y={22} width={w} height={20}
-                        className={`coh-dollarbar__leg ${part.leg}`}>
-                    <title>{`${part.label}: ${decimalLabel(part.raw, 6)}`}</title>
-                  </rect>
-                );
-              })}
-              <text x={0} y={14} className="coh-axis__label">0</text>
-              <text x={width} y={14} textAnchor="end" className="coh-axis__label">all mass, 1</text>
-              <text x={0} y={58} className="coh-figure__key">
-                {known.map((part) => `${part.label} ${decimalLabel(part.raw, 4)}`).join("   ")}
-              </text>
-            </>
-          );
-        }}
-      </Plot>
-    </Figure>
-  );
-}
-
-/** The three views this component draws; "family" is `FamilyView`'s. */
-export type DistributionViewName = "survival" | "mass" | "moments";
+/** The four views this component draws; "family" is `FamilyView`'s. */
+export type DistributionViewName = "survival" | "mass" | "moments" | "support";
 
 export default function DistributionView({ surface, view }: { surface: CoherenceSurface; view: DistributionViewName }) {
   if (view === "mass") {
-    return <PmfChart surface={surface} />;
+    return <PmfChart key={surface.event_ticker} surface={surface} />;
   }
   if (view === "moments") {
     return (
@@ -200,11 +138,11 @@ export default function DistributionView({ surface, view }: { surface: Coherence
             open this view spent its third column telling a reader what its
             second column meant, which is a glossary rather than a reading. */}
         <MomentsShape
+          key={`shape:${surface.event_ticker}`}
           surface={surface}
           meanLabel={decimalLabel(surface.mean, 4)}
           sdLabel={decimalLabel(surface.standard_deviation, 4)}
         />
-        <MassSplitBar surface={surface} />
         {/* The numbers and their definitions both fold. The figure above states
             all four in words a reader does not have to be taught; what the table
             alone carries is the exact value and the term it belongs to, which is
@@ -217,10 +155,17 @@ export default function DistributionView({ surface, view }: { surface: Coherence
             computed.&rdquo; means the mass leaves it undefined — missing, never zero.
           </p>
         </details>
+      </>
+    );
+  }
+  if (view === "support") {
+    return (
+      <>
+        <MassReservoir key={`support:${surface.event_ticker}`} surface={surface} />
         <details className="disclosure">
-          <summary>The three mass readings the bar splits, 3 rows and what each excludes</summary>
+          <summary>The three support readings, and what each excludes</summary>
           <FactTable
-            caption="The tails sit outside every moment above; the total is what the bins sum to."
+            caption="The tails sit outside the bounded moments; the total is what every bin sums to."
             facts={massReadings(surface)}
           />
         </details>
@@ -230,6 +175,6 @@ export default function DistributionView({ surface, view }: { surface: Coherence
   // No heading and no chip row: this is one view of the `lattice` section, its
   // own `<h4>` restated both the section head and the switcher button that
   // selected it, and the four provenance chips are the section's KPI row now —
-  // where all three views can see them.
-  return <SurvivalChart surface={surface} />;
+  // where all four views can see them.
+  return <SurvivalChart key={surface.event_ticker} surface={surface} />;
 }
