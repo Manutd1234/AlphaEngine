@@ -20,6 +20,7 @@ import { resolveLatencySource } from "@/lib/data-trust";
 import { metricRow } from "@/lib/format";
 
 import FeedThroughput from "./FeedThroughput";
+import FeedFreshnessGrid from "./FeedFreshnessGrid";
 import QuotaHeadroom from "./QuotaHeadroom";
 
 export default function TrustResponsePane({ health }: { health: SystemHealth | null }) {
@@ -28,6 +29,7 @@ export default function TrustResponsePane({ health }: { health: SystemHealth | n
   return (
     <>
       <FeedThroughput health={health} />
+      <FeedFreshnessGrid health={health} />
 
       {/* Shared row, not a stack: the sparkline rows and the normalised
           quota bars are both narrow content, so at desk width they halve
