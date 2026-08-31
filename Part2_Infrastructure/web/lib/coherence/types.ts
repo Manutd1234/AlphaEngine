@@ -8,6 +8,19 @@
  * reason — never as zero, which is itself a legal Kalshi price.
  */
 
+import type { CoherenceCertificate } from "./types-certificate";
+
+export type { CoherenceCertificate, CoherenceCertificateLeg } from "./types-certificate";
+
+export type {
+  CoherenceProofConstraintLeg,
+  CoherenceProofConstraintRow,
+  CoherenceProofConstraints,
+  CoherenceProofEvidence,
+  CoherenceProofObservation,
+  CoherenceProofSolver,
+} from "./types-proof";
+
 export interface CoherenceHostStatus {
   host: string;
   reachable: boolean;
@@ -170,64 +183,6 @@ export interface CoherenceBooks {
   notes: string[];
 }
 
-export interface CoherenceCertificateLeg {
-  ticker: string;
-  label: string;
-  direction: string;
-  price: string;
-  size: string;
-  notional: string;
-  trade_fee: string;
-  rounding_fee: string;
-  rebate: string;
-  net_fee: string;
-}
-
-export interface CoherenceCertificate {
-  /** The venue reading's age in seconds; see `CoherenceUniverse`. Null, never zero. */
-  observed_age_s: number | null;
-  verdict: string;
-  /**
-   * The prices admit no probability measure, but no portfolio survives the
-   * fees. Not folded into `verdict`: a family quoted at $0.98 for a dollar of
-   * payoff IS incoherent, and calling it coherent because the edge is priced
-   * out states something false about the prices to say something true about
-   * the trade.
-   */
-  priced_out?: boolean;
-  engine: string;
-  component_id: string;
-  series_ticker: string;
-  exchange_index: number;
-  family: string;
-  because: string;
-  scope: string;
-  tier: number;
-  tier_note: string;
-  legs: CoherenceCertificateLeg[];
-  gross_edge: string | null;
-  worst_case_payoff: string | null;
-  total_fees: string | null;
-  net_edge: string | null;
-  /**
-   * The linear programme's optimum, signed, at six decimal places: the most any
-   * portfolio of these quotes can guarantee itself in the worst state, before
-   * fees. At or below zero exactly when a probability measure exists.
-   *
-   * The four figures above describe a PORTFOLIO, so on the common answer —
-   * coherent, no portfolio exists — all four are correctly null and the verdict
-   * drew four dashes. This one is about the whole feasible set and is reported
-   * whenever the programme ran, which is what gives that verdict something to
-   * draw. Null from the closed-form engine, which solves no programme.
-   */
-  margin: string | null;
-  worth_doing: boolean;
-  rows_tested: number;
-  rows_untestable: number;
-  notes: string[];
-  proof: string;
-}
-
 export interface CoherenceFeeFill {
   trade_fee: string;
   rounding_fee: string;
@@ -344,13 +299,14 @@ export interface CoherenceReplay {
   headline: string;
   notes: string[];
 }
-
-/** The shape a panel gets: the payload, or a named reason there is none. */
 export interface CoherenceLoad<T> {
   data: T | null;
   error: string | null;
   loading: boolean;
   updatedAt: Date | null;
+  transport: import("./transport-state").CoherenceTransportMeta | null;
+  retryAt: Date | null;
+  consecutiveFailures: number;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
