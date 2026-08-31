@@ -23,7 +23,7 @@ import {
   verdictFor,
 } from "../lib/stats";
 import { barsPerYear, buildPosition, paramGrid, runSweep } from "../lib/engine";
-import { syntheticBars } from "../lib/marketdata";
+import { syntheticBars } from "./helpers/synthetic-bars";
 import { DEFAULT_REQUEST, MAX_COMBOS, type Bar, type SweepRequest } from "../lib/types";
 
 const close = (xs: number[]) => Float64Array.from(xs);
