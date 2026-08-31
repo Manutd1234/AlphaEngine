@@ -148,6 +148,7 @@ async def deliver(
     *,
     path: str = "/rest/v1/research_documents",
     prefer: str = "resolution=ignore-duplicates,return=representation",
+    identity: dict[str, Any] | None = None,
 ) -> DeliveryOutcome:
     """Insert one row, retrying on the mirror's curve. Never raises.
 
@@ -157,6 +158,7 @@ async def deliver(
     does not sleep — waiting after the decision to give up is time an operator
     spends waiting for a dead letter that already exists.
     """
+    shown = identity or row
     backoff = Backoff(base_s=INGEST_BACKOFF_BASE_S, ceiling_s=INGEST_BACKOFF_CEILING_S)
     attempts = max(1, INGEST_ATTEMPTS)
     reason, detail = REASON_ERROR, "no attempt was made"
@@ -175,7 +177,7 @@ async def deliver(
             reason, detail = REASON_ERROR, type(exc).__name__
         log.warning(
             "research document %s/%s not indexed (%s: %s), attempt %d of %d",
-            row.get("kind"), row.get("source_ref"), reason, detail, attempt + 1, attempts,
+            shown.get("kind"), shown.get("source_ref"), reason, detail, attempt + 1, attempts,
         )
         if attempt + 1 < attempts:
             await asyncio.sleep(backoff.failed())
