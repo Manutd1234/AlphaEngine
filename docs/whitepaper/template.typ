@@ -1,4 +1,5 @@
 // AlphaEngine institutional whitepaper — shared layout.
+// Last verified: 2026-08-29.
 //
 // One template, imported by main.typ, so every section inherits the same
 // measure, type ladder and figure treatment. Section files own CONTENT only:
