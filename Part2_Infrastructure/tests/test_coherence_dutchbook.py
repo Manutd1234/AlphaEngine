@@ -90,6 +90,35 @@ class TestTheClosedFormEngine:
         books["X-2"] = Book(ticker="X-2", yes_bids=(), no_bids=())
         certificate = closedform.solve(family(), rows_for(family(), books), SCHEDULE)
         assert certificate.rows_untestable > 0
+        assert certificate.proof_evidence is not None
+        row = next(row for row in certificate.proof_evidence.constraints.rows if not row.testable)
+        assert row.cost is None
+        assert row.slack is None
+        assert row.violated is None
+        assert row.executable_size_hundredths is None
+        assert any(leg.price is None for leg in row.legs)
+
+    def test_carries_the_constraint_arithmetic_as_structured_evidence(self):
+        certificate = closedform.solve(family(), rows_for(family(), DUTCH), SCHEDULE)
+        evidence = certificate.proof_evidence
+        assert evidence is not None
+        assert evidence.solver.variables is None
+        assert evidence.solver.state_rows is None
+        assert evidence.solver.optimum_kind == "minimum_constraint_slack"
+        assert evidence.solver.optimum == Decimal("-0.10")
+        assert evidence.solver.decision_boundary == Decimal(0)
+        assert evidence.solver.verdict == certificate.verdict
+        assert evidence.constraints.tested == 2
+        assert evidence.constraints.untestable == 0
+
+        row = evidence.constraints.rows[0]
+        assert row.family == "additive"
+        assert row.cost == Decimal("0.90")
+        assert row.slack == Decimal("-0.10")
+        assert row.violated is True
+        assert row.executable_size_hundredths == 50_000
+        assert [leg.price for leg in row.legs] == [Decimal("0.30")] * 3
+        assert row.to_dict()["slack"] == "-0.100000"
 
 
 @linprog_required
@@ -148,6 +177,28 @@ class TestTheLinearProgramme:
         certificate = dutchbook.solve(component, COHERENT, SCHEDULE)
         assert certificate is not None
         assert certificate.verdict == "untestable"
+
+    def test_a_family_with_no_executable_book_is_typed_untestable(self):
+        certificate = dutchbook.solve(family(), {}, SCHEDULE)
+        assert certificate is not None and certificate.verdict == "untestable"
+        assert certificate.proof_evidence is not None
+        assert certificate.proof_evidence.solver.variables == 0
+
+    def test_carries_the_actual_solver_matrix_and_decision(self):
+        certificate = dutchbook.solve(family(), DUTCH, SCHEDULE)
+        assert certificate is not None and certificate.proof_evidence is not None
+        evidence = certificate.proof_evidence
+        assert evidence.observation.markets_observed == 3
+        assert evidence.observation.markets_in_event is None
+        assert evidence.observation.outcomes_in_component == 3
+        assert evidence.observation.executable_buy_sides == 3
+        assert evidence.observation.executable_sell_sides == 3
+        assert evidence.solver.variables == 6
+        assert evidence.solver.state_rows == 3
+        assert evidence.solver.optimum == certificate.margin
+        assert evidence.solver.optimum_kind == "worst_case_payoff"
+        assert evidence.solver.decision_boundary == dutchbook.MIN_MEANINGFUL_EDGE
+        assert evidence.solver.verdict == certificate.verdict
 
 
 @linprog_required
