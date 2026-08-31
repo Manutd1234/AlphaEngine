@@ -79,8 +79,9 @@ export function Basket() {
       <text x={left} y={barY + 46} className="coh-form__note">
         {`the pieces cost ${total.toFixed(2)}`}
       </text>
-      <text x={left} y={24} className="coh-form__note">
-        one outcome settles, so the set is worth a dollar whatever happens
+      <text x={left} y={16} className="coh-form__note">
+        <tspan x={left} dy={0}>one outcome settles</tspan>
+        <tspan x={left} dy={12}>the set stays worth $1</tspan>
       </text>
     </Frame>
   );
@@ -247,8 +248,9 @@ export function Distribution() {
   const quotes = [0.82, 0.61, 0.34, 0.12];
   const left = 26;
   const step = (WIDTH - 52) / quotes.length;
-  const base = 84;
-  const y = (p: number) => base - p * 58;
+  const base = 88;
+  const rise = 54;
+  const y = (p: number) => base - p * rise;
   const cx = (i: number) => left + i * step + step / 2;
   return (
     <Frame
@@ -280,7 +282,7 @@ export function Distribution() {
         </g>
       ))}
       <line x1={cx(1)} x2={cx(1)} y1={y(quotes[1])} y2={y(quotes[2])} className="coh-lessonfig__mark-line" />
-      <rect x={cx(1)} y={y(quotes[2])} width={step} height={(quotes[1] - quotes[2]) * 58}
+      <rect x={cx(1)} y={y(quotes[2])} width={step} height={(quotes[1] - quotes[2]) * rise}
             className="coh-lessonfig__slice is-loud">
         <title>
           {`The implied mass between k₂ and k₃: ${quotes[1].toFixed(2)} − ${quotes[2].toFixed(2)} = `
@@ -289,12 +291,10 @@ export function Distribution() {
            + "distribution, which a reader has seen, instead of a picture of the OPERATION."}
         </title>
       </rect>
-      <text x={cx(1) + step / 2} y={y(quotes[2]) - 6} textAnchor="middle" className="coh-lessonfig__gap-note">
+      <text x={cx(1) + step / 2} y={y(quotes[2]) + 11} textAnchor="middle" className="coh-lessonfig__gap-note">
         {`= ${(quotes[1] - quotes[2]).toFixed(2)}`}
       </text>
-      <text x={left} y={20} className="coh-form__note">
-        the venue quotes S(k); it never quotes the mass between two of them
-      </text>
+      <text x={left} y={16} className="coh-form__note">quoted S(k) → adjacent mass</text>
     </Frame>
   );
 }
