@@ -56,6 +56,7 @@ import modules.research_ingest_delivery as delivery
 import modules.research_rag.writer as rag_module
 from modules.research_rag import ResearchRag
 from modules.research_rag.arms import REASON_UNPARSEABLE_BODY
+from modules.research_rag.replacement import REPLACE_PATH
 
 
 class Stub:
@@ -97,6 +98,7 @@ class Corpus:
         self.insert_status = insert_status
         self.embeds: list[list[str]] = []
         self.inserts: list[dict] = []
+        self.replacements: list[dict] = []
 
     async def aclose(self) -> None:
         """`stop()` closes its client; the fake has to be closable too."""
@@ -107,10 +109,12 @@ class Corpus:
             if self.embed_poisoned:
                 return Response(200, poisoned=True)
             return Response(200, {"embeddings": [VECTOR for _ in json["texts"]]})
-        self.inserts.append(json)
+        assert path == REPLACE_PATH
+        self.replacements.append(json)
+        self.inserts.extend(dict(row) for row in json["p_rows"])
         status = self.insert_status
         if isinstance(status, list):
-            status = status[min(len(self.inserts) - 1, len(status) - 1)]
+            status = status[min(len(self.replacements) - 1, len(status) - 1)]
         # An empty representation is what `resolution=ignore-duplicates` returns
         # for a document already present; `persist_edges` handles it and stops.
         return Response(status, [])
