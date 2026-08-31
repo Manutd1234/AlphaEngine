@@ -69,7 +69,6 @@ export default function DataWorkCard({
       </div>
       <span className="data-work-card__id num">
         {item.id}
-        {item.createdBy === "seed" && <small className="muted"> ‹sample›</small>}
       </span>
       <h4>{item.title}</h4>
       <p>{item.summary}</p>
