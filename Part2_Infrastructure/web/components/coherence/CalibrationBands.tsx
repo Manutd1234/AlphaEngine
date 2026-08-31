@@ -35,17 +35,13 @@
 import { priceLabel } from "@/lib/coherence/fixed-point";
 import type { CoherenceCalibration } from "@/lib/coherence/types-lab";
 import HorizonAxis from "./HorizonAxis";
-import ReliabilityDiagram from "./ReliabilityDiagram";
 import { decimalLabel, statValue } from "@/lib/coherence/decimals";
 import ValueStrip from "./ValueStrip";
 
 export default function CalibrationBands({
   data,
-  horizonNote,
 }: {
   data: CoherenceCalibration;
-  /** When the prices on the x axis were read. The banner owns the caveat. */
-  horizonNote: string;
 }) {
   const populated = data.bins.filter((bin) => bin.count > 0).length;
 
@@ -60,15 +56,6 @@ export default function CalibrationBands({
           The claim is unchanged and still made exactly once; `HorizonAxis`
           records why it may not be made twice. */}
       <HorizonAxis data={data} />
-
-      <div className="coh-calib__figures">
-        <ReliabilityDiagram
-          bins={data.bins}
-          map={data.isotonic_map}
-          baseRate={data.base_rate}
-          horizonNote={horizonNote}
-        />
-      </div>
 
       {/* The band table's decisive column drawn (third review, 2026-08-24):
           outcome minus price, signed against zero. An empty band declines its
@@ -103,7 +90,7 @@ export default function CalibrationBands({
             + "repairs the reliability term and nothing else."
           : "No isotonic correction was returned, so the diagram carries the raw bands only."}
       </p>
-      <div className="table-wrap">
+      <div className="table-wrap" role="region" aria-label="Calibration price bands" tabIndex={0}>
         <table className="coh-table">
           <caption className="coh-table__caption">
             Every price band. A band with no settled market has no outcome rate and is dashed, never zeroed.
