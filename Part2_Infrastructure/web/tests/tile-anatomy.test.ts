@@ -18,7 +18,10 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 
+import { globalsCss } from "./globals-css";
+
 const root = join(import.meta.dirname, "..");
+const tooltipSource = readFileSync(join(root, "components/common/QuantEducationalTooltip.tsx"), "utf8");
 
 function sourceFiles(dir: string): string[] {
   const out: string[] = [];
@@ -58,5 +61,26 @@ describe("the stat tile has one implementation", () => {
         `${path} held hand-rolled tiles; it must reach them through the component now`,
       );
     }
+  });
+
+  it("reserves one label row whether or not the tile has an info control", () => {
+    const css = globalsCss.replace(/\/\*[\s\S]*?\*\//g, "");
+    assert.match(
+      css,
+      /\.stat-tile__label\s*\{[^}]*min-block-size:\s*var\(--control-h\);/s,
+      "tooltip-bearing labels must not push their values below plain-label tiles",
+    );
+  });
+
+  it("lets a click pin the info panel and dismisses it outside or with Escape", () => {
+    assert.match(tooltipSource, /const \[pinned, setPinned\] = useState\(false\);/);
+    assert.match(tooltipSource, /onClick=\{\(\) => \{[\s\S]*?const nextPinned = !pinned;[\s\S]*?setPinned\(nextPinned\);[\s\S]*?setOpen\(nextPinned\);/);
+    assert.match(tooltipSource, /document\.addEventListener\("pointerdown", onPointerDown, true\);/);
+    assert.match(tooltipSource, /event\.key === "Escape"\) close\(\)/);
+  });
+
+  it("clamps the explainer into short as well as narrow viewports", () => {
+    assert.match(tooltipSource, /window\.innerHeight - height - margin/);
+    assert.match(globalsCss, /\.quant-tooltip\s*\{[^}]*max-height:\s*calc\(100svh - 16px\);[^}]*overflow-y:\s*auto;/s);
   });
 });
