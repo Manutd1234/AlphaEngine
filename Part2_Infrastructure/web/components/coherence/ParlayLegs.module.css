@@ -1,0 +1,136 @@
+.rowName {
+  fill: var(--text-primary);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+}
+
+.rowTicker,
+.axisKey,
+.unquoted,
+.pinValue {
+  fill: var(--text-muted);
+  font-family: var(--mono);
+  font-size: var(--fs-2xs);
+}
+
+.unquoted { fill: var(--warning-text); }
+
+.pinValue {
+  fill: var(--text-primary);
+  font-weight: 700;
+}
+
+.legDot {
+  fill: var(--surface-1);
+  stroke: var(--series-1);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.inspector {
+  display: grid;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--rule-soft);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+
+.inspectorHead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(14rem, max-content);
+  align-items: center;
+  gap: calc(var(--space-3) - 1px);
+  min-block-size: 4.5rem;
+  min-width: 0;
+  padding: calc(var(--space-3) - 1px);
+  border-bottom: 1px solid var(--rule-soft);
+  background: color-mix(in srgb, var(--surface-2) 72%, var(--surface-1));
+}
+
+.inspectorHead > span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.inspectorHead small {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+.inspectorHead strong,
+.inspectorHead code {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.inspectorHead code {
+  justify-self: end;
+  max-width: 100%;
+  text-align: end;
+  white-space: normal;
+}
+
+.tableWrap {
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-gutter: stable;
+}
+
+.tableWrap:focus-visible {
+  outline: 2px solid var(--series-1);
+  outline-offset: -2px;
+}
+
+.legTable {
+  width: 100%;
+  min-width: 42rem;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.legTable :is(th, td) {
+  padding: var(--space-2) var(--space-3);
+  vertical-align: top;
+  border: 1px solid var(--rule-soft);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: start;
+}
+
+.legTable tbody tr { block-size: 3.65rem; }
+
+.legTable thead th {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+.legTable th:first-child { width: 6%; }
+.legTable th:nth-child(2) { width: 39%; }
+.legTable th:nth-child(3) { width: 12%; }
+.legTable th:nth-child(4) { width: 14%; }
+.legTable th:nth-child(5) { width: 29%; }
+
+.legTable code {
+  display: block;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 620px) {
+  .workbench { grid-template-columns: minmax(0, 1fr); }
+
+  .inspectorHead {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+  .inspectorHead code { justify-self: start; max-width: 100%; text-align: start; }
+}
