@@ -112,10 +112,12 @@ class Corpus:
         self.queries: list[str] = []
         self.widths: list[int] = []
         self.graph_widths: list[int] = []
+        self.scopes: list[str | None] = []
 
-    async def search(self, query, match_count=3, kind=None):
+    async def search(self, query, match_count=3, kind=None, desk_id=None):
         self.queries.append(query)
         self.widths.append(match_count)
+        self.scopes.append(desk_id)
         index = min(len(self.queries) - 1, len(self.rounds) - 1)
         return {
             "state": "ok",
@@ -123,8 +125,9 @@ class Corpus:
             "corpus_size": self.corpus_size,
         }
 
-    async def connected(self, document_id, match_count=3, max_depth=2):
+    async def connected(self, document_id, match_count=3, max_depth=2, desk_id=None):
         self.graph_widths.append(match_count)
+        self.scopes.append(desk_id)
         return {"state": "ok", "connected": list(self.connected_rows)}
 
 
