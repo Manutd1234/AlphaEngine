@@ -17,7 +17,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 from modules.coherence.kernel import closedform, dutchbook
-from modules.coherence.kernel.certificate import Certificate
+from modules.coherence.kernel.certificate import Certificate, ProofObservation
 from modules.coherence.kernel.constraints import rows_for
 from modules.coherence.kernel.costs import FeeSchedule
 from modules.coherence.kernel.lattice import build_component
@@ -28,8 +28,9 @@ def certify(observation: Observation, schedule: FeeSchedule, max_contracts: Deci
     """One observation to one certificate."""
     component = build_component(observation.event, [item.market for item in observation.markets])
     books = {item.ticker: item.book for item in observation.markets}
+    constraint_rows = rows_for(component, books)
 
-    closed = closedform.solve(component, rows_for(component, books), schedule)
+    closed = closedform.solve(component, constraint_rows, schedule)
     programme = dutchbook.solve(component, books, schedule, max_contracts=max_contracts)
 
     if programme is None:
@@ -37,7 +38,7 @@ def certify(observation: Observation, schedule: FeeSchedule, max_contracts: Deci
             "the linear programme was not run: SciPy is not installed here, so this is the "
             "closed-form answer and a violation it cannot express would not appear"
         )
-        return _with_observation_notes(closed, observation)
+        return _with_observation_notes(_with_proof_evidence(closed, closed, observation), observation)
 
     if programme.verdict != closed.verdict and "untestable" not in (programme.verdict, closed.verdict):
         # Not every disagreement is a fault, and calling one is how this engine
@@ -85,7 +86,39 @@ def certify(observation: Observation, schedule: FeeSchedule, max_contracts: Deci
             f"{closed.net_edge} net against this portfolio's {programme.net_edge}"
         )
 
-    return _with_observation_notes(programme, observation)
+    return _with_observation_notes(_with_proof_evidence(programme, closed, observation), observation)
+
+
+def _with_proof_evidence(
+    certificate: Certificate,
+    closed: Certificate,
+    observation: Observation,
+) -> Certificate:
+    """Attach read counts and named rows without conflating them with LP rows."""
+    evidence = certificate.proof_evidence
+    closed_evidence = closed.proof_evidence
+    if evidence is None or closed_evidence is None:
+        raise RuntimeError("a coherence engine returned no structured proof evidence")
+
+    buy_sides = 0
+    sell_sides = 0
+    for item in observation.markets:
+        asks = item.book.asks("yes")
+        bids = item.book.bids("yes")
+        buy_sides += int(bool(asks and asks[0].size_hundredths > 0))
+        sell_sides += int(bool(bids and bids[0].size_hundredths > 0))
+
+    evidence.observation = ProofObservation(
+        markets_observed=len(observation.markets),
+        markets_in_event=len(observation.event.markets),
+        outcomes_in_component=closed_evidence.observation.outcomes_in_component,
+        executable_buy_sides=buy_sides,
+        executable_sell_sides=sell_sides,
+    )
+    evidence.constraints = closed_evidence.constraints
+    evidence.solver.engine = certificate.engine
+    evidence.solver.verdict = certificate.verdict
+    return certificate
 
 
 def _with_observation_notes(certificate: Certificate, observation: Observation) -> Certificate:
