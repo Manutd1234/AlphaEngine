@@ -13,22 +13,25 @@
  * coherence engine because both are research, which is a category rather than a
  * question.
  *
- * It had also stopped fitting. Four groups over eleven views is a rail's worth
- * of subject behind one section's button, and it had grown a THIRD switcher
- * level to hold the findings — carried in `coherence-sections.test.ts` as a
- * named exemption because there was nowhere else for it to go. There is now:
- * four sections, one control row each, and the exemption is deleted.
+ * It had also stopped fitting. Before extraction, four groups over eleven views
+ * were a rail's worth of subject behind one section's button, and had grown a
+ * THIRD switcher level to hold the findings — carried in
+ * `coherence-sections.test.ts` as a named exemption because there was nowhere
+ * else for it to go. The current tab has seven sections and sixteen addressable
+ * views; each section has one rail row and at most one view row, so the
+ * exemption is gone.
  *
  * THE TAB ID IS `diffusion`, WHICH WAS A SECTION ID. `#coherence/diffusion` and
  * `#coherence/findings` are links someone holds, and both cross tabs now — the
  * one move `RELOCATED_SECTIONS` cannot stop being needed for, because the URL
  * is wrong about the TAB and only a lookup can say so.
  *
- * TWO READS, EACH GATED ON THE ONE SECTION THAT DRAWS IT. `arm` is the
- * absorption ledger and `episodes` the violation tape; `model` reads nothing at
- * all, because every view in it computes in the browser from
- * `lib/coherence/diffusion-model` — which is the point that group makes, and a
- * gateway call there would contradict it. `findings` owns its own read.
+ * READS ARE GATED ON THE SECTIONS THAT DRAW THEM. `arm` and `meetings` share
+ * the cached absorption ledger; `episodes` owns the violation, status and index
+ * reads; `findings` owns its study read. `model`, `instrument` and `sandbox`
+ * read nothing at all because their views compute in the browser from
+ * `lib/coherence/diffusion-model` — a gateway call there would contradict what
+ * those sections demonstrate.
  */
 
 import { useCallback, useMemo, useState } from "react";
@@ -37,12 +40,17 @@ import PageHead from "@/components/workspace/PageHead";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
 import FreshnessStamp from "@/components/workspace/FreshnessStamp";
 import ArmSection from "@/components/coherence/diffusion/ArmSection";
+import type { ArmView } from "@/components/coherence/diffusion/ArmSection";
 import EpisodesSection from "@/components/coherence/diffusion/EpisodesSection";
+import type { EpisodeView } from "@/components/coherence/diffusion/EpisodesSection";
 import FindingsSection from "@/components/coherence/diffusion/FindingsSection";
+import type { FindingsView } from "@/components/coherence/diffusion/FindingsPane";
 import InstrumentSection from "@/components/coherence/diffusion/InstrumentSection";
 import MeetingsSection from "@/components/coherence/diffusion/MeetingsSection";
+import type { MeetingsView } from "@/components/coherence/diffusion/MeetingsSection";
 import ModelSection from "@/components/coherence/diffusion/ModelSection";
 import SandboxSection from "@/components/coherence/diffusion/SandboxSection";
+import type { SandboxView } from "@/components/coherence/diffusion/SandboxSection";
 import { DIFFUSION_SECTIONS, type DiffusionSection } from "@/lib/sections";
 import { absorptionRoute, episodesRoute, findingsRoute, indexRoute, statusRoute } from "@/lib/coherence/routes";
 import { COHERENCE_POLL_MS, useCoherenceRead, warmCoherenceRead } from "@/lib/coherence/use-coherence";
@@ -86,13 +94,17 @@ const SECTION_READS: Record<DiffusionSection, readonly string[]> = {
 };
 
 export interface DiffusionConsoleProps {
+  views: Record<string, string>;
+  onViewChange: (section: string, view: string) => void;
   section: DiffusionSection;
   onSectionChange: (section: DiffusionSection) => void;
   /** False while another tab is in front: every poll here is gated on it. */
   active?: boolean;
 }
 
-export default function DiffusionConsole({ section, onSectionChange, active = true }: DiffusionConsoleProps) {
+export default function DiffusionConsole({
+  section, onSectionChange, views, onViewChange, active = true,
+}: DiffusionConsoleProps) {
   const absorption = useCoherenceRead<AbsorptionRead>(
     absorptionRoute(),
     active && (section === "arm" || section === "meetings"),
@@ -109,17 +121,22 @@ export default function DiffusionConsole({ section, onSectionChange, active = tr
   useSectionWarming(SECTION_READS, active);
 
   const metrics = useMemo(() => {
-    const runs = absorption.data?.runs?.length ?? null;
+    const runs = absorption.data?.state === "ok" ? absorption.data.runs : null;
+    const hasControls = runs ? runs.some((run) => run.controls_used > 0) : null;
     return [
       {
         label: "Runs recorded",
-        value: runs == null ? "—" : String(runs),
-        note: runs == null ? "not read on this section" : "announcement windows with a measured stage",
+        value: runs == null ? "—" : String(runs.length),
+        note: runs == null ? "not read on this section" : "recorded stage windows, including refusals",
       },
       {
         label: "Control arm",
-        value: absorption.data ? "matched windows" : "—",
-        note: "quiet half-hours the same estimator is run over",
+        value: hasControls == null ? "—" : hasControls ? "matched windows" : "configured, empty",
+        note: hasControls
+          ? "quiet half-hours the same estimator is run over"
+          : hasControls === false
+            ? "no matched control window has been recorded"
+            : "not read on this section",
       },
       {
         label: "Estimator",
@@ -136,13 +153,33 @@ export default function DiffusionConsole({ section, onSectionChange, active = tr
   const warmSection = useCallback((next: DiffusionSection) => {
     for (const url of SECTION_READS[next]) warmCoherenceRead(url);
   }, []);
+  const changeArmView = useCallback(
+    (next: ArmView) => onViewChange("arm", next),
+    [onViewChange],
+  );
+  const changeMeetingsView = useCallback(
+    (next: MeetingsView) => onViewChange("meetings", next),
+    [onViewChange],
+  );
+  const changeEpisodeView = useCallback(
+    (next: EpisodeView) => onViewChange("episodes", next),
+    [onViewChange],
+  );
+  const changeSandboxView = useCallback(
+    (next: SandboxView) => onViewChange("sandbox", next),
+    [onViewChange],
+  );
+  const changeFindingsView = useCallback(
+    (next: FindingsView) => onViewChange("findings", next),
+    [onViewChange],
+  );
 
   return (
     <div className="coherence-plane diffusion-plane">
       <PageHead
         kicker="Diffusion"
         title="How fast information reaches the price"
-        description="Both arms measure how long until the move is finished, against a control of matched windows in which nothing happened."
+        description="Both arms estimate when the move is finished against matched no-news windows in which no announcement occurred."
         actions={
           <FreshnessStamp updatedAt={absorption.updatedAt} pollMs={COHERENCE_POLL_MS} paused={!active} transport="poll" />
         }
@@ -161,15 +198,18 @@ export default function DiffusionConsole({ section, onSectionChange, active = tr
       />
 
       <WorkspaceSubtabPanel workspaceId="diffusion" tabId="arm" activeId={section}>
-        <ArmSection data={absorption.data} error={absorption.error} />
+        <ArmSection data={absorption.data} error={absorption.error}
+                    view={views.arm as ArmView} onView={changeArmView} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="diffusion" tabId="meetings" activeId={section}>
-        <MeetingsSection data={absorption.data} error={absorption.error} />
+        <MeetingsSection data={absorption.data} error={absorption.error}
+                         view={views.meetings as MeetingsView} onView={changeMeetingsView} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="diffusion" tabId="episodes" activeId={section}>
-        <EpisodesSection data={episodes.data} error={episodes.error} status={status.data} index={index.data} />
+        <EpisodesSection data={episodes.data} error={episodes.error} status={status.data} index={index.data}
+                         view={views.episodes as EpisodeView} onView={changeEpisodeView} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="diffusion" tabId="model" activeId={section}>
@@ -181,11 +221,12 @@ export default function DiffusionConsole({ section, onSectionChange, active = tr
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="diffusion" tabId="sandbox" activeId={section}>
-        <SandboxSection />
+        <SandboxSection view={views.sandbox as SandboxView} onView={changeSandboxView} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="diffusion" tabId="findings" activeId={section}>
-        <FindingsSection active={active && section === "findings"} />
+        <FindingsSection active={active && section === "findings"}
+                         view={views.findings as FindingsView} onView={changeFindingsView} />
       </WorkspaceSubtabPanel>
     </div>
   );
