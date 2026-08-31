@@ -1,10 +1,10 @@
 /**
- * The ten-stop reviewer tour — one stop per workspace, in decision-loop
+ * The eleven-stop reviewer tour — one stop per workspace, in decision-loop
  * order, each landing on a full `#view/section` deep link with the one moment
  * worth showing named. Rendered by the "?" overlay.
  *
- * The last two stops carry the Kalshi engine's split: the tab NAMES here are
- * "Markets" and "Proofs" while the view ids stay `markets` and `coherence`,
+ * The last three stops carry the market engine's split: the tab NAMES here are
+ * "Markets", "Proofs" and "Diffusion" while the public view ids stay stable,
  * because `tour-truth.test.ts` reads the stop's tab name against the workspace
  * it navigates to and an id is not a name a reader can find on the row.
  *
@@ -21,7 +21,7 @@ import type {
   PortfolioSection, ReliabilitySection, ResearchSection, RiskSection,
 } from "@/lib/sections";
 
-/** What a stop needs from the shell: the tab switch, and the ten rail setters. */
+/** What a stop needs from the shell: the tab switch, and the eleven rail setters. */
 export interface TourDeps {
   navigate: (
     next: WorkspaceView,
