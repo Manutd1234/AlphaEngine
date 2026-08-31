@@ -51,7 +51,7 @@
 .data-work-card__meta > div {
   padding: 5px 8px 5px 9px;
   border-radius: 0;
-  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+  background: var(--table-header-bg);
 }
 
 .data-work-card__meta > div + div {
@@ -116,6 +116,11 @@
    word and holds the confirmation pair stacked. */
 .developer-work__actions-cell {
   text-align: right;
+  vertical-align: middle;
+}
+
+.developer-work__table tbody td {
+  vertical-align: middle;
 }
 
 .developer-work__delete,
