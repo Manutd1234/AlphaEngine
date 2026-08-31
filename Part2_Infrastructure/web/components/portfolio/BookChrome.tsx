@@ -50,9 +50,8 @@ export function BookFallback({ view, onOpenResearch, surface = "portfolio" }: Bo
   }
 
   if (connectionState === "unconfigured") {
-    // Normally unreachable: useBook auto-enters the sandbox on this exact
-    // state. It renders only when someone pressed "Live gateway" on a
-    // deployment that has none — so the copy explains *why* there is none.
+    // The first failed live read stays unavailable. This card explains why
+    // there is no payload and offers the generated book as an explicit choice.
     return (
       <div className="card portfolio-setup-card" role="status" aria-labelledby="book-setup-title">
         <div className="portfolio-card-heading">
@@ -62,12 +61,13 @@ export function BookFallback({ view, onOpenResearch, surface = "portfolio" }: Bo
           </div>
         </div>
         <p className="sub">
-          Serverless cannot host a long-lived process, and the gateway is one. The sandbox runs
-          instead: a generated book judged by the same gate logic.
+          Serverless cannot host a long-lived process, and the gateway is one. No book has been
+          substituted; the sandbox is available as an explicit choice: a generated book judged by
+          the same gate logic.
         </p>
         <div className="page-actions">
           <button className="primary-action" onClick={() => setSandbox(true)}>
-            Back to the sandbox book
+            Explore the sandbox book
           </button>
           <button onClick={onOpenResearch}>Open Research</button>
         </div>
