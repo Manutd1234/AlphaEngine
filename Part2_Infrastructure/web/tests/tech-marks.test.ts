@@ -134,7 +134,7 @@ describe("the rings count what they say they count", () => {
 });
 
 describe("the split hides nothing a reader needs at all times", () => {
-  // The tiles, the switcher and the three views are the `planes` half of the
+  // The tiles, the switcher and its focused views are the `planes` half of the
   // section, so they are read from `ReliabilityPlanes` rather than from the
   // seam file that dispatches to it.
   it("keeps the four KPI tiles above the switcher", () => {
@@ -150,11 +150,19 @@ describe("the split hides nothing a reader needs at all times", () => {
     assert.match(planes, /pane === "map" &&/);
     assert.match(planes, /pane === "providers" &&/);
     assert.match(planes, /pane === "platform" &&/);
+    assert.match(planes, /pane === "latency" &&/);
   });
 
-  it("offers three panes, not four", () => {
-    const panes = [...planes.matchAll(/\{ id: "(map|providers|platform)"/g)];
-    assert.equal(panes.length, 3, "a four-button seg forces abbreviated labels");
+  it("splits route latency from platform evidence without dropping either view", () => {
+    const panes = [...planes.matchAll(/\{ id: "(map|dag|providers|platform|latency)"/g)];
+    assert.equal(panes.length, 5);
+    assert.match(planes, /id: "latency", label: "Latency"/);
+    assert.match(planes, /part="platform"/);
+    assert.match(planes, /part="latency"/);
+    assert.match(platform, /part === "latency"/);
+    assert.match(platform, /<RouteLatencyBars platform=\{platform\}/);
+    assert.match(platform, /Quant infrastructure components/);
+    assert.match(platform, /What this snapshot can prove/);
   });
 
   it("says something honest when there is no gateway to describe", () => {
