@@ -1,0 +1,389 @@
+.vault {
+  display: grid;
+  grid-template-columns: minmax(210px, .9fr) minmax(220px, 1fr);
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+
+.coinField {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(34px, 1fr));
+  gap: 8px;
+  align-content: center;
+}
+
+.coin {
+  width: 100%;
+  max-width: 54px;
+  aspect-ratio: 1;
+  justify-self: center;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font: 700 var(--fs-2xs) var(--font-mono);
+}
+
+.coin[data-staked="true"] {
+  border-color: var(--series-1);
+  background:
+    radial-gradient(circle, var(--surface-1) 0 27%, transparent 28%),
+    color-mix(in srgb, var(--series-1) 28%, var(--surface-2));
+  color: var(--text-primary);
+}
+
+.coin[aria-selected="true"] {
+  border-color: var(--series-1);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--series-1) 22%, transparent);
+  color: var(--text-primary);
+}
+
+.coin:focus-visible {
+  outline: 2px solid var(--series-1);
+  outline-offset: 2px;
+}
+
+.vaultReadout,
+.growthReadout,
+.historyReadout,
+.familyReadout,
+.readout {
+  display: grid;
+  align-content: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--grid);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+.vaultReadout > strong,
+.growthReadout > strong,
+.historyReadout > strong,
+.familyReadout > strong,
+.readout > strong {
+  color: var(--text-primary);
+  font-size: var(--fs-xl);
+}
+
+.vaultDetail,
+.familyDetail {
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.wealthSeal {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--grid);
+  border-radius: var(--radius-md);
+}
+
+.wealthSeal i {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid var(--series-3);
+  border-radius: 50%;
+  color: var(--series-3);
+  font-style: normal;
+}
+
+.capitalStress {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0 var(--space-3) var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--grid);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface-2) 30%, var(--surface-1));
+}
+
+.stressControl {
+  display: grid;
+  grid-template-columns: minmax(180px, .8fr) minmax(220px, 1.4fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.stressControl > span,
+.stressControl label { display: grid; gap: 4px; }
+.stressControl small,
+.stressControl label span { color: var(--text-muted); font-size: var(--fs-2xs); font-weight: 720; letter-spacing: var(--ls-caps); text-transform: uppercase; }
+.stressControl input { width: 100%; accent-color: var(--series-1); }
+.stressControl output { min-width: 58px; padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--surface-1); text-align: center; }
+
+.stressBars { display: grid; gap: 8px; }
+.stressBars > div { display: grid; grid-template-columns: minmax(180px, .45fr) 1fr; align-items: center; gap: var(--space-3); }
+.stressBars span { display: flex; justify-content: space-between; gap: var(--space-2); font-size: var(--fs-xs); }
+.stressBars i { display: block; height: 14px; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--surface-2); }
+.stressBars i b { display: block; width: var(--stake-width); height: 100%; border-radius: inherit; background: var(--series-3); }
+.stressBars > div:first-child i b { background: var(--series-1); }
+.capitalStress > p { margin: 0; color: var(--text-secondary); font-size: var(--fs-xs); overflow-wrap: anywhere; }
+
+.admissionControl,
+.frontierControl {
+  display: grid;
+  grid-template-columns: minmax(210px, .9fr) minmax(260px, 1.3fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--grid);
+  background: color-mix(in srgb, var(--surface-2) 45%, var(--surface-1));
+}
+
+.admissionControl > span,
+.admissionControl label,
+.frontierControl > span,
+.frontierControl label {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.admissionControl small,
+.admissionControl label span,
+.frontierControl small {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 720;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+.admissionControl strong,
+.frontierControl strong { overflow-wrap: anywhere; }
+.admissionControl input,
+.frontierControl input { width: 100%; accent-color: var(--series-1); cursor: ew-resize; }
+.admissionControl output,
+.frontierControl output {
+  min-width: 62px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-1);
+  text-align: center;
+}
+
+.admissionAxis {
+  display: grid;
+  grid-template-columns: auto minmax(180px, 1fr) auto;
+  grid-template-rows: auto auto;
+  align-items: end;
+  column-gap: var(--space-2);
+  padding: var(--space-3) var(--space-3) 5px;
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 690;
+}
+
+.admissionAxis > i {
+  position: relative;
+  display: block;
+  grid-column: 2;
+  grid-row: 1;
+  height: 2px;
+  margin-bottom: 4px;
+  background: var(--grid);
+}
+
+.admissionAxis > i::after {
+  position: absolute;
+  inset-block: -5px;
+  inset-inline-start: var(--reserve-x);
+  width: 2px;
+  background: var(--series-2);
+  content: "";
+}
+
+.admissionAxis > b {
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: start;
+  margin-inline-start: var(--reserve-x);
+  color: var(--series-2);
+  font: 720 var(--fs-2xs) var(--font-mono);
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.admissionAxis[data-reserve-edge="start"] > b { transform: translateX(0); }
+.admissionAxis[data-reserve-edge="end"] > b { transform: translateX(-100%); }
+
+.admissionAxis > span:first-child { grid-column: 1; grid-row: 1 / 3; }
+.admissionAxis > span:last-child { grid-column: 3; grid-row: 1 / 3; }
+
+.outcomeField {
+  display: grid;
+  gap: 4px;
+  max-height: 430px;
+  overflow: auto;
+  padding: 0 var(--space-3) var(--space-3);
+}
+
+.outcomeToken {
+  display: grid;
+  grid-template-columns: minmax(130px, .42fr) minmax(210px, 1fr) minmax(76px, auto);
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 54px;
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.outcomeToken:hover { background: var(--surface-2); }
+.outcomeToken[aria-selected="true"],
+.outcomeToken:global(.is-hot) {
+  border-color: var(--series-1);
+  background: color-mix(in srgb, var(--series-1) 7%, var(--surface-1));
+}
+
+.outcomeToken:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 1px;
+}
+
+.outcomeName,
+.outcomeRatio { display: grid; min-width: 0; gap: 2px; }
+.outcomeName small,
+.outcomeRatio small { color: var(--text-muted); font-size: var(--fs-2xs); text-transform: uppercase; }
+.outcomeName strong { overflow-wrap: anywhere; white-space: normal; }
+.outcomeRatio { text-align: right; }
+
+.outcomeTrack {
+  position: relative;
+  display: block;
+  height: 28px;
+}
+
+.outcomeTrack::before {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 50%;
+  height: 2px;
+  background: var(--grid);
+  content: "";
+}
+
+.outcomeTrack::after {
+  position: absolute;
+  inset-block: 2px;
+  inset-inline-start: var(--reserve-x);
+  width: 2px;
+  background: var(--series-2);
+  content: "";
+}
+
+.outcomeTrack > i {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 0;
+  width: var(--outcome-x);
+  height: 3px;
+  background: var(--text-muted);
+  transform: translateY(-50%);
+}
+
+.outcomeTrack > b {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: var(--outcome-x);
+  width: var(--outcome-size);
+  height: var(--outcome-size);
+  border: 3px solid var(--surface-1);
+  border-radius: 50%;
+  background: var(--text-muted);
+  box-shadow: 0 0 0 1px var(--text-secondary);
+  transform: translate(-50%, -50%);
+}
+
+.outcomeToken[data-admitted="true"] .outcomeTrack > i,
+.outcomeToken[data-admitted="true"] .outcomeTrack > b { background: var(--series-1); }
+.outcomeToken[data-admitted="true"] .outcomeTrack > b { box-shadow: 0 0 0 1px var(--series-1); }
+
+.familyReadout {
+  grid-template-columns: minmax(190px, 1fr) repeat(4, minmax(90px, .55fr));
+  margin: 0 var(--space-3) var(--space-3);
+}
+
+.familyReadout > span { display: grid; min-width: 0; gap: 3px; }
+
+.stakeTableRow:focus-visible {
+  outline: 2px solid var(--series-1);
+  outline-offset: -2px;
+}
+
+.frontierStage {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  padding: var(--space-3);
+  background: var(--surface-1);
+}
+.frontierScroll {
+  inline-size: 100%;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+.frontierScroll:focus-visible { border-radius: var(--radius-sm); outline: 2px solid var(--series-1); outline-offset: 2px; }
+.frontierSvg { display: block; width: 100%; min-width: 640px; height: auto; aspect-ratio: 760 / 272; overflow: visible; }
+.frontierAxis,
+.frontierZero { stroke: var(--border); stroke-width: 1.4; }
+.frontierZero { stroke-dasharray: 5 5; }
+.frontierRiskless { stroke: var(--series-3); stroke-width: 2; stroke-dasharray: 7 5; }
+.frontierArea { fill: color-mix(in srgb, var(--series-1) 14%, transparent); }
+.frontierLine { fill: none; stroke: var(--series-1); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+.frontierReturned { stroke: var(--series-2); stroke-width: 2; stroke-dasharray: 4 4; }
+.frontierFull { stroke: var(--text-secondary); stroke-width: 1.5; stroke-dasharray: 2 5; }
+.frontierCrosshair { stroke: var(--text-primary); stroke-width: 1.5; }
+.frontierPoint { fill: var(--surface-1); stroke: var(--text-primary); stroke-width: 4; }
+.frontierLabel,
+.frontierTick { fill: var(--text-secondary); font: 660 var(--fs-2xs) var(--font-sans); }
+.frontierLabel { fill: var(--text-primary); }
+.frontierControl { margin-top: var(--space-2); border: 1px solid var(--grid); border-radius: var(--radius-md); }
+.frontierReadout {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+  gap: 1px;
+  margin: 0 var(--space-3) var(--space-3);
+  overflow: hidden;
+  border: 1px solid var(--grid);
+  border-radius: var(--radius-md);
+  background: var(--grid);
+}
+
+.frontierReadout > span { display: grid; gap: 4px; padding: var(--space-3); background: var(--surface-2); }
+.frontierReadout small { color: var(--text-muted); font-size: var(--fs-2xs); font-weight: 720; letter-spacing: var(--ls-caps); text-transform: uppercase; }
+.frontierReadout strong { color: var(--text-primary); font-size: var(--fs-lg); }
+
+@media (max-width: 760px) {
+  .vault { grid-template-columns: 1fr; }
+  .coinField { grid-template-columns: repeat(5, minmax(34px, 1fr)); }
+  .stressControl,
+  .stressBars > div,
+  .admissionControl,
+  .frontierControl,
+  .outcomeToken,
+  .familyReadout { grid-template-columns: 1fr; }
+  .outcomeRatio { text-align: left; }
+  .frontierReadout { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admissionAxis {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto 18px auto;
+  }
+  .admissionAxis > i { grid-column: 1 / -1; grid-row: 2; }
+  .admissionAxis > b { grid-column: 1 / -1; grid-row: 3; }
+  .admissionAxis > span:first-child { grid-column: 1; grid-row: 1; }
+  .admissionAxis > span:last-child { grid-column: 2; grid-row: 1; justify-self: end; text-align: end; }
+}
