@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { runSweep } from "@/lib/engine";
-import { loadBars } from "@/lib/marketdata";
-import { seedFromString } from "@/lib/random";
+import { loadBars, MarketDataUnavailableError } from "@/lib/marketdata";
 import { type Bar, DEFAULT_REQUEST, INTERVALS, STRATEGY_LABELS, SweepRequest } from "@/lib/types";
 import { APP_COMMIT } from "@/lib/version";
 
@@ -31,8 +30,7 @@ const STRATEGIES = new Set(Object.keys(STRATEGY_LABELS));
 
 // Equity symbols may carry a class suffix (BRK.B) and short tickers must not
 // silently fall back to BTCUSDT. `loadBars` routes on asset class, so an equity
-// reaches the equity providers and only falls back to a labelled synthetic
-// series when none of them can answer.
+// reaches the equity providers and reports unavailable when none can answer.
 const SYMBOL_RE = /^[A-Z0-9.\-]{1,20}$/;
 
 function clamp(v: unknown, lo: number, hi: number, fallback: number): number {
@@ -179,9 +177,6 @@ function explainShortWindow(
   const head =
     `${symbol} at ${interval} returned only ${got} bars from ${source}, and a sweep needs at least ${MIN_BARS}.`;
 
-  if (source === "synthetic") {
-    return `${head} No provider could serve this symbol, so nothing was measured.`;
-  }
   if (interval !== "1d") {
     // The actionable half. Free equity tiers carry a few days of intraday
     // history and years of daily, so the same symbol works immediately one
@@ -229,30 +224,32 @@ export async function POST(request: NextRequest) {
     // a missing panel.
     let benchmarkBars: Bar[] | null = null;
     if (req.benchmarkSymbol) {
-      const loaded = await loadBars(req.benchmarkSymbol, req.interval, req.bars);
-      if (loaded.source === "synthetic") {
-        // A synthetic benchmark would produce an alpha against a random walk,
-        // which is worse than no alpha: it is a number that looks measured.
-        warnings.push(
-          `Benchmark ${req.benchmarkSymbol} could not be loaded, so no alpha or beta was computed. `
-            + loaded.warnings.join(" "),
-        );
-      } else {
+      try {
+        const loaded = await loadBars(req.benchmarkSymbol, req.interval, req.bars);
         benchmarkBars = loaded.bars;
         warnings.push(...loaded.warnings);
+      } catch (cause) {
+        if (!(cause instanceof MarketDataUnavailableError)) throw cause;
+        // A missing benchmark removes the comparison rather than replacing it
+        // with a random walk and manufacturing alpha and beta.
+        warnings.push(
+          `Benchmark ${req.benchmarkSymbol} could not be loaded, so no alpha or beta was computed. ${cause.message}`,
+        );
       }
     }
 
     const result = runSweep(bars, req, source, warnings, benchmarkBars);
     // Environment concerns stay out of the pure engine: the route stamps the
-    // build identity and, for synthetic data, the generator seed.
+    // build identity only after measured bars have produced a result.
     return NextResponse.json({
       ...result,
       commit: APP_COMMIT,
-      syntheticSeed: source === "synthetic" ? seedFromString(req.symbol) : null,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "unknown error";
-    return NextResponse.json({ error: message }, { status: 400 });
+    return NextResponse.json(
+      { error: message },
+      { status: err instanceof MarketDataUnavailableError ? 503 : 400 },
+    );
   }
 }
