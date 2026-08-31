@@ -1,0 +1,204 @@
+.watchlistGuide,
+.familyRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 6.5rem 4.75rem;
+  gap: var(--space-2);
+  padding-inline: var(--space-4);
+  border-inline-start: 3px solid transparent;
+}
+
+.watchlistGuide {
+  align-items: end;
+  min-height: 2.2rem;
+  color: var(--text-muted);
+  font: 730 var(--fs-2xs) var(--font-sans);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+.watchlistGuide > * {
+  align-self: end;
+  padding-bottom: 3px;
+}
+
+.watchlistGuide > :last-child { text-align: end; }
+
+.familyList {
+  display: grid;
+  gap: 1px;
+  background: var(--grid);
+}
+
+.familyRow {
+  position: relative;
+  align-items: center;
+  min-height: 4.5rem;
+  padding-block: var(--space-3);
+  border: 0;
+  border-inline-start: 3px solid transparent;
+  border-radius: 0;
+  background: var(--surface-1);
+  box-shadow: none;
+  color: var(--text-primary);
+  font: inherit;
+  line-height: var(--lh-snug);
+  text-align: start;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+
+/* One physical join per family: the source row owns its connector, so its
+   vertical centre cannot drift from wrapped watchlist copy. The arrow ends at
+   the Dollar Test panel's border and never participates in hit testing. */
+.flowSource { overflow: visible; }
+
+.rowConnector {
+  position: absolute;
+  z-index: 3;
+  inset-block-start: 50%;
+  inset-inline-start: calc(100% + 1px);
+  width: calc(var(--basket-flow-gap) - 2px);
+  height: 0;
+  border-block-start: 2px solid color-mix(in srgb, var(--series-1) 46%, var(--grid));
+  opacity: 0.56;
+  pointer-events: none;
+  transform: translateY(-50%);
+  transition: border-color var(--dur-fast) var(--ease), opacity var(--dur-fast) var(--ease);
+}
+
+.rowConnector::after {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-end: 0;
+  width: 7px;
+  height: 7px;
+  border-block-start: 2px solid currentColor;
+  border-inline-end: 2px solid currentColor;
+  color: color-mix(in srgb, var(--series-1) 62%, var(--text-muted));
+  content: "";
+  transform: translateY(-50%) rotate(45deg);
+}
+
+.familyRow:hover .rowConnector,
+.familyRow[aria-selected="true"] .rowConnector {
+  border-block-start-color: var(--series-1);
+  opacity: 1;
+}
+
+.familyRow[aria-selected="true"] .rowConnector::after { color: var(--series-1); }
+
+.familyRow:is([data-state="non-exclusive"], [data-state="unquoted"]) .rowConnector {
+  border-block-start-color: color-mix(in srgb, var(--text-muted) 58%, transparent);
+  border-block-start-style: dashed;
+}
+
+.familyRow:hover {
+  background: color-mix(in srgb, var(--series-1) 5%, var(--surface-1));
+}
+
+.familyRow:active { transform: none; }
+
+.familyRow[aria-selected="true"] {
+  border-inline-start-color: var(--series-1);
+  background: color-mix(in srgb, var(--series-1) 9%, var(--surface-1));
+}
+
+.familyIdentity {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.familyIdentity small,
+.selectionReadout small {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 730;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+.familyIdentity strong {
+  font: 720 var(--fs-xs) var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
+.familyState {
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  text-align: start;
+}
+
+.familyRow:is([data-state="two-sided"], [data-state="buy-only"], [data-state="sell-only"]) .familyState {
+  color: var(--success-text);
+}
+
+.familyRow[data-state="unquoted"] .familyState { color: var(--warning-text); }
+
+.familyPrice {
+  min-width: 4.75rem;
+  color: var(--text-primary);
+  font-size: var(--fs-xs);
+  font-weight: 720;
+  text-align: end;
+}
+
+.selectionFooter {
+  display: grid;
+  align-content: space-between;
+  gap: var(--space-3);
+  height: 100%;
+  padding: var(--space-4);
+  border-top: 1px solid var(--grid);
+  background: var(--surface-2);
+}
+
+.selectionReadout {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  color: var(--text-primary);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-snug);
+}
+
+.selectionReadout :is(strong, span) { overflow-wrap: anywhere; }
+.selectionReadout span { color: var(--text-secondary); }
+
+.exploreButton {
+  justify-self: start;
+  min-height: 2.35rem;
+  padding: 6px 10px;
+  border: 1px solid var(--series-1);
+  border-radius: var(--radius-control);
+  background: var(--surface-1);
+  color: var(--series-1);
+  font: 700 var(--fs-xs) var(--font-sans);
+  cursor: pointer;
+}
+
+@media (max-width: 760px) {
+  .watchlistGuide,
+  .familyRow { grid-template-columns: minmax(0, 1fr) 4.75rem; }
+
+  .watchlistGuide > :nth-child(2),
+  .familyState { display: none; }
+}
+
+@media (max-width: 1100px) {
+  .flowSource { overflow: hidden; }
+  .rowConnector { display: none; }
+}
+
+/* The two panels intentionally remain separate selection instruments. Once
+   the workbench itself gets narrower, either side can wrap independently, so
+   suppress a connector rather than let it imply the wrong row relationship. */
+@container (max-width: 80rem) {
+  .flowSource { overflow: hidden; }
+  .rowConnector { display: none; }
+}
+
+@media (forced-colors: active) {
+  .rowConnector { border-block-start-color: LinkText; }
+  .rowConnector::after { color: LinkText; }
+}
