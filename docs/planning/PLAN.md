@@ -1,12 +1,18 @@
 # Plan — where the research plane stands, and what it still owes
 
-*As of 24 August 2026. "Done" below means wired to a production caller and
+*Source/worktree state audited on **31 August 2026**; no external deployment
+was probed. "Done" below means wired to a production caller and
 proven against the real modules, not merely present in the tree — this
 repository has shipped fully-tested modules with no caller before, and the
 lesson is recorded in §1. The owed items in §2 are not a wishlist: each one is
 already written down in the module that owes it, and this document only
-collects them. The requirement this delivers against is
+collects them. Dated measurements remain records of the run that produced
+them, not claims about this source-audit date. The requirement this delivers against is
 [`PRD.md`](PRD.md).*
+
+Current release topology, toolchain, suite totals and build evidence live in
+[`CURRENT_STATE.md`](../CURRENT_STATE.md). This plan keeps delivery decisions
+and debt; it does not duplicate that moving ledger.
 
 ## 1. Done
 
@@ -35,15 +41,19 @@ same spirit: both were fully built and unreachable until
 write turned out to be broken in a way only a real `AuditLog` could reveal —
 the test stand-in accepted a keyword argument the production object rejects.
 
-**Neo4j is live, and no longer write-only.** `NEO4J_URI` is set in the
-gateway's environment (a `neo4j+s://` Aura instance); the projection MERGEs the
-derived edges on the `reconcile:graph@every=6h` sweep, and
+**The Neo4j path is wired in source, and is no longer write-only.** The
+projection MERGEs derived edges on the `reconcile:graph@every=6h` sweep, and
 `reconcile:communities@every=1d` now writes **both** label sets off one
 whole-corpus read — the seeded Louvain partition and the PageRank scores
 (`modules/research_schedule.py`). `modules/research_graph_read_model.py` reads
 them back, and `/communities` and `/centrality` try it before falling back to
 the in-process computation, marking `source: "neo4j" | "corpus"`. Postgres
 stays authoritative — drop the graph and re-project, and drift is a non-event.
+Because that projection has no `desk_id`, the read model refuses Neo4j whenever
+`RESEARCH_SCOPE_TO_DESK=1` and both reports automatically compute from the
+desk-filtered Postgres corpus instead. With the flag off, Neo4j is suitable
+only for one desk or an isolated database. This source audit did not probe a
+live Aura instance or assert that `NEO4J_URI` is set in a deployment.
 Request-time traversal is still the Postgres CTE, and the algorithms are not run
 inside Neo4j: GDS is not on Aura Free and CI cannot install it, so the read model
 serves what the sweep computed rather than computing something different under
@@ -98,17 +108,18 @@ because "this is withheld because…" reads as broken behind a `<details>`.
 **The suite is green, and the counts belong to one file rather than to this
 one.** [`web/lib/test-counts.generated.ts`](../../Part2_Infrastructure/web/lib/test-counts.generated.ts)
 carries them and [`TESTING.md`](../testing/TESTING.md) explains them — why the
-gateway has two correct pass counts, why the web figure cannot be asserted from
+gateway has more than one correct collection shape, why the web figure cannot be asserted from
 inside the suite, and which of the three lines CI actually checks. Only the
 **web** line is checked (`web/scripts/check-test-counts.mjs` refuses any suite
-argument but `web`); the gateway line is a **dated record CI does not gate on**,
-and on 2026-08-24 it is behind the runner. This section used to restate all of
+argument but `web`); the gateway line is a **dated record CI does not gate on**.
+It was behind the runner on 2026-08-24, the historical example that exposed the
+gap. This section used to restate all of
 it, which made a planning file one of five places a number had to be corrected;
 the count belongs where it is generated, and the discipline is unchanged: read
 the *skip reasons*, never the pass count ([`WORKFLOW.md` §2](WORKFLOW.md)). The
 one thing worth stating here is the outcome — the gateway, web and service
-suites are green, with the web suite's two skips being cross-ownership debts
-rather than opt-ins.
+suites are green. In the 2026-08-29 web run, four of six skips were explicit
+browser-origin opt-ins and two were cross-ownership debts.
 
 ### The information-diffusion instrument — **measured, killed, re-armed, killed again, then re-measured out of sample**
 
@@ -343,14 +354,15 @@ move → absorption speed and dissents → absorption speed, each for both stage
 and the admissible study's own spectrum regressions are appended on top by
 `_study_rows`, so the total is a function of what that run measured rather than
 a constant. (This section pinned "fourteen" before the list became dynamic; do
-not re-pin a number without re-running the route.) On the desk it is
-`#coherence/diffusion`, whose four in-pane views are **Absorption · Mechanism ·
-Findings · Kalshi episodes** — `DiffusionPane.tsx`'s own `.seg` group, not the
-"Announcements" tab this document used to name. Findings draws them on one t
-axis against the |t| < 2 band and tabulates them beside the instrument's own
-diagnostics; the two rows outside the band are the control. Publishing the empty
-rows is the point: without a row the pipeline demonstrably *can* detect, "we
-found nothing" and "this could not have found anything" are the same table.
+not re-pin a number without re-running the route.) Diffusion is now its own
+workspace tab at `#diffusion`, with seven rail sections and sixteen registered
+views in `web/lib/section-views.ts`; `#diffusion/findings`,
+`#diffusion/findings/table` and `#diffusion/findings/instrument` are addressable
+rather than private picker state. Findings draws the effects against the
+|t| < 2 band and tabulates them beside the instrument's diagnostics; publishing
+the empty rows remains the point: without a row the pipeline demonstrably *can*
+detect, "we found nothing" and "this could not have found anything" are the
+same table.
 
 ## 2. Open — the owed items
 
@@ -525,7 +537,7 @@ not three) cannot back. It wants its own change with its own fixture row.
   sweep reports that half NOT ASSESSABLE with the reason; the fix is a
   retained field on the write path, not a cleverer sweep.
 - **`chart_docs` stays unscheduled** — the sweep scope is declared and nothing
-  implements it, and a cadence today would file a failed job every six hours
+  implements it, and adding a cadence before the job exists would file a failed job every six hours
   (`modules/research_schedule.py`).
 - **`web/lib/test-counts.generated.ts` falls behind the tree** whenever a
   test file lands without a refresh, and CI's "Committed test counts match the
@@ -638,7 +650,7 @@ column is authoritative and each entry there argues at ten times this length.
 | Unquoted markets are skipped from a surface and counted, never priced at zero | a BTC hourly event lists sixty strikes whose far wings nobody offers on; demanding every strike be priced refused a family with forty live strikes in it, reporting "no distribution" for a market that plainly has one. Differencing only ever needs two adjacent quoted strikes | requiring full coverage (refuses real ladders); filling gaps with zero (invents certainty at exactly the strikes nobody would quote) | `modules/coherence/kernel/distribution.py` |
 | The implied distribution is NOT cross-checked against `forecast_percentile_history` | the endpoint is signed-only — the OpenAPI puts the three `KALSHI-ACCESS-*` headers on it — and this engine holds a demo key by decision, which signs demo and never production. Probed rather than assumed: with documented-valid arguments (`percentiles` in 0-9999, `period_interval` in {0,1,60,1440}, both timestamps) a keyless call returns 400 rather than 401, so the refusal does not even announce itself as an auth failure. The spec's §9.2 cross-check is therefore unbuildable on this deployment, and is recorded here rather than quietly omitted | asking for a production key, which would change what this engine is allowed to do; or shipping the cross-check against demo data, where the percentile history describes a different exchange | `modules/coherence/kernel/distribution.py` |
 | The favourite-longshot slope is reported per series as well as over the corpus | a slope is a statement about how a set of markets is priced, and a fifteen-minute crypto strike is not the same question as a daily temperature bucket — different people, different information. On a synthetic corpus built from two series with opposite bias the aggregate reads 0.9845, which looks like near-perfect calibration, while the halves read 0.916 and 1.038. One number would have hidden both | a single aggregate, which §9.3 explicitly asks not to report alone | `modules/coherence/kernel/calibration.py` |
-| The settlement index's formation rule is tested against every completed minute, not assumed | the published minute appears to be the mean of the stations that cleared quality control, and on that basis the trailing unpublished minutes are computable. "Appears to be" is not a basis for a number someone might trade: if the venue changes how it forms the index, a provisional value under the old rule is worse than no value. The agreement is measured per read — 1,435 of 1,435 today — and where it fails the pane says not to trade it | hardcoding the mean-of-ok-stations rule, which is right today and silent the day it stops being | `modules/coherence/drivers/weather_qc.py` |
+| The settlement index's formation rule is tested against every completed minute, not assumed | the published minute appears to be the mean of the stations that cleared quality control, and on that basis the trailing unpublished minutes are computable. "Appears to be" is not a basis for a number someone might trade: if the venue changes how it forms the index, a provisional value under the old rule is worse than no value. The dated 2026-08-24 read agreed on 1,435 of 1,435 completed minutes, and where a later read fails the pane says not to trade it | hardcoding the mean-of-ok-stations rule, which was right on that read and would be silent the day it stopped being | `modules/coherence/drivers/weather_qc.py` |
 | The diffusion verdict is scored OUT of sample, on a target that needs no signal gate | an in-sample t on the largest of eight univariate fits is the statistic most likely to be an artefact, and this instrument has the scar to prove it (t = −3.58, shuffled p 0.002, and a hyperparameter). Residence time is a path integral rather than a fit, so it is defined on 62 of 62 meetings per stage where `half_life_s` was defined on 26; the rate move enters as a CONTROL rather than as a rival; and folding is by MEETING because both stages share a statement, so a row-wise fold leaks the held-out text into its own prediction | the previous criterion (largest in-sample \|t\| ≥ 2 against `half_life_s`, with a stability re-fit at neighbouring latent widths) — kept and still printed as `verdict_in_sample`, because on this data the two disagree and hiding the loser would hide that; and a non-zero skill floor, rejected because zero is the only threshold that is not a choice | `modules/coherence/diffusion/skill.py`, `tests/test_diffusion_skill.py` |
 | The diffusion findings list is built dynamically, not pinned at a count | the six ledger rows are always computable; the study's spectrum regressions are appended only when the latent cleared the admissibility gate, so a fixed total would have to lie in one direction or the other on every run that refused | a constant fourteen, which is what this document said until the list stopped being one | `modules/coherence/diffusion/findings.py` |
 | Neo4j is a projection, never a dual write | drift between an authoritative store and a copy is only detectable if somebody looks; a rebuildable read model makes divergence a non-event | second write path | `modules/research_graph_projection.py` |
