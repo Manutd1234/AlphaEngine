@@ -1,5 +1,10 @@
 # Part 1 — Data Handling & Analytics
 
+**Last verified: 2026-08-29.** Documentation, committed notebook/HTML outputs,
+environment pins and provenance instructions were audited against this tree.
+The source workbook is intentionally absent, so the statistical analysis was
+not re-executed or given a synthetic new timestamp.
+
 **NUSSIF Developer Analyst Case Study — Part 2 is in
 [`../Part2_Infrastructure/`](../Part2_Infrastructure/).**
 
