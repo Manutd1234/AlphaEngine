@@ -123,7 +123,7 @@ export default function RowMenu({
       <div
         ref={menuRef}
         id={menuId}
-        role="menu"
+        role="group"
         aria-label={label}
         popover="auto"
         className="row-menu__items"
