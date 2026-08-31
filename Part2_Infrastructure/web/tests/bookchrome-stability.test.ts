@@ -110,73 +110,51 @@ describe("nothing the header says depends on which section is open", () => {
   });
 });
 
-describe("the four chips are one height, whatever they hold", () => {
-  it("the chip is floored by its own anatomy in type tokens, not by a literal", () => {
+describe("the four metrics share one quiet context strip", () => {
+  it("each cell is floored in type tokens, not by a literal", () => {
     const floor = globalsCss.match(/\.page-insight \{[\s\S]*?min-height: ([^;]+);/);
-    assert.ok(floor, "the metric chip lost its floor, so a short note draws a short chip");
+    assert.ok(floor, "the context cell lost its text-aware floor");
     assert.match(floor[1], /var\(--fs-2xs\)/);
     assert.match(floor[1], /var\(--fs-title\)/);
     assert.doesNotMatch(floor[1], /\b\d+(\.\d+)?px\s*\*/,
-      "the chip floor started multiplying a literal px, which stops following the text size");
+      "the context floor started multiplying a literal px, which stops following text size");
   });
 
-  it("the row stretches every chip to the tallest of them", () => {
+  it("the row is one grid-enclosed surface", () => {
     const row = globalsCss.match(/\.page-heading__insights \{([\s\S]*?)\}/);
-    assert.ok(row, "the chip row went");
+    assert.ok(row, "the context row went");
     assert.match(row[1], /display: grid;/);
-    // Grid's default `align-items: stretch` is what equalises the four boxes.
-    // Opting out of it is the edit that makes a long note taller than a short
-    // one, so the opt-out is what is pinned against.
-    assert.doesNotMatch(row[1], /align-items: (?!stretch)/,
-      "the chip row opted out of stretch, so the four cards no longer share one height");
+    assert.match(globalsCss, /\.page-context-strip \{[\s\S]*?border: 1px solid var\(--border\);/);
+    const cell = globalsCss.match(/\.page-insight \{([\s\S]*?)\}/);
+    assert.ok(cell, "the context cell went");
+    assert.doesNotMatch(cell[1], /box-shadow|border-radius/,
+      "an individual context value became a separate card again");
   });
 
-  it("a chip that happens to be a button is floored like every other chip", () => {
-    const button = globalsCss.match(/button\.page-insight \{([\s\S]*?)\}/);
-    assert.ok(button, "the actionable chip lost its rule");
-    assert.doesNotMatch(button[1], /min-height/,
-      "an actionable chip opted out of the floor, so a header of actions opens shorter than one of facts");
-  });
-
-  it("the note slot is two lines whether or not the note fills them", () => {
-    const note = globalsCss.match(/\.page-insight > small \{([\s\S]*?)\}/);
-    assert.ok(note, "the note slot went");
-    assert.match(note[1], /min-height: calc\(1\.34em \* 2\);/,
-      "the reserved second line went, so a one-line note draws a shorter chip than a two-line one");
-    assert.match(globalsCss, /\.page-insight > small > span:first-child \{[\s\S]*?-webkit-line-clamp: 2;/);
-  });
-
-  it("a sparkline rides inside the reserved slot rather than under it", () => {
+  it("a sparkline stays with its provenance", () => {
     assert.match(globalsCss, /\.page-insight__spark \{[\s\S]*?align-items: flex-end;/);
   });
 });
 
-describe("what is truncated is never lost", () => {
+describe("decision context is never truncated", () => {
   const head = read("components/workspace/PageHead.tsx");
 
-  it("the label and the value truncate on one line", () => {
-    for (const selector of [/\.page-insight > span \{([\s\S]*?)\}/, /\.page-insight > strong \{([\s\S]*?)\}/]) {
+  it("label, value and note rules do not ellipsise or clamp", () => {
+    for (const selector of [/\.page-context-strip__label \{([\s\S]*?)\}/, /\.page-context-strip__value \{([\s\S]*?)\}/, /\.page-context-strip__note \{([\s\S]*?)\}/]) {
       const rule = globalsCss.match(selector);
-      assert.ok(rule, `a chip row lost its rule: ${selector}`);
-      assert.match(rule[1], /white-space: nowrap;/);
-      assert.match(rule[1], /overflow: hidden;/);
-      assert.match(rule[1], /text-overflow: ellipsis;/);
+      assert.ok(rule, `the context row lost its rule: ${selector}`);
+      assert.doesNotMatch(rule[1], /text-overflow: ellipsis|-webkit-line-clamp|overflow: hidden/);
     }
   });
 
-  it("each truncated string carries its own full text as a title", () => {
-    /*
-     * A number cut in half with no way back is worse than a container that
-     * moves, and the value line is the figure itself: at 768px "Moving-average
-     * crossover" gives up 40px to the ellipsis. All three rows carry the
-     * string, so the ellipsis is never the last word.
-     */
-    assert.match(head, /<span title=\{metric\.label\}>\{metric\.label\}<\/span>/);
-    assert.match(head, /title=\{typeof metric\.value === "string" \|\| typeof metric\.value === "number" \? String\(metric\.value\) : undefined\}/);
-    assert.match(head, /<span title=\{typeof metric\.note === "string" \? metric\.note : undefined\}>\{metric\.note\}<\/span>/);
+  it("all three fields are native definition-list content without title fallbacks", () => {
+    assert.match(head, /<dt className="page-context-strip__label">\{metric\.label\}<\/dt>/);
+    assert.match(head, /<dd className="page-context-strip__value">/);
+    assert.match(head, /<dd className="page-context-strip__note">/);
+    assert.doesNotMatch(head, /title=\{/);
   });
 
-  it("an actionable chip names its label and its value to a screen reader", () => {
+  it("an actionable cell names its label and value to a screen reader", () => {
     assert.match(head, /aria-label=\{`\$\{metric\.actionLabel \?\? "Open details"\}\. \$\{metric\.label\}: \$\{/);
   });
 });
