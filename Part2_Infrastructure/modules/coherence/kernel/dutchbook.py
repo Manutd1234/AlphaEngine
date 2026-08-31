@@ -23,17 +23,12 @@ Three things make this the executable version rather than the textbook one:
 * **Prices are the ones you can trade**, ask to buy and bid to sell, not mids.
 * **Sizes are bounded by resting depth.** An unbounded LP will always find an
   infinite arbitrage on a one-cent error and propose a portfolio nobody can fill.
-* **Fees are charged.** Left out, the LP reports the naive `Σ < 1` violations
-  the fee model exists to reject. They enter as a per-contract adjustment to
-  each leg's price, which is exact for the trade fee and — because the rounding
-  component is a step function of fill count, not of size — an approximation for
-  the rest. ``closedform`` prices the winner exactly afterwards, so the LP
-  chooses and the cost model rules.
+* **Fees are charged.** The per-contract trade fee is linear; ``closedform``
+  reprices the rounding step exactly afterwards, so the LP chooses and the cost
+  model rules.
 
-SciPy is imported through a seam because it is in the tested venv and CI but not
-on the runtime image. When it is absent the caller falls back to the closed-form
-checks, and the certificate names which engine answered — an absence must never
-look like present-and-fine.
+SciPy is imported through a seam; when absent, the caller uses closed-form checks
+and the certificate names which engine answered.
 """
 
 from __future__ import annotations
@@ -44,7 +39,15 @@ from types import ModuleType
 from typing import Any
 
 from modules.coherence.kernel.book import Book
-from modules.coherence.kernel.certificate import Certificate, CertificateLeg
+from modules.coherence.kernel.certificate import (
+    Certificate,
+    CertificateLeg,
+    ProofConstraints,
+    ProofEvidence,
+    ProofObservation,
+    ProofSolver,
+    Verdict,
+)
 from modules.coherence.kernel.costs import FeeSchedule, Fill, OrderFees, trade_fee
 from modules.coherence.kernel.lattice import Component
 from modules.coherence.kernel.money import contracts
@@ -57,7 +60,7 @@ MIN_MEANINGFUL_EDGE = Decimal("0.0001")
 # The LP works in contracts; sizes come in hundredths. Capping keeps a market
 # with a very deep book from dominating the matrix's scale.
 MAX_LEG_CONTRACTS = Decimal(10_000)
-
+SOLVER_TIME_LIMIT_S = 8.0
 
 @lru_cache(maxsize=1)
 def import_linprog() -> tuple[ModuleType | None, str | None]:
@@ -214,14 +217,72 @@ def _worst_case_gross(space: StateSpace, legs: list[CertificateLeg]) -> Decimal:
     return worst if worst is not None else Decimal(0)
 
 
-def _blank(component: Component, verdict: str, notes: list[str]) -> Certificate:
+def _proof_evidence(
+    component: Component,
+    books: dict[str, Book],
+    *,
+    variables: int | None,
+    state_rows: int,
+    optimum: Decimal | None,
+    verdict: Verdict,
+) -> ProofEvidence:
+    buy_sides = 0
+    sell_sides = 0
+    for ticker in component.tickers:
+        book = books.get(ticker)
+        if book is None:
+            continue
+        asks = book.asks("yes")
+        bids = book.bids("yes")
+        buy_sides += int(bool(asks and asks[0].size_hundredths > 0))
+        sell_sides += int(bool(bids and bids[0].size_hundredths > 0))
+    return ProofEvidence(
+        observation=ProofObservation(
+            markets_observed=sum(ticker in books for ticker in component.tickers),
+            markets_in_event=None,
+            outcomes_in_component=len(component.nodes),
+            executable_buy_sides=buy_sides,
+            executable_sell_sides=sell_sides,
+        ),
+        solver=ProofSolver(
+            engine="highs",
+            variables=variables,
+            state_rows=state_rows,
+            optimum=optimum,
+            optimum_kind="worst_case_payoff",
+            decision_boundary=MIN_MEANINGFUL_EDGE,
+            verdict=verdict,
+        ),
+        # The programme reasons over states, not named closed-form rows. The
+        # syscall attaches those rows after it has run the explainer engine.
+        constraints=ProofConstraints(tested=0, untestable=0),
+    )
+
+
+def _blank(
+    component: Component,
+    books: dict[str, Book],
+    verdict: Verdict,
+    notes: list[str],
+    *,
+    variables: int | None,
+    state_rows: int,
+) -> Certificate:
     return Certificate(
-        verdict=verdict,  # type: ignore[arg-type]
+        verdict=verdict,
         engine="highs",
         component_id=component.component_id,
         series_ticker=component.series_ticker,
         exchange_index=component.exchange_index,
         notes=notes,
+        proof_evidence=_proof_evidence(
+            component,
+            books,
+            variables=variables,
+            state_rows=state_rows,
+            optimum=None,
+            verdict=verdict,
+        ),
     )
 
 
@@ -243,11 +304,25 @@ def solve(
 
     space = build_states(component)
     if space.is_empty:
-        return _blank(component, "untestable", [space.note] if space.note else [])
+        return _blank(
+            component,
+            books,
+            "untestable",
+            [space.note] if space.note else [],
+            variables=None,
+            state_rows=0,
+        )
 
     columns = _columns(space, books, schedule)
     if not columns:
-        return _blank(component, "untestable", ["no market in this event is quoted on a side the engine could trade"])
+        return _blank(
+            component,
+            books,
+            "untestable",
+            ["no market in this event is quoted on a side the engine could trade"],
+            variables=0,
+            state_rows=len(space.states),
+        )
 
     cap = max_contracts or MAX_LEG_CONTRACTS
     result = optimize.linprog(
@@ -256,8 +331,17 @@ def solve(
         b_ub=[0.0] * len(space.states),
         bounds=[(0.0, float(min(column["cap"], cap))) for column in columns] + [(None, None)],
         method="highs",
+        options={"time_limit": SOLVER_TIME_LIMIT_S},
     )
 
+    evidence = _proof_evidence(
+        component,
+        books,
+        variables=len(columns),
+        state_rows=len(space.states),
+        optimum=None,
+        verdict="coherent",
+    )
     certificate = Certificate(
         verdict="coherent",
         engine="highs",
@@ -267,12 +351,14 @@ def solve(
         rows_tested=len(space.states),
         scope=component.scope,
         notes=list(component.notes),
+        proof_evidence=evidence,
     )
     if space.note:
         certificate.notes.append(space.note)
 
     if not result.success:
         certificate.verdict = "untestable"
+        evidence.solver.verdict = "untestable"
         certificate.notes.append(f"the solver did not converge: {result.message}")
         return certificate
 
@@ -282,6 +368,7 @@ def solve(
     # that reported nothing left the reader to take the answer on trust: four
     # money rows all reading "not reported" is what "coherent" looked like.
     certificate.margin = worst_case
+    evidence.solver.optimum = worst_case
     if worst_case <= MIN_MEANINGFUL_EDGE:
         certificate.because = (
             "no portfolio of these quotes pays more than it costs in every state, "
@@ -292,11 +379,13 @@ def solve(
     legs, total_fees = _price_solution(space, columns, result.x[:-1], books, schedule)
     if not legs:
         certificate.verdict = "untestable"
+        evidence.solver.verdict = "untestable"
         certificate.notes.append("the solver found an edge no whole-hundredth position could hold")
         return certificate
 
     gross = _worst_case_gross(space, legs)
     certificate.verdict = "incoherent"
+    evidence.solver.verdict = "incoherent"
     certificate.family = "linear-programme"
     certificate.because = (
         f"a portfolio of {len(legs)} leg(s) pays at least its cost in all "
