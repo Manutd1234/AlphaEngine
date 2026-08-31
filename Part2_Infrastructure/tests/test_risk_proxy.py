@@ -236,7 +236,6 @@ class TestCircuitBreaker:
         await gateway.trigger_kill("test", "pytest")   # must not raise
         assert gateway.kill.active
 
-
 @pytest.mark.asyncio
 class TestFillQuality:
     async def test_fill_price_comes_from_the_ladder_not_the_mid(self, gateway):
