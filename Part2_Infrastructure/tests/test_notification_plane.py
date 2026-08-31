@@ -92,4 +92,6 @@ class TestStartingIsNotDegraded:
         assert _telegram_snapshot({"enabled": False, "uptime_s": 0.0}).status == "disabled"
 
     def test_a_starting_bot_does_not_degrade_the_platform(self):
-        assert _snapshot({"enabled": True, "uptime_s": 0.0, "last_error": None}).status == "nominal"
+        snapshot = _snapshot({"enabled": True, "uptime_s": 0.0, "last_error": None})
+        assert snapshot.status == "nominal"
+        assert snapshot.decision_latency.engine in {"native", "python"}
