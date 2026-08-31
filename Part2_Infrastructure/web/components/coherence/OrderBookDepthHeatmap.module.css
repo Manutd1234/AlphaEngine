@@ -1,0 +1,316 @@
+.figure {
+  min-width: 0;
+  margin-top: var(--space-3);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface-1);
+}
+
+.heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--grid);
+}
+
+.heading > span:first-child {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.heading strong {
+  color: var(--text-primary);
+  font-size: var(--fs-md);
+}
+
+.kicker {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 720;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+.legend {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-1) var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+}
+
+.legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.legend i,
+.sideMark,
+.rowHead > span {
+  display: inline-grid;
+  width: 1.4rem;
+  height: 1.4rem;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  font-style: normal;
+  font-weight: 800;
+}
+
+.legend i[data-side="yes"],
+.rowHead[data-side="yes"] > span {
+  border-color: color-mix(in srgb, var(--series-1) 45%, var(--border));
+}
+
+.legend i[data-side="no"],
+.rowHead[data-side="no"] > span {
+  border-color: color-mix(in srgb, var(--series-2) 45%, var(--border));
+}
+
+.note {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+}
+
+.readout {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  min-height: 4.75rem;
+  padding: 0;
+  overflow: hidden;
+  border-top: 1px solid var(--grid);
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+}
+
+.readout > span {
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+}
+
+.readout > span + span { border-inline-start: 1px solid var(--grid); }
+
+.readout small {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+.readout strong {
+  min-width: 0;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.figure [data-depth-scroll] {
+  inline-size: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  contain: inline-size paint;
+  overscroll-behavior-inline: contain;
+  border-top: 1px solid var(--grid);
+  scrollbar-width: thin;
+}
+
+.figure [data-depth-scroll]:focus-visible {
+  outline: 2px solid var(--series-1);
+  outline-offset: -3px;
+}
+
+.figure [data-depth-table] {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: separate;
+  border-spacing: 1px;
+  background: var(--grid);
+}
+
+.figure [data-depth-table] th,
+.figure [data-depth-table] td {
+  box-sizing: border-box;
+  width: 7.5rem;
+  min-width: 7.5rem;
+  max-width: 7.5rem;
+  height: 4.6rem;
+  padding: var(--space-2);
+  background: var(--surface-2);
+  color: var(--text-primary);
+  text-align: center;
+  vertical-align: middle;
+}
+
+.axisColumn { width: 8.25rem; }
+.priceColumn { width: 7.5rem; }
+
+.axisHead,
+.figure [data-depth-table] .rowHead {
+  position: sticky;
+  z-index: 2;
+  inset-inline-start: 0;
+  width: 8.25rem;
+  min-width: 8.25rem;
+  max-width: 8.25rem;
+  background: var(--surface-1);
+  box-shadow: 1px 0 0 var(--border);
+}
+
+.axisHead {
+  z-index: 3;
+  height: auto;
+  vertical-align: middle;
+}
+
+.figure [data-depth-table] .rowHead {
+  font-size: var(--fs-sm);
+  text-align: start;
+  white-space: nowrap;
+}
+
+.rowHead > span {
+  margin-inline-end: var(--space-1);
+}
+
+.priceHead {
+  height: auto;
+  color: var(--text-secondary);
+  font-size: var(--fs-2xs);
+  white-space: nowrap;
+}
+
+.priceHead span,
+.priceHead strong {
+  display: block;
+}
+
+.priceHead strong {
+  margin-top: 2px;
+  color: var(--text-primary);
+  font-size: var(--fs-xs);
+}
+
+.depthCell {
+  --book-depth-wash: 8%;
+  position: relative;
+  background: color-mix(in srgb, var(--series-1) var(--book-depth-wash), var(--surface-2));
+}
+
+.depthCell[data-side="no"] {
+  background: color-mix(in srgb, var(--series-2) var(--book-depth-wash), var(--surface-2));
+}
+
+.cellButton {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  width: 100%;
+  min-height: 3.5rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  cursor: crosshair;
+}
+
+.cellButton:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 2px;
+}
+
+.cellButton[aria-pressed="true"] .sideMark {
+  box-shadow: 0 0 0 2px var(--surface-1), 0 0 0 4px var(--series-1);
+}
+
+.depthCell strong,
+.depthCell .cellButton > span,
+.depthCell small {
+  display: block;
+}
+
+.depthCell strong {
+  margin-top: var(--space-1);
+  font-size: var(--fs-sm);
+}
+
+.depthCell .cellButton > span:not(.sideMark) {
+  color: var(--text-secondary);
+  font-size: var(--fs-2xs);
+}
+
+.depthCell small {
+  margin-top: var(--space-1);
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  white-space: nowrap;
+}
+
+.sideMark {
+  border-color: color-mix(in srgb, var(--series-1) 48%, var(--border));
+  background: var(--surface-1);
+}
+
+.depthCell[data-side="no"] .sideMark {
+  border-color: color-mix(in srgb, var(--series-2) 48%, var(--border));
+}
+
+.emptyCell {
+  color: var(--text-muted);
+  text-align: center;
+  vertical-align: middle;
+}
+
+@media (max-width: 620px) {
+  .heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .legend {
+    justify-content: flex-start;
+  }
+
+  .figure [data-depth-table] th,
+  .figure [data-depth-table] td {
+    width: 7rem;
+    min-width: 7rem;
+    max-width: 7rem;
+  }
+
+  .priceColumn { width: 7rem; }
+
+  .readout {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 11.25rem;
+  }
+
+  .readout > span + span {
+    border-inline-start: 0;
+    border-top: 1px solid var(--grid);
+  }
+}
+
+@media (forced-colors: active) {
+  .depthCell,
+  .depthCell[data-side="no"] {
+    border: 1px solid CanvasText;
+    background: Canvas;
+  }
+}
