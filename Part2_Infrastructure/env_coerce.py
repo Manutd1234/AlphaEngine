@@ -86,3 +86,14 @@ def env_list(key: str, default: list[str]) -> list[str]:
     if not raw:
         return list(default)
     return [item.strip().upper() for item in raw.split(",") if item.strip()]
+
+
+def supabase_desk_id() -> str:
+    """Return an explicit tenant id, never the retired shared sentinel."""
+    desk_id = env("SUPABASE_DESK_ID")
+    if desk_id.lower() == "default":
+        raise ValueError(
+            "SUPABASE_DESK_ID='default' is the retired unscoped sentinel; "
+            "configure a deployment-specific desk id or leave Supabase features off"
+        )
+    return desk_id
