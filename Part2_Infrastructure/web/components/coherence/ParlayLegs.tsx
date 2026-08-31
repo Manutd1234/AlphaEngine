@@ -1,53 +1,30 @@
 "use client";
 
 /**
- * What each parlay is built out of: its legs, on the axis the band comes from.
+ * What each parlay is built from, on the exact dollar axis its bounds use.
  *
- * THE VIEW THIS SERVES HAD NO DRAWING AT ALL. `Parlays` is six folded cards,
- * each opening on a position sentence, and it carried a named exemption in
- * `engine-opens-on-a-drawing.test.ts` on the argument that the Bands view draws
- * all six bands together so a figure here would be the same bands twice. That
- * argument was right about BANDS and it is why this figure is not one.
- *
- * REJECTED FIRST, and recorded because it is the obvious thing to build: a
- * price-against-Πpᵢ strip. `ComboBandStrips` already draws the quoted price as
- * a rule and independence as a hollow ring, one row per parlay, on this same
- * dollar axis — so a dependence figure would be two marks a reader has already
- * met, redrawn one press away. A figure has to answer its own view's question
- * or not be drawn.
- *
- * THE QUESTION THIS VIEW ACTUALLY ASKS is what a parlay is made of, and the
- * answer is on every card behind a `<details>`: five columns of legs, six times
- * over, reachable only by opening each one. The legs are also where the band
- * comes from — `max(0, Σpᵢ − (n−1)) ≤ P(all) ≤ min pᵢ`, both ends built from
- * the leg mids — so a reader who can see them can see WHY one parlay's band is
- * tight and another's runs half the dollar. That is the reading, and it is
- * otherwise a table nobody opens.
- *
- * A LEG WITH NO IMPLIED p IS THE POINT, NOT AN INCONVENIENCE. The side the
- * parlay needs is unquoted, so Πpᵢ has no value and neither do the bounds. It
- * gets a counted word in the row rather than a tick at zero: zero is a legal
- * Kalshi price and "nobody is quoting" is not it. The parlays whose legs are
- * mostly unquoted are exactly the ones this read can say least about, and this
- * is the only place that is visible at a glance.
- *
- * It fetches nothing — the combos payload the section already read carries
- * every leg.
+ * The overview keeps one selectable mark per parlay so pointer, touch and
+ * arrow-key selection remain linked to the rest of the view. The exact inputs
+ * are a sibling below the paired diagrams rather than part of this figure;
+ * that keeps its heading aligned and stops the other diagram stretching to a
+ * table's height.
  */
 
 import { DOLLAR_CC, priceLabel, toCenticents } from "@/lib/coherence/fixed-point";
 import { DIAGRAM_LABEL_PX, gutterFor, truncateMiddle } from "@/lib/coherence/label-metrics";
 import { parlayName } from "@/lib/coherence/parlay-name";
+import { parlayLegBandRole } from "@/lib/coherence/parlay-leg-role";
 import type { CoherenceCombo } from "@/lib/coherence/types-lab";
 import Figure, { Plot } from "./Figure";
+import styles from "./ParlayLegs.module.css";
 
-/** One parlay per row. Matched to `ComboBandStrips` so the two read as a pair. */
-const ROW_H = 40;
-const TOP = 4;
+const ROW_H = 46;
+const TOP = 5;
 const AXIS_GAP = 8;
+const MIN_PLOT_WIDTH = 640;
 
-export default function ParlayLegs({ combos }: { combos: CoherenceCombo[] }) {
-  const rows = combos.map((combo) => {
+function displayRows(combos: CoherenceCombo[]) {
+  return combos.map((combo) => {
     const legs = combo.legs.map((leg) => ({
       ticker: leg.ticker,
       side: leg.side,
@@ -56,101 +33,163 @@ export default function ParlayLegs({ combos }: { combos: CoherenceCombo[] }) {
     }));
     return {
       ticker: combo.ticker,
-      // What the row is CALLED. The gutter is measured against this because it
-      // is what is drawn in it; the ticker stays for the title and the key.
       name: parlayName(combo),
       legs,
       quoted: legs.filter((leg) => leg.p != null),
       unquoted: legs.filter((leg) => leg.p == null).length,
     };
   });
+}
 
+export default function ParlayLegs({
+  combos,
+  selectedTicker,
+}: {
+  combos: CoherenceCombo[];
+  selectedTicker: string | null;
+}) {
+  const allRows = displayRows(combos);
+  const selected = allRows.find((row) => row.ticker === selectedTicker)
+    ?? allRows[0]
+    ?? null;
+  const rows = selected?.legs ?? [];
   const axisY = TOP + rows.length * ROW_H + AXIS_GAP;
-  const height = axisY + 16;
-  const blind = rows.filter((row) => row.unquoted > 0).length;
-  const widest = rows.reduce((most, row) => Math.max(most, row.legs.length), 0);
+  const height = axisY + 18;
+  const unquoted = rows.filter((row) => row.p == null).length;
 
   return (
     <Figure
-      caption="Every parlay's legs at their implied p, the two prices its band is built from"
-      ariaLabel={rows
-        .map((row) =>
-          `${row.name}: ${row.legs.length} legs, ${row.quoted
-            .map((leg) => leg.text)
-            .join(", ") || "none quoted"}`)
-        .join(". ")}
-      reading={
-        widest
-          ? "The lowest tick in a row is that parlay's upper bound, and the ticks together fix the lower one — so a row whose legs sit high has little room left in its band."
-          : "No parlay in this read carries a quoted leg."
-      }
+      caption={selected ? `Leg prices for ${selected.name}` : "Leg prices"}
+      ariaLabel={selected
+        ? `${selected.name}: ${rows.map((leg, index) => `leg ${index + 1}, ${leg.ticker}, must land ${leg.side}, ${leg.text}`).join("; ")}`
+        : "No parlay is loaded"}
+      reading={!rows.length
+        ? "No required legs were returned."
+        : unquoted
+          ? "A missing dot makes both range limits unavailable."
+          : "The lowest dot sets the maximum; all dots together set the minimum."}
+      missing={unquoted
+        ? `${unquoted} required ${unquoted === 1 ? "side has" : "sides have"} no quote and stays off the axis.`
+        : null}
       notes={[
-        blind
-          ? `${blind} of ${rows.length} parlays carry a leg with no implied p: the side the parlay needs is unquoted, so Πpᵢ has no value and neither do that parlay's bounds. A missing quote, never a probability of zero.`
-          : "Every leg of every parlay is quoted on the side its parlay needs, so no band in this read is missing an end.",
-        "Both bounds are built from leg MIDS; the parlay itself is read from its offer, so a price above the ticks is not on its own evidence of anything about the legs.",
+        "These leg prices limit the parlay range; they do not establish one fair parlay price.",
       ]}
     >
-      <Plot height={height}>
+      <Plot
+        height={height}
+        minWidth={MIN_PLOT_WIDTH}
+        scrollLabel="Selected parlay leg prices"
+      >
         {(width) => {
-          const labelW = gutterFor(rows.map((row) => row.name), width, DIAGRAM_LABEL_PX, {
-            min: 96, maxFraction: 0.34, max: 260,
+          const labelW = gutterFor(rows.map((row) => row.ticker), width, DIAGRAM_LABEL_PX, {
+            min: 210, maxFraction: 0.42, max: 350,
           });
-          const trackW = Math.max(60, width - labelW);
+          const trackW = Math.max(220, width - labelW);
           const x = (cc: number) => labelW + (Math.min(cc, DOLLAR_CC) / DOLLAR_CC) * trackW;
           return (
             <>
-              {/* TRACKS AND MARKS FIRST, LABELS AFTER — the paint-order rule
-                  `ComboBandStrips` records. The track itself is a hairline
-                  since 2026-08-26, but the marks on it are not, so a label
-                  emitted first still turns a gutter overrun into a silent clip
-                  that looks exactly like a shorter name. */}
               {rows.map((row, index) => {
                 const y = TOP + index * ROW_H;
+                const pinX = row.p == null ? null : x(row.p);
+                const nearEnd = row.p != null && row.p > DOLLAR_CC * 0.82;
                 return (
-                  <g key={`${row.ticker}-legs`}>
-                    <rect x={labelW} y={y + 9} width={trackW} height={14} className="coh-combo__track" />
-                    {row.quoted.map((leg, at) => (
-                      <line
-                        key={`${leg.ticker}-${leg.side}-${at}`}
-                        x1={x(leg.p as number)}
-                        x2={x(leg.p as number)}
-                        y1={y + 6}
-                        y2={y + 26}
-                        className="coh-combo__leg"
-                      >
-                        <title>
-                          {`${leg.ticker} must land ${leg.side}: implied p ${leg.text}`}
-                        </title>
-                      </line>
-                    ))}
-                    {row.unquoted ? (
-                      <text x={labelW + 4} y={y + 20} className="coh-combo__label">
-                        {`◌ ${row.unquoted} unquoted`}
-                        <title>
-                          {`${row.unquoted} of this parlay's ${row.legs.length} legs are unquoted on the side it needs, so it has no bounds`}
-                        </title>
+                  <g key={`${row.ticker}-${row.side}-${index}`}>
+                    <title>{`Leg ${index + 1}: ${row.ticker} must land ${row.side}; price ${row.text}`}</title>
+                    <rect x={labelW} y={y + 12} width={trackW} height={16} className="coh-combo__track" />
+                    {pinX == null ? (
+                      <text x={labelW + 8} y={y + 28} className={styles.unquoted}>
+                        ◌ unquoted
                       </text>
-                    ) : null}
+                    ) : (
+                      <>
+                        <line x1={pinX} x2={pinX} y1={y + 7} y2={y + 33} className="coh-combo__leg" />
+                        <circle cx={pinX} cy={y + 20} r={5} className={styles.legDot} />
+                        <text
+                          x={pinX + (nearEnd ? -9 : 9)}
+                          y={y + 10}
+                          textAnchor={nearEnd ? "end" : "start"}
+                          className={styles.pinValue}
+                        >
+                          {row.text}
+                        </text>
+                      </>
+                    )}
+                    <text x={0} y={y + 16} className={styles.rowName}>
+                      {`${index + 1}. MUST ${row.side.toUpperCase()}`}
+                    </text>
+                    <text x={0} y={y + 34} className={styles.rowTicker}>
+                      {truncateMiddle(row.ticker, labelW - 14, DIAGRAM_LABEL_PX)}
+                    </text>
                   </g>
                 );
               })}
-              {rows.map((row, index) => (
-                <text key={`${row.ticker}-label`} x={0} y={TOP + index * ROW_H + 20} className="coh-combo__label">
-                  {truncateMiddle(row.name, labelW - 10, DIAGRAM_LABEL_PX)}
-                  <title>{`${row.name} — ${row.ticker}, ${row.legs.length} legs`}</title>
-                </text>
-              ))}
               <line x1={labelW} x2={width} y1={axisY} y2={axisY} className="coh-ladder__axis" />
-              <text x={labelW} y={axisY + 13} className="coh-combo__axis">$0</text>
-              <text x={width} y={axisY + 13} textAnchor="end" className="coh-combo__axis">$1</text>
-              <text x={(labelW + width) / 2} y={axisY + 13} textAnchor="middle" className="coh-combo__key">
-                | one leg at its implied p
+              <text x={labelW} y={axisY + 14} className="coh-combo__axis">$0</text>
+              <text x={width} y={axisY + 14} textAnchor="end" className="coh-combo__axis">$1</text>
+              <text x={(labelW + width) / 2} y={axisY + 14} textAnchor="middle" className={styles.axisKey}>
+                ● leg price
               </text>
             </>
           );
         }}
       </Plot>
     </Figure>
+  );
+}
+
+/** Exact inputs for the row selected in the linked overview. */
+export function ParlayLegInputs({
+  combos,
+  selectedTicker,
+}: {
+  combos: CoherenceCombo[];
+  selectedTicker: string | null;
+}) {
+  const rows = displayRows(combos);
+  const selected = rows.find((row) => row.ticker === selectedTicker) ?? rows[0] ?? null;
+  const selectedMinimum = selected?.quoted.length
+    ? Math.min(...selected.quoted.map((leg) => leg.p as number))
+    : null;
+
+  return (
+    <section className={styles.inspector} aria-label="Selected parlay leg inputs">
+      <p className="sr-only" role="status" aria-live="polite">
+        {selected
+          ? `${selected.name}. ${selected.ticker}. ${selected.legs.length} required legs; ${selected.unquoted} unquoted.`
+          : "No parlay loaded."}
+      </p>
+      <header className={styles.inspectorHead}>
+        <span>
+          <small>Selected leg details</small>
+          <strong>{selected?.name ?? "No parlay loaded"}</strong>
+        </span>
+        <code>{selected?.ticker ?? "—"}</code>
+      </header>
+      <div className={`table-wrap ${styles.tableWrap}`} role="region" aria-label="Exact selected parlay leg table" tabIndex={0}>
+        <table className={`coh-table ${styles.legTable}`}>
+          <caption className="coh-table__caption sr-only">Selected parlay leg details</caption>
+          <thead>
+            <tr>
+              <th scope="col" className="num">#</th>
+              <th scope="col">Required leg</th>
+              <th scope="col">Must land</th>
+              <th scope="col" className="num">Price</th>
+              <th scope="col">Effect on range</th>
+            </tr>
+          </thead>
+          <tbody>
+            {selected?.legs.map((leg, index) => (
+              <tr key={`${leg.ticker}-${leg.side}-${index}`}>
+                <td className="num">{index + 1}</td>
+                <th scope="row"><code>{leg.ticker}</code></th>
+                <td><strong>{leg.side.toUpperCase()}</strong></td>
+                <td className="num">{leg.text}</td>
+                <td>{parlayLegBandRole(leg.p, selectedMinimum)}</td>
+              </tr>
+            )) ?? null}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
