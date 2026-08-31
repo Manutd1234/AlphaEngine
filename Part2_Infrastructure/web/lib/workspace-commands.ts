@@ -128,10 +128,10 @@ export function buildCommands(d: CommandDeps): Command[] {
     label: `${item.accessibleLabel ?? item.label} — ${item.role}`,
     category: "Workspace",
     // 1–9 then 0 for the tenth, which is what `WorkspaceHeader`'s listener
-    // binds and what a browser's own tab strip does. `Alt+10` is not a
-    // keystroke, and printing one in the palette would advertise a key nobody
-    // can press.
-    hotkey: `Alt+${index === 9 ? 0 : index + 1}`,
+    // binds and what a browser's own tab strip does. An eleventh digit shortcut
+    // does not exist, so Diffusion stays fully reachable as a command without
+    // advertising the impossible `Alt+11` that used to appear beside it.
+    hotkey: index < 10 ? `Alt+${index === 9 ? 0 : index + 1}` : undefined,
     action: () => navigate(item.id),
   }));
 
@@ -189,9 +189,9 @@ export function buildCommands(d: CommandDeps): Command[] {
   for (const s of DIFFUSION_SECTIONS) {
     section("diffusion", "Diffusion", s.id, `${s.label} — ${s.description}`, () => setDiffusionSection(s.id));
   }
-  // One entry per non-default view of the two tabs that declare views, read
+  // One entry per non-default view of the tabs that declare views, read
   // from lib/section-views — never a second list. See workspace-view-commands.
-  list.push(...viewCommands({ navigate, setMarketsSection, setCoherenceSection, setSectionView }));
+  list.push(...viewCommands({ navigate, setResearchSection, setMarketsSection, setCoherenceSection, setDiffusionSection, setSectionView }));
 
   for (const strategy of Object.keys(STRATEGY_LABELS) as Strategy[]) {
     list.push({
