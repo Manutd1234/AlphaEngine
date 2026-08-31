@@ -94,6 +94,7 @@ async def rewrite_once(
     match_count: int,
     kind: str | None,
     now: datetime | None,
+    desk_id: str | None = None,
 ) -> Round:
     """The ONE retry. Returns the round to serve — the better of at most two.
 
@@ -120,7 +121,7 @@ async def rewrite_once(
         plan,
         research_stages.with_graph_width(rag, match_count),
         match_count=research_stages.wide(match_count),
-        kind=kind,
+        kind=kind, desk_id=desk_id,
     )
     calls = first.calls + list(retry.calls)
 
