@@ -9,12 +9,12 @@ handling a `Bound` never has to ask which module minted it.
 WHAT IT IS FOR
 --------------
 
-`supabase/migrations/20260822090000_research_tenant_scope.sql` gives the two
-retrieval RPCs an optional `filter_desk_id`. Before it, a search spanned every
-row in `research_documents` whoever wrote them — the RLS policy on that table is
-keyed on `user_id`, the writer sets `user_id` on nothing, and the gateway reads
-with the service role key, which bypasses RLS entirely. Three ways for the same
-predicate not to run.
+`20260822090000_research_tenant_scope.sql` gives the two similarity RPCs an
+optional `filter_desk_id`; `20260831130000_research_graph_desk_scope.sql` does
+the same for graph traversal. Before them, a read spanned every document
+whoever wrote it — the table's RLS is keyed on `user_id`, the writer sets that
+field on nothing, and the service-role gateway bypasses RLS. Three ways for the
+same predicate not to run.
 
 This module answers two questions for the routes: what scope should this read
 carry, and can the retrieval in THIS deployment carry it. The second exists
@@ -38,9 +38,9 @@ from modules.research_quota import SCOPE_UNAVAILABLE, Bound, _env_flag
 
 #: Off by default, and the default is the point: with this unset the routes pass
 #: no tenant argument and retrieval behaves exactly as it does today. It is
-#: switched on once `modules/research_rag/retrieval.py` carries `desk_id`
-#: through to the RPC that `supabase/migrations/20260822090000_research_tenant_scope.sql`
-#: added the parameter to. A single-desk deployment never needs it.
+#: switched on once the two retrieval migrations are deployed and
+#: `modules/research_rag/retrieval.py` can carry `desk_id` through search and
+#: traversal. A single-desk deployment never needs it.
 SCOPE_TO_DESK = _env_flag("RESEARCH_SCOPE_TO_DESK", False)
 
 #: The one spelling of the retrieval-side parameter name, so the probe below and
@@ -67,7 +67,19 @@ def desk_scope() -> str | None:
     """
     if not SCOPE_TO_DESK:
         return None
-    return settings.supabase_desk_id or None
+    # Empty is deliberately distinct from None here.  None means the rollout
+    # flag is off; empty means it is ON but the deployment omitted the tenant
+    # identity, which callers must refuse rather than reinterpret as unscoped.
+    return str(settings.supabase_desk_id or "").strip()
+
+
+def missing_desk_bound() -> Bound:
+    """The refusal for a scope flag with no tenant identity to enforce."""
+    return Bound(
+        SCOPE_UNAVAILABLE,
+        "RESEARCH_SCOPE_TO_DESK is on but SUPABASE_DESK_ID is empty, so the search "
+        "was NOT run. Serving it without a desk predicate would expose the shared corpus.",
+    )
 
 
 def scope_parameter_accepted(callee: Any) -> bool:
