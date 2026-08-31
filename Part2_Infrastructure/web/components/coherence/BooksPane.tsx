@@ -31,17 +31,14 @@
  *
  * THE LADDER VIEW OPENS ON ITS DRAWING. Until the fourth pass of 2026-08-24 it
  * opened on a five-row definition list, three rows of which the chart's reading
- * prints underneath anyway. It was folded then, and on 2026-08-25 the three
- * duplicates were dropped outright: a fold whose contents are already on screen
- * is a claim made twice with a click in between, not a claim made once. The two
- * the drawing genuinely cannot carry — the NO bid as the venue SENDS it, and
- * how deep this read reached — are a `KpiRow` now, which is the object every
- * other section on the tab answers its measurements in.
+ * prints underneath anyway. The replacement makes every native level operable,
+ * keeps the exact ledger collapsed, and carries the read scope in its own head.
+ * That is one bounded instrument rather than a chart, a long table, and a
+ * detached one-tile depth row all describing the same ladder.
  */
 
 import type { CoherenceBooks, CoherenceBookView } from "@/lib/coherence/types";
 import IdentityStrip from "./IdentityStrip";
-import KpiRow from "./KpiRow";
 import LadderChart from "./LadderChart";
 
 /**
@@ -60,11 +57,16 @@ function BookDetail({ book, view }: { book: CoherenceBookView; view: BookDetailV
     return (
       <div className="coh-book">
         <IdentityStrip
+          key={book.ticker}
           yesAsk={book.best_yes_ask}
           noAsk={book.best_no_ask}
+          bestYesBid={book.best_yes_bid}
+          bestNoBid={book.best_no_bid}
           spread={book.spread}
           identitySum={book.identity_sum}
           identityOnePlusSpread={book.identity_one_plus_spread}
+          yesBids={book.yes_bids}
+          noBids={book.no_bids}
           unquotedReason={book.unquoted_reason}
         />
       </div>
@@ -73,47 +75,17 @@ function BookDetail({ book, view }: { book: CoherenceBookView; view: BookDetailV
 
   return (
     <div className="coh-book">
-      {/* THE DRAWING FIRST, and the five facts folded under it since the fourth
-          pass of 2026-08-24. The chart's own reading prints the best YES bid,
-          the implied offer and the spread between them — three of the five —
-          so above the chart the list was the same numbers read twice, and a
-          reader met a definition list before they met a book. What the fold
-          keeps is the two the drawing genuinely cannot say: the best NO bid as
-          the venue sends it, and how deep this read reached. */}
+      {/* One instrument owns the native rails, mirrored price, read scope,
+          sweep simulation and collapsed exact ledger. No summary tile follows
+          the ledger, so changing depth never changes the page's alignment. */}
       <LadderChart
+        key={book.ticker}
         caption="This market&rsquo;s two ladders"
         yesBids={book.yes_bids}
         noBids={book.no_bids}
         yesAsks={book.yes_asks}
+        depth={book.depth}
         unquotedReason={book.unquoted_reason}
-      />
-
-      {/* THE TWO FACTS THE DRAWING CANNOT SAY, as the tab's KPI row rather
-          than as a five-row fold. The fold held five and the chart's own
-          reading already prints three of them — the best YES bid, the implied
-          offer and the spread between them — so opening it was reading the
-          same numbers twice. What only the fold carried is the NO bid as the
-          venue SENDS it (every offer on this section is read off that ladder,
-          and the chart draws the offer rather than its source) and how deep
-          this read reached. Those two are measurements, so they answer in the
-          row every other section answers in, and the claim is made once. */}
-      <KpiRow
-        readings={[
-          {
-            label: "Best NO bid",
-            value: book.best_no_bid,
-            withheld: "nobody is bidding the NO side, so no YES offer is implied",
-            note: "the ladder every offer here is read off",
-          },
-          {
-            label: "Depth read",
-            value: book.depth === "full" ? "full ladder" : "top of book only",
-            note: book.depth === "full"
-              ? undefined
-              : "the orderbook route refused an unauthenticated read",
-          },
-        ]}
-        source="this book"
       />
     </div>
   );
@@ -140,7 +112,7 @@ export default function BooksPane({
     );
   }
   if (!books) {
-    return <p className="console-empty muted">Reading the books…</p>;
+    return <p className="console-empty muted" role="status" aria-busy="true">Reading the books…</p>;
   }
   if (!books.books.length) {
     return (
