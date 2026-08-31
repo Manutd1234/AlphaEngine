@@ -40,8 +40,9 @@ import pytest
 
 from modules import research_image
 from modules import research_image_ingest as ingest
-from modules.research_rag import ResearchRag, retrieval
+from modules.research_rag import ResearchRag, query_cache, retrieval
 from modules.research_rag import writer as rag_module
+from modules.research_rag.replacement import REPLACE_PATH
 from tests.test_research_image import PNG, VECTOR, FakeImageLib, _cold
 
 EMBED_PATH = "/functions/v1/embed-research"
@@ -98,6 +99,9 @@ class Corpus:
         if path == IMAGE_RPC:
             self.image_payloads.append(json)
             return Response(self.image_status, list(self.image_rows))
+        if path == REPLACE_PATH:
+            self.inserts.extend(dict(row) for row in (json or {}).get("p_rows", []))
+            return Response(201, [])
         self.inserts.append(json)
         return Response(201, [])
 
@@ -171,9 +175,12 @@ async def _drain_until(rag: ResearchRag, corpus: Corpus, documents, predicate) -
 class TestSearchActuallyCallsTheFourthArm:
     def test_the_call_is_in_the_source_of_search_and_not_only_in_a_test(self):
         """The scar this file exists for: a module wired only by its own suite."""
-        source = inspect.getsource(retrieval._RetrievalMixin.search)
-        assert "image_arm(" in source
-        assert "\"image\": image" in source
+        entry = inspect.getsource(retrieval._RetrievalMixin.search)
+        orchestration = inspect.getsource(query_cache._once) + inspect.getsource(
+            query_cache.search_with_cache,
+        )
+        assert "image_arm" in entry and "image_search(" in orchestration
+        assert "\"image\": image" in orchestration
 
     def test_a_search_hits_the_image_rpc_and_reports_the_arm(self, rag, monkeypatch):
         _configured(monkeypatch)
