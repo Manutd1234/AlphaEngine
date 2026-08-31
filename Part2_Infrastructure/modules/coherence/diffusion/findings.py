@@ -126,17 +126,12 @@ def collect(*, runs_store: AbsorptionRunStore | None = None,
     runs = runs_store or AbsorptionRunStore()
     texts = text_store or DiffusionTextStore()
     studies = study_store or DiffusionStudyStore()
-    try:
-        rows, _ = runs.list_runs(limit=4_000)
-        documents, _ = texts.list_texts(limit=400)
-        study = studies.best() or studies.latest()
-    finally:
-        if runs_store is None:
-            runs.close()
-        if text_store is None:
-            texts.close()
-        if study_store is None:
-            studies.close()
+    # Default wrappers borrow the process-owned data-ops backend. Closing one
+    # here used to close that shared SQLite/PostgREST handle after every
+    # findings poll, forcing the next route to reopen it and repeat migration.
+    rows, _ = runs.list_runs(limit=4_000)
+    documents, _ = texts.list_texts(limit=400)
+    study = studies.best() or studies.latest()
 
     documents = [row for row in documents if row.get("state") == "ok" and row.get("body")]
     documents.sort(key=lambda row: str(row["source_ref"]))
