@@ -89,6 +89,7 @@ env:
   # orphaned, and the desk comes back with a blank audit trail that looks
   # exactly like a clean install. Verified on the running VM before this was set.
   VOLUME: alphaengine_alphaengine_audit
+  KALSHI_KEY_VOLUME: alphaengine_kalshi_demo_key
   PORT: "8000"
 
 jobs:
@@ -129,6 +130,24 @@ jobs:
         run: python tools/export_openapi.py --check
       - name: Money-path probe
         run: python tools/synthetic_probe.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: Part2_Infrastructure/web/package-lock.json
+      - name: Install web contract-test dependencies
+        working-directory: Part2_Infrastructure/web
+        run: npm ci
+      - name: Deployment transaction contracts
+        working-directory: Part2_Infrastructure/web
+        run: node --import tsx --test tests/deployment-contract-*.test.ts
+      - name: Both remote deployment scripts parse as Bash
+        run: |
+          workflow="../.github/workflows/deploy.yml"
+          test "$(grep -c '^          script: |' "$workflow")" -eq 2
+          for target in 1 2; do
+            awk -v target="$target" 'BEGIN{n=0;c=0} /^          script: \|/{n++;c=(n==target);next} c&&/^        env:/{exit} c{sub(/^            /,"");print}' "$workflow" | bash -n
+          done
 
   build:
     name: Build and push to GHCR
@@ -200,16 +219,39 @@ jobs:
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           WEB_API_TOKEN: ${{ secrets.WEB_API_TOKEN }}
+          KALSHI_DEMO_KEY_ID: ${{ secrets.KALSHI_DEMO_KEY_ID }}
+          KALSHI_DEMO_PRIVATE_KEY_PEM_B64: ${{ secrets.KALSHI_DEMO_PRIVATE_KEY_PEM_B64 }}
+          KALSHI_DEMO_REVOKE: ${{ vars.KALSHI_DEMO_REVOKE || '0' }}
         run: |
           missing=()
           [ -n "$SSH_HOST" ]      || missing+=("SSH_HOST")
           [ -n "$SSH_USER" ]      || missing+=("SSH_USER")
           [ -n "$SSH_KEY" ]       || missing+=("SSH_PRIVATE_KEY")
           [ -n "$WEB_API_TOKEN" ] || missing+=("WEB_API_TOKEN")
+          [ -n "$KALSHI_DEMO_KEY_ID" ] || missing+=("KALSHI_DEMO_KEY_ID")
+          [ -n "$KALSHI_DEMO_PRIVATE_KEY_PEM_B64" ] || missing+=("KALSHI_DEMO_PRIVATE_KEY_PEM_B64")
           if [ ${#missing[@]} -gt 0 ]; then
             echo "::error::Missing repository secrets: ${missing[*]}"
             echo "WEB_API_TOKEN must equal ALPHAENGINE_GATEWAY_TOKEN in the Vercel project."
             echo "Generate one with: openssl rand -hex 32"
+            exit 1
+          fi
+
+          # Makers is a production surface in this deployment. Both values are
+          # required above, and this separate pair check preserves the precise
+          # diagnostic for a half-rotation.
+          if { [ -n "$KALSHI_DEMO_KEY_ID" ] && [ -z "$KALSHI_DEMO_PRIVATE_KEY_PEM_B64" ]; } \
+            || { [ -z "$KALSHI_DEMO_KEY_ID" ] && [ -n "$KALSHI_DEMO_PRIVATE_KEY_PEM_B64" ]; }; then
+            echo "::error::KALSHI_DEMO_KEY_ID and KALSHI_DEMO_PRIVATE_KEY_PEM_B64 must be configured together."
+            exit 1
+          fi
+          if [ "$KALSHI_DEMO_REVOKE" != "0" ] && [ "$KALSHI_DEMO_REVOKE" != "1" ]; then
+            echo "::error::KALSHI_DEMO_REVOKE must be 0 or 1."
+            exit 1
+          fi
+          if [ "$KALSHI_DEMO_REVOKE" = "1" ] \
+            && { [ -n "$KALSHI_DEMO_KEY_ID" ] || [ -n "$KALSHI_DEMO_PRIVATE_KEY_PEM_B64" ]; }; then
+            echo "::error::KALSHI_DEMO_REVOKE=1 conflicts with a configured demo credential. Remove both repository secrets before revoking."
             exit 1
           fi
 
@@ -252,7 +294,7 @@ jobs:
           command_timeout: 10m
           # Correction 5 — passed as environment variables, so none of these
           # appears in the VM's process list or shell history.
-          envs: IMAGE,REGISTRY,CONTAINER,VOLUME,PORT,GH_ACTOR,GH_TOKEN,WEB_API_TOKEN,SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,TELEGRAM_BOT_TOKEN,TELEGRAM_ALLOWED_USER_IDS,TELEGRAM_CONTROL_USER_IDS,TELEGRAM_ALERT_CHAT_IDS,TELEGRAM_LINK_SECRET,COHERENCE_SERIES,COHERENCE_POLL_S,COHERENCE_MAX_EVENTS,COHERENCE_CALIBRATION_EVERY_S
+          envs: IMAGE,REGISTRY,CONTAINER,VOLUME,KALSHI_KEY_VOLUME,KALSHI_KEY_SLOT,KALSHI_DEMO_REVOKE,PORT,GH_ACTOR,GH_TOKEN,WEB_API_TOKEN,SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,TELEGRAM_BOT_TOKEN,TELEGRAM_ALLOWED_USER_IDS,TELEGRAM_CONTROL_USER_IDS,TELEGRAM_ALERT_CHAT_IDS,TELEGRAM_LINK_SECRET,KALSHI_DEMO_KEY_ID,KALSHI_DEMO_PRIVATE_KEY_PEM_B64,COHERENCE_SERIES,COHERENCE_POLL_S,COHERENCE_MAX_EVENTS,COHERENCE_CALIBRATION_EVERY_S
           script_stop: true
           script: |
             set -euo pipefail
@@ -260,8 +302,26 @@ jobs:
             echo "==> Logging in to ${REGISTRY}"
             printf '%s' "$GH_TOKEN" | docker login "$REGISTRY" -u "$GH_ACTOR" --password-stdin
 
+            # A restore scratch file means a prior rollback reached a state
+            # where the running container and the persistent env may differ.
+            # Never overwrite its backup/metadata with a new transaction.
+            if [ -e "$HOME/.alphaengine.env.restore" ] || [ -e "$HOME/.alphaengine.cutover-pending" ]; then
+              echo "::error::An unresolved gateway/TLS transaction is present; reconcile the protected rollback artifacts before deploying again."
+              exit 1
+            fi
+
             echo "==> Recording the running image so a failure can be undone"
-            PREVIOUS="$(docker inspect --format '{{.Config.Image}}' "$CONTAINER" 2>/dev/null || true)"
+            if ! existing_containers="$(docker container ls -a --format '{{.Names}}')"; then
+              echo "::error::Docker could not determine whether a prior gateway exists."
+              exit 1
+            fi
+            PREVIOUS=""
+            if grep -Fxq "$CONTAINER" <<< "$existing_containers"; then
+              if ! PREVIOUS="$(docker inspect --format '{{.Image}}' "$CONTAINER")"; then
+                echo "::error::The prior gateway exists, but its immutable image identity could not be captured."
+                exit 1
+              fi
+            fi
             echo "    previous: ${PREVIOUS:-<none>}"
 
             echo "==> Pulling ${IMAGE}"
@@ -271,6 +331,34 @@ jobs:
             # the container, so the decision log survives. Creating it up front
             # makes the first deploy behave like every later one.
             docker volume create "$VOLUME" >/dev/null
+
+            docker volume create "$KALSHI_KEY_VOLUME" >/dev/null
+            case "$KALSHI_KEY_SLOT" in
+              ""|*[!0-9-]*) echo "::error::The deployment key slot is invalid."; exit 1 ;;
+            esac
+            KALSHI_KEY_NAME=""
+            KALSHI_KEY_PATH=""
+            KALSHI_KEY_INSTALLED=0
+            if [ -n "${KALSHI_DEMO_PRIVATE_KEY_PEM_B64:-}" ]; then
+              KALSHI_KEY_NAME="kalshi-demo-private-key-${KALSHI_KEY_SLOT}.pem"
+              KALSHI_KEY_PATH="/run/secrets/${KALSHI_KEY_NAME}"
+            fi
+
+            remove_candidate_key() {
+              if [ "$KALSHI_KEY_INSTALLED" != "1" ]; then return 0; fi
+              if ! docker run --rm \
+                  --user 0 \
+                  --entrypoint /bin/sh \
+                  -e KALSHI_KEY_NAME \
+                  -v "${KALSHI_KEY_VOLUME}:/run/secrets" \
+                  "$IMAGE" \
+                  -c 'rm -f "/run/secrets/$KALSHI_KEY_NAME" "/run/secrets/$KALSHI_KEY_NAME.next"'; then
+                echo "::error::The unused Kalshi demo key candidate could not be removed."
+                return 1
+              fi
+              KALSHI_KEY_INSTALLED=0
+              return 0
+            }
 
             # 0600, owned by the SSH user, outside the image and outside any
             # `docker inspect` output.
@@ -294,7 +382,53 @@ jobs:
             # deploy so the cutover from hand-managed to CI-managed keeps the
             # settings the desk is already running with.
             LEGACY_ENV="$HOME/alphaengine/Part2_Infrastructure/.env"
+            ENV_BACKUP="${ENV_FILE}.rollback"
+            ROLLBACK_IMAGE_FILE="$HOME/.alphaengine.rollback-image"
+            CUTOVER_PENDING="$HOME/.alphaengine.cutover-pending"
             umask 077
+
+            clear_pending_after_candidate_cleanup() {
+              # The marker is the durable evidence that a candidate may exist.
+              # Never clear it until a fresh removal command has confirmed the
+              # run-scoped key and its staging file are both gone.
+              if ! remove_candidate_key; then
+                echo "::error::Candidate-key cleanup was not confirmed; the gateway/TLS pending marker was retained."
+                return 1
+              fi
+              if ! rm -f "$CUTOVER_PENDING"; then
+                echo "::error::Candidate-key cleanup completed, but the gateway/TLS pending marker could not be cleared."
+                return 1
+              fi
+              return 0
+            }
+
+            # Rollback is a code *and configuration* transaction.  An older
+            # image must restart with the environment it was already running,
+            # not the newly merged file that may contain incompatible names or
+            # rotated values.
+            if [ -n "$PREVIOUS" ]; then
+              if [ -s "$ENV_FILE" ]; then
+                cp "$ENV_FILE" "$ENV_BACKUP"
+              elif [ -s "$LEGACY_ENV" ]; then
+                cp "$LEGACY_ENV" "$ENV_BACKUP"
+              else
+                echo "::error::A prior gateway exists but its runtime environment cannot be backed up."
+                exit 1
+              fi
+              printf '%s\n' "$PREVIOUS" > "$ROLLBACK_IMAGE_FILE"
+            else
+              rm -f "$ROLLBACK_IMAGE_FILE"
+              # A first container can still have a prepared runtime env. Keep
+              # that prior state so a failed first start cannot leave a future
+              # deploy pointing at a candidate key that rollback removed.
+              if [ -s "$ENV_FILE" ]; then
+                cp "$ENV_FILE" "$ENV_BACKUP"
+              elif [ -s "$LEGACY_ENV" ]; then
+                cp "$LEGACY_ENV" "$ENV_BACKUP"
+              else
+                rm -f "$ENV_BACKUP"
+              fi
+            fi
 
             # Deliberately plain: no `trap`, no `{ … } > file` group, and no
             # bare trailing `[ -n x ] && echo` as the last statement of a
@@ -331,6 +465,17 @@ jobs:
             fi
             if [ -f "$LEGACY_ENV" ]; then
               cat "$LEGACY_ENV" >> "$PRESERVED"
+            fi
+            if [ "$KALSHI_DEMO_REVOKE" = "1" ]; then
+              WITHOUT_KALSHI="${PRESERVED}.without-kalshi"
+              sed -E '/^KALSHI_DEMO_(KEY_ID|PRIVATE_KEY_PATH)=/d' "$PRESERVED" > "$WITHOUT_KALSHI"
+              mv "$WITHOUT_KALSHI" "$PRESERVED"
+              # Empty first-wins entries are persistent tombstones. They stop
+              # a legacy hand-managed .env from silently restoring this pair
+              # after the one-shot repository variable returns to zero; a
+              # future verified CI rotation still wins from the overlay.
+              printf 'KALSHI_DEMO_KEY_ID=\nKALSHI_DEMO_PRIVATE_KEY_PATH=\n' >> "$PRESERVED"
+              echo "    revoking the deployed Kalshi demo credential"
             fi
             echo "    carrying forward $(grep -cE '^[A-Za-z_][A-Za-z0-9_]*=' "$PRESERVED" || true) existing line(s)"
 
@@ -370,6 +515,16 @@ jobs:
             # with anything that names the cause. Omitting it is fail-closed:
             # Connect refuses and says the secret is missing.
             put TELEGRAM_LINK_SECRET "${TELEGRAM_LINK_SECRET:-}"
+
+            # GitHub carries the PEM bytes, never a host-dependent path. A
+            # verified rotation points only the replacement environment at its
+            # run-scoped file; absence preserves the deployed pair, while the
+            # explicit KALSHI_DEMO_REVOKE switch installs blank tombstones for
+            # both names above.
+            if [ -n "${KALSHI_DEMO_KEY_ID:-}" ]; then
+              put KALSHI_DEMO_KEY_ID "$KALSHI_DEMO_KEY_ID"
+              put KALSHI_DEMO_PRIVATE_KEY_PATH "$KALSHI_KEY_PATH"
+            fi
 
             # The Kalshi coherence recorder. Off unless BOTH of the first two
             # are set, which is why they are written together or not at all.
@@ -430,68 +585,362 @@ jobs:
             # whose absence turns every portfolio and order call into a 401.
             if ! grep -q '^WEB_API_TOKEN=' "$MERGED"; then
               echo "::error::merged env is missing WEB_API_TOKEN — refusing to install it"
+              rm -f "$PRESERVED" "$OVERLAY" "$MERGED"
               exit 1
             fi
-            mv "$MERGED" "$ENV_FILE"
+            # Names only — this must never print a value into the build log.
+            echo "    $(grep -cE '^[A-Za-z_][A-Za-z0-9_]*=' "$MERGED") variables:"
+            echo "    $(cut -d= -f1 "$MERGED" | grep -E '^[A-Za-z_]' | sort | tr '\n' ' ')"
             rm -f "$PRESERVED" "$OVERLAY"
 
-            # Names only — this must never print a value into the build log.
-            echo "    $(grep -cE '^[A-Za-z_][A-Za-z0-9_]*=' "$ENV_FILE") variables:"
-            echo "    $(cut -d= -f1 "$ENV_FILE" | grep -E '^[A-Za-z_]' | sort | tr '\n' ' ')"
+            # From this point onward a run-scoped key may be written. Record
+            # the transaction first, so an interruption during staging or the
+            # authenticated canary cannot leave an untracked credential in the
+            # shared private volume. A later deploy refuses this marker until
+            # cleanup or the gateway/TLS transaction is verified complete.
+            CUTOVER_PENDING_NEXT="${CUTOVER_PENDING}.next"
+            if ! rm -f "$CUTOVER_PENDING_NEXT" \
+                || ! printf '%s\n' "$KALSHI_KEY_SLOT" > "$CUTOVER_PENDING_NEXT" \
+                || ! chmod 0600 "$CUTOVER_PENDING_NEXT" \
+                || ! mv "$CUTOVER_PENDING_NEXT" "$CUTOVER_PENDING"; then
+              rm -f "$MERGED" "$CUTOVER_PENDING_NEXT" \
+                || echo "::warning::Aborted cutover scratch files require manual cleanup."
+              echo "::error::The gateway/TLS cutover marker could not be installed."
+              exit 1
+            fi
+
+            # The Kalshi PEM never enters the image or the environment file.
+            # Stage only after the complete replacement env has been built and
+            # validated, so any earlier shell failure has no candidate to leak.
+            # The running container keeps its old path until the replacement
+            # has passed both gateway and TLS verification.
+            if [ -n "${KALSHI_DEMO_PRIVATE_KEY_PEM_B64:-}" ]; then
+              echo "==> Staging and verifying the Kalshi demo private key"
+              export KALSHI_KEY_NAME KALSHI_DEMO_PRIVATE_KEY_PATH="$KALSHI_KEY_PATH"
+              if ! printf '%s' "$KALSHI_DEMO_PRIVATE_KEY_PEM_B64" \
+                  | base64 -d \
+                  | docker run --rm -i \
+                      --user 0 \
+                      --entrypoint /bin/sh \
+                      -e KALSHI_KEY_NAME \
+                      -v "${KALSHI_KEY_VOLUME}:/run/secrets" \
+                      "$IMAGE" \
+                      -c 'set -eu; umask 077; incoming="/run/secrets/$KALSHI_KEY_NAME.next"; target="/run/secrets/$KALSHI_KEY_NAME"; cat > "$incoming"; chown 10001:10001 "$incoming"; chmod 0400 "$incoming"; mv "$incoming" "$target"'; then
+                KALSHI_KEY_INSTALLED=1
+                if ! clear_pending_after_candidate_cleanup; then
+                  echo "::error::The failed staging attempt requires operator reconciliation before another deploy."
+                fi
+                rm -f "$MERGED" || echo "::warning::The rejected runtime-env scratch file could not be removed."
+                echo "::error::The Kalshi demo private key could not be decoded and staged."
+                exit 1
+              fi
+              KALSHI_KEY_INSTALLED=1
+              # This authenticated, read-only balance request proves the key is
+              # RSA, the PEM is readable, and the key ID belongs to it. It prints
+              # neither the response nor any credential material.
+              if ! docker run --rm \
+                  -e KALSHI_DEMO_KEY_ID \
+                  -e KALSHI_DEMO_PRIVATE_KEY_PATH \
+                  -v "${KALSHI_KEY_VOLUME}:/run/secrets:ro" \
+                  "$IMAGE" \
+                  python -c 'import asyncio; from modules.coherence import tunables; from modules.coherence.drivers.kalshi_rest import KalshiClient; asyncio.run(KalshiClient(base_url=tunables.DEMO_BASE_URL, signed=True).get("/portfolio/balance"))'; then
+                if ! clear_pending_after_candidate_cleanup; then
+                  echo "::error::The rejected credential requires operator reconciliation before another deploy."
+                fi
+                rm -f "$MERGED" || echo "::warning::The rejected runtime-env scratch file could not be removed."
+                echo "::error::Kalshi rejected the staged demo key ID/private-key pair; the running gateway was not changed."
+                exit 1
+              fi
+            fi
+
+            if ! mv "$MERGED" "$ENV_FILE"; then
+              # Rename has an atomic destination but its reported failure can
+              # still be ambiguous after an SSH/daemon interruption. Preserve
+              # both the marker and candidate key; deleting either could make
+              # an installed candidate env point at a missing credential.
+              echo "::error::The validated runtime environment could not be installed; the pending marker and candidate were preserved."
+              exit 1
+            fi
 
             start_container() {
+              container_env_file="${2:-$ENV_FILE}"
               docker run -d \
                 --name "$CONTAINER" \
                 --restart unless-stopped \
                 --stop-timeout 20 \
                 -p "${PORT}:8000" \
-                --env-file "$ENV_FILE" \
+                --env-file "$container_env_file" \
                 -v "${VOLUME}:/app/data" \
+                -v "${KALSHI_KEY_VOLUME}:/run/secrets:ro" \
                 --log-driver json-file \
                 --log-opt max-size=10m \
                 --log-opt max-file=3 \
                 "$1" >/dev/null
             }
 
+            wait_for_gateway() {
+              for _ in $(seq 1 30); do
+                STATUS="$(docker inspect --format '{{.State.Health.Status}}' "$CONTAINER" 2>/dev/null || echo starting)"
+                if [ "$STATUS" = "healthy" ]; then return 0; fi
+                if [ "$STATUS" = "unhealthy" ]; then return 1; fi
+                sleep 4
+              done
+              return 1
+            }
+
+            remove_container_checked() {
+              target_container="$1"
+              if ! present_containers="$(docker container ls -a --format '{{.Names}}')"; then
+                echo "::error::Docker could not verify whether ${target_container} exists."
+                return 1
+              fi
+              if ! grep -Fxq "$target_container" <<< "$present_containers"; then return 0; fi
+              removal_reported_failure=0
+              if ! docker rm -f "$target_container" >/dev/null; then
+                removal_reported_failure=1
+              fi
+              # Docker's command status is not the safety boundary: a daemon
+              # disconnect can report failure after completing the removal.
+              # Query again and proceed only from a confirmed absent state.
+              if ! present_containers="$(docker container ls -a --format '{{.Names}}')"; then
+                echo "::error::Docker could not verify removal of ${target_container}."
+                return 1
+              fi
+              if grep -Fxq "$target_container" <<< "$present_containers"; then
+                echo "::error::${target_container} is still present after its removal was requested."
+                return 1
+              fi
+              if [ "$removal_reported_failure" = "1" ]; then
+                echo "::warning::Docker reported a removal error, but a fresh daemon query confirms ${target_container} is absent."
+              fi
+              return 0
+            }
+
+            fall_forward_gateway() {
+              echo "::warning::Rollback could not restore the prior gateway; attempting to preserve the replacement transaction."
+              if ! remove_container_checked "$CONTAINER"; then return 1; fi
+              if ! start_container "$REPLACEMENT_GATEWAY" "$ENV_FILE"; then
+                echo "::error::The replacement gateway could not be restarted."
+                return 1
+              fi
+              if wait_for_gateway && curl -fsS "http://127.0.0.1:${PORT}/health" >/dev/null; then
+                echo "::warning::The replacement gateway is healthy again, but the deployment remains failed for operator review."
+                rm -f "${ENV_FILE}.restore" || echo "::warning::The resolved rollback scratch file requires manual cleanup."
+                return 0
+              fi
+              echo "::error::Neither the prior nor replacement gateway could be restored healthy."
+              docker logs --tail 60 "$CONTAINER" 2>&1 || true
+              return 1
+            }
+
+            rollback_gateway() {
+              ENV_RESTORE="${ENV_FILE}.restore"
+              if ! rm -f "$ENV_RESTORE"; then
+                echo "::error::A stale gateway environment restore file could not be removed."
+                return 1
+              fi
+              if [ -s "$ENV_BACKUP" ]; then
+                if ! cp "$ENV_BACKUP" "$ENV_RESTORE"; then
+                  echo "::error::The previous gateway environment could not be prepared for restore."
+                  return 1
+                fi
+                if ! chmod 0600 "$ENV_RESTORE"; then
+                  echo "::error::The prepared gateway environment could not be secured."
+                  return 1
+                fi
+              fi
+              if [ -n "$PREVIOUS" ] && [ ! -s "$ENV_RESTORE" ]; then
+                echo "::error::The previous gateway environment backup is unavailable."
+                return 1
+              fi
+              # Do not mutate the live env or retire its key until Docker has
+              # proved that no replacement process can still be using them.
+              if ! remove_container_checked "$CONTAINER"; then
+                echo "::error::The replacement gateway is still present; its environment and key were left untouched."
+                return 1
+              fi
+              if [ -z "$PREVIOUS" ]; then
+                echo "::error::No complete previous gateway transaction is available."
+                # Undo the installed env before removing its run-scoped key, so
+                # a later keyless deploy cannot preserve a dangling path.
+                if [ -s "$ENV_RESTORE" ]; then
+                  if ! mv "$ENV_RESTORE" "$ENV_FILE"; then
+                    echo "::error::The prepared first-deploy environment could not be restored."
+                    return 1
+                  fi
+                elif ! rm -f "$ENV_FILE"; then
+                  echo "::error::The failed first-deploy environment could not be removed."
+                  return 1
+                fi
+                if ! remove_candidate_key; then
+                  echo "::error::The failed first deployment also left an unused key candidate in the private volume."
+                  return 1
+                fi
+                if ! rm -f "$CUTOVER_PENDING"; then
+                  echo "::error::The first-deploy rollback completed, but its pending marker could not be cleared."
+                  return 1
+                fi
+                return 1
+              fi
+              echo "==> Rolling back image and runtime environment to ${PREVIOUS}"
+              # Docker reads an env file at container creation. Starting from
+              # the prepared restore copy brings the prior process back before
+              # the persistent env is changed, so a failed rename cannot leave
+              # the host with no gateway.
+              if ! start_container "$PREVIOUS" "$ENV_RESTORE"; then
+                echo "::error::The previous gateway image could not be started."
+                if ! fall_forward_gateway; then
+                  echo "::error::The replacement transaction also could not be preserved."
+                fi
+                return 1
+              fi
+              if wait_for_gateway && curl -fsS "http://127.0.0.1:${PORT}/health" >/dev/null; then
+                if ! mv "$ENV_RESTORE" "$ENV_FILE"; then
+                  echo "::error::The prior gateway is healthy, but its environment could not be installed as the live file."
+                  return 1
+                fi
+                if ! remove_candidate_key; then
+                  echo "::error::The prior gateway is healthy, but the unused replacement key could not be removed."
+                  return 1
+                fi
+                if ! rm -f "$CUTOVER_PENDING"; then
+                  echo "::error::Rollback completed, but the gateway/TLS pending marker could not be cleared."
+                  return 1
+                fi
+                rm -f "$ENV_BACKUP" "$ROLLBACK_IMAGE_FILE"
+                echo "Rollback verified healthy. The desk is on the previous image and environment."
+                return 0
+              fi
+              echo "::error::The previous gateway image started but did not become healthy."
+              docker logs --tail 60 "$CONTAINER" 2>&1 || true
+              if ! fall_forward_gateway; then
+                echo "::error::The replacement transaction also could not be preserved."
+              fi
+              return 1
+            }
+
+            unwind_unstarted_replacement() {
+              # This path runs before a replacement process has ever started.
+              # The canonical container, if present, is therefore the prior
+              # one and cannot be using the candidate env or run-scoped key.
+              ENV_RESTORE="${ENV_FILE}.restore"
+              if ! rm -f "$ENV_RESTORE"; then
+                echo "::error::A stale gateway environment restore file could not be removed."
+                return 1
+              fi
+              if [ -s "$ENV_BACKUP" ]; then
+                if ! cp "$ENV_BACKUP" "$ENV_RESTORE" || ! chmod 0600 "$ENV_RESTORE"; then
+                  echo "::error::The pre-cutover environment could not be prepared for restore."
+                  return 1
+                fi
+                if ! mv "$ENV_RESTORE" "$ENV_FILE"; then
+                  echo "::error::The pre-cutover environment could not be restored."
+                  return 1
+                fi
+              elif [ -n "$PREVIOUS" ]; then
+                echo "::error::The prior gateway exists but its environment backup is unavailable."
+                return 1
+              elif ! rm -f "$ENV_FILE"; then
+                echo "::error::The unstarted first-deploy environment could not be removed."
+                return 1
+              fi
+
+              if [ -n "$PREVIOUS" ]; then
+                if ! docker start "$CONTAINER" >/dev/null 2>&1; then
+                  if ! remove_container_checked "$CONTAINER" \
+                      || ! start_container "$PREVIOUS" "$ENV_FILE"; then
+                    echo "::error::The prior gateway could not be restarted after the aborted cutover."
+                    return 1
+                  fi
+                fi
+                if ! wait_for_gateway || ! curl -fsS "http://127.0.0.1:${PORT}/health" >/dev/null; then
+                  echo "::error::The prior gateway did not recover after the aborted cutover."
+                  docker logs --tail 60 "$CONTAINER" 2>&1 || true
+                  return 1
+                fi
+              fi
+
+              if ! remove_candidate_key; then
+                echo "::error::The unstarted replacement key could not be removed after environment restoration."
+                return 1
+              fi
+              if ! rm -f "$CUTOVER_PENDING"; then
+                echo "::error::The aborted cutover was unwound, but its pending marker could not be cleared."
+                return 1
+              fi
+              rm -f "$ENV_BACKUP" "$ROLLBACK_IMAGE_FILE" \
+                || echo "::warning::Resolved rollback metadata requires manual cleanup."
+              return 0
+            }
+
+            REPLACEMENT_GATEWAY="$IMAGE"
+
             echo "==> Stopping the current container"
             # 20s, not the 10s default: main.py writes a final gateway_stop risk
             # event and closes the audit log on SIGTERM. SIGKILL mid-write
             # strands a .duckdb.wal.
             docker stop --time 20 "$CONTAINER" 2>/dev/null || true
-            docker rm "$CONTAINER" 2>/dev/null || true
+            if ! remove_container_checked "$CONTAINER"; then
+              echo "::error::The current gateway could not be removed safely; undoing the unstarted replacement transaction."
+              if ! unwind_unstarted_replacement; then
+                echo "::error::Automatic pre-cutover unwind failed; operator intervention is required."
+              fi
+              exit 1
+            fi
 
             echo "==> Starting ${IMAGE}"
-            start_container "$IMAGE"
+            if ! start_container "$IMAGE"; then
+              echo "::error::The replacement gateway could not be started."
+              if ! rollback_gateway; then
+                echo "::error::Automatic gateway rollback failed; operator intervention is required."
+              fi
+              exit 1
+            fi
+            if ! inspected_replacement_gateway="$(docker inspect --format '{{.Image}}' "$CONTAINER")"; then
+              echo "::error::The replacement gateway image identity could not be captured."
+              if ! rollback_gateway; then
+                echo "::error::Automatic gateway rollback failed; operator intervention is required."
+              fi
+              exit 1
+            fi
+            REPLACEMENT_GATEWAY="$inspected_replacement_gateway"
 
             # The image declares its own HEALTHCHECK, so this waits on Docker's
             # verdict rather than re-implementing one. A deploy that cannot be
             # verified is worse than no deploy: it reports success and leaves a
             # dead desk.
             echo "==> Waiting for the container to report healthy"
-            HEALTHY=false
-            for _ in $(seq 1 30); do
-              STATUS="$(docker inspect --format '{{.State.Health.Status}}' "$CONTAINER" 2>/dev/null || echo starting)"
-              if [ "$STATUS" = "healthy" ]; then HEALTHY=true; break; fi
-              if [ "$STATUS" = "unhealthy" ]; then break; fi
-              sleep 4
-            done
-
-            if [ "$HEALTHY" != true ]; then
+            if ! wait_for_gateway; then
               echo "::error::New container did not become healthy. Recent logs:"
               docker logs --tail 60 "$CONTAINER" 2>&1 || true
-              docker rm -f "$CONTAINER" 2>/dev/null || true
-              if [ -n "$PREVIOUS" ]; then
-                echo "==> Rolling back to ${PREVIOUS}"
-                start_container "$PREVIOUS"
-                echo "Rolled back. The desk is on the previous image."
-              else
-                echo "::error::No previous image to roll back to — the gateway is down."
+              if ! rollback_gateway; then
+                echo "::error::Automatic gateway rollback failed; operator intervention is required."
               fi
               exit 1
             fi
 
             echo "==> Healthy. Confirming the port answers"
-            HEALTH_JSON=$(curl -fsS "http://127.0.0.1:${PORT}/health")
+            if ! HEALTH_JSON=$(curl -fsS "http://127.0.0.1:${PORT}/health"); then
+              echo "::error::The replacement gateway health endpoint did not answer."
+              if ! rollback_gateway; then
+                echo "::error::Automatic gateway rollback failed; operator intervention is required."
+              fi
+              exit 1
+            fi
+
+            echo "==> Confirming the authenticated private maker channel"
+            if ! RFQ_JSON=$(curl -fsS --max-time 20 \
+                -H "X-AlphaEngine-Token: ${WEB_API_TOKEN}" \
+                "http://127.0.0.1:${PORT}/api/coherence/rfq") \
+                || ! printf '%s' "$RFQ_JSON" \
+                  | grep -Eq '"state"[[:space:]]*:[[:space:]]*"(empty|available)"'; then
+              echo "::error::The replacement gateway did not prove a signed Makers read; refusing signing_unavailable, refused, and transport-degraded states."
+              if ! rollback_gateway; then
+                echo "::error::Automatic gateway rollback failed; operator intervention is required."
+              fi
+              exit 1
+            fi
+            unset RFQ_JSON
 
             # Which decision engine shipped. A container that built the native
             # core reports "native"; one where the build silently fell back to
@@ -507,18 +956,15 @@ jobs:
               echo "::warning::Decision engine fell back to Python — the native core did not ship in this image. The gateway is healthy; the nanosecond core figure will be absent until the build is fixed."
             fi
 
-            # Always Free instances have a small boot volume, and one image per
-            # push fills it within weeks. Untagged layers only — this never
-            # touches the audit volume.
-            echo "==> Reclaiming space"
-            docker image prune -f --filter "until=168h" >/dev/null || true
-
             echo "==> Deployed $(docker inspect --format '{{.Config.Image}}' "$CONTAINER")"
         env:
           IMAGE: ${{ needs.build.outputs.image }}:sha-${{ github.sha }}
           REGISTRY: ${{ env.REGISTRY }}
           CONTAINER: ${{ env.CONTAINER }}
           VOLUME: ${{ env.VOLUME }}
+          KALSHI_KEY_VOLUME: ${{ env.KALSHI_KEY_VOLUME }}
+          KALSHI_KEY_SLOT: ${{ github.run_id }}-${{ github.run_attempt }}
+          KALSHI_DEMO_REVOKE: ${{ vars.KALSHI_DEMO_REVOKE || '0' }}
           PORT: ${{ env.PORT }}
           GH_ACTOR: ${{ github.actor }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -530,6 +976,8 @@ jobs:
           TELEGRAM_CONTROL_USER_IDS: ${{ secrets.TELEGRAM_CONTROL_USER_IDS }}
           TELEGRAM_ALERT_CHAT_IDS: ${{ secrets.TELEGRAM_ALERT_CHAT_IDS }}
           TELEGRAM_LINK_SECRET: ${{ secrets.TELEGRAM_LINK_SECRET }}
+          KALSHI_DEMO_KEY_ID: ${{ secrets.KALSHI_DEMO_KEY_ID }}
+          KALSHI_DEMO_PRIVATE_KEY_PEM_B64: ${{ secrets.KALSHI_DEMO_PRIVATE_KEY_PEM_B64 }}
           # The Kalshi book recorder. Defaults live HERE rather than in a bare
           # `vars.` reference, because the env-file writer skips an empty value
           # — a repository variable that was never created would leave the
@@ -569,54 +1017,517 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          command_timeout: 5m
-          envs: PUBLIC_IP
+          # Gateway + Caddy rollback each have bounded health and fall-forward
+          # waits. Five minutes can terminate the shell between their checked
+          # state transitions, so leave enough room for the full recovery path.
+          command_timeout: 15m
+          envs: PUBLIC_IP,IMAGE,CONTAINER,VOLUME,KALSHI_KEY_VOLUME,KALSHI_KEY_SLOT,KALSHI_DEMO_REVOKE,PORT
           script_stop: true
           script: |
             set -euo pipefail
 
-            echo "==> Writing the Caddyfile"
-            mkdir -p "$HOME/.alphaengine.caddy"
+            case "$KALSHI_KEY_SLOT" in
+              ""|*[!0-9-]*) echo "::error::The deployment key slot is invalid."; exit 1 ;;
+            esac
+            CUTOVER_PENDING="$HOME/.alphaengine.cutover-pending"
+            if [ ! -s "$CUTOVER_PENDING" ]; then
+              echo "::error::The gateway cutover marker is missing; refusing to finalize an untracked TLS transaction."
+              exit 1
+            fi
+            if ! pending_cutover_slot="$(cat "$CUTOVER_PENDING")"; then
+              echo "::error::The gateway cutover marker could not be read."
+              exit 1
+            fi
+            if [ "$pending_cutover_slot" != "$KALSHI_KEY_SLOT" ]; then
+              echo "::error::The gateway cutover marker belongs to a different deployment run."
+              exit 1
+            fi
+            KALSHI_KEY_NAME="kalshi-demo-private-key-${KALSHI_KEY_SLOT}.pem"
+            export KALSHI_KEY_NAME
+            GATEWAY_IMAGE="$IMAGE"
+            if ! REPLACEMENT_GATEWAY="$(docker inspect --format '{{.Image}}' "$CONTAINER")"; then
+              echo "::error::The verified replacement gateway image identity could not be captured."
+              exit 1
+            fi
             CADDYFILE="$HOME/.alphaengine.caddy/Caddyfile"
-            # printf per line, not a heredoc: this script arrives over the SSH
-            # action with CRLF endings (see the awk note above), and a stray CR
-            # inside a heredoc body would land in the Caddyfile, where Caddy
-            # reports it as an unrecognized directive.
-            : > "$CADDYFILE"
-            printf '{\n' >> "$CADDYFILE"
-            printf '  admin off\n' >> "$CADDYFILE"
-            printf '  auto_https disable_redirects\n' >> "$CADDYFILE"
-            # IP-literal clients (the Vercel fetch included) send no SNI at
-            # all — RFC 6066 forbids IP literals there — and Caddy selects
-            # certificates by SNI. Without a default, every handshake from an
-            # IP client fails with "no certificate available".
-            printf '  default_sni %s\n' "$PUBLIC_IP" >> "$CADDYFILE"
-            printf '}\n' >> "$CADDYFILE"
-            printf '%s:8443 {\n' "$PUBLIC_IP" >> "$CADDYFILE"
-            printf '  tls internal\n' >> "$CADDYFILE"
-            printf '  reverse_proxy 127.0.0.1:8000\n' >> "$CADDYFILE"
-            printf '}\n' >> "$CADDYFILE"
+            CADDY_BACKUP="$HOME/.alphaengine.caddy/Caddyfile.previous"
+            CADDY_NEXT="${CADDYFILE}.next"
+            CADDY_BACKUP_NEXT="${CADDY_BACKUP}.next"
+            CADDY_REPLACEMENT="${CADDYFILE}.replacement"
+            CADDY_REPLACEMENT_NEXT="${CADDY_REPLACEMENT}.next"
+            CADDY_RESTORE="${CADDYFILE}.restore"
+            CADDY_COMMIT="${CADDYFILE}.commit"
+            # `.Image` is the immutable image id. `.Config.Image` would normally
+            # be the mutable `caddy:2-alpine` tag, which points at the newly
+            # pulled replacement by the time rollback needs the old bytes.
+            if ! existing_caddy_names="$(docker container ls -a --format '{{.Names}}')"; then
+              echo "::error::Docker could not determine whether a prior TLS sidecar exists."
+              exit 1
+            fi
+            PREVIOUS_CADDY=""
+            if grep -Fxq alphaengine_caddy <<< "$existing_caddy_names"; then
+              if ! PREVIOUS_CADDY="$(docker inspect --format '{{.Image}}' alphaengine_caddy)"; then
+                echo "::error::The prior TLS sidecar exists, but its immutable image identity could not be captured."
+                exit 1
+              fi
+            fi
+            REPLACEMENT_CADDY=""
+
+            start_caddy() {
+              docker run -d \
+                --name alphaengine_caddy \
+                --restart unless-stopped \
+                --network host \
+                -v "$2:/etc/caddy/Caddyfile:ro" \
+                -v alphaengine_caddy_data:/data \
+                -v alphaengine_caddy_config:/config \
+                --log-driver json-file \
+                --log-opt max-size=5m \
+                --log-opt max-file=2 \
+                "$1" >/dev/null
+            }
+
+            wait_for_tls() {
+              for _ in $(seq 1 15); do
+                if curl -skf --max-time 5 \
+                    --connect-to "${PUBLIC_IP}:8443:127.0.0.1:8443" \
+                    "https://${PUBLIC_IP}:8443/health" >/dev/null; then return 0; fi
+                sleep 2
+              done
+              return 1
+            }
+
+            start_gateway() {
+              docker run -d \
+                --name "$CONTAINER" \
+                --restart unless-stopped \
+                --stop-timeout 20 \
+                -p "${PORT}:8000" \
+                --env-file "$2" \
+                -v "${VOLUME}:/app/data" \
+                -v "${KALSHI_KEY_VOLUME}:/run/secrets:ro" \
+                --log-driver json-file \
+                --log-opt max-size=10m \
+                --log-opt max-file=3 \
+                "$1" >/dev/null
+            }
+
+            wait_for_gateway() {
+              for _ in $(seq 1 30); do
+                STATUS="$(docker inspect --format '{{.State.Health.Status}}' "$CONTAINER" 2>/dev/null || echo starting)"
+                if [ "$STATUS" = "healthy" ] && curl -fsS "http://127.0.0.1:${PORT}/health" >/dev/null; then return 0; fi
+                if [ "$STATUS" = "unhealthy" ]; then return 1; fi
+                sleep 4
+              done
+              return 1
+            }
+
+            remove_container_checked() {
+              target_container="$1"
+              if ! present_containers="$(docker container ls -a --format '{{.Names}}')"; then
+                echo "::error::Docker could not verify whether ${target_container} exists."
+                return 1
+              fi
+              if ! grep -Fxq "$target_container" <<< "$present_containers"; then return 0; fi
+              removal_reported_failure=0
+              if ! docker rm -f "$target_container" >/dev/null; then
+                removal_reported_failure=1
+              fi
+              if ! present_containers="$(docker container ls -a --format '{{.Names}}')"; then
+                echo "::error::Docker could not verify removal of ${target_container}."
+                return 1
+              fi
+              if grep -Fxq "$target_container" <<< "$present_containers"; then
+                echo "::error::${target_container} is still present after its removal was requested."
+                return 1
+              fi
+              if [ "$removal_reported_failure" = "1" ]; then
+                echo "::warning::Docker reported a removal error, but a fresh daemon query confirms ${target_container} is absent."
+              fi
+              return 0
+            }
+
+            remove_candidate_key() {
+              if ! docker run --rm \
+                  --user 0 \
+                  --entrypoint /bin/sh \
+                  -e KALSHI_KEY_NAME \
+                  -v "${KALSHI_KEY_VOLUME}:/run/secrets" \
+                  "$GATEWAY_IMAGE" \
+                  -c 'rm -f "/run/secrets/$KALSHI_KEY_NAME" "/run/secrets/$KALSHI_KEY_NAME.next"'; then
+                echo "::error::The unused Kalshi demo key candidate could not be removed."
+                return 1
+              fi
+              return 0
+            }
+
+            fall_forward_gateway() {
+              echo "::warning::Gateway rollback failed; attempting to preserve the verified replacement transaction."
+              if ! remove_container_checked "$CONTAINER"; then return 1; fi
+              if ! start_gateway "$REPLACEMENT_GATEWAY" "$HOME/.alphaengine.env"; then
+                echo "::error::The replacement gateway could not be restarted."
+                return 1
+              fi
+              if wait_for_gateway; then
+                echo "::warning::The replacement gateway is healthy again, but TLS deployment remains failed for operator review."
+                rm -f "$HOME/.alphaengine.env.restore" || echo "::warning::The resolved rollback scratch file requires manual cleanup."
+                return 0
+              fi
+              echo "::error::Neither the prior nor replacement gateway could be restored healthy."
+              docker logs --tail 60 "$CONTAINER" 2>&1 || true
+              return 1
+            }
+
+            rollback_gateway() {
+              ROLLBACK_IMAGE_FILE="$HOME/.alphaengine.rollback-image"
+              ENV_FILE="$HOME/.alphaengine.env"
+              ENV_BACKUP="${ENV_FILE}.rollback"
+              ENV_RESTORE="${ENV_FILE}.restore"
+              PREVIOUS_GATEWAY="$(sed -n '1p' "$ROLLBACK_IMAGE_FILE" 2>/dev/null || true)"
+              if [ -z "$PREVIOUS_GATEWAY" ] || [ ! -s "$ENV_BACKUP" ]; then
+                echo "::error::No complete previous gateway transaction is available."
+                # On a first deployment the newly verified HTTP gateway is the
+                # only service available. TLS setup may have failed, but its key
+                # is active rather than an unused candidate, so leave both in
+                # place and fail the job for operator intervention.
+                return 1
+              fi
+              if ! rm -f "$ENV_RESTORE" || ! cp "$ENV_BACKUP" "$ENV_RESTORE" || ! chmod 0600 "$ENV_RESTORE"; then
+                echo "::error::The previous gateway environment could not be prepared for restore."
+                return 1
+              fi
+              if ! remove_container_checked "$CONTAINER"; then
+                echo "::error::The replacement gateway is still present; its environment and key were left untouched."
+                return 1
+              fi
+              if ! start_gateway "$PREVIOUS_GATEWAY" "$ENV_RESTORE"; then
+                echo "::error::The previous gateway image could not be started."
+                if ! fall_forward_gateway; then
+                  echo "::error::The replacement transaction also could not be preserved."
+                fi
+                return 1
+              fi
+              if wait_for_gateway; then
+                if ! mv "$ENV_RESTORE" "$ENV_FILE"; then
+                  echo "::error::The prior gateway is healthy, but its environment could not be installed as the live file."
+                  return 1
+                fi
+                if ! remove_candidate_key; then
+                  echo "::error::The prior gateway is healthy, but the unused replacement key could not be removed."
+                  return 1
+                fi
+                rm -f "$ENV_BACKUP" "$ROLLBACK_IMAGE_FILE"
+                echo "Previous gateway image and environment restored and verified."
+                return 0
+              fi
+              echo "::error::The restored gateway did not become healthy."
+              docker logs --tail 60 "$CONTAINER" 2>&1 || true
+              if ! fall_forward_gateway; then
+                echo "::error::The replacement transaction also could not be preserved."
+              fi
+              return 1
+            }
+
+            clear_cutover_after_rollback() {
+              gateway_rollback_ok="$1"
+              caddy_rollback_ok="$2"
+              if [ "$gateway_rollback_ok" != "1" ] || [ "$caddy_rollback_ok" != "1" ]; then
+                return 1
+              fi
+              if ! pending_cutover_slot="$(cat "$CUTOVER_PENDING")" \
+                  || [ "$pending_cutover_slot" != "$KALSHI_KEY_SLOT" ]; then
+                echo "::error::The cutover marker changed during rollback; it was not cleared."
+                return 1
+              fi
+              # The restored Caddy process may be mounted from CADDY_RESTORE;
+              # keep that source path until a later successful cutover replaces
+              # it. The replacement-only copies are safe to retire now.
+              if ! rm -f "$CADDY_REPLACEMENT" "$CADDY_REPLACEMENT_NEXT" "$CADDY_COMMIT"; then
+                echo "::error::Caddy replacement scratch files could not be retired after rollback."
+                return 1
+              fi
+              if ! rm -f "$CUTOVER_PENDING"; then
+                echo "::error::The fully rolled-back cutover marker could not be cleared."
+                return 1
+              fi
+              echo "Gateway and TLS sidecar rollback both verified; the cutover marker was cleared."
+              return 0
+            }
+
+            original_caddy_state_verified() {
+              if [ -n "$PREVIOUS_CADDY" ]; then
+                wait_for_tls
+                return $?
+              fi
+              if ! present_containers="$(docker container ls -a --format '{{.Names}}')"; then
+                return 1
+              fi
+              if grep -Fxq alphaengine_caddy <<< "$present_containers"; then
+                return 1
+              fi
+              return 0
+            }
+
+            fall_forward_caddy() {
+              echo "::warning::TLS rollback failed; attempting to preserve the replacement sidecar."
+              if [ -z "$REPLACEMENT_CADDY" ] || [ ! -s "$CADDY_REPLACEMENT" ]; then
+                echo "::error::The immutable replacement Caddy transaction is unavailable."
+                return 1
+              fi
+              if ! remove_container_checked alphaengine_caddy; then return 1; fi
+              replacement_config="$CADDYFILE"
+              if ! cmp -s "$CADDY_REPLACEMENT" "$CADDYFILE"; then
+                # A failed prior-config commit may have changed the canonical
+                # path. The preserved replacement copy remains a valid, stable
+                # bind source; retaining the pending marker blocks another
+                # deployment until the path mismatch is reconciled.
+                replacement_config="$CADDY_REPLACEMENT"
+              fi
+              if ! start_caddy "$REPLACEMENT_CADDY" "$replacement_config"; then
+                echo "::error::The replacement TLS sidecar could not be restarted."
+                return 1
+              fi
+              if wait_for_tls; then
+                echo "::warning::The replacement TLS sidecar is healthy again, but the cutover remains failed for operator review."
+                return 0
+              fi
+              echo "::error::Neither the prior nor replacement TLS sidecar could be restored healthy."
+              docker logs --tail 40 alphaengine_caddy 2>&1 || true
+              return 1
+            }
+
+            restore_unstarted_caddy() {
+              echo "==> Restoring the TLS sidecar that was stopped before replacement"
+              if [ -z "$PREVIOUS_CADDY" ] || [ ! -s "$CADDY_BACKUP" ]; then
+                echo "::error::No complete prior TLS sidecar transaction is available."
+                return 1
+              fi
+              if ! rm -f "$CADDY_COMMIT" \
+                  || ! cp "$CADDY_BACKUP" "$CADDY_COMMIT" \
+                  || ! chmod 0600 "$CADDY_COMMIT" \
+                  || ! mv "$CADDY_COMMIT" "$CADDYFILE"; then
+                echo "::error::The prior Caddyfile could not be restored after the aborted removal."
+                return 1
+              fi
+              if ! present_containers="$(docker container ls -a --format '{{.Names}}')"; then
+                echo "::error::Docker could not inspect the stopped TLS sidecar."
+                return 1
+              fi
+              if grep -Fxq alphaengine_caddy <<< "$present_containers"; then
+                if ! caddy_running="$(docker inspect --format '{{.State.Running}}' alphaengine_caddy)"; then
+                  echo "::error::Docker could not inspect the retained TLS sidecar state."
+                  return 1
+                fi
+                if [ "$caddy_running" != "true" ] && ! docker start alphaengine_caddy >/dev/null; then
+                  echo "::error::The retained TLS sidecar could not be restarted."
+                  return 1
+                fi
+              elif ! start_caddy "$PREVIOUS_CADDY" "$CADDYFILE"; then
+                echo "::error::The removed prior TLS sidecar could not be recreated."
+                return 1
+              fi
+              if wait_for_tls; then
+                echo "The prior TLS sidecar configuration and service were restored and verified."
+                return 0
+              fi
+              echo "::error::The prior TLS sidecar did not become healthy after the aborted removal."
+              return 1
+            }
+
+            rollback_caddy() {
+              echo "==> Rolling the TLS sidecar back"
+              if [ -z "$PREVIOUS_CADDY" ]; then
+                # On the first TLS deployment, absence is the prior state.
+                # Remove any failed replacement and prove that absence rather
+                # than leaving its canonical name stuck on a dead container.
+                if ! remove_container_checked alphaengine_caddy; then
+                  echo "::error::The failed first TLS sidecar could not be removed."
+                  return 1
+                fi
+                echo "First TLS deployment rolled back to a verified absent sidecar."
+                return 0
+              fi
+              if [ ! -s "$CADDY_BACKUP" ]; then
+                echo "::error::The prior TLS sidecar configuration is unavailable."
+                return 1
+              fi
+              if ! rm -f "$CADDY_RESTORE" \
+                  || ! cp "$CADDY_BACKUP" "$CADDY_RESTORE" \
+                  || ! chmod 0600 "$CADDY_RESTORE"; then
+                echo "::error::The prior Caddyfile could not be prepared for restore."
+                return 1
+              fi
+              if ! remove_container_checked alphaengine_caddy; then
+                echo "::error::The replacement TLS sidecar is still present; its live configuration was left untouched."
+                return 1
+              fi
+              if ! start_caddy "$PREVIOUS_CADDY" "$CADDY_RESTORE"; then
+                echo "::error::The prior TLS sidecar could not be started."
+                if ! fall_forward_caddy; then
+                  echo "::error::The replacement TLS sidecar also could not be preserved."
+                fi
+                return 1
+              fi
+              if ! wait_for_tls; then
+                echo "::error::The prior TLS sidecar did not become healthy."
+                docker logs --tail 40 alphaengine_caddy 2>&1 || true
+                if ! fall_forward_caddy; then
+                  echo "::error::The replacement TLS sidecar also could not be preserved."
+                fi
+                return 1
+              fi
+              # The prior process is already healthy from its stable restore
+              # path. Commit a separate copy atomically so a failed rename can
+              # never take that verified TLS service down.
+              if ! rm -f "$CADDY_COMMIT" \
+                  || ! cp "$CADDY_RESTORE" "$CADDY_COMMIT" \
+                  || ! chmod 0600 "$CADDY_COMMIT" \
+                  || ! mv "$CADDY_COMMIT" "$CADDYFILE"; then
+                echo "::error::The prior TLS sidecar is healthy, but its Caddyfile could not be committed as the live configuration."
+                return 1
+              fi
+              echo "TLS sidecar restored to immutable image ${PREVIOUS_CADDY} and verified."
+              return 0
+            }
+
+            write_caddyfile() {
+              # printf per line, not a heredoc: this script arrives over the
+              # SSH action with CRLF endings, and a stray CR inside a heredoc
+              # body becomes an unrecognized Caddy directive.
+              : > "$CADDY_NEXT" || return 1
+              printf '{\n' >> "$CADDY_NEXT" || return 1
+              printf '  admin off\n' >> "$CADDY_NEXT" || return 1
+              printf '  auto_https disable_redirects\n' >> "$CADDY_NEXT" || return 1
+              # IP-literal clients send no SNI. Supply a default certificate
+              # identity or their TLS handshake has nothing to select.
+              printf '  default_sni %s\n' "$PUBLIC_IP" >> "$CADDY_NEXT" || return 1
+              printf '}\n' >> "$CADDY_NEXT" || return 1
+              printf '%s:8443 {\n' "$PUBLIC_IP" >> "$CADDY_NEXT" || return 1
+              printf '  tls internal\n' >> "$CADDY_NEXT" || return 1
+              printf '  reverse_proxy 127.0.0.1:8000\n' >> "$CADDY_NEXT" || return 1
+              printf '}\n' >> "$CADDY_NEXT" || return 1
+              return 0
+            }
+
+            abort_tls_preparation() {
+              echo "::error::$1"
+              rm -f "$CADDY_NEXT" "$CADDY_BACKUP_NEXT" \
+                "$CADDY_REPLACEMENT" "$CADDY_REPLACEMENT_NEXT" "$CADDY_COMMIT" \
+                || echo "::warning::TLS preparation scratch files require manual cleanup."
+              # The existing Caddy process and Caddyfile have not been touched
+              # yet. Roll back only the gateway/key transaction; first deploys
+              # deliberately keep their sole verified HTTP gateway running.
+              GATEWAY_ROLLBACK_OK=0
+              CADDY_ROLLBACK_OK=0
+              if rollback_gateway; then
+                GATEWAY_ROLLBACK_OK=1
+              else
+                echo "::error::Automatic gateway rollback failed; operator intervention is required."
+              fi
+              if original_caddy_state_verified; then
+                CADDY_ROLLBACK_OK=1
+              else
+                echo "::error::The unchanged prior TLS sidecar state could not be verified."
+              fi
+              if ! clear_cutover_after_rollback "$GATEWAY_ROLLBACK_OK" "$CADDY_ROLLBACK_OK"; then
+                echo "::error::The cutover marker was retained because rollback was incomplete."
+              fi
+              exit 1
+            }
+
+            echo "==> Preparing the Caddy transaction"
+            umask 077
+            if ! mkdir -p "$HOME/.alphaengine.caddy"; then
+              abort_tls_preparation "The Caddy configuration directory could not be prepared."
+            fi
+            if ! rm -f "$CADDY_NEXT" "$CADDY_BACKUP_NEXT" \
+                "$CADDY_REPLACEMENT_NEXT" "$CADDY_COMMIT"; then
+              abort_tls_preparation "Stale Caddy scratch files could not be removed."
+            fi
+            if [ -n "$PREVIOUS_CADDY" ]; then
+              if [ ! -s "$CADDYFILE" ]; then
+                abort_tls_preparation "A prior TLS sidecar exists, but its live Caddyfile is unavailable."
+              fi
+              if ! cp "$CADDYFILE" "$CADDY_BACKUP_NEXT"; then
+                abort_tls_preparation "The prior Caddyfile could not be snapshotted."
+              fi
+              if ! mv "$CADDY_BACKUP_NEXT" "$CADDY_BACKUP"; then
+                abort_tls_preparation "The prior Caddyfile snapshot could not be installed."
+              fi
+            elif ! rm -f "$CADDY_BACKUP"; then
+              abort_tls_preparation "A stale Caddyfile backup could not be removed."
+            fi
+            if ! write_caddyfile; then
+              abort_tls_preparation "The replacement Caddyfile could not be written."
+            fi
+            if ! cp "$CADDY_NEXT" "$CADDY_REPLACEMENT_NEXT" \
+                || ! chmod 0600 "$CADDY_REPLACEMENT_NEXT" \
+                || ! mv "$CADDY_REPLACEMENT_NEXT" "$CADDY_REPLACEMENT"; then
+              abort_tls_preparation "The replacement Caddyfile could not be preserved for fall-forward."
+            fi
+
+            # /data holds the internal CA — named volumes preserve the root the
+            # web pins across Caddy replacement.
+            if ! docker volume create alphaengine_caddy_data >/dev/null; then
+              abort_tls_preparation "The Caddy data volume could not be prepared."
+            fi
+            if ! docker volume create alphaengine_caddy_config >/dev/null; then
+              abort_tls_preparation "The Caddy config volume could not be prepared."
+            fi
+            if ! docker pull caddy:2-alpine >/dev/null; then
+              abort_tls_preparation "The replacement Caddy image could not be pulled."
+            fi
+            if ! REPLACEMENT_CADDY="$(docker image inspect --format '{{.Id}}' caddy:2-alpine)"; then
+              abort_tls_preparation "The immutable replacement Caddy image identity could not be captured."
+            fi
+            # Install only a complete file, after every other preparation step
+            # has succeeded. Until this rename, the running Caddy and its file
+            # are byte-for-byte untouched.
+            if ! mv "$CADDY_NEXT" "$CADDYFILE"; then
+              abort_tls_preparation "The replacement Caddyfile could not be installed."
+            fi
 
             echo "==> Starting Caddy"
-            # /data holds the internal CA — a named volume so the root the web
-            # pins survives container replacement. Recreated every deploy so a
-            # Caddyfile change actually applies.
-            docker volume create alphaengine_caddy_data >/dev/null
-            docker volume create alphaengine_caddy_config >/dev/null
-            docker pull caddy:2-alpine >/dev/null
+
             docker stop alphaengine_caddy 2>/dev/null || true
-            docker rm alphaengine_caddy 2>/dev/null || true
-            docker run -d \
-              --name alphaengine_caddy \
-              --restart unless-stopped \
-              --network host \
-              -v "$CADDYFILE:/etc/caddy/Caddyfile:ro" \
-              -v alphaengine_caddy_data:/data \
-              -v alphaengine_caddy_config:/config \
-              --log-driver json-file \
-              --log-opt max-size=5m \
-              --log-opt max-file=2 \
-              caddy:2-alpine >/dev/null
+            if ! remove_container_checked alphaengine_caddy; then
+              echo "::error::The current TLS sidecar could not be removed safely."
+              GATEWAY_ROLLBACK_OK=0
+              CADDY_ROLLBACK_OK=0
+              if rollback_gateway; then
+                GATEWAY_ROLLBACK_OK=1
+              else
+                echo "::error::Automatic gateway rollback failed; operator intervention is required."
+              fi
+              if restore_unstarted_caddy; then
+                CADDY_ROLLBACK_OK=1
+              else
+                echo "::error::The prior TLS sidecar could not be preserved after the aborted removal."
+              fi
+              if ! clear_cutover_after_rollback "$GATEWAY_ROLLBACK_OK" "$CADDY_ROLLBACK_OK"; then
+                echo "::error::The cutover marker was retained because rollback was incomplete."
+              fi
+              exit 1
+            fi
+            if ! start_caddy "$REPLACEMENT_CADDY" "$CADDYFILE"; then
+              echo "::error::The replacement TLS sidecar did not start."
+              GATEWAY_ROLLBACK_OK=0
+              CADDY_ROLLBACK_OK=0
+              if rollback_gateway; then
+                GATEWAY_ROLLBACK_OK=1
+              else
+                echo "::error::Automatic gateway rollback failed; operator intervention is required."
+              fi
+              if rollback_caddy; then
+                CADDY_ROLLBACK_OK=1
+              else
+                echo "::error::Automatic TLS rollback failed; operator intervention is required."
+              fi
+              if ! clear_cutover_after_rollback "$GATEWAY_ROLLBACK_OK" "$CADDY_ROLLBACK_OK"; then
+                echo "::error::The cutover marker was retained because rollback was incomplete."
+              fi
+              exit 1
+            fi
 
             echo "==> Confirming TLS answers locally"
             # --connect-to, not a bare 127.0.0.1 URL: the site block is keyed
@@ -624,23 +1535,65 @@ jobs:
             # public address — so dial loopback while presenting the public-IP
             # identity in the URL. (No SNI is sent for IP literals; Caddy
             # matches on the Host header, which this shape gets right.)
-            TLS_OK=false
-            for _ in $(seq 1 15); do
-              if curl -skf --max-time 5 \
-                  --connect-to "${PUBLIC_IP}:8443:127.0.0.1:8443" \
-                  "https://${PUBLIC_IP}:8443/health" >/dev/null; then TLS_OK=true; break; fi
-              sleep 2
-            done
-            if [ "$TLS_OK" != true ]; then
+            if ! wait_for_tls; then
               echo "::error::Caddy did not serve /health over TLS."
-              echo "--- curl's own account of the handshake:"
+              echo "--- curl handshake details:"
               curl -skv --max-time 5 \
                 --connect-to "${PUBLIC_IP}:8443:127.0.0.1:8443" \
                 "https://${PUBLIC_IP}:8443/health" 2>&1 | tail -12 || true
               echo "--- recent Caddy logs:"
               docker logs --tail 40 alphaengine_caddy 2>&1 || true
+              GATEWAY_ROLLBACK_OK=0
+              CADDY_ROLLBACK_OK=0
+              if rollback_gateway; then
+                GATEWAY_ROLLBACK_OK=1
+              else
+                echo "::error::Automatic gateway rollback failed; operator intervention is required."
+              fi
+              if rollback_caddy; then
+                CADDY_ROLLBACK_OK=1
+              else
+                echo "::error::Automatic TLS rollback failed; operator intervention is required."
+              fi
+              if ! clear_cutover_after_rollback "$GATEWAY_ROLLBACK_OK" "$CADDY_ROLLBACK_OK"; then
+                echo "::error::The cutover marker was retained because rollback was incomplete."
+              fi
               exit 1
             fi
+            ACTIVE_KALSHI_KEY_PATH="$(sed -n 's/^KALSHI_DEMO_PRIVATE_KEY_PATH=//p' "$HOME/.alphaengine.env" | tail -n 1)"
+            ACTIVE_KALSHI_KEY_NAME="${ACTIVE_KALSHI_KEY_PATH##*/}"
+            export ACTIVE_KALSHI_KEY_NAME
+            if ! docker run --rm \
+                --user 0 \
+                --entrypoint /bin/sh \
+                -e ACTIVE_KALSHI_KEY_NAME \
+                -v "${KALSHI_KEY_VOLUME}:/run/secrets" \
+                "$GATEWAY_IMAGE" \
+                -c 'if [ -n "${ACTIVE_KALSHI_KEY_NAME:-}" ]; then find /run/secrets -maxdepth 1 -type f -name "kalshi-demo-private-key*" ! -name "$ACTIVE_KALSHI_KEY_NAME" -delete; else find /run/secrets -maxdepth 1 -type f -name "kalshi-demo-private-key*" -delete; fi'; then
+              echo "::error::Inactive or revoked Kalshi demo key files remain in the private volume."
+              exit 1
+            fi
+            if ! pending_cutover_slot="$(cat "$CUTOVER_PENDING")" \
+                || [ "$pending_cutover_slot" != "$KALSHI_KEY_SLOT" ]; then
+              echo "::error::The cutover marker changed before final commit; it was not cleared."
+              exit 1
+            fi
+            if ! rm -f "$CADDY_BACKUP" "$CADDY_REPLACEMENT" \
+                "$CADDY_REPLACEMENT_NEXT" "$CADDY_RESTORE" "$CADDY_COMMIT"; then
+              echo "::error::Verified Caddy transaction scratch files could not be retired; the cutover marker was retained."
+              exit 1
+            fi
+            if ! rm -f "$CUTOVER_PENDING"; then
+              echo "::error::TLS and key pruning succeeded, but the cutover marker could not be cleared."
+              exit 1
+            fi
+            rm -f "$HOME/.alphaengine.env.rollback" "$HOME/.alphaengine.rollback-image"
+
+            # Only after gateway, key and TLS commit: rollback above names the
+            # prior immutable image by id, so pruning before this point could
+            # delete the bytes the failure path is about to restart.
+            echo "==> Reclaiming space"
+            docker image prune -f --filter "until=168h" >/dev/null || true
             echo "TLS terminates on :8443 and proxies to the gateway."
 
             # The gateway's own port needs no rule here — Docker's -p publish
@@ -677,6 +1630,10 @@ jobs:
             docker exec alphaengine_caddy cat /data/caddy/pki/authorities/local/root.crt
         env:
           PUBLIC_IP: ${{ secrets.SSH_HOST }}
+          IMAGE: ${{ needs.build.outputs.image }}:sha-${{ github.sha }}
+          KALSHI_KEY_VOLUME: ${{ env.KALSHI_KEY_VOLUME }}
+          KALSHI_KEY_SLOT: ${{ github.run_id }}-${{ github.run_attempt }}
+          KALSHI_DEMO_REVOKE: ${{ vars.KALSHI_DEMO_REVOKE || '0' }}
 
   # ---------------------------------------------------------------------------
   # Prove it from the outside. The deploy job checked 127.0.0.1 from inside the
