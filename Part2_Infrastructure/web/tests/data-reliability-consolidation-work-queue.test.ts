@@ -26,10 +26,10 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  createInitialDataWorkItems,
   filterAndSortDataWorkItems,
   moveDataWorkItem,
 } from "../lib/data-work-queue";
+import { createTestDataWorkItems } from "./helpers/data-work-items";
 
 import { readSources, stripCode as code } from "./helpers/source-files";
 
@@ -58,7 +58,7 @@ describe("the sample work queue no longer reseeds itself from a button", () => {
     assert.doesNotMatch(stripped, /Reset sample queue/);
     assert.doesNotMatch(
       stripped,
-      /createInitialDataWorkItems/,
+      /create(?:Initial|Test)DataWorkItems/,
       "the board reseeds itself again — that demonstrates the mock, not the workflow",
     );
   });
@@ -101,7 +101,7 @@ describe("the sample work queue no longer reseeds itself from a button", () => {
      * feature the flag exists for. Exercised rather than read, because this half
      * is a property of the filter, not of the component.
      */
-    const [first] = createInitialDataWorkItems(NOW);
+    const [first] = createTestDataWorkItems(NOW);
     const moved = moveDataWorkItem([first], first.id, first.status === "resolved" ? "intake" : "resolved");
     const visible = filterAndSortDataWorkItems(moved, { query: "", kind: "all", sort: "priority" });
     assert.deepEqual(visible.map((item) => item.id), [first.id], "a move now changes which cards are shown");
