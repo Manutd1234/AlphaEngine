@@ -81,38 +81,29 @@ describe("the name leads and the ticker is an identifier", () => {
     });
   }
 
-  it("ParlaysView prints the name before the ticker, and the ticker inside a <code>", () => {
+  it("the compact picker leads with names while the selected audit keeps a copyable identifier", () => {
     const source = read("../components/coherence/ParlaysView.tsx");
-    // Every RENDERED `{combo.ticker}` sits inside a `<code>` element. A
-    // `key={combo.ticker}` is not rendered — React reads it and never draws
-    // it — so it is skipped rather than exempted, and the skip is narrow
-    // enough that a real render can never hide behind it.
-    let rendered = 0;
-    for (const match of source.matchAll(/\{combo\.ticker\}/g)) {
-      const before = source.slice(Math.max(0, (match.index ?? 0) - 200), match.index);
-      if (/key=$/.test(before)) continue;
-      rendered += 1;
-      assert.match(before, /<code className="coh-combo__ticker">\s*$/,
-        "a bare ticker is rendered where a reader expects a name");
-    }
-    assert.ok(rendered >= 2, `only ${rendered} rendered tickers found — the scan has stopped seeing them`);
-    // `{" "}` between them is JSX's way of keeping one space across a line
-    // break, so the scan allows it — and nothing else.
-    // COUNTED, not "at least one". `assert.match` is satisfied by a single
-    // site, so with two — the row header and the fold summary — it passed
-    // while one of them led with the ticker. Every rendered ticker must have
-    // the name in front of it.
-    const led = (source.match(/parlayName\(combo\)\}(\{" "\})?\s*<code className="coh-combo__ticker">/g) ?? []).length;
-    assert.equal(led, rendered, `${rendered} tickers rendered but ${led} led by the name`);
+    // The dense picker deliberately omits the identifier; its full name and
+    // ticker remain available to assistive tech and as a pointer title. The
+    // audit row keeps the copyable identifier, immediately after the name.
+    assert.match(source, /function pickerDescription[\s\S]*?parlayName\(combo\)[\s\S]*?combo\.ticker/);
+    const picker = source.slice(source.indexOf('<nav className="coh-parlay-picker"'), source.indexOf("</nav>"));
+    const button = picker.match(/<Button[\s\S]*?<\/Button>/)?.[0] ?? "";
+    const openEnd = /\n\s*>\s*\n/.exec(button);
+    assert.ok(openEnd, "could not locate the compact picker button face");
+    const face = button.slice((openEnd.index ?? 0) + openEnd[0].length, button.indexOf("</Button>"));
+    assert.match(face, /coh-parlay-picker__label/);
+    assert.doesNotMatch(face, /<code|\{combo\.ticker\}/,
+      "the compact picker repeats a long identifier inside every control");
+    assert.match(source, /<h3>\{parlayName\(selected\)\}<\/h3>[\s\S]*?<code className="coh-combo__ticker">\{selected\.ticker\}<\/code>/);
   });
 
-  it("both strips measure their gutter against the NAME they draw", () => {
-    for (const file of ["ParlayLegs.tsx", "ComboBandStrips.tsx"]) {
-      const source = read(`../components/coherence/${file}`);
-      assert.match(source, /gutterFor\(rows\.map\(\(row\) => row\.name\)/,
-        `${file} measures its gutter against a string it does not draw`);
-      assert.match(source, /ticker/, `${file} has dropped the ticker entirely, so a row cannot be identified`);
-    }
+  it("each diagram measures the exact label it draws", () => {
+    const ranges = read("../components/coherence/ComboBandStrips.tsx");
+    const legs = read("../components/coherence/ParlayLegs.tsx");
+    assert.match(ranges, /gutterFor\(rows\.map\(\(row\) => row\.name\)/);
+    assert.match(legs, /gutterFor\(rows\.map\(\(row\) => row\.ticker\)/);
+    assert.match(legs, /truncateMiddle\(row\.ticker/);
   });
 });
 
@@ -155,14 +146,51 @@ describe("the grey is gone at the token", () => {
   });
 });
 
+describe("Bands is comparative rather than a stack of repeated cards", () => {
+  it("keeps the overview strip and reveals one selected exact range without a table", () => {
+    const views = stripNonCode(read("../components/coherence/CombosViews.tsx"));
+    const ranges = views.slice(views.indexOf("export function BandsView"), views.indexOf("export function caveatCount"));
+    assert.match(ranges, /<ComboBandStrips[\s\S]*?combos=\{combos\}[\s\S]*?selectedTicker=\{selectedTicker\}/,
+      "the all-parlay overview disappeared with the repeated cards");
+    assert.match(ranges, /<Button[\s\S]*?aria-expanded=\{instrumentOpen\}[\s\S]*?aria-controls=\{instrumentId\}/);
+    assert.match(ranges, /\{instrumentOpen \? \([\s\S]*?<FrechetInstrument combo=\{selected\} \/>/);
+    assert.doesNotMatch(ranges, /BandsTable|<details|coh-combo__row|<ComboChips/,
+      "the repetitive Band cards still render beside the table");
+  });
+
+  it("does not repeat the joint-bound equation above every parlay subtab", () => {
+    const pane = stripNonCode(read("../components/coherence/CombosPane.tsx"));
+    assert.doesNotMatch(pane, /FrechetEquation|coh-combo__formula/);
+  });
+});
+
 describe("what the redo must not lose", () => {
   const view = read("../components/coherence/ParlaysView.tsx");
-  it("keeps the table, its caption's key and its pinned judgement", () => {
-    assert.match(view, /<table className="coh-table">/);
-    assert.match(view, /worst position first/);
-    assert.match(view, /the only reading on this view that is a mispricing/);
+  it("keeps Test quote focused and leaves comparison measurements in Ranges", () => {
+    const quote = view.slice(view.indexOf("export function ParlaysView"), view.indexOf("export function ParlayInputsView"));
+    const ranges = read("../components/coherence/CombosViews.tsx");
+    const instrument = read("../components/coherence/FrechetInstrument.tsx");
+    assert.match(quote, /<ParlayPicker/);
+    assert.match(quote, /<ParlaySimulator/);
+    assert.doesNotMatch(quote, /<table/);
+    assert.match(ranges, /<ComboBandStrips[\s\S]*?<FrechetInstrument combo=\{selected\} \/>/);
+    for (const heading of ["Lower", "Upper", "Quote", "Leg product Πpᵢ"]) {
+      assert.match(instrument, new RegExp(`>${heading}<`));
+    }
   });
-  it("keeps one fold per parlay, so a named parlay is reachable", () => {
-    assert.match(stripNonCode(view), /combos\.map\(\(combo\) => \(\s*<details/);
+  it("keeps every named parlay reachable while rendering one detailed audit at a time", () => {
+    const source = stripNonCode(view);
+    assert.match(source, /function ParlayDetailsView/);
+    assert.match(source, /combos\.map\(\(combo\) => \(\s*<Button/);
+    assert.match(source, /<ComboCard combo=\{selected\} \/>/);
+    assert.doesNotMatch(source, /combos\.map\(\(combo\) => \(\s*<details/);
+  });
+
+  it("keeps gateway and fallback provenance inside the compact context disclosure", () => {
+    const pane = read("../components/coherence/CombosPane.tsx");
+    const ranges = read("../components/coherence/CombosViews.tsx");
+    assert.match(pane, /caveatCount\(data\.combos, data\.notes \?\? \[\]\)/);
+    assert.match(pane, /<NotesView combos=\{data\.combos\} notes=\{data\.notes \?\? \[\]\} \/>/);
+    assert.match(ranges, /notes\.map\(\(note, index\) => <li key=\{`\$\{index\}-\$\{note\}`\}>\{note\}<\/li>\)/);
   });
 });
