@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * What the selected strategy is, and when it stops working.
  *
@@ -20,9 +18,9 @@
  * labelled another on the slider four pixels away.
  */
 
-import { atLeast } from "@/lib/complexity";
+import { atLeast, COMPLEXITY_TIERS } from "@/lib/complexity";
 import { STRATEGY_DOCS } from "@/lib/strategy-docs";
-import { useComplexity } from "@/lib/use-complexity";
+import { useComplexity, useDisclosurePreference } from "@/lib/use-complexity";
 import { PARAM_MEANING, STRATEGY_FAMILY, STRATEGY_LABELS, type Strategy } from "@/lib/types";
 
 interface StrategyDocCardProps {
@@ -38,6 +36,8 @@ export default function StrategyDocCard({ strategy }: StrategyDocCardProps) {
   // glossary. Both stay reachable under a labelled summary; a beginner tier that
   // deleted the formula would leave nothing to grow into.
   const mechanicsOpen = atLeast(tier, "standard");
+  const mechanicsDefaultOpen = mechanicsOpen && tier !== COMPLEXITY_TIERS[1];
+  const [mechanicsExpanded, setMechanicsExpanded] = useDisclosurePreference(mechanicsDefaultOpen);
 
   return (
     <div className="card strategy-doc">
@@ -60,7 +60,11 @@ export default function StrategyDocCard({ strategy }: StrategyDocCardProps) {
         </div>
       </dl>
 
-      <details className="strategy-doc__mechanics" open={mechanicsOpen}>
+      <details
+        className="strategy-doc__mechanics"
+        open={mechanicsExpanded}
+        onToggle={(event) => setMechanicsExpanded(event.currentTarget.open)}
+      >
         <summary>The rule, and what its two parameters mean</summary>
         <dl className="strategy-doc__grid">
           <div>
