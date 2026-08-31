@@ -1,0 +1,331 @@
+/* Targeted layout follow-up for the reviewed analytical and operations cards. */
+/* A fragment cannot participate in the server render. Hold the dashboard's
+   first frame without collapsing its geometry, then suppress the panel entrance
+   until the routing bootstrap reveals the committed deep-link destination. */
+html[data-workspace-boot="pending"] body {
+  visibility: hidden;
+}
+html[data-workspace-boot="revealing"] body {
+  visibility: hidden;
+}
+html[data-workspace-boot] .view-panel {
+  animation: none;
+}
+/* Keep the exact Monte Carlo endpoints inside the figure frame and give each
+   role a stable cell instead of one concatenated line under the card. */
+.mc-histogram__scale {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: var(--space-2);
+  overflow: hidden;
+  border: 1px solid var(--grid);
+  border-radius: var(--radius-sm);
+  background: var(--grid);
+}
+.mc-histogram__scale > div {
+  min-width: 0;
+  padding: 6px 8px;
+  background: var(--surface-2);
+}
+.mc-histogram__scale > div:nth-child(2) {
+  text-align: center;
+}
+.mc-histogram__scale > div:last-child {
+  text-align: right;
+}
+.mc-histogram__scale dt {
+  color: var(--text-muted);
+  font-family: var(--sans);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+.mc-histogram__scale dd {
+  margin: 2px 0 0;
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+  font-weight: 650;
+}
+/* The two bordered distribution figures and the five bordered outcome tiles
+   are separate readings. Keep one full card step between their outlines at
+   every responsive stacking tier. */
+#risk-subpanel-montecarlo .mc-distribution-figures + .stability-tiles {
+  margin-block-start: var(--space-3);
+}
+/* Engine notes use one marker column and one wrapping content column, so a
+   long sentence never returns underneath its symbol or touches the card edge.
+   Authored lists use the same tokenised inset and vertical rhythm. */
+:is(.coh-figure__missing, .coh-surface__moments-note):has(> span[aria-hidden="true"]:first-child) {
+  display: grid;
+  grid-template-columns: 0.75rem minmax(0, 1fr);
+  align-items: start;
+  column-gap: var(--space-2);
+  margin-block-start: var(--space-2);
+  padding-inline: var(--space-3);
+}
+:is(.coh-figure__missing, .coh-surface__moments-note) > span[aria-hidden="true"]:first-child {
+  line-height: inherit;
+  text-align: center;
+}
+.coherence-plane .coh-notes {
+  padding-inline-start: var(--space-5);
+}
+.coherence-plane .coh-notes li {
+  margin: 0;
+  padding-inline-start: var(--space-1);
+}
+.coherence-plane .coh-notes li + li {
+  margin-block-start: var(--space-2);
+}
+/* Bordered analytical peers get the same full card step. This is deliberately
+   scoped away from Diffusion, whose restored diagram geometry is immutable. */
+:is(.markets-plane, .proofs-plane) .coh-grid {
+  gap: var(--space-3);
+}
+/* The ring and the route-depth bars are two peer readings. Framing each one
+   removes the floating line/oval treatment while keeping both diagrams and
+   every provider-state value intact. */
+.data-trust-composition {
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+  align-items: stretch;
+  gap: var(--space-3);
+}
+.data-trust-composition > :is(.donut, .data-supply-depth) {
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+.data-supply-depth {
+  align-content: center;
+  row-gap: var(--space-2);
+}
+.data-supply-depth .category-bars__row {
+  min-height: 26px;
+}
+.data-supply-depth .category-bars__track {
+  height: 18px;
+  border-radius: var(--radius-sm);
+}
+/* Native summary markers sat on their own line because the summary's child is
+   a block grid. Give the disclosure one explicit marker column so it aligns
+   with the two-line header at every width. */
+.data-control-plane .data-quality-ledger > summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-2);
+  list-style: none;
+}
+.data-control-plane .data-quality-ledger > summary::-webkit-details-marker {
+  display: none;
+}
+.data-control-plane .data-quality-ledger > summary::before {
+  content: "▸";
+  color: var(--text-muted);
+  line-height: 1;
+}
+.data-control-plane .data-quality-ledger[open] > summary::before {
+  content: "▾";
+}
+/* One unbroken route: request and cache occupy the first row, the cache miss
+   drops into six equal rank columns below. This avoids flex-wrap sending rank
+   5 back to the left under rank 1. */
+.console-dag {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  align-items: stretch;
+  gap: var(--space-2);
+}
+.console-dag > .console-node--fixed {
+  grid-column: span 5;
+}
+.console-edge--request {
+  grid-column: span 2;
+  justify-content: center;
+}
+.console-edge--miss {
+  grid-column: 1 / -1;
+  justify-content: center;
+  min-height: 26px;
+}
+.console-node--provider {
+  grid-column: span 2;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.console-node--provider .console-node__action {
+  margin-top: auto;
+}
+.console-node__next::after {
+  content: " →";
+}
+/* The topology card uses its ordinary panel surface; the ruled foolscap field
+   no longer competes with paths, status pills and card borders. */
+.developer-cp-overview__grid > .card.developer-cp-topology {
+  background-color: var(--surface-1);
+  background-image: none;
+}
+/* The status control and its action share one row line. Aligning only Delete
+   to the top still left the status cell vertically centred as a two-line
+   block, so the two 35px controls missed each other by several pixels. */
+.developer-work__table tbody :is(td:nth-child(3), td.developer-work__actions-cell) {
+  vertical-align: top;
+}
+.developer-work__table .developer-work__delete {
+  block-size: 38px;
+}
+@media (max-width: 900px) {
+  .data-trust-composition {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .console-dag > .console-node--provider {
+    grid-column: 1 / -1;
+  }
+  .console-node__next::after {
+    content: " ↓";
+  }
+}
+@media (max-width: 620px) {
+  .console-dag {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .console-dag > :is(.console-node--fixed, .console-edge--request, .console-edge--miss) {
+    grid-column: 1;
+  }
+  .console-edge--request,
+  .console-edge--miss {
+    width: 100%;
+  }
+  .mc-histogram__scale dt {
+    letter-spacing: 0;
+  }
+}
+/* Shared control alignment for every workspace.
+   Disclosure rows had three incompatible marker models: the browser marker,
+   a flex row that suppressed it, and a hand-drawn triangle. The differences
+   showed most clearly when a summary wrapped or contained a block child. Keep
+   one explicit marker column everywhere except controls that declare their
+   marker source-owned. `:where()` keeps this layer below every component's
+   deliberate disclosure geometry in the cascade. */
+:where(details:not(.page-context-strip__provenance):not(.friction-group):not(.data-quality-ledger):not(.next-step-footer__detail):not([data-summary-marker="source-owned"])) > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  list-style: none;
+  overflow-wrap: anywhere;
+}
+:where(details:not(.page-context-strip__provenance):not(.friction-group):not(.data-quality-ledger):not(.next-step-footer__detail):not([data-summary-marker="source-owned"])) > summary::-webkit-details-marker {
+  display: none;
+}
+:where(details:not(.page-context-strip__provenance):not(.friction-group):not(.data-quality-ledger):not(.next-step-footer__detail):not([data-summary-marker="source-owned"])) > summary::before {
+  content: "▸";
+  display: inline-grid;
+  flex: 0 0 0.75rem;
+  inline-size: 0.75rem;
+  block-size: 1em;
+  place-items: center;
+  color: var(--text-muted);
+  font-family: var(--sans);
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
+  transform-origin: center;
+}
+:where(details:not(.page-context-strip__provenance):not(.friction-group):not(.data-quality-ledger):not(.next-step-footer__detail):not([data-summary-marker="source-owned"])[open]) > summary::before {
+  transform: rotate(90deg);
+}
+:where(details:not(.page-context-strip__provenance):not(.friction-group):not(.data-quality-ledger):not(.next-step-footer__detail):not([data-summary-marker="source-owned"])) > summary > * {
+  min-inline-size: 0;
+}
+/* Native selects share one containment and text baseline even when a desk
+   supplies its own width, font rung or touch height. The OS still owns the
+   popup and arrow; these rules only stabilise the trigger inside its owner. */
+select {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}
+label:has(> select) {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+/* State points and their pill/bubble containers use the same optical centre.
+   Long values may still use their component's existing ellipsis or wrapping
+   policy; the shared layer only keeps the mark, word and value on one axis. */
+:is(.pill, .method-badge, .verdict-pill, .coh-chip, .friction-badge, .page-status) {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  align-items: center;
+  line-height: var(--lh-snug);
+  vertical-align: middle;
+}
+.coh-chip {
+  overflow: hidden;
+}
+:is(.pill, .method-badge, .friction-badge, .page-status) {
+  display: inline-flex;
+}
+.coh-status__chips {
+  align-items: center;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+.coh-chip__mark {
+  display: inline-grid;
+  flex: 0 0 1em;
+  inline-size: 1em;
+  block-size: 1em;
+  place-items: center;
+  line-height: 1;
+  text-align: center;
+}
+.coh-chip :is(.coh-chip__word, .coh-chip__value) {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: var(--lh-snug);
+}
+
+/* The Evidence sheet is portalled outside either engine plane. Own its gutter
+   here, in the trailing containment pass, so the table never touches the
+   viewport edge and the reading column wraps instead of right-aligning into it. */
+.coh-evidence-sheet__body {
+  display: grid;
+  align-content: start;
+  gap: var(--space-4);
+  min-width: 0;
+  padding: 0 clamp(var(--space-3), 3vw, var(--space-5)) var(--space-5);
+}
+.coh-evidence__detail-table {
+  margin-block-start: 0;
+  table-layout: fixed;
+}
+.coh-evidence__detail-table :is(th, td):first-child {
+  width: 9rem;
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+.coh-evidence__detail-table :is(th, td) {
+  padding-inline: var(--space-3);
+}
+.coh-evidence__detail-table td {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.coh-evidence__detail-table :is(th, td):last-child {
+  text-align: left;
+}
+@media (max-width: 380px) {
+  .coh-evidence-sheet__body { padding-inline: var(--space-3); }
+  .coh-evidence__detail-table :is(th, td):first-child { width: 7rem; }
+  .coh-evidence__detail-table :is(th, td) { padding-inline: var(--space-2); }
+}
