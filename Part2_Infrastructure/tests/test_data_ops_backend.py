@@ -26,6 +26,7 @@ def _settings(**over):
         "data_ops_db_path": Path(":memory:"),
         "supabase_url": "",
         "supabase_service_role_key": "",
+        "supabase_desk_id": "default",
     }
     base.update(over)
     return SimpleNamespace(**base)
@@ -55,10 +56,31 @@ def test_postgres_with_credentials_builds_the_postgrest_store():
         data_ops_backend="postgres",
         supabase_url="https://example.supabase.co",
         supabase_service_role_key="service-key",
+        supabase_desk_id="desk-configured",
     ))
     assert isinstance(store, PostgrestStore)
     assert store.backend == "postgres"
+    assert store.desk_id == "desk-configured"
     store.close()
+
+
+def test_postgres_without_a_desk_refuses_to_build_an_unscoped_store():
+    with pytest.raises(ValueError, match="SUPABASE_DESK_ID"):
+        open_data_ops_store(_settings(
+            data_ops_backend="postgres",
+            supabase_url="https://example.supabase.co",
+            supabase_service_role_key="service-key",
+            supabase_desk_id="   ",
+        ))
+
+
+def test_postgres_refuses_the_retired_default_desk_sentinel():
+    with pytest.raises(ValueError, match="refuses SUPABASE_DESK_ID='default'"):
+        open_data_ops_store(_settings(
+            data_ops_backend="postgres",
+            supabase_url="https://example.supabase.co",
+            supabase_service_role_key="service-key",
+        ))
 
 
 def test_both_backends_report_a_backend_name():
@@ -187,6 +209,6 @@ class TestTheConfiguredBackendIsActuallyUsED:
         assert isinstance(sqlite, DataOpsStore)
         sqlite.close()
 
-        postgres = PostgrestStore("https://example.supabase.co", "k")
+        postgres = PostgrestStore("https://example.supabase.co", "k", desk_id="desk-1")
         assert isinstance(postgres, DataOpsStore)
         postgres.close()
