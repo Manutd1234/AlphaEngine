@@ -32,7 +32,6 @@
 
 import type { ReactNode } from "react";
 
-import { Readout } from "../Figure";
 import { useMarkReadout } from "@/lib/coherence/use-mark-readout";
 
 /**
@@ -88,7 +87,7 @@ export function Frame({ label, claim, children }: {
   claim?: string;
   children: ReactNode;
 }) {
-  const { svgRef, readout, interactive, announce, handlers } = useMarkReadout(HEIGHT);
+  const { svgRef, interactive, announce, handlers } = useMarkReadout(HEIGHT);
   return (
     <div className="coh-lessonfig__frame">
       <svg
@@ -115,13 +114,18 @@ export function Frame({ label, claim, children }: {
         {...handlers}
       >
         {children}
-        {/* Above the readout, so a claim can never be drawn over the card a
-            reader has just opened with a keypress. */}
-        {claim ? (
-          <text x={0} y={CLAIM_Y} className="coh-lessonfig__claim">{claim}</text>
-        ) : null}
-        {readout ? <Readout {...readout} chartWidth={WIDTH} /> : null}
       </svg>
+      {/* The quiet row still owns two lines, so revealing an exact mark cannot
+          push the claim or the rest of the lesson down. */}
+      <div
+        className="coh-lessonfig__readout"
+        data-active={announce ? "true" : "false"}
+        aria-hidden="true"
+      >
+        <span aria-hidden="true">↳</span>
+        <span>{announce}</span>
+      </div>
+      {claim ? <p className="coh-lessonfig__claim">{claim}</p> : null}
       {/* OUTSIDE the `role="img"` element. Its subtree is presentational to
           assistive technology, so a reading placed inside it would be drawn and
           never announced — the same reason `Figure` renders its live region as
