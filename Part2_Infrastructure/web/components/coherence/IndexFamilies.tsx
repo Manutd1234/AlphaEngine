@@ -19,6 +19,12 @@
 
 import { fromCenticents, toCenticents } from "@/lib/coherence/fixed-point";
 import type { CoherenceIndexSeries } from "@/lib/coherence/types";
+import { useHot } from "@/lib/coherence/use-hot";
+import {
+  QuantInspectionPair,
+  QuantInspectionReadout,
+  QuantInspectionRow,
+} from "./QuantInspectionPair";
 import ValueStrip from "./ValueStrip";
 
 interface FamilyRow {
@@ -68,6 +74,16 @@ export default function FamilyTable({ data }: { data: CoherenceIndexSeries }) {
   }
 
   return (
+    <QuantInspectionPair>
+      <FamilyIndexWorkbench rows={rows} />
+    </QuantInspectionPair>
+  );
+}
+
+function FamilyIndexWorkbench({ rows }: { rows: FamilyRow[] }) {
+  const { hot } = useHot();
+
+  return (
     <>
     {/* The table's decisive column drawn (third review, 2026-08-24): which
         family drives the index. A family with no measured reading declines
@@ -82,10 +98,18 @@ export default function FamilyTable({ data }: { data: CoherenceIndexSeries }) {
         title: `${row.ticker}: ${row.readings} readings, ${row.measured} measured, ${row.unmeasurable} unmeasurable`,
         noBar: row.peak == null ? (row.readings ? "never measured" : "never polled") : undefined,
       }))}
+      hot={hot}
       notes={[
         "A reading is the L1 distance from the family's MID prices to the nearest vector summing to a dollar — "
         + "mid, because consistency is a property of the prices and tradability of the book.",
       ]}
+    />
+    <QuantInspectionReadout
+      rows={rows}
+      reading={(row) => (
+        `${row.ticker}: ${row.peak == null ? "peak not measured" : `peak ${fromCenticents(row.peak)}`}; `
+        + `${row.measured} measured, ${row.unmeasurable} unmeasurable across ${row.readings} readings.`
+      )}
     />
     {/* The strip answers the view's question — which family drives the index —
         so the four counts behind each bar go behind a summary (fourth review
@@ -95,7 +119,7 @@ export default function FamilyTable({ data }: { data: CoherenceIndexSeries }) {
         asking which family is worst never has to. */}
     <details className="disclosure">
       <summary>{`Readings, measured and unmeasurable for each watched family, ${rows.length} rows`}</summary>
-    <div className="table-wrap">
+    <div className="table-wrap" role="region" aria-label="Watched family index readings" tabIndex={0}>
       <table className="coh-table">
         <caption className="coh-table__caption">
           One row per watched family, worst peak first. An unmeasurable poll is counted in its own column, never
@@ -111,8 +135,9 @@ export default function FamilyTable({ data }: { data: CoherenceIndexSeries }) {
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
-            <tr key={row.ticker}>
+          {rows.map((row, index) => (
+            <QuantInspectionRow asChild index={index} key={row.ticker}>
+            <tr>
               <th scope="row">{row.ticker}</th>
               <td className="num">{row.readings}</td>
               <td className="num">{row.measured}</td>
@@ -121,6 +146,7 @@ export default function FamilyTable({ data }: { data: CoherenceIndexSeries }) {
                 {row.peak == null ? <span title="no measurable poll for this family">—</span> : fromCenticents(row.peak)}
               </td>
             </tr>
+            </QuantInspectionRow>
           ))}
         </tbody>
       </table>
