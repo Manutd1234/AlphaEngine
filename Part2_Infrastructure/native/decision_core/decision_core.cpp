@@ -568,6 +568,25 @@ static CoreResult decide(
                 "order_books contains None; every entry must be a BookLadder");
     }
 
+    // The vector path indexes five parallel arrays from pos_quantities' size.
+    // pybind11 validates each element's type, but it does not require those
+    // arrays to have the same length; unchecked operator[] on a shorter peer
+    // would therefore be undefined behaviour. A non-empty PositionBook owns
+    // the rows and deliberately supersedes the vectors, so only the fallback
+    // vector path needs this boundary check. Keep validation outside the core
+    // timer: malformed arguments are binding work, not decision arithmetic.
+    const bool use_book = position_book != nullptr && !position_book->entries.empty();
+    if (!use_book) {
+        const std::size_t position_count = pos_quantities.size();
+        if (pos_avg_prices.size() != position_count ||
+            pos_realized.size() != position_count ||
+            pos_marks.size() != position_count ||
+            pos_is_order_symbol.size() != position_count) {
+            throw std::invalid_argument(
+                "pos_* vectors must have identical lengths");
+        }
+    }
+
     CoreResult r;
     const auto t0 = std::chrono::steady_clock::now();
 
@@ -579,19 +598,16 @@ static CoreResult decide(
     // those lines up front lets the misses overlap instead of queueing behind
     // the header-then-data pointer chase, venue after venue.
     //
-    // Reads nothing, computes nothing, changes no value: a prefetch that
-    // arrives too late costs one instruction and a prefetch of a null data
-    // pointer (an empty ladder) is architecturally a no-op. The two lines a
-    // side are the 80 bytes consolidated_mid folds — five levels of 16 —
-    // which is also where the routed walk starts.
+    // Reads nothing, computes nothing, changes no value. Empty and short
+    // ladders are guarded before pointer arithmetic: a hardware prefetch may
+    // tolerate a null/out-of-range address, but constructing that pointer in
+    // C++ is still undefined behaviour. Five-level books touch two lines.
     for (const BookLadder *book : order_books) __builtin_prefetch(book, 0, 3);
     for (const BookLadder *book : order_books) {
-        const char *bid_levels = reinterpret_cast<const char *>(book->bids.data());
-        const char *ask_levels = reinterpret_cast<const char *>(book->asks.data());
-        __builtin_prefetch(bid_levels, 0, 3);
-        __builtin_prefetch(bid_levels + 64, 0, 3);
-        __builtin_prefetch(ask_levels, 0, 3);
-        __builtin_prefetch(ask_levels + 64, 0, 3);
+        if (!book->bids.empty()) __builtin_prefetch(book->bids.data(), 0, 3);
+        if (book->bids.size() > 4) __builtin_prefetch(book->bids.data() + 4, 0, 3);
+        if (!book->asks.empty()) __builtin_prefetch(book->asks.data(), 0, 3);
+        if (book->asks.size() > 4) __builtin_prefetch(book->asks.data() + 4, 0, 3);
     }
 
     const double sign = side_is_buy ? 1.0 : -1.0;
@@ -646,7 +662,6 @@ static CoreResult decide(
     // expansion of it provably cannot change a number: the caller leaves the
     // pos_* vectors empty whenever it passes a mirror, so both paths fold the
     // same zero elements. Skipping it skips the thread_local block entirely.
-    const bool use_book = position_book != nullptr && !position_book->entries.empty();
     const PositionBook::Entry *entries =
         use_book ? position_book->entries.data() : nullptr;
     const std::size_t n = use_book ? position_book->entries.size() : pos_quantities.size();
@@ -1007,10 +1022,85 @@ static std::vector<long long> clock_floor_ns(int samples) {
     return out;
 }
 
+/** Measure only the language boundary. The value is returned unchanged.
+ *
+ * This is deliberately not timed in C++: callers put their own clock around
+ * it to measure Python -> pybind11 -> C++ -> pybind11 -> Python. It performs
+ * no decision work and is advertised as a versioned measurement capability,
+ * so a benchmark never subtracts a guessed binding cost from the hot kernel.
+ */
+static double roundtrip_probe(double value) noexcept { return value; }
+
+#ifndef ALPHAENGINE_BUILD_ID
+#define ALPHAENGINE_BUILD_ID "alphaengine-decision-core/abi-1/unattributed"
+#endif
+
 PYBIND11_MODULE(_decision_core, m) {
     m.doc() =
         "AlphaEngine native pre-trade decision core: book ladders + the numeric "
         "gates. See the file header for the exact Python/C++ boundary.";
+
+    // The Python wrapper calls decide() positionally. These names are therefore
+    // an ABI, even though pybind11 would otherwise leave them as documentation
+    // only. Export the complete ordered contract so a stale or incompatible
+    // binary is refused at process start instead of failing (and falling back)
+    // on the first order. It also settles the old wrapper comment that called
+    // this a 26-argument call: the executable boundary has 28. Increment
+    // ABI_VERSION for an incompatible signature or arithmetic-contract change.
+    // setup.py makes BUILD_ID source/flags/architecture/SOABI specific.
+    m.attr("ABI_VERSION") = 1;
+    m.attr("BUILD_ID") = ALPHAENGINE_BUILD_ID;
+    m.attr("CAPABILITY_VERSION") = 1;
+    m.attr("CAPABILITIES") = py::make_tuple(
+        "bit_exact_ieee754_v1",
+        "persistent_book_ladder_v1",
+        "position_book_mirror_v1",
+        "routed_slippage_v1",
+        "steady_clock_telemetry_v1",
+        "roundtrip_probe_v1");
+    m.attr("DECIDE_ARGUMENTS") = py::make_tuple(
+        "side_is_buy",
+        "order_type_is_limit",
+        "order_quantity",
+        "order_notional",
+        "limit_price",
+        "is_paper",
+        "paper_price",
+        "order_books",
+        "pos_quantities",
+        "pos_avg_prices",
+        "pos_realized",
+        "pos_marks",
+        "pos_is_order_symbol",
+        "working_buys",
+        "working_sells",
+        "starting_equity",
+        "carried_realized_pnl",
+        "start_of_day_equity",
+        "max_order_notional_usd",
+        "max_symbol_notional_usd",
+        "max_gross_exposure_usd",
+        "max_price_deviation_bps",
+        "max_daily_drawdown_pct",
+        "reduce_only_threshold",
+        "reduce_only_override",
+        "route_enabled",
+        "position_book",
+        "order_symbol");
+    m.attr("DECIDE_ARGUMENT_COUNT") = 28;
+#if defined(__clang__)
+    m.attr("COMPILER") = std::string("clang ") + __clang_version__;
+#elif defined(__GNUC__)
+    m.attr("COMPILER") = std::string("gcc ") + __VERSION__;
+#elif defined(_MSC_VER)
+    m.attr("COMPILER") = std::string("msvc ") + std::to_string(_MSC_VER);
+#else
+    m.attr("COMPILER") = "unknown";
+#endif
+    m.attr("PYBIND11_VERSION") =
+        std::to_string(PYBIND11_VERSION_MAJOR) + "." +
+        std::to_string(PYBIND11_VERSION_MINOR) + "." +
+        std::to_string(PYBIND11_VERSION_PATCH);
 
     py::class_<BookLadder>(m, "BookLadder")
         .def(py::init<>())
@@ -1069,7 +1159,44 @@ PYBIND11_MODULE(_decision_core, m) {
         .def_property_readonly("route_venue_order", [](const CoreResult &r) {
             return std::vector<int>(r.venue_order_data(),
                                     r.venue_order_data() + r.venue_order_count);
-        });
+        })
+        .def("materialize_tuple", [](const CoreResult &r,
+                                     std::optional<std::size_t> venue_count) {
+            py::tuple venue_order(r.venue_order_count);
+            const int *venues = r.venue_order_data();
+            const bool has_route = r.venue_order_count != 0;
+            if (venue_count && has_route != (r.route_ran && !r.route_none))
+                throw std::invalid_argument("native route topology is inconsistent");
+            for (std::size_t i = 0; i < r.venue_order_count; ++i) {
+                if (venue_count &&
+                    (venues[i] < 0 || static_cast<std::size_t>(venues[i]) >= *venue_count))
+                    throw std::invalid_argument("native route venue index is out of range");
+                for (std::size_t j = 0; venue_count && j < i; ++j)
+                    if (venues[j] == venues[i])
+                        throw std::invalid_argument("native route contains a duplicate venue");
+                venue_order[i] = py::int_(venues[i]);
+            }
+            return py::make_tuple(
+                r.elapsed_ns,
+                r.mark,
+                r.has_price,
+                r.qty,
+                r.notional,
+                r.projected_sym,
+                r.projected_gross,
+                r.dev_bps,
+                r.dd,
+                r.reduce_only_active,
+                r.reducing,
+                r.budget_used,
+                r.route_ran,
+                r.route_none,
+                r.route_fillable,
+                r.route_filled_notional,
+                r.route_has_slip,
+                r.route_slippage_bps,
+                std::move(venue_order));
+        }, py::arg("venue_count") = py::none());
 
     m.def("clock_tick_ns", &clock_tick_ns, py::arg("transitions_per_round") = 4096,
           py::arg("rounds") = 16,
@@ -1080,6 +1207,10 @@ PYBIND11_MODULE(_decision_core, m) {
     m.def("clock_floor_ns", &clock_floor_ns, py::arg("samples"),
           "decide()'s two clock reads with nothing between them: the floor "
           "every elapsed_ns carries. Measurement instrument.");
+
+    m.def("roundtrip_probe", &roundtrip_probe, py::arg("value"),
+          "Return one double unchanged. Measurement-only probe for the "
+          "Python/pybind11/C++ round-trip; no decision calls it.");
 
     m.def("decide", &decide,
           py::arg("side_is_buy"),
