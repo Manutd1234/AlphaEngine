@@ -1,4 +1,4 @@
-"""The persisted work queue: seed-once, ids, versioned edits, and the routes."""
+"""The persisted work queue: empty boot, ids, versioned edits, and routes."""
 
 from __future__ import annotations
 
@@ -6,8 +6,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 import main
+from modules import work_items
 from modules.work_items import (
-    SEED_ITEMS,
     VersionConflict,
     WorkItemCreate,
     WorkItemPatch,
@@ -18,31 +18,35 @@ NOW = 1_700_000_000_000.0
 
 
 class TestStore:
-    def test_seeds_once_and_marks_the_rows(self):
-        store = WorkItemStore.in_memory(seed=True, now_ms=NOW)
-        assert store.count() == len(SEED_ITEMS) == 9
-        assert store.seeded_count() == 9
-        assert all(item.created_by == "seed" for item in store.list())
-        # A second construction over the same rows would not re-seed; the
-        # cheap proof is that an empty store with seeding off stays empty.
-        assert WorkItemStore.in_memory(seed=False).count() == 0
+    def test_fresh_store_is_empty_and_has_no_seed_entry_point(self):
+        store = WorkItemStore.in_memory()
+
+        assert store.count() == 0
+        assert store.list() == []
+        assert not hasattr(store, "_seed")
+        assert not hasattr(work_items, "SEED_ITEMS")
+        assert not hasattr(work_items, "SEED_ACTOR")
+        with pytest.raises(TypeError, match="unexpected keyword argument 'seed'"):
+            WorkItemStore.in_memory(seed=True)  # type: ignore[call-arg]
 
     def test_ids_are_allocated_per_prefix_like_the_browser_did(self):
-        store = WorkItemStore.in_memory(seed=True, now_ms=NOW)
+        store = WorkItemStore.in_memory()
         bug = store.create(WorkItemCreate(kind="bug", priority="P1", title="A"), actor="t", now_ms=NOW)
         req = store.create(WorkItemCreate(kind="request", priority="P2", title="B"), actor="t", now_ms=NOW)
-        assert bug.id == "BUG-095"          # BUG-094 is the highest seed
-        assert req.id == "REQ-188"          # REQ-187 is the highest seed
+        next_bug = store.create(WorkItemCreate(kind="bug", priority="P2", title="C"), actor="t", now_ms=NOW)
+        assert bug.id == "BUG-001"
+        assert req.id == "REQ-001"
+        assert next_bug.id == "BUG-002"
         assert bug.status == "intake" and bug.version == 1
         assert bug.sla_due_at == NOW + 8 * 3_600_000, "P1 carries the 8-hour SLA the board applied"
 
     def test_no_sla_when_asked_for_none(self):
-        store = WorkItemStore.in_memory(seed=False)
+        store = WorkItemStore.in_memory()
         item = store.create(WorkItemCreate(kind="ticket", priority="P3", title="x", sla_hours=0), actor="t", now_ms=NOW)
         assert item.sla_due_at is None
 
     def test_patch_bumps_the_version_and_stamps_resolution(self):
-        store = WorkItemStore.in_memory(seed=False)
+        store = WorkItemStore.in_memory()
         item = store.create(WorkItemCreate(kind="bug", priority="P0", title="x"), actor="a", now_ms=NOW)
         moved = store.patch(item.id, WorkItemPatch(version=1, status="progress"), actor="b", now_ms=NOW + 1)
         assert moved is not None and moved.version == 2 and moved.status == "progress"
@@ -53,7 +57,7 @@ class TestStore:
         assert back is not None and back.resolved_at is None, "leaving resolved clears the stamp"
 
     def test_a_stale_version_is_refused_with_the_current_row(self):
-        store = WorkItemStore.in_memory(seed=False)
+        store = WorkItemStore.in_memory()
         item = store.create(WorkItemCreate(kind="bug", priority="P0", title="x"), actor="a")
         store.patch(item.id, WorkItemPatch(version=1, owner="Mei"), actor="a")
         with pytest.raises(VersionConflict) as caught:
@@ -63,12 +67,12 @@ class TestStore:
         assert store.get(item.id).owner == "Mei"
 
     def test_unknown_item_is_none_not_an_error(self):
-        store = WorkItemStore.in_memory(seed=False)
+        store = WorkItemStore.in_memory()
         assert store.patch("NOPE-001", WorkItemPatch(version=1, status="ready"), actor="a") is None
         assert store.get("NOPE-001") is None
 
     def test_delete_removes_the_row_and_returns_what_it_said(self):
-        store = WorkItemStore.in_memory(seed=False)
+        store = WorkItemStore.in_memory()
         item = store.create(WorkItemCreate(kind="ticket", priority="P2", title="Gone soon"), actor="a")
         store.patch(item.id, WorkItemPatch(version=1, status="ready"), actor="a")
 
@@ -92,7 +96,7 @@ class TestRoutes:
         assert listed.status_code == 200
         body = listed.json()
         assert body["backend"] == "sqlite"
-        assert set(body) == {"backend", "observed_at", "count", "seeded", "items"}
+        assert set(body) == {"backend", "observed_at", "count", "items"}
         before = body["count"]
 
         created = client.post("/api/data/work-items", json={"kind": "ticket", "priority": "P2", "title": "Route test"})
