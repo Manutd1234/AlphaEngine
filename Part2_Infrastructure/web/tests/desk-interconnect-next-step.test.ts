@@ -60,13 +60,14 @@ describe("the next step follows what was just read", () => {
     const start = footerCode.indexOf("const FLOW_MAP");
     assert.notEqual(start, -1, "the fallback ring is gone");
     const block = footerCode.slice(start, footerCode.indexOf("\n};", start));
-    const ring = [...block.matchAll(/^ {2}([a-z]+):\s*\{\s*\n\s*nextId:\s*"([a-z]+)"/gm)];
+    const ring = [...block.matchAll(/^ {2}([a-z]+):\s*\{/gm)].map((match) => match[1]);
     assert.equal(ring.length, 11,
       "the ring no longer covers all eleven workspaces");
-    for (const [, from, to] of ring) {
+    for (const from of ring) {
       assert.ok(RAILS[from], `the ring starts from "${from}", which is not a workspace`);
-      assert.ok(RAILS[to], `the ring points at "${to}", which is not a workspace`);
     }
+    assert.match(footerCode, /nextWorkspaceView\(currentView\)/,
+      "the ring's destination no longer comes from the canonical tab order");
   });
 
   it("reads the destination's name from the rail rather than mirroring it", () => {
