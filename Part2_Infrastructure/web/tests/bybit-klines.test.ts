@@ -223,16 +223,15 @@ describe("the fallback actually falls back", () => {
     assert.deepEqual(out.warnings, []);
   });
 
-  it("falls through to synthetic only when every venue declines", async () => {
-    const out = await loadCryptoBars("BTCUSDT", "1h", 300, [
-      dead("Bybit", "bybit"), dead("Binance", "binance"),
-    ]);
-    assert.equal(out.source, "synthetic");
-    // Both venues named: "data unavailable" is one sentence for two different
-    // outages, and a reader needs to know it was not just the primary.
-    assert.match(out.warnings[0], /Bybit declined/);
-    assert.match(out.warnings[0], /Binance declined/);
-    assert.match(out.warnings[0], /the workflow is real, the prices are not/);
+  it("returns no substitute when every venue declines", async () => {
+    await assert.rejects(
+      () => loadCryptoBars("BTCUSDT", "1h", 300, [
+        dead("Bybit", "bybit"), dead("Binance", "binance"),
+      ]),
+      (cause: unknown) => cause instanceof Error
+        && /Bybit declined/.test(cause.message)
+        && /Binance declined/.test(cause.message),
+    );
   });
 });
 
