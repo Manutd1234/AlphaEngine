@@ -16,7 +16,7 @@
  * "why was this refused" is in the row, not in a file on a server.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   UNTAGGED,
@@ -27,9 +27,11 @@ import {
   strategyTags,
 } from "@/lib/blotter";
 import RowMenu from "@/components/common/RowMenu";
+import BoundedPager from "@/components/common/BoundedPager";
 import { download } from "@/lib/download";
 import { blotterToCsv } from "@/lib/export-csv";
 import { fmt, usd } from "@/lib/format";
+const BLOTTER_PAGE_SIZE = 75;
 
 interface OrderBlotterProps {
   rows: BlotterRow[];
@@ -66,6 +68,7 @@ export default function OrderBlotter({
   const [strategy, setStrategy] = useState<string | null>(null);
   const [gate, setGate] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [pageIndex, setPageIndex] = useState(0);
 
   // The view fixes the status outright — there is no third form left that could
   // hold a status of its own.
@@ -79,6 +82,18 @@ export default function OrderBlotter({
     }),
     [rows, status, focusSymbol, strategy, query, gate, view],
   );
+  const pageCount = Math.max(1, Math.ceil(visible.length / BLOTTER_PAGE_SIZE));
+  const activePage = Math.min(pageIndex, pageCount - 1);
+  const pageStart = activePage * BLOTTER_PAGE_SIZE;
+  const pagedVisible = useMemo(
+    () => visible.slice(pageStart, pageStart + BLOTTER_PAGE_SIZE),
+    [visible, pageStart],
+  );
+
+  useEffect(() => {
+    setPageIndex(0);
+    setExpanded(null);
+  }, [view, focusSymbol, strategy, query, gate]);
 
   const exportStamp = () => {
     const parts = ["alphaengine-blotter", source, view];
@@ -102,7 +117,7 @@ export default function OrderBlotter({
               // seg directly above states the two as controls, and on a filtered
               // view the claim was about rows this table is not showing.
               : "Every gateway decision, newest first, from the append-only audit log."}
-            {visible.length !== rows.length ? ` Showing ${visible.length} of ${rows.length}.` : ""}
+            {visible.length ? ` Showing ${pagedVisible.length} of ${visible.length}.` : ""}
           </p>
         </div>
         <div className="blotter-toolbar">
@@ -227,27 +242,31 @@ export default function OrderBlotter({
               </tr>
             </thead>
             <tbody>
-              {visible.map((row) => {
+              {pagedVisible.map((row) => {
                 const open = expanded === row.orderId;
+                const detailId = ["blotter-detail", row.orderId.replace(/[^A-Za-z0-9_-]/g, "-")].join("-");
                 // The desk tape's arriving tint: a fill from the last few
                 // seconds wears it, the next poll's re-render ages it out.
                 const fresh = Date.now() - Date.parse(row.ts.endsWith("Z") ? row.ts : `${row.ts}Z`) < 6_000;
                 return [
                   <tr
                     key={row.orderId}
+                    id={`blotter-row-${row.orderId.replace(/[^A-Za-z0-9_-]/g, "-")}`}
+                    tabIndex={-1}
                     className={`${row.accepted ? "" : "is-rejected"}${fresh ? " row-fresh" : ""}`}
-                    onClick={() => setExpanded(open ? null : row.orderId)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        setExpanded(open ? null : row.orderId);
-                      }
-                    }}
-                    tabIndex={0}
-                    aria-expanded={open}
-                    style={{ cursor: "pointer" }}
                   >
-                    <td>{time(row.ts)}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="cockpit-blotter__row-toggle"
+                        aria-expanded={open}
+                        aria-controls={detailId}
+                        aria-keyshortcuts="Enter"
+                        onClick={() => setExpanded(open ? null : row.orderId)}
+                      >
+                        {time(row.ts)}
+                      </button>
+                    </td>
                     <td>{row.symbol}</td>
                     <td className={row.side === "BUY" ? "pos" : "neg"}>{row.side}</td>
                     <td className="num">{usd(row.notional)}</td>
@@ -296,7 +315,7 @@ export default function OrderBlotter({
                     <td className="muted">{row.strategy ?? "—"}</td>
                   </tr>,
                   open ? (
-                    <tr key={`${row.orderId}-detail`} className="detail-row">
+                    <tr key={`${row.orderId}-detail`} id={detailId} className="detail-row">
                       {/* Counted off the header above, not guessed. The fills
                           arm read 9 against 11 rendered columns, so the check
                           vector stopped two columns short of the row it
@@ -363,6 +382,15 @@ export default function OrderBlotter({
               })}
             </tbody>
           </table>
+          <BoundedPager
+            activePage={activePage}
+            pageCount={pageCount}
+            label={view}
+            onPageChange={(page) => {
+              setExpanded(null);
+              setPageIndex(page);
+            }}
+          />
         </div>
       )}
     </section>
