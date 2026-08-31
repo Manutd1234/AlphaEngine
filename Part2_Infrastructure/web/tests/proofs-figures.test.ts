@@ -26,7 +26,7 @@
  *    instead, which is where the band comes from and which nothing drew.
  *  - A HALF-LIFE OR SUMMARY-LENGTH BAR on the Lessons cards. Both are drawings
  *    of the prose rather than of anything measured. `GroupPins` draws the two
- *    quantities a lesson actually has and pins the ratio between them.
+ *    quantities a lesson actually has in one full-title comparison table.
  *
  * THE TABLE IS HERE TOO, and the file is named for figures because that is what
  * five of its six subjects are. "Reformat parlays as a table with proper
@@ -191,7 +191,9 @@ describe("each figure says what it cannot say", () => {
     // that as ▲ would report a missing measurement as a found violation, which
     // is the house's most-alert defect in its figure form.
     const source = read(FIGURES.CheckLadder.file);
-    assert.match(source, /holds: certificate\.margin == null \? null :/,
+    assert.match(source, /const crossesDecisionLine = marginCrossesDecisionLine\(certificate\.margin\);/,
+      "the ladder no longer routes the wire margin through its exact shared comparison");
+    assert.match(source, /holds: crossesDecisionLine == null \? null : !crossesDecisionLine/,
       "an absent margin no longer resolves to the could-not-ask mark");
   });
 });
@@ -222,100 +224,86 @@ describe("the guards this file replaces are gone rather than duplicated", () => 
   });
 });
 
-describe("the Parlays view is a table, and its columns are measurements", () => {
-  const source = read("../components/coherence/ParlaysView.tsx");
+describe("the Bands inspector exposes the complete Fréchet range", () => {
+  const table = read("../components/coherence/BandsTable.tsx");
+  const instrument = read("../components/coherence/FrechetInstrument.tsx");
 
-  /**
-   * The ParlaysView function alone, not the file.
-   *
-   * EVERY ASSERTION BELOW IS SCOPED TO THIS, and that is not tidiness: the file
-   * also holds `LegTable`, which draws a `coh-table` of its own. Both of the
-   * first two assertions written here were file-scoped and both were VACUOUS —
-   * replacing the view's whole table with a `<div>` left `LegTable`'s behind
-   * and the rule stayed green. Found by mutating the source, which is the only
-   * thing that ever finds this.
-   *
-   * THE END BOUND IS THE END OF THE FILE, and that is only safe because
-   * `ParlaysView` is the last thing in it — which the assertion below checks.
-   * It used to be `indexOf("export function NotesView(")`, and after the
-   * 2026-08-26 split that call would return -1 and `slice(start, -1)` would
-   * quietly scan everything but the final character: green, and measuring
-   * almost nothing.
-   */
-  const start = source.indexOf("export function ParlaysView(");
-  const view = source.slice(start);
-
-  it("locates the view, and it is the last export so the slice ends where it does", () => {
-    assert.ok(start !== -1, "ParlaysView was not found — every rule below would pass vacuously");
-    assert.ok(view.length > 400, "the slice is too short to be the view");
-    assert.equal(source.indexOf("export ", start + 1), -1,
-      "something is exported after ParlaysView, so this slice is no longer the view alone");
+  it("is driven by the selected loaded row and fetches nothing of its own", () => {
+    assert.match(table, /<FrechetInstrument combo=\{selected\} \/>/);
+    assert.doesNotMatch(`${table}\n${instrument}`, /useCoherenceRead|Route\(|fetch\(/,
+      "the local inspector started a second read");
   });
 
-  it("draws a table with a head, and one row per parlay", () => {
-    // The ask, pinned: it was six folded cards, so comparing two parlays' band
-    // widths meant opening two folds and holding a number in your head.
-    assert.match(view, /<table className="coh-table">/, "the Parlays view has no table");
-    for (const column of ["Parlay", "Legs", "Lower bound", "Upper bound", "Band width", "Price", "In band"]) {
-      assert.ok(
-        view.includes(`<th scope="col"${column === "Parlay" ? "" : ' className="num"'}>${column}</th>`),
-        `the table lost its ${column} column`,
-      );
+  it("draws lower, upper, quote and independence as separately inspectable marks", () => {
+    for (const [kind, field] of [
+      ["lower", "combo.lower_bound"], ["upper", "combo.upper_bound"],
+      ["quote", "combo.price"], ["independence", "combo.independence"],
+    ] as const) {
+      assert.match(instrument, new RegExp(`const ${kind} = toUnit\\(${field.replace(".", "\\.")}\\)`),
+        `${kind} does not read the payload field it names`);
+      assert.match(instrument, new RegExp(`marker\\(\"${kind}\", ${kind},`),
+        `${kind} is not its own inspectable reading`);
     }
-    assert.match(view, /combos\.map\(\(combo\) => \{/, "the rows are no longer one per parlay");
+    assert.match(instrument, /readings\.map\(\(reading\) => \(\s*<Button/);
+    assert.match(instrument, /from "@\/components\/ui\/button"/,
+      "the inspectable marks bypass the shared button focus contract");
+    assert.match(instrument, /aria-pressed=\{active\?\.kind === reading\.kind\}/);
+    assert.match(instrument, /onFocus=\{\(\) => setInspected\(reading\.kind\)\}/,
+      "a keyboard can reach a marker but cannot inspect it");
   });
 
-  it("no column restates the sign of the column beside it", () => {
-    // The defect `copy-audit` cost the Scorecard's band table a column for:
-    // a cell reading "inside the band" beside a cell reading "43%" is the sign
-    // of its neighbour, written out once per row. The verdict is a MARK on the
-    // row header, and the caption is what says how to read it.
-    assert.doesNotMatch(
-      view,
-      /<th scope="col">\s*(Reading|Verdict|Position)\s*<\/th>/,
-      "a prose verdict column is back; the mark on the row header carries it",
-    );
-    assert.match(source, /function positionMark\(/, "the row header lost its mark");
-    assert.match(view, /positionMark\(combo\)/, "the row header no longer draws the mark");
+  it("keeps the domain fixed at [0,1] and withholds a band when either edge is missing", () => {
+    assert.match(instrument, /const clamp = \(value: number\) => Math\.min\(1, Math\.max\(0, value\)\)/);
+    assert.match(instrument, /<span className=\{styles\.rangeZero\}>0<\/span>/);
+    assert.match(instrument, /<span className=\{styles\.rangeOne\}>1<\/span>/);
+    assert.match(instrument, /const validBand = lower != null && upper != null && lower <= upper/);
+    assert.match(instrument, /\{bandStyle \? <div className=\{styles\.rangeBand\}/,
+      "a missing bound is being placed at zero");
+  });
+});
+
+describe("the parlay workflow separates comparison from experimentation", () => {
+  const source = read("../components/coherence/ParlaysView.tsx");
+  const start = source.indexOf("export function ParlaysView(");
+  const end = source.indexOf("export function ParlayInputsView(", start);
+  const view = source.slice(start, end);
+
+  it("locates and bounds Test quote before the leg-price view", () => {
+    assert.ok(start !== -1, "ParlaysView was not found — every rule below would pass vacuously");
+    assert.ok(end > start, "ParlayInputsView was not found — the summary slice has no safe end");
+    assert.equal(view.indexOf("export ", 1), -1,
+      "another export appears inside the ParlaysView summary slice");
   });
 
-  it("the caption carries the key, and the claim the sentence used to", () => {
-    // Three marks with no key is meaning by shape alone. And the judgement the
-    // deleted position sentence carried — that outside the band is the only
-    // mispricing on this view — is the one thing a reader could get backwards.
-    assert.match(view, /● inside the band its legs impose, ▲ outside it/,
-      "the caption no longer says what the marks mean");
-    assert.match(view, /the only reading on this view that is a mispricing/,
-      "the mispricing distinction went with the position sentence rather than moving to the caption");
+  it("renders a named picker and quote simulator without repeating comparison data", () => {
+    assert.match(view, /<ParlayPicker combos=\{combos\} selected=\{selected\}/);
+    assert.match(view, /<ParlaySimulator combo=\{selected\} mode="quote" \/>/);
+    assert.doesNotMatch(view, /<table|Lower bound|Upper bound|Band width/,
+      "Test quote regressed into a second comparison table");
   });
 
-  it("every parlay is reachable by name, and the table did not go with them", () => {
-    // REVERSED ON 2026-08-25, deliberately, and the earlier assertion is worth
-    // recording rather than deleting. It read "the six per-parlay folds are
-    // back; the table is what replaced them" and required EXACTLY ONE
-    // disclosure in this view — written when six named folds collapsed into one
-    // drawer, because six summaries above the content were six lines of chrome.
-    //
-    // What that traded away only became visible in use: the one drawer is
-    // labelled "…6 parlays", so a reader after a NAMED parlay had to open it
-    // and scroll six cards to find out whether theirs was among them. The
-    // reader asked for exactly that back — "explain the dataset used for each
-    // one, it used to have the table of stuff for us to see".
-    //
-    // So both are true now and neither is the old shape: the TABLE stays, which
-    // is what killed the chrome, and each row also has its own named fold, which
-    // is what makes a parlay addressable. The fold is keyed by ticker, so this
-    // counts the map rather than a literal.
-    assert.match(view, /combos\.map\(\(combo\) => \(\s*<details className="disclosure" key=\{combo\.ticker\}>/,
-      "the per-parlay folds are gone again; a named parlay is not reachable");
-    assert.match(view, /<table className="coh-table">/,
-      "the table went with them, and it is what replaced six lines of chrome");
-    assert.match(source, /<FrechetBand reading=\{combo\} \/>/,
-      "the per-parlay band figure is gone, and with it FrechetBand's only render site");
+  it("keeps every parlay reachable without stacking every audit", () => {
+    assert.match(source, /combos\.map\(\(combo\) => \(\s*<Button/,
+      "the named parlay picker is gone; a specific parlay is no longer reachable");
+    assert.match(source, /<ComboCard combo=\{selected\} \/>/,
+      "the selected parlay no longer exposes its detailed audit");
+    assert.doesNotMatch(source, /combos\.map\(\(combo\) => \(\s*<details/,
+      "every parlay audit is stacked again, restoring the long-scroll defect");
+    assert.match(source, /<ParlaySimulator combo=\{combo\} mode="legs" \/>/,
+      "the Legs view no longer exposes its local band simulator");
     assert.match(source, /<LegTable combo=\{combo\} \/>/, "the per-leg costs are gone");
     // The legs are no longer behind a fold of their OWN inside the parlay's —
     // that nesting is what the reader called a dropdown inside a dropdown.
     assert.doesNotMatch(source, /<details className="coh-combo__legs"/,
       "the leg table is folded inside the parlay's fold again");
+  });
+
+  it("keeps the five-column comparison and full marker inspector in Compare", () => {
+    const table = read("../components/coherence/BandsTable.tsx");
+    for (const column of ["Parlay", "Legs", "Allowed range", "Quote", "Position"]) {
+      assert.match(table, new RegExp(`>${column}<`), `Compare lost its ${column} column`);
+    }
+    assert.doesNotMatch(table, />Independence<|>Band width<|>Lower bound<|>Upper bound</);
+    assert.match(table, /<FrechetInstrument combo=\{selected\} \/>/);
   });
 });
