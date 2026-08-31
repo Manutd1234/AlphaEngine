@@ -7,7 +7,7 @@ import { monteCarloBands, stationaryBootstrapIndices } from "../lib/montecarlo";
 import { gbmTerminalVar99, Z99 } from "../lib/portfolio-risk/risk";
 import { mulberry32 } from "../lib/random";
 import { runSweep } from "../lib/engine";
-import { syntheticBars } from "../lib/marketdata";
+import { syntheticBars } from "./helpers/synthetic-bars";
 import { DEFAULT_REQUEST } from "../lib/types";
 
 const constantReturns = (n: number, r: number) => new Float64Array(n).fill(r);
