@@ -67,14 +67,14 @@ describe("the sweep's view cells mirror the section-views table", () => {
     }
   });
 
-  it("is declared below TABS with no diffusion key, so diffusion-sections' parser stays on the rail", () => {
+  it("is declared below TABS, so diffusion-sections' parser stays on the rail", () => {
     // `diffusion-sections.test.ts` reads the FIRST `diffusion: [` literal in
     // the plan as the Diffusion rail. A `diffusion` key inside VIEW_CELLS,
     // above TABS, would be parsed as the rail and every Diffusion section
     // would read as missing.
     const source = read("../scripts/desk-sweep-plan.mjs");
     assert.ok(source.indexOf("const VIEW_CELLS") > source.indexOf("const TABS"), "VIEW_CELLS must sit below TABS");
-    assert.ok(!("diffusion" in plan.VIEW_CELLS), "Diffusion declares no views; it must not appear in VIEW_CELLS");
+    assert.ok("diffusion" in plan.VIEW_CELLS, "Diffusion's non-default destinations are not swept");
   });
 
   it("the sweep itself walks the cells", () => {
