@@ -73,6 +73,11 @@ import KpiRow, { type Reading } from "./KpiRow";
 /** The one city the venue publishes. Probed, not assumed — see the driver. */
 export const PUBLISHED_CITY = "miami";
 
+function cityLabel(city: string | null | undefined): string {
+  const value = city?.trim() || PUBLISHED_CITY;
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
 /** Three views since the second 2026-08-24 pass: Formation stacked two figures
  *  — the chain and the pending-minutes bars — which is one more than a view
  *  may hold, so the provisional minutes are their own view. Named here and
@@ -83,8 +88,7 @@ function ReferenceRate({ state, detail }: { state: string; detail: string }) {
   if (state === "entitlement_required") {
     return (
       <p className="coh-settle__standing">
-        <span aria-hidden="true">○</span> Reference rate withheld: the CF Benchmarks passthrough is gated on an account
-        entitlement, not on request signing, so a demo key does not open it and retrying cannot.
+        <span aria-hidden="true">○</span> Reference rate unavailable — gated on an account entitlement, not on request signing.
       </p>
     );
   }
@@ -180,12 +184,15 @@ function TodayReading({ data }: { data: CoherenceSettlementFeed }) {
         spotMinusWindow={data.spot_minus_window}
       />
 
-      <p className="coh-settle__note">
-        Both averages are the same {data.window_minutes}-minute mean, once with the flagged minutes and once without
-        {data.window_average_clean == null
-          ? "; the clean figure is unpublished for this read, so it shows a dash."
-          : "."}
-      </p>
+      <aside className="coh-settle__mean-note" aria-label="Published and quality-controlled mean comparison">
+        <span className="coh-settle__mean-mark" aria-hidden="true"><i /><i /></span>
+        <p>
+          Both averages are the same {data.window_minutes}-minute mean, once with the flagged minutes and once without
+          {data.window_average_clean == null
+            ? "; the clean figure is unpublished for this read, so it shows a dash."
+            : "."}
+        </p>
+      </aside>
     </>
   );
 }
@@ -194,75 +201,61 @@ function TodayReading({ data }: { data: CoherenceSettlementFeed }) {
 function Formation({ data }: { data: CoherenceSettlementFeed }) {
   const stages: FormationStage[] = [
     {
-      title: "Stations",
-      value: data.stations.length ? `${data.stations.length} members` : "—",
-      note: data.stations.length ? data.stations.join(" ") : "no per-station detail",
+      title: "Station panel",
+      value: data.stations.length ? `${data.stations.length} stations` : "—",
+      note: data.stations.length ? "All reporting station IDs were received." : "No station detail was returned.",
       holds: data.stations.length ? true : null,
     },
     {
       title: "Quality control",
-      value: data.config_version || "—",
-      note: `${data.degraded_samples} of ${data.sample_count} flagged`,
+      value: data.config_version ? "Rules loaded" : "—",
+      note: data.config_version
+        ? `${data.degraded_samples} of ${data.sample_count} minutes flagged; ${data.config_version}`
+        : `${data.degraded_samples} of ${data.sample_count} minutes flagged; no rule version returned.`,
       holds: data.config_version ? true : null,
     },
     {
       title: "Published minute",
-      value: `${data.formation_agreed} of ${data.formation_checked}`,
-      note: data.formation_holds ? "rule reproduced" : "rule does not hold",
+      value: `${data.formation_agreed} / ${data.formation_checked}`,
+      note: data.formation_holds ? "Published values matched the QC station mean." : "Published values did not match the rule.",
       holds: data.formation_holds,
     },
     {
       title: "Settlement window",
-      value: `${data.window_minutes} min`,
-      note: data.quorum_gaps > 0 ? `${data.quorum_gaps} minutes missing` : "continuous, no gaps",
-      holds: data.quorum_gaps > 0 ? false : true,
+      value: `${data.window_minutes} minutes`,
+      note: data.window_is_assumed
+        ? `Configured window; ${data.quorum_gaps} omitted minutes in this feed.`
+        : `${data.quorum_gaps} omitted minutes in this feed.`,
+      holds: data.window_is_assumed ? null : true,
     },
   ];
 
   return (
     <>
       <FormationDiagram
+        mode="assembly"
         stages={stages}
-        caption="How the settlement index is formed, stage by stage"
+        caption="Four steps to one settlement index"
         reading={
           data.formation_holds
-            ? // The mean-of-QC-stations rule is what the stages above draw; the
-              // reading keeps the verdict and the count.
-              `This read reproduced the published value on all ${data.formation_checked} completed minutes; Pending's provisional figures rest on that.`
-            : `The rule did not reproduce the published value here, so nothing on Pending should be traded on: ${data.formation_detail}`
+            ? `All ${data.formation_checked} completed minutes matched the published rule.`
+            : `Formation check failed: ${data.formation_detail}`
         }
         missing={
           data.quorum_gaps > 0
-            ? `${data.quorum_gaps} minutes are missing: the venue omits a minute whose quorum failed — `
-              + "not computed rather than unreported."
+            ? `${data.quorum_gaps} minutes were omitted after quorum failure.`
             : null
         }
       />
 
-      {/* The station list is the one measurement on this view the DRAWING
-          cannot carry: SVG text neither wraps nor clips, so `FormationDiagram`
-          elides it at the box edge and five nine-character names become
-          "MIAMI-INT…". Folded here it is complete, counted in its own summary,
-          and it costs the view nothing when nobody asks. */}
-      {data.stations.length ? (
-        <details className="disclosure">
-          <summary>
-            Every station in the mean, {data.stations.length}{" "}
-            {data.stations.length === 1 ? "member" : "members"}
-          </summary>
-          <ul className="coh-notes">
-            {data.stations.map((station) => (
-              <li key={station}>{station}</li>
-            ))}
-          </ul>
-        </details>
-      ) : null}
-
-      <p className="coh-settle__note">
-        Figures are in {data.units || "the index’s own units, which this read did not carry"}. Coverage is one city.
-      </p>
-
-      <ReferenceRate state={data.reference_rate_state} detail={data.reference_rate_detail} />
+      <details className="disclosure">
+        <summary>
+          Data details — {data.stations.length} {data.stations.length === 1 ? "station" : "stations"}; {data.units || "units not supplied"}; {cityLabel(data.city)}
+        </summary>
+        {data.stations.length ? <p className="coh-settle__note">Station IDs: {data.stations.join(", ")}.</p> : null}
+        <p className="coh-settle__note">Coverage is one city: {cityLabel(data.city)}.</p>
+        <ReferenceRate state={data.reference_rate_state} detail={data.reference_rate_detail} />
+      </details>
     </>
   );
 }
@@ -272,7 +265,21 @@ function Formation({ data }: { data: CoherenceSettlementFeed }) {
  *  tradeable figure on the section and it was the second drawing on a view
  *  that already had one. */
 function Pending({ data }: { data: CoherenceSettlementFeed }) {
-  return <PendingMinutes rows={data.pending ?? []} units={data.units || "index units"} />;
+  return (
+    <PendingMinutes
+      rows={data.pending ?? []}
+      units={data.units || "index units"}
+      context={{
+        latestValue: data.latest_value,
+        windowAverage: data.window_average,
+        windowMinutes: data.window_minutes,
+        windowIsAssumed: data.window_is_assumed,
+        formationHolds: data.formation_holds,
+        formationAgreed: data.formation_agreed,
+        formationChecked: data.formation_checked,
+      }}
+    />
+  );
 }
 
 export default function SettlementPane({ view, active }: { view: SettlementView; active: boolean }) {
@@ -301,11 +308,10 @@ export default function SettlementPane({ view, active }: { view: SettlementView;
           never on the price on screen — because as a view it had no head to put
           that in. `SettlementSection` has a head now and that sentence is its
           lede; left here as well it was one claim twice, adjacent, which is the
-          "too wordy" the reader reported. What a head cannot carry is which
           window and which city, and that is what is left. */}
       <p className="sub">
         {data
-          ? `Read over a ${data.window_minutes}-minute window on the ${data.city ?? PUBLISHED_CITY} index.`
+          ? `${cityLabel(data.city)} index; ${data.window_is_assumed ? "configured " : ""}${data.window_minutes}-minute settlement window.`
           : "Reading the published index now."}
       </p>
       {body}
@@ -319,7 +325,7 @@ export default function SettlementPane({ view, active }: { view: SettlementView;
       </p>,
     );
   }
-  if (!data) return framed(<p className="console-empty muted">Reading the settlement index…</p>);
+  if (!data) return framed(<p className="console-empty muted" role="status" aria-busy="true">Reading the settlement index…</p>);
 
   if (data.state === "not_covered") {
     return framed(
@@ -360,19 +366,21 @@ export default function SettlementPane({ view, active }: { view: SettlementView;
           contract pays is the window MEAN; every number above it is one
           minute's print. Drawn against each other, "is the index running hot"
           stops being two numbers a reader holds in their head. */}
-      <LiveTape
-        points={indexTape}
-        caption={`The published ${PUBLISHED_CITY} index, poll by poll`}
-        ariaLabel="The latest published index reading over the polls seen since this tab opened, against the settlement window's mean"
-        reference={
-          data.window_average == null
-            ? null
-            : { value: Number(data.window_average), label: `the ${data.window_minutes}-minute mean it settles on` }
-        }
-        format={(value) => `${value.toFixed(1)}°`}
-        reading="Above the line the index is running hot against what a contract would pay on it; below, cold. The distance is the basis."
-        missing={data.window_average == null ? "No window mean this read, so there is nothing to judge the prints against." : null}
-      />
+      {view === "reading" ? (
+        <LiveTape
+          points={indexTape}
+          caption={`The published ${PUBLISHED_CITY} index, poll by poll`}
+          ariaLabel={`The latest published index reading over the polls seen since this tab opened, against the ${data.window_is_assumed ? "configured " : ""}window mean`}
+          reference={
+            data.window_average == null
+              ? null
+              : { value: Number(data.window_average), label: `the ${data.window_is_assumed ? "configured " : ""}${data.window_minutes}-minute mean used here` }
+          }
+          format={(value) => `${value.toFixed(1)}°`}
+          reading="Above the line the index is running hot against what a contract would pay on it; below, cold. The distance is the basis."
+          missing={data.window_average == null ? "No window mean this read, so there is nothing to judge the prints against." : null}
+        />
+      ) : null}
     </>,
   );
 }
