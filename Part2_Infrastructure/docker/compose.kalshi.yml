@@ -1,0 +1,54 @@
+# Opt-in local Kalshi demo signing for the root docker-compose.yml.
+#
+# Keep this separate from the base file: a clean clone has no private key and
+# ordinary `docker compose up` must remain keyless. Run from the repository root:
+#
+#   docker compose -f docker-compose.yml \
+#     -f Part2_Infrastructure/docker/compose.kalshi.yml up -d --build
+#
+# All relative paths in a multi-file Compose application resolve from the first
+# (base) file. The source below is therefore the same ignored file that
+# KALSHI_DEMO_PRIVATE_KEY_PATH=secrets/kalshi-demo-private-key.pem names for a
+# Python process launched directly from Part2_Infrastructure.
+
+services:
+  kalshi-demo-key-install:
+    image: alphaengine-gateway:local
+    user: "0:0"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        set -eu;
+        umask 077;
+        incoming=/run/secrets/kalshi-demo-private-key.pem.next;
+        target=/run/secrets/kalshi-demo-private-key.pem;
+        cleanup() { rm -f "$${incoming}" || true; };
+        trap cleanup EXIT;
+        rm -f "$${incoming}";
+        python -c 'import sys; from cryptography.hazmat.primitives import serialization; from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey; key = serialization.load_pem_private_key(open("/source/kalshi-demo-private-key.pem", "rb").read(), password=None); sys.exit(0 if isinstance(key, RSAPrivateKey) else "Kalshi demo key must be RSA")';
+        cp /source/kalshi-demo-private-key.pem "$${incoming}";
+        chown 10001:10001 "$${incoming}";
+        chmod 0400 "$${incoming}";
+        mv "$${incoming}" "$${target}";
+        trap - EXIT
+    volumes:
+      - type: bind
+        source: ./Part2_Infrastructure/secrets/kalshi-demo-private-key.pem
+        target: /source/kalshi-demo-private-key.pem
+        read_only: true
+        bind:
+          create_host_path: false
+      - kalshi_demo_key:/run/secrets
+    restart: "no"
+
+  gateway:
+    depends_on:
+      kalshi-demo-key-install:
+        condition: service_completed_successfully
+    environment:
+      KALSHI_DEMO_PRIVATE_KEY_PATH: /run/secrets/kalshi-demo-private-key.pem
+    volumes:
+      - kalshi_demo_key:/run/secrets:ro
+
+volumes:
+  kalshi_demo_key:
