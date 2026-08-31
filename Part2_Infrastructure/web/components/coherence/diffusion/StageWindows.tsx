@@ -149,8 +149,9 @@ function StageWindows({ read }: { read: AbsorptionRead | null }) {
         // Said twice on one view it read as two different facts.
       ].filter(Boolean).join(" ") || null}
     >
-      <Plot height={HEIGHT} minWidth={520}>
+      <Plot height={HEIGHT}>
         {(width) => {
+          const compact = width < 480;
           const usable = width - MARGIN.left - MARGIN.right;
           const x = (minutes: number) => MARGIN.left + (minutes / span) * usable;
           const rowY = (index: number) => MARGIN.top + 22 + index * ROW_GAP;
@@ -215,7 +216,7 @@ function StageWindows({ read }: { read: AbsorptionRead | null }) {
                 ) : null}
                 <text className="diff-win__label" x={x(start) + 6} y={row - BAND_H / 2 - 7}>
                   <tspan aria-hidden="true">{STAGE_MARK[stage]}</tspan> {word}
-                  {hl.length ? ` — ${hl.length} measured` : total ? " — none cleared the floor" : ""}
+                  {!compact && (hl.length ? ` — ${hl.length} measured` : total ? " — none cleared the floor" : "")}
                 </text>
               </g>
             );
@@ -224,7 +225,9 @@ function StageWindows({ read }: { read: AbsorptionRead | null }) {
           return (
             <>
               <text className="diff-win__label" x={x(0)} y={MARGIN.top - 26}>
-                {total
+                {compact
+                  ? `${usual}m stage gap`
+                  : total
                   ? `${usual} minutes apart on ${total - unusual.length} of ${total} pairs`
                     + (unusual.length ? `; ${[...new Set(unusual.map((m) => m.gapMin))].join(" and ")} on ${unusual.length}` : "")
                   : `${STAGE_GAP_MIN} minutes apart, set by the issuer`}
