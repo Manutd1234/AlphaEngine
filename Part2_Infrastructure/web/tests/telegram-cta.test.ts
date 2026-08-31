@@ -34,6 +34,8 @@ const cta = read("../components/header/TelegramCta.tsx");
 const route = read("../app/api/telegram/link/route.ts");
 const header = read("../components/WorkspaceHeader.tsx");
 const envExample = read("../.env.example");
+const headerLadder = read("../app/globals/14p-header-ladder-tenth-tab.css");
+const headerSurplus = read("../app/globals/14o-header-tabs-surplus.css");
 
 describe("the Telegram button names the bot that is actually running", () => {
   it("asks the gateway rather than a build-time inline", () => {
@@ -88,6 +90,7 @@ describe("no state renders nothing, and no state renders a link to nowhere", () 
   it("says why it cannot connect, in words rather than by disappearing", () => {
     assert.match(code(cta), /label = "Unavailable"/);
     assert.match(cta, /No Telegram companion is reachable from this deployment/);
+    assert.doesNotMatch(code(cta), /opacity-60/);
     // Every branch sets a description, and the description is what the label
     // and the tooltip both read from.
     assert.match(code(cta), /aria-label=\{description\}/);
@@ -128,13 +131,13 @@ describe("connected is unmistakably connected", () => {
   });
 
   it("carries the state with a mark as well as a colour", () => {
-    // House rule, and the reason it exists: below 1660px the label span is
+    // House rule, and the reason it exists: below 1680px the label span is
     // hidden, so a green chip with no word would be colour and nothing else —
     // invisible to a colour-blind reader, a greyscale screenshot and Windows
     // High Contrast alike. The ✓ sits OUTSIDE the collapsing span.
     assert.match(code(cta), /mark = "✓"/);
     const markSpan = code(cta).indexOf("{mark ?");
-    const labelSpan = code(cta).indexOf("max-[1660px]:hidden");
+    const labelSpan = code(cta).indexOf("max-[1680px]:hidden");
     assert.ok(markSpan !== -1 && markSpan < labelSpan, "the mark must not collapse with the label");
   });
 
@@ -260,30 +263,45 @@ describe("it sits in the header without disturbing the nav", () => {
   });
 
   it("leads the utility cluster rather than joining the tablist", () => {
-    // Inside the tablist it would become a ninth tab to arrow through, and
-    // NAV_ITEMS is asserted elsewhere to be exactly the eight workspaces.
-    const spacer = header.indexOf('<div className="header-spacer" />');
+    // Inside the tablist it would become a twelfth tab to arrow through, and
+    // NAV_ITEMS is asserted elsewhere to be exactly the eleven workspaces.
     const cta_ = header.indexOf("<TelegramCta />");
     const tablist = header.indexOf('role="tablist"');
-    assert.ok(tablist < spacer && spacer < cta_, "the CTA must follow the spacer, outside the tabs");
+    const tablistEnd = header.indexOf("</nav>", tablist);
+    const switcher = header.indexOf('className="workspace-switcher"', tablistEnd);
+    assert.ok(tablist < tablistEnd && tablistEnd < switcher && switcher < cta_,
+      "the CTA must follow both navigation forms, outside the tablist");
+    assert.doesNotMatch(header, /header-spacer/,
+      "a spacer between navigation and Telegram would turn surplus into a variable gap");
   });
 
   it("keeps its label only where the header has room", () => {
     // The first rung of the header's priority ladder (see globals.css); the icon tile carries the
     // meaning below it, and the aria-label carries it for everyone.
-    assert.match(code(cta), /max-\[1660px\]:hidden/);
+    assert.match(code(cta), /max-\[1680px\]:hidden/);
     assert.match(code(cta), /aria-label=\{description\}/);
   });
 
-  it("wears the utility row's 32px / 9px norm despite being an anchor", () => {
+  it("wears the utility row's effective 42px target with a subtle shared outline", () => {
     // The global button rule normalises every <button> in the row to
-    // min-height 32px with a 9px radius; an <a> escapes it, and this chip
+    // min-height 40px with a 9px radius; an <a> escapes it, and this chip
     // once stood ~37px tall at a 10px radius — the standing-proud defect the
     // latency chip's fix narrates in globals.css. The tile matches
     // .latency-chip__icon: 24px, 7px radius.
-    assert.match(code(cta), /min-h-\[32px\]/);
+    assert.match(code(cta), /min-h-\[40px\]/,
+      "the component keeps a safe local fallback when rendered outside WorkspaceHeader");
     assert.match(code(cta), /rounded-\[9px\]/);
     assert.match(code(cta), /h-6 w-6 place-items-center rounded-\[7px\]/);
     assert.doesNotMatch(code(cta), /rounded-\[10px\]|h-\[27px\]/);
+    assert.match(
+      headerLadder,
+      /\.workspace-header__utility > :is\(button, a\),\s*\.workspace-header__utility > \.header-anchor > :is\(button, a\) \{\s*min-height: 42px;\s*\}/,
+    );
+    assert.match(
+      headerSurplus,
+      /\.workspace-header__utility > \.telegram-cta \{[^}]*border-color: color-mix\(in srgb, var\(--series-1\) 22%, transparent\);/,
+    );
+    assert.match(headerSurplus, /\.workspace-header__utility > :is\(\.telegram-cta,[^}]*box-shadow:/);
+    assert.match(code(cta), /telegram-cta/);
   });
 });
