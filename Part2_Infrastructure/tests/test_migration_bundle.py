@@ -24,6 +24,8 @@ import re
 REPO = pathlib.Path(__file__).resolve().parent.parent.parent
 MIGRATIONS = REPO / "supabase" / "migrations"
 BUNDLE = REPO / "supabase" / "apply_all.generated.sql"
+SCOPE_GUARD_NAME = "20260831121000_data_ops_desk_scope_guard.sql"
+SCOPE_GUARD = MIGRATIONS / SCOPE_GUARD_NAME
 
 
 def _bundle() -> str:
@@ -79,6 +81,11 @@ class TestTheBundleIsRerunnable:
         )
         assert bare == [], f"these would fail on a second run: {bare}"
 
+    def test_no_bare_create_function(self):
+        body = _statements(_bundle())
+        bare = re.findall(r"^\s*create\s+function\s+\S+", body, re.M | re.I)
+        assert bare == [], f"these would fail on a second run: {bare}"
+
     def test_every_policy_is_dropped_first(self):
         """Postgres has no CREATE POLICY IF NOT EXISTS; a DROP is the only way."""
         body = _statements(_bundle())
@@ -129,6 +136,20 @@ class TestTheGeneratorsAssumptions:
         assert names, "no migrations found"
         missing = [n for n in names if n not in bundle]
         assert missing == [], f"the bundle is missing {missing}"
+
+    def test_locking_migration_uses_runner_transaction_and_bundle_wrapper(self):
+        """Do not commit before `db push` records migration history."""
+        source = _statements(SCOPE_GUARD.read_text(encoding="utf-8"))
+        assert not re.search(r"^\s*(?:begin|commit)\s*;", source, re.I | re.M)
+
+        bundle = _bundle()
+        rule = "-- " + "=" * 72
+        marker = f"-- {SCOPE_GUARD_NAME}\n{rule}\n"
+        start = bundle.index(marker) + len(marker)
+        end = bundle.find(f"\n\n{rule}\n-- ", start)
+        section = bundle[start:end if end >= 0 else None]
+        assert section.index("begin;") < section.index("lock table")
+        assert section.rindex("commit;") > section.index("notify pgrst")
 
     def test_the_bundle_is_not_stale(self):
         """Generated, so it must equal what the generator produces right now."""
