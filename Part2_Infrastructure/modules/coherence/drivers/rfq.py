@@ -40,6 +40,7 @@ from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from typing import Any, Literal, Sequence
 
+from modules.coherence.drivers.kalshi_auth import SigningUnavailable
 from modules.coherence.drivers.kalshi_rest import KalshiClient, KalshiRefused, KalshiUnavailable
 from modules.coherence.kernel.money import DOLLAR, one_minus
 
@@ -319,6 +320,17 @@ async def read_panel(client: KalshiClient, limit: int = 50) -> dict[str, Any]:
                 "the RFQ channel refused this key. It is signed-only and environment-specific: "
                 "a demo key signs demo, never production. " + exc.reason
             ),
+            "rfqs": [],
+            "dispersions": [],
+        }
+    except SigningUnavailable as exc:
+        # Configuration can pass the cheap presence check and still fail at
+        # the signing boundary: the PEM may have moved, become unreadable, or
+        # stopped parsing. That is an operator setup state, not a gateway 500
+        # and not a venue refusal — no request left this process.
+        return {
+            "state": "signing_unavailable",
+            "detail": f"private-channel signing is not ready: {exc}",
             "rfqs": [],
             "dispersions": [],
         }
