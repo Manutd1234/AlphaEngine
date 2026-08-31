@@ -5,6 +5,9 @@ description: Start AlphaEngine locally — boot the desk workspace and the FastA
 
 # Start AlphaEngine
 
+**Last verified: 2026-08-29.** Volatile topology and release evidence are in
+`docs/CURRENT_STATE.md`.
+
 The workspace runs with **zero configuration**. Do not ask the user for API
 keys, a database, or a `.env` file before starting — none are required.
 
@@ -12,24 +15,24 @@ keys, a database, or a `.env` file before starting — none are required.
 
 Ask, or infer from the request:
 
-- **Web only** (default; ~2 minutes). Full eight-tab desk on generated data.
+- **Full stack** (default; ~10 minutes). Adds the Python gateway, so Portfolio,
+  Risk, Execution and Reliability read a real book.
+- **Web only** (explicit; ~2 minutes). Full eleven-tab desk on generated data.
   Everything is navigable; writes are disabled outside the `live` tier.
-- **Full stack** (~10 minutes). Adds the Python gateway, so Portfolio, Risk,
-  Execution and Reliability read a real book.
 
-If the user just said "start it", do web only, tell them the data is generated,
-and offer the gateway as a next step.
+If the user just said "start it", use the integrated default. Use web-only only
+when they ask for it or cannot install the gateway environment.
 
 ## Web only
 
 ```bash
 cd Part2_Infrastructure/web
 npm install          # npm, not yarn or pnpm — package-lock.json is committed
-npm run dev
+npm run dev:web
 ```
 
 Node 22 (`.nvmrc` at the repo root; `nvm use` if nvm is present). If port 3000
-is taken, use `PORT=3100 npm run dev` and report the port you actually used.
+is taken, use `PORT=3100 npm run dev:web` and report the port you actually used.
 
 Report to the user:
 
@@ -52,8 +55,9 @@ ls Part2_Infrastructure/venv/bin/python
 It must be **exactly** `Part2_Infrastructure/venv`. `web/package.json`'s
 `dev:gateway` runs `cd .. && ./venv/bin/python`, and
 `web/scripts/start-dev-all.mjs` spawns `resolve(rootDir, "venv/bin/python")`
-with no existence check and no `error` handler on the child. A `.venv`, a conda
-env or a uv env gives an unhandled `ENOENT` that reads like a Node crash.
+from that fixed path. The child error handler reports the gateway failure and
+stops the workspace peer; a `.venv`, conda env or uv env still cannot satisfy
+the supported path.
 
 If it is missing or wrongly named, create it:
 
@@ -82,14 +86,14 @@ Prefer two background processes so their logs stay separable:
 
 ```bash
 cd Part2_Infrastructure && venv/bin/python -m uvicorn main:app --reload --port 8000
-cd Part2_Infrastructure/web && npm run dev
+cd Part2_Infrastructure/web && npm run dev:web
 ```
 
 Run the gateway with `Part2_Infrastructure` as the working directory — it
 resolves the DuckDB audit log relative to itself.
 
-`npm run dev:all` from `web/` does both in one process, which is fine when it
-works and hard to diagnose when it does not.
+`npm run dev` from `web/` is the supervised integrated default; `dev:all` is an
+explicit alias for the same command.
 
 ### Confirm it is actually up
 
@@ -100,7 +104,8 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8000/api/portfolio
 
 Both should be 200. The web app finds the gateway with no configuration: with
 `ALPHAENGINE_GATEWAY_URL` unset it falls back to `http://127.0.0.1:8000`, but
-only when `NODE_ENV=development` — see `gatewayState()` in `web/lib/gateway.ts`.
+only when `NODE_ENV=development` — see `gatewayState()` in
+`web/lib/gateway-origin.ts`.
 
 Report:
 
@@ -115,7 +120,8 @@ Report:
 
 Say this plainly — it is the point of the setup:
 
-- All eight tabs, every panel, full navigation.
+- All eleven tabs, all 70 rail sections and the Markets/Proofs/Diffusion view
+  workbenches, with full navigation.
 - Crypto quotes, bars and L2 depth via Binance's public endpoints.
 - The whole gateway: the seventeen-gate battery (`modules/risk_proxy/` — a
   package, not `risk_proxy.py`), TCA, backtests, the DuckDB audit log.
