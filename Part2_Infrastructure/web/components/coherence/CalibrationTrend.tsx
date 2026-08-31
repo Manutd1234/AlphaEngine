@@ -38,6 +38,7 @@ import MeasurabilityStrip from "./MeasurabilityStrip";
 import CorpusAccrual from "./CorpusAccrual";
 import CorpusHistory from "./CorpusHistory";
 import SectionVerdict from "./SectionVerdict";
+import ProofsTransportNotice from "./ProofsTransportNotice";
 
 const HEIGHT = 170;
 const MARGIN = { top: 14, right: 10, bottom: 24, left: 10 };
@@ -49,20 +50,26 @@ function clock(ms: number): string {
 }
 
 export default function CalibrationTrend({ active }: { active: boolean }) {
-  const { data, error } = useCoherenceRead<CoherenceCalibrationHistory>(calibrationHistoryRoute(), active);
+  const read = useCoherenceRead<CoherenceCalibrationHistory>(calibrationHistoryRoute(), active);
+  const { data, error } = read;
+  const notice = (
+    <ProofsTransportNotice
+      subject="Score history read"
+      error={error}
+      hasSnapshot={Boolean(data)}
+      transport={read.transport}
+      retryAt={read.retryAt}
+      consecutiveFailures={read.consecutiveFailures}
+      onRetry={read.refresh}
+    />
+  );
 
   if (error && !data) {
-    return (
-      <SectionVerdict pending={<><span aria-hidden="true">✕</span> The score history could not be read: {error}</>} />
-    );
+    return notice;
   }
   if (!data) return <SectionVerdict pending="Reading the recorded scores…" />;
   if (data.state !== "ok" || !data.points.length) {
-    return (
-      <SectionVerdict
-        pending={<><span aria-hidden="true">◌</span> {data.notes[0] ?? "No score has been recorded yet."}</>}
-      />
-    );
+    return <>{notice}<SectionVerdict pending={<><span aria-hidden="true">◌</span> {data.notes[0] ?? "No score has been recorded yet."}</>} /></>;
   }
 
   const points = data.points.map((point) => ({
@@ -106,6 +113,7 @@ export default function CalibrationTrend({ active }: { active: boolean }) {
     // dead pane the desk sweep exists to find.
     return (
       <>
+        {notice}
         {chips}
         {/* WHAT THE CORPUS IS BECOMING, before what it is. On this branch every
             recorded run declined to score, so the only question worth asking is
@@ -187,6 +195,7 @@ export default function CalibrationTrend({ active }: { active: boolean }) {
 
   return (
     <>
+      {notice}
       {chips}
 
       {/* ONE CROSSHAIR OVER BOTH: the skill line and the record of every
