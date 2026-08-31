@@ -8,7 +8,7 @@
  * `gateway-contract.test.ts` pins it to regenerate byte-for-byte. So Pydantic →
  * OpenAPI → generated TypeScript cannot drift quietly.
  *
- * `lib/coherence/types.ts` and `types-lab.ts` can. They are hand-mirrored from
+ * `lib/coherence/types.ts` and the `types-lab` modules can. They are hand-mirrored from
  * the same models, they are what every panel on the two engine tabs actually
  * reads, and nothing compared them to anything. 46 of their 47 interfaces have a
  * generated counterpart sitting in the same repository, and until this file
@@ -128,7 +128,11 @@ function callableText(source: string): string {
 }
 
 const generated = interfaces(read("../lib/gateway-contract.generated.ts"));
-const hand = interfaces(read("../lib/coherence/types.ts") + read("../lib/coherence/types-lab.ts"));
+const hand = interfaces([
+  "../lib/coherence/types.ts",
+  "../lib/coherence/types-lab-markets.ts",
+  "../lib/coherence/types-lab-readings.ts",
+].map(read).join("\n"));
 
 /**
  * Interfaces the desk declares that the gateway does not, with the reason.
@@ -194,7 +198,8 @@ describe("every hand-written wire type answers to the published contract", () =>
  */
 const GUARD_MODULES = [
   "lib/coherence/types.ts",
-  "lib/coherence/types-lab.ts",
+  "lib/coherence/types-lab-markets.ts",
+  "lib/coherence/types-lab-readings.ts",
   "components/coherence/diffusion/types.ts",
 ];
 
