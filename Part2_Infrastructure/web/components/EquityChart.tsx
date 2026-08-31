@@ -128,7 +128,11 @@ export default function EquityChart({
         </span>
         {mc && (
           <span>
-            <i style={{ background: "color-mix(in srgb, var(--series-1) 25%, var(--surface-1))" }} />
+            <i style={{
+              background: "color-mix(in srgb, var(--series-1) 25%, var(--surface-1))",
+              border: "1px solid var(--border)",
+              height: 5,
+            }} />
             MC 5–95%, {mc.paths} resamples
           </span>
         )}
@@ -152,7 +156,7 @@ export default function EquityChart({
           <g className="chart-fade" key={drawKey}>
             <path d={L.outerBand} fill="var(--series-1)" opacity={0.1} />
             <path d={L.innerBand} fill="var(--series-1)" opacity={0.16} />
-            <path d={L.medianLine} fill="none" stroke="var(--series-1)" strokeWidth={1} opacity={0.5} />
+            <path d={L.medianLine} fill="none" stroke="var(--series-1)" strokeWidth={1} opacity={0.62} />
           </g>
         )}
 
@@ -245,7 +249,7 @@ export default function EquityChart({
             />
             <Tooltip
               x={L.xScale(index)}
-              width={mc ? 216 : 200}
+              width={mc ? 264 : 248}
               chartWidth={width}
               title={dateTime(point.t)}
               rows={[
