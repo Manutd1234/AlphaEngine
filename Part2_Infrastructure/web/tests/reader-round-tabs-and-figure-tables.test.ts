@@ -1,17 +1,10 @@
 /**
  * Three reader-requested changes of 2026-08-23, each pinned from both ends.
  *
- * 1. "Make the 8 tab buttons bigger — there is still a large gap between
- *    Developer and the Telegram button that is not utilised — but keep the
- *    spacing between each button consistent." The buttons grow into the row's
- *    surplus by an EQUAL increment (grow 1 over an auto basis), a 0-basis
- *    pseudo item keeps a fifth of the spare as separation from the chip
- *    cluster, and the selected underline stays the width of the WORD. The
- *    constraint that shaped all three: the header's width ladder is measured
- *    (scripts/header-ladder-measure.mjs) and had 0px of slack at 1700 and
- *    1500 with the sweep's widest strings, so nothing here may add to the
- *    row's MINIMUM — only grow, which never runs under deficit, may change.
- *    Re-swept 2600 → 1100 after the change: slack identical to ±2px.
+ * 1. The destination strip is content-led: one invariant inset, 6px gaps,
+ *    and no flex growth that turns spare viewport width into oversized boxes.
+ *    The selected underline stays the width of the word and the trailing
+ *    pseudo-element creates no item, so Diffusion is one row gap from Telegram.
  *
  * 2. Research ▸ Summary: the verdict's six figures are one `<table>` — the
  *    labels a header band, each figure and note a cell in the house frame —
@@ -44,38 +37,33 @@ function block(selector: string, text = css): string {
   return text.slice(start + head.length, text.indexOf("\n}", start));
 }
 
-describe("the tabs grow into the surplus by an equal increment, and nothing else", () => {
+describe("the tabs fill available surplus without manufacturing a spacer", () => {
   const button = block(".workspace-tabs button");
 
-  it("grow 1 over an AUTO basis — never `flex: 1`, whose 0 basis made every button equal", () => {
-    // Equal widths are what produced [18,18,18,30,40.7,28.7,18] word gaps at
-    // 1724; equal INCREMENTS keep every gap the same at every surplus.
+  it("shares the available row while retaining label-led minimums", () => {
     assert.match(button, /flex: 1 1 auto;/);
-    assert.doesNotMatch(button, /flex: 1;|flex: 1 1 0/);
+    assert.doesNotMatch(button, /flex: 1 1 0/);
   });
 
-  it("adds nothing to the row's minimum: the inline pad the ladder is measured at", () => {
-    // 6px since 2026-08-25, when an eleventh nav tab pushed the row past its
-    // width at twenty-seven separate viewport widths and the settings control
-    // was cut in half on a 16" MacBook. The FIRST half of this assertion is the
-    // one that matters and it is unchanged: nothing here may ADD to the row's
-    // minimum. Taking 2px off each side SUBTRACTS 44px from it, which is the
-    // direction this test was written to protect, and it hides nothing — the
-    // type scale, the labels and every rung width are untouched. 14p carries
-    // the sweep.
-    assert.match(button, /padding: 8px 6px;/);
-    for (const property of ["min-width", "width", "margin"]) {
+  it("uses one compact inset and never lets the responsive ladder mutate it", () => {
+    assert.match(button, /min-width: 0;/);
+    assert.match(button, /min-height: 42px;/);
+    assert.match(button, /padding: 7px 6px;/);
+    assert.match(button, /border: 0;/);
+    assert.match(button, /border-radius: 6px;/);
+    assert.doesNotMatch(readGlobalsPartial("app/globals/14-symbol-combobox.css"), /\.workspace-tabs button/);
+    for (const property of ["width", "margin"]) {
       assert.doesNotMatch(button, new RegExp(`(^|[;\\s])${property}:`), `${property} on a tab widens the row's minimum`);
     }
   });
 
-  it("the separation from the chip cluster is a 0-basis pseudo item, in its own partial", () => {
+  it("the separation from the chip cluster has no pseudo item or flex spacer", () => {
     const spare = block(".workspace-tabs::after");
-    assert.match(spare, /content: "";/);
-    assert.match(spare, /flex: 2 0 0;/, "grow 2 beside eight grow-1 buttons is a fifth of the spare");
-    for (const property of ["width", "min-width", "padding", "margin", "flex-basis"]) {
-      assert.doesNotMatch(spare, new RegExp(`(^|[;\\s])${property}:`), `${property} on the spare adds to the minimum`);
-    }
+    assert.match(spare, /content: none;/);
+    assert.doesNotMatch(spare, /flex:|width:|padding:|margin:/,
+      "a generated flex item would add a second gap after Diffusion even at zero width");
+    assert.doesNotMatch(read("components/WorkspaceHeader.tsx"), /header-spacer/,
+      "a real flex spacer would make the seam viewport-dependent again");
     // 01, 12 and 14 are all at the file-length ceiling; the rule carries no
     // box metric, which is what lets it live outside the tabs' three homes.
     assert.match(readGlobalsPartial("app/globals/14o-header-tabs-surplus.css"), /\n\.workspace-tabs::after \{/);
@@ -89,7 +77,7 @@ describe("the tabs grow into the surplus by an equal increment, and nothing else
     assert.ok(order("14o-header-tabs-surplus.css") < order("15-navigator-and-trailing-layer.css"), "14o must come before 15");
     assert.match(globalsCssSource, /15-navigator-and-trailing-layer\.css";\s*$/, "15 must stay last");
     // No narrow restatement: below 900 the strip is display: none (14) and the
-    // <select> switcher stands in, so a ninth grid cell never exists.
+    // <select> switcher stands in, so a generated trailing item never exists.
     assert.match(css, /@media \(max-width: 900px\) \{\n  \.workspace-tabs \{\n    display: none;/);
   });
 
