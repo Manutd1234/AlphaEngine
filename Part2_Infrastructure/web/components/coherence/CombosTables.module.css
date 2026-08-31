@@ -1,0 +1,397 @@
+.scrollport {
+  inline-size: 100%;
+  max-inline-size: 100%;
+  min-inline-size: 0;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: thin;
+}
+
+.scrollport > :global(.coh-table) {
+  min-inline-size: max-content;
+}
+
+.tableShell {
+  display: grid;
+  gap: 12px;
+  min-inline-size: 0;
+}
+
+.localControls {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(180px, 0.5fr) auto;
+  gap: 10px;
+  align-items: end;
+  padding: 10px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--series-1) 4%, var(--surface-1));
+}
+
+.localControl {
+  display: grid;
+  gap: 5px;
+  min-inline-size: 0;
+}
+
+.localControl > label {
+  color: var(--text-secondary);
+  font-size: var(--fs-tick);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.localControl :is(input, select) {
+  inline-size: 100%;
+  min-block-size: 36px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.localControl select {
+  padding-inline: 9px 28px;
+}
+
+.resultCount {
+  display: grid;
+  gap: 2px;
+  justify-items: end;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+}
+
+.resultCount strong {
+  color: var(--text-primary);
+  font-family: var(--mono);
+  font-size: var(--fs-body);
+  font-variant-numeric: tabular-nums;
+}
+
+.resultCount span {
+  color: var(--text-muted);
+  font-size: var(--fs-tick);
+}
+
+.tableShell :global(.coh-table) {
+  min-inline-size: max-content;
+}
+
+.tableShell :global(.coh-table) th {
+  white-space: nowrap;
+}
+
+.sortButton {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  justify-content: inherit;
+  inline-size: 100%;
+  min-block-size: 28px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+
+.sortButton::after {
+  content: "↕";
+  color: var(--text-muted);
+  font-size: var(--fs-tick);
+}
+
+.sortButton[data-direction="ascending"]::after {
+  content: "↑";
+  color: var(--text-primary);
+}
+
+.sortButton[data-direction="descending"]::after {
+  content: "↓";
+  color: var(--text-primary);
+}
+
+.rowSelect {
+  display: grid;
+  gap: 2px;
+  min-inline-size: 180px;
+  max-inline-size: 340px;
+  padding: 3px 5px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rowSelect > span {
+  font-family: var(--sans);
+  font-weight: 700;
+  white-space: normal;
+}
+
+.rowSelect:where(:hover, [aria-pressed="true"]) {
+  background: color-mix(in srgb, var(--series-1) 8%, transparent);
+}
+
+.empty,
+.emptyCell,
+.rangeMissing {
+  margin: 0; color: var(--text-secondary); font-size: var(--fs-xs);
+}
+
+.emptyCell {
+  padding-block: 18px !important;
+  text-align: center !important;
+}
+
+.equation {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.34fr) minmax(300px, 1fr);
+  gap: 8px 18px;
+  align-items: center;
+  margin: 0;
+}
+
+.equationCaption {
+  color: var(--text-secondary);
+  font-family: var(--sans);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.math {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--fs-body);
+}
+
+.equationTier {
+  display: grid;
+  grid-template-columns: 1.5em 1.5em minmax(max-content, 1fr);
+  gap: 4px;
+  align-items: baseline;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.instrument {
+  display: grid;
+  gap: 10px;
+  min-inline-size: 0;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+}
+
+.instrumentCaption {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  justify-content: space-between;
+  min-inline-size: 0;
+  font-size: var(--fs-body);
+}
+
+.instrumentCaption > span:first-child {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.instrumentState {
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+}
+
+.range {
+  position: relative;
+  block-size: 104px;
+  margin-inline: 14px;
+}
+
+.rangeTrack,
+.rangeBand {
+  position: absolute;
+  inset-block-start: 52px;
+  block-size: 8px;
+  border-radius: var(--radius-pill);
+}
+
+.rangeTrack {
+  inset-inline: 0;
+  border: 1px solid var(--rule);
+  background: var(--surface-2);
+}
+
+.rangeBand {
+  inset-inline-start: var(--range-start);
+  inline-size: var(--range-width);
+  border: 1px solid var(--text-secondary);
+  background: color-mix(in srgb, var(--series-1) 28%, var(--surface-1));
+}
+
+.marker {
+  position: absolute;
+  z-index: 1;
+  inset-inline-start: var(--range-position);
+  display: grid;
+  place-items: center;
+  inline-size: 24px;
+  block-size: 24px;
+  padding: 0;
+  transform: translateX(-50%);
+  border: 1px solid var(--text-secondary);
+  border-radius: var(--radius-pill);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  font-family: var(--mono);
+  font-size: var(--fs-tick);
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.marker[data-edge="start"] {
+  transform: translateX(0);
+}
+
+.marker[data-edge="end"] {
+  transform: translateX(-100%);
+}
+
+.marker::after {
+  content: attr(aria-label);
+  position: absolute;
+  inset-block-end: calc(100% + 5px);
+  inset-inline-start: 50%;
+  z-index: 3;
+  inline-size: max-content;
+  max-inline-size: min(260px, 70vw);
+  padding: 4px 7px;
+  transform: translateX(-50%);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-sm);
+  color: var(--text-primary);
+  font-family: var(--sans);
+  font-size: var(--fs-tick);
+  font-weight: 500;
+  line-height: 1.35;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.marker:where(:hover, :focus-visible)::after {
+  opacity: 1;
+}
+
+.marker[aria-pressed="true"] {
+  border-color: var(--text-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--series-1) 25%, transparent);
+}
+
+.lowerMarker { inset-block-start: 32px; }
+.upperMarker { inset-block-start: 50px; }
+.quoteMarker { inset-block-start: 10px; border-radius: var(--radius-sm); }
+.independenceMarker { inset-block-start: 76px; border-style: dashed; }
+
+.rangeZero,
+.rangeOne {
+  position: absolute;
+  inset-block-start: 63px;
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: var(--fs-tick);
+  font-variant-numeric: tabular-nums;
+}
+.rangeZero { inset-inline-start: 0; }
+.rangeOne { inset-inline-end: 0; }
+
+.rangeReadout {
+  block-size: calc(2.9em + 12px); min-block-size: calc(2.9em + 12px);
+  overflow: hidden auto; scrollbar-gutter: stable;
+  color: var(--text-primary);
+  font-size: var(--fs-xs);
+  font-weight: 650;
+}
+
+.rangeFacts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+  border: 1px solid var(--rule-soft);
+  border-radius: var(--radius-sm);
+}
+
+.rangeFacts > div {
+  min-inline-size: 0;
+  padding: 7px 9px;
+}
+
+.rangeFacts > div + div {
+  border-inline-start: 1px solid var(--rule-soft);
+}
+
+.rangeFacts :is(dt, dd) {
+  margin: 0;
+}
+.rangeFacts dt {
+  color: var(--text-muted); font-size: var(--fs-tick);
+}
+.rangeFacts dd {
+  margin-block-start: 2px; font-family: var(--mono); font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 720px) {
+  .localControls {
+    grid-template-columns: 1fr;
+  }
+  .resultCount {
+    justify-items: start;
+  }
+  .equation {
+    grid-template-columns: 1fr;
+  }
+  .instrumentCaption {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .rangeFacts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .rangeFacts > div + div {
+    border-inline-start: 0;
+  }
+  .rangeFacts > div:nth-child(even) {
+    border-inline-start: 1px solid var(--rule-soft);
+  }
+  .rangeFacts > div:nth-child(n + 3) {
+    border-block-start: 1px solid var(--rule-soft);
+  }
+}
+
+@media (forced-colors: active) {
+  .rangeBand,
+  .marker[aria-pressed="true"] {
+    forced-color-adjust: none;
+    border-color: CanvasText;
+  }
+}
