@@ -9,8 +9,11 @@ import {
   mixOklab,
   oklabToSrgb,
   rampStops,
+  readableRampInk,
   srgbToOklab,
 } from "../lib/colormap";
+import { globalsCss } from "./globals-css";
+import { blockAfter, tokensIn } from "./helpers/css-tokens";
 
 const ANCHORS: RGB[] = [
   SHARPE_RAMP_LIGHT.neg,
@@ -27,8 +30,38 @@ const parseRgb = (s: string): RGB => {
   return [Number(m![1]), Number(m![2]), Number(m![3])];
 };
 
+const parseHex = (value: string): RGB => {
+  const match = /^#([0-9a-f]{6})$/i.exec(value);
+  assert.ok(match, `not a six-digit hex colour: ${value}`);
+  return [0, 2, 4].map((offset) => Number.parseInt(match![1].slice(offset, offset + 2), 16)) as RGB;
+};
+
+const luminance = ([r, g, b]: RGB): number => {
+  const linear = [r, g, b].map((channel) => {
+    const value = channel / 255;
+    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+};
+
+const contrast = (a: RGB, b: RGB): number => {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+};
+
 describe("oklab conversion", () => {
-  it("round-trips every ramp anchor within 1/255 per channel", () => {
+  it("mirrors the CSS diverging anchors and round-trips them within 1/255", () => {
+    const palettes = [
+      [SHARPE_RAMP_LIGHT, tokensIn(blockAfter(globalsCss, ":root {"))],
+      [SHARPE_RAMP_DARK, tokensIn(blockAfter(globalsCss, ':root[data-theme="dark"]'))],
+    ] as const;
+
+    for (const [ramp, tokens] of palettes) {
+      assert.deepEqual(ramp.neg, parseHex(tokens.get("--diverging-neg") ?? ""));
+      assert.deepEqual(ramp.mid, parseHex(tokens.get("--diverging-mid") ?? ""));
+      assert.deepEqual(ramp.pos, parseHex(tokens.get("--diverging-pos") ?? ""));
+    }
+
     for (const rgb of ANCHORS) {
       const back = oklabToSrgb(srgbToOklab(rgb));
       for (let i = 0; i < 3; i++) {
@@ -90,5 +123,24 @@ describe("diverging scale", () => {
     assert.equal(stops[0], divergingScale(1, SHARPE_RAMP_LIGHT)(-1));
     assert.equal(stops[8], divergingScale(1, SHARPE_RAMP_LIGHT)(1));
     for (const s of stops) parseRgb(s);
+  });
+
+  it("chooses AA ink across every sampled cell in both themes", () => {
+    const cases = [
+      [false, SHARPE_RAMP_LIGHT, tokensIn(blockAfter(globalsCss, ":root {"))],
+      [true, SHARPE_RAMP_DARK, tokensIn(blockAfter(globalsCss, ':root[data-theme="dark"]'))],
+    ] as const;
+
+    const inherited = tokensIn(blockAfter(globalsCss, ":root {"));
+    for (const [isDark, ramp, tokens] of cases) {
+      const scale = divergingScale(1, ramp);
+      for (let index = -100; index <= 100; index += 1) {
+        const fill = scale(index / 100);
+        const inkRole = readableRampInk(fill).match(/var\((--[\w-]+)\)/)?.[1];
+        assert.ok(inkRole, `no token returned for ${fill}`);
+        const ratio = contrast(parseHex(tokens.get(inkRole!) ?? inherited.get(inkRole!) ?? ""), parseRgb(fill));
+        assert.ok(ratio >= 4.5, `${isDark ? "dark" : "light"} ${fill} with ${inkRole} is ${ratio.toFixed(2)}:1`);
+      }
+    }
   });
 });
