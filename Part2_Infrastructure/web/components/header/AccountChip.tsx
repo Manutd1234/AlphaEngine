@@ -109,25 +109,25 @@ function AccountChip({
    * THE BOX IS MEASURED, and it did not used to match. This placeholder is
    * built against the SIGNED-OUT control below — same padding, same gap, an
    * icon and a label bar — but measured in Chrome in the real header row it
-   * came out 90x28 against that control's 77.3x32: 12.7px too wide and 4px too
+   * came out 90x28 against that control's 77.3x40: 12.7px too wide and 12px too
    * short, so the answer landing reflowed the whole utility cluster. Two
    * causes, both fixed here. The bar was 52px where "Sign in" sets 39.3px at
    * the chip's own 12px/600. And an 11px bar raises no line box, where the
-   * label's text raises an 18px one — `min-h-[32px]` restores that height
+   * label's text raises an 18px one — `min-h-[40px]` restores that height
    * directly rather than by inflating the bar, which would have made the
    * shimmer read as a second icon.
    *
-   * REJECTED: reserving the signed-in monogram's 32x32 box instead. It is the
+   * REJECTED: reserving the signed-in monogram's 32x40 box instead. It is the
    * steadier state on a configured deployment, but it is the SMALLER box, so
    * every signed-out load would have grown the row by 45px — trading a reflow
-   * this branch can zero for one it cannot. 32px of height is the row's norm
+   * this branch can zero for one it cannot. 40px of height is the row's norm
    * either way, so the height fix serves both outcomes.
    */
   if (session.status === "loading") {
     return (
       <span
         aria-hidden
-        className="inline-flex min-h-[32px] items-center gap-1.5 rounded-[9px] border border-transparent px-1.5 py-1.5"
+        className="header-account-trigger inline-flex min-h-[40px] items-center gap-1.5 rounded-[9px] border border-transparent px-1.5 py-1.5"
       >
         <span className="skeleton block h-[14px] w-[14px] rounded-[50%]" />
         <span className="skeleton block h-[11px] w-[39px] max-[520px]:hidden" />
@@ -144,7 +144,7 @@ function AccountChip({
            and an unnamed link is a link a screen reader announces as "link". */
         aria-label="Sign in"
         title="Sign in"
-        className="inline-flex items-center gap-1.5 rounded-[9px] border border-transparent px-1.5 py-1.5 text-fs-chrome-chip font-semibold text-text-secondary no-underline hover:border-border hover:bg-surface-2"
+        className="header-account-trigger inline-flex min-h-[40px] items-center gap-1.5 rounded-[9px] border border-transparent px-1.5 py-1.5 text-fs-chrome-chip font-semibold text-text-secondary no-underline hover:border-border hover:bg-surface-2"
       >
         <UserRound size={14} aria-hidden />
         <span className="header-signin-label max-[520px]:hidden">Sign in</span>
@@ -173,7 +173,7 @@ function AccountChip({
            rule fills every <button> with --surface-2, so at rest this sat in a
            grey pill while the four status chips beside it were transparent —
            the avatar read as the one pressed control in the row. */
-        className="inline-flex items-center rounded-[9px] border border-transparent bg-transparent p-1 text-fs-chrome-chip font-semibold text-text-secondary transition-[background-color,border-color] duration-(--dur-fast) ease-(--ease) hover:border-border hover:bg-surface-2"
+        className="header-account-trigger inline-flex min-h-[40px] items-center rounded-[9px] border border-transparent bg-transparent p-1 text-fs-chrome-chip font-semibold text-text-secondary transition-[background-color,border-color] duration-(--dur-fast) ease-(--ease) hover:border-border hover:bg-surface-2"
       >
         <span
           aria-hidden
