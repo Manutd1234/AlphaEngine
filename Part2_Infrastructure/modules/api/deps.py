@@ -15,9 +15,32 @@ from __future__ import annotations
 
 import hmac
 
-from fastapi import Header, HTTPException
+from fastapi import Header, HTTPException, Request
 
 from config import settings
+from modules.application_context import ApplicationContext
+from modules.application_services import (
+    ExecutionGatewayService,
+    MarketDataProvider,
+    RiskEngineManager,
+)
+
+
+def application_context(request: Request) -> ApplicationContext:
+    """Return the immutable service graph installed by the app lifespan."""
+    return request.app.state.application_context
+
+
+def market_data_provider(request: Request) -> MarketDataProvider:
+    return application_context(request).market_data
+
+
+def execution_gateway_service(request: Request) -> ExecutionGatewayService:
+    return application_context(request).execution_gateway
+
+
+def risk_engine_manager(request: Request) -> RiskEngineManager:
+    return application_context(request).risk_engine
 
 
 async def trader_identity(
