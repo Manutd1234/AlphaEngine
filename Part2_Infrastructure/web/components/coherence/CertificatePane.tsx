@@ -11,8 +11,8 @@
  * and `combos` (Parlays) — each an id that was already published, so the split
  * DELETED two entries from `RELOCATED_SECTIONS` rather than inventing any.
  *
- * What is left here is the verdict and the proof of it: two views of one
- * `certify` answer, which is one `.seg` and no group level at all.
+ * What is left here is the verdict, its proof and the market inputs: five flat
+ * views in one `.seg`, with no nested group level.
  *
  * THE FAMILY IS NOT THIS PANE'S. It belongs to `CoherenceConsole` and is shared
  * with Basket, because the two sections read the SAME certify answer for the
@@ -30,22 +30,35 @@
  * readable at the point where the disagreement would be visible.
  */
 
-import type { CoherenceCertificate, CoherenceEventView } from "@/lib/coherence/types";
+import { useRef } from "react";
+
+import type { CoherenceCertificate } from "@/lib/coherence/types";
 import { certifyRoute } from "@/lib/coherence/routes";
 import PaneHead from "./PaneHead";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
-import { PricesView, ProofView, VerdictView, verdictReading } from "./CertificateViews";
+import {
+  ChecksView,
+  PricesView,
+  ProofView,
+  SizesView,
+  VerdictView,
+  verdictReading,
+} from "./CertificateViews";
 import { verdictChip } from "./certificate-verdict";
 import FamilyChoice, { type FamilySectionProps } from "./FamilyChoice";
 import { StateChip } from "./Figure";
 import SectionVerdict from "./SectionVerdict";
+import ProofsViewControl from "./ProofsViewControl";
+import ProofsTransportNotice from "./ProofsTransportNotice";
 
-type CertificateView = "verdict" | "proof" | "prices";
+type CertificateView = "verdict" | "proof" | "checks" | "prices" | "sizes";
 
 const VIEWS: ReadonlyArray<[CertificateView, string]> = [
   ["verdict", "Verdict"],
   ["proof", "Proof"],
+  ["checks", "Checks"],
   ["prices", "Prices"],
+  ["sizes", "Sizes"],
 ];
 
 export default function CertificatePane({
@@ -64,10 +77,12 @@ export default function CertificatePane({
   view: CertificateView;
   onView: (next: CertificateView) => void;
 }) {
-  const { data, error } = useCoherenceRead<CoherenceCertificate>(
+  const sectionRef = useRef<HTMLElement>(null);
+  const read = useCoherenceRead<CoherenceCertificate>(
     certifyRoute(target),
     active && Boolean(target),
   );
+  const { data, error } = read;
   // The answer on screen must be about the family named above it.
   const answer: CoherenceCertificate | null = data && data.component_id === target ? data : null;
   // THE PRICES THE VERDICT IS ABOUT. This section argued that a family's quotes
@@ -76,15 +91,26 @@ export default function CertificatePane({
   // leg's two sides, its strike and its open interest. No new route: this is the
   // payload the family picker above is already built from.
   const chosen = events.find((event) => event.event_ticker === target) ?? null;
+  const selectView = (next: CertificateView) => {
+    onView(next);
+    requestAnimationFrame(() => {
+      sectionRef.current?.scrollIntoView({ block: "start", inline: "nearest", behavior: "auto" });
+    });
+  };
 
   return (
-    <section className="card console-card coh-certificate" aria-labelledby="coherence-certificate-heading">
+    <section
+      ref={sectionRef}
+      className="card console-card coh-certificate coh-certificate-workbench"
+      aria-labelledby="coherence-certificate-heading"
+    >
       <PaneHead
         kicker="Coherence test"
-        title="Whether these prices admit a probability measure"
+        title="LP feasibility of quoted prices"
         id="coherence-certificate-heading"
-        note="one test per family"
-        lede="The usual answer is “coherent”, and that is the claim: a detector that spoke only on a hit would leave “no opportunity” and “the feed is down” identical."
+        note="one LP per family"
+        ledeSummary="Why no-hit is evidence"
+        lede="The usual result is coherent; a detector that spoke only on a hit would make “no opportunity” and “feed unavailable” indistinguishable."
       />
 
       <FamilyChoice
@@ -96,26 +122,31 @@ export default function CertificatePane({
         label="Choose a family to test"
         verdict={answer?.verdict ?? null}
         switcher={
-          <div className="seg" role="group" aria-label="Certificate view">
-            {VIEWS.map(([name, label]) => (
-              <button key={name} type="button" aria-pressed={view === name} onClick={() => onView(name)}>
-                {label}
-              </button>
-            ))}
-          </div>
+          <ProofsViewControl
+            className="seg proofs-view-control proofs-view-control--certificate"
+            label="Certificate view"
+            options={VIEWS}
+            value={view}
+            onValue={selectView}
+          />
         }
       >
+        <ProofsTransportNotice
+          subject="Certificate read"
+          error={error}
+          hasSnapshot={Boolean(answer)}
+          transport={read.transport}
+          retryAt={read.retryAt}
+          consecutiveFailures={read.consecutiveFailures}
+          onRetry={read.refresh}
+        />
         {/* THE ANSWER FIRST, IN THE SAME PLACE ON ALL SIX SECTIONS. These three
             chips were below the control row and above the reading; they are the
             band now, so a reader who switches section meets the verdict where
             they last met one. The chips themselves are unchanged. */}
         <SectionVerdict
           pending={
-            error && !answer
-              ? <><span aria-hidden="true">✕</span> The test could not be run: {error}</>
-              : !answer
-                ? "Testing this family…"
-                : null
+            !error && !answer ? "Testing this family…" : null
           }
         >
           {answer ? (
@@ -132,7 +163,7 @@ export default function CertificatePane({
           ) : null}
         </SectionVerdict>
 
-        {answer ? (
+        {answer && (view === "verdict" || view === "proof" || view === "checks") ? (
           <>
             {/* Only what the figures below cannot say. The sentence this used
                 to open with — no portfolio pays more than it costs, so a
@@ -142,9 +173,9 @@ export default function CertificatePane({
               <p className="coh-event__note">{verdictReading(answer)}</p>
             ) : null}
 
-            {view === "proof"
-              ? <ProofView data={answer} event={chosen} />
-              : <VerdictView data={answer} target={target} />}
+            {view === "verdict" ? <VerdictView data={answer} target={target} /> : null}
+            {view === "proof" ? <ProofView data={answer} event={chosen} /> : null}
+            {view === "checks" ? <ChecksView data={answer} event={chosen} /> : null}
           </>
         ) : null}
 
@@ -158,9 +189,13 @@ export default function CertificatePane({
             A VIEW OF THEIR OWN since 2026-08-26. The ladder used to ride below
             the verdict, so a reader met the conclusion first and the evidence
             after scrolling, and the figure a reader most wanted to sit with was
-            the one furthest down the section. It is Prices now, with the size
-            ribbons under it on the same strike axis. */}
+            the one furthest down the section. Prices and Sizes now each own a
+            short view while preserving the same outcome order. */}
         {view === "prices" && chosen ? <PricesView event={chosen} /> : null}
+        {view === "sizes" && chosen ? <SizesView event={chosen} /> : null}
+        {(view === "prices" || view === "sizes") && !chosen ? (
+          <p className="console-empty"><span aria-hidden="true">◌</span> The selected family is no longer in the current quote roster.</p>
+        ) : null}
       </FamilyChoice>
     </section>
   );
