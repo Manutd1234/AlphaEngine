@@ -35,7 +35,7 @@
  * THE FOUR PROVENANCE CHIPS ARE A KPI ROW NOW. They rode the Survival view
  * alone, so pressing Mass or Moments lost the numbers that say what is being
  * looked at. As a `<dl className="coh-status__facts">` — the plane's own
- * 140px auto-fit tile grid, already drawn by `StatusPane` and `FeesPane` — they
+ * 140px auto-fit tile grid, shared with the engine detail and `FeesPane` — they
  * answer on all three views and cost less height than the chips did. Since
  * 2026-08-25 the row is `SectionFrame`'s `KpiRow`, which is the same grid
  * boxed, and the dash-for-a-missing-basis is a WITHHELD reading rather than a
@@ -67,22 +67,20 @@ import type { CoherenceSurface } from "@/lib/coherence/types-lab";
 import { surfaceRoute, universeRoute } from "@/lib/coherence/routes";
 import FamilyPicker from "./FamilyPicker";
 import type { Reading } from "./KpiRow";
-import LiveTape from "./LiveTape";
-import { useLiveSeries } from "@/lib/coherence/use-live-series";
 import PaneHead, { PaneHeadEmpty } from "./PaneHead";
 import SectionFrame from "./SectionFrame";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import DistributionView from "./surface/DistributionView";
-import { decimalLabel, toUnit } from "@/lib/coherence/decimals";
-import TruncationNote from "./surface/TruncationNote";
+import { decimalLabel } from "@/lib/coherence/decimals";
 
-/** The three readings of one payload. `stake` and `family` left on the fifth
+/** The four readings of one payload. `stake` and `family` left on the fifth
  *  2026-08-24 pass, to the section that owns the read they were drawn from. */
-type LatticeView = "survival" | "mass" | "moments";
+type LatticeView = "survival" | "mass" | "moments" | "support";
 const LATTICE_VIEWS: ReadonlyArray<[LatticeView, string]> = [
   ["survival", "Survival"],
   ["mass", "Mass"],
-  ["moments", "Moments"],
+  ["moments", "Moment shape"],
+  ["support", "Moment support"],
 ];
 
 const HEAD = {
@@ -92,7 +90,7 @@ const HEAD = {
   // No mention of a stake, and that is the split doing its work: the log-optimal
   // plan is a different section with a head of its own, and a lede that promised
   // it here would send a reader looking for a view that is not on this control.
-  lede: "A family's quoted strikes are a probability distribution, and this is the mass, the moments and the intervals differencing leaves behind.",
+  lede: "Strike differences yield state mass, moments and intervals for the implied distribution.",
 } as const;
 
 /**
@@ -146,7 +144,8 @@ export default function SurfacePane({
     active && !eventTicker && !supplied?.length,
   );
   const events = supplied?.length ? supplied : (universe.data?.events ?? []);
-  const target = eventTicker ?? picked ?? events[0]?.event_ticker ?? "";
+  const pickedStillExists = picked != null && events.some((event) => event.event_ticker === picked);
+  const target = eventTicker ?? (pickedStillExists ? picked : null) ?? events[0]?.event_ticker ?? "";
   const surface = useCoherenceRead<CoherenceSurface>(surfaceRoute(target), active && Boolean(target));
 
   const head = {
@@ -155,6 +154,8 @@ export default function SurfacePane({
   };
 
   const kpis = surface.data ? readings(surface.data) : undefined;
+  const universePending = !universe.data && !universe.error;
+  const universeUnavailable = Boolean(universe.error || universe.data?.state === "unavailable");
 
   /* The quoted mass over time, keyed by the FAMILY, so switching families
      starts a new series rather than welding a step between two distributions
@@ -164,11 +165,6 @@ export default function SurfacePane({
      can answer. `toUnit` and not `toCenticents`: this is a position on a track
      rather than a price to trade, which is the distinction that helper exists
      for. */
-  const massTape = useLiveSeries(
-    `lattice:${target}:mass`,
-    surface.updatedAt,
-    surface.data ? toUnit(surface.data.total_mass) : null,
-  );
 
   // The switcher is structural — the views exist before the data does, and a
   // deep link during a slow read must show what it points at (2026-08-26).
@@ -182,10 +178,16 @@ export default function SurfacePane({
         onView={onView}
         viewsLabel="Which question"
         head={
-          <PaneHeadEmpty head={head} mark={universe.error ? "✕" : "◌"}>
-            {universe.error
+          <PaneHeadEmpty
+            head={head}
+            mark={universePending ? "◌" : universeUnavailable ? "✕" : "○"}
+            busy={universePending}
+          >
+            {universePending
+              ? "Reading the watched families…"
+              : universe.error
               ? `No family could be read: ${universe.error}. Universe reads the same list and says what the exchange answered.`
-              : "Reading the watched families…"}
+              : `No family is available from this completed ${universe.data?.state ?? "empty"} read. ${universe.data?.notes[0] ?? "The gateway returned no watched event."}`}
           </PaneHeadEmpty>
         }
       />
@@ -218,27 +220,14 @@ export default function SurfacePane({
           failure, not an answer about this family.
         </p>
       ) : !surface.data ? (
-        <p className="console-empty muted">Reading the implied distribution…</p>
+        <p className="console-empty muted" role="status" aria-busy="true">Reading the implied distribution…</p>
       ) : surface.data.bins.length ? (
-        <>
-          <DistributionView surface={surface.data} view={view} />
-          <LiveTape
-            points={massTape}
-            caption="The mass these quotes imply, poll by poll"
-            ariaLabel="Total quoted mass over the polls seen since this tab opened"
-            reference={{ value: 1, label: "a probability sums to 1" }}
-            reading="A measure that admits a probability sums to one; the distance from that line is what differencing left over or short."
-          />
-          <TruncationNote />
-        </>
+        <DistributionView surface={surface.data} view={view} />
       ) : (
-        <>
-          <p className="console-empty">
-            <span aria-hidden="true">○</span> No interval could be differenced out of {surface.data.event_ticker}:{" "}
-            {surface.data.detail}. Press another family above, or read the quotes themselves on Universe.
-          </p>
-          <TruncationNote />
-        </>
+        <p className="console-empty">
+          <span aria-hidden="true">○</span> No interval could be differenced out of {surface.data.event_ticker}:{" "}
+          {surface.data.detail}. Press another family above, or read the quotes themselves on Universe.
+        </p>
       )}
     </SectionFrame>
   );
