@@ -21,6 +21,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query
 
 from modules.api.deps import trader_identity
+from modules.backend_runtime import BackendDeadlineExceeded, BackendSaturated, run_blocking
 from modules.coherence.diffusion.absorption import STAGE_HORIZONS, terminal_sigmas
 from modules.coherence.diffusion.events import DiffusionEventStore
 from modules.coherence.diffusion.findings import collect as collect_findings
@@ -44,6 +45,12 @@ from modules.schemas_diffusion import (
 )
 
 router = APIRouter(tags=["diffusion"])
+
+# Updating a stage is idempotent for (source_ref, observed timestamp, source),
+# so a caller may safely retry after this server-side ceiling.  The worker may
+# finish a running SQLite statement after the wait ends; no automatic retry is
+# issued here and the next identical request reconciles to the same row.
+_STAGE_WRITE_TIMEOUT_S = 8.0
 
 
 def _now() -> datetime:
@@ -85,6 +92,26 @@ def _store() -> DiffusionEventStore:
 
 def _runs() -> AbsorptionRunStore:
     return AbsorptionRunStore()
+
+
+def _read_events(kind: str | None, symbol: str | None, limit: int) -> DiffusionEventsResponse:
+    """Open and read on one worker so migration and SQL never touch the loop."""
+    try:
+        store = _store()
+    except Exception as exc:  # noqa: BLE001 - the reason is the answer
+        return DiffusionEventsResponse(observed_at=_now(), state="unavailable", reason=str(exc))
+    try:
+        rows, truncated = store.list_events(
+            kind=kind, symbol=symbol.upper() if symbol else None, limit=limit,
+        )
+    except Exception as exc:  # noqa: BLE001
+        return DiffusionEventsResponse(
+            observed_at=_now(), state="unreadable", backend=store.backend, reason=str(exc),
+        )
+    return DiffusionEventsResponse(
+        observed_at=_now(), state="ok", backend=store.backend, truncated=truncated,
+        events=[_event(row) for row in rows],
+    )
 
 
 _HORIZON_SECONDS: dict[str, float] = {horizon.label: horizon.seconds for horizon in STAGE_HORIZONS}
@@ -167,20 +194,8 @@ async def diffusion_events(
     run — and is deliberately not the same answer as a store that could not be
     opened. The Events pane renders a different sentence for each.
     """
-    try:
-        store = _store()
-    except Exception as exc:  # noqa: BLE001 - the reason is the answer
-        return DiffusionEventsResponse(observed_at=_now(), state="unavailable", reason=str(exc))
-    try:
-        rows, truncated = store.list_events(
-            kind=kind, symbol=symbol.upper() if symbol else None, limit=limit
-        )
-    except Exception as exc:  # noqa: BLE001
-        return DiffusionEventsResponse(observed_at=_now(), state="unreadable",
-                                       backend=store.backend, reason=str(exc))
-    return DiffusionEventsResponse(
-        observed_at=_now(), state="ok", backend=store.backend, truncated=truncated,
-        events=[_event(row) for row in rows],
+    return await run_blocking(
+        "diffusion.events", _read_events, kind, symbol, limit, dependency="data_ops",
     )
 
 
@@ -196,7 +211,11 @@ async def diffusion_findings(
     each row and how often a shuffled pairing did as well.
     """
     try:
-        gathered = collect_findings()
+        gathered = await run_blocking(
+            "diffusion.findings", collect_findings, dependency="data_ops",
+        )
+    except (BackendDeadlineExceeded, BackendSaturated):
+        raise
     except Exception as exc:  # noqa: BLE001 - the reason is the answer
         return DiffusionFindingsResponse(observed_at=_now(), state="unavailable", reason=str(exc))
     return DiffusionFindingsResponse(
@@ -228,6 +247,13 @@ async def diffusion_absorption(
     cleared the floor would describe a quarter of the sample as though it were
     all of it.
     """
+    return await run_blocking(
+        "diffusion.absorption", _read_absorption, limit, source_ref, dependency="data_ops",
+    )
+
+
+def _read_absorption(limit: int, source_ref: str | None) -> DiffusionAbsorptionResponse:
+    """Read, decode and summarise the run ledger away from the event loop."""
     try:
         ledger = _runs()
     except Exception as exc:  # noqa: BLE001
@@ -235,8 +261,9 @@ async def diffusion_absorption(
     try:
         rows, truncated = ledger.list_runs(limit=limit, source_ref=source_ref)
     except Exception as exc:  # noqa: BLE001
-        return DiffusionAbsorptionResponse(observed_at=_now(), state="unreadable",
-                                           backend=ledger.backend, reason=str(exc))
+        return DiffusionAbsorptionResponse(
+            observed_at=_now(), state="unreadable", backend=ledger.backend, reason=str(exc),
+        )
     runs = [_run(row) for row in rows]
     horizons: list[str] = []
     for run in runs:
@@ -280,13 +307,24 @@ async def diffusion_record_stage(
     measured from a guessed start and one measured from a recorded start are
     not the same measurement.
     """
+    return await run_blocking(
+        "diffusion.stage.write", _record_stage, source_ref, body,
+        timeout_s=_STAGE_WRITE_TIMEOUT_S,
+        dependency="data_ops",
+    )
+
+
+def _record_stage(source_ref: str, body: DiffusionStageRecord) -> DiffusionEventResponse:
+    """Open and update the idempotent stage row on the bounded worker pool."""
     try:
         store = _store()
     except Exception as exc:  # noqa: BLE001
         return DiffusionEventResponse(observed_at=_now(), state="unavailable", reason=str(exc))
     now_ms = _now().timestamp() * 1000.0
-    row = store.record_stage(source_ref, at_ms=body.at.timestamp() * 1000.0,
-                             source=body.source, now_ms=now_ms)
+    row = store.record_stage(
+        source_ref, at_ms=body.at.timestamp() * 1000.0,
+        source=body.source, now_ms=now_ms,
+    )
     if row is None:
         return DiffusionEventResponse(observed_at=_now(), state="not_found",
                                       reason=f"no event on the ledger with source_ref {source_ref!r}")
