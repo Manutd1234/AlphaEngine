@@ -57,4 +57,11 @@ describe("one segment is always lit", () => {
     assert.match(source, /Move a slider below to set a hand shock/);
     assert.match(source, /clear them to return to/);
   });
+
+  it("scores the broad book and symbol sliders together", () => {
+    assert.match(source, /manualShocks\(manual, positions\.map\(\(p\) => p\.symbol\)\)/);
+    assert.match(source, /symbol === "\*" \? "All positions"/);
+    assert.match(source, /broad \+ overlay/);
+    assert.match(source, /\) : "\*" in manual \? \([\s\S]{0,160}?broad[\s\S]{0,160}?\) : p\.appliedMove/);
+  });
 });
