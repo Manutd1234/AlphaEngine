@@ -110,7 +110,7 @@ export default function LimitsPanel({ book, onOpenPortfolio }: LimitsPanelProps)
               </thead>
               <tbody>
                 {limitRows(book).map((row) => (
-                  <tr key={row.id}>
+                  <tr key={row.id} id={`risk-constraint-${row.id.replace(/[^A-Za-z0-9_-]/g, "-")}`} tabIndex={-1}>
                     <td>
                       {row.label}
                       {/* icon + word, never colour alone */}
