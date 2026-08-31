@@ -81,6 +81,9 @@ const FILES = [
   // file that renders copy and is not on this list is a claim guarded by
   // nothing, which is the failure this suite exists to stop.
   "../components/coherence/BasketComposition.tsx",
+  "../components/coherence/UniverseInstruments.tsx",
+  "../components/coherence/UniverseLiquidityCabinet.tsx",
+  "../components/coherence/UniverseOutcomeDistribution.tsx",
   "../components/coherence/PriceHistogram.tsx",
   // Added with BasketSize on 2026-08-24: the three size figures and the
   // exposure grid. It renders copy a reader meets — why a total is withheld,
@@ -91,12 +94,15 @@ const FILES = [
   "../components/coherence/SettlementPane.tsx",
   "../components/coherence/FormationDiagram.tsx",
   "../components/coherence/PendingMinutes.tsx",
+  "../components/coherence/SettlementInstruments.tsx",
   "../components/coherence/SettlementSection.tsx",
   "../components/coherence/BooksSection.tsx",
   "../components/coherence/MakersSection.tsx",
   "../components/coherence/BooksPane.tsx",
   "../components/coherence/LadderChart.tsx",
   "../components/coherence/IdentityStrip.tsx",
+  "../components/coherence/BookIdentityLab.tsx",
+  "../components/coherence/BooksInstruments.tsx",
   "../components/coherence/RfqPane.tsx",
   // Split out of `RfqPane` on 2026-08-25 when that file crossed the 400-line
   // ceiling. It carries four of this tab's pinned claims — the spread/width
@@ -117,6 +123,10 @@ const FILES = [
   // it past the ceiling. It carries the `cat` reading, so it carries the claim
   // about a file whose reading a read could not produce.
   "../components/coherence/ShellFileReading.tsx",
+  // Browse now owns the explorer scope and missing-path copy; Routing owns the
+  // collateral-boundary claim. Both render reading copy moved out of the map.
+  "../components/coherence/ShellBrowser.tsx",
+  "../components/coherence/ShellRouteFlow.tsx",
   "../components/coherence/ShellListing.tsx",
   "../components/coherence/ShellTree.tsx",
   "../components/coherence/ShellCommandReference.tsx",
@@ -128,16 +138,11 @@ const FILES = [
   "../components/coherence/surface/FamilyView.tsx",
   "../components/coherence/surface/StakeView.tsx",
   // Split out of `StakeView` on 2026-08-24 when `stake` became a rail section
-  // of its own and the lattice stopped carrying two subjects. Both render copy
-  // a reader meets and both carry a pinned claim OUT of the file that used to
-  // hold it: `TruncationNote` has "truncated, never rounded", `StakeDeclined`
-  // has the exclusive-family solver declining a ladder by name. They were
-  // extracted without joining this list, so for a few minutes both claims were
-  // still on screen and guarded by nothing — which is the precise failure the
-  // note above describes, caught by this suite rather than by a reader.
+  // of its own and the lattice stopped carrying two subjects. Both files below
+  // render copy a reader meets; `StakeDeclined` carries the exclusive-family
+  // solver's refusal by name.
   "../components/coherence/surface/StakeBars.tsx",
   "../components/coherence/surface/StakeDeclined.tsx",
-  "../components/coherence/surface/TruncationNote.tsx",
 ];
 
 /**
