@@ -2965,3 +2965,645 @@ comment on column public.diffusion_studies.regressions_json is
 
 alter table public.diffusion_studies enable row level security;
 revoke all on public.diffusion_studies from anon, authenticated;
+
+
+-- ========================================================================
+-- 20260831120000_diffusion_postgrest_parity.sql
+-- ========================================================================
+
+-- Complete the Diffusion ledger for the PostgREST backend.
+--
+-- The SQLite backend owns all four relations.  The first Postgres rollout only
+-- declared events and studies, used a global natural-key primary key, and
+-- predated the current study and stage-source fields.  This successor is safe
+-- both after those migrations and on a project where the Diffusion relations
+-- have not been created yet.
+--
+-- Natural keys are unique WITHIN a desk.  A global primary key lets one desk's
+-- deterministic run/text/study id collide with another desk's identical
+-- experiment before the read predicate gets a chance to protect either row.
+
+create table if not exists public.diffusion_events (
+    source_ref          text not null,
+    desk_id             text not null,
+    kind                text not null check (kind in ('earnings', 'fomc', 'macro')),
+    symbol              text,
+    title               text not null,
+    release_at          double precision not null,
+    release_at_source   text not null,
+    release_timing      text check (release_timing in ('BMO', 'AMC', 'TAS', 'TNS', 'exact')),
+    call_at             double precision,
+    call_at_source      text,
+    call_offset_min     double precision,
+    eps_estimate        double precision,
+    eps_actual          double precision,
+    surprise_pct        double precision,
+    scheduled           integer not null default 1,
+    statement_url       text,
+    first_seen_at       double precision not null,
+    last_seen_at        double precision not null,
+    revised_count       integer not null default 0,
+    verified_at         double precision,
+    constraint diffusion_events_call_after_release check (call_at is null or call_at >= release_at),
+    constraint diffusion_events_offset_needs_a_call check (call_offset_min is null or call_at is not null),
+    constraint diffusion_events_pkey primary key (desk_id, source_ref)
+);
+
+alter table public.diffusion_events
+    drop constraint if exists diffusion_events_release_at_source_check;
+alter table public.diffusion_events
+    drop constraint if exists diffusion_events_call_at_source_check;
+alter table public.diffusion_events
+    add constraint diffusion_events_release_at_source_check
+        check (release_at_source in ('vendor', 'issuer', 'estimated_offset', 'parsed_release', 'recorded'))
+        not valid;
+alter table public.diffusion_events
+    add constraint diffusion_events_call_at_source_check
+        check (call_at_source is null or call_at_source in ('vendor', 'issuer', 'estimated_offset', 'parsed_release', 'recorded'))
+        not valid;
+
+-- Authored `fed_seed` rows may predate this migration.  They retain their true
+-- provenance and remain unreadable to the application; a NOT VALID constraint
+-- rejects that retired label on every new write without falsifying old rows.
+
+alter table public.diffusion_events
+    drop constraint if exists diffusion_events_pkey,
+    add constraint diffusion_events_pkey primary key (desk_id, source_ref);
+
+create index if not exists diffusion_events_by_release
+    on public.diffusion_events (desk_id, release_at);
+create index if not exists diffusion_events_by_symbol
+    on public.diffusion_events (desk_id, symbol, release_at);
+
+create table if not exists public.diffusion_runs (
+    run_id              text not null,
+    desk_id             text not null,
+    source_ref          text not null,
+    symbol              text not null,
+    stage               text not null,
+    interval            text not null,
+    signal_state        text not null,
+    signal_reason       text,
+    terminal_return     double precision,
+    sigma_pre_per_bar   double precision,
+    pre_bars            integer not null default 0,
+    half_life_s         double precision,
+    half_life_state     text,
+    half_life_vol       double precision,
+    control_percentile  double precision,
+    controls_used       integer not null default 0,
+    measured_horizons   integer not null default 0,
+    of_horizons         integer not null default 0,
+    market_adjusted     integer not null default 0,
+    data_hash           text,
+    params_version      text not null,
+    t0_ms               double precision not null,
+    points_json         text not null,
+    computed_at         double precision not null,
+    constraint diffusion_runs_pkey primary key (desk_id, run_id)
+);
+
+alter table public.diffusion_runs
+    drop constraint if exists diffusion_runs_pkey,
+    add constraint diffusion_runs_pkey primary key (desk_id, run_id);
+
+create index if not exists diffusion_runs_by_event
+    on public.diffusion_runs (desk_id, source_ref);
+create index if not exists diffusion_runs_by_time
+    on public.diffusion_runs (desk_id, t0_ms);
+
+create table if not exists public.diffusion_texts (
+    text_id                 text not null,
+    desk_id                 text not null,
+    source_ref              text not null,
+    stage                   text not null,
+    source                  text not null,
+    url                     text,
+    state                   text not null,
+    reason                  text,
+    body                    text,
+    sha256                  text,
+    characters              integer not null default 0,
+    verified_release_time   text,
+    body_isolated           integer not null default 1,
+    vote_line               text,
+    first_seen_at           double precision not null,
+    fetched_at              double precision not null,
+    constraint diffusion_texts_pkey primary key (desk_id, text_id)
+);
+
+alter table public.diffusion_texts
+    add column if not exists vote_line text;
+alter table public.diffusion_texts
+    drop constraint if exists diffusion_texts_pkey,
+    add constraint diffusion_texts_pkey primary key (desk_id, text_id);
+
+create index if not exists diffusion_texts_by_event
+    on public.diffusion_texts (desk_id, source_ref);
+
+create table if not exists public.diffusion_studies (
+    study_id            text not null,
+    desk_id             text not null,
+    ran_at              double precision not null,
+    conditioning        text not null,
+    segment             text,
+    latent_dim          integer not null,
+    events              integer not null default 0,
+    state               text not null check (state in ('ok', 'refused', 'unavailable')),
+    verdict             text,
+    verdict_reason      text,
+    gate_state          text not null check (gate_state in ('passed', 'failed', 'not_assessable')),
+    gate_r_squared      double precision,
+    gate_floor          double precision not null default 0,
+    gate_fact           text not null default '',
+    gate_reason         text,
+    gate_samples        integer not null default 0,
+    effective_rank      double precision,
+    centroid_spread     double precision,
+    skill_meetings      integer not null default 0,
+    skill_baseline_r2   double precision,
+    skill_gain          double precision,
+    skill_shuffled_p    double precision,
+    skill_stage_minutes double precision,
+    regressions_json    text not null,
+    constraint diffusion_studies_ok_runs_scored_something
+        check (state <> 'ok' or events > 0),
+    constraint diffusion_studies_a_passed_gate_has_a_number
+        check (gate_state <> 'passed' or gate_r_squared is not null),
+    constraint diffusion_studies_pkey primary key (desk_id, study_id)
+);
+
+alter table public.diffusion_studies
+    add column if not exists skill_meetings integer not null default 0;
+alter table public.diffusion_studies
+    add column if not exists skill_baseline_r2 double precision;
+alter table public.diffusion_studies
+    add column if not exists skill_gain double precision;
+alter table public.diffusion_studies
+    add column if not exists skill_shuffled_p double precision;
+alter table public.diffusion_studies
+    add column if not exists skill_stage_minutes double precision;
+
+alter table public.diffusion_studies
+    drop constraint if exists diffusion_studies_pkey,
+    add constraint diffusion_studies_pkey primary key (desk_id, study_id);
+
+create index if not exists diffusion_studies_by_time
+    on public.diffusion_studies (desk_id, ran_at);
+
+comment on table public.diffusion_runs is
+    'Per-stage absorption measurements and their reproducibility evidence.';
+comment on table public.diffusion_texts is
+    'Point-in-time source documents and explicit fetch refusals used by Diffusion studies.';
+comment on column public.diffusion_texts.first_seen_at is
+    'When this desk first observed the source text; updates must not replace it.';
+comment on column public.diffusion_studies.skill_baseline_r2 is
+    'Out-of-sample baseline predictability, read before interpreting skill_gain.';
+
+alter table public.diffusion_events enable row level security;
+alter table public.diffusion_runs enable row level security;
+alter table public.diffusion_texts enable row level security;
+alter table public.diffusion_studies enable row level security;
+
+revoke all on public.diffusion_events from anon, authenticated;
+revoke all on public.diffusion_runs from anon, authenticated;
+revoke all on public.diffusion_texts from anon, authenticated;
+revoke all on public.diffusion_studies from anon, authenticated;
+
+-- New relations and late columns are invisible to PostgREST until its schema
+-- cache reloads.  This migration owns that refresh even when applied alone.
+notify pgrst, 'reload schema';
+
+
+-- ========================================================================
+-- 20260831121000_data_ops_desk_scope_guard.sql
+-- ========================================================================
+
+begin;
+
+-- Fail closed before the data-ops factory starts enforcing SUPABASE_DESK_ID.
+--
+-- Older PostgREST stores used the constructor default `default` because the
+-- factory did not pass its configured desk.  Silently changing the read scope
+-- would hide those rows and permit duplicate business keys under the real
+-- desk.  SQL cannot infer which desk owns an ambiguous legacy row, so the
+-- migration refuses and tells the operator to map it deliberately.
+--
+-- This source migration deliberately has no BEGIN/COMMIT. `supabase db push`
+-- owns the transaction that also records migration history, so authoring a
+-- nested COMMIT here could persist the schema while leaving history
+-- unrecorded. For a manual SQL Editor run, use apply_all.generated.sql; its
+-- generator adds a transaction around this section.
+
+-- Hold old writers outside the preflight/DDL window.  Without this lock a
+-- process using the former column default could recreate an ambiguous row
+-- after the count and before the defaults were removed.
+lock table
+  public.data_quality_findings,
+  public.data_quality_escalations,
+  public.data_schedule_runs,
+  public.data_work_items,
+  public.diffusion_events,
+  public.diffusion_runs,
+  public.diffusion_texts,
+  public.diffusion_studies
+in access exclusive mode;
+
+do $$
+declare
+  relation_name text;
+  legacy_rows bigint;
+begin
+  foreach relation_name in array array[
+    'data_quality_findings',
+    'data_quality_escalations',
+    'data_schedule_runs',
+    'data_work_items',
+    'diffusion_events',
+    'diffusion_runs',
+    'diffusion_texts',
+    'diffusion_studies'
+  ]
+  loop
+    execute format(
+      'select count(*) from public.%I where desk_id = %L',
+      relation_name,
+      'default'
+    ) into legacy_rows;
+    if legacy_rows > 0 then
+      raise exception using
+        errcode = 'check_violation',
+        message = format(
+          'desk-scope migration refused: public.%I has %s row(s) with desk_id=default',
+          relation_name,
+          legacy_rows
+        ),
+        hint = format(
+          'Map those rows to the configured SUPABASE_DESK_ID explicitly, for example: UPDATE public.%I SET desk_id = ''<configured-desk-id>'' WHERE desk_id = ''default''; then rerun the migration.',
+          relation_name
+        );
+    end if;
+  end loop;
+end
+$$;
+
+-- Once the preflight is clean, omitted tenant ownership is an error.  The
+-- PostgREST adapter stamps the configured desk on every insert and patch.
+alter table public.data_quality_findings alter column desk_id drop default;
+alter table public.data_quality_escalations alter column desk_id drop default;
+alter table public.data_schedule_runs alter column desk_id drop default;
+alter table public.data_work_items alter column desk_id drop default;
+alter table public.diffusion_events alter column desk_id drop default;
+alter table public.diffusion_runs alter column desk_id drop default;
+alter table public.diffusion_texts alter column desk_id drop default;
+alter table public.diffusion_studies alter column desk_id drop default;
+
+-- Refuse the legacy sentinel even when an older writer sends it explicitly.
+-- The lock keeps each check true from the preflight through installation.
+alter table public.data_quality_findings
+  drop constraint if exists data_quality_findings_desk_id_not_default,
+  add constraint data_quality_findings_desk_id_not_default check (desk_id <> 'default');
+alter table public.data_quality_escalations
+  drop constraint if exists data_quality_escalations_desk_id_not_default,
+  add constraint data_quality_escalations_desk_id_not_default check (desk_id <> 'default');
+alter table public.data_schedule_runs
+  drop constraint if exists data_schedule_runs_desk_id_not_default,
+  add constraint data_schedule_runs_desk_id_not_default check (desk_id <> 'default');
+alter table public.data_work_items
+  drop constraint if exists data_work_items_desk_id_not_default,
+  add constraint data_work_items_desk_id_not_default check (desk_id <> 'default');
+alter table public.diffusion_events
+  drop constraint if exists diffusion_events_desk_id_not_default,
+  add constraint diffusion_events_desk_id_not_default check (desk_id <> 'default');
+alter table public.diffusion_runs
+  drop constraint if exists diffusion_runs_desk_id_not_default,
+  add constraint diffusion_runs_desk_id_not_default check (desk_id <> 'default');
+alter table public.diffusion_texts
+  drop constraint if exists diffusion_texts_desk_id_not_default,
+  add constraint diffusion_texts_desk_id_not_default check (desk_id <> 'default');
+alter table public.diffusion_studies
+  drop constraint if exists diffusion_studies_desk_id_not_default,
+  add constraint diffusion_studies_desk_id_not_default check (desk_id <> 'default');
+
+notify pgrst, 'reload schema';
+
+commit;
+
+
+-- ========================================================================
+-- 20260831130000_research_graph_desk_scope.sql
+-- ========================================================================
+
+-- Tenant-scoped traversal over the research graph.
+--
+-- `20260822090000_research_tenant_scope.sql` added `filter_desk_id` to both
+-- similarity-search RPCs, but graph traversal remained a full-corpus read. The
+-- gateway uses the service-role key, so RLS does not narrow this function for
+-- it; the predicate has to live inside the SQL the service-role session runs.
+--
+-- NULL IS DELIBERATELY UNSCOPED. `RESEARCH_SCOPE_TO_DESK` remains off by
+-- default while this migration is rolled out. An old caller therefore keeps
+-- the old result set, while a caller that explicitly supplies a desk gets a
+-- walk whose seed, edges and documents all belong to that desk.
+--
+-- WHY EVERY PREDICATE IS PRESENT
+--
+-- The seed predicate stops a caller starting from another desk's document.
+-- Each edge arm is scoped because the graph is read in both directions. The
+-- next-document joins stop a malformed or historical cross-desk edge from
+-- admitting its opposite endpoint. The final join repeats the document scope
+-- at the projection boundary, so no future change to the recursive CTE can
+-- turn a scoped walk into an unscoped response.
+--
+-- WHY DROP AND RECREATE
+--
+-- PostgreSQL identifies a function by name and argument types. Adding a
+-- defaulted argument with `create or replace` would create an overload, and a
+-- PostgREST request using only the old arguments could then be ambiguous. Drop
+-- the exact old signature first, then recreate one callable shape.
+
+drop function if exists public.traverse_research_graph(
+  uuid, integer, public.research_relation[], integer
+);
+
+create or replace function public.traverse_research_graph(
+  start_id uuid,
+  max_depth int default 2,
+  relations public.research_relation[] default null,
+  match_count int default 20,
+  filter_desk_id uuid default null
+)
+returns table (
+  id uuid,
+  kind public.research_doc_kind,
+  source_ref text,
+  symbol text,
+  strategy text,
+  occurred_at timestamptz,
+  title text,
+  depth int,
+  arrived_by public.research_relation,
+  evidence text,
+  path uuid[]
+)
+language sql
+stable
+security invoker
+set search_path = public, pg_temp
+as $$
+  with recursive walk as (
+    select
+      d.id,
+      0 as depth,
+      null::public.research_relation as arrived_by,
+      null::text as evidence,
+      array[d.id] as path
+    from public.research_documents d
+    where d.id = start_id
+      and (filter_desk_id is null or d.desk_id = filter_desk_id)
+
+    union all
+
+    select
+      step.next_id,
+      w.depth + 1,
+      step.rel,
+      step.ev,
+      w.path || step.next_id
+    from walk w
+    cross join lateral (
+      select e.dst_id as next_id, e.relation as rel, e.evidence as ev
+        from public.research_edges e
+        join public.research_documents next_document
+          on next_document.id = e.dst_id
+       where e.src_id = w.id
+         and (filter_desk_id is null or e.desk_id = filter_desk_id)
+         and (filter_desk_id is null or next_document.desk_id = filter_desk_id)
+      union all
+      select e.src_id, e.relation, e.evidence
+        from public.research_edges e
+        join public.research_documents next_document
+          on next_document.id = e.src_id
+       where e.dst_id = w.id
+         and (filter_desk_id is null or e.desk_id = filter_desk_id)
+         and (filter_desk_id is null or next_document.desk_id = filter_desk_id)
+    ) step
+    where w.depth < least(greatest(max_depth, 1), 4)
+      and not (step.next_id = any(w.path))
+      and (relations is null or step.rel = any(relations))
+  )
+  select
+    d.id, d.kind, d.source_ref, d.symbol, d.strategy, d.occurred_at, d.title,
+    w.depth, w.arrived_by, w.evidence, w.path
+  from (
+    select distinct on (id) id, depth, arrived_by, evidence, path
+      from walk
+     where depth > 0
+     order by id, depth, arrived_by
+  ) w
+  join public.research_documents d
+    on d.id = w.id
+   and (filter_desk_id is null or d.desk_id = filter_desk_id)
+  order by w.depth, d.occurred_at desc
+  limit greatest(1, least(match_count, 100));
+$$;
+
+comment on function public.traverse_research_graph(
+  uuid, integer, public.research_relation[], integer, uuid
+) is
+  'Documents reachable over research_edges, shortest depth first. '
+  'filter_desk_id optionally scopes the seed, both edge directions, every '
+  'reached document and the final projection; null preserves unscoped behaviour.';
+
+-- Dropping the old function dropped its ACL, and PostgreSQL grants EXECUTE on
+-- a new function to PUBLIC by default. State the complete intended ACL: only
+-- the service-role gateway may call this RPC directly.
+revoke execute on function public.traverse_research_graph(
+  uuid, integer, public.research_relation[], integer, uuid
+) from public, anon, authenticated;
+grant execute on function public.traverse_research_graph(
+  uuid, integer, public.research_relation[], integer, uuid
+) to service_role;
+
+notify pgrst, 'reload schema';
+
+
+-- ========================================================================
+-- 20260831131000_research_chunk_replace.sql
+-- ========================================================================
+
+-- Replace every physical row for one logical research document atomically.
+--
+-- Chunking originally posted one row at a time.  When a renderer changed the
+-- chunk count, the new deterministic refs did not conflict with the old ones,
+-- so both generations stayed retrievable.  Deleting first is worse: an embed
+-- or HTTP failure would erase the only complete version.  This RPC stages the
+-- whole set in one Postgres transaction and removes older siblings only when
+-- every incoming row carries a ready embedding.  Any SQL/HTTP failure rolls
+-- back the upserts and the delete together.
+
+create or replace function public.replace_research_document_chunks(
+  p_desk_id uuid,
+  p_kind public.research_doc_kind,
+  p_parent_source_ref text,
+  p_rows jsonb
+)
+returns setof public.research_documents
+language plpgsql
+security invoker
+set search_path = public, extensions, pg_temp
+as $$
+declare
+  v_count integer;
+  v_distinct integer;
+  v_source_refs text[];
+  v_complete boolean;
+  v_direct boolean;
+begin
+  if p_desk_id is null then
+    raise exception using errcode = 'not_null_violation', message = 'p_desk_id is required';
+  end if;
+  if p_kind is null then
+    raise exception using errcode = 'not_null_violation', message = 'p_kind is required';
+  end if;
+  if nullif(btrim(p_parent_source_ref), '') is null then
+    raise exception using errcode = 'not_null_violation', message = 'p_parent_source_ref is required';
+  end if;
+  if jsonb_typeof(p_rows) is distinct from 'array' or jsonb_array_length(p_rows) = 0 then
+    raise exception using errcode = 'check_violation', message = 'p_rows must be a non-empty JSON array';
+  end if;
+  if jsonb_array_length(p_rows) > 128 then
+    raise exception using errcode = 'check_violation', message = 'one document may not exceed 128 chunks';
+  end if;
+
+  select
+    count(*)::integer,
+    count(distinct row->>'source_ref')::integer,
+    array_agg(row->>'source_ref' order by ordinal),
+    bool_and(
+      row->>'embedding_status' = 'ready'
+      and jsonb_typeof(row->'embedding') = 'array'
+    )
+  into v_count, v_distinct, v_source_refs, v_complete
+  from jsonb_array_elements(p_rows) with ordinality as incoming(row, ordinal);
+
+  if v_distinct <> v_count or exists (
+    select 1 from jsonb_array_elements(p_rows) row
+    where nullif(btrim(row->>'source_ref'), '') is null
+  ) then
+    raise exception using errcode = 'check_violation', message = 'incoming source_ref values must be non-empty and unique';
+  end if;
+
+  select
+    v_count = 1
+    and p_rows->0->>'source_ref' = p_parent_source_ref
+    and p_rows->0 #>> '{metrics,_retrieval_chunk,parent_source_ref}' is null
+  into v_direct;
+
+  if not v_direct and exists (
+    select 1
+    from jsonb_array_elements(p_rows) with ordinality as incoming(row, ordinal)
+    where row #>> '{metrics,_retrieval_chunk,parent_source_ref}' is distinct from p_parent_source_ref
+       or row #>> '{metrics,_retrieval_chunk,chunk_source_ref}' is distinct from row->>'source_ref'
+       or coalesce(row #>> '{metrics,_retrieval_chunk,index}', '') !~ '^[0-9]+$'
+       or coalesce(row #>> '{metrics,_retrieval_chunk,count}', '') !~ '^[0-9]+$'
+       or (row #>> '{metrics,_retrieval_chunk,index}')::integer <> ordinal
+       or (row #>> '{metrics,_retrieval_chunk,count}')::integer <> v_count
+  ) then
+    raise exception using
+      errcode = 'check_violation',
+      message = 'p_rows must be one direct document or one complete ordered chunk generation';
+  end if;
+
+  insert into public.research_documents (
+    desk_id, user_id, kind, source_ref, symbol, interval, strategy,
+    occurred_at, title, body, metrics, data_hash,
+    embedding, embedding_model, embedding_status,
+    image_embedding, image_embedding_model, image_embedding_status
+  )
+  select
+    p_desk_id, incoming.user_id, p_kind, btrim(incoming.source_ref),
+    incoming.symbol, incoming.interval, incoming.strategy,
+    incoming.occurred_at, incoming.title, incoming.body,
+    coalesce(incoming.metrics, '{}'::jsonb), incoming.data_hash,
+    case when v_complete and jsonb_typeof(incoming.embedding) = 'array'
+      then incoming.embedding::text::extensions.vector(384) else null end,
+    case when v_complete then incoming.embedding_model else null end,
+    case when v_complete then 'ready' else 'pending' end,
+    case when v_complete and jsonb_typeof(incoming.image_embedding) = 'array'
+      then incoming.image_embedding::text::extensions.vector(512) else null end,
+    case when v_complete then incoming.image_embedding_model else null end,
+    case when v_complete then coalesce(incoming.image_embedding_status, 'absent') else 'absent' end
+  from jsonb_to_recordset(p_rows) as incoming(
+    user_id uuid,
+    source_ref text,
+    symbol text,
+    interval text,
+    strategy text,
+    occurred_at timestamptz,
+    title text,
+    body text,
+    metrics jsonb,
+    data_hash text,
+    embedding jsonb,
+    embedding_model text,
+    embedding_status text,
+    image_embedding jsonb,
+    image_embedding_model text,
+    image_embedding_status text
+  )
+  on conflict (desk_id, kind, source_ref) do update set
+    user_id = excluded.user_id,
+    symbol = excluded.symbol,
+    interval = excluded.interval,
+    strategy = excluded.strategy,
+    occurred_at = excluded.occurred_at,
+    title = excluded.title,
+    body = excluded.body,
+    metrics = excluded.metrics,
+    data_hash = excluded.data_hash,
+    embedding = excluded.embedding,
+    embedding_model = excluded.embedding_model,
+    embedding_status = excluded.embedding_status,
+    image_embedding = excluded.image_embedding,
+    image_embedding_model = excluded.image_embedding_model,
+    image_embedding_status = excluded.image_embedding_status
+  where v_complete;
+
+  -- Pending rows are useful retry records but cannot replace the only complete
+  -- generation.  A later backfill sends the same content-derived refs with
+  -- ready vectors, reaches this branch and retires the old siblings then.
+  if v_complete then
+    delete from public.research_documents document
+    where document.desk_id = p_desk_id
+      and document.kind = p_kind
+      and (
+        document.source_ref = p_parent_source_ref
+        or document.metrics #>> '{_retrieval_chunk,parent_source_ref}' = p_parent_source_ref
+      )
+      and not (document.source_ref = any(v_source_refs));
+  end if;
+
+  return query
+  select document.*
+  from public.research_documents document
+  where document.desk_id = p_desk_id
+    and document.kind = p_kind
+    and document.source_ref = any(v_source_refs)
+  order by document.source_ref;
+end
+$$;
+
+comment on function public.replace_research_document_chunks(
+  uuid, public.research_doc_kind, text, jsonb
+) is
+  'Atomically upserts one logical document generation and deletes stale siblings only when every incoming text embedding is ready.';
+
+revoke execute on function public.replace_research_document_chunks(
+  uuid, public.research_doc_kind, text, jsonb
+) from public, anon, authenticated;
+grant execute on function public.replace_research_document_chunks(
+  uuid, public.research_doc_kind, text, jsonb
+) to service_role;
+
+notify pgrst, 'reload schema';
