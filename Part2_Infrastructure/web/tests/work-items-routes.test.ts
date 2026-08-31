@@ -24,6 +24,7 @@ const del = read("lib/data-work-delete.ts");
 const board = ["components/data/DataWorkBoard.tsx", "components/data/DataWorkCard.tsx", "components/data/WorkComposer.tsx", "components/data/work-board-model.ts"]
   .map((p) => { try { return read(p); } catch { return ""; } }).join("\n");
 const page = read("app/dashboard/page.tsx");
+const readme = read("README.md");
 // The hook is called in the shell; the board that renders its items is mounted
 // by `components/workspace/WorkspacePanels.tsx`, so the two halves of the
 // wiring are asserted against the two files that hold them.
@@ -60,6 +61,12 @@ describe("the work-queue proxies", () => {
     assert.match(del, /withDeadline\(`\/api\/gateway\/data\/work-items\/\$\{encodeURIComponent\(id\)\}`, \{\s*method: "DELETE"/);
     assert.match(lib, /const DATA_WORK_TIMEOUT_MS = 6_000;/);
     assert.match(lib, /signal: controller\.signal/);
+  });
+
+  it("uses and documents the Next proxy rather than the backend-only path", () => {
+    assert.match(lib, /withDeadline\("\/api\/gateway\/data\/work-items"\)/);
+    assert.match(readme, /GET`\/`POST \/api\/gateway\/data\/work-items/);
+    assert.match(readme, /gateway itself owns `\/api\/data\/work-items`/);
   });
 
   it("validates the create body before it reaches the gateway", () => {
@@ -105,9 +112,11 @@ describe("the hook owns persistence and names each outcome", () => {
     assert.doesNotMatch(board, /fetch\(/, "the board renders and reports; the workspace persists");
   });
 
-  it("the board reports the source and marks the seeded rows", () => {
+  it("the board reports the persisted source without a runtime sample mode", () => {
     assert.match(board, /Persisted on the gateway, \{source\.count\}/);
-    assert.match(board, /item\.createdBy === "seed" && <small className="muted"> ‹sample›<\/small>/);
+    assert.doesNotMatch(board, /createdBy === "seed"|seeded sample|Reset sample queue/);
+    assert.doesNotMatch(lib, /\bseeded\b|createdBy === "seed"/);
+    assert.doesNotMatch(list, /\bseeded\b/);
     assert.match(board, /disabled=\{readOnly\}/);
   });
 });
