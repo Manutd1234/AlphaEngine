@@ -39,8 +39,16 @@ interface Row {
 
 function runRows(study: DiffusionStudy): Row[] {
   const parsed = study.verdict_reason?.match(REASON) ?? null;
+  const runKey = study.study_id.match(/:d(\d+):s(\d+)$/);
+  const runKeyMeaning = runKey
+    ? `d${runKey[1]} means ${runKey[1]} latent dimensions; s${runKey[2]} is random seed ${runKey[2]}. This pair was selected because it best recovered the known fact among the well-conditioned candidates under the pre-registered rule below`
+    : "stable identifier for this study configuration";
   return [
-    { what: "Run", value: study.study_id, how: "the study id this section reports" },
+    {
+      what: "Run",
+      value: study.study_id,
+      how: runKeyMeaning,
+    },
     {
       what: "Chosen by",
       value: "best recovery of the known fact among the well conditioned",
