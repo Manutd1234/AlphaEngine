@@ -163,25 +163,34 @@
 /* The area IS the reading — its size is I(x;c) — so it is filled rather than
    left as a line with a number beside it. Kept faint so the curve over it
    stays the thing being read. */
-.coherence-plane.diffusion-plane .coh-model__area {
+.coherence-plane.diffusion-plane .coh-model__area,
+.coh-figure--dialog .coh-model__area {
   fill: color-mix(in srgb, var(--series-3) 18%, transparent);
   stroke: none;
 }
-/* The middle half of the runs each mean is a mean of. Behind the lines and
-   faint: the band is the spread, the line is still the reading. Assigned by
-   ENTITY like every other colour on this tab — series 1 is always the
-   statement, series 2 always the press conference — so a filter that changed
-   which stages were present could not repaint the survivors. */
-.diff-curve__band { stroke: none; }
-.diff-curve__band--release { fill: color-mix(in srgb, var(--series-1) 14%, transparent); }
-.diff-curve__band--call { fill: color-mix(in srgb, var(--series-2) 14%, transparent); }
+/* Focus relocates the plot outside `.coherence-plane`, whose diagram ladder
+   normally supplies this note's fill and size. Keep the Spectrum's resolution
+   note on that rung instead of letting SVG defaults turn it black and 16px. */
+.coh-figure--dialog .coh-model__area ~ .coh-svg-note {
+  fill: var(--text-secondary);
+  font-size: var(--fs-diagram-legend, 14px);
+}
+
+/* Middle-half spread behind each announcement mean. These are data bands,
+   not card shadows: flat, translucent, and always below the line work. */
+.diff-curve__band { stroke: none; pointer-events: none; }
+.diff-curve__band--release { fill: color-mix(in srgb, var(--series-1) 16%, transparent); }
+.diff-curve__band--call { fill: color-mix(in srgb, var(--series-2) 16%, transparent); }
+
 /* ── The two clocks ───────────────────────────────────────────────────────
-   One line per stage between two rank axes. The lines that MOVE are the
-   finding, so they are drawn heavier as well as tinted — a reader who cannot
-   separate the two weights still has each line's own words on it. */
+   Grey dotted paths are context; material crossings are solid and retain
+   their stage colour. Style answers importance, while colour and each panel
+   heading continue to answer stage. */
 .diff-clock__link {
-  stroke: color-mix(in srgb, var(--text-secondary) 30%, transparent);
-  stroke-width: 1.2;
+  /* A rank path must remain traceable even when it is contextual. An opaque
+     mix avoids compounding alpha over the plot and clears 3:1 in both themes. */
+  stroke: color-mix(in srgb, var(--text-secondary) 55%, var(--surface-1));
+  stroke-width: 1;
   vector-effect: non-scaling-stroke;
   /* The hit target is the STROKE, and a 1.2px stroke is a 1.2px target. This
      widens what the pointer can land on without widening what is drawn, so 89
@@ -190,8 +199,35 @@
   paint-order: stroke;
 }
 .diff-clock__link:hover { stroke-width: 2.4; }
-.diff-clock__link--release.is-moved { stroke: var(--series-1); stroke-width: 1.6; }
-.diff-clock__link--call.is-moved { stroke: var(--series-2); stroke-width: 1.6; stroke-dasharray: 3 2; }
+.diff-clock__link.is-dotted {
+  stroke-dasharray: 3 2;
+}
+.diff-clock__link--release.is-solid { stroke: var(--series-1); stroke-width: 1.7; }
+.diff-clock__link--call.is-solid { stroke: var(--series-2); stroke-width: 1.7; }
 /* A horizon that will never resolve, on the empty-state grid: hollow as well as
    muted, so "nothing will ever be measured here" is not carried by tint alone. */
 .diff-curve__dot--gap { fill: none; stroke: var(--text-secondary); stroke-width: 1; }
+
+/* The recorder facts form two aligned rows. Long watchlist names stay inside
+   their own equal-width cell instead of changing the next row's column start. */
+.coh-episode-watch-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+}
+.coh-episode-watch-stats > * {
+  min-width: 0;
+  height: 100%;
+  justify-content: flex-start;
+}
+.coh-episode-watch-stats :is(.coh-chip__word, .coh-chip__value) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (max-width: 760px) {
+  .coh-episode-watch-stats { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 480px) {
+  .coh-episode-watch-stats { grid-template-columns: 1fr; }
+}
