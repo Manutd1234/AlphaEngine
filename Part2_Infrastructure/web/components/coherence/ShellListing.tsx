@@ -11,14 +11,10 @@
  * which is why `atShards` arrives as a prop rather than being re-derived from
  * `data.path` — one file owns what a path segment means.
  *
- * THE MARKETS ARE FOLDED, and the parallel is deliberate. An event directory
- * on a bucket family holds five derived readings and up to a hundred and
- * eighty-eight markets, which is the same hundred and eighty-eight rows
- * `UniversePane` puts behind "Every outcome as quoted, 188 rows". A reader
- * walking the tree is choosing between the readings and the leaves; the
- * readings are what `cat` answers and the leaves are what they scroll past. So
- * the leaves open on request, counted in their own summary, and the two groups
- * a reader navigates BY stay open.
+ * An event directory can hold five derived readings and up to a hundred and
+ * eighty-eight markets. The explorer keeps those entries in one sortable-style
+ * list with explicit folder, computed-file and market types, plus local
+ * scrolling so a long strike ladder does not lengthen the whole page.
  *
  * Four outcomes are kept apart here and never collapsed into "no data": a path
  * that does not exist, a file whose reading could not be produced in this read,
@@ -31,7 +27,9 @@
  */
 
 import type { CoherenceShell, CoherenceShellEntry } from "@/lib/coherence/types-lab";
+import { ChevronRight, FileText, Folder, Sigma } from "lucide-react";
 import { DERIVED_FILES } from "./ShellTree";
+import styles from "./ShellBrowser.module.css";
 
 const DERIVED = new Set(DERIVED_FILES.map((file) => file.name));
 
@@ -46,13 +44,15 @@ function displayName(entry: CoherenceShellEntry): string {
   return entry.kind === "dir" ? `${entry.name}/` : entry.name;
 }
 
-function EntryRow({ entry, onOpen }: { entry: CoherenceShellEntry; onOpen: () => void }) {
+function EntryRow({ entry, derived, onOpen }: { entry: CoherenceShellEntry; derived: boolean; onOpen: () => void }) {
+  const Icon = entry.kind === "dir" ? Folder : derived ? Sigma : FileText;
   return (
-    <li className="coh-shell__entry">
-      <button type="button" className="coh-shell__open" onClick={onOpen}>
-        <span className="coh-shell__name">{displayName(entry)}</span>
-        <span className="coh-shell__kind">{entry.kind === "dir" ? "directory" : "file"}</span>
-        <span className="coh-shell__detail">{entry.detail}</span>
+    <li className={styles.fileRow}>
+      <button type="button" onClick={onOpen} title={`${displayName(entry)} — ${entry.detail}`}>
+        <span className={styles.fileName}><Icon aria-hidden="true" /><strong>{displayName(entry)}</strong></span>
+        <span className={styles.fileType}>{entry.kind === "dir" ? "Folder" : derived ? "Computed" : "Market"}</span>
+        <span className={styles.fileDetail}>{entry.detail}</span>
+        <ChevronRight aria-hidden="true" className={styles.openMark} />
       </button>
     </li>
   );
@@ -71,81 +71,43 @@ export default function ShellListing({
   const derived = data.entries.filter((entry) => entry.kind === "file" && DERIVED.has(entry.name));
   const directories = data.entries.filter((entry) => entry.kind === "dir");
   const markets = data.entries.filter((entry) => entry.kind === "file" && !DERIVED.has(entry.name));
+  const entries = [...directories, ...derived, ...markets];
 
   return (
-    <div className="coh-shell__listing">
-      {directories.length ? (
-        <section className="coh-shell__group">
-          <h4 className="coh-shell__group-head">
-            {directories.length} {directories.length === 1 ? "directory" : "directories"}
-          </h4>
-          {/* The consequence for legs is spelled once, on the Layout view's
-              reading — this note keeps the rule and the pinned phrase. */}
-          {atShards ? (
-            <p className="coh-shell__note">
-              Each directory is a separate exchange instance: collateral is held per shard, so one order group cannot
-              span two.
-            </p>
-          ) : null}
-          <ul className="coh-shell__entries">
-            {directories.map((entry) => (
-              <EntryRow key={entry.name} entry={entry} onOpen={() => onOpen(entry)} />
-            ))}
-          </ul>
-        </section>
+    <div className={styles.listing}>
+      {atShards ? (
+        <p className={styles.listHint}>
+          <span aria-hidden="true">◇</span>
+          <span>Each top-level folder is one exchange instance and one collateral pool.</span>
+        </p>
+      ) : derived.length ? (
+        <p className={styles.listHint}>
+          <span aria-hidden="true">Σ</span>
+          <span>Computed files are derived from the books at read time; an unavailable reading is never coerced to zero.</span>
+        </p>
       ) : null}
 
-      {derived.length ? (
-        <section className="coh-shell__group">
-          <h4 className="coh-shell__group-head">{derived.length} derived readings</h4>
-          <p className="coh-shell__note">
-            Computed from the books at read time, not attributes the event carries — so each can answer that it has no
-            answer.
-          </p>
-          <ul className="coh-shell__entries">
-            {derived.map((entry) => (
-              <EntryRow key={entry.name} entry={entry} onOpen={() => onOpen(entry)} />
+      {entries.length ? (
+        <div className={styles.fileTable} role="region" aria-label={`${entries.length} filesystem entries`} tabIndex={0}>
+          <div className={styles.fileHeader} aria-hidden="true">
+            <span>Name</span><span>Type</span><span>Details</span><span />
+          </div>
+          <ul className={styles.fileRows}>
+            {entries.map((entry) => (
+              <EntryRow key={`${entry.kind}:${entry.name}`} entry={entry} derived={DERIVED.has(entry.name)} onOpen={() => onOpen(entry)} />
             ))}
           </ul>
-        </section>
-      ) : null}
-
-      {markets.length ? (
-        <section className="coh-shell__group">
-          {/* No `.coh-shell__group-head` over this one: the summary states the
-              count, and a heading saying "188 markets" above a summary saying
-              "188 files" is the same number twice in eight pixels. */}
-          <details className="disclosure">
-            <summary>
-              Every market in this directory, {markets.length} {markets.length === 1 ? "file" : "files"}
-            </summary>
-            <ul className="coh-shell__entries is-dense">
-              {markets.map((entry) => (
-                <li key={entry.name} className="coh-shell__entry">
-                  <button
-                    type="button"
-                    className="coh-shell__open"
-                    onClick={() => onOpen(entry)}
-                    aria-label={`${entry.name}, ${entry.detail}`}
-                  >
-                    <span className="coh-shell__name">{entry.name}</span>
-                    <span className="coh-shell__detail">{entry.detail}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </details>
-        </section>
+        </div>
       ) : null}
 
       {data.entries.length === 0 ? (
         READ_OK.has(data.state) ? (
-          <p className="coh-shell__note">
+          <p className={styles.emptyDirectory}>
             <span aria-hidden="true">◌</span> This directory is empty. It exists; nothing watched is currently under
             it.
           </p>
         ) : (
-          <p className="coh-shell__note">
+          <p className={styles.emptyDirectory}>
             <span aria-hidden="true">✕</span> The venue could not be read in this refresh, so nothing was listed.
             That is an outage and not an empty directory — the one outcome here worth retrying.
           </p>
