@@ -32,21 +32,54 @@ const load = {
   diffusion: () => import("@/components/DiffusionConsole"),
 };
 
+export type ConsoleChunkLoader = () => Promise<unknown>;
+
+/**
+ * Warm one cold workspace chunk at a time.
+ *
+ * Starting every dynamic import in one idle callback makes the split nominal:
+ * six downloads, parses and module evaluations compete with the first console
+ * the reader is actually using. Awaiting each import preserves the warm-cache
+ * benefit without turning an idle hint into a foreground burst. A failed hint
+ * never blocks the rest; the destination's own dynamic boundary still owns the
+ * visible retry/loading state.
+ */
+export async function warmConsoleChunksSequentially(
+  loaders: readonly ConsoleChunkLoader[],
+  signal?: AbortSignal,
+): Promise<void> {
+  for (const warm of loaders) {
+    if (signal?.aborted) return;
+    try {
+      await warm();
+    } catch {
+      // Prefetch is optional. A cold click retries through next/dynamic.
+    }
+  }
+}
+
 /** Returns the hover/focus warm-up handler; the idle warm-up runs on its own. */
 export function useConsolePrefetch(): (next: WorkspaceView) => void {
   useEffect(() => {
-    // All five, not the first three. Markets and Coherence were left out when
-    // the Kalshi engine landed, so the one tab whose sections each open a live
-    // exchange read also paid for its own chunk download first.
+    const controller = new AbortController();
+    // All six, but sequentially. Markets, Coherence and Diffusion were each
+    // added after the original warm map; they still belong in the idle queue,
+    // just not as one six-request burst.
     const prefetch = () => {
-      for (const warm of Object.values(load)) void warm();
+      void warmConsoleChunksSequentially(Object.values(load), controller.signal);
     };
     if ("requestIdleCallback" in window) {
       const handle = window.requestIdleCallback(prefetch, { timeout: 4000 });
-      return () => window.cancelIdleCallback(handle);
+      return () => {
+        controller.abort();
+        window.cancelIdleCallback(handle);
+      };
     }
     const timer = setTimeout(prefetch, 1500);
-    return () => clearTimeout(timer);
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+    };
   }, []);
 
   // Idle usually wins this race. When it does not — a busy machine, which is
