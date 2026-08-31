@@ -203,8 +203,10 @@ export default function BreakerStateMachine({
 
         {NODES.map((node) => {
           const active = nodeCount(node.id) > 0;
-          const tone = node.id === "open" ? "var(--status-critical)"
+          const borderTone = node.id === "open" ? "var(--status-critical)"
             : node.id === "half_open" ? "var(--status-warning)" : "var(--status-good)";
+          const countTone = node.id === "open" ? "var(--critical-text)"
+            : node.id === "half_open" ? "var(--warning-text)" : "var(--success-text)";
           /* The live state is carried by the border WEIGHT as well as its
              colour — 1.6 against 1 — and by the count itself, which is the
              pair High Contrast keeps when the palette collapses. */
@@ -215,14 +217,14 @@ export default function BreakerStateMachine({
           return (
             <g key={node.id}>
               <rect x={node.boxX} y={BOX_Y} width={BOX_W} height={BOX_H} rx={8}
-                fill="var(--surface-2)" stroke={active ? tone : "var(--border)"}
+                fill="var(--surface-2)" stroke={active ? borderTone : "var(--border)"}
                 strokeWidth={active ? 1.6 : 1} />
               <text x={node.cx} y={BOX_Y + 22} textAnchor="middle" fontSize={13}
                 fontWeight={750} fill="var(--text-primary)" fontFamily="var(--mono)">
                 {node.label}
               </text>
               <text x={node.cx} y={BOX_Y + 42} textAnchor="middle" fontSize={15}
-                fontWeight={700} fill={active ? tone : "var(--text-muted)"}>
+                fontWeight={700} fill={active ? countTone : "var(--text-muted)"}>
                 {nodeCount(node.id)}
               </text>
               {caption.map((row, index) => (
