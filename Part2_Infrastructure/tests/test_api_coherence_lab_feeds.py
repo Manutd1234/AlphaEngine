@@ -14,7 +14,10 @@ from coherence_lab_harness import EVENT, make_client, point_tape_at, unreachable
 
 from modules.api import coherence_lab as lab
 from modules.coherence import tunables
+from modules.coherence.drivers import kalshi_auth
+from modules.coherence.drivers.kalshi_rest import KalshiClient, KalshiUnavailable
 from modules.coherence.fs.store import TapeUnavailable
+from modules.coherence.scheduler.budget import ReadBudget
 
 
 @pytest.fixture
@@ -100,7 +103,8 @@ class TestTheRfqRoute:
     def test_an_unsigned_deployment_reports_no_view_rather_than_an_empty_one(self, client):
         payload = client.get("/api/coherence/rfq").json()
         assert payload["state"] == "signing_unavailable"
-        assert "which is not an empty one" in payload["detail"]
+        assert "KALSHI_DEMO_KEY_ID" in payload["detail"]
+        assert "Public market reads remain available" in payload["detail"]
         assert payload["dispersions"] == []
 
     def test_a_signed_read_of_a_quiet_sandbox_is_empty_rather_than_refused(self, client, monkeypatch):
@@ -118,6 +122,36 @@ class TestTheRfqRoute:
         payload = client.get("/api/coherence/rfq").json()
         assert payload["state"] == "refused"
         assert payload["open_requests"] == 0
+
+    def test_a_crypto_signing_error_returns_a_typed_state_not_a_500(self, client, monkeypatch):
+        class BrokenRsaKey:
+            def sign(self, *_args, **_kwargs):
+                raise TypeError("test-only crypto detail")
+
+        transport = httpx.MockTransport(lambda _request: httpx.Response(200, json={}))
+
+        def signed_client(*_args, **_kwargs):
+            return KalshiClient(
+                base_url=tunables.DEMO_BASE_URL,
+                failover_url="",
+                signed=True,
+                transport=transport,
+                budget=ReadBudget(),
+            )
+
+        monkeypatch.setattr(lab, "KalshiClient", signed_client)
+        monkeypatch.setattr(lab, "signing_available", lambda: True)
+        monkeypatch.setattr(tunables, "DEMO_KEY_ID", "a-demo-key")
+        monkeypatch.setattr(tunables, "DEMO_PRIVATE_KEY_PATH", "/configured/do-not-disclose.pem")
+        monkeypatch.setattr(kalshi_auth, "_load_key", lambda _path: BrokenRsaKey())
+
+        response = client.get("/api/coherence/rfq")
+
+        assert response.status_code == 200
+        assert response.json()["state"] == "signing_unavailable"
+        assert "could not sign" in response.json()["detail"]
+        assert "do-not-disclose.pem" not in response.json()["detail"]
+        assert "test-only crypto detail" not in response.json()["detail"]
 
 
 class TestTheShellRoute:
@@ -153,6 +187,35 @@ class TestTheShellRoute:
         payload = client.get(f"/api/coherence/shell?path={path}&command=cat").json()
         assert payload["state"] == "missing"
         assert payload["exists"] is False
+
+    def test_a_partial_watchlist_read_cannot_be_mislabeled_as_a_missing_path(self, client, monkeypatch):
+        path = "/shards/1/REFUSED/REFUSED-EVENT/implied_pmf"
+        calls = []
+
+        async def partial_read(_client, series, **kwargs):
+            calls.append(kwargs)
+            if series == "REFUSED":
+                raise KalshiUnavailable("read budget exhausted before /markets")
+            return [object()]
+
+        monkeypatch.setattr(lab, "observe_series", partial_read)
+        monkeypatch.setattr(tunables, "SERIES_WATCHLIST", ("GOOD", "REFUSED"))
+
+        response = client.get("/api/coherence/shell", params={"path": path, "command": "cat"})
+        payload = response.json()
+
+        assert response.status_code == 200
+        assert payload["state"] == "unavailable"
+        assert payload["path"] == path and payload["command"] == "cat"
+        assert payload["exists"] is True
+        assert payload["entries"] == [] and payload["body"] == ""
+        assert "REFUSED: read budget exhausted" in payload["detail"]
+        assert "not a statement about the path" in payload["detail"]
+        assert "not a watched event" not in payload["detail"]
+        assert all(call == {
+            "max_events": tunables.SHELL_MAX_EVENTS_PER_SERIES,
+            "require_complete": True,
+        } for call in calls)
 
     def test_only_ls_and_cat_are_commands(self, client, monkeypatch):
         venue(monkeypatch)
