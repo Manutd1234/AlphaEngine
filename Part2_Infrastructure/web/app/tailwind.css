@@ -32,8 +32,7 @@
  *    flips with data-theme; v4's dark: keys off prefers-color-scheme only and
  *    would desynchronise from the ThemeToggle.
  *  - Rare unbridged token: use the var shorthand, e.g. bg-(--diverging-mid).
- *  - Raw hex needs a comment. Sanctioned: #b3242e destructive red (contrast
- *    rationale beside .handoff-fire in globals.css), the hero pipeline's fixed
+ *  - Raw hex needs a comment. Sanctioned: fixed terminal-plane colours, the hero pipeline's fixed
  *    dark-step status map (the hero background is theme-invariant soft zinc,
  *    #18181B), and the Telegram brand blues #229ED9/#0088cc in TelegramCta
  *    (a brand mark on a theme-invariant tile; the white glyph carries 3.89:1).
@@ -67,6 +66,7 @@
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
   --color-text-muted: var(--text-muted);
+  --color-on-accent: var(--on-accent);
 
   /* Categorical accents — fixed order, never cycled */
   --color-series-1: var(--series-1);
@@ -117,4 +117,16 @@
      `--radius-lg`. One name per step now. */
   --radius-card: var(--radius-lg);
   --shadow-card: var(--shadow-sm);
+}
+
+/* The generated shadcn base strings retain their stock disabled utility so the
+   signed copy analyser remains byte-stable. This later, equally specific rule
+   is the rendered contract: disabled controls stay full-opacity and use the
+   explicit semantic surface, border and ink roles. */
+[data-slot="button"]:disabled,
+[data-slot="toggle"]:disabled {
+  opacity: 1;
+  border-color: var(--disabled-border);
+  background: var(--disabled-bg);
+  color: var(--disabled-text);
 }
