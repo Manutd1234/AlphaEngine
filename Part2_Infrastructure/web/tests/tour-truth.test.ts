@@ -1,7 +1,7 @@
 /**
  * The feature tour describes a desk that exists.
  *
- * `docs/product/FEATURE_TOUR.md` walks a reader through all ten workspaces and names
+ * `docs/product/FEATURE_TOUR.md` walks a reader through all eleven workspaces and names
  * the sections in each rail. Those lists were hand-mirrored from the app, and
  * every one of the eight had drifted: seven whole sections were missing
  * (Lineage, Fill quality, Equity & P&L, Monte Carlo, Feeds & Contracts,
@@ -33,7 +33,7 @@ const sections = read("../lib/sections.ts");
 // The component re-exports it, but this scan reads the DECLARATION.
 const header = read("../lib/workspace-nav.ts");
 const tour = read("../../../docs/product/FEATURE_TOUR.md");
-// The ten stops are built in lib/workspace-tour.ts since page.tsx was split.
+// The eleven stops are built in lib/workspace-tour.ts since page.tsx was split.
 const page = read("../lib/workspace-tour.ts");
 
 /** Every `{ id, label }` pair of one workspace, in rail order. */
