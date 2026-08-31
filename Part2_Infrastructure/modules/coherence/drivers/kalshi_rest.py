@@ -28,84 +28,28 @@ mistakes a shallow read for a deep one.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import time
 from dataclasses import dataclass
 from typing import Any, Sequence
+from urllib.parse import quote
 
 import httpx
 
 from modules.coherence import latency, tunables
 from modules.coherence.drivers import kalshi_auth
+from modules.coherence.drivers.kalshi_pool import acquire_budget as _acquire_budget
+from modules.coherence.drivers.kalshi_pool import close_pool as close_pool
+from modules.coherence.drivers.kalshi_pool import default_failover as _default_failover
+from modules.coherence.drivers.kalshi_pool import host_only as _host_only
+from modules.coherence.drivers.kalshi_pool import known_environment as _known_environment
+from modules.coherence.drivers.kalshi_pool import local_budget_wait_s as _local_budget_wait_s
+from modules.coherence.drivers.kalshi_pool import pool as _pool
+from modules.coherence.drivers.kalshi_pool import venue_attempt_timeout_s as _venue_attempt_timeout_s
 from modules.coherence.scheduler.budget import ReadBudget, get_read_budget
 
 logger = logging.getLogger(__name__)
 
-
-# ── The connection pool ──────────────────────────────────────────────────────
-#
-# Until 2026-08-25 every GET opened its own `httpx.AsyncClient` and closed it on
-# the way out, so each call paid for a fresh DNS lookup, TCP connect and TLS
-# handshake. Measured against `external-api.kalshi.com` from this machine:
-#
-#     cold connection   DNS 3ms + TCP 239-257ms + TLS 237-265ms + ~250ms  = 713-776ms
-#     reused connection                                          ~265ms  = 261-274ms
-#
-# A cold Proofs load makes about nineteen of these, so roughly 9.3 seconds of
-# the wall clock was handshake for connections thrown away microseconds later.
-#
-# One client for the process, created on first use rather than at import: the
-# module is imported by tooling that never makes a request, and a client built
-# at import time binds to whatever event loop happens to exist then.
-#
-# KEYED ON THE RUNNING LOOP, and that is not defensive programming — it is the
-# first thing that broke. A pooled connection holds a transport bound to the
-# loop that opened it, so a client built under one loop raises "Event loop is
-# closed" the moment a second loop uses it. In this process there is only ever
-# one loop and the check never fires; under pytest every test gets its own, and
-# without this the suite fails in whichever test happens to run second.
-_POOL: httpx.AsyncClient | None = None
-_POOL_LOOP: asyncio.AbstractEventLoop | None = None
-
-
-def _pool() -> httpx.AsyncClient:
-    """The shared client for the running loop, built on first use."""
-    global _POOL, _POOL_LOOP
-    loop = asyncio.get_running_loop()
-    if _POOL is None or _POOL.is_closed or _POOL_LOOP is not loop:
-        _POOL = httpx.AsyncClient(
-            follow_redirects=False,
-            # Bounded rather than default-unbounded: this process talks to two
-            # hosts and a leak here is a file-descriptor leak.
-            limits=httpx.Limits(max_keepalive_connections=8, max_connections=16),
-        )
-        _POOL_LOOP = loop
-    return _POOL
-
-
-async def close_pool() -> None:
-    """Close the shared client, if it belongs to the loop asking.
-
-    ONLY IF IT BELONGS TO THIS LOOP, and that qualifier is the whole function.
-    `aclose()` on a client whose connections were opened under a different loop
-    raises "Event loop is closed" from deep inside asyncio's transport teardown
-    — and under pytest that is the common case, because every `TestClient`
-    builds a loop, runs the lifespan and tears the loop down, so the second test
-    to start the app finds a pool belonging to the first test's corpse. Dropping
-    the reference is the right move there: the loop that owned those sockets is
-    already gone and closed them on its way out.
-    """
-    global _POOL, _POOL_LOOP
-    if _POOL is not None and not _POOL.is_closed:
-        try:
-            mine = _POOL_LOOP is asyncio.get_running_loop()
-        except RuntimeError:
-            mine = False
-        if mine:
-            await _POOL.aclose()
-    _POOL = None
-    _POOL_LOOP = None
 
 # One request per call, and the caller decides how many calls to make. The
 # retry curve is the gateway's own Backoff; there is no retry inside a single
@@ -126,6 +70,10 @@ class KalshiUnavailable(RuntimeError):
 
 class KalshiRefused(KalshiUnavailable):
     """Kalshi answered 401/403. The contract tightened, or a key is needed."""
+
+
+class _KalshiDeadlineExhausted(KalshiUnavailable):
+    """The propagated request allowance cannot safely start another attempt."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -169,8 +117,29 @@ class KalshiClient:
         timeout_s: float | None = None,
         signed: bool = False,
     ) -> None:
-        self.base_url = (base_url or tunables.PUBLIC_BASE_URL).rstrip("/")
-        self.failover_url = (failover_url or tunables.PUBLIC_FAILOVER_URL).rstrip("/")
+        self.base_url = tunables.normalize_base_url(
+            base_url if base_url is not None else tunables.PUBLIC_BASE_URL,
+            name="KalshiClient base_url",
+        )
+        # None keeps the environment-aware default. An explicit empty string
+        # disables failover; the old `or` expression made that impossible.
+        chosen_failover = _default_failover(self.base_url) if failover_url is None else failover_url.strip()
+        self.failover_url = (
+            tunables.normalize_base_url(chosen_failover, name="KalshiClient failover_url")
+            if chosen_failover
+            else None
+        )
+        if self.failover_url == self.base_url:
+            self.failover_url = None
+        if signed and any(
+            httpx.URL(url).scheme != "https"
+            for url in filter(None, (self.base_url, self.failover_url))
+        ):
+            raise ValueError("a signed KalshiClient requires HTTPS for every venue host")
+        base_environment = _known_environment(self.base_url)
+        failover_environment = _known_environment(self.failover_url) if self.failover_url else None
+        if self.failover_url and (base_environment or failover_environment) and base_environment != failover_environment:
+            raise ValueError("KalshiClient base_url and failover_url must belong to the same environment")
         self._transport = transport
         self._budget = budget or get_read_budget()
         self._timeout_s = float(timeout_s if timeout_s is not None else tunables.REQUEST_TIMEOUT_S)
@@ -178,6 +147,12 @@ class KalshiClient:
         # engine lives on is public, so a client that signs by habit would fail
         # closed on production for no benefit.
         self._signed = signed
+        if self._signed:
+            demo_hosts = {tunables.DEMO_BASE_URL, tunables.DEMO_FAILOVER_URL}
+            if self.base_url not in demo_hosts or (
+                self.failover_url is not None and self.failover_url not in demo_hosts
+            ):
+                raise ValueError("a signed KalshiClient may use only configured demo API hosts")
 
     async def get(self, path: str, params: Any = None) -> Fetched:
         """One planned, budgeted GET, with the shared host as a failover.
@@ -187,7 +162,11 @@ class KalshiClient:
         different problems and a caller that cannot tell them apart cannot
         respond to either.
         """
-        spend = self._budget.take(path)
+        spend = await _acquire_budget(
+            self._budget,
+            path,
+            max_wait_s=_local_budget_wait_s(),
+        )
         if not spend.affordable:
             raise KalshiUnavailable(
                 f"read budget exhausted before {path.split('?')[0]}: "
@@ -200,12 +179,12 @@ class KalshiClient:
         # asked for, which is a fact about coverage — from a network fault
         # worth retrying. `livedata.fetch_weather` reads exactly that.
         last_status: int | None = None
-        for host in (self.base_url, self.failover_url):
-            if not host:
-                continue
+        for host in dict.fromkeys(filter(None, (self.base_url, self.failover_url))):
             try:
                 return await self._get_from(host, path, params, spend.cost)
             except KalshiRefused:
+                raise
+            except _KalshiDeadlineExhausted:
                 raise
             except KalshiUnavailable as exc:
                 last_error = exc.reason
@@ -214,12 +193,19 @@ class KalshiClient:
         raise KalshiUnavailable(last_error, status=last_status)
 
     async def _get_from(self, host: str, path: str, params: Any, token_cost: int) -> Fetched:
+        request_url = _request_url(host, path, params)
         headers = {"Accept": "application/json"}
         if self._signed:
             # Signing is per host: a demo key cannot sign production, and the
             # signer refuses rather than producing a signature that earns a 401
             # reading as a credential fault.
-            headers.update(kalshi_auth.sign("GET", f"/trade-api/v2{path.split('?', 1)[0]}", host).as_dict())
+            signed_path = request_url.raw_path.split(b"?", 1)[0].decode("ascii")
+            headers.update(kalshi_auth.sign("GET", signed_path, host).as_dict())
+        attempt_timeout_s = _venue_attempt_timeout_s(self._timeout_s)
+        if attempt_timeout_s is None:
+            raise _KalshiDeadlineExhausted(
+                f"request budget exhausted before dispatch to {path.split('?')[0]}",
+            )
         # TIMED AROUND THE CALL ITSELF, not around the whole method: the signing
         # above and the JSON parse below are this process's work, not the
         # venue's, and folding them in would report our own CPU as network. A
@@ -233,12 +219,12 @@ class KalshiClient:
                 # test's stub into the next. A throwaway costs nothing when the
                 # transport is a function call.
                 async with httpx.AsyncClient(
-                    timeout=max(0.1, self._timeout_s),
+                    timeout=attempt_timeout_s,
                     follow_redirects=False,
                     transport=self._transport,
                     headers=headers,
                 ) as client:
-                    response = await client.get(f"{host}{path}", params=params)
+                    response = await client.get(request_url)
             else:
                 # Headers go on the REQUEST, not the client: `kalshi_auth.sign`
                 # signs one method, path and host, so a header set on a client
@@ -246,10 +232,9 @@ class KalshiClient:
                 # failover. The timeout rides along for the same reason — it is
                 # a property of this caller, not of the connection.
                 response = await _pool().get(
-                    f"{host}{path}",
-                    params=params,
+                    request_url,
                     headers=headers,
-                    timeout=max(0.1, self._timeout_s),
+                    timeout=attempt_timeout_s,
                 )
         except httpx.HTTPError as exc:
             # Never interpolate the URL: it is the one string that can carry a
@@ -267,8 +252,9 @@ class KalshiClient:
         latency.record(time.perf_counter() - started)
 
         if response.status_code in (401, 403):
+            request_kind = "signed request" if self._signed else "unauthenticated read"
             raise KalshiRefused(
-                f"Kalshi refused an unauthenticated read of {path.split('?')[0]} ({response.status_code})",
+                f"Kalshi refused the {request_kind} of {path.split('?')[0]} ({response.status_code})",
                 status=response.status_code,
             )
         if response.status_code == 429:
@@ -297,7 +283,10 @@ class KalshiClient:
         return await self.get("/account/endpoint_costs")
 
     async def event(self, event_ticker: str, nested: bool = True) -> Fetched:
-        return await self.get(f"/events/{event_ticker}", params={"with_nested_markets": str(nested).lower()})
+        return await self.get(
+            f"/events/{_path_segment(event_ticker, 'event ticker')}",
+            params={"with_nested_markets": str(nested).lower()},
+        )
 
     async def markets(self, series_ticker: str, status: str = "open", limit: int = 200) -> Fetched:
         """Markets for one series.
@@ -358,10 +347,10 @@ class KalshiClient:
         return await self.get("/markets/orderbooks", params=build_orderbooks_query(tickers))
 
     async def orderbook(self, ticker: str, depth: int = 20) -> Fetched:
-        return await self.get(f"/markets/{ticker}/orderbook", params={"depth": depth})
+        return await self.get(f"/markets/{_path_segment(ticker, 'market ticker')}/orderbook", params={"depth": depth})
 
     async def series(self, series_ticker: str) -> Fetched:
-        return await self.get(f"/series/{series_ticker}")
+        return await self.get(f"/series/{_path_segment(series_ticker, 'series ticker')}")
 
     async def series_fee_changes(self) -> Fetched:
         return await self.get("/series/fee_changes", params={"show_historical": "false"})
@@ -383,6 +372,19 @@ class KalshiClient:
         return await self.get("/events/fee_changes", params=params)
 
 
-def _host_only(url: str) -> str:
-    """The hostname, for logs and provenance. Never the path, never the query."""
-    return url.split("//", 1)[-1].split("/", 1)[0]
+def _path_segment(value: str, label: str) -> str:
+    """Encode one caller-supplied ticker as exactly one URL path segment."""
+    if not value:
+        raise ValueError(f"{label} must not be empty")
+    return quote(value, safe="")
+
+
+def _request_url(host: str, path: str, params: Any) -> httpx.URL:
+    """Build the one URL used for both signing and transport."""
+    if not path.startswith("/"):
+        raise ValueError("Kalshi route paths must start with /")
+    if params is None:
+        return httpx.URL(f"{host}{path}")
+    # Match httpx's existing `get(url, params=...)` behaviour: supplied params
+    # replace a query embedded in `path`, rather than merging it.
+    return httpx.URL(f"{host}{path}", params=params)
