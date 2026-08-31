@@ -14,6 +14,7 @@ import math
 import numpy as np
 import pytest
 
+import modules.ml.runner as runner_module
 from modules.backtester import bars_per_year
 from modules.backtester.statistics import deflated_sharpe_ratio, dsr_verdict
 from modules.ml.features import FeatureBuilder, FeatureSpec, LabelSpec
@@ -177,6 +178,38 @@ def test_the_deflation_is_computed_per_bar_not_annualised():
     assert per_bar[0] < 0.95, "the honest figure does not clear the PASS threshold"
     assert dsr_verdict(annualised[0]).startswith("PASS")
     assert dsr_verdict(per_bar[0]).startswith("FAIL")
+
+
+def test_the_runner_calls_dsr_in_per_bar_units_and_reannualises_the_hurdle_once(monkeypatch):
+    """Pin the production call site, not only the statistic in isolation."""
+    captured: dict[str, object] = {}
+    expected_max_per_bar = 0.012345
+
+    def record_dsr(candidates, selected, n_obs, skew, kurt):
+        captured.update(
+            candidates=np.asarray(candidates).copy(), selected=selected,
+            n_obs=n_obs, skew=skew, kurt=kurt,
+        )
+        return 0.42, 0.43, expected_max_per_bar
+
+    monkeypatch.setattr(runner_module, "deflated_sharpe_ratio", record_dsr)
+    builder = _builder()
+    data = builder.build(**_bars(_with_momentum()))
+    interval = "1h"
+    result = MLWalkForward(Ridge(alpha=1.0), interval=interval).run(
+        data, builder.splitter(5),
+    )
+
+    root_ann = math.sqrt(bars_per_year(interval))
+    expected_candidates = np.asarray(
+        [fold.oos_sharpe for fold in result.folds], dtype=np.float64,
+    ) / root_ann
+    np.testing.assert_allclose(captured["candidates"], expected_candidates)
+    assert captured["selected"] == pytest.approx(result.oos_sharpe / root_ann)
+    assert captured["n_obs"] == result.oos_returns.size
+    assert result.expected_max_sharpe == pytest.approx(expected_max_per_bar * root_ann)
+    assert result.expected_max_sharpe != pytest.approx(expected_max_per_bar)
+    assert result.expected_max_sharpe != pytest.approx(expected_max_per_bar * root_ann**2)
 
 
 def test_the_expected_max_sharpe_is_reported_in_the_same_unit_as_oos_sharpe():
