@@ -1,0 +1,209 @@
+/* Residual quantitative figures share one bounded, late presentation layer. */
+
+.quant-tooltip {
+  max-height: calc(100vh - 16px);
+  max-height: calc(100svh - 16px);
+  overflow-y: auto;
+}
+
+.factor-risk-matrix,
+.dsr-search-distribution { margin-top: var(--space-3); }
+.factor-risk-matrix table { min-width: max(560px, 100%); }
+.factor-risk-matrix td { min-width: 132px; padding: var(--space-1); }
+.factor-risk-matrix td > button {
+  width: 100%; min-height: 72px; display: grid;
+  grid-template-columns: auto 1fr; align-items: center;
+  gap: calc(var(--space-1) / 2) var(--space-1);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--text-primary); text-align: left;
+}
+.factor-risk-matrix td > button[data-sign="positive"] {
+  background: color-mix(in srgb, var(--series-1) var(--factor-wash), var(--surface-2));
+}
+.factor-risk-matrix td > button[data-sign="negative"] {
+  background: color-mix(in srgb, var(--status-critical) var(--factor-wash), var(--surface-2));
+}
+.factor-risk-matrix td > button > span {
+  grid-row: 1 / span 2; font-family: var(--mono);
+  font-size: var(--fs-h2); font-weight: 800;
+}
+.factor-risk-matrix td > button > small { color: inherit; }
+.factor-risk-matrix td > button[data-active="true"] {
+  outline: 2px solid var(--text-primary); outline-offset: 2px;
+}
+.factor-risk-matrix__reading {
+  display: block; min-height: 1.5em; margin-top: var(--space-2);
+  color: var(--text-secondary);
+}
+
+.mc-distribution-figures {
+  display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(280px, .85fr);
+  gap: var(--space-3); align-items: start;
+}
+.mc-distribution-figures > * { min-width: 0; }
+.mc-refresh-status {
+  display: flex; min-width: 0; align-items: center; gap: var(--space-2);
+  width: fit-content; max-width: 100%; margin: var(--space-2) 0;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid color-mix(in srgb, var(--series-1) 44%, var(--border));
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--series-1) 7%, var(--surface-2));
+  color: var(--text-secondary); font-size: var(--fs-sm);
+}
+.mc-refresh-status > strong { color: var(--text-primary); }
+.mc-refresh-status > .num { margin-left: auto; color: var(--text-primary); }
+.mc-refresh-status > .live-dot {
+  width: 7px; height: 7px; flex: 0 0 7px; border-radius: 50%;
+  background: var(--series-1); box-shadow: 0 0 0 3px color-mix(in srgb, var(--series-1) 14%, transparent);
+}
+.mc-histogram { display: grid; align-content: start; gap: var(--space-1); }
+.mc-histogram__scale {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: start; gap: var(--space-2); font-size: var(--fs-2xs);
+}
+.mc-histogram__scale > :last-child { text-align: right; }
+.mc-histogram__scale > :is(:first-child, :last-child) { min-width: 0; overflow-wrap: anywhere; }
+.mc-tail-gauge__facts {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0; margin-top: var(--space-2); background: var(--grid);
+}
+.mc-tail-gauge__facts > div {
+  min-width: 0; padding: var(--space-2); background: var(--surface-2);
+}
+.mc-tail-gauge__facts > div + div { border-left: 1px solid var(--grid); }
+.mc-tail-gauge__facts dt { color: var(--text-muted); font-size: var(--fs-2xs); }
+.mc-tail-gauge__facts dd {
+  margin-top: var(--space-1); color: var(--text-primary); font-weight: 700;
+}
+
+.liquidity-pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.liquidity-pair__ladder { grid-column: 1 / -1; }
+.liquidity-pair__depth > .coh-figure,
+.liquidity-pair__history > .coh-figure {
+  /* The card already owns the boundary. Removing the nested frame returns its
+     padding to the plot while preserving every shared Figure interaction. */
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.liquidity-pair__depth > .coh-figure,
+.liquidity-pair__history > .coh-figure {
+  height: 100%;
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+.liquidity-pair__depth .coh-figure__plot,
+.liquidity-pair__history .coh-figure__plot {
+  min-width: 0;
+}
+.liquidity-pair__depth .coh-figure__caption,
+.liquidity-pair__history .coh-figure__caption { min-block-size: 4.75rem; }
+.liquidity-pair__depth .legend,
+.liquidity-pair__history .legend {
+  min-height: 1.75rem;
+  align-items: center;
+  margin: 0;
+}
+.liquidity-pair__book {
+  max-block-size: clamp(18rem, 52dvh, 32rem);
+  scrollbar-gutter: stable;
+}
+.depth-heatmap__empty {
+  height: 500px; min-height: 500px; display: grid; place-items: center; text-align: center;
+}
+
+@media (max-width: 900px) {
+  .liquidity-pair { grid-template-columns: minmax(0, 1fr); }
+}
+
+.feed-freshness-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: var(--space-3);
+}
+.feed-freshness-cell {
+  min-width: 0; display: grid; gap: var(--space-2); padding: var(--space-3);
+  border: 1px solid var(--border); border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+.feed-freshness-cell__head,
+.feed-freshness-cell__state {
+  display: flex; min-width: 0; align-items: center;
+  justify-content: space-between; gap: var(--space-2);
+}
+.feed-freshness-cell__venue { color: var(--text-muted); font-size: var(--fs-sm); }
+.feed-freshness-cell__state {
+  justify-content: flex-start; color: var(--text-secondary); font-size: var(--fs-sm);
+}
+.feed-freshness-cell__state > :last-child { margin-left: auto; }
+.feed-freshness-cell__state i {
+  width: 7px; height: 7px; flex: 0 0 7px; border-radius: 50%;
+  background: var(--axis); color: var(--axis); font-style: normal;
+}
+.feed-freshness-cell[data-live] .feed-freshness-cell__state i {
+  background: var(--status-good); color: var(--success-text);
+}
+
+.dependency-dag-card .coh-figure,
+.dependency-dag__latency-note { margin-top: var(--space-2); }
+.dependency-dag__edge {
+  stroke: var(--axis); stroke-width: 1.25; stroke-dasharray: 4 4;
+}
+.dependency-dag__edge.is-measured {
+  stroke: var(--series-1); stroke-width: 2; stroke-dasharray: none;
+}
+.dependency-dag__node rect {
+  fill: var(--surface-2); stroke: var(--border); stroke-width: 1;
+}
+.dependency-dag__node[data-state="ok"] rect { stroke: var(--status-good); }
+.dependency-dag__node[data-state="degraded"] rect { stroke: var(--status-warning); }
+.dependency-dag__node[data-state="down"] rect { stroke: var(--status-critical); }
+.dependency-dag__name {
+  fill: var(--text-primary); font-family: var(--sans);
+  font-size: var(--fs-2xs); font-weight: 650;
+}
+.dependency-dag__state {
+  fill: var(--text-muted); font-family: var(--mono); font-size: var(--fs-tick);
+}
+.route-p99-distribution {
+  margin-top: var(--space-4); padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+.route-p99-distribution h3 { margin-bottom: var(--space-2); }
+.route-p99-distribution .research-note { margin-top: var(--space-2); }
+
+.allocation-stacks { display: grid; gap: var(--space-4); margin-top: var(--space-3); }
+.allocation-stack { display: grid; gap: var(--space-2); }
+.allocation-stack__head,
+.allocation-stack__legend li {
+  display: flex; min-width: 0; align-items: center; gap: var(--space-2);
+}
+.allocation-stack__head { justify-content: space-between; }
+.allocation-stack__head span { color: var(--text-muted); font-size: var(--fs-sm); }
+.allocation-stack__track {
+  height: 22px; display: flex; overflow: hidden;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+.allocation-stack__track > span + span { border-left: 1px solid var(--surface-1); }
+.allocation-stack__legend {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--space-1) var(--space-3); list-style: none;
+}
+.allocation-stack__legend i {
+  width: 8px; height: 8px; flex: 0 0 8px; border-radius: 2px;
+}
+.allocation-stack__legend span {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.allocation-stack__legend strong { margin-left: auto; }
+.allocation-stack__legend small { color: var(--text-muted); }
+
+@media (max-width: 900px) {
+  .mc-distribution-figures { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 520px) {
+  .mc-refresh-status { width: 100%; flex-wrap: wrap; }
+  .mc-tail-gauge__facts { grid-template-columns: minmax(0, 1fr); }
+  .mc-tail-gauge__facts > div + div { border-left: 0; border-top: 1px solid var(--grid); }
+}
