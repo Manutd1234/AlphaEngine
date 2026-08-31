@@ -82,11 +82,11 @@ export const viewport: Viewport = {
      sensor housing. */
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fafafa" },
+    { media: "(prefers-color-scheme: light)", color: "#f5efe9" },
     // Tracks --surface-0. A themeColor left behind after a palette move puts a
     // near-black browser chrome above a lighter page — visible on iOS as a
     // seam across the top of every screen.
-    { media: "(prefers-color-scheme: dark)", color: "#18181b" },
+    { media: "(prefers-color-scheme: dark)", color: "#0b0e12" },
   ],
 };
 
@@ -110,6 +110,16 @@ try {
     document.documentElement.dataset.textSize = savedTextSize;
   }
 } catch (e) {}
+try {
+  if (window.location.pathname === '/dashboard' || window.location.pathname.indexOf('/dashboard/') === 0) {
+    document.documentElement.dataset.workspaceBoot = 'pending';
+    window.setTimeout(function () {
+      if (document.documentElement.dataset.workspaceBoot === 'pending') {
+        document.documentElement.dataset.workspaceBoot = 'fallback';
+      }
+    }, 4000);
+  }
+} catch (e) {}
 `;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -122,7 +132,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
       </head>
-      <body>{children}</body>
+      {/* Browser writing assistants such as Grammarly add data attributes to
+          body before React hydrates. Suppress only this root attribute drift;
+          descendants still report real application hydration mismatches. */}
+      <body suppressHydrationWarning>{children}</body>
     </html>
   );
 }
