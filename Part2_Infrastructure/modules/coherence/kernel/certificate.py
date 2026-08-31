@@ -25,6 +25,7 @@ from modules.coherence.kernel.money import contracts, format_dollars
 
 Engine = Literal["closed_form", "highs"]
 Verdict = Literal["incoherent", "coherent", "untestable"]
+OptimumKind = Literal["minimum_constraint_slack", "worst_case_payoff"]
 
 # The legging tier, from the widest scope any leg spans. Kalshi's order groups
 # cancel the rest of a group when one leg over-fills — but they do not work
@@ -57,6 +58,136 @@ class CertificateLeg:
     @property
     def notional(self) -> Decimal:
         return self.price * self.size
+
+
+@dataclass(frozen=True, slots=True)
+class ProofConstraintLeg:
+    """One quoted side used in the arithmetic of a derived constraint."""
+
+    ticker: str
+    label: str
+    direction: str
+    side: str
+    price: Decimal | None
+    size_hundredths: int
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "ticker": self.ticker,
+            "label": self.label,
+            "direction": self.direction,
+            "side": self.side,
+            "price": None if self.price is None else format_dollars(self.price, 6),
+            "size_hundredths": self.size_hundredths,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ProofConstraintRow:
+    """One derived claim and the exact quote arithmetic used to test it."""
+
+    family: str
+    scope: EdgeScope
+    because: str
+    bound: Decimal
+    cost: Decimal | None
+    slack: Decimal | None
+    testable: bool
+    violated: bool | None
+    untestable_reason: str | None
+    executable_size_hundredths: int | None
+    legs: tuple[ProofConstraintLeg, ...] = ()
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "family": self.family,
+            "scope": self.scope,
+            "because": self.because,
+            "bound": format_dollars(self.bound, 6),
+            "cost": None if self.cost is None else format_dollars(self.cost, 6),
+            "slack": None if self.slack is None else format_dollars(self.slack, 6),
+            "testable": self.testable,
+            "violated": self.violated,
+            "untestable_reason": self.untestable_reason,
+            "executable_size_hundredths": self.executable_size_hundredths,
+            "legs": [leg.to_dict() for leg in self.legs],
+        }
+
+
+@dataclass(slots=True)
+class ProofObservation:
+    """Counts from the venue read that supplied the proof."""
+
+    markets_observed: int | None
+    markets_in_event: int | None
+    outcomes_in_component: int
+    executable_buy_sides: int | None
+    executable_sell_sides: int | None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "markets_observed": self.markets_observed,
+            "markets_in_event": self.markets_in_event,
+            "outcomes_in_component": self.outcomes_in_component,
+            "executable_buy_sides": self.executable_buy_sides,
+            "executable_sell_sides": self.executable_sell_sides,
+        }
+
+
+@dataclass(slots=True)
+class ProofSolver:
+    """The dimensions and decision statistic of the engine that answered."""
+
+    engine: Engine
+    variables: int | None
+    state_rows: int | None
+    optimum: Decimal | None
+    optimum_kind: OptimumKind
+    decision_boundary: Decimal
+    verdict: Verdict
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "engine": self.engine,
+            "variables": self.variables,
+            "state_rows": self.state_rows,
+            "optimum": None if self.optimum is None else format_dollars(self.optimum, 6),
+            "optimum_kind": self.optimum_kind,
+            "decision_boundary": format_dollars(self.decision_boundary, 6),
+            "verdict": self.verdict,
+        }
+
+
+@dataclass(slots=True)
+class ProofConstraints:
+    """The closed-form rows available to explain the solver's conclusion."""
+
+    tested: int
+    untestable: int
+    rows: tuple[ProofConstraintRow, ...] = ()
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "tested": self.tested,
+            "untestable": self.untestable,
+            "rows": [row.to_dict() for row in self.rows],
+        }
+
+
+@dataclass(slots=True)
+class ProofEvidence:
+    """Structured evidence for an interactive proof, never explanatory copy."""
+
+    observation: ProofObservation
+    solver: ProofSolver
+    constraints: ProofConstraints
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "observation": self.observation.to_dict(),
+            "solver": self.solver.to_dict(),
+            "constraints": self.constraints.to_dict(),
+        }
 
 
 @dataclass(slots=True)
@@ -103,6 +234,10 @@ class Certificate:
     #: hold those two apart, so it carries both.
     priced_out: bool = False
     notes: list[str] = field(default_factory=list)
+    #: Machine-readable evidence for the proof surface. Kept beside, rather
+    #: than instead of, the stable human-readable fields above so existing
+    #: consumers and pasted proof text remain unchanged.
+    proof_evidence: ProofEvidence | None = None
 
     @property
     def tier(self) -> int:
@@ -153,6 +288,7 @@ class Certificate:
             "rows_tested": self.rows_tested,
             "rows_untestable": self.rows_untestable,
             "notes": list(self.notes),
+            "proof_evidence": None if self.proof_evidence is None else self.proof_evidence.to_dict(),
         }
 
     def render_text(self) -> str:
