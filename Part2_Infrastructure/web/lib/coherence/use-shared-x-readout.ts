@@ -269,13 +269,14 @@ export function useSharedXReadout(shared: SharedX | undefined) {
   const current = shared && index !== null && index >= 0 && index < count
     ? shared.read(index)
     : null;
-  // The pinned reading, merged row by row into the current one: "now was
+  // The pinned reading, merged by fact label into the current one: "now was
   // then", and the difference only where both rows carry the number they
-  // were printed from.
+  // were printed from. Some axes add a reason or estimator only when one
+  // exists, so array position is not a stable identity for a fact.
   const held = shared && pinned !== null && pinned !== index && pinned >= 0 && pinned < count
     ? shared.read(pinned)
     : null;
-  const reading = current && held ? merge(current, held, shared?.diff) : current;
+  const reading = current && held ? mergePinnedReadings(current, held, shared?.diff) : current;
 
   return {
     svgRef,
@@ -307,12 +308,31 @@ export function useSharedXReadout(shared: SharedX | undefined) {
   };
 }
 
-/** The current reading against the pinned one, row by row. */
-function merge(current: SharedXReading, held: SharedXReading, diff?: SharedX["diff"]): SharedXReading {
+/**
+ * The current reading against the pinned one, fact by fact.
+ *
+ * Labels are the identity. A positional zip can silently compare `Families`
+ * with an optional `Estimator`, or `Run` with an optional refusal `Reason`.
+ * Buckets retain duplicate labels in document order rather than collapsing
+ * them through a Map's single value.
+ */
+export function mergePinnedReadings(
+  current: SharedXReading,
+  held: SharedXReading,
+  diff?: SharedX["diff"],
+): SharedXReading {
+  const heldByLabel = new Map<string, SharedXRow[]>();
+  for (const row of held.rows) {
+    const matches = heldByLabel.get(row.label);
+    if (matches) matches.push(row);
+    else heldByLabel.set(row.label, [row]);
+  }
+
   return {
     title: `${current.title}, pinned against ${held.title}`,
-    rows: current.rows.map((row, i) => {
-      const other = held.rows[i];
+    rows: current.rows.map((row) => {
+      const matches = heldByLabel.get(row.label);
+      const other = matches?.shift();
       if (!other) return row;
       let value = `${row.value} was ${other.value}`;
       if (diff && row.raw != null && other.raw != null) value += `, ${diff(row, other)}`;
