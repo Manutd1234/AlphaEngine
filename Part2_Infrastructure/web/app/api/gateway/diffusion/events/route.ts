@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { callGateway, failureBody } from "@/lib/gateway";
 import { isEventsRead, type EventsRead } from "@/components/coherence/diffusion/types";
+import { gatewayRequestContext, gatewayResponseHeaders } from "@/lib/gateway-request-context";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,6 +14,7 @@ export const dynamic = "force-dynamic";
  * into an empty list is the defect the field exists to prevent.
  */
 export async function GET(request: Request) {
+  const context = gatewayRequestContext(request, "H2");
   const incoming = new URL(request.url).searchParams;
   const forwarded = new URLSearchParams();
   for (const key of ["limit", "kind", "symbol"]) {
@@ -25,11 +27,19 @@ export async function GET(request: Request) {
     {
       subject: "the announcement calendar the desk is watching",
       validate: isEventsRead,
+      context,
     },
   );
+  const responseHeaders = {
+    ...gatewayResponseHeaders(context),
+    "Cache-Control": "no-store",
+  };
 
   if (!result.ok) {
-    return NextResponse.json(failureBody(result.failure), { status: result.failure.status });
+    return NextResponse.json(failureBody(result.failure, context), {
+      status: result.failure.status,
+      headers: responseHeaders,
+    });
   }
-  return NextResponse.json(result.data, { headers: { "Cache-Control": "no-store" } });
+  return NextResponse.json(result.data, { headers: responseHeaders });
 }
