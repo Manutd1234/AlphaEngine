@@ -29,6 +29,7 @@ interface CommandBarProps {
  *  Exported so the preference sync engine names this key rather than a copy. */
 export const RECENTS_KEY = "alphaengine.commandbar.recents";
 const RECENTS_MAX = 8;
+const commandOptionId = (commandId: string) => RECENTS_KEY + commandId;
 
 function loadRecents(): string[] {
   try {
@@ -164,7 +165,7 @@ export default function CommandBar({ open, onClose, commands }: CommandBarProps)
             role="combobox"
             aria-expanded
             aria-controls="command-bar-results"
-            aria-activedescendant={filtered[cursor]?.id}
+            aria-activedescendant={filtered[cursor] ? commandOptionId(filtered[cursor].id) : undefined}
             value={query}
             onChange={(event) => { setQuery(event.target.value); setCursor(0); }}
             onKeyDown={(event) => {
@@ -193,7 +194,7 @@ export default function CommandBar({ open, onClose, commands }: CommandBarProps)
             filtered.map((command, index) => (
               <li key={command.id}>
                 <button
-                  id={command.id}
+                  id={commandOptionId(command.id)}
                   type="button"
                   role="option"
                   aria-selected={index === cursor}
@@ -212,7 +213,7 @@ export default function CommandBar({ open, onClose, commands }: CommandBarProps)
 
         <p className="command-bar__footer">
           <span><kbd>↑</kbd><kbd>↓</kbd> to move, <kbd>enter</kbd> to run</span>
-          <span>Alt+1–8 jumps to a workspace; <kbd>?</kbd> shortcuts &amp; tour</span>
+          <span>Alt+1–9, then Alt+0 opens the first ten; Diffusion is here in the palette</span>
         </p>
       </div>
     </dialog>
