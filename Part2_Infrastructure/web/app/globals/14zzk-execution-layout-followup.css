@@ -1,0 +1,132 @@
+/* Execution-only geometry from the reviewed Liquidity and Cost panes. */
+
+/* The ladder is an eight-level near-touch view now, so it no longer needs a
+   scrollport inside the card. The depth chart remains the place for deeper
+   book shape. */
+.liquidity-pair__ladder .liquidity-pair__book {
+  flex: 0 0 auto;
+  max-block-size: none;
+  overflow-y: visible;
+  scrollbar-gutter: auto;
+}
+.liquidity-pair__ladder .ladder-row {
+  padding-block: 2px;
+  font-size: var(--fs-sm);
+  line-height: 1.25;
+}
+.liquidity-ladder__head {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 0 6px 4px;
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+.liquidity-ladder__mid {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-block: 3px;
+  padding: 5px 6px;
+  border-block: 1px solid var(--grid);
+}
+.liquidity-ladder__mid-price {
+  font-size: var(--fs-xl);
+  font-weight: 700;
+}
+.liquidity-ladder__spread {
+  font-size: var(--fs-sm);
+}
+
+/* The shared Figure rail was designed for figures that publish a live mark
+   above their plot. On the book row it left the captions sitting over an empty
+   4.75rem title reserve and a second, invisible rail. Depth has no shared
+   readout, while history does; put the latter's compact rail below its plot so
+   both drawings begin directly under their captions. */
+.liquidity-pair__depth .coh-figure__caption,
+.liquidity-pair__history .coh-figure__caption {
+  min-block-size: 0;
+}
+.liquidity-pair__history > .coh-figure {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+.liquidity-pair__history .coh-figure__plot {
+  order: 1;
+}
+.liquidity-pair__history .coh-figure__interaction {
+  --interaction-row-size: calc(1.45em + 2 * var(--space-1) + 2px);
+  order: 2;
+  align-items: center;
+  padding-block: var(--space-1);
+  overflow-y: hidden;
+}
+.liquidity-pair__history :is(
+  .coh-figure__reading,
+  .coh-figure__missing,
+  .coh-figure__notes
+) {
+  order: 3;
+}
+
+/* Execution quality: two visibly separate analytical figures, with enough
+   vertical room for the distributions to read as charts rather than strips.
+   The wrapper is a one-column grid below the existing desktop breakpoint, so
+   the same gap and alignment apply at every width. */
+.cockpit-quality__distributions {
+  display: grid;
+  gap: var(--space-3);
+  align-items: stretch;
+  margin-block-start: var(--space-3);
+}
+.cockpit-quality__distribution {
+  min-width: 0;
+  margin-top: 0;
+  align-content: start;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+.cockpit-quality__distribution > .field {
+  color: var(--text-primary);
+  font-size: var(--fs-md);
+  font-weight: 700;
+}
+.latency-histogram {
+  --latency-histogram-line: var(--text-primary);
+  display: grid;
+  gap: var(--space-1);
+  margin-top: 0;
+}
+.latency-histogram[data-histogram-variant="latency"] {
+  --latency-histogram-bar: var(--series-1);
+  --latency-histogram-line: var(--series-3);
+}
+.latency-histogram[data-histogram-variant="spread"] {
+  --latency-histogram-bar: var(--series-2);
+  --latency-histogram-line: var(--critical-text);
+}
+.latency-histogram > svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: hidden;
+  border: 1px solid var(--grid);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--surface-1) 86%, transparent);
+}
+.latency-histogram__grid {
+  stroke: var(--grid);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.latency-histogram .latency-cdf {
+  stroke: var(--latency-histogram-line);
+  stroke-width: 2;
+  stroke-dasharray: none;
+}
+.latency-histogram .latency-cdf__reading {
+  stroke: var(--latency-histogram-line);
+}
