@@ -74,11 +74,10 @@ describe("the failure names cause and fix, machine-readably", () => {
     }
   });
 
-  it("still distinguishes 'no provider at all' from 'thin history'", () => {
-    // Synthetic means nothing answered; a short real window means the provider
-    // answered honestly with what it had. Different causes, different fixes,
-    // and the message must not collapse them.
-    assert.match(route, /source === "synthetic"/);
+  it("returns unavailable rather than manufacturing a short synthetic window", () => {
+    assert.match(route, /MarketDataUnavailableError/);
+    assert.match(route, /status: err instanceof MarketDataUnavailableError \? 503 : 400/);
+    assert.doesNotMatch(route, /seedFromString|syntheticSeed:/);
   });
 });
 
