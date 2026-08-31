@@ -3,9 +3,9 @@
 /**
  * What the numbers on this screen are, said in the header.
  *
- * The desk can now fill itself in when a backend is missing, which creates the
- * obligation this component discharges: if generated data is indistinguishable
- * from measured data, the fallback is a liability rather than a feature. So the
+ * The desk can show a chosen sandbox when a backend is missing, which creates
+ * the obligation this component discharges: if generated data is indistinguishable
+ * from measured data, the sandbox is a liability rather than a feature. So the
  * provenance is stated once, in the chrome, where it applies to everything
  * below it — not per panel, where it would be twenty-six separate claims a
  * reader has to collate.
