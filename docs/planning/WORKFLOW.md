@@ -2,7 +2,8 @@
 
 How to work on AlphaEngine without losing an hour to a trap somebody else has
 already fallen into. The traps are real — each one below cost time before it
-was written down. Facts here were read from the tree on 2026-08-24; where a
+was written down. Current commands, gates and workflow triggers were read from
+the worktree on **2026-08-31**; no external deployment was probed. Where a
 figure can drift, the document says where the current one lives — or which gate
 enforces it — rather than asking you to trust this page.
 
@@ -11,6 +12,9 @@ deep-dives are [`Part2_Infrastructure/README.md`](../../Part2_Infrastructure/REA
 and [`CLAUDE.md`](../../CLAUDE.md). This page is the workflow distilled: the
 venv rules, the commands, the generated gates, the schema cascade, the ratchet,
 and CI.
+
+For the short reproducible release record — current topology, versions, suite
+totals and build evidence — see [`CURRENT_STATE.md`](../CURRENT_STATE.md).
 
 ---
 
@@ -22,10 +26,9 @@ that sentence are load-bearing.
 
 **The path.** `web/package.json`'s `dev:gateway` script runs
 `cd .. && ./venv/bin/python`, and `web/scripts/start-dev-all.mjs` spawns
-`resolve(rootDir, "venv/bin/python")` with no existence check and no `error`
-handler on the child process. Any other layout produces an unhandled `ENOENT`
-that looks nothing like "wrong Python path" — it looks like Node itself broke.
-Never rename the venv; never add a second one.
+`resolve(rootDir, "venv/bin/python")`. Its child `error` handler reports the
+failed service and stops the peer process; the fixed path still means any other
+environment layout is unsupported. Never rename the venv; never add a second one.
 
 **The version.** CI pins 3.12 because it is the only version both Python units
 accept: the gateway supports 3.11–3.14, the OpenBB service declares
@@ -66,10 +69,10 @@ fail with 401**. Nothing is broken. The shell decided the suite's policy, and
 the failure looks like a bug in the auth layer rather than like an environment
 mistake, which is why it is written down here.
 
-**Pass one variable per run instead:**
+**Pass only the variables required by that opt-in instead:**
 
 ```bash
-SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… venv/bin/python -m pytest tests/test_data_ops_postgrest.py
+SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… SUPABASE_DESK_ID=… venv/bin/python -m pytest tests/test_data_ops_postgrest.py
 RERANK_TEST_MODEL_PATH=/path/to/weights venv/bin/python -m pytest tests/test_research_rerank_real.py
 ```
 
@@ -106,25 +109,23 @@ different policies.
 
 The suite's health is read off the skip REASONS, because the pass count stays
 plausible under several failure modes — and because the pass count legitimately
-moves. **The gateway has two correct pass counts, not one.** With the
-cross-encoder weights seeded on disk the suite reads **3,039 passed and one
-skipped** (measured 2026-08-24); without them — the shape CI sees on the jobs
-that gate a push — `tests/test_research_rerank_real.py` skips too and the totals
-differ by that one file. Both are correct; the difference is an opt-in, not a
-regression. Quote which shape you measured, always: a bare number is the half of
-the fact that goes stale.
+moves. **The gateway has more than one correct collection shape.** The recorded
+2026-08-24 example measured 3,039 passes and one skip with cross-encoder
+weights, while the same tree collected eight fewer cases and one more skip
+without them. The 2026-08-29 generated record has moved again. Both changes are
+why a bare count is half a fact: always quote the date, environment and skip
+reasons.
 
 [`web/lib/test-counts.generated.ts`](../../Part2_Infrastructure/web/lib/test-counts.generated.ts)
 carries the committed record, and it is worth knowing exactly how much of it CI
 holds. **Only the web line is gated** — `web/scripts/check-test-counts.mjs`
 refuses any suite argument but `web`, and the `web` job compares it against the
 log the runner just teed. The **gateway** and **service** lines in that file are
-*dated records nothing checks*. Refreshed 2026-08-24 to 3,033 (3,031 passed,
-2 skipped), which is the **CI shape** — no cross-encoder weights seeded. A
-machine with weights measures 3,040 (3,039 passed, 1 skipped); the eight-test
-difference is the shape, not drift, so quote the shape whenever you quote the
-number. That the line agrees today is not a gate; it is a gate that was never
-claimed. Re-run the suite rather than trusting the file, and refresh the file
+*dated records nothing checks*. On 2026-08-29 they read gateway 3,255 total
+(3,254 passed, 1 skipped) and service 24 total. The generator does not encode
+which optional capability produced that one skip, so the number alone must not
+be labelled the CI shape. That the lines agree on the machine that refreshed
+them is not a gate; re-run the suite, read `-rs`, and refresh the generated file
 rather than editing it.
 [`TESTING.md`](../testing/TESTING.md) is the argument in full.
 
@@ -132,8 +133,8 @@ Run `venv/bin/python -m pytest -rs` and read what each one says. Every expected
 skip names the thing it did not exercise, which is the whole point of them:
 
 - `tests/test_data_ops_postgrest.py` — no `SUPABASE_URL` /
-  `SUPABASE_SERVICE_ROLE_KEY` in the environment, so the Postgres backend never
-  ran. Absence reported, not papered over.
+  `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_DESK_ID` in the environment, so the
+  Postgres backend never ran. Absence reported, not papered over.
 - `tests/test_research_rerank_real.py` — `RERANK_TEST_MODEL_PATH` unset, so no
   cross-encoder weights were offered and the real ONNX path was not exercised.
   Seed with `python tools/bench_rerank.py --seed --model-path DIR`; CI's opt-in
@@ -157,20 +158,21 @@ All from `Part2_Infrastructure` unless stated; web commands from
 
 | What | Command | Notes |
 |---|---|---|
-| Gateway tests | `venv/bin/python -m pytest` | **189** `test_*.py` files (`ls tests/test_*.py \| wc -l`, 2026-08-24), deterministic, no network. 3,039 passed / 1 skipped with the re-ranker weights seeded; one more skip without them |
-| Web tests | `npm test` | `node --test` via tsx; **4,728 passed, 0 failed, 2 skipped across 1,028 suites** in 318 `*.test.ts` files, measured 2026-08-24 from a clean checkout. Both skips are cross-ownership debts rather than opt-ins. This is the one count CI actually gates; when the committed record stops agreeing, refresh it — see §4.3 |
-| Service tests | `cd OpenBB_Service && python -m pytest` | own `pyproject.toml` and its own `requirements-dev.txt`; **24 passed** (2026-08-24) |
+| Gateway tests | `venv/bin/python -m pytest` | **213** `test_*.py` files on 2026-08-29, deterministic and network-free in the default shape. The generated record is 3,254 passed and 1 skipped; run with `-rs` because the record does not encode which optional path was absent. |
+| Web tests | `npm test` | Node's runner via tsx over **459** `*.test.ts` files. Final 2026-08-29 run: **6,513 passed, 0 failed, 6 skipped across 1,408 suites** (6,519 total). Four skips were opt-in browser cases; the two source-stability debts from that run were closed on 2026-08-30. Refresh the generated count only after the next complete run. |
+| Service tests | `cd OpenBB_Service && python -m pytest` | Own `pyproject.toml` and `requirements-dev.txt`; **24 passed** in the 2026-08-29 generated record. |
 | Typecheck | `npm run typecheck` | `tsc --noEmit`, strict |
 | Lint | `venv/bin/python -m ruff check .` | configured in `pyproject.toml`; installed only by `requirements-dev.txt` |
 | Money-path probe | `venv/bin/python tools/synthetic_probe.py` | book → cost → gate → audit, exits non-zero on any break |
-| Both dev servers | `npm run dev:all` | gateway `:8000`, portal `:3000` |
+| Both dev servers | `npm run dev` (`dev:all` is an alias) | gateway `:8000`, portal `:3000`; use `npm run dev:web` only when an explicit frontend-only sandbox is wanted |
+| Rendered layout audit | `npm run audit:layout -- --url=http://localhost:3000` | Playwright walks 109 addressable states at eight viewports by default. It needs a ready origin and installed Chromium; it is not part of the push-gating CI job. The manual 2026-08-29 release run passed **872/872** combinations with zero geometry failures and zero console errors. |
 
 **`npm run lint` does not exist.** `web/package.json` has exactly `dev`,
-`dev:gateway`, `dev:all`, `prebuild`, `build`, `catalog:refresh`, `start`,
-`typecheck`, `test` and `counts:refresh`. Running `npm run lint` fails as a
+`dev:web`, `dev:gateway`, `dev:all`, `prebuild`, `build`, `catalog:refresh`, `start`,
+`typecheck`, `test`, `audit:layout` and `counts:refresh`. Running `npm run lint` fails as a
 *missing script*, not a broken linter — there is no ESLint in the project at
-all (no dependency, no config), a deliberate consequence of the no-new-npm-deps
-rule. Linting is Python-side only, and the two conventions ESLint would have
+all (no dependency, no config), a deliberate choice retained by the exact npm
+allowlist. Linting is Python-side only, and the two conventions ESLint would have
 held (file length, dead CSS) are held instead by tests
 (`web/tests/file-size.test.ts`, `dead-css.test.ts`).
 
@@ -231,9 +233,9 @@ scripts/check-test-counts.mjs web "$RUNNER_TEMP/web-tests.log"`. So the
 `gateway` and `service` lines in that file are **dated records, not gates**.
 They are still worth committing — the console displays them and a reader
 deserves to know when they were taken — but nothing goes red when they drift.
-Refreshed 2026-08-24 to 3,033 in the CI shape, against 3,040 on a
-weights-seeded machine — the same suite, two collection shapes. Cite it as a
-record with its date AND its shape, never as a checked figure.
+Refreshed 2026-08-29 to 3,255 total (3,254 passed, 1 skipped). Because the file
+does not store the skip reason or optional-capability environment, cite it as a
+dated record and never as a checked CI figure.
 
 Refresh after adding tests: `npm run counts:refresh` (or `-- --suite=web` to
 re-run only the web suite, which keeps the committed Python figures).
@@ -241,7 +243,8 @@ re-run only the web suite, which keeps the committed Python figures).
 **The web gate was red for a week in August**, and it is the worked example of
 why it exists: three changes landed on 2026-08-22 adding suites, none refreshed
 the module, and the committed 4,008 faced a measured 4,124 until the 2026-08-23
-refresh. It agrees today at 4,730 total (4,728 passed + 2 skipped) across 1,028
+refresh. The current 2026-08-29 release ledger records 6,519 total (6,513
+passed + 6 skips: four browser opt-ins and two named debts) across 1,408
 suites. Nothing was broken — the gate is doing precisely its job, which is to
 make "I added tests and forgot" a red step rather than a stale number on the
 Developer tab. Run `npm run counts:refresh -- --suite=web` and commit the
@@ -280,8 +283,8 @@ flowchart TD
 
 **1. The OpenAPI snapshot.** `python tools/export_openapi.py` from
 `Part2_Infrastructure` rewrites `tools/openapi.json`; CI runs the same script
-with `--check` and exits 1 when it is stale. On 2026-08-24 that snapshot carries
-**73 paths / 76 operations** at OpenAPI 3.1.0 — the three `@app.get` console
+with `--check` and exits 1 when it is stale. On 2026-08-29 that snapshot carries
+**76 paths / 79 HTTP operations** at OpenAPI 3.1.0 — the three `@app.get` console
 aliases in `main.py` are all `include_in_schema=False` and correctly absent.
 
 **2. The digest.** `web/scripts/check-gateway-openapi-digest.mjs` reads
@@ -322,7 +325,7 @@ generated file carry the number.
 ## 5. The file-size ratchet
 
 There is a **400-line** ceiling on source files — `CEILING = 400`, the same
-literal in both halves, verified 2026-08-24 — held by twin tests:
+literal in both halves, verified 2026-08-29 — held by twin tests:
 [`tests/test_file_size.py`](../../Part2_Infrastructure/tests/test_file_size.py)
 (gateway) and
 [`web/tests/file-size.test.ts`](../../Part2_Infrastructure/web/tests/file-size.test.ts)
@@ -345,8 +348,8 @@ count, splitting it would be undone by the next regeneration, and a ratchet entr
 for it would record a debt nobody can pay. Documents, including this one, are in
 neither scan.
 
-Each test carries an `OVER_CEILING` ledger: the files over the ceiling today,
-at the length they are at. **Every entry is a debt, not an exemption**, and the
+Each test carries an `OVER_CEILING` ledger: the files over the ceiling when the
+test runs, at the length they are at. **Every entry is a debt, not an exemption**, and the
 ratchet turns one way:
 
 - a file **on** the list may not get *longer* — that is what stops "I will
@@ -457,13 +460,13 @@ auto-stops.
 
 ### The six workflows, and why each runs at the tempo it does
 
-Triggers read from the files on 2026-08-24. The split is by tempo on purpose:
+Triggers read from the files on 2026-08-29. The split is by tempo on purpose:
 what gates a change, what ships it, what watches what already shipped, and what
 a human has to decide.
 
 | Workflow | Trigger | What it is for |
 |---|---|---|
-| [`ci.yml`](../../.github/workflows/ci.yml) | `push` to `main`, **every** `pull_request`, `workflow_dispatch`; concurrency `ci-<ref>`, cancel-in-progress | The four gating jobs above plus the two opt-ins. `PYTHON_VERSION: "3.12"` in the workflow `env` — the one version both Python units accept |
+| [`ci.yml`](../../.github/workflows/ci.yml) | `push` to `main`, **every** `pull_request`, `workflow_dispatch`; concurrency `ci-<ref>`, cancel-in-progress | Five push-gating jobs (`gateway`, `native-sanitizers`, `openbb-service`, `web`, `repo-audit`) plus two opt-ins (`live-smoke`, `rerank-real`). `PYTHON_VERSION: "3.12"` in the workflow `env` — the one version both Python units accept. |
 | [`deploy.yml`](../../.github/workflows/deploy.yml) | `push` to `main` **path-filtered** to `Part2_Infrastructure/**` minus `web/**` and `OpenBB_Service/**`, plus the workflow itself; `workflow_dispatch` with a `force` boolean. Concurrency `deploy-gateway`, **cancel-in-progress: false** | Ships **one** of the three deployment units — the gateway. The web workspace and the OpenBB service are Vercel projects that deploy themselves from git, and putting them here would deploy them twice. The path filter exists because a web-only commit rebuilding the gateway costs a container restart and, briefly, the desk. Deploys are never cancelled mid-flight |
 | [`e2e.yml`](../../.github/workflows/e2e.yml) | `workflow_dispatch` **+ `schedule: "23 6,18 * * *"`** — twice daily, and **never on push** | Smoke against what is actually deployed: live gateway, live Vercel, live databases. Off the push path because a venue outage or an idle database is not a reason to block a code change. Authenticated checks **skip** rather than fail when secrets are absent, so a fork gets a partial run |
 | [`schema.yml`](../../.github/workflows/schema.yml) | **`workflow_dispatch` only**, with `target` (`both`/`oracle`/`supabase`) and `dry_run` | DDL against live databases. Manual on purpose: DDL that rides a code deploy is how a table gets altered by someone who was shipping a CSS change. Idempotent, and both halves skip cleanly with no secrets |
