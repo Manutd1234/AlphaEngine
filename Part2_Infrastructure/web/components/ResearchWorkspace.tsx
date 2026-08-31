@@ -3,25 +3,17 @@
 /**
  * Quant researcher's tab: build a candidate, validate it, promote it.
  *
- * Research was the last of the eight workspaces still rendered inline in
- * `app/dashboard/page.tsx` — roughly 490 lines of JSX inside a 2,000-line
- * component, while the other seven had already been given a child of their
- * own. This is that extraction, and it takes the same shape `PortfolioWorkspace`
- * and `RiskWorkspace` already have: the shell owns the sweep and the routing,
- * this component owns the panels.
- *
  * The rule that runs through every section below: a result belonging to a
  * context the reader has since changed stays VISIBLE, under a veil that says
  * which one it belongs to. It is never silently redrawn as current, and never
  * blanked either — `StaleGate` is on every section whose content is a function
- * of the current parameters, and deliberately off the two (lineage, codex)
- * that answer questions about the catalogue and the past.
+ * of the current parameters, and off lineage/codex, which describe catalogue and past.
  */
-
 import { useEffect, useRef } from "react";
 
 import Controls from "@/components/Controls";
 import AttributionSection from "@/components/research/AttributionSection";
+import CandidateRanking from "@/components/research/CandidateRanking";
 import DecisionSection from "@/components/research/DecisionSection";
 import ExperimentHistory from "@/components/research/ExperimentHistory";
 import FavouritesPanel from "@/components/research/FavouritesPanel";
@@ -29,71 +21,22 @@ import FittedModels from "@/components/research/FittedModels";
 import ResearchBanners from "@/components/research/ResearchBanners";
 import ResearchCorpus from "@/components/research/ResearchCorpus";
 import ResearchSummary from "@/components/research/ResearchSummary";
+import ResearchSummaryViewSwitcher from "@/components/research/ResearchSummaryViewSwitcher";
 import SignalDAGViewer from "@/components/research/SignalDAGViewer";
 import StabilityPanel from "@/components/research/StabilityPanel";
 import StaleGate from "@/components/research/StaleGate";
 import StrategyCodex from "@/components/research/StrategyCodex";
 import StrategyDocCard from "@/components/research/StrategyDocCard";
 import WalkForwardTimeline from "@/components/research/WalkForwardTimeline";
-import { ResultsTable } from "@/components/Tables";
-import type { WorkspaceView } from "@/components/WorkspaceHeader";
+import type { ResearchWorkspaceProps } from "@/components/research/research-workspace-types";
+import { useBenchmarkFocus } from "@/components/research/use-benchmark-focus";
 import WorkspaceIntro from "@/components/WorkspaceIntro";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
-import type { SystemHealth } from "@/components/systems/types";
-import {
-  annotateExperiment, clearExperiments, saveExperiments, type ExperimentRecord,
-} from "@/lib/experiments";
-import { RESEARCH_SECTIONS, type ResearchSection } from "@/lib/sections";
-import {
-  ParamResult, STRATEGY_LABELS, type Strategy, type SweepRequest, type SweepResponse,
-} from "@/lib/types";
-import type { RunSweep } from "@/lib/use-sweep-run";
+import { annotateExperiment, clearExperiments, saveExperiments } from "@/lib/experiments";
+import { RESEARCH_SECTIONS } from "@/lib/sections";
+import { STRATEGY_LABELS } from "@/lib/types";
 
-export interface ResearchWorkspaceProps {
-  /** The live request the controls edit — not the request the result came from. */
-  req: SweepRequest;
-  data: SweepResponse | null;
-  /** The drill-down's result when one is open, else the sweep's. */
-  displayedResult: SweepResponse | null;
-  /** The result only while it still belongs to the current context; null once stale. */
-  activeResult: SweepResponse | null;
-  inspect: ParamResult | null;
-  running: boolean;
-  researchDirty: boolean;
-  researchStale: boolean;
-  sweepIncoming: boolean;
-  error: string | null;
-  errorFix: string | null;
-  autoRun: boolean;
-  autoSuspended: string | null;
-  experiments: ExperimentRecord[];
-  setExperiments: (next: ExperimentRecord[] | ((current: ExperimentRecord[]) => ExperimentRecord[])) => void;
-  currentPinned: boolean;
-  triedStrategies: Set<Strategy>;
-  /** Keyed so a repeated sentence still replaces the live region's child. */
-  resultAnnouncement: { key: string; text: string } | null;
-  showMcBands: boolean;
-  onShowMcBandsChange: (next: boolean) => void;
-  /** For the lineage pane, which reports observed stages rather than a fixed list. */
-  systemsHealth: SystemHealth | null;
-  systemsHealthError: string | null;
-  run: RunSweep;
-  updateRequest: (next: SweepRequest) => void;
-  updateStrategy: (strategy: Strategy) => void;
-  commitRequest: () => void;
-  pinRun: () => void;
-  inspectCombo: (result: ParamResult) => void;
-  cloneExperiment: (request: SweepRequest) => void;
-  dropExperiment: (id: string) => void;
-  onAutoRunChange: (next: boolean) => void;
-  onResumeAuto: () => void;
-  /** Promotion stages the sleeve Execution will carry. Research never sends it. */
-  onStageSleeve: (strategy: Strategy) => void;
-  /** The shell's section-aware cross-link, so a hand-off names the panel it lands on. */
-  onOpenSection: (view: WorkspaceView, section?: string) => void;
-  section: ResearchSection;
-  onSectionChange: (section: ResearchSection) => void;
-}
+export type { ResearchWorkspaceProps } from "@/components/research/research-workspace-types";
 
 export default function ResearchWorkspace({
   req, data, displayedResult, activeResult, inspect, running, researchDirty,
@@ -102,9 +45,21 @@ export default function ResearchWorkspace({
   showMcBands, onShowMcBandsChange, systemsHealth, systemsHealthError, run,
   updateRequest, updateStrategy, commitRequest, pinRun, inspectCombo,
   cloneExperiment, dropExperiment, onAutoRunChange, onResumeAuto, onStageSleeve,
-  onOpenSection, section, onSectionChange,
+  onOpenSection, section, onSectionChange, summaryView, summaryViews, setupViews,
+  onSummaryViewChange,
 }: ResearchWorkspaceProps) {
   const researchContentRef = useRef<HTMLDivElement | null>(null);
+  const {
+    selectRef,
+    reachNote: benchmarkReachNote,
+    chooseBenchmark,
+  } = useBenchmarkFocus({
+    section,
+    summaryView,
+    summaryViews,
+    onSectionChange,
+    onSummaryViewChange,
+  });
   // Each evidence section should open at its own beginning. The desktop
   // workbench deliberately gives this shared pane the scroll, so without this
   // reset Summary's scrollTop would carry into Parameters or Attribution.
@@ -211,43 +166,82 @@ export default function ResearchWorkspace({
       )}
 
       <div className="research-layout research-layout--sectioned">
-        <Controls
-          req={req}
-          setReq={updateRequest}
-          onRun={() => run()}
-          onCommit={commitRequest}
-          tried={triedStrategies}
-        />
-
         <div className="research-content" ref={researchContentRef}>
           <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
             {resultAnnouncement && (
               <span key={resultAnnouncement.key}>{resultAnnouncement.text}</span>
             )}
           </p>
-          {/* No empty-state map: `data` seeds from SEED_RUN and the one
-              setData call writes completed runs, so a runless research
-              tab is a state this component cannot reach. The map that
-              stood here was unreachable — and its "Run research" button
-              was a second primary-action for the rail's "Run now". If
-              the seed is ever removed, restore a reported empty state
-              rather than letting the panels render nothing. */}
+
+          <WorkspaceSubtabPanel workspaceId="research" tabId="summary" activeId={section}>
+            {section === "summary" && (
+              <>
+                <ResearchSummaryViewSwitcher
+                  options={summaryViews}
+                  value={summaryView}
+                  onValueChange={onSummaryViewChange}
+                />
+                <div
+                  id="research-summary-view-panel"
+                  role="tabpanel"
+                  aria-labelledby={`research-summary-${summaryView}-tab`}
+                >
+                  {summaryView === "setup" ? (
+                    <Controls
+                      req={req}
+                      setReq={updateRequest}
+                      onRun={() => run()}
+                      onCommit={commitRequest}
+                      tried={triedStrategies}
+                      setupViews={setupViews}
+                      benchmarkSelectRef={selectRef}
+                    />
+                  ) : displayedResult ? (
+                    <ResearchSummary
+                      displayedResult={displayedResult}
+                      researchStale={researchStale}
+                      sweepIncoming={sweepIncoming}
+                      running={running}
+                      targetSymbol={req.symbol}
+                      targetInterval={req.interval}
+                      showMcBands={showMcBands}
+                      onShowMcBandsChange={onShowMcBandsChange}
+                      onRerun={() => run()}
+                    />
+                  ) : (
+                    <div className="card" role="status" aria-live="polite">
+                      <span className="page-kicker">
+                        {running ? "Sweep in progress" : error ? "Result unavailable" : "No result yet"}
+                      </span>
+                      <h2>{running ? `Testing ${req.symbol}` : "No research result is available"}</h2>
+                      <p className="sub">
+                        {running
+                          ? `The first ${req.symbol} ${req.interval} sweep is running. No stored demonstration result is shown while it completes.`
+                          : error
+                            ? "The request failed and there is no earlier result from this browser to retain. Nothing has been substituted."
+                            : "Run now will request a result for the current setup. Until it returns, every result-dependent measure stays unavailable."}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </WorkspaceSubtabPanel>
+
+          {!data && section !== "summary" && !["lineage", "runs", "fitted", "codex"].includes(section) && (
+            <div className="card" role="status" aria-live="polite">
+              <span className="page-kicker">Result-dependent view</span>
+              <h2>No completed sweep to inspect</h2>
+              <p className="sub">
+                {running
+                  ? `The first ${req.symbol} ${req.interval} sweep is still running.`
+                  : "This view opens after a sweep returns. No committed demonstration result fills the gap."}
+              </p>
+            </div>
+          )}
+
           {data && displayedResult && (
             <>
-              <WorkspaceSubtabPanel workspaceId="research" tabId="summary" activeId={section}>
-                <ResearchSummary
-                  displayedResult={displayedResult}
-                  researchStale={researchStale}
-                  sweepIncoming={sweepIncoming}
-                  running={running}
-                  targetSymbol={req.symbol}
-                  targetInterval={req.interval}
-                  showMcBands={showMcBands}
-                  onShowMcBandsChange={onShowMcBandsChange}
-                  onRerun={() => run()}
-                />
-              </WorkspaceSubtabPanel>
-
               <WorkspaceSubtabPanel workspaceId="research" tabId="parameters" activeId={section}>
                 <StaleGate
                   active={researchStale}
@@ -257,11 +251,7 @@ export default function ResearchWorkspace({
                   targetInterval={req.interval}
                   onRerun={() => run()}
                 >
-                  {/* The surface and the list are two selection handles on
-                      the same sweep — both call inspectCombo — so at desk
-                      width they share a row (14c-density-research.css) and
-                      below it this wrapper is an unstyled div and the stack
-                      is exactly what it was. DOM order is unchanged:
+                  {/* Both selection handles call inspectCombo. DOM order stays
                       surface first, ranking second. A `results.length > 3`
                       gate stood on the surface and rendered NOTHING for a
                       narrow grid; the threshold is inside StabilityPanel now,
@@ -274,19 +264,7 @@ export default function ResearchWorkspace({
                       selected={inspect}
                       onSelect={inspectCombo}
                     />
-                    {/* The house head, not a bare h2: sharing a row with the
-                        surface, a kickerless title sat a rung higher and its
-                        heading rule landed at a different height. */}
-                    <div className="card">
-                      <div className="section-heading compact">
-                        <div>
-                          <span className="page-kicker">Grid search</span>
-                          <h2>Candidate ranking</h2>
-                        </div>
-                      </div>
-                      <p className="sub">The top 15 combinations behind the winner. Select a row to inspect that pair without losing the sweep.</p>
-                      <ResultsTable data={data} onSelect={inspectCombo} selected={inspect} />
-                    </div>
+                    <CandidateRanking data={data} onSelect={inspectCombo} selected={inspect} />
                   </div>
                 </StaleGate>
               </WorkspaceSubtabPanel>
@@ -318,25 +296,9 @@ export default function ResearchWorkspace({
                   targetSymbol={req.symbol}
                   targetInterval={req.interval}
                   onRerun={() => run()}
+                  onChooseBenchmark={chooseBenchmark}
+                  benchmarkReachNote={benchmarkReachNote}
                 />
-              </WorkspaceSubtabPanel>
-
-              {/*
-                Lineage answers "where did this signal come from and has
-                the desk seen it before" — provenance, not decomposition.
-                It carries no StaleGate at all: the signal path is the
-                system's shape rather than this sweep's output, and the
-                corpus answers a question about history, so veiling
-                either when the current parameters change would imply the
-                past had gone stale too.
-              */}
-              <WorkspaceSubtabPanel workspaceId="research" tabId="lineage" activeId={section}>
-                {/* Real state, not a hardcoded array: the panel reports
-                    what this deployment can observe, and says "not
-                    measured" for the one stage that runs in the browser
-                    and therefore has no server timing. */}
-                <SignalDAGViewer health={systemsHealth} healthError={systemsHealthError} />
-                <ResearchCorpus />
               </WorkspaceSubtabPanel>
 
               <WorkspaceSubtabPanel workspaceId="research" tabId="decision" activeId={section}>
@@ -355,29 +317,32 @@ export default function ResearchWorkspace({
                 />
               </WorkspaceSubtabPanel>
 
-              <WorkspaceSubtabPanel workspaceId="research" tabId="runs" activeId={section}>
-                <ExperimentHistory
-                  records={experiments}
-                  activeRequest={data.request}
-                  onClone={cloneExperiment}
-                  onRemove={dropExperiment}
-                  onClear={() => setExperiments(clearExperiments())}
-                  onAnnotate={(id, annotation) =>
-                    setExperiments((current) => annotateExperiment(current, id, annotation))}
-                  onImport={(merged) => setExperiments(saveExperiments(merged))}
-                />
-                {/* Below the log it draws from, not beside it: choosing
-                    favourites is something a reader does after reading
-                    the history, and a combine control above the runs it
-                    combines has nothing to point at yet. */}
-                <FavouritesPanel records={experiments} />
-              </WorkspaceSubtabPanel>
             </>
           )}
 
-          {/* Reference material, outside both the empty-state map and
-              the data gate: the codex is about the catalogue, not the
-              current sweep, so it neither goes stale nor needs a run. */}
+          {/* Lineage and the local run archive do not depend on the newest
+              sweep completing. Keeping them outside the result gate prevents
+              a network failure from erasing evidence the browser already has. */}
+          <WorkspaceSubtabPanel workspaceId="research" tabId="lineage" activeId={section}>
+            <SignalDAGViewer health={systemsHealth} healthError={systemsHealthError} />
+            <ResearchCorpus />
+          </WorkspaceSubtabPanel>
+          <WorkspaceSubtabPanel workspaceId="research" tabId="runs" activeId={section}>
+            <ExperimentHistory
+              records={experiments}
+              activeRequest={req}
+              onClone={cloneExperiment}
+              onRemove={dropExperiment}
+              onClear={() => setExperiments(clearExperiments())}
+              onAnnotate={(id, annotation) =>
+                setExperiments((current) => annotateExperiment(current, id, annotation))}
+              onImport={(merged) => setExperiments(saveExperiments(merged))}
+            />
+            <FavouritesPanel records={experiments} />
+          </WorkspaceSubtabPanel>
+
+          {/* Reference material, outside the result gate: the codex is about
+              the catalogue, not the current sweep. */}
           <WorkspaceSubtabPanel workspaceId="research" tabId="fitted" activeId={section}>
             <FittedModels />
           </WorkspaceSubtabPanel>
@@ -388,6 +353,7 @@ export default function ResearchWorkspace({
               activeStrategy={req.strategy}
               onSelect={(strategy) => {
                 updateStrategy(strategy);
+                onSummaryViewChange("results");
                 onSectionChange("summary");
               }}
             />
