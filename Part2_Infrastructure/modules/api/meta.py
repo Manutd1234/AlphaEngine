@@ -10,19 +10,22 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import PlainTextResponse
 
 from config import settings
 from modules.api.deps import trader_identity
+from modules.application_context import ApplicationMetadata, HealthService
+from modules.application_services import MarketDataProvider, RiskEngineManager
 from modules.audit import get_audit
+from modules.backend_runtime import get_backend_runtime
 from modules.backtester import VECTORBT_AVAILABLE
 from modules.data_quality import get_data_quality, publish_escalation
-from modules.decision_core import ENGINE as DECISION_ENGINE
 from modules.jobs import get_queue
 from modules.metrics import render_metrics
 from modules.operations import OperationsSnapshot, build_operations_snapshot
 from modules.risk_proxy import get_gateway
+from modules.single_writer import status as single_writer_status
 from modules.supabase_mirror import get_mirror
 from modules.tca_engine import get_engine
 from modules.telegram import get_bot
@@ -32,32 +35,30 @@ router = APIRouter(tags=["meta"])
 
 
 @router.get("/health")
-async def health() -> dict[str, Any]:
-    tca, gateway, queue, bot = get_engine(), get_gateway(), get_queue(), get_bot()
-    state = gateway.state()
-    return {
-        "status": "halted" if state.kill_switch_active else "ok",
-        "app": settings.app_name,
-        "version": settings.version,
-        "environment": settings.environment,
-        "modules": {
-            "A_tca": tca.health(),
-            "B_risk": {
-                "kill_switch_active": state.kill_switch_active,
-                "halted_symbols": state.halted_symbols,
-                "orders_accepted": state.orders_accepted,
-                "orders_rejected": state.orders_rejected,
-                "drawdown_budget_used_pct": round(state.drawdown_budget_used_pct, 4),
-                # Which engine judges orders. deploy.yml refuses to keep a
-                # container that fell back to the Python reference when native
-                # was built for it — the same precedent as C_backtest.engine.
-                "decision_engine": DECISION_ENGINE,
-            },
-            "C_backtest": {**queue.stats(), "engine": "vectorbt" if VECTORBT_AVAILABLE else "numpy"},
-        },
-        "telegram": bot.health(),
-        "audit": {"backend": get_audit().backend, "path": str(get_audit().db_path)},
-    }
+async def health(request: Request = None) -> dict[str, Any]:
+    if request is not None:
+        return request.app.state.application_context.health.snapshot()
+    # Some low-level native contract tests call this function directly rather
+    # than through ASGI. Keep that seam while normal HTTP requests always use
+    # the immutable lifespan graph above.
+    book_stream = type("InactiveStream", (), {"status": lambda _self: {"state": "not_bound"}})()
+    gateway = get_gateway()
+    return HealthService(
+        runtime=get_backend_runtime(),
+        market_data=MarketDataProvider(get_engine()),
+        risk_engine=RiskEngineManager(gateway),
+        jobs=get_queue(),
+        audit=get_audit(),
+        telegram=get_bot(),
+        book_stream=book_stream,
+        metadata=ApplicationMetadata(
+            name=settings.app_name,
+            version=settings.version,
+            environment=settings.environment,
+            backtest_engine="vectorbt" if VECTORBT_AVAILABLE else "numpy",
+        ),
+        writer_status=single_writer_status,
+    ).snapshot()
 
 
 @router.get("/metrics", response_class=PlainTextResponse)
