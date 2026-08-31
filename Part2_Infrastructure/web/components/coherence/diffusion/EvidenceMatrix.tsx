@@ -93,7 +93,7 @@ function EvidenceMatrix({ findings }: { findings: readonly Finding[] }) {
         : null}
     >
       {rows.length ? (
-        <Plot height={height} minWidth={560}>
+        <Plot height={height}>
           {(width) => {
             const gutter = gutterFor(rows.map((row) => row.name), width, DIAGRAM_LABEL_PX, {
               // 320, not 280: the widest live name is 38 characters and needs
@@ -101,7 +101,7 @@ function EvidenceMatrix({ findings }: { findings: readonly Finding[] }) {
               // "resolution centro… absorption speed" at every desk width.
               min: 120, max: 320, maxFraction: 0.34, clearance: 16,
             });
-            const span = Math.max(240, width - gutter - MARGIN.right);
+            const span = Math.max(144, width - gutter - MARGIN.right);
             const colW = (span - COL_GAP) / STAGES.length;
             const colLeft = (col: number) => gutter + col * (colW + COL_GAP);
             const x = (col: number, t: number) =>
@@ -204,7 +204,7 @@ function EvidenceMatrix({ findings }: { findings: readonly Finding[] }) {
           }}
         </Plot>
       ) : (
-        <FigureEmpty reason="Nothing has been measured yet." />
+        <FigureEmpty reason="No relationship has been measured in both stages yet." />
       )}
     </Figure>
   );
