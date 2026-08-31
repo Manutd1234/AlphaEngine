@@ -64,22 +64,24 @@ export default function FamilyChoice({
   switcher?: ReactNode;
   children: ReactNode;
 }) {
+  const picker = events.length ? (
+    <FamilyPicker
+      options={events.map((event) => ({
+        ticker: event.event_ticker,
+        shard: event.exchange_index,
+        verdict: event.event_ticker === target ? verdict : null,
+      }))}
+      selected={target}
+      onSelect={onFamily}
+      label={label}
+    />
+  ) : null;
+
   return (
     <>
       <div className="coh-bar">
         {switcher}
-        {events.length ? (
-          <FamilyPicker
-            options={events.map((event) => ({
-              ticker: event.event_ticker,
-              shard: event.exchange_index,
-              verdict: event.event_ticker === target ? verdict : null,
-            }))}
-            selected={target}
-            onSelect={onFamily}
-            label={label}
-          />
-        ) : null}
+        {picker}
       </div>
       {events.length ? (
         children
