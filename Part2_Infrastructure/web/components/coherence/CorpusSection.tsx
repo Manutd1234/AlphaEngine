@@ -31,6 +31,8 @@ import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import CalibrationSettled from "./CalibrationSettled";
 import CalibrationTrend from "./CalibrationTrend";
 import PaneHead from "./PaneHead";
+import ProofsViewControl from "./ProofsViewControl";
+import ProofsTransportNotice from "./ProofsTransportNotice";
 
 type CorpusView = "composition" | "trend";
 
@@ -43,32 +45,34 @@ export default function CorpusSection({ active, view, onView }: { active: boolea
   // Gated on the view, exactly as every other section on this rail gates its
   // reads: the trend draws from the history route inside `CalibrationTrend`,
   // so a reader who never opens Composition never asks for the settled read.
-  const { data, error } = useCoherenceRead<CoherenceCalibration>(
+  const read = useCoherenceRead<CoherenceCalibration>(
     calibrationRoute(),
     active && view === "composition",
   );
+  const { data, error } = read;
 
   return (
     <section className="card console-card coh-calib" aria-labelledby="coherence-corpus-heading">
       <PaneHead
         kicker="Corpus"
-        title="What the score was computed on"
+        title="Score composition"
         id="coherence-corpus-heading"
-        note="the settled sample, and how it accrued"
-        lede="A Brier score is a score of whatever happened to settle, so the mixture it was taken over decides what the figure on Scorecard is a figure about."
+        note="settled sample accrual"
+        ledeSummary="Sample caveat"
+        lede="A Brier score inherits its settled sample; concentration decides what the score represents."
       />
 
       {/* The control row is pinned (`14u`), so a reader deep in the body can
           switch view without scrolling back to the head. One row per section is
           the rule this rail already kept; wrapping it is what made it pinnable. */}
       <div className="coh-bar">
-        <div className="seg" role="group" aria-label="Corpus view">
-          {VIEWS.map(([name, label]) => (
-            <button key={name} type="button" aria-pressed={view === name} onClick={() => onView(name)}>
-              {label}
-            </button>
-          ))}
-        </div>
+        <ProofsViewControl
+          className="seg"
+          label="Corpus view"
+          options={VIEWS}
+          value={view}
+          onValue={onView}
+        />
       </div>
 
       {/* The branch IS the gate, and the compiler proves it: inside the else,
@@ -78,7 +82,18 @@ export default function CorpusSection({ active, view, onView }: { active: boolea
       {view === "trend" ? (
         <CalibrationTrend active={active} />
       ) : (
-        <CalibrationSettled data={data} error={error} view="corpus" />
+        <>
+          <ProofsTransportNotice
+            subject="Corpus read"
+            error={error}
+            hasSnapshot={Boolean(data)}
+            transport={read.transport}
+            retryAt={read.retryAt}
+            consecutiveFailures={read.consecutiveFailures}
+            onRetry={read.refresh}
+          />
+          {error && !data ? null : <CalibrationSettled data={data} error={null} view="corpus" />}
+        </>
       )}
     </section>
   );
