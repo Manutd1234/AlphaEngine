@@ -28,6 +28,32 @@ import { describe, it } from "node:test";
 import { functionBody, overview_, status_ } from "./helpers/developer-sources";
 import { stripCode } from "./helpers/source-files";
 
+describe("configuration metadata does not impersonate an attestation", () => {
+  const pipeline = stripCode(status_.slice(
+    status_.indexOf("export const PIPELINE_STAGES"),
+    status_.indexOf("export const SCHEMA_GATES"),
+  ));
+  const schemaGates = stripCode(status_.slice(
+    status_.indexOf("export const SCHEMA_GATES"),
+    status_.indexOf("export function StatusPill"),
+  ));
+
+  it("marks every static pipeline stage unverified while retaining its metadata", () => {
+    assert.equal(pipeline.match(/tone:\s*"warn"/g)?.length, 6);
+    assert.doesNotMatch(pipeline, /tone:\s*"good"/);
+    assert.match(pipeline, /APP_COMMIT/);
+    assert.match(pipeline, /IS_VERCEL_DEPLOYMENT/);
+    assert.match(pipeline, /APP_DEPLOYMENT_ENV/);
+    assert.match(pipeline, /run unverified/);
+  });
+
+  it("calls configured schema comparisons unverified, never CI-gated green", () => {
+    assert.doesNotMatch(schemaGates, /CI gated|tone:\s*"good"/);
+    assert.equal(schemaGates.match(/impact:\s*"Configured; unverified"/g)?.length, 3);
+    assert.match(schemaGates, /no live CI attestation for this commit/);
+  });
+});
+
 describe("a readiness gate that could not run is not a gate that failed", () => {
   // The derivations are `DeveloperStatus` — the one place the ladder is
   // spelled — and the panel that counts them is `DeveloperOverview`. Two files
