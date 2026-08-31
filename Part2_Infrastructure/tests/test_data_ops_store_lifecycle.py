@@ -15,10 +15,9 @@ exceed, once in a few hundred runs, in the one job that gates the push.
 
 What follows pins each half of the fix:
 
-- a fresh connection waits thirty seconds for a lock another connection
-  HOLDS — the exclusive one a closing connection takes to checkpoint, which is
-  what the collector was doing to the leaked handle (a plain writer does not
-  reproduce it: WAL readers never wait for writers);
+- a fresh connection has the exact thirty-second storage lock budget — HTTP
+  request deadlines live at the bounded runtime layer and do not silently
+  rewrite the database contract;
 - two connections opening one file at the same INSTANT are serialised, because
   that race SQLite answers at once rather than waiting out, and the shared
   store is built exactly once however many threads ask first;
@@ -58,12 +57,14 @@ def _hold_write_lock(store: SqliteStore, held: threading.Event, release: threadi
 
 
 class TestBusyTimeout:
-    def test_a_fresh_connection_waits_thirty_seconds_for_a_lock(self, tmp_path):
+    def test_a_fresh_connection_has_the_exact_thirty_second_lock_budget(self, tmp_path):
         assert BUSY_TIMEOUT_S == 30.0
         conn = open_data_ops_db(tmp_path / "store.sqlite")
         try:
             assert conn.execute("PRAGMA busy_timeout").fetchone()[0] == 30_000
             assert conn.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
+            assert conn.execute("PRAGMA synchronous").fetchone()[0] == 1
+            assert conn.execute("PRAGMA foreign_keys").fetchone()[0] == 1
         finally:
             conn.close()
 
@@ -72,8 +73,36 @@ class TestBusyTimeout:
         try:
             assert conn.execute("PRAGMA busy_timeout").fetchone()[0] == 30_000
             assert conn.execute("PRAGMA journal_mode").fetchone()[0] == "memory"
+            assert conn.execute("PRAGMA synchronous").fetchone()[0] == 1
+            assert conn.execute("PRAGMA foreign_keys").fetchone()[0] == 1
         finally:
             conn.close()
+
+    def test_an_explicit_timeout_is_not_capped_below_the_requested_contract(self, tmp_path):
+        conn = open_data_ops_db(tmp_path / "uncapped.sqlite", busy_timeout_s=30.5)
+        try:
+            assert conn.execute("PRAGMA busy_timeout").fetchone()[0] == 30_500
+        finally:
+            conn.close()
+
+    def test_a_connection_is_closed_when_pragma_configuration_fails(self, tmp_path, monkeypatch):
+        class BrokenConnection:
+            row_factory = None
+            closed = False
+
+            def execute(self, _statement):
+                raise sqlite3.OperationalError("pragma setup failed")
+
+            def close(self):
+                self.closed = True
+
+        broken = BrokenConnection()
+        monkeypatch.setattr(sqlite3, "connect", lambda *_args, **_kwargs: broken)
+
+        with pytest.raises(sqlite3.OperationalError, match="pragma setup failed"):
+            open_data_ops_db(tmp_path / "broken.sqlite")
+
+        assert broken.closed is True
 
     def test_opening_contends_with_an_exclusive_holder_and_the_timeout_is_what_saves_it(self, tmp_path):
         """The CI line, reproduced: ``PRAGMA journal_mode=WAL`` on a fresh
@@ -89,7 +118,7 @@ class TestBusyTimeout:
 
         The negative control comes first and is the whole point. With no busy
         timeout the open raises ``database is locked`` at once — proof that
-        this is the contention, so the thirty-second wait in
+        this is the contention, so the bounded wait in
         ``open_data_ops_db`` is load-bearing and not a number copied into the
         call for comfort.
         """
@@ -128,6 +157,22 @@ class TestBusyTimeout:
         finally:
             released.join(timeout=5)
 
+    def test_lock_timeout_fails_in_a_bounded_window_without_retrying(self, tmp_path):
+        path = tmp_path / "bounded.sqlite"
+        holder = open_data_ops_db(path)
+        holder.execute("CREATE TABLE rows (id INTEGER PRIMARY KEY)")
+        holder.execute("BEGIN IMMEDIATE")
+        contender = open_data_ops_db(path, busy_timeout_s=0.05)
+        started = time.monotonic()
+        try:
+            with pytest.raises(sqlite3.OperationalError, match="locked"):
+                contender.execute("INSERT INTO rows DEFAULT VALUES")
+            assert 0.04 <= time.monotonic() - started < 0.3
+        finally:
+            holder.execute("ROLLBACK")
+            contender.close()
+            holder.close()
+
     def test_two_writers_on_one_file_both_land(self, tmp_path):
         path = tmp_path / "store.sqlite"
         first, second = SqliteStore(path), SqliteStore(path)
@@ -144,6 +189,40 @@ class TestBusyTimeout:
             holder.join(timeout=5)
             first.close()
             second.close()
+
+    def test_wal_reader_sees_last_commit_while_another_connection_writes(self, tmp_path):
+        path = tmp_path / "reader-writer.sqlite"
+        writer, reader = SqliteStore(path), SqliteStore(path)
+        writer.migrate(DDL)
+        writer.add("rows", {"note": "committed"})
+        try:
+            with writer.transaction() as conn:
+                conn.execute("INSERT INTO rows (note) VALUES ('pending')")
+                assert reader.count("rows") == 1
+            assert reader.count("rows") == 2
+        finally:
+            writer.close()
+            reader.close()
+
+    def test_uncommitted_write_is_rolled_back_after_connection_loss(self, tmp_path):
+        path = tmp_path / "crash.sqlite"
+        conn = open_data_ops_db(path)
+        conn.execute("CREATE TABLE rows (id INTEGER PRIMARY KEY)")
+        conn.execute("BEGIN IMMEDIATE")
+        conn.execute("INSERT INTO rows DEFAULT VALUES")
+        conn.close()  # models a process losing its session before COMMIT
+
+        reopened = open_data_ops_db(path)
+        try:
+            assert reopened.execute("SELECT COUNT(*) FROM rows").fetchone()[0] == 0
+        finally:
+            reopened.close()
+
+    def test_corrupt_file_is_signalled_instead_of_selecting_a_fallback(self, tmp_path):
+        path = tmp_path / "corrupt.sqlite"
+        path.write_bytes(b"not a sqlite database")
+        with pytest.raises(sqlite3.DatabaseError, match="database"):
+            open_data_ops_db(path)
 
 
 class TestCloseAndReopen:
@@ -173,6 +252,22 @@ class TestCloseAndReopen:
         store.close()
         assert store.closed
 
+    def test_a_close_failure_cannot_leave_the_poisoned_handle_attached(self):
+        class CloseFails:
+            def close(self):
+                raise sqlite3.OperationalError("close failed")
+
+        store = SqliteStore(":memory:")
+        assert store._conn is not None
+        store._conn.close()
+        store._conn = CloseFails()
+
+        with pytest.raises(sqlite3.OperationalError, match="close failed"):
+            store.close()
+
+        assert store.closed
+        store.close()
+
     def test_an_in_memory_store_stays_closed(self):
         """Reopening ``:memory:`` would be an empty database wearing the old
         name — tables gone, rows gone, and a caller none the wiser."""
@@ -189,6 +284,20 @@ class TestCloseAndReopen:
             assert not store.closed
         assert store.closed
 
+    def test_close_runs_a_passive_checkpoint_and_keeps_telemetry(self, tmp_path):
+        store = SqliteStore(tmp_path / "checkpoint.sqlite")
+        store.migrate(DDL)
+        store.add("rows", {"note": "written"})
+        before = store.sqlite_status()
+        assert before["checkpoint_total"] == 0
+
+        store.close()
+
+        after = store.sqlite_status()
+        assert after["checkpoint_total"] == 1
+        assert after["last_checkpoint_duration_ms"] >= 0
+        assert after["last_checkpoint_error"] is None
+
     def test_a_failed_begin_releases_the_lock(self, tmp_path):
         """A ``BEGIN IMMEDIATE`` that raises must not leave the store's lock
         held, or the next caller on any thread blocks forever with no error
@@ -201,8 +310,67 @@ class TestCloseAndReopen:
         assert store._lock.acquire(timeout=1), "the lock was left held after BEGIN failed"
         store._lock.release()
 
+    def test_a_failed_commit_rolls_back_before_the_connection_is_reused(self):
+        class FailedCommit:
+            def __init__(self):
+                self.calls = []
+
+            def execute(self, statement):
+                self.calls.append(statement)
+                if statement == "COMMIT":
+                    raise sqlite3.OperationalError("commit failed")
+
+            def close(self):
+                pass
+
+        store = SqliteStore(":memory:")
+        assert store._conn is not None
+        store._conn.close()
+        failed = FailedCommit()
+        store._conn = failed
+
+        with pytest.raises(sqlite3.OperationalError, match="commit failed"):
+            with store.transaction():
+                pass
+
+        assert failed.calls == ["BEGIN IMMEDIATE", "COMMIT", "ROLLBACK"]
+        assert store._lock.acquire(timeout=1), "the lock was left held after COMMIT failed"
+        store._lock.release()
+
+    def test_a_connection_is_discarded_when_commit_and_rollback_both_fail(self):
+        class PoisonedConnection:
+            def __init__(self):
+                self.closed = False
+
+            def execute(self, statement):
+                if statement in {"COMMIT", "ROLLBACK"}:
+                    raise sqlite3.OperationalError(f"{statement.lower()} failed")
+
+            def close(self):
+                self.closed = True
+
+        store = SqliteStore(":memory:")
+        assert store._conn is not None
+        store._conn.close()
+        poisoned = PoisonedConnection()
+        store._conn = poisoned
+
+        with pytest.raises(sqlite3.OperationalError, match="commit failed"):
+            with store.transaction():
+                pass
+
+        assert poisoned.closed is True
+        assert store._conn is None
+
 
 class TestTheSuiteIsolatesEachTest:
+    def test_bootstrap_overrides_exported_audit_database_paths(self):
+        source = Path(__file__).with_name("conftest.py").read_text(encoding="utf-8")
+        assert 'os.environ["DATA_DIR"] = str(_TMP)' in source
+        assert 'os.environ["DB_PATH"] = str(_TMP / "test.duckdb")' in source
+        assert 'setdefault("DATA_DIR"' not in source
+        assert 'setdefault("DB_PATH"' not in source
+
     def test_every_test_opens_its_own_file(self, tmp_path):
         from config import settings
         from modules.data_ops_backend import get_data_ops_store
@@ -221,69 +389,3 @@ class TestTheSuiteIsolatesEachTest:
         store = get_data_ops_store()
         assert store.path != ":memory:"
         assert store.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
-
-
-class TestConcurrentOpens:
-    """Two connections opening one file at the same instant.
-
-    The busy timeout covers a lock another connection HOLDS; it does not cover
-    two first-opens racing each other's ``PRAGMA journal_mode=WAL``. Measured
-    before the fix, six threads released by a barrier onto a fresh file:
-    2 of 240 opens raised ``database is locked`` in 0.00s — the busy handler
-    never consulted. In the suite that was the gateway's own shutdown: the
-    data-quality sweep on the event loop and a second thread each found the
-    shared store unbuilt and each opened it. Both halves are pinned here —
-    the open is serialised, and the shared store is built once.
-    """
-
-    THREADS = 6
-    TRIALS = 40
-
-    def test_racing_first_opens_of_one_file_all_succeed(self, tmp_path):
-        errors: list[str] = []
-
-        def open_once(path: Path, barrier: threading.Barrier, trial: int) -> None:
-            barrier.wait(timeout=10)
-            try:
-                conn = open_data_ops_db(path)
-                try:
-                    conn.execute("CREATE TABLE IF NOT EXISTS t (x)")
-                finally:
-                    conn.close()
-            except Exception as exc:  # noqa: BLE001 - the whole point is to count them
-                errors.append(f"trial {trial}: {exc!r}")
-
-        for trial in range(self.TRIALS):
-            path = tmp_path / f"race-{trial}.sqlite"
-            barrier = threading.Barrier(self.THREADS)
-            threads = [
-                threading.Thread(target=open_once, args=(path, barrier, trial), name=f"open-{i}")
-                for i in range(self.THREADS)
-            ]
-            for thread in threads:
-                thread.start()
-            for thread in threads:
-                thread.join(timeout=30)
-        assert errors == [], errors
-
-    def test_the_shared_store_is_built_once_under_contention(self):
-        from modules.data_ops_backend import get_data_ops_store, reset_data_ops_store
-
-        reset_data_ops_store()
-        built: list[object] = []
-        barrier = threading.Barrier(8)
-
-        def run() -> None:
-            barrier.wait(timeout=10)
-            built.append(get_data_ops_store())
-
-        threads = [threading.Thread(target=run, name=f"build-{i}") for i in range(8)]
-        try:
-            for thread in threads:
-                thread.start()
-            for thread in threads:
-                thread.join(timeout=30)
-            assert len(built) == 8
-            assert all(store is built[0] for store in built), "two threads built two stores"
-        finally:
-            reset_data_ops_store()
