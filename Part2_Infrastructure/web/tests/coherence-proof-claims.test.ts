@@ -78,9 +78,11 @@ const READING_OWNED = new Set([
   "SettlementPane.tsx", "FormationDiagram.tsx", "PendingMinutes.tsx", "BooksSection.tsx",
   "BooksPane.tsx", "LadderChart.tsx", "IdentityStrip.tsx", "RfqPane.tsx",
   "DispersionStrips.tsx", "ChannelStates.tsx", "SurfacePane.tsx",
-  // `ShellListing.tsx` is `ShellPane`'s listing, split out at the 400-line
-  // ceiling on 2026-08-24. It is reading copy for the same reason its parent is.
-  "ShellPane.tsx", "ShellListing.tsx", "ShellTree.tsx", "ShellCommandReference.tsx", "PmfChart.tsx",
+  // Shell's browser and route diagram own the reading copy moved out of
+  // `ShellPane`; they stay out of the Proofs scan for the same reason as their
+  // parent and the listing it renders.
+  "ShellPane.tsx", "ShellBrowser.tsx", "ShellRouteFlow.tsx", "ShellListing.tsx", "ShellTree.tsx",
+  "ShellCommandReference.tsx", "PmfChart.tsx",
   "SurvivalChart.tsx",
 ]);
 
@@ -179,12 +181,11 @@ const CLAIMS: readonly Claim[] = [
       + "leads both of them.",
   },
   {
-    phrase: "they bound it",
+    phrase: "set the lowest and highest possible parlay price",
     places: 1,
     claim: "two probabilities do not determine the probability of both — the legs give a band",
     why: "A reader who takes Πpᵢ for a fair value reads the whole Combos section "
-      + "backwards. The band figure and the formula line restate the maths; only the "
-      + "lede states the claim.",
+      + "backwards. The short Method lede states the same claim in plain language.",
   },
   {
     phrase: "not evidence of positive dependence",
