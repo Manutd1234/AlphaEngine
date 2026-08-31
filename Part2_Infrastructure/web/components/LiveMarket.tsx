@@ -43,6 +43,7 @@ interface QuotePreview {
   asOf: string;
   source: string;
   delayed: boolean;
+  synthetic: boolean;
 }
 
 export { type ExecutionSection } from "@/lib/sections";
@@ -176,7 +177,7 @@ export default function LiveMarket({
         const row = (body as {
           quotes?: Array<{
             data?: { price?: unknown; changePct?: unknown; asOf?: unknown; delayed?: unknown };
-            provenance?: { label?: unknown; provider?: unknown; delayed?: unknown };
+            provenance?: { label?: unknown; provider?: unknown; delayed?: unknown; synthetic?: unknown };
           }>;
         }).quotes?.[0];
         const price = Number(row?.data?.price);
@@ -192,6 +193,7 @@ export default function LiveMarket({
           asOf,
           source: label,
           delayed: row?.data?.delayed === true || row?.provenance?.delayed === true,
+          synthetic: row?.provenance?.synthetic === true,
         });
       })
       .catch(() => {
@@ -242,7 +244,11 @@ export default function LiveMarket({
               <dt>Reference</dt>
               <dd>
                 {quotePreview?.source ?? (quotePreviewPending ? "Checking…" : "Unavailable")}
-                {quotePreview ? <small className="muted">{quotePreview.delayed ? "delayed" : "provider quote"}</small> : null}
+                {quotePreview ? (
+                  <small className="muted">
+                    {quotePreview.synthetic ? "display only" : quotePreview.delayed ? "delayed" : "provider quote"}
+                  </small>
+                ) : null}
               </dd>
             </div>
             <div>
@@ -263,11 +269,13 @@ export default function LiveMarket({
           </>
         )}
       </dl>
-      <span className={`execution-market-strip__status${liveVenues > 0 || quotePreview ? " is-live" : ""}`}>
+      <span className={`execution-market-strip__status${liveVenues > 0 || (quotePreview && !quotePreview.synthetic) ? " is-live" : ""}`}>
         <i aria-hidden />
         {paperEquity
           ? quotePreview
-            ? `Covered US ticker, as of ${new Date(quotePreview.asOf).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+            ? quotePreview.synthetic
+              ? "Sandbox preview — not execution evidence"
+              : `Covered US ticker, as of ${new Date(quotePreview.asOf).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
             : quotePreviewPending ? "Checking equity coverage" : "Equity quote unavailable"
           : !liveSupported ? "Quote only" : snap ? `${liveVenues} venues live` : "Connecting"}
       </span>
