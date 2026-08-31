@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * The Dutch-book verdict and its proof, as two views of one `certify` answer.
+ * The Dutch-book verdict, proof, checks, quotes and sizes as five flat views.
  *
  * Split out of `CertificatePane` on 2026-08-24, when the consolidation folded
  * the parlays in and the section went to six views. The ceiling's own rule is
@@ -22,7 +22,7 @@
  *
  * A DRAWING WAS RE-ADDED LATER THAT DAY, and the reversal is deliberate: the
  * reader that rejection was guessing at asked, in his third review, for a
- * drawing of the numbers on every subtab. What returned is not what was
+ * drawing of the numbers on every view. What returned is not what was
  * removed. `ValueStrip` draws the verdict's four money rows as signed bars
  * against a zero rule, and it shows honestly in the coherent case too — bars
  * sitting at or under zero ARE that verdict, not an empty frame. The proof view
@@ -40,7 +40,6 @@ import CheckLadder from "./CheckLadder";
 import LadderPrices from "./LadderPrices";
 import LegSizes from "./LegSizes";
 import ConstraintLadder from "./ConstraintLadder";
-import MarginAxis from "./MarginAxis";
 import ValueStrip, { type StripRow } from "./ValueStrip";
 
 /**
@@ -154,23 +153,10 @@ export function VerdictView({ data, target }: { data: CoherenceCertificate; targ
 
   return (
     <>
-      {/* THE LEAD IS THE MARGIN, not the money. What the programme decided on
-          is its own optimum, which exists on every solve; the money rows are
-          the arithmetic of a portfolio that usually does not exist. Leading
-          with them meant the headline figure of the headline view said
-          "not reported" four times on the answer a reader sees almost every
-          time.
-
-          PAIRED WITH THE LADDER since 2026-08-25, and the pairing is the
-          point rather than the packing: the axis says WHERE the optimum
-          landed and the ladder says HOW it was reached, so a reader meets
-          the answer and its derivation in one glance instead of scrolling
-          between them. Both exist on every solve, which is why these two are
-          the pair and the money strip below is not. */}
-      <div className="coh-grid coh-grid--2">
-        <MarginAxis margin={data.margin} verdict={data.verdict} engine={data.engine} pricedOut={Boolean(data.priced_out)} />
-        <CheckLadder certificate={data} />
-      </div>
+      {/* One full-width chain now owns both the LP optimum and the path that
+          produced it. The old half-width pair repeated those facts and forced
+          the decision boxes to truncate their live values. */}
+      <CheckLadder certificate={data} />
 
       {anyMoney ? (
         <ValueStrip
@@ -192,7 +178,12 @@ export function VerdictView({ data, target }: { data: CoherenceCertificate; targ
           worth opening. Nothing was removed. */}
       <details className="disclosure">
         <summary>What each of the six quantities decides, and the two counts, at the exchange&rsquo;s precision</summary>
-      <div className="table-wrap">
+      <div
+        className="table-wrap"
+        role="region"
+        aria-label="Certificate quantities and decisions"
+        tabIndex={0}
+      >
         <table className="coh-table">
           <caption className="coh-table__caption">
             Scope {data.scope}; {data.tier_note}
@@ -220,24 +211,6 @@ export function VerdictView({ data, target }: { data: CoherenceCertificate; targ
   );
 }
 
-/**
- * What the solver concluded, as labelled facts rather than as a wall of text.
- *
- * The fixed-width block stays — it is what the view is called and it is what a
- * reader pastes elsewhere — but it stopped being the first thing on the view.
- * Six facts a reader wants at a glance were reachable only by reading five
- * lines of monospace prose for them, and four of the six are already typed
- * fields on the payload rather than substrings of that string.
- */
-const CONCLUSIONS: ReadonlyArray<{ label: string; of: (data: CoherenceCertificate) => string }> = [
-  { label: "Verdict", of: (data) => data.verdict },
-  { label: "Solver", of: (data) => (data.engine === "highs" ? "linear programme (HiGHS)" : data.engine) },
-  { label: "Rows tested", of: (data) => `${data.rows_tested}` },
-  { label: "Rows untestable", of: (data) => `${data.rows_untestable}` },
-  { label: "Best worst-case payoff", of: (data) => data.worst_case_payoff ?? data.margin ?? "—" },
-  { label: "Legging tier", of: (data) => `${data.tier}, ${data.scope}` },
-];
-
 export function ProofView({ data, event }: {
   data: CoherenceCertificate;
   /**
@@ -252,33 +225,11 @@ export function ProofView({ data, event }: {
 }) {
   return (
     <>
-      <ConstraintLadder event={event} certificate={data} />
-
-      <div className="table-wrap">
-        <table className="coh-table">
-          <caption className="coh-table__caption">
-            What the solver concluded, and the shape of the run it concluded it from.
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">Reading</th>
-              <th scope="col" className="num">Value</th>
-            </tr>
-          </thead>
-          <tbody>
-            {CONCLUSIONS.map((row) => (
-              <tr key={row.label}>
-                <th scope="row">{row.label}</th>
-                <td className="num">{row.of(data)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <ConstraintLadder event={event} certificate={data} view="proof" />
 
       {data.proof ? (
         <details className="disclosure">
-          <summary>{`The solver's own words, ${data.proof.split("\n").length} lines`}</summary>
+          <summary>The solver&rsquo;s own words</summary>
           <pre className="coh-proof">{data.proof}</pre>
         </details>
       ) : (
@@ -286,13 +237,11 @@ export function ProofView({ data, event }: {
           <span aria-hidden="true">◌</span> No proof was returned for this family.
         </p>
       )}
-      {/* The proof text itself stays open — it is what the view is called and
-          what it is for. The solver's notes are provenance about the run, so
-          they take a summary that says how many there are; a reader deciding
-          whether to open it should not have to open it to count them. */}
+      {/* These summaries name singular solver artefacts. Their old suffixes
+          ("4 lines" and ", 1") were implementation counters, not useful copy. */}
       {data.notes.length ? (
         <details className="disclosure">
-          <summary>{`What the solver had to assume to reach this verdict, ${data.notes.length}`}</summary>
+          <summary>What the solver had to assume to reach this verdict</summary>
           <ul className="coh-notes" aria-label="Notes returned with the proof">
             {data.notes.map((note, index) => (
               <li key={`${index}-${note}`}>{note}</li>
@@ -305,22 +254,23 @@ export function ProofView({ data, event }: {
 }
 
 /**
- * The prices the test is about, and the sizes behind them.
- *
- * ONE COLUMN, NOT A PAIR. Both figures are drawn on the same strike extent
- * through `lib/coherence/strike-axis.ts`, and two figures sharing an x extent
- * have to share a width: side by side, one strike would sit at two different
- * pixels and a reader would read the two as different families. Stacked, a
- * column of the ladder is the same column of the ribbons.
- *
- * It takes the EVENT, not the certificate: these come from the universe read,
- * so they draw while the test is still running.
+ * The ranked inequalities are a second proof surface. Keeping them separate
+ * from the derivation rail halves the long figure without changing its data or
+ * the ordering of the exact constraint ledger behind it.
  */
+export function ChecksView({ data, event }: {
+  data: CoherenceCertificate;
+  event: CoherenceEventView | null;
+}) {
+  return <ConstraintLadder event={event} certificate={data} view="checks" />;
+}
+
+/** The exact quotes the test is about, from the already-warm universe read. */
 export function PricesView({ event }: { event: CoherenceEventView }) {
-  return (
-    <div className="coh-grid">
-      <LadderPrices event={event} />
-      <LegSizes event={event} />
-    </div>
-  );
+  return <LadderPrices event={event} />;
+}
+
+/** The independent size measures behind those quotes, in the same leg order. */
+export function SizesView({ event }: { event: CoherenceEventView }) {
+  return <LegSizes event={event} />;
 }
