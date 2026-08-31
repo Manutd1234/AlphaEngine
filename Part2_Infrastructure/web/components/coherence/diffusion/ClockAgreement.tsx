@@ -23,6 +23,8 @@
  * dropped from the drawing and their absence is the interesting part.
  */
 
+import { useState } from "react";
+
 import Figure, { FigureEmpty, Plot } from "../Figure";
 import type { StageRun } from "./types";
 
@@ -48,7 +50,7 @@ const LABEL_GUTTER = 58;
 /** The right axis labels itself on centre, so it needs almost no tail. */
 const PANEL_TAIL = 16;
 
-interface Ranked {
+export interface Ranked {
   key: string;
   label: string;
   stage: "release" | "call";
@@ -73,8 +75,10 @@ export function rankByClock(runs: readonly StageRun[], stage: "release" | "call"
   rows: Ranked[];
   dropped: number;
 } {
-  const ofStage = runs.filter((run) => run.stage === stage && run.signal_state === "ok");
-  const usable = ofStage.filter((run) => run.half_life_s != null && run.half_life_vol != null);
+  const ofStage = runs.filter((run) => run.stage === stage);
+  const usable = ofStage.filter((run) =>
+    run.signal_state === "ok" && run.half_life_s != null && run.half_life_vol != null,
+  );
   const byWall = [...usable].sort((a, b) => (a.half_life_s as number) - (b.half_life_s as number));
   const byVol = [...usable].sort((a, b) => (a.half_life_vol as number) - (b.half_life_vol as number));
   const wallRank = new Map(byWall.map((run, index) => [run.run_id, index]));
@@ -96,42 +100,82 @@ export function rankByClock(runs: readonly StageRun[], stage: "release" | "call"
 /** How far a rank has to move to be worth drawing as a move: a tenth of its own field. */
 const MOVED = 0.1;
 
+export type ClockPathMode = "dotted" | "solid" | "all";
+
+export function clockPathIsMaterial(row: Ranked, rowCount: number): boolean {
+  return Math.abs(row.wallRank - row.volRank) > rowCount * MOVED;
+}
+
+/** Background paths are dotted; the material crossings are solid, regardless of stage colour. */
+export function clockPathIsDotted(row: Ranked, rowCount: number): boolean {
+  return !clockPathIsMaterial(row, rowCount);
+}
+
+/** Filtering changes only visibility. Ranking and the main/background decision remain fixed. */
+export function clockRowsForMode(rows: readonly Ranked[], mode: ClockPathMode): Ranked[] {
+  const rowCount = rows.length;
+  const visible = mode === "all"
+    ? [...rows]
+    : rows.filter((row) => clockPathIsDotted(row, rowCount) === (mode === "dotted"));
+  // Keep the grey dotted context behind the coloured solid paths in the SVG
+  // paint order, even when the wire arrives in a different order.
+  return visible.sort((a, b) =>
+    Number(clockPathIsMaterial(a, rowCount)) - Number(clockPathIsMaterial(b, rowCount)),
+  );
+}
+
 const STAGE_WORD = { release: "statement", call: "press conference" } as const;
 
 export default function ClockAgreement({ runs }: { runs: StageRun[] }) {
+  const [pathMode, setPathMode] = useState<ClockPathMode>("all");
   const panels = (["release", "call"] as const).map((stage) => ({ stage, ...rankByClock(runs, stage) }));
   const drawable = panels.filter((panel) => panel.rows.length >= 2);
   const movedIn = (rows: Ranked[]) =>
-    rows.filter((row) => Math.abs(row.wallRank - row.volRank) > rows.length * MOVED).length;
+    rows.filter((row) => clockPathIsMaterial(row, rows.length)).length;
   const totalMoved = drawable.reduce((sum, panel) => sum + movedIn(panel.rows), 0);
   const totalRows = drawable.reduce((sum, panel) => sum + panel.rows.length, 0);
+  const totalRecords = runs.length;
+  const totalSolid = totalMoved;
+  const totalDotted = totalRows - totalSolid;
   const dropped = panels.reduce((sum, panel) => sum + panel.dropped, 0);
+  const visibleRows = drawable.reduce(
+    (sum, panel) => sum + clockRowsForMode(panel.rows, pathMode).length,
+    0,
+  );
 
   return (
     <Figure
-      caption="Each stage ranked by the wall clock and by the volatility clock, within its own stage"
+      caption="Wall-clock rank versus volatility-clock rank"
       ariaLabel={
         totalRows
-          ? `Two rank slopegraphs, one per stage, over ${totalRows} measured stages; `
+          ? `Two rank slopegraphs, one per stage, over ${totalRows} clock-ranked paths from ${totalRecords} total paths; `
             + `${totalMoved} move more than a tenth of their own field between the clocks`
           : "No stage carries both clocks yet"
       }
       reading={
         totalRows
-          ? `${totalMoved} of ${totalRows} stages move more than a tenth of their own field between the clocks — `
-            + "the ones where a path stopped because volatility ran out, not because absorption finished."
+          ? `${totalMoved} of ${totalRows} paths change rank materially between the two clocks.`
           : null
       }
-      missing={[
-        "Ranked WITHIN each stage, not across both: the statement and the press conference have different "
-        + "characteristic speeds, so a pooled ranking would report that difference as a disagreement between clocks.",
-        "A rank plot says WHICH stages disagree and never by how much — the two clocks are in different units, "
-        + "seconds against accumulated control variance, and no drawing can honestly put them on one axis.",
+      missing="Ranks are within each stage; statement and press-conference speeds are not compared directly."
+      notes={[
+        "Rank changes show which paths move, not the size of the clock difference; the clocks use different units.",
         dropped
-          ? `${dropped} measured ${dropped === 1 ? "stage carries" : "stages carry"} one clock and not the other, and ${dropped === 1 ? "is" : "are"} not drawn.`
+          ? `${dropped} of ${totalRecords} paths lack both clock readings and stay off the rank axes.`
           : null,
-      ].filter(Boolean).join(" ")}
+      ].filter((note): note is string => Boolean(note))}
     >
+      <div className="diff-lens diff-lens--inside" role="group" aria-label="Clock paths">
+        <button type="button" aria-pressed={pathMode === "dotted"}
+                onClick={() => setPathMode("dotted")}>Dotted backdrop — {totalDotted}</button>
+        <button type="button" aria-pressed={pathMode === "solid"}
+                onClick={() => setPathMode("solid")}>Solid main paths — {totalSolid}</button>
+        <button type="button" aria-pressed={pathMode === "all"}
+                onClick={() => setPathMode("all")}>All clock-ranked — {totalRows}</button>
+        <span className="diff-lens__readout" aria-live="polite">
+          {pathMode === "all" ? `${totalRecords} total paths; ${totalRows} ranked` : `${visibleRows} ranked; ${totalRecords} total`}
+        </span>
+      </div>
       {drawable.length ? (
         <Plot height={HEIGHT}>
           {(width) => {
@@ -173,12 +217,13 @@ export default function ClockAgreement({ runs }: { runs: StageRun[] }) {
                       <line className="coh-ladder__axis" x1={right} x2={right} y1={MARGIN.top} y2={HEIGHT - MARGIN.bottom} />
                       <text className="coh-ladder__tick" x={left - 6} y={MARGIN.top + 4} textAnchor="end">fastest</text>
                       <text className="coh-ladder__tick" x={left - 6} y={HEIGHT - MARGIN.bottom} textAnchor="end">slowest</text>
-                      {panel.rows.map((row) => {
-                        const shifted = Math.abs(row.wallRank - row.volRank) > panel.rows.length * MOVED;
+                      {clockRowsForMode(panel.rows, pathMode).map((row) => {
+                        const shifted = clockPathIsMaterial(row, panel.rows.length);
+                        const dotted = clockPathIsDotted(row, panel.rows.length);
                         return (
                           <line
                             key={row.key}
-                            className={`diff-clock__link${shifted ? " is-moved" : ""} diff-clock__link--${row.stage}`}
+                            className={`diff-clock__link${shifted ? " is-moved" : ""}${dotted ? " is-dotted" : " is-solid"} diff-clock__link--${row.stage}`}
                             x1={left} x2={right} y1={y(row.wallRank)} y2={y(row.volRank)}
                           >
                             <title>
