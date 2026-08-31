@@ -21,6 +21,7 @@ import {
   SCENARIOS,
   applyScenario,
   beta,
+  manualShocks,
   type ReturnsBySymbol,
 } from "../lib/portfolio-risk";
 import { close, correlatedSeries } from "./helpers/risk-series";
@@ -91,5 +92,36 @@ describe("stress testing never invents exposure", () => {
       "BTCUSDT",
     );
     close(r.totalPnl, 0, 1e-9, "a zero shock must produce zero P&L");
+  });
+
+  it("both hand sliders change a one-position book, independent of order", () => {
+    const positions = [{ symbol: "BTCUSDT", signedNotional: 25_346 }];
+    const score = (manual: Record<string, number>) => applyScenario(
+      positions,
+      1_000_000,
+      manualShocks(manual, positions.map((position) => position.symbol)),
+      returns,
+      "BTCUSDT",
+    );
+
+    close(score({ BTCUSDT: 22 }).totalPnl, 5_576.12, 1e-9, "BTC overlay");
+    close(score({ "*": -12 }).totalPnl, -3_041.52, 1e-9, "broad book");
+    const combined = score({ BTCUSDT: 22, "*": -12 });
+    close(combined.perPosition[0].appliedMove, 0.10, 1e-12, "broad + BTC overlay");
+    close(combined.totalPnl, 2_534.60, 1e-9, "both sliders");
+    close(score({ "*": -12, BTCUSDT: 22 }).totalPnl, combined.totalPnl, 1e-9, "slider order");
+    close(score({ "*": -12, BTCUSDT: 0 }).totalPnl, -3_041.52, 1e-9, "zero overlay");
+  });
+
+  it("manual broad-book overlays do not change named-scenario precedence", () => {
+    const cascade = SCENARIOS.find((scenario) => scenario.id === "crypto_cascade")!;
+    const result = applyScenario(
+      [{ symbol: "BTCUSDT", signedNotional: 1_000 }],
+      10_000,
+      cascade.shocks,
+      returns,
+      "BTCUSDT",
+    );
+    close(result.perPosition[0].appliedMove, -0.2, 1e-12, "preset BTC move");
   });
 });
