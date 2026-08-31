@@ -61,9 +61,40 @@ export interface LiveControlsProps {
   onPause: (next: boolean) => void;
   /** Re-arms the poll gate, which makes every mounted section read again. */
   onReadNow: () => void;
+  /** Markets folds Updated + Next read into its explicit second status row. */
+  variant?: "default" | "markets";
 }
 
-export default function LiveControls({ updatedAt, pollMs, paused, onPause, onReadNow }: LiveControlsProps) {
+export function marketClockLabel(updatedAt: Date | null): string {
+  if (!updatedAt) return "awaiting";
+  return [updatedAt.getHours(), updatedAt.getMinutes(), updatedAt.getSeconds()]
+    .map((part) => String(part).padStart(2, "0"))
+    .join(":");
+}
+
+export function marketNextReadState(
+  updatedAt: Date | null,
+  pollMs: number,
+  paused: boolean,
+  now: number,
+): { mark: string; value: string; tone: "good" | "warn" | "muted" } {
+  if (paused) return { mark: "○", value: "paused", tone: "muted" };
+  if (!updatedAt) return { mark: "◌", value: "awaiting", tone: "muted" };
+
+  const remaining = pollMs - (now - updatedAt.getTime());
+  if (remaining < -pollMs * 0.5) return { mark: "▲", value: "overdue", tone: "warn" };
+  if (remaining <= 0) return { mark: "●", value: "now", tone: "good" };
+  return { mark: "●", value: `${Math.ceil(remaining / 1000)}s`, tone: "good" };
+}
+
+export default function LiveControls({
+  updatedAt,
+  pollMs,
+  paused,
+  onPause,
+  onReadNow,
+  variant = "default",
+}: LiveControlsProps) {
   const [, tick] = useState(0);
 
   // Mounted unconditionally, like the stamp's: the hook has to run on every
@@ -74,7 +105,8 @@ export default function LiveControls({ updatedAt, pollMs, paused, onPause, onRea
     return () => clearInterval(id);
   }, [paused]);
 
-  const remaining = updatedAt ? pollMs - (Date.now() - updatedAt.getTime()) : null;
+  const now = Date.now();
+  const remaining = updatedAt ? pollMs - (now - updatedAt.getTime()) : null;
   // A read that is DUE is not a read that is late. The gateway's own budget for
   // the live reads on this tab runs to twenty-eight seconds, so a second or two
   // past the interval is the request being answered, not a stall. Overdue is
@@ -92,9 +124,31 @@ export default function LiveControls({ updatedAt, pollMs, paused, onPause, onRea
           ? { mark: "●", word: "Reading", value: "now", tone: "good" as const }
           : { mark: "●", word: "Next read", value: `in ${Math.ceil(remaining / 1000)}s`, tone: "good" as const };
 
+  const marketNext = marketNextReadState(updatedAt, pollMs, paused, now);
+
   return (
-    <div className="coh-live" role="group" aria-label="Polling">
-      <StateChip mark={state.mark} word={state.word} value={state.value} tone={state.tone} />
+    <div
+      className={`coh-live${variant === "markets" ? " coh-live--markets" : ""}`}
+      role="group"
+      aria-label="Polling"
+    >
+      {variant === "markets" ? (
+        <>
+          <span className="coh-live__updated">
+            <StateChip
+              mark={updatedAt ? "✓" : "◌"}
+              word="Updated"
+              value={marketClockLabel(updatedAt)}
+              tone="muted"
+            />
+          </span>
+          <span className="coh-live__next">
+            <StateChip mark={marketNext.mark} word="Next read" value={marketNext.value} tone={marketNext.tone} />
+          </span>
+        </>
+      ) : (
+        <StateChip mark={state.mark} word={state.word} value={state.value} tone={state.tone} />
+      )}
       {/* The two controls, as one segmented pair rather than two loose buttons.
           They are the same KIND of thing — both change what the poll does next —
           and the desk's own vocabulary for that is a group, not a scatter. */}
