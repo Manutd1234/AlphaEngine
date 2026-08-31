@@ -37,6 +37,45 @@ import { warmCoherenceRead } from "./use-coherence";
  */
 export const WARM_STAGGER_MS = 600;
 
+export interface WarmSequenceOptions {
+  signal?: AbortSignal;
+  /** URLs promoted by focus, hover or the visible section. */
+  priority?: readonly string[];
+  pause?: () => Promise<void>;
+}
+
+/** Promise-returning queue: priority first, measured concurrency exactly one. */
+export async function warmSequentially(
+  urls: readonly string[],
+  task: (url: string, signal?: AbortSignal) => Promise<void>,
+  options: WarmSequenceOptions = {},
+): Promise<void> {
+  const unique = [...new Set(urls)];
+  const promoted = new Set(options.priority ?? []);
+  const ordered = [
+    ...unique.filter((url) => promoted.has(url)),
+    ...unique.filter((url) => !promoted.has(url)),
+  ];
+  for (let index = 0; index < ordered.length; index += 1) {
+    if (options.signal?.aborted) return;
+    await task(ordered[index], options.signal);
+    if (index < ordered.length - 1) await options.pause?.();
+  }
+}
+
+function stagger(signal: AbortSignal): Promise<void> {
+  if (signal.aborted) return Promise.resolve();
+  return new Promise((resolve) => {
+    const done = () => {
+      clearTimeout(timer);
+      signal.removeEventListener("abort", done);
+      resolve();
+    };
+    const timer = setTimeout(done, WARM_STAGGER_MS);
+    signal.addEventListener("abort", done, { once: true });
+  });
+}
+
 export function useSectionWarming<T extends string>(
   reads: Record<T, readonly string[]>,
   active: boolean,
@@ -47,31 +86,26 @@ export function useSectionWarming<T extends string>(
     // families, and warming that URL twice is one wasted request against a
     // budget this exists to respect.
     const urls = [...new Set(Object.values<readonly string[]>(reads).flat())];
-    let cancelled = false;
+    const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
-    let index = 0;
-
-    const step = () => {
-      if (cancelled || index >= urls.length) return;
-      // A URL already answered recently, or already in flight for the section
-      // on screen, is skipped inside `warm` rather than here — so the sweep
-      // costs nothing on a tab that is merely being revisited.
-      warmCoherenceRead(urls[index]);
-      index += 1;
-      timer = setTimeout(step, WARM_STAGGER_MS);
+    const start = () => {
+      void warmSequentially(urls, warmCoherenceRead, {
+        signal: controller.signal,
+        pause: () => stagger(controller.signal),
+      });
     };
 
     if ("requestIdleCallback" in window) {
-      const handle = window.requestIdleCallback(() => { if (!cancelled) step(); }, { timeout: 3000 });
+      const handle = window.requestIdleCallback(start, { timeout: 3000 });
       return () => {
-        cancelled = true;
+        controller.abort();
         window.cancelIdleCallback(handle);
         clearTimeout(timer);
       };
     }
-    timer = setTimeout(step, 1200);
+    timer = setTimeout(start, 1200);
     return () => {
-      cancelled = true;
+      controller.abort();
       clearTimeout(timer);
     };
   }, [reads, active]);
