@@ -92,6 +92,17 @@ class TestUnconfiguredIsANoOp:
         assert mirror.health()["running"] is False
         await mirror.stop()
 
+    def test_disabled_when_credentials_exist_but_desk_is_blank(self, monkeypatch):
+        configured_without_tenant = _SettingsStub()
+        configured_without_tenant.supabase_desk_id = "  "
+        monkeypatch.setattr(mirror_module, "settings", configured_without_tenant)
+
+        mirror = SupabaseMirror()
+
+        assert mirror.enabled is False
+        mirror.enqueue(make_decision(), make_request(), "api")
+        assert mirror.health()["queued"] == 0
+
 
 class _SettingsStub:
     """config.Settings is frozen; the mirror only reads these six fields."""
