@@ -27,6 +27,13 @@ class BacktestRequest(BaseModel):
     interval: str = Field(default="1h", description="Bar size: 15m, 1h, 4h or 1d.")
     bars: int = Field(default=1500, ge=200, le=5000,
                       description="History depth in bars. Fewer than ~500 makes walk-forward folds too short to read.")
+    data_mode: Literal["observed", "synthetic_demo"] = Field(
+        default="observed",
+        description=(
+            "Observed tries Binance then the recorded DuckDB cache and fails if both are unavailable. "
+            "Synthetic_demo is an explicit, labelled demonstration using generated non-market bars."
+        ),
+    )
     strategy: Literal[
         "ma_cross", "ema_cross", "macd_cross",
         "donchian", "donchian_mid", "breakout_sma",
@@ -125,8 +132,8 @@ class BacktestResult(BaseModel):
     period_start: str
     period_end: str
     # Content hash of the bars this run saw. A date range does not identify a
-    # dataset — a revised bar, a different venue, or the synthetic fallback all
-    # produce the same window with different numbers. Two runs sharing this
+    # dataset — a revised bar, a different venue, or explicit synthetic_demo
+    # data all produce the same window with different numbers. Two runs sharing this
     # value provably compared the same prices.
     data_hash: str | None = None
     combos_tested: int
