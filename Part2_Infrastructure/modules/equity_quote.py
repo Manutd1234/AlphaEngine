@@ -64,6 +64,11 @@ async def fetch_paper_equity_reference(
         contract = provenance.get("contract")
         if not isinstance(contract, dict) or contract.get("passed") is not True:
             raise EquityQuoteUnavailable("quote facade data contract did not pass")
+        synthetic = provenance.get("synthetic", False)
+        if not isinstance(synthetic, bool):
+            raise EquityQuoteUnavailable("quote facade returned malformed provenance")
+        if synthetic:
+            raise EquityQuoteUnavailable("synthetic quote is display-only and cannot price an order")
 
         source = str(provenance.get("label") or provenance.get("provider") or "").strip()
         return PaperExecutionReference(
