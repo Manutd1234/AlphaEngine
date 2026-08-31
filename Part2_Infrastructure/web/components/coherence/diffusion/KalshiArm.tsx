@@ -24,19 +24,39 @@
 
 import { episodesToSamples } from "@/lib/coherence/absorption";
 import type { CoherenceEpisodes, CoherenceIndexSeries, CoherenceStatus } from "@/lib/coherence/types";
+import { useState } from "react";
 import Figure, { FigureEmpty, Plot, StateChip } from "../Figure";
+import DiffusionSparseState from "./DiffusionSparseState";
 import EpisodeTape from "./EpisodeTape";
 import EpisodeWatch from "./EpisodeWatch";
 import ValueStrip from "../ValueStrip";
 
+const EMPTY_INDEX_POINTS: CoherenceIndexSeries["points"] = [];
+const EMPTY_INDEX_SERIES: CoherenceIndexSeries["series"] = [];
 const HEIGHT = 178;
 // `top` carries the round-trip label's own baseline: it sets at the 14px note
 // rung, so anything less than that draws the word above y=0 and the viewBox
 // cuts it off. HEIGHT rose by the same amount, so the plot area is unchanged.
 const MARGIN = { top: 30, right: 6, bottom: 22, left: 6 };
 
+export interface SurvivalPoint {
+  readonly t: number;
+  readonly s: number;
+}
+
+export function survivalAt(points: readonly SurvivalPoint[], seconds: number): number {
+  let surviving = 1;
+  for (const point of points) {
+    if (point.t > seconds) break;
+    surviving = point.s;
+  }
+  return surviving;
+}
+
 function SurvivalChart({ data }: { data: CoherenceEpisodes }) {
   const points = data.survival.map((point) => ({ t: Number(point.t_s), s: Number(point.surviving) }));
+  const sampleLongest = Math.max(1, ...points.map((point) => point.t));
+  const [probe, setProbe] = useState(() => sampleLongest / 2);
   if (points.length < 2) {
     return (
       <Figure
@@ -55,6 +75,8 @@ function SurvivalChart({ data }: { data: CoherenceEpisodes }) {
   // than it, or the rule that says "never available" would be drawn off the
   // plot exactly when it is most worth seeing.
   const longest = Math.max(...points.map((point) => point.t), Number.isFinite(roundTrip) ? roundTrip : 0, 1);
+  const probeAt = Math.min(longest, Math.max(0, probe));
+  const probeSurvival = survivalAt(points, probeAt);
   const base = HEIGHT - MARGIN.bottom;
   const y = (s: number) => base - s * (base - MARGIN.top);
 
@@ -65,6 +87,22 @@ function SurvivalChart({ data }: { data: CoherenceEpisodes }) {
       reading={data.verdict}
       missing={data.median_withheld_reason}
     >
+      <div className="diff-probe">
+        <label htmlFor="diffusion-survival-probe">
+          <span>Probe lifetime</span>
+          <strong className="num">{Math.round(probeAt)}s, {Math.round(probeSurvival * 100)}% open</strong>
+        </label>
+        <input
+          id="diffusion-survival-probe"
+          type="range"
+          aria-label="Probe lifetime"
+          min={0}
+          max={longest}
+          step={Math.max(1, longest / 100)}
+          value={probeAt}
+          onChange={(event) => setProbe(Number(event.currentTarget.value))}
+        />
+      </div>
       <Plot height={HEIGHT}>
         {(plotW) => {
           const plotWidth = Math.max(1, plotW - MARGIN.left - MARGIN.right);
@@ -98,6 +136,11 @@ function SurvivalChart({ data }: { data: CoherenceEpisodes }) {
             <title>{`Median lifetime ${median}s, against a ${data.round_trip_s}s round trip`}</title>
           </line>
         ) : null}
+        <line x1={x(probeAt)} x2={x(probeAt)} y1={MARGIN.top} y2={base}
+              className="coh-survival__probe">
+          <title>{`${Math.round(probeAt)}s: ${Math.round(probeSurvival * 100)}% of recorded episodes remain open`}</title>
+        </line>
+        <circle cx={x(probeAt)} cy={y(probeSurvival)} r={4} className="coh-survival__probe-dot" />
         {/* A reference line's own words, not a tick numeral: 13px note rung
             (coh-svg-note, 14r). The terminal "{longest}s" stays a tick. */}
         <text x={MARGIN.left} y={y(0.5) - 2} className="coh-svg-note">
@@ -141,14 +184,32 @@ export default function KalshiArm({ data, error, view, status, index }: {
   /** The coherence index the episode ledger is downstream of. */
   index: CoherenceIndexSeries | null;
 }) {
-  if (error && !data) {
-    return (
+  const notice = error && !data
+    ? (
       <p className="console-empty">
         <span aria-hidden="true">✕</span> Episodes could not be read: {error}
       </p>
-    );
-  }
-  if (!data) return <p className="console-empty muted">Reading the episodes…</p>;
+    )
+    : !data ? <p className="console-empty muted" role="status" aria-busy="true">Reading the episodes…</p> : null;
+  if (!data) return (
+    <div className="diff-pane">
+      {notice}
+      {view === "survival"
+        ? (
+          <Figure
+            caption="How long a violation survives, from recorded episodes"
+            ariaLabel="No survival measurement is drawn because the episode ledger is not readable"
+            missing="No lifetime is placed until the closed-episode ledger can be read."
+          >
+            <DiffusionSparseState kind="survival" sampleCount={null} reason="The survival sample is not readable yet." />
+          </Figure>
+        )
+        : <EpisodeTape
+            points={index?.points ?? EMPTY_INDEX_POINTS}
+            series={index?.series ?? EMPTY_INDEX_SERIES}
+          />}
+    </div>
+  );
 
   const samples = episodesToSamples(data.episodes);
   const withHalfLife = samples.filter((sample) => sample.half_life_s != null);
