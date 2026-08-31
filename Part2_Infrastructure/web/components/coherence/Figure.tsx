@@ -21,14 +21,21 @@
  * Contrast and to a reader who cannot separate red from green.
  */
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
 
 import { useMeasuredWidth } from "@/components/chart-kit";
 import { useSharedXReadout, type SharedX } from "@/lib/coherence/use-shared-x-readout";
 import { useHot } from "@/lib/coherence/use-hot";
 import { useMarkReadout } from "@/lib/coherence/use-mark-readout";
 
-import { Readout, ReferenceLabel, ReferenceLine, SharedXReadout } from "./plot-overlays";
+import { ReferenceLabel, ReferenceLine, SharedXReadout } from "./plot-overlays";
+import FigureDialogFrame from "./FigureDialogFrame";
 
 // Re-exported so the one outside caller (`lesson-figures/frame.tsx`) keeps its
 // import: the overlays moved on 2026-08-26 and a lifted primitive leaves a
@@ -114,6 +121,8 @@ export interface FigureProps {
    * for. `NumberTicker` reserves its own.
    */
   readout?: ReactNode;
+  /** Omit the fixed rail when the figure already publishes an exact-value inspector. */
+  reserveInteractionRow?: boolean;
   children: ReactNode;
 }
 
@@ -134,16 +143,14 @@ export interface FigureProps {
  */
 const AnnounceContext = createContext<((text: string) => void) | null>(null);
 
-export default function Figure({ caption, reading, missing, notes, ariaLabel, readout = null, children }: FigureProps) {
+export default function Figure({ caption, reading, missing, notes, ariaLabel, readout = null,
+  reserveInteractionRow = true, children }: FigureProps) {
   const [announced, setAnnounced] = useState("");
-  return (
-    <figure className="coh-figure">
-      <figcaption className="coh-figure__caption">
-        {caption}
-        {readout ? <span className="coh-figure__readout">{readout}</span> : null}
-      </figcaption>
+
+  const renderFigureBody = (plotId: string) => (
+    <>
       <AnnounceContext.Provider value={setAnnounced}>
-        <div className="coh-figure__plot" role="img" aria-label={ariaLabel}>
+        <div id={plotId} className="coh-figure__plot" role="group" aria-label={ariaLabel}>
           {children}
         </div>
       </AnnounceContext.Provider>
@@ -153,7 +160,8 @@ export default function Figure({ caption, reading, missing, notes, ariaLabel, re
       {reading ? <p className="coh-figure__reading">{reading}</p> : null}
       {missing ? (
         <p className="coh-figure__missing">
-          <span aria-hidden="true">◌</span> {missing}
+          <span aria-hidden="true">◌</span>
+          <span>{missing}</span>
         </p>
       ) : null}
       {notes?.length ? (
@@ -166,7 +174,18 @@ export default function Figure({ caption, reading, missing, notes, ariaLabel, re
           </ul>
         </details>
       ) : null}
-    </figure>
+    </>
+  );
+
+  return (
+    <FigureDialogFrame
+      caption={caption}
+      ariaLabel={ariaLabel}
+      readout={readout}
+      interactionReadout={announced}
+      reserveInteractionRow={reserveInteractionRow}
+      renderBody={renderFigureBody}
+    />
   );
 }
 
@@ -187,6 +206,7 @@ export function Plot({
   height,
   minWidth = 0,
   onSelect,
+  scrollLabel,
   sharedX,
   viewBox,
   reference = null,
@@ -202,6 +222,8 @@ export function Plot({
    * this existed.
    */
   minWidth?: number;
+  /** Names the local horizontal viewport when the geometry needs its floor. */
+  scrollLabel?: string;
   /**
    * Called with the index of a mark the reader chose, in document order — the
    * same order the arrow walk uses, so a figure can map an index back to its
@@ -256,8 +278,16 @@ export function Plot({
   reference?: PlotReference | ((width: number) => PlotReference | null) | null;
   children: (width: number) => ReactNode;
 }) {
-  const [ref, measured] = useMeasuredWidth<HTMLDivElement>(720);
+  // A routed Plot can reconcile in place. Key the measurement to the stable
+  // geometry contract so moving between two drawings reads the shared wrapper
+  // again even when ResizeObserver sees no wrapper-size transition to report.
+  // Height distinguishes routed fluid plots from one another; minWidth keeps
+  // floored and fluid modes distinct; viewBox distinguishes authored geometry
+  // from a measured coordinate system.
+  const measurementKey = `${minWidth}:${height}:${viewBox ?? "measured"}`;
+  const [ref, measured] = useMeasuredWidth<HTMLDivElement>(720, measurementKey);
   const width = Math.max(measured, minWidth);
+  const scrollable = Boolean(scrollLabel) && minWidth > measured + 1;
   // Both hooks run every render — they must, they are hooks — and the figure
   // uses one of them. A figure carries per-mark titles or a shared axis, never
   // both, so there is no case where the unused one has anything to say.
@@ -271,7 +301,6 @@ export function Plot({
   const { selectable } = marks;
   const svgRef = axis ? shared.svgRef : marks.svgRef;
   const { interactive, announce, handlers } = axis ? shared : marks;
-  const readout = axis ? null : marks.readout;
   const publish = useContext(AnnounceContext);
   // In an effect, not during render. Calling a PARENT's setter while a child is
   // rendering is the one thing React refuses outright — "cannot update a
@@ -284,16 +313,28 @@ export function Plot({
   // behaves exactly as it did before this existed — and in an effect for the
   // same reason as the line above: this sets a PARENT's state.
   const { setHot } = useHot();
-  useEffect(() => { setHot(marks.hotIndex); }, [setHot, marks.hotIndex]);
+  // A shared-x plot has no per-mark readout: its semantic target is the axis
+  // index. Publish that index so an exact-value table and sibling linked plot
+  // follow the same leg/run as the crosshair instead of remaining inert.
+  const hotIndex = axis ? shared.index : marks.hotIndex;
+  useEffect(() => { setHot(hotIndex); }, [setHot, hotIndex]);
 
   return (
     <div
       ref={ref}
       className={`coh-plot${minWidth ? " is-floored" : ""}${selectable ? " is-selectable" : ""}`}
+      role={scrollable ? "region" : undefined}
+      aria-label={scrollable ? scrollLabel : undefined}
+      tabIndex={scrollable ? 0 : undefined}
       style={{ width: "100%" }}
     >
       <svg
         ref={svgRef}
+        // Write the zero explicitly. Routed figures can reconcile this SVG
+        // in place: leaving the unfloored value `undefined` let React retain
+        // the previous view's pixel floor, so a fluid phone-width figure could
+        // inherit a horizontal overflow it never requested.
+        style={{ minInlineSize: minWidth ? minWidth : 0 }}
         viewBox={viewBox ?? `0 0 ${width} ${height}`}
         // A fixed box scales to the column; a measured one is already the
         // column, so it keeps its pixel width and does not restate it.
@@ -329,7 +370,9 @@ export function Plot({
         {mark ? <ReferenceLine {...mark} /> : null}
         {children(width)}
         {mark ? <ReferenceLabel {...mark} /> : null}
-        {readout ? <Readout {...readout} chartWidth={width} /> : null}
+        {/* Interactive copy lives in the reserved inspection row rendered by
+            FigureDialogFrame. Keeping it out of the SVG prevents a long mark
+            explanation from covering the evidence it is explaining. */}
         {axis && shared.reading && shared.at !== null ? (
           <SharedXReadout
             at={shared.at}
