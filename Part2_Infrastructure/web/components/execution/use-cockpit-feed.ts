@@ -166,13 +166,10 @@ export function useCockpitFeed({ seed, symbol, onOrderSettled }: CockpitFeedOpti
   /**
    * The four facts the panels read, all now derived from one state.
    *
-   * A settled failure still enters the sandbox whatever the reason — a gateway
-   * that is refusing, hanging or returning 503 gets a filled-in desk rather
-   * than three empty sections, because what makes generated data safe is that
-   * it is labelled and that writes are locked, not that we withhold it during
-   * an incident. What changed is that it can only do so from a desk that has
-   * never had a reading. With one in hand, a failure is `cached`: the same
-   * numbers, marked stale, which is what `useBook` always did.
+   * A settled failure without a reading is an outage, not a generated desk.
+   * With one in hand, a failure is `cached`: the same numbers, marked stale.
+   * The generated branch is still available, but only after the reader chooses
+   * it from the unavailable state.
    */
   const { showing } = source;
   const book = showing.kind === "measured" ? showing.payload : null;
@@ -193,7 +190,7 @@ export function useCockpitFeed({ seed, symbol, onOrderSettled }: CockpitFeedOpti
   const sandboxOff = source.chosen === "live";
   const setSandboxOff = useCallback((off: boolean) => {
     if (off) machine.current!.choose("live");
-    else machine.current!.release();
+    else machine.current!.choose("sandbox");
     publish();
   }, [publish]);
 
