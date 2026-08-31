@@ -1,0 +1,379 @@
+:is(.markets-plane, .proofs-plane) .coh-evidence {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+:is(.markets-plane, .proofs-plane) .coh-evidence__tools {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: stretch;
+  gap: var(--space-2);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+:is(.markets-plane, .proofs-plane) .coh-evidence__actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: var(--space-2);
+  min-width: 0;
+}
+:is(.markets-plane, .proofs-plane) .coh-evidence__context-action {
+  min-width: 0;
+  max-width: 100%;
+}
+:is(.markets-plane, .proofs-plane) .coh-evidence__context-action > * {
+  max-width: 100%;
+}
+:is(.markets-plane, .proofs-plane) .coh-evidence__open {
+  width: 100%;
+  min-block-size: 100%;
+}
+:is(.markets-plane, .proofs-plane) .coh-evidence__tools:not(:has(.coh-evidence__context-action)) {
+  grid-template-columns: max-content;
+  justify-content: end;
+}
+.coh-evidence__desk-context {
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+}
+:is(.markets-plane, .proofs-plane) .coh-evidence__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: 1px;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--rule-soft);
+  border-radius: var(--radius-sm);
+  background: var(--rule-soft);
+}
+:is(.markets-plane, .proofs-plane) .coh-evidence__grid > div {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  min-width: 0;
+  padding: var(--space-2);
+  background: var(--surface-2);
+}
+:is(.markets-plane, .proofs-plane) .coh-evidence__grid dt {
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+:is(.markets-plane, .proofs-plane) .coh-evidence__grid dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--text-primary);
+  font-family: var(--mono);
+  font-size: var(--fs-body);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+:is(.markets-plane, .proofs-plane) .coh-evidence__lead dd {
+  font-weight: 700;
+}
+:is(.markets-plane, .proofs-plane) .coh-evidence__transport dd {
+  font-family: var(--sans);
+}
+:is(.markets-plane, .proofs-plane) .coh-evidence__transport .coh-chip {
+  max-width: 100%;
+  white-space: normal;
+}
+@media (min-width: 1400px) {
+  :is(.markets-plane, .proofs-plane) .coh-evidence__grid { grid-template-columns: 1.35fr 1fr 1.25fr; }
+  :is(.markets-plane, .proofs-plane) .coh-evidence__grid:not(:has(.coh-evidence__transport)) { grid-template-columns: 1.35fr 1fr; }
+}
+@media (max-width: 700px) {
+  :is(.markets-plane, .proofs-plane) .coh-evidence {
+    grid-template-columns: 1fr;
+  }
+  :is(.markets-plane, .proofs-plane) .coh-evidence__tools {
+    width: 100%;
+  }
+}
+@media (max-width: 380px) {
+  :is(.markets-plane, .proofs-plane) .coh-evidence__tools {
+    grid-template-columns: 1fr;
+  }
+  :is(.markets-plane, .proofs-plane) .coh-evidence__tools:not(:has(.coh-evidence__context-action)) {
+    grid-template-columns: 1fr;
+  }
+  :is(.markets-plane, .proofs-plane) .coh-evidence__actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}
+/* ==========================================================================
+   Shared figure inspection chrome.
+   `Figure` owns every registered diagram on Markets and Proofs, so one
+   hierarchy here upgrades the whole inventory without giving 44 views 44
+   slightly different toolbars. This base scope stays conservative; the later
+   density layer opts Diffusion into the same inspection trigger.
+   ========================================================================== */
+:where(.coh-figure__kind, .coh-figure__focus) {
+  display: none;
+}
+:is(:is(.markets-plane, .proofs-plane) .coh-figure, .coh-figure--dialog) {
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  border-color: var(--quant-surface-border);
+  isolation: isolate;
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+:is(:is(.markets-plane, .proofs-plane) .coh-figure, .coh-figure--dialog) .coh-figure__caption {
+  align-items: center;
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--rule-soft);
+  background: color-mix(in srgb, var(--surface-2) 70%, var(--surface-1));
+}
+:is(:is(.markets-plane, .proofs-plane) .coh-figure, .coh-figure--dialog) .coh-figure__caption-copy {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 2px;
+  min-width: 0;
+}
+:is(:is(.markets-plane, .proofs-plane) .coh-figure, .coh-figure--dialog) .coh-figure__kind {
+  display: block;
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: var(--ls-caps);
+  line-height: 1;
+  text-transform: uppercase;
+}
+:is(:is(.markets-plane, .proofs-plane) .coh-figure, .coh-figure--dialog) .coh-figure__caption-title {
+  color: var(--text-primary);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+:is(:is(.markets-plane, .proofs-plane) .coh-figure, .coh-figure--dialog) .coh-figure__tools {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--space-2);
+}
+:is(.markets-plane, .proofs-plane) .coh-figure__focus {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-block-size: 28px;
+  padding: 3px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+:is(.markets-plane, .proofs-plane) .coh-figure__focus:hover {
+  border-color: var(--text-secondary);
+  background: var(--surface-2);
+}
+:is(.markets-plane, .proofs-plane) .coh-figure__focus:focus-visible {
+  outline: 2px solid var(--series-1);
+  outline-offset: 2px;
+}
+:is(:is(.markets-plane, .proofs-plane) .coh-figure, .coh-figure--dialog) .coh-figure__plot {
+  padding: var(--space-3);
+  background: var(--surface-1);
+}
+:is(:is(.markets-plane, .proofs-plane) .coh-figure, .coh-figure--dialog) :is(.coh-figure__reading, .coh-figure__missing) {
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--rule-soft);
+}
+:is(:is(.markets-plane, .proofs-plane) .coh-figure, .coh-figure--dialog) .coh-figure__reading {
+  border-inline-start: 3px solid var(--series-1);
+  background: color-mix(in srgb, var(--series-1) 5%, var(--surface-1));
+}
+:is(:is(.markets-plane, .proofs-plane) .coh-figure, .coh-figure--dialog) .coh-figure__notes {
+  margin: var(--space-2) var(--space-3) var(--space-3);
+}
+/* One geometry owner for analytical view controls. Radix owns behavior; this
+   grid owns fit. Every choice stays in the visible control surface, and long
+   labels wrap inside their own bounded track instead of entering a hidden
+   horizontal scrollport. */
+:is(.markets-plane, .proofs-plane) .quant-view-switcher {
+  display: grid;
+  grid-auto-flow: initial;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 7.5rem), 1fr));
+  flex: 1 1 32rem;
+  width: auto;
+  max-width: 100%;
+  min-width: 0;
+  overflow: visible;
+}
+:is(.markets-plane, .proofs-plane) .quant-view-switcher [data-slot="toggle-group-item"] {
+  width: 100%;
+  min-inline-size: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+/* The inline shell keeps its measured size while Radix moves the chart. */
+.coh-figure.is-dialog-open {
+  overflow: hidden;
+}
+/* These are DOM relocation anchors, not layout boxes. The body stays mounted
+   while Focus moves it into the modal, so crosshair and pin state survive. */
+.coh-figure__inline-host,
+.coh-figure__inline-body,
+.coh-figure-dialog__host {
+  display: contents;
+}
+/* Analytical dimensions over DialogContent's compact confirmation defaults. */
+[data-slot="dialog-content"].coh-figure-dialog {
+  width: min(92rem, calc(100vw - 2 * clamp(16px, 4vw, 52px)));
+  max-width: none;
+  max-height: calc(100dvh - 2 * clamp(16px, 4vw, 52px));
+  gap: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  border-color: var(--series-1);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-sm);
+}
+[data-slot="dialog-content"].coh-figure-dialog > .coh-figure--dialog {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: inherit;
+  box-shadow: none;
+}
+[data-slot="dialog-content"].coh-figure-dialog .coh-figure--dialog .coh-figure__caption {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  min-height: 3.5rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.coh-figure-dialog__tools { min-width: 0; }
+.coh-figure-dialog__tools .coh-figure__readout {
+  display: block;
+  flex: 0 1 min(48vw, 68ch);
+  block-size: calc(2.9em + var(--space-2));
+  min-block-size: calc(2.9em + var(--space-2));
+  max-inline-size: min(48vw, 68ch);
+  padding-inline-end: var(--space-1);
+  overflow: hidden auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.coh-figure-dialog__readout[data-active="false"] {
+  opacity: 0;
+  pointer-events: none;
+}
+.coh-figure-dialog__pan-hint {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+}
+.coh-figure-dialog__pan-hint[data-active="false"] { opacity: 0; }
+.coh-figure-dialog__zoom {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-1);
+}
+.coh-figure-dialog__zoom output {
+  min-inline-size: 3.5rem;
+  color: var(--text-secondary);
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.coh-figure-dialog__close {
+  flex: 0 0 auto;
+}
+.coh-figure-dialog__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: var(--space-3);
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  touch-action: pan-x pan-y pinch-zoom;
+  background: var(--surface-0);
+}
+.coh-figure-dialog__body[data-pannable="true"] {
+  cursor: grab;
+}
+.coh-figure-dialog__body[data-panning="true"] {
+  cursor: grabbing;
+  scroll-behavior: auto;
+  user-select: none;
+}
+.coh-figure-dialog__body[data-pannable="true"] :is(.coh-figure__plot, .coh-plot, svg) {
+  cursor: inherit;
+}
+.coh-figure-dialog__body .coh-figure__plot {
+  display: grid;
+  align-items: start;
+  inline-size: calc(100% * var(--figure-zoom));
+  zoom: var(--figure-zoom);
+  min-height: 0;
+  margin-inline: auto;
+  border: 1px solid var(--rule-soft);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+}
+@media (max-width: 700px) {
+  :is(
+    :is(.markets-plane, .proofs-plane) .coh-figure__caption,
+    .coh-figure--dialog .coh-figure__caption
+  ) {
+    align-items: flex-start;
+  }
+  :is(
+    :is(.markets-plane, .proofs-plane) .coh-figure__tools,
+    .coh-figure--dialog .coh-figure__tools
+  ) {
+    flex-wrap: wrap;
+    align-items: flex-end;
+  }
+  [data-slot="dialog-content"].coh-figure-dialog {
+    width: calc(100vw - 2 * var(--space-2));
+    max-height: calc(100dvh - 2 * var(--space-2));
+  }
+  .coh-figure-dialog__tools .coh-figure__readout {
+    flex-basis: 100%;
+    inline-size: 100%;
+    max-inline-size: 100%;
+  }
+  .coh-figure-dialog__body {
+    padding: var(--space-2);
+  }
+}
