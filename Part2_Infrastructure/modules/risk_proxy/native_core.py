@@ -14,9 +14,11 @@ from __future__ import annotations
 
 import importlib
 import logging
+from typing import Any
 
 from config import settings
 from modules.metrics import observe_core_self_test_latency
+from modules.risk_proxy.native_result import NativeDecisionResult
 from modules.schemas import OrderRequest
 
 log = logging.getLogger("alphaengine.risk")
@@ -37,9 +39,69 @@ class NativeCoreMixin:
         try:
             loader = importlib.import_module("modules.decision_core")
             return loader.native()
-        except Exception:  # pragma: no cover - a broken loader must not break orders
+        except Exception:  # pragma: no cover - import-time policy is tested in the loader
+            # An explicit native requirement is fail-closed. Swallowing this
+            # exception would turn DECISION_CORE=native into an undocumented
+            # auto mode before any telemetry exists to report the degradation.
+            from os import getenv
+
+            configured = getenv("DECISION_CORE", getenv("ALPHAENGINE_DECISION_CORE", "auto")).strip().lower()
+            if configured == "native":
+                raise
             log.exception("decision core loader unavailable; using the Python reference")
             return None
+
+    @staticmethod
+    def _decision_core_loader_snapshot() -> dict[str, Any]:
+        try:
+            loader = importlib.import_module("modules.decision_core")
+            return loader.snapshot()
+        except Exception:
+            # This is reached only for an unexpected auto-mode loader fault;
+            # the explicit-native case was re-raised by _resolve_decision_core.
+            return {
+                "configured": "auto",
+                "selected": "python",
+                "effective": "python",
+                "fallback_reason": "native_loader_exception",
+                "fallback_total": 0,
+                "fallback_counts": {},
+                "abi_version": None,
+                "capability_version": None,
+                "capabilities": None,
+                "build_id": None,
+                "compiler": None,
+                "pybind11_version": None,
+                "decide_argument_count": None,
+            }
+
+    def _record_native_fallback(self, reason: str) -> None:
+        """Record one selected-native order that the Python reference decided."""
+        self.last_decision_core_ns = None
+        self._decision_core_effective = "python"
+        self._decision_core_fallback_reason = reason
+        self._decision_core_fallback_total += 1
+        self._decision_core_fallback_counts[reason] = self._decision_core_fallback_counts.get(reason, 0) + 1
+
+    def _record_native_success(self) -> None:
+        self._decision_core_effective = "native"
+        self._decision_core_fallback_reason = None
+
+    def decision_core_status(self) -> dict[str, Any]:
+        """Configured, selected and last-order engine plus native build identity."""
+        loader = self._decision_core_loader_snapshot()
+        return {
+            "configured": self._decision_core_configured,
+            "selected": self._decision_core_selected,
+            "effective": self._decision_core_effective,
+            "fallback_reason": self._decision_core_fallback_reason,
+            "fallback_total": self._decision_core_fallback_total,
+            "fallback_counts": dict(self._decision_core_fallback_counts),
+            **self._decision_core_identity,
+            "capability_version": getattr(self._decision_core, "CAPABILITY_VERSION", loader.get("capability_version")),
+            "capabilities": tuple(getattr(self._decision_core, "CAPABILITIES", loader.get("capabilities") or ()))
+            or None,
+        }
 
     def _sync_position_book(self) -> None:
         """Re-mirror the held book into the native PositionBook.
@@ -133,7 +195,11 @@ class NativeCoreMixin:
         """
         core = self._decision_core
         if core is None:
+            self.last_decision_core_ns = None
+            if self._decision_core_selected == "native":
+                self._record_native_fallback("native_unavailable")
             return None, ()
+        failure_reason = "native_exception"
         try:
             symbol = req.symbol
             order_books = []
@@ -152,6 +218,7 @@ class NativeCoreMixin:
                         # switched under a book that has never updated since).
                         # The Python reference decides the whole order rather
                         # than half of it deciding natively.
+                        self._record_native_fallback("book_mirror_unavailable")
                         return None, ()
                     order_books.append(ladder)
                     names.append(name)
@@ -181,51 +248,54 @@ class NativeCoreMixin:
             working_buys, working_sells = self.working_qty(symbol)
             paper_price = req.paper_execution.price if paper_equity else None
 
-            # Positional, not by keyword. pybind11 resolves py::arg names
-            # through a dict on every call, and this one has twenty-six of
-            # them on the per-order path; the argument order below is the
-            # order of decide()'s C++ signature and is checked by the parity
-            # fixtures, which would fail loudly on any transposition. The
-            # self-measure probe further down keeps the keyword form on
-            # purpose — it runs once at startup, where naming beats speed.
+            # Positional to avoid pybind's keyword dict on this 28-argument hot
+            # path. Parity fixtures guard the order; the startup-only probe uses
+            # keywords where naming matters more than latency.
             result = core.decide(
-                (req.side == "BUY"),                    # side_is_buy
-                (req.order_type == "LIMIT"),            # order_type_is_limit
-                req.quantity,                           # order_quantity
-                req.notional,                           # order_notional
-                req.limit_price,                        # limit_price
-                paper_equity,                           # is_paper
-                paper_price,                            # paper_price
-                order_books,                            # order_books
-                pos_quantities,                         # pos_quantities
-                pos_avg_prices,                         # pos_avg_prices
-                pos_realized,                           # pos_realized
-                pos_marks,                              # pos_marks
-                pos_is_order_symbol,                    # pos_is_order_symbol
-                working_buys,                           # working_buys
-                working_sells,                          # working_sells
-                settings.starting_equity_usd,           # starting_equity
-                self.carried_realized_pnl,              # carried_realized_pnl
-                self.start_of_day_equity,               # start_of_day_equity
-                settings.max_order_notional_usd,        # max_order_notional_usd
-                settings.max_symbol_notional_usd,       # max_symbol_notional_usd
-                settings.max_gross_exposure_usd,        # max_gross_exposure_usd
-                settings.max_price_deviation_bps,       # max_price_deviation_bps
-                settings.max_daily_drawdown_pct,        # max_daily_drawdown_pct
-                settings.reduce_only_threshold,         # reduce_only_threshold
-                self._reduce_only_override,             # reduce_only_override
+                (req.side == "BUY"),  # side_is_buy
+                (req.order_type == "LIMIT"),  # order_type_is_limit
+                req.quantity,  # order_quantity
+                req.notional,  # order_notional
+                req.limit_price,  # limit_price
+                paper_equity,  # is_paper
+                paper_price,  # paper_price
+                order_books,  # order_books
+                pos_quantities,  # pos_quantities
+                pos_avg_prices,  # pos_avg_prices
+                pos_realized,  # pos_realized
+                pos_marks,  # pos_marks
+                pos_is_order_symbol,  # pos_is_order_symbol
+                working_buys,  # working_buys
+                working_sells,  # working_sells
+                settings.starting_equity_usd,  # starting_equity
+                self.carried_realized_pnl,  # carried_realized_pnl
+                self.start_of_day_equity,  # start_of_day_equity
+                settings.max_order_notional_usd,  # max_order_notional_usd
+                settings.max_symbol_notional_usd,  # max_symbol_notional_usd
+                settings.max_gross_exposure_usd,  # max_gross_exposure_usd
+                settings.max_price_deviation_bps,  # max_price_deviation_bps
+                settings.max_daily_drawdown_pct,  # max_daily_drawdown_pct
+                settings.reduce_only_threshold,  # reduce_only_threshold
+                self._reduce_only_override,  # reduce_only_override
                 # submit() gates on the routed walk only where it has a router
                 # to route with; without a TCA engine there is no est_slippage
                 # check at all, and the core must not invent one.
-                self.tca is not None,                   # route_enabled
-                position_book,                          # position_book
-                symbol,                                 # order_symbol
+                self.tca is not None,  # route_enabled
+                position_book,  # position_book
+                symbol,  # order_symbol
             )
+            failure_reason = "native_result_conversion"
+            result = NativeDecisionResult.materialize(
+                result,
+                len(venue_names),
+                getattr(core, "CoreResult", None),
+            )
+            self._record_native_success()
             return result, venue_names
         except Exception:  # pragma: no cover - robustness: never fail an order on the core
             log.exception("native decision core raised; falling back to the Python reference")
+            self._record_native_fallback(failure_reason)
             return None, ()
-
     #: The startup self-measure's synthetic book: two venues, five levels a
     #: side, one cent apart around 100.0, the second venue a cent wider, 5 000
     #: units at every level. Fixed on purpose — a self-measure that varied its
@@ -306,11 +376,15 @@ class NativeCoreMixin:
                 max_daily_drawdown_pct=settings.max_daily_drawdown_pct,
                 reduce_only_threshold=settings.reduce_only_threshold,
                 reduce_only_override=False,
-                # Two ladders are supplied, so the routed walk — the expensive
-                # end of the battery — is part of what is timed.
+                # Two ladders keep the expensive routed walk inside the timed battery.
                 route_enabled=True,
             )
-            for _ in range(self._SELF_MEASURE_WARMUP):
+            probe = core.decide(**kwargs)
+            if (probe.mark, probe.qty, probe.projected_sym, probe.projected_gross,
+                    probe.route_fillable, probe.route_filled_notional, probe.route_venue_order) != (
+                    100.0, 100.0, 10_050.0, 10_050.0, True, 10_000.0, [0]):
+                raise RuntimeError("native self-measure known-answer mismatch")
+            for _ in range(self._SELF_MEASURE_WARMUP - 1):
                 core.decide(**kwargs)
             recorded = 0
             for _ in range(self._SELF_MEASURE_SAMPLES):
@@ -320,5 +394,6 @@ class NativeCoreMixin:
             log.info("decision core self-measure: %d samples on the synthetic two-venue book", recorded)
             return recorded
         except Exception:
+            self._record_native_fallback("native_self_measure_failed")
             log.warning("decision core self-measure failed; the core histogram is untouched", exc_info=True)
             return 0
