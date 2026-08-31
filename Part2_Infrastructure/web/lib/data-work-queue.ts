@@ -23,144 +23,11 @@ export interface DataWorkItem {
   slaDueAt: number | null;
   /**
    * The gateway's row version — a PATCH must quote it, and a stale one is
-   * refused with the current row. 1 for a seed or an item that has never
-   * been persisted.
+   * refused with the current row. New persisted items begin at version 1.
    */
   version: number;
-  /** "seed" for the nine sample rows the gateway seeds once; a desk actor otherwise. */
+  /** The authenticated actor that created the persisted row. */
   createdBy: string;
-}
-
-type DataWorkSeed = Omit<DataWorkItem, "openedAt" | "slaDueAt" | "version" | "createdBy"> & {
-  ageMinutes: number;
-  slaHours: number | null;
-};
-
-/**
- * The nine sample rows, in the same order the gateway seeds them
- * (`modules/work_items.py` SEED_ITEMS). They are still needed here: the
- * board renders them as its offline state before the first load and when
- * the gateway is unreachable, disclosed as such.
- */
-const DATA_WORK_SEEDS: readonly DataWorkSeed[] = [
-  {
-    id: "BUG-091",
-    kind: "bug",
-    priority: "P0",
-    status: "progress",
-    title: "Duplicate SOLUSDT bars in the 4h backfill",
-    summary: "Two timestamps survive normalisation and distort realised volatility.",
-    owner: "Mei",
-    area: "Market data",
-    ageMinutes: 74,
-    slaHours: 2,
-  },
-  {
-    id: "BUG-094",
-    kind: "bug",
-    priority: "P1",
-    status: "progress",
-    title: "News timestamps parsed in the browser timezone",
-    summary: "UTC vendor timestamps shift during enrichment and reorder the feed.",
-    owner: "Ravi",
-    area: "Normalisation",
-    ageMinutes: 228,
-    slaHours: 8,
-  },
-  {
-    id: "TKT-322",
-    kind: "ticket",
-    priority: "P1",
-    status: "intake",
-    title: "Review changePercent schema drift",
-    summary: "Three Alpha Vantage payloads were served with a renamed secondary field.",
-    owner: "Unassigned",
-    area: "Data contracts",
-    ageMinutes: 96,
-    slaHours: 8,
-  },
-  {
-    id: "REQ-184",
-    kind: "request",
-    priority: "P2",
-    status: "intake",
-    title: "Add perpetual funding-rate lineage",
-    summary: "Quant research needs provider and cache provenance on funding snapshots.",
-    owner: "Unassigned",
-    area: "Research data",
-    ageMinutes: 41,
-    slaHours: 24,
-  },
-  {
-    id: "REQ-187",
-    kind: "request",
-    priority: "P2",
-    status: "intake",
-    title: "Define an SLO for cross-source spread",
-    summary: "Alert when the quote consensus remains outside tolerance for five minutes.",
-    owner: "Noah",
-    area: "Observability",
-    ageMinutes: 19,
-    slaHours: 24,
-  },
-  {
-    id: "TKT-319",
-    kind: "ticket",
-    priority: "P2",
-    status: "ready",
-    title: "Raise the interactive quota reserve",
-    summary: "Protect manual traces while the background bars poll approaches its daily cap.",
-    owner: "Lina",
-    area: "Capacity",
-    ageMinutes: 310,
-    slaHours: 24,
-  },
-  {
-    id: "REQ-179",
-    kind: "request",
-    priority: "P3",
-    status: "ready",
-    title: "Expose provider choice in research exports",
-    summary: "Add source, route rank, and cache age to the experiment artifact.",
-    owner: "Ravi",
-    area: "Lineage",
-    ageMinutes: 522,
-    slaHours: 72,
-  },
-  {
-    id: "TKT-311",
-    kind: "ticket",
-    priority: "P3",
-    status: "resolved",
-    title: "Publish the failover drill runbook",
-    summary: "Document the bounded outage, expected route change, and restore check.",
-    owner: "Mei",
-    area: "Runbooks",
-    ageMinutes: 1_460,
-    slaHours: null,
-  },
-  {
-    id: "BUG-088",
-    kind: "bug",
-    priority: "P2",
-    status: "resolved",
-    title: "BTC quote freshness label lagged one poll",
-    summary: "The inspector now reports the response timestamp from the winning request.",
-    owner: "Lina",
-    area: "Pipeline",
-    ageMinutes: 2_040,
-    slaHours: null,
-  },
-];
-
-export function createInitialDataWorkItems(now = Date.now()): DataWorkItem[] {
-  return DATA_WORK_SEEDS.map(({ ageMinutes, slaHours, ...item }) => ({
-    ...item,
-    openedAt: now - ageMinutes * 60_000,
-    slaDueAt: slaHours === null ? null : now + (slaHours * 60 - ageMinutes) * 60_000,
-    version: 1,
-    createdBy: "seed",
-  }));
 }
 
 // --------------------------------------------------------------------------
@@ -188,7 +55,7 @@ export interface DataWorkItemWire {
 
 /** Where the list on screen came from — the board says which. */
 export type DataWorkSource =
-  | { kind: "gateway"; backend: string; count: number; seeded: number; observedAt: string }
+  | { kind: "gateway"; backend: string; count: number; observedAt: string }
   | { kind: "local"; reason: string };
 
 export function isDataWorkItemWire(value: unknown): value is DataWorkItemWire {
@@ -241,7 +108,7 @@ export async function loadDataWorkItems(): Promise<DataWorkLoad> {
   try {
     const response = await withDeadline("/api/gateway/data/work-items");
     const body = await response.json().catch(() => null) as
-      | { backend?: string; items?: unknown[]; count?: number; seeded?: number; observed_at?: string; error?: string }
+      | { backend?: string; items?: unknown[]; count?: number; observed_at?: string; error?: string }
       | null;
     if (!response.ok || !body || !Array.isArray(body.items)) {
       return { ok: false, reason: body?.error ?? `the work queue answered HTTP ${response.status}` };
@@ -254,7 +121,6 @@ export async function loadDataWorkItems(): Promise<DataWorkLoad> {
         kind: "gateway",
         backend: body.backend ?? "sqlite",
         count: body.count ?? items.length,
-        seeded: body.seeded ?? items.filter((i) => i.createdBy === "seed").length,
         observedAt: body.observed_at ?? new Date().toISOString(),
       },
     };
