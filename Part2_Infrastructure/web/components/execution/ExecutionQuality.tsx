@@ -72,15 +72,19 @@ export default function ExecutionQuality({ summary, symbol, symbolOrders, rows =
           <dl className="cockpit-quality__metrics">
             <div>
               <dt>Fill rate</dt>
-              <dd className="num">{pct(summary.fillRate, 0)}</dd>
-              <span className="muted">{summary.accepted} filled, {summary.rejected} rejected</span>
+              <dd className="num">
+                {pct(summary.fillRate, 0)}
+                <small className="muted">{summary.accepted} filled, {summary.rejected} rejected</small>
+              </dd>
             </div>
             <div>
               <dt>Avg slippage</dt>
-              <dd>{summary.avgSlippageBps != null ? `${fmt(summary.avgSlippageBps, 1)} bps` : "—"}</dd>
-              <span className="muted">
-                worst {summary.worstSlippageBps != null ? `${fmt(summary.worstSlippageBps, 1)} bps` : "—"}
-              </span>
+              <dd>
+                {summary.avgSlippageBps != null ? `${fmt(summary.avgSlippageBps, 1)} bps` : "—"}
+                <small className="muted">
+                  worst {summary.worstSlippageBps != null ? `${fmt(summary.worstSlippageBps, 1)} bps` : "—"}
+                </small>
+              </dd>
             </div>
             <div>
               <dt>Fees paid</dt>
@@ -93,12 +97,14 @@ export default function ExecutionQuality({ summary, symbol, symbolOrders, rows =
                   how many. Rejected: dashing the total whenever any fee is
                   missing, which discards every fee the gateway did record and
                   answers a partial measurement with no measurement. */}
-              <dd>{summary.feePricedFills ? usd(summary.totalFees, 2) : "—"}</dd>
-              <span className="muted">
-                {summary.feeUnpricedFills
-                  ? `over ${summary.feePricedFills} of ${summary.accepted} fills; ${summary.feeUnpricedFills} recorded no fee`
-                  : "on filled notional"}
-              </span>
+              <dd>
+                {summary.feePricedFills ? usd(summary.totalFees, 2) : "—"}
+                <small className="muted">
+                  {summary.feeUnpricedFills
+                    ? `over ${summary.feePricedFills} of ${summary.accepted} fills; ${summary.feeUnpricedFills} recorded no fee`
+                    : "on filled notional"}
+                </small>
+              </dd>
             </div>
             <div>
               {/* "Median gate latency", not "median latency". This is time inside
@@ -109,20 +115,24 @@ export default function ExecutionQuality({ summary, symbol, symbolOrders, rows =
               {/* The wire carries ms; the desk shows the unit the value earns
                   (a 0.21 ms decision reads 210 µs). Null stays a dash inside
                   the formatter — never "0 ns". */}
-              <dd className="num">{formatDuration(summary.p50LatencyMs, "ms")}</dd>
-              <span className="muted">
-                p90 {formatDuration(summary.p90LatencyMs, "ms")},
-                p99 {formatDuration(summary.p99LatencyMs, "ms")}
-              </span>
+              <dd className="num">
+                {formatDuration(summary.p50LatencyMs, "ms")}
+                <small className="muted">
+                  p90 {formatDuration(summary.p90LatencyMs, "ms")},
+                  p99 {formatDuration(summary.p99LatencyMs, "ms")}
+                </small>
+              </dd>
             </div>
             <div>
               <dt>Price improvement</dt>
-              <dd>{improvement.rate != null ? pct(improvement.rate, 0) : "—"}</dd>
-              <span className="muted">
-                {improvement.n
-                  ? <>{improvement.improved} of {improvement.n} beat the mid{improvement.meanBps != null ? `; mean ${fmt(improvement.meanBps, 1)} bps` : ""}</>
-                  : "no priced fills"}
-              </span>
+              <dd>
+                {improvement.rate != null ? pct(improvement.rate, 0) : "—"}
+                <small className="muted">
+                  {improvement.n
+                    ? <>{improvement.improved} of {improvement.n} beat the mid{improvement.meanBps != null ? `; mean ${fmt(improvement.meanBps, 1)} bps` : ""}</>
+                    : "no priced fills"}
+                </small>
+              </dd>
             </div>
           </dl>
 
@@ -150,6 +160,7 @@ export default function ExecutionQuality({ summary, symbol, symbolOrders, rows =
               values={rows.map((r) => r.latencyMs).filter((v): v is number => v != null)}
               ariaLabel="Distribution of gate decision latency"
               format={(v) => formatDuration(v, "ms")}
+              variant="latency"
             />
             {/* A chart-reading rule, not a measurement. What the axis is
                 bounded to stays at rest twice over — the tile above reads
@@ -180,6 +191,7 @@ export default function ExecutionQuality({ summary, symbol, symbolOrders, rows =
               unitLong="basis points"
               noun="fills"
               ariaLabel="Distribution of effective spread across fills"
+              variant="spread"
             />
           </div>
           </div>
