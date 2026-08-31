@@ -26,6 +26,7 @@ export interface DataBarMetric {
   value: ReactNode;
   note: string;
   tone?: "good" | "warn" | "bad" | "neutral";
+  wide?: boolean;
 }
 
 /*
@@ -199,7 +200,7 @@ export function metricsForSection(
         label: "Persistence",
         value: workSource?.kind === "gateway" ? "Gateway SQLite" : "Local (offline)",
         note: workSource?.kind === "gateway"
-          ? `${workSource.count} items, ${workSource.seeded} samples; audit-logged`
+          ? `${workSource.count} items; audit-logged`
           : workSource?.kind === "local"
             ? `${workSource.reason}${pendingWorkWrites ? `; ${pendingWorkWrites} edits held` : ""}`
             : "loading",
@@ -253,11 +254,14 @@ export function metricsForSection(
      * observation time rather than `fetchedAt`, because fetching the health
      * response does not make an old feed fresh.
      */
-    ...deriveTrustSlis(health).map((sli) => ({
+    ...deriveTrustSlis(health).map((sli, index) => ({
       label: sli.label,
       value: sli.value,
       note: sli.note,
       tone: sli.tone === "unknown" ? ("neutral" as const) : sli.tone,
+      // deriveTrustSlis owns this fixed four-tile order; its first tile is the
+      // book-freshness decision and gets the one wider context track.
+      wide: index === 0,
     })),
   ];
 }
