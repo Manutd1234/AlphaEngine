@@ -26,22 +26,24 @@
  * it is called.
  */
 
-import { memo, useState } from "react";
+import { memo } from "react";
 
+import { viewsFor } from "@/lib/section-views";
 import PaneHead from "../PaneHead";
+import DiffusionViewControl from "./DiffusionViewControl";
 import InformationDiffusionPane from "./InformationDiffusionPane";
 import type { AbsorptionRead } from "./types";
 
-type ArmView = "absorption" | "floor" | "clocks";
+export type ArmView = "absorption" | "floor" | "clocks";
 
-const VIEWS: ReadonlyArray<[ArmView, string]> = [
-  ["absorption", "Absorption"],
-  ["floor", "Control"],
-  ["clocks", "Clocks"],
-];
+const VIEWS = viewsFor("diffusion", "arm") as ReadonlyArray<readonly [ArmView, string]>;
 
-function ArmSection({ data, error }: { data: AbsorptionRead | null; error: string | null }) {
-  const [view, setView] = useState<ArmView>("absorption");
+function ArmSection({ data, error, view, onView }: {
+  data: AbsorptionRead | null;
+  error: string | null;
+  view: ArmView;
+  onView: (next: ArmView) => void;
+}) {
   return (
     <section className="card console-card coh-diffusion" aria-labelledby="diffusion-arm-heading">
       <PaneHead
@@ -49,18 +51,18 @@ function ArmSection({ data, error }: { data: AbsorptionRead | null; error: strin
         title="How much of the move had arrived, and by when"
         id="diffusion-arm-heading"
         note="one estimator, two stages, one control"
-        lede="A stage is measured against matched half-hours in which nothing was announced, so a fast absorption has to be faster than the market is anyway."
+        lede="A stage is measured against matched no-news half-hours, so fast absorption must beat the market control clock under the same estimator."
       />
       {/* Wrapped 2026-08-25: a bare `.seg` could be reached by neither
           the sticky rule nor the wrap rule, both `.coh-bar`-scoped. */}
       <div className="coh-bar">
-        <div className="seg" role="group" aria-label="Announcement arm view">
-          {VIEWS.map(([name, label]) => (
-            <button key={name} type="button" aria-pressed={view === name} onClick={() => setView(name)}>
-              {label}
-            </button>
-          ))}
-        </div>
+        <DiffusionViewControl
+          className="seg diff-view-control"
+          label="Announcement arm view"
+          value={view}
+          views={VIEWS}
+          onValueChange={onView}
+        />
       </div>
       <InformationDiffusionPane view={view} read={data} error={error} />
     </section>
