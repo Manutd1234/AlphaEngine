@@ -31,7 +31,7 @@ interface PnlStripProps {
   problem: { code?: string; error: string; hint?: string } | null;
   lastSyncAt: Date | null;
   onRefresh: () => void;
-  /** Present only when the deployment has no gateway — re-enters the sandbox. */
+  /** Present only when the deployment has no gateway — explicitly enters the sandbox. */
   onEnterSandbox?: () => void;
   /** Trade keeps only decision-critical figures in one row; other desks own the detail. */
   compact?: boolean;
@@ -175,11 +175,11 @@ export default function PnlStrip({
           <dd className={`cockpit-strip__gauge is-${tone}`}>
             {pct(drawdown.utilisation, 0)} used
             <small>{usd(drawdown.cushion_usd)} to halt</small>
+            <span className="cockpit-meter" role="img"
+                  aria-label={`${pct(drawdown.utilisation, 0)} of the daily drawdown budget used`}>
+              <span className={`cockpit-meter__fill is-${tone}`} style={{ width: `${utilisation * 100}%` }} />
+            </span>
           </dd>
-          <div className="cockpit-meter" role="img"
-               aria-label={`${pct(drawdown.utilisation, 0)} of the daily drawdown budget used`}>
-            <span className={`cockpit-meter__fill is-${tone}`} style={{ width: `${utilisation * 100}%` }} />
-          </div>
         </div>
       </dl>
     </div>
