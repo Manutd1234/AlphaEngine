@@ -28,7 +28,7 @@
 
 import type { CoherenceEventView } from "@/lib/coherence/types";
 import { DIAGRAM_LABEL_PX, glyphClassOf, glyphsWithin } from "@/lib/coherence/label-metrics";
-import Figure, { Plot } from "../Figure";
+import Figure, { FigureEmpty, Plot } from "../Figure";
 
 const TOP = 10;
 const BOX_H = 40;
@@ -46,7 +46,18 @@ export default function StakeEligibility({ events, target }: {
   /** The family the reader is standing on, which is the one that was declined. */
   target: string;
 }) {
-  if (!events.length) return null;
+  if (!events.length) {
+    return (
+      <Figure
+        caption="Every watched family, and which of them the solver can size"
+        ariaLabel="No family eligibility diagram is available because this poll returned no watched families"
+        reading="The eligibility comparison resumes when the universe gateway returns at least one watched family."
+        missing="No family is invented from a stale poll or a configured ticker."
+      >
+        <FigureEmpty reason="No watched family was returned in this poll." />
+      </Figure>
+    );
+  }
 
   // The target first, so the family the reader asked about is where their eye
   // already is. The rest keep the order the universe read sent them in — a
