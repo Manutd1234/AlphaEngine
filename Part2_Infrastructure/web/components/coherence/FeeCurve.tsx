@@ -72,7 +72,7 @@ export default function FeeCurve({ curve, error }: {
   if (!curve) {
     return (
       <Figure caption={caption} ariaLabel={aria}>
-        <FigureEmpty reason="Pricing the fee at every price…" />
+        <FigureEmpty reason="Pricing the fee at every price…" busy />
       </Figure>
     );
   }
