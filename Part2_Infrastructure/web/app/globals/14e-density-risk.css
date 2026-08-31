@@ -161,7 +161,7 @@
    Seed box ends nowhere near the border.
    Scoped with `:has()` to the one heading that carries a rail, NOT added to
    `.portfolio-card-heading` itself: that class is 01-workspace-shell.css's and
-   is rendered by cards on all eight tabs, most of which pair a title with a
+   is rendered by cards across the workspace, most of which pair a title with a
    single short control and rely on the row never breaking. */
 .portfolio-card-heading:has(> .mc-parameter-rail) {
   flex-wrap: wrap;
@@ -254,7 +254,9 @@
    vanishes leaves the reader unsure whether the length they last set is still in
    force. */
 .mc-parameter-rail .rail-toggle:has(:disabled) {
-  opacity: 0.55;
+  border-color: var(--disabled-border);
+  background: var(--disabled-bg);
+  color: var(--disabled-text);
   cursor: not-allowed;
 }
 
