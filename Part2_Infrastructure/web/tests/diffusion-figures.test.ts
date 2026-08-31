@@ -275,6 +275,15 @@ describe("Findings: the field, the matrix, and the sentence the wire decides", (
     assert.match(folds, /on this run it has not been scored/, "the unscored case has no sentence of its own");
   });
 
+  it("decodes d6:s7 and states why that run was selected", () => {
+    assert.ok(folds.includes(String.raw`study.study_id.match(/:d(\d+):s(\d+)$/)`),
+      "the displayed run key is no longer decoded from the study id");
+    assert.match(folds, /latent dimensions/);
+    assert.match(folds, /random seed/);
+    assert.match(folds, /selected because it best recovered the known fact among the well-conditioned candidates under the pre-registered rule below/,
+      "the row decodes d6:s7 but still does not explain why that pair won");
+  });
+
   it("the method folds are tables whose summaries name them without a count, and the pane keeps no prose fold", () => {
     assert.match(pane, /<FindingsFolds study=\{study\} calendar=\{calendar\} \/>/, "the folds are not mounted");
     // ONE fold stays on the pane — the table view's folded `FindingsTable`,
@@ -298,6 +307,7 @@ describe("Findings: the field, the matrix, and the sentence the wire decides", (
     assert.notEqual(at, -1, "the unscored reading is gone");
     const before = fit.slice(Math.max(0, at - 120), at);
     assert.match(before, /scored\s*\?/, "\"not scored for this run\" is not conditional on the meeting count");
-    assert.match(fit, /const scored = study\.skill_meetings;/, "`scored` no longer reads the wire field");
+    assert.match(fit, /const scored = study\?\.skill_meetings \?\? 0;/,
+      "`scored` no longer reads the wire field, or a missing study is no longer distinct from zero meetings");
   });
 });
