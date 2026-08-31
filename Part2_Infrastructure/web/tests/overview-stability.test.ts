@@ -34,7 +34,7 @@ import { fileURLToPath } from "node:url";
 
 import { auditProbeOutcome, auditView } from "../components/overview/audit-trail-state";
 import { DeskSourceMachine, PROMOTION_STREAK } from "../lib/desk-source";
-import { sandboxAuditRows, type AuditRow } from "../lib/fallbacks/audit";
+import type { AuditRow } from "../lib/audit";
 
 const read = (relative: string) =>
   readFileSync(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
@@ -45,8 +45,6 @@ const read = (relative: string) =>
 
 /** The wording the component passes for a gateway that answered without rows. */
 const MISSING_FEED = "The gateway answered without an audit feed.";
-
-const SEED = 7;
 
 /** A measured row, minimal but wire-shaped. */
 const row = (id: string): AuditRow => ({
@@ -79,12 +77,10 @@ const feedless = () => ({ ok: true as const, payload: {} });
 function panel(start = 1_000) {
   let now = start;
   const machine = new DeskSourceMachine<AuditRow[]>({ now: () => now });
-  const generated = sandboxAuditRows(start, SEED);
   return {
-    generated,
     observe: (raw: Parameters<typeof auditProbeOutcome>[0]) =>
       machine.observe(auditProbeOutcome(raw, MISSING_FEED)),
-    view: () => auditView(machine.state, generated),
+    view: () => auditView(machine.state),
     tier: () => machine.state.tier,
     tick: (ms: number) => { now += ms; },
   };
@@ -134,16 +130,15 @@ describe("one failed poll does not swap the measured ledger for the generated on
       measured([row("real-3")]),
       refused(),
     ];
+    let expected = "real-1";
     for (const raw of script) {
       p.observe(raw);
+      if (raw.ok && Array.isArray(raw.payload.rows) && raw.payload.rows[0]) {
+        expected = raw.payload.rows[0].order_id;
+      }
       const view = p.view();
       kinds.push(view.kind);
-      if (view.kind === "ready" || view.kind === "generated") {
-        assert.ok(
-          !ids(view.rows).some((id) => ids(p.generated).includes(id)),
-          "a generated order id reached the rendered ledger",
-        );
-      }
+      if (view.kind === "ready") assert.deepEqual(ids(view.rows), [expected]);
     }
     assert.ok(
       !kinds.includes("generated"),
@@ -173,28 +168,27 @@ describe("one failed poll does not swap the measured ledger for the generated on
 });
 
 // ---------------------------------------------------------------------------
-// 2. The generated ledger is only reachable from a desk that never had one
+// 2. A missing live ledger remains explicitly unavailable
 // ---------------------------------------------------------------------------
 
-describe("the generated ledger appears only when nothing was ever measured", () => {
-  it("a failure before any reading falls to the generated rows, with the reason", () => {
+describe("the panel never substitutes rows when nothing was measured", () => {
+  it("a failure before any reading is unavailable, with the reason", () => {
     const p = panel();
     p.observe(refused("the audit route could not be reached."));
     const view = p.view();
-    assert.equal(view.kind, "generated");
-    assert.deepEqual(view.kind === "generated" ? ids(view.rows) : [], ids(p.generated));
+    assert.equal(view.kind, "unavailable");
     assert.equal(
-      view.kind === "generated" ? view.detail : null,
+      view.kind === "unavailable" ? view.detail : null,
       "the audit route could not be reached.",
     );
   });
 
-  it("a feedless gateway before any reading is generated, and names the missing feed", () => {
+  it("a feedless gateway before any reading names the missing feed", () => {
     const p = panel();
     p.observe(feedless());
     const view = p.view();
-    assert.equal(view.kind, "generated");
-    assert.equal(view.kind === "generated" ? view.detail : null, MISSING_FEED);
+    assert.equal(view.kind, "unavailable");
+    assert.equal(view.kind === "unavailable" ? view.detail : null, MISSING_FEED);
   });
 
   it("before the first probe settles the panel is loading, not a table of inventions", () => {
@@ -232,15 +226,15 @@ describe("AuditTrail routes through the house machinery", () => {
     );
   });
 
-  it("still asks for the same window and keeps the generated ledger reconciled by seed", () => {
+  it("asks for the same window and contains no generated ledger dependency", () => {
     assert.ok(source.includes("limit=40"), "the audit window changed size silently");
     assert.ok(
-      source.includes("sandboxAuditRows(undefined, seed)"),
-      "the generated ledger no longer derives from the shared desk seed",
+      !source.includes("sandboxAuditRows") && !source.includes("fallbacks/audit"),
+      "the overview audit panel regained a generated data dependency",
     );
     assert.ok(
-      read("../components/WorkspaceOverview.tsx").includes("seed={book.seed}"),
-      "the overview stopped handing the book's seed down, so the two tabs can disagree",
+      !read("../components/WorkspaceOverview.tsx").includes("seed={book.seed}"),
+      "the overview still hands a generation seed to its audit ledger",
     );
   });
 });
