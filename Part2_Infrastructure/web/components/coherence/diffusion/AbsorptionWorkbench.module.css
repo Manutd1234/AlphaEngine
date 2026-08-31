@@ -1,0 +1,123 @@
+.evidence {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-1);
+}
+
+.heading {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.heading h3,
+.heading p,
+.card h4,
+.card dl,
+.note {
+  margin: 0;
+}
+
+.heading h3 {
+  font-size: var(--fs-lg);
+}
+
+.eyebrow {
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.lede,
+.note {
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.card {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+.card h4 {
+  font-size: var(--fs-sm);
+}
+
+.card dl {
+  display: grid;
+  grid-template-columns: minmax(9rem, 0.7fr) minmax(0, 1.3fr);
+  gap: 4px var(--space-2);
+  font-size: var(--fs-xs);
+}
+
+.card dt {
+  color: var(--text-secondary);
+}
+
+.card dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+.table {
+  min-width: 760px;
+  table-layout: fixed;
+}
+
+.table th:nth-child(1) { width: 9%; }
+.table th:nth-child(2) { width: 15%; }
+.table th:nth-child(3) { width: 13%; }
+.table th:nth-child(4) { width: 20%; }
+.table th:nth-child(5) { width: 9%; }
+.table th:nth-child(6) { width: 34%; }
+
+.table td:last-child {
+  overflow-wrap: anywhere;
+}
+
+.crossingLine {
+  stroke-width: 1.1;
+  vector-effect: non-scaling-stroke;
+}
+
+.crossingRelease {
+  stroke-dasharray: 4 3;
+}
+
+.crossingCall {
+  stroke-dasharray: 1.5 2.5;
+}
+
+.crossingMark {
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+}
+
+@media (max-width: 700px) {
+  .cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .card dl {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
