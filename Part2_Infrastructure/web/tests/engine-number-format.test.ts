@@ -82,7 +82,7 @@ describe("a formatter is declared once, in lib/coherence/decimals.ts", () => {
     const declared = /(?:export )?(?:function|const) (decimalLabel|truncateDecimal|statValue|unitOf|toUnit|probLabel|spanLabel)\b|function (count)\(/g;
     // The Markets session's two `spanLabel(ms)` copies leave with slice 19;
     // listed so the debt is visible, and asserted to still exist.
-    const KNOWN_DECLARED = new Set(["components/coherence/BookHistory.tsx spanLabel", "components/coherence/LiveTape.tsx spanLabel"]);
+    const KNOWN_DECLARED = new Set(["components/coherence/LiveTape.tsx spanLabel"]);
     const offenders: string[] = [];
     const debts: string[] = [];
     for (const [file, source] of SOURCES) {
@@ -141,12 +141,9 @@ describe("a share printed in JSX goes through pct(), a cut string through decima
 
 ratchet("toFixed(", /\.toFixed\(/g, {
   // Axis ticks and geometry on float scales — a pixel is not a fixed-point quantity.
-  "components/coherence/BasketWhatIf.tsx": { count: 10, reason: "the reader's slider cents: integer cents ÷ 100 is exact at two places" },
-  "components/coherence/surface/MomentsShape.tsx": { count: 9, reason: "float moments drawn on a float axis; the table prints the wire strings" },
   "components/coherence/ReliabilityDiagram.tsx": { count: 8, reason: "axis ticks and dot geometry on a float scale; every printed statistic goes through decimalLabel" },
   "components/coherence/ShortfallScale.tsx": { count: 1, reason: "orders of magnitude, a float by nature" },
-  "components/coherence/LadderChart.tsx": { count: 8, reason: "its own comment: cumulative depth at a float level" },
-  "components/coherence/SurvivalChart.tsx": { count: 6, reason: "strike-axis ticks" },
+  "components/coherence/surface/LatticeSurvival.tsx": { count: 7, reason: "SVG probability-current path and node coordinates only; printed prices stay fixed-point strings" },
   "components/coherence/FeeCurve.tsx": { count: 3, reason: "the tick gutter and two axis ticks on a float fee scale; every printed fee is the wire string it arrived as" },
   "components/coherence/surface/EdgeScatter.tsx": { count: 2, reason: "scatter axis ticks" },
   "components/coherence/IndexSeriesChart.tsx": { count: 4, reason: "lane ticks on a float scale" },
@@ -156,13 +153,12 @@ ratchet("toFixed(", /\.toFixed\(/g, {
   "components/coherence/StateCoverage.tsx": { count: 2, reason: "a coverage share drawn, not printed" },
   "components/coherence/SettlementPane.tsx": { count: 1, reason: "degrees of a float temperature" },
   "components/coherence/LiveTape.tsx": { count: 1, reason: "float tape points" },
-  "components/coherence/LessonCoverage.tsx": { count: 2, reason: "a coverage share drawn" },
-  "components/coherence/LadderPrices.tsx": { count: 1, reason: "a float radius" },
+  "components/coherence/LadderPrices.tsx": { count: 3, reason: "SVG path coordinates and fixed ticks on the zero-to-one probability rail; the ledger prints wire strings" },
+  "components/coherence/LegSizes.tsx": { count: 11, reason: "SVG path coordinates and selected-metric axis ticks; the ledger prints wire strings" },
   "components/coherence/IndexBasisChart.tsx": { count: 2, reason: "float index readings" },
   "components/coherence/FeeParabola.tsx": { count: 2, reason: "a sampled float curve" },
   "components/coherence/FamilyRidge.tsx": { count: 2, reason: "a lane tick" },
-  "components/coherence/ConstraintLadder.tsx": { count: 2, reason: "a decade tick" },
-  "components/coherence/BookHistory.tsx": { count: 1, reason: "float history points" },
+  "components/coherence/surface/KellyGrowthSimulator.tsx": { count: 2, reason: "SVG path coordinates only; every printed statistic goes through pct or fmt" },
 });
 
 ratchet("?? 0 / || 0", /\?\? 0\b|\|\| 0\b/g, {
@@ -171,16 +167,12 @@ ratchet("?? 0 / || 0", /\?\? 0\b|\|\| 0\b/g, {
   "components/coherence/UniverseSection.tsx": { count: 1, reason: "a counter" },
   "components/coherence/IndexPane.tsx": { count: 1, reason: "a counter" },
   "components/coherence/HorizonAxis.tsx": { count: 1, reason: "axis width only, argued in place; the null mark is withheld" },
-  "components/coherence/ConstraintLadder.tsx": { count: 2, reason: "counts of rows a missing set contributes none of" },
-  "components/coherence/surface/StakeBars.tsx": { count: 1, reason: "a track width floor" },
   "components/coherence/FamilyRidge.tsx": { count: 3, reason: "an ordinal slot lookup that cannot miss, and TWO shared-y scale floors — the lane view's and, from 2026-08-26, the one-poll view's. Geometry: a family never measured contributes nothing to a maximum already floored at 1, and the peak itself prints through fromCenticents" },
   "components/coherence/FrechetBand.tsx": { count: 1, reason: "violated_rows is a row COUNT the wire omits when it checked none; the reading names the rows, so a null here is not a metric coerced" },
-  "components/coherence/BasketComposition.tsx": { count: 1, reason: "a counter: (map.get(k) ?? 0) + 1" },
+  "components/coherence/surface/StakeBars.tsx": { count: 2, reason: "geometry-only domain and token-size floors; missing printed readings remain dashes" },
 });
 
-ratchet("$-template", /`\$\$\{|\$\$\{/g, {
-  "components/coherence/BasketWhatIf.tsx": { count: 3, reason: "the reader's own slider total, in cents ÷ 100" },
-});
+ratchet("$-template", /`\$\$\{|\$\$\{/g, {});
 
 describe("the tabular-numerals ratchet knows every engine formatter", () => {
   it("NUMERIC names the six helpers whose output is a number", () => {
