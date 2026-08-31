@@ -217,6 +217,7 @@ export default function PayoffByState({
       ariaLabel={`One column per outcome, ${measured}, fees off the top, a dashed rule at the worst case`}
       reading={reading}
       missing={missing}
+      readout={<span className="num">{`${measured}; worst ${certificate.worst_case_payoff ?? "—"}`}</span>}
     >
       <Plot
         height={HEIGHT}
@@ -230,6 +231,7 @@ export default function PayoffByState({
             width: 300,
             arriveAt: "first",
             link: "basket-states",
+            pin: true,
           };
         }}
       >
