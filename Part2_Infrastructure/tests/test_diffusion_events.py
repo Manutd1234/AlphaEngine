@@ -11,8 +11,8 @@ import tempfile
 from pathlib import Path
 
 import pytest
+from helpers.diffusion_fomc_fixture import fixture_rows
 
-from modules.coherence.diffusion import fomc
 from modules.coherence.diffusion.events import DiffusionEventStore, EventUpsert
 from modules.data_ops_store import SqliteStore
 
@@ -30,12 +30,12 @@ def store():
 
 
 def _seed(store: DiffusionEventStore, count: int = 5, *, now: float = NOW) -> list[dict]:
-    rows = fomc.seed_rows()[:count]
+    rows = fixture_rows()[:count]
     for row in rows:
         store.upsert(EventUpsert(
             kind="fomc", source_ref=row["source_ref"], title=row["title"],
-            release_at=row["release_at"], release_at_source="fed_seed", release_timing="exact",
-            call_at=row["call_at"], call_at_source="fed_seed",
+            release_at=row["release_at"], release_at_source="issuer", release_timing="exact",
+            call_at=row["call_at"], call_at_source="issuer",
             call_offset_min=row["call_offset_min"], scheduled=row["scheduled"],
             statement_url=row["statement_url"],
         ), now_ms=now)
@@ -48,7 +48,7 @@ class TestFirstSeenSurvivesEverything:
         before = store.get("fed:2019-01-30")
         store.upsert(EventUpsert(kind="fomc", source_ref="fed:2019-01-30", title="FOMC statement",
                                  release_at=before["release_at"] + 120_000,
-                                 release_at_source="fed_seed"), now_ms=NOW + 5_000)
+                                 release_at_source="issuer"), now_ms=NOW + 5_000)
         after = store.get("fed:2019-01-30")
         assert after["first_seen_at"] == before["first_seen_at"], "the point-in-time clock moved"
         assert after["release_at"] == before["release_at"] + 120_000
@@ -58,7 +58,7 @@ class TestFirstSeenSurvivesEverything:
     def test_a_repeat_of_the_same_row_is_not_a_revision(self, store):
         rows = _seed(store, 1)
         store.upsert(EventUpsert(kind="fomc", source_ref=rows[0]["source_ref"], title=rows[0]["title"],
-                                 release_at=rows[0]["release_at"], release_at_source="fed_seed"),
+                                 release_at=rows[0]["release_at"], release_at_source="issuer"),
                      now_ms=NOW + 5_000)
         assert store.get(rows[0]["source_ref"])["revised_count"] == 0
 
@@ -84,6 +84,16 @@ class TestTheSecondStageKnowsWhereItCameFrom:
     def test_recording_against_a_row_that_is_not_there_is_none_not_a_new_row(self, store):
         assert store.record_stage("fed:1970-01-01", at_ms=NOW, now_ms=NOW) is None
         assert store.count() == 0
+
+    def test_recording_rejects_the_retired_authored_source(self, store):
+        _seed(store, 1)
+        with pytest.raises(ValueError, match="unsupported recorded stage source"):
+            store.record_stage(
+                "fed:2019-01-30",
+                at_ms=NOW,
+                source="fed_seed",  # type: ignore[arg-type]
+                now_ms=NOW,
+            )
 
 
 class TestAListSaysWhetherItWasCutShort:
@@ -112,8 +122,8 @@ class TestAListSaysWhetherItWasCutShort:
         assert len(fomc_rows) == 3 and len(earnings_rows) == 1
 
 
-class TestTheSeedGoesInWithoutClaimingVerification:
-    def test_every_seeded_row_is_unverified(self, store):
+class TestObservedRowsDoNotClaimVerificationWithoutEvidence:
+    def test_fixture_rows_remain_unverified(self, store):
         _seed(store, 5)
         rows, _ = store.list_events(limit=10)
         assert all(row["verified_at"] is None for row in rows)
@@ -121,3 +131,76 @@ class TestTheSeedGoesInWithoutClaimingVerification:
     def test_the_timing_word_is_kept_verbatim(self, store):
         _seed(store, 1)
         assert store.get("fed:2019-01-30")["release_timing"] == "exact"
+
+
+class TestAuthoredRuntimeRowsAreRefused:
+    def test_new_rows_reject_the_retired_seed_source(self):
+        with pytest.raises(ValueError, match="unsupported release stage source"):
+            EventUpsert(
+                kind="fomc",
+                source_ref="fed:fixture",
+                title="authored row",
+                release_at=NOW,
+                release_at_source="fed_seed",  # type: ignore[arg-type]
+            )
+
+    def test_legacy_rows_in_a_durable_store_are_hidden(self, store):
+        _seed(store, 1)
+        store._store.patch(  # noqa: SLF001 - simulate a pre-migration durable row
+            "diffusion_events",
+            filters={"source_ref": "fed:2019-01-30"},
+            patch={"release_at_source": "fed_seed"},
+        )
+        rows, truncated = store.list_events(limit=10)
+        assert rows == [] and truncated is False
+        assert store.get("fed:2019-01-30") is None
+        assert store.count() == 0
+
+    def test_a_legacy_call_is_withheld_from_an_otherwise_observed_row(self, store):
+        _seed(store, 1)
+        store._store.patch(  # noqa: SLF001 - simulate a partially migrated row
+            "diffusion_events",
+            filters={"source_ref": "fed:2019-01-30"},
+            patch={"call_at_source": "fed_seed"},
+        )
+        row = store.get("fed:2019-01-30")
+        assert row is not None
+        assert (row["call_at"], row["call_at_source"], row["call_offset_min"]) == (None, None, None)
+
+    def test_an_ordinary_upsert_repairs_a_legacy_call_before_patching(self, store):
+        _seed(store, 1)
+        store._store.patch(  # noqa: SLF001 - simulate a partially migrated row
+            "diffusion_events",
+            filters={"source_ref": "fed:2019-01-30"},
+            patch={"call_at_source": "fed_seed"},
+        )
+
+        row = store.upsert(
+            EventUpsert(
+                kind="fomc", source_ref="fed:2019-01-30", title="Observed event",
+                release_at=store.get("fed:2019-01-30")["release_at"],
+                release_at_source="issuer",
+            ),
+            now_ms=NOW + 1,
+        )
+
+        assert (row["call_at"], row["call_at_source"], row["call_offset_min"]) == (None, None, None)
+
+    def test_an_issuer_observation_replaces_a_legacy_row_wholesale(self, store):
+        _seed(store, 1)
+        old = store._store.fetch_one(  # noqa: SLF001 - inspect the simulated legacy row
+            "diffusion_events", filters={"source_ref": "fed:2019-01-30"},
+        )
+        store._store.patch(  # noqa: SLF001
+            "diffusion_events",
+            filters={"source_ref": "fed:2019-01-30"},
+            patch={"release_at_source": "fed_seed", "call_at_source": "fed_seed"},
+        )
+        replacement = EventUpsert(
+            kind="fomc", source_ref="fed:2019-01-30", title="Observed issuer event",
+            release_at=old["release_at"], release_at_source="issuer",
+        )
+        row = store.upsert(replacement, now_ms=NOW + 5_000)
+        assert row["first_seen_at"] == NOW + 5_000
+        assert row["call_at"] is None and row["statement_url"] is None
+        assert store.get("fed:2019-01-30")["release_at_source"] == "issuer"
