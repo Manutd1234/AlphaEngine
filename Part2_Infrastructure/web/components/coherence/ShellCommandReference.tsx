@@ -12,6 +12,7 @@
 
 import { DERIVED_FILES } from "./ShellTree";
 import ShellReadings from "./ShellReadings";
+import styles from "./ShellCommandReference.module.css";
 
 export default function CommandReference() {
   return (
@@ -31,6 +32,12 @@ export default function CommandReference() {
       <details className="disclosure">
         <summary>What each of the two commands and five readings answers, {DERIVED_FILES.length + 2} rows</summary>
     <div className="table-wrap">
+      <div
+        className={styles.scrollport}
+        role="region"
+        aria-label="Shell command and derived-reading reference"
+        tabIndex={0}
+      >
       <table className="coh-table">
         <caption className="coh-table__caption">
           The two commands and the five derived readings; a reading with no answer says which kind, because only
@@ -65,6 +72,7 @@ export default function CommandReference() {
           ))}
         </tbody>
       </table>
+      </div>
     </div>
       </details>
     </>
