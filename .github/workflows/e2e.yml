@@ -62,31 +62,17 @@ jobs:
           # a URL nobody opens. Both aliases are live and both are allow-listed;
           # what changed is which one is the address.
           E2E_VERCEL_URL: https://alphaengine-workspace.vercel.app
-        run: python tools/e2e_smoke.py --full
+        run: |
+          set -o pipefail
+          python tools/e2e_smoke.py --full 2>&1 | tee /tmp/alphaengine-e2e-smoke.log
 
       # Written to the run summary so a failure is legible from the Actions
       # list without opening the log — the report names its own fix per check.
       - name: Summary
         if: always()
-        env:
-          WEB_API_TOKEN: ${{ secrets.WEB_API_TOKEN }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          # Pinned, not left to the script's default. The deployment answers on
-          # two aliases and this is the canonical one: it is the Supabase Site
-          # URL, it heads the auth redirect allow-list, and it is the host the
-          # desk is actually shared as.
-          #
-          # This pin previously named the *other* alias. That was correct when
-          # it was written — that host was the one the OG tags and the edge
-          # function's CORS list knew — and it stopped being correct without
-          # anything failing, so the twice-daily smoke spent its runs measuring
-          # a URL nobody opens. Both aliases are live and both are allow-listed;
-          # what changed is which one is the address.
-          E2E_VERCEL_URL: https://alphaengine-workspace.vercel.app
         run: |
           {
             echo '```'
-            python tools/e2e_smoke.py --full 2>&1 || true
+            cat /tmp/alphaengine-e2e-smoke.log 2>/dev/null || echo 'Probe produced no report.'
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
