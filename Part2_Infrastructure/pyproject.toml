@@ -54,7 +54,6 @@ max-statements = 50
 #
 # Ordered by how the plan's Round J will retire them: risk_proxy and telegram
 # are the two the refactor is aimed at.
-"main.py" = ["PLR0915"]
 # ``modules/audit.py`` became ``modules/audit/**``. Its single C901 entry
 # followed the two functions that earned it — the column migration and the
 # rollover read — to the files they now live in. Same debt, no new debt.
@@ -84,4 +83,3 @@ max-statements = 50
 # needed shrank to the two handlers that are still over the thresholds.
 "modules/telegram/_mixins/analytics.py" = ["C901", "PLR0915"]
 "modules/telegram/_mixins/linking.py" = ["C901"]
-
