@@ -44,7 +44,6 @@ import main
 import modules.research_quota as rq
 import modules.research_quota_scope as scope_module
 import modules.research_rag.writer as rag_module
-from config import settings
 from modules.audit import AuditLog
 from modules.research_rag import EMBEDDING_DIMENSIONS, get_rag, reset_rag
 
@@ -155,7 +154,8 @@ def ledger(tmp_path, monkeypatch):
 def scoped(monkeypatch):
     """The deployment that asked to be scoped to its own desk."""
     monkeypatch.setattr(scope_module, "SCOPE_TO_DESK", True)
-    return settings.supabase_desk_id
+    monkeypatch.setattr(scope_module, "settings", _Settings())
+    return _Settings.supabase_desk_id
 
 
 def search(client, query: str = QUERY):
@@ -284,15 +284,11 @@ class TestAScopedDeploymentNeverServesUnscopedRows:
             assert scoped in body["reason"]
             assert corpus.rpc == [], "a refused search must not have run"
 
-    def test_ask_either_passes_the_scope_or_refuses(self, client, corpus, scoped):
+    def test_ask_passes_the_scope_through_the_answer_pipeline(self, client, corpus, scoped):
         response = client.post("/api/research/rag/ask", json={"query": QUERY, "match_count": 3})
 
-        if response.status_code == 200:
-            assert corpus.scopes and all(s == scoped for s in corpus.scopes)
-        else:
-            assert response.status_code == 503
-            assert response.json()["state"] == "scope_unavailable"
-            assert corpus.rpc == []
+        assert response.status_code == 200, response.text
+        assert corpus.scopes and all(s == scoped for s in corpus.scopes)
 
     def test_a_scope_refusal_does_not_spend_a_rate_token(self, client, corpus, scoped):
         """The refusal is at the door, before the bucket is touched.
