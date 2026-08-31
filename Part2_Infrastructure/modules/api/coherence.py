@@ -21,17 +21,16 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query
 
 from modules.api.deps import trader_identity
+from modules.backend_runtime import current_request_budget
 from modules.coherence import fee_meta, tunables, warm
-from modules.coherence.drivers import kalshi_auth
-from modules.coherence.drivers.kalshi_parse import schema_probe
 from modules.coherence.drivers.kalshi_rest import KalshiClient, KalshiUnavailable
 from modules.coherence.fs.store import TapeUnavailable, get_store
 from modules.coherence.kernel.book import parse_orderbook
+from modules.coherence.kernel.certificate import Certificate
 from modules.coherence.kernel.costs import FeeSchedule
 from modules.coherence.kernel.money import MoneyError, parse_dollars, parse_fp
-from modules.coherence.recorder import recorder_state
-from modules.coherence.scheduler.budget import get_read_budget
 from modules.coherence.series_meta import CONCURRENT_SERIES_READS, categories_for
+from modules.coherence.status_read import read_status
 from modules.coherence.syscalls.certify import certify
 from modules.coherence.syscalls.fees import worked_example
 from modules.coherence.syscalls.observe import observe_event, observe_series
@@ -39,17 +38,48 @@ from modules.coherence.views import book_view, event_view
 from modules.schemas import (
     CoherenceBooks,
     CoherenceBookView,
-    CoherenceBudgetStatus,
     CoherenceCertificate,
     CoherenceFees,
-    CoherenceRecorderStatus,
     CoherenceStatus,
     CoherenceUniverse,
 )
-from modules.schemas_coherence import CoherenceHostStatus, CoherenceShardStatus
 
 router = APIRouter(tags=["coherence"])
 
+# Below the same-origin gateway's 25-second H4 ceiling. The numerical solver is
+# additionally given its own shorter HiGHS limit; this outer bound also covers
+# a cold SciPy import and guarantees a typed answer rather than a proxy 504.
+CERTIFY_SOLVE_DEADLINE_S = 15.0
+CERTIFY_RESPONSE_MARGIN_S = 1.25
+
+
+def certify_solve_deadline_s() -> float:
+    """Leave enough of the caller's propagated H4 budget to encode the answer."""
+    budget = current_request_budget()
+    if budget is None:
+        return CERTIFY_SOLVE_DEADLINE_S
+    return min(CERTIFY_SOLVE_DEADLINE_S, max(0.0, budget.remaining_s() - CERTIFY_RESPONSE_MARGIN_S))
+
+
+async def bounded_certify(
+    observation: Any, schedule: FeeSchedule, *, max_contracts: Decimal | None = None,
+) -> Certificate:
+    """Run the synchronous solver away from the event loop and fail typed on its deadline."""
+    deadline = certify_solve_deadline_s()
+    try:
+        if deadline <= 0:
+            raise TimeoutError
+        return await asyncio.wait_for(
+            asyncio.to_thread(certify, observation, schedule, max_contracts=max_contracts),
+            timeout=deadline,
+        )
+    except TimeoutError:
+        return Certificate(
+            verdict="untestable", engine="highs", component_id=observation.event.event_ticker,
+            series_ticker=observation.event.series_ticker, exchange_index=observation.event.exchange_index,
+            notes=[f"the solver did not answer within {deadline:g}s; "
+                   "the gateway stayed available and no verdict was inferred"],
+        )
 
 @router.get("/api/coherence/status", response_model=CoherenceStatus)
 async def coherence_status(_actor: str = Depends(trader_identity)) -> CoherenceStatus:
@@ -61,110 +91,7 @@ async def coherence_status(_actor: str = Depends(trader_identity)) -> CoherenceS
     payloads into a book of zeros without raising anything. "Every price is
     zero" is not a state a reader should have to diagnose from a chart.
     """
-    notes: list[str] = []
-    hosts: list[CoherenceHostStatus] = []
-    shards: list[CoherenceShardStatus] = []
-    probe: dict[str, Any] = {"schema": "unavailable", "detail": "no market payload was read"}
-
-    client = KalshiClient()
-
-    # CONCURRENTLY, because they are two independent round trips to Kalshi and
-    # awaiting them one after the other made this route cost the sum.
-    #
-    # Measured 2026-08-25 against the live venue: exchange_status ~245ms and
-    # markets(limit=1) ~260ms, so the handler spent ~505ms wall-clock and the
-    # desk saw 520/538/525ms through the proxy — roughly forty times every other
-    # coherence route, on something the Diffusion episodes section polls every
-    # twenty seconds. None of that was compute; it was two internet round trips
-    # taken in series for no reason.
-    #
-    # NOT CACHED, deliberately. A short TTL would take the steady state to zero,
-    # and it would also mean a status endpoint reporting an exchange as
-    # reachable for up to a TTL after it stopped being — which is the one thing
-    # this route exists to tell the truth about. Concurrency costs nothing and
-    # keeps every answer live.
-    status_task = asyncio.create_task(client.exchange_status())
-    probe_task = (
-        asyncio.create_task(client.markets(tunables.SERIES_WATCHLIST[0], limit=1))
-        if tunables.SERIES_WATCHLIST
-        else None
-    )
-
-    try:
-        fetched = await status_task
-        hosts.append(CoherenceHostStatus(host=fetched.host, reachable=True))
-        for row in fetched.payload.get("exchange_index_statuses") or []:
-            shards.append(
-                CoherenceShardStatus(
-                    exchange_index=int(row.get("exchange_index", 0)),
-                    description=str(row.get("description", "")),
-                    exchange_active=bool(row.get("exchange_active")),
-                    trading_active=bool(row.get("trading_active")),
-                )
-            )
-    except KalshiUnavailable as exc:
-        hosts.append(CoherenceHostStatus(host=tunables.PUBLIC_BASE_URL, reachable=False, detail=exc.reason))
-        notes.append(f"Kalshi was not reachable: {exc.reason}")
-
-    if probe_task is not None:
-        try:
-            markets = await probe_task
-            rows = markets.payload.get("markets") or []
-            probe = schema_probe(rows[0] if rows else None)
-        except KalshiUnavailable as exc:
-            notes.append(f"schema could not be probed: {exc.reason}")
-    else:
-        notes.append("no watchlist configured; set COHERENCE_SERIES to record and certify a series")
-
-    try:
-        tape = get_store().health()
-    except TapeUnavailable as exc:
-        tape = {"state": "unavailable", "reason": str(exc)}
-
-    recorder = recorder_state().to_dict()
-    reachable = any(host.reachable for host in hosts)
-    state = "ok" if reachable and probe.get("schema") == "fp-2026" else "degraded" if reachable else "unavailable"
-
-    return CoherenceStatus(
-        state=state,
-        hosts=hosts,
-        shards=shards,
-        schema_probe=probe,
-        recorder=CoherenceRecorderStatus(**{k: v for k, v in recorder.items() if k != "last_error_ts_ns"}),
-        budget=CoherenceBudgetStatus(**get_read_budget().status()),
-        tape=tape,
-        solver=_solver_status(),
-        signing=_signing_status(),
-        dry_run=tunables.DRY_RUN,
-        notes=notes,
-    )
-
-
-def _solver_status() -> dict[str, Any]:
-    """Which coherence engine is available in this deployment.
-
-    The LP wants SciPy's HiGHS, which is in the tested venv and in CI but not
-    on the runtime image. The closed-form family checks always run. Reporting
-    which one answered is the difference between a weaker result and a wrong
-    one — an absence must never look like present-and-fine.
-    """
-    from importlib.util import find_spec
-
-    available = find_spec("scipy") is not None
-    return {
-        "linear_programme": "available" if available else "unavailable",
-        "always_available": "closed_form",
-        "detail": (
-            "SciPy's HiGHS solves the full lattice"
-            if available
-            else "SciPy is not installed here; closed-form family checks still run and say so"
-        ),
-    }
-
-
-def _signing_status() -> dict[str, Any]:
-    """Whether signed reads are possible. Production reads never need them."""
-    return kalshi_auth.status()
+    return await read_status(tunables.SERIES_WATCHLIST)
 
 
 @router.get("/api/coherence/universe", response_model=CoherenceUniverse)
@@ -360,7 +287,7 @@ async def coherence_certify(
             series_ticker="", exchange_index=0, notes=[exc.reason],
         )
     schedule = await fee_meta.schedule_for_event(observation.event.series_ticker, event_ticker)
-    certificate = certify(observation, schedule, max_contracts=Decimal(max_contracts))
+    certificate = await bounded_certify(observation, schedule, max_contracts=Decimal(max_contracts))
     payload = certificate.to_dict()
     payload["proof"] = certificate.render_text()
     return CoherenceCertificate(**payload)
