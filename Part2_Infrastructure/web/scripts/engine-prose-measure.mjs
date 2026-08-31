@@ -51,7 +51,8 @@ const READING_OWNED = new Set([
   "UniverseSection.tsx", "UniversePane.tsx", "BasketOverview.tsx", "DollarBar.tsx", "BasketComposition.tsx",
   "PriceHistogram.tsx", "SettlementPane.tsx", "FormationDiagram.tsx", "PendingMinutes.tsx", "BooksSection.tsx",
   "BooksPane.tsx", "LadderChart.tsx", "IdentityStrip.tsx", "RfqPane.tsx", "DispersionStrips.tsx", "ChannelStates.tsx",
-  "SurfacePane.tsx", "ShellPane.tsx", "ShellListing.tsx", "ShellTree.tsx", "ShellCommandReference.tsx", "PmfChart.tsx",
+  "SurfacePane.tsx", "ShellPane.tsx", "ShellBrowser.tsx", "ShellRouteFlow.tsx", "ShellListing.tsx", "ShellTree.tsx",
+  "ShellCommandReference.tsx", "PmfChart.tsx",
   "SurvivalChart.tsx",
 ]);
 
