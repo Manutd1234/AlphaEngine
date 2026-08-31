@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
-"""Fetch each statement from the issuer, and retire the unverified disclaimer.
+"""Fetch issuer statements for FOMC rows already captured in the event ledger.
 
     venv/bin/python tools/diffusion_text.py --limit 5
     venv/bin/python tools/diffusion_text.py --persist
 
-The calendar in `modules/coherence/diffusion/fomc.py` was written from
-knowledge rather than fetched, so every row ships `verified_at: None` and the
-Phase 0 report says `calendar_verified: false`. This is what changes that, and
-it does two jobs with one request: the statement text is the input to the
-information estimator, and the page it came from is the evidence that the
-calendar row is right.
+This tool does not create calendar rows. It reads observations already in the
+desk's event ledger and refuses rows with no issuer URL. The statement text is
+the input to the information estimator, and the page it came from is evidence
+for checking the event timestamp independently.
 
 Both halves of a row are checked. A 200 from the date's own URL confirms the
 DATE. The page's own "For release at 2:00 p.m. EDT" line confirms the HOUR,
@@ -29,17 +27,42 @@ import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
+from zoneinfo import ZoneInfo
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from modules.coherence.diffusion import fomc  # noqa: E402
+from modules.coherence.diffusion.events import DiffusionEventStore  # noqa: E402
 from modules.coherence.diffusion.text import fetch_statement, headline_of  # noqa: E402
 from modules.coherence.diffusion.texts import DiffusionTextStore, verify_calendar  # noqa: E402
 
+_ET = ZoneInfo("America/New_York")
 
-def run(args: argparse.Namespace, *, client=None, sleep=time.sleep) -> dict[str, object]:
+
+def _ledger_meetings(*, now_ms: float) -> list[dict[str, Any]]:
+    """Read observed FOMC rows, leaving an empty ledger empty."""
+    store = DiffusionEventStore()
+    try:
+        rows, _truncated = store.list_events(kind="fomc", to_ms=now_ms, limit=10_000)
+        return rows
+    finally:
+        store.close()
+
+
+def run(
+    args: argparse.Namespace,
+    *,
+    client=None,
+    sleep=time.sleep,
+    meetings: list[dict[str, Any]] | None = None,
+) -> dict[str, object]:
     now_ms = datetime.now(timezone.utc).timestamp() * 1000.0
-    rows = fomc.seed_rows(now_ms=now_ms)
+    candidates = meetings if meetings is not None else _ledger_meetings(now_ms=now_ms)
+    rows = [
+        row for row in candidates
+        if row.get("kind") == "fomc" and float(row["release_at"]) <= now_ms
+    ]
+    rows.sort(key=lambda row: float(row["release_at"]))
     if args.limit:
         rows = rows[-args.limit:]
     store = DiffusionTextStore() if args.persist else None
@@ -48,15 +71,20 @@ def run(args: argparse.Namespace, *, client=None, sleep=time.sleep) -> dict[str,
     mismatched: list[tuple[str, str]] = []
     unavailable: list[tuple[str, str]] = []
     for index, row in enumerate(rows):
-        fetched = fetch_statement(str(row["source_ref"]), str(row["statement_url"]), client=client)
-        expected = _expected_time(str(row["source_ref"]))
+        source_ref = str(row["source_ref"])
+        statement_url = row.get("statement_url")
+        if not statement_url:
+            unavailable.append((source_ref, "the observed event carries no issuer statement URL"))
+            continue
+        fetched = fetch_statement(source_ref, str(statement_url), client=client)
+        expected = _expected_time(row)
         agreed, reason = verify_calendar(fetched, expected)
         if agreed:
-            verified.append(str(row["source_ref"]))
+            verified.append(source_ref)
         elif fetched.state == "ok":
-            mismatched.append((str(row["source_ref"]), reason or ""))
+            mismatched.append((source_ref, reason or ""))
         else:
-            unavailable.append((str(row["source_ref"]), reason or fetched.state))
+            unavailable.append((source_ref, reason or fetched.state))
         if store is not None:
             store.record(fetched, stage="release", source="statement", now_ms=now_ms)
         if args.delay and index + 1 < len(rows):
@@ -70,12 +98,10 @@ def run(args: argparse.Namespace, *, client=None, sleep=time.sleep) -> dict[str,
     }
 
 
-def _expected_time(source_ref: str) -> str:
-    date = source_ref.removeprefix("fed:")
-    for meeting in fomc.FOMC_SEED:
-        if meeting.date == date:
-            return meeting.statement_et
-    return "14:00"
+def _expected_time(row: dict[str, Any]) -> str:
+    """The event ledger's timestamp as New York wall-clock, with no default."""
+    moment = datetime.fromtimestamp(float(row["release_at"]) / 1000.0, tz=timezone.utc)
+    return moment.astimezone(_ET).strftime("%H:%M")
 
 
 def summarise(report: dict[str, object]) -> str:
@@ -89,8 +115,8 @@ def summarise(report: dict[str, object]) -> str:
         lines.append(f"    ✕ {source_ref}: {reason}")
     for source_ref, reason in list(report["unavailable"])[:10]:
         lines.append(f"    ◌ {source_ref}: {reason}")
-    if not report["mismatched"] and not report["unavailable"]:
-        lines.append("  the calendar seed is confirmed end to end; verified_at may be written")
+    if not report["mismatched"] and not report["unavailable"] and report["checked"]:
+        lines.append("  every observed event was confirmed against its issuer page")
     return "\n".join(lines)
 
 
