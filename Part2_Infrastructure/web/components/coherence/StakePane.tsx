@@ -58,6 +58,7 @@ import { stakeRoute, universeRoute } from "@/lib/coherence/routes";
 import FamilyPicker from "./FamilyPicker";
 import type { Reading } from "./KpiRow";
 import LiveTape from "./LiveTape";
+import MarketsSectionContainment from "./MarketsSectionContainment";
 import { useLiveSeries } from "@/lib/coherence/use-live-series";
 import PaneHead, { PaneHeadEmpty } from "./PaneHead";
 import SectionFrame from "./SectionFrame";
@@ -66,7 +67,6 @@ import { decimalLabel, toUnit } from "@/lib/coherence/decimals";
 import FamilyView from "./surface/FamilyView";
 import StakeDeclined from "./surface/StakeDeclined";
 import StakeView, { type StakeViewName } from "./surface/StakeView";
-import TruncationNote from "./surface/TruncationNote";
 
 type StakeSectionView = StakeViewName | "family";
 const STAKE_VIEWS: ReadonlyArray<[StakeSectionView, string]> = [
@@ -85,9 +85,9 @@ const STAKE_VIEWS: ReadonlyArray<[StakeSectionView, string]> = [
 
 const HEAD = {
   kicker: "Stake",
-  title: "What log-optimal growth would put on this family",
+  title: "Log-optimal allocation for this family",
   id: "markets-stake-heading",
-  lede: "Given the measure a family's prices imply, this is the share of a bankroll each outcome earns and what is left in cash.",
+  lede: "The solver converts quote-implied edge into stakes and residual cash under bankroll constraints.",
 } as const;
 
 /**
@@ -146,6 +146,8 @@ export default function StakePane({
   };
 
   const kelly = stake.data;
+  const universePending = !universe.data && !universe.error;
+  const universeUnavailable = Boolean(universe.error || universe.data?.state === "unavailable");
 
   /* The growth rate over time, keyed by family. Zero is the reference and it is
      the whole reading: a log-optimal plan whose growth rate is zero is the
@@ -170,6 +172,7 @@ export default function StakePane({
   // deep link during a slow read must show what it points at (2026-08-26).
   if (!target) {
     return (
+      <MarketsSectionContainment variant="stake">
       <SectionFrame
         className="coh-kelly"
         aria-labelledby="markets-stake-heading"
@@ -178,13 +181,20 @@ export default function StakePane({
         onView={onView}
         viewsLabel="Stake view"
         head={
-          <PaneHeadEmpty head={head} mark={universe.error ? "✕" : "◌"}>
-            {universe.error
+          <PaneHeadEmpty
+            head={head}
+            mark={universePending ? "◌" : universeUnavailable ? "✕" : "○"}
+            busy={universePending}
+          >
+            {universePending
+              ? "Reading the watched families…"
+              : universe.error
               ? `No family could be read: ${universe.error}. Universe reads the same list and says what the exchange answered.`
-              : "Reading the watched families…"}
+              : `No family is available from this completed ${universe.data?.state ?? "empty"} read. ${universe.data?.notes[0] ?? "The gateway returned no watched event."}`}
           </PaneHeadEmpty>
         }
       />
+      </MarketsSectionContainment>
     );
   }
 
@@ -194,6 +204,7 @@ export default function StakePane({
   const kpis = kelly && kelly.engine !== "unavailable" ? readings(kelly) : undefined;
 
   return (
+    <MarketsSectionContainment variant="stake">
     <SectionFrame
       className="coh-kelly"
       aria-labelledby="markets-stake-heading"
@@ -222,28 +233,28 @@ export default function StakePane({
           not an answer about this family.
         </p>
       ) : !kelly ? (
-        <p className="console-empty muted">Sizing the log-optimal stake…</p>
+        <p className="console-empty muted" role="status" aria-busy="true">Sizing the log-optimal stake…</p>
       ) : kelly.engine === "unavailable" ? (
         <StakeDeclined kelly={kelly} target={target} events={events} onSelect={setPicked} />
       ) : (
         <>
-          {view === "family" ? <FamilyView kelly={kelly} /> : <StakeView kelly={kelly} view={view} />}
+          {view === "family"
+            ? <FamilyView key={`family:${target}`} kelly={kelly} />
+            : <StakeView key={`${view}:${target}`} kelly={kelly} view={view} />}
 
-          <LiveTape
-            points={growthTape}
-            caption="What log-optimal growth has been worth, poll by poll"
-            ariaLabel="The plan's growth rate over the polls seen since this tab opened"
-            reference={{ value: 0, label: "stake nothing" }}
-            reading="On the market's own mids the solver returns zero; a reading off that line is the moment these quotes stopped being a fair game."
-          />
+          {view === "plan" ? (
+            <LiveTape
+              points={growthTape}
+              caption="What log-optimal growth has been worth, poll by poll"
+              ariaLabel="The plan's growth rate over the polls seen since this tab opened"
+              reference={{ value: 0, label: "stake nothing" }}
+              reading="On the market's own mids the solver returns zero; a reading off that line is the moment these quotes stopped being a fair game."
+            />
+          ) : null}
 
-          <p className="coh-kelly__note">
-            A reading of prices and not a forecast: fed the market&rsquo;s own mids, the solver returns
-            &ldquo;stake nothing&rdquo;, and nothing on this section places an order.
-          </p>
-          <TruncationNote />
         </>
       )}
     </SectionFrame>
+    </MarketsSectionContainment>
   );
 }
