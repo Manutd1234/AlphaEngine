@@ -26,7 +26,7 @@
  * can never change how many of them run.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { type PortfolioFocusDestination } from "@/components/PortfolioWorkspace";
 import CommandBar, { type Command } from "@/components/header/CommandBar";
@@ -34,9 +34,9 @@ import ShortcutsOverlay from "@/components/header/ShortcutsOverlay";
 import WorkspaceBottomNav from "@/components/WorkspaceBottomNav";
 import WorkspaceHeader from "@/components/WorkspaceHeader";
 import WorkspacePanels from "@/components/workspace/WorkspacePanels";
+import WorkspaceEntityBridge from "@/components/workspace/WorkspaceEntityBridge";
 import { useDataWorkQueue } from "@/lib/use-data-work-queue";
 import {
-  createInitialDeveloperWorkItems,
   loadDeveloperWorkItems,
   saveDeveloperWorkItems,
   type DeveloperWorkItem,
@@ -84,7 +84,8 @@ export default function Page() {
   const [executionStrategy, setExecutionStrategy] = useState<Strategy>(DEFAULT_REQUEST.strategy);
   const [showMcBands, setShowMcBands] = useState(true);
   const [mcRunNonce, setMcRunNonce] = useState(0);
-  const [developerWorkItems, setDeveloperWorkItems] = useState<DeveloperWorkItem[]>(createInitialDeveloperWorkItems);
+  const [developerWorkItems, setDeveloperWorkItems] = useState<DeveloperWorkItem[]>([]);
+  const [developerWorkHydrated, setDeveloperWorkHydrated] = useState(false);
   const { commandBarOpen, setCommandBarOpen, shortcutsOpen, setShortcutsOpen } = useWorkspaceShortcuts();
 
   // One book and one health snapshot, shared by the tabs that read them. Both
@@ -122,27 +123,20 @@ export default function Page() {
     [book.refresh, systems.refresh],
   );
 
-  // The engineering queue hydrates the same way the experiments log does:
-  // seeds render first (server and client agree), storage wins after mount.
-  // The persist effect skips its own mount pass — it fires in the same commit
-  // as hydration, while state still holds the seeds, and writing them there
-  // would clobber a stored queue before the hydrating setState applied. The
-  // skip also means a reader who never edits is never pinned to first-visit
-  // seeds: storage stays empty until a real change, so seed updates from
-  // later deploys still reach them.
-  const developerWorkPersistReady = useRef(false);
+  // The engineering queue starts empty and restores only user-created browser
+  // state after mount. Persistence stays disabled until that read completes;
+  // this also survives React Strict Mode replay without writing the initial
+  // empty array over a stored queue.
   useEffect(() => {
     const stored = loadDeveloperWorkItems();
     if (stored) setDeveloperWorkItems(stored);
+    setDeveloperWorkHydrated(true);
   }, []);
 
   useEffect(() => {
-    if (!developerWorkPersistReady.current) {
-      developerWorkPersistReady.current = true;
-      return;
-    }
+    if (!developerWorkHydrated) return;
     saveDeveloperWorkItems(developerWorkItems);
-  }, [developerWorkItems]);
+  }, [developerWorkHydrated, developerWorkItems]);
 
   /**
    * Mirrors preferences to the signed-in account, if there is one.
@@ -267,6 +261,7 @@ export default function Page() {
       />
 
       <main id="workspace-content" ref={shellRef} className="workspace-shell" tabIndex={-1}>
+        <WorkspaceEntityBridge onTicker={updateSymbol} />
         <WorkspacePanels
           routing={routing}
           sweep={sweep}
