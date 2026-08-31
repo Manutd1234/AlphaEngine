@@ -68,6 +68,9 @@ describe("the blotter's status filter is gone, and cannot come back by accident"
     assert.match(stripped, /view === "fills" \? "accepted" : "unfilled"/);
     // And the export filename still records which view produced the file.
     assert.match(stripped, /"alphaengine-blotter", source, view/);
+    assert.match(stripped, /className="cockpit-blotter__row-toggle"[\s\S]*?aria-expanded=\{open\}/);
+    assert.doesNotMatch(stripped, /<tr[\s\S]{0,260}?aria-expanded=/,
+      "aria-expanded is valid on the row's button, not on a row in a plain table");
   });
 });
 
