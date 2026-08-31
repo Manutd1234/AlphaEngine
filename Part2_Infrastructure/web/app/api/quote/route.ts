@@ -68,10 +68,13 @@ export async function GET(request: NextRequest) {
         }
       }),
     );
+    const synthetic = settled.some(
+      (row) => "provenance" in row && row.provenance.synthetic === true,
+    );
 
     return NextResponse.json(
       { fetchedAt: new Date().toISOString(), mode: "single", quotes: settled },
-      { headers: cacheHeaders(15) },
+      { headers: cacheHeaders(15, synthetic) },
     );
   } catch (err) {
     return failure(err);
