@@ -6,11 +6,11 @@
  * This is the one relation on the exchange that is stated rather than inferred:
  * a combo ticker carries its legs, so the conjunction is not a guess. It is
  * also the relation that pins down the least. The legs give a band and never a
- * price, and the three views are built around that gap rather than around a
+ * price, and the five views are built around that gap rather than around a
  * verdict.
  *
  * IT WAS THE `combos` RAIL SECTION UNTIL THE CONSOLIDATION OF 2026-08-24, and
- * it is three views of `certificate` — "Dutch book" — now. The fold is the
+ * it is five views of `certificate` — "Dutch book" — now. The fold is the
  * argument's own seam rather than a tidy-up: the Fréchet bounds test IS a
  * coherence test, run on parlays instead of on a family's strikes. Same
  * failure, same verdict vocabulary; the only difference is that here the leg
@@ -19,13 +19,13 @@
  * WHAT THE FOLD COST, because `combos` was PUBLISHED and the six ids demoted
  * earlier that day were not. `#coherence/combos` is a link someone may hold
  * from `origin/main`; `RELOCATED_SECTIONS` lands it on Dutch book rather than on
- * the rail default, but it lands on the SECTION — which of the six views opens
+ * the rail default, but it lands on the SECTION — which of the five views opens
  * is component state the hash cannot name, so a reader arriving on that link
  * meets Verdict and presses Parlays. `lib/sections.ts` records the trade.
  *
  * So this file draws no head, owns no switcher and returns no `<section>`.
  * `CertificatePane` owns all three and passes `view` down. What stayed here is
- * the read, the formula, the two chips and the three drawings.
+ * the read, the two chips and the focused view bodies.
  *
  * The failure mode these views avoid is a reader taking "inside the band" for
  * "fairly priced". They are not the same claim and the second is not available:
@@ -44,7 +44,7 @@
  * that figure, on all six cards.
  *
  * NOTES BECAME A DISCLOSURE RATHER THAN A FOURTH VIEW, and that is the
- * consolidation's one copy decision here. A six-button seg is already the
+ * consolidation's one copy decision here. A five-button seg is already the
  * widest control on the desk; a seventh for a page of caveats would have made
  * the switcher the loudest thing in the card. So the caveats ride under Bounds
  * — the view whose verdict they qualify — behind a `<details>` that names what
@@ -58,9 +58,8 @@
  * and wrong for the rare quoted-both-sides one, which is the case a reader most
  * needs told apart.
  *
- * The three views, and every table under them, are `CombosViews.tsx`: the
- * density pass put this file over the 400-line ceiling and the switcher is the
- * seam the component already had.
+ * The shared range overview and caveats are `CombosViews.tsx`; the focused
+ * quote and leg tasks live in `ParlaysView.tsx`.
  */
 
 import type { CoherenceComboRow, CoherenceCombos } from "@/lib/coherence/types-lab";
@@ -69,10 +68,10 @@ import { useState } from "react";
 
 import { combosRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
-import { BandsView, caveatCount, GatewayNotes, NotesView } from "./CombosViews";
+import { BandsView, caveatCount, NotesView } from "./CombosViews";
 // The Parlays view left `CombosViews` when the 2026-08-26 redo would have put
 // that file over the ceiling; it carries the card and the leg table with it.
-import { ParlaysView } from "./ParlaysView";
+import { ParlayDetailsView, ParlayInputsView, ParlaysView } from "./ParlaysView";
 // The Bounds view left `CombosViews` when that file crossed the ceiling: it
 // draws the PORTFOLIO a bound is tested with, where the other two draw a
 // parlay against its band.
@@ -80,11 +79,14 @@ import { BoundsView } from "./CombosBounds";
 import ParlayReadCost from "./ParlayReadCost";
 import { StateChip } from "./Figure";
 import SectionVerdict from "./SectionVerdict";
+import ProofsTransportNotice from "./ProofsTransportNotice";
+import { useStableSelectionKey } from "./use-stable-selection-key";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
-const FORMULA = "max(0, Σpᵢ − (n−1))  ≤  P(all legs)  ≤  min pᵢ";
-
-/** Which of the Dutch-book section's three parlay views this render draws. */
-export type ComboView = "bands" | "parlays" | "bounds";
+/** Five focused parlay tasks replace three long, scrolling destinations. */
+export type ComboView = "bands" | "parlays" | "inputs" | "legs" | "bounds";
 
 export default function CombosPane({ active, view }: { active: boolean; view: ComboView }) {
   /**
@@ -98,31 +100,50 @@ export default function CombosPane({ active, view }: { active: boolean; view: Co
    */
   const [asked, setAsked] = useState("");
   const [ticker, setTicker] = useState<string | null>(null);
-  const { data, error, refresh } = useCoherenceRead<CoherenceCombos>(combosRoute(6, ticker), active);
+  const read = useCoherenceRead<CoherenceCombos>(combosRoute(6, ticker), active);
+  const { data, error } = read;
+  const [selectedTicker, setSelectedTicker] = useStableSelectionKey(
+    data?.combos.map((combo) => combo.ticker) ?? [],
+  );
+
+  const notice = (
+    <ProofsTransportNotice
+      subject="Parlay read"
+      error={error}
+      hasSnapshot={Boolean(data)}
+      transport={read.transport}
+      retryAt={read.retryAt}
+      consecutiveFailures={read.consecutiveFailures}
+      onRetry={read.refresh}
+    />
+  );
 
   const search = (
-    <form
-      className="coh-combos__find"
-      onSubmit={(event) => {
-        event.preventDefault();
-        setTicker(asked.trim() || null);
-      }}
-    >
-      <label htmlFor="coh-parlay-ticker">Parlay</label>
-      <input
-        id="coh-parlay-ticker"
-        type="search"
-        value={asked}
-        placeholder="a parlay ticker, or blank for the listed few"
-        onChange={(event) => setAsked(event.target.value)}
-      />
-      <button type="submit">Read it</button>
-      {ticker ? (
-        <button type="button" onClick={() => { setAsked(""); setTicker(null); }}>
-          Back to the listed few
-        </button>
-      ) : null}
-    </form>
+    <details className="disclosure coh-combos__lookup" open={Boolean(ticker) || undefined}>
+      <summary>Ticker lookup, 1 field</summary>
+      <form
+        className="coh-combos__find"
+        onSubmit={(event) => {
+          event.preventDefault();
+          setTicker(asked.trim() || null);
+        }}
+      >
+        <Label htmlFor="coh-parlay-ticker">Ticker</Label>
+        <Input
+          id="coh-parlay-ticker"
+          type="search"
+          value={asked}
+          placeholder="Parlay ticker"
+          onChange={(event) => setAsked(event.target.value)}
+        />
+        <Button type="submit" variant="outline" size="sm">Load</Button>
+        {ticker ? (
+          <Button type="button" variant="ghost" size="sm" onClick={() => { setAsked(""); setTicker(null); }}>
+            Show listed parlays
+          </Button>
+        ) : null}
+      </form>
+    </details>
   );
 
   // No head on any of these branches: the section's head is `CertificatePane`'s
@@ -138,15 +159,8 @@ export default function CombosPane({ active, view }: { active: boolean; view: Co
     return (
       <>
         {search}
-        <SectionVerdict pending={<><span aria-hidden="true">✕</span> The parlays could not be read: {error}</>} />
+        {notice}
         <ParlayReadCost data={null} error={error} ticker={ticker} />
-        {/* THE ONE CONTROL A FAILED READ OWES A READER. The poll is twenty
-            seconds and the failure often is not the venue's fault twice in a
-            row, so waiting is the only thing this pane offered and it offered
-            it silently. */}
-        <div className="coh-combos__retry">
-          <button type="button" onClick={refresh}>Read again</button>
-        </div>
       </>
     );
   }
@@ -157,6 +171,7 @@ export default function CombosPane({ active, view }: { active: boolean; view: Co
     const notes = data.notes ?? [];
     return (
       <>
+        {notice}
         {/* The search stays on this branch too. Asking for a ticker the
             exchange is not listing lands here, and without it a reader would
             have no way back to the listed few except reloading the tab. */}
@@ -186,33 +201,47 @@ export default function CombosPane({ active, view }: { active: boolean; view: Co
     const bestSlack = best == null ? null : toCenticents(best.slack);
     return bestSlack == null || slack < bestSlack ? row : best;
   }, null);
+  const contextCount = caveatCount(data.combos, data.notes ?? []);
 
   return (
     <>
+      {notice}
       {/* Two chips, not four: the count chips restated the section note, which
           already carries both figures. In the band since 2026-08-25, where the
           other five sections put their answer. */}
       <SectionVerdict>
-        <StateChip mark={data.outside_band ? "▲" : "●"} word="Priced outside their band"
+        <StateChip mark={data.outside_band ? "▲" : "●"} word="Outside range"
                    value={String(data.outside_band)} tone={data.outside_band ? "critical" : "good"} />
-        <StateChip mark={data.violations ? "▲" : "●"} word="Bounds violated"
+        <StateChip mark={data.violations ? "▲" : "●"} word="Bound failures"
                    value={String(data.violations)} tone={data.violations ? "critical" : "good"} />
       </SectionVerdict>
-
-      {/* The formula only. The sentence that used to sit above it — two
-          probabilities do not determine the probability of both — went back to
-          being the SECTION's lede on 2026-08-25, which is where it was
-          published and where `CombosSection` now carries it. It lived here for
-          one day because the fold into Dutch book left it with nowhere to be,
-          and a claim made in two places is a claim a reader reads twice. */}
-      <code className="coh-combo__formula">{FORMULA}</code>
 
       {search}
 
       {view === "bands" ? (
-        <BandsView combos={data.combos} />
+        <BandsView
+          combos={data.combos}
+          selectedTicker={selectedTicker}
+          onSelectTicker={setSelectedTicker}
+        />
       ) : view === "parlays" ? (
-        <ParlaysView combos={data.combos} />
+        <ParlaysView
+          combos={data.combos}
+          selectedTicker={selectedTicker}
+          onSelectTicker={setSelectedTicker}
+        />
+      ) : view === "inputs" ? (
+        <ParlayInputsView
+          combos={data.combos}
+          selectedTicker={selectedTicker}
+          onSelectTicker={setSelectedTicker}
+        />
+      ) : view === "legs" ? (
+        <ParlayDetailsView
+          combos={data.combos}
+          selectedTicker={selectedTicker}
+          onSelectTicker={setSelectedTicker}
+        />
       ) : (
         <>
           <BoundsView rows={data.rows} violated={violated} tightest={tightest} />
@@ -221,13 +250,9 @@ export default function CombosPane({ active, view }: { active: boolean; view: Co
               needs them. The summary names what is inside, so nobody has to
               open it to find out whether it is worth opening. */}
           <details className="disclosure">
-            <summary>{`What this read reports, and what it cannot, ${caveatCount(data.combos)} ${caveatCount(data.combos) === 1 ? "caveat" : "caveats"}`}</summary>
-            <NotesView combos={data.combos} />
+            <summary>{`Context and caveats, ${contextCount} ${contextCount === 1 ? "item" : "items"}`}</summary>
+            <NotesView combos={data.combos} notes={data.notes ?? []} />
           </details>
-          {/* A SIBLING, not a child. These two were nested — the gateway's
-              notes lived inside `NotesView`, which this fold wraps — so
-              reaching one list meant opening two disclosures. */}
-          <GatewayNotes notes={data.notes} />
         </>
       )}
     </>
