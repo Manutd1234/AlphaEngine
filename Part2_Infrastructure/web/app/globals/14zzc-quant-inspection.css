@@ -1,0 +1,56 @@
+/* Shared exact-value inspection for Markets and Proofs. */
+
+:is(.markets-plane, .proofs-plane) .quant-inspection {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+:is(.markets-plane, .proofs-plane) .quant-inspection__readout[data-active="true"] {
+  min-height: 2.2rem;
+  padding: var(--space-2) var(--space-3);
+  border-inline-start: 3px solid var(--series-1);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+:is(.markets-plane, .proofs-plane) .quant-inspection__table {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+}
+
+:is(.markets-plane, .proofs-plane) .quant-inspection__table > summary {
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-weight: 650;
+}
+
+:is(.markets-plane, .proofs-plane) .quant-inspection__table > summary:focus-visible,
+:is(.markets-plane, .proofs-plane) .quant-inspection__row:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+:is(.markets-plane, .proofs-plane) .quant-inspection__row.is-hot {
+  outline: 2px solid var(--text-primary);
+  outline-offset: -2px;
+  font-weight: 620;
+}
+
+:is(.markets-plane, .proofs-plane) .quant-inspection__secondary {
+  display: block;
+  max-width: 28rem;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  text-overflow: ellipsis;
+}
+
+:is(.markets-plane, .proofs-plane) .quant-inspection g.is-hot > :is(rect, circle, line) {
+  stroke: var(--text-primary);
+  stroke-width: 3px;
+}
