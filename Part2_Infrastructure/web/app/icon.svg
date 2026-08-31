@@ -1,13 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="AlphaEngine">
   <defs>
     <linearGradient id="ae-bg" x1="10" y1="7" x2="55" y2="60" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#3B82F6"/>
-      <stop offset="0.55" stop-color="#2563EB"/>
-      <stop offset="1" stop-color="#1E40AF"/>
+      <stop stop-color="#9A5B20"/>
+      <stop offset="0.55" stop-color="#7C3F16"/>
+      <stop offset="1" stop-color="#4A2410"/>
     </linearGradient>
   </defs>
   <rect x="3" y="3" width="58" height="58" rx="17" fill="url(#ae-bg)"/>
   <path d="M35.5 22.5C33.1 19.5 30 18 26.3 18 19.2 18 14 23.8 14 31s5.2 13 12.3 13c4.1 0 7.5-1.9 9.8-5.4M37 18l-3.8 26" fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M43 23.5h9M43 31.5h12M43 39.5h7" fill="none" stroke="#9EC9FB" stroke-width="3" stroke-linecap="round"/>
+  <path d="M43 23.5h9M43 31.5h12M43 39.5h7" fill="none" stroke="#FFFAF4" stroke-width="3" stroke-linecap="round"/>
   <path d="M10 48a23 23 0 0 0 34 7" fill="none" stroke="#fff" stroke-opacity=".16" stroke-width="1.2" stroke-linecap="round"/>
 </svg>
