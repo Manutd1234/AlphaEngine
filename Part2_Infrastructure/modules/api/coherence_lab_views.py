@@ -79,7 +79,7 @@ def surface_view(reading: Any, event_ticker: str) -> CoherenceSurface:
         tail_mass_high=text(reading.tail_mass_high),
         mean=text(reading.mean),
         variance=text(variance),
-        standard_deviation=text(variance.sqrt()) if variance is not None and variance > 0 else None,
+        standard_deviation=text(variance.sqrt()) if variance is not None and variance >= 0 else None,
         skewness=text(reading.skewness),
         excess_kurtosis=text(reading.excess_kurtosis),
         moments_note=reading.moments_note,
