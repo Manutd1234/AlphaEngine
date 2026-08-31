@@ -46,8 +46,6 @@
  * thing.
  */
 
-import { useState } from "react";
-
 import SettlementPane, { type SettlementView } from "./SettlementPane";
 import PaneHead from "./PaneHead";
 import SectionFrame from "./SectionFrame";
@@ -70,10 +68,10 @@ export default function SettlementSection(
       head={
         <PaneHead
           kicker="Settlement"
-          title="What these contracts actually resolve against"
+          title="Settlement against the published index"
           id="markets-settlement-heading"
           note="one published index, read per minute"
-          lede="A contract settles on the mean of a published index over a window, never on the price on screen, and the gap between the two is basis a position carries for free."
+          lede="Contracts settle on the published index’s window mean, not screen price; basis stays open until fixing."
         />
       }
       views={VIEWS}
