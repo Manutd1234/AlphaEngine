@@ -36,9 +36,11 @@ import {
 import { emitPrefChange } from "@/lib/pref-sync-bus";
 import { useConsolePrefetch } from "@/lib/use-console-prefetch";
 import { WORKSPACE_LOCATION_KEY } from "@/lib/user-prefs";
-import { DEFAULT_SECTION, followLocation, railSection, type SectionApplier } from "@/lib/workspace-hash";
 import { useRailSections } from "@/lib/use-rail-sections";
+import { useWorkspaceBootstrap } from "@/lib/use-workspace-bootstrap";
 import { useHashFor, useViewWriter } from "@/lib/workspace-location";
+import { locationHash } from "@/lib/section-views";
+import { clearWorkspaceEntity } from "@/lib/workspace-entities";
 import { buildTourStops } from "@/lib/workspace-tour";
 
 export function useWorkspaceRouting() {
@@ -106,6 +108,7 @@ export function useWorkspaceRouting() {
       detail?.apply();
       if (typeof window !== "undefined") {
         const url = new URL(window.location.href);
+        clearWorkspaceEntity(url);
         // Always the FULL location. Bare `#research` while the rail shows
         // Strategies was the desync: copy-link disagreed with reload, and a
         // forced per-workspace reset (data/reliability used to snap back to
@@ -143,6 +146,7 @@ export function useWorkspaceRouting() {
      * always been "back to the top of the tab".
      */
     const url = new URL(window.location.href);
+    clearWorkspaceEntity(url);
     url.hash = detail?.hash ?? hashFor(next);
     window.history[replace ? "replaceState" : "pushState"]({}, "", url);
     startTransition(() => {
@@ -196,15 +200,22 @@ export function useWorkspaceRouting() {
     shellRef.current?.scrollTo({ top: 0, behavior: "auto" });
   }, [view, activeSection]);
 
-  useEffect(() => followLocation(applier, setView), [applier]);
+  // The fragment is unavailable to the server render. This hook applies it in
+  // a layout effect and releases the head bootstrap only after the lazy target
+  // panel is the committed visible panel.
+  useWorkspaceBootstrap({ view, activeSection, applier, setView, sectionByViewRef, viewRef });
 
-  /** Records a second-level section in the URL without leaving the workspace. */
+  /** Records the section and its retained lens without leaving the workspace. */
   const pushSection = useCallback((workspace: WorkspaceView, next: string) => {
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
-    url.hash = `${workspace}/${next}`;
+    clearWorkspaceEntity(url);
+    // A section remembers its lens while the reader visits another section.
+    // Serialise that lens on return or the mounted UI and a reload of the URL
+    // disagree whenever the remembered lens is not the section default.
+    url.hash = locationHash(workspace, next, viewBySectionRef.current[workspace]?.[next]);
     window.history.pushState({}, "", url);
-  }, []);
+  }, [viewBySectionRef]);
 
   /**
    * setState plus the URL push, one per rail. Bound as a table like `applier`
@@ -302,15 +313,19 @@ export function useWorkspaceRouting() {
     }
   }, [openSection]);
 
-  // One writer per view-declaring tab — hooks, so a fixed pair rather than a
-  // loop — and one setter dispatching between them for the panels.
+  // One writer per view-declaring tab — explicit hooks rather than a loop —
+  // and one setter dispatching between them for the panels.
+  const changeResearchView = useViewWriter({ sectionByViewRef, viewBySectionRef, viewRef }, "research", setSectionView);
   const changeMarketsView = useViewWriter({ sectionByViewRef, viewBySectionRef, viewRef }, "markets", setSectionView);
   const changeCoherenceView = useViewWriter({ sectionByViewRef, viewBySectionRef, viewRef }, "coherence", setSectionView);
+  const changeDiffusionView = useViewWriter({ sectionByViewRef, viewBySectionRef, viewRef }, "diffusion", setSectionView);
   const changeSectionView = useCallback((tab: WorkspaceView, section: string, next: string) => {
-    if (tab === "markets") changeMarketsView(section, next);
+    if (tab === "research") changeResearchView(section, next);
+    else if (tab === "markets") changeMarketsView(section, next);
     else if (tab === "coherence") changeCoherenceView(section, next);
+    else if (tab === "diffusion") changeDiffusionView(section, next);
     else setSectionView(tab, section, next);
-  }, [changeMarketsView, changeCoherenceView, setSectionView]);
+  }, [changeResearchView, changeMarketsView, changeCoherenceView, changeDiffusionView, setSectionView]);
 
   /** The current location as a shareable URL, straight from the live ref. */
   const copyLinkToView = useCallback(() => {
