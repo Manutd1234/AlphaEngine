@@ -100,9 +100,9 @@ export default function VarBacktestChart({
 
   return (
     /* `.card`, because this is a panel now rather than one of three siblings
-       in a grid. `.var-backtest` and `.var-backtest__exceptions` have no rules
-       in the stylesheet at all — they are hooks that were never given bodies,
-       so every piece of chrome here comes from `.card`. */
+       in a grid. `.var-backtest` remains a structural hook; the exception
+       disclosure uses its named hook only to join the calendar and its table
+       into one aligned box. All other chrome still comes from `.card`. */
     <div className="card var-backtest">
       <p className="console-subhead">
         Forecast against realised
