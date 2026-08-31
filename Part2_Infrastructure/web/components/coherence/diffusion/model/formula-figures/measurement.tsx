@@ -61,7 +61,7 @@ export function Floor() {
       <text className="coh-ladder__tick" x={x(0.22)} y={y(0.72)} textAnchor="middle">✕</text>
       <line className="coh-survival__median" x1={x(0.66)} x2={x(0.66)} y1={y(0.5)} y2={y(1.34)} />
       <text className="coh-ladder__tick" x={x(0.66)} y={y(1.42)} textAnchor="middle">✓</text>
-      
+
     </Frame>
   );
 }
