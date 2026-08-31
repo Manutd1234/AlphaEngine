@@ -44,16 +44,9 @@ function DeveloperChanges() {
         <div>
           <span>Repository evidence</span>
           <h2>Code &amp; Diffs</h2>
-          {/* A why-this-is-withheld note, folded because the panel beneath it
-              is the demonstration: CodebaseExplorer renders the whole manifest
-              with per-file metadata and an "Open source" link to GitHub for
-              every path, so a reader learns where the diffs live by using the
-              card rather than by reading a sentence about it first. The kicker,
-              the heading, the commit pill and "Open commit" all stay. */}
-          <details className="disclosure">
-            <summary>What this manifest holds, and where the diffs live</summary>
-            <p>This runtime exposes the committed path manifest, not source contents; GitHub carries blame, history and diffs.</p>
-          </details>
+          <p className="developer-cp-section-hero__note">
+            Committed path manifest, not source contents; GitHub carries blame, history and diffs.
+          </p>
         </div>
         <div className="developer-cp-section-hero__actions">
           <StatusPill state={{ label: APP_COMMIT, detail: "Build-time Git identity.", tone: APP_COMMIT === "dev" ? "warn" : "good" }} />
@@ -121,6 +114,7 @@ export default function DeveloperConsole({
       <PageHead
         kicker="Quant developer"
         title="Developer"
+        showTitle={false}
         description="What is deployed, what CI proved, where the schema contracts stand."
         actions={<FreshnessStamp updatedAt={view.updatedAt} pollMs={view.pollMs} paused={view.paused} />}
         metrics={[
