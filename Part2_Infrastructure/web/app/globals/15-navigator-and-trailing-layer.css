@@ -27,7 +27,8 @@
   padding: 0;
   border: 0;
   border-bottom: 1px solid var(--border);
-  background: transparent;
+  background: var(--surface-0);
+  isolation: isolate;
 }
 
 .workspace-subtabs__navigation,
@@ -115,18 +116,18 @@
   white-space: nowrap;
 }
 
-/* The role tabs' idiom, one step down: a neutral wash on hover, a 9% accent wash and full contrast when selected, and a 2px rule under the active item
+/* The role tabs' idiom, one step down: distinct neutral hover and selected planes, plus a 2px rule under the active item
    against the role tabs' 3px. PAINT ONLY — not one declaration in the two state rules below changes the box, which is the whole of the reported defect.
-   Hover was 5% of the SAME accent selection washes at 9%. Composited, those two fills measure 1.05:1 against each other in both palettes — one colour, to
-   the eye — so hover was wearing the carrier selection needs; and at (0,3,1) against the selected rule's (0,2,1) it outranked it, so resting a pointer on
+   Hover was 5% of the SAME accent selection wash. Composited, those two fills read as one colour
+   to the eye — so hover was wearing the carrier selection needs; and at (0,3,1) against the selected rule's (0,2,1) it outranked it, so resting a pointer on
    the selected tab downgraded it to hover paint. The `:not([aria-selected="true"])` takes hover to (0,4,1) and out of selection's way. The neutral swap is
-   not a contrast win — neutral against the 9% accent is 1.03:1, marginally lower — it stops hover speaking in selection's voice. REJECTED: swapping the
+   not the sole contrast win — it stops hover speaking in selection's voice. REJECTED: swapping the
    colour and leaving the selector, which under a resting pointer strips the selected tab of its accent and leaves the inset rule carrying selection alone.
    That rule is an inset shadow rather than the `::after` the role tabs use, because this rail becomes a scroll container below 820px and anything drawn
    outside the content box is clipped there — and because a shadow, unlike a border or an outline, occupies no space whatever it is doing. Colour is not
    the only carrier: the rule, the contrast step from `--text-secondary` to `--text-primary`, and `aria-selected` all say it. */
 .workspace-subtabs button:hover:not(:disabled):not([aria-selected="true"]) {
-  background: color-mix(in srgb, var(--text-primary) 5%, transparent);
+  background: var(--nav-hover-bg);
   color: var(--text-primary);
 }
 
@@ -138,7 +139,8 @@
 }
 
 .workspace-subtabs button[aria-selected="true"] {
-  background: color-mix(in srgb, var(--series-1) 9%, transparent);
+  background: var(--nav-selected-bg);
+  border-color: var(--border) var(--border) transparent;
   color: var(--text-primary);
   box-shadow: inset 0 -2px 0 var(--series-1);
 }
@@ -229,9 +231,9 @@
     gap: 2px var(--space-2);
     min-height: 48px;
     padding: 6px 8px 6px 11px;
-    border: 1px solid var(--border);
+    border: 1px solid var(--rule-soft);
     border-radius: var(--radius-md);
-    background: color-mix(in srgb, var(--surface-2) 78%, var(--surface-1));
+    background: var(--surface-1);
   }
 
   .workspace-subtabs__picker > span {
@@ -247,11 +249,17 @@
     min-width: 0;
     min-height: 44px;
     padding: 4px 30px 4px 9px;
-    border: 1px solid color-mix(in srgb, var(--series-1) 28%, var(--border));
+    border: 1px solid var(--border-strong);
     border-radius: var(--radius-sm);
     background-color: var(--surface-1);
     color: var(--text-primary);
     font: 680 var(--fs-md)/1.2 var(--sans);
+  }
+
+  .workspace-subtabs__picker select:focus-visible {
+    border-color: var(--series-1);
+    outline: 2px solid var(--series-1);
+    outline-offset: 2px;
   }
 
   .workspace-subtabs__actions {
@@ -262,60 +270,11 @@
     flex: 0 0 auto;
   }
 
-  /* On a phone the complete sweep form is taller than the result itself.
-     Keep its run context visible, but disclose the controls only when the
-     researcher asks to edit them. Desktop keeps the full workbench open. */
+  /* The phone keeps the same compact setup disclosure as the desk, with a
+     smaller card inset. The shared heading, toggle and hidden-body contract
+     live in 01 rather than being rebuilt at this breakpoint. */
   .experiment-panel {
     padding: 12px;
-  }
-
-  .experiment-panel__heading {
-    display: flex;
-    min-width: 0;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
-  }
-
-  .experiment-panel__heading > div {
-    min-width: 0;
-  }
-
-  /* The experiment context wraps to two lines on a phone. On one nowrap line
-     "BTCUSDT · 4h · Moving-average crossover · 74…" lost the combination
-     count at 390px and below — the number that tells you the sweep ran. */
-  .experiment-panel__heading .sub {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    overflow: hidden;
-    margin: 3px 0 0;
-    color: var(--text-muted);
-    font-size: var(--fs-2xs);
-  }
-
-  .experiment-panel__toggle {
-    display: inline-flex;
-    flex: 0 0 auto;
-    min-height: 34px;
-    align-items: center;
-    justify-content: center;
-    padding: 5px 10px;
-    border-color: color-mix(in srgb, var(--series-1) 28%, var(--border));
-    background: var(--surface-1);
-    color: var(--series-1);
-    font-size: var(--fs-sm);
-    font-weight: 700;
-  }
-
-  .experiment-panel[data-expanded="false"] .experiment-panel__body {
-    display: none;
-  }
-
-  .experiment-panel[data-expanded="true"] .experiment-panel__body {
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid var(--grid);
   }
 
   .page-heading__actions {
@@ -420,6 +379,10 @@
     align-items: center;
   }
 
+  :where(details:not(.page-context-strip__provenance):not(.friction-group):not(.data-quality-ledger):not(.next-step-footer__detail):not([data-summary-marker="source-owned"])) > summary {
+    min-block-size: 44px;
+  }
+
   /* 16px is the whole fix for iOS focus-zoom, and the only one that does not
      break pinch-zoom: Safari magnifies the page on focus for anything smaller
      and does not zoom back out, so the two selects that ARE the mobile
@@ -470,7 +433,6 @@
   .workspace-subtabs__rail[data-scroll-affordance="horizontal"] > button,
   .workspace-subtabs__actions button,
   .workspace-subtabs__actions .rail-toggle,
-  .experiment-panel__toggle,
   .system-health-action {
     min-height: 44px;
   }
@@ -502,36 +464,6 @@
 /* ══════════════════════════════════════════════════════════════════════════
    Forced colours — meaning survives when decorative washes are removed
    ══════════════════════════════════════════════════════════════════════════ */
-
-/* Garena's replay workspace keeps the active tool inside the viewport and lets
-   the detail pane own its scroll. Research is the one AlphaEngine surface with
-   the same shape: persistent setup at left, one selected evidence section at
-   right. Mobile returns to normal document flow below the desktop split. */
-@media (min-width: 1001px) and (min-height: 700px) {
-  #panel-research .research-layout--sectioned {
-    height: clamp(520px, calc(100svh - var(--header-h) - 178px), 860px);
-    min-height: 0;
-    align-items: stretch;
-  }
-
-  #panel-research .research-layout--sectioned > .sidebar,
-  #panel-research .research-content {
-    height: 100%;
-    min-height: 0;
-    max-height: none;
-    overflow-y: auto;
-    overscroll-behavior-y: contain;
-    scrollbar-gutter: stable;
-  }
-
-  #panel-research .research-layout--sectioned > .sidebar {
-    position: static;
-  }
-
-  #panel-research .research-content {
-    padding-right: 5px;
-  }
-}
 
 @media (forced-colors: active) {
   /* High Contrast gets a visible scrollbar rather than a hidden one. The
@@ -605,6 +537,15 @@
     stroke: currentColor;
   }
 
+  /* The ordinary wash disappears in High Contrast, so the area between the
+     HWM and equity takes the desk's shared hatch. Its two boundary lines still
+     carry the same reading if patterns are disabled by the user agent. */
+  .equity-drawdown-area {
+    fill: url(#diff-hatch);
+    stroke: CanvasText;
+    stroke-width: 1;
+  }
+
   /* These are the only two surfaces where preserving authored colour is
      preserving data, not decoration. Both retain text or labels as a twin. */
   .heatmap-cell,
@@ -620,8 +561,7 @@
      SHAPE — a filled disc against a hollow square, a box outline against an
      arrow — so High Contrast only has to hand them the user's ink; nothing
      here is recovering a meaning that colour was carrying alone. */
-  .coh-basket__buy,
-  .coh-pending__spread {
+  .coh-basket__buy {
     fill: currentColor;
   }
 
@@ -633,6 +573,13 @@
   .coh-form__arrow line { stroke: currentColor; }
   .coh-form__arrow polygon { fill: currentColor; }
   .coh-plot__reference text { stroke: Canvas; } /* the halo is the plate, and the plate is Canvas here */
+
+  /* A pattern fill is not guaranteed to survive a forced-colour remap. The
+     visible words and a system-colour dashed edge keep the historical gap a
+     named absence rather than letting it collapse back into a white box. */
+  .diff-fan__unmeasured-ground { fill: Canvas; }
+  .diff-fan__unmeasured { fill: none; stroke: CanvasText; stroke-dasharray: 4 3; }
+  .diff-fan__history-label, .diff-fan__history-range { fill: CanvasText; }
 }
 
 /* Research doubles as its own evidence pack. Printing reveals every Research
@@ -1027,19 +974,6 @@
 
 .unrealised-spread__value {
   text-align: right;
-}
-
-.allocation-mixes {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: var(--space-5);
-  margin-top: var(--space-3);
-}
-
-.allocation-mixes small {
-  display: block;
-  margin-top: var(--space-2);
-  line-height: var(--lh-body);
 }
 
 /* ---------- data trust: verdict ring and freshness rows ---------- */
