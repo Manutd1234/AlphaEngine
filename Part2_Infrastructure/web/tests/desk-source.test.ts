@@ -126,20 +126,24 @@ describe("demotion is immediate, promotion is not", () => {
   });
 });
 
-describe("the sandbox is reachable only with no reading, or by choice", () => {
-  it("a first probe that fails with no gateway generates, and says so", () => {
+describe("the sandbox is reachable only by choice", () => {
+  it("a first probe that finds no gateway remains empty", () => {
     const { m } = machine();
     m.observe(down("gateway_not_configured"));
-    const { showing, tier, cause } = m.state;
-    assert.equal(tier, "sandbox");
-    assert.equal(showing.kind, "generated");
+    const { showing, cause } = m.state;
+    assert.equal(showing.kind, "empty");
+    assert.equal(showing.kind === "empty" ? showing.failure?.code : null, "gateway_not_configured");
     assert.equal(cause, "not-configured");
+    assert.equal(m.state.tier, "unavailable");
   });
 
-  it("a first probe that fails for any other reason is an incident, not a configuration", () => {
+  it("a first probe that fails for any other reason remains empty", () => {
     const { m } = machine();
     m.observe(down());
+    assert.equal(m.state.showing.kind, "empty");
+    assert.equal(m.state.failure?.message, "gateway did not answer");
     assert.equal(m.state.cause, "incident");
+    assert.equal(m.state.tier, "unavailable");
   });
 
   it("an explicit sandbox choice outranks a perfectly healthy gateway", () => {
@@ -155,10 +159,10 @@ describe("the sandbox is reachable only with no reading, or by choice", () => {
     assert.equal(m.state.cause, "chosen");
   });
 
-  it("an incident sandbox leaves on its own once a reading arrives", () => {
+  it("an unavailable desk becomes live only when a reading arrives", () => {
     const { m } = machine();
     m.observe(down());
-    assert.equal(m.state.showing.kind, "generated");
+    assert.equal(m.state.showing.kind, "empty");
     m.observe(ok(100));
     assert.equal(m.state.tier, "live");
     assert.equal(m.state.showing.kind, "measured");
@@ -201,8 +205,7 @@ describe("nothing is asserted before the first probe settles", () => {
 
   it("an unsettled desk cannot write", () => {
     const { m } = machine();
-    // `writesEnabled` is live-only, and an empty desk reports sandbox for
-    // exactly this reason.
+    // `writesEnabled` is live-only, and an empty desk reports unavailable.
     assert.notEqual(m.state.tier, "live");
   });
 });
@@ -260,6 +263,11 @@ describe("both desk surfaces read the one machine", () => {
     for (const [name, source] of [["cockpit", cockpit], ["book", book]] as const) {
       assert.match(source, /useDeskSource|DeskSourceMachine/, `${name} bypasses the machine`);
     }
+  });
+
+  it("the execution sandbox control records an explicit sandbox choice", () => {
+    assert.match(cockpit, /choose\("sandbox"\)/,
+      "releasing an automatic fallback is not an explicit sandbox choice");
   });
 
   it("the sandbox seed is not resolved while the session probe is still out", () => {
