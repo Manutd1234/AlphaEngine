@@ -132,7 +132,80 @@ async def _bulk_books(client: KalshiClient, tickers: Sequence[str]) -> dict[str,
     return books
 
 
-async def observe_series(client: KalshiClient, series_ticker: str, max_events: int = 12) -> list[Observation]:
+def _listed_event_tickers(payload: dict[str, Any]) -> list[str]:
+    """Unique event tickers in venue order from one markets page."""
+    tickers: list[str] = []
+    seen: set[str] = set()
+    for row in payload.get("markets") or []:
+        ticker = str(row.get("event_ticker", ""))
+        if ticker and ticker not in seen:
+            tickers.append(ticker)
+            seen.add(ticker)
+    return tickers
+
+
+def _require_complete_listing(
+    series_ticker: str,
+    payload: dict[str, Any],
+    event_tickers: Sequence[str],
+    max_events: int,
+) -> None:
+    """Refuse known namespace gaps before spending per-event reads."""
+    if payload.get("cursor"):
+        raise KalshiUnavailable(
+            f"{series_ticker} /markets listing has another page; complete read stopped at the first page"
+        )
+    if len(event_tickers) > max_events:
+        raise KalshiUnavailable(
+            f"{series_ticker} has {len(event_tickers)} open events; a complete read is capped at {max_events}"
+        )
+
+
+async def _observe_events(
+    client: KalshiClient,
+    event_tickers: Sequence[str],
+) -> tuple[list[Observation], list[str]]:
+    """Read events behind one bounded semaphore and retain typed failures."""
+    gate = asyncio.Semaphore(CONCURRENT_EVENT_READS)
+
+    async def read(event_ticker: str) -> tuple[Observation | None, str | None]:
+        async with gate:
+            try:
+                return await observe_event(client, event_ticker), None
+            except KalshiUnavailable as exc:
+                logger.warning("coherence: %s could not be observed (%s)", event_ticker, exc.reason)
+                return None, f"{event_ticker}: {exc.reason}"
+
+    results = await asyncio.gather(*(read(ticker) for ticker in event_tickers))
+    observations = [observation for observation, _failure in results if observation is not None]
+    failures = [failure for _observation, failure in results if failure is not None]
+    return observations, failures
+
+
+def _strict_observation_failures(
+    observations: Sequence[Observation],
+    failures: Sequence[str],
+) -> list[str]:
+    """Add every missing open-market path to per-event read failures."""
+    strict_failures = list(failures)
+    for observation in observations:
+        expected = {market.ticker for market in observation.event.markets if market.is_open}
+        seen = {market.ticker for market in observation.markets}
+        missing = sorted(expected - seen)
+        if missing:
+            strict_failures.append(
+                f"{observation.event.event_ticker}: missing open-market books for {', '.join(missing)}"
+            )
+    return strict_failures
+
+
+async def observe_series(
+    client: KalshiClient,
+    series_ticker: str,
+    max_events: int = 12,
+    *,
+    require_complete: bool = False,
+) -> list[Observation]:
     """Every open event in one series, read concurrently.
 
     ``max_events`` bounds the walk rather than the data: a series with hundreds
@@ -152,25 +225,27 @@ async def observe_series(client: KalshiClient, series_ticker: str, max_events: i
     least forgiving of.
     """
     fetched = await client.markets(series_ticker, status="open", limit=1000)
-    event_tickers: list[str] = []
-    for row in fetched.payload.get("markets") or []:
-        event_ticker = str(row.get("event_ticker", ""))
-        if event_ticker and event_ticker not in event_tickers:
-            event_tickers.append(event_ticker)
+    event_tickers = _listed_event_tickers(fetched.payload)
+
+    # A complete namespace already cannot be produced from this listing. Refuse
+    # before spending event and orderbook calls on a result strict callers must
+    # discard anyway.
+    if require_complete:
+        _require_complete_listing(series_ticker, fetched.payload, event_tickers, max_events)
 
     wanted = event_tickers[:max_events]
-    gate = asyncio.Semaphore(CONCURRENT_EVENT_READS)
+    observations, failures = await _observe_events(client, wanted)
 
-    async def read(event_ticker: str) -> Observation | None:
-        async with gate:
-            try:
-                return await observe_event(client, event_ticker)
-            except KalshiUnavailable as exc:
-                logger.warning("coherence: %s could not be observed (%s)", event_ticker, exc.reason)
-                return None
-
-    results = await asyncio.gather(*(read(ticker) for ticker in wanted))
-    observations = [observation for observation in results if observation is not None]
+    # Most consumers can still use the events that answered. A filesystem
+    # listing cannot: a skipped event, a capped series or an event with a missing
+    # open-market book would each look exactly like a path that does not exist.
+    # The Shell opts into this stricter namespace contract so none of those
+    # partial reads can become a false `missing` answer. Notes alone are not a
+    # namespace gap: the top-of-book fallback still names every market path.
+    if require_complete:
+        strict_failures = _strict_observation_failures(observations, failures)
+        if strict_failures:
+            raise KalshiUnavailable("; ".join(strict_failures))
 
     if len(event_tickers) > max_events:
         for observation in observations:
