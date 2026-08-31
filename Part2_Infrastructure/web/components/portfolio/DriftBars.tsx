@@ -239,7 +239,7 @@ export default function DriftBars({
 
         {unbalancedSum != null && (
           <text x={x(0)} y={base + 32} textAnchor="middle" fontSize={12}
-            fill="var(--status-warning)">
+            fill="var(--warning-text)">
             trades withheld — weights sum to {pct(unbalancedSum, 1)}
           </text>
         )}
