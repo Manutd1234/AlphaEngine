@@ -81,6 +81,14 @@ export default function CorpusShares({ data, onSelect, hot }: {
   const height = MARGIN.top + rows.length * ROW_H + MARGIN.bottom;
   const widest = Math.max(...rows.map((row) => Math.abs((row.slope ?? 1) - 1)), 0.05);
   const reach = Math.min(SPREAD, Math.max(0.15, widest * 1.25));
+  const meta = rows.map((row) =>
+    `${row.share == null ? "—" : pct(row.share)}, ${row.slope == null ? row.slopeText : `slope ${row.slopeText}`}`);
+  const labelGutter = Math.max(...rows.map((row) => advancePx(row.ticker, DIAGRAM_LABEL_PX)));
+  const valueGutter = Math.max(...meta.map((text) => advancePx(text, DIAGRAM_LABEL_PX))) + 14;
+  // Preserve a real slope track after both text gutters. Before this floor,
+  // long tickers plus exact values could make x1 < x0 on a narrow card and
+  // reverse the diagram's geometry while every printed number stayed valid.
+  const plotFloor = Math.max(520, Math.ceil(labelGutter + valueGutter + 220));
 
   return (
     <Figure
@@ -110,17 +118,14 @@ export default function CorpusShares({ data, onSelect, hot }: {
     >
       <Plot
         height={height}
+        minWidth={plotFloor}
+        scrollLabel="Corpus composition by series"
         onSelect={onSelect ? (index) => onSelect(rows[index]) : undefined}
       >
         {(width: number) => {
-          const gutter = Math.max(...rows.map((row) => advancePx(row.ticker, DIAGRAM_LABEL_PX)));
-          // "89.3%, slope no slope reported" — the word was prefixed to a
-          // string that already carried it on the branch where there is none.
-          const meta = rows.map((row) =>
-            `${row.share == null ? "—" : pct(row.share)}, ${row.slope == null ? row.slopeText : `slope ${row.slopeText}`}`);
-          const values = Math.max(...meta.map((text) => advancePx(text, DIAGRAM_LABEL_PX))) + 14;
+          const gutter = labelGutter;
           const x0 = gutter + 10;
-          const x1 = width - values;
+          const x1 = width - valueGutter;
           const mid = (x0 + x1) / 2;
           const x = (slope: number) =>
             mid + (Math.max(-reach, Math.min(reach, slope - 1)) / reach) * ((x1 - x0) / 2);
