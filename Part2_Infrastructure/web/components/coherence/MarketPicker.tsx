@@ -145,8 +145,9 @@ export default function MarketPicker({
         <button
           type="button"
           className="coh-market__button"
-          aria-haspopup="dialog"
+          aria-haspopup="listbox"
           aria-expanded={open}
+          aria-controls={open ? listId : undefined}
           aria-label={label}
           onClick={() => {
             if (open) return close(false);
@@ -170,6 +171,9 @@ export default function MarketPicker({
               className="coh-market__filter"
               value={query}
               placeholder="Filter by strike or event"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-expanded="true"
               aria-label={`${label} — filter`}
               aria-controls={listId}
               aria-activedescendant={shown.length ? `${listId}-${activeIndex}` : undefined}
@@ -187,53 +191,52 @@ export default function MarketPicker({
                 ? `${options.length} markets in this read`
                 : `${shown.length} of ${options.length} match`}
             </p>
-            {shown.length ? (
-              <ul id={listId} ref={listRef} className="coh-market__list" role="listbox" aria-label={label}>
-                {shown.map((option, at) => {
-                  const family = familyOf(option.ticker);
-                  const newGroup = at === 0 || familyOf(shown[at - 1].ticker) !== family;
-                  return (
-                    <li
-                      key={option.ticker}
-                      id={`${listId}-${at}`}
-                      role="option"
-                      aria-selected={option.ticker === selected}
-                      className={`coh-market__option${at === activeIndex ? " is-active" : ""}`}
-                      title={option.unquotedReason ? `${option.ticker} — ${option.unquotedReason}` : option.ticker}
-                      onPointerUp={() => commit(at)}
-                      onPointerMove={() => setActiveIndex(at)}
-                    >
-                      {/* The event, once per run of its strikes. Presentational:
-                          a heading inside a listbox would put a second landmark
-                          where a reader expects only options. */}
-                      {newGroup ? <span className="coh-market__group">{family}</span> : null}
-                      <span className="coh-market__strike">{strikeOf(option.ticker)}</span>
-                      {/* A MARK, NOT THE SENTENCE. The gateway's reason is a
-                          full clause — "no resting bids on this side; the
-                          spread is unknowable, not zero" — and drawn in the row
-                          it wrapped to three lines, which over two hundred rows
-                          is a list nobody can scan. Two words carry the fact
-                          that this market has no offer; the reason itself is on
-                          the row's `title`, and the book below states it in full
-                          the moment the market is chosen. */}
-                      {option.unquotedReason ? (
-                        <span className="coh-market__unquoted" title={option.unquotedReason}>
-                          <span aria-hidden="true">○</span> no offer
-                        </span>
-                      ) : null}
-                      <span className="coh-market__mark" aria-hidden="true">
-                        {option.ticker === selected ? "✓" : ""}
+            <ul id={listId} ref={listRef} className="coh-market__list" role="listbox" aria-label={label}>
+              {shown.map((option, at) => {
+                const family = familyOf(option.ticker);
+                const newGroup = at === 0 || familyOf(shown[at - 1].ticker) !== family;
+                return (
+                  <li
+                    key={option.ticker}
+                    id={`${listId}-${at}`}
+                    role="option"
+                    aria-selected={option.ticker === selected}
+                    className={`coh-market__option${at === activeIndex ? " is-active" : ""}`}
+                    title={option.unquotedReason ? `${option.ticker} — ${option.unquotedReason}` : option.ticker}
+                    onPointerUp={() => commit(at)}
+                    onPointerMove={() => setActiveIndex(at)}
+                  >
+                    {/* The event, once per run of its strikes. Presentational:
+                        a heading inside a listbox would put a second landmark
+                        where a reader expects only options. */}
+                    {newGroup ? <span className="coh-market__group">{family}</span> : null}
+                    <span className="coh-market__strike">{strikeOf(option.ticker)}</span>
+                    {/* A MARK, NOT THE SENTENCE. The gateway's reason is a
+                        full clause — "no resting bids on this side; the
+                        spread is unknowable, not zero" — and drawn in the row
+                        it wrapped to three lines, which over two hundred rows
+                        is a list nobody can scan. Two words carry the fact
+                        that this market has no offer; the reason itself is on
+                        the row's `title`, and the book below states it in full
+                        the moment the market is chosen. */}
+                    {option.unquotedReason ? (
+                      <span className="coh-market__unquoted" title={option.unquotedReason}>
+                        <span aria-hidden="true">○</span> no offer
                       </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
+                    ) : null}
+                    <span className="coh-market__mark" aria-hidden="true">
+                      {option.ticker === selected ? "✓" : ""}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+            {!shown.length ? (
               <p className="coh-market__empty">
                 <span aria-hidden="true">○</span> No market in this read matches &ldquo;{query}&rdquo;. Clear the
                 filter to see all {options.length}.
               </p>
-            )}
+            ) : null}
           </div>
         ) : null}
       </div>
