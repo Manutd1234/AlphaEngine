@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { gatewayBase as sharedGatewayBase } from "@/lib/gateway";
+import { gatewayBase as sharedGatewayBase, gatewayFetch } from "@/lib/gateway";
 
 import { emit } from "@/lib/observability";
 import { authorise, guardMode, OPERATOR_TOKEN_ENV } from "@/lib/operator";
@@ -100,7 +100,7 @@ async function callGateway(
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    const response = await fetch(new URL(path, base), {
+    const response = await gatewayFetch(new URL(path, base), {
       ...init,
       cache: "no-store",
       signal: controller.signal,
@@ -315,7 +315,7 @@ async function probeGateway(base: URL | null): Promise<{ reachable: boolean; rea
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), PROBE_DEADLINE_MS);
   try {
-    const response = await fetch(new URL("/health", base), {
+    const response = await gatewayFetch(new URL("/health", base), {
       cache: "no-store",
       signal: controller.signal,
       headers: gatewayHeaders(),

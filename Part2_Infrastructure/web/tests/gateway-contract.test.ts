@@ -16,8 +16,16 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
+import { rootCertificates } from "node:tls";
 import { fileURLToPath } from "node:url";
 
+import {
+  createGatewayCaInstaller,
+  createGatewayFetch,
+  GATEWAY_CA_RELATIVE_PATH,
+  GATEWAY_CA_SETUP_ERROR,
+  type GatewayCaRuntime,
+} from "../lib/gateway-ca";
 import {
   GATEWAY_CONTRACT_PATHS,
   type GatewayOperations,
@@ -47,6 +55,7 @@ type _SyncBinding = AssertExtends<
 >;
 
 const WEB_ROOT = fileURLToPath(new URL("..", import.meta.url));
+const gatewayCaPem = readFileSync(join(WEB_ROOT, GATEWAY_CA_RELATIVE_PATH), "utf8");
 
 function walk(dir: string): string[] {
   return readdirSync(join(WEB_ROOT, dir), { withFileTypes: true }).flatMap((entry) => {
@@ -78,6 +87,107 @@ describe("the generated client matches the committed contract", () => {
     ]) {
       assert.ok(paths.has(path), `${path} disappeared from the committed contract`);
     }
+  });
+});
+
+describe("gateway TLS trust is installed before dispatch", () => {
+  it("appends the pinned root while retaining every existing default", () => {
+    const originalDefaults = rootCertificates.slice(0, 3);
+    let activeDefaults = [...originalDefaults];
+    let setCalls = 0;
+    const runtime: GatewayCaRuntime = {
+      cwd: () => "/var/task",
+      readCertificate: (path) => {
+        assert.equal(path, join("/var/task", GATEWAY_CA_RELATIVE_PATH));
+        return gatewayCaPem;
+      },
+      getDefaultCACertificates: () => [...activeDefaults],
+      setDefaultCACertificates: (certificates) => {
+        setCalls += 1;
+        activeDefaults = [...certificates];
+      },
+    };
+    const install = createGatewayCaInstaller(runtime);
+    install();
+    install();
+    assert.equal(setCalls, 1, "an already-installed process must not replace its roots again");
+    for (const certificate of originalDefaults) {
+      assert.ok(activeDefaults.includes(certificate), "a Node default root was removed");
+    }
+    assert.ok(activeDefaults.includes(`${gatewayCaPem.trim()}\n`), "the gateway root was not appended");
+  });
+
+  it("finishes CA setup before invoking fetch", async () => {
+    const events: string[] = [];
+    const fetchGateway = createGatewayFetch({
+      install: () => { events.push("ca-installed"); },
+      fetch: (async () => {
+        events.push("fetch");
+        return new Response("ok");
+      }) as typeof fetch,
+    });
+    const response = await fetchGateway(new URL("https://gateway.example/health"));
+    assert.equal(await response.text(), "ok");
+    assert.deepEqual(events, ["ca-installed", "fetch"]);
+  });
+
+  it("blocks HTTPS dispatch when CA setup fails", () => {
+    let dispatched = false;
+    const fetchGateway = createGatewayFetch({
+      install: () => { throw Object.assign(new Error("setup failed"), { code: GATEWAY_CA_SETUP_ERROR }); },
+      fetch: (async () => {
+        dispatched = true;
+        return new Response("should not run");
+      }) as typeof fetch,
+    });
+    assert.throws(() => fetchGateway(new URL("https://gateway.example/health")),
+      (error: unknown) => (error as { code?: unknown }).code === GATEWAY_CA_SETUP_ERROR);
+    assert.equal(dispatched, false);
+  });
+
+  it("preserves Node 20's startup CA path and rejects an invalid committed file", () => {
+    let readOnNode20 = false;
+    const node20 = createGatewayCaInstaller({
+      cwd: () => "/var/task",
+      readCertificate: () => {
+        readOnNode20 = true;
+        return gatewayCaPem;
+      },
+    });
+    assert.doesNotThrow(node20);
+    assert.equal(readOnNode20, false, "Node 20 must keep using its startup-loaded CA store");
+
+    let setCalled = false;
+    const invalid = createGatewayCaInstaller({
+      cwd: () => "/var/task",
+      readCertificate: () => "not a certificate",
+      getDefaultCACertificates: () => [...rootCertificates],
+      setDefaultCACertificates: () => { setCalled = true; },
+    });
+    assert.throws(invalid, (error: unknown) => (
+      error as { code?: unknown }
+    ).code === GATEWAY_CA_SETUP_ERROR);
+    assert.equal(setCalled, false, "an invalid pin must not mutate Node's defaults");
+  });
+
+  it("keeps local HTTP usable because no TLS trust mutation is needed", async () => {
+    let installed = false;
+    let dispatched = false;
+    const fetchGateway = createGatewayFetch({
+      install: () => { installed = true; },
+      fetch: (async () => {
+        dispatched = true;
+        return new Response("ok");
+      }) as typeof fetch,
+    });
+    await fetchGateway(new URL("http://127.0.0.1:8000/health"));
+    assert.equal(installed, false);
+    assert.equal(dispatched, true);
+  });
+
+  it("traces the exact public PEM into every server function", () => {
+    const config = readFileSync(join(WEB_ROOT, "next.config.mjs"), "utf8");
+    assert.match(config, /outputFileTracingIncludes:\s*\{\s*"\/\*\*":\s*\["\.\/certs\/gateway-ca\.pem"\]\s*\}/);
   });
 });
 

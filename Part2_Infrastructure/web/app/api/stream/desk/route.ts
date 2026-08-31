@@ -24,7 +24,7 @@
  * with no override. Hence a proxy rather than a direct connection.
  */
 
-import { gatewayHeaders, gatewayState } from "@/lib/gateway";
+import { gatewayFetch, gatewayHeaders, gatewayState } from "@/lib/gateway";
 
 export const dynamic = "force-dynamic";
 /** Node, not Edge: the Edge runtime caps how long a response may stay open. */
@@ -68,7 +68,7 @@ export async function GET(request: Request): Promise<Response> {
   const upstream = new URL("/api/stream/desk", base);
   let response: Response;
   try {
-    response = await fetch(upstream, {
+    response = await gatewayFetch(upstream, {
       headers: { ...gatewayHeaders(), accept: "text/event-stream" },
       cache: "no-store",
       // Cancels the upstream read when the browser goes away, so a closed tab

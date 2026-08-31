@@ -24,7 +24,7 @@
 
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -242,7 +242,11 @@ describe("the provenance union distinguishes absence from generated data", () =>
 describe("observed views contain no generated fallback adapters", () => {
   it("keeps the production fallback-adapter directory empty", () => {
     const dir = join(webRoot, "lib/fallbacks");
-    const files = sourceFiles(dir);
+    // Git cannot retain an empty directory. Scan from the tracked parent so a
+    // clean checkout with no fallback namespace and a present-but-empty local
+    // directory mean the same thing, while any adapter below it still fails.
+    const files = sourceFiles(join(webRoot, "lib"))
+      .filter((file) => file.startsWith(`${dir}${sep}`));
     assert.deepEqual(files, [], "production fallback adapters can silently replace observed rows");
   });
 

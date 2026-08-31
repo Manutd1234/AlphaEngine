@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-31",
-  "commit": "0a737fc8",
+  "commit": "e5a28549",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -1547,6 +1547,7 @@
     "Part2_Infrastructure/web/lib/export-python.ts",
     "Part2_Infrastructure/web/lib/favourites.ts",
     "Part2_Infrastructure/web/lib/format.ts",
+    "Part2_Infrastructure/web/lib/gateway-ca.ts",
     "Part2_Infrastructure/web/lib/gateway-contract.generated.ts",
     "Part2_Infrastructure/web/lib/gateway-inflight.ts",
     "Part2_Infrastructure/web/lib/gateway-openapi-digest.generated.ts",

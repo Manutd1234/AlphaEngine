@@ -116,9 +116,9 @@ describe("the hints say what to do", () => {
 
   it("points the untrusted-root case at the fix that actually works", () => {
     // This is the one that cost the round trips. It must name both the
-    // variable that fixes it and the file that variable points at.
+    // runtime installation step and the file that step reads.
     const hint = TRANSPORT_HINTS.UNABLE_TO_GET_ISSUER_CERT_LOCALLY;
-    assert.match(hint, /NODE_EXTRA_CA_CERTS/);
+    assert.match(hint, /runtime installed/);
     assert.match(hint, /certs\/gateway-ca\.pem/);
     assert.match(hint, new RegExp(GATEWAY_URL_ENV));
   });

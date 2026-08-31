@@ -93,12 +93,9 @@ def _extension() -> Pybind11Extension:
         # arithmetic, and -O3's extra inlining and unrolling is exactly the
         # class of optimisation it can use. It does NOT imply -ffast-math —
         # that would be a parity break, and the flag below forbids the one
-        # transformation that would cause it either way.
-        #
-        # -ffp-contract=off is not optional. It forbids fusing a multiply-add
-        # into one rounding step; the core exists to reproduce CPython's float
-        # sequence to the bit, and an FMA rounds once where CPython rounds
-        # twice. It is repeated as a #pragma in the translation unit too.
+        # transformation that would cause it either way. The translation unit
+        # deliberately relies on this portable GCC/Clang flag: GCC rejects the
+        # C-only STDC FP_CONTRACT pragma under the strict C++ warning contract.
         #
         # NOT here, deliberately: -march=native. The Docker builder stage and
         # a developer's Mac must emit the same floats, and a build tuned to
@@ -119,8 +116,8 @@ def _extension() -> Pybind11Extension:
         # -ffp-contract=off is not optional. It forbids fusing a multiply-add
         # into one rounding step; this core exists to reproduce CPython's
         # float sequence to the bit, and an FMA rounds once where CPython
-        # rounds twice. -O3 does NOT imply -ffast-math, and this flag plus the
-        # #pragma in the translation unit close the one door that would matter.
+        # rounds twice. -O3 does NOT imply -ffast-math; -ffp-contract=off
+        # closes the one door that would matter.
         #
         # NOT here, deliberately: -march=native. The Docker builder stage and
         # a developer's Mac must emit the same floats, and a build tuned to

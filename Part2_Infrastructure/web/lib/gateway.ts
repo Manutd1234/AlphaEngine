@@ -22,6 +22,7 @@ import {
   remainingGatewayBudgetMs,
   type GatewayRequestContext,
 } from "./gateway-request-context";
+import { gatewayFetch } from "./gateway-ca";
 import {
   GATEWAY_PUBLIC_URL_ENV,
   GATEWAY_URL_ENV,
@@ -47,9 +48,8 @@ export {
 } from "./gateway-origin";
 
 const DEFAULT_TIMEOUT_MS = 8_000;
-
 export { TRANSPORT_HINTS, transportCause } from "./gateway-transport";
-
+export { gatewayFetch } from "./gateway-ca";
 export interface GatewayFailure {
   code: "gateway_not_configured" | "gateway_misconfigured" | "gateway_auth_failed"
     | "gateway_unreachable" | "gateway_timeout" | "gateway_cancelled"
@@ -280,7 +280,7 @@ async function callGatewayUncached<T = unknown>(path: string, options: CallOptio
       const ingress = bases[candidateIndex];
       let response: Response;
       try {
-        response = await fetch(new URL(path, ingress.url), {
+        response = await gatewayFetch(new URL(path, ingress.url), {
           method,
           cache: "no-store",
           redirect: "error",

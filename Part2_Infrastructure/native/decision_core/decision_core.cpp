@@ -103,13 +103,10 @@ private:
     double c_ = 0.0;
 };
 
-// Belt and braces with the -ffp-contract=off compile flag: forbid the compiler
-// fusing a multiply-add into a single-rounding FMA anywhere in this translation
-// unit. CPython evaluates `p*q` and then the addition as two separately rounded
-// double operations; an FMA rounds once and lands a ULP away, which is exactly
-// the kind of silent parity break this core exists to avoid. The standard
-// pragma is honoured even where a stray flag ordering might not be.
-#pragma STDC FP_CONTRACT OFF
+// setup.py supplies -ffp-contract=off to every production and sanitizer build.
+// Keep the contract in the compiler invocation: GCC does not implement the C
+// `STDC FP_CONTRACT` pragma for C++, and strict `-Werror` correctly refuses an
+// unknown pragma instead of silently pretending it protected this unit.
 
 // --------------------------------------------------------------------------- //
 // BookLadder — one venue's two ladders for one symbol.
@@ -1035,7 +1032,7 @@ static double roundtrip_probe(double value) noexcept { return value; }
 #define ALPHAENGINE_BUILD_ID "alphaengine-decision-core/abi-1/unattributed"
 #endif
 
-PYBIND11_MODULE(_decision_core, m) {
+PYBIND11_MODULE(_decision_core, m, py::multiple_interpreters::not_supported()) {
     m.doc() =
         "AlphaEngine native pre-trade decision core: book ladders + the numeric "
         "gates. See the file header for the exact Python/C++ boundary.";

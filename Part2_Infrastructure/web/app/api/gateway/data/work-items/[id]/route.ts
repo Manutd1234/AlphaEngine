@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { gatewayBase, gatewayHeaders } from "@/lib/gateway";
+import { gatewayBase, gatewayFetch, gatewayHeaders } from "@/lib/gateway";
 import { authorise } from "@/lib/operator";
 
 export const runtime = "nodejs";
@@ -65,7 +65,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    const response = await fetch(new URL(`/api/data/work-items/${encodeURIComponent(id)}`, base), {
+    const response = await gatewayFetch(new URL(`/api/data/work-items/${encodeURIComponent(id)}`, base), {
       method: "PATCH",
       cache: "no-store",
       signal: controller.signal,
@@ -128,7 +128,7 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    const response = await fetch(new URL(`/api/data/work-items/${encodeURIComponent(id)}`, base), {
+    const response = await gatewayFetch(new URL(`/api/data/work-items/${encodeURIComponent(id)}`, base), {
       method: "DELETE",
       cache: "no-store",
       signal: controller.signal,

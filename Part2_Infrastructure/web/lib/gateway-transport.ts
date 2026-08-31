@@ -15,8 +15,11 @@ export function transportCause(error: unknown): string | null {
 export const TRANSPORT_HINTS: Record<string, string> = {
   UNABLE_TO_GET_ISSUER_CERT_LOCALLY:
     `The gateway's certificate is signed by a root this deployment does not trust. `
-    + `Point NODE_EXTRA_CA_CERTS at the bundled certs/gateway-ca.pem and verify ${GATEWAY_URL_ENV}; `
+    + `Verify the runtime installed the bundled certs/gateway-ca.pem before fetching ${GATEWAY_URL_ENV}; `
     + `roll back to the previous known-good deployment if the pin cannot be restored.`,
+  GATEWAY_CA_SETUP_FAILED:
+    `The bundled gateway root could not be installed before the request. `
+    + `Use Node 24 (or Node 22.19+) and verify certs/gateway-ca.pem is present in the function trace.`,
   SELF_SIGNED_CERT_IN_CHAIN:
     `The gateway's certificate chain ends in a root this deployment does not trust — see docs/engineering/TLS_FLIP.md.`,
   DEPTH_ZERO_SELF_SIGNED_CERT:
