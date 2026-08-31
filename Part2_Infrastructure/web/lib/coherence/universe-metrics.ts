@@ -161,9 +161,13 @@ export function categoryShares(universe: CoherenceUniverse): CategoryShare[] {
  *  One definition of where the cuts fall, so a table's columns and its cells
  *  can never disagree about which band is which. */
 
-/** How many bands a family is cut into. Eight: readable at a glance, and fine
- *  enough that a tail and a mid-price outcome never share one. */
-export const BAND_COUNT = 8;
+/** How many fixed five-cent bands a family is cut into.
+ *
+ * Twenty keeps the position map on the same price geometry as the outcome
+ * histogram. The shared $0-$1 scale is still sparse when the venue only quotes
+ * a handful of outcomes, but the empty slots remain visible and a 6c outcome
+ * can no longer be pooled with a 12c outcome in one broad 12.5c bucket. */
+export const BAND_COUNT = 20;
 
 /**
  * A family's open interest, banded by what its outcomes are offered at.
