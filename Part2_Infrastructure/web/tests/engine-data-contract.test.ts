@@ -1,7 +1,7 @@
 /**
  * Every table on the two engine tabs, held to one shape.
  *
- * Twenty-two tables in nineteen files, and until 2026-08-26 they agreed on
+ * Twenty-seven tables in twenty-four files, and until 2026-08-26 they agreed on
  * almost nothing: five different ways to print a null, a numeric column
  * without `.num` beside one with it, a total row spelled two ways, a table with
  * no caption, a muted dash carrying its meaning in colour. None of it was
@@ -97,7 +97,7 @@ describe("every engine table is declared, and every declaration is a table", () 
       Object.fromEntries([...declared].sort()),
       "a <table> exists without a row in engine-tables.ts, or a row names a table that has gone",
     );
-    assert.equal(TABLES.length, 22);
+    assert.equal(TABLES.length, 27);
   });
 
   it("KNOWN_RED names only declared tables and rules this file checks", () => {
@@ -110,11 +110,17 @@ describe("one shape: coh-table in a table-wrap, captioned, focusable when wide",
   for (const decl of TABLES) {
     it(`${keyOf(decl)} — ${decl.what}`, () => {
       const table = tableOf(decl);
-      hold(decl, "class", /className="coh-table"/.test(table.attributes), 'the table is not className="coh-table"');
-      hold(decl, "wrap", /className="table-wrap"/.test(table.before), "the table is not inside a div.table-wrap");
+      const wrapper = table.before.slice(table.before.lastIndexOf("<div"));
+      const tokenWrapper = /className=(?:"[^"]*\btable-wrap\b[^"]*"|\{`[^`]*\btable-wrap\b[^`]*`\})/.test(wrapper);
+      hold(decl, "class", /className=(?:"[^"]*\bcoh-table\b[^"]*"|\{`[^`]*\bcoh-table\b[^`]*`\})/.test(table.attributes),
+        'the table does not carry the coh-table class token');
+      hold(decl, "wrap", tokenWrapper || /className="table-wrap"/.test(table.before),
+        "the table is not inside a div.table-wrap");
       const wide = decl.columns.length >= 6 || decl.generated === true;
       if (wide) {
-        hold(decl, "focusable-wrap", /table-wrap"[^>]*tabIndex=\{0\}|tabIndex=\{0\}[^>]*className="table-wrap"/.test(table.before),
+        hold(decl, "focusable-wrap",
+          (tokenWrapper && /tabIndex=\{0\}/.test(wrapper))
+          || /table-wrap"[^>]*tabIndex=\{0\}|tabIndex=\{0\}[^>]*className="table-wrap"/.test(table.before),
           "a scroll region six or more columns wide must carry tabIndex={0} on its wrap, or a keyboard cannot reach it");
       }
       const caps = captions(table);
