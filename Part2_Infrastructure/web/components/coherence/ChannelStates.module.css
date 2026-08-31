@@ -1,0 +1,58 @@
+.stageLabel,
+.hereLabel,
+.nodeWord,
+.nodeMark { fill: var(--text-secondary); font-family: var(--font-sans); }
+
+.stageLabel,
+.hereLabel {
+  font-size: var(--fs-tick);
+  font-weight: 720;
+  letter-spacing: var(--ls-caps);
+}
+
+.channelRail,
+.channelProgress { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.channelRail { stroke: var(--border); stroke-width: 5; }
+.channelProgress { stroke: var(--series-1); stroke-width: 6; }
+.startNode { fill: var(--text-primary); }
+.branchHub { fill: var(--surface-1); stroke: var(--text-muted); stroke-width: 2; }
+.nodeDisk { fill: var(--surface-1); stroke: var(--text-muted); stroke-width: 2; }
+.current .nodeDisk { fill: var(--series-1); stroke: var(--series-1); }
+.current .nodeMark { fill: var(--surface-1); }
+.selectionHalo { fill: color-mix(in srgb, var(--series-2) 12%, transparent); stroke: none; }
+.currentRing { fill: none; stroke: var(--series-1); stroke-width: 2; stroke-dasharray: 3 3; }
+.selected .nodeDisk { stroke: var(--text-primary); stroke-width: 3; }
+.channelNode :is(circle, text) { pointer-events: none; }
+.nodeHit { fill: transparent; pointer-events: all; }
+.nodeMark { font-size: var(--fs-sm); font-weight: 800; }
+.nodeWord { font-size: var(--fs-diagram-label); font-weight: 680; }
+.hereLabel { fill: var(--series-1); }
+
+.channelReadout {
+  display: grid;
+  grid-template-columns: minmax(150px, .8fr) minmax(220px, 1.5fr) minmax(130px, .55fr);
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0 var(--space-3) var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--grid);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+.channelReadout > span { display: grid; min-width: 0; gap: 3px; }
+.channelReadout small { color: var(--text-muted); font-size: var(--fs-2xs); font-weight: 720; letter-spacing: var(--ls-caps); text-transform: uppercase; }
+.channelReadout strong { color: var(--text-primary); overflow-wrap: anywhere; }
+.channelMeaning { color: var(--text-secondary); overflow-wrap: anywhere; }
+
+@media (max-width: 760px) {
+  .channelReadout { grid-template-columns: 1fr; }
+}
+
+@media (forced-colors: active) {
+  .channelProgress,
+  .currentRing,
+  .selected .nodeDisk { stroke: Highlight; }
+  .current .nodeDisk { fill: Highlight; }
+  .current .nodeMark { fill: Canvas; }
+}
