@@ -98,3 +98,8 @@ def test_backtest_parameters_are_documented_with_bounds(schema):
     # Costs are the parameters most often quietly set to zero, so their
     # documentation is the one place a reviewer can check the assumption.
     assert "slippage" in properties["slippage_bps"]["description"].lower()
+
+    data_mode = properties["data_mode"]
+    assert data_mode["default"] == "observed"
+    assert set(data_mode["enum"]) == {"observed", "synthetic_demo"}
+    assert "fails" in data_mode["description"].lower()
