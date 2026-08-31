@@ -68,18 +68,3 @@
 .codex-table tr.is-active > th {
   box-shadow: inset 3px 0 0 color-mix(in srgb, var(--codex-accent) 70%, var(--border));
 }
-
-/* ── Codebase snapshot notice ────────────────────────────────────────────────
- * The notice became a <details>; the flex it inherits from
- * 08-developer-engineering.css made its summary and body flex items sharing
- * one row, so the fold's content rendered BESIDE its own summary. Block
- * restores the flow a disclosure assumes: summary line, then body below it.
- * `.developer-work__scope`, still a plain div of inline runs, keeps its flex.
- */
-details.codebase-explorer__notice {
-  display: block;
-}
-
-.codebase-explorer__notice[open] summary {
-  margin-bottom: 5px;
-}
