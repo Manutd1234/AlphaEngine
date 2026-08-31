@@ -9,6 +9,7 @@ export interface AuditOperationsSnapshot {
 
 export interface BacktestRequest {
   bars?: number;
+  data_mode?: "observed" | "synthetic_demo";
   direction?: "long_only" | "long_short";
   embargo_bars?: number;
   fast_max?: number;
@@ -190,6 +191,7 @@ export interface CoherenceCertificate {
   observed_age_s?: number | null;
   priced_out?: boolean;
   proof?: string;
+  proof_evidence?: CoherenceProofEvidence | null;
   rows_tested?: number;
   rows_untestable?: number;
   scope?: string;
@@ -466,6 +468,59 @@ export interface CoherenceProbe {
   strike: string;
   survival: string;
   ticker: string;
+}
+
+export interface CoherenceProofConstraintLeg {
+  direction: string;
+  label: string;
+  price?: string | null;
+  side: string;
+  size_hundredths: number;
+  ticker: string;
+}
+
+export interface CoherenceProofConstraintRow {
+  because: string;
+  bound: string;
+  cost?: string | null;
+  executable_size_hundredths?: number | null;
+  family: string;
+  legs?: Array<CoherenceProofConstraintLeg>;
+  scope: string;
+  slack?: string | null;
+  testable: boolean;
+  untestable_reason?: string | null;
+  violated?: boolean | null;
+}
+
+export interface CoherenceProofConstraints {
+  rows?: Array<CoherenceProofConstraintRow>;
+  tested: number;
+  untestable: number;
+}
+
+export interface CoherenceProofEvidence {
+  constraints: CoherenceProofConstraints;
+  observation: CoherenceProofObservation;
+  solver: CoherenceProofSolver;
+}
+
+export interface CoherenceProofObservation {
+  executable_buy_sides?: number | null;
+  executable_sell_sides?: number | null;
+  markets_in_event?: number | null;
+  markets_observed?: number | null;
+  outcomes_in_component: number;
+}
+
+export interface CoherenceProofSolver {
+  decision_boundary: string;
+  engine: string;
+  optimum?: string | null;
+  optimum_kind: string;
+  state_rows?: number | null;
+  variables?: number | null;
+  verdict: string;
 }
 
 export interface CoherenceRecorderStatus {
@@ -820,14 +875,14 @@ export interface DiffusionCalendar {
 
 export interface DiffusionEvent {
   call_at?: string | null;
-  call_at_source?: "vendor" | "fed_seed" | "estimated_offset" | "parsed_release" | "recorded" | null;
+  call_at_source?: "vendor" | "issuer" | "estimated_offset" | "parsed_release" | "recorded" | null;
   call_offset_min?: number | null;
   eps_actual?: number | null;
   eps_estimate?: number | null;
   first_seen_at: string;
   kind: "earnings" | "fomc" | "macro";
   release_at: string;
-  release_at_source: "vendor" | "fed_seed" | "estimated_offset" | "parsed_release" | "recorded";
+  release_at_source: "vendor" | "issuer" | "estimated_offset" | "parsed_release" | "recorded";
   release_timing?: string | null;
   revised_count?: number;
   scheduled?: boolean;
@@ -1280,12 +1335,14 @@ export interface ResearchRagMatch {
   bm25_rank?: number | null;
   body: string;
   id: string;
+  image_rank?: number | null;
+  image_similarity?: number | null;
   kind: string;
   lexical_rank?: number | null;
   metrics?: Record<string, unknown>;
   occurred_at: string;
   rerank_score?: number | null;
-  similarity: number;
+  similarity: number | null;
   source_ref: string;
   strategy?: string | null;
   symbol?: string | null;
@@ -1301,6 +1358,7 @@ export interface ResearchRagSearchRequest {
 
 export interface ResearchRagSearchResponse {
   bm25?: Record<string, unknown> | null;
+  cache?: Record<string, unknown> | null;
   corpus_size?: number | null;
   correlation_id?: string | null;
   image?: Record<string, unknown> | null;
@@ -1614,7 +1672,6 @@ export interface WorkItemsResponse {
   count: number;
   items: Array<WorkItemView>;
   observed_at: string;
-  seeded: number;
 }
 
 export interface WorkingOrder {
