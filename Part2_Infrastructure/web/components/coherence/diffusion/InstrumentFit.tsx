@@ -76,10 +76,14 @@ interface Group {
   readonly rows: readonly Check[];
 }
 
-function groupsOf(study: DiffusionStudy, gate: GateCheck | null): Group[] {
-  const spread = index(study.centroid_spread);
-  const rank = study.effective_rank;
-  const scored = study.skill_meetings;
+function groupsOf(
+  study: DiffusionStudy | null,
+  gate: GateCheck | null,
+  absenceReason: string,
+): Group[] {
+  const spread = index(study?.centroid_spread);
+  const rank = study?.effective_rank;
+  const scored = study?.skill_meetings ?? 0;
 
   return [
     {
@@ -102,7 +106,7 @@ function groupsOf(study: DiffusionStudy, gate: GateCheck | null): Group[] {
           floor: gate ? Math.min(1, gate.floor) : 0,
           met: gate ? gate.state === "passed" : null,
           room: gate?.r_squared == null
-            ? (gate?.reason ?? "the gate was not run")
+            ? (gate?.reason ?? (study ? "the gate was not run" : absenceReason))
             : `${fmt(gate.r_squared - gate.floor, 2)} clear of the ${fmt(gate.floor, 2)} floor`
               + (gate.samples ? `, over ${gate.samples} meetings` : ""),
           why: "The encoding loses what the statement actually said.",
@@ -115,7 +119,7 @@ function groupsOf(study: DiffusionStudy, gate: GateCheck | null): Group[] {
           floor: 0.9,
           met: rank == null ? null : rank >= 9,
           room: rank == null
-            ? "no rank was reported"
+            ? (study ? "no rank was reported" : absenceReason)
             : `${fmt(rank - 9, 2)} of 10 clear of 9`,
           why: "The latent has collapsed onto a few directions and carries less than it claims.",
         },
@@ -127,7 +131,7 @@ function groupsOf(study: DiffusionStudy, gate: GateCheck | null): Group[] {
           floor: 0.9,
           met: spread == null ? null : spread >= 9,
           room: spread == null
-            ? "no spread was reported"
+            ? (study ? "no spread was reported" : absenceReason)
             : `${fmt(spread - 9, 2)} of 10 clear of 9`,
           why: "Every event scores almost the same, so no regression could separate them.",
         },
@@ -137,12 +141,14 @@ function groupsOf(study: DiffusionStudy, gate: GateCheck | null): Group[] {
           // the origin rather than given an invented denominator — the wire
           // carries no count of events OFFERED to compare against.
           what: "Scores every event",
-          value: `${study.events} meetings`,
+          value: study ? `${study.events} meetings` : "—",
           needed: "no silent drops",
-          at: study.events > 0 ? 1 : 0,
+          at: study ? (study.events > 0 ? 1 : 0) : null,
           floor: 0,
-          met: study.events > 0,
-          room: study.events > 0 ? "no event refused below the floor" : "no event was scored",
+          met: study ? study.events > 0 : null,
+          room: study
+            ? (study.events > 0 ? "no event refused below the floor" : "no event was scored")
+            : absenceReason,
           why: "Events refused below the information floor would bias which meetings are tested.",
         },
       ],
@@ -155,37 +161,37 @@ function groupsOf(study: DiffusionStudy, gate: GateCheck | null): Group[] {
           // who takes the last row as a result about the market has to pass
           // this one first, and if this one fails the last row means nothing.
           what: "The clock is predictable at all",
-          value: study.skill_baseline_r2 != null
+          value: study?.skill_baseline_r2 != null
             ? `R² ${study.skill_baseline_r2 >= 0 ? "+" : ""}${fmt(study.skill_baseline_r2, 3)}`
             : "—",
           needed: "> 0, out of sample",
-          at: study.skill_baseline_r2 == null
+          at: study?.skill_baseline_r2 == null
             ? null
             : Math.min(1, Math.max(0, study.skill_baseline_r2)),
           floor: 0,
-          met: study.skill_baseline_r2 == null ? null : study.skill_baseline_r2 > 0,
-          room: study.skill_baseline_r2 != null
+          met: study?.skill_baseline_r2 == null ? null : study.skill_baseline_r2 > 0,
+          room: study?.skill_baseline_r2 != null
             ? `${fmt(study.skill_baseline_r2, 3)} above a baseline that already knows the stage and the rate move`
             : scored
               ? `${scored} meetings scored out of sample, no R² reported`
-              : "not scored for this run",
+              : study ? "not scored for this run" : absenceReason,
           why: "Nothing predicts absorption speed, so no null measured against it is about the text.",
         },
         {
           what: "The text predicts it",
-          value: study.skill_gain != null
+          value: study?.skill_gain != null
             ? `${study.skill_gain >= 0 ? "+" : ""}${fmt(study.skill_gain, 3)} R²`
               + (study.skill_shuffled_p != null ? `, p ${fmt(study.skill_shuffled_p, 2)}` : "")
             : "—",
           needed: "> 0, p < 0.05",
-          at: study.skill_gain == null ? null : Math.min(1, Math.max(0, study.skill_gain)),
+          at: study?.skill_gain == null ? null : Math.min(1, Math.max(0, study.skill_gain)),
           floor: 0,
-          met: study.skill_gain == null
+          met: study?.skill_gain == null
             ? null
             : study.skill_gain > 0 && (study.skill_shuffled_p ?? 1) < 0.05,
-          room: study.skill_gain != null
+          room: study?.skill_gain != null
             ? `${fmt(study.skill_gain, 3)} R² on meetings the fit never saw`
-            : "nothing to add to until the row above is measured",
+            : study ? "nothing to add to until the row above is measured" : absenceReason,
           why: "The statement's information spectrum adds nothing to the stage and the rate move.",
         },
       ],
@@ -193,11 +199,12 @@ function groupsOf(study: DiffusionStudy, gate: GateCheck | null): Group[] {
   ];
 }
 
-export default function InstrumentFit({ study, gate }: {
-  study: DiffusionStudy;
+export default function InstrumentFit({ study, gate, absenceReason }: {
+  study: DiffusionStudy | null;
   gate: GateCheck | null;
+  absenceReason: string;
 }) {
-  const groups = groupsOf(study, gate);
+  const groups = groupsOf(study, gate, absenceReason);
   const rows = groups.flatMap((group) => group.rows);
 
   return (
