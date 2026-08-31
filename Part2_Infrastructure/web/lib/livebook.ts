@@ -74,6 +74,41 @@ export interface LiveSnapshot {
   depthUsdBid: number;
   depthUsdAsk: number;
   imbalance: number | null;
+  /**
+   * A bounded sequence of the same consolidated snapshots published above.
+   * Empty sides and a null mid are retained as gaps: dropping them would make
+   * an interrupted feed look continuous in the time-by-price view.
+   */
+  depthHistory: DepthHistoryFrame[];
+}
+
+export interface DepthHistoryFrame {
+  at: number;
+  mid: number | null;
+  bids: Level[];
+  asks: Level[];
+  liveVenues: number;
+}
+
+export const DEPTH_HISTORY_LIMIT = 48;
+const DEPTH_HISTORY_LEVELS = 40;
+
+/** Append one real publish tick without letting a long-running tab grow. */
+export function appendDepthHistory(
+  history: readonly DepthHistoryFrame[],
+  frame: DepthHistoryFrame,
+  limit = DEPTH_HISTORY_LIMIT,
+): DepthHistoryFrame[] {
+  const boundedLimit = Math.max(1, Math.floor(Number.isFinite(limit) ? limit : DEPTH_HISTORY_LIMIT));
+  const next: DepthHistoryFrame = {
+    at: frame.at,
+    mid: frame.mid,
+    bids: frame.bids.slice(0, DEPTH_HISTORY_LEVELS),
+    asks: frame.asks.slice(0, DEPTH_HISTORY_LEVELS),
+    liveVenues: frame.liveVenues,
+  };
+  const prior = boundedLimit === 1 ? [] : history.slice(-(boundedLimit - 1));
+  return [...prior, next];
 }
 
 // --------------------------------------------------------------------------
@@ -130,11 +165,13 @@ const PUBLISH_HZ = 1_000 / THROTTLE_INTERVAL_MS;
 export function useLiveBook(symbol: string, enabled = true, publishHz = PUBLISH_HZ): LiveSnapshot | null {
   const [snapshot, setSnapshot] = useState<LiveSnapshot | null>(null);
   const state = useRef<Map<VenueName, LiveVenueState>>(new Map());
+  const history = useRef<DepthHistoryFrame[]>([]);
 
   useEffect(() => {
     if (!enabled || typeof window === "undefined") {
       setSnapshot(null);
       state.current.clear();
+      history.current = [];
       return;
     }
 
@@ -142,6 +179,7 @@ export function useLiveBook(symbol: string, enabled = true, publishHz = PUBLISH_
     // only writer, so without this the old symbol's prices stay painted under
     // the new symbol's label for a full tick — BTC prices under an ADA button.
     setSnapshot(null);
+    history.current = [];
 
     const venues: VenueName[] = ["BINANCE", "BYBIT"];
     /*
@@ -236,6 +274,13 @@ export function useLiveBook(symbol: string, enabled = true, publishHz = PUBLISH_
       const mid = consolidatedMid(live);
       const db = depthWithinBps(bids, mid, "bid");
       const da = depthWithinBps(asks, mid, "ask");
+      history.current = appendDepthHistory(history.current, {
+        at: now,
+        mid,
+        bids,
+        asks,
+        liveVenues: live.length,
+      });
 
       setSnapshot({
         symbol,
@@ -246,6 +291,7 @@ export function useLiveBook(symbol: string, enabled = true, publishHz = PUBLISH_
         depthUsdBid: db,
         depthUsdAsk: da,
         imbalance: bandImbalance(bids, asks, mid),
+        depthHistory: history.current,
       });
     }, 1000 / publishHz);
 
