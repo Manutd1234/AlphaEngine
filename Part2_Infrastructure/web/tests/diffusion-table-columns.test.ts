@@ -85,6 +85,18 @@ const TABLES: readonly TableSpec[] = [
     ],
   },
   {
+    file: "../components/coherence/diffusion/AbsorptionWorkbench.tsx",
+    what: "the exact absorption horizon ledger",
+    columns: [
+      ["Horizon", "row.horizon"],
+      ["Stage", "STAGE_WORD[row.stage]"],
+      ["Payload mean", "row.cell.mean"],
+      ["Middle 50%", "row.cell.band"],
+      ["Cells", "row.cell.band.n"],
+      ["Record provenance", "row.cell.provenance"],
+    ],
+  },
+  {
     file: "../components/coherence/diffusion/FindingsTable.tsx",
     what: "the measured relationships",
     columns: [
