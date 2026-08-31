@@ -19,6 +19,7 @@ from config import settings
 from modules.metrics.decision_latency import core_latency_summary, decision_latency_summary
 from modules.metrics.exposition import _JOB_STATES, _Writer
 from modules.metrics.request_latency import request_latency_summary
+from modules.metrics.runtime import render_runtime_metrics
 
 _AUDIT_COUNT_INTERVAL_S = 300.0
 
@@ -162,7 +163,8 @@ def render_metrics() -> str:
             )
 
     # -- Module B: risk ------------------------------------------------------ #
-    state = get_gateway().state()
+    gateway = get_gateway()
+    state = gateway.state()
     out.metric(
         "kill_switch_active", bool(state.kill_switch_active),
         help="1 when the global kill switch is engaged and all new flow is blocked.",
@@ -247,6 +249,8 @@ def render_metrics() -> str:
             help="Responses with a 5xx status, by route.", type="counter", labels=(("route", route),),
         )
 
+    render_runtime_metrics(out)
+
     # -- Pre-trade decision latency ------------------------------------------- #
     # Microseconds, not milliseconds. This is the one path in the system that
     # operates below a millisecond, and rendering it in ms would report every
@@ -267,15 +271,54 @@ def render_metrics() -> str:
         "decision_samples_total", decisions["samples"],
         help="Pre-trade decisions measured since start.", type="counter",
     )
-    # Which engine made those decisions — a build that quietly fell back to
-    # the Python reference must be visible where the latency is read.
-    from modules.decision_core import ENGINE as _decision_engine  # local: metrics imports first
+    # The selected process engine and the engine that made the latest order are
+    # deliberately separate. A per-order native exception may use the Python
+    # reference without changing the loader's process-wide selection.
+    decision_core = gateway.decision_core_status()
 
     out.metric(
         "decision_engine", 1,
-        help="Active pre-trade decision engine (native = compiled core, python = reference).",
-        labels=(("engine", _decision_engine),),
+        help="Selected pre-trade decision engine (native = compiled core, python = reference).",
+        labels=(("engine", decision_core["selected"]),),
     )
+    out.metric(
+        "decision_engine_configured", 1,
+        help="Configured pre-trade engine policy.",
+        labels=(("engine", decision_core["configured"]),),
+    )
+    out.metric(
+        "decision_engine_effective", 1,
+        help="Engine that made the latest pre-trade decision.",
+        labels=(("engine", decision_core["effective"]),),
+    )
+    out.metric(
+        "decision_core_fallbacks_total", decision_core["fallback_total"],
+        help="Orders selected for native that the Python reference decided.",
+        type="counter",
+    )
+    if decision_core["fallback_reason"] is not None:
+        out.metric(
+            "decision_core_fallback", 1,
+            help="Stable reason code for the latest native-to-Python fallback.",
+            labels=(("reason", decision_core["fallback_reason"]),),
+        )
+    for reason, count in sorted(decision_core["fallback_counts"].items()):
+        out.metric(
+            "decision_core_fallbacks_by_reason_total", count,
+            help="Native-to-Python order fallbacks by stable reason code.",
+            type="counter",
+            labels=(("reason", reason),),
+        )
+    if decision_core["build_id"] is not None:
+        out.metric(
+            "decision_core_build_info", 1,
+            help="Loaded native decision-core contract and reproducible build identity.",
+            labels=(
+                ("build_id", decision_core["build_id"]),
+                ("abi_version", decision_core["abi_version"]),
+                ("arguments", decision_core["decide_argument_count"]),
+            ),
+        )
     # The native core's own clock, in nanoseconds; absent until it has run.
     # Published beside `decision_latency_us`, never instead of it: this one is
     # the gate arithmetic, that one is the whole `submit()` under the lock, and
