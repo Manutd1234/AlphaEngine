@@ -90,6 +90,30 @@ class RiskGateway(
         # the bench harness, which re-imports ``modules.decision_core`` per
         # engine, gets the module it just selected rather than a stale one.
         self._decision_core = self._resolve_decision_core()
+        loader_status = self._decision_core_loader_snapshot()
+        self._decision_core_configured: str = str(loader_status["configured"])
+        # A test/benchmark may pin a core independently of the process loader;
+        # the selected engine is the executable object, never a stale constant.
+        self._decision_core_selected: str = (
+            "native" if self._decision_core is not None else str(loader_status["selected"])
+        )
+        self._decision_core_effective: str = self._decision_core_selected
+        self._decision_core_fallback_reason: str | None = (
+            None if self._decision_core is not None else loader_status.get("fallback_reason")
+        )
+        self._decision_core_fallback_total: int = 0
+        self._decision_core_fallback_counts: dict[str, int] = {}
+        self._decision_core_identity = {
+            "abi_version": getattr(self._decision_core, "ABI_VERSION", loader_status.get("abi_version")),
+            "build_id": getattr(self._decision_core, "BUILD_ID", loader_status.get("build_id")),
+            "compiler": getattr(self._decision_core, "COMPILER", loader_status.get("compiler")),
+            "pybind11_version": getattr(
+                self._decision_core, "PYBIND11_VERSION", loader_status.get("pybind11_version")
+            ),
+            "decide_argument_count": getattr(
+                self._decision_core, "DECIDE_ARGUMENT_COUNT", loader_status.get("decide_argument_count")
+            ),
+        }
         #: The held book, mirrored in C++. Mutated where positions actually
         #: change — a fill, a paper execution, a restore from the audit log —
         #: rather than rebuilt per order, which is the whole reason it exists.
