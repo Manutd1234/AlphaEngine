@@ -1,13 +1,20 @@
 # AlphaEngine operations runbook
 
+**Procedure audit: 2026-08-29. TLS deployment state: 2026-09-01.** Procedures
+and paths were audited against the single application-context runtime. The TLS
+endpoint and Vercel Production settings have the later observation recorded in
+the deployment section below; other external and latency readings retain their
+actual probe dates. See
+[`../../docs/CURRENT_STATE.md`](../../docs/CURRENT_STATE.md).
+
 What to do when something breaks, written for the person on the other end of the
 alert rather than for the person who wrote the code.
 
 Every procedure here can be rehearsed against a local instance — the
 Reliability console can simulate a provider outage, the risk controls can be
-exercised on a paper book, and the synthetic-book fallback makes a total feed
-loss reproducible offline. A runbook nobody has practised is a document, not a
-procedure.
+exercised on a paper book, and the explicitly enabled synthetic demo book makes
+a total feed loss reproducible offline. A runbook nobody has practised is a
+document, not a procedure.
 
 **Where to look first, in order:**
 
@@ -69,7 +76,9 @@ again, and that is intentional.
    the number that tells them apart.
 2. **Check whether it is one venue or all of them.** `/health` lists every feed
    with its own connection state and reconnect count. One venue down is a
-   degraded router; all of them down brings up the synthetic book.
+   degraded router; all of them down leaves the book unavailable by default.
+   A synthetic book appears only when `ALLOW_SYNTHETIC_BOOK=1` was deliberately
+   configured for a demonstration.
 3. **If the synthetic book is active**, no price on any screen is a market
    price. Every payload is tagged `synthetic: true` and the UI labels it, so
    nothing is being passed off as real — but do not trade on it, and expect TCA
@@ -246,14 +255,33 @@ credential (`web:token`), not a person. What to do:
 
 **Alert:** `AlphaEngineGatewayDown`
 
-1. **Check the process and the port.** The gateway is a single process; nothing
-   in the web workspace or the Telegram companion can substitute for it.
-2. **Expect it to come back trading.** Kill-switch state is deliberately *not*
+1. **Check the process, listener and health separately.** The gateway is a
+   single process; nothing in the web workspace or Telegram can substitute for
+   it. Locally, `npm run dev` from `Part2_Infrastructure/web` supervises both
+   services (`dev:all` is an alias; `dev:web` is intentionally frontend-only).
+
+   ```bash
+   lsof -nP -iTCP:8000 -sTCP:LISTEN
+   curl -fsS http://127.0.0.1:8000/health
+   curl -sS -D - http://127.0.0.1:3000/api/gateway/coherence/status
+   curl -sS -D - http://127.0.0.1:3000/api/gateway/data/work-items
+   ```
+
+   The last path is the browser proxy. `/api/data/work-items` is the FastAPI
+   route and is not a Next.js route. A proxy 401 is `gateway_auth_failed`: check
+   that `ALPHAENGINE_GATEWAY_TOKEN` equals `WEB_API_TOKEN`. A 503 body separates
+   `gateway_not_configured`, `gateway_misconfigured`, `gateway_unreachable` and
+   `gateway_timeout`; read its hint before restarting anything.
+2. **Check origin policy.** In Vercel, a loopback/private canonical origin is a
+   configuration error, not an outage. Inspect `ALPHAENGINE_GATEWAY_URL`, the
+   optional public recovery origin, and the response's transport hint. Locally,
+   the supervised workspace is pinned to `http://127.0.0.1:8000`.
+3. **Expect it to come back trading.** Kill-switch state is deliberately *not*
    restored on restart: the audit log holds events, not a durable state
    snapshot, and inferring "halted" from an event history could pick the wrong
    side of a release race. If the desk should stay halted, halt it again
    immediately after restart.
-3. **Positions are rebuilt from the audit log**, strictly and reset-aware. If
+4. **Positions are rebuilt from the audit log**, strictly and reset-aware. If
    rehydration cannot be done unambiguously the gateway refuses to start rather
    than starting with an understated book — an empty position list is the most
    dangerous possible wrong answer.
@@ -264,7 +292,7 @@ credential (`web:token`), not a person. What to do:
 
 | Incident | How to reproduce locally |
 |---|---|
-| Feed down | Start with `VENUES=SIM`, or disconnect the network — the watchdog brings up the synthetic book and alerts |
+| Feed down | Set `ALLOW_SYNTHETIC_BOOK=1` and start with `VENUES=SIM`, or disconnect the network; the watchdog then brings up the tagged demo book and alerts |
 | Drawdown halt | Submit orders on the paper book until the budget is spent, or lower `MAX_DAILY_DRAWDOWN_PCT` |
 | Reduce-only | Set `REDUCE_ONLY_THRESHOLD=0.1` and take a small loss |
 | Rejection spike | The order ticket's "fat finger" and "rate-limit burst" presets |
@@ -306,45 +334,58 @@ live-smoke job, which verifies the database directly.
 
 ### Two things the pipeline cannot do for you
 
-**1. Point Vercel at the VM.** In the web project's environment variables:
+**1. Point Vercel at the VM over TLS.** The web project's **Production**
+environment was set on 2026-09-01 to:
 
 ```
-ALPHAENGINE_GATEWAY_URL   = http://<SSH_HOST>:8000
+ALPHAENGINE_GATEWAY_URL   = https://149.118.48.255:8443
+NODE_EXTRA_CA_CERTS       = /var/task/certs/gateway-ca.pem
 ALPHAENGINE_GATEWAY_TOKEN = <the same value as WEB_API_TOKEN>
 ```
 
-Use the **public** address. `gatewayState()` in `web/lib/gateway.ts` classifies
-`127.0.0.1`, `10.x`, `192.168.x` and `172.16–31.x` as `loopback` in production
-and refuses them — a serverless function fetching a private address fetches
-nothing, and that failure once read as a gateway outage for a day.
+The two TLS values are staged for the next Production deployment, and the
+post-deployment web/API validation is pending. This status covers Production
+only and makes no claim about Preview. Use the **public TLS** address.
+`gatewayState()` in `web/lib/gateway-origin.ts` classifies
+`127.0.0.1`, `10.x`, `192.168.x` and `172.16–31.x` as `loopback` on Vercel and
+refuses them — a serverless function fetching a private address fetches nothing,
+and that failure once read as a gateway outage for a day.
 
 **2. Open the path.** Both layers, or it looks identical to a closed one:
 
-- OCI VCN security list: ingress TCP 22 and 8000 — and 8443 as well if the TLS
-  sidecar is to be reachable from outside (`docs/engineering/TLS_FLIP.md`).
+- OCI VCN security list: ingress TCP 22 and 8443 for the canonical TLS path.
+  Keep 8000 only while the current deploy reachability check, explicit rollback
+  and other documented scripts still require it
+  (`docs/engineering/TLS_FLIP.md`).
 - The instance firewall: Oracle Linux images ship restrictive `iptables`.
-  `sudo firewall-cmd --permanent --add-port=8000/tcp && sudo firewall-cmd --reload`
+  `sudo firewall-cmd --permanent --add-port=8443/tcp && sudo firewall-cmd --reload`
 
 The `reachable` job probes `http://<SSH_HOST>:8000/health` from a GitHub runner
 and fails with this list if it cannot connect, so a half-open path is caught at
-deploy time rather than when someone opens the site.
+deploy time rather than when someone opens the site. It then probes
+`https://<SSH_HOST>:8443/health` as an advisory check. The direct HTTP probe is
+a deployment compatibility check, not the endorsed Vercel origin.
 
-### On the bearer token travelling in clear
+### Web-to-gateway transport
 
-Unless the Vercel project has been flipped — step 3 of `docs/engineering/TLS_FLIP.md`, a
-setting this repository cannot read — Vercel reaches the gateway over plain
-HTTP and `WEB_API_TOKEN` crosses the internet unencrypted. It is acceptable
-for a paper-trading case study — the token authorises reads and simulated
-orders, nothing else — but it is not a production posture.
+Do not configure a new Vercel deployment with the public plaintext origin. On
+2026-09-01, `https://149.118.48.255:8443/health` was re-probed with the pinned
+`web/certs/gateway-ca.pem` and returned HTTP 200. Vercel Production now has the
+HTTPS origin and `/var/task/certs/gateway-ca.pem` trust path configured, but
+those values are staged for the next Production deployment. Until that deploy
+and its web/API validation finish, do not claim that the live workspace has
+completed the flip. No Preview or high-availability claim follows from this
+change.
 
 The container half is already built: every deploy runs a Caddy sidecar that
 terminates TLS on `:8443` and proxies to `127.0.0.1:8000`, additively, so
-`:8000` keeps serving throughout. It uses Caddy's *internal* CA rather than an
+`:8000` can still serve the deploy check, explicit rollback and documented
+scripts during validation. It uses Caddy's *internal* CA rather than an
 automatically obtained public certificate — nothing will issue one for a bare
 IP — so the root is pinned by the one client that matters, and that root is
 committed at `Part2_Infrastructure/web/certs/gateway-ca.pem`. What remains is
-ingress on 8443 and pointing `ALPHAENGINE_GATEWAY_URL` at `https://<IP>:8443`;
-`docs/engineering/TLS_FLIP.md` is the checklist.
+the next Production deployment and the post-deployment checks in
+`docs/engineering/TLS_FLIP.md`.
 
 ### When a deploy fails
 
