@@ -2,12 +2,12 @@
 
 Everything you need to get AlphaEngine running, in the order you need it.
 `README.md` explains what it is and why; this file only gets it on screen.
-Every command here was re-read against the tree on 2026-08-24, and the suite
-counts are what the three runners printed that day. They are AHEAD of the
-gateway line in `Part2_Infrastructure/web/lib/test-counts.generated.ts`, which
-the desk displays and which `npm run counts:refresh` is owed to bring up to
-date; `CLAUDE.md` holds the reconciliation and the list of what else needs
-regenerating.
+**Local setup last verified: 2026-08-30; Production TLS state: 2026-09-01.** The
+local supervisor, frontend-only command and representative gateway proxy paths
+were rechecked; the complete suite and count record retains its actual
+2026-08-29 run date. Current topology, dependency and contract facts live in
+[`docs/CURRENT_STATE.md`](docs/CURRENT_STATE.md); external probes retain their
+actual observation dates.
 
 ---
 
@@ -19,15 +19,15 @@ regenerating.
 ```bash
 cd Part2_Infrastructure/web
 npm install
-npm run dev
+npm run dev:web
 ```
 
 Open **http://localhost:3000**. You land on a sign-in page that tells you
 accounts are not configured in this deployment and offers one button — **Open
-the workspace**. Click it and you are on the full **ten-tab** desk: Overview,
-Research, Execution, Portfolio, Risk, Data, Reliability, Developer, Prices and
-Proofs. The last two are the Kalshi engine; their URL ids are `#markets` and
-`#coherence`, which is older than their labels and deliberately unchanged.
+the workspace**. Click it and you are on the full **eleven-tab** desk: Overview,
+Research, Execution, Portfolio, Risk, Data, Reliability, Developer, Markets,
+Proofs and Diffusion. The last three are the quant-engine workspaces; their
+stable URL ids are `#markets`, `#coherence` and `#diffusion`.
 
 That is the whole first run. With ten minutes rather than two, the
 [full local stack](#the-full-local-stack) adds the gateway and real data.
@@ -38,7 +38,7 @@ Three mechanisms, each deliberate:
 
 | Missing thing | What happens instead | Where |
 |---|---|---|
-| `ALPHAENGINE_GATEWAY_URL` | Falls back to `http://127.0.0.1:8000`, but **only** when `NODE_ENV=development`. In production an unset URL reports the gateway as absent rather than fetching itself. | `gatewayState()` in `web/lib/gateway.ts` |
+| `ALPHAENGINE_GATEWAY_URL` | Falls back to `http://127.0.0.1:8000`, but **only** when `NODE_ENV=development`. In production an unset URL reports the gateway as absent rather than fetching itself. | `gatewayState()` in `web/lib/gateway-origin.ts` |
 | `NEXT_PUBLIC_SUPABASE_*` | `authConfigured()` is false, so the edge middleware mints a guest desk pass instead of bouncing you to a form that cannot sign you in. | `authConfigured()` and the guest branch in `web/proxy.ts` |
 | A gateway that never answers | After the first probe fails with no cached payload, the book enters a deterministic browser-generated sandbox — clearly tagged as generated, with writes disabled in every tier but `live`, so you cannot act on numbers that are not real. | the `setSandboxState` effect in `web/lib/use-book.ts` |
 
@@ -62,25 +62,25 @@ job queue runs in-process unless `REDIS_URL` is set.
 
 ## The full local stack
 
-Adds the FastAPI risk gateway, so the Portfolio, Risk, Execution, Reliability
-and the Prices/Proofs pair read real state instead of the sandbox.
+Adds the FastAPI risk gateway, so Portfolio, Risk, Execution, Reliability, and
+the Markets/Proofs/Diffusion engine read real state instead of the sandbox.
 
 ### ⚠ Read this before you create the virtualenv
 
 **It must be named `venv`, and it must live at `Part2_Infrastructure/venv`.**
 
 This is the single most likely way to lose an hour on this repo.
-`web/package.json`'s `dev:gateway` and `dev:all` hard-code that path:
+`web/package.json`'s `dev:gateway` and the integrated `dev` / `dev:all`
+supervisor hard-code that path:
 
 ```jsonc
 "dev:gateway": "cd .. && ./venv/bin/python -m uvicorn main:app --reload --port 8000",
 ```
 
-and `web/scripts/start-dev-all.mjs` spawns `resolve(rootDir, "venv/bin/python")`
-with **no existence check and no `error` handler on the child process**. So a
-`.venv`, a conda environment, a `uv` environment or a virtualenv one directory
-up does not produce a helpful message. It produces an unhandled `ENOENT` that
-reads like a crash in Node.
+and `web/scripts/start-dev-all.mjs` spawns `resolve(rootDir, "venv/bin/python")`.
+The supervisor handles a child `error`, shuts down its peer and reports the
+failed service, but the path is intentionally fixed: a `.venv`, conda or `uv`
+environment elsewhere still cannot satisfy it.
 
 Create it exactly like this:
 
@@ -158,18 +158,47 @@ that must not degrade quietly; `DECISION_CORE=python` pins the reference.
 From `Part2_Infrastructure/web`:
 
 ```bash
-npm run dev:all        # gateway on :8000 and Next.js on :3000, one terminal
+npm run dev            # default: gateway on :8000 and Next.js on :3000
+npm run dev:all        # explicit alias for the same integrated supervisor
 ```
 
 Or in two terminals, which is easier to read when something breaks:
 
 ```bash
 cd Part2_Infrastructure && venv/bin/python -m uvicorn main:app --reload --port 8000
-cd Part2_Infrastructure/web && npm run dev
+cd Part2_Infrastructure/web && npm run dev:web
 ```
 
 Run the gateway with `Part2_Infrastructure` as the working directory — `main.py`
 is the entrypoint and it resolves the DuckDB audit log relative to itself.
+
+### Optional: signed Kalshi demo reads in Docker Compose
+
+The default Compose application is intentionally keyless, so a clean clone can
+always start with `docker compose up -d --build`. To enable only the signed demo
+channel, set `KALSHI_DEMO_KEY_ID` in `Part2_Infrastructure/.env`, leave
+`KALSHI_DEMO_PRIVATE_KEY_PATH=secrets/kalshi-demo-private-key.pem`, and save the
+matching RSA private key at:
+
+```text
+Part2_Infrastructure/secrets/kalshi-demo-private-key.pem
+```
+
+That directory is ignored by Git. From the repository root, start Compose with
+the opt-in override:
+
+```bash
+docker compose -f docker-compose.yml \
+  -f Part2_Infrastructure/docker/compose.kalshi.yml \
+  up -d --build
+```
+
+The override refuses a missing or non-RSA PEM before starting the gateway. It
+copies the key into a private Docker volume as UID 10001 with mode `0400`, then
+mounts that volume read-only at
+`/run/secrets/kalshi-demo-private-key.pem`. The relative value in `.env` remains
+correct for a Python gateway launched directly on the host; the override sets
+the fixed container path only inside Compose.
 
 | Service | URL |
 |---|---|
@@ -208,18 +237,17 @@ ALPHAENGINE_GATEWAY_TOKEN=<the same value>
 
 ## Verify it
 
-The counts below are what the runners printed on 2026-08-24. Re-run them rather
-than trusting the numbers: a figure nobody re-measured is not a measurement.
+The counts below are what the runners printed in the 2026-08-31 UTC generated
+record (2026-09-01 in Singapore). Re-run them rather than trusting the numbers:
+a figure nobody re-measured is not a measurement.
 
 ```bash
-# Gateway suite — 3,039 passed, 1 skipped, with the cross-encoder weights
-# seeded (native core built, Python 3.12, no .env in Part2_Infrastructure).
-# CI seeds nothing and prints a smaller total with two skips instead of one.
-# Both are green. Read the skip REASONS with -rs, never the count alone.
+# Gateway suite — 3,408 passed, 1 skipped; 3,409 total.
+# Native core built, Python 3.12.14. Read skip REASONS with -rs.
 
 cd Part2_Infrastructure && venv/bin/python -m pytest
 
-# Web suite — 4,728 passed, 2 skipped, across 1,028 suites; no browser
+# Web suite — 6,767 passed, 6 skipped, across 1,448 suites; no browser
 cd Part2_Infrastructure/web && npm test
 
 # Research service — 24 passed
@@ -267,15 +295,14 @@ directory gets the seeded shape with nothing exported. Force the CI shape with
 `RERANK_TEST_MODEL_PATH= venv/bin/python -m pytest`. Only the **web** line of
 `web/lib/test-counts.generated.ts` is checked in CI
 (`node scripts/check-test-counts.mjs web <log>`), so its gateway line is a dated
-record rather than a gate. Refreshed 2026-08-24 in the CI shape to 3,033
-(3,031 passed, 2 skipped); a weights-seeded run of the same suite prints 3,040
-(3,039 passed, 1 skipped). If those two disagree with each other, that is the
-shape, not a failure — check which one you are in before calling it stale.
+record rather than a gate. The current generated record is dated 2026-08-31 UTC;
+use `npm run counts:refresh` after the suites change and inspect `pytest -rs`
+before treating a changed skip count as drift.
 
 **There is no `lint` script for the web app.** `npm run lint` in `web/` fails as
 a missing script; that is not a broken linter. `package.json` has exactly `dev`,
-`dev:gateway`, `dev:all`, `prebuild`, `build`, `catalog:refresh`, `start`,
-`typecheck`, `test` and `counts:refresh`. Linting is Python-side, via `ruff`,
+`dev:web`, `dev:gateway`, `dev:all`, `prebuild`, `build`, `catalog:refresh`, `start`,
+`typecheck`, `test`, `audit:layout` and `counts:refresh`. Linting is Python-side, via `ruff`,
 which is in `requirements-dev.txt` only.
 
 **`npm run build` runs two gates before Next.js starts.** The `prebuild` hook is
@@ -286,17 +313,16 @@ which is in `requirements-dev.txt` only.
    64-hex literal in `web/lib/gateway-openapi-digest.generated.ts`. It prints
    `Gateway OpenAPI digest verified: <hash>` on a match and exits 1 with
    `Gateway OpenAPI digest is stale` on drift — a contract assertion between two
-   separately deployed units, not a broken build. Verified on 2026-08-24 at
-   `3379dbca…`.
+   separately deployed units, not a broken build. Verified on 2026-08-29 at
+   `12b53e1f…`.
 2. The second refuses to build if `web/lib/repository-manifest.generated.json`
    no longer lists the same files `git ls-files --cached --others
    --exclude-standard` does — **only the file list**, because `generatedAt` and
    `commit` change every commit and gating on those would fail every push. It
    skips cleanly when git is unavailable, so a tarball build still works. Expect
-   it to be red whenever a file has landed since the last refresh — run on
-   2026-08-24 it reported `Repository manifest is stale (3 added, 1 removed)`,
-   naming the three `components/coherence/` files added this session and the deleted
-   `PendingPane.tsx`. The fix is `npm run catalog:refresh`, never an edit to the
+   it to be red whenever a file has landed since the last refresh. The
+   2026-08-31 UTC catalogue contains 2,391 paths and passed its file-list gate;
+   the fix for later drift is `npm run catalog:refresh`, never an edit to the
    JSON.
 
 A third generated file, `web/lib/test-counts.generated.ts`, goes stale the same
@@ -316,16 +342,16 @@ node --import tsx scripts/generate-gateway-client.ts     # 3. lib/gateway-contra
 
 ### Advanced: the desk sweep
 
-`web/scripts/desk-sweep.mjs` drives **all 57 rail sections across all 10 tabs**
+`web/scripts/desk-sweep.mjs` drives **all 70 rail sections across all 11 tabs**
 under six backend fault profiles, using Chrome DevTools Protocol fault
-injection, and asserts no surface can dead-end. It is the only check in the
-repository that puts a browser in front of the desk — `npm test` is plain Node
-with no DOM and no layout engine — and it has real prerequisites, so it is not
-in the verify block above.
+injection, and asserts no surface can dead-end. `npm test` is plain Node with no
+DOM or layout engine; the sweep and `npm run audit:layout --
+--url=http://localhost:3000` are the browser-dependent qualification tools and
+therefore have real prerequisites outside the fast verify block above.
 
 ```bash
 # terminal 1 — note the port: 3100, not 3000
-cd Part2_Infrastructure/web && PORT=3100 npm run dev
+cd Part2_Infrastructure/web && PORT=3100 npm run dev:web
 
 # terminal 2
 /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome \
@@ -337,13 +363,16 @@ cd Part2_Infrastructure/web && node scripts/desk-sweep.mjs
 
 Flags are `--name=value` only — `--profile=gateway-hang --tab=portfolio`; a
 space-separated `--profile gateway-hang` is not parsed. The counts above are
-`EXPECTED_SECTIONS = 57` and the ten-key `TABS` map in
-`web/scripts/desk-sweep-plan.mjs`, which is what the script actually executes.
-Two stale figures live nearby and neither is what runs: `desk-sweep.mjs`'s own
-header comment still says "47 rail sections across all 8 tabs", and the sweep
-walks 57 cells rather than the 65 the 2026-08-24 promotion pass briefly made
-addressable — eight subjects on the Kalshi engine are in-pane views again, and a
-view is not a section the sweep can reach.
+`EXPECTED_SECTIONS = 70` and the eleven-key `TABS` map in
+`web/scripts/desk-sweep-plan.mjs`, which is what the script executes. The script
+header and executable plan now agree on that topology. In-pane engine views are
+audited by the layout route catalogue and are not double-counted as rail
+sections.
+
+The separate Playwright geometry audit was run on 2026-08-29 against the local
+webpack server and passed all **872/872** state/viewport combinations with zero
+console errors. The six-profile Chrome DevTools fault-injection sweep below was
+not part of that run.
 
 *Not run while this file was written; the prerequisites are read off the
 script's own header and argument parser.*
@@ -351,18 +380,18 @@ script's own header and argument parser.*
 ### Advanced: build the whitepaper
 
 `docs/whitepaper/` is Typst source — `main.typ`, six chapters under `sections/`,
-one `template.typ`. `.gitignore` excludes `*.pdf`, so no PDF is committed;
-`typst` is in no requirements file and no CI job compiles it, so nothing reports
-a broken chapter until you run:
+one `template.typ`. `.gitignore` excludes `*.pdf`; source is the versioned
+authority and no CI job compiles it, so run this deliberately after an edit:
 
 ```bash
-typst compile docs/whitepaper/main.typ AlphaEngine_Institutional_Whitepaper.pdf
+typst compile docs/whitepaper/main.typ docs/whitepaper/AlphaEngine_Institutional_Whitepaper.pdf
 ```
 
-Install Typst first (`brew install typst`, or a release binary). Run on
-2026-08-22 it completed with no warnings and produced 83 A4 pages. The one trap
-to know before editing a chapter — `#include` evaluates a file in its own scope,
-so `main.typ`'s imports do not reach the sections — is in `CLAUDE.md`.
+Install Typst first (`brew install typst`, or a release binary). The 2026-08-29
+documentation release recompiles the paper and renders every page for visual
+inspection. The one trap to know before editing a chapter — `#include`
+evaluates a file in its own scope, so `main.typ`'s imports do not reach the
+sections — is in `CLAUDE.md`.
 
 ---
 
@@ -391,7 +420,7 @@ those rather than any list here, which would go stale:
 
 `config.py` resolves **100** distinct environment names through its `_env*`
 helpers — `grep -oE '_env[a-z_]*\("[A-Z][A-Z0-9_]+"' config.py | sort -u | wc -l`,
-2026-08-24 — and the modules listed at the end of this section read a further
+recounted 2026-08-29 — and the modules listed at the end of this section read a further
 set straight from `os.environ`. The groups below name the ones you would
 actually set.
 
@@ -442,6 +471,18 @@ capability and nothing else changes; each one you leave unset produces an honest
   `COHERENCE_READ_TOKENS_PER_S`, `COHERENCE_REQUEST_TIMEOUT_S` and the fee
   knobs. The exchange's public endpoints need no key; `KALSHI_DEMO_KEY_ID` and
   `KALSHI_DEMO_PRIVATE_KEY_PATH` are only for the signed private-channel reads.
+  A local relative key path resolves from `Part2_Infrastructure`. For the OCI
+  deployment, add the repository secrets `KALSHI_DEMO_KEY_ID` and
+  `KALSHI_DEMO_PRIVATE_KEY_PEM_B64` (the PEM file base64-encoded as one line);
+  deploy verifies the pair with Kalshi's authenticated demo balance read before
+  cutover, stores the PEM under a run-scoped path in a private Docker volume,
+  and keeps the prior key file until gateway and TLS verification both pass.
+  To revoke an existing deployed pair, remove both secrets, set the repository
+  variable `KALSHI_DEMO_REVOKE=1` for one successful deploy, then return it to
+  `0`; that deploy records blank runtime tombstones so a legacy VM `.env`
+  cannot restore the revoked pair, and it fails unless the stored PEM files
+  are deleted. Merely omitting optional secrets preserves the last working
+  pair.
 - **Data-ops cadence:** `WEB_WORKSPACE_URL`, `DATA_SCHEDULES`. The quality
   ledger, the persisted work queue and the replay/backfill routes all work with
   neither set — a schedule is the only thing that needs one, and a replay says
@@ -501,7 +542,16 @@ is a notification companion, never an auth provider.
 | | |
 |---|---|
 | Desk workspace | https://alphaengine-workspace.vercel.app |
-| Risk gateway | http://149.118.48.255:8000 — and `https://149.118.48.255:8443` behind the Caddy sidecar's pinned internal CA (`docs/engineering/TLS_FLIP.md`); both answered `/health` on 2026-08-17 |
+| Risk gateway | `https://149.118.48.255:8443` behind the Caddy sidecar's pinned internal CA; a 2026-09-01 probe with `Part2_Infrastructure/web/certs/gateway-ca.pem` returned HTTP 200 (`docs/engineering/TLS_FLIP.md`) |
+
+Vercel **Production** now has `ALPHAENGINE_GATEWAY_URL` set to
+`https://149.118.48.255:8443` and `NODE_EXTRA_CA_CERTS` set to
+`/var/task/certs/gateway-ca.pem`. Those values are staged for the next
+Production deployment; post-deployment web/API validation is pending. This
+status does not cover Preview and does not claim high availability. Direct
+`http://149.118.48.255:8000` remains temporarily for the deploy workflow's
+reachability check, explicit rollback and other documented scripts, not as the
+normal Vercel origin.
 
 The gateway deploys itself from `main` via `.github/workflows/deploy.yml`, on
 pushes that touch `Part2_Infrastructure/**` but **not** `web/**` or
@@ -521,9 +571,10 @@ free Autonomous Database stops itself after seven consecutive idle days.
 
 ## Troubleshooting
 
-**`ENOENT` / `spawn venv/bin/python` from `npm run dev:all`.** The virtualenv is
-missing or has the wrong name. It must be `Part2_Infrastructure/venv`. See the
-warning above.
+**`FastAPI gateway failed to start: spawn …/venv/bin/python ENOENT` from
+`npm run dev` / `dev:all`.** The supervisor will stop the workspace peer. The
+virtualenv is missing or has the wrong name; it must be
+`Part2_Infrastructure/venv`. See the warning above.
 
 **`npm run lint` — "Missing script".** Correct. There is no web lint script; use
 `ruff check .` from `Part2_Infrastructure`.
@@ -540,12 +591,14 @@ file — it is the reason the manifest is a *gate* rather than a *count*.
 reachable. The workspace is in its sandbox tier — start the gateway, or accept
 it: the desk is fully navigable there, just read-only outside `live`.
 
-**Gateway 401 and the desk falls back to the sandbox.** You have a `.env` with
-`REQUIRE_AUTH=1` and no matching `ALPHAENGINE_GATEWAY_TOKEN` on the web side.
-Set both, or delete the `.env`.
+**Gateway 401 and the desk reports `gateway_auth_failed`.** You have a `.env`
+with `REQUIRE_AUTH=1` and no matching `ALPHAENGINE_GATEWAY_TOKEN` on the web
+side. The read may retain a typed sandbox snapshot, but this is an auth failure,
+not a generic outage. Set both tokens to the same value, or disable local auth.
 
-**Port 3000 is taken.** `PORT=3100 npm run dev`; the gateway's dev-mode fallback
-still targets `127.0.0.1:8000`.
+**Port 3000 is taken.** `PORT=3100 npm run dev` starts the integrated stack on
+workspace port 3100, or `PORT=3100 npm run dev:web` starts only the workspace;
+both target the local gateway at `127.0.0.1:8000`.
 
 **A pip install of `requirements.txt` fails building numba or vectorbt.** Use
 `requirements-core.txt`. It is the tested path and the numbers are identical.
