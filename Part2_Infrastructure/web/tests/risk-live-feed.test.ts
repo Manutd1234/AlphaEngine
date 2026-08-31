@@ -79,9 +79,11 @@ describe("the Risk tab counts the live figures it is safe to count", () => {
 });
 
 describe("the cards that hold still on purpose say why", () => {
-  it("the bootstrap card names the equity bucket it is holding", () => {
+  it("the bootstrap card names the completed result's equity bucket while a replacement runs", () => {
     const card = at("components/risk/MonteCarloDistribution.tsx");
-    assert.match(card, /this run holds the \{usd\(equityForRun, 0\)\} bucket/);
+    assert.match(card, /const displayedEquityForRun = result\?\.equity \?\? equityForRun/,
+      "the label must follow the retained result, not a newly requested equity bucket");
+    assert.match(card, /this run holds the \{usd\(displayedEquityForRun, 0\)\} bucket/);
     assert.match(card, /crosses into the next \$1,000/,
       "the reader is told what makes it re-simulate, not merely that it has not");
   });
