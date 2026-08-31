@@ -165,55 +165,6 @@
   stroke-dasharray: 3 2;
 }
 
-/* ── Every lesson card's rows on the same lines ───────────────────────────
-   "For quotes, structure, bounds, record subtabs, can we make the what it
-    measures, what it holds the same row for all boxes… standardize the
-    alignment since some boxes are higher, some are lower. Use a table and
-    borders to help for each box."
-
-   The cause is that `.coh-lesson` is its own grid with `align-content: start`,
-   so each card's rows are sized by that card's own content: a two-line summary
-   beside a one-line one pushed everything under it out of step, and the two
-   `<dt>` rows a reader compares across cards — "When it holds" and "What
-   breaks it" — ended up at different heights in the same row.
-
-   `subgrid` is the house answer and `10i-diffusion-density.css` is the
-   precedent, written for this same complaint in the same words. Its cards have
-   a fixed five children; these have SEVEN, and only because the formula slot is
-   now rendered even when empty — two of the fifteen lessons carry none, and a
-   card with six rows beside one with seven cannot share row lines at all.
-
-   Where subgrid is unsupported the declaration is dropped and the cards fall
-   back to the auto rows they have today: the old layout rather than a broken
-   one. Chrome 117+, Safari 16+, Firefox 71+.
-
-   The hairline is the "borders to help" half, and it is what makes the
-   alignment legible — without a rule at the row line, seven cards agreeing
-   looks like seven cards. */
-@supports (grid-template-rows: subgrid) {
-  .coherence-plane.proofs-plane .coh-lessons__grid {
-    grid-auto-rows: auto;
-  }
-
-  .coherence-plane.proofs-plane .coh-lesson {
-    grid-row: span 7;
-    grid-template-rows: subgrid;
-    align-content: stretch;
-  }
-}
-
-.coherence-plane.proofs-plane .coh-lesson > .coh-lesson__bounds {
-  border-top: 1px solid var(--grid);
-  padding-top: var(--space-2);
-}
-
-/* An empty formula slot holds its row line and shows nothing. Without this it
-   would draw the chip's own grey box and padding around no text. */
-.coherence-plane.proofs-plane .coh-lesson__formula:empty {
-  padding: 0;
-  background: none;
-}
-
 /* The parlay finder. A row, because a label, a field and its buttons are one
    control and stacking them reads as three. */
 .coherence-plane.proofs-plane .coh-combos__find {
@@ -228,37 +179,15 @@
   min-width: 0;
 }
 
-/* The one control a failed parlay read owes a reader. It sits under the figure
-   that says what the read was doing, not beside the error line: the sentence
-   states the failure and the button acts on it, and putting them on one row
-   made the button read as part of the sentence. */
-.coherence-plane.proofs-plane .coh-combos__retry {
-  display: flex;
-  justify-content: flex-start;
-  margin-top: var(--space-2);
+.coherence-plane.proofs-plane .coh-combos__lookup > summary {
+  padding: var(--space-2) var(--space-3);
+  font-weight: 700;
 }
 
-
-/* ── The lesson cards, three across ─────────────────────────────────────────
-   "the diagrams need to be better." They are 260 user units wide and drawn at
-   1:1 — deliberately, because scaling them would scale their TEXT, and a
-   diagram whose words set larger than the prose around it is a worse figure
-   rather than a bigger one. So what was wrong was not the drawing, it was the
-   column: two across a 1,560px shell gives each card about 745px, and a 260px
-   diagram centred in that is an island with 240px of white either side.
-
-   Three across at 1400 makes each card about 490px, so the diagram is half its
-   card rather than a third — and fourteen lessons fall in five rows instead of
-   seven, which is the scroll the reader also asked about.
-
-   ADDED HERE, not in `10a`, and the difference matters. `.coh-lessons__grid` is
-   a SHARED class: `diffusion/model/ModelFormulas.tsx` renders it too, and
-   re-scoping the base rule to `.proofs-plane` would leave that one unstyled —
-   a defect this sheet has shipped twice and which neither `plane-scope` nor
-   `dead-css` can see, because both ask only whether a rule has a render site
-   somewhere. Adding a scoped rule BESIDE the base is the safe direction. */
-@media (min-width: 1400px) {
-  .coherence-plane.proofs-plane .coh-lessons__grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
+.coherence-plane.proofs-plane .coh-combos__lookup > .coh-combos__find {
+  padding: 0 var(--space-3) var(--space-3);
 }
+
+/* Proofs Lessons owns its one/two/three-column ladder in
+   `14zzba-proofs-lessons.css`. Keeping the grid out of this broader layout
+   sheet prevents two breakpoints from competing for the same cards. */
