@@ -1,13 +1,13 @@
 "use client";
 
 /**
- * What the system depends on, in three views that each have exactly ONE source.
+ * What the system depends on, in focused views that each have exactly ONE source.
  *
  * Split out of `ReliabilityOverview` when that file passed the length ceiling.
  * This is the `planes` half of the section: the four KPI tiles that never move,
  * the view switcher, the dependency map and the provider digest. The platform
- * view — the gateway's own components and the evidence boundary — is
- * `ReliabilityPlatform`, mounted from here.
+ * platform and latency views are two focused parts of `ReliabilityPlatform`,
+ * mounted from here only while their respective view is on screen.
  *
  * Deliberately NOT a nested `<WorkspaceSubtabs>`: that publishes `--rail-h`
  * from a ResizeObserver and asserts exactly one rail is mounted, so a second
@@ -22,6 +22,7 @@
 import { useState } from "react";
 
 import DependencyMix from "@/components/systems/DependencyMix";
+import DependencyDag, { DEPENDENCY_DAG_TITLE } from "@/components/systems/DependencyDag";
 import DependencyTree from "@/components/systems/DependencyTree";
 import ReliabilityPlatform from "@/components/systems/ReliabilityPlatform";
 import type { SystemHealthView } from "@/lib/use-system-health";
@@ -29,16 +30,18 @@ import type { GatewayOpsSnapshot, ProviderRow } from "./types";
 import type { ReliabilityDrilldown } from "./ReliabilityOverview";
 
 /**
- * Dependencies was four stacked card-sections in one scroll. These are three
- * questions, and each has exactly ONE source — so each degrades on its own
- * rather than dragging the others down with it.
+ * Dependencies used to stack the tall route chart, gateway components and
+ * snapshot boundary in one Platform scroll. Latency is now its own question;
+ * each pane can be read without scrolling through a different evidence type.
  */
-type DependencyPane = "map" | "providers" | "platform";
+type DependencyPane = "map" | "dag" | "providers" | "platform" | "latency";
 
 const DEPENDENCY_PANES: Array<{ id: DependencyPane; label: string; hint: string }> = [
   { id: "map", label: "Map", hint: "What depends on what, and what one failure removes" },
+  { id: "dag", label: DEPENDENCY_DAG_TITLE, hint: DEPENDENCY_DAG_TITLE },
   { id: "providers", label: "Providers", hint: "Which research APIs are routable, and why the rest are not" },
-  { id: "platform", label: "Platform", hint: "Components inside the gateway process, and what one snapshot proves" },
+  { id: "platform", label: "Platform", hint: "Gateway components, decision timing, and what one snapshot proves" },
+  { id: "latency", label: "Latency", hint: "Per-route response-time percentiles and the route p99 distribution" },
 ];
 
 
@@ -246,6 +249,10 @@ export default function ReliabilityPlanes({
         </>
       )}
 
+      {pane === "dag" && (
+        <DependencyDag health={health} healthError={healthError} />
+      )}
+
       {pane === "providers" && (
       <section className="card reliability-dependency-digest" aria-labelledby="reliability-provider-api-title">
         <div className="section-heading compact">
@@ -294,7 +301,13 @@ export default function ReliabilityPlanes({
       </section>
       )}
 
-      {pane === "platform" && <ReliabilityPlatform view={view} onOpenData={onOpenData} />}
+      {pane === "platform" && (
+        <ReliabilityPlatform view={view} onOpenData={onOpenData} part="platform" />
+      )}
+
+      {pane === "latency" && (
+        <ReliabilityPlatform view={view} onOpenData={onOpenData} part="latency" />
+      )}
     </div>
   );
 }
