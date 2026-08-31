@@ -244,7 +244,8 @@ class TestTheProducerHasARealCaller:
 
         class FakeCorpus:
             async def post(self, path, json=None, headers=None):  # noqa: A002
-                stored.append(json)
+                assert path.endswith("replace_research_document_chunks")
+                stored.extend(dict(row) for row in json["p_rows"])
                 return SimpleNamespace(status_code=201)
 
         class FakeRag:
