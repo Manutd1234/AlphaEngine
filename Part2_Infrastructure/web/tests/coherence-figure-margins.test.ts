@@ -69,7 +69,15 @@ const RUNG: Record<string, number> = {
   "diff-thresh__axisword": TICK_PX,
   "diff-curve__key--release": DIAGRAM_LEGEND_PX,
   "diff-curve__key--call": DIAGRAM_LEGEND_PX,
+  // The Control ECDF keeps both series keys above its plot. The variants set
+  // colour only, but remain in the SVG class list and therefore stay mapped to
+  // the base key's legend rung rather than escaping this geometry contract.
+  "diff-control__key": DIAGRAM_LEGEND_PX,
+  "diff-control__key--release": DIAGRAM_LEGEND_PX,
+  "diff-control__key--call": DIAGRAM_LEGEND_PX,
   "diff-fan__count": DIAGRAM_LABEL_PX,
+  // The original fan keeps leading null horizons in the full quantitative
+  // domain as a hatch, so there is no separate compact-label typography token.
   // The watch's poll count, added 2026-08-26 with the recorder clock. Reads
   // `--fs-sm`, the same rung.
   "diff-watch__count": DIAGRAM_LABEL_PX,
