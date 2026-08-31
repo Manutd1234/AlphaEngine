@@ -27,6 +27,7 @@
 
 import IndexPane from "./IndexPane";
 import PaneHead from "./PaneHead";
+import ProofsViewControl from "./ProofsViewControl";
 
 type IndexView = "series" | "families";
 
@@ -41,23 +42,24 @@ export default function IndexSection({ active, view, onView }: { active: boolean
     <section className="card console-card coh-calib" aria-labelledby="coherence-index-heading">
       <PaneHead
         kicker="Coherence index"
-        title="How far these prices sit from admitting a probability"
+        title="L1 distance from coherence"
         id="coherence-index-heading"
-        note="measured every poll, on markets that have not settled"
-        lede="Zero is prices that admit a probability exactly; above it is ‖p − q‖₁ to the nearest coherent vector."
+        note="each poll; unsettled"
+        ledeSummary="Distance definition"
+        lede="Zero admits a probability exactly; otherwise the readout is min_q ‖p − q‖₁."
       />
 
       {/* The control row is pinned (`14u`), so a reader deep in the body can
           switch view without scrolling back to the head. One row per section is
           the rule this rail already kept; wrapping it is what made it pinnable. */}
       <div className="coh-bar">
-        <div className="seg" role="group" aria-label="Index view">
-          {VIEWS.map(([name, label]) => (
-            <button key={name} type="button" aria-pressed={view === name} onClick={() => onView(name)}>
-              {label}
-            </button>
-          ))}
-        </div>
+        <ProofsViewControl
+          className="seg"
+          label="Index view"
+          options={VIEWS}
+          value={view}
+          onValue={onView}
+        />
       </div>
 
       <IndexPane active={active} view={view} />
