@@ -1,12 +1,18 @@
 # PRD — enterprise RAG over the desk's own research
 
-*As of 24 August 2026. Every claim about this repository was read from the tree
-on that date, with the file named beside it. The requirement itself is restated
+*Current delivery state audited against the worktree on **31 August 2026**,
+with the file named beside each claim. No external deployment was probed;
+historical benchmarks retain the date of the run that produced them. The requirement itself is restated
 from the brief; the delivery record against it is checkable, and where a stage
 is NOT BUILT this document says so plainly rather than rounding it up to
 "planned". [`PLAN.md`](PLAN.md) carries the open items and the decision log;
 [`Part2_Infrastructure/README.md` §Tech Stack "RAG & ML"](../../Part2_Infrastructure/README.md#tech-stack)
 is the authoritative per-layer table and is not repeated here.*
+
+The reproducible current-worktree ledger — topology, locked toolchain and dated
+test/build evidence — is
+[`CURRENT_STATE.md`](../CURRENT_STATE.md). This PRD owns the requirement and its
+delivery record, not another mutable count table.
 
 ## 1. The requirement
 
@@ -117,7 +123,7 @@ it waits — §6).
 | 1 | Multimodal (chart image) ingestion | **Built, optional — and the substitution still stands as the default.** A chart's PNG is embedded by CLIP `ViT-B/32` into a 512-dim `image_embedding` column at ingest, gated on an operator setting `RESEARCH_IMAGE_MODEL_PATH`; unset, the row sent is byte-for-byte the row sent before the module existed, not even nulls. The computed description remains the primary index and `research_chartdoc`'s argument is unweakened — the measured reason is in §6 | `modules/research_image.py`, `research_image_ingest.py`, `research_chartdoc.py`, migration `20260822100000` |
 | 2 | Vector search | **Built** — pgvector HNSW over gte-small (384-dim, unit-normalised), embedded by a Supabase edge function; similarity floor 0.76, measured not chosen | `modules/research_rag/retrieval.py`, `supabase/functions/embed-research/` |
 | 2 | Sparse search | **Built, twice** — `ts_rank_cd` over a generated tsvector (GIN-indexed, supplies recall) plus an in-process Okapi BM25 arm (k1=1.2, b=0.75) that re-scores candidates; every arm fused by RRF at the same k=60, imported rather than restated so a further arm cannot join on a different constant | `supabase/migrations/20260810090000_hybrid_research_search.sql`, `modules/research_bm25.py` |
-| 2 | Graph retrieval | **Built** — derived edges in Postgres, a recursive-CTE traverse (depth capped at 4 in the migration), and an optional Neo4j Aura projection that is also **read back**: exactly two routes read it, `GET /api/research/graph/communities` and `/centrality`, each marking `source: "neo4j"` or `"corpus"` on the report. Postgres stays authoritative and the projection is one-way — nothing else writes to the graph, asserted in `tests/test_research_graph_projection.py`. Louvain runs in-process on a fixed seed; **PageRank takes no seed** — networkx's is deterministic by construction, and its reproducibility comes from the canonical node order plus pinned `MAX_ITER`/`TOLERANCE`. The walk's rows are fused into the ranking at the same k = 60 as every other arm, one stage later — in the router's execution rather than inside `search` | `modules/research_graph.py`, `research_graph_projection.py`, `research_graph_read_model.py`, `research_communities.py`, `research_graph_reads.py`, `research_graph_fusion.py`, `requirements-graph.txt` |
+| 2 | Graph retrieval | **Built** — derived edges in Postgres, a recursive-CTE traverse (depth capped at 4 in the migration), and an optional Neo4j Aura projection that is also **read back**: exactly two routes read it, `GET /api/research/graph/communities` and `/centrality`, each marking `source: "neo4j"` or `"corpus"` on the report. Postgres stays authoritative and the projection is one-way — nothing else writes to the graph, asserted in `tests/test_research_graph_projection.py`. The projection has no `desk_id`; whenever `RESEARCH_SCOPE_TO_DESK=1`, the read model refuses Neo4j before opening its driver and both reports automatically use the desk-filtered corpus. Louvain runs in-process on a fixed seed; **PageRank takes no seed** — networkx's is deterministic by construction, and its reproducibility comes from the canonical node order plus pinned `MAX_ITER`/`TOLERANCE`. The walk's rows are fused into the ranking at the same k = 60 as every other arm, one stage later — in the router's execution rather than inside `search` | `modules/research_graph.py`, `research_graph_projection.py`, `research_graph_read_model.py`, `research_communities.py`, `research_graph_reads.py`, `research_graph_fusion.py`, `requirements-graph.txt` |
 | 3 | LangGraph orchestration | **Substituted** — a bounded, deterministic, audit-replayable router; LangGraph itself NOT BUILT. The bound is now enforced by the router (`bound_calls`, a named priority ladder) rather than by slicing the planner's list, so a substituted planner cannot drop the guaranteed `hybrid_search`; one correlation id stamps the plan, every tool call and the generation row | `modules/research_router.py`, `research_router_calls.py`, `research_router_exec.py`, §6 |
 | 4 | Cross-encoder re-ranking | **Built, optional** — `BAAI/bge-reranker-base` via fastembed, ONNX on CPU, off the event loop behind a **one**-slot bulkhead (measured: 197 ms at short rows, 1,523 ms at the truncation ceiling, and a second concurrent slot buys 1.30–1.37× throughput for 1.46–1.54× latency on every request); unconfigured, the RRF order passes through and `rerank_state` says why | `modules/research_rerank.py`, `modules/research_stages.py`, `requirements-rerank.txt`, `tools/bench_rerank.py` |
 | 4 | CRAG evaluation | **Built, and all three bands now decide** — `ANSWER_BAND` (0.8) was a constructor default nothing read; a mid-band retrieval that does not clear it after its one rewrite now **refuses**, where it used to be served with `state: "ok"`. The grader stays arithmetic over fields the RPC already returns — deliberately not a model — with the cross-encoder's own logit folded in as a fifth signal at weight 0.25 when a re-ranker ran, and untouched when none did | `modules/research_crag.py`, `research_crag_policy.py`, `research_crag_signals.py` |
@@ -125,7 +131,7 @@ it waits — §6).
 | 5 | Multimodal generation | **Built, optional** — `gemini-2.5-flash` is natively multimodal, so a chart document's PNG is attached beside the document it belongs to. An image is **evidence, never a source**: the text is what gets cited, the picture is named to the model by that document's id through `[chart:<id>]`, and the figure fence refuses a marker naming a document whose image was not actually sent. At most 2 images per call, each under 2 MB, 45 s budget against text's 20 s. Every "no image" outcome is a named state (`chart_not_rendered`, `job_not_retained`, `image_too_large`, `model_declines_images`), never a silent text-only call | `modules/research_generate_vision.py`, `research_image_store.py`, `research_image_store_write.py`, migration `20260822110000` |
 | — | Structured (non-similarity) answers | **Built** — "how many runs since `<hash>`", best/worst by metric and means, read from the audit log's own `backtest_runs`; a NULL metric is excluded from extrema and means and the count of excluded rows is reported, never filled with a zero. Computed rows carry **no** `similarity` and stay off `Execution.matches`, because a required float would have to be written 0.0 | `modules/research_structured.py`, `research_structured_reads.py` |
 | — | Abuse and cost bound on `/ask` | **Built** — a token bucket (the gateway's own `risk_proxy.rate_limit.TokenBucket`, not a second one) plus a rolling spend window priced from the SDK's token counts; refusals are typed `rate_limited` / `spend_capped` / `scope_unavailable` on 429/503, never a bare 500. Inert when no `GEMINI_API_KEY` is configured — a deployment that cannot reach a model cannot spend | `modules/research_quota.py`, `research_quota_gate.py` |
-| — | Tenant scoping of retrieval | **Partly built** — both retrieval RPCs take an optional `filter_desk_id`, applied inside the candidate CTE so every rank is a rank among rows the caller was allowed. Off by default (`RESEARCH_SCOPE_TO_DESK`), and when it is on and the predicate cannot be applied the route refuses rather than serving the whole corpus. **RLS itself is still bypassed** and the scope is per-desk, not per-user — see §6 | `supabase/migrations/20260822090000_research_tenant_scope.sql`, `modules/research_quota_scope.py` |
+| — | Tenant scoping of retrieval | **Built at the service-role query boundary, off by default** — both similarity RPCs and the graph traversal take optional `filter_desk_id`. Similarity scopes the candidate CTE before ranking; traversal scopes its seed, both edge arms, each reached document and the final projection. `/search`, `/ask` and `/graph/{document_id}` carry the configured desk or refuse rather than falling back unscoped. **RLS itself is still bypassed** and the scope is per-desk, not per-user — see §6 | migrations `20260822090000_research_tenant_scope.sql`, `20260831130000_research_graph_desk_scope.sql`; `modules/research_quota_scope.py` |
 
 Points the table cannot carry:
 
@@ -137,9 +143,10 @@ model, and the ingest path is deterministic, free and replayable
 limitation it accepts). That is why an enterprise parsing service has nothing
 to parse here yet.
 
-**Neo4j is real, and no request path depends on it.** This is the row most
-likely to be over-read, so it is stated plainly at each layer. *Database:* an
-Aura instance holding a **one-way, rebuildable projection** of `research_edges`.
+**The Neo4j path is real in source, and no request path depends on it.** This is
+the row most likely to be over-read, so it is stated plainly at each layer;
+this source audit did not probe live Aura. *Database:* a configured instance
+holds a **one-way, rebuildable projection** of `research_edges`.
 `RELATION_TYPES` maps the six Postgres `research_relation` values to uppercase
 relationship types by name, so a new enum value fails loudly rather than
 projecting an undeclared edge type. *Backend:* the sweep in
@@ -147,10 +154,16 @@ projecting an undeclared edge type. *Backend:* the sweep in
 `modules/research_graph_read_model.py` serves what the sweep computed, on the
 two report routes and nowhere else. Request-time traversal is the **Postgres**
 recursive CTE, so dropping the graph costs two reports and no retrieval.
-*Frontend:* **no web surface reads Neo4j directly.** The workspace calls the two
-gateway routes and renders the `source` field they return — which is the honest
-frontend answer, and inventing a frontend dependency to make the stack table
-look symmetrical would be the defect this document exists to avoid.
+*Frontend:* **no web surface reads Neo4j directly, and no current web surface
+calls the two report routes.** They are available through the gateway and
+return an explicit `source`; the current workspace graph proxy serves only the
+per-document Postgres traversal.
+
+Projected nodes and the report Cypher do not carry `desk_id`. While
+`RESEARCH_SCOPE_TO_DESK=1`, the source read-model guard refuses the global
+projection before opening its driver and both reports automatically use the
+desk-filtered Postgres corpus. With the flag off, Neo4j is single-desk or
+per-database only.
 
 Three refusals stay distinguishable and must: "Neo4j is not configured", "the
 sweep has not run yet", and "the projection is mid-rebuild". The last exists
@@ -355,7 +368,7 @@ is plugged in.
 
 ## 7. Acceptance properties
 
-What "done" means for this feature, all of them checkable today:
+What "done" means for this feature, all of them checkable in the verified tree:
 
 - The whole suite passes with **none** of the optional stages installed —
   `requirements-graph.txt`, `-rerank.txt`, `-genai.txt`, `-communities.txt`
@@ -365,11 +378,13 @@ What "done" means for this feature, all of them checkable today:
   a PostgREST insert naming a column the deployed schema has not got is answered
   400 and would dead-letter *every* document on a deployment that asked for no
   image search at all.
-- The opt-in paths are **verified, not theoretical**. Seeded with
+- The opt-in paths have historical execution evidence, but the 2026-08-31 audit
+  did not freshly probe an external service. Seeded with
   `tools/bench_rerank.py --seed --model-path DIR` (1.05 GiB),
-  `tests/test_research_rerank_real.py` runs its eight cases green against the
-  real ONNX cross-encoder; with real Supabase credentials exported one variable
-  at a time, `tests/test_data_ops_postgrest.py` runs its eleven green. Neither
+  `tests/test_research_rerank_real.py` exercises the real ONNX cross-encoder;
+  with `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` and `SUPABASE_DESK_ID`
+  supplied only for the command, `tests/test_data_ops_postgrest.py` exercises
+  its live case. Neither
   runs on the four jobs that gate a push — the re-ranker's has an opt-in CI job
   (`rerank-real`, dispatch or a `rerank` label) and the Postgres one has none —
   so a green push is not evidence that either ran. Read the skip *reasons*.
