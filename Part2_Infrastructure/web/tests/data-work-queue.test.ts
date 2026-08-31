@@ -2,23 +2,43 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  createInitialDataWorkItems,
   filterAndSortDataWorkItems,
   moveDataWorkItem,
   nextDataWorkId,
 } from "../lib/data-work-queue";
 import {
-  createInitialDeveloperWorkItems,
   filterDeveloperWorkItems,
   moveDeveloperWorkItem,
   nextDeveloperWorkId,
+  type DeveloperWorkItem,
 } from "../lib/developer-work";
+import { createTestDataWorkItems } from "./helpers/data-work-items";
 
 const NOW = Date.UTC(2026, 7, 5, 12);
 
+function createDeveloperTestItems(now = NOW): DeveloperWorkItem[] {
+  return [
+    {
+      id: "FEAT-074", kind: "feature", priority: "P1", status: "done",
+      title: "Typed contract client", summary: "Exercise contract filtering.",
+      owner: "Tester", area: "Contracts", openedAt: now - 3_600_000,
+    },
+    {
+      id: "BUG-204", kind: "bug", priority: "P2", status: "done",
+      title: "Test bug", summary: "Exercise status transitions.",
+      owner: "Tester", area: "Web shell", openedAt: now - 7_200_000,
+    },
+    {
+      id: "TKT-413", kind: "ticket", priority: "P3", status: "triage",
+      title: "Test ticket", summary: "Exercise per-kind identifiers.",
+      owner: "Unassigned", area: "Developer portal", openedAt: now,
+    },
+  ];
+}
+
 describe("the data operations work queue", () => {
   it("filters across operational fields and keeps priority ordering deterministic", () => {
-    const items = createInitialDataWorkItems(NOW);
+    const items = createTestDataWorkItems(NOW);
     const bugs = filterAndSortDataWorkItems(items, {
       query: "market data",
       kind: "bug",
@@ -34,7 +54,7 @@ describe("the data operations work queue", () => {
     assert.equal(priority[0].priority, "P0");
     assert.ok(priority.findIndex((item) => item.priority === "P1") < priority.findIndex((item) => item.priority === "P2"));
 
-    const developerItems = createInitialDeveloperWorkItems(NOW);
+    const developerItems = createDeveloperTestItems();
     const contractFeatures = filterDeveloperWorkItems(developerItems, {
       query: "contracts",
       kind: "feature",
@@ -44,7 +64,7 @@ describe("the data operations work queue", () => {
   });
 
   it("moves only the selected item without mutating or losing queue records", () => {
-    const source = createInitialDataWorkItems(NOW);
+    const source = createTestDataWorkItems(NOW);
     const before = source.find((item) => item.id === "REQ-184")!;
     const moved = moveDataWorkItem(source, "REQ-184", "progress");
 
@@ -56,7 +76,7 @@ describe("the data operations work queue", () => {
     const unknown = moveDataWorkItem(source, "BUG-999", "resolved");
     assert.deepEqual(unknown, source);
 
-    const developerSource = createInitialDeveloperWorkItems(NOW);
+    const developerSource = createDeveloperTestItems();
     const developerMoved = moveDeveloperWorkItem(developerSource, "BUG-204", "review");
     assert.equal(developerSource.find((item) => item.id === "BUG-204")?.status, "done");
     assert.equal(developerMoved.find((item) => item.id === "BUG-204")?.status, "review");
@@ -64,13 +84,13 @@ describe("the data operations work queue", () => {
   });
 
   it("allocates the next readable ID independently for each work type", () => {
-    const items = createInitialDataWorkItems(NOW);
+    const items = createTestDataWorkItems(NOW);
     assert.equal(nextDataWorkId("request", items), "REQ-188");
     assert.equal(nextDataWorkId("ticket", items), "TKT-323");
     assert.equal(nextDataWorkId("bug", items), "BUG-095");
 
-    const developerItems = createInitialDeveloperWorkItems(NOW);
-    assert.equal(nextDeveloperWorkId("feature", developerItems), "FEAT-078");
+    const developerItems = createDeveloperTestItems();
+    assert.equal(nextDeveloperWorkId("feature", developerItems), "FEAT-075");
     assert.equal(nextDeveloperWorkId("bug", developerItems), "BUG-205");
     assert.equal(nextDeveloperWorkId("ticket", developerItems), "TKT-414");
   });
@@ -81,7 +101,7 @@ describe("the persisted queue's wire mapping and merge", () => {
     const { fromWire, isDataWorkItemWire, upsertDataWorkItem } = await import("../lib/data-work-queue");
     const wire = {
       id: "BUG-101", kind: "bug", priority: "P1", status: "ready", title: "t", summary: "s", owner: "Mei", area: "Pipeline",
-      opened_at: NOW, sla_due_at: NOW + 3_600_000, resolved_at: null, created_by: "seed", updated_at: NOW, updated_by: "seed", version: 3,
+      opened_at: NOW, sla_due_at: NOW + 3_600_000, resolved_at: null, created_by: "tester", updated_at: NOW, updated_by: "tester", version: 3,
     };
     assert.equal(isDataWorkItemWire(wire), true);
     assert.equal(isDataWorkItemWire({ ...wire, kind: "epic" }), false);
@@ -90,9 +110,9 @@ describe("the persisted queue's wire mapping and merge", () => {
     assert.equal(item.openedAt, NOW);
     assert.equal(item.slaDueAt, NOW + 3_600_000);
     assert.equal(item.version, 3);
-    assert.equal(item.createdBy, "seed");
+    assert.equal(item.createdBy, "tester");
     // Upsert replaces in place, or prepends a row the list has never seen.
-    const list = createInitialDataWorkItems(NOW);
+    const list = createTestDataWorkItems(NOW);
     const replaced = upsertDataWorkItem(list, { ...list[2], status: "resolved", version: 2 });
     assert.equal(replaced[2].status, "resolved");
     assert.equal(replaced.length, list.length);
@@ -101,10 +121,10 @@ describe("the persisted queue's wire mapping and merge", () => {
     assert.equal(added.length, list.length + 1);
   });
 
-  it("the seeds mirror the gateway's: nine rows, marked as seeds, at version 1", () => {
-    const items = createInitialDataWorkItems(NOW);
+  it("keeps authored queue examples in the test-only helper", () => {
+    const items = createTestDataWorkItems(NOW);
     assert.equal(items.length, 9);
-    assert.ok(items.every((i) => i.version === 1 && i.createdBy === "seed"));
+    assert.ok(items.every((i) => i.version === 1 && i.createdBy === "test-fixture"));
     assert.deepEqual(items.map((i) => i.id), ["BUG-091", "BUG-094", "TKT-322", "REQ-184", "REQ-187", "TKT-319", "REQ-179", "TKT-311", "BUG-088"]);
   });
 });
