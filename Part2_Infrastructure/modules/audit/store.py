@@ -44,6 +44,7 @@ from typing import Any
 
 from config import settings
 from modules.audit.schema import _DDL
+from modules.data_ops_store import open_sqlite_db
 
 log = logging.getLogger("alphaengine.audit")
 
@@ -85,9 +86,18 @@ class AuditStore:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.Lock()
         self._closed = False
+        self._write_failures = 0
+        self._read_failures = 0
+        self._last_write_error: str | None = None
+        self._last_read_error: str | None = None
         self.backend = "duckdb"
         self._conn = self._connect()
-        self._migrate()
+        try:
+            self._migrate()
+        except BaseException:
+            self._closed = True
+            self._conn.close()
+            raise
 
     # -- connection ------------------------------------------------------- #
     def _connect(self):
@@ -117,10 +127,8 @@ class AuditStore:
     def _sqlite_fallback(self, reason: str):
         """Open the SQLite twin, and say in the log why DuckDB was not used."""
         log.warning("DuckDB unavailable (%s); falling back to SQLite", reason)
-        import sqlite3
-
         self.backend = "sqlite"
-        return sqlite3.connect(str(self.db_path.with_suffix(".sqlite")), check_same_thread=False)
+        return open_sqlite_db(self.db_path.with_suffix(".sqlite"))
 
     def _migrate(self) -> None:
         with self._lock:
@@ -218,7 +226,11 @@ class AuditStore:
                 self._conn.execute(sql, params)
                 if self.backend == "sqlite":
                     self._conn.commit()
+                self._last_write_error = None
         except Exception as exc:  # never let audit failures break the trade path
+            with self._lock:
+                self._write_failures += 1
+                self._last_write_error = type(exc).__name__
             log.error("audit write failed: %s", exc)
 
     def query(self, sql: str, params: tuple[Any, ...] = ()) -> list[dict[str, Any]]:
@@ -229,8 +241,12 @@ class AuditStore:
                 cur = self._conn.execute(sql, params)
                 cols = [d[0] for d in cur.description] if cur.description else []
                 rows = cur.fetchall()
+                self._last_read_error = None
             return [dict(zip(cols, row, strict=True)) for row in rows]
         except Exception as exc:
+            with self._lock:
+                self._read_failures += 1
+                self._last_read_error = type(exc).__name__
             log.error("audit query failed: %s", exc)
             return []
 
@@ -244,6 +260,31 @@ class AuditStore:
         """
         return {"backend": self.backend, "available": not self._closed}
 
+    def runtime_health(self) -> dict[str, Any]:
+        """Extended process telemetry without changing the stable snapshot shape."""
+        return {
+            **self.health(),
+            "writable": not self._closed and self._last_write_error is None,
+            "write_failures": self._write_failures,
+            "read_failures": self._read_failures,
+            "last_write_error": self._last_write_error,
+            "last_read_error": self._last_read_error,
+        }
+
+    def reopen(self) -> None:
+        """Reopen a process-owned ledger for a repeated ASGI lifespan."""
+        with self._lock:
+            if not self._closed:
+                return
+            self.backend = "duckdb"
+            self._conn = self._connect()
+            self._closed = False
+        try:
+            self._migrate()
+        except BaseException:
+            self.close()
+            raise
+
     def close(self) -> None:
         with self._lock:
             self._closed = True
@@ -254,4 +295,3 @@ class AuditStore:
                 # raised error would mask whatever caused the shutdown. The
                 # ``_closed`` flag above has already stopped new writes.
                 pass
-
