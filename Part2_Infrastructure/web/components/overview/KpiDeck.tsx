@@ -218,6 +218,7 @@ export default function KpiDeck({
         spark={
           equitySpark.length >= 2 ? (
             <Sparkline
+              interactive
               variant="area"
               points={equitySpark}
               width={120}
@@ -241,6 +242,7 @@ export default function KpiDeck({
         spark={
           p99History.length >= 2 ? (
             <Sparkline
+              interactive
               points={p99History}
               width={120}
               height={34}
