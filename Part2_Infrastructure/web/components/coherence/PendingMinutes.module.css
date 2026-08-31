@@ -1,0 +1,34 @@
+.axis {
+  stroke: var(--border);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.provisional {
+  fill: none;
+  stroke: var(--series-1);
+  stroke-width: 1.75;
+  vector-effect: non-scaling-stroke;
+}
+
+.provisionalPoint {
+  fill: var(--surface-1);
+  stroke: var(--series-1);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.station {
+  fill: var(--series-2);
+  stroke: var(--surface-1);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+@media (forced-colors: active) {
+  .provisional,
+  .provisionalPoint,
+  .station {
+    stroke: CanvasText;
+  }
+}
