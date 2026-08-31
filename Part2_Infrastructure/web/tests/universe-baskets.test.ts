@@ -24,7 +24,9 @@ import { contractsLabel, dollarsLabel, groupDigits } from "../lib/coherence/univ
 const read = (relative: string) =>
   readFileSync(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
 
-const source = read("../components/coherence/BasketSize.tsx");
+const wrapper = read("../components/coherence/BasketSize.tsx");
+const instrument = `${read("../components/coherence/UniverseInstruments.tsx")}\n${read("../components/coherence/UniverseLiquidityCabinet.tsx")}`;
+const source = `${wrapper}\n${instrument}\n${read("../components/coherence/UniverseLiquidity.module.css")}`;
 /** Comments explain the traps; a scan that cannot tell them apart reads the
  *  explanation as the offence. */
 const code = source
@@ -71,7 +73,7 @@ describe("the figures print as the exchange sent them", () => {
 
 describe("the three figures the brief asked for are all drawn", () => {
   it("names each of them on screen", () => {
-    for (const label of ["Total basket value", "Active contracts", "Liquidity depth"]) {
+    for (const label of ["Family basket value", "Family open interest", "Family liquidity"]) {
       assert.ok(source.includes(label), `the Baskets view no longer draws "${label}"`);
     }
   });
@@ -81,7 +83,7 @@ describe("the three figures the brief asked for are all drawn", () => {
     // check, because there is no renderer. The readings live in a pure module
     // for exactly that reason and this keeps them there.
     assert.match(code, /from "@\/lib\/coherence\/universe-metrics"/);
-    for (const reader of ["basketValue", "activeContracts", "liquidityDepth", "exposureBands"]) {
+    for (const reader of ["contractsLabel", "dollarsLabel", "exposureBands"]) {
       assert.match(code, new RegExp(`\\b${reader}\\b`), `${reader} is imported but never used`);
     }
   });
@@ -96,7 +98,7 @@ describe("nothing here turns 'we do not know' into 'it is fine'", () => {
     // A dash on its own is the same failure one step quieter: the reader is
     // told nothing is known and not why.
     assert.ok(
-      source.includes("carries no figure") || source.includes("sent no figure"),
+      source.includes("carries no") || source.includes("was not reported"),
       "an absent total dashes without naming what caused it",
     );
   });
@@ -105,7 +107,7 @@ describe("nothing here turns 'we do not know' into 'it is fine'", () => {
     // The never-traded ladder: 60 legs, every one reporting 0.00. A share is
     // 0/0 there, which is undefined and not zero.
     assert.ok(
-      source.includes("never traded") || source.includes("nothing has traded"),
+      source.includes("No open interest to distribute") || source.includes("nothing has traded"),
       "a family with no open interest draws bands without saying the shares are undefined",
     );
   });
@@ -129,10 +131,16 @@ describe("colour never carries a meaning on its own", () => {
 });
 
 describe("the section actually renders it", () => {
-  it("the Baskets view draws the size card", () => {
+  it("the Positions view draws the size card", () => {
     const pane = read("../components/coherence/UniversePane.tsx");
     assert.match(pane, /import BasketSize from "\.\/BasketSize"/);
     assert.match(pane, /<BasketSize\b/, "the component exists and nothing renders it");
+    assert.match(pane, /view === "positions"/, "open interest was not split into its own view");
+  });
+
+  it("the compatibility entry point delegates to the canonical live instrument", () => {
+    assert.match(wrapper, /<UniverseLiquidityCabinet universe=\{universe\} selectedTicker=\{selectedTicker\} \/>/);
+    assert.match(instrument, /export function UniverseLiquidityCabinet/);
   });
 
   it("its copy is guarded, like every other pane that renders words", () => {
