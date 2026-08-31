@@ -1,5 +1,10 @@
 # AlphaEngine Developer
 
+**Last verified: 2026-08-29.** This is an experimental, separately built
+Sites/vinext surface, not one of AlphaEngine's three deployment units. The
+canonical workspace developer tab lives in `../web/`; current repository
+topology is recorded in [`../../docs/CURRENT_STATE.md`](../../docs/CURRENT_STATE.md).
+
 An operational dashboard for quant engineering delivery: launch readiness,
 CI/CD execution, immutable artifact lineage, schema drift, repository changes,
 telemetry readiness, and engineering-impact work queues.
