@@ -86,15 +86,16 @@ describe("the trend is above the triage list, in the DOM and not only on screen"
     assert.doesNotMatch(markup, /<LatencyTrend[^>]*style=/, "the chart must not be positioned inline");
   });
 
-  it("leaves the keyboard sequence exactly where it was", () => {
-    // The chart holds no control, so moving it past the symptom buttons cannot
-    // reorder the tab ring. This is what makes the reorder free for a keyboard
-    // reader, and it stops being true the day the chart grows a control.
-    for (const forbidden of ["<button", "tabIndex", "onClick", "href="]) {
+  it("adds exactly one analytical stop before triage, never one per poll", () => {
+    // The chart is now an exact-value instrument. One focus stop is the cost of
+    // keyboard parity; a button, link, click target, or stop per sample would
+    // turn the historical series into a keyboard obstacle before triage.
+    assert.equal(trend.match(/tabIndex=\{0\}/g)?.length, 1);
+    assert.match(trend, /onKeyDown=/);
+    for (const forbidden of ["<button", "onClick", "href="]) {
       assert.ok(
         !trend.includes(forbidden),
-        `LatencyTrend now carries ${forbidden} — it sits ahead of the symptom list, `
-        + "so a control here takes focus before the thing that says what is wrong",
+        `LatencyTrend now carries ${forbidden} — the one figure stop must not grow into a control rail`,
       );
     }
   });
