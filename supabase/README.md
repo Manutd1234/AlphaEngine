@@ -1,5 +1,10 @@
 # Supabase — Postgres mirror + pgvector research index
 
+**Source/worktree audited: 2026-08-31.** The 41 ordered migrations and generated
+bundle were audited against the current gateway architecture. This is not a
+fresh live-project probe. Volatile repository counts are centralised in
+[`../docs/CURRENT_STATE.md`](../docs/CURRENT_STATE.md).
+
 DuckDB in the gateway is **authoritative**; everything here is a durable
 mirror and a research index. The gateway keeps trading when this is absent.
 
@@ -22,16 +27,37 @@ the service-role key and never holds the Postgres connection string.
 
 ## What is in here
 
-Sixteen migrations, applied in filename order. Five tables, and the reason each
-one exists on this side rather than in DuckDB:
+The worktree contains forty-one migrations, and the generated bundle contains
+the same set. The schema workflow applies them in filename order; this source
+audit did not confirm their live application. Together they define 19
+application tables, grouped by ownership rather than presented as one flat database:
 
-| Object | Why it is here |
-|---|---|
-| `order_blotter` | The durable mirror of the audit log. Append-only by trigger; `decided_by` records which side decided. |
-| `desk_risk_limits` | The limits a mirrored decision was judged against, so a historical row can be re-read in its own context. |
-| `research_documents` | pgvector index. DuckDB has no vector type, so this is the one capability the mirror adds rather than duplicates. |
-| `user_preferences` | Theme, detail level and last-open tab, per account. Browser state that should survive a new device. |
-| `telegram_link` | Binds a Telegram chat to a signed-in desk identity. `user_id` is a foreign key onto `auth.users`, which is why a **guest** binding cannot live here and is held by the gateway alone. |
+| Plane | Tables | Why Postgres owns them |
+|---|---|---|
+| Decision mirror | `order_blotter`, `desk_risk_limits` | Durable, contextual mirror of gateway decisions; `order_blotter` is append-only and records `decided_by`. |
+| Account state | `user_preferences`, `telegram_link` | Per-user state that must survive a browser/device. Guest Telegram bindings remain gateway-owned because they have no `auth.users` row. |
+| Research corpus and graph | `research_documents`, `research_edges`, `research_chart_images` | Tenant-scoped pgvector, graph and image-embedding materialisations that DuckDB does not provide to the browser tier. |
+| ML lineage | `ml_runs`, `ml_folds`, `ml_features`, `ml_artefacts` | Immutable run/fold/feature/artefact custody used to compare experiments without inventing provenance. |
+| Data operations | `data_quality_findings`, `data_quality_escalations`, `data_schedule_runs`, `data_work_items` | Durable quality, escalation, schedule and work-queue state consumed by the Data workspace. |
+| Diffusion research | `diffusion_events`, `diffusion_runs`, `diffusion_texts`, `diffusion_studies` | Point-in-time events and texts, absorption runs and study results behind the dedicated Diffusion workspace. |
+
+The Diffusion successor migration mirrors all four SQLite ledgers, including
+late `vote_line`/`skill_*` fields and desk-qualified natural keys. The shared
+PostgREST store stamps and filters the configured desk on every read and write;
+the scope guard refuses ambiguous legacy `desk_id='default'` rows instead of
+silently hiding them, locks out legacy writers during the transition, and
+installs constraints that reject the sentinel afterward. These are current-worktree and generated-bundle
+contracts: a live project does not gain them until the manual schema workflow
+below succeeds.
+
+Migration `20260831131000_research_chunk_replace.sql` adds the transactional
+RAG chunk-replacement RPC: upsert the current chunk set and delete stale sibling
+chunks in one database transaction. `modules/research_rag/replacement.py`
+prepares the full physical set first; if any text embedding is pending, the RPC
+keeps the proposed generation non-retrievable and retains the previous complete
+generation. Apply this migration before deploying the new chunked ingest path.
+It is present in the migration directory and generated bundle; this audit did
+not verify it as applied to the live project.
 
 Two edge functions: `embed-research` (writes the vectors) and
 `evaluate-order` (the labelled sandbox gate behind `submit_alphaengine_order`).
@@ -48,7 +74,9 @@ recorded.
   every row. `submit_alphaengine_order` is a labelled two-gate **sandbox**;
   the seventeen-gate decision is the Python gateway's alone.
 - `latency_ms` is the measured decision latency, never a constant.
-- RLS deny-by-default: zero `anon` policies, explicit `REVOKE`.
+- RLS is deny-by-default with explicit `REVOKE`s. The sole anonymous table
+  policy is a read-only, row-filtered demo view of `order_blotter`; no anonymous
+  insert, update, delete, research, ML, data-ops or diffusion access is granted.
 - `order_blotter` is append-only by trigger.
 - Every `SECURITY DEFINER` function pins `search_path`.
 
