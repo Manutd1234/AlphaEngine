@@ -148,7 +148,7 @@ function FloorDistance({ runs, stages }: { runs: readonly StageRun[]; stages: re
         : null}
     >
       {placed ? (
-        <Plot height={height} minWidth={560}>
+        <Plot height={height} minWidth={560} scrollLabel="Noise-floor distance diagram">
           {(width) => {
             const span = Math.max(120, width - MARGIN.left - MARGIN.right);
             const panelWidth = rows.length > 1 ? (span - PANEL_GAP) / rows.length : span;
