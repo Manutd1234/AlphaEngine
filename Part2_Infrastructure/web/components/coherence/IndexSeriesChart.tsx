@@ -34,7 +34,7 @@
  * was made to allow.
  */
 
-import { fromCenticents, toCenticents } from "@/lib/coherence/fixed-point";
+import { fromCenticents, signedCenticents, toCenticents } from "@/lib/coherence/fixed-point";
 import type { CoherenceIndexPoint } from "@/lib/coherence/types";
 import type { SharedXRow } from "@/lib/coherence/use-shared-x-readout";
 import Figure, { FigureEmpty, Plot } from "./Figure";
@@ -235,6 +235,10 @@ export default function IndexSeriesChart({ points, stamps }: {
             width: 300,
             arriveAt: "last",
             link: "index-polls",
+            pin: true,
+            diff: (current, pinned) => (
+              current.raw != null && pinned.raw != null ? signedCenticents(current.raw - pinned.raw) : ""
+            ),
           };
         }}
       >
