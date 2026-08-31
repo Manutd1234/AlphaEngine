@@ -82,7 +82,7 @@ export interface RailSections {
    * passes its tab's record straight down and the hash writer reads it by
    * section id. A tab that declares no views in `lib/section-views.ts` has no
    * entry here and needs none. Markets was the only key until Proofs adopted
-   * the grammar on 2026-08-26; a third tab joins by declaring a table.
+   * the grammar on 2026-08-26; Diffusion is the third declared table.
    */
   sectionViews: Record<string, Record<string, string>>;
   /** Called by a console when a reader presses a view button. */
@@ -191,7 +191,7 @@ export function useRailSections(): RailSections {
       };
     return {
       overview: bind(OVERVIEW_SECTION_IDS, setOverviewSection),
-      research: bind(RESEARCH_SECTION_IDS, setResearchSection),
+      research: bind(RESEARCH_SECTION_IDS, setResearchSection, "research"),
       live: bind(EXECUTION_SECTION_IDS, setExecutionSection),
       portfolio: bind(PORTFOLIO_SECTION_IDS, setPortfolioSection),
       risk: bind(RISK_SECTION_IDS, setRiskSection),
@@ -203,7 +203,7 @@ export function useRailSections(): RailSections {
       // carried past and dropped — `#coherence/certificate/proof` landed on
       // Verdict with the URL still saying proof, and nothing was red.
       coherence: bind(COHERENCE_SECTION_IDS, setCoherenceSection, "coherence"),
-      diffusion: bind(DIFFUSION_SECTION_IDS, setDiffusionSection),
+      diffusion: bind(DIFFUSION_SECTION_IDS, setDiffusionSection, "diffusion"),
     };
   }, [setSectionView]);
 
