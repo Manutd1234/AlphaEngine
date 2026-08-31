@@ -236,15 +236,21 @@ describe("every section can be warmed before it is opened", () => {
   it("both consoles sweep their rail and warm on intent", () => {
     for (const file of consoles) {
       const source = read(file);
-      // `active` or `live`, and `live` has to be BUILT from `active`. Markets
+      // `active` or a narrower live gate, which must be BUILT from `active`. Markets
       // gained a reader-facing pause on 2026-08-25 and warming is a read like
       // any other — a paused tab that went on pre-fetching sections would be
       // spending the exchange's token bucket while telling the reader it had
       // stopped. So the gate may narrow, and the second assertion is what stops
       // it being replaced by something unrelated to whether the tab is in
       // front.
-      assert.match(source, /useSectionWarming\(SECTION_READS, (active|live)\)/, `${file} does not sweep its rail`);
-      if (/useSectionWarming\(SECTION_READS, live\)/.test(source)) {
+      assert.match(source, /useSectionWarming\(SECTION_READS, (active|live|sectionLive)\)/, `${file} does not sweep its rail`);
+      if (/useSectionWarming\(SECTION_READS, sectionLive\)/.test(source)) {
+        const direct = /const sectionLive = active && /.test(source);
+        const sharedStatusGate = /const sectionLive = statusLive && /.test(source)
+          && /const statusLive = active && /.test(source);
+        assert.ok(direct || sharedStatusGate,
+          `${file} warms on a gate that is not derived from whether the tab is in front`);
+      } else if (/useSectionWarming\(SECTION_READS, live\)/.test(source)) {
         assert.match(source, /const live = active && /,
           `${file} warms on a gate that is not derived from whether the tab is in front`);
       }
