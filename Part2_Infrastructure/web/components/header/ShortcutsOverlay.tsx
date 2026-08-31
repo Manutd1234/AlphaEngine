@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * The "?" overlay: every keyboard affordance in one place, and the eight-stop
+ * The "?" overlay: every keyboard affordance in one place, and the eleven-stop
  * reviewer tour — the app teaching itself in five minutes.
  *
  * Same native-`<dialog>` idioms as CommandBar: `showModal()` for the top
@@ -68,7 +68,7 @@ export default function ShortcutsOverlay({
             <h3>Shortcuts</h3>
             <dl className="shortcuts-overlay__keys">
               <div><dt><kbd>⌘</kbd><kbd>K</kbd></dt><dd>Command palette — every tab, rail section, all 46 models, every symbol</dd></div>
-              <div><dt><kbd>Alt</kbd><kbd>1–8</kbd></dt><dd>Jump between the eight workspaces in decision-loop order</dd></div>
+              <div><dt><kbd>Alt</kbd><kbd>1–9, 0</kbd></dt><dd>Jump to the first ten workspaces; open Diffusion from the palette</dd></div>
               <div><dt><kbd>⌘</kbd><kbd>Enter</kbd></dt><dd>Run the sweep and record it in the trail (Research)</dd></div>
               <div><dt><kbd>←</kbd><kbd>→</kbd></dt><dd>Move along section rails; steer the parameter heatmap cell by cell</dd></div>
               <div><dt><kbd>Enter</kbd></dt><dd>Inspect the focused heatmap cell; stage a ladder price on Trade</dd></div>
@@ -77,7 +77,7 @@ export default function ShortcutsOverlay({
           </section>
 
           <section aria-label="Reviewer tour">
-            <h3>The eight-stop reviewer tour</h3>
+            <h3>The eleven-stop reviewer tour</h3>
             <ol className="shortcuts-overlay__tour">
               {stops.map((stop) => (
                 <li key={stop.where}>
