@@ -176,7 +176,7 @@ export default function EpisodeWatch({ data, status, points }: {
       {/* The live counters, in the tab's own chip vocabulary. Each is a number
           the recorder actually holds; a missing one renders as a dash and says
           it was not read rather than as a zero. */}
-      <div className="coh-status__chips">
+      <div className="coh-status__chips coh-episode-watch-stats">
         <StateChip
           mark={recorder?.running ? "●" : "○"}
           word="Recorder"
@@ -246,7 +246,7 @@ export default function EpisodeWatch({ data, status, points }: {
         ].filter(Boolean).join(" ") || null}
       >
         {polls.length >= 2 && pollSeconds ? (
-          <Plot height={HEIGHT} minWidth={420}>
+          <Plot height={HEIGHT}>
             {(width) => {
               const span = Math.max(60, width - MARGIN.left - MARGIN.right);
               const from = first as number;
