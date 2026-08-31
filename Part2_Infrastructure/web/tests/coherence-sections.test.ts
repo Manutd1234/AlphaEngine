@@ -183,9 +183,9 @@ describe("exactly one subtab rail on the tab", () => {
     // left — `coherence-groups.test.ts` records why — so each of these names
     // its own views where it draws them, and that file's table is empty.
     const ONE_LEVEL: Record<string, readonly string[]> = {
-      certificate: ["Verdict", "Proof", "Prices"],
-      combos: ["Bands", "Parlays", "Bounds"],
-      calibration: ["Score", "Bands"],
+      certificate: ["Verdict", "Proof", "Checks", "Prices", "Sizes"],
+      combos: ["Ranges", "Test quote", "Leg prices", "Test legs", "Checks"],
+      calibration: ["Overview", "Equation", "Component scale", "Measures", "Reliability", "Bands"],
       corpus: ["Composition", "Score trend"],
       index: ["By poll", "By family"],
       portfolio: ["Cover", "Basket", "Size"],
@@ -208,15 +208,24 @@ describe("exactly one subtab rail on the tab", () => {
   });
 });
 
-describe("the page head is one sentence", () => {
-  it("the description is a plain string, not a paragraph of JSX", () => {
-    const match = console_.match(/description="([^"]+)"/);
-    assert.ok(match, "the description is no longer a plain string prop — a fragment is how it grew last time");
+describe("the page head stays compact while its premise remains available", () => {
+  it("moves the one-sentence premise into Evidence as a plain string", () => {
+    const pageHead = console_.slice(console_.indexOf("<PageHead"), console_.indexOf("<EngineStatePanel"));
+    assert.doesNotMatch(
+      pageHead,
+      /description=/,
+      "the repeated proof premise returned to the at-rest page head instead of progressive disclosure",
+    );
+
+    const match = console_.match(/deskContext="([^"]+)"/);
+    assert.ok(match, "the exact proof premise is no longer available from the Evidence sheet");
     const sentence = match![1];
-    assert.ok(sentence.length <= 160, `the description is ${sentence.length} characters, which is a paragraph again`);
-    assert.equal((sentence.match(/\. /g) ?? []).length, 0, `the description is more than one sentence: ${sentence}`);
-    // What follows when a family of contracts admits no measure. The other half
-    // — what a contract IS — is the Prices head's sentence.
-    assert.match(sentence, /wins in every state/);
+    assert.ok(sentence.length <= 100, `the premise is ${sentence.length} characters, which has outgrown its compact technical contract`);
+    assert.equal((sentence.match(/\. /g) ?? []).length, 0, `the premise is more than one sentence: ${sentence}`);
+    // The four proof objects this tab evaluates. Detailed claims and their
+    // witnesses belong in the active view's Evidence sheet, where the contract
+    // names unit, method and source without turning the page head into a paragraph.
+    assert.match(sentence, /LP feasibility/);
+    assert.match(sentence, /settled calibration/);
   });
 });
