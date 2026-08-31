@@ -106,9 +106,8 @@ export default function DeveloperWorkQueue({ items, onItemsChange }: DeveloperWo
   const move = (item: DeveloperWorkItem, next: DeveloperWorkStatus) => {
     if (item.status === next) return;
     onItemsChange(moveDeveloperWorkItem(items, item.id, next));
-    // The move alone. The storage caveat is stated once by the pill and
-    // defined once by the scope block; repeating it on every move announcement
-    // was the same sentence read aloud dozens of times per session.
+    // Announce the changed field only; persistence is a property of the whole
+    // queue, not something a screen reader needs repeated after every move.
     setAnnouncement(`${item.id} moved to ${STATUS_LABEL[next]}.`);
     window.requestAnimationFrame(() => document.getElementById(`developer-work-status-${item.id}`)?.focus());
   };
@@ -271,9 +270,9 @@ export default function DeveloperWorkQueue({ items, onItemsChange }: DeveloperWo
         </label>
       </div>
 
-      <div className="developer-work__table-wrap">
+      <div className="developer-work__table-wrap" tabIndex={0}>
         <table className="developer-work__table">
-          <caption className="sr-only">Session engineering work queue</caption>
+          <caption className="sr-only">Engineering work queue stored in this browser</caption>
           <thead>
             <tr>
               <th>Work</th>
@@ -357,16 +356,19 @@ export default function DeveloperWorkQueue({ items, onItemsChange }: DeveloperWo
         </table>
         {!visibleItems.length && (
           <div className="developer-work__empty">
-            <strong>No matching work</strong>
-            <span>Clear a filter, or create a feature, bug or ticket.</span>
+            <strong>{items.length ? "No matching work" : "No engineering work yet"}</strong>
+            <span>
+              {items.length
+                ? "Clear a filter, or create a feature, bug or ticket."
+                : "Create a feature, bug or ticket; it will be stored in this browser."}
+            </span>
           </div>
         )}
       </div>
 
-      {/* No reset control. The queue persists in this browser's localStorage;
-          the seeds return only when storage is empty, and clearing site data
-          is the reset. Rows are removed one at a time, by the Delete on each,
-          never all at once. */}
+      {/* There are no bundled rows or reset path. Rows exist only when
+          the user creates them or this browser restores them from localStorage,
+          and each row has its own guarded Delete action. */}
       <div className="developer-work__footer">
         <span aria-live="polite">{announcement || `${visibleItems.length} items shown.`}</span>
       </div>
