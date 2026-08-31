@@ -79,10 +79,12 @@ export default function SocketTrace({
           {venue.lastFrame !== undefined ? (
             <details>
               <summary>
-                Last raw frame
-                {venue.lastFrameAt && (
-                  <span className="muted"> at {new Date(venue.lastFrameAt).toLocaleTimeString()}</span>
-                )}
+                <span>
+                  Last raw frame
+                  {venue.lastFrameAt && (
+                    <span className="muted"> at {new Date(venue.lastFrameAt).toLocaleTimeString()}</span>
+                  )}
+                </span>
               </summary>
               <JsonTree value={venue.lastFrame} initialDepth={2} />
             </details>
