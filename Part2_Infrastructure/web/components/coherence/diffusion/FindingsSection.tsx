@@ -16,11 +16,16 @@
  */
 
 import FindingsPane from "./FindingsPane";
+import type { FindingsView } from "./FindingsPane";
 import { memo } from "react";
 
 import PaneHead from "../PaneHead";
 
-function FindingsSection({ active }: { active: boolean }) {
+function FindingsSection({ active, view, onView }: {
+  active: boolean;
+  view: FindingsView;
+  onView: (next: FindingsView) => void;
+}) {
   return (
     <section className="card console-card coh-diffusion" aria-labelledby="diffusion-findings-heading">
       <PaneHead
@@ -28,9 +33,9 @@ function FindingsSection({ active }: { active: boolean }) {
         title="What the study concluded, out of sample"
         id="diffusion-findings-heading"
         note="reported against a pre-registered control"
-        lede="The absorption clock is scored out of sample against a baseline that already knows the stage and the size of the rate move, so “the statement adds nothing” is a claim about the statement rather than about the pipeline."
+        lede="The absorption clock is scored out of sample against a baseline that knows stage and rate-move size, so statement gain isolates incremental text information rather than pipeline skill."
       />
-      <FindingsPane active={active} />
+      <FindingsPane active={active} view={view} onView={onView} />
     </section>
   );
 }
