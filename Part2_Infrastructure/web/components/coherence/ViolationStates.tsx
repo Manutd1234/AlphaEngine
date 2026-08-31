@@ -45,6 +45,7 @@ interface StateBox {
   id: string;
   title: string;
   note: string;
+  noteLines: readonly [string, string];
   /** Fraction of the plot width, left edge. */
   at: number;
   row: 0 | 1;
@@ -56,6 +57,7 @@ const BOXES: readonly StateBox[] = [
     id: "coherent",
     title: "Coherent",
     note: "prices admit a measure",
+    noteLines: ["prices admit", "a measure"],
     at: 0.0,
     row: 0,
     hover: "The state almost every family is in, almost all the time. It is recorded rather than assumed, because a silent engine and a coherent exchange look identical from outside.",
@@ -64,6 +66,7 @@ const BOXES: readonly StateBox[] = [
     id: "open",
     title: "Violation opens",
     note: "a Dutch book exists",
+    noteLines: ["a Dutch book", "exists"],
     at: 0.26,
     row: 0,
     hover: "The poll at which the family stops admitting a probability measure, so a basket can be assembled that pays whatever settles. The episode's clock starts here.",
@@ -72,6 +75,7 @@ const BOXES: readonly StateBox[] = [
     id: "peak",
     title: "Peak distance",
     note: "the worst reading",
+    noteLines: ["the worst", "reading"],
     at: 0.52,
     row: 0,
     hover: "The largest coherence-index distance recorded while the episode was open, with the net edge that went with it. Recorded because the WORST moment is what an executor would have had to reach.",
@@ -80,6 +84,7 @@ const BOXES: readonly StateBox[] = [
     id: "closed",
     title: "Closed",
     note: "lifetime recorded",
+    noteLines: ["lifetime", "recorded"],
     at: 0.78,
     row: 0,
     hover: "The prices admit a measure again. Only now does the episode have a lifetime, and only closed episodes enter the survival curve.",
@@ -88,6 +93,7 @@ const BOXES: readonly StateBox[] = [
     id: "open-still",
     title: "Still open",
     note: "a lower bound, not a lifetime",
+    noteLines: ["a lower bound", "not a lifetime"],
     at: 0.78,
     row: 1,
     hover: "An episode that has not closed has NO lifetime. Reporting its age as one would truncate the measurement, and mixing bounds with measurements pulls the survival curve down by exactly the long tail it exists to show.",
@@ -109,10 +115,11 @@ const EDGES: readonly Edge[] = [
 
 export default function ViolationStates() {
   const find = (id: string) => BOXES.find((box) => box.id === id) as StateBox;
+  const caption = "What the recorder can write about one violation, and when it refuses to write a lifetime";
 
   return (
     <Figure
-      caption="What the recorder can write about one violation, and when it refuses to write a lifetime"
+      caption={caption}
       ariaLabel="A state diagram: coherent, violation opens, peak distance, and then either closed with a lifetime or still open with none"
       reading="An episode earns a lifetime only by closing."
       notes={[
@@ -123,7 +130,7 @@ export default function ViolationStates() {
         + "The counts are on Diffusion, where the episodes read is gated.",
       ]}
     >
-      <Plot height={HEIGHT} minWidth={560}>
+      <Plot height={HEIGHT} minWidth={520} scrollLabel={caption}>
         {(width) => {
           // THE BOXES WERE 0.2 OF THE WIDTH ON A 0.26 PITCH, which leaves
           // 0.008 of the width — 5.76px at 720 — between one box and the next,
@@ -139,7 +146,7 @@ export default function ViolationStates() {
           // Narrower boxes give the arrows a gap worth drawing, and the labels
           // move ABOVE the row entirely, where nothing can paint over them.
           const boxW = Math.max(88, width * 0.155);
-          const boxH = 54;
+          const boxH = 66;
           const span = width - boxW;
           const x = (box: StateBox) => box.at * span;
           const y = (box: StateBox) => (box.row === 0 ? 34 : 138);
@@ -205,11 +212,16 @@ export default function ViolationStates() {
               >
                 <title>{box.hover}</title>
               </rect>
-              <text x={x(box) + boxW / 2} y={y(box) + 22} textAnchor="middle" className="coh-form__title">
+              <text x={x(box) + boxW / 2} y={y(box) + 20} textAnchor="middle" className="coh-form__title">
                 {box.title}
               </text>
-              <text x={x(box) + boxW / 2} y={y(box) + 40} textAnchor="middle" className="coh-form__note">
-                {box.note}
+              <text x={x(box) + boxW / 2} y={y(box) + 39} textAnchor="middle" className="coh-form__note">
+                <title>{box.note}</title>
+                {box.noteLines.map((line, index) => (
+                  <tspan key={line} x={x(box) + boxW / 2} dy={index === 0 ? 0 : 12}>
+                    {line}
+                  </tspan>
+                ))}
               </text>
             </g>
           ))}
