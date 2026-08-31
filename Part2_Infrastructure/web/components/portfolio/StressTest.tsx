@@ -60,13 +60,14 @@ export default function StressTest({
 }: StressTestProps) {
   const [scenarioId, setScenarioId] = useState<string>("crypto_cascade");
   /**
-   * Hand-set moves in PERCENT, keyed by symbol. `"*"` is a legal key and means
-   * every instrument not named — applyScenario already understands it.
+   * Hand-set moves in PERCENT, keyed by symbol. `"*"` is the broad-book move;
+   * named moves are overlays, so both sliders contribute when both are set.
    *
    * SPARSE ON PURPOSE. A record seeded to zero for every position cannot tell
-   * "the operator set this to flat" from "the operator never touched it", and
-   * that distinction decides whether the instrument is PINNED at zero or moved
-   * by its measured beta. Seeding would silently pin every untouched name flat
+   * "the operator set no symbol overlay" from "the operator never touched it",
+   * and that distinction decides whether the instrument is pinned at zero,
+   * receives only the broad move, or is moved by measured beta. Seeding would
+   * silently pin every untouched name flat when there is no broad move
    * — the mirror image of the beta = 1 mistake this panel was built to avoid,
    * removing real exposure instead of inventing it.
    *
@@ -82,8 +83,8 @@ export default function StressTest({
   /** True when something is set for the propagation reference, directly or by wildcard. */
   const referenceShocked = referenceSymbol in manual || "*" in manual;
 
-  /* Removing the key rather than setting it to zero. A row at 0 is "this does
-     not move"; a removed row is "propagate it by beta". Different claims. */
+  /* Removing the key rather than setting it to zero. Zero is an explicit
+     zero overlay; removing the row returns ownership to broad move or beta. */
   const clearSymbol = (symbol: string) =>
     setManual((prev) => {
       const next = { ...prev };
@@ -99,7 +100,7 @@ export default function StressTest({
   );
 
   const result = useMemo(() => {
-    const shocks = manualActive ? manualShocks(manual) : scenario.shocks;
+    const shocks = manualActive ? manualShocks(manual, positions.map((p) => p.symbol)) : scenario.shocks;
     return applyScenario(positions, equity, shocks, returns, referenceSymbol);
   }, [scenario, manual, manualActive, positions, equity, returns, referenceSymbol]);
 
@@ -110,7 +111,7 @@ export default function StressTest({
     ? Math.max(0, Math.min(1, -result.totalPnl / (equity - haltEquity)))
     : 1;
 
-  const unmeasured = result.perPosition.filter((p) => !p.viaBeta && p.appliedMove === 0);
+  const unmeasured = result.perPosition.filter((p) => !p.viaBeta && p.appliedMove === 0 && !(manualActive && (p.symbol in manual || "*" in manual)));
 
   // Every named scenario scored on the same book. One scenario at a time
   // answers "how bad is this one"; a PM's actual question is "which of these
@@ -177,7 +178,7 @@ export default function StressTest({
 
       <p className="sub">
         {manualActive
-          ? `Hand shocks on ${manualSymbols.length} instrument${manualSymbols.length === 1 ? "" : "s"}.`
+          ? `${manualSymbols.length} hand shock${manualSymbols.length === 1 ? "" : "s"} active.`
           : scenario.description}
       </p>
 
@@ -208,10 +209,8 @@ export default function StressTest({
               : "No hand shocks set"}
           </button>
         </div>
-        {/* The summary asks about the SLIDER, not beta: the foot-gun is at the
-            control, where dragging a row to 0% meaning "leave this one alone"
-            pins it flat. Double-encoded on screen either way — ShockRow draws β
-            for an unset row, and Source reads "pinned" for a hand-set one. */}
+        {/* Symbol sliders are overlays on the broad-book move. Without a broad
+            move, untouched rows keep the measured-beta behaviour below. */}
         <details className="disclosure">
           <summary>What happens to a slider you never touch?</summary>
           <p className="research-note">
@@ -224,7 +223,7 @@ export default function StressTest({
             <ShockRow
               key={symbol}
               symbol={symbol}
-              label={symbol === "*" ? "Everything else" : symbol.replace("USDT", "")}
+              label={symbol === "*" ? "All positions" : symbol.replace("USDT", "")}
               value={manual[symbol]}
               onChange={(v) => setManual((prev) => ({ ...prev, [symbol]: v }))}
               onClear={() => clearSymbol(symbol)}
@@ -295,7 +294,9 @@ export default function StressTest({
                     // not measure — the exact invention the header refuses.
                     <span className="muted">{p.beta == null ? "β —" : `β ${fmt(p.beta, 2)}`}</span>
                   ) : p.symbol in manual ? (
-                    <span className="muted" title="Set by hand on the slider above">pinned</span>
+                    <span className="muted" title="Set by hand on the slider above">{"*" in manual ? "broad + overlay" : "pinned"}</span>
+                  ) : "*" in manual ? (
+                    <span className="muted">broad</span>
                   ) : p.appliedMove !== 0 ? (
                     <span className="muted">shocked</span>
                   ) : referenceShocked ? (
@@ -420,7 +421,7 @@ function ShockRow({
         max={50}
         step={1}
         value={value ?? 0}
-        aria-label={`Shock ${symbol === "*" ? "every unnamed instrument" : symbol} by percent`}
+        aria-label={`Shock ${symbol === "*" ? "all positions" : symbol} by percent`}
         onChange={(event) => onChange(Number(event.target.value))}
       />
     </div>
