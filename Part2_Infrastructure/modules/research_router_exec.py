@@ -42,11 +42,15 @@ async def run_call(
     *,
     match_count: int,
     kind: str | None,
+    desk_id: str | None = None,
     store: Any = None,
 ) -> ToolResult:
     """Run one planned call and stamp it with how long it took. Never raises."""
     started = time.perf_counter()
-    result = await _dispatch(call, rag, execution, match_count=match_count, kind=kind, store=store)
+    result = await _dispatch(
+        call, rag, execution, match_count=match_count, kind=kind,
+        desk_id=desk_id, store=store,
+    )
     return replace(result, latency_ms=round((time.perf_counter() - started) * 1000.0, 3))
 
 
@@ -57,10 +61,13 @@ async def _dispatch(
     *,
     match_count: int,
     kind: str | None,
+    desk_id: str | None,
     store: Any,
 ) -> ToolResult:
     if call.tool == TOOL_GRAPH:
-        return await _walk(call, rag, execution, match_count=match_count)
+        return await _walk(
+            call, rag, execution, match_count=match_count, desk_id=desk_id,
+        )
     if call.tool == TOOL_RUNS:
         return _runs(call, execution, store)
     # The text the arm is really sent, which for `lexical_exact` is the bare
@@ -73,7 +80,8 @@ async def _dispatch(
             call.tool, call.reason, "skipped", 0, "the query names no exact token"
         )
     filter_kind = kind if call.tool == TOOL_HYBRID else None
-    result = await rag.search(text, match_count=match_count, kind=filter_kind)
+    scope = {"desk_id": desk_id} if desk_id else {}
+    result = await rag.search(text, match_count=match_count, kind=filter_kind, **scope)
     state = str(result.get("state") or "unavailable")
     if state != "ok":
         return ToolResult(
@@ -105,14 +113,16 @@ def _runs(call: ToolCall, execution: Execution, store: Any) -> ToolResult:
 
 
 async def _walk(
-    call: ToolCall, rag: Any, execution: Execution, *, match_count: int
+    call: ToolCall, rag: Any, execution: Execution, *, match_count: int,
+    desk_id: str | None,
 ) -> ToolResult:
     seed = next((m.get("id") for m in execution.matches if m.get("id")), None)
     if not seed:
         return ToolResult(
             call.tool, call.reason, "skipped", 0, "no retrieved document to walk from"
         )
-    result = await rag.connected(str(seed), match_count=match_count)
+    scope = {"desk_id": desk_id} if desk_id else {}
+    result = await rag.connected(str(seed), match_count=match_count, **scope)
     if result.get("state") != "ok":
         return ToolResult(
             call.tool, call.reason, "unavailable", 0, "the graph could not be walked",
