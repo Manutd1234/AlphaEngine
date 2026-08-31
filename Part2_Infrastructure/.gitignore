@@ -2,6 +2,7 @@
 # silently swallow a real package such as modules/data/ or tests/data/.
 # secrets — never commit; .env.example is the template
 .env
+/secrets/
 
 # runtime artefacts (recreated on startup)
 /data/*
@@ -9,6 +10,9 @@
 *.duckdb
 *.duckdb.wal
 *.sqlite
+# Some in-memory integration paths emit this transient session sentinel in the
+# process working directory; it is runtime state, never repository content.
+/:memory:.ses
 
 # python
 /venv/
