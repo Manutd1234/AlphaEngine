@@ -29,8 +29,17 @@ import asyncio
 from types import SimpleNamespace
 
 import pytest
+import research_seam as seam
 from fastapi.testclient import TestClient
-from test_research_seam_wiring import DESK, EMBED_PATH, QUERY, Corpus, Reply, _Settings
+from test_research_seam_wiring import (
+    DESK,
+    DOCUMENT_ID,
+    EMBED_PATH,
+    QUERY,
+    Corpus,
+    Reply,
+    _Settings,
+)
 
 import main
 import modules.research_quota_scope as scope_module
@@ -93,6 +102,12 @@ class TestTheDeskScopeReachesTheRpc:
 
         assert corpus.payload("match_research_documents_hybrid")["filter_desk_id"] == DESK
 
+    def test_graph_traversal_carries_the_same_scope(self, corpus):
+        result = asyncio.run(get_rag().connected(DOCUMENT_ID, desk_id=DESK))
+
+        assert result["state"] == "ok"
+        assert corpus.payload("traverse_research_graph")["filter_desk_id"] == DESK
+
     def test_the_denominator_is_scoped_with_the_search(self, corpus):
         """"1 of 412" under a predicate that hid 372 of them is a lie about the corpus."""
         asyncio.run(get_rag().search(QUERY, desk_id=DESK))
@@ -116,6 +131,12 @@ class TestTheDeskScopeReachesTheRpc:
             assert "filter_desk_id" not in body, f"{name} was sent a tenant argument it was not given"
         assert all("desk_id" not in params for params in corpus.head_params)
 
+    def test_an_unscoped_traversal_keeps_the_old_payload(self, corpus):
+        result = asyncio.run(get_rag().connected(DOCUMENT_ID))
+
+        assert result["state"] == "ok"
+        assert "filter_desk_id" not in corpus.payload("traverse_research_graph")
+
     def test_the_probe_the_route_uses_now_accepts_this_signature(self, corpus):
         """The gate refuses rather than serving unscoped, so the probe IS the wiring.
 
@@ -126,6 +147,7 @@ class TestTheDeskScopeReachesTheRpc:
         assert scope_module.SCOPE_PARAM == "desk_id"
         assert scope_module.scope_parameter_accepted(get_rag().search)
         assert scope_module.scope_parameter_accepted(get_rag()._match)
+        assert scope_module.scope_parameter_accepted(get_rag().connected)
 
     def test_the_route_passes_the_configured_desk_all_the_way_down(self, client, corpus, monkeypatch):
         """End to end: setting on, route serves, and the wire carries the predicate."""
@@ -137,6 +159,56 @@ class TestTheDeskScopeReachesTheRpc:
         assert response.status_code == 200, f"the scope gate refused: {response.json()}"
         assert corpus.rpc, "the route served without retrieving anything"
         assert all(body.get("filter_desk_id") == DESK for _, body in corpus.rpc)
+
+    def test_the_graph_route_passes_the_configured_desk(self, client, corpus, monkeypatch):
+        monkeypatch.setattr(scope_module, "SCOPE_TO_DESK", True)
+        monkeypatch.setattr(scope_module, "settings", SimpleNamespace(supabase_desk_id=DESK))
+
+        response = client.get(f"/api/research/graph/{DOCUMENT_ID}")
+
+        assert response.status_code == 200, response.text
+        assert corpus.payload("traverse_research_graph")["filter_desk_id"] == DESK
+
+    def test_scope_enabled_without_a_desk_refuses_before_retrieval(self, client, corpus, monkeypatch):
+        monkeypatch.setattr(scope_module, "SCOPE_TO_DESK", True)
+        monkeypatch.setattr(scope_module, "settings", SimpleNamespace(supabase_desk_id="   "))
+
+        response = client.post("/api/research/rag/search", json={"query": QUERY, "match_count": 3})
+
+        assert response.status_code == 503
+        assert response.json()["state"] == "scope_unavailable"
+        assert "SUPABASE_DESK_ID is empty" in response.json()["reason"]
+        assert corpus.rpc == []
+
+    def test_one_scope_survives_the_answer_pipelines_rewrite(self):
+        after = [seam.row(f"scoped-{index}") for index in range(3)]
+        corpus = seam.Corpus([seam.NEAR, after])
+
+        result = asyncio.run(seam.answer(corpus, query="crossover sweep", desk_id=DESK))
+
+        assert result.retrievals == 2
+        assert corpus.scopes == [DESK, DESK]
+
+    def test_anomaly_neighbour_retrieval_uses_the_written_rows_scope(self, corpus, monkeypatch):
+        """The writer's post-insert read is the third door into the same corpus."""
+        rag = get_rag()
+        seen: dict[str, str | None] = {}
+
+        async def match(vector, match_count=3, **kwargs):
+            seen["desk_id"] = kwargs.get("desk_id")
+            return []
+
+        monkeypatch.setattr(rag, "_match", match)
+        document = {
+            "kind": "risk_incident", "source_ref": "order-7", "symbol": "BTCUSDT",
+            "occurred_at": "2026-08-31T00:00:00+00:00", "title": "Execution anomaly",
+            "body": "realised slippage crossed the pre-trade ceiling", "metrics": {},
+            "data_hash": None, "_retrieve_after": True,
+        }
+
+        asyncio.run(rag._index_one(document))
+
+        assert seen["desk_id"] == DESK
 
 
 # --------------------------------------------------------------------------- #
@@ -204,7 +276,7 @@ class TestAPoisonedBodyIsAnEmbedFailure:
         rag, _ = self._rag(monkeypatch, rpc_poisoned=True)
         result = asyncio.run(rag.search(QUERY))
 
-        assert result["state"] == "ok"
+        assert result["state"] == "unavailable"
         assert result["matches"] == []
         report = result["bm25"]
         assert report["ranked"] is False
