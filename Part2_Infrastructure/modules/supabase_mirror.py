@@ -134,6 +134,7 @@ class SupabaseMirror:
             settings.supabase_url
             and settings.supabase_service_role_key
             and settings.supabase_mirror_enabled
+            and settings.supabase_desk_id.strip()
         )
         self._queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(
             maxsize=settings.supabase_mirror_queue_max
