@@ -56,8 +56,9 @@ import { STAGE_GLYPH } from "@/lib/signal-path";
 import type { SystemHealthView } from "@/lib/use-system-health";
 
 import CustodyChainTrack, { TINT, type CustodyLink, type LinkState } from "./CustodyChainTrack";
+import GatewayContractDigestTable from "./GatewayContractDigestTable";
 import { StatusPill, type ControlState } from "./DeveloperStatus";
-import { CustodyDigestRow, firstDifference } from "./NumericsCustodyDigest";
+import { firstDifference } from "./NumericsCustodyDigest";
 
 /** The paths the committed snapshot publishes, counted from the artefact off it. */
 const CONTRACT_PATHS = GATEWAY_CONTRACT_PATHS.length;
@@ -308,10 +309,20 @@ export default function GatewayContractCustodyChain({
   const terminal = terminalState(reading);
   const served = reading.phase === "match" || reading.phase === "mismatch" ? reading.observed : null;
   const divergence = served ? firstDifference(served, COMMITTED_GATEWAY_OPENAPI_SHA256) : null;
+  const liveEvidence = reading.phase === "mismatch"
+    ? `The live contract and the committed digest part company at character ${divergence ?? 1}. `
+      + `If a route changed on purpose: ${REMEDY} If nothing changed on purpose, the two units are out `
+      + "of step and one of them is deployed from a commit the other has not seen."
+    : reading.phase === "match"
+      ? "GET /openapi.json as served this poll hashes to the digest above — on the server, in "
+        + "lib/delivery-readiness.ts, so only these sixty-four characters reach this browser."
+      : reading.phase === "waiting"
+        ? "No health snapshot has landed yet, so nothing has read the live contract in this session."
+        : reading.why;
 
   return (
     <section
-      className="card developer-cp-schema-card stagger-reveal"
+      className="card developer-cp-schema-card gateway-contract-custody stagger-reveal"
       style={{ "--stagger-i": stagger } as CSSProperties}
     >
       <div className="developer-cp-heading">
@@ -336,35 +347,26 @@ export default function GatewayContractCustodyChain({
 
       <CustodyChainTrack chain={chain} label="Gateway OpenAPI custody chain" />
 
-      <div className="signal-workflow__detail" style={{ marginTop: "var(--space-3)" }}>
-        <CustodyDigestRow
-          caption="Committed in this repository"
-          hex={COMMITTED_GATEWAY_OPENAPI_SHA256}
-          glyph={gate.ran ? STAGE_GLYPH.ok : STAGE_GLYPH.unknown}
-          word={gate.ran ? "verified at build time" : "not verified this session"}
-          tint={gate.ran ? TINT.ok : TINT.unknown}
-          note={gate.why}
-        />
-        <CustodyDigestRow
-          caption="Served by the live gateway"
-          hex={served}
-          glyph={STAGE_GLYPH[terminal.state]}
-          word={terminal.word}
-          tint={TINT[terminal.state]}
-          note={
-            reading.phase === "mismatch"
-              ? `The live contract and the committed digest part company at character ${divergence ?? 1}. `
-                + `If a route changed on purpose: ${REMEDY} If nothing changed on purpose, the two units are out `
-                + "of step and one of them is deployed from a commit the other has not seen."
-              : reading.phase === "match"
-                ? "GET /openapi.json as served this poll hashes to the digest above — on the server, in "
-                  + "lib/delivery-readiness.ts, so only these sixty-four characters reach this browser."
-                : reading.phase === "waiting"
-                  ? "No health snapshot has landed yet, so nothing has read the live contract in this session."
-                  : reading.why
-          }
-        />
-      </div>
+      <GatewayContractDigestTable
+        rows={[
+          {
+            source: "Committed in this repository",
+            hex: COMMITTED_GATEWAY_OPENAPI_SHA256,
+            glyph: gate.ran ? STAGE_GLYPH.ok : STAGE_GLYPH.unknown,
+            word: gate.ran ? "verified at build time" : "not verified this session",
+            tint: gate.ran ? TINT.ok : TINT.unknown,
+            evidence: gate.why,
+          },
+          {
+            source: "Served by the live gateway",
+            hex: served,
+            glyph: STAGE_GLYPH[terminal.state],
+            word: terminal.word,
+            tint: TINT[terminal.state],
+            evidence: liveEvidence,
+          },
+        ]}
+      />
     </section>
   );
 }
