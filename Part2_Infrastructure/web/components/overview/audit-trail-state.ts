@@ -4,10 +4,9 @@
  *
  * `AuditTrail` used to decide this inline, with a `useState` that a failed
  * poll — or a 200 with no rows array — moved straight to `generated`. That
- * replaced a table of orders the gateway really recorded with the sandbox
- * ledger, and the next good poll swapped the real rows back: the exact
- * alternation `DeskSourceMachine` exists to make unrepresentable, at the
- * panel's own 30s cadence.
+ * replaced a table of orders the gateway really recorded with a generated
+ * ledger. The panel no longer has a generated data path: an unreadable ledger
+ * is unavailable, while a later failure preserves only a genuine last read.
  *
  * These two functions are the panel's whole decision, pure so
  * `tests/overview-stability.test.ts` can drive a pass/fail/pass script against
@@ -15,7 +14,7 @@
  * the render; it holds no state of its own.
  */
 
-import type { AuditRow } from "@/lib/fallbacks/audit";
+import type { AuditRow } from "@/lib/audit";
 import type { DeskSourceState, ProbeFailure, ProbeOutcome } from "@/lib/desk-source";
 
 /** The settled probe as `probeGateway` reports it, before the machine sees it. */
@@ -43,36 +42,37 @@ export function auditProbeOutcome(
 }
 
 /**
- * The three states the panel renders. Same names the component always used;
- * what changed is who may enter `generated` — only a desk that has never had
- * a measured ledger, per the machine's rule 1.
+ * The three states the panel renders. No state carries substitute rows.
  */
 export type AuditPanelState =
   | { kind: "loading" }
   | { kind: "ready"; rows: AuditRow[]; fetchedAt: Date }
-  | { kind: "generated"; rows: AuditRow[]; detail: string };
+  | { kind: "unavailable"; detail: string };
 
 /**
  * The machine's state, rendered.
  *
  * `measured` keeps the real rows whatever the tier — `fetchedAt` is the last
  * good read, so cached rows carry their age through the provenance line the
- * panel already prints. `generated` takes the caller's sandbox rows (derived
- * from the shared desk seed, so the Execution blotter shows the same orders)
- * and the current failure's own wording. `empty` can only be the unsettled
- * first probe here — this panel has no Live/Sandbox control to press — which
- * is the skeleton, not a table.
+ * panel already prints. An empty settled source names the live failure and
+ * remains empty. Before the first probe settles, it remains a loading state.
  */
-export function auditView(
-  source: DeskSourceState<AuditRow[]>,
-  generatedRows: AuditRow[],
-): AuditPanelState {
+export function auditView(source: DeskSourceState<AuditRow[]>): AuditPanelState {
   const { showing } = source;
   if (showing.kind === "measured") {
     return { kind: "ready", rows: showing.payload, fetchedAt: showing.lastGoodAt };
   }
+  if (showing.kind === "empty" && showing.failure) {
+    return {
+      kind: "unavailable",
+      detail: showing.failure.message ?? "The gateway audit ledger could not be read.",
+    };
+  }
+  // AuditTrail has no sandbox chooser, so a generated source is not reachable
+  // from its own controls. Treat an externally restored choice as unavailable
+  // instead of smuggling generated rows into a ledger view.
   if (showing.kind === "generated") {
-    return { kind: "generated", rows: generatedRows, detail: source.failure?.message ?? "" };
+    return { kind: "unavailable", detail: "The live gateway audit ledger is not selected." };
   }
   return { kind: "loading" };
 }
