@@ -1,7 +1,6 @@
 """
 Asynchronous job queue for compute-heavy work (Module C's parameter sweeps).
 ============================================================================
-
 A parameter sweep can take tens of seconds. Running it inside the request
 handler would block the event loop that also carries the kill switch — the one
 code path that must never queue behind a backtest. So sweeps are dispatched to
@@ -180,7 +179,8 @@ class JobQueue:
 
     def on_complete(self, hook: Callable[[JobRecord], Any]) -> None:
         """Register a completion callback (used to push results to Telegram)."""
-        self._on_complete.append(hook)
+        if hook not in self._on_complete:
+            self._on_complete.append(hook)
 
     # -- submission ------------------------------------------------------- #
     def submit(self, kind: str, fn: Callable[..., Any], *args, meta: dict | None = None, **kwargs) -> JobRecord:
@@ -385,8 +385,9 @@ class JobQueue:
         }
 
     def shutdown(self) -> None:
-        self._pool.shutdown(wait=False, cancel_futures=True)
-
+        old_pool = self._pool
+        self._pool = ThreadPoolExecutor(max_workers=self.workers, thread_name_prefix="alphaengine-job")
+        old_pool.shutdown(wait=False, cancel_futures=True)
 
 _queue: JobQueue | None = None
 
