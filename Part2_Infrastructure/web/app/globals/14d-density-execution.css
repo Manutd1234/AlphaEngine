@@ -210,3 +210,19 @@
 .cockpit-alert-list td.cockpit-alert-list__detail {
   width: 100%;
 }
+
+/* The blotter row is not itself an interactive ARIA role. Its time cell owns
+   the native disclosure button, with compact chrome that keeps table geometry. */
+.cockpit-blotter__row-toggle {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.cockpit-blotter__row-toggle:focus-visible {
+  outline: 2px solid var(--series-1);
+  outline-offset: 2px;
+}
