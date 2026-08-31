@@ -150,16 +150,16 @@ class TestTheCorpusRowNeverCarriesTheBytes:
         ))
         monkeypatch.setattr(store, "settings", writer_module.settings)
 
-        async def no_vector(_text: str) -> None:
-            return None
+        async def text_vector(_text: str) -> list[float]:
+            return [0.01] * 384
 
-        monkeypatch.setattr(rag, "_embed", no_vector)
+        monkeypatch.setattr(rag, "_embed", text_vector)
         monkeypatch.setattr(writer_module, "persist_edges", _no_edges)
 
         await rag._index_one(dict(equity_document()))
 
-        document_post = next(p for p in wire.posts if "research_documents" in p[0])
-        row = document_post[1]
+        document_post = next(p for p in wire.posts if "replace_research_document_chunks" in p[0])
+        row = document_post[1]["p_rows"][0]
         assert store.CHART_PNG_FIELD not in row
         assert not any(isinstance(v, str) and v == ENCODED for v in row.values()), (
             "no column on research_documents may carry the image, under any name"
@@ -184,7 +184,7 @@ class TestTheCorpusRowNeverCarriesTheBytes:
 
         monkeypatch.setattr(rag, "_embed", no_vector)
         await rag._index_one({"kind": "risk_incident", "source_ref": "order-1", "body": "x"})
-        assert [p[0] for p in wire.posts] == ["/rest/v1/research_documents"]
+        assert [p[0] for p in wire.posts] == ["/rest/v1/rpc/replace_research_document_chunks"]
 
 
 async def _no_edges(*_args: Any, **_kwargs: Any) -> int:
