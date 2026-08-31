@@ -8,9 +8,10 @@
  * family is a dollar sold in pieces — and what the pieces cost is a direct,
  * unmodelled reading of whether those prices admit a probability at all.
  *
- * The shape is comparison first, detail on request, as two VIEWS the section
- * owns: `BasketOverview` puts every family on one dollar axis (the question a
- * watchlist raises — which of these is furthest from a dollar), and Families
+ * The shape is comparison first, positions second, detail on request, as three
+ * VIEWS the section owns: `BasketOverview` puts every family on one dollar axis
+ * (the question a watchlist raises — which of these is furthest from a dollar),
+ * Positions gives open interest its own uncluttered canvas, and Families
  * details ONE family. Since the third 2026-08-24 review the Families view is
  * handed a single event: the packed two-up card grid, with each card's
  * disclosure open, was three 188-row tables running under each other's
@@ -46,14 +47,17 @@
  * so a reader filtering an empty watchlist is told the watchlist is empty.
  */
 
-import { fromCenticents, sumPrices, verdictForBuy, verdictForSell, VERDICT_MARK, VERDICT_WORD } from "@/lib/coherence/fixed-point";
+import { sumPrices, verdictForBuy, verdictForSell, VERDICT_WORD } from "@/lib/coherence/fixed-point";
 import type { CoherenceEventView, CoherenceUniverse } from "@/lib/coherence/types";
+import { dollarsLabel } from "@/lib/coherence/universe-metrics";
 import BasketComposition from "./BasketComposition";
 import BasketSize from "./BasketSize";
 import BasketOverview, { rowsFor } from "./BasketOverview";
-import DollarBar from "./DollarBar";
-import { StateChip } from "./Figure";
 import PriceHistogram from "./PriceHistogram";
+import basketStyles from "./UniverseBasketLayout.module.css";
+import familyStyles from "./UniverseFamilyLayout.module.css";
+
+const styles = { ...basketStyles, ...familyStyles };
 
 function toneFor(verdict: string): "good" | "warn" | "critical" | "muted" {
   if (verdict === "coherent") return "good";
@@ -71,7 +75,7 @@ function describeStrike(kind: string, floor: string | null, cap: string | null):
   return kind;
 }
 
-function EventCard({ event }: { event: CoherenceEventView }) {
+function EventCard({ event, category }: { event: CoherenceEventView; category: string }) {
   const asks = event.markets.map((market) => ({ label: market.yes_sub_title || market.ticker, price: market.yes_ask }));
   const bids = event.markets.map((market) => ({ label: market.yes_sub_title || market.ticker, price: market.yes_bid }));
   const askTotal = sumPrices(asks.map((leg) => leg.price));
@@ -83,69 +87,48 @@ function EventCard({ event }: { event: CoherenceEventView }) {
   const wholeFamily = quoted === event.markets.length;
 
   return (
-    <article className="coh-event">
-      <header className="coh-event__head">
-        <div>
-          <h3 className="coh-event__title">{event.title || event.event_ticker}</h3>
-          <p className="coh-event__meta">
+    <article className={styles.familyCard}>
+      <header className={styles.familyHero}>
+        <div className={styles.familyHeading}>
+          <span>{category}</span>
+          <h3>{event.title || event.event_ticker}</h3>
+          <p>
             {event.event_ticker}, shard {event.exchange_index}, {event.markets.length} outcomes
-            {event.settlement_sources.length ? `, settled on ${event.settlement_sources.join(" and ")}` : ""}
+            {event.settlement_sources.length ? `, ${event.settlement_sources.join(" and ")}` : ""}
           </p>
         </div>
-        <div className="coh-event__chips">
-          <StateChip
-            mark={VERDICT_MARK[buyVerdict]}
-            word={`Buy ${VERDICT_WORD[buyVerdict].toLowerCase()}`}
-            value={askTotal == null ? null : fromCenticents(askTotal)}
-            tone={toneFor(buyVerdict)}
-          />
-          <StateChip
-            mark={VERDICT_MARK[sellVerdict]}
-            word={`Sell ${VERDICT_WORD[sellVerdict].toLowerCase()}`}
-            value={bidTotal == null ? null : fromCenticents(bidTotal)}
-            tone={toneFor(sellVerdict)}
-          />
-          {/* The third number is what the other two are made of: a total is
-              absent whenever ONE leg is, so how much of the family is quoted
-              at all is the figure that says whether the absence is a tail or
-              the whole book. */}
-          <StateChip
-            mark={wholeFamily ? "●" : "◌"}
-            word="Outcomes with an ask"
-            value={`${quoted} of ${event.markets.length}`}
-            tone={wholeFamily ? "good" : "muted"}
-          />
-        </div>
+        <dl className={styles.familyFacts}>
+          <div data-tone={toneFor(buyVerdict)}>
+            <dt>Buy whole</dt>
+            <dd className="num">{dollarsLabel(askTotal)}</dd>
+            <dd>{VERDICT_WORD[buyVerdict]}</dd>
+          </div>
+          <div data-tone={toneFor(sellVerdict)}>
+            <dt>Sell whole</dt>
+            <dd className="num">{dollarsLabel(bidTotal)}</dd>
+            <dd>{VERDICT_WORD[sellVerdict]}</dd>
+          </div>
+          <div data-tone={wholeFamily ? "good" : "muted"}>
+            <dt>Asks quoted</dt>
+            <dd className="num">{quoted}/{event.markets.length}</dd>
+            <dd>{wholeFamily ? "Complete" : "Incomplete"}</dd>
+          </div>
+        </dl>
       </header>
 
       {/* One bar, not two: the overview carries the comparison, and what one
           family adds is where the cost sits along its own legs — the direction
           with a total is the one that can show it. */}
-      {event.mutually_exclusive && askTotal != null ? (
-        <DollarBar legs={asks} direction="buy" caption="Buying every outcome" />
-      ) : event.mutually_exclusive && bidTotal != null ? (
-        <DollarBar legs={bids} direction="sell" caption="Selling every outcome" />
-      ) : event.mutually_exclusive ? (
-        <>
-          <p className="coh-event__note">
-            <span aria-hidden="true">◌</span> Neither direction totals: a leg is unquoted, and a basket from the
-            rest would understate it by exactly the legs it skipped.
-          </p>
-          <PriceHistogram markets={event.markets} caption="How many outcomes are quoted at each price" />
-        </>
-      ) : (
-        <>
-          <p className="coh-event__note">
-            <span aria-hidden="true">○</span> Not mutually exclusive, so these prices need not sum — the
-            exchange&rsquo;s own flag decides that, not our arithmetic.
-          </p>
-          <PriceHistogram markets={event.markets} caption="How many outcomes are quoted at each price" />
-        </>
-      )}
+      <PriceHistogram key={event.event_ticker} markets={event.markets} caption="Executable YES asks by price" />
 
-      <details className="coh-event__outcomes">
-        <summary>Every outcome as quoted, {event.markets.length} rows</summary>
-        <div className="table-wrap" tabIndex={0}>
+      <details className={styles.outcomes} data-summary-marker="source-owned">
+        <summary>View all {event.markets.length} outcomes</summary>
+        <div
+          className="table-wrap table-wrap--clamped"
+          role="region"
+          aria-label={`${event.title || event.event_ticker} outcome quotes`}
+          tabIndex={0}
+        >
           <table className="coh-table">
             <caption className="coh-table__caption">
               {unquoted
@@ -181,21 +164,34 @@ function EventCard({ event }: { event: CoherenceEventView }) {
   );
 }
 
-/** The section's two views: the comparison figure, or one family's detail. */
-export type UniverseView = "baskets" | "families";
+/** The section's three views: price comparison, positions, or family detail. */
+export type UniverseView = "baskets" | "positions" | "families";
 
 export interface UniversePaneProps {
   universe: CoherenceUniverse | null;
-  /** Which of the two views to draw. The section owns the switcher. */
+  /** Which focused view to draw. The section owns the switcher. */
   view: UniverseView;
   /** The families in view — the whole read, or the one picked family. */
   events: CoherenceEventView[];
   error: string | null;
   /** True while an asset type is selected, so an empty view can say why. */
   filtered: boolean;
+  /** One ticker drives every basket diagram and survives the view change. */
+  selectedTicker?: string | null;
+  onSelectFamily?: (ticker: string) => void;
+  onExploreFamily?: (ticker: string) => void;
 }
 
-export default function UniversePane({ universe, view, events, error, filtered }: UniversePaneProps) {
+export default function UniversePane({
+  universe,
+  view,
+  events,
+  error,
+  filtered,
+  selectedTicker,
+  onSelectFamily,
+  onExploreFamily,
+}: UniversePaneProps) {
   if (error && !universe) {
     return (
       <p className="console-empty">
@@ -204,7 +200,7 @@ export default function UniversePane({ universe, view, events, error, filtered }
     );
   }
   if (!universe) {
-    return <p className="console-empty muted">Reading the exchange…</p>;
+    return <p className="console-empty muted" role="status" aria-busy="true">Reading the exchange…</p>;
   }
   if (universe.state === "unconfigured") {
     return (
@@ -243,33 +239,27 @@ export default function UniversePane({ universe, view, events, error, filtered }
     // The whole watchlist, never the filtered slice. The read's own notes ride
     // here — they qualify the read the figure is drawn from.
     //
-    // ORDER, and it is the fifth review's whole point: four numbers, then the
-    // two compositions, then the dollar axis. The axis is the section's
-    // headline and it is also the figure that can only draw a family with a
-    // total, so opening on it showed one mark and said nothing about the other
-    // two families. The rings hold all of them; the axis then says how far the
-    // priced ones sit from the dollar.
+    // The family chooser and fixed dollar axis belong together: selecting a
+    // row updates the exact readout without moving the reader down a second,
+    // unrelated position chart. Open interest now owns the Positions view.
     const rows = rowsFor(universe.events);
     return (
       <>
-        <BasketComposition universe={universe} rows={rows} />
-        {/* Size AFTER composition and BEFORE the dollar axis, which is the
-            order the three questions actually run in: what the watchlist is,
-            how much is on it, and whether its prices admit a probability. The
-            size figures were unbuildable until the venue's own open interest,
-            liquidity and notional value reached the wire on 2026-08-24.
-
-            The position was proposed by the session that built the card and is
-            confirmed here rather than inherited: it is the order the section's
-            existing note already argues for, since the rings hold every family
-            and the axis can only draw the ones with a total. Size sits between
-            them because "how much is on it" is a question about the whole
-            watchlist, like the rings, and unlike the axis. */}
-        <BasketSize universe={universe} />
-        <BasketOverview
-          rows={rows}
-          caption="Every watched family against the dollar it pays"
-        />
+        <div className={styles.basketWorkbench}>
+          <BasketComposition
+            universe={universe}
+            rows={rows}
+            selectedTicker={selectedTicker}
+            onSelect={onSelectFamily}
+            onExplore={onExploreFamily}
+          />
+          <BasketOverview
+            rows={rows}
+            caption="Every watched family on the same payoff scale"
+            selectedTicker={selectedTicker}
+            onSelect={onSelectFamily}
+          />
+        </div>
         {universe.notes.length ? (
           /* The gateway's own qualifications of this read — a series it could
              not open, a shard it skipped. They belong with the figure rather
@@ -291,10 +281,22 @@ export default function UniversePane({ universe, view, events, error, filtered }
     );
   }
 
+  if (view === "positions") {
+    return (
+      <div className={styles.positionWorkbench}>
+        <BasketSize universe={universe} selectedTicker={selectedTicker} />
+      </div>
+    );
+  }
+
   return (
     <div className="coh-universe__families">
       {events.map((event) => (
-        <EventCard key={event.event_ticker} event={event} />
+        <EventCard
+          key={event.event_ticker}
+          event={event}
+          category={universe.categories[event.series_ticker] || "Uncategorised"}
+        />
       ))}
     </div>
   );
