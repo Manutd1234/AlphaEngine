@@ -12,7 +12,7 @@ export type ResearchRagState = "ok" | "unavailable" | "embed_failed";
 
 export interface ResearchRagMatch {
   id: string;
-  kind: "backtest_run" | "execution_summary" | "risk_incident";
+  kind: "backtest_run" | "chart" | "execution_summary" | "ml_run" | "risk_incident";
   source_ref: string;
   symbol: string | null;
   strategy: string | null;
@@ -20,7 +20,10 @@ export interface ResearchRagMatch {
   title: string;
   body: string;
   metrics: Record<string, unknown>;
-  similarity: number;
+  /** Cosine score for text retrieval; null when the image arm alone found it. */
+  similarity: number | null;
+  image_rank?: number | null;
+  image_similarity?: number | null;
 }
 
 export interface ResearchRagSearchResponse {
@@ -35,6 +38,7 @@ export interface ResearchRagSearchResponse {
    * rather than as "an empty corpus".
    */
   corpus_size?: number | null;
+  cache?: Record<string, unknown> | null;
 }
 
 export function isResearchRagSearchResponse(value: unknown): value is ResearchRagSearchResponse {
