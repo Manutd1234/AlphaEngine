@@ -1,0 +1,197 @@
+/* Markets-only Quant OS workbench. Imported by the root after the engine waves merge. */
+.markets-plane {
+  --markets-accent-soft: color-mix(in srgb, var(--series-1) 12%, var(--surface-1));
+  --markets-accent-line: color-mix(in srgb, var(--series-1) 24%, var(--border));
+  --markets-inset: var(--surface-2);
+}
+@supports (animation-timeline: view()) {
+  .markets-plane .workspace-subtab-panel > .coh-section {
+    /* A frozen view-timeline must never clip or erase a complete diagram. */
+    animation: none;
+  }
+}
+.markets-plane .markets-viewbar {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.markets-plane .markets-viewbar::before {
+  content: none;
+}
+.markets-plane .markets-viewbar__actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  justify-content: flex-end;
+  max-width: 100%;
+}
+.markets-plane .markets-viewbar__actions button:focus-visible,
+.markets-plane [data-market-section] .seg button:focus-visible {
+  outline: 2px solid var(--series-1);
+  outline-offset: 2px;
+}
+.markets-plane .markets-viewbar__copy-state {
+  position: absolute;
+  inset-block-start: calc(100% + var(--space-1));
+  inset-inline-end: 0;
+  margin: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-1);
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  box-shadow: var(--shadow-card);
+}
+.markets-plane .markets-viewbar[data-copy-state="idle"] .markets-viewbar__copy-state {
+  display: none;
+}
+.markets-plane [data-market-section] {
+  position: relative;
+  gap: 0;
+  padding: 0;
+  overflow: clip;
+  border-color: color-mix(in srgb, var(--border) 86%, var(--series-1));
+  background: var(--surface-1);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--text-primary) 3%, transparent), 0 12px 36px color-mix(in srgb, var(--text-primary) 5%, transparent);
+}
+.markets-plane [data-market-section]:has(:is(
+  .coh-family__button,
+  .coh-market__button
+)[aria-expanded="true"]) {
+  z-index: var(--z-popover);
+  overflow: visible;
+}
+.markets-plane [data-market-section] > .section-heading,
+.markets-plane [data-market-section] > .sub,
+.markets-plane [data-market-section] > .console-empty {
+  margin-inline: 18px;
+}
+.markets-plane [data-market-section] > .section-heading {
+  margin-top: 16px;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.markets-plane [data-market-section] > .sub {
+  max-width: 82ch;
+  margin-top: 8px;
+  margin-bottom: 12px;
+}
+.markets-plane [data-market-section] .coh-section__controls {
+  margin: 0;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface-1) 94%, transparent);
+  backdrop-filter: blur(12px);
+}
+.markets-plane [data-market-section] .seg {
+  max-width: 100%;
+  background: var(--markets-inset);
+}
+.markets-plane [data-market-section] .quant-view-switcher {
+  min-width: 0;
+  overflow: visible;
+}
+.markets-plane [data-market-section] .seg button {
+  color: var(--text-secondary);
+}
+.markets-plane [data-market-section] .seg button[aria-pressed="true"] {
+  background: var(--surface-1);
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--text-primary) 9%, transparent), inset 0 -2px 0 var(--series-1);
+}
+.markets-plane [data-market-section] > .coh-status__facts {
+  margin: 12px 16px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--markets-inset);
+}
+.markets-plane [data-market-section] .coh-section__body {
+  display: flow-root;
+  min-width: 0;
+  padding: 16px;
+  outline: none;
+}
+.markets-plane [data-market-section] .coh-section__body > :first-child {
+  margin-top: 0;
+}
+.markets-plane [data-market-section] .coh-figure {
+  overflow: clip;
+  border-color: color-mix(in srgb, var(--border) 84%, var(--series-1));
+  border-radius: var(--radius-card);
+  background: var(--surface-1);
+  box-shadow: 0 8px 28px color-mix(in srgb, var(--text-primary) 5%, transparent);
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+.markets-plane [data-market-section] .coh-figure:hover {
+  border-color: var(--markets-accent-line);
+  box-shadow: 0 12px 34px color-mix(in srgb, var(--text-primary) 8%, transparent);
+}
+.markets-plane [data-market-section] .coh-figure__caption {
+  background: linear-gradient(90deg, var(--markets-accent-soft), var(--surface-1) 58%);
+}
+.markets-plane [data-market-section] .console-empty {
+  position: relative;
+  min-height: 88px;
+  padding: 24px 24px 24px 50px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-card);
+  background:
+    repeating-linear-gradient(-45deg, transparent 0 8px,
+      color-mix(in srgb, var(--text-muted) 4%, transparent) 8px 9px),
+    var(--markets-inset);
+}
+.markets-plane [data-market-section] .console-empty > span:first-child {
+  position: absolute;
+  inset: 23px auto auto 22px;
+  color: var(--text-secondary);
+  font-weight: 760;
+}
+.markets-plane [data-market-section] table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.markets-plane [data-market-section] thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: color-mix(in srgb, var(--surface-2) 92%, var(--surface-1));
+  box-shadow: inset 0 -1px 0 var(--border);
+}
+.markets-plane [data-market-section] tbody tr:hover > * {
+  background: var(--markets-accent-soft);
+}
+.markets-plane [data-market-section] > .disclosure {
+  margin: 0 16px 16px;
+  border-color: var(--border);
+  background: var(--markets-inset);
+}
+@media (max-width: 760px) {
+  .markets-plane [data-market-section] .coh-section__controls {
+    align-items: stretch;
+  }
+  .markets-plane [data-market-section] .coh-section__body {
+    padding: 12px;
+  }
+}
+.markets-plane [data-market-section] .coh-plot > svg {
+  /* References and grid lines belong to each diagram. A plane-wide graph-paper
+     overlay drew unexplained lines through plots that deliberately own none. */
+  background: var(--surface-1);
+}
+.markets-plane [data-market-section] :is(.coh-figure, figure[class*="instrument"]) {
+  background-color: var(--surface-1);
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--text-primary) 7%, transparent);
+}
