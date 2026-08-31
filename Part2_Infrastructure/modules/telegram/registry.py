@@ -3,6 +3,8 @@
 `_build_command_index` raises on a duplicate name or alias: the registry is the
 only map from a typed ``/name`` to a method, and a silent collision would drop a
 command. README §6 is generated from this tuple by ``tools/telegram_catalogue.py``.
+The ``Tabs`` category mirrors all eleven workspace tabs, including the current
+Markets, Proofs and Diffusion surfaces.
 """
 
 from __future__ import annotations
@@ -28,17 +30,23 @@ class CommandSpec:
 
 
 COMMAND_SPECS: tuple[CommandSpec, ...] = (
-    # 9 Desk Role Tabs (Explicit Vercel UI Tab mapping with Visual Charts)
+    # Nine tab commands live in this first block; Portfolio and Risk below bring
+    # the Tabs category to the workspace's full eleven-command mapping.
     CommandSpec("overview", "Overview (All Roles) · System signal & cross-role dashboard + chart", "Tabs", "/overview", "/overview", "_cmd_tab_overview", ("tab_overview", "dashboard")),
     CommandSpec("research", "Research (Quant Researcher) · Strategy sweep & tearsheet + chart", "Tabs", "/research [SYMBOL]", "/research BTCUSDT", "_cmd_tab_research", ("tab_research", "lab")),
     CommandSpec("execution", "Execution (Quant Trader) · Live L2 book & routing + chart", "Tabs", "/execution [SYMBOL]", "/execution BTCUSDT", "_cmd_tab_execution", ("tab_execution", "trade")),
     CommandSpec("data", "Data (Data Engineer) · Quality, freshness & failover + chart", "Tabs", "/data", "/data", "_cmd_tab_data", ("tab_data", "dataeng")),
     CommandSpec("reliability", "Reliability (DevOps/SRE) · Telemetry & latency + chart", "Tabs", "/reliability", "/reliability", "_cmd_tab_reliability", ("tab_reliability", "sre")),
     CommandSpec("developer", "Developer (Quant Developer) · CI/CD, OpenAPI & repo posture + chart", "Tabs", "/developer", "/developer", "_cmd_tab_developer", ("tab_developer", "dev")),
-    # in_menu=False: Telegram caps the / menu at 100 and it is at 99. This is a
-    # read-only research surface rather than a desk role, so it is the entry
-    # that stays off the list rather than pushing one of the eight desks off it.
-    CommandSpec("coherence", "Coherence (Quant Researcher) · Kalshi baskets against the dollar they pay", "Tabs", "/coherence", "/coherence", "_cmd_tab_coherence", ("tab_coherence", "kalshi"), in_menu=False),
+    # Every workspace tab stays in Telegram's native slash menu. The 100-entry
+    # platform cap is paid by hiding two redundant utilities below (`/ops`
+    # overlaps `/status`; `/refresh` is already on every card), never by hiding
+    # a destination from the workspace map. `/coherence` is a saved-command
+    # compatibility alias for `/proofs`, not a fourth product name for the same
+    # proof surface.
+    CommandSpec("markets", "Markets engine — executable Kalshi books, family cost and provenance", "Tabs", "/markets [SERIES]", "/markets", "_cmd_tab_markets", ("tab_markets",)),
+    CommandSpec("proofs", "Proofs engine — coherence certificate, witness and index sample", "Tabs", "/proofs [SERIES]", "/proofs", "_cmd_tab_proofs", ("coherence", "tab_coherence", "kalshi", "tab_proofs")),
+    CommandSpec("diffusion", "Diffusion engine — absorption, survival and finding sample gates", "Tabs", "/diffusion", "/diffusion", "_cmd_tab_diffusion", ("tab_diffusion",)),
 
     # Essentials
     CommandSpec("start", "Essentials · Open the command centre", "Essentials", "/start", "/start", "_cmd_start"),
@@ -51,9 +59,9 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("version", "Essentials · Runtime version and bot mode", "Essentials", "/version", "/version", "_cmd_version", in_menu=False),
     CommandSpec("ping", "Essentials · Check command-path responsiveness", "Essentials", "/ping", "/ping", "_cmd_ping", in_menu=False),
 
-    # Portfolio manager. /portfolio and /risk are the 7th and 8th tab commands —
-    # category "Tabs" so the README's "8 tab commands" is literally true and both
-    # carry a `_tab_footer` mapping to their web rail sections.
+    # Portfolio manager. /portfolio and /risk are the 10th and 11th tab commands.
+    # Both stay in category "Tabs" and carry a `_tab_footer` mapping to their web
+    # rail sections.
     CommandSpec("portfolio", "Portfolio (Portfolio Manager) · Whole-book PM summary + charts", "Tabs", "/portfolio", "/portfolio", "_cmd_portfolio", ("bookstate",)),
     CommandSpec("equity", "Portfolio · Persisted equity curve and period returns", "Portfolio", "/equity [LIMIT]", "/equity", "_cmd_equity", ("curve", "history")),
     CommandSpec("positions", "Portfolio · Open positions and marks", "Portfolio", "/positions [SYMBOL]", "/positions BTCUSDT", "_cmd_positions", ("toppositions", "position")),
@@ -102,9 +110,9 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("backtests", "Research · Completed backtest history", "Research", "/backtests [COUNT]", "/backtests 10", "_cmd_backtests", ("runs", "experiments")),
     CommandSpec("timeline", "Execution · Lifecycle of one order from the audit trail", "Execution", "/timeline ORDER_ID", "/timeline abc123", "_cmd_timeline", ("ordertrace",)),
     CommandSpec("working", "Execution · Orders resting on the book right now", "Execution", "/working [SYMBOL]", "/working", "_cmd_working"),
-    CommandSpec("ops", "Essentials · Structured reliability snapshot", "Essentials", "/ops", "/ops", "_cmd_ops"),
+    CommandSpec("ops", "Essentials · Structured reliability snapshot", "Essentials", "/ops", "/ops", "_cmd_ops", in_menu=False),
     CommandSpec("backtest", "Research · Queue a parameter sweep on the shared jobs engine", "Research", "/backtest SYMBOL [INTERVAL] [STRATEGY]", "/backtest BTCUSDT 1h ma_cross", "_cmd_backtest", ("sweep",)),
-    CommandSpec("rag", "Research · Similarity search over this desk's own runs and incidents", "Research", "/rag QUERY", "/rag momentum drawdown", "_cmd_rag", ("similar", "recall")),
+    CommandSpec("rag", "Research · Similarity search (desk-scoped when enabled)", "Research", "/rag QUERY", "/rag momentum drawdown", "_cmd_rag", ("similar", "recall")),
     CommandSpec("strategies", "Research · Supported strategy catalogue", "Research", "/strategies [STRATEGY]", "/strategies", "_cmd_strategies", ("codex", "guide")),
     CommandSpec("intervals", "Research · Supported market horizons", "Research", "/intervals", "/intervals", "_cmd_intervals", in_menu=False),
     CommandSpec("events", "Research · Recent risk/audit events", "Research", "/events [COUNT]", "/events 10", "_cmd_events"),
@@ -120,7 +128,7 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("livestatus", "Alerts · What is streaming, and how often", "Alerts", "/livestatus", "/livestatus", "_cmd_livestatus", in_menu=False),
     CommandSpec("probe", "Execution · Cost of the default probe, no arguments needed", "Execution", "/probe [NOTIONAL] [BUY|SELL]", "/probe", "_cmd_probe", ("cost_probe",)),
     CommandSpec("engine", "Developer · Which decision engine is running, and its measured cost", "Developer", "/engine", "/engine", "_cmd_engine", ("core",)),
-    CommandSpec("refresh", "Overview · Re-read the desk from the gateway right now", "Overview", "/refresh", "/refresh", "_cmd_refresh", ("resync",)),
+    CommandSpec("refresh", "Overview · Re-read the desk from the gateway right now", "Overview", "/refresh", "/refresh", "_cmd_refresh", ("resync",), in_menu=False),
     CommandSpec("watch", "Alerts · Watch execution-cost deterioration", "Alerts", "/watch SYMBOL [NOTIONAL] [MAX_BPS]", "/watch BTCUSDT 100000 25", "_cmd_watch"),
     CommandSpec("unwatch", "Alerts · Remove one or all liquidity watches", "Alerts", "/unwatch [SYMBOL]", "/unwatch BTCUSDT", "_cmd_unwatch", in_menu=False),
     CommandSpec("watches", "Alerts · Show active liquidity watches", "Alerts", "/watches", "/watches", "_cmd_watches", in_menu=False),
