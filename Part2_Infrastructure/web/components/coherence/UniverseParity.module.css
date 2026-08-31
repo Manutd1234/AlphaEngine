@@ -1,0 +1,316 @@
+.parityAxis,
+.paritySlider,
+.parityRow {
+  display: grid;
+  grid-template-columns: minmax(7.5rem, 0.82fr) minmax(13rem, 2fr) minmax(5rem, auto);
+  gap: var(--space-3);
+  padding-inline: var(--space-4);
+  border-inline-start: 3px solid transparent;
+}
+
+.parityAxis {
+  align-items: end;
+  min-height: 2.2rem;
+  color: var(--text-muted);
+  font: 660 var(--fs-2xs) var(--font-mono);
+}
+
+.parityYAxis,
+.parityValueAxis {
+  align-self: end;
+  padding-bottom: 3px;
+  font-family: var(--font-sans);
+  font-weight: 730;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+.parityValueAxis { text-align: end; }
+
+.axisTrack {
+  position: relative;
+  height: 1.2rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.axisTrack i {
+  position: absolute;
+  bottom: 3px;
+  font-style: normal;
+  white-space: nowrap;
+}
+
+.axisTrack i::after {
+  position: absolute;
+  top: calc(100% + 3px);
+  width: 1px;
+  height: 4px;
+  background: var(--border);
+  content: "";
+}
+
+.axisTrack i[data-at="zero"] { inset-inline-start: 0; }
+.axisTrack i[data-at="zero"]::after { inset-inline-start: 0; }
+
+.axisTrack i[data-at="payoff"] {
+  inset-inline-start: 76.923%;
+  color: var(--text-primary);
+  transform: translateX(-50%);
+}
+
+.axisTrack i[data-at="payoff"]::after { inset-inline-start: 50%; }
+.axisTrack i[data-at="ceiling"] { inset-inline-end: 0; }
+.axisTrack i[data-at="ceiling"]::after { inset-inline-end: 0; }
+
+.paritySlider {
+  align-items: center;
+  padding-block: var(--space-3);
+  border-bottom: 1px solid var(--grid);
+  background: color-mix(in srgb, var(--surface-2) 28%, var(--surface-1));
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 730;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+.paritySlider input {
+  width: 100%;
+  min-width: 0;
+  accent-color: var(--series-1);
+  cursor: ew-resize;
+}
+
+.paritySlider output {
+  color: var(--text-primary);
+  font: 700 var(--fs-xs) var(--font-mono);
+  text-align: end;
+  white-space: nowrap;
+}
+
+.parityRows {
+  display: grid;
+  gap: 1px;
+  background: var(--grid);
+}
+
+.parityRow {
+  --parity-row-fill: var(--surface-1);
+  align-items: center;
+  min-height: 4.5rem;
+  padding-block: var(--space-3);
+  border: 0;
+  border-inline-start: 3px solid transparent;
+  border-radius: 0;
+  background: var(--parity-row-fill);
+  box-shadow: none;
+  color: var(--text-primary);
+  font: inherit;
+  line-height: var(--lh-snug);
+  text-align: start;
+  cursor: pointer;
+}
+
+.parityRow:hover {
+  --parity-row-fill: color-mix(in srgb, var(--series-1) 4%, var(--surface-1));
+}
+
+.parityRow[aria-selected="true"] {
+  --parity-row-fill: color-mix(in srgb, var(--series-1) 8%, var(--surface-1));
+  border-inline-start-color: var(--series-1);
+}
+
+.parityRow:active { transform: none; }
+
+.parityIdentity {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.parityIdentity strong {
+  font: 720 var(--fs-xs) var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
+.parityIdentity small,
+.parityReadout small {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 730;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+.priceTrack {
+  position: relative;
+  display: block;
+  height: 1.5rem;
+  border-radius: var(--radius-sm);
+  background:
+    linear-gradient(to right, var(--grid), var(--grid)) center / 100% 2px no-repeat,
+    color-mix(in srgb, var(--surface-2) 66%, var(--surface-1));
+}
+
+.payoffLine {
+  position: absolute;
+  inset-block: -5px;
+  inset-inline-start: 76.923%;
+  width: 2px;
+  background: var(--text-primary);
+  transform: translateX(-1px);
+}
+
+.probeLine {
+  position: absolute;
+  inset-block: -3px;
+  inset-inline-start: var(--probe-position);
+  z-index: 2;
+  width: 2px;
+  background: var(--series-1);
+  transform: translateX(-1px);
+}
+
+.askMark,
+.bidMark {
+  position: absolute;
+  top: 50%;
+  z-index: 1;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--series-1);
+  background: var(--series-1);
+  transform: translate(-50%, -50%);
+}
+
+.askMark {
+  inset-inline-start: var(--ask-position);
+  border-radius: 50%;
+}
+
+.bidMark {
+  inset-inline-start: var(--bid-position);
+  border-radius: 2px;
+  background: var(--surface-1);
+}
+
+.priceTrack em {
+  position: absolute;
+  z-index: 3;
+  inset: 50% auto auto 50%;
+  padding-inline: var(--space-2);
+  background: var(--parity-row-fill);
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-style: normal;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+}
+
+/* A missing total is a gap, not a zero-length price bar. Give it a dashed
+   measurement lane and keep the explanation clear of the stroke. */
+.parityRow:is([data-state="non-exclusive"], [data-state="unquoted"]) .priceTrack {
+  border-radius: 0;
+  background: transparent;
+}
+
+.parityRow:is([data-state="non-exclusive"], [data-state="unquoted"]) .priceTrack::before {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 50%;
+  border-block-start: 1px dashed color-mix(in srgb, var(--text-muted) 48%, transparent);
+  content: "";
+}
+
+.parityPrice {
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+  font-weight: 720;
+  text-align: end;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--grid);
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+}
+
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.legend i {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--series-1);
+  background: var(--surface-1);
+}
+
+.legend i[data-mark="ask"] {
+  border-radius: 50%;
+  background: var(--series-1);
+}
+
+.legend i[data-mark="payoff"] {
+  width: 2px;
+  height: 13px;
+  border: 0;
+  background: var(--text-primary);
+}
+
+.legend i[data-mark="probe"] {
+  width: 2px;
+  height: 13px;
+  border: 0;
+  background: var(--series-1);
+}
+
+.parityReadout {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1.5fr) repeat(2, minmax(7.5rem, 0.7fr));
+  gap: 1px;
+  background: var(--grid);
+  font-size: var(--fs-xs);
+}
+
+.parityReadout > span {
+  display: grid;
+  align-content: start;
+  gap: 3px;
+  min-width: 0;
+  min-height: 5rem;
+  padding: var(--space-4);
+  background: var(--surface-2);
+}
+
+.parityReadout :is(strong, p) { overflow-wrap: anywhere; }
+
+.parityReadout p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: var(--lh-snug);
+}
+
+.activeFamily strong { font-size: var(--fs-sm); }
+
+@media (max-width: 760px) {
+  .parityAxis,
+  .paritySlider,
+  .parityRow {
+    grid-template-columns: minmax(6.5rem, 0.75fr) minmax(12rem, 1.5fr) minmax(4.5rem, auto);
+    gap: var(--space-2);
+  }
+
+  .parityRows,
+  .paritySlider,
+  .parityAxis { min-width: 32rem; }
+  .parityReadout { grid-template-columns: 1fr 1fr; }
+  .activeFamily { grid-column: 1 / -1; }
+}
