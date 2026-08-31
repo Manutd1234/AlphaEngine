@@ -34,7 +34,7 @@
  * moved.
  */
 
-import { memo } from "react";
+import { memo, useState } from "react";
 
 import Figure, { FigureEmpty, Plot } from "../Figure";
 import { STAGE_WORD } from "./AbsorptionGate";
@@ -56,6 +56,8 @@ interface RankedRow {
   readonly unranked: number;
 }
 
+export type ControlRankStage = "both" | "release" | "call";
+
 function rowsOf(runs: readonly StageRun[]): RankedRow[] {
   return (["release", "call"] as const)
     .map((stage) => {
@@ -70,11 +72,15 @@ function rowsOf(runs: readonly StageRun[]): RankedRow[] {
 }
 
 function ControlRank({ runs }: { runs: readonly StageRun[] }) {
+  const [stageMode, setStageMode] = useState<ControlRankStage>("both");
   const rows = rowsOf(runs);
   const ranked = rows.reduce((total, row) => total + row.ranked.length, 0);
   const unranked = rows.reduce((total, row) => total + row.unranked, 0);
   const height = MARGIN.top + ROW + MARGIN.bottom;
   const distinct = new Set(rows.flatMap((row) => row.ranked.map((run) => run.control_percentile))).size;
+  const focused = rows
+    .filter((row) => stageMode === "both" || row.stage === stageMode)
+    .reduce((total, row) => total + row.ranked.length, 0);
 
   return (
     <Figure
@@ -90,14 +96,24 @@ function ControlRank({ runs }: { runs: readonly StageRun[] }) {
           + "clear the floor, so they sit in the column off the axis rather than at zero — a missing rank is not a rank of nought."
         : null}
     >
+      <div className="diff-lens diff-lens--inside" role="group" aria-label="Control percentile stages">
+        {(["both", "release", "call"] as const).map((option) => (
+          <button key={option} type="button" aria-pressed={stageMode === option}
+                  onClick={() => setStageMode(option)}>
+            {option === "both" ? "Both stages" : option === "release" ? "Statement" : "Conference"}
+          </button>
+        ))}
+        <span className="diff-lens__readout" aria-live="polite">{focused} ranked</span>
+      </div>
       {ranked || unranked ? (
-        <Plot height={height} minWidth={560}>
+        <Plot height={height} minWidth={560} scrollLabel="Control percentile diagram">
           {(width) => {
             const span = Math.max(120, width - MARGIN.left - MARGIN.right);
             const panelWidth = rows.length > 1 ? (span - PANEL_GAP) / rows.length : span;
             return (
               <>
                 {rows.map((row, index) => {
+                  const active = stageMode === "both" || stageMode === row.stage;
                   const left = MARGIN.left + index * (panelWidth + PANEL_GAP);
                   const rowUnrankedGap = row.unranked ? UNRANKED_W + 14 : 0;
                   const rowSpan = Math.max(60, panelWidth - rowUnrankedGap);
@@ -110,8 +126,9 @@ function ControlRank({ runs }: { runs: readonly StageRun[] }) {
                   const word = STAGE_WORD[row.stage] ?? row.stage;
                   // Coincident ranks stack downward so each stays a mark of its own.
                   const seen = new Map<number, number>();
+                  if (!active) return <g key={row.stage} />;
                   return (
-                    <g key={row.stage}>
+                    <g key={row.stage} className="diff-rank__panel">
                       <text className="diff-floor__head" x={left} y={top + 12}>
                         <tspan aria-hidden="true">{STAGE_MARK[row.stage]}</tspan> {word}
                       </text>
