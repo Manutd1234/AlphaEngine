@@ -16,22 +16,31 @@
  */
 
 import type { WorkspaceView } from "@/components/WorkspaceHeader";
-import { COHERENCE_SECTIONS, MARKETS_SECTIONS, type CoherenceSection, type MarketsSection } from "@/lib/sections";
+import {
+  COHERENCE_SECTIONS, DIFFUSION_SECTIONS, MARKETS_SECTIONS, RESEARCH_SECTIONS,
+  type CoherenceSection, type DiffusionSection, type MarketsSection, type ResearchSection,
+} from "@/lib/sections";
 import { defaultView, locationHash, viewsFor } from "@/lib/section-views";
 import { NAV_ITEMS } from "@/lib/workspace-nav";
 import type { Command } from "@/components/header/CommandBar";
 
 export interface ViewCommandDeps {
   navigate: (view: WorkspaceView, replace?: boolean, detail?: { apply: () => void; hash: string }) => void;
+  setResearchSection: (section: ResearchSection) => void;
   setMarketsSection: (section: MarketsSection) => void;
   setCoherenceSection: (section: CoherenceSection) => void;
+  setDiffusionSection: (section: DiffusionSection) => void;
   setSectionView: (tab: WorkspaceView, section: string, view: string) => void;
 }
 
-export function viewCommands({ navigate, setMarketsSection, setCoherenceSection, setSectionView }: ViewCommandDeps): Command[] {
+export function viewCommands({
+  navigate, setResearchSection, setMarketsSection, setCoherenceSection, setDiffusionSection, setSectionView,
+}: ViewCommandDeps): Command[] {
   const rails: Array<[WorkspaceView, ReadonlyArray<{ id: string; label: string }>, (id: string) => void]> = [
+    ["research", RESEARCH_SECTIONS, (id) => setResearchSection(id as ResearchSection)],
     ["markets", MARKETS_SECTIONS, (id) => setMarketsSection(id as MarketsSection)],
     ["coherence", COHERENCE_SECTIONS, (id) => setCoherenceSection(id as CoherenceSection)],
+    ["diffusion", DIFFUSION_SECTIONS, (id) => setDiffusionSection(id as DiffusionSection)],
   ];
   const out: Command[] = [];
   for (const [tab, rail, setSection] of rails) {
