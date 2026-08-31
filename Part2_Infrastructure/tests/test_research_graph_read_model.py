@@ -34,6 +34,7 @@ from test_research_graph_reads import DESK, TRIANGLES, FakePostgrest
 
 from modules import research_graph_read_model as rm
 from modules import research_graph_reads as gr
+from modules import research_quota_scope as scope_module
 
 networkx_required = pytest.mark.skipif(
     find_spec("networkx") is None,
@@ -364,3 +365,30 @@ class TestTheRoutesReadTheGraphAndFallBackWhenTheyCannot:
         assert out["source"] == "corpus"
         assert store.requests, "read_model=False must reach the edges, not the labels"
         assert "not consulted" in out["read_model"]["reason"]
+
+
+@networkx_required
+class TestTenantScopeNeverReadsTheGlobalProjection:
+    def test_both_read_models_refuse_before_opening_the_driver(self, monkeypatch):
+        monkeypatch.setattr(scope_module, "SCOPE_TO_DESK", True)
+        monkeypatch.setattr(rm, "_driver", lambda: (_ for _ in ()).throw(
+            AssertionError("a scoped request opened the global graph"),
+        ))
+
+        community = rm.community_labels()
+        centrality = rm.centrality_scores()
+
+        assert not community["detected"] and not centrality["ranked"]
+        assert "RESEARCH_SCOPE_TO_DESK" in community["reason"]
+        assert "carries no desk_id" in centrality["reason"]
+
+    async def test_reports_fall_back_to_the_desk_filtered_corpus(self, corpus, monkeypatch):
+        monkeypatch.setattr(scope_module, "SCOPE_TO_DESK", True)
+        store = corpus()
+
+        community = await gr.community_report(project=False)
+        centrality = await gr.centrality_report()
+
+        assert community["source"] == centrality["source"] == "corpus"
+        assert store.requests
+        assert all(request["desk_id"] == f"eq.{DESK}" for request in store.requests)
