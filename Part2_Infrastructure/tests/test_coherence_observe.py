@@ -12,9 +12,9 @@ import httpx
 import pytest
 from coherence_fixtures import body, markets
 
-from modules.coherence.drivers.kalshi_rest import KalshiClient
+from modules.coherence.drivers.kalshi_rest import KalshiClient, KalshiUnavailable
 from modules.coherence.scheduler.budget import ReadBudget
-from modules.coherence.syscalls.observe import observe_event
+from modules.coherence.syscalls.observe import observe_event, observe_series
 from modules.coherence.views import UNQUOTED_BOTH_SIDES, UNQUOTED_ONE_SIDE, book_view, event_view
 
 EVENT = "KXHIGHNY-26AUG23"
@@ -84,6 +84,102 @@ class TestOneObservation:
         assert observation.markets, "the fallback produced no books at all"
         assert any("cannot answer a depth question" in note for note in observation.notes)
         assert not observation.complete, "a degraded read must not report itself complete"
+
+
+class TestOneSeries:
+    @pytest.mark.anyio
+    async def test_a_filesystem_read_can_require_every_event_while_other_callers_keep_partial_results(self, monkeypatch):
+        good = await observe_event(_client(), EVENT)
+
+        class Client:
+            async def markets(self, *_args, **_kwargs):
+                return type("Read", (), {
+                    "payload": {
+                        "markets": [
+                            {"event_ticker": "GOOD"},
+                            {"event_ticker": "REFUSED"},
+                        ]
+                    }
+                })()
+
+        async def read_event(_client, event_ticker):
+            if event_ticker == "REFUSED":
+                raise KalshiUnavailable("read budget exhausted")
+            return good
+
+        monkeypatch.setattr("modules.coherence.syscalls.observe.observe_event", read_event)
+
+        assert await observe_series(Client(), "SERIES") == [good]
+        with pytest.raises(KalshiUnavailable, match="REFUSED: read budget exhausted"):
+            await observe_series(Client(), "SERIES", require_complete=True)
+
+    @pytest.mark.anyio
+    async def test_a_filesystem_read_refuses_a_series_cut_off_by_its_event_cap(self, monkeypatch):
+        class Client:
+            async def markets(self, *_args, **_kwargs):
+                return type("Read", (), {
+                    "payload": {"markets": [{"event_ticker": "ONE"}, {"event_ticker": "TWO"}]}
+                })()
+
+        async def read_event(_client, _event_ticker):
+            pytest.fail("a strict capped listing spent an event read before refusing")
+
+        monkeypatch.setattr("modules.coherence.syscalls.observe.observe_event", read_event)
+
+        with pytest.raises(KalshiUnavailable, match="2 open events; a complete read is capped at 1"):
+            await observe_series(Client(), "SERIES", max_events=1, require_complete=True)
+
+    @pytest.mark.anyio
+    async def test_a_filesystem_read_refuses_an_event_missing_an_open_market_book(self, monkeypatch):
+        incomplete = await observe_event(_client(), EVENT)
+        incomplete.markets.pop()
+
+        class Client:
+            async def markets(self, *_args, **_kwargs):
+                return type("Read", (), {"payload": {"markets": [{"event_ticker": EVENT}]}})()
+
+        async def read_event(_client, _event_ticker):
+            return incomplete
+
+        monkeypatch.setattr("modules.coherence.syscalls.observe.observe_event", read_event)
+
+        missing_ticker = incomplete.event.markets[-1].ticker
+        with pytest.raises(KalshiUnavailable, match=f"missing open-market books for {missing_ticker}"):
+            await observe_series(Client(), "SERIES", require_complete=True)
+
+    @pytest.mark.anyio
+    async def test_a_filesystem_read_accepts_top_of_book_when_every_market_path_is_present(self, monkeypatch):
+        degraded = await observe_event(_client(orderbook_status=401), EVENT)
+
+        class Client:
+            async def markets(self, *_args, **_kwargs):
+                return type("Read", (), {"payload": {"markets": [{"event_ticker": EVENT}]}})()
+
+        async def read_event(_client, _event_ticker):
+            return degraded
+
+        monkeypatch.setattr("modules.coherence.syscalls.observe.observe_event", read_event)
+
+        assert await observe_series(Client(), "SERIES", require_complete=True) == [degraded]
+
+    @pytest.mark.anyio
+    async def test_a_filesystem_read_refuses_a_markets_listing_with_an_unread_page(self, monkeypatch):
+        complete = await observe_event(_client(), EVENT)
+
+        class Client:
+            async def markets(self, *_args, **_kwargs):
+                return type("Read", (), {
+                    "payload": {"markets": [{"event_ticker": EVENT}], "cursor": "NEXT"}
+                })()
+
+        async def read_event(_client, _event_ticker):
+            return complete
+
+        monkeypatch.setattr("modules.coherence.syscalls.observe.observe_event", read_event)
+
+        with pytest.raises(KalshiUnavailable, match="listing has another page"):
+            await observe_series(Client(), "SERIES", require_complete=True)
+        assert await observe_series(Client(), "SERIES") == [complete]
 
 
 class TestWhatTheDeskIsTold:
