@@ -167,6 +167,8 @@ export interface Provenance {
   latencyMs: number;
   cached: boolean;
   delayed: boolean;
+  /** Reserved for an explicitly requested demo envelope; exhaustion never sets it. */
+  synthetic?: boolean;
   /** null when the provider publishes no quota we can account for. */
   quotaRemaining: number | null;
   /** The allowance the remainder is out of, so a reader sees "23 of 25". */
