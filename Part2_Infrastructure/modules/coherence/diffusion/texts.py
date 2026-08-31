@@ -7,10 +7,9 @@ that scores an announcement using a document revised afterwards has look-ahead
 in it.
 
 `verified_release_time` is the issuer's own words — "For release at 2:00 p.m.
-EDT" — parsed off the page. It is not decoration. The calendar in `fomc.py` was
-written from knowledge, so its rows ship unverified; a statement fetched from
-the date's own URL that also states the hour confirms both, and
-`verify_calendar` is what turns that into a `verified_at` on the event.
+EDT" — parsed off the page. It is not decoration. Calendar rows come from the
+event ledger; a statement fetched from the row's own URL that also states the
+hour supplies an independent check of both date and time.
 
 A refusal is stored too. A page that 404s says the calendar row is wrong, and
 that is a finding worth keeping rather than a fetch worth retrying silently.
@@ -59,7 +58,7 @@ class DiffusionTextStore:
 
     def __init__(self, store: DataOpsStore | None = None, *, desk_id: str = "default") -> None:
         self._store = store if store is not None else get_data_ops_store()
-        self._desk_id = desk_id
+        self._desk_id = str(getattr(self._store, "desk_id", None) or desk_id)
         self._store.migrate(self._DDL)
         self._add_late_columns()
 
@@ -127,10 +126,8 @@ def verify_calendar(fetched: StatementText, expected_et: str) -> tuple[bool, str
 
     Two things have to line up and both are checked. A 200 from the date's URL
     confirms the DATE. The "For release at" line confirms the HOUR — which is
-    the part a written-from-knowledge calendar is most likely to get wrong, and
-    the part the whole two-stage comparison rests on. `2020-03-15` at 17:00 is
-    the case that would otherwise pass a date check and place the measurement
-    three hours before anything happened.
+    the part a calendar source is most likely to revise or normalise, and the
+    part the whole two-stage comparison rests on.
     """
     if fetched.state != "ok":
         return False, fetched.reason or f"the statement page answered {fetched.state}"
