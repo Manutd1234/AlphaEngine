@@ -40,6 +40,8 @@ interface ExecutionHandoffProps {
   onClose: () => void;
   /** Sandbox books describe a position that does not exist. */
   sandbox: boolean;
+  /** A retained book is evidence, but not current enough to authorize writes. */
+  stale: boolean;
   /** Re-read the book after something actually changed. */
   onExecuted?: () => void;
   /**
@@ -121,7 +123,7 @@ function requestFor(intent: HandoffIntent): Composed {
   }
 }
 
-export default function ExecutionHandoff({ intent, onClose, sandbox, onExecuted, operatorToken }: ExecutionHandoffProps) {
+export default function ExecutionHandoff({ intent, onClose, sandbox, stale, onExecuted, operatorToken }: ExecutionHandoffProps) {
   const [copied, setCopied] = useState(false);
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
@@ -134,6 +136,13 @@ export default function ExecutionHandoff({ intent, onClose, sandbox, onExecuted,
     setConfirm("");
     setResult(null);
   }, [intent]);
+
+  // A gateway can become stale while this dialog is already armed. Clear the
+  // word as well as disabling the button so a later reconnect does not revive
+  // an authorization typed against an older book.
+  useEffect(() => {
+    if (stale) setConfirm("");
+  }, [stale]);
 
   useEffect(() => {
     let alive = true;
@@ -166,21 +175,24 @@ export default function ExecutionHandoff({ intent, onClose, sandbox, onExecuted,
   const noGateway = guard !== null && !guard.gatewayConnected;
   const tokenMissing = guard?.mode === "token" && !operatorToken?.trim();
   const armed = confirm.trim().toUpperCase() === req.confirmWord;
-  const canExecute = !sandbox && !locked && !noGateway && !tokenMissing && armed && !busy;
+  const canExecute = !sandbox && !stale && !locked && !noGateway && !tokenMissing && armed && !busy;
 
   const blockedReason = sandbox
     ? "This is the sandbox book — no real position to act on."
-    : noGateway
-      ? "No risk gateway is connected in this environment."
-      : locked
-        ? "Actions are disabled on this deployment until ALPHAENGINE_OPERATOR_TOKEN is set."
-        : tokenMissing
-          ? "Enter the operator token on the Reliability tab to arm actions."
-          : !armed
-            ? `Type ${req.confirmWord} to arm.`
-            : null;
+    : stale
+      ? "The gateway book is stale. Execution handoffs stay disabled until it reconnects."
+      : noGateway
+        ? "No risk gateway is connected in this environment."
+        : locked
+          ? "Actions are disabled on this deployment until ALPHAENGINE_OPERATOR_TOKEN is set."
+          : tokenMissing
+            ? "Enter the operator token on the Reliability tab to arm actions."
+            : !armed
+              ? `Type ${req.confirmWord} to arm.`
+              : null;
 
   const execute = async () => {
+    if (!canExecute) return;
     setBusy(true);
     setResult(null);
     // The confirm word here is what the operator typed — `armed` above proved
@@ -268,7 +280,7 @@ export default function ExecutionHandoff({ intent, onClose, sandbox, onExecuted,
             placeholder={req.confirmWord}
             autoComplete="off"
             spellCheck={false}
-            disabled={sandbox || locked || noGateway}
+            disabled={sandbox || stale || locked || noGateway}
             aria-describedby="handoff-blocked"
           />
           <button
