@@ -213,7 +213,7 @@ describe("pressing a segment changes paint, never metrics", () => {
   });
 });
 
-describe("one size, on all eight tabs", () => {
+describe("one size, across all workspace tabs", () => {
   const sizing = segRules.filter((rule) => metrics(rule.body).length > 0);
 
   /**
