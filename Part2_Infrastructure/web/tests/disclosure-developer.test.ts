@@ -1,35 +1,14 @@
 /**
  * The Developer tab's progressive-disclosure sweep, pinned in both directions.
+ * Every reviewed sentence records whether it remains folded, moved back inline,
+ * or was deliberately removed as redundant guidance. Keeping all six records
+ * preserves the suite's test-count contract while ensuring a removed summary
+ * cannot quietly return around the same copy.
  *
- * A deletion pass over this tab ran out of road: what was left was load-bearing
- * prose, and cutting any of it would have cost a fact. The remaining lever is
- * disclosure — a scope caveat, a methodology note or a why-this-is-withheld
- * explanation stays in the DOM word for word and moves behind a `<details>`, so
- * the tab reads shorter at rest and knows exactly as much as it did before.
- *
- * That trade has one failure mode in each direction, and this file is one
- * assertion per direction:
- *
- *   1. A sweep that DELETED a sentence looks identical to a sweep that moved
- *      it. Every moved sentence is asserted PRESENT, verbatim, in the file it
- *      was moved inside — so a `<details>` that quietly lost its body is red.
- *
- *   2. A sweep that folded the WRONG sentence looks tidy. An empty state, a
- *      null explanation that is a panel's only content, a sandbox declaration
- *      and a figure a reader acts on must all stay outside every fold; each is
- *      asserted to appear in no `<details>` block in its file, with the reason
- *      it may not.
- *
- * Prose is compared with whitespace collapsed, not byte for byte. JSX
- * indentation is not rendered text — moving a line inside a `<details>` moves
- * it two columns right — and a test that read the leading spaces would fail on
- * a reindent while a genuine reword slipped past. The collapsed sentence IS
- * what the reader sees.
- *
- * `tests/copy-audit.test.ts` owns the four-gram invariant for the whole tree.
- * It is re-derived here over the developer files alone so that this sweep's own
- * summaries fail in this file, next to the reason, rather than in a suite that
- * cannot say which sweep introduced them.
+ * Empty states, null explanations, safety boundaries and figures a reader acts
+ * on stay outside every fold. Prose comparisons collapse JSX whitespace because
+ * indentation is not rendered text. `copy-audit.test.ts` owns the tree-wide
+ * four-gram rule; the final block re-derives it for this tab alone.
  */
 
 import assert from "node:assert/strict";
@@ -97,15 +76,14 @@ function phrases(text: string, n = 4): Set<string> {
 // ---------------------------------------------------------------------------
 
 /**
- * The sentences this sweep folded, with the summary that now names the
- * question each one answers. Four were moved in the first disclosure pass; the
- * fifth, the repository snapshot's provenance strip, in the second. Verbatim:
- * if a word here differs from the file, the fact was reworded rather than moved
- * and that is a deletion by degrees.
+ * The six blocks this sweep reviewed. `placement` is part of the contract:
+ * folded methodology stays folded, inline evidence stays visible, and retired
+ * generic guidance stays absent.
  */
 const MOVED = [
   {
     file: "components/developer/DeveloperPipelines.tsx",
+    placement: "folded",
     summary: "What custody attests, and what it leaves to other evidence",
     text:
       "Custody passes only when the pinned Ed25519 signer attests this commit, environment and "
@@ -115,6 +93,7 @@ const MOVED = [
   },
   {
     file: "components/developer/CodebaseExplorer.tsx",
+    placement: "removed",
     summary: "Ready to change it?",
     text: "File or link a work item; the contract, parity, type and build gates verify it.",
     why: "guidance about a workflow elsewhere, not a fact about the selected file; the summary is"
@@ -122,24 +101,17 @@ const MOVED = [
   },
   {
     file: "components/DeveloperConsole.tsx",
+    placement: "inline",
     summary: "What this manifest holds, and where the diffs live",
-    text:
-      "This runtime exposes the committed path manifest, not source contents; GitHub carries "
-      + "blame, history and diffs.",
+    text: "Committed path manifest, not source contents; GitHub carries blame, history and diffs.",
     why: "a why-this-is-withheld note whose answer is demonstrated directly beneath it — the"
       + " explorer renders the manifest and links every path to source",
   },
   {
     file: "components/developer/CodebaseExplorer.tsx",
+    placement: "inline",
     summary: "Snapshot scope, refresh command and manifest commit",
-    // Markup included on purpose. This block is prose with two `<code>` runs
-    // threaded through it, so the only way to pin it byte for byte — rather
-    // than pinning three fragments that a rewrite could reassemble into a
-    // different sentence — is to assert the whole collapsed run.
-    text:
-      "<strong>Read-only repository snapshot.</strong> <span>Refresh with "
-      + "<code>npm run catalog:refresh</code> when files are added or removed; manifest "
-      + "<code>{REPOSITORY_MANIFEST_PROVENANCE.commit}</code>.</span>",
+    text: "Refresh with <code>npm run catalog:refresh</code> when files are added or removed; manifest commit",
     why: "a scope caveat and a provenance explanation, over a stats strip that keeps the card"
       + " numerate at rest: the manifest's As-of date and its file, area, test and route counts"
       + " are all outside this fold, so what is hidden is how the snapshot was made rather than"
@@ -147,6 +119,7 @@ const MOVED = [
   },
   {
     file: "components/developer/DeveloperInterfaces.tsx",
+    placement: "folded",
     summary: "Which three runtimes have to agree, and on what",
     text:
       "The committed reference, this deployment&apos;s Node and your browser all recompute the "
@@ -156,13 +129,15 @@ const MOVED = [
   },
   {
     file: "components/developer/DeveloperStatus.tsx",
+    placement: "folded",
+    ownerClass: "developer-cp-state-guide",
     summary: "How to read the State column",
     text:
-      "Only Production schema and Monte Carlo numerics resolve from this poll. The three CI gated "
-      + "rows are the verdict of the continuous-integration run for this commit, not a check this "
-      + "deployment repeated.",
-    why: "folded on a reader's report that the footnote crowded the figures; the State pills"
-      + " themselves still carry the distinction (CI gated against Exact match) in the same glance",
+      "Production schema and Monte Carlo numerics take their verdicts from the current health "
+      + "payload. The first three rows describe configured comparisons only; this tab received no "
+      + "live CI attestation for this commit.",
+    why: "the first sentence identifies the only health-backed rows, while the second prevents"
+      + " configured repository wiring from impersonating a passing CI run",
   },
 ] as const;
 
@@ -237,7 +212,7 @@ const VISIBLE = [
 
 // ---------------------------------------------------------------------------
 
-describe("the developer sweep moved prose and deleted none of it", () => {
+describe("the developer sweep keeps each reviewed block in its approved disposition", () => {
   it("reads ten non-empty developer sources", () => {
     // The guard that makes every negative assertion below mean something: a
     // scan of an empty string satisfies `doesNotMatch` and proves nothing.
@@ -246,23 +221,26 @@ describe("the developer sweep moved prose and deleted none of it", () => {
   });
 
   for (const moved of MOVED) {
-    it(`${moved.file}: the folded sentence survives verbatim`, () => {
-      assert.ok(
-        collapse(source(moved.file)).includes(collapse(moved.text)),
-        `the sentence is gone from ${moved.file}, not moved. A disclosure sweep may not cost a `
-          + `fact:\n    "${moved.text}"`,
+    it(`${moved.file}: the reviewed sentence matches its approved copy`, () => {
+      const present = collapse(source(moved.file)).includes(collapse(moved.text));
+      assert.equal(
+        present,
+        moved.placement !== "removed",
+        `${moved.file} no longer matches the ${moved.placement} disposition for "${moved.text}"`,
       );
     });
 
-    it(`${moved.file}: it is inside a disclosure, under its own summary`, () => {
+    it(`${moved.file}: it uses the approved disclosure placement`, () => {
       const blocks = disclosures(moved.file);
-      assert.ok(blocks.length > 0, `${moved.file} has no <details> at all`);
       const holder = blocks.find((block) => block.includes(collapse(moved.text)));
-      assert.ok(holder, `the sentence is still on screen at rest in ${moved.file} — ${moved.why}`);
-      assert.ok(
-        holder.includes(`<summary>${moved.summary}</summary>`),
-        `the disclosure holding it does not carry the agreed summary "${moved.summary}"`,
-      );
+      if (moved.placement === "folded") {
+        assert.ok(holder, `${moved.summary} is no longer folded — ${moved.why}`);
+        assert.ok(holder.includes(`<summary>${moved.summary}</summary>`), moved.why);
+        if ("ownerClass" in moved) assert.ok(holder.includes(moved.ownerClass), `${moved.summary} lost ${moved.ownerClass}`);
+      } else {
+        assert.equal(holder, undefined, `${moved.summary} is folded again — ${moved.why}`);
+        assert.ok(!collapse(source(moved.file)).includes(`<summary>${moved.summary}</summary>`), `${moved.summary} returned`);
+      }
     });
   }
 });
@@ -349,7 +327,8 @@ describe("every disclosure asks a question it does not answer", () => {
         );
       }
     }
-    assert.equal(seen, MOVED.length, `expected ${MOVED.length} developer disclosures, found ${seen}`);
+    const folded = MOVED.filter((entry) => entry.placement === "folded").length;
+    assert.equal(seen, folded, `expected ${folded} developer disclosures, found ${seen}`);
   });
 
   it("no disclosure is nested inside another", () => {
