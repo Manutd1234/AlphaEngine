@@ -10,10 +10,9 @@
  * colour" reliably reads as "more Sharpe".
  *
  * Anchor colours deliberately duplicate the `--diverging-*` tokens in
- * `app/globals.css` (CSS variables are unreachable from lib code). The dark
- * midpoint is the neutral grey the heatmap has always used rather than the
- * blue-tinted `--diverging-mid` dark token: a bluish zero would read as
- * faintly positive.
+ * `app/globals.css` (CSS variables are unreachable from lib code). Keeping
+ * both midpoints on the theme's neutral surface makes zero read as no edge,
+ * never as a faint positive or negative signal.
  */
 
 export type RGB = [number, number, number];
@@ -26,17 +25,22 @@ export interface DivergingRamp {
 
 /** Mirrors --diverging-neg/mid/pos in the light theme (globals.css). */
 export const SHARPE_RAMP_LIGHT: DivergingRamp = {
-  neg: [227, 73, 72], // #e34948
-  mid: [240, 240, 241], // #f0f0f1
-  pos: [37, 99, 235], // #2563eb
+  neg: [148, 47, 62], // #942f3e
+  mid: [228, 214, 202], // #e4d6ca
+  pos: [111, 56, 32], // #6f3820
 };
 
-/** Poles mirror the dark --diverging-neg/pos tokens; mid stays neutral grey. */
+/** Mirrors the red ↔ graphite ↔ blue dark-theme ramp. */
 export const SHARPE_RAMP_DARK: DivergingRamp = {
-  neg: [230, 103, 103], // #e66767
-  mid: [56, 56, 53], // #383835
-  pos: [57, 135, 229], // #3987e5
+  neg: [255, 127, 134], // #ff7f86
+  mid: [32, 40, 50], // #202832
+  pos: [109, 178, 255], // #6db2ff
 };
+
+const RAMP_INK = {
+  dark: [0, 0, 0] as RGB, // --heatmap-ink-dark
+  light: [255, 255, 255] as RGB, // --heatmap-ink-light
+} as const;
 
 const srgbToLinear = (c: number) => {
   const v = c / 255;
@@ -47,6 +51,29 @@ const linearToSrgb = (v: number) => {
   const c = v <= 0.0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - 0.055;
   return Math.round(Math.min(255, Math.max(0, c * 255)));
 };
+
+function relativeLuminance([r, g, b]: RGB): number {
+  return 0.2126 * srgbToLinear(r) + 0.7152 * srgbToLinear(g) + 0.0722 * srgbToLinear(b);
+}
+
+function contrastRatio(a: RGB, b: RGB): number {
+  const [hi, lo] = [relativeLuminance(a), relativeLuminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+/**
+ * Choose the theme ink with the stronger contrast against a generated ramp
+ * colour. Heatmap cells span both light and dark fills, so inherited table ink
+ * cannot remain readable at both poles.
+ */
+export function readableRampInk(background: string): string {
+  const match = /^rgb\((\d+),(\d+),(\d+)\)$/.exec(background);
+  if (!match) return "var(--heatmap-ink-dark)";
+  const fill: RGB = [Number(match[1]), Number(match[2]), Number(match[3])];
+  return contrastRatio(RAMP_INK.dark, fill) >= contrastRatio(RAMP_INK.light, fill)
+    ? "var(--heatmap-ink-dark)"
+    : "var(--heatmap-ink-light)";
+}
 
 /** Björn Ottosson's OKLab, the standard constants. */
 export function srgbToOklab([r, g, b]: RGB): [number, number, number] {
