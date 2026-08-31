@@ -114,13 +114,6 @@
    controls are narrower, so a width here would be a second opinion about the
    same measurement — and the panel's is the one with a comment explaining why
    it is fixed (something in it ticks every second). */
-.coherence-plane .coh-headlive {
-  display: grid;
-  gap: var(--space-2);
-  justify-items: end;
-  min-inline-size: 0;
-}
-
 /* The row itself, shaped like `.freshness-stamp` above it, because they are
    the same kind of object — a small pill of read-state in the head — and a
    reader should not meet two grammars for it forty pixels apart. What differs
@@ -206,15 +199,6 @@
    two names for it would drift the first time one was tuned. What it does not
    borrow is `.coh-tape__line`, which it uses for the BID — the solid line is
    the venue's own number in both figures, which is the point of the pairing. */
-.coh-book-tape__ask {
-  fill: none;
-  stroke: var(--series-1);
-  stroke-width: 1.25;
-  stroke-dasharray: 4 3;
-  stroke-linejoin: round;
-  opacity: 0.75;
-}
-
 /* ── The edge scatter ───────────────────────────────────────────────────
 
    `EdgeScatter` puts every outcome at (what it costs, what the measure says it
@@ -266,7 +250,7 @@
   fill: none;
   stroke: var(--series-1);
   stroke-width: 1;
-  opacity: 0.45;
+  opacity: 0.6;
   stroke-linejoin: round;
 }
 
