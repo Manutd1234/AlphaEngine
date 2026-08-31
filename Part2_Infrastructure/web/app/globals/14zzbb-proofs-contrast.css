@@ -1,0 +1,263 @@
+/* Proofs uses the same compact analytical type ladder as the rest of the
+   workbench. Applying the display-size rung to every caption, output, label
+   and table made diagrams look zoomed and caused the collisions this pass
+   removes. */
+.proofs-plane :is(.sub, .coh-figure__reading, .coh-figure__missing, .coh-event__note) {
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+
+.proofs-plane :is(figcaption, output, label, table) {
+  font-size: var(--fs-body);
+}
+
+.proofs-plane .coh-figure {
+  overflow: hidden;
+  border-color: var(--border);
+  background: var(--surface-1);
+  box-shadow: 0 6px 22px color-mix(in srgb, var(--text-primary) 5%, transparent);
+}
+
+.proofs-plane :where(.coh-figure__caption) {
+  background: color-mix(in srgb, var(--surface-2) 72%, var(--surface-1));
+}
+
+.proofs-plane .coh-plot > svg {
+  background: var(--surface-1);
+}
+
+.proofs-plane :is(.coh-surface__tick, .coh-ladder__tick, .coh-combo__axis, .coh-svg-note) {
+  font-size: var(--fs-2xs);
+}
+
+.coh-figure__interaction,
+.proofs-plane .coh-lessonfig__readout {
+  --interaction-row-size: calc(2.9em + var(--space-4) + 2px);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-2);
+  min-width: 0;
+  block-size: var(--interaction-row-size);
+  min-block-size: var(--interaction-row-size);
+  padding: var(--space-2) var(--space-3);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  border-block: 1px solid var(--rule-soft);
+  border-inline-start: 3px solid var(--series-1);
+  background: color-mix(in srgb, var(--series-1) 5%, var(--surface-1));
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.coh-figure__interaction > span:last-child,
+.proofs-plane .coh-lessonfig__readout > span:last-child {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.coh-figure__interaction[data-active="false"],
+.proofs-plane .coh-lessonfig__readout[data-active="false"] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* GroupPins is a semantic comparison table rather than an inspectable plot.
+   Collapse only that figure's empty shared rail so its table starts directly
+   below the caption without changing every chart's stable geometry. */
+.coh-figure__interaction[data-reserved="false"] {
+  --interaction-row-size: 0px;
+  block-size: 0;
+  min-block-size: 0;
+  padding-block: 0;
+  overflow: hidden;
+  border-block-width: 0;
+}
+
+/* Figure keeps an interaction rail mounted so entering a mark never shifts
+   the drawing. On Proofs that quiet rail sat between the caption and evidence,
+   which presented as an unexplained 55px gap above every chart. Put the plot
+   directly under its header and keep the stable readout beneath it, where the
+   feedback belongs, in one compact line. `:where()` keeps this override below
+   the specificity of `[data-reserved="false"]`, so static figures still opt out. */
+:where(.coherence-plane.proofs-plane) .coh-figure__plot {
+  order: 1;
+}
+
+:where(.coherence-plane.proofs-plane) .coh-figure__interaction {
+  --interaction-row-size: calc(1.45em + 2 * var(--space-1) + 2px);
+  order: 2;
+  align-items: center;
+  padding-block: var(--space-1);
+  overflow-y: hidden;
+}
+
+:where(.coherence-plane.proofs-plane) .coh-figure__interaction > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:where(.coherence-plane.proofs-plane) :is(
+  .coh-figure__reading,
+  .coh-figure__missing,
+  .coh-figure__notes
+) {
+  order: 3;
+}
+
+.proofs-plane .coh-lessonfig__frame {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--rule-soft);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+
+.proofs-plane .coh-lessonfig__frame svg {
+  display: block;
+  width: min(100%, 32rem);
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 320 / 132;
+  overflow: visible;
+}
+
+.proofs-plane .coh-lessonfig__claim {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.proofs-plane .coh-score-overview {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--border);
+}
+
+.proofs-plane .coh-score-overview > div {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: var(--space-3);
+  background: var(--surface-1);
+}
+
+.proofs-plane .coh-score-overview dt {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.proofs-plane .coh-score-overview dd {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--fs-lg);
+  font-weight: 750;
+}
+
+.proofs-plane .coh-score-overview dd.coh-score-overview__note {
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.proofs-plane .coh-parlay-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: var(--space-2);
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  padding: var(--space-2);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+.proofs-plane .coh-parlay-picker button {
+  justify-content: flex-start;
+  inline-size: 100%;
+  min-width: 0;
+  max-width: none;
+  min-height: 44px;
+  height: auto;
+  padding-block: var(--space-2);
+  overflow: hidden;
+  white-space: normal;
+  text-align: start;
+}
+
+.proofs-plane .coh-parlay-picker button[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--series-1) 34%, var(--rule-soft));
+  background: color-mix(in srgb, var(--series-1) 6%, var(--surface-1));
+  box-shadow: inset 3px 0 0 var(--series-1);
+}
+
+.proofs-plane .coh-parlay-picker__mark {
+  flex: none;
+}
+
+.proofs-plane .coh-parlay-picker__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.proofs-plane .coh-parlay-detail__head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+
+.proofs-plane .coh-parlay-detail__head > * { min-width: 0; }
+
+.proofs-plane .coh-parlay-detail__head > code {
+  max-inline-size: min(100%, 36rem);
+  overflow-wrap: anywhere;
+  text-align: end;
+  white-space: normal;
+}
+
+.proofs-plane .coh-parlay-detail__head h3 {
+  margin: var(--space-1) 0 0;
+}
+
+/* Family sections keep the premise and its controls in one compact header
+   stack. The selector no longer floats at the bottom of a tall empty row. */
+.proofs-plane .coh-certificate > .proofs-method-note {
+  margin-block: -4px -2px;
+}
+
+.proofs-plane .coh-certificate > .coh-bar {
+  padding-block: var(--space-1);
+}
+
+@media (max-width: 640px) {
+  .proofs-plane .coh-score-overview { grid-template-columns: 1fr; }
+  .proofs-plane .coh-parlay-detail__head { align-items: start; flex-direction: column; }
+  .proofs-plane .coh-parlay-detail__head > code { text-align: start; }
+}
