@@ -25,6 +25,7 @@ import { fmt, pct } from "@/lib/format";
 import { DEFAULT_MARGIN, Grid, extent, linearScale, ticks } from "@/components/chart-kit";
 import Figure, { Plot } from "@/components/coherence/Figure";
 import FoldLadder from "@/components/research/FoldLadder";
+import { HotSource, useHot } from "@/lib/coherence/use-hot";
 import type { WalkForwardReport } from "@/lib/types";
 
 const LEVEL_TONE: Record<string, string> = {
@@ -34,9 +35,20 @@ const LEVEL_TONE: Record<string, string> = {
 };
 
 const LEVEL_GLYPH: Record<string, string> = { pass: "✓", marginal: "▲", fail: "✕" };
+const WALK_FORWARD_TABLE_CAPTION = "Walk-forward results, one row per fold.";
 
 export default function WalkForwardTimeline({ report }: { report: WalkForwardReport }) {
+  return (
+    <HotSource>
+      <WalkForwardTimelineInstrument report={report} />
+    </HotSource>
+  );
+}
+
+function WalkForwardTimelineInstrument({ report }: { report: WalkForwardReport }) {
+  const { hot, setHot } = useHot();
   const folds = report.folds;
+  const hotFold = hot === null ? null : Math.floor(hot / 2);
 
   if (!folds.length) {
     return (
@@ -66,6 +78,19 @@ export default function WalkForwardTimeline({ report }: { report: WalkForwardRep
   const yScale = linearScale(lo, hi, y0, y1);
   const yTicks = ticks(lo, hi, 4);
   const zero = yScale(0);
+
+  const moveTable = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const at = Math.min(folds.length - 1, Math.max(0, hotFold ?? 0));
+    const next = event.keyCode === 36 ? 0
+      : event.keyCode === 35 ? folds.length - 1
+      : event.keyCode === 37 || event.keyCode === 38 ? Math.max(0, at - 1)
+      : event.keyCode === 39 || event.keyCode === 40 ? Math.min(folds.length - 1, at + 1)
+      : null;
+    if (next !== null) {
+      event.preventDefault();
+      setHot(next * 2);
+    }
+  };
 
 
   return (
@@ -119,6 +144,7 @@ export default function WalkForwardTimeline({ report }: { report: WalkForwardRep
             const x1 = Math.max(x0 + 40, measured - m.right);
             const slot = (x1 - x0) / folds.length;
             const barW = Math.max(4, Math.min(26, slot / 2.6));
+            const centres = folds.map((_, i) => x0 + slot * (i + 0.5));
             return (
               <>
           <Grid yTicks={yTicks} yScale={yScale} x0={x0} x1={x1} format={(v) => fmt(v, 1)} />
@@ -134,8 +160,17 @@ export default function WalkForwardTimeline({ report }: { report: WalkForwardRep
             shapeRendering="crispEdges"
           />
 
+          <polyline
+            className="walkforward-trajectory walkforward-trajectory--is"
+            points={folds.map((f, i) => `${centres[i] - barW / 2},${yScale(f.isSharpe)}`).join(" ")}
+          />
+          <polyline
+            className="walkforward-trajectory walkforward-trajectory--oos"
+            points={folds.map((f, i) => `${centres[i] + barW / 2},${yScale(f.oosSharpe)}`).join(" ")}
+          />
+
           {folds.map((f, i) => {
-            const centre = x0 + slot * (i + 0.5);
+            const centre = centres[i];
             const isX = centre - barW - 1;
             const oosX = centre + 1;
             // THE MARK, and without it this figure had none: `Plot` walks
@@ -145,14 +180,26 @@ export default function WalkForwardTimeline({ report }: { report: WalkForwardRep
             const bar = (x: number, v: number, fill: string, which: string) => {
               const top = Math.min(yScale(v), zero);
               const h = Math.max(1, Math.abs(yScale(v) - zero));
+              const markText = `Fold ${f.fold} ${which}: Sharpe ${fmt(v, 2)}, on ${f.chosenFast}/${f.chosenSlow}`;
               return (
-                <rect x={x} y={top} width={barW} height={h} fill={fill} rx={2}>
-                  <title>{`Fold ${f.fold} ${which}: Sharpe ${fmt(v, 2)}, on ${f.chosenFast}/${f.chosenSlow}`}</title>
-                </rect>
+                <rect
+                  x={x}
+                  y={top}
+                  width={barW}
+                  height={h}
+                  fill={fill}
+                  rx={2}
+                  data-mark-title={markText}
+                />
               );
             };
             return (
-              <g key={f.fold}>
+              <g key={f.fold} data-linked={hotFold === i ? "true" : undefined}>
+                <line
+                  className="walkforward-gap-vector"
+                  x1={centre} x2={centre}
+                  y1={yScale(f.isSharpe)} y2={yScale(f.oosSharpe)}
+                />
                 {bar(isX, f.isSharpe, "var(--series-1)", "in-sample")}
                 {bar(oosX, f.oosSharpe, "var(--series-2)", "out-of-sample, blind")}
                 <text
@@ -187,7 +234,9 @@ export default function WalkForwardTimeline({ report }: { report: WalkForwardRep
       {/* The sharper question, under the Sharpe pair: not "did the number
           hold" but "where did the choice PLACE among every combination the
           fold scored". Same folds, one derivation each. */}
-      <FoldLadder folds={folds} />
+      <HotSource>
+        <FoldLadder folds={folds} />
+      </HotSource>
       </div>
 
       <div className="tiles stability-tiles">
@@ -256,10 +305,18 @@ export default function WalkForwardTimeline({ report }: { report: WalkForwardRep
           heading; `FoldEfficiency extends WalkForwardFold`, so the two
           columns it alone carried — the train window and the OOS return —
           simply live here now. */}
-      <div className="table-wrap" tabIndex={0}>
+      <details className="disclosure walkforward-table-disclosure">
+        <summary>{WALK_FORWARD_TABLE_CAPTION}</summary>
+      <div
+        className="table-wrap walkforward-table"
+        tabIndex={0}
+        onFocus={() => setHot((hotFold ?? 0) * 2)}
+        onBlur={() => setHot(null)}
+        onKeyDown={moveTable}
+      >
         <table>
           <caption className="sr-only">
-            Walk-forward results, one row per fold.
+            {WALK_FORWARD_TABLE_CAPTION}
           </caption>
           <thead>
             <tr>
@@ -275,8 +332,13 @@ export default function WalkForwardTimeline({ report }: { report: WalkForwardRep
             </tr>
           </thead>
           <tbody>
-            {folds.map((f) => (
-              <tr key={f.fold}>
+            {folds.map((f, index) => (
+              <tr
+                key={f.fold}
+                data-linked={hotFold === index ? "true" : undefined}
+                onPointerEnter={() => setHot(index * 2)}
+                onPointerLeave={() => setHot(null)}
+              >
                 <td>{f.fold}</td>
                 <td className="research-window muted">
                   {f.trainStart} → {f.trainEnd}
@@ -313,6 +375,7 @@ export default function WalkForwardTimeline({ report }: { report: WalkForwardRep
           </tbody>
         </table>
       </div>
+      </details>
       {/* The verdict above already reads this run's gap in words, and every
           fact this sentence carries is signalled by something the eye reaches
           first: the legend prints "In-sample (parameters fitted here)" and
