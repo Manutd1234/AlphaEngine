@@ -68,7 +68,10 @@ class ResearchRagMatch(BaseModel):
     title: str
     body: str
     metrics: dict[str, Any] = Field(default_factory=dict)
-    similarity: float
+    #: None only when the image arm introduced a chart that no text arm saw.
+    #: Coercing that absence to zero would claim a text similarity was measured;
+    #: requiring a float makes a valid image-only hit fail response validation.
+    similarity: float | None
     #: Where each retriever placed this document, 1-based. Both are None on the
     #: dense-only path — which is a real state during a rollout, not an error.
     #:
@@ -90,6 +93,11 @@ class ResearchRagMatch(BaseModel):
     #: arm looks like it never ran. That is not a hypothetical: it is exactly
     #: how the two ranks above went missing, and the note there is the record.
     bm25_rank: int | None = None
+    #: The fourth arm's 1-based rank and measured CLIP similarity. Both are
+    #: None when the image arm did not rank this document; they must survive the
+    #: response model or the arm's row-level provenance disappears on the wire.
+    image_rank: int | None = None
+    image_similarity: float | None = None
     #: The cross-encoder's relevance score for (query, this document), from
     #: `research_rerank`, which attaches it only to documents it actually
     #: scored. That module OMITS the key rather than writing None, and pydantic
@@ -148,6 +156,8 @@ class ResearchRagSearchResponse(BaseModel):
     #: able from an arm that is not there — which is the same defect as an
     #: empty list standing in for "could not search", one layer out.
     image: dict[str, Any] | None = None
+    #: Fresh/stale cache provenance. Stale rows are never presented as live.
+    cache: dict[str, Any] | None = None
     #: Ties this response to the `research_search` row the route wrote in the
     #: audit ledger, and to the plan/tool-call/generation rows an `/ask` on the
     #: same id wrote. None means no row was written — the ledger was not
