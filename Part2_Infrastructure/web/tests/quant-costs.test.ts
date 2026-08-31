@@ -33,7 +33,7 @@ import {
   hoursPerBar,
   turnoverCost,
 } from "../lib/quant";
-import { syntheticBars } from "../lib/marketdata";
+import { syntheticBars } from "./helpers/synthetic-bars";
 import type { Bar, CostSummary } from "../lib/types";
 
 import { close } from "./helpers/quant-fixtures";
