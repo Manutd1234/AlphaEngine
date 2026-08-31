@@ -12,7 +12,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { metricsForSection } from "@/components/data/data-console-metrics";
 import DataQualityLedger from "@/components/data/DataQualityLedger";
-import ReplayBackfillPanel from "@/components/data/ReplayBackfillPanel";
+import ReplayBackfillPanel, { REPLAY_BACKFILL_HEADING } from "@/components/data/ReplayBackfillPanel";
 import DataTrustOverview from "@/components/data/DataTrustOverview";
 import DataWorkBoard, { type DataWorkMutation } from "@/components/data/DataWorkBoard";
 import CrossSourceCheck from "@/components/systems/CrossSourceCheck";
@@ -106,6 +106,7 @@ export default function DataConsole({
   // exists to show the reader the failover graph an outage is bending, so the
   // pane a cross-link lands on must be the one holding the graph.
   const [providersPane, setProvidersPane] = useState<ProvidersPane>("routing");
+  const [replayOpen, setReplayOpen] = useState(false);
   const probeSequence = useRef(0);
   const activeProbeRequest = useRef<AbortController | null>(null);
 
@@ -187,16 +188,18 @@ export default function DataConsole({
   );
 
   return (
-    <div className="data-control-plane">
+    <div className="data-control-plane" data-data-section={section}>
       <PageHead
         kicker="Data engineer"
         title="Data operations"
+        showTitle={false}
         description="Can the desk trust the number it is about to use?"
         metrics={metrics.map((metric) => ({
           label: metric.label,
           value: metric.value,
           note: metric.note,
           tone: metric.tone === "bad" ? "critical" : metric.tone,
+          wide: metric.wide,
         }))}
         status={{
           label: trustState.label,
@@ -260,10 +263,6 @@ export default function DataConsole({
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="data" tabId="quality" activeId={section}>
-        {/* The data-quality half of what used to be one "Quality & Incidents"
-            subtab: reconciliation, then the durable ledger. Full width each —
-            the ledger's table was drawn for the whole panel, and beside it the
-            consensus legs would have half the room their columns need. */}
         <CrossSourceCheck symbol={workspaceSymbol} />
         <DataQualityLedger validation={validation} healthLoaded={health !== null} guard={guard} operatorReady={operatorReady} operatorToken={view.token} />
       </WorkspaceSubtabPanel>
@@ -299,15 +298,21 @@ export default function DataConsole({
           onEvent={logLocal}
           active={active && section === "lineage"}
         />
-        <ReplayBackfillPanel
-          symbol={workspaceSymbol}
-          interval={workspaceInterval}
-          pollMs={effectivePollMs}
-          active={active && section === "lineage"}
-          guard={guard}
-          operatorReady={operatorReady}
-          operatorToken={view.token}
-        />
+        <details
+          className="disclosure"
+          onToggle={(event) => setReplayOpen(event.currentTarget.open)}
+        >
+          <summary>{REPLAY_BACKFILL_HEADING}</summary>
+          <ReplayBackfillPanel
+            symbol={workspaceSymbol}
+            interval={workspaceInterval}
+            pollMs={effectivePollMs}
+            active={active && section === "lineage" && replayOpen}
+            guard={guard}
+            operatorReady={operatorReady}
+            operatorToken={view.token}
+          />
+        </details>
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="data" tabId="providers" activeId={section}>
