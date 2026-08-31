@@ -9,11 +9,12 @@
  * — and one of them (the fill-quality heatmap) rendered nothing at all.
  *
  * A dead end is not the only alternative to live data, and it is the worst one.
- * There are three real states, and they differ in what they are made of:
+ * There are four real states, and they differ in what they are made of:
  *
  *   live     a payload the backend returned just now
  *   cached   a payload the backend returned earlier, carried with its age
  *   sandbox  a payload this browser generated, seeded and self-consistent
+ *   unavailable no payload exists; the failure is shown instead
  *
  * `cached` is the tier that does most of the work. Most gateway failures are
  * transient — a redeploy, a dropped connection, an Always-Free database that
@@ -27,14 +28,13 @@
  * button that submits an order against a book this browser invented is a
  * different class of wrong from a stale number.
  *
- * There is deliberately no `"unavailable"` member. It existed, and every
- * component that could construct one grew a branch that rendered a sentence
- * instead of a panel. Removing it from the union is what makes those branches a
- * compile error rather than a thing to remember.
+ * `unavailable` carries no payload. It is intentionally distinct from
+ * `sandbox`: a failed live read is not consent to manufacture a replacement.
+ * Components still owe this state a reported explanation rather than a blank.
  */
 
 /** What the payload on screen is made of. Ordered best to worst. */
-export type DataTier = "live" | "cached" | "sandbox";
+export type DataTier = "live" | "cached" | "sandbox" | "unavailable";
 
 /**
  * Why we are not live. Kept separate from the tier because the tier decides
@@ -44,7 +44,7 @@ export type DataTier = "live" | "cached" | "sandbox";
  *    workspace cannot host a long-lived WebSocket/DuckDB process, so this is
  *    the normal state of the public desk, not a fault.
  *  - `incident` — a gateway that should answer did not: refused, timed out, or
- *    returned an error. The desk still fills in, and says this word.
+ *    returned an error. No replacement payload is implied.
  *  - `chosen` — someone clicked Sandbox. Never overridden by a probe.
  */
 export type TierCause = "not-configured" | "incident" | "chosen";
@@ -104,23 +104,42 @@ function ageOf(at: Date, now: number): string {
 /**
  * The one place the four states are put into words.
  *
- * Four, from three tiers: `sandbox` reads differently depending on whether this
- * deployment never had a gateway or lost one, and collapsing those two into
- * "Sandbox" is how an incident comes to look like a configuration choice.
+ * The shared readings for live, stale, explicitly generated and absent data.
+ * `unavailable` distinguishes an absent deployment from an incident without
+ * turning either one into a sandbox payload.
  */
 export function describeTier(p: Provenance, now = Date.now()): TierBadge {
   if (p.tier === "live") {
-    return { glyph: "●", label: "Live data", detail: "gateway answering", tone: "good" };
+    return { glyph: "●", label: "Live", detail: "gateway answering", tone: "good" };
   }
   if (p.tier === "cached") {
     return {
       glyph: "●",
-      label: "Live data",
+      label: "Live",
       // The age is the whole point of this tier: the numbers are real and they
       // are not now, and a reader cannot tell the difference without being told.
       detail: p.lastGoodAt ? `last good ${ageOf(p.lastGoodAt, now)}` : "last good reading",
       tone: "warn",
     };
+  }
+  if (p.tier === "unavailable") {
+    if (p.cause === "not-configured") {
+      return {
+        glyph: "◇",
+        label: "Unavailable",
+        detail: "no gateway configured; no substitute loaded",
+        tone: "neutral",
+      };
+    }
+    if (p.cause === "incident") {
+      return {
+        glyph: "△",
+        label: "Unavailable",
+        detail: "gateway incident; no substitute loaded",
+        tone: "warn",
+      };
+    }
+    return { glyph: "◇", label: "Connecting", detail: "waiting for the first gateway reading", tone: "neutral" };
   }
   if (p.cause === "incident") {
     return {
