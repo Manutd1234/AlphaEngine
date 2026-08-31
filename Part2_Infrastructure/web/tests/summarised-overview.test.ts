@@ -135,8 +135,8 @@ const REWRITES: Rewrite[] = [
     // line already under the grid ("Hover a cell for its metrics.").
     file: "components/Heatmap.tsx",
     was: "to inspect those parameters",
-    now: "grey = no edge; click a cell for its parameters",
-    facts: ["grey = no edge", "click a cell", "parameters"],
+    now: "beige = no edge; click a cell for its parameters",
+    facts: ["beige = no edge", "click a cell", "parameters"],
   },
   {
     file: "components/common/NextStepFooter.tsx",
@@ -225,8 +225,7 @@ const FACTS: { file: Owned; token: string; why: string }[] = [
   { file: "components/overview/AuditTrail.tsx", token: "limit=40", why: "the audit window the row count is drawn from" },
 
   // ---- negations and qualifiers ----
-  { file: "components/overview/AuditTrail.tsx", token: "these orders were not sent.", why: "the safety statement on the generated ledger" },
-  { file: "components/overview/AuditTrail.tsx", token: "recorded by nothing.", why: "the generated ledger has no recorder; a softer word would claim one" },
+  { file: "components/overview/AuditTrail.tsx", token: "No rows are substituted.", why: "an unreadable live ledger is not padded with generated orders" },
   { file: "components/overview/AuditTrail.tsx", token: "paper-only", why: "the scope bound on both provenance lines" },
   { file: "components/overview/AuditTrail.tsx", token: "accepted or refused", why: "both outcomes, not just the fills" },
   { file: "components/overview/AuditTrail.tsx", token: "No orders in the audit window yet", why: "the empty state, reported rather than hidden" },
