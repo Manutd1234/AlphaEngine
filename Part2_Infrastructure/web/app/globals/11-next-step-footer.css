@@ -55,6 +55,23 @@
   color: var(--text-secondary);
 }
 
+.next-step-footer__detail {
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+}
+
+.next-step-footer__detail > summary {
+  width: max-content;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+.next-step-footer__detail-body {
+  display: grid;
+  gap: 1px;
+  padding-block-start: var(--space-1);
+}
+
 /* A navigator, not a commit. By the desk's own tested rule (developer-panes
    stripped the fill from "doors to other tabs"), this button must not wear
    the Send-order accent — yet it did, under a class name the accent-budget
@@ -69,5 +86,4 @@
   font-weight: 600;
   white-space: nowrap;
 }
-
 
