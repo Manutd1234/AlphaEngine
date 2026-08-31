@@ -14,9 +14,9 @@
  * A blank plot area and a plot area with nothing in it look identical, and one
  * of them means the feed is down. This says which.
  */
-export function FigureEmpty({ reason }: { reason: string }) {
+export function FigureEmpty({ reason, busy = false }: { reason: string; busy?: boolean }) {
   return (
-    <p className="coh-figure__empty">
+    <p className="coh-figure__empty" role={busy ? "status" : undefined} aria-busy={busy || undefined}>
       <span aria-hidden="true">◌</span> {reason}
     </p>
   );
@@ -40,18 +40,15 @@ export function StateChip({
   tone: "good" | "warn" | "critical" | "muted";
 }) {
   return (
-    <span className={`coh-chip is-${tone}`}>
+    <span className={`coh-chip is-${tone}`} title={value ? `${word}: ${value}` : word}>
       <span className="coh-chip__mark" aria-hidden="true">
         {mark}
       </span>
       <span className="coh-chip__word">{word}</span>
-      {/* The value carries its own `title`, because it is the part that
-          truncates: a chip is `white-space: nowrap` by design — a state that
-          wrapped mid-phrase would read as two states — so a long value like a
-          hostname could only widen the pill until it broke the row. It ellipses
-          now, and the hover has the whole of it. */}
-      {value ? <span className="coh-chip__value" title={value}>{value}</span> : null}
+      {/* The whole chip carries the hover text because either the word or value
+          may truncate inside a narrow owner. The full DOM text remains the
+          screen-reader reading. */}
+      {value ? <span className="coh-chip__value">{value}</span> : null}
     </span>
   );
 }
-
