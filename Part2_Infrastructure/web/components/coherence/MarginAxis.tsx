@@ -103,6 +103,40 @@ export default function MarginAxis({
   // thing with a known size on screen and the mark is read against it.
   const span = Math.max(MEANINGFUL_EDGE * 5, Math.abs(value) * 1.25);
   const tradable = value > MEANINGFUL_EDGE;
+  const checkpoints = [
+    {
+      at: 0,
+      title: "Zero guarantee",
+      rows: [
+        { label: "Value", value: "0", raw: 0 },
+        { label: "Meaning", value: "the signed programme margin changes side here" },
+      ],
+    },
+    {
+      at: MEANINGFUL_EDGE,
+      title: "Decision line",
+      rows: [
+        { label: "Value", value: EDGE_LABEL, raw: MEANINGFUL_EDGE },
+        { label: "Meaning", value: "the minimum edge expressible at the exchange precision" },
+      ],
+    },
+    {
+      at: value,
+      title: "Programme optimum t*",
+      rows: [
+        { label: "Value", value: margin ?? "—", raw: value },
+        { label: "Against line", value: tradable ? "above — no probability measure fits" : "at or below — a measure fits" },
+        { label: "Verdict", value: verdict },
+      ],
+    },
+  ].sort((left, right) => left.at - right.at);
+  const layout = (width: number) => {
+    const pad = 16;
+    const mid = width / 2;
+    const half = Math.max(40, width / 2 - pad);
+    const x = (point: number) => mid + (Math.max(-span, Math.min(span, point)) / span) * half;
+    return { pad, x };
+  };
 
   return (
     <Figure
@@ -120,13 +154,27 @@ export default function MarginAxis({
       notes={pricedOut
         ? ["The closed-form checks found a violation these quotes do not admit. The money rows below are its arithmetic; this axis is the programme's separate answer about what could be traded."]
         : null}
+      readout={<span className="num">{`t* ${margin}; line ${EDGE_LABEL}`}</span>}
     >
-      <Plot height={HEIGHT}>
+      <Plot
+        height={HEIGHT}
+        sharedX={(width) => {
+          const { x } = layout(width);
+          const positions = checkpoints.map((checkpoint) => x(checkpoint.at));
+          return {
+            count: checkpoints.length,
+            x0: positions[0],
+            x1: positions[positions.length - 1],
+            positions,
+            read: (index) => ({ title: checkpoints[index].title, rows: checkpoints[index].rows }),
+            width: 330,
+            arriveAt: "first",
+            pin: true,
+          };
+        }}
+      >
         {(width) => {
-          const pad = 16;
-          const mid = width / 2;
-          const half = Math.max(40, width / 2 - pad);
-          const x = (v: number) => mid + (Math.max(-span, Math.min(span, v)) / span) * half;
+          const { pad, x } = layout(width);
           const lineX = x(MEANINGFUL_EDGE);
           const label = `optimum ${margin}`;
           const labelW = advancePx(label, DIAGRAM_LABEL_PX);
@@ -173,9 +221,7 @@ export default function MarginAxis({
               <polygon
                 className={`coh-margin__mark${tradable ? " is-tradable" : ""}`}
                 points={`${x(value)},${AXIS_Y} ${x(value) - MARK_H / 2},${AXIS_Y - MARK_H} ${x(value) + MARK_H / 2},${AXIS_Y - MARK_H}`}
-              >
-                <title>{`the programme's optimum is ${margin}, ${tradable ? "above" : "at or below"} the ${EDGE_LABEL} line`}</title>
-              </polygon>
+              />
               <text x={labelX} y={AXIS_Y - MARK_H - 5} textAnchor="middle" className="coh-margin__value">
                 {label}
               </text>
