@@ -129,7 +129,7 @@ export default function ProfilePasswordCard({ onBanner }: { onBanner: ReportBann
         type="button"
         disabled={changingPassword || password.length < MIN_PASSWORD_LENGTH}
         onClick={() => void onChangePassword()}
-        className="mt-3 rounded-[9px] border border-border bg-surface-1 px-3 py-2 text-fs-body font-semibold text-text-primary hover:bg-surface-2 disabled:opacity-[0.55]"
+        className="mt-3 rounded-[9px] border border-border bg-surface-1 px-3 py-2 text-fs-body font-semibold text-text-primary hover:bg-surface-2"
       >
         {changingPassword ? "Changing…" : "Change password"}
       </button>
