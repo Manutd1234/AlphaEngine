@@ -3,12 +3,14 @@
 What AlphaEngine is built from, and why each piece earned its place — the
 languages, the backend, the frontend, every datastore actually in use, the
 machine-learning surface, the retrieval stack, the optional-extras pattern, and
-the CI/CD that gates all of it. Every version, path, count and constant below
-was read off this tree or a command's output on **2026-08-24**: pins from
+the CI/CD that gates all of it. Current versions, paths, counts and constants
+below were audited from this worktree or a local command's output on
+**2026-08-31**; no external deployment was probed: pins from
 [`requirements*.txt`](../../Part2_Infrastructure/) and
 [`OpenBB_Service/pyproject.toml`](../../Part2_Infrastructure/OpenBB_Service/pyproject.toml),
 locked versions from `web/package-lock.json`, installed versions from the
-Python 3.12 virtualenv CI mirrors. The deployed-versions tables in
+Python 3.12 virtualenv that mirrors CI. Historical benchmark numbers keep the
+date of the run that produced them. The deployed-versions tables in
 [README §Tech Stack](../../Part2_Infrastructure/README.md#tech-stack) are the
 authoritative long form; this document distils the argument and links to it
 rather than restating two thousand lines.
@@ -17,6 +19,11 @@ The stack's one-sentence thesis: **one Postgres, and determinism everywhere a
 number is produced** — every service that could put a vendor, a model version
 or a network call on a measured path was either rejected by name or fenced off
 as an optional extra whose absence is a reported state.
+
+The compact release ledger for facts that move often — topology, toolchain,
+test totals and the last successful build — is
+[`CURRENT_STATE.md`](../CURRENT_STATE.md). This page explains the architecture;
+the ledger is the first place to check a changing number.
 
 A word on the numbers in this file. CI enforces exactly three counts — the web
 test total ([`scripts/check-test-counts.mjs`](../../Part2_Infrastructure/web/scripts/check-test-counts.mjs),
@@ -91,15 +98,15 @@ flowchart LR
 **FastAPI** (pin `>=0.110`; `0.141.1` in the venv) is the gateway, and it is
 the one stateful, always-on unit.
 
-**Routes, counted on a stated basis.** `modules/api/*.py` carries **77**
-`@router.*` decorators across fifteen router modules — audit 4, coherence 5,
-coherence_history 3, coherence_lab 7, data 11, diffusion 4, meta 5, ml 3,
+**Routes, counted on a stated basis.** `modules/api/*.py` carries **80**
+`@router.*` decorators across twelve router modules — audit 4, coherence 5,
+coherence_history 5, coherence_lab 8, data 11, diffusion 4, meta 5, ml 3,
 research 15, risk 14, tca 3, telegram 3. One of the three in
 [`modules/api/tca.py`](../../Part2_Infrastructure/modules/api/tca.py) is
 `@router.websocket("/ws/book/{symbol}")`, which produces no OpenAPI operation.
 So the committed contract
 [`tools/openapi.json`](../../Part2_Infrastructure/tools/openapi.json) carries
-**73 paths / 76 operations**, OpenAPI 3.1.0. `main.py` adds three more
+**76 paths / 79 HTTP operations**, OpenAPI 3.1.0. `main.py` adds three more
 decorators — `/`, `/app`, `/ui`, aliases for one console — and all three are
 `include_in_schema=False`, which is why they are in neither figure. That schema
 is a **contract**: its canonical-JSON SHA-256 is checked at the web build's
@@ -152,66 +159,70 @@ Root Directory `Part2_Infrastructure/web` and region `sin1`
 ([`web/vercel.json`](../../Part2_Infrastructure/web/vercel.json)).
 
 **Server-side proxy routes are the only path to backend credentials.** There
-are **62** `route.ts` handlers under `web/app/api/`, **38** of them under
+are **65** `route.ts` handlers under `web/app/api/`, **41** of them under
 `app/api/gateway/`, and the browser bundle ships zero secrets.
-`next.config.mjs:194` declares `serverExternalPackages: ["oracledb"]` so the
+`next.config.mjs:198` declares `serverExternalPackages: ["oracledb"]` so the
 thin-mode driver never enters a client bundle —
 `tests/deployment-contract-config-surfaces.test.ts` asserts it.
 
-**Ten tabs, fifty-eight rail sections, one source of truth.**
-[`components/WorkspaceHeader.tsx`](../../Part2_Infrastructure/web/components/WorkspaceHeader.tsx)
-declares `NAV_ITEMS` — Overview (All Roles), Research (Quant), Execution
-(Trader), Portfolio (PM), Risk (Risk), Data (Data), Reliability (SRE),
-Developer (Dev), Quotes (Quant), Proofs (Quant). The last two are the Kalshi
-engine and their view **ids** are `markets` and `coherence`, older than the
-labels and deliberately unchanged.
+**Eleven tabs, seventy rail sections, one source of truth at each level.**
+[`lib/workspace-nav.ts`](../../Part2_Infrastructure/web/lib/workspace-nav.ts)
+declares `NAV_ITEMS` — Overview, Research, Execution, Portfolio, Risk, Data,
+Reliability, Developer, Markets, Proofs and Diffusion. `WorkspaceHeader.tsx`
+consumes and re-exports that data; it is no longer the navigation registry.
+Markets and Proofs keep the public ids `markets` and `coherence`, and Diffusion
+uses `diffusion`.
 [`lib/sections.ts`](../../Part2_Infrastructure/web/lib/sections.ts) is where the
 rails, the command palette, the hash whitelist and "Copy link to this view" all
-read from: 3 + 9 + 5 + 5 + 8 + 7 + 5 + 6 + 5 + 4 = **57**. Section ids never
-change, because they are public deep links — which is why the 2026-08-24
-restructure moved five ids between tabs and demoted eight to in-pane views
-without renaming one of them, and `RELOCATED_SECTIONS` in
-`lib/workspace-hash.ts` is what keeps every old hash resolving.
+read from: 3 + 9 + 5 + 5 + 8 + 7 + 5 + 6 + 8 + 7 + 7 = **70**. Section ids
+never change, because they are public deep links; `RELOCATED_SECTIONS` in
+`lib/workspace-hash.ts` keeps older hashes resolving when ownership changes.
 [`scripts/desk-sweep-plan.mjs`](../../Part2_Infrastructure/web/scripts/desk-sweep-plan.mjs)
-mirrors the ten tabs by hand and asserts `EXPECTED_SECTIONS = 58`, so a rail
+mirrors the eleven tabs by hand and asserts `EXPECTED_SECTIONS = 70`, so a rail
 edited without the sweep being updated fails rather than drifting.
 
-**The Kalshi engine uses in-pane `.seg` switchers, and that is a hard rule.** All
-nine Quotes and Proofs sections split their content into segmented views inside
-the section — Universe (Baskets · Families · Settlement · Formation · Pending),
-Books (Ladder · Identity · Dispersion · Channel), Lattice (Survival · Mass ·
-Moments · Whole family · Stake, whose Stake view opens a second seg of Plan ·
-Capital · Method), Fees (Worked example · Cost shape · Ablation · Replay table),
-Shell (Tree · Reading · Commands · Layout), Dutch book (Verdict · Proof ·
-Certificate · Bands · Parlays · Bounds), Scorecard (Score · Bands · Corpus ·
-Index series · Index families), Diffusion (Absorption · Noise floor · Meetings ·
-Mechanism · Kalshi survival · Kalshi episodes · Findings), Lessons (Coverage ·
-Prices · Structure · Bounds · Record). A six-view seg is still one seg: Dutch
-book's wraps rather than shrinking its type. A nested `<WorkspaceSubtabs>` inside a section is
-**forbidden**, and the reason is mechanical rather than aesthetic:
+**Addressable section views are an architectural layer, not private component
+state.** [`lib/section-views.ts`](../../Part2_Infrastructure/web/lib/section-views.ts)
+registers **64 quantitative destinations**: Markets 23, Proofs 25 and Diffusion
+16. A default keeps the canonical two-segment hash; a non-default adds an
+optional third segment. The command inventory and desk sweep read the same
+registry, whose 43 non-default cells are mirrored by
+`EXPECTED_VIEW_CELLS = 43`. This is why an interactive Fees ablation, Basket
+proof or Diffusion clock can be opened directly and audited instead of hiding
+behind local state.
+
+The visible picker remains an in-pane segmented control. A nested
+`<WorkspaceSubtabs>` inside a section is **forbidden**, and the reason is
+mechanical rather than aesthetic:
 `WorkspaceSubtabs.tsx` sets `--rail-h` on `document.documentElement`, so a
 second rail instance fights the first over the same publisher — as
 `ReliabilityConsole` records and
 [`components/CoherenceConsole.tsx`](../../Part2_Infrastructure/web/components/CoherenceConsole.tsx)'s
-header restates. `.seg` is plain CSS styled off `aria-pressed`
-(`app/globals/00-tokens-and-base.css:1560`), so it publishes nothing.
+header restates. `.seg` is plain CSS styled off `aria-pressed` in
+`app/globals/00-tokens-and-base.css`, so it publishes nothing.
+
+Inside the quantitative figures, repeated dense selectors use
+`components/coherence/use-stable-selection-key.ts`: selection is keyed to data
+identity and the listbox exposes one roving tab stop with Arrow, Home and End
+navigation. Small persistent choices remain native button groups with
+`aria-pressed`; changing readouts are named live outputs. That split prevents a
+twenty-token capital vault from becoming twenty tab stops without inventing a
+custom interaction for every figure.
 
 That structure is also what makes the read budget affordable: polls are gated on
 `active`, on the open section, and — where a view alone is expensive — on the
-open view. The public book read stops entirely while Books shows Dispersion or
-Channel, because the RFQ route behind them is a signed private-channel call on a
-25 s budget and the two must never be in flight together; `/replay?limit=20000`,
-the largest read on either tab, runs only on Fees → Ablation or Replay table and
-is warmed by nothing.
+open view. The signed RFQ channel is isolated in Makers rather than fired beside
+the public Books read, and `/replay?limit=20000`, the largest read on the engine,
+runs only for the Fees views that consume it and is warmed by nothing.
 
 **Styling.** Tailwind CSS `4.3.3` runs **without preflight**, bridged onto the
 hand-written token system. `app/globals.css` is a manifest and nothing else —
-sixteen partials in declared order, with `tests/globals-manifest.test.ts`
+**74 imported partials** in declared order on 2026-08-29, with
+`tests/globals-manifest.test.ts`
 failing the suite if a declaration block is written into the manifest itself,
 because at least eleven documented cascade ties resolve on source order.
 
-**No chart library.** All 239 components under `web/components/` draw on one
-hand-rolled scale kit,
+**No chart library.** Quantitative figures draw on one hand-rolled scale kit,
 [`components/chart-kit.tsx`](../../Part2_Infrastructure/web/components/chart-kit.tsx).
 There is no Jest and no Vitest: `npm test` is Node's built-in runner via `tsx`.
 There is also no `lint` script — linting is Python-side (`ruff check .`), a
@@ -225,7 +236,7 @@ absence is a designed state rather than an exception.
 
 ```mermaid
 flowchart TD
-    WEB["Next.js workspace — web/<br/>62 server-side proxy routes"]
+    WEB["Next.js workspace — web/<br/>65 same-origin API route handlers"]
     GW["FastAPI risk gateway — main.py"]
     REC["Kalshi recorder — modules/coherence/recorder.py<br/>off unless COHERENCE_SERIES + COHERENCE_POLL_S"]
     OBB["OpenBB service — OpenBB_Service/app.py<br/>stateless, no store"]
@@ -285,8 +296,11 @@ order path down.
 
 ### 2. SQLite — the data-operations ledger (strict semantics, on purpose)
 
-*What it holds.* Quality findings, escalations, work items, schedule runs —
-"state a person just edited or another instance is about to read".
+*What it holds.* Quality findings, escalations, work items, schedule runs and
+the four Diffusion ledgers — "state a person just edited or another instance
+is about to read". SQLite is the complete default; the precise gaps in the
+opt-in Postgres adapter are recorded in
+[`DATA_OPS_BACKEND.md`](../architecture/DATA_OPS_BACKEND.md).
 
 *Who writes and reads it.*
 [`modules/data_ops_store.py`](../../Part2_Infrastructure/modules/data_ops_store.py)
@@ -351,9 +365,10 @@ twenty-six seconds writes about 1.2 GB a day.
 *What it holds.* `public.order_blotter` (the decision mirror), the pgvector
 research index (`public.research_documents`, HNSW over
 `extensions.vector_cosine_ops`), `public.research_edges`, the ML run tables,
-and the diffusion event/study tables. **37 migrations** in
-`supabase/migrations/`, newest `20260823120000_diffusion_events.sql` and
-`20260823130000_diffusion_studies.sql`. Two edge functions:
+and the eight data-operations/Diffusion tables. **41 ordered migrations are
+present in `supabase/migrations/` and the generated bundle**; the newest is
+`20260831131000_research_chunk_replace.sql`. This source/bundle count is not a
+claim that a live project has applied them. Two edge functions:
 [`embed-research`](../../supabase/functions/embed-research/index.ts) (gte-small)
 and `evaluate-order`.
 
@@ -375,7 +390,13 @@ the caller asks**, returning one row per document at the shortest depth it was
 reached),
 [`20260822090000_research_tenant_scope.sql`](../../supabase/migrations/20260822090000_research_tenant_scope.sql)
 (the `filter_desk_id` argument), `20260822100000_research_image_embedding.sql`
-and `20260822110000_research_chart_images.sql`.
+and `20260822110000_research_chart_images.sql`, followed by
+`20260831120000_diffusion_postgrest_parity.sql`,
+`20260831121000_data_ops_desk_scope_guard.sql`,
+`20260831130000_research_graph_desk_scope.sql` and
+`20260831131000_research_chunk_replace.sql`. The last supplies the atomic
+logical-document replacement RPC and must be applied before the new chunked
+ingest path is deployed.
 
 *Config.* `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`,
 `SUPABASE_MIRROR_ENABLED` (default **False**), `SUPABASE_DESK_ID`,
@@ -392,8 +413,9 @@ from everything and rank as "similar" to any query.
 
 ### 5. Neo4j Aura — a one-way, rebuildable projection
 
-This is **already built and already in use**; what follows is the shape of it,
-not an announcement.
+This is **built and wired in source**; the 2026-08-31 audit did not probe a
+live Aura instance. What follows is the shape of the source contract, not a
+claim that an external deployment used it during this audit.
 
 *What it holds.* A copy of `research_edges` and the sweep's computed community
 labels and centrality scores. Nothing else.
@@ -449,6 +471,13 @@ edge set — two sweeps' labels co-resident do not describe one partition, and
 **writer may not read its own output**, so `community_labels` refuses when the
 caller is the sweep that writes labels, or the corpus could change daily while
 the labels never did.
+
+*The tenancy guard is fail-closed.* Projected nodes and the read-model Cypher
+do not carry `desk_id`. Whenever `RESEARCH_SCOPE_TO_DESK=1`, the read model
+therefore refuses Neo4j before opening its driver; `/communities` and
+`/centrality` automatically compute from the desk-filtered Postgres corpus and
+preserve the refusal reason. With that feature flag off, Neo4j is suitable only
+for a single desk or an isolated per-desk database.
 
 *What is deliberately absent from these reports:* `seed`, `resolution`,
 `damping`, `modularity`. None was written to the graph, and a plausible default
@@ -905,8 +934,10 @@ arguments.
 
 ## The web's dependency rule
 
-**No new npm dependencies.** The workspace ships on exactly six runtime
-packages (locked versions from `package-lock.json`):
+**Exact allowlist, changed deliberately on 2026-08-27.** The original six
+runtime packages remain, and four exact packages support source-owned shadcn/ui
+primitives under
+[`ADR_2026-08-27_SHADCN_SOURCE_PRIMITIVES.md`](../architecture/ADR_2026-08-27_SHADCN_SOURCE_PRIMITIVES.md):
 
 | Package | Locked | Why it is allowed in |
 |---|---|---|
@@ -915,20 +946,30 @@ packages (locked versions from `package-lock.json`):
 | `lucide-react` | `1.28.0` | The only icon dependency. |
 | `@supabase/supabase-js` | `2.112.2` | The browser Realtime client. |
 | `oracledb` | `6.10.0` | Thin-mode ADB access from the server-side routes, kept out of the client bundle by `serverExternalPackages`. |
+| `radix-ui` | `1.6.7` | Accessible headless interactions for reviewed in-tree shadcn sources. |
+| `class-variance-authority` | `0.7.1` | Typed variants in those source-owned primitives. |
+| `clsx` | `2.1.1` | Conditional class composition through the shared `cn` helper. |
+| `tailwind-merge` | `3.6.0` | Deterministic Tailwind conflict resolution through the same helper. |
 
-Everything else is written here: charts are hand-rolled SVG on one scale kit
-(`components/chart-kit.tsx`) and the test runner is Node's own. As CLAUDE.md
-([§ house rules](../../CLAUDE.md)) puts it: reach for a package and you are
-changing the argument the project makes about itself.
+Charts remain hand-rolled SVG on one scale kit (`components/chart-kit.tsx`).
+The default runner remains Node's own. Playwright `1.62.1` drives opt-in
+Chromium cases and the `audit:layout` and visible-copy scripts when a running
+origin is supplied. `@axe-core/playwright` `4.13.0` is pinned by the allowlist
+but, as of 2026-08-29, no source file imports it; an automated axe gate must
+therefore not be claimed yet.
+The shadcn CLI, animation packages, chart libraries, and generic data grids are
+not allowed runtime dependencies.
 
 **How far that rule is actually enforced, stated rather than overclaimed.**
 [`web/tests/house-rules.test.ts`](../../Part2_Infrastructure/web/tests/house-rules.test.ts)
 exists precisely because "a rule documented in two plans and enforced by
 neither is a preference", and it holds three suites — no emoji in the UI,
 motion decorates while text means, and an empty result is reported rather than
-hidden. It **does not** read `package.json`: no test on this tree asserts the
-dependency allowlist, so this one is a convention the file above records and a
-reviewer enforces. Naming that gap is cheaper than a claim a grep disproves.
+hidden. That historical gap is now closed by
+[`web/tests/dependency-policy.test.ts`](../../Part2_Infrastructure/web/tests/dependency-policy.test.ts),
+which pins the complete runtime and development allowlists, exact new versions,
+explicit exclusions, the controlled shadcn configuration, and the audited
+transitive override.
 
 ## Model dependencies
 
@@ -988,30 +1029,34 @@ any dependency graph.
 the three, because "the web workspace and the OpenBB service are Vercel projects
 and deploy themselves from git — putting them here would deploy them twice."
 
-There is a fourth Next.js app in the tree,
+There is a fourth web application in the tree,
 `Part2_Infrastructure/developer-console/`, with its own README, `build:vercel`
-script and `vercel.json`. It is **not** the desk workspace and **not** one of
-the three units, and its own README records that the pipeline runs, code diffs
-and gateway contracts it shows are illustrative fixtures, labelled as such in
-the rendered UI.
+script and `vercel.json`. Its default path is Sites/vinext `1.0.0-beta.2` over
+Vite `8.0.13` and Cloudflare's plugin; the Vercel path uses native Next.js
+`16.2.6`. It is **not** the desk workspace and **not** one of the three
+production units counted above, and its own README records that the pipeline
+runs, code diffs and gateway contracts it shows are illustrative fixtures,
+labelled as such in the rendered UI.
 
 ### What CI runs, and in what order
 
 [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) — on `push` to
 `main`, on **every** `pull_request`, and on `workflow_dispatch`. Concurrency
 group `ci-${{ github.ref }}`, cancel-in-progress. `PYTHON_VERSION: "3.12"`;
-Node comes from the repo-root `.nvmrc`. Six jobs, four of which gate every push:
+Node comes from the repo-root `.nvmrc`. Seven jobs, five of which run on and
+gate every push:
 
 | Job | Runs, in order |
 |---|---|
 | **`gateway`** — *Gateway (pytest + ruff + API contract)*, `working-directory: Part2_Infrastructure` | `pip install -r requirements-dev.txt` → build the native decision core (`python native/decision_core/setup.py build_ext --inplace --build-temp build/native`) → `ruff check .` → `python -m pytest` → **`python tools/export_openapi.py --check`** → **`python tools/synthetic_probe.py`** (the money-path probe) |
+| **`native-sanitizers`** | Rebuild the decision core with ASan + UBSan, verify both runtimes are linked, then run the native contract, parity, breakage-corpus, file-size and container suites under the sanitizers. |
 | **`openbb-service`** | `pip install -r requirements-dev.txt` → `python -m pytest`, in `Part2_Infrastructure/OpenBB_Service` |
 | **`web`** — *Web workspace (tests + typecheck + build)* | `npm ci` → tests teed to `$RUNNER_TEMP/web-tests.log` → **`node scripts/check-test-counts.mjs web "$RUNNER_TEMP/web-tests.log"`** → `npm run typecheck` → `npm run build` (which runs `prebuild` first) |
 | **`repo-audit`** — *Committed tree is complete* | `checkout` with `fetch-depth: 0`, then `bash Part2_Infrastructure/tools/check_repo_complete.sh --fast` — it catches the file that "builds locally but was never committed because a `.gitignore` pattern silently matched it" |
 
 The suites are **network-free by design**: market data is disabled, the
 backtester falls back to its NumPy engine, and every fixture is committed, so
-these four jobs need no secrets and no services. A red build means the code
+these five jobs need no secrets and no services. A red build means the code
 broke, never that an exchange was slow.
 
 ### The two opt-in jobs, and precisely why each is opt-in
@@ -1123,9 +1168,10 @@ write it, and DuckDB then degrades to an unwritable SQLite fallback — silently
 - **Port 8000 is fixed in EXPOSE, HEALTHCHECK and CMD together**; publishing
   80:8080 would bind a port nothing listens on.
 - **The native `.so` is compiled in the builder stage** and only the finished
-  artefact is copied into a runtime that never sees a compiler. A build that
-  fails to produce it surfaces as `decision_engine: python` on `/health`, which
-  `deploy.yml` treats as unhealthy and **rolls back**.
+  artefact is copied into a runtime that never sees a compiler. If health
+  reports `decision_engine: python`, `deploy.yml` emits a warning but keeps the
+  otherwise healthy gateway; rollback is reserved for a container that fails
+  health altogether.
 
 ### Secrets
 
@@ -1183,12 +1229,13 @@ parsing, and the rest of the list that section owns.
 ## Verifying any of this
 
 Never trust a version or a count in prose, including this file's. The suite
-figures live in `web/lib/test-counts.generated.ts` and are argued in
-[`TESTING.md`](../testing/TESTING.md), which is the only document that states
-the two conditions attached to them: the gateway has two correct pass counts
-depending on whether the cross-encoder weights are seeded, and the committed
-gateway line is a dated measurement CI does not check, while the web line is
-the one `scripts/check-test-counts.mjs` enforces.
+figures live in `web/lib/test-counts.generated.ts`, with the current release
+reading in [`CURRENT_STATE.md`](../CURRENT_STATE.md), and are argued in
+[`TESTING.md`](../testing/TESTING.md). The gateway and service lines are dated
+measurements CI does not check; the web total is the line
+`scripts/check-test-counts.mjs` enforces. Gateway collection can change with
+optional credentials and model weights, so its skip reasons travel with any
+quoted result.
 
 CLAUDE.md's rule stands — run the suite and read the number off the output;
 `/verify` runs every check and reports real measurements. Quick re-derivations
@@ -1198,7 +1245,7 @@ for the structural claims above:
 |---|---|
 | Route count | `grep -h "@router\." Part2_Infrastructure/modules/api/*.py \| wc -l`, then subtract the WebSocket |
 | Contract paths / operations | read `Part2_Infrastructure/tools/openapi.json` |
-| Rail sections | `node Part2_Infrastructure/web/scripts/desk-sweep-plan.mjs` — it asserts 57 |
+| Rail sections and views | `node Part2_Infrastructure/web/scripts/desk-sweep-plan.mjs` — it asserts 70 sections and 43 non-default view cells |
 | The fusion constant | `grep -rn "RRF_K" Part2_Infrastructure/modules/` — one definition, the rest imports |
 | Store paths | `Part2_Infrastructure/config.py` and `modules/coherence/tunables.py` |
 | Requirements extras | `ls Part2_Infrastructure/requirements*.txt` |
