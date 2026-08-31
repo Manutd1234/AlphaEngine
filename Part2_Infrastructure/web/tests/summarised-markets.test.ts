@@ -41,8 +41,15 @@ const OWNERS: Record<string, string> = {
   fees: "FeesSection", shell: "ShellPane",
 };
 
-const SOURCES = new Map(Object.entries(OWNERS).map(([id, file]) =>
-  [id, stripNonCode(read(`../components/coherence/${file}.tsx`))]));
+/** Child files that now own section-level prose moved out of their owner. */
+const READING_CHILDREN: Partial<Record<string, readonly string[]>> = {
+  shell: ["ShellBrowser", "ShellRouteFlow"],
+};
+
+const SOURCES = new Map(Object.entries(OWNERS).map(([id, file]) => {
+  const files = [file, ...(READING_CHILDREN[id] ?? [])];
+  return [id, stripNonCode(files.map((name) => read(`../components/coherence/${name}.tsx`)).join("\n"))];
+}));
 
 /** Prose that MOVED behind a fold, and must still be there word for word. */
 const FOLDED: Array<{ section: string; file: string; facts: readonly string[] }> = [
@@ -56,10 +63,10 @@ const FOLDED: Array<{ section: string; file: string; facts: readonly string[] }>
   },
   {
     section: "shell",
-    file: "components/coherence/ShellPane.tsx",
-    // Folded by this pass. The scope caveat: which universe this is, and how
-    // big the venue's really is.
-    facts: ["watchlist", "thirteen thousand", "COHERENCE_SERIES"],
+    file: "components/coherence/ShellBrowser.tsx",
+    // Browse owns the folded scope caveat now: which universe this is, what it
+    // excludes, and the exact configuration that supplies it.
+    facts: ["watchlist", "whole exchange", "COHERENCE_SERIES"],
   },
 ];
 
@@ -80,8 +87,8 @@ describe("what was folded is still there, word for word", () => {
       // before it caught it. Every one of these facts is ALSO written in the
       // component's own doc block — that is house style here — so a raw scan is
       // satisfied by the sentence EXPLAINING the fact while the rendered
-      // sentence carrying it is gone. Mutating "thirteen thousand series" out of
-      // the markup left this green, because the header still said it.
+      // sentence carrying it is gone. Mutating a scope phrase out of the markup
+      // left this green when the component header still said it.
       // Same laundering `wire-types-parity` closes for orphaned guards.
       const source = stripNonCode(read(`../${entry.file}`));
       for (const fact of entry.facts) {
