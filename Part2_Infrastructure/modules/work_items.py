@@ -1,15 +1,11 @@
-"""The Data tab's work queue, persisted.
+"""The Data tab's persisted work queue.
 
-The queue was browser-session state — nine seeded rows and whatever a reader
-added, gone on reload, and honestly labelled as such. It now lives in the
-gateway's data-operations SQLite file: every create and status change is a
-versioned row (a stale edit is refused with the current row, never
-overwritten) and an audit event, and every browser reads the same list.
+Rows exist only after an explicit create request. Every create and status change
+is versioned and audit-logged, and a stale edit is refused with the current row
+rather than overwritten. A fresh store is empty.
 
-Boundaries, stated: one gateway process and one file — durable across
-restarts and deploys, not a ticket system with a workflow engine behind it.
-The nine sample rows are seeded once, marked as such, and only when the table
-is empty and ``DATA_WORK_SEED`` is on.
+Boundaries, stated: one gateway process and one file — durable across restarts
+and deploys, not a ticket system with a workflow engine behind it.
 """
 
 from __future__ import annotations
@@ -22,7 +18,6 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from config import settings
 from modules.data_ops_backend import get_data_ops_store
 from modules.data_ops_store import SqliteStore
 
@@ -84,7 +79,6 @@ class WorkItemsResponse(BaseModel):
     backend: Literal["sqlite", "postgres"]
     observed_at: datetime
     count: int
-    seeded: int
     items: list[WorkItemView]
 
 
@@ -122,22 +116,6 @@ _DDL = [
     "CREATE TABLE IF NOT EXISTS data_work_item_ids (prefix TEXT PRIMARY KEY, n INTEGER NOT NULL)",
 ]
 
-# (id, kind, priority, status, title, summary, owner, area, age_minutes, sla_hours)
-SEED_ITEMS: list[tuple[Any, ...]] = [
-    ("BUG-091", "bug", "P0", "progress", "Duplicate SOLUSDT bars in the 4h backfill", "Two timestamps survive normalisation and distort realised volatility.", "Mei", "Market data", 74, 2),
-    ("BUG-094", "bug", "P1", "progress", "News timestamps parsed in the browser timezone", "UTC vendor timestamps shift during enrichment and reorder the feed.", "Ravi", "Normalisation", 228, 8),
-    ("TKT-322", "ticket", "P1", "intake", "Review changePercent schema drift", "Three Alpha Vantage payloads were served with a renamed secondary field.", "Unassigned", "Data contracts", 96, 8),
-    ("REQ-184", "request", "P2", "intake", "Add perpetual funding-rate lineage", "Quant research needs provider and cache provenance on funding snapshots.", "Unassigned", "Research data", 41, 24),
-    ("REQ-187", "request", "P2", "intake", "Define an SLO for cross-source spread", "Alert when the quote consensus remains outside tolerance for five minutes.", "Noah", "Observability", 19, 24),
-    ("TKT-319", "ticket", "P2", "ready", "Raise the interactive quota reserve", "Protect manual traces while the background bars poll approaches its daily cap.", "Lina", "Capacity", 310, 24),
-    ("REQ-179", "request", "P3", "ready", "Expose provider choice in research exports", "Add source, route rank, and cache age to the experiment artifact.", "Ravi", "Lineage", 522, 72),
-    ("TKT-311", "ticket", "P3", "resolved", "Publish the failover drill runbook", "Document the bounded outage, expected route change, and restore check.", "Mei", "Runbooks", 1460, None),
-    ("BUG-088", "bug", "P2", "resolved", "BTC quote freshness label lagged one poll", "The inspector now reports the response timestamp from the winning request.", "Lina", "Pipeline", 2040, None),
-]
-
-SEED_ACTOR = "seed"
-
-
 def _now_ms() -> float:
     return time.time() * 1000.0
 
@@ -148,7 +126,7 @@ class VersionConflict(Exception):
         self.current = current
 
 
-#: Declared once so the seed, the create and the row order cannot drift apart.
+#: Declared once so create and the persisted row order cannot drift apart.
 _COLUMNS = ("id", "kind", "priority", "status", "title", "summary", "owner", "area",
             "opened_at", "sla_due_at", "resolved_at", "created_by", "updated_at",
             "updated_by", "version")
@@ -166,12 +144,9 @@ class WorkItemStore:
     business edit, and the row-level `patch` it now calls is `self._store`'s.
     """
 
-    def __init__(self, store: Any, *, seed: bool | None = None, now_ms: float | None = None) -> None:
+    def __init__(self, store: Any) -> None:
         self._store = SqliteStore(store) if isinstance(store, (str, Path)) else store
         self._store.migrate(_DDL)
-        should_seed = settings.data_work_seed if seed is None else seed
-        if should_seed and self.count() == 0:
-            self._seed(now_ms if now_ms is not None else _now_ms())
 
     @property
     def backend(self) -> str:
@@ -181,22 +156,8 @@ class WorkItemStore:
         self._store.close()
 
     @classmethod
-    def in_memory(cls, **kwargs: Any) -> "WorkItemStore":
-        return cls(":memory:", **kwargs)
-
-    # -- seed --------------------------------------------------------------- #
-    def _seed(self, now: float) -> None:
-        rows = []
-        for item_id, kind, priority, status, title, summary, owner, area, age_minutes, sla_hours in SEED_ITEMS:
-            opened = now - age_minutes * 60_000
-            sla_due = None if sla_hours is None else now + (sla_hours * 60 - age_minutes) * 60_000
-            resolved = now - 60_000 if status == "resolved" else None
-            rows.append(dict(zip(_COLUMNS, (
-                item_id, kind, priority, status, title, summary, owner, area,
-                opened, sla_due, resolved, SEED_ACTOR, now, SEED_ACTOR, 1,
-            ), strict=True)))
-        self._store.add(_TABLE, rows)
-        log.info("work-item store seeded with %d sample rows", len(rows))
+    def in_memory(cls) -> "WorkItemStore":
+        return cls(":memory:")
 
     # -- read --------------------------------------------------------------- #
     @staticmethod
@@ -217,9 +178,6 @@ class WorkItemStore:
     def count(self) -> int:
         return self._store.count(_TABLE)
 
-    def seeded_count(self) -> int:
-        return self._store.count(_TABLE, filters={"created_by": SEED_ACTOR})
-
     def response(self) -> WorkItemsResponse:
         items = self.list()
         return WorkItemsResponse(
@@ -228,7 +186,6 @@ class WorkItemStore:
             backend=self.backend,
             observed_at=datetime.now(timezone.utc),
             count=len(items),
-            seeded=self.seeded_count(),
             items=items,
         )
 
