@@ -114,9 +114,11 @@ interface View {
 const VIEWS: Record<string, View> = {
   "Coherence test / Verdict": { at: "../components/coherence/CertificateViews.tsx#VerdictView" },
   "Coherence test / Proof": { at: "../components/coherence/CertificateViews.tsx#ProofView" },
-  // The prices the test is about, given a view of their own on 2026-08-26
-  // rather than a place below the verdict.
+  "Coherence test / Checks": { at: "../components/coherence/CertificateViews.tsx#ChecksView" },
+  // The prices and independent size measures the test is about now have one
+  // drawing per view rather than a long stack below the verdict.
   "Coherence test / Prices": { at: "../components/coherence/CertificateViews.tsx#PricesView" },
+  "Coherence test / Sizes": { at: "../components/coherence/CertificateViews.tsx#SizesView" },
   // Three questions since 2026-08-26: what a cover costs, what the test handed
   // back, and whether it could be put on. Cover is the one drawable on every
   // read, which is why the section opens there.
@@ -130,6 +132,7 @@ const VIEWS: Record<string, View> = {
   // the LEGS at their implied p, which is what both bounds are built from and
   // what every card below keeps behind a `<details>`.
   "Parlays / Parlays": { at: "../components/coherence/ParlaysView.tsx#ParlaysView" },
+  "Parlays / Inputs": { at: "../components/coherence/ParlaysView.tsx#ParlayInputsView" },
   "Parlays / Bounds": { at: "../components/coherence/CombosBounds.tsx#BoundsView" },
   // NO LONGER EXEMPT, as of 2026-08-25, and the exemption was retired by
   // building rather than by argument. It covered the engine caveat — the one
@@ -324,10 +327,10 @@ describe("every Proofs view opens on a drawing", () => {
   }
 
   it("names every view both engine rails ship, so none is guarded by omission", () => {
-    // Eleven views over six Proofs sections, plus sixteen over Diffusion's
+    // Seventeen views over six Proofs sections, plus sixteen over Diffusion's
     // seven. A view added without a line here is a view this contract does not
     // reach, and the failure would be silence.
-    assert.equal(Object.keys(VIEWS).length, 30);
+    assert.equal(Object.keys(VIEWS).length, 33);
   });
 
   it("every named drawing is one, so the allow-list is not a loophole", () => {
@@ -342,13 +345,18 @@ describe("every Proofs view opens on a drawing", () => {
       // itself checked here — one indirection, verified rather than asserted.
       CheckLadder: "../components/coherence/CheckLadder.tsx#CheckLadder",
       FormationDiagram: "../components/coherence/FormationDiagram.tsx#FormationDiagram",
+      SettlementAssembly: "../components/coherence/SettlementInstruments.tsx#SettlementAssembly",
       StateCoverage: "../components/coherence/StateCoverage.tsx#StateCoverage",
       ParlayLegs: "../components/coherence/ParlayLegs.tsx#ParlayLegs",
+      ParlaySimulator: "../components/coherence/ParlaySimulator.tsx#ParlaySimulator",
+      SimulatorSession: "../components/coherence/ParlaySimulator.tsx#SimulatorSession",
       HorizonAxis: "../components/coherence/HorizonAxis.tsx#HorizonAxis",
       MeasurabilityStrip: "../components/coherence/MeasurabilityStrip.tsx#MeasurabilityStrip",
       LadderPrices: "../components/coherence/LadderPrices.tsx#LadderPrices",
       LegSizes: "../components/coherence/LegSizes.tsx#LegSizes",
       BasketFootprint: "../components/coherence/BasketFootprint.tsx#BasketFootprint",
+      BasketNullInstrument: "../components/coherence/BasketNullInstrument.tsx#BasketNullInstrument",
+      BasketScenarioTerminal: "../components/coherence/BasketScenarioTerminal.tsx#BasketScenarioTerminal",
       CorpusAccrual: "../components/coherence/CorpusAccrual.tsx#CorpusAccrual",
       GroupPins: "../components/coherence/GroupPins.tsx#GroupPins",
       InstrumentFit: "../components/coherence/diffusion/InstrumentFit.tsx#InstrumentFit",
