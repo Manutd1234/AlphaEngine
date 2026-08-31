@@ -127,7 +127,7 @@ function detailsBlocks(source: string): Block[] {
 function atRest(source: string): string {
   let out = source;
   for (const block of detailsBlocks(source).reverse()) {
-    out = out.slice(0, block.start) + " " + out.slice(block.end);
+    out = out.slice(0, block.start) + ` ${summaryOf(block.inner)} ` + out.slice(block.end);
   }
   return prose(out);
 }
@@ -144,7 +144,8 @@ function summaryOf(inner: string): string {
 /** A block with its summary removed: what opening it actually buys. */
 function bodyOf(inner: string): string {
   const close = inner.indexOf("</summary>");
-  return prose(close === -1 ? inner : inner.slice(close + "</summary>".length));
+  const raw = close === -1 ? inner : inner.slice(close + "</summary>".length);
+  return prose(raw) || [...raw.matchAll(/<([A-Z][A-Za-z0-9]*)\b/g)].map((match) => match[1]).join(" ");
 }
 
 /**
@@ -280,7 +281,7 @@ const STAYS: { file: string; why: string; fragments: string[] }[] = [
   { file: "components/research/PromotionPanel.tsx", why: "the reason the Promote button is dimmed: the gate is conjunctive", fragments: ["Every row is a veto."] },
   { file: "components/research/FittedModels.tsx", why: "the sentence that qualifies every figure in the run table",
     fragments: ["Every figure here is out of sample; a failed run carries its reason on the status cell."] },
-  { file: "components/ResearchWorkspace.tsx", why: "the ranking table's scope, and the only statement that its rows are pressable",
+  { file: "components/research/CandidateRanking.tsx", why: "the inline ranking table's scope, and the only statement that its rows are pressable",
     fragments: ["The top 15 combinations behind the winner. Select a row to inspect that pair without losing the sweep."] },
 ];
 
