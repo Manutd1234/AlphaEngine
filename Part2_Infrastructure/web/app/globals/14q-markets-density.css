@@ -130,7 +130,6 @@
   .coh-shell__detail-line,
   .coh-settle__note,
   .coh-settle__standing,
-  .coh-rfq__lead,
   .coh-rfq__note,
   .coh-surface__moments-note,
   .coh-kelly__note,
@@ -143,7 +142,6 @@
   .coh-lessons__intro,
   .coh-lesson__summary,
   .coh-lesson__bounds dd,
-  .coh-calib__terms dd,
   .coh-combo__meta,
   .coh-combo__caveat,
   .coh-combo__note,
@@ -174,18 +172,14 @@
   .coh-lesson__state,
   .coh-lesson__formula,
   .coh-lesson__bounds dt,
-  .coh-lesson__mechanics summary,
-  .coh-lesson__mechanics ul,
-  .coh-calib__terms dt,
-  .coh-calib__term-dir,
   .coh-combo__formula,
   .coh-combo__side,
   .coh-proof,
   .disclosure > summary,
   /* MOVED HERE 2026-08-25 from a --fs-title block of their own, which is how
      one text type came to have THREE sizes on one plane: these two at 17px,
-     `.coh-lesson__mechanics summary` and `.disclosure > summary` at 14px in
-     this list, and the 10a/10e originals at 12.75px underneath both. The old
+     `.disclosure > summary` at 14px in this list, and the 10a/10e originals
+     at 12.75px underneath both. The old
      block argued a summary is "a sentence a reader reads before deciding to
      open it, so it reads the prose rung" — true of the sentence, wrong about
      the rung, because it made the QUESTION louder than the page and the answer
