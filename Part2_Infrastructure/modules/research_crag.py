@@ -310,6 +310,7 @@ async def answer_from_corpus(
     grader: ContextGrader | None = None,
     audit: Any = None,
     now: datetime | None = None,
+    desk_id: str | None = None,
 ) -> ResearchAnswer:
     """Route, retrieve, grade, rewrite ONCE, then answer or refuse.
 
@@ -336,7 +337,7 @@ async def answer_from_corpus(
         plan,
         research_stages.with_graph_width(rag, match_count),
         match_count=research_stages.wide(match_count),
-        kind=kind,
+        kind=kind, desk_id=desk_id,
     )
 
     if run.state != "ok" or not run.matches:
@@ -365,7 +366,8 @@ async def answer_from_corpus(
     if served.grade.band == "rewrite":
         # The ONE retry, and the only place a second retrieval can happen.
         served = await research_crag_policy.rewrite_once(
-            served, rag, router, grader, match_count=match_count, kind=kind, now=now,
+            served, rag, router, grader, match_count=match_count, kind=kind,
+            now=now, desk_id=desk_id,
         )
     # There is no third attempt, and no loop for one to be added to.
 
