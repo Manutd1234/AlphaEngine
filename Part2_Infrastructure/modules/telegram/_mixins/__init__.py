@@ -47,6 +47,7 @@ from modules.telegram._mixins.streaming import StreamingMixin
 from modules.telegram._mixins.subscriptions import SubscriptionsMixin
 from modules.telegram._mixins.tabs import TabsMixin
 from modules.telegram._mixins.tabs_coherence import CoherenceTabMixin
+from modules.telegram._mixins.tabs_engine import EngineTabsMixin
 from modules.telegram._mixins.tabs_ops import TabsOpsMixin
 
 __all__ = [
@@ -68,6 +69,7 @@ __all__ = [
     "DeliveryMixin",
     "DeveloperMixin",
     "EssentialsMixin",
+    "EngineTabsMixin",
     "FoldsMixin",
     "LinkingMixin",
     "LiveMixin",
