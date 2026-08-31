@@ -280,11 +280,6 @@ export interface SweepResponse {
   regimes: RegimeReport;
   /** Build identity of the code that ran the sweep; stamped by the route. */
   commit?: string;
-  /**
-   * Present and true only on the committed seed run the landing page shows
-   * before the live sweep completes. Never set by the route.
-   */
-  seededDemo?: true;
   /** Generator seed when dataSource is synthetic; null on real market data. */
   syntheticSeed?: number | null;
 }
