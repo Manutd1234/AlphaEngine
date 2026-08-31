@@ -16,7 +16,6 @@
  * the desk state — rather than as fifty loose values, so no panel can be handed
  * half a hook.
  */
-
 import ExecutionCockpit from "@/components/execution/ExecutionCockpit";
 import LiveMarket from "@/components/LiveMarket";
 import { type PortfolioFocusDestination } from "@/components/PortfolioWorkspace";
@@ -36,11 +35,10 @@ import type { useDataWorkQueue } from "@/lib/use-data-work-queue";
 import type { useSweepRun } from "@/lib/use-sweep-run";
 import type { useSystemHealth } from "@/lib/use-system-health";
 import type { useWorkspaceRouting } from "@/lib/use-workspace-routing";
+import { RESEARCH_SETUP_VIEWS, RESEARCH_SUMMARY_VIEWS } from "@/lib/section-views";
 import { executionInsights, portfolioInsights, riskInsights } from "@/lib/workspace-insights";
 import type { Strategy } from "@/lib/types";
 import type { Side } from "@/lib/venues";
-
-
 /** The state the shell owns because two or more panels read it. */
 export interface DeskShell {
   book: ReturnType<typeof useBook>;
@@ -133,8 +131,7 @@ export default function WorkspacePanels({ routing, sweep, desk }: WorkspacePanel
       {(view === "portfolio" || visitedViews.current.has("portfolio")) && (
         <section id="panel-portfolio" role="tabpanel" aria-labelledby="tab-portfolio" className="view-panel" hidden={view !== "portfolio"}>
           <WorkspaceIntro
-            kicker="Portfolio manager"
-            title="Portfolio"
+            kicker="Portfolio manager" title="Portfolio"
             /* Not the section rail in prose: "what the book holds" is
                Positions, "how capital is spread" is Allocation, "which sleeve
                earned the P&L" is Performance — three of the five tabs below.
@@ -171,8 +168,7 @@ export default function WorkspacePanels({ routing, sweep, desk }: WorkspacePanel
       {(view === "risk" || visitedViews.current.has("risk")) && (
         <section id="panel-risk" role="tabpanel" aria-labelledby="tab-risk" className="view-panel" hidden={view !== "risk"}>
           <WorkspaceIntro
-            kicker="Risk manager"
-            title="Risk"
+            kicker="Risk manager" title="Risk"
             /* The worst of the three: this was every section tab named in
                rail order, restated a line above the rail itself. */
             description={<>How much this book can lose before a limit stops it, and what does the stopping.</>}
@@ -242,6 +238,10 @@ export default function WorkspacePanels({ routing, sweep, desk }: WorkspacePanel
             onOpenSection={openSection}
             section={researchSection}
             onSectionChange={changeResearchSection}
+            summaryView={sectionViews.research?.summary ?? RESEARCH_SUMMARY_VIEWS[0][0]}
+            summaryViews={RESEARCH_SUMMARY_VIEWS}
+            setupViews={RESEARCH_SETUP_VIEWS}
+            onSummaryViewChange={(next) => setSectionView("research", "summary", next)}
           />
           <NextStepFooter currentView="research" currentSection={researchSection} onNavigate={openSection} />
         </section>
