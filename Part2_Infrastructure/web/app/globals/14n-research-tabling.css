@@ -100,7 +100,7 @@
 }
 
 .monthly-grid th {
-  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+  background: var(--table-header-bg);
 }
 
 .monthly-grid th:first-child,
@@ -152,7 +152,7 @@
 .corpus-result__head {
   padding: var(--space-2) var(--space-3);
   border-bottom: 1px solid var(--rule);
-  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+  background: var(--table-header-bg);
 }
 
 .corpus-result__facts {
