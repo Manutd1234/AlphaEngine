@@ -20,6 +20,10 @@
    the panel it sits inside. */
 
 .operator-mutations__wrap {
+  /* Own the absolutely positioned screen-reader labels inside Action cells.
+     Without this containing block their static positions escaped the local
+     table scroller and widened the document to 738px on narrow screens. */
+  position: relative;
   overflow-x: auto;
   /* The boxes carried this margin each; the table carries it once, so the
      scope disclosure under it keeps the distance it had. */
