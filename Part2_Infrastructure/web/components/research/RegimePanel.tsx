@@ -155,19 +155,18 @@ export default function RegimePanel({ regimes }: { regimes: RegimeReport }) {
             — marks a window outside the loaded bars; extend the bar count to test it.
           </p>
         )}
-      </section>
-
-      {/* Folded, not dropped. `regimes.note` states one classification method
+        {/* Folded, not dropped. `regimes.note` states one classification method
           and two restrictions on what the table above may be used for — the
           volatility split is hindsight, and the per-regime drawdown is a
           stitched diagnostic. Every figure it qualifies stays on screen, and
           the summary says out loud that a restriction exists rather than
           leaving a reader to discover it by opening something. The words are
           interpolated from lib/regimes.ts and are not touched here. */}
-      <details className="disclosure">
-        <summary>How were these regimes classified, and what can they not be used for?</summary>
-        <p className="research-note">{regimes.note}</p>
-      </details>
+        <details className="disclosure regime-method">
+          <summary>How were these regimes classified, and what can they not be used for?</summary>
+          <p className="research-note">{regimes.note}</p>
+        </details>
+      </section>
     </div>
   );
 }
