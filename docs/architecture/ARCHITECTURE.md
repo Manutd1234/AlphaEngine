@@ -1,9 +1,10 @@
 # AlphaEngine — system architecture
 
-*As of 2026-08-24. Every figure here was read off the tree on that date, with the
-file it came from named beside it. Where this document and
+**Source/worktree audited: 2026-08-31.** Every current-tree figure here was read
+off the tree on that date, with the file it came from named beside it. This is
+not a fresh probe of an external deployment. Where this document and
 [`Part2_Infrastructure/README.md`](../../Part2_Infrastructure/README.md) disagree,
-re-read the tree — both stamp their dates, and the tree is right.*
+re-read the tree — both stamp their dates, and the tree is right.
 
 This is the map, not the territory: it says what the pieces are, where each one
 runs, and why the seams sit where they do. The depth lives elsewhere and is
@@ -20,6 +21,9 @@ Everything else — route counts, section counts, module counts — is a reading
 taken on the stamp date with the file it came from named beside it, so that a
 reader who doubts one can re-take it in a single command. Where a figure moves
 weekly, this document describes the **gate** instead of pinning the number.
+The reproducible release snapshot for volatile counts and versions is
+[`CURRENT_STATE.md`](../CURRENT_STATE.md); this document explains the topology
+behind those figures rather than becoming a second current-state ledger.
 
 ---
 
@@ -30,7 +34,7 @@ FastAPI **risk gateway** on an always-on OCI VM (Singapore) owns everything that
 must not be forked or forgotten: venue WebSocket subscriptions, the paper
 position book, seventeen defined pre-trade gates (fifteen reachable by any
 single order — README §4), the kill switch, and the DuckDB audit log on a Docker
-volume. A serverless **Next.js desk workspace** on Vercel gives ten role tabs
+volume. A serverless **Next.js desk workspace** on Vercel gives eleven role tabs
 and holds no secrets in the browser bundle — its server-side proxy is the only
 path to gateway credentials. A stateless **OpenBB research service**, a second
 Vercel project, serves quotes, bars, news and fundamentals and can scale without
@@ -59,16 +63,16 @@ flowchart TB
             risk["modules/risk_proxy/ + modules/_decision_core*.so\nB - gates, kill switch, breaker"]
             backtest["modules/backtester/ + modules/ml/ + modules/jobs.py\nC - sweeps, DSR, walk-forward, fitted runs"]
             coh["modules/coherence/ — Kalshi engine\nrecorder loop, certify, no order path"]
-            telegram["modules/telegram/ — companion\n136 command specs, 6 gated controls"]
+            telegram["modules/telegram/ — companion\n138 command specs, 6 gated controls"]
             mirror["modules/supabase_mirror.py\nbounded queue, best-effort"]
         end
         audit[("DuckDB audit log\nmodules/audit/ — authoritative,\nappend-only, Docker volume")]
         tape[("DuckDB book tape\nmodules/coherence/fs/store.py\nOFF unless COHERENCE_POLL_S is set")]
-        ops[("SQLite data-ops store\nmodules/data_ops_store.py\nstrict writes, same volume")]
+        ops[("Data-ops store\nSQLite default / Postgres opt-in\nstrict writes; diffusion ledgers too")]
     end
 
-    subgraph vercel["Vercel, region sin1 — two serverless projects"]
-        web["web/ — desk workspace\nNext.js, ten role tabs"]
+    subgraph vercel["Vercel — two serverless projects"]
+        web["web/ — desk workspace\nNext.js, eleven role tabs, region sin1"]
         openbb["OpenBB_Service/ — stateless\nquotes, bars, news, fundamentals"]
     end
 
@@ -94,7 +98,7 @@ flowchart TB
     risk --> audit
     backtest --> audit
     coh --> tape
-    main -->|"data-ops family: quality resolve loop,\nscheduler, work queue"| ops
+    main -->|"quality, scheduler, work queue,\ndiffusion events/runs/texts/studies"| ops
     risk --> mirror
     mirror -->|"never on the order path"| supabase
     supabase -.->|"6h reconcile sweep projects,\nnever the other way"| neo4j
@@ -150,10 +154,14 @@ the defect, not a rounding choice.
 | The compiled core | **ns** | the C++ arithmetic battery alone (`native/decision_core/decision_core.cpp`) | timed inside the engine; the gateway self-measures it at startup on a synthetic two-venue book, so the figure exists before the first order |
 | The network | **ms** | data age in, order transit out | the chip's title and the Reliability tab — never under the decision label |
 
-The measured conclusion — ~12 µs decision, ~83 ns core on the dev Mac, ~70 ms
-to the venue, compute at 0.02 % of the path — is argued end-to-end in
-[`LATENCY_BUDGET.md`](LATENCY_BUDGET.md), which also keeps the two machines'
-figures separate rather than merging them into one flattering number.
+The newest code-level qualification (2026-08-28) separates a 42/84 ns
+canonical kernel, a 958/1,042 ns complete native operation and a
+64.833/81.667 µs whole-gateway external wall; the last misses its 10/20 µs
+target. The older production and venue observations keep their own dates.
+[`LATENCY_BUDGET.md`](LATENCY_BUDGET.md) and
+[`NATIVE_LATENCY_OPERABILITY.md`](../../Part2_Infrastructure/docs/NATIVE_LATENCY_OPERABILITY.md)
+keep those populations separate rather than merging them into one flattering
+number.
 
 ## The risk gateway, module by module
 
@@ -173,17 +181,13 @@ arrived.
 Everything else is a router in [`modules/api/`](../../Part2_Infrastructure/modules/api/),
 one per tag group: `audit`, `coherence`, `coherence_history`, `coherence_lab`,
 `data`, `diffusion`, `meta`, `ml`, `research`, `risk`, `tca`, `telegram`. Read
-off the tree on 2026-08-24 those carry **76 HTTP route decorators** plus **one
-WebSocket** (`/ws/book/{symbol}`, which OpenAPI does not describe), and
+off the tree on 2026-08-29 those carry **79 HTTP operation decorators** plus
+**one WebSocket** (`/ws/book/{symbol}`, which OpenAPI does not describe), and
 `main.py` adds three console aliases (`/`, `/app`, `/ui`) all marked
-`include_in_schema=False`. The committed contract
+`include_in_schema=False`. Across application source that is **83 route
+decorators**. The committed contract
 [`tools/openapi.json`](../../Part2_Infrastructure/tools/openapi.json) therefore
-holds **73 paths carrying 76 operations**, OpenAPI 3.1.0.
-
-> **Known stale source comment, flagged rather than fixed here:** `main.py`'s own
-> docstring still says "The fifty-two routes now live in `modules/api/`". That is
-> a comment in code this document does not edit; the count above is the one taken
-> from the decorators.
+holds **76 paths carrying 79 operations**, OpenAPI 3.1.0.
 
 That contract is a **gate, not a note**. `python tools/export_openapi.py --check`
 runs in CI's `gateway` job, and the web build's `prebuild` step recomputes a
@@ -261,9 +265,9 @@ raise when a write fails, and a market tape must refuse rather than fork.
 |---|---|---|---|
 | **DuckDB — audit ledger** | [`modules/audit/store.py`](../../Part2_Infrastructure/modules/audit/store.py), assembled as `AuditLog` in `modules/audit/__init__.py` | every paper order and risk decision, TCA snapshots, OHLCV cache, `backtest_runs`, and the `research_plan` / `research_tool_call` / `research_generation` ledger | DuckDB genuinely unavailable → **SQLite fallback**, `backend: "sqlite"`, nothing lost but analytical SQL. Another live process holding the file → `AuditLedgerConflict`, **raised, never fallen back from** |
 | **DuckDB — Kalshi book tape** | [`modules/coherence/fs/store.py`](../../Part2_Infrastructure/modules/coherence/fs/store.py) | whole bid ladders per poll, append-only, `COHERENCE_DB_PATH` or `${DATA_DIR}/coherence.duckdb` | a lock conflict is a **reported state, never a fallback** — a second store recording to a different file would split the tape in two and neither half would be complete |
-| **SQLite — data operations** | [`modules/data_ops_store.py`](../../Part2_Infrastructure/modules/data_ops_store.py) | quality findings, escalations, work items, schedule runs | writes **raise**; `PRAGMA busy_timeout=30000` (`BUSY_TIMEOUT_S = 30.0`) and one process-wide open at a time, both argued in-file against a measured CI flake |
+| **SQLite / Postgres — data operations** | [`modules/data_ops_backend.py`](../../Part2_Infrastructure/modules/data_ops_backend.py), `data_ops_store.py`, `data_ops_postgrest.py` | quality findings, escalations, work items, schedule runs and four diffusion ledgers | writes **raise**; SQLite is complete and default. The current source and migration bundle give Postgres parity for all eight logical tables, including Diffusion runs/texts and the current study fields. Postgres mode requires a non-empty `SUPABASE_DESK_ID`; the store stamps and filters it on every operation, and never silently falls back. A live project has that contract only after the parity and desk-scope-guard migrations are applied — the exact rollout boundary is in `DATA_OPS_BACKEND.md` |
 | **Supabase Postgres** | `modules/research_rag/`, `modules/supabase_mirror.py`, `modules/research_graph.py` | the research corpus and its edges; the `order_blotter` mirror of decisions the audit log already owns | unset credentials → every mirror method is a no-op and every retrieval route returns a typed `unavailable` **state**, never `[]` |
-| **Neo4j Aura** | [`modules/research_graph_projection.py`](../../Part2_Infrastructure/modules/research_graph_projection.py) (write), `modules/research_graph_read_model.py` (read) | **nothing** — it is a one-way projection of `research_edges`, which Postgres owns | unset `NEO4J_URI` or no `requirements-graph.txt` driver → a named reason and `source: "corpus"`; three refusals stay distinguishable (not configured / sweep has not run / mid-rebuild) |
+| **Neo4j Aura** | [`modules/research_graph_projection.py`](../../Part2_Infrastructure/modules/research_graph_projection.py) (write), `modules/research_graph_offload.py` → `research_graph_read_model.py` (read) | **nothing** — it is a one-way projection of `research_edges`, which Postgres owns | unset `NEO4J_URI` or no `requirements-graph.txt` driver → a named reason and `source: "corpus"`; three refusals stay distinguishable (not configured / sweep has not run / mid-rebuild). The projection and its Cypher reads are not desk-scoped. When `RESEARCH_SCOPE_TO_DESK=1`, the read model refuses Neo4j before opening the driver and both reports automatically use the desk-scoped corpus fallback; with the flag off, Neo4j is suitable only for a single desk or an isolated database |
 | **Oracle Autonomous Database** | [`web/lib/oracle/client.ts`](../../Part2_Infrastructure/web/lib/oracle/client.ts), route `web/app/api/oracle/var/route.ts` | one in-database Monte Carlo VaR, surfaced on `#risk/oraclevar` | a typed result, never a throw; nine distinct failure codes from `oracle_not_configured` to `oracle_schema_missing`, none of which carries a credential, hostname or raw ORA text |
 
 Two of those contracts deserve their argument spelled out, because they look
@@ -273,9 +277,10 @@ like inconsistencies and are not.
 failed write and `query` returns `[]` — a lost TCA snapshot must never take the
 order path down with it. That is the right contract for *evidence about
 something that already happened* and the wrong one for state a person just
-edited, which is exactly why the data-operations tables are a separate SQLite
-file whose writes raise and whose UPDATE reports whether it hit a row. The
-choice is argued at the top of `modules/data_ops_store.py` and its consequences
+edited, which is exactly why the data-operations tables use a separate strict
+store whose writes raise and whose UPDATE reports whether it hit a row. SQLite
+is the default implementation; Postgres is the partial opt-in described above.
+The choice is argued at the top of `modules/data_ops_store.py` and its consequences
 are [`DATA_OPS_BACKEND.md`](DATA_OPS_BACKEND.md).
 
 **A second live writer is prevented twice, and the two layers close different
@@ -292,30 +297,33 @@ shadow desk whose kill switch is local, whose token bucket permits N × the
 configured rate, and whose limits are computed against a fraction of the real
 position.
 
-## The desk workspace — ten tabs
+## The desk workspace — eleven tabs, 70 rail sections
 
-One client workspace, ten role tabs, every subtab URL-addressable. The tab
-order is the decision loop itself followed by the Kalshi engine's two, and the
-[feature tour](../product/FEATURE_TOUR.md) walks it tab by tab.
+One client workspace, eleven role tabs. The first eight follow the desk's
+decision loop; Markets reads prediction-market prices, Proofs tests what follows
+from them, and Diffusion studies how new information reaches those prices. The
+[feature tour](../product/FEATURE_TOUR.md) walks the same order.
 
-The rails have **one** definition:
-[`web/lib/sections.ts`](../../Part2_Infrastructure/web/lib/sections.ts), which
-the rails, the command palette, the hash whitelist and "Copy link to this view"
-all read. It holds **58 sections across the ten tabs** — 48 on the eight
-decision-loop tabs, 6 on Quotes and 4 on Proofs (counted 2026-08-24;
-`web/scripts/desk-sweep-plan.mjs` mirrors the same ten tabs by hand and asserts
-`EXPECTED_SECTIONS = 58`, so a section added to one and not the other fails).
-`web/tests/tour-truth.test.ts` pins the [feature tour](../product/FEATURE_TOUR.md)'s
-rail lists to that same file, so the tour cannot drift from the app silently —
-this document is not under that guard, which is why it links rather than
-transcribes. Ids are deep links and never change, which is why six ids disagree
-with their labels: view `live` renders "Execution", view `markets` renders
-"Quotes", view `coherence` renders "Proofs", section `codex` renders
-"Strategies", `activity` renders "Blotter", and Risk's `model` renders "Risk
-engine". The two view ids are the newest: the Kalshi engine was relabelled on
-2026-08-24 and neither id moved.
+The tab rail is data in
+[`web/lib/workspace-nav.ts`](../../Part2_Infrastructure/web/lib/workspace-nav.ts),
+and the section rails have one definition in
+[`web/lib/sections.ts`](../../Part2_Infrastructure/web/lib/sections.ts). The
+latter holds **70 sections**: 48 across the original eight workspaces, 8 in
+Markets, 7 in Proofs and 7 in Diffusion (read 2026-08-29). The production sweep
+mirrors that topology in `web/scripts/desk-sweep-plan.mjs` and asserts
+`EXPECTED_SECTIONS = 70`.
 
-| Tab | View id (`WorkspaceHeader.tsx`) | Role | The question it answers |
+Sections are not the bottom of the address any more. The optional third hash
+segment is defined by
+[`web/lib/section-views.ts`](../../Part2_Infrastructure/web/lib/section-views.ts):
+the default view keeps the canonical two-segment URL, while every non-default
+view has a stable `#tab/section/view` address. The sweep carries **43 non-default
+view cells** (`EXPECTED_VIEW_CELLS = 43`) in addition to the 70 rail landings.
+`workspace-hash.ts` owns parsing, history correction and the 11 legacy
+cross-tab relocations; individual panes no longer own an unreachable `useState`
+for a view that the URL needs to open.
+
+| Tab | View id | Role | The question it answers |
 |---|---|---|---|
 | Overview | `overview` | all roles | what is the state of the whole desk, now? |
 | Research | `research` | quant researcher | is this strategy evidence, or noise that survived a search? |
@@ -325,155 +333,116 @@ engine". The two view ids are the newest: the Kalshi engine was relabelled on
 | Data | `data` | data engineer | can I trust this data? |
 | Reliability | `reliability` | SRE | is it healthy, and what do I do at 3am? |
 | Developer | `developer` | quant developer | can I change this safely? |
-| Quotes | `markets` | quant researcher | what is this exchange quoting, and what does a dollar of it cost? |
+| Markets | `markets` | quant researcher | what is this exchange quoting, and what does a dollar of it cost? |
 | Proofs | `coherence` | quant researcher | do those prices admit a probability at all? |
+| Diffusion | `diffusion` | quant researcher | how long does information take to finish moving the price? |
 
-The workspace's runtime dependency list is six packages —
-`next`, `react`, `react-dom`, `lucide-react`, `@supabase/supabase-js`,
-`oracledb` (`web/package.json`, read 2026-08-24) — and its charts are
-hand-rolled SVG over `components/chart-kit`; a chart library was the rejected
-alternative because it would change the argument the project makes about itself.
-
-**Be precise about how that is held.** No test reads `package.json`'s
-`dependencies` and pins the list; what exists is a per-surface rule enforced
-where it matters — suites such as `web/tests/developer-custody-gateway.test.ts`
-("adds no npm dependency") and `web/tests/oracle-var-trend.test.ts` ("adds no
-dependency and hand-rolls no scale") assert that a named component imports
-nothing but the framework, `node:`, and in-tree paths. So the guarantee is
-"these surfaces added nothing", not "the manifest cannot grow"; saying otherwise
-would be exactly the kind of claim this repository refuses.
+The runtime dependency allowlist is ten packages: `next`, `react`, `react-dom`,
+`lucide-react`, `@supabase/supabase-js`, `oracledb`, and the exact
+`radix-ui`, `class-variance-authority`, `clsx`, `tailwind-merge` set used by
+source-owned shadcn primitives. Quantitative charts and proof objects remain
+domain-owned SVG and exact-value tables. The accepted implementation boundary,
+including the two browser-test-only packages and rollback gates, is
+[`ADR_2026-08-27_SHADCN_SOURCE_PRIMITIVES.md`](ADR_2026-08-27_SHADCN_SOURCE_PRIMITIVES.md).
+`web/tests/dependency-policy.test.ts` pins the full manifests and audited
+override, so the exception cannot grow silently.
 
 The other house rules that shape every tab — null never coerced to zero, no
 colour-only meaning, empty results reported rather than hidden — are in
 [`CLAUDE.md`](../../CLAUDE.md) and enforced by the suites it names. §"The honesty
 doctrine is architecture, not styling" below shows where.
 
-## The coherence plane — a fourth capability with no order path
+## Prediction-market architecture — three tabs, two data families, no order path
 
-The last two tabs are one separate engine that shares the gateway process and
-almost nothing else. They were a single eleven-section tab until 2026-08-24, a
-day on which the engine was restructured six times and came to rest divided by
-what its sections are for: "what is quoted" on **Quotes** (`#markets`) and "what
-is proved" on **Proofs** (`#coherence`). No section id moved with the split —
-`#coherence/books` still resolves, through `RELOCATED_SECTIONS` in
-`web/lib/workspace-hash.ts`, and so does every other link the engine has ever
-published. The plane keeps the name `coherence` throughout the gateway, the
-route group and the component directory; only the two rail labels changed. It
-reads Kalshi — a venue where a contract paying $1 if an event
-happens *is* a probability with a price on it — and asks whether a family of
-those prices admits a probability measure at all. Where it does not, the failure
-hands back the portfolio that wins in every state, and that portfolio is the
-certificate.
+Markets and Proofs are two readings of the Kalshi coherence engine. Markets
+owns the venue observations; Proofs owns the certificates, baskets, bounds,
+index and settled score. Diffusion is a separate research tab over recorded
+announcement windows and coherence episodes. It shares components and some
+read models, but its `/api/research/diffusion/*` endpoints and strict data-ops
+event/run/text/study rows are not the live Kalshi book tape. SQLite is the
+complete default for those rows. The current source and generated migration
+bundle provide Postgres parity for all four Diffusion ledgers; live availability
+still depends on applying the parity and desk-scope-guard migrations described
+in [`DATA_OPS_BACKEND.md`](DATA_OPS_BACKEND.md).
 
-What it may claim, and the claim is bounded by the code: the exchange is read
-live, the books are shown as Kalshi publishes them, mutually exclusive families
-are priced against the dollar they pay, and the tape is recorded.
-[`modules/api/coherence.py`](../../Part2_Infrastructure/modules/api/coherence.py)
-opens by stating that **every route in it is a GET and there is no write path**,
-"not an oversight to be filled in later"; the Proofs header metric reads
-`Order path — none`. It is stated on that tab alone — a head metric is per-tab
-either way, and Proofs is where a reader meets a certificate that is literally a
-portfolio with legs, quantities and fees on it.
+The coherence side may claim only what its code does: read live books, price
+mutually exclusive families against the dollar they pay, record full ladders,
+and produce a certificate when the quoted prices admit no probability measure.
+All **18** `/api/coherence/*` operations are GETs and no order-send path exists:
+`modules/api/coherence.py` owns 5 current reads,
+`coherence_history.py` owns 5 historical reads, and `coherence_lab.py` owns 8
+derived/lab reads. `modules/api/diffusion.py` adds four research operations,
+including the one POST that records a measured stage; it does not trade.
 
-Three properties make it architecturally distinct rather than just another tab:
+Three properties keep this plane separate from the trading ledger:
 
-- **Its own tape, its own file, its own failure contract.** "Store books, not
-  prices": a current book cannot reconstruct a past one and depth is
-  forward-only, so every poll writes the whole ladder. Sharing the audit
-  ledger's single-writer lock would make a recorder stall look like an audit
-  failure and vice versa, so `modules/coherence/fs/store.py` keeps its own
-  DuckDB file beside it.
-- **The recorder is off unless two variables are set.** `COHERENCE_SERIES` and
-  `COHERENCE_POLL_S` (`modules/coherence/tunables.py`; `POLL_SECONDS = 0` keeps
-  it off), because a process that starts hitting an exchange the moment it boots
-  is not something to enable by accident. `main.py` starts
-  `coherence_recorder_loop` in the lifespan regardless; the loop itself is what
-  declines.
-- **Routes report a `state` discriminator, never an empty payload** — "the
-  watchlist is empty", "Kalshi refused us" and "every basket is coherent" are
-  three different answers and a caller that cannot tell them apart cannot
-  respond to any of them.
+- **Its own tape and failure contract.** `modules/coherence/fs/store.py` writes
+  whole ladders to a separate DuckDB file. Sharing the audit ledger lock would
+  make a recorder stall indistinguishable from an order-audit failure.
+- **Explicit opt-in recording.** The recorder declines unless both
+  `COHERENCE_SERIES` and `COHERENCE_POLL_S` are configured; `POLL_SECONDS = 0`
+  is the safe default.
+- **Typed absence.** Routes return `state` discriminators. Unconfigured,
+  unavailable, empty and coherent are different answers and never collapse to
+  an unexplained empty array.
 
-Fifteen gateway routes serve it, split across three routers by concern:
-`modules/api/coherence.py` (5 — status, universe, books, certify, fees),
-`modules/api/coherence_history.py` (3 — index, episodes, replay) and
-`modules/api/coherence_lab.py` (7 — surface, stake, combos, calibration,
-settlement, rfq, shell). `modules/api/diffusion.py` adds four more for the
-information-diffusion study.
+### Twenty-two sections over three rails
 
-### Nine sections over two rails, and why none of them is a nested rail
+Each console renders exactly one `<WorkspaceSubtabs>` rail. A section-local
+view switcher never mounts another rail, so it cannot contend for the global
+`--rail-h` publisher. Its selected view is nevertheless addressable through
+the third hash segment described above.
 
-[`web/components/MarketsConsole.tsx`](../../Part2_Infrastructure/web/components/MarketsConsole.tsx)
-and
-[`web/components/CoherenceConsole.tsx`](../../Part2_Infrastructure/web/components/CoherenceConsole.tsx)
-each render one `<WorkspaceSubtabs>` rail — five ids from `MARKETS_SECTIONS`,
-four from `COHERENCE_SECTIONS` — and every *sub*-view inside a section is a
-`.seg` button group instead of a second rail. That is a hard rule with a
-mechanical reason, stated in the consoles' own headers: `WorkspaceSubtabs`
-publishes `--rail-h` onto `document.documentElement`, so a second instance
-fights the first over one custom property — a defect `ReliabilityConsole`
-recorded before this engine existed. `.seg` is plain CSS keyed off
-`aria-pressed`, owns no global, and cannot collide. One tab is on screen at a
-time, so the two consoles never both publish.
+Components are relative to `Part2_Infrastructure/web/components/`; labels below
+were read from `lib/section-views.ts` on 2026-08-29.
 
-Components below are relative to
-[`Part2_Infrastructure/web/components/`](../../Part2_Infrastructure/web/components/);
-the `.seg` labels are the button text as it is written in the source, read
-2026-08-24 after the split.
+| Tab | Section | Owning component | Views |
+|---|---|---|---|
+| Markets | `universe` | `coherence/UniverseSection.tsx` | Baskets · Families |
+| Markets | `settlement` | `coherence/SettlementSection.tsx` | Index · Formation · Pending |
+| Markets | `books` | `coherence/BooksSection.tsx` | Ladder · Identity · History |
+| Markets | `dispersion` (Makers) | `coherence/MakersSection.tsx` | Dispersion · Channel |
+| Markets | `lattice` | `coherence/SurfacePane.tsx` | Survival · Mass · Moments |
+| Markets | `stake` | `coherence/StakePane.tsx` | Plan · Capital · Method · All outcomes |
+| Markets | `fees` | `coherence/FeesSection.tsx` | Worked example · Cost shape · Ablation · Replay table |
+| Markets | `shell` | `coherence/ShellPane.tsx` | Map · Browse |
+| Proofs | `certificate` | `coherence/CertificatePane.tsx` | Verdict · Proof · Prices |
+| Proofs | `portfolio` (Basket) | `coherence/BasketSection.tsx` | Cover · Basket · Size |
+| Proofs | `combos` (Parlays) | `coherence/CombosSection.tsx` | Bands · Comparison · Parlays · Legs · Bounds |
+| Proofs | `index` | `coherence/IndexSection.tsx` | By poll · By family |
+| Proofs | `calibration` (Scorecard) | `coherence/CalibrationPane.tsx` | Overview · Decomposition · Measures · Reliability · Bands |
+| Proofs | `corpus` | `coherence/CorpusSection.tsx` | Composition · Score trend |
+| Proofs | `lessons` | `coherence/LessonsPane.tsx` | Quotes · Structure · Bounds · Record · Coverage · Episode states |
+| Diffusion | `arm` | `coherence/diffusion/ArmSection.tsx` | Absorption · Control · Clocks |
+| Diffusion | `meetings` | `coherence/diffusion/MeetingsSection.tsx` | Meeting by meeting · Calendar · Mechanism |
+| Diffusion | `episodes` | `coherence/diffusion/EpisodesSection.tsx` | Survival · Episodes |
+| Diffusion | `model` | `coherence/diffusion/ModelSection.tsx` | Measurement |
+| Diffusion | `instrument` | `coherence/diffusion/InstrumentSection.tsx` | Instrument |
+| Diffusion | `sandbox` | `coherence/diffusion/SandboxSection.tsx` | Half-life · Simulator · Spectrum |
+| Diffusion | `findings` | `coherence/diffusion/FindingsSection.tsx` | Effect plot · Findings table · Instrument |
 
-| Tab | Section id | Rail label | Component | `.seg` views (exact button text) |
-|---|---|---|---|---|
-| Quotes | `universe` | Universe | `coherence/UniverseSection.tsx` → `SettlementPane.tsx` | Baskets · Families · Settlement · Formation · Pending |
-| Quotes | `books` | Books | `coherence/BooksSection.tsx` → `BooksPane.tsx`, `RfqPane.tsx` | Ladder · Identity · Dispersion · Channel |
-| Quotes | `lattice` | Lattice | `coherence/SurfacePane.tsx` → `surface/{Distribution,Stake,Family}View.tsx` | Survival · Mass · Moments · Whole family · Stake (Stake opens a second seg: Plan · Capital · Method) |
-| Quotes | `fees` | Fees | `coherence/FeesSection.tsx` | Worked example · Cost shape · Ablation · Replay table |
-| Quotes | `shell` | Shell | `coherence/ShellPane.tsx` | Tree · Reading · Commands · Layout |
-| Proofs | `certificate` | Dutch book | `coherence/CertificatePane.tsx` → `CombosPane.tsx` | Verdict · Proof · Certificate · Bands · Parlays · Bounds |
-| Proofs | `calibration` | Scorecard | `coherence/CalibrationPane.tsx` → `CalibrationScore.tsx`, `IndexPane.tsx` | Score · Bands · Corpus · Index series · Index families |
-| Proofs | `diffusion` | Diffusion | `coherence/DiffusionPane.tsx` | Absorption · Noise floor · Meetings · Mechanism · Kalshi survival · Kalshi episodes · Findings |
-| Proofs | `lessons` | Lessons | `coherence/LessonsPane.tsx` | Coverage · Prices · Structure · Bounds · Record |
+The four lesson groups and fourteen shipped lessons are data in
+`web/lib/coherence/lessons.ts`; all fourteen correspond to notebooks under
+`notebooks/coherence_lab/`. The `shipped` flag means the lesson is rendered and
+pinned to its implementation, not that every optional backend is configured.
 
-**Two published section ids are views now, and neither link is broken.**
-`combos` was folded into `certificate` — a Fréchet bound test *is* a coherence
-test, run on legs the venue states rather than strikes this engine infers — and
-`index` into `calibration`, relabelled "Scorecard", because "were these prices
-right" measured continuously and measured once settled is one question.
-`RELOCATED_SECTIONS` in `web/lib/workspace-hash.ts` sends both, the six other
-demoted ids, and the five sections that changed tab to whatever carries them
-now — **sixteen entries**, thirteen under `#coherence/` and three under
-`#markets/`, which together cover the **25 distinct locations** this engine has
-ever published. `web/tests/coherence-sections.test.ts` pins the table entry by
-entry and asserts that every id ever shipped as a section resolves somewhere,
-rather than falling through to a rail default.
-
-`lessons` is declared `secondary={["lessons"]}` on the rail. The four lesson
-groups come from `web/lib/coherence/lessons.ts`, whose `COHERENCE_LESSONS` holds
-fourteen entries all flagged `shipped: true` — matching the fourteen notebooks
-in `Part2_Infrastructure/notebooks/coherence_lab/`. Read the flag precisely: it
-means *the section renders this lesson*, not *the engine exists*.
-
-**Reads are gated on the open section and, where it pays, on the open view** —
-which is architecture rather than optimisation, because these are live calls to
-a third-party exchange on an eight-second proxy budget. The universe read is
-shared by `universe`, `certificate` and `lattice` (so it is *not* gated on the
-sub-view) and asks for `?max_events=2`: four events took 10.1 s before the reads
-were parallelised and 6.4 s after, against `callGateway`'s **default**
-eight-second deadline — which is why its proxy route
-(`web/app/api/gateway/coherence/universe/route.ts`) raises `timeoutMs` to 25 s
-for this call specifically, and why the browser-side hook gives live reads
-28 s where a tape read gets 9 s (`web/lib/coherence/use-coherence.ts`). The books read stops entirely while **Dispersion** is open, because
-that view draws no book and the RFQ route behind it is a signed private-channel
-call on a 25 s budget — `BooksSection` reports its view upward through
-`onViewChange` precisely so the console, which is where `active` and `section`
-live, can stop polling. `FeesSection` holds both of its reads at section level
-and gates each on its own view, so `/replay?limit=20000` — the largest read on
-the tab — is issued only on **Ablation**.
+Reads are gated first by the visible tab, then by their owning section, and
+where useful by the owning view. The universe payload is shared across Markets
+`universe`, `lattice` and `stake`, and Proofs `certificate` and `portfolio`, via
+one URL-keyed cache. Markets' signed RFQ read is not warmed; the 20,000-row
+replay runs only for Fees' Ablation and Replay-table views; book history runs
+only for the selected ticker's History view. Diffusion reads absorption for
+`arm`/`meetings`, the episode/status/index trio for `episodes`, and findings for
+`findings`; its model, instrument and sandbox compute in the browser. The 25 s
+server, 28 s live-browser and 9 s tape-browser budgets remain declarations, not
+new measurements; their measured ancestry stays in
+[`LATENCY_BUDGET.md`](LATENCY_BUDGET.md).
 
 ### The diffusion study, and why its headline is a null
 
-`#coherence/diffusion` surfaces
+`#diffusion/arm` surfaces
 [`modules/coherence/diffusion/`](../../Part2_Infrastructure/modules/coherence/diffusion/)
-(29 Python modules, read 2026-08-24), which measures how fast an FOMC statement
+(29 Python modules, read 2026-08-29), which measures how fast an FOMC statement
 is absorbed into price and asks whether the *text* of the statement predicts
 that speed.
 
@@ -677,14 +646,22 @@ and what it discarded when full through `status()`. It is a diagnosis, **not a
 durable replay queue** — replaying a dead letter is still
 `tools/backfill_research_rag.py`'s job. RLS on this corpus is **still
 bypassed** (the gateway reads with the service-role key); what landed instead
-is an optional `filter_desk_id` predicate on both retrieval RPCs, described
-under the pipeline below. Tables are append-only by trigger; the **37** ordered
-migrations live in [`supabase/migrations/`](../../supabase/migrations/) (counted
-2026-08-24; the two newest are `20260823120000_diffusion_events.sql` and
-`20260823130000_diffusion_studies.sql`), and
-[`supabase/functions/`](../../supabase/functions/) holds two edge functions,
+is an optional `filter_desk_id` predicate on both similarity RPCs and graph
+traversal, described under the pipeline below. The current ordered migration
+set lives in
+[`supabase/migrations/`](../../supabase/migrations/) (audited 2026-08-31; its
+latest rollout sequence includes `20260831120000_diffusion_postgrest_parity.sql`,
+`20260831121000_data_ops_desk_scope_guard.sql` and
+`20260831130000_research_graph_desk_scope.sql`, followed by the bundled
+`20260831131000_research_chunk_replace.sql`; none is claimed applied live here).
+The latter migration is a rollout prerequisite for the new chunked ingest
+path: `modules/research_rag/replacement.py` prepares all physical chunks, and
+the RPC replaces stale siblings only when every text embedding is ready. An
+incomplete proposal stays non-retrievable and leaves the previous complete
+generation intact. [`supabase/functions/`](../../supabase/functions/) then
+holds two edge functions,
 `embed-research` and `evaluate-order`. `supabase/apply_all.generated.sql` is the
-paste-the-bundle equivalent and carries all 37; it is regenerated by
+paste-the-bundle equivalent and carries the same current set; it is regenerated by
 `python3 tools/bundle_migrations.py` and
 [`.github/workflows/schema.yml`](../../.github/workflows/schema.yml) applies DDL
 on `workflow_dispatch` **only** — deliberately never on a code deploy, because
@@ -702,11 +679,14 @@ on a fixed seed, and PageRank centrality, each stamped with the sweep that made
 them (`modules/research_schedule.py`, `DEFAULT_RECONCILE_SCHEDULES`). A dual
 write was the rejected alternative: two systems that must agree, with drift only
 detectable if somebody goes looking. Projection makes divergence a non-event —
-if the graph is wrong, drop it and re-project.
+if the graph is wrong, drop it and re-project. That is the source contract; this
+2026-08-31 audit did not probe a live Aura instance.
 
-**It is no longer write-only.** `modules/research_graph_read_model.py` reads
-those labels and scores back, and the `/communities` and `/centrality` routes
-try it first, falling back to the in-process networkx computation and marking
+**In source it is no longer write-only.** `modules/research_graph_read_model.py` reads
+those labels and scores back. The `/communities` and `/centrality` routes await
+`modules/research_graph_offload.py`, which puts that synchronous Aura driver on
+`asyncio.to_thread` behind a two-slot bulkhead, then try its answer first and
+fall back to the in-process networkx computation, marking
 which one answered (`source: "neo4j" | "corpus"`, with the read model's refusal
 carried whole so the reason is always readable). Nothing is invented on that
 path: modularity, seed, resolution and damping are not in the graph, so they are
@@ -721,6 +701,14 @@ per its own docstring), and no request path depends on Neo4j being up.
 not installed — is the normal deployment: both the sweep and the read model
 report a named reason, never an exception, and the whole test suite passes
 without either.
+
+The read model has a tenancy boundary that must not be hidden: neither the
+projection nor the community/centrality Cypher reads carry `desk_id`. The
+source guard refuses that global projection whenever
+`RESEARCH_SCOPE_TO_DESK=1`, before it opens the Neo4j driver, so both reports
+automatically run against the desk-scoped Postgres corpus instead. With the
+flag off, Neo4j is safe only for one desk or a per-desk database until the
+projection schema and every Cypher query are desk-qualified.
 
 ## The research (RAG) pipeline — five stages as built
 
@@ -740,12 +728,13 @@ is orchestration.
 ```mermaid
 flowchart TB
     subgraph s1["Stage 1 — ingestion from structured data"]
-        sources["audit log backtest_runs, charts,<br/>ML runs, risk incidents (live);<br/>closed-session execution summaries<br/>(backfill tool only)"]
+        sources["audit log backtest_runs, charts,<br/>ML runs, risk incidents;<br/>closed-session execution summaries<br/>(in-process + backfill)"]
         cards["research_cards.py · research_chartdoc.py<br/>research_ingest_session.py<br/>plain-text cards; body = exact embedded text"]
-        writer["research_rag/writer.py + research_ingest_delivery.py<br/>bounded queue, supervised drain,<br/>3 retries then a dead letter"]
+        writer["research_rag/writer.py + replacement.py<br/>prepare the complete physical chunk set;<br/>3 delivery attempts then a dead letter"]
         embed["embed-research edge function<br/>gte-small, 384-dim, unit-normalised"]
+        replace["replace_research_document_chunks RPC<br/>commit a complete generation atomically;<br/>retain the prior one if any chunk is pending"]
         corpus[("public.research_documents<br/>pgvector HNSW, cosine")]
-        sources --> cards --> writer --> embed --> corpus
+        sources --> cards --> writer --> embed --> replace --> corpus
     end
 
     subgraph s2["Stage 2 — retrieval, five arms at one k"]
@@ -792,6 +781,12 @@ Stage by stage, with what each refuses to do:
    never silently invalidate stored vectors. An embed outage stores
    `embedding_status='pending'` — **never a zero vector**, which is equidistant
    from everything and would rank as "similar" to any query. On an
+   indexed generation, `modules/research_rag/replacement.py` prepares every
+   physical chunk before the one `replace_research_document_chunks` RPC.
+   Migration `20260831131000` must be applied before this new chunked ingest
+   path is deployed. Postgres removes stale siblings only when every incoming
+   text embedding is ready; otherwise the proposed generation stays wholly
+   non-retrievable and the previous complete generation remains available. On an
    image-configured deployment the same pass embeds the sweep's PNGs: the
    `equity_curve` chart document gets `equity_curve_png`, the *run card* gets
    `heatmap_png` (no `ChartDoc` describes a Sharpe surface, so the picture is
@@ -806,12 +801,13 @@ Stage by stage, with what each refuses to do:
    delivery attempts on the mirror's backoff curve, a bounded dead-letter book
    for what never lands, and `_ensure_drain_alive()` on the submit path to
    recreate a task that ended anyway. **Session execution summaries have a
-   producer at last** (`modules/research_ingest_session.py`) — figures read from
+   producer** (`modules/research_ingest_session.py`) — figures read from
    `session_costs`, `equity_snapshots` and `orders`, only for sessions the
    desk's own `session_rollover` rows show as closed, every absent figure
-   written "not recorded" rather than zero — but its only caller is
-   `tools/backfill_research_rag.py`. **There is no in-process emission**: on a
-   running desk the summaries appear when the backfill is run and not before.
+   written "not recorded" rather than zero. The risk monitor calls
+   `research_rag/session.py` at the UTC rollover; it defers the audit read off
+   the trading lock and queues the card after the settle window. The backfill
+   remains the history and recovery path.
 2. **Retrieval** (`modules/research_rag/retrieval.py`): the
    `match_research_documents_hybrid` RPC fuses the dense arm and the Postgres FTS arm by
    Reciprocal Rank Fusion at `k = 60`
@@ -959,9 +955,9 @@ state, not a failure, and each one names itself:
 ## The Telegram companion
 
 Optional, and inside the gateway process — not a fourth deployment unit. It is
-a phone-first read surface over the same read models the API serves: **136
+a phone-first read surface over the same read models the API serves: **138
 command specs** in `COMMAND_SPECS` (`modules/telegram/registry.py`, counted
-2026-08-24; 99 of them carry `in_menu=True` because Telegram's own `/` menu caps
+2026-08-29; 100 of them carry `in_menu=True` because Telegram's own `/` menu caps
 at 100, and every spec dispatches either way), of which exactly **6** are in the
 Controls category — `/halt`, `/resume`, `/flatten`, `/reduceonly`,
 `/resetbook`, `/replay` — each requiring membership of
@@ -1035,14 +1031,19 @@ was true when written and is not now, so it is gone.
   One gap remains and one has closed. Still open: rows written before the
   migration report `image_not_stored` with re-indexing the run named as the fix,
   because no backfill tool was written for them. **Closed since 2026-08-22:**
-  `supabase/apply_all.generated.sql` now carries `20260822110000` — the bundle
-  holds all 37 migrations — so the sentence that said it did not has been
-  removed rather than left standing because it still read well.
-- **The community and centrality reports now read Neo4j; nothing else does.**
+  `supabase/apply_all.generated.sql` now carries `20260822110000`; bundle
+  completeness is pinned against the current migration directory, so the
+  sentence that said it did not has been removed rather than left standing.
+- **The community and centrality reports can read Neo4j; nothing else does.**
   Those two routes try the projection first and fall back to the in-process
   networkx computation, saying which answered. Request-time *traversal* still
   runs on the Postgres recursive CTE, and no request path depends on the graph
-  being up. The algorithms themselves are **not** run inside Neo4j: Louvain and
+  being up. The source path was audited; no live Aura read was made. The
+  Neo4j projection/read model is not desk-scoped. When
+  `RESEARCH_SCOPE_TO_DESK=1`, its source guard refuses Neo4j and the reports
+  automatically use the desk-scoped corpus computation; with the flag off,
+  Neo4j must be isolated per desk on a multi-desk deployment. The algorithms themselves
+  are **not** run inside Neo4j: Louvain and
   PageRank live in the GDS library, which the Aura Free tier does not have and
   CI cannot install, so the read model serves what the sweep computed rather
   than computing genuinely different things under one field name.
@@ -1081,11 +1082,16 @@ was true when written and is not now, so it is gone.
   developer who has seeded the ~0.6 GB CLIP pair can no longer have unrelated
   suites load it through `search`. The sentence saying otherwise has been
   removed.
-- **RLS on the research corpus is still bypassed** and the tenant scope is
-  per-desk, not per-user. The gateway reads with the service-role key and the
-  writer sets no `user_id`; what landed is the `filter_desk_id` predicate the
-  retrieval functions never had. One shared gateway token means there is no
-  per-user identity to key on yet.
+- **RLS on the research corpus is still bypassed** and the available tenant
+  scope is per-desk, not per-user. The gateway reads with the service-role key
+  and the writer sets no `user_id`; what landed is the optional
+  `filter_desk_id` predicate the retrieval functions never had. It is off by
+  default. Once migration `20260831130000` is deployed, enabling it makes
+  `/search`, `/ask` and `/graph/{document_id}` carry one desk through similarity
+  and graph retrieval. A missing desk or a callee that cannot carry the scope
+  produces typed `scope_unavailable` before retrieval; an unscoped fallback is
+  deliberately forbidden. One shared gateway token means there is no per-user
+  identity to key on.
 - **No UI consumes `POST /api/research/rag/ask`.** The workspace proxies
   `/search` (`web/app/api/gateway/research/rag/route.ts`) and the two graph
   reports; `/ask` is reachable over HTTP, pinned by the generated contract and
