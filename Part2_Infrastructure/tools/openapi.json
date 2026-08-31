@@ -30,6 +30,16 @@
             "title": "Bars",
             "type": "integer"
           },
+          "data_mode": {
+            "default": "observed",
+            "description": "Observed tries Binance then the recorded DuckDB cache and fails if both are unavailable. Synthetic_demo is an explicit, labelled demonstration using generated non-market bars.",
+            "enum": [
+              "observed",
+              "synthetic_demo"
+            ],
+            "title": "Data Mode",
+            "type": "string"
+          },
           "direction": {
             "default": "long_only",
             "description": "Whether short signals are traded or flattened to cash.",
@@ -1217,6 +1227,16 @@
             "default": "",
             "title": "Proof",
             "type": "string"
+          },
+          "proof_evidence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CoherenceProofEvidence"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "rows_tested": {
             "default": 0,
@@ -2900,6 +2920,314 @@
           "origin"
         ],
         "title": "CoherenceProbe",
+        "type": "object"
+      },
+      "CoherenceProofConstraintLeg": {
+        "description": "One executable quote side in a derived constraint.",
+        "properties": {
+          "direction": {
+            "title": "Direction",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price"
+          },
+          "side": {
+            "title": "Side",
+            "type": "string"
+          },
+          "size_hundredths": {
+            "title": "Size Hundredths",
+            "type": "integer"
+          },
+          "ticker": {
+            "title": "Ticker",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ticker",
+          "label",
+          "direction",
+          "side",
+          "size_hundredths"
+        ],
+        "title": "CoherenceProofConstraintLeg",
+        "type": "object"
+      },
+      "CoherenceProofConstraintRow": {
+        "description": "One derived constraint, including its quote arithmetic.",
+        "properties": {
+          "because": {
+            "title": "Because",
+            "type": "string"
+          },
+          "bound": {
+            "title": "Bound",
+            "type": "string"
+          },
+          "cost": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost"
+          },
+          "executable_size_hundredths": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Executable Size Hundredths"
+          },
+          "family": {
+            "title": "Family",
+            "type": "string"
+          },
+          "legs": {
+            "items": {
+              "$ref": "#/components/schemas/CoherenceProofConstraintLeg"
+            },
+            "title": "Legs",
+            "type": "array"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "slack": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slack"
+          },
+          "testable": {
+            "title": "Testable",
+            "type": "boolean"
+          },
+          "untestable_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Untestable Reason"
+          },
+          "violated": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Violated"
+          }
+        },
+        "required": [
+          "family",
+          "scope",
+          "because",
+          "bound",
+          "testable"
+        ],
+        "title": "CoherenceProofConstraintRow",
+        "type": "object"
+      },
+      "CoherenceProofConstraints": {
+        "description": "The named constraints available to explain the decision.",
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/CoherenceProofConstraintRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "tested": {
+            "title": "Tested",
+            "type": "integer"
+          },
+          "untestable": {
+            "title": "Untestable",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "tested",
+          "untestable"
+        ],
+        "title": "CoherenceProofConstraints",
+        "type": "object"
+      },
+      "CoherenceProofEvidence": {
+        "description": "Structured, data-derived inputs for the interactive proof surface.",
+        "properties": {
+          "constraints": {
+            "$ref": "#/components/schemas/CoherenceProofConstraints"
+          },
+          "observation": {
+            "$ref": "#/components/schemas/CoherenceProofObservation"
+          },
+          "solver": {
+            "$ref": "#/components/schemas/CoherenceProofSolver"
+          }
+        },
+        "required": [
+          "observation",
+          "solver",
+          "constraints"
+        ],
+        "title": "CoherenceProofEvidence",
+        "type": "object"
+      },
+      "CoherenceProofObservation": {
+        "description": "Counts from the observation behind a certificate.",
+        "properties": {
+          "executable_buy_sides": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Executable Buy Sides"
+          },
+          "executable_sell_sides": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Executable Sell Sides"
+          },
+          "markets_in_event": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Markets In Event"
+          },
+          "markets_observed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Markets Observed"
+          },
+          "outcomes_in_component": {
+            "title": "Outcomes In Component",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "outcomes_in_component"
+        ],
+        "title": "CoherenceProofObservation",
+        "type": "object"
+      },
+      "CoherenceProofSolver": {
+        "description": "The matrix dimensions and decision statistic of the answering engine.",
+        "properties": {
+          "decision_boundary": {
+            "title": "Decision Boundary",
+            "type": "string"
+          },
+          "engine": {
+            "title": "Engine",
+            "type": "string"
+          },
+          "optimum": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Optimum"
+          },
+          "optimum_kind": {
+            "title": "Optimum Kind",
+            "type": "string"
+          },
+          "state_rows": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State Rows"
+          },
+          "variables": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variables"
+          },
+          "verdict": {
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "engine",
+          "optimum_kind",
+          "decision_boundary",
+          "verdict"
+        ],
+        "title": "CoherenceProofSolver",
         "type": "object"
       },
       "CoherenceRecorderStatus": {
@@ -4965,7 +5293,7 @@
               {
                 "enum": [
                   "vendor",
-                  "fed_seed",
+                  "issuer",
                   "estimated_offset",
                   "parsed_release",
                   "recorded"
@@ -5033,7 +5361,7 @@
           "release_at_source": {
             "enum": [
               "vendor",
-              "fed_seed",
+              "issuer",
               "estimated_offset",
               "parsed_release",
               "recorded"
@@ -7908,6 +8236,28 @@
             "title": "Id",
             "type": "string"
           },
+          "image_rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Rank"
+          },
+          "image_similarity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Similarity"
+          },
           "kind": {
             "title": "Kind",
             "type": "string"
@@ -7945,8 +8295,15 @@
             "title": "Rerank Score"
           },
           "similarity": {
-            "title": "Similarity",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Similarity"
           },
           "source_ref": {
             "title": "Source Ref",
@@ -8057,6 +8414,18 @@
               }
             ],
             "title": "Bm25"
+          },
+          "cache": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cache"
           },
           "corpus_size": {
             "anyOf": [
@@ -9911,17 +10280,12 @@
             "format": "date-time",
             "title": "Observed At",
             "type": "string"
-          },
-          "seeded": {
-            "title": "Seeded",
-            "type": "integer"
           }
         },
         "required": [
           "backend",
           "observed_at",
           "count",
-          "seeded",
           "items"
         ],
         "title": "WorkItemsResponse",
@@ -12846,7 +13210,7 @@
     },
     "/api/data/work-items": {
       "get": {
-        "description": "The Data tab's work queue \u2014 persisted, versioned, audit-logged; seeded rows say so.",
+        "description": "The Data tab's work queue \u2014 persisted, versioned and audit-logged.",
         "operationId": "list_work_items_api_data_work_items_get",
         "parameters": [
           {
