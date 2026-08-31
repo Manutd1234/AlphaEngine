@@ -19,42 +19,39 @@
  * at all, since a round trip per keystroke would make all three unusable.
  */
 
-import { memo, useState } from "react";
+import { memo } from "react";
 
+import { viewsFor } from "@/lib/section-views";
 import PaneHead from "../PaneHead";
+import DiffusionViewControl from "./DiffusionViewControl";
 import DiffusionSimulator from "./model/DiffusionSimulator";
 import HalfLifeCalculator from "./model/HalfLifeCalculator";
 import SpectrumExplorer from "./model/SpectrumExplorer";
 
-type SandboxView = "halflife" | "simulator" | "spectrum";
+export type SandboxView = "halflife" | "simulator" | "spectrum";
 
-const VIEWS: ReadonlyArray<[SandboxView, string]> = [
-  ["halflife", "Half-life"],
-  ["simulator", "Simulator"],
-  ["spectrum", "Spectrum"],
-];
+const VIEWS = viewsFor("diffusion", "sandbox") as ReadonlyArray<readonly [SandboxView, string]>;
 
-function SandboxSection() {
-  const [view, setView] = useState<SandboxView>("halflife");
+function SandboxSection({ view, onView }: { view: SandboxView; onView: (next: SandboxView) => void }) {
   return (
-    <section className="card console-card coh-diffusion" aria-labelledby="diffusion-sandbox-heading">
+    <section className="card console-card coh-diffusion coh-diffusion--sandbox" aria-labelledby="diffusion-sandbox-heading">
       <PaneHead
         kicker="Sandbox"
         title="Move the inputs and watch it answer, or decline to"
         id="diffusion-sandbox-heading"
         note="computed on a slider a reader moves"
-        lede="Every number here comes from the same arithmetic the gateway runs, so a refusal you can produce with a slider is a refusal the ledger can produce too."
+        lede="Every slider runs gateway-parity arithmetic in the browser, including the same named estimator refusals and uncertainty states the recorded ledger can produce."
       />
       {/* Wrapped 2026-08-25: a bare `.seg` could be reached by neither
           the sticky rule nor the wrap rule, both `.coh-bar`-scoped. */}
       <div className="coh-bar">
-        <div className="seg" role="group" aria-label="Sandbox view">
-          {VIEWS.map(([name, label]) => (
-            <button key={name} type="button" aria-pressed={view === name} onClick={() => setView(name)}>
-              {label}
-            </button>
-          ))}
-        </div>
+        <DiffusionViewControl
+          className="seg diff-view-control"
+          label="Sandbox view"
+          value={view}
+          views={VIEWS}
+          onValueChange={onView}
+        />
       </div>
       {view === "halflife" ? <HalfLifeCalculator />
         : view === "simulator" ? <DiffusionSimulator />
