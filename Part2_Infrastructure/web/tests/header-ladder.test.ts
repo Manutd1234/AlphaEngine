@@ -33,6 +33,13 @@ function rung(max: number): string {
   return css.slice(start, end);
 }
 
+function lateRung(max: number): string {
+  const head = `@media (min-width: 901px) and (max-width: ${max}px) {`;
+  const start = css.lastIndexOf(head);
+  assert.notEqual(start, -1, `no late rung at ${max}px`);
+  return css.slice(start, css.indexOf("\n}\n", start));
+}
+
 // Re-measured 2026-08-24 for the tenth tab, then REORDERED the same day: the
 // first pass folded the data-tier and Connect labels at 1800 and 1740, so a
 // 1722px desk lost the words "Live" and "Connect" while the brand tagline —
@@ -42,12 +49,12 @@ function rung(max: number): string {
 // top out at "Unavailable", three characters past "Connected", and a ladder
 // tuned while that chip happened to read "Telegram" clipped by a pixel at 1716
 // the moment the companion went unreachable. 14p carries the eleven figures.
-const RUNGS = [2050, 1950, 1850, 1790, 1590, 1520, 1380, 1280, 1170] as const;
+const RUNGS = [2160, 1950, 1850, 1790, 1590, 1280] as const;
 
 describe("the rungs exist, in priority order, and each takes only what it says", () => {
-  it("rung 1 (≤2050): the Search label and the providers sentence → short form", () => {
-    assert.match(css, /@media \(max-width: 2050px\) \{\n  \.header-command-button__label \{\n    display: none;/);
-    const r = rung(2050);
+  it("rung 1 (≤2160): the Search label and the providers sentence → short form", () => {
+    assert.match(css, /@media \(max-width: 2160px\) \{[\s\S]*?\.header-command-button__label \{\n    display: none;/);
+    const r = rung(2160);
     assert.match(r, /\.system-health__label \{\n    display: none;/);
     assert.match(r, /\.system-health__label--short \{\n    display: inline;/);
     assert.doesNotMatch(r, /header-settings|latency-chip|telegram/);
@@ -65,19 +72,17 @@ describe("the rungs exist, in priority order, and each takes only what it says",
     assert.doesNotMatch(r, /latency-chip|system-health|brand-copy/);
   });
 
-  it("rung 4 (≤1790): the brand tagline, and nothing that carries a word", () => {
-    // The promotion this ladder was reordered for. It is the only thing on the
-    // row that is pure decoration, and at a measured 72px it outweighs either
-    // of the two labels below it — which is what keeps both on a 1722px desk.
+  it("rung 4 (≤1790): only the decorative brand copy", () => {
     const r = rung(1790);
     assert.match(r, /\.brand-copy small \{\n    display: none;/);
-    assert.doesNotMatch(r, /data-tier|telegram|system-health|latency-chip|workspace-tabs/,
-      "rung 4 took something that carries a word; only the tagline may go this early");
+    assert.doesNotMatch(r, /\.latency-chip__copy|grid-template-columns: auto/);
+    assert.doesNotMatch(r, /data-tier|telegram|system-health|workspace-tabs/,
+      "rung 4 must not take a destination or live-data label");
   });
 
-  it("rung 5 (≤1720): the data-tier label; rung 6 (<1660): the Connect label", () => {
+  it("rung 5 (≤1720): the data-tier label; rung 6 (<1680): the Connect label", () => {
     assert.match(css, /@media \(max-width: 1720px\) \{\n  \.data-tier__label \{\n    display: none;/);
-    assert.match(read("components/header/TelegramCta.tsx"), /max-\[1660px\]:hidden/);
+    assert.match(read("components/header/TelegramCta.tsx"), /max-\[1680px\]:hidden/);
   });
 
   it("both of those fold AFTER the tagline, so a 1722px desk keeps their words", () => {
@@ -93,36 +98,42 @@ describe("the rungs exist, in priority order, and each takes only what it says",
     assert.ok(dataTier < 1722 && connect < 1722, "a 1722px desk folds one of the two labels");
   });
 
-  it("the core annotation is NOT a rung — it adds no width and stays until the chip folds", () => {
+  it("the core annotation is NOT a rung — the full decision readout remains visible", () => {
     for (const max of RUNGS) {
       assert.doesNotMatch(rung(max), /\.latency-chip__core \{\n    display: none/, `rung ${max} hides the core figure`);
     }
-    assert.match(css, /Not a rung: the core annotation inside the decision chip/);
+    assert.match(css, /The complete decision readout stays visible on desktop/);
   });
 
-  it("rung 7 (≤1590): the providers chip to its dot, aria keeps the sentence", () => {
+  it("rung 7 (≤1590): providers compact while every borderless tab stays in a contained rail", () => {
     const r = rung(1590);
     assert.match(r, /\.system-health-action \{[\s\S]*font-size: 0;/);
+    assert.match(r, /\.workspace-header__utility \{\n    flex-wrap: nowrap;/);
+    assert.match(r, /\.workspace-tabs \{[\s\S]*display: flex;[\s\S]*flex: 1 1 0;[\s\S]*min-width: 0;[\s\S]*overflow-x: auto;/);
+    assert.match(r, /\.workspace-tabs button \{\n    flex: 1 0 max-content;/);
+    assert.match(r, /\.workspace-switcher \{\n    display: none;/);
     assert.match(read("components/WorkspaceHeader.tsx"), /aria-label=\{`Open reliability\. \$\{healthLabel\}`\}/);
   });
 
-  it("rung 8 (≤1520): tab padding and tab type, nothing of the chip", () => {
-    const r = rung(1520);
-    // 4px since the eleventh tab, down from 5px. The reason it is a value and
-    // not a rung MOVE is the whole of that pass: every rung from 1 to 7 sheds a
-    // WORD, so paying for a tab by firing them ~30px earlier spends the
-    // reader's vocabulary, and the instruction was the opposite. The tabs' own
-    // side padding is the one thing on this row that can be given up without
-    // costing anybody a word, and 14p reserved it for exactly this. Swept
-    // 2100 → 910 in 10px steps: no clipping at any width with 6px/4px, and
-    // seven narrow widths still clipping with only the base pad changed.
-    assert.match(r, /\.workspace-tabs button \{\n    padding-inline: 4px;/);
-    assert.doesNotMatch(r, /latency-chip/);
-    assert.doesNotMatch(r, /\.brand-copy small/, "the tagline is rung 4 now, not this one");
+  it("the responsive ladder never changes a destination's inset, type or selected geometry", () => {
+    for (const max of RUNGS) {
+      const r = rung(max);
+      if (max !== 1590) {
+        assert.doesNotMatch(r, /\.workspace-tabs button/, `rung ${max} mutates a tab button`);
+        continue;
+      }
+      const button = /\.workspace-tabs button \{([^}]*)\}/.exec(r)?.[1] ?? "";
+      assert.match(button, /flex: 1 0 max-content;/,
+        "the scroll rung must keep each label intact instead of squeezing it");
+      assert.doesNotMatch(button, /padding|font|border|background|::after/,
+        "the scroll rung changed tab chrome instead of only its flex basis");
+    }
   });
 
-  it("rung 9 (≤1380): the decision figure folds to its gauge — last of the chip", () => {
-    assert.match(rung(1380), /\.latency-chip__copy \{\n    display: none;/);
+  it("never folds Decision p99 to a gauge on the desktop ladder", () => {
+    for (const max of RUNGS) {
+      assert.doesNotMatch(rung(max), /\.latency-chip__copy \{\n    display: none;/);
+    }
   });
 
   it("rung 10 (≤1280): Kill switch and Sign in labels fold to icons that keep their names", () => {
@@ -136,18 +147,23 @@ describe("the rungs exist, in priority order, and each takes only what it says",
     assert.match(account, /className="header-signin-label max-\[520px\]:hidden"/);
   });
 
-  it("rung 11 (≤1170): the wordmark, leaving the mark that is still the button", () => {
+  it("rung 11 (≤1280): the wordmark, leaving the mark that is still the button", () => {
     // The last thing on the row that is not a control, and the only rung that
     // touches the brand at desk width. The mark keeps the click target and the
     // label; this is the ≤520px fold pulled up, as rung 9's is.
-    const r = rung(1170);
+    const r = lateRung(1280);
     assert.match(r, /\.brand-copy \{\n    display: none;/);
-    assert.doesNotMatch(r, /\.brand-mark|\.workspace-tabs/, "rung 10 took the mark or the tabs, not just the words");
+    assert.match(r, /\.workspace-tabs \{\n    margin-left: 0;/,
+      "the final one-row band must reclaim the decorative nav lead-in");
+    assert.doesNotMatch(r, /\.brand-mark|\.workspace-tabs[^}]*display:\s*none/,
+      "rung 11 took the mark or hid the tabs instead of compacting their inset");
     assert.match(read("components/common/BrandLockup.tsx"), /aria-label=\{label\}|label=/);
   });
 
-  it("the row wraps at 1110, where even the icons no longer fit on one row", () => {
+  it("the contained desktop rail overrides the legacy 1110 wrap without changing the phone layout", () => {
     assert.match(css, /@media \(max-width: 1110px\) \{\n  \.workspace-header__utility \{\n    flex-wrap: wrap;/);
+    assert.match(rung(1590), /\.workspace-header__utility \{\n    flex-wrap: nowrap;/,
+      "901–1110px should spend the tab rail's own scrollport, not add a header row");
   });
 
   it("the rungs descend — no rung is wider than the one before it", () => {
@@ -156,20 +172,24 @@ describe("the rungs exist, in priority order, and each takes only what it says",
 });
 
 describe("the essentials are never on the ladder", () => {
-  it("no rung hides Settings, the account chip, the kill switch button or the tabs", () => {
+  it("no rung hides Settings, the account chip, the kill switch or the tab rail", () => {
     for (const max of RUNGS) {
       const r = rung(max);
       assert.doesNotMatch(r, /\.header-settings \{\n    display: none/, `rung ${max} hides Settings`);
-      assert.doesNotMatch(r, /\.workspace-tabs \{\n    display: none/, `rung ${max} hides the tabs`);
+      assert.doesNotMatch(r, /\.workspace-tabs \{[^}]*display: none/s, `rung ${max} hides the tabs`);
       assert.doesNotMatch(r, /\.header-anchor \{\n    display: none/, `rung ${max} hides an anchored control`);
     }
+    assert.match(rung(1590), /\.workspace-switcher \{\n    display: none;/,
+      "the boxed selector must not replace the borderless desktop tab rail");
   });
 
-  it("the providers short form is a second label, hidden at rest, never both painted", () => {
+  it("the providers count is the compact visible label while aria keeps the full state", () => {
     const header = read("components/WorkspaceHeader.tsx");
     assert.match(header, /<span className="system-health__label">\{healthLabel\}<\/span>/);
     assert.match(header, /<span className="system-health__label--short" aria-hidden>\{healthLabelShort\}<\/span>/);
-    assert.match(css, /\.system-health__label--short \{\n  display: none;/);
+    assert.match(css, /\.system-health__label--short \{\n  display: inline;/);
+    assert.match(css, /\.system-health__label \{\n  display: none;/);
+    assert.match(header, /aria-label=\{`Open reliability\. \$\{healthLabel\}`\}/);
   });
 
   it("the chip's width reservation is the live fleet's own sentence, not a px floor", () => {
@@ -179,7 +199,7 @@ describe("the essentials are never on the ladder", () => {
     // produce, and swap to the short form with rung 1 like the label does.
     const header = read("components/WorkspaceHeader.tsx");
     assert.match(header, /data-widest=\{providersTotal != null \? `\$\{providersTotal\}\/\$\{providersTotal\} providers routable` : undefined\}/);
-    assert.match(header, /data-widest-short=\{providersTotal != null \? `\$\{providersTotal\}\/\$\{providersTotal\} providers` : undefined\}/);
+    assert.match(header, /data-widest-short=\{providersTotal != null \? `\$\{providersTotal\}\/\$\{providersTotal\}` : undefined\}/);
     assert.match(css, /\.system-health-action::before,\n\.system-health-action::after \{\n  content: attr\(data-widest\);\n  visibility: hidden;/);
     assert.doesNotMatch(css, /\.system-health-action \{[^}]*min-width: 1[0-9]{2}px/);
   });
@@ -192,6 +212,11 @@ describe("the header's words are one size class", () => {
   // measured under. Tabs sit one token above the chips.
   it("tabs sit one token above the chips; every chip word is the --fs-chrome-chip token", () => {
     assert.match(css, /\.workspace-tabs button span \{[\s\S]{0,220}font-size: var\(--fs-chrome-tab\);/);
+    assert.match(
+      css,
+      /\.workspace-tabs button span \{[^}]*font-size: var\(--fs-chrome-tab\);[^}]*font-weight: 650;/,
+      "the top navigation must retain its established Inter semibold weight",
+    );
     for (const sel of ["\n.data-tier {", "\n.system-health {", "\n.header-settings span {"]) {
       const i = css.indexOf(sel);
       assert.notEqual(i, -1, sel);
@@ -209,5 +234,31 @@ describe("the header's words are one size class", () => {
     assert.match(read("components/header/KillSwitchControl.tsx"), /py-1\.5 text-fs-chrome-chip font-semibold text-text-secondary hover:border-border/);
     assert.match(read("components/header/AccountChip.tsx"), /py-1\.5 text-fs-chrome-chip font-semibold text-text-secondary no-underline/);
     assert.match(read("components/header/TelegramCta.tsx"), /text-fs-chrome-chip font-semibold no-underline/);
+  });
+
+  it("gives the command trigger a legible 56px target with an enlarged mono glyph", () => {
+    assert.match(
+      css,
+      /\.header-command-button \{[^}]*min-width: 56px;[^}]*padding: 0 8px;[^}]*font-family: var\(--mono\);[^}]*font-size: var\(--fs-chrome-tab\);[^}]*font-weight: 700;/,
+    );
+    assert.match(css, /\.header-command-button span\[aria-hidden\] \{[^}]*font-size: var\(--fs-chrome-brand\);/);
+    assert.match(css, /@media \(max-width: 2160px\) \{\s*\.header-command-button \{ width: 56px; \}/);
+  });
+
+  it("keeps tabs and operator controls on one 42px target rail", () => {
+    assert.match(
+      css,
+      /\.workspace-tabs button \{[^}]*min-height: 42px;[^}]*padding: 7px 6px;[^}]*border: 0;[^}]*border-radius: 6px;/,
+    );
+    assert.match(
+      css,
+      /\.workspace-header__utility > :is\(button, a\),\s*\.workspace-header__utility > \.header-anchor > :is\(button, a\) \{\s*min-height: 42px;\s*\}/,
+      "component-local 40px floors must resolve to the shared 42px utility target",
+    );
+    assert.match(
+      css,
+      /\.workspace-header__utility > :is\(\.telegram-cta, \.header-command-button, \.latency-chip, \.system-health-action\),\s*\.workspace-header__utility > \.header-anchor > :is\(\.data-tier, \.header-kill-trigger\) \{[^}]*border-color: color-mix[^}]*box-shadow:/,
+      "the six operational controls should read as one quiet outlined group",
+    );
   });
 });
