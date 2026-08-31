@@ -194,12 +194,12 @@ function TelegramCta() {
   /* Telegram brand blue mixed into the theme's own surface and border, so the
      wash follows data-theme instead of needing a dark: variant.
 
-     Sized to the utility row's 32px / 9px norm. An anchor escapes the global
+     Sized to the utility row's 40px / 9px norm. An anchor escapes the global
      button rule that normalises the rest of the row, and at a 27px tile plus
      py-1 this chip stood ~37px tall with a 10px radius — the same standing-
      proud defect the latency chip's own fix narrates in globals.css. */
   const chrome =
-    "inline-flex min-h-[32px] items-center gap-2 rounded-[9px] border px-2 py-0.5 text-fs-chrome-chip font-semibold no-underline "
+    "telegram-cta inline-flex min-h-[40px] items-center gap-2 rounded-[9px] border px-2 py-0.5 text-fs-chrome-chip font-semibold no-underline "
     + (linked
       /* Connected wears the house green, and green is never the only carrier:
          the word changes to "Connected", a ✓ appears beside the mark, and the
@@ -238,7 +238,7 @@ function TelegramCta() {
         </svg>
       </span>
       {mark ? <span aria-hidden className="text-fs-chrome-tab leading-none">{mark}</span> : null}
-      <span className="max-[1660px]:hidden">{label}</span>
+      <span className="max-[1680px]:hidden">{label}</span>
     </>
   );
 
@@ -252,7 +252,7 @@ function TelegramCta() {
         aria-busy={resolving}
         aria-label={description}
         title={description}
-        className={`${chrome} opacity-60`}
+        className={chrome}
       >
         {body}
       </span>
