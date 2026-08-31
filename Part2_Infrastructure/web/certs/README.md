@@ -1,5 +1,10 @@
 # Pinned gateway TLS root
 
+**Last verified: 2026-08-29.** The repository wiring was checked against the
+[current-state ledger](../../../docs/CURRENT_STATE.md). The live-flip status
+below remains a deployment observation and must be re-probed before it is
+described as current external state.
+
 `gateway-ca.pem` belongs here: the **public** root certificate of the Caddy
 internal CA that terminates TLS in front of the gateway (printed at the end of
 the deploy workflow's "TLS sidecar" step). It is not a secret — it contains no
