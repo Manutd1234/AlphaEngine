@@ -31,7 +31,7 @@
 .coh-universe__filter select {
   font-size: var(--fs-xs);
   padding: 4px 8px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--surface-1);
   color: var(--text-primary);
@@ -112,12 +112,6 @@
   font-weight: 650;
 }
 
-.coh-form__value {
-  fill: var(--text-primary);
-  font-size: var(--fs-sm);
-  font-variant-numeric: tabular-nums;
-}
-
 .coh-form__note {
   fill: var(--text-secondary);
   font-size: var(--fs-tick);
@@ -125,15 +119,3 @@
 
 .coh-form__arrow line { stroke: var(--text-secondary); }
 .coh-form__arrow polygon { fill: var(--text-secondary); }
-
-
-/* ── Pending minutes ────────────────────────────────────────────────────── */
-
-/* The bar is the station DISAGREEMENT, not the value — see the component's
-   header for why that is the length worth drawing. */
-.coh-pending__spread {
-  fill: color-mix(in srgb, var(--series-1) 55%, var(--surface-1));
-  stroke: var(--series-1);
-  stroke-width: 1;
-}
-
