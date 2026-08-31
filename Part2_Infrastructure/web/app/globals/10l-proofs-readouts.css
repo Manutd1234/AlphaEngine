@@ -78,50 +78,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* ── Both sides of every leg, on one dollar axis ────────────────────────────
-   The bid is filled and the ask hollow, so the pair reads as one book without
-   colour carrying it: in forced colours both survive as shapes. A ringed mark
-   is a leg whose SIZE is unknown — the venue stopped sending open interest —
-   and is deliberately unlike a leg holding nothing, which is a small filled
-   mark and a real measurement. */
-.coh-ladderprice__grid {
-  stroke: var(--border);
-  stroke-width: 1;
-  vector-effect: non-scaling-stroke;
-}
-
-.coh-ladderprice__tick {
-  font-size: var(--fs-diagram-label);
-  fill: var(--text-muted);
-  font-family: var(--mono);
-  font-variant-numeric: tabular-nums;
-}
-
-/* The gap between the two sides IS the spread, so it is drawn, not implied. */
-.coh-ladderprice__spread {
-  stroke: var(--text-muted);
-  stroke-width: 1;
-  vector-effect: non-scaling-stroke;
-}
-
-.coh-ladderprice__bid { fill: var(--series-1); }
-
-.coh-ladderprice__ask {
-  fill: var(--surface-1);
-  stroke: var(--series-2);
-  stroke-width: 1.2;
-  vector-effect: non-scaling-stroke;
-}
-
-.coh-ladderprice__bid.is-unsized,
-.coh-ladderprice__ask.is-unsized {
-  fill: none;
-  stroke: var(--text-muted);
-  stroke-dasharray: 1.5 1.5;
-  stroke-width: 1;
-  vector-effect: non-scaling-stroke;
-}
-
 /* ── Buy every outcome: the basket against the dollar it pays ───────────────
    The tab's one operated figure. The leg blocks alternate tone rather than
    carrying a hue each: six named colours would be a legend nobody reads, and
@@ -252,7 +208,7 @@
 }
 
 .coh-lessonfig__gap-note {
-  fill: var(--status-warning);
+  fill: var(--warning-text);
   font-size: var(--fs-diagram-label);
 }
 
@@ -262,65 +218,6 @@
    word beside it says so too, so the tint is never the only carrier. */
 .coh-lessonfig__danger {
   fill: color-mix(in srgb, var(--status-critical) 10%, transparent);
-}
-
-/* The size ribbons under the price ladder. One fill for all three: the ribbon
-   name to the left of each row is what tells them apart, so nothing here means
-   anything by colour. */
-.coh-legsize__cell {
-  fill: var(--series-1);
-}
-
-/* A field the venue stopped sending: an outline where a measured zero is a
-   filled sliver, so the two absences cannot be read as one. */
-.coh-legsize__cell.is-null {
-  fill: none;
-  stroke: var(--rule);
-  stroke-width: 1;
-  vector-effect: non-scaling-stroke;
-}
-
-.coh-legsize__name {
-  fill: var(--text-secondary);
-  font-size: var(--fs-tick);
-}
-
-.coh-legsize__base {
-  stroke: var(--axis);
-  stroke-width: 1;
-  shape-rendering: crispEdges;
-}
-
-/* The invisible column that carries a leg's `<title>`: one mark per leg,
-   spanning the three ribbons, so a reader walks legs rather than cells. */
-.coh-legsize__column {
-  fill: transparent;
-}
-
-/* The basket's footprint: one column per leg, its share of what is
-   outstanding at that leg's strike. */
-.coh-footprint__bar {
-  fill: var(--series-1);
-}
-
-/* A leg the solver sized past everything anybody holds. Hatched rather than
-   recoloured, so the distinction survives forced colours. */
-.coh-footprint__bar.is-over {
-  fill: url(#diff-hatch);
-  stroke: var(--text-primary);
-  stroke-width: 1;
-}
-
-/* The same size against contracts TRADED — a second reading of one column. */
-.coh-footprint__traded {
-  stroke: var(--text-primary);
-  stroke-width: 1.5;
-  vector-effect: non-scaling-stroke;
-}
-
-.coh-footprint__label {
-  fill: var(--text-secondary);
-  font-size: var(--fs-tick);
 }
 
 /* The index lanes' shared scale: nought at the baseline, the peak every lane
