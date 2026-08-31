@@ -14,17 +14,16 @@ import dynamic from "next/dynamic";
 import PortfolioWorkspace from "@/components/PortfolioWorkspace";
 import RiskWorkspace from "@/components/RiskWorkspace";
 import WorkspaceOverview from "@/components/WorkspaceOverview";
+import QuantPanelSkeleton from "@/components/workspace/QuantPanelSkeleton";
 
 /**
  * The console workspaces load as their own chunks: they are the heaviest
  * subtrees here and none is needed for first paint, so the initial bundle stops
  * carrying them. `useConsolePrefetch` warms the chunks before the first click,
- * and the loading box holds a panel-sized rectangle so the one cold visit
- * cannot shift the layout.
+ * and the loading composition reserves the heading, metrics, rail and evidence
+ * geometry so the one cold visit cannot shift the layout.
  */
-const PanelLoading = () => (
-  <div className="skeleton" style={{ height: 480 }} aria-busy="true" aria-label="Loading workspace" />
-);
+const PanelLoading = QuantPanelSkeleton;
 const DataConsole = dynamic(() => import("@/components/DataConsole"), { loading: PanelLoading });
 const ReliabilityConsole = dynamic(() => import("@/components/ReliabilityConsole"), { loading: PanelLoading });
 const DeveloperConsole = dynamic(() => import("@/components/DeveloperConsole"), { loading: PanelLoading });
