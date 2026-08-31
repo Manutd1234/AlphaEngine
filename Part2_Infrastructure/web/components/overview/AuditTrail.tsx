@@ -6,13 +6,9 @@
  * order lands in whether it was accepted or refused. Until this panel existed
  * the feed had no surface anywhere in the UI.
  *
- * Honest states over spinners, and a filled table over an honest empty one. The
- * unreachable state used to be terminal: a warning banner reading "this panel
- * refuses to invent one", which made the Overview tab's third section a
- * paragraph of apology on every deployment without a gateway — which is the
- * public one. It now shows the same generated orders the Execution blotter
- * shows, labelled as generated. Nothing is invented here that is not already on
- * screen one tab away.
+ * Honest states over substitute rows. A failed first read names the missing
+ * live ledger and leaves the table empty; a later failure retains the last
+ * measured rows with their original observation time.
  *
  * Which of those states the panel is in is `DeskSourceMachine`'s decision, not
  * this file's. The inline version demoted `ready` straight to `generated` on
@@ -23,18 +19,20 @@
  * the pass/fail/pass script against `audit-trail-state.ts` to hold it there.
  */
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 import { auditProbeOutcome, auditView } from "@/components/overview/audit-trail-state";
 import { fmt, usd } from "@/lib/format";
-import { type AuditRow, sandboxAuditRows } from "@/lib/fallbacks/audit";
+import type { AuditRow } from "@/lib/audit";
 import { useDeskSource } from "@/lib/use-desk-source";
 import { probeGateway } from "@/lib/use-gateway-connection";
 import { usePolling } from "@/lib/use-polling";
+import WorkspaceEntityLink from "@/components/workspace/WorkspaceEntityLink";
 
 const POLL_MS = 30_000;
+const AUDIT_ROWS_CAPTION = "Order audit rows, newest first.";
 
-export default function AuditTrail({ active, seed }: { active: boolean; seed?: number }) {
+export default function AuditTrail({ active }: { active: boolean }) {
   const source = useDeskSource<AuditRow[]>();
   const { observe } = source;
   const sequence = useRef(0);
@@ -61,10 +59,7 @@ export default function AuditTrail({ active, seed }: { active: boolean; seed?: n
 
   usePolling({ tick: refresh, intervalMs: POLL_MS, maxBackoffMs: 300_000, enabled: active });
 
-  // The same seed the Execution blotter generates from, so a generated ledger
-  // here lists the orders that tab lists.
-  const generatedRows = useMemo(() => sandboxAuditRows(undefined, seed), [seed]);
-  const state = auditView(source.state, generatedRows);
+  const state = auditView(source.state);
 
   return (
     <div className="card">
@@ -103,12 +98,11 @@ export default function AuditTrail({ active, seed }: { active: boolean; seed?: n
         <div className="skeleton" style={{ height: 220 }} aria-busy="true" aria-label="Loading audit trail" />
       )}
 
-      {state.kind === "generated" && (
+      {state.kind === "unavailable" && (
         <div className="banner warn" role="status">
-          <span aria-hidden>◇</span>
+          <span aria-hidden>△</span>
           <div>
-            <strong>Generated ledger — these orders were not sent.</strong> {state.detail}{" "}
-            The same orders the Execution blotter shows, so the two tabs reconcile.
+            <strong>Audit feed unavailable.</strong> {state.detail} No rows are substituted.
           </div>
         </div>
       )}
@@ -117,66 +111,73 @@ export default function AuditTrail({ active, seed }: { active: boolean; seed?: n
         <p className="sub">No orders in the audit window yet — send a paper order from Execution.</p>
       )}
 
-      {state.kind !== "loading" && state.rows.length > 0 && (
+      {state.kind === "ready" && state.rows.length > 0 && (
         <>
-          {/* tabIndex={0}, like every other scrolling table on the desk.
-              This wrapper clamps to min(480px, 60vh) and scrolls both ways —
-              forty rows and eight columns — and it was the one scroll
-              container on this tab nobody could focus, so a keyboard or
-              switch user reached the header row and stopped there. The
-              `.table-wrap:focus-visible` outline already waiting in
-              00-tokens-and-base.css was drawn for exactly this. */}
-          <div className="table-wrap table-wrap--clamped" tabIndex={0}>
-            <table>
-              <caption className="sr-only">
-                Order audit rows, newest first.
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col">Time (UTC)</th>
-                  <th scope="col">Symbol</th>
-                  <th scope="col">Side</th>
-                  <th scope="col">Qty</th>
-                  <th scope="col">Fill</th>
-                  <th scope="col">Notional</th>
-                  <th scope="col">Outcome</th>
-                  <th scope="col">Latency</th>
-                </tr>
-              </thead>
-              <tbody>
-                {state.rows.map((row) => (
-                  <tr key={row.order_id}>
-                    <td className="num">{row.ts.slice(0, 19).replace("T", " ")}</td>
-                    <td>{row.symbol}</td>
-                    <td>{row.side}</td>
-                    <td className="num">{fmt(row.quantity, 4)}</td>
-                    <td className="num">{row.fill_price === null ? "—" : usd(row.fill_price, 2)}</td>
-                    <td className="num">{row.notional === null ? "—" : usd(row.notional, 0)}</td>
-                    <td>
-                      {row.accepted ? (
-                        <span style={{ color: "var(--success-text)" }}>
-                          <span aria-hidden>✓</span> accepted
-                        </span>
-                      ) : (
-                        <span style={{ color: "var(--critical-text)" }}>
-                          <span aria-hidden>✕</span> {row.rejected_by ?? "refused"}
-                        </span>
-                      )}
-                      {row.reason && <small className="muted">, {row.reason}</small>}
-                    </td>
-                    <td className="num">
-                      {row.latency_ms === null ? "—" : `${fmt(row.latency_ms, 1)}ms`}
-                    </td>
+          <details className="disclosure overview-audit-rows">
+            <summary>{AUDIT_ROWS_CAPTION}</summary>
+            {/* tabIndex={0}, like every other scrolling table on the desk.
+                This wrapper clamps to min(480px, 60vh) and scrolls both ways —
+                forty rows and eight columns — and it was the one scroll
+                container on this tab nobody could focus, so a keyboard or
+                switch user reached the header row and stopped there. The
+                `.table-wrap:focus-visible` outline already waiting in
+                00-tokens-and-base.css was drawn for exactly this. */}
+            <div className="table-wrap table-wrap--clamped" tabIndex={0}>
+              <table>
+                <caption className="sr-only">
+                  {AUDIT_ROWS_CAPTION}
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Time (UTC)</th>
+                    <th scope="col">Order</th>
+                    <th scope="col">Symbol</th>
+                    <th scope="col">Side</th>
+                    <th scope="col">Qty</th>
+                    <th scope="col">Fill</th>
+                    <th scope="col">Notional</th>
+                    <th scope="col">Outcome</th>
+                    <th scope="col">Latency</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {state.rows.map((row) => (
+                    <tr key={row.order_id}>
+                      <td className="num">{row.ts.slice(0, 19).replace("T", " ")}</td>
+                      <td><WorkspaceEntityLink kind="order" value={row.order_id}><code>{row.order_id}</code></WorkspaceEntityLink></td>
+                      <td><WorkspaceEntityLink kind="ticker" value={row.symbol}>{row.symbol}</WorkspaceEntityLink></td>
+                      <td>{row.side}</td>
+                      <td className="num">{fmt(row.quantity, 4)}</td>
+                      <td className="num">{row.fill_price === null ? "—" : usd(row.fill_price, 2)}</td>
+                      <td className="num">{row.notional === null ? "—" : usd(row.notional, 0)}</td>
+                      <td>
+                        {row.accepted ? (
+                          <span style={{ color: "var(--success-text)" }}>
+                            <span aria-hidden>✓</span> accepted
+                          </span>
+                        ) : (
+                          <span style={{ color: "var(--critical-text)" }}>
+                            <span aria-hidden>✕</span>{" "}
+                            {row.rejected_by ? (
+                              <WorkspaceEntityLink kind="breach" value={row.rejected_by}>
+                                {row.rejected_by}
+                              </WorkspaceEntityLink>
+                            ) : "refused"}
+                          </span>
+                        )}
+                        {row.reason && <small className="muted">, {row.reason}</small>}
+                      </td>
+                      <td className="num">
+                        {row.latency_ms === null ? "—" : `${fmt(row.latency_ms, 1)}ms`}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </details>
           <p className="research-note">
-            {state.rows.length} newest rows;{" "}
-            {state.kind === "ready"
-              ? `read ${state.fetchedAt.toLocaleTimeString()}; paper-only, recorded by the gateway itself.`
-              : "generated for this session; paper-only, recorded by nothing."}
+            {state.rows.length} newest rows; read {state.fetchedAt.toLocaleTimeString()}; paper-only, recorded by the gateway itself.
           </p>
         </>
       )}
