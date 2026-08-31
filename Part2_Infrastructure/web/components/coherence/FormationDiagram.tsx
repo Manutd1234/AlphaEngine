@@ -23,10 +23,13 @@
  * survives forced-colors and a reader who cannot separate the two hues.
  */
 
-import Figure, { Plot } from "./Figure";
+import { ArrowRight } from "lucide-react";
+
+import Figure from "./Figure";
+import { SettlementAssembly } from "./SettlementInstruments";
 
 export interface FormationStage {
-  /** The short noun on the box — two words at most; it has ~130px. */
+  /** The short heading on the box. HTML wrapping keeps longer live names intact. */
   title: string;
   /** The measurement this stage carries, or null when this read has none. */
   value: string | null;
@@ -40,38 +43,14 @@ export interface FormationStage {
 const SETTLEMENT_KEY =
   "Each box is a transformation, not a reading; the contract settles on the last one.";
 
-const BOX_H = 68;
-const GAP = 34;
-const TOP = 8;
-/** Below this a box cannot hold two words at the 13px series-label rung and is
- *  not worth drawing. 96 was the same claim at 12px; 96 x 13/12 = 104. */
-const MIN_BOX_W = 104;
-const PAD = 8;
-
-/**
- * SVG text neither wraps nor clips: a string longer than its box runs straight
- * out of it and over the arrow beside it. Observed, not derived — the live
- * feed's QC version is `miami-temperature-v1.0-cal-20260824` and its station
- * list is five nine-character names, and both crossed into the next stage.
- *
- * The per-character budgets follow the diagram ladder's rungs, which
- * `14r-coherence-density.css` pins per class. The 2026-08-24 lift moved both:
- * the title and note read the 13px series-label rung, whose widest ordinary
- * glyph in this font is under 7.37px (6.8 x 13/12), the note's looser 6.3
- * becomes 6.83 (6.3 x 13/12), and the value reads the fixed 14px legend rung
- * at under 7.76px (7.2 x 14/13). Estimating
- * rather than measuring means erring towards a shorter string, which is the
- * safe direction: the full value is on the `<title>`, so nothing is lost, and
- * a box that fits is worth more than a character.
- */
-function fit(text: string, boxWidth: number, perChar: number): string {
-  const budget = Math.max(4, Math.floor((boxWidth - PAD * 2) / perChar));
-  return text.length <= budget ? text : `${text.slice(0, budget - 1)}…`;
-}
-
 function mark(holds: boolean | null): string {
   if (holds === null) return "◌";
   return holds ? "●" : "▲";
+}
+
+function status(holds: boolean | null): string {
+  if (holds === null) return "not evaluated";
+  return holds ? "holds" : "flagged";
 }
 
 export default function FormationDiagram({
@@ -81,6 +60,7 @@ export default function FormationDiagram({
   missing,
   notes,
   keyLine = SETTLEMENT_KEY,
+  mode = "pipeline",
 }: {
   stages: FormationStage[];
   caption: string;
@@ -99,74 +79,54 @@ export default function FormationDiagram({
    * caller unchanged and makes the new one say what its own chain is.
    */
   keyLine?: string;
+  /** Settlement uses the tactile assembly; other proof pipelines retain the compact chain. */
+  mode?: "pipeline" | "assembly";
 }) {
-  const height = TOP + BOX_H + 34;
+  if (mode === "assembly") {
+    return <SettlementAssembly stages={stages} caption={caption} reading={reading} missing={missing} />;
+  }
   const ariaLabel = stages
     .map((stage) => `${stage.title}: ${stage.value ?? "not measured in this read"}, ${stage.note}`)
     .join(". Then ");
 
   return (
-    <Figure caption={caption} reading={reading} missing={missing} notes={notes} ariaLabel={ariaLabel}>
-      <Plot height={height}>
-        {(width) => {
-          // The boxes FILL the measured width rather than sitting at a fixed
-          // one. Centring a 630px chain inside a 1400px card left half the
-          // figure empty and every string truncated anyway, which is the worst
-          // of both: room going spare beside text that did not fit.
-          const count = stages.length;
-          const gap = GAP;
-          const boxW = Math.max(MIN_BOX_W, (width - (count - 1) * gap) / count);
-          const startX = Math.max(0, (width - (count * boxW + (count - 1) * gap)) / 2);
-          return (
-            <>
-              {stages.map((stage, index) => {
-                const x = startX + index * (boxW + gap);
-                const midY = TOP + BOX_H / 2;
-                return (
-                  <g key={stage.title}>
-                    <rect
-                      x={x} y={TOP} width={boxW} height={BOX_H} rx={6}
-                      className={stage.holds === false ? "coh-form__box is-broken" : "coh-form__box"}
-                    />
-                    {/* Baselines at +19/+40/+58 rather than the +17/+39/+57 the
-                        10px pass used: a 12px ascender is ~9.5px, so +17 put
-                        the title's cap height on the box's own top edge. */}
-                    <text x={x + PAD} y={TOP + 19} className="coh-form__title">
-                      <tspan aria-hidden="true">{mark(stage.holds)}</tspan>{" "}
-                      {fit(stage.title, boxW - 14, 7.37)}
-                    </text>
-                    {/* The 13px legend rung, so a wider glyph: the value is the
-                        figure a reader takes from the stage and it earns the
-                        louder rung, but it also runs out of the box soonest. */}
-                    <text x={x + PAD} y={TOP + 40} className="coh-form__value">
-                      {fit(stage.value ?? "—", boxW, 7.76)}
-                      <title>{stage.value ?? "not measured in this read"}</title>
-                    </text>
-                    <text x={x + PAD} y={TOP + 58} className="coh-form__note">
-                      {fit(stage.note, boxW, 6.83)}
-                      <title>{stage.note}</title>
-                    </text>
-                    {index < count - 1 ? (
-                      <g className="coh-form__arrow">
-                        <line
-                          x1={x + boxW + 4} x2={x + boxW + gap - 8}
-                          y1={midY} y2={midY} strokeWidth="1.5"
-                        />
-                        <polygon
-                          points={`${x + boxW + gap - 8},${midY} ${x + boxW + gap - 15},${midY - 4} ${x + boxW + gap - 15},${midY + 4}`}
-                        />
-                      </g>
-                    ) : null}
-                  </g>
-                );
-              })}
-              <text x={startX} y={height - 8} className="coh-figure__key">
-                {keyLine}
-              </text>
-            </>
-          );
-        }}
-      </Plot>
+    <Figure
+      caption={caption}
+      reading={reading}
+      missing={missing}
+      notes={notes}
+      ariaLabel={ariaLabel}
+      readout={<span className="num">{`${stages.length} stages; ${stages.filter((stage) => stage.holds === false).length} marked ▲`}</span>}
+      reserveInteractionRow={false}
+    >
+      <div className="coh-decision-flow">
+        <ol className="coh-decision-flow__rail">
+          {stages.map((stage, index) => {
+            const state = stage.holds === null ? "unavailable" : stage.holds ? "holds" : "flagged";
+            return (
+              <li className="coh-decision-flow__step" key={`${index}-${stage.title}`}>
+                <article className="coh-decision-flow__card" data-state={state}>
+                  <header>
+                    <span className="coh-decision-flow__index">{String(index + 1).padStart(2, "0")}</span>
+                    <span className="coh-decision-flow__status">
+                      <span aria-hidden="true">{mark(stage.holds)}</span> {status(stage.holds)}
+                    </span>
+                  </header>
+                  <h4>{stage.title}</h4>
+                  <strong className="coh-decision-flow__value">{stage.value ?? "Not measured"}</strong>
+                  <p>{stage.note}</p>
+                </article>
+                {index < stages.length - 1 ? (
+                  <span className="coh-decision-flow__arrow" aria-hidden="true">
+                    <ArrowRight />
+                  </span>
+                ) : null}
+              </li>
+            );
+          })}
+        </ol>
+        <p className="coh-decision-flow__key">{keyLine}</p>
+      </div>
     </Figure>
   );
 }
