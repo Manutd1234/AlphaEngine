@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     });
     return NextResponse.json(
       { symbol, ...result },
-      { headers: cacheHeaders(86_400) },
+      { headers: cacheHeaders(86_400, result.provenance.synthetic === true) },
     );
   } catch (err) {
     return failure(err);
