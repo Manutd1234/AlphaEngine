@@ -1,5 +1,11 @@
 # AlphaEngine — Integrated Investment Infrastructure (Vercel)
 
+**Last verified: 2026-08-30.** Local runtime commands and representative gateway
+proxies were rechecked; full-suite release counts retain their actual 2026-08-29
+run date. Locked versions and reproduction commands are centralised in the
+[current-state ledger](../../docs/CURRENT_STATE.md); dated deployment and latency
+observations below remain attached to the day they were actually measured.
+
 The desk-facing half of AlphaEngine as a deployable Next.js app: one shared
 instrument and decision context across portfolio oversight, strategy research,
 live execution-cost analysis, market-data lineage and developer operations.
@@ -15,7 +21,7 @@ fundamentals. Provider keys (also optional) extend coverage through the
 seven-provider registry — see [Data providers](#data-providers).
 
 The Telegram companion is a separate client — text cards, charts and inline
-keyboards on a phone, 136 commands. The header carries a one-way deep link out
+keyboards on a phone, 138 commands. The header carries a one-way deep link out
 to it (**Connect**), but the web workspace never embeds it and never
 authenticates through it, and the bot never opens or controls this UI.
 
@@ -23,12 +29,16 @@ authenticates through it, and the bot never opens or controls this UI.
 
 ## Tech stack
 
-**This app:** Next.js 16 (App Router, Turbopack), React 19, TypeScript 5,
-Tailwind 4 utilities over a hand-written token system (`app/globals.css` owns
+**This app:** Next.js 16.3.0 (App Router), React 19.2.8, TypeScript 5.6 and
+Tailwind 4.3.3 utilities over a hand-written token system (`app/globals.css` owns
 every colour and both theme palettes; `tests/theme-contrast.test.ts` enforces
 the AA contrast contract and `tests/theme-palette-parity.test.ts` holds the two
-palettes to the same role set). Charts are hand-rolled SVG on one scale kit
-(`components/chart-kit.tsx`) — no chart library. Deployed on Vercel, region
+palettes to the same role set). The general desk uses the shared SVG scale kit
+(`components/chart-kit.tsx`); Markets, Proofs and Diffusion add purpose-built
+HTML/CSS and SVG quant instruments with linked exact-value inspectors rather
+than forcing every problem into a standard chart primitive. There is no chart
+library. Development uses Turbopack; the production script deliberately invokes
+`next build --webpack`. Deployed on Vercel, region
 `sin1` (venue egress — see the region note under Deploy).
 
 **Behind it** (documented once, in
@@ -39,8 +49,16 @@ an authoritative DuckDB audit log; a Supabase Postgres mirror + pgvector RAG
 layer (off by default, server-side only); a stateless OpenBB research service.
 
 **Credential rule:** the browser bundle contains **zero backend env vars**.
-`ALPHAENGINE_GATEWAY_URL` must be `https://` (the proxy rejects `ws://` and any
-non-http(s) scheme, and rejects loopback/private hosts in production). The
+`ALPHAENGINE_GATEWAY_URL` must be a valid `http://` or `https://` origin (the
+proxy rejects `ws://` and other schemes, and rejects loopback/private hosts in
+production). Use HTTPS once the pinned TLS flip is complete; the operator
+runbook retains the explicit HTTP recovery path until then. A
+server-only `ALPHAENGINE_GATEWAY_PUBLIC_URL` may be set as a break-glass
+secondary while correcting a canonical value inherited from local development;
+it is considered only when the canonical origin is unusable and is never sent
+to the browser. Read-only Markets, Proofs, and Diffusion diagrams retain the
+typed outage beside a deterministic sandbox snapshot when neither origin can
+answer, so a serverless configuration error does not become a blank tab. The
 `NEXT_PUBLIC_SUPABASE_*` variables are public by design and now carry three
 browser surfaces: the decision tape, the optional sign-in at `/login`, the
 preference sync that mirrors theme, detail level and last-open tab to the
@@ -74,6 +92,8 @@ bot token, the service-role key and every gateway credential stay server-side.
 
 ```text
 ALPHAENGINE_GATEWAY_URL=https://stateful-gateway.example.com
+# Optional temporary secondary when the canonical value cannot be replaced yet:
+ALPHAENGINE_GATEWAY_PUBLIC_URL=https://stateful-gateway.example.com
 ALPHAENGINE_GATEWAY_TOKEN=<gateway WEB_API_TOKEN>
 
 OPENBB_API_URL=https://openbb-service.example.com
@@ -88,40 +108,39 @@ Locally:
 ```bash
 cd web
 npm install
-npm run dev        # http://localhost:3000 (Turbopack)
-npm run build      # Turbopack production build
+npm run dev        # gateway :8000 + workspace :3000; requires ../venv
+npm run dev:web    # frontend-only workspace; sandbox is a labelled user choice
+npm run build      # Next.js production build using the explicit webpack path
 npm run typecheck  # tsc --noEmit
-npm test           # 4,728 passed, 2 skipped, across 1,028 suites — no network required
-                   # (re-measured 2026-08-24). lib/test-counts.generated.ts is the
-                   # constant the Developer console displays, and CI checks ONLY its
-                   # web line against the runner's log:
-                   #   npm run counts:refresh -- --suite=web
-                   # The count gate lives outside the suite on purpose — a test that
-                   # asserts the total changes the total. The gateway line in that
-                   # file is a dated record CI does not check; do not read it as one.
+npm test           # 6,519 total: 6,513 passed, 6 skipped, 0 failed
+                   # across 1,408 suites on 2026-08-29; no network required
+npm run audit:layout -- --url=http://localhost:3000
+                   # browser geometry; requires a ready app and Playwright Chromium
+                   # historical 2026-08-29 run: 872/872 on the former 109-route inventory
+                   # current 120-route default sweep is 960 states and needs its own run
 ```
 
-Built on **Next.js 16** with **Turbopack**, which is the default bundler for both
-`dev` and `build` in 16 — no `--turbopack` flag is needed, and passing one is a
-no-op. `next lint` was removed in 16; since this project carries no ESLint config
-or dependency, the script slot is a real `tsc --noEmit` typecheck rather than a
-new dependency tree.
+`lib/test-counts.generated.ts` is refreshed by `npm run counts:refresh` and is
+the contract the Developer console displays. The count gate lives outside the
+suite because a test that asserts the total would itself change the total.
+`next lint` was removed in Next 16; this project carries no ESLint config or
+dependency, so `typecheck` is a real `tsc --noEmit` check rather than a renamed
+lint command.
 
 ---
 
 ## What it does
 
-**One tab per desk role** — the workspace has **ten** tabs over 57 rail
-sections: an overview that launches into the others, one each for the seven
-roles the platform is built for, and Quotes and Proofs, the two halves of a
-research surface rather than a role. `NAV_ITEMS` in
-`components/WorkspaceHeader.tsx` declares the rail order and `lib/sections.ts`
-declares every section id; those ids are public deep links and never change,
-which is why the last two tabs are addressed as `#markets` and `#coherence`
-while reading "Quotes" and "Proofs".
+**One surface per decision or research question** — the workspace has **eleven
+tabs over 70 rail sections**. Eight tabs form the desk loop; Markets, Proofs and
+Diffusion are the read-only prediction-market research engine. `NAV_ITEMS` in
+`lib/workspace-nav.ts` declares tab order, `lib/sections.ts` declares section
+ids, and `lib/section-views.ts` declares the addressable view beneath a section.
+Those ids are public deep links and do not move with presentation labels.
 
 | Tab | Role | What it answers |
 | --- | --- | --- |
+| Overview | All roles | What is the whole desk doing, and where should this role go next? |
 | Research | Quant researcher | Is this candidate real, or did the search find noise? |
 | Execution | Quant trader | What is the book doing right now, and what would this order cost? |
 | Portfolio | Portfolio manager | What do we hold, and is the capital where it was meant to be? |
@@ -129,8 +148,9 @@ while reading "Quotes" and "Proofs".
 | Data | Data engineer | What needs attention, where did this number come from, and can it be trusted? |
 | Reliability | DevOps / SRE | Is the platform healthy, and which layer broke? |
 | Developer | Quant developer | What is the contract, and what proves it still holds? |
-| Prices (`#markets`) | Quant researcher | What is this exchange quoting, and what does a whole dollar of it cost? |
+| Markets (`#markets`) | Quant researcher | What is this exchange quoting, and what does a whole dollar of it cost? |
 | Proofs (`#coherence`) | Quant researcher | Are these prices a probability measure, and what does the failure pay? |
+| Diffusion (`#diffusion`) | Quant researcher | How quickly does new information reach the price, and was the instrument fit to say so? |
 
 Panels have exactly one home. Where a second role needs a figure — a PM checking
 headroom before adding to a sleeve, an SRE glancing at quarantine during an
@@ -160,10 +180,12 @@ and normalised output.
 
 **The Work Queue is no longer browser-memory sample data, and this paragraph
 used to say it was.** Rows now live in the gateway's SQLite work-item table
-(`GET`/`POST /api/data/work-items`, `PATCH …/{id}`): every create and status
+(`GET`/`POST /api/gateway/data/work-items`, `PATCH …/{id}` through the browser
+proxy; the gateway itself owns `/api/data/work-items`): every create and status
 change is versioned and audit-logged, a stale edit is refused with the current
-row rather than silently overwritten, and the nine seeded samples are marked as
-seeded so nobody mistakes them for real intake. What it is **not** is a ticketing
+row rather than silently overwritten. A fresh store starts empty and every row
+comes from an explicit create request; production has no sample-population mode.
+What it is **not** is a ticketing
 or incident system with a workflow engine behind it — the board says "queue" and
 means it. When the gateway is unreachable the board says so and holds edits
 locally until it answers. The durable quality ledger behind the Quality pane
@@ -269,12 +291,11 @@ degrades on its own. These pane IDs are component state and not deep links —
 the URL still addresses the subtab `controls`, and "Copy link to this view" is
 unchanged — but cross-tab prose elsewhere still points at "Reliability →
 Remediation" without naming a pane, which stays correct only while Mutations is
-the pane a reader lands on. **Not yet seen in a real viewport:** the panes and
-the map were verified through `react-dom/server` and by checking the SVG
-geometry by hand, and the two things worth eyeballing are the eight-column
-matrix at narrow widths — it scrolls inside its own `.table-wrap`, so the page
-body must not scroll sideways — and the 6px gap between the seven store boxes
-in the drawing, which is the tightest measurement in it.
+the pane a reader lands on. The browser-backed layout audit now measures these
+panes at the same eight viewports as the quant engine, including local
+scrollport ownership and sibling intersections. The Node suite still has no
+DOM; without a completed `npm run audit:layout` report, source checks alone do
+not qualify the eight-column matrix or the seven-store map.
 
 The five stable subtab IDs present the incident workflow as **Attention & SLIs
 → Dependencies → Services & Circuits → Logs & Traces → Remediation**. The
@@ -305,24 +326,16 @@ anyone presses the button: every computing link reads **not run**, because
 nothing ran, and the one thing knowable at rest — whether the committed module is
 self-consistent — is re-hashed on load rather than assumed.
 
-Three things that chain does **not** do, stated because the panel looks like it
-might. It does not draw the *other* digest chain in this repository: the gateway
-OpenAPI contract (`main.py` routes → `tools/export_openapi.py` →
-`tools/openapi.json` → canonicalise and SHA-256 → `lib/gateway-openapi-digest.generated.ts`,
-enforced by `scripts/check-gateway-openapi-digest.mjs` at `prebuild` and by
-`python tools/export_openapi.py --check` in CI). That chain is real and has the
-same shape, and its verdict is still only a pill in the Contracts pane with no
-digest visible at all; the row components take `{caption, hex, note, glyph, word,
-tint}` and know nothing about Monte Carlo, so drawing it needs a second chain
-array and a caller, not new components. It does not show the **server** leg's
-live verdict either: `delivery.numerics` — this deployment's Node instance
-recomputing the same fixture — stays the "Monte Carlo numerics" row of the schema
-table one pane away, because the pane's mount is pinned as `<McBrowserParityCheck />`
-with no props and the card cannot read `view`. The terminal node names that row so
-a reader can find it. And it carries **no stylesheet of its own**: `app/globals/**`
-is shared, so the chain reuses `SignalDAGViewer`'s classes plus inline layout. The
-64 hex characters' wrap point at each breakpoint is argued from a ch-derived width
-rather than measured — worth one look at ~900px and ~1400px.
+The sibling gateway-contract chain is drawn too:
+`main.py` routes → `tools/export_openapi.py` → `tools/openapi.json` → canonical
+SHA-256 → `lib/gateway-openapi-digest.generated.ts`, enforced by prebuild and CI.
+`GatewayContractCustodyChain` prints the complete committed and live digests,
+the first divergence when they differ, and a named unmeasured state when the
+gateway did not answer this poll. Both chains share `CustodyChainTrack`, so a
+step, branch, status and remedy carry one interaction grammar instead of two
+look-alike diagrams with different semantics. The 2026-08-29 snapshot contains
+76 paths and 79 HTTP operations; prebuild accepted canonical digest
+`12b53e1fe2f51e399b3e133440a72dce2f13abfe8cdfc68f9b6da3ae81df96be`.
 
 *Topology* draws the deployment map: a runtime band, a dashed bracket forking
 from it, three deployable cards. It is DOM and CSS, not SVG — there is no SVG on
@@ -336,9 +349,8 @@ row is ever added to the node card, which would otherwise land in an implicit ro
 and put the misalignment straight back. Two honest limits: subgrid needs Chrome
 or Edge 117+, Safari 16+, Firefox 71+, and where it is unsupported the declaration
 is dropped and the card renders as a plain five-row auto grid — the failure mode
-is the old layout, not a broken one; and jsdom does no layout and this tree has no
-browser driver, so the geometry is derived rather than observed. The widths worth
-a glance are ~1200px and ~1000px.
+is the old layout, not a broken one. Source tests do no layout; the Playwright
+geometry audit owns rendered containment and collision checks.
 
 **Portfolio oversight** — when `ALPHAENGINE_GATEWAY_URL` is configured, the
 read-only server proxy renders authoritative equity, day P&L, gross/net
@@ -431,93 +443,79 @@ to re-run that single combination and see what it actually did.
 winner, and the in-sample → out-of-sample gap that reveals overfitting.
 
 <a id="coherence-console"></a>
-**Quotes and Proofs** — the last two tabs, and the ones that are not desk
-roles. A contract paying $1 if an event happens is a probability with a price on
-it, so a family of those prices either admits a probability measure or does not.
-The pair reads Kalshi live, records whole bid ladders rather than prices, and
-where the prices are incoherent it hands back the portfolio that wins in every
-state. Both headers state the boundary in the metric strip: **order path =
-"none"** — this engine reads, records and certifies, and it sends nothing.
+**Markets, Proofs and Diffusion** are the last three tabs and are research
+surfaces rather than desk roles. A contract paying $1 if an event happens is a
+probability claim; a mutually exclusive family either admits a probability
+measure or hands back a constructive witness. Markets reads the venue, Proofs
+tests the claim, and Diffusion measures the recorded path through time. The
+boundary is structural: **order path = none**.
 
-They were one eleven-section tab until 2026-08-24, and that day they were
-restructured six times: split, promoted to seventeen sections, moved across the
-seam, merged back, consolidated to nine, and split again by feature. **Quotes**
-(`#markets`) is what the venue quotes; **Proofs** (`#coherence`) is what the
-engine proves about it. **Nine rail sections across the two**, five and four.
+The current engine has **22 rail sections and 71 addressable views**:
 
-No section id was invented or retired to do it. `#coherence/books` still
-resolves, and so do the eight ids that stopped being sections — including
-`index` and `combos`, both published on `origin/main` — because
-`RELOCATED_SECTIONS` in `lib/workspace-hash.ts` maps each to the tab **and**
-section that now carries it — sixteen entries covering the 25 distinct locations
-this engine has ever published. `coherence-sections.test.ts` pins the table entry
-by entry and asserts that no entry quietly lands on its tab's own rail default,
-which would be indistinguishable from not resolving at all; the three that do
-land on one are exempted by name, because each carrier is simply first in rail
-order.
+| Tab | Sections | Views |
+|---|---:|---:|
+| Markets (`#markets`) | 8 | 26 |
+| Proofs (`#coherence`) | 7 | 29 |
+| Diffusion (`#diffusion`) | 7 | 16 |
 
-Every section splits its content across an in-pane `.seg` switcher. A view is
-component state, so it is **not in the URL, not in the command palette, and not
-walked by `scripts/desk-sweep.mjs`** — the cost the promotion pass paid to avoid
-and then paid back, because seventeen addressable sections is a rail nobody can
-read:
+Markets and Proofs keep transport, freshness and fallback evidence in the
+bounded engine readout. They do not append raw gateway notes or a shard-inventory
+dropdown below every view. A genuinely live halted shard still renders one
+concise trading-pause status; stale or generated fallback shards do not.
 
-| Tab | Section | Views |
-|---|---|---|
-| Quotes | Universe | Baskets · Families · Settlement · Formation · Pending |
-| Quotes | Books | Ladder · Identity · Dispersion · Channel |
-| Quotes | Lattice | Survival · Mass · Moments · Whole family · Stake (second seg: Plan · Capital · Method) |
-| Quotes | Fees | Worked example · Cost shape · Ablation · Replay table |
-| Quotes | Shell | Tree · Reading · Commands · Layout |
-| Proofs | Dutch book | Verdict · Proof · Certificate · Bands · Parlays · Bounds |
-| Proofs | Scorecard | Score · Bands · Corpus · Index series · Index families |
-| Proofs | Diffusion | Absorption · Noise floor · Meetings · Mechanism · Kalshi survival · Kalshi episodes · Findings |
-| Proofs | Lessons | Coverage · Prices · Structure · Bounds · Record |
+`lib/section-views.ts` is the single view registry. A default view keeps the
+two-segment URL; every non-default gets `#<tab>/<section>/<view>`, a command
+palette entry and a desk-sweep cell. Unknown third segments are corrected to the
+section default. `RELOCATED_SECTIONS` preserves only genuine historical moves;
+ids restored to a live rail resolve natively instead of retaining dead aliases.
 
-Two of those rows absorbed a whole published section in the consolidation and
-keep it as views: `combos` is now **Dutch book**'s Bands · Parlays · Bounds, and
-`index` is now **Scorecard**'s Index series · Index families. Both were folded
-into the section already answering their question rather than kept beside it.
+The instruments are data-driven and domain-specific:
 
-**Those in-pane views are `.seg` groups, never a nested `<WorkspaceSubtabs>`,
-and that is a hard rule.** `WorkspaceSubtabs` publishes `--rail-h` onto
-`document.documentElement`; a second instance inside a section would fight the
-first over every sticky offset in the app, which is the failure
-`ReliabilityConsole` already recorded and the reason its Remediation panes are
-`.seg` too. `.seg` is plain CSS in `app/globals/`, styled off `aria-pressed`.
+- **Markets** uses a family constellation, settlement board, selectable book
+  identity and history scrubber, lattice reservoir, bankroll vault, fee
+  counterfactual switchboard and filesystem lens. Dense selectors share roving
+  focus, arrow/Home/End navigation and atomic exact-value readouts.
+- **Proofs** links verdict checkpoints, constraint slack, state baskets,
+  Fréchet ranges, coherence polls, Murphy terms, calibration cells, corpus rows
+  and lesson guards through stable selection keys. A common coherent/zero-leg
+  result remains quantitative and pinnable rather than becoming an empty panel.
+- **Diffusion** preserves complete source arrays while offering local lenses for
+  the selected absorption line; solid-cleared, dotted-refused or all measured
+  returns; statement, conference or both control ranks; dotted background,
+  solid main or all clock-ranked paths; calendar signal state; episode lifetime;
+  and effect-stage, |t| and shuffled-p thresholds. The announcement means retain
+  their measured middle-50% shadows. In Clocks, gray dotted paths are the
+  non-material backdrop and solid blue/red paths are the main statement/conference
+  crossings; its readout distinguishes all 248 input paths from the 89 carrying
+  both clocks. The Findings sliders cover the full displayed |t| domain and the
+  complete shuffled-p domain from 0 to 1. Filters keep plot domains and
+  panel positions fixed, while sliders recompute only the loaded payload; no
+  control reranks, refetches or fabricates observations. On a cold browser
+  refresh, the pending Announcement-arm view reserves its eventual figure-stack
+  height; terminal errors and genuinely empty reads remain compact.
 
-**The polls are gated on the open section and, where it matters, the open
-view** — these tabs read a live exchange, so an idle pane must not spend a round
-trip. The universe read asks for two events per series rather than four
-(`?max_events=2`): four took 10.1 s before the reads were parallelised and 6.4 s
-after, against `callGateway`'s eight-second deadline; it is shared across
-sections and across both tabs, so it is deliberately *not* gated on the view.
-The books read stops entirely while **Dispersion** or **Channel** is open,
-because the RFQ route behind them is a signed private-channel call on a
-25-second budget and the two must never be in flight together — with Dispersion
-a view again rather than a rail of its own, `BooksSection` says that with one
-predicate over its four views instead of reporting a view upward. `FeesSection`
-holds both of its reads at section level and gates each on its view, so
-`/replay?limit=20000` — the largest read on either tab — is issued only on
-**Ablation** and **Replay table**, and is warmed by nothing.
+Every selector publishes selected state and a keyboard path. Exact text wraps
+rather than ellipsises, missing values remain missing, and colour is never the
+only carrier. The general desk still uses the SVG scale kit where an axis is the
+right representation; the redesigned engine deliberately uses purpose-built
+HTML/CSS instruments where a normal chart would hide the decision structure.
 
-**Diffusion's headline is a null, and the table says so in that order.** The
-study asks whether the text of an FOMC statement predicts how fast the market
-absorbs it. `InstrumentFit` renders the target's own row *above* the
-predictor's on purpose: "the clock is predictable at all" (R², out of sample)
-comes first, because if it fails, "the text predicts it" means nothing. As
-measured, the clock **is** predictable — +0.144 R² from the stage and the rate
-move — and the text subtracts from that. Two of the diffusion charts,
-`AbsorptionCurve` and `StageTimeline`, deliberately skip the shared `<Plot>`
-wrapper: it emits `role="presentation"` and would leave them unnamed.
+Reads are gated by the open section and, for expensive work, the exact open
+view. The shared cache joins identical in-flight reads. The replay request is
+issued only for Fees → Ablation and Replay table and is not warmed. All 18
+gateway coherence paths and all 21 workspace engine proxies are GET-only. The
+gateway's additional authenticated Diffusion stage endpoint writes an
+idempotent research observation, not an order; there is no engine executor.
 
-**Not yet covered:** neither Prices nor Proofs has a `summarised-*` or
-`disclosure-*` guard pair, where the other eight tabs have both. Their rendered
-phrases *are* pinned, at exact site counts and with ledes capped at one
-sentence, by `tests/coherence-reading-claims.test.ts` and
-`coherence-proof-claims.test.ts` — whose owner lists together cover both rails —
-but nothing holds a whole sentence byte for byte. That is a gap in the copy
-ratchets, not a decision.
+Copy and interaction coverage are explicit rather than implied: eight decision
+tabs have disclosure guards, ten tabs have summary-copy guards, Markets and
+Proofs retain exact claim suites, and Diffusion has dedicated sparse-state,
+routing, figure and interaction contracts. Browser geometry is qualified
+separately with `npm run audit:layout`; a source-only test run is not a layout
+pass. The historical 2026-08-29 run passed **872/872** combinations with zero
+geometry failures and zero console errors on the former 109-route inventory; it
+does not qualify the current 120-route surface. The current default system-theme
+sweep is 960 route/viewport combinations and must be recorded separately.
 
 ---
 
@@ -695,11 +693,8 @@ web/
 │   ├── globals.css           design tokens (palette, light + dark)
 │   ├── login/page.tsx        optional sign-in — outside the workspace shell
 │   ├── profile/page.tsx      account and security centre — the other one
-│   └── api/                  62 routes (2026-08-24). Re-derive, do not believe:
+│   └── api/                  65 route handlers (verified 2026-08-29). Re-derive:
 │       │                     find app/api -name route.ts | wc -l
-│       │                     This list read 11 for a long time, then 37, each
-│       │                     written when it was true and never rebuilt; every
-│       │                     route added since was invisible here.
 │       ├── backtest/route.ts parameter sweep
 │       ├── depth/route.ts    live L2 books + consolidated ladder
 │       ├── tca/route.ts      VWAP, slippage, cross-venue route
@@ -714,7 +709,8 @@ web/
 │       ├── favourites/route.ts pinned runs, per identity
 │       ├── auth/             guest · login · logout · session — 4 routes
 │       ├── stream/desk/route.ts  the gateway's server-sent risk state, relayed
-│       ├── gateway/          the risk gateway proxy — 38 routes
+│       ├── gateway/          same-origin gateway proxy, including risk, data,
+│       │                     research and the read-only quant-engine routes
 │       │   ├── risk/route.ts   halt · resume · flatten, and the reachability probe
 │       │   ├── orders/         submit · working · [id]/cancel · [id]/replace
 │       │   ├── portfolio/      book, and history
@@ -727,10 +723,8 @@ web/
 │       │   ├── research/ml/   fit · runs · runs/[runId] — supervised walk-forward
 │       │   ├── research/graph/[id]  what one document is connected to
 │       │   ├── research/rag/route.ts  retrieval over the research corpus
-│       │   ├── coherence/    status · universe · books · certify · fees · surface ·
-│       │   │                  stake · combos · calibration · settlement · rfq ·
-│       │   │                  shell · index · episodes · replay — 15 read-only
-│       │   │                  proxies; there is no coherence write route
+│       │   ├── coherence/    18 read-only proxies, including book/calibration
+│       │   │                  history and fee-curve evidence; no order route
 │       │   └── diffusion/    events · findings · absorption — the FOMC study
 │       ├── oracle/           research · var — 2 routes, optional backend
 │       ├── system/           actions · events · health · inspect — 4 routes
@@ -739,7 +733,7 @@ web/
 │   ├── engine.ts             vectorised backtester — port of the Python reference
 │   ├── indicators.ts         O(n) SMA / rolling extremes / RSI kernels
 │   ├── stats.ts              PSR, Deflated Sharpe, verdict logic
-│   ├── marketdata.ts         Binance klines + deterministic synthetic fallback
+│   ├── marketdata.ts         measured provider klines; exhaustion fails closed
 │   ├── venues/               live venue adapters, book/TCA maths, fill tolerance
 │   ├── livebook.ts           browser WebSocket L2 client (Binance + Bybit);
 │   │                          venue status decided by VenueLiveness, below
@@ -770,20 +764,18 @@ web/
 │       ├── http.ts           route glue: one error shape, edge cache headers
 │       └── …one adapter per vendor (binance, fmp, tiingo, massive,
 │            alphavantage, firecrawl, openbb)
-├── components/               charts (hand-rolled SVG), controls, tables
-└── tests/                   318 .test.ts files; 4,728 passed and 2 skipped across
-                              1,028 suites (2026-08-24), incl.
+├── components/               SVG charts plus purpose-built quant instruments,
+│                             controls, exact inspectors and tables
+└── tests/                   459 .test.ts files; 6,519 tests across 1,408 suites
+                              (6,513 passed, 6 skipped, 0 failed on 2026-08-29), incl.
                               cross-engine, risk-engine and gate parity, the
                               design-system ratchets (type-scale, motion, house-rules,
                               dead-css, accent-budget, null-honesty, live-motion,
                               forced-colors, interaction, header-ladder,
                               decision-latency, middle-dot, text-size, tour-truth)
-                              and the eight-plus-eight per-tab guard suites,
-                              summarised-*.test.ts (what each tab's prose must still
-                              say) and disclosure-*.test.ts (what it may never stop
-                              saying) — those two may be ADDED to and never weakened.
-                              Eight pairs for ten tabs: Quotes and Proofs have
-                              neither yet, which is a gap rather than a decision
+                              summary/disclosure guards, the 71-view engine
+                              inventory, interactive exact-value contracts and
+                              browser-audit geometry helpers
 ```
 
 **Why the sweep runs server-side.** Binance's public API is called from the
@@ -845,7 +837,7 @@ content rung, because the header's nine-rung priority ladder is a px measurement
 preference must not move under it. Re-measure it whenever those tokens change:
 
 ```bash
-PORT=3100 npm run dev
+PORT=3100 npm run dev:web
 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --remote-debugging-port=9222 --disable-gpu about:blank
 node scripts/header-ladder-measure.mjs                    # slack, tab squeeze, chip height, folded labels per width
 node scripts/header-ladder-measure.mjs --text-size=large  # must be byte-identical to the default run
@@ -859,10 +851,13 @@ fontSize={N}>` stays numeric (user units) on the inline list. Line-height and tr
 tokens too (`--lh-none … --lh-loose`, `--ls-caps … --ls-figure`); tracking never goes
 tighter than −0.03em (`tests/typography.test.ts`).
 
-## Visualisation notes
+## Visualisation and instrument notes
 
-Charts are hand-rolled SVG rather than a charting library, so the colour roles
-survive contact with the defaults.
+The workspace owns its visual grammar rather than inheriting a chart library's
+defaults. Conventional time-series and distributions use the shared SVG scale
+kit; the 71-view quant engine also uses purpose-built HTML/CSS instruments when
+the interaction is selection, decomposition, state coverage or counterfactual
+rather than position on an axis.
 
 - **Categorical hues are assigned in fixed order and never cycled.** Strategy is
   always slot 1, benchmark always slot 2 — filtering or re-running never repaints
@@ -881,8 +876,10 @@ survive contact with the defaults.
   table view of every number.
 - **Dark mode is selected, not inverted** — its own steps chosen for the dark
   surface, reachable via the OS setting or the header toggle.
-- **Every chart has a hover layer**: crosshair and tooltip on the line charts,
-  per-cell hover and click-through on the heatmap.
+- **Interactive readings are exact and keyboard reachable.** Line charts use a
+  crosshair/readout, heatmaps expose cells, and dense engine instruments use a
+  roving listbox with one selected key shared across diagram, table and exact
+  inspector. Pointer hover is never the only route to a value.
 
 ---
 
