@@ -1,0 +1,295 @@
+.distributionPanel {
+  inline-size: 100%;
+  max-inline-size: none;
+  min-inline-size: 0;
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+}
+
+.emptyDistribution {
+  display: grid;
+  place-items: center;
+  gap: var(--space-2);
+  min-height: 12rem;
+  padding: var(--space-5);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.emptyDistribution > span {
+  color: var(--series-1);
+  font-size: var(--fs-xl);
+}
+
+.emptyDistribution p {
+  max-width: 34rem;
+  margin: 0;
+  font-size: var(--fs-xs);
+  line-height: var(--lh-body);
+}
+
+.histogramShell {
+  --plot-inset: var(--space-4);
+  display: grid;
+  grid-template-columns: 4.5rem minmax(40rem, 1fr);
+  grid-template-rows: 14rem auto auto;
+  overflow-x: auto;
+  padding: var(--space-4);
+  background: var(--surface-1);
+}
+
+.yGuide {
+  grid-column: 1;
+  grid-row: 1;
+  display: grid;
+  grid-template-columns: 1.4rem minmax(0, 1fr);
+  min-height: 14rem;
+  color: var(--text-muted);
+  font: 650 var(--fs-2xs) var(--font-mono);
+}
+
+.yAxisTitle {
+  grid-column: 1;
+  align-self: center;
+  justify-self: center;
+  font-family: var(--font-sans);
+  font-weight: 730;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
+.histogramYTicks {
+  grid-column: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding-inline-end: var(--space-2);
+}
+
+.histogramYTicks i {
+  font-style: normal;
+  line-height: 1;
+}
+
+.histogram {
+  grid-column: 2;
+  grid-row: 1;
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(20, minmax(1.55rem, 1fr));
+  gap: 3px;
+  min-width: 40rem;
+  min-height: 14rem;
+  padding-inline: var(--plot-inset);
+  border-inline-start: 1px solid var(--border);
+  background:
+    linear-gradient(to top, color-mix(in srgb, var(--grid) 62%, transparent) 1px, transparent 1px),
+    var(--surface-1);
+  background-size: 100% 50%;
+}
+
+.histogram::before,
+.histogram::after {
+  position: absolute;
+  pointer-events: none;
+  content: "";
+}
+
+.histogram::before {
+  inset: auto var(--plot-inset) 0 var(--plot-inset);
+  border-bottom: 1px solid var(--border);
+}
+
+.histogram::after {
+  display: none;
+}
+
+.histogramBar {
+  position: relative;
+  display: block;
+  min-width: 0;
+  min-height: 0;
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.histogramBar > span {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.histogramBar > span::before {
+  position: absolute;
+  inset: 0 10%;
+  border-inline: 1px solid color-mix(in srgb, var(--grid) 34%, transparent);
+  background: linear-gradient(to top, color-mix(in srgb, var(--grid) 62%, transparent) 0 2px, transparent 2px);
+  content: "";
+}
+
+.histogramBar > span i {
+  position: absolute;
+  z-index: 1;
+  inset: auto 8% 0;
+  height: var(--bar-height);
+  min-height: 0;
+  border-radius: var(--radius-sm) var(--radius-sm) 2px 2px;
+  background: color-mix(in srgb, var(--series-1) 72%, var(--surface-1));
+  transition: height var(--dur) var(--ease), background var(--dur-fast) var(--ease);
+}
+
+.histogramBar:hover > span i,
+.histogramBar[aria-selected="true"] > span i { background: var(--series-1); }
+
+.histogramBar[aria-selected="true"] { box-shadow: inset 0 -2px 0 var(--series-1); }
+
+.histogramBar > span strong {
+  position: absolute;
+  inset-inline: 0;
+  bottom: clamp(0.3rem, calc(var(--bar-height) + 0.3rem), calc(100% - 1.2rem));
+  z-index: 2;
+  color: var(--text-primary);
+  font-size: var(--fs-2xs);
+  line-height: 1;
+  text-align: center;
+}
+
+.distributionReadout small {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 730;
+  letter-spacing: var(--ls-caps);
+}
+
+.histogramXAxis {
+  grid-column: 2;
+  grid-row: 3;
+  display: grid;
+  gap: var(--space-2);
+  min-width: 40rem;
+  padding: var(--space-2) var(--plot-inset) 0;
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 730;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+.histogramXAxisHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.histogramXAxisHead b { font: inherit; }
+
+.histogramXAxis input[type="range"] {
+  width: calc(100% - 5%);
+  min-width: 0;
+  margin-inline: 2.5%;
+  accent-color: var(--series-1);
+  cursor: ew-resize;
+}
+
+.histogramXAxis output {
+  color: var(--text-primary);
+  font: 700 var(--fs-xs) var(--font-mono);
+  white-space: nowrap;
+}
+
+.histogramAxisRange {
+  grid-column: 2;
+  grid-row: 2;
+  display: flex;
+  justify-content: space-between;
+  min-width: 40rem;
+  padding: var(--space-2) var(--plot-inset) 0;
+  color: var(--text-muted);
+  font: 650 var(--fs-2xs) var(--font-mono);
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.histogramAxisRange i { font-style: normal; }
+
+.distributionReadout {
+  display: grid;
+  grid-template-columns: minmax(10rem, auto) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-4);
+  min-height: 4.25rem;
+  margin: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-inline-start: 3px solid var(--series-1);
+  background: var(--surface-2);
+  color: var(--text-primary);
+  font-size: var(--fs-xs);
+}
+
+.distributionPanel > .distributionMethod {
+  margin: 0 var(--space-4) var(--space-4);
+  border: 0;
+  border-block-start: 1px solid var(--grid);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+}
+
+.distributionMethod summary {
+  min-height: 2.75rem;
+  padding-block: var(--space-3);
+  padding-inline: var(--space-4);
+  font-weight: 680;
+  cursor: pointer;
+}
+
+.distributionMethod p {
+  max-width: 56rem;
+  margin: 0;
+  padding-block: var(--space-2) var(--space-4);
+  padding-inline-end: var(--space-4);
+  padding-inline-start: calc(var(--space-4) + 0.75rem + var(--space-2));
+  line-height: var(--lh-body);
+  overflow-wrap: anywhere;
+}
+
+.distributionMethod summary:focus-visible {
+  border-radius: var(--radius-sm);
+  outline-offset: -3px;
+}
+
+.distributionReadout > span {
+  display: grid;
+  gap: 2px;
+}
+
+.distributionReadout p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: var(--lh-snug);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 760px) {
+  .distributionReadout { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 480px) {
+  .histogramShell {
+    grid-template-columns: 3.75rem minmax(40rem, 1fr);
+    padding-inline: var(--space-3);
+  }
+
+  .histogramXAxisHead { align-items: flex-start; }
+}
