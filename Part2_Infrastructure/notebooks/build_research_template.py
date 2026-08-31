@@ -40,9 +40,10 @@ production. Nothing here is a copy of the backtester: it imports
 `modules.backtester` directly, so a result you get in this notebook is the
 result the gateway would have produced for the same request.
 
-**No server and no network required.** With market data unreachable the engine
-falls back to a DuckDB cache and then to a clearly-tagged synthetic series, and
-every cell below reports which one it used.
+**No server required.** Observed mode reads Binance or its recorded DuckDB
+cache and refuses to invent missing bars. The fresh-notebook example below opts
+into a clearly tagged synthetic demo so it remains runnable without a network;
+every cell reports which source it used.
 
 ### How to use it
 
@@ -103,8 +104,9 @@ if history:
     request = BacktestRequest(**json.loads(history[0]["request_json"]))
     recorded_hash = history[0].get("data_hash")
 else:
-    print("No runs recorded yet — starting from the default request.")
-    request = BacktestRequest(symbol="BTCUSDT", interval="1h", bars=1500)
+    print("No runs recorded yet — starting in explicit synthetic demo mode.")
+    request = BacktestRequest(symbol="BTCUSDT", interval="1h", bars=1500,
+                              data_mode="synthetic_demo")
     recorded_hash = None
 
 request
@@ -115,13 +117,15 @@ md(r"""
 ## 3. Load the bars, and check they are the same bars
 
 A symbol and a date range do not identify a dataset. The same window can be a
-live pull, a cached copy, or the synthetic fallback, and only a content hash can
-tell them apart. If you are reproducing a recorded run, this is the cell that
-says whether you actually reproduced it.
+live pull, a cached copy, or an explicitly requested synthetic demonstration,
+and only a content hash can tell them apart. If you are reproducing a recorded
+run, this is the cell that says whether you actually reproduced it.
 """)
 
 code(r"""
-df, source = fetch_ohlcv(request.symbol, request.interval, request.bars)
+df, source = fetch_ohlcv(
+    request.symbol, request.interval, request.bars, data_mode=request.data_mode,
+)
 fingerprint = dataset_fingerprint(df)
 
 print(f"{len(df):,} bars from {source}")
