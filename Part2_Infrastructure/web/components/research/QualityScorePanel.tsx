@@ -19,10 +19,10 @@
  * rather than restating its count as a rival headline.
  */
 
-import { atLeast } from "@/lib/complexity";
+import { atLeast, COMPLEXITY_TIERS } from "@/lib/complexity";
 import { qualityInputFromSweep, qualityScore, type QualityCategory } from "@/lib/quality-score";
 import type { SweepResponse } from "@/lib/types";
-import { useComplexity } from "@/lib/use-complexity";
+import { useComplexity, useDisclosurePreference } from "@/lib/use-complexity";
 
 interface QualityScorePanelProps {
   data: SweepResponse;
@@ -42,11 +42,13 @@ export default function QualityScorePanel({ data }: QualityScorePanelProps) {
   const score = qualityScore(qualityInputFromSweep(data));
   const gate = data.promotion;
   const tier = useComplexity();
-  // Guided collapses the six-category breakdown behind a summary that names it.
-  // The total and the verdict never collapse: a score with no reasoning beside
-  // it is the failure this panel was built to prevent, so the reasoning is one
-  // labelled click away and never absent.
+  // Guided and Standard collapse the six-category breakdown behind a summary
+  // that names it; Full opens it. The total and verdict never collapse: a score
+  // with no reasoning beside it is the failure this panel was built to prevent,
+  // so the reasoning is one labelled click away and never absent.
   const breakdownOpen = atLeast(tier, "standard");
+  const breakdownDefaultOpen = breakdownOpen && tier !== COMPLEXITY_TIERS[1];
+  const [breakdownExpanded, setBreakdownExpanded] = useDisclosurePreference(breakdownDefaultOpen);
 
   return (
     <div className="card quality-card">
@@ -62,7 +64,11 @@ export default function QualityScorePanel({ data }: QualityScorePanelProps) {
 
       <p className="sub">{score.verdict}</p>
 
-      <details className="quality-disclosure" open={breakdownOpen}>
+      <details
+        className="quality-disclosure"
+        open={breakdownExpanded}
+        onToggle={(event) => setBreakdownExpanded(event.currentTarget.open)}
+      >
         <summary>
           How the {score.total} was reached
         </summary>
