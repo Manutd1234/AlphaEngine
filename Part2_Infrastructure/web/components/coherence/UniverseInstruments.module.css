@@ -1,0 +1,311 @@
+.instrument {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: var(--surface-1);
+  box-shadow: none;
+}
+
+.universeScope {
+  min-width: 0;
+}
+
+/* Keep optional Universe notes quiet, but give both the trigger and its copy a
+   deliberate text column. The extra start inset aligns prose beneath the
+   shared 0.75rem disclosure marker plus its space-2 gap. */
+.universeScope > :global(.disclosure) {
+  padding-top: 0;
+}
+
+.universeScope > :global(.disclosure) > summary {
+  min-block-size: 2.75rem;
+  margin: 0;
+  padding-block: var(--space-3);
+  padding-inline: var(--space-4);
+}
+
+.universeScope > :global(.disclosure)[open] > summary {
+  margin-bottom: 0;
+}
+
+.universeScope > :global(.disclosure) > :not(summary) {
+  margin: 0;
+  padding-block: var(--space-2) var(--space-4);
+  padding-inline-end: var(--space-4);
+  padding-inline-start: calc(var(--space-4) + 0.75rem + var(--space-2));
+  line-height: var(--lh-body);
+  overflow-wrap: anywhere;
+}
+
+.universeScope > :global(.disclosure) > summary:focus-visible {
+  border-radius: var(--radius-sm);
+  outline-offset: -3px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 3.75rem;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--grid);
+  background: color-mix(in srgb, var(--surface-2) 38%, var(--surface-1));
+  font-size: var(--fs-sm);
+}
+
+.head > span {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  color: var(--text-primary);
+  font-weight: 700;
+  line-height: var(--lh-snug);
+  overflow-wrap: anywhere;
+}
+
+.head small,
+.metricGrid dt {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 730;
+  letter-spacing: var(--ls-caps);
+  line-height: var(--lh-snug);
+  text-transform: uppercase;
+}
+
+.head > strong {
+  max-width: 48%;
+  color: var(--text-secondary);
+  font: 700 var(--fs-xs) var(--font-mono);
+  overflow-wrap: anywhere;
+  text-align: end;
+}
+
+.metricGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  border-bottom: 1px solid var(--grid);
+  background: var(--grid);
+}
+
+.metricGrid > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: var(--space-2);
+  background: var(--surface-1);
+}
+
+.metricGrid dd {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+  font-weight: 720;
+  overflow-wrap: anywhere;
+}
+
+.metricGrid .metricReason {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 500;
+  line-height: var(--lh-snug);
+}
+
+.empty {
+  margin: 0;
+  padding: var(--space-5);
+  color: var(--text-secondary);
+}
+
+.instrument :focus-visible {
+  position: relative;
+  z-index: 2;
+  outline: 2px solid var(--series-1);
+  outline-offset: -2px;
+}
+
+.instrument input[type="range"] {
+  width: 100%;
+  height: 1.25rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  appearance: none;
+  background: transparent;
+  cursor: ew-resize;
+}
+
+.instrument input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    to right,
+    var(--series-1) 0 var(--slider-fill, 0%),
+    color-mix(in srgb, var(--grid) 82%, var(--surface-1)) var(--slider-fill, 0%) 100%
+  );
+}
+
+.instrument input[type="range"]::-webkit-slider-thumb {
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border: 2px solid var(--surface-1);
+  border-radius: 50%;
+  appearance: none;
+  background: var(--series-1);
+  box-shadow: 0 0 0 1px var(--border);
+  transition: transform var(--dur-fast) var(--ease);
+}
+
+.instrument input[type="range"]:hover::-webkit-slider-thumb { transform: scale(1.08); }
+
+.instrument input[type="range"]::-moz-range-track {
+  height: 4px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--grid) 82%, var(--surface-1));
+}
+
+.instrument input[type="range"]::-moz-range-progress {
+  height: 4px;
+  border-radius: var(--radius-sm);
+  background: var(--series-1);
+}
+
+.instrument input[type="range"]::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--surface-1);
+  border-radius: 50%;
+  background: var(--series-1);
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+/* Universe's dense exact-value furniture stays on a compact rung. Section
+   ledes and analytical readings keep the shared semantic Markets ladder. */
+.universeScope label,
+.universeScope table,
+.universeScope figcaption,
+.universeScope output {
+  font-size: var(--fs-sm);
+}
+
+/* Width is Universe-owned because its optional picker shares this control row.
+   The frame and button metrics are intentionally absent: QuantViewSwitcher's
+   shared `sm` geometry must match Fees and every other analytical subtab. */
+.universeScope :global(.quant-view-switcher[data-option-count="3"]) {
+  flex: 1 1 100%;
+  width: 100%;
+}
+
+/* With no picker, the three views fill the row. Once a subject is present on a
+   wide screen the grid owns that split, so a 100% flex basis must not force the
+   picker down to a phantom second line. Scope this exception to the two-column
+   layout so the stacked 1100/760px layouts retain a full-width switcher. */
+@media (min-width: 1101px) {
+  .universeScope :global(.coh-section__controls:has(.coh-section__subject) .quant-view-switcher[data-option-count="3"]) {
+    flex-basis: auto;
+    width: auto;
+  }
+}
+
+.universeScope :global(.coh-section__controls) {
+  display: grid;
+  grid-template-columns: minmax(18rem, 1fr) auto;
+  align-items: center;
+  gap: var(--space-5);
+  padding-block: var(--space-2);
+}
+
+.universeScope :global(.coh-section__subject) {
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.universeScope :global(.coh-universe__filter select) {
+  width: auto;
+  max-width: min(20rem, 100%);
+  min-height: 2.75rem;
+  border-color: var(--rule-soft);
+  background: var(--surface-1);
+  box-shadow: none;
+}
+
+.universeScope :global(.coh-family__button) {
+  min-height: 2.75rem;
+  border-color: var(--rule-soft);
+  background: var(--surface-1);
+  box-shadow: none;
+}
+
+.universeScope :global(.coh-family__button[aria-expanded="true"]) {
+  border-color: var(--rule-soft);
+  background: color-mix(in srgb, var(--series-1) 5%, var(--surface-1));
+  box-shadow: inset 3px 0 0 var(--series-1);
+}
+
+.universeScope :global(.coh-family__option[aria-selected="true"]) {
+  background: color-mix(in srgb, var(--series-1) 5%, var(--surface-1));
+}
+
+@media (max-width: 1100px) {
+  .universeScope :global(.coh-section__controls) {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    gap: var(--space-3);
+  }
+
+  .universeScope :global(.coh-section__subject) {
+    justify-content: flex-start;
+    width: 100%;
+  }
+}
+
+@media (max-width: 760px) {
+  .metricGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .universeScope :global(.quant-view-switcher[data-option-count="3"]) {
+    flex-basis: 100%;
+    width: 100%;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .universeScope :global(.coh-section__controls) {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
+  }
+}
+
+@media (max-width: 620px) {
+  .universeScope :global(.coh-section__subject),
+  .universeScope :global(.coh-section__subject > *),
+  .universeScope :global(.coh-family),
+  .universeScope :global(.coh-family__control) {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .universeScope :global(.coh-universe__filter) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .universeScope :global(.coh-universe__filter select) {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .head { align-items: start; }
+}
