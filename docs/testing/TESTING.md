@@ -1,22 +1,29 @@
 # Testing — the philosophy and the practice
 
-*Checked against the tree on 24 August 2026. The per-suite catalogue lives in
+*Current runners, commands and test topology audited against the worktree on
+**31 August 2026**. No external service was probed by that source audit;
+historical incidents and measured runs keep their original
+dates. The per-suite catalogue lives in
 [`Part2_Infrastructure/README.md` §10](../../Part2_Infrastructure/README.md#10-testing);
 this document is the argument — what each suite **guards**, why the unusual ones
 exist, and the habits that keep them honest. The four facts that cost an hour
 each are in [`CLAUDE.md`](../../CLAUDE.md); nothing here repeats them at length.*
+
+The short release record for current topology, versions, test totals and the
+last successful build is [`CURRENT_STATE.md`](../CURRENT_STATE.md). This page
+explains what those checks mean and where their limits are.
 
 ---
 
 ## What each suite guards
 
 A count tells you a suite ran. It does not tell you what would have shipped
-without it. Three runners, three jobs:
+without it. Three primary runners:
 
 | Suite | Runner | What it guards that nothing else does |
 |---|---|---|
-| **Gateway** — `Part2_Infrastructure/tests/`, 185 `test_*.py` files | `venv/bin/python -m pytest` | The risk decision and its seventeen gates; the audit ledger's two failure contracts; the research plane's refusals; the **API contract** (`test_openapi_contract.py`) and the **container definition** (`test_container_contract.py`) by text analysis, because CI is network-free; the Python↔C++ parity fixture, bit-exact |
-| **Web** — `Part2_Infrastructure/web/tests/`, 318 `*.test.ts` files | `node --import tsx --test tests/*.test.ts` | Everything the browser re-implements, pinned to Python by fixture; and a family of **structural** suites — file length, dead CSS, the API catalogue, forced colours, British spelling, copy survival, the feature tour — that guard properties no unit test has a natural home for |
+| **Gateway** — `Part2_Infrastructure/tests/`, 213 `test_*.py` files | `venv/bin/python -m pytest` | The risk decision and its seventeen gates; the audit ledger's two failure contracts; the research plane's refusals; the **API contract** (`test_openapi_contract.py`) and the **container definition** (`test_container_contract.py`) by text analysis, because CI is network-free; the Python↔C++ parity fixture, bit-exact |
+| **Web** — `Part2_Infrastructure/web/tests/`, 459 `*.test.ts` files | `node --import tsx --test tests/*.test.ts` | Everything the browser re-implements, pinned to Python by fixture; structural contracts for file length, CSS, API and navigation truth; plus four opt-in Chromium cases when `ALPHAENGINE_BROWSER_ORIGIN` names a running desk |
 | **OpenBB service** — `Part2_Infrastructure/OpenBB_Service/tests/` | `python -m pytest` | The stateless research bridge's own contract, in its own runtime, with its own pinned `requirements.txt` |
 
 The structural half of the web suite is the part worth reading first, because it
@@ -28,11 +35,10 @@ tests" below.
 
 One committed record:
 [`web/lib/test-counts.generated.ts`](../../Part2_Infrastructure/web/lib/test-counts.generated.ts)
-holds what each runner printed when it was last regenerated on **2026-08-24** —
-`gateway { total: 3033, passed: 3031, skipped: 2 }`, `web { total: 4730, suites:
-1028 }`, `service { total: 24 }`. The gateway line was regenerated in the **CI
-shape** (`RERANK_TEST_MODEL_PATH=`), because the shape CI runs is the only one a
-reader can reproduce from a clean checkout. Its own header explains why it exists: the
+holds what each runner printed when it was last regenerated on **2026-08-29**.
+The release record for that pass is gateway 3,255 total (3,254 passed, 1
+skipped), web 6,519 total across 1,408 suites (6,513 passed, 6 skipped), and
+service 24 passed. Its own header explains why it exists: the
 counts were once three hand-copied integers in a component, and they drifted
 three separate times, the last time inside a single afternoon.
 
@@ -43,18 +49,18 @@ and compares it against the runner's own summary line, teed to a log by the CI
 step above it. The **gateway** and **service** lines are a dated record that
 nothing gates. Cite them as such or not at all.
 
-Measured on this tree on **2026-08-24**:
+Measured on this tree on **2026-08-29**:
 
 | Suite | Measured | Against the record |
 |---|---|---|
-| Gateway, cross-encoder weights **seeded** | **3,039 passed, 1 skipped** | 3,040 total against the record's 3,033 — the eight-test gap IS the seeding, not drift |
-| Gateway, **CI shape** (`RERANK_TEST_MODEL_PATH=`) | **3,031 passed, 2 skipped** | 3,033 total, exactly the record: refreshed 2026-08-24 in this shape |
-| Web | **4,728 passed, 0 failed, 2 skipped, 1,028 suites** | 4,728 + 2 = **4,730**, which is exactly the committed total — CI is green on the one line it gates |
+| Gateway, local refresh shape | **3,254 passed, 1 skipped** | 3,255 total. This is a dated local record, not a CI gate; the generated file does not retain the skip reason or optional-capability environment. |
+| Web | **6,513 passed, 0 failed, 6 skipped, 1,408 suites** | 6,513 + 6 = **6,519**. Four skips are Chromium cases awaiting `ALPHAENGINE_BROWSER_ORIGIN`; two are named cross-ownership debts. |
 | OpenBB service | **24 passed** | matches |
 
 **The gateway figure has a condition attached, and it is not a discrepancy.**
-The number above is the *weights-seeded* shape. The CI shape is different by
-construction, and the mechanism is worth naming rather than the arithmetic:
+The generated line is whatever environment ran the refresh; CI does not check
+it, and the file does not preserve the skip reason. One known source of
+collection-shape drift is worth naming rather than hiding:
 `tests/test_research_rerank_real.py` calls `pytest.skip(reason,
 allow_module_level=True)` when `RERANK_TEST_MODEL_PATH` is unset, its directory
 is missing, or fastembed will not import. A module-level skip is not five
@@ -74,10 +80,6 @@ Before reporting a gateway count, either
 with `RERANK_TEST_MODEL_PATH= venv/bin/python -m pytest` — one variable on one
 command line, which is also the rule the `set -a` trap below states.
 
-*(Only the seeded pair was re-measured for this pass. The unseeded pair is
-derived from the skip mechanism above, not measured, and is written that way
-deliberately.)*
-
 The web total has a property worth naming: **it cannot be asserted from inside
 the suite**, because a test that checks the count changes the count. So the
 figure is generated (`npm run counts:refresh`), and CI checks it from *outside*
@@ -96,9 +98,9 @@ generator was written to end.
 
 The same discipline applies to prose. README §10 opens by counting its suites
 with `ls`, not memory — and its figures have still drifted (it describes 38
-suite files as of 2026-08-17; `ls tests/test_*.py | wc -l` answers **185**
-today, and this document itself said 102 until 2026-08-22 and **130** until
-today). That drift is the argument, not an embarrassment: **never quote a count
+suite files as of 2026-08-17; `find tests -maxdepth 1 -name 'test_*.py' | wc -l`
+answers **213** on 2026-08-29, and this document itself said 102, then 130, then
+185. That drift is the argument, not an embarrassment: **never quote a count
 from a document, including this one**. Run the suite, or read the generated
 file, or — best — describe the gate instead of the number.
 
@@ -131,7 +133,9 @@ flowchart TD
   `SUPABASE_SERVICE_ROLE_KEY` are blanked only if absent, because
   `tests/test_data_ops_postgrest.py` is a documented opt-in: exporting the
   variables for a run is a choice somebody made, rather than one a deployment
-  file made for them. `NEO4J_URI`/`NEO4J_PASSWORD` are blanked the same way —
+  file made for them. That opt-in also requires an explicit
+  `SUPABASE_DESK_ID`; `config.py` supplies no fixed desk fallback.
+  `NEO4J_URI`/`NEO4J_PASSWORD` are blanked the same way —
   without it, `research_reconcile.run_reconcile` builds its corpus client from
   `settings`, *reaches a live Supabase*, reports `reachable: True`, and the test
   that exists to distinguish "could not sweep" from "nothing to sweep" fails
@@ -156,7 +160,7 @@ flowchart TD
 recording.** Until 2026-08-23 `RESEARCH_IMAGE_MODEL_PATH` — the CLIP pair behind
 the image retrieval arm — was neither assigned nor `setdefault`-ed, and *this
 page said so in prose while `modules/research_image.py` said so in a comment,
-and neither closed it*. It is now assigned `""` at `conftest.py:78`, alongside
+and neither closed it*. It is now assigned `""` at `conftest.py:80`, alongside
 `GEMINI_API_KEY` and `RERANK_MODEL_PATH`, and the conftest's own note names this
 file as the record that failed to be a fix. Two details in that note are the
 interesting part:
@@ -184,20 +188,22 @@ set -a && . ./.env       # ← never do this before a test run
 
 `setdefault` cannot override an exported variable, so the app comes up requiring
 auth and **about eighty tests fail with 401**. Nothing is broken; the shell
-decided the suite's policy. Pass one variable per run instead —
-`SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… venv/bin/python -m pytest tests/test_data_ops_postgrest.py`
-— which is also the shape the two opt-in passes want.
+decided the suite's policy. Pass only the scoped values needed by that opt-in —
+`SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… SUPABASE_DESK_ID=…
+venv/bin/python -m pytest tests/test_data_ops_postgrest.py` — which is also the
+shape the Postgres opt-in expects.
 
 ## Reading the skips
 
 The skip line is a report, not noise. On Python 3.12 with the native core
-built, **either one or two skips is correct**, and which of the two you should
-see is decided by what you have opted into rather than by the tree's health:
+built, **zero, one or two skips can be correct**, and the shape is decided by
+which live Postgres and real-model checks you explicitly opted into rather than
+by the tree's health:
 
 | Skip | Why it fires | When it does not |
 |---|---|---|
-| `tests/test_data_ops_postgrest.py::TestAgainstTheRealProject` | no `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` in the environment, so the Postgres backend was *not* exercised. It is **one** test, class-scoped — the file's other ten run everywhere against `httpx.MockTransport` | export both — one variable per command, see the trap above — and the file reads **eleven passed** against a real Supabase project instead of ten passed and one skipped |
-| `tests/test_research_rerank_real.py` (whole module) | `RERANK_TEST_MODEL_PATH` unset, its directory missing, or fastembed not importable — three reasons, printed separately, in the order a reader would fix them | seed with `python tools/bench_rerank.py --seed --model-path DIR` (1.05 GiB) and its **five** tests are collected and run against the real cross-encoder |
+| `tests/test_data_ops_postgrest.py::TestAgainstTheRealProject` | no `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_DESK_ID` in the environment, so the Postgres backend was *not* exercised. The remaining cases run against `httpx.MockTransport` | export all three only for this command, see the trap above, then read the fresh result rather than relying on a copied total |
+| `tests/test_research_rerank_real.py` (whole module) | `RERANK_TEST_MODEL_PATH` unset, its directory missing, or fastembed not importable — three reasons, printed separately, in the order a reader would fix them | seed with `python tools/bench_rerank.py --seed --model-path DIR` (1.05 GiB) and its **eight** tests are collected and run against the real cross-encoder |
 
 So a bare laptop and CI read one more skip and eight fewer collected cases than
 a machine with the weights seeded. **Neither is "the" healthy number** — what is
@@ -222,28 +228,20 @@ habit of reporting absence applied to the suite itself.
 - Run with `-rs` (`venv/bin/python -m pytest -rs`) to print each skip's stated
   reason; `pytest.ini` defaults to `-q --tb=short`, which hides them.
 
-### The web suite skips two, and they mean something different
+### The release run's two code-debt skips are closed
 
-`npm test` prints `skipped 2`, and neither is an opt-in. Both are `it.skip`
-with a paragraph above them, and both exist for the same reason: **the
-assertion is correct and the fix is in a file the sweep that found it was not
-allowed to edit.** They are cross-ownership debts written as a failing test
-that has been switched off rather than as a comment someone might not find.
+The complete 2026-08-29 run recorded six skips: four opt-in browser cases that
+need a running origin, plus two cross-ownership source-stability debts. The two
+debts became ordinary passing tests on 2026-08-30; do not keep describing them
+as current skips or manually edit the generated count before the next full run.
 
-| Skipped test | What it asserts, and what it is waiting for |
+| Closed test | Resolution now pinned by the test |
 |---|---|
-| `data-stability.test.ts:155` — "lib/use-data-work-queue routes its source decision through the machine" | The Work Queue hook promotes back to "gateway" on **one** successful load, where every other source decision on the desk waits for `PROMOTION_STREAK`. A gateway answering every other 60 s poll therefore flips the pill, the scope paragraph and the Persistence tile once a minute — the twitch `DeskSourceMachine` exists to stop. The same paragraph records a second finding: `reload` never rejects, so the hook's configured `maxBackoffMs: 300_000` is unreachable and an unreachable gateway is re-asked at full cadence for ever. Both need `lib/use-data-work-queue.ts`, shared wiring. |
-| `risk-stability.test.ts:305` — "is enforced where the handoff executes, not only claimed in the banner" | `BookChrome`'s stale banner promises "Execution handoffs are disabled until the gateway reconnects". `WorkingOrders` keeps that promise; `ExecutionHandoff` — the component behind the Risk tab's Flatten and Halt — takes no staleness input at all, fetching its gateway guard once on mount, so the fire button stays armed under a banner saying it is not. The server still refuses, so **nothing executes on a stale book**: the defect is the unkept promise, not a live risk path. The fix is a `stale` prop threaded from three call sites, two of them Portfolio-owned. |
+| `data-stability.test.ts` — "lib/use-data-work-queue routes its source decision through the machine" | The queue now uses `useDeskSource`: failure demotes immediately, promotion waits for `PROMOTION_STREAK`, and the polling tick returns `pollingFailure`, so `maxBackoffMs` is reachable. The initial load is owned by the immediate polling tick rather than an unobserved mount fetch. |
+| `risk-stability.test.ts` — "is enforced where the handoff executes, not only claimed in the banner" | `ExecutionHandoff` now receives staleness from both Risk and Portfolio, clears a previously typed confirmation when the book goes stale, folds staleness into the action predicate and input state, and guards the handler itself. |
 
-This is the honest shape for a defect found across an ownership line, and it is
-worth defending as a practice. The alternatives are both worse: deleting the
-test loses the finding entirely, and asserting it anyway leaves a red suite
-that trains everyone to ignore red. A skip with the fix written out is a
-finding that survives, names its own blocker, and turns green the day the
-blocker moves — the same doctrine as the `OVER_CEILING` ledger, applied to a
-defect instead of a line count. What it must never become is a parking space:
-each of these names the file that closes it, so "unskip when it lands" is a
-checkable instruction rather than a hope.
+The remaining skipped cases are browser opt-ins, not unimplemented source
+behaviour. Run them against a ready origin as their own test descriptions direct.
 
 ---
 
@@ -284,7 +282,7 @@ Both suites open by naming the file that proved it:
 `app/dashboard/page.tsx` reached **2,205 lines with a single 2,000-line function
 inside it**, and the file that was once `modules/telegram.py` reached nearly
 **7,000 lines with a single class holding 84 % of them** before it was split
-into the `modules/telegram/` package it is today.
+into the current `modules/telegram/` package.
 
 [`web/tests/file-size.test.ts`](../../Part2_Infrastructure/web/tests/file-size.test.ts)
 and [`tests/test_file_size.py`](../../Part2_Infrastructure/tests/test_file_size.py)
@@ -383,14 +381,14 @@ the wrong opening section, and two renames had never reached the document.
 
 Rewriting fixed that day. The test fixes the next one. It reads
 `web/lib/sections.ts` — the single source the rails, the command palette and the
-hash whitelist all read — and asserts, for all **ten** workspaces
-(`OVERVIEW … MARKETS, COHERENCE` — the last two are the constant names; their
-rail labels read "Quotes" and "Proofs"):
+hash whitelist all read — and asserts, for all **eleven** workspaces
+(`OVERVIEW … MARKETS, COHERENCE, DIFFUSION` — the last three are the constant
+names; their rail labels read "Markets", "Proofs" and "Diffusion"):
 
 - every rail label appears in the tour;
-- the **total** is 58 *and* the tour states a "58 section" figure in its prose
-  — the number moved 59 → 65 → 59 → 57 across 2026-08-24 as the Kalshi engine
-  was restructured, and three places quote it: the tour,
+- the **total** is 70 *and* the tour states a "70 section" figure in its prose.
+  The 2026-08-24/25 restructuring history remains in the test; three current
+  places quote the final total: the tour,
   `scripts/desk-sweep-plan.mjs` and this assertion;
 - no **retired** label (`Codex`, `Activity`, `Telemetry & SLIs`, `VaR & model`)
   is quoted as a rail entry — the direction a rewrite gets wrong, since a
@@ -403,7 +401,7 @@ rail labels read "Quotes" and "Proofs"):
   at all — a whole transport a reviewer would otherwise never find.
 
 Its closing block does the same for the **in-app** tour built in
-`web/lib/workspace-tour.ts`: nine stops, each linking into the section it names.
+`web/lib/workspace-tour.ts`: eleven stops, each linking into the section it names.
 
 > A tour is read by people who cannot yet tell it is lying. That sentence is in
 > the test file, and it is the reason this gate exists rather than a review
@@ -488,13 +486,13 @@ clean bill of health.
 
 ## The copy guards: `summarised-*` and `disclosure-*`
 
-Sixteen web suites — one `summarised-` and one `disclosure-` file for each of
-**eight of the ten tabs** (data, developer, execution, overview, portfolio,
-reliability, research, risk; **Quotes and Proofs have neither**, which is a
-real gap and is named here rather than left to be inferred — their rendered
-phrases are pinned at exact site counts by `coherence-reading-claims.test.ts`
-and `coherence-proof-claims.test.ts`, but no suite holds a whole sentence of
-theirs byte for byte). They exist because copy edits
+Eighteen web suites. Eight decision-loop tabs (data, developer, execution,
+overview, portfolio, reliability, research and risk) each have one
+`summarised-` and one `disclosure-` file. Markets and Proofs add
+`summarised-markets.test.ts` and `summarised-coherence.test.ts`; they do not yet
+have whole-copy disclosure twins, and Diffusion has neither. The quantitative
+tabs additionally use targeted claim, view-coverage and containment suites,
+but those do not hold every folded sentence byte for byte. They exist because copy edits
 have a failure mode no diff review catches: a shortened sentence that reads
 fluently and no longer carries a number, a negation, or the reason a measurement
 is missing.
@@ -588,7 +586,7 @@ words stay.
 A sentence pinned byte for byte is also a sentence **frozen with whatever is
 wrong in it**, and that bill comes due whenever a copy sweep finds a real
 defect. The current example, found on 2026-08-22 and **still standing on
-2026-08-24**: `components/DataConsole.tsx:361` advertises the Reliability tab as
+2026-08-29**: `components/DataConsole.tsx:366` advertises the Reliability tab as
 "Breaker timelines, latency **SLOs**, failure drills and remediation controls."
 No SLO exists anywhere in the tree — the rail is labelled "Attention & SLIs"
 (`lib/sections.ts`), `ReliabilityConsole` draws a latency p99 with a tone rule
@@ -604,7 +602,7 @@ needle move together, in one commit, by whoever owns both.** Until then the
 defect is written down here rather than silently tolerated, which is the same
 doctrine the suites themselves enforce: a gap is named, not rounded off.
 
-A second, smaller instance of the same cost, also re-verified today and left
+A second, smaller instance of the same cost, also re-verified 2026-08-29 and left
 alone: `components/overview/RoleCards.tsx:72` reads "Circuit breakers, latency
 percentiles **&** incident triage" where the card's four siblings read
 "…, … and …", and that string is pinned in `summarised-overview.test.ts:263`. A
@@ -851,7 +849,7 @@ Each edge's standard is chosen, not defaulted:
   the `lib/venues/` package and every module in `modules/tca_engine/`,
   concatenated, because reading one named file went green scanning nothing when
   the module became a package — and fails unless `FILL_TOLERANCE` is the same
-  literal on both sides (today `lib/venues/fill-tolerance.ts:41` and
+  literal on both sides (as of 2026-08-29, `lib/venues/fill-tolerance.ts:41` and
   `modules/tca_engine/tolerance.py:32`, both `1e-9`); `mc-parity.test.ts` pins
   three Monte Carlo runtimes to one committed reference, byte for byte, by
   executing the worker's own stringified source under Node.
@@ -937,18 +935,20 @@ measured numbers. By hand, from `Part2_Infrastructure/`:
 
 | Suite | Command | Prerequisites, and what green means |
 |---|---|---|
-| Gateway | `venv/bin/python -m pytest` (add `-rs` to see skip reasons) | venv named exactly `venv`, Python 3.12, `requirements-dev.txt`, `requirements-native.txt` and the built core (`python native/decision_core/setup.py build_ext --inplace --build-temp build/native`). Expect **one** skip with the cross-encoder weights seeded and **two** without; read the reasons, not the count — see "Reading the skips". Measured 2026-08-24, seeded: 3,039 passed, 1 skipped. |
-| Web | `cd web && npm test` | Node 22, `npm ci`. Runner is `node --import tsx --test tests/*.test.ts` — Node's own runner over 318 files, no Jest/Vitest, consistent with the no-new-dependencies rule. Both skips are cross-ownership debts, not opt-ins. Measured 2026-08-24: 4,728 passed, 0 failed, 2 skipped, 1,028 suites. |
+| Gateway | `venv/bin/python -m pytest` (add `-rs` to see skip reasons) | venv named exactly `venv`, Python 3.12, `requirements-dev.txt`, `requirements-native.txt` and the built core (`python native/decision_core/setup.py build_ext --inplace --build-temp build/native`). The 2026-08-29 generated record is 3,254 passed and 1 skipped, but the record does not retain the skip reason; read `-rs`, not the count. |
+| Web | `cd web && npm test` | Node 22, `npm ci`. The default runner is `node --import tsx --test tests/*.test.ts` over 459 files. Final 2026-08-29 run: 6,513 passed, 0 failed and 6 skipped across 1,408 suites. Four skips are opt-in Chromium cases; the remaining two are named cross-ownership debts. |
 | Web types | `cd web && npm run typecheck` | There is **no `lint` script** in `web/` — `npm run lint` fails as a missing script, not a broken linter. |
 | Python lint | `venv/bin/python -m ruff check .` | Configured in `pyproject.toml`, installed by `requirements-dev.txt`. |
-| OpenBB service | `cd OpenBB_Service && python -m pytest` | Its own `requirements-dev.txt`; stateless, offline. Measured 2026-08-24: 24 passed. |
+| OpenBB service | `cd OpenBB_Service && python -m pytest` | Its own `requirements-dev.txt`; stateless, offline. The 2026-08-29 generated record is 24 passed. |
 | API contract | `python tools/export_openapi.py --check` | Run by CI and, as an assertion, by `tests/test_openapi_contract.py`. Fails when a schema changed and `tools/openapi.json` was not regenerated. |
 | Money path | `python tools/synthetic_probe.py` | The end-to-end order path against a synthetic book; prints `N/N steps passed`. CI runs it in the `gateway` job. |
 | Counts contract | `cd web && npm run counts:refresh -- --suite=web`, then commit `lib/test-counts.generated.ts` | CI's `check-test-counts.mjs` step fails when the committed **web** figure drifts from the run it just made. `--suite=web` re-runs only the web suite and keeps the committed Python figures, which is what you want unless the gateway or service suite also moved. |
 | Build gates | `cd web && npm run build` | `prebuild` runs the OpenAPI canonical-JSON digest check and the repository-manifest file-list check first. It **refuses** until `npm run catalog:refresh` has run after files were added or removed. |
+| Rendered layout | `cd web && npm run audit:layout -- --url=http://localhost:3000` | A ready desk and installed Chromium are required. The default sweep covers 109 addressable states at eight viewports; this command is manual and is not a push-gating CI step. The 2026-08-29 release run passed **872/872** combinations with zero geometry failures and zero console errors. |
 
-CI runs four network-free jobs on every push — `gateway`, `openbb-service`,
-`web`, `repo-audit` — and two that never gate one: `live-smoke` (workflow
+CI runs five network-free jobs on every push — `gateway`,
+`native-sanitizers`, `openbb-service`, `web`, `repo-audit` — and two that never
+gate one: `live-smoke` (workflow
 dispatch only, because it needs live Oracle and Supabase secrets and a
 secret-gated job on every PR goes red for reasons unrelated to the code) and
 `rerank-real` (workflow dispatch, or a PR carrying the `rerank` label). The
@@ -966,71 +966,36 @@ committed.
 
 - **No mutation-testing framework** — the break-run-revert discipline above,
   plus guards-of-guards where it found tautologies, is the practice.
-- **No ESLint, Jest, Vitest or Playwright in `web/`** — Node's built-in runner
-  and hand-written structural tests (`house-rules`, `file-size`, `dead-css`,
-  `api-catalogue`, `tour-truth`) carry the load; adding a framework would change
-  the argument the project makes about itself. The workspace's runtime
-  dependencies are Next, React, `lucide-react`, `@supabase/supabase-js` and
-  `oracledb`, and nothing else.
-- **No `summarised-` or `disclosure-` suite for the Quotes or Proofs tabs.**
-  Eight of the ten tabs have both; the Kalshi engine's two have neither. Their
-  copy is guarded by the general suites (`house-rules`, `british-spelling`,
-  `middle-dot`), by `tour-truth`'s section-label check, and by the two claim
-  suites `coherence-reading-claims.test.ts` and `coherence-proof-claims.test.ts`
-  — which pin rendered phrases at exact site counts and cap each lede at one
-  sentence and 200 characters, but do not hold whole sentences. Named as a gap,
-  not implied to be covered.
-- **No DOM, and therefore no layout — every geometry claim is derived, never
-  observed.** This is the largest standing limit on the web suite and it is
-  easy to miss, because the suites that assert geometry read entirely
-  convincing. There is no jsdom, no happy-dom and no headless browser in
-  `web/`; not one test file even renders through `react-dom/server`. What the
-  suite reads is **source text and stylesheet text** — `tests/globals-css.ts`
-  concatenates the partials in import order so a rule is judged against the
-  cascade the browser would apply, rather than against whichever partial
-  declared it last.
+- **No ESLint, Jest or Vitest in `web/`.** Node's built-in runner and structural
+  tests (`house-rules`, `file-size`, `dead-css`, `api-catalogue`, `tour-truth`)
+  remain the default. Playwright is now a pinned development dependency, not a
+  runtime dependency. `@axe-core/playwright` is also pinned but no source file
+  imports it as of 2026-08-29, so there is no automated axe gate to claim.
+- **No whole-copy disclosure suite for the three quantitative tabs.** Markets
+  and Proofs now have `summarised-markets.test.ts` and
+  `summarised-coherence.test.ts`, and all 64 Markets/Proofs/Diffusion views are
+  in the addressable registry and sweep plan. There is still no
+  `disclosure-markets`, `disclosure-coherence` or `disclosure-diffusion` suite
+  pinning every folded sentence byte-for-byte. General rules, targeted claim
+  suites and `coherence-disclosure-table-containment.test.ts` cover less than
+  that stronger guarantee; the distinction is deliberate.
+- **The default Node run is still primarily source-level, but rendered geometry
+  is now available as an explicit opt-in.** Four Chromium cases in
+  `focus-browser-interaction`, `header-browser-containment` and
+  `responsive-header-and-density-followup` run only when
+  `ALPHAENGINE_BROWSER_ORIGIN` names a ready desk; otherwise they are four of
+  the six honest skips. `npm run audit:layout` is the broader release tool: 109
+  addressable states across eight viewport sizes, checking local ownership,
+  named scrollports, sibling intersections, sticky obstruction, framework
+  overlays and console errors. The 2026-08-29 invocation completed all 872
+  combinations with zero failures and zero console errors.
 
-  That reads the same rules the browser reads, which is genuinely strong for
-  the class of defect it was built for: `developer-diagram-layout.test.ts`
-  exists because one diagram's bracket had drifted 3.2px off the node centres
-  it pointed at, and it now pins the bracket span as *arithmetic over the same
-  gutter the node columns use* rather than as a remembered pixel value — a
-  copied constant being how the drift happened. `accent-budget`,
-  `tab-chrome-metrics`, `seg-metrics` and `forced-colors` all work this way.
-
-  What none of them can do is **run the layout**. A rule that is present and
-  correct in the cascade can still wrap, overlap or overflow at a width nobody
-  tried, and no test in this tree would notice. Three surfaces landed on
-  2026-08-22 whose geometry is argued rather than measured, and all three are
-  named here rather than assumed fine: the mutation blast-radius map on
-  Reliability → Remediation → Mutations (a hand-checked 560×266 `viewBox`, and
-  a 6px vertical gap between seven store boxes that is the tightest measurement
-  in it), the eight-column mutation matrix beside it (it scrolls inside its own
-  `.table-wrap`, so the page must not scroll sideways — that is the property to
-  check), and the numerics custody chain's two 64-character digest rows on
-  Developer → API & Schema → Numerics, whose wrap point is argued from a
-  ch-derived width. `grid-template-rows: subgrid`, which the Developer topology
-  card now uses, is a fourth: where it is unsupported the declaration is simply
-  dropped and the card falls back to a plain five-row auto grid, so the failure
-  mode is the previous layout rather than a broken one.
-
-  The Kalshi engine's ten `.seg` view switchers, split across Quotes and Proofs
-  — one per section, plus Lattice's second seg under Stake — are a fifth, and
-  the newest. They are guarded structurally: `seg-metrics.test.ts` holds
-  `.seg`'s metrics, and the consoles' headers record why a nested
-  `<WorkspaceSubtabs>` is forbidden inside a section (a second rail instance
-  fights the first over the `--rail-h` publisher). What nothing measures is how
-  a group **wraps**, and the consolidation of 2026-08-24 made that sharper
-  rather than softer: Dutch book now carries six buttons and Diffusion seven, so
-  the wrap those segs are designed to take in a narrow pane is derived from the
-  stylesheet and has never been observed.
-
-  The fix is not a browser-driver dependency — that is the rule above, and it
-  is not being traded away for this. It is that **a geometry change is walked
-  by a human at ~1000px and ~1400px before it ships**, which the feature tour's
-  closing paragraph already names as the manual verification pass. Written down
-  because a suite that is silent about a whole class of defect will otherwise
-  be read as having cleared it.
+  Neither path runs in the push-gating `web` job as of 2026-08-29. A green default suite
+  therefore proves the source contracts and explicitly reports the rendered
+  cases it did not run; it does not prove pixels. Only the output of an actual
+  Chromium run against a stated origin and viewport set may be called geometry
+  verification. `@axe-core/playwright` being installed does not change that
+  boundary until an axe invocation and gate exist.
 - **No coverage gate** — the suites pin behaviour and contracts, not line
   percentages; nothing in CI computes coverage.
 - **CI never builds the container image** — `tests/test_container_contract.py`
@@ -1051,7 +1016,7 @@ committed.
   answer key, metrics and degrade paths are under test, but nothing runs it on a
   push. `.github/workflows/ci.yml` already caches weights for
   `tools/bench_rerank.py` and wants the same job here; **nobody has added it**
-  (re-verified 2026-08-24: `bench_image_retrieval` appears nowhere in `ci.yml`).
+  (re-verified 2026-08-29: `bench_image_retrieval` appears nowhere in `ci.yml`).
 - **No end-to-end multimodal generation test against the real model** — the two
   measured calls (20.6 s and 29.9 s, `thinking_budget=0`) were run by hand
   against the real key. The suite exercises the attachment logic, the named
