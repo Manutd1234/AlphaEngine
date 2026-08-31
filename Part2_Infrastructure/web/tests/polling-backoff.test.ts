@@ -23,11 +23,61 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { PollingController } from "../lib/polling";
+import { PollingController, pollingFailure } from "../lib/polling";
 
 import { fakeClock } from "./helpers/fake-clock";
 
 describe("a failing loop backs off instead of hammering", () => {
+  it("counts a typed failed result even when the tick resolves", async () => {
+    assert.deepEqual(pollingFailure("gateway_unreachable"), {
+      ok: false,
+      reason: "gateway_unreachable",
+    });
+    const h = fakeClock();
+    const loop = new PollingController({
+      intervalMs: 1_000,
+      maxBackoffMs: 8_000,
+      tick: () => pollingFailure("gateway_unreachable"),
+      environment: h.environment,
+    });
+    loop.start();
+    await h.advance(1_000);
+    assert.equal(loop.consecutiveFailures, 1,
+      "a data-null/error result reset the backoff merely because its promise resolved");
+    assert.equal(loop.nextDelayMs(), 2_000);
+    loop.stop();
+  });
+
+  it("opens after the threshold and admits one half-open probe after cooldown", async () => {
+    const h = fakeClock();
+    let failing = true;
+    const statesAtTick: string[] = [];
+    let loop!: PollingController;
+    loop = new PollingController({
+      intervalMs: 1_000,
+      firstRetryMs: 2_000,
+      maxBackoffMs: 8_000,
+      circuit: { failureThreshold: 2, cooldownMs: 10_000 },
+      tick: () => {
+        statesAtTick.push(loop.circuitState);
+        return failing ? pollingFailure("gateway_unreachable") : undefined;
+      },
+      environment: h.environment,
+    });
+    loop.start();
+    await h.advance(1_000);
+    await h.advance(2_000);
+    assert.equal(loop.circuitState, "open");
+    assert.equal(loop.nextDelayMs(), 10_000);
+
+    failing = false;
+    await h.advance(10_000);
+    assert.equal(statesAtTick.at(-1), "half-open");
+    assert.equal(loop.circuitState, "closed", "a valid half-open response did not close the circuit");
+    assert.equal(loop.consecutiveFailures, 0);
+    loop.stop();
+  });
+
   it("grows geometrically and stops at the ceiling", async () => {
     const h = fakeClock();
     const loop = new PollingController({
