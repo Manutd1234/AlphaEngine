@@ -18,10 +18,10 @@
 
 import { useEffect, useRef } from "react";
 
-import { PollingController, type PollingOptions } from "@/lib/polling";
+import { PollingController, type PollingOptions, type PollingTickContext, type PollingTickResult } from "@/lib/polling";
 
 export interface UsePollingOptions extends Omit<PollingOptions, "tick"> {
-  tick: () => void | Promise<void>;
+  tick: (context: PollingTickContext) => PollingTickResult | Promise<PollingTickResult>;
   /** Stop the loop without unmounting — a closed pane, an unconfigured desk. */
   enabled?: boolean;
 }
@@ -40,7 +40,7 @@ export function usePolling({ tick, enabled = true, intervalMs, ...rest }: UsePol
       intervalMs,
       // Reads through the ref, so the loop is never restarted by a callback
       // whose identity changed on render.
-      tick: () => latest.current(),
+      tick: (context) => latest.current(context),
     });
     loop.start();
     return () => loop.stop();
