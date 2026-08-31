@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field
 
 ReadState = Literal["ok", "unconfigured", "unavailable", "unreadable"]
 EventKind = Literal["earnings", "fomc", "macro"]
-StageSource = Literal["vendor", "fed_seed", "estimated_offset", "parsed_release", "recorded"]
+StageSource = Literal["vendor", "issuer", "estimated_offset", "parsed_release", "recorded"]
 CellState = Literal["ok", "pending", "uncaptured", "insufficient", "unavailable"]
 SignalState = Literal["ok", "no_signal", "insufficient_pre_window", "unavailable"]
 
