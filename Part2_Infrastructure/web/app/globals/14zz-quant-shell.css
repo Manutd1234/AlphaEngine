@@ -1,0 +1,211 @@
+/* ==========================================================================
+   Quant shell state geometry
+
+   A cold route chunk should look like the instrument that is arriving, not a
+   blank slab. These selectors are deliberately scoped to the shared state
+   frame and do not touch any settled workspace or its protected copy.
+   ========================================================================== */
+
+:root {
+  --quant-surface-bg: var(--surface-1);
+  --quant-surface-bg-elevated: var(--surface-2);
+  --quant-surface-bg-inset: var(--surface-3);
+  --quant-surface-border: color-mix(in srgb, var(--border) 82%, var(--text-secondary));
+  --quant-surface-border-strong: color-mix(in srgb, var(--border) 58%, var(--text-secondary));
+  --quant-surface-radius: var(--radius-lg);
+  --quant-surface-pad-sm: var(--space-4);
+  --quant-surface-pad-md: var(--space-5);
+  --quant-track-gap: var(--space-3);
+  --quant-motion-fast: var(--dur-fast);
+  --quant-motion-standard: var(--dur);
+}
+
+.quant-state-surface {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  border-color: var(--border);
+  padding: 0;
+  border-radius: var(--surface-radius);
+  background: var(--surface-1);
+  color: var(--text-primary);
+}
+
+.page-context-strip__provenance {
+  position: absolute;
+  inset-block-start: 8px;
+  inset-inline-end: 8px;
+  z-index: 2;
+  min-width: 0;
+}
+
+.page-insight:has(.page-context-strip__provenance) {
+  padding-inline-end: 38px;
+}
+
+.page-context-strip__provenance > summary {
+  display: grid;
+  width: 1.25rem;
+  height: 1.25rem;
+  cursor: pointer;
+  list-style: none;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+}
+
+.page-context-strip__provenance > summary::-webkit-details-marker {
+  display: none;
+}
+
+.page-context-strip__provenance[open] {
+  width: min(18rem, calc(100% - 16px));
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-sm);
+}
+
+/* The note may extend below the PageHead row. Raise the enclosing strip only
+   while it is open so later analytical surfaces cannot paint over its words. */
+.page-context-strip:has(.page-context-strip__provenance[open]) {
+  position: relative;
+  z-index: var(--z-popover);
+}
+
+.page-context-strip__provenance[open] > summary {
+  margin-inline-start: auto;
+  margin-block-end: var(--space-1);
+}
+
+.page-context-strip__provenance > span {
+  display: block;
+  color: var(--text-secondary);
+  line-height: var(--lh-body);
+}
+
+.quant-panel-skeleton {
+  min-height: 32rem;
+  display: grid;
+  align-content: start;
+  gap: var(--space-4);
+  padding: var(--space-5);
+}
+
+.quant-panel-skeleton [data-slot="skeleton"] {
+  background: color-mix(in srgb, var(--axis) 20%, var(--surface-2));
+  border-radius: var(--radius-sm);
+}
+
+.quant-panel-skeleton__head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-5);
+}
+
+.quant-panel-skeleton__head-copy {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.quant-panel-skeleton__kicker { width: 7rem; height: .7rem; }
+.quant-panel-skeleton__title { width: min(31rem, 76%); height: 1.85rem; }
+.quant-panel-skeleton__summary { width: min(40rem, 92%); height: .8rem; }
+.quant-panel-skeleton__stamp { width: 12rem; height: 1.9rem; border-radius: var(--radius-pill); }
+
+.quant-panel-skeleton__metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.quant-panel-skeleton__metric {
+  min-width: 0;
+  min-height: 6.5rem;
+  display: grid;
+  align-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-0);
+}
+
+.quant-panel-skeleton__metric-label { width: 42%; height: .65rem; }
+.quant-panel-skeleton__metric-value { width: 28%; height: 1.35rem; }
+.quant-panel-skeleton__metric-note { width: 72%; height: .65rem; }
+.quant-panel-skeleton__separator { background: var(--border); }
+
+.quant-panel-skeleton__rail {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(4.5rem, 1fr));
+  gap: 2px;
+  overflow: hidden;
+}
+
+.quant-panel-skeleton__rail-stop { width: 100%; height: 2.15rem; }
+
+.quant-panel-skeleton__body {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(15rem, 1fr);
+  align-items: stretch;
+  gap: var(--space-3);
+}
+
+.quant-panel-skeleton__plot,
+.quant-panel-skeleton__ledger {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.quant-panel-skeleton__plot-title { width: 34%; height: .8rem; }
+.quant-panel-skeleton__plot-note { width: 58%; height: .65rem; }
+
+.quant-panel-skeleton__chart {
+  min-height: 12rem;
+  display: grid;
+  align-content: space-evenly;
+  border-left: 1px solid var(--axis);
+  border-bottom: 1px solid var(--axis);
+}
+
+.quant-panel-skeleton__chart i {
+  width: 100%;
+  height: 1px;
+  background: var(--grid);
+}
+
+.quant-panel-skeleton__ledger-title { width: 48%; height: .8rem; }
+.quant-panel-skeleton__ledger-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(4rem, .7fr) minmax(0, 1.3fr);
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 2.35rem;
+  border-top: 1px solid var(--border);
+}
+.quant-panel-skeleton__ledger-key { width: 72%; height: .65rem; }
+.quant-panel-skeleton__ledger-value { width: 88%; height: .65rem; }
+
+@media (max-width: 900px) {
+  .quant-panel-skeleton__metrics { grid-template-columns: 1fr; }
+  .quant-panel-skeleton__body { grid-template-columns: 1fr; }
+  .quant-panel-skeleton__stamp { display: none; }
+}
+
+@media (max-width: 620px) {
+  .quant-panel-skeleton { padding: var(--space-3); }
+  .quant-panel-skeleton__rail { grid-template-columns: repeat(6, 5rem); overflow-x: hidden; }
+}
