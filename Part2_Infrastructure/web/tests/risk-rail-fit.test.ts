@@ -143,7 +143,8 @@ describe("the parameter rail cannot be squeezed through the card's border", () =
 
 describe("the seed box holds the whole seed at every text size", () => {
   /** The premise the whole arithmetic rests on. */
-  const borderBox = /\*\s*\{[^}]*box-sizing:\s*border-box/.test(rules);
+  const borderBox = /\*\s*,\s*\*::before\s*,\s*\*::after\s*\{[^}]*box-sizing:\s*border-box/.test(rules)
+    || /\*\s*\{[^}]*box-sizing:\s*border-box/.test(rules);
 
   /** `width: "calc(<n>ch + <allowance>px)"` on the seed input. */
   const width = /style=\{\{ width: "calc\((\d+)ch \+ (\d+)px\)" \}\}/.exec(rail);
