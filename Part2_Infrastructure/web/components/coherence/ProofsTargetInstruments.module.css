@@ -1,0 +1,167 @@
+.workbench,
+.instrumentGrid,
+.scoreInspector,
+.exactReadout { min-inline-size: 0; }
+
+.workbench { container-name: score-workbench; container-type: inline-size; }
+.instrumentGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: 12px;
+  align-items: stretch;
+}
+.instrumentGrid > * { min-inline-size: 0; margin: 0; }
+.scoreInspector {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  align-items: stretch;
+  padding: 10px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+}
+.equationHead {
+  display: flex;
+  gap: 8px 18px;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-block-end: 8px;
+  border-block-end: 1px solid var(--rule-soft);
+}
+.equationHead span {
+  flex: none;
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+.equationHead strong {
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+.termRail {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content minmax(0, 1fr) max-content minmax(0, 1fr) max-content minmax(0, 1fr) max-content minmax(0, 1fr);
+  gap: 6px;
+  align-items: stretch;
+  min-inline-size: 0;
+}
+.equationOperator {
+  display: grid;
+  place-items: center;
+  min-inline-size: 1.35rem;
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: var(--fs-body);
+  font-weight: 800;
+  transition: color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+}
+.equationOperator[data-active="true"] {
+  color: var(--series-1);
+  transform: scale(1.12);
+}
+.termButton {
+  min-inline-size: 0;
+  min-block-size: 2.5rem;
+  block-size: auto;
+  gap: 8px;
+  justify-content: space-between;
+  overflow: visible;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+  overflow-wrap: normal;
+  text-align: start;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+.termButton span { min-inline-size: 0; overflow-wrap: normal; white-space: nowrap; }
+.termButton code { flex: none; color: inherit; font: inherit; white-space: nowrap; }
+.termButton[data-related="true"] {
+  border-color: color-mix(in srgb, var(--series-1) 68%, var(--rule));
+  background: color-mix(in srgb, var(--series-1) 6%, var(--surface-1));
+}
+.termButton[data-role="total"] {
+  border-color: color-mix(in srgb, var(--series-3) 72%, var(--rule));
+}
+.termButton[aria-pressed="true"] {
+  border-color: var(--series-1);
+  background: color-mix(in srgb, var(--series-1) 10%, var(--surface-1));
+  color: var(--text-primary);
+  box-shadow: inset 0 -2px 0 var(--series-1);
+}
+.exactReadout {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 3px 10px;
+  align-content: center;
+  margin: 0;
+  padding: 8px 10px;
+  border-inline-start: 2px solid var(--series-1);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  overflow-wrap: anywhere;
+}
+.exactReadout strong,
+.exactReadout code {
+  color: var(--text-primary);
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+.exactReadout span { grid-column: 1 / -1; }
+.selectableMark { opacity: 0.76; transition: opacity var(--dur-fast) var(--ease); }
+.selectableMark[data-selected="true"] { opacity: 1; }
+.selectableMark[data-selected="true"] rect { stroke: var(--text-primary); stroke-width: 1.5; }
+.selectableMark[data-selected="true"] :global(.coh-calib__connector) {
+  stroke: var(--series-1);
+  stroke-width: 1.5;
+}
+.interactiveRow { cursor: pointer; }
+.interactiveRow:where(:hover, [data-selected="true"]) :global(.coh-combo__track) {
+  stroke: var(--series-1);
+  stroke-width: 2;
+}
+.interactiveRow:where(:hover, [data-selected="true"]) :global(.coh-combo__label) {
+  fill: var(--text-primary);
+  font-weight: 700;
+}
+.rowHitTarget { fill: transparent; stroke: none; pointer-events: all; }
+.tableSelector {
+  inline-size: 100%;
+  min-inline-size: 11rem;
+  justify-content: flex-start;
+  white-space: normal;
+  text-align: start;
+}
+.slackRow[data-selected="true"] :is(line, circle) { stroke-width: 3; }
+.termButton:focus-visible,
+.tableSelector:focus-visible,
+.exactReadout:focus-visible { outline: 2px solid var(--series-1); outline-offset: 2px; }
+@media (max-width: 720px) {
+  .exactReadout { border-inline-start-width: 1px; }
+}
+@container score-workbench (max-width: 72rem) {
+  .termButton { align-items: flex-start; flex-direction: column; }
+}
+@container score-workbench (max-width: 48rem) {
+  .equationHead { align-items: flex-start; flex-direction: column; }
+  .equationHead strong { text-align: start; }
+  .termRail { grid-template-columns: 1.5rem minmax(0, 1fr); gap: 6px 8px; }
+  .termRail > .termButton:first-of-type { grid-column: 2; }
+  .equationOperator { grid-column: 1; }
+  .termButton { grid-column: 2; align-items: center; flex-direction: row; inline-size: 100%; }
+}
+@container score-workbench (max-width: 32rem) {
+  .exactReadout { grid-template-columns: minmax(0, 1fr); }
+  .exactReadout span { grid-column: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .selectableMark,
+  .equationOperator { transition: none; }
+}
