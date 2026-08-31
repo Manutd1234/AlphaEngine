@@ -35,10 +35,10 @@
  * now, beside the views, which is one row in total.
  */
 
-import type { CoherenceFeeFill, CoherenceFees } from "@/lib/coherence/types";
+import type { CoherenceFees } from "@/lib/coherence/types";
 import FeeParabola from "./FeeParabola";
-import Figure, { FigureEmpty, Plot } from "./Figure";
-import ValueStrip from "./ValueStrip";
+import FeeTotalsBar from "./FeeTotalsBar";
+import styles from "./MarketInstruments.module.css";
 
 /** One row of the picker: the query it asks, and what it demonstrates. */
 export interface FeeExample {
@@ -69,128 +69,12 @@ export function feesExceedNotional(share: string | null): boolean {
   return share != null && Number(share) > 1;
 }
 
-/**
- * A wire amount as a plain number, for BAR GEOMETRY only. Kalshi's own example
- * carries sub-centicent quantities (0.09 × $0.3301 of notional), finer than
- * `toCenticents` accepts, and pixels are not a quantity a reader checks: every
- * number a reader READS is the wire string in the table below.
- */
-function toAmount(raw: string | null | undefined): number | null {
-  if (raw == null || !/^-?\d*(?:\.\d*)?$/.test(raw.trim()) || !raw.trim()) return null;
-  const value = Number(raw);
-  return Number.isFinite(value) ? value : null;
-}
-
-const BAR_H = 18;
-const FEE_Y = 24;
-const NOTIONAL_Y = 72;
-
-/** The fee components and the notional, on one scale. */
-function FeeTotalsBar({ total }: { total: CoherenceFeeFill | null }) {
-  const caption = "The fee's components against the notional, one scale";
-  const trade = toAmount(total?.trade_fee);
-  const rounding = toAmount(total?.rounding_fee);
-  const net = toAmount(total?.net);
-  const notional = toAmount(total?.notional);
-  if (total == null || trade == null || rounding == null || net == null || notional == null) {
-    return (
-      <Figure caption={caption} ariaLabel="No fee total to draw" missing="The read returned no total — a bar of the fills that did arrive would understate the position's cost.">
-        <FigureEmpty reason="No total came back." />
-      </Figure>
-    );
-  }
-  const top = Math.max(trade + rounding, notional, 1e-9);
-  return (
-    <Figure
-      caption={caption}
-      ariaLabel={`Trade fee ${total.trade_fee} plus rounding fee ${total.rounding_fee}, rebate ${total.rebate}, net ${total.net}, against notional ${total.notional}`}
-    >
-      <Plot height={104}>
-        {(width) => {
-          const x = (amount: number) => (amount / top) * width;
-          const netX = x(Math.max(0, net));
-          return (
-            <>
-              <text x={0} y={FEE_Y - 8} className="coh-axis__label">fee, gross then net of rebate</text>
-              <rect x={0} y={FEE_Y} width={Math.max(1, x(trade))} height={BAR_H} className="coh-dollarbar__leg is-leg-1">
-                <title>{`trade fee ${total.trade_fee}`}</title>
-              </rect>
-              <rect x={x(trade)} y={FEE_Y} width={Math.max(1, x(trade + rounding) - x(trade))} height={BAR_H} className="coh-dollarbar__leg is-leg-2">
-                <title>{`rounding fee ${total.rounding_fee}`}</title>
-              </rect>
-              <line x1={netX} x2={netX} y1={FEE_Y - 4} y2={FEE_Y + BAR_H + 4} className="coh-combo__price">
-                <title>{`net after rebate ${total.net}`}</title>
-              </line>
-              <text x={Math.min(x(trade + rounding) + 6, width - 4)} y={FEE_Y + 13}
-                    textAnchor={x(trade + rounding) > width * 0.8 ? "end" : "start"} className="coh-axis__label">
-                {`net ${total.net}`}
-              </text>
-
-              <text x={0} y={NOTIONAL_Y - 8} className="coh-axis__label">notional traded</text>
-              <rect x={0} y={NOTIONAL_Y} width={Math.max(1, x(notional))} height={BAR_H} className="coh-kelly__bar-cash">
-                <title>{`notional ${total.notional}`}</title>
-              </rect>
-              <text x={Math.min(x(notional) + 6, width - 4)} y={NOTIONAL_Y + 13}
-                    textAnchor={x(notional) > width * 0.8 ? "end" : "start"} className="coh-axis__label">
-                {total.notional}
-              </text>
-            </>
-          );
-        }}
-      </Plot>
-    </Figure>
-  );
-}
-
-/**
- * What each fill cost, net of the rebate — the fragmentation half of the view.
- *
- * The totals bar answers "is the fee bigger than the position". It cannot
- * answer the second question the worked example is FOR: what one more fill
- * costs. That was six columns of a table read down, and reading down a column
- * is exactly the comparison a row of bars answers by looking.
- *
- * DRAWN ONLY ABOVE ONE FILL, and the condition is the argument. On a
- * single-fill example every bar here would be the totals bar again at a
- * different width, which is decoration; the interesting shape starts at the
- * second fill, where the accumulator has whole cents to give back.
- *
- * `ValueStrip` again, for the same reason `LegStrip` uses it: one drawing role,
- * classes that already exist, and a row that can decline its bar with a reason
- * rather than drawing a length nobody measured.
- */
-function FillStrip({ fills }: { fills: CoherenceFeeFill[] }) {
-  if (fills.length < 2) return null;
-  const rows = fills.map((fill, index) => {
-    const net = toAmount(fill.net);
-    return {
-      label: `fill ${index + 1}`,
-      value: net,
-      text: fill.net,
-      title: `fill ${index + 1}: trade ${fill.trade_fee}, rounding ${fill.rounding_fee}, `
-        + `rebate ${fill.rebate}, net ${fill.net} on ${fill.notional} of notional`,
-      noBar: net == null ? "not a readable amount" : undefined,
-    };
-  });
-  return (
-    <ValueStrip
-      caption="What each fill cost, net of the rebate"
-      ariaLabel={`Net fee for each of ${fills.length} fills, against zero`}
-      rows={rows}
-      reading="Each bar is what the fill cost after the rebate, so a short bar is a fill the accumulator nearly repaid."
-      missing={
-        rows.some((row) => row.noBar)
-          ? "A fill whose net did not parse keeps its row and draws no bar."
-          : null
-      }
-    />
-  );
-}
-
 export default function FeesPane({
   fees,
   error,
   view,
+  example,
+  onExample,
   parabolaAt,
   parabolaLink,
 }: {
@@ -198,6 +82,8 @@ export default function FeesPane({
   fees: CoherenceFees | null;
   error: string | null;
   view: FeesView;
+  example: FeeExample;
+  onExample: (next: FeeExample) => void;
   /** The curve's own prices and pair key, forwarded to the parabola. */
   parabolaAt?: readonly number[];
   parabolaLink?: string;
@@ -218,7 +104,7 @@ export default function FeesPane({
     return (
       <>
         {heading}
-        <p className="console-empty muted">Working the example…</p>
+        <p className="console-empty muted" role="status" aria-busy="true">Working the example…</p>
       </>
     );
   }
@@ -279,8 +165,14 @@ export default function FeesPane({
     <>
       {heading}
 
-      <FeeTotalsBar total={fees.total} />
-      <FillStrip fills={fees.per_fill} />
+      <FeeTotalsBar
+        key={`${example.id}:${example.price}:${example.contracts}:${example.fills}`}
+        total={fees.total}
+        share={fees.net_as_fraction_of_notional}
+        fills={fees.per_fill}
+        example={example}
+        onExample={onExample}
+      />
 
       {/* The two drawings answer the view; the ledger proves them. Folded on
           the fourth pass of 2026-08-24, with the count in the summary so the
@@ -292,7 +184,7 @@ export default function FeesPane({
           Every fill through all three components, {fees.per_fill.length}{" "}
           {fees.per_fill.length === 1 ? "fill" : "fills"} and the total
         </summary>
-      <div className="table-wrap" tabIndex={0}>
+      <div className="table-wrap" role="region" aria-label="Fee fill ledger" tabIndex={0}>
         <table className="coh-table">
           <caption className="coh-table__caption">
             The rebate is the accumulator giving back whole cents.
