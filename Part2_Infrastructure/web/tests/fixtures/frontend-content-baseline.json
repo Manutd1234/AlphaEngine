@@ -1,0 +1,232 @@
+{
+  "version": 3,
+  "protectedPhase0": {
+    "overview": { "sha256": "61d32b9742453bd69bb9a87c39bb52092e0fb96acd949caf3f3766dfd43a74c7", "strings": 1084, "words": 3879 },
+    "research": { "sha256": "661a4096f44e9f26b7f8695395c679cf312c9064ccb753f81ce24dc18445ded9", "strings": 2260, "words": 12922 },
+    "execution": { "sha256": "b5b1812231dd070ab82ba239061d54d56e6462a3130ac32787672bd4fd2240c4", "strings": 1245, "words": 4306 },
+    "portfolio": { "sha256": "3d530a84470168b19caf6f877a3d1fd8285fd12eeff220a757acd303e64b58ad", "strings": 1100, "words": 4463 },
+    "risk": { "sha256": "8cd8e4bfd6039a13590e1b72f8724dc2e404e4806ad6682d80701404972ba8ff", "strings": 945, "words": 4164 },
+    "data": { "sha256": "c933731f1ea1345943ffa91086258df6a815bedb0800abf934fb011a7f84f361", "strings": 1576, "words": 5709 },
+    "reliability": { "sha256": "b10f7f5a206ddd744aa10bf823ff6374169d644f1a302aeeb90193352625cdb3", "strings": 1505, "words": 5817 },
+    "developer": { "sha256": "c3e1da0022790e7098b221ad14989625d9a691800e9c8c5503634298832ae03e", "strings": 1639, "words": 6730 }
+  },
+  "protected": {
+    "overview": { "sha256": "fa8b292f046c6a7b88e40c123e4a71ba2bcd505d482bb4957b99a4acac57f2b7", "strings": 1108, "words": 4033 },
+    "research": { "sha256": "e97c6287a934f28e8782daacab0addf88ffe35a1972daa63c84971bf7c762887", "strings": 2274, "words": 13064 },
+    "execution": { "sha256": "1fe029ae47fd8f7d277c56d5c54b285cf74cccf95ee6c3d031c37c7ffabfb390", "strings": 1269, "words": 4452 },
+    "portfolio": { "sha256": "ac29ea7235675965fa6bafde9d59b2606961fda8658bac58b0fa859e8f144320", "strings": 1116, "words": 4600 },
+    "risk": { "sha256": "8300b0ce2f7c40648d5e8c007eea99e998e269ef958839814fb9ba2f1ab0b149", "strings": 961, "words": 4301 },
+    "data": { "sha256": "4740eb4c52a4116c8fed3c83b10d1df2794ffc0c5f26e69bd3bdc5e5cbc92336", "strings": 1601, "words": 5857 },
+    "reliability": { "sha256": "d0053596a9b4c1a8b8a8cb6ab7943b8629f24df7a5e9f3da2f1a3228a4bcf70a", "strings": 1528, "words": 5960 },
+    "developer": { "sha256": "2269a5248eba9e2947c56c2000249b7df5f27fd3b728c6d48361db80f5834ab2", "strings": 1655, "words": 6867 }
+  },
+  "protectedNavigationFollowup20260829": {
+    "overview": { "sha256": "6092e9ad6e96192fa4231c252742255c241a219d0971a01175148867848c311e", "strings": 1108, "words": 4034 },
+    "research": { "sha256": "8b15df244bc60c81c62c55c4600788d1271996be679c031fce1b4d92809786c7", "strings": 2274, "words": 13065 }
+  },
+  "protectedRequest20260830": {
+    "overview": { "sha256": "cb7b0fe239a9cb3ffe4afe549616eb4736b45f3a20c4fac0fd7909265a3c4d45", "strings": 1108, "words": 4036 },
+    "research": { "sha256": "8b15df244bc60c81c62c55c4600788d1271996be679c031fce1b4d92809786c7", "strings": 2274, "words": 13065 },
+    "execution": { "sha256": "c8663f8dbbae4444b4f0c3460ca094ebd35f9d75070739141b5107d3e31c8da6", "strings": 1273, "words": 4515 },
+    "portfolio": { "sha256": "bf8f95da103fffaf74390b8843d55b1190356a28084cbf18c32038d94b81e099", "strings": 1117, "words": 4612 },
+    "risk": { "sha256": "743239ba25c6ff04aa762e7764f48fae72cc54b118400b3564b02f5c920634d4", "strings": 966, "words": 4319 },
+    "data": { "sha256": "b5d5bdaae8658908e256103565b7beffd544edbcff6f2f1b95eb605688ead5c9", "strings": 1601, "words": 5859 },
+    "reliability": { "sha256": "20e0ad90a1ab340b0fa98d3e5d880d63b780a827ef9e5f389198ac684c9c9547", "strings": 1528, "words": 5962 },
+    "developer": { "sha256": "4d75452a08f93fff600e83f387a62537570f5c91dc6fd251539bd4a43a5deda7", "strings": 1655, "words": 6869 }
+  },
+  "protectedRuntimeIntegrity20260831": {
+    "overview": { "sha256": "4fb5f86a3afd6d1af95a713318120dfcc5165be1a42e50b25665676bd706c452", "strings": 1120, "words": 4071 },
+    "research": { "sha256": "e597db6c76d13ca55abb7b207bdc0e1b5c131684e38a102c598f89dc2e256d15", "strings": 2289, "words": 13179 },
+    "execution": { "sha256": "7b6d8ac3fc9ac6c118aec85fba6816ede78a364a9109bb4059c2ff39f737a4a6", "strings": 1284, "words": 4554 },
+    "portfolio": { "sha256": "503883502acc4d8de0de3a507a2e6e5815f98a18e4211c4589b2e59af07ba022", "strings": 1123, "words": 4640 },
+    "risk": { "sha256": "a83ef5f4de032820920118574087908b5ac56258ab507534b3e4fbee24945ecb", "strings": 972, "words": 4347 },
+    "data": { "sha256": "cfe2f87050419ee8298bbfc424495af23b8a5b311dd80411e8124f0bdb0cdac9", "strings": 1565, "words": 5725 },
+    "reliability": { "sha256": "1e3c613de9e44a512318cf689e7bd327fd0f9a534b1709217380ddc5be09872d", "strings": 1540, "words": 6013 },
+    "developer": { "sha256": "a2e3838597a556fa770ef9c09f53a04ea3f58b24246c51ca26f8a6712e657064", "strings": 1624, "words": 6748 }
+  },
+  "protectedFrontendSweep20260831": {
+    "overview": { "sha256": "df70a2b59f1f6a91ca9a3cfc447f1c35e5a529a1331d41244a5bc53e8f55ab62", "strings": 1120, "words": 4075 },
+    "research": { "sha256": "c40adc0e7665b3ebf4be5a7ed292e79200628ade4cba9f877af93349e035eb09", "strings": 2293, "words": 13194 },
+    "execution": { "sha256": "21ec3e89d799f67df5aae3d87e7fbc07fc00d53d96ebbc77c230394ec088230e", "strings": 1285, "words": 4560 },
+    "portfolio": { "sha256": "89c04c80e59840d50dc71868911af6a90ba20d1b6e417f3578e2df9bb0601f19", "strings": 1123, "words": 4644 },
+    "risk": { "sha256": "609d199ef8a49345b83d3c9cdac50351761cf7241d8f79aa434550dc1898fe5b", "strings": 973, "words": 4352 },
+    "data": { "sha256": "e565b31cb5e249825e203b3c3fdbdea6d050f45949118dfbd4dd4f279fb3b497", "strings": 1565, "words": 5729 },
+    "reliability": { "sha256": "11437f9adfe4bb5b8f491e8133db09e101bc01064acaf260ec8a47fc1dea8158", "strings": 1541, "words": 6023 },
+    "developer": { "sha256": "2265b1f6e2a17fea901e597a767991fccc5806eb33acbda9c77f1e1c1b38a3cb", "strings": 1627, "words": 6731 }
+  },
+  "engineViews": [
+    { "product": "markets", "routeTab": "markets", "section": "universe", "view": "baskets", "label": "Basket pricing", "id": "markets/universe/baskets", "deepLink": "markets/universe" },
+    { "product": "markets", "routeTab": "markets", "section": "universe", "view": "positions", "label": "Positions", "id": "markets/universe/positions", "deepLink": "markets/universe/positions" },
+    { "product": "markets", "routeTab": "markets", "section": "universe", "view": "families", "label": "Families", "id": "markets/universe/families", "deepLink": "markets/universe/families" },
+    { "product": "markets", "routeTab": "markets", "section": "settlement", "view": "reading", "label": "Index", "id": "markets/settlement/reading", "deepLink": "markets/settlement" },
+    { "product": "markets", "routeTab": "markets", "section": "settlement", "view": "formation", "label": "Formation", "id": "markets/settlement/formation", "deepLink": "markets/settlement/formation" },
+    { "product": "markets", "routeTab": "markets", "section": "settlement", "view": "pending", "label": "Pending", "id": "markets/settlement/pending", "deepLink": "markets/settlement/pending" },
+    { "product": "markets", "routeTab": "markets", "section": "books", "view": "ladder", "label": "Ladder", "id": "markets/books/ladder", "deepLink": "markets/books" },
+    { "product": "markets", "routeTab": "markets", "section": "books", "view": "identity", "label": "Identity", "id": "markets/books/identity", "deepLink": "markets/books/identity" },
+    { "product": "markets", "routeTab": "markets", "section": "books", "view": "history", "label": "History", "id": "markets/books/history", "deepLink": "markets/books/history" },
+    { "product": "markets", "routeTab": "markets", "section": "dispersion", "view": "quotes", "label": "Dispersion", "id": "markets/dispersion/quotes", "deepLink": "markets/dispersion" },
+    { "product": "markets", "routeTab": "markets", "section": "dispersion", "view": "channel", "label": "Channel", "id": "markets/dispersion/channel", "deepLink": "markets/dispersion/channel" },
+    { "product": "markets", "routeTab": "markets", "section": "lattice", "view": "survival", "label": "Survival", "id": "markets/lattice/survival", "deepLink": "markets/lattice" },
+    { "product": "markets", "routeTab": "markets", "section": "lattice", "view": "mass", "label": "Mass", "id": "markets/lattice/mass", "deepLink": "markets/lattice/mass" },
+    { "product": "markets", "routeTab": "markets", "section": "lattice", "view": "moments", "label": "Moment shape", "id": "markets/lattice/moments", "deepLink": "markets/lattice/moments" },
+    { "product": "markets", "routeTab": "markets", "section": "lattice", "view": "support", "label": "Moment support", "id": "markets/lattice/support", "deepLink": "markets/lattice/support" },
+    { "product": "markets", "routeTab": "markets", "section": "stake", "view": "plan", "label": "Plan", "id": "markets/stake/plan", "deepLink": "markets/stake" },
+    { "product": "markets", "routeTab": "markets", "section": "stake", "view": "capital", "label": "Capital", "id": "markets/stake/capital", "deepLink": "markets/stake/capital" },
+    { "product": "markets", "routeTab": "markets", "section": "stake", "view": "method", "label": "Method", "id": "markets/stake/method", "deepLink": "markets/stake/method" },
+    { "product": "markets", "routeTab": "markets", "section": "stake", "view": "family", "label": "All outcomes", "id": "markets/stake/family", "deepLink": "markets/stake/family" },
+    { "product": "markets", "routeTab": "markets", "section": "fees", "view": "example", "label": "Worked example", "id": "markets/fees/example", "deepLink": "markets/fees" },
+    { "product": "markets", "routeTab": "markets", "section": "fees", "view": "shape", "label": "Cost shape", "id": "markets/fees/shape", "deepLink": "markets/fees/shape" },
+    { "product": "markets", "routeTab": "markets", "section": "fees", "view": "comparison", "label": "Ablation", "id": "markets/fees/comparison", "deepLink": "markets/fees/comparison" },
+    { "product": "markets", "routeTab": "markets", "section": "fees", "view": "table", "label": "Replay table", "id": "markets/fees/table", "deepLink": "markets/fees/table" },
+    { "product": "markets", "routeTab": "markets", "section": "shell", "view": "layout", "label": "Namespace", "id": "markets/shell/layout", "deepLink": "markets/shell" },
+    { "product": "markets", "routeTab": "markets", "section": "shell", "view": "route", "label": "Routing", "id": "markets/shell/route", "deepLink": "markets/shell/route" },
+    { "product": "markets", "routeTab": "markets", "section": "shell", "view": "tree", "label": "Browse", "id": "markets/shell/tree", "deepLink": "markets/shell/tree" },
+    { "product": "proofs", "routeTab": "coherence", "section": "certificate", "view": "verdict", "label": "Verdict", "id": "proofs/certificate/verdict", "deepLink": "coherence/certificate" },
+    { "product": "proofs", "routeTab": "coherence", "section": "certificate", "view": "proof", "label": "Proof", "id": "proofs/certificate/proof", "deepLink": "coherence/certificate/proof" },
+    { "product": "proofs", "routeTab": "coherence", "section": "certificate", "view": "checks", "label": "Checks", "id": "proofs/certificate/checks", "deepLink": "coherence/certificate/checks" },
+    { "product": "proofs", "routeTab": "coherence", "section": "certificate", "view": "prices", "label": "Prices", "id": "proofs/certificate/prices", "deepLink": "coherence/certificate/prices" },
+    { "product": "proofs", "routeTab": "coherence", "section": "certificate", "view": "sizes", "label": "Sizes", "id": "proofs/certificate/sizes", "deepLink": "coherence/certificate/sizes" },
+    { "product": "proofs", "routeTab": "coherence", "section": "portfolio", "view": "cover", "label": "Cover", "id": "proofs/portfolio/cover", "deepLink": "coherence/portfolio" },
+    { "product": "proofs", "routeTab": "coherence", "section": "portfolio", "view": "basket", "label": "Basket", "id": "proofs/portfolio/basket", "deepLink": "coherence/portfolio/basket" },
+    { "product": "proofs", "routeTab": "coherence", "section": "portfolio", "view": "size", "label": "Size", "id": "proofs/portfolio/size", "deepLink": "coherence/portfolio/size" },
+    { "product": "proofs", "routeTab": "coherence", "section": "combos", "view": "bands", "label": "Ranges", "id": "proofs/combos/bands", "deepLink": "coherence/combos" },
+    { "product": "proofs", "routeTab": "coherence", "section": "combos", "view": "parlays", "label": "Test quote", "id": "proofs/combos/parlays", "deepLink": "coherence/combos/parlays" },
+    { "product": "proofs", "routeTab": "coherence", "section": "combos", "view": "inputs", "label": "Leg prices", "id": "proofs/combos/inputs", "deepLink": "coherence/combos/inputs" },
+    { "product": "proofs", "routeTab": "coherence", "section": "combos", "view": "legs", "label": "Test legs", "id": "proofs/combos/legs", "deepLink": "coherence/combos/legs" },
+    { "product": "proofs", "routeTab": "coherence", "section": "combos", "view": "bounds", "label": "Checks", "id": "proofs/combos/bounds", "deepLink": "coherence/combos/bounds" },
+    { "product": "proofs", "routeTab": "coherence", "section": "index", "view": "series", "label": "By poll", "id": "proofs/index/series", "deepLink": "coherence/index" },
+    { "product": "proofs", "routeTab": "coherence", "section": "index", "view": "families", "label": "By family", "id": "proofs/index/families", "deepLink": "coherence/index/families" },
+    { "product": "proofs", "routeTab": "coherence", "section": "calibration", "view": "score", "label": "Overview", "id": "proofs/calibration/score", "deepLink": "coherence/calibration" },
+    { "product": "proofs", "routeTab": "coherence", "section": "calibration", "view": "decomposition", "label": "Equation", "id": "proofs/calibration/decomposition", "deepLink": "coherence/calibration/decomposition" },
+    { "product": "proofs", "routeTab": "coherence", "section": "calibration", "view": "components", "label": "Component scale", "id": "proofs/calibration/components", "deepLink": "coherence/calibration/components" },
+    { "product": "proofs", "routeTab": "coherence", "section": "calibration", "view": "measures", "label": "Measures", "id": "proofs/calibration/measures", "deepLink": "coherence/calibration/measures" },
+    { "product": "proofs", "routeTab": "coherence", "section": "calibration", "view": "reliability", "label": "Reliability", "id": "proofs/calibration/reliability", "deepLink": "coherence/calibration/reliability" },
+    { "product": "proofs", "routeTab": "coherence", "section": "calibration", "view": "bands", "label": "Bands", "id": "proofs/calibration/bands", "deepLink": "coherence/calibration/bands" },
+    { "product": "proofs", "routeTab": "coherence", "section": "corpus", "view": "composition", "label": "Composition", "id": "proofs/corpus/composition", "deepLink": "coherence/corpus" },
+    { "product": "proofs", "routeTab": "coherence", "section": "corpus", "view": "trend", "label": "Score trend", "id": "proofs/corpus/trend", "deepLink": "coherence/corpus/trend" },
+    { "product": "proofs", "routeTab": "coherence", "section": "lessons", "view": "prices", "label": "Quotes", "id": "proofs/lessons/prices", "deepLink": "coherence/lessons/prices" },
+    { "product": "proofs", "routeTab": "coherence", "section": "lessons", "view": "structure", "label": "Structure", "id": "proofs/lessons/structure", "deepLink": "coherence/lessons/structure" },
+    { "product": "proofs", "routeTab": "coherence", "section": "lessons", "view": "bounds", "label": "Bounds", "id": "proofs/lessons/bounds", "deepLink": "coherence/lessons/bounds" },
+    { "product": "proofs", "routeTab": "coherence", "section": "lessons", "view": "record", "label": "Record", "id": "proofs/lessons/record", "deepLink": "coherence/lessons/record" },
+    { "product": "proofs", "routeTab": "coherence", "section": "lessons", "view": "coverage", "label": "Coverage", "id": "proofs/lessons/coverage", "deepLink": "coherence/lessons" },
+    { "product": "proofs", "routeTab": "coherence", "section": "lessons", "view": "states", "label": "Episode states", "id": "proofs/lessons/states", "deepLink": "coherence/lessons/states" },
+    { "product": "diffusion", "routeTab": "diffusion", "section": "arm", "view": "absorption", "label": "Absorption", "id": "diffusion/arm/absorption", "deepLink": "diffusion/arm" },
+    { "product": "diffusion", "routeTab": "diffusion", "section": "arm", "view": "floor", "label": "Control", "id": "diffusion/arm/floor", "deepLink": "diffusion/arm/floor" },
+    { "product": "diffusion", "routeTab": "diffusion", "section": "arm", "view": "clocks", "label": "Clocks", "id": "diffusion/arm/clocks", "deepLink": "diffusion/arm/clocks" },
+    { "product": "diffusion", "routeTab": "diffusion", "section": "meetings", "view": "table", "label": "Meeting by meeting", "id": "diffusion/meetings/table", "deepLink": "diffusion/meetings" },
+    { "product": "diffusion", "routeTab": "diffusion", "section": "meetings", "view": "calendar", "label": "Calendar", "id": "diffusion/meetings/calendar", "deepLink": "diffusion/meetings/calendar" },
+    { "product": "diffusion", "routeTab": "diffusion", "section": "meetings", "view": "mechanism", "label": "Mechanism", "id": "diffusion/meetings/mechanism", "deepLink": "diffusion/meetings/mechanism" },
+    { "product": "diffusion", "routeTab": "diffusion", "section": "episodes", "view": "survival", "label": "Survival", "id": "diffusion/episodes/survival", "deepLink": "diffusion/episodes" },
+    { "product": "diffusion", "routeTab": "diffusion", "section": "episodes", "view": "episodes", "label": "Episodes", "id": "diffusion/episodes/episodes", "deepLink": "diffusion/episodes/episodes" },
+    { "product": "diffusion", "routeTab": "diffusion", "section": "model", "view": "measurement", "label": "Measurement", "id": "diffusion/model/measurement", "deepLink": "diffusion/model" },
+    { "product": "diffusion", "routeTab": "diffusion", "section": "instrument", "view": "instrument", "label": "Instrument", "id": "diffusion/instrument/instrument", "deepLink": "diffusion/instrument" },
+    { "product": "diffusion", "routeTab": "diffusion", "section": "sandbox", "view": "halflife", "label": "Half-life", "id": "diffusion/sandbox/halflife", "deepLink": "diffusion/sandbox" },
+    { "product": "diffusion", "routeTab": "diffusion", "section": "sandbox", "view": "simulator", "label": "Simulator", "id": "diffusion/sandbox/simulator", "deepLink": "diffusion/sandbox/simulator" },
+    { "product": "diffusion", "routeTab": "diffusion", "section": "sandbox", "view": "spectrum", "label": "Spectrum", "id": "diffusion/sandbox/spectrum", "deepLink": "diffusion/sandbox/spectrum" },
+    { "product": "diffusion", "routeTab": "diffusion", "section": "findings", "view": "plot", "label": "Effect plot", "id": "diffusion/findings/plot", "deepLink": "diffusion/findings" },
+    { "product": "diffusion", "routeTab": "diffusion", "section": "findings", "view": "table", "label": "Findings table", "id": "diffusion/findings/table", "deepLink": "diffusion/findings/table" },
+    { "product": "diffusion", "routeTab": "diffusion", "section": "findings", "view": "instrument", "label": "Instrument", "id": "diffusion/findings/instrument", "deepLink": "diffusion/findings/instrument" }
+  ],
+  "wordBaseline": {
+    "browserObserved": false,
+    "method": "source-static import-closure upper bound",
+    "phase0Tabs": {
+      "markets": { "sha256": "ace12b9ccdbd29949cea29e63139131957c99c0764f46592a18ae9815c010819", "strings": 1745, "words": 8592 },
+      "proofs": { "sha256": "f30a6cea80e3d72a265b0e7cb96f76eddf0ee2c0a7a6492e7ba4e16c43608a1a", "strings": 2034, "words": 14083 },
+      "diffusion": { "sha256": "c28a02f21976c56aa3b98c6d9c866b4f2813cf9e43f69b21c01b98edf58714eb", "strings": 1650, "words": 9818 }
+    },
+    "postUpgradeTabs": {
+      "markets": { "sha256": "230597ceeabccf4eb21cc5be7a1db720bc7ea48deccef1b6281eb98092852c35", "strings": 1954, "words": 9535 },
+      "proofs": { "sha256": "f7fb6a099b0bfa8aead8831c2e3524d805b3e19ea5bc99144e52984781eddc42", "strings": 2144, "words": 14429 },
+      "diffusion": { "sha256": "dd784a8c68928ad80c503aa3de21362035144244fde54b81f366c1debdfc0823", "strings": 1781, "words": 10302 }
+    },
+    "masterPlanTabs": {
+      "markets": { "sha256": "3757e5acf06a6a112c6ab26a9ec916d128bff1868bea21ae620bbf4c97c15ddd", "strings": 2360, "words": 10139 },
+      "proofs": { "sha256": "1d64c63b9ee154e8578ebc137c0e82dca5063a888db9cae4834f4969a0d18724", "strings": 2632, "words": 15671 },
+      "diffusion": { "sha256": "66ebbc0da0b6646853f230552a00fa8782254d024f0b0d7bbb5aac65e2528bab", "strings": 2159, "words": 10972 }
+    },
+    "request20260829Tabs": {
+      "markets": { "sha256": "6b06b552c3b6670d5b315fbc1e52c74fc36d6c4372af0aa6ddee95eca0e56191", "strings": 2653, "words": 10884 },
+      "proofs": { "sha256": "66ae0a8ef66b15ea403503ae27f32b16dfccdb2c60bb31cf9643b7c8c1d5a28d", "strings": 2782, "words": 16034 },
+      "diffusion": { "sha256": "fa5cbbd78c32ca61834c21df88643fccb3c7293f15421aa507e3f8e0be0ed3b1", "strings": 2163, "words": 10977 }
+    },
+    "request20260830Tabs": {
+      "markets": { "sha256": "91a0cac123598745457107551ba5dac3ce93092efef0c142dba5823913f8fe10", "strings": 2576, "words": 10445 },
+      "proofs": { "sha256": "87e50e17bf7e9357b6a8f3f20ea0d29297f4db0325eb0048310f3aee531de5a8", "strings": 2789, "words": 15872 },
+      "diffusion": { "sha256": "d7cae74df20eacd37fb30c44d4b04ade27e029cd3bdfcaa9ca3af17a34660768", "strings": 2118, "words": 10988 }
+    },
+    "runtimeIntegrity20260831Tabs": {
+      "markets": { "sha256": "12a7d7a9cb29e78102e95fe570a768047065a68cd5a8c751ab37b15f1559fb54", "strings": 2435, "words": 9624 },
+      "proofs": { "sha256": "ec64edeb2990587dbf37517fd6cd5837ee66e864421534d1be0d4822241446a9", "strings": 2853, "words": 16122 },
+      "diffusion": { "sha256": "e4b13f71689304424e71d75cdd143eefae7ba26b6d681bbc11855c2b0b2deb84", "strings": 1893, "words": 10485 }
+    },
+    "marketsVisualRepair20260831Tabs": {
+      "markets": { "sha256": "191cbef02d99431e34d1892de61f9c8e8846281761f6865515f5f651a3cdb50f", "strings": 2489, "words": 9804 },
+      "proofs": { "sha256": "ec64edeb2990587dbf37517fd6cd5837ee66e864421534d1be0d4822241446a9", "strings": 2853, "words": 16122 },
+      "diffusion": { "sha256": "e4b13f71689304424e71d75cdd143eefae7ba26b6d681bbc11855c2b0b2deb84", "strings": 1893, "words": 10485 }
+    },
+    "interfaceClarity20260831Tabs": {
+      "markets": { "sha256": "191cbef02d99431e34d1892de61f9c8e8846281761f6865515f5f651a3cdb50f", "strings": 2489, "words": 9804 },
+      "proofs": { "sha256": "c89d8bd337114f7d0c2928c42cb871eff1b2f9b1b2759ed5603f52cb8107b9dc", "strings": 2834, "words": 15932 },
+      "diffusion": { "sha256": "a7578a857035aaee47019c005bd7556143faf3ad090d81ebcb97c2f3515eacd4", "strings": 1889, "words": 10407 }
+    },
+    "frontendSweep20260831Tabs": {
+      "markets": { "sha256": "304b4b0b54f0dae406f2199223946e4558a0e18dbef71578a77522e3bf86e3ca", "strings": 2608, "words": 9987 },
+      "proofs": { "sha256": "d619d1dffa4f3e5b6b2e46d5b79956fd02d88a41f0ec0f5fb4c8a61ddac0f332", "strings": 2923, "words": 16266 },
+      "diffusion": { "sha256": "ccea658d38eb61446dee34e9e9e5a5da27ed2a16cba3a77230edcaea82f68e65", "strings": 1891, "words": 10416 }
+    },
+    "diagramGatewayRepair20260831Tabs": {
+      "markets": { "sha256": "da02b12d04775574540861ca31d4adb8e23d997a51477e619c179323dfe8d863", "strings": 2618, "words": 10067 },
+      "proofs": { "sha256": "13998ca9673651ac007e5c1da51966f6f529b8e2a6c713289ee7846800cc96fc", "strings": 2930, "words": 16327 },
+      "diffusion": { "sha256": "ccea658d38eb61446dee34e9e9e5a5da27ed2a16cba3a77230edcaea82f68e65", "strings": 1891, "words": 10416 }
+    },
+    "uiCorrection20260831Tabs": {
+      "markets": { "sha256": "a5e59a079860aa32f8cd5d0c6855f050976a3b9772f3160630ecf06acb45b2ac", "strings": 2622, "words": 10106 },
+      "proofs": { "sha256": "13998ca9673651ac007e5c1da51966f6f529b8e2a6c713289ee7846800cc96fc", "strings": 2930, "words": 16327 },
+      "diffusion": { "sha256": "e5cba74b4a9a46b83bfb7b0d3ad0ec9c8b4b0fccea5b8b1339f6d5515ac59afe", "strings": 1894, "words": 10419 }
+    },
+    "summaryCopy": {
+      "browserObserved": false,
+      "method": "source-derived summary-copy checks with product-specific scopes",
+      "tabs": {
+        "markets": { "scope": "eight Markets section lede properties", "baselineWords": 203 },
+        "proofs": { "scope": "twenty-nine Proofs route-ledger projections", "baselineWords": 2850 },
+        "diffusion": { "scope": "section-header properties across the Diffusion sources", "baselineWords": 340 }
+      }
+    }
+  },
+  "claimDefaults": {
+    "sourceVersion": "Expose source and payload revision.",
+    "sampleRule": "Expose current sample and required sample.",
+    "threshold": "Name the threshold or null hypothesis.",
+    "uncertainty": "Expose an interval, bound, or explicit withheld reason.",
+    "states": ["empty", "stale", "unavailable", "invalid"],
+    "exactAlternative": "Provide an exact-value table or inspector.",
+    "conclusionLimitations": "State the conclusion and its limitation.",
+    "delivery": "Preserve the deep link and define export behaviour."
+  },
+  "claimSections": {
+    "markets/universe": { "decisionQuestion": "Which contracts are executable and current?", "requiredTerms": ["executable universe", "mapping completeness", "timestamp skew"], "formulae": ["coverage = mapped eligible contracts / eligible contracts"], "unitTimeBasis": "contracts, families, milliseconds" },
+    "markets/settlement": { "decisionQuestion": "What pays, from which authority, and when?", "requiredTerms": ["settlement authority", "cutoff", "state equivalence"], "formulae": ["payoff = published settlement-state indicator"], "unitTimeBasis": "index level, event time, settlement time" },
+    "markets/books": { "decisionQuestion": "What price and depth are executable now?", "requiredTerms": ["executable bid/ask", "depth imbalance", "stale-book refusal"], "formulae": ["imbalance = (bid depth - ask depth) / total depth"], "unitTimeBasis": "price, contracts, basis points, milliseconds" },
+    "markets/dispersion": { "decisionQuestion": "How do independent makers disagree?", "requiredTerms": ["quote dispersion", "quote persistence", "adverse selection"], "formulae": ["dispersion = maker quote deviation from consensus"], "unitTimeBasis": "probability points, basis points, seconds" },
+    "markets/lattice": { "decisionQuestion": "What state measure do the quotes imply?", "requiredTerms": ["probability mass function", "state lattice", "negative mass"], "formulae": ["state mass = adjacent survival-price difference"], "unitTimeBasis": "probability mass by mutually exclusive state" },
+    "markets/stake": { "decisionQuestion": "What stake survives costs and drawdown constraints?", "requiredTerms": ["Kelly fraction", "shrinkage", "bankroll constraint"], "formulae": ["maximise expected log wealth subject to capital bounds"], "unitTimeBasis": "fraction of bankroll, currency, horizon" },
+    "markets/fees": { "decisionQuestion": "What move clears the complete cost stack?", "requiredTerms": ["exchange fee", "spread", "slippage"], "formulae": ["all-in cost = fee + spread + slippage + financing"], "unitTimeBasis": "currency and basis points per trade" },
+    "markets/shell": { "decisionQuestion": "Can this market read be reproduced?", "requiredTerms": ["request parameters", "provider cache", "trace"], "formulae": ["result identity = inputs + provider revision + observed time"], "unitTimeBasis": "paths, payload bytes, timestamps" },
+    "proofs/certificate": { "decisionQuestion": "Do executable prices admit a probability measure?", "requiredTerms": ["LP feasibility", "primal witness", "dual certificate"], "formulae": ["find p >= 0 such that A p matches executable prices"], "unitTimeBasis": "probability, currency, solver tolerance" },
+    "proofs/portfolio": { "decisionQuestion": "What state-complete basket witnesses the result?", "requiredTerms": ["state-complete basket", "payout vector", "executable cost"], "formulae": ["basket payout = A transpose times position vector"], "unitTimeBasis": "contracts, currency, payout by state" },
+    "proofs/combos": { "decisionQuestion": "Are parlay prices compatible with their legs?", "requiredTerms": ["Fréchet–Hoeffding bounds", "joint probability", "leg dependence"], "formulae": ["max(0, sum p_i - n + 1) <= joint p <= min p_i"], "unitTimeBasis": "probability and price per parlay" },
+    "proofs/index": { "decisionQuestion": "How far are quotes from the coherent set?", "requiredTerms": ["coherence index", "normalised distance", "family contribution"], "formulae": ["index = distance to nearest feasible price vector"], "unitTimeBasis": "normalised distance per poll" },
+    "proofs/calibration": { "decisionQuestion": "Did quoted probabilities match settled outcomes?", "requiredTerms": ["Brier score", "calibration", "resolution"], "formulae": ["Brier = mean squared probability error"], "unitTimeBasis": "score and probability by settled horizon" },
+    "proofs/corpus": { "decisionQuestion": "What evidence supports the score?", "requiredTerms": ["market-family coverage", "settlement provenance", "freshness"], "formulae": ["coverage = represented eligible episodes / eligible episodes"], "unitTimeBasis": "episodes, families, timestamps" },
+    "proofs/lessons": { "decisionQuestion": "Which engine claims have a shipped guard?", "requiredTerms": ["curriculum coverage", "guard test", "uncovered section"], "formulae": ["coverage = guarded engine sections / engine sections"], "unitTimeBasis": "lessons and engine sections" },
+    "diffusion/arm": { "decisionQuestion": "How much of the move arrived by each horizon?", "requiredTerms": ["absorption", "matched control", "noise floor"], "formulae": ["absorption = event return / terminal event return"], "unitTimeBasis": "basis points by event-time horizon" },
+    "diffusion/meetings": { "decisionQuestion": "How does absorption vary by decision meeting?", "requiredTerms": ["half-life", "two-stage window", "leave-one-meeting-out"], "formulae": ["half-life = first horizon reaching fifty percent absorption"], "unitTimeBasis": "minutes and basis points by meeting" },
+    "diffusion/episodes": { "decisionQuestion": "How long does a published mispricing survive?", "requiredTerms": ["survival curve", "closed episode", "median lifetime"], "formulae": ["survival(t) = episodes open after t / episodes at risk"], "unitTimeBasis": "seconds and closed episodes" },
+    "diffusion/model": { "decisionQuestion": "What does the path estimator compute?", "requiredTerms": ["estimator", "terminal move", "control percentile"], "formulae": ["path statistic = horizon return relative to terminal return"], "unitTimeBasis": "returns, basis points, event time" },
+    "diffusion/instrument": { "decisionQuestion": "Which clock and information measure identify absorption?", "requiredTerms": ["volatility clock", "mutual information", "MMSE"], "formulae": ["information spectrum = dependence by transformed clock"], "unitTimeBasis": "clock quantile, bits, error" },
+    "diffusion/sandbox": { "decisionQuestion": "How does the estimator react under controlled inputs?", "requiredTerms": ["half-life", "simulation", "refusal region"], "formulae": ["simulated absorption follows selected path and noise parameters"], "unitTimeBasis": "minutes, basis points, simulation draws" },
+    "diffusion/findings": { "decisionQuestion": "Which tested relationship is supported?", "requiredTerms": ["effect estimate", "R-squared", "instrument strength"], "formulae": ["effect and fit are estimated on the recorded study sample"], "unitTimeBasis": "effect unit, confidence interval, observations" }
+  }
+}
