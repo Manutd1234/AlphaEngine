@@ -1,13 +1,10 @@
 # AlphaEngine - All In One Quant Infrastructure
 
-*Updated 2026-08-24. Every count, path and version below was read off this tree
-or off a runner's own output on that date, and the command that produced it is
-quoted beside it. Measurements taken on other hardware — the production VM's
-latency, the regenerated decision bench — keep their own earlier dates, because
-restamping a reading nobody re-took would be a claim rather than a measurement.
-Where a figure is one CI actually gates, this file says so; where it is a dated
-record CI does **not** check, it says that too, because the two are not the same
-kind of number.*
+**Last verified: 2026-08-29.** Current topology, contract, dependency and test
+facts are centralised in [`docs/CURRENT_STATE.md`](docs/CURRENT_STATE.md).
+Measurements taken on other hardware — production latency, deployment probes
+and historical benchmarks — keep the dates on which they were actually
+observed; a documentation release does not restamp them as new evidence.
 
 Two parts, in two directories. Start with whichever question you came for.
 
@@ -35,21 +32,22 @@ Two parts, in two directories. Start with whichever question you came for.
   everything offline. `web/lib/test-counts.generated.ts` is the dated record the desk displays; CI
   checks only its **web** line, so run the suites rather than reading its gateway line.
 
-**The headline numbers, measured 2026-08-24:** **3,039 gateway + 4,730 web + 24 service tests**, none
-needing a network. That gateway figure is the run with the optional cross-encoder weights seeded
-(3,039 passed, 1 skipped); CI seeds nothing, so its run collects fewer items and reports two skips
-instead of one. Both are green, both are correct, and
-[`CLAUDE.md`](CLAUDE.md) holds the arithmetic that reconciles them rather than picking a favourite —
-`pytest -rs` prints the two reasons on any machine. Then: 17 pre-trade gates, 15 of which any order
+**The headline numbers, measured 2026-08-29:** **3,255 gateway + 6,519 web + 24 service tests**, none
+needing a network. The gateway run reported 3,254 passed and 1 skipped; the final web run reported
+6,513 passed, 6 skipped and 0 failed across 1,408 suites. The generated display contract is
+`Part2_Infrastructure/web/lib/test-counts.generated.ts`; the ledger records the exact measurement
+boundary. The separate Playwright release audit passed **872/872 rendered geometry states**
+(109 addressable states × 8 viewports) with no layout failures or console errors. Then: 17
+pre-trade gates, 15 of which any order
 can reach and 2 of which fire only for paper-equity orders, decided in **13.2 µs** p50 on the
 compiled engine against 25.3 µs on the Python reference, with the arithmetic core at 83 ns (dev Mac,
 `tools/bench_decision.py`, regenerated 2026-08-20 into
 `docs/architecture/latency-bench.generated.json`; ~320 ns p50 on the production VM, read off
-`/metrics` on 2026-08-17); 20/20 gate-parity scenarios bit-exact across both engines; **136 Telegram
-commands** from one generated catalogue; and **73 OpenAPI paths carrying 76 operations**
+`/metrics` on 2026-08-17); 20/20 gate-parity scenarios bit-exact across both engines; **138 Telegram
+commands** from one generated catalogue; and **76 OpenAPI paths carrying 79 HTTP operations**
 (`tools/openapi.json`, OpenAPI 3.1.0), with the committed contract's canonical-JSON SHA-256
-re-verified on 2026-08-24 (`node web/scripts/check-gateway-openapi-digest.mjs`, digest
-`3379dbca…`). The deployed gateway's live `/openapi.json` was last compared against that contract on
+re-verified on 2026-08-29 (`node web/scripts/check-gateway-openapi-digest.mjs`, digest
+`12b53e1f…`). The deployed gateway's live `/openapi.json` was last compared against that contract on
 2026-08-17 and has not been re-probed since; that comparison needs the running host, so it is not
 part of the offline verify block.
 
@@ -88,39 +86,35 @@ the number, which moves. The table above explains *why* each path is where it is
 ```
 ├── README.md · SETUP.md · CLAUDE.md      this file; the running instructions; the agent notes
 ├── docs/                                 architecture · engineering · planning · product ·
-│                                         testing · whitepaper (Typst source, 83 pages)
+│                                         testing · whitepaper (Typst source; compiled separately)
 ├── tools/bundle_migrations.py            regenerates supabase/apply_all.generated.sql
 ├── docker-compose.yml                    one-command always-on gateway (one service, host 8000)
 ├── .github/workflows/                    ci · deploy (gateway CD) · e2e · schema · two keepalives
 ├── Part1_Data_Handling/                  the notebook (ipynb + executed HTML), its builder, its README
-├── Part2_Infrastructure/                 1,741 tracked files — the platform
-│   ├── main.py · config.py · modules/    the FastAPI risk gateway, 316 files. The 17-gate battery
+├── Part2_Infrastructure/                 the platform and its three runtime units
+│   ├── main.py · config.py · modules/    the FastAPI risk gateway. The 17-gate battery
 │   │                                     is the modules/risk_proxy/ package, the audit log
 │   │                                     modules/audit/, the routes twelve routers in modules/api/
 │   ├── native/decision_core/             the C++ (pybind11) decision core — bit-exact vs Python
-│   ├── tests/                            the gateway pytest suite (185 test_*.py files)
+│   ├── tests/                            the gateway pytest suite
 │   ├── tools/                            fixture generators, OpenAPI export, probes, the Telegram
 │   │                                     catalogue, four benches (decision, core ticks, re-rank,
 │   │                                     image retrieval)
 │   ├── docker/                           the two-stage gateway image (builder compiles the core)
 │   ├── docs/                             RUNBOOK · GRAPH_RECALL · REFACTOR_RULES · telegram checklist
 │   ├── notebooks/coherence_lab/          14 lesson notebooks behind the Proofs tab's curriculum
-│   ├── web/                              the Next.js desk (1,054 tracked files: app/ · components/ ·
-│   │                                     lib/ · 318 `.test.ts` FILES in the tree, which the
-│   │                                     runner reports as 1,028 suites — different units)
+│   ├── web/                              the Next.js desk: app/ · components/ · lib/ · tests/
 │   ├── OpenBB_Service/                   the stateless research service (own pyproject, 24 tests)
 │   ├── developer-console/                experimental; not a deployment unit, not assessed
 │   └── templates/                        the gateway's single-file console
-├── supabase/                             37 migrations, seed, 2 edge functions, one generated
+├── supabase/                             41 migrations, seed, 2 edge functions, one generated
 │                                         bundle — the Postgres mirror + the research corpus
 └── oracle/                               plain DDL: schema, in-DB Monte Carlo VaR, least-privilege user
 ```
 
-Those per-directory figures are `git ls-files <dir> | wc -l` on 2026-08-24, and the test-file counts
-are `ls` over the tree, so they include the files git has not been told about yet. They roughly
-doubled over the preceding fortnight; an earlier draft of this map quoted 1,127 / 612 / 468 and then
-1,413 / 1,331 / 875, which is what a file count does if nobody re-runs it. **The gate, not the number,
-is the thing to trust:** `npm run build` refuses to start until
+The volatile file count lives in the generated catalogue, not this prose. On
+2026-08-29 it contained 2,283 paths. **The gate, not a copied number, is the
+thing to trust:** `npm run build` refuses to start until
 `web/lib/repository-manifest.generated.json` lists the same files `git ls-files` does, so a stale
 count is caught at `prebuild` rather than believed.
 
@@ -164,7 +158,7 @@ text rather than buried in cell JSON.
 > *One engine, two implementations, one test that proves it.*
 
 An always-on FastAPI gateway, a Next.js desk workspace, a stateless research
-microservice, and a Telegram companion (136 commands, inline keyboards, in-place
+microservice, and a Telegram companion (138 commands, inline keyboards, in-place
 card edits, 16 chart generators) — sharing one append-only audit log. The
 command count is generated from the registry by `tools/telegram_catalogue.py`
 and re-checked inside the gateway suite (`tests/test_telegram_docs.py` runs
@@ -215,30 +209,31 @@ still retrieves and simply reports `verdict=refused` with the reason, and
 *Who this is for* section opens with a coverage matrix: each role's question,
 where it is answered, and what is honestly still missing. Researchers, traders,
 portfolio managers, risk managers, data engineers, SREs and developers each have
-surfaces, and all of them reconcile to the same rows. The desk is **ten tabs**
-— those seven roles, an overview that launches into them, and **Quotes** and
-**Proofs**, the two halves of the prediction-market engine described below —
-across **57 rail sections**, every id
+surfaces, and all of them reconcile to the same rows. The desk is **eleven tabs**
+— Overview, seven role workspaces, and the **Markets**, **Proofs** and
+**Diffusion** quant-engine workspaces — across **70 addressable rail sections**, every id
 a public deep link declared once in
 [`web/lib/sections.ts`](Part2_Infrastructure/web/lib/sections.ts).
 
-**Quotes and Proofs — a venue's quotes, and what follows from them.** A contract
+**Markets, Proofs and Diffusion — price formation, coherence and information
+absorption.** A contract
 paying $1 if an event happens is a probability with a price on it. This engine
 reads Kalshi live, records whole bid ladders rather than prices, and tests
 whether a family of those prices admits a probability measure at all; where it
 does not, the failure hands back a portfolio that wins in every state. It places
-no orders, and the header says so. Two tabs, because the reading and the
-argument about the reading are different questions: **Quotes** carries Universe
-· Books · Lattice · Fees · Shell and **Proofs** carries Dutch book · Scorecard ·
-Diffusion · Lessons, read out of
+no orders, and the header says so. Three tabs separate the live market state,
+the mathematical verdict and the event-study workflow: **Markets** carries
+Universe · Books · Lattice · Fees · Shell · Settlement · Stake · Makers;
+**Proofs** carries Coherence test · Basket · Parlays · Coherence index ·
+Scorecard · Corpus · Lessons; and **Diffusion** carries the event, instrument,
+model and findings workflow. Together they expose 64 in-pane views (23 / 25 /
+16), read out of
 [`components/MarketsConsole.tsx`](Part2_Infrastructure/web/components/MarketsConsole.tsx)
-and
-[`components/CoherenceConsole.tsx`](Part2_Infrastructure/web/components/CoherenceConsole.tsx).
-The tab **ids** are `markets` and `coherence` and did not change when the labels
-did, so every `#coherence/<section>` link ever published still resolves. Each of
-the nine sections splits its content across an in-pane view switcher; on
-2026-08-24 the opposite was tried for a day, and promoting every subject to its
-own rail entry produced seventeen sections that no reader could hold.
+[`components/CoherenceConsole.tsx`](Part2_Infrastructure/web/components/CoherenceConsole.tsx)
+and [`components/DiffusionConsole.tsx`](Part2_Infrastructure/web/components/DiffusionConsole.tsx).
+The stable tab ids are `markets`, `coherence` and `diffusion`; older
+`#coherence/<section>` links therefore continue to resolve after the display
+label changed to Proofs.
 
 **One result on Proofs is a null, and it is stated as one.** The Information
 Diffusion study asks whether the text of an FOMC statement predicts how fast the
@@ -285,10 +280,10 @@ ladder in its §2.3, run on a quiet machine, reads 12.4 / 23.1 µs. Neither is w
 **→ [`docs/whitepaper/`](docs/whitepaper/)** — the institutional whitepaper: Typst source, six
 chapters, one per audience cluster: topology; researcher and PM; risk and trader; data, SRE and
 developer; mathematical foundations; infrastructure and telemetry. Build it with
-`typst compile docs/whitepaper/main.typ AlphaEngine_Institutional_Whitepaper.pdf`; that command
-produced 83 A4 pages on 2026-08-22. NOT BUILT IN CI: `.gitignore` excludes `*.pdf`, so no PDF is
-committed, `typst` is in no requirements file, and no workflow compiles it — a broken chapter is
-caught by whoever next runs the command.
+`typst compile docs/whitepaper/main.typ docs/whitepaper/AlphaEngine_Institutional_Whitepaper.pdf`.
+The 2026-08-29 documentation release recompiles and visually verifies the PDF,
+but it remains outside CI and `*.pdf` remains ignored; source is the versioned
+authority.
 
 **→ [`.claude/skills/`](.claude/skills/)** — three Claude Code skills,
 `/start-alpha-engine`, `/tour` and `/verify`, described in
@@ -296,7 +291,7 @@ caught by whoever next runs the command.
 
 ## Tech Stack
 
-Versions re-read on 2026-08-24 from `web/package-lock.json` and the gateway
+Versions re-read on 2026-08-29 from `web/package-lock.json` and the gateway
 virtualenv that CI mirrors (Python 3.12.14). Managed services carry their own
 earlier dates where they were not re-probed. Full detail — every dependency's
 *why*, the API-key table and the per-layer argument — is in
@@ -311,9 +306,9 @@ states what its absence looks like.
 | Component | Version | Role |
 |---|---|---|
 | **[Next.js](https://nextjs.org)** | `16.3.0` | App Router + Turbopack on Vercel (`sin1`); the browser bundle ships zero backend credentials. |
-| **[React](https://react.dev)** | `19.2.8` | One workspace, **ten** URL-addressable role tabs over 57 rail sections. |
+| **[React](https://react.dev)** | `19.2.8` | One workspace, **eleven** URL-addressable tabs over 70 rail sections. |
 | **[TypeScript](https://www.typescriptlang.org)** | `5.9.3` | Strict mode, shared contract types generated from the gateway's own OpenAPI (`lib/gateway-contract.generated.ts`). |
-| **[Tailwind CSS](https://tailwindcss.com)** | `4.3.3` | Utilities over a hand-written token system with a test-enforced AA contrast contract. Charts are hand-rolled SVG — no chart library. |
+| **[Tailwind CSS](https://tailwindcss.com)** | `4.3.3` | Utilities over a source-owned token system with a test-enforced contrast contract; analytical instruments are purpose-built React/SVG/HTML, not a chart-library skin. |
 | **[Lucide](https://lucide.dev)** | `1.28.0` | The only icon dependency. |
 
 **Neo4j on the frontend: nothing here reads it, and that is the honest answer.**
@@ -327,7 +322,7 @@ read model, never a browser dependency.
 | Component | Version | Role |
 |---|---|---|
 | **[Python](https://www.python.org)** | `3.12.14` | The gateway runtime (`python:3.12-slim`, two-stage image; the builder stage compiles the decision core). |
-| **[FastAPI](https://fastapi.tiangolo.com)** | `0.141.1` | **73 documented paths carrying 76 operations**, behind a committed OpenAPI 3.1.0 contract. 77 `@router.*` decorators live across **twelve** routers in `modules/api/` (audit 4, coherence 5, coherence_history 3, coherence_lab 7, data 11, diffusion 4, meta 5, ml 3, research 15, risk 14, tca 3, telegram 3); one of those is the `/ws/book/{symbol}` WebSocket, which OpenAPI does not describe, and `main.py` adds three `include_in_schema=False` HTML console aliases. `main.py`'s own docstring still says "fifty-two routes" and is stale — the contract file is the count to trust. |
+| **[FastAPI](https://fastapi.tiangolo.com)** | `0.141.1` | **76 documented paths carrying 79 HTTP operations**, behind the committed OpenAPI 3.1 contract. `tools/openapi.json` and its canonical digest are the count and compatibility authorities; the market-book WebSocket and schema-hidden console aliases are deliberately outside that HTTP operation count. |
 | **[Uvicorn](https://www.uvicorn.org)** | `0.52.3` | One stateful process by design — in-memory book + kill switch. `tests/test_container_contract.py` fails the build if `--workers` or `gunicorn` appears in the committed image. |
 | **[Pydantic](https://docs.pydantic.dev)** | `2.13.4` | Every payload; the models live in six `modules/schemas_*.py` files behind one façade. |
 | **[NumPy](https://numpy.org)** | `2.5.2` | Reference engine for TCA, risk and backtesting. |
@@ -347,8 +342,8 @@ four being up.
 | Component | Version | Role, and what happens when it is absent |
 |---|---|---|
 | **[DuckDB](https://duckdb.org)** | `1.5.5` | **Authoritative.** The embedded append-only audit ledger ([`modules/audit/store.py`](Part2_Infrastructure/modules/audit/store.py)) — every order, risk decision, TCA snapshot and backtest run, on a named Docker volume. Not importable → SQLite fallback, `backend: "sqlite"`. **Locked by another live process → `AuditLedgerConflict` is raised and never fallen back from**, because a second process writing a private divergent history is the worst thing this subsystem could do. A second DuckDB file, `coherence.duckdb`, holds the Kalshi book tape ([`modules/coherence/fs/store.py`](Part2_Infrastructure/modules/coherence/fs/store.py)) and is append-only for the same reason. |
-| **SQLite** | stdlib, 3.12 | The data-ops store ([`modules/data_ops_store.py`](Part2_Infrastructure/modules/data_ops_store.py)): quality findings, escalations, work items, schedule runs. Deliberately *not* a table in DuckDB — this is state a person just edited, so it needs a write that **raises** and an UPDATE that reports whether it hit a row. `PRAGMA busy_timeout=30000`, one process-wide open. |
-| **[PostgreSQL](https://www.postgresql.org)** / **[Supabase](https://supabase.com)** | `17.6` / managed | The durable mirror **and** the authoritative home of the research corpus: 37 ordered migrations, two edge functions, RLS deny-by-default. Never a second decision-maker. Absent → `search` and `connected` return a typed `unavailable` **state**, never `[]`, because "searched and found nothing" and "could not search" render differently. |
+| **SQLite** | stdlib, 3.12 | The complete default data-ops store ([`modules/data_ops_store.py`](Part2_Infrastructure/modules/data_ops_store.py)): quality findings, escalations, work items, schedule runs and four Diffusion ledgers. Deliberately *not* a table in DuckDB — this is state a person just edited, so it needs a write that **raises** and an UPDATE that reports whether it hit a row. `PRAGMA busy_timeout=30000`, one process-wide open. The opt-in PostgREST backend mirrors all eight logical tables after schema deployment; [`DATA_OPS_BACKEND.md`](docs/architecture/DATA_OPS_BACKEND.md) records the boundary. |
+| **[PostgreSQL](https://www.postgresql.org)** / **[Supabase](https://supabase.com)** | `17.6` / managed | The durable mirror **and** the authoritative home of the research corpus: 40 ordered migrations, two edge functions, RLS deny-by-default. Never a second decision-maker. Absent → `search` and `connected` return a typed `unavailable` **state**, never `[]`, because "searched and found nothing" and "could not search" render differently. |
 | **[pgvector](https://github.com/pgvector/pgvector)** | `0.8.2` | 384-dim HNSW cosine index over `research_documents` (`gte-small`, served by a Supabase Edge Function — no key, no weights in the image). A separate 512-dim CLIP `image_embedding` column sits beside it and is empty on a default deployment, because two models are two coordinate systems and must never share one column. |
 | **[Neo4j Aura](https://neo4j.com/cloud/aura/)** | driver `5.28.4`, *optional* | A **one-way, rebuildable projection** of the Postgres `research_edges` table — nothing else writes there, asserted by `tests/test_research_graph_projection.py`. Exactly **two** routes read it back, `GET /api/research/graph/communities` and `/centrality`, and both mark `source: "neo4j" \| "corpus"`. Three refusals stay distinguishable — not configured, sweep has not run, mid-rebuild — and a writer may not read its own output. **GDS is not on Aura Free**, so Louvain and PageRank run in-process via networkx ([`modules/research_communities.py`](Part2_Infrastructure/modules/research_communities.py)); request-time traversal is a Postgres recursive CTE capped at depth 4. Drop the graph and re-project: **no request path depends on it being up.** |
 | **[Oracle Autonomous DB](https://www.oracle.com/autonomous-database/)** | managed, *optional* | Authoritative for **nothing**. Runs one thing: a GBM terminal-value VaR as an in-database procedure ([`oracle/`](oracle/)), reached from the web tier through node-oracledb **thin** mode over walletless TLS (`poolMin: 0`, `poolMax: 2` — Vercel scales lambdas independently and a low ADB session limit is the difference between graceful queueing and `ORA-12516`). Absent → a typed result carrying `oracle_not_configured`, never a throw and never a credential in the message. |
@@ -415,7 +410,7 @@ them twice.
 | **[Docker](https://www.docker.com)** | `29.7.2` | Two-stage `python:3.12-slim` image, non-root uid 10001, stdlib health probe (python:slim ships no curl), port 8000 fixed in EXPOSE/HEALTHCHECK/CMD. The compose file declares one service and a **named volume** — a bind mount arrives owned by the host user and uid 10001 cannot write it, which silently degrades DuckDB to an unwritable SQLite fallback. `stop_grace_period: 20s`, because the lifespan writes a final `gateway_stop` event on SIGTERM and the 10 s default risks a stranded `.duckdb.wal`. |
 | **[Caddy](https://caddyserver.com)** | `2-alpine` | TLS on `:8443` with a **pinned internal CA** — a bare IP gets no public issuance, and the single client that matters pins the root instead ([`docs/engineering/TLS_FLIP.md`](docs/engineering/TLS_FLIP.md)). |
 | **[Oracle Cloud](https://www.oracle.com/cloud/)** | managed | Always-on host, Singapore. The region is load-bearing, not cosmetic: from US egress Binance returns 451 and Bybit 403. |
-| **[Vercel](https://vercel.com)** | managed | Two serverless projects from one repo with different Root Directories, region `sin1`; builds are Ed25519-attested against a trust root pinned in reviewed source. |
+| **[Vercel](https://vercel.com)** | managed | Two serverless projects from one repo with different Root Directories. `Part2_Infrastructure/web/vercel.json` pins the workspace to `sin1`; the OpenBB service's committed `vercel.json` declares no region. Builds are Ed25519-attested against a trust root pinned in reviewed source. |
 | **[GitHub Actions](https://github.com/features/actions)** | managed | **Six workflows.** `ci.yml` runs four **network-free** jobs on every push and every pull request — `gateway` (ruff → native-core build → pytest → `export_openapi.py --check` → the money-path probe), `openbb-service`, `web` (`npm ci` → tests → the committed web test-count check → typecheck → build) and `repo-audit` (`check_repo_complete.sh --fast`, which builds an export of HEAD rather than the working tree). Two more never gate a push: `live-smoke` (`workflow_dispatch` only, because it needs live Oracle and Supabase secrets) and `rerank-real` (`workflow_dispatch` or a `rerank` label; it seeds and caches the 1.05 GiB cross-encoder weights, runs that suite offline, and **fails if it skips**). `deploy.yml` ships the gateway on pushes that touch `Part2_Infrastructure/**` minus `web/**` and `OpenBB_Service/**`: verify → build → GHCR → SSH swap preserving the volume → probe → roll back, with a warning if the container came up on the Python engine. `e2e.yml` smokes the live deployments twice daily (`23 6,18 * * *`) and **never on push** — a venue outage is not a reason to block a code change. `openbb-keepalive.yml` pings every ten minutes (a Vercel function stays warm 5–15 min; Hobby crons run once a day); `oracle-keepalive.yml` runs daily at 02:17 because a free ADB stops itself after seven idle days. `schema.yml` is **`workflow_dispatch` only** — DDL that rides a code deploy is how a table gets altered by someone shipping a CSS change. |
 
 **Three committed generated artefacts cascade from one schema change**, and this
@@ -442,21 +437,22 @@ From a tree that is already set up:
 
 ```bash
 cd Part2_Infrastructure
-venv/bin/python -m pytest                            # 3,039 passed, 1 skipped (weights seeded)
+venv/bin/python -m pytest                            # 3,254 passed, 1 skipped; 3,255 total
 venv/bin/python tools/synthetic_probe.py             # book → cost → risk gate → audit; 6/6 steps
-(cd web && npm test)                                 # 4,728 passed, 2 skipped, 1,028 suites
+(cd web && npm test)                                 # 6,513 passed, 6 skipped; 1,408 suites
 (cd OpenBB_Service && ../venv/bin/python -m pytest)  # 24 passed
 ```
 
 Those commands *are* the source of the three numbers — each figure is the count
-its own runner printed on 2026-08-24 (`pytest`'s summary line; `node --test`'s
+its own runner printed on 2026-08-29 (`pytest`'s summary line; `node --test`'s
 `ℹ pass`). The desk displays them from `web/lib/test-counts.generated.ts`, which
 `npm run counts:refresh` regenerates. **Read that file carefully even when it is
 fresh:** CI checks only its **web** line, via
 `node scripts/check-test-counts.mjs web <log>`, so the gateway line in it is a
-dated record and not a gate. Refreshed 2026-08-24 in the **CI shape** to 3,033
-(3,031 passed, 2 skipped); a weights-seeded machine prints 3,040 (3,039 passed,
-1 skipped), and that eight-test gap is the seeding rather than staleness.
+dated record and not a gate. The 2026-08-29 generator run used the repository's
+current local verification environment; run `pytest -rs` to read the name and
+reason of any environment-dependent skip instead of inferring it from a stale
+historical total.
 
 **Two green gateway numbers, and the difference is opt-in, not drift.** Two
 files in the suite skip with a named reason rather than pretending they ran:
@@ -478,9 +474,8 @@ suite's `conftest.py` defends with `setdefault` — beaten by an exported variab
 — and around 80 route tests then fail with 401 for a reason none of them states.
 Pass one variable per run instead.
 
-Re-run these rather than trusting this section: a test count quoted from memory
-goes stale the week after it is written — this one did, by 851 gateway tests
-between 2026-08-22 and 2026-08-24. The suite also needs the native core built
+Re-run these rather than trusting this section: a copied test count is only a
+dated release record. The suite also needs the native core built
 (`venv/bin/python native/decision_core/setup.py build_ext --inplace --build-temp build/native`,
 after `pip install -r requirements-native.txt`); the parity suites fail rather
 than skip without it, because a broken build has to turn CI red.
@@ -502,6 +497,7 @@ committed-tree guard and the money-path probe on every push.
 | The desk workspace's own README | [`Part2_Infrastructure/web/README.md`](Part2_Infrastructure/web/README.md) |
 | The stateless research service | [`Part2_Infrastructure/OpenBB_Service/README.md`](Part2_Infrastructure/OpenBB_Service/README.md) |
 | The documentation index | [`docs/README.md`](docs/README.md) |
+| Current architecture, versions and measured counts | [`docs/CURRENT_STATE.md`](docs/CURRENT_STATE.md) |
 | The things an agent otherwise gets wrong | [`CLAUDE.md`](CLAUDE.md) |
 
 ### Every document under `docs/`
@@ -516,7 +512,8 @@ Described one line each, and indexed in full — with what each is *for* — in
 | [`docs/architecture/UML_DIAGRAMS.md`](docs/architecture/UML_DIAGRAMS.md) | Class and sequence diagrams; every member drawn exists in the named source file. |
 | [`docs/architecture/LATENCY_BUDGET.md`](docs/architecture/LATENCY_BUDGET.md) | Every latency number the desk claims, with the method and the machine stated. |
 | [`docs/architecture/latency-bench.generated.json`](docs/architecture/latency-bench.generated.json) | The generated bench data behind that budget's §2.1 table. Regenerated, never edited. |
-| [`docs/architecture/DATA_OPS_BACKEND.md`](docs/architecture/DATA_OPS_BACKEND.md) | The four tables the gateway must not forget across a restart, and where they live. |
+| [`docs/architecture/DATA_OPS_BACKEND.md`](docs/architecture/DATA_OPS_BACKEND.md) | The four operational tables and four Diffusion ledgers the gateway must not forget across a restart, plus the exact SQLite/Postgres compatibility boundary. |
+| [`docs/CURRENT_STATE.md`](docs/CURRENT_STATE.md) | The 2026-08-29 release ledger for topology, versions, contracts, generated artefacts and test evidence. |
 | [`docs/engineering/CODING_STANDARDS.md`](docs/engineering/CODING_STANDARDS.md) | The house rules, almost every one enforced by a named test rather than by review. |
 | [`docs/engineering/TLS_FLIP.md`](docs/engineering/TLS_FLIP.md) | Moving the web-to-gateway hop to HTTPS behind a pinned internal CA, and why pinning beats public PKI for one client. |
 | [`docs/planning/PRD.md`](docs/planning/PRD.md) | The enterprise RAG requirement and the delivery record: built, substituted with an argument, or NOT BUILT with the reason. |
@@ -524,9 +521,9 @@ Described one line each, and indexed in full — with what each is *for* — in
 | [`docs/planning/TECH_STACK.md`](docs/planning/TECH_STACK.md) | The stack layer by layer, versions read from the tree. |
 | [`docs/planning/WORKFLOW.md`](docs/planning/WORKFLOW.md) | How to work on AlphaEngine without losing an hour to a trap somebody already fell into. |
 | [`docs/product/PRODUCT_GUIDE.md`](docs/product/PRODUCT_GUIDE.md) | What each tab is for, what a number on screen is allowed to be, what a click may change. |
-| [`docs/product/FEATURE_TOUR.md`](docs/product/FEATURE_TOUR.md) | The guided walkthrough of all ten tabs, pinned to `lib/sections.ts` by a test. |
+| [`docs/product/FEATURE_TOUR.md`](docs/product/FEATURE_TOUR.md) | The guided walkthrough of all eleven tabs, pinned to `lib/sections.ts` by a test. |
 | [`docs/testing/TESTING.md`](docs/testing/TESTING.md) | The testing philosophy — and the one document in `docs/` allowed to discuss test counts. |
-| [`docs/whitepaper/`](docs/whitepaper/) | The institutional whitepaper: Typst source, six chapters. No PDF is committed (`*.pdf` is gitignored). |
+| [`docs/whitepaper/`](docs/whitepaper/) | The institutional whitepaper: six versioned Typst chapters and a 2026-08-29 locally compiled, visually verified release PDF. PDFs remain gitignored; source is authoritative. |
 
 Operational documents live beside the code they operate, in
 [`Part2_Infrastructure/docs/`](Part2_Infrastructure/docs/):
