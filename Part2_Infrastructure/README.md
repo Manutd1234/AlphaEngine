@@ -1,10 +1,11 @@
 # AlphaEngine Trading Automation — NUSSIF Developer Analyst Case Study (Part 2)
 
-*Updated 2026-08-24, and every count below re-measured that day against the
-working tree rather than carried forward. Counts, versions and measurements are
-what the tree, the runners and the deployed gateway reported on that date,
-except where a figure names its own earlier measurement date. Three blocks here
-are generated rather than typed: §6's command tables
+**Source/worktree audited: 2026-08-31.** Current topology, locked/runtime
+versions, contract counts and release evidence are centralised in
+[`../docs/CURRENT_STATE.md`](../docs/CURRENT_STATE.md). This stamp is not a
+fresh external-deployment probe; historical latency, deployment and vendor
+observations retain their actual dates. Three
+blocks here are generated rather than typed: §6's command tables
 (`tools/telegram_catalogue.py --check`, run inside the suite), the test counts
 (`web/lib/test-counts.generated.ts`), and the latency table this file quotes
 from (`docs/architecture/latency-bench.generated.json`). Generated is not the
@@ -22,9 +23,9 @@ looking authoritative.*
 for the three deployment units. The institutional case — the maths, the
 role-by-role walk-through, the measured evidence and the ledger of what is not
 built — is [`docs/whitepaper/`](../docs/whitepaper): Typst source, six chapters
-under `sections/` over one `template.typ`, assembled by `main.typ`. **Source
-only — no PDF is committed**, and the tree carries no Typst toolchain either, so
-the artefact is produced on demand:
+under `sections/` over one `template.typ`, assembled by `main.typ`. Source is
+the versioned authority; the 2026-08-29 documentation release also compiles and
+visually verifies the ignored PDF artefact:
 
 ```bash
 typst compile docs/whitepaper/main.typ \
@@ -40,15 +41,15 @@ from the tree; cite the whitepaper wherever that was cited.
 
 1. **Alpha & Signal Utility**: Real-time cross-venue L2 order book depth (Binance + Bybit) prevents adverse selection. Pre-trade TCA estimates VWAP & slippage before order entry. Deflated Sharpe ratios (DSR) prevent backtest overfitting.
 2. **Implemented vs. Mocked Components**:
-   - **Implemented**: Live Binance/Bybit WebSocket depth streaming, 17 pre-trade risk gates evaluated by two engines (the Python reference and a bit-exact C++ core that times its own arithmetic in nanoseconds), FastAPI risk gateway, DuckDB append-only audit log, OpenBB provider layer, Next.js web workspace, Telegram companion bot (136 commands, inline keyboards, in-place card edits, sixteen matplotlib PNG chart generators).
+   - **Implemented**: Live Binance/Bybit WebSocket depth streaming, 17 pre-trade risk gates evaluated by two engines (the Python reference and a bit-exact C++ core that times its own arithmetic in nanoseconds), FastAPI risk gateway, DuckDB append-only audit log, OpenBB provider layer, Next.js web workspace, Telegram companion bot (138 commands, inline keyboards, in-place card edits, and generated analytical cards/charts).
    - **Mocked**: Paper order execution (simulated fills at L2 touch; resting limit orders).
 3. **Production Architecture & Data Collection Frequency**:
    - **100ms** L2 depth polling & book consolidation.
    - **4s** system health & circuit breaker polling.
    - **30s** persistent DuckDB audit log flushes.
 4. **Trader & PM Signal Consumption**:
-   - **Interactive Web Workspace**: 9 role-explicit workspaces over 59 rail sections (`Overview (All Roles)`, `Research (Quant Researcher)`, `Execution (Quant Trader)`, `Portfolio (Portfolio Manager)`, `Risk (Risk Manager)`, `Data (Data Engineer)`, `Reliability (DevOps/SRE)`, `Developer (Quant Developer)`, `Coherence (Quant Researcher)`) — read off `NAV_ITEMS` in `web/components/WorkspaceHeader.tsx` and `web/lib/sections.ts`, which are the single source of truth for the rails, the command palette and the hash whitelist.
-   - **Telegram Mobile Companion**: 9 tab commands (`/overview`, `/research`, `/execution`, `/portfolio`, `/risk`, `/data`, `/reliability`, `/developer`, `/coherence`) delivering formatted statistics, visual chart PNGs and tappable inline keyboards that switch sections, symbols and intervals and refresh a card in place.
+   - **Interactive Web Workspace**: 11 workspaces over 70 addressable rail sections — Overview; seven role workspaces; and Markets, Proofs and Diffusion. The section arrays in `web/lib/sections.ts` are the single source of truth for rails, command palette and hash whitelist; the three engine workspaces add 64 in-pane views (23 / 25 / 16).
+   - **Telegram Mobile Companion**: 11 tab commands (`/overview`, `/research`, `/execution`, `/portfolio`, `/risk`, `/data`, `/reliability`, `/developer`, `/markets`, `/proofs`, `/diffusion`) delivering formatted statistics, visual chart PNGs and tappable inline keyboards that switch context and refresh a card in place. `/coherence` remains a compatibility alias for `/proofs`.
 5. **Validation & Risk Constraints**: Kupiec Likelihood Ratio test for VaR model validation, hard risk limits, and rate limiting (15 commands per 10s).
 
 ---
@@ -115,7 +116,7 @@ missing (§9 has the detail):
 | **Risk Manager** | *Is the model right, and will the limits hold?* | Kupiec VaR backtest, stress scenarios, reduce-only mode, kill switch | No margin or liquidation modelling |
 | **Data Engineer** | *Can I trust this data?* | Overview-first trust cockpit, provider registry, failover, quote/bars/news/fundamentals contracts, quarantine and lineage, a durable cross-instance quality ledger with rule-based escalation, replay and backfill jobs on a config-driven schedule, a persisted versioned work queue | One gateway process and one SQLite file — durable across restarts and deploys, not replicated across regions; contracts check the normalised shape, not each vendor's raw JSON |
 | **DevOps / SRE** | *Is it healthy, and what do I do at 3am?* | `/health`, `/metrics`, systems console, alert rules, runbook | No log aggregation or distributed tracing |
-| **Quant Developer** | *Can I change this safely?* | Typed contracts, OpenAPI snapshot, a generated TypeScript client (`web/lib/gateway-contract.generated.ts`), parity suites (Python ↔ TypeScript to 1e-4, Python ↔ C++ to the bit), CI, and three suites re-measured 2026-08-24: gateway **3,039 passed / 1 skipped** with the re-ranker weights seeded, web **4,728 passed / 2 skipped** across 1,028 suites, service **24 passed** (§8 reconciles that gateway figure with the smaller one CI prints without the weights) | No property-based fuzzing; the desk sweep is the only browser-level check and it is not in CI |
+| **Quant Developer** | *Can I change this safely?* | Typed contracts, OpenAPI snapshot, a generated TypeScript client (`web/lib/gateway-contract.generated.ts`), parity suites (Python ↔ TypeScript to 1e-4, Python ↔ C++ to the bit), CI, and three suites re-measured 2026-08-29: gateway **3,254 passed / 1 skipped**, web **6,513 passed / 6 skipped** across 1,408 suites, service **24 passed**; the separate rendered release audit passed **872/872** state/viewport combinations | No property-based fuzzing; browser qualification remains a separate release activity (`desk-sweep.mjs` and `npm run audit:layout`) rather than the default Node suite |
 
 ### Quant Traders — *"Can I send this, and what will it cost?"*
 
@@ -170,7 +171,7 @@ about the *whole book*. The same numbers do not serve both, which is why
 | Know whether the search itself is the problem | Probability of backtest overfitting: how often the in-sample winner landed in the *worse half* of the same grid out-of-sample |
 | Stop a lookback leaking across a fold boundary | Optional embargo between each training window and its test window |
 | Record what a run settled, in my own words | Notes and tags per run, kept on the record so a re-run cannot silently discard them |
-| Work in a notebook against the real engine | `notebooks/research_template.ipynb` imports `modules.backtester` directly — no server, no network, and it replays a recorded run out of the audit log |
+| Work in a notebook against the real engine | `notebooks/research_template.ipynb` imports `modules.backtester` directly and replays a recorded run; a fresh offline notebook visibly opts into `synthetic_demo` rather than triggering an implicit fallback |
 
 The research portal will tell you a strategy **fails** even when the equity curve
 looks good. That is the feature: a +82% backtest with DSR 0.71 and negative
@@ -200,7 +201,7 @@ gate used.
 | Need | Where |
 |---|---|
 | Market-data quality and freshness at a glance | The Data tab opens on an overview-first trust cockpit for the active instrument, bringing freshness, validation evidence, quarantine, lineage and provider capacity into one triage path |
-| Ingestion that survives a bad feed | Sequence-gap detection forces a resubscribe; per-venue staleness clocks; automatic synthetic fallback, always tagged |
+| Ingestion that survives a bad feed | Sequence-gap detection forces a resubscribe; per-venue staleness clocks; fail-closed by default, with an explicit, always-tagged synthetic demo mode |
 | Provider failover I can see | Ranked registry across 7 providers with circuit breakers, a quota ledger, and a failover graph showing which node a request would land on *and why each other was skipped* |
 | Validation on content, not just transport | Quote, bar, news and fundamentals contracts check positive/ranged prices, unique ordered timestamps, valid highs/lows and freshness, well-formed and de-duplicated headlines with sane sentiment scores, and an issuer profile that is about the issuer asked for and non-empty. The active-quote probe carries the contract result for that exact payload; zero evaluated payloads is **unknown**, never a clean bill of health |
 | Replay and backfill I can trigger and schedule | `POST /api/data/replay` re-runs one capability through the workspace's own validated fetch path and records the contract result in the ledger; `POST /api/data/backfill` fetches bars for a date range (Binance for a pair, the workspace's registry for an equity), runs the same bar contract in Python (`modules/data_jobs.py`, pinned to the web's by `web/tests/fixtures/bars-contract-parity.json`) and merges a clean series into the gateway's bar cache — the backtester's offline tier, which no longer wipes deep history on a live refresh. `DATA_SCHEDULES` drives both on a cadence; Lineage & Payloads shows the jobs and the schedule |
@@ -210,7 +211,7 @@ gate used.
 | Lineage from vendor bytes to rendered number | Pipeline inspector follows the workspace's active symbol and selected bar interval through cache key, TTL, provenance, every skipped provider, upstream calls, raw vendor JSON and normalised output |
 | Cross-source agreement | On-demand consensus quotes show available, configured and answering source counts, absolute source timestamps and any leg more than 50 bps from the median |
 | Provider capacity before a lookup fails | Failover order, readiness, quota consumption, reserve boundaries and cache state sit together in **Providers & Capacity** |
-| Operational triage that outlives the tab | **Work Queue** rows live in the gateway's SQLite work-item table (`GET/POST /api/data/work-items`, `PATCH …/{id}`): every create and status change is versioned and audit-logged, a stale edit is refused with the current row rather than overwritten, and the nine seeded samples are marked as such. When the gateway is unreachable the board says so and holds edits locally until it answers; it is a queue, not a ticket system with a workflow engine behind it |
+| Operational triage that outlives the tab | **Work Queue** rows live in the gateway's SQLite work-item table (`GET/POST /api/data/work-items`, `PATCH …/{id}`): every row comes from an explicit create request, every create and status change is versioned and audit-logged, and a stale edit is refused with the current row rather than overwritten. A fresh store is empty and has no sample-population mode. When the gateway is unreachable the board says so and holds edits locally until it answers; it is a queue, not a ticket system with a workflow engine behind it |
 | Query the record without an ETL step | DuckDB, append-only: `SELECT quantile(latency_ms, 0.99) FROM orders` against the same file the gateway writes |
 | Feed health as a time series | `/metrics` exports per-venue book age, update rate, reconnects and staleness |
 
@@ -245,7 +246,7 @@ the instance that produced it.
 | Documented tunables | `BacktestRequest` carries bounds *and* descriptions, so `/docs` doubles as the researcher's parameter registry |
 | Confidence that two implementations agree | Python↔TypeScript parity suites for the **backtest engine** and the **risk engine**, both driven by fixtures the Python reference emits; and Python↔C++ parity for the **pre-trade decision** — the twenty-scenario `gate-parity.json` fixture, reproduced bit-for-bit (`tests/test_gate_parity.py`, `tests/test_decision_core_native.py`) |
 | To debug a request without guessing | Pipeline inspector down to raw vendor JSON; bounded trace ring with redaction; `/api/system/inspect` |
-| Tests that run anywhere | 3,039 gateway + 4,730 web + 24 service tests passing (2026-08-24, this working tree), all offline by construction — no network, no fixtures fetched at test time. Each figure is what its runner prints: `venv/bin/python -m pytest`, `(cd web && npm test)`, `venv/bin/python -m pytest OpenBB_Service/tests`. The gateway suite is green with no failures on this tree. `web/lib/test-counts.generated.ts` is the constant the Developer console displays; CI checks **only its web line**, so its gateway figure is a dated record — see §13 |
+| Tests that run anywhere | 3,255 gateway + 6,519 web + 24 service tests collected (2026-08-29), all offline by construction. The runners reported 3,254 / 1, 6,513 / 6 and 24 passed respectively, with zero failures. `web/lib/test-counts.generated.ts` is the dated display record; CI checks **only its web line**, so re-run the owning command rather than treating copied prose as a gate — see §13 |
 | A lint gate that catches defects, not style | ruff with bugbear, async and bandit rules; `tsc --strict` on the web tier |
 | To add a provider or an endpoint without breaking things | Uniform `Adapter` interface with declared capabilities; the recipe is in §7 and in `web/README.md` |
 
@@ -290,8 +291,9 @@ gateway and its OpenBB adapter to the separate stateless service.
 ```bash
 cd web
 npm install
-npm run dev    # http://localhost:3000
-npm test       # 4,728 passed, 2 skipped, across 1,028 suites (2026-08-24)
+npm run dev        # default integrated stack: gateway :8000 + workspace :3000
+npm run dev:web    # frontend only; sandbox data requires an explicit user choice
+npm test       # 6,513 passed, 6 skipped, across 1,408 suites (2026-08-29)
 ```
 
 Live-feed endpoints (public, no key):
@@ -416,9 +418,10 @@ fetches and serverless scaling from sharing the gateway's mutable risk state.
 
 ## Tech Stack
 
-Versions are what is **actually deployed or locked** as of 2026-08-24 — read
-from `web/package-lock.json`, the Python 3.12 virtualenv CI mirrors, the live
-database and the running container, not from minimum pins. Rows marked *optional* degrade gracefully when absent; a managed
+Versions are what is **locked or present in the 2026-08-29 verification
+environment** — read from `web/package-lock.json`, the Python 3.12 virtualenv
+and service pins, not inferred from minimum ranges. Live managed-service rows
+retain their separately observed versions. Rows marked *optional* degrade gracefully when absent; a managed
 service carries no pinned version.
 
 ### Frontend Core
@@ -426,19 +429,19 @@ service carries no pinned version.
 | Component | Version | Role in AlphaEngine |
 |---|---|---|
 | **[Next.js](https://nextjs.org)** | `16.3.0` | App Router + Turbopack on Node ≥20.9. Server-side proxy routes are the only path to backend credentials; the browser bundle ships zero secrets. |
-| **[React](https://react.dev)** | `19.2.8` | One client workspace, **nine** role tabs over 59 rail sections. Every section is URL-addressable and survives back/forward; the ids are public deep links declared once in `web/lib/sections.ts`. |
+| **[React](https://react.dev)** | `19.2.8` | One client workspace, **eleven** tabs over 70 rail sections. Every section is URL-addressable and survives back/forward; the ids are public deep links declared once in `web/lib/sections.ts`. |
 | **[TypeScript](https://www.typescriptlang.org)** | `5.9.3` | Strict mode. Contract fixtures emitted by the Python engine are type-checked on this side (§12 parity). |
-| **[Tailwind CSS](https://tailwindcss.com)** | `4.3.3` | Utilities only, bridged onto a hand-written token system in `app/globals.css` that owns both theme palettes and an AA contrast contract enforced by `web/tests/theme-contrast.test.ts`. No preflight — the house reset stays authoritative. |
-| **[Lucide](https://lucide.dev)** | `1.28.0` | The only icon dependency. Charts are hand-rolled SVG on one scale kit (`components/chart-kit.tsx`) — there is deliberately no chart library. |
+| **[Tailwind CSS](https://tailwindcss.com)** | `4.3.3` | Utilities bridged onto source-owned tokens and shadcn-derived primitives. The analytical surfaces are purpose-built interactive React/SVG/HTML instruments with typed fallbacks, not generic chart-library skins. |
+| **[Lucide](https://lucide.dev)** | `1.28.0` | The icon layer. Quant instruments share geometry/formatting helpers while remaining source-owned; there is deliberately no chart library. |
 
 ### Backend
 
 | Component | Version | Role in AlphaEngine |
 |---|---|---|
 | **[Python](https://www.python.org)** | `3.12.14` | The gateway runtime inside the container (`python:3.12-slim`, two stages). |
-| **[FastAPI](https://fastapi.tiangolo.com)** | `0.141.1` | **73 documented paths carrying 76 operations** (2026-08-24, counted out of `tools/openapi.json`, OpenAPI 3.1.0). The schema is a committed contract whose canonical-JSON SHA-256 the web build verifies at `prebuild`. The figures below look contradictory and are not — each is counted on a different basis, so state the basis rather than reconciling them into agreement. The routes do not live in `main.py`: it declares only the three HTML console aliases and mounts **twelve** `APIRouter`s from `modules/api/`, with `deps.py` beside them holding the shared dependencies, because one module carrying the whole wire surface could not stay under the 400-line ceiling `tests/test_file_size.py` enforces. **80 route decorators** are declared in total — 77 `@router.*` across `modules/api/` (audit 4, coherence 5, coherence_history 3, coherence_lab 7, data 11, diffusion 4, meta 5, ml 3, research 15, risk 14, tca 3, telegram 3) and 3 `@app.get` in `main.py`. Four never reach the schema: the `/ws/book/{symbol}` WebSocket, which OpenAPI does not describe, and the three HTML routes (`/`, `/app`, `/ui`) marked `include_in_schema=False` — leaving **76 operations**, which collapse onto **73 paths** because a few paths serve two verbs each (`/api/orders` submits and lists; `/api/data/work-items` creates and lists). `tests/test_api_routers.py` holds the split itself. **`main.py`'s own docstring still says "the fifty-two routes" and is stale** — the contract file is the count to trust. |
+| **[FastAPI](https://fastapi.tiangolo.com)** | `0.141.1` | **76 documented paths carrying 79 HTTP operations** (2026-08-29, `tools/openapi.json`, OpenAPI 3.1). The committed schema and canonical digest are the compatibility authorities and are verified at `prebuild`. Route adapters live under `modules/api/`; the application lifecycle and shared service graph live outside the wire layer. The market-book WebSocket and schema-hidden HTML aliases are deliberately not part of this HTTP operation count. |
 | **[Uvicorn](https://www.uvicorn.org)** | `0.52.3` | **One process, no workers, by design** — the risk gateway holds a mutable in-memory book, a resting-order book, a token bucket and the kill switch; a second worker would fork the book and localise the halt. |
-| **[Pydantic](https://docs.pydantic.dev)** | `2.13.4` | Every API payload, risk decision and bot read-model shares one schema module (`modules/schemas.py`). |
+| **[Pydantic](https://docs.pydantic.dev)** | `2.13.4` | Every API payload, risk decision and bot read-model is typed across the domain-specific `modules/schemas_*.py` modules behind the compatibility façade. |
 | **[httpx](https://www.python-httpx.org)** | `0.28.1` | All outbound HTTP, including the Supabase mirror — chosen over `supabase-py` to keep the import graph network-free for CI. |
 | **[websockets](https://websockets.readthedocs.io)** | `17.0.1` | Venue WebSocket ingest: Binance and Bybit L2 depth streams. |
 | **[NumPy](https://numpy.org)** | `2.5.2` | The reference backtest engine and all TCA/risk maths. |
@@ -453,9 +456,9 @@ service carries no pinned version.
 |---|---|---|
 | **[DuckDB](https://duckdb.org)** | `1.5.5` | The **authoritative** store: an embedded, append-only audit log (orders, events, backtests, equity) on a named Docker volume, with an SQLite fallback for the one case it was written for — DuckDB not importable on this platform. A **lock** conflict is no longer routed there: it raises `AuditLedgerConflict`, because a second process quietly writing a private, divergent history is the worst thing this subsystem can do, and `backend` therefore still means what it says. Embedded on purpose — the desk must keep trading when every network dependency is down. |
 | **[PostgreSQL](https://www.postgresql.org)** | `17.6` | The durable **mirror**, never a second decision-maker. Every gateway decision streams through a bounded queue into `public.order_blotter` with `decided_by` provenance, measured `latency_ms` and the full check vector — every gate that ran, out of the seventeen defined. |
-| **[Supabase](https://supabase.com)** | managed | Hosts that Postgres. RLS deny-by-default (zero `anon` policies), append-only by trigger, `search_path` pinned on every `SECURITY DEFINER` function. **Thirty-seven** ordered migrations in [`../supabase/migrations/`](../supabase/migrations/) (2026-08-24, `ls`), the newest two adding the diffusion event and study tables; `tests/test_supabase_schema.py` pins SQL limit defaults to `config.py` offline. `supabase db push` applies each file once and records it, so a hand-applied bundle needs different SQL — `tools/bundle_migrations.py` (at the repository root, not this directory's `tools/`) emits the re-runnable `supabase/apply_all.generated.sql`, and `tests/test_migration_bundle.py` reads the *generated* file rather than re-running the generator and checking it agrees with itself. That bundle is a generated artefact regenerated centrally; a migration added without regenerating it turns that suite red rather than shipping a bundle that silently omits a table. |
+| **[Supabase](https://supabase.com)** | managed | Hosts that Postgres. RLS is deny-by-default with explicit grants; the only anonymous table policy is the row-filtered, read-only demo blotter. **Forty-one** ordered migrations are present in [`../supabase/migrations/`](../supabase/migrations/) and the generated bundle (audited 2026-08-31); they cover decision mirrors, account state, research/graph/image, ML lineage, data operations and diffusion. The newest, `20260831131000_research_chunk_replace.sql`, atomically replaces a document's chunk set and removes stale siblings only after every incoming text embedding is ready; otherwise the previous complete generation remains retrievable. Apply that RPC migration before deploying the new chunked ingest path. `tools/bundle_migrations.py` emits `supabase/apply_all.generated.sql`, and `tests/test_migration_bundle.py` fails when any ordered migration is absent. Present and bundled do not mean applied live; the manual schema workflow remains the deployment boundary. |
 | **[pgvector](https://github.com/pgvector/pgvector)** | `0.8.2` | 384-dim HNSW cosine index over `public.research_documents` — see **Retrieval (RAG)** below. A second, 512-dim CLIP image column sits beside it (migration `20260822100000`) and is **empty on a default deployment**, because the arm that fills it is off; the two are separate columns on purpose, since two models are two coordinate systems. |
-| **SQLite** (stdlib `sqlite3`) | bundled with 3.12 | The data-ops store — quality findings, escalations, work items and schedule runs — in its own WAL file on the same mounted volume (`DATA_OPS_DB_PATH`, default `$DATA_DIR/data_ops.sqlite`). Authoritative for exactly those four tables and nothing else. Separate from DuckDB rather than a table inside it because DuckDB is single-writer and the gateway process already holds that lock; `modules/single_writer.py` takes an `flock(2)` on top so a second process fails loudly instead of forking the store. |
+| **SQLite** (stdlib `sqlite3`) | bundled with 3.12 | The complete default data-ops store — quality findings, escalations, work items, schedule runs and the four Diffusion ledgers — in its own WAL file on the same mounted volume (`DATA_OPS_DB_PATH`, default `$DATA_DIR/data_ops.sqlite`). Separate from DuckDB rather than a table inside it because DuckDB is single-writer and the gateway process already holds that lock; `modules/single_writer.py` takes an `flock(2)` on top so a second process fails loudly instead of forking the store. The opt-in PostgREST backend mirrors all eight logical tables after the ordered migrations are deployed; [`../docs/architecture/DATA_OPS_BACKEND.md`](../docs/architecture/DATA_OPS_BACKEND.md) records the boundary. |
 | **[Oracle Autonomous Database](https://www.oracle.com/autonomous-database/)** | managed (free tier) | Authoritative for **nothing**. It runs one thing — a GBM terminal-value VaR as an in-database procedure (`oracle/01_schema.sql`, `02_monte_carlo.sql`, `03_app_user.sql`), reached from the web tier through `web/lib/oracle/` and `/api/oracle/var`, and surfaced as the Risk tab's **Oracle VaR** subtab. It is a second opinion on a number the desk already computes twice, and it is optional: with no Oracle credentials the subtab reports the refusal rather than a figure. `oracle-keepalive.yml` exists only because a free Autonomous Database auto-stops when idle. |
 
 ### DevOps & Infrastructure
@@ -466,7 +469,7 @@ service carries no pinned version.
 | **[Caddy](https://caddyserver.com)** | `2-alpine` | TLS termination on the VM: the deploy workflow runs a Caddy sidecar on `:8443` with its **internal CA** (a bare IP gets no public issuance; the single client that matters pins the root instead — [`docs/engineering/TLS_FLIP.md`](../docs/engineering/TLS_FLIP.md)), so the gateway token need not cross the internet in cleartext. |
 | **[Supabase CLI](https://supabase.com/docs/guides/cli)** | `2.112.0` | Migration push via the IPv4 session pooler (the direct DB host is IPv6-only) and edge-function deploys. |
 | **[Oracle Cloud](https://www.oracle.com/cloud/)** | managed | The always-on host (Singapore). Region is load-bearing: US egress gets Binance HTTP 451 / Bybit 403 (§11). |
-| **[Vercel](https://vercel.com)** | managed | Two serverless projects (web portal, OpenBB service) from one repo with different Root Directories, region `sin1`. Artifact custody via an Ed25519-signed build attestation against a trust root pinned in reviewed source (`web/lib/artifact-trust.mjs`). |
+| **[Vercel](https://vercel.com)** | managed | Two serverless projects (web portal, OpenBB service) from one repo with different Root Directories. `web/vercel.json` pins the portal to `sin1`; the OpenBB project's committed `vercel.json` declares no region. Artifact custody via an Ed25519-signed build attestation against a trust root pinned in reviewed source (`web/lib/artifact-trust.mjs`). |
 | **[GitHub Actions](https://github.com/features/actions)** | managed | **Six workflows**, and the split between them is the rule "a red build means the code broke, never that an exchange was slow". `ci.yml` runs four **network-free** jobs on every push and every pull request: `gateway` (ruff → the native-core build → `python -m pytest` → `tools/export_openapi.py --check` → `tools/synthetic_probe.py`), `openbb-service`, `web` (`npm ci` → tests → `scripts/check-test-counts.mjs web <log>` → typecheck → build) and `repo-audit` (`tools/check_repo_complete.sh --fast`, which builds an export of HEAD rather than the working tree). CI seeds no re-ranker weights, so it collects fewer gateway tests than a seeded machine (§8). Two more jobs in the same file are opt-in and never gate a merge: `live-smoke`, which is `workflow_dispatch` only because it needs live Oracle and Supabase secrets, and `rerank-real`, which runs on `workflow_dispatch` or a `rerank` label and carries the one networked step in the file — fetching the cross-encoder weights into a cache keyed on the `requirements-rerank.txt` pin, because a re-ranker that scores differently between releases re-orders what the desk was shown. It then runs that suite **offline** and fails if it skips. The other five workflows: `deploy.yml` (gateway CD to OCI, path-filtered to `Part2_Infrastructure/**` minus `web/**` and `OpenBB_Service/**`, with rollback and an engine check — it ships **one** of the three units, because the other two are Vercel projects that deploy themselves from git and putting them here would deploy them twice), `e2e.yml` (the opposite of `ci.yml` — a scheduled `23 6,18 * * *` and manual smoke against the *live* gateway, Vercel deployment and databases, never on push, because every deployment failure this repository has actually had passed the full offline suite first), `openbb-keepalive.yml` (every ten minutes: a Vercel function stays warm 5–15 minutes and Hobby crons run once a day) and `oracle-keepalive.yml` (daily at 02:17, off the top-of-hour queue, because a free Autonomous Database stops itself after seven consecutive idle days), and `schema.yml` — **`workflow_dispatch` only**, because DDL that rides a code deploy is how a table gets altered by someone who was shipping a CSS change. |
 
 ### API Keys & Secrets
@@ -511,8 +514,8 @@ typed refusal it returns — never an exception, never a silent zero.
 
 | Layer / Stage | What runs it | Constants, refusals, and what was rejected |
 |---|---|---|
-| **Stage 1: Ingestion & Parsing** | [`modules/research_rag/writer.py`](modules/research_rag/writer.py) | Five kinds in `public.research_documents`. **Four written live in-process** — `backtest_run` (symbol, strategy, params, Sharpe, DSR verdict, OOS Sharpe, PBO, `data_hash`), `chart` (one per figure the tear sheet drew), `ml_run`, `risk_incident`. `execution_summary` has a producer ([`research_ingest_session.py`](modules/research_ingest_session.py)) whose **only caller is `tools/backfill_research_rag.py`** — on a running desk those appear when the backfill is run and not before, which is stated as a gap rather than implied as coverage. Bounded queue, three attempts on the mirror's backoff curve, then a bounded dead-letter book that records what never landed rather than discarding it. `body` holds the **exact embedded text** — a renderer change can never silently alter what was searched. An embed outage writes `embedding_status='pending'` and **never a zero vector**: equidistant from everything, it would rank as similar to any query. |
-| **Stage 1: Vector & Sparse DB** | pgvector (Supabase Postgres) + [`modules/research_bm25.py`](modules/research_bm25.py) | **`RRF_K = 60`, defined once at [`research_bm25.py:120`](modules/research_bm25.py) and imported everywhere** — an arm carrying its own constant would be a second fusion wearing the first one's name. **Four arms fuse inside `search`**: dense (`gte-small`, 384-dim, unit-normalised, HNSW cosine, served by a Supabase edge function — no key, no per-call cost, no weights in the image), Postgres FTS (GIN over a generated tsvector), Okapi BM25 (`k1 = 1.2`, `b = 0.75`), and image. `MIN_TOKEN_LENGTH = 1` at [`:114`](modules/research_bm25.py) — the conventional `len > 2` rule deletes `FX`, `MA`, `PE` and the `s` of `S&P`. `match_research_documents` is `SECURITY INVOKER`, and `filter_desk_id` is a tenant predicate on both retrieval RPCs (migration `20260822090000`). Rejected: a dedicated vector DB (Pinecone/Weaviate/Milvus) — the corpus is the desk's own records already flowing through the mirror, and a second datastore is a second thing to drift. |
+| **Stage 1: Ingestion & Parsing** | [`modules/research_rag/writer.py`](modules/research_rag/writer.py) | Five kinds in `public.research_documents`, all with an in-process producer: `backtest_run` (symbol, strategy, params, Sharpe, DSR verdict, OOS Sharpe, PBO, `data_hash`), `chart` (one per figure the tear sheet drew), `ml_run`, `risk_incident`, and the closed session's deferred `execution_summary`; the backfill remains the history/recovery path. Bounded queue, three attempts on the mirror's backoff curve, then a bounded dead-letter book that records what never landed rather than discarding it. `replacement.py` embeds every physical chunk before one `replace_research_document_chunks` RPC. A complete generation replaces stale siblings atomically; if any text embedding is pending, the proposed generation is wholly non-retrievable and the previous complete generation remains. Migration `20260831131000` must be applied before deploying this chunked ingest path. `body` holds the **exact embedded text** — a renderer change can never silently alter what was searched. No failure writes a zero vector. |
+| **Stage 1: Vector & Sparse DB** | pgvector (Supabase Postgres) + [`modules/research_bm25.py`](modules/research_bm25.py) | **`RRF_K = 60`, defined once at [`research_bm25.py:120`](modules/research_bm25.py) and imported everywhere** — an arm carrying its own constant would be a second fusion wearing the first one's name. **Four arms fuse inside `search`**: dense (`gte-small`, 384-dim, unit-normalised, HNSW cosine, served by a Supabase edge function — no key, no per-call cost, no weights in the image), Postgres FTS (GIN over a generated tsvector), Okapi BM25 (`k1 = 1.2`, `b = 0.75`), and image. `MIN_TOKEN_LENGTH = 1` at [`:114`](modules/research_bm25.py) — the conventional `len > 2` rule deletes `FX`, `MA`, `PE` and the `s` of `S&P`. `match_research_documents` is `SECURITY INVOKER`, and `filter_desk_id` scopes both similarity RPCs (migration `20260822090000`) plus graph traversal (migration `20260831130000`). Rejected: a dedicated vector DB (Pinecone/Weaviate/Milvus) — the corpus is the desk's own records already flowing through the mirror, and a second datastore is a second thing to drift. |
 | **Stage 1: Knowledge Graph** | `research_edges` (Postgres, authoritative) → [`research_graph_projection.py`](modules/research_graph_projection.py) → Neo4j Aura → [`research_graph_read_model.py`](modules/research_graph_read_model.py) | **One-way and rebuildable.** Nothing but the projection writes to Neo4j, asserted by `tests/test_research_graph_projection.py`. Exactly **two** routes read it back — `GET /api/research/graph/communities` and `/centrality` — each marking `source: "neo4j" \| "corpus"`, and **a writer may not read its own output**. Three refusals stay distinguishable: not configured, sweep never ran, and mid-rebuild (`_one_sweep`, [`research_graph_read_model.py:202`](modules/research_graph_read_model.py)). **GDS is not available on Aura Free**, so Louvain (seeded) and PageRank (unseeded — deterministic by construction, reproducible from canonical node order plus pinned `MAX_ITER`/`TOLERANCE`) run in-process via networkx in [`research_communities.py`](modules/research_communities.py). Request-time traversal never leaves Postgres: a recursive CTE capped at depth 4. The graph arm is the **fifth**, fused one stage later in the router's execution rather than inside `search` ([`research_graph_fusion.py`](modules/research_graph_fusion.py)) — a traversal has no score, only a depth, and **depth is deliberately not converted into one**. |
 | **Stage 2: Agent Orchestration** | [`modules/research_router.py`](modules/research_router.py) | A **bounded plan from a closed four-tool registry**. The file's own header states the rule: *there is no loop that can decide to keep going* — the bound is structural rather than a counter someone can raise. The default planner is a **rule set, not a model**; `Planner` is a `Protocol` at [`:113`](modules/research_router.py) so a model-backed planner can be substituted, and **the limits are enforced by the router, not the planner**, so substituting one cannot widen them. Every plan and every call is audited under one correlation id, and a deterministic fallback always exists — the router never invents an answer. Rejected: LangGraph / LlamaIndex agents — hand-written stages keep the control flow readable and the bound provable. |
 | **Stage 3: Re-ranker Model** | [`modules/research_rerank.py`](modules/research_rerank.py) — *optional*, `RERANK_MODEL_PATH` | `RERANK_MODEL = "BAAI/bge-reranker-base"` at [`:131`](modules/research_rerank.py), through fastembed's `TextCrossEncoder`, ONNX, **CPU-only, off by default**. `MAX_DOCUMENT_CHARS = 2_000` at [`:163`](modules/research_rerank.py) **is** the latency budget: **101 ms** for twenty pairs at 40 chars a row against **1,529 ms** at 2,000 — measured by `tools/bench_rerank.py`, median of seven runs, not estimated. `bge-reranker-large` was rejected as roughly three times the compute on a CPU. Absent, the candidates come back in their original fused order with `reranked: False` and a named reason. Cohere Rerank and Voyage are rejected **by name in `requirements-rerank.txt`**: a vendor call would break the network-free suite and send the desk's research off-box. CI never seeds the weights; `rerank-real` is a `workflow_dispatch`/label job that caches the 1.05 GiB pin, runs the suite **offline**, and **fails if it skips**. |
@@ -529,8 +532,8 @@ no paid inference, and nothing generated presented as measured.
 
 | Layer | Choice | Why this, and what it refuses to do |
 |---|---|---|
-| **Corpus** | 5 document kinds in `public.research_documents` — **4 written live, 1 by the backfill tool only** | The enum, the API filter vocabulary and the graph linker all carry `backtest_run`, `chart`, `execution_summary`, `ml_run` and `risk_incident`. The gateway writes four of them in process: completed **backtest runs** (symbol, strategy, params, Sharpe, DSR verdict, OOS Sharpe, PBO, `data_hash`), one **chart** document per figure the tear sheet drew, fitted **ML runs**, and **risk incidents**. Session **execution summaries** finally have a producer (`modules/research_ingest_session.py` — figures from `session_costs`, `equity_snapshots` and `orders`, only for sessions the desk's own `session_rollover` rows show as closed), but its only caller is `tools/backfill_research_rag.py`: **there is no in-process emission**, so on a running desk the summaries appear when the backfill is run and not before. Written through the same bounded-queue **and now the same retry** discipline as the mirror — three attempts on the mirror's own backoff curve, then a bounded dead-letter book that records what never landed rather than discarding it silently. |
-| **Backfill** | `tools/backfill_research_rag.py` — manual, network-bound, never run in CI | Replays the audit log's `backtest_runs` and `ml_runs` and renders one `execution_summary` per closed session, so the corpus predates the feature. **It does not select on `embedding_status`**: it re-derives every source row it can reach and upserts `merge-duplicates`, so a document stored `pending` is rewritten with a fresh embedding as a *side effect* of its source row being re-rendered — a pending document whose source row falls outside `--limit` is not repaired, and there is no "sweep the pending rows" query. Backtest *charts* are deliberately not emitted here: the audit log carries none of the tear sheet's figures, and a backfill writing thinner chart documents over richer ones would degrade the corpus in the name of repairing it. |
+| **Corpus** | 5 document kinds in `public.research_documents`, all with an in-process producer | The enum, the API filter vocabulary and the graph linker all carry `backtest_run`, `chart`, `execution_summary`, `ml_run` and `risk_incident`. Completed **backtest runs**, one **chart** document per rendered figure, fitted **ML runs**, and **risk incidents** enter from their existing completion/decision hooks. `modules/risk_proxy/monitor.py` hands a closed UTC session to `modules/research_rag/session.py`, which defers the audit read off the trading lock and queues its **execution summary** after the settle window. The backfill remains the historical and recovery producer. Every kind uses the same bounded queue, three-attempt delivery curve, dead-letter book and atomic logical-document replacement. |
+| **Backfill** | `tools/backfill_research_rag.py` — manual, network-bound, never run in CI | Replays the audit log's `backtest_runs` and `ml_runs` and renders one `execution_summary` per closed session, so the corpus predates the feature. **It does not select on `embedding_status`**: it re-derives each source row it can reach through the same replacement RPC, so a pending document is repaired only as a side effect of its source row being re-rendered; a row outside `--limit` is not repaired, and there is no "sweep the pending rows" query. Backtest *charts* are deliberately not emitted here: the audit log carries none of the tear sheet's figures, and a backfill writing thinner chart documents over richer ones would degrade the corpus in the name of repairing it. |
 | **Embeddings** | [`gte-small`](https://huggingface.co/Supabase/gte-small), 384-dim, unit-normalised | Served by `Supabase.ai` inside the [`embed-research` edge function](../supabase/functions/embed-research/index.ts): no paid API, no key, no model weights in the gateway image. |
 | **Index** | pgvector HNSW, cosine | `match_research_documents` is `SECURITY INVOKER` and refuses any row that is not `embedding_status='ready'`. |
 | **Storage honesty** | `body` holds the exact embedded text | A renderer change can never silently invalidate stored vectors. An embed outage stores `embedding_status='pending'` — **never a zero vector**, which is equidistant from everything and would rank as "similar" to any query. |
@@ -545,8 +548,8 @@ no paid inference, and nothing generated presented as measured.
 | **Chart pixels, durably** | `modules/research_image_store.py` (read) + `research_image_store_write.py` (ingest) + migration `20260822110000_research_chart_images.sql` | The bytes a multimodal answer attaches used to have exactly one home: the finished `JobRecord` in the memory of the process that ran the sweep. Under the Celery backend, after a restart, or on a replica that never served the sweep, the resolver answered `job_not_retained` — so the feature was absent precisely on the deployment that scales. A side table keyed on `document_id` (`REFERENCES research_documents(id) ON DELETE CASCADE`, granted to nobody, with an `ml_artefacts`-style "exactly one home" check) now holds the PNG, and the read order is in-process LRU → `JobRecord` → one PostgREST `document_id=eq.<uuid>` GET. `CHART_PNG_FIELDS` is one object the write and read halves share rather than two dicts spelled the same way, so an image cannot be stored that no reader can use. **Three limits stated rather than hidden.** The PostgREST GET is synchronous and runs on the event loop's thread, because the only place that could `await` a hydration step is `research_generate.generate`; it is bounded instead by `RESEARCH_CHART_IMAGE_FETCH_TIMEOUT_MS` (1200 ms; `0` disables the fetch outright), by an LRU, and by the ingest path warming that same LRU, so the stall is a restart-and-replica cost paid once per chart per process, on a request that is about to spend twenty to thirty seconds inside a model call. Documents written **before** this migration have no stored image and report `image_not_stored` naming re-indexing as the fix — no backfill tool was written for them. And `storage_path` is present and deliberately unfollowed: a row that used it reads as *no inline image*, which is the honest answer from a reader that cannot fetch from Storage. |
 | **Multimodal generation** | `modules/research_generate_vision.py` | The chart reaches the model as **evidence, never as a source**. It is attached only alongside the chart *document* it belongs to, named to the model by that document's id, and the instruction says plainly that a claim resting on an image alone is not an answer — because a number read off pixels is an approximation, and an approximation must never arrive wearing a measured figure's typography. `research_generate_figures` refuses a `[chart:<id>]` marker naming a document whose image was not actually sent, so the marker cannot be used to buy an exemption from the figure fence. Measured against the real key on a rendered equity curve with a −34% drawdown injected at bars 220–300: 29,924 ms, 85 output tokens, `thinking_budget=0`, and the model read the injection back off the pixels. A vision call gets its **own 45 s budget** (`RESEARCH_VISION_TIMEOUT_MS`) where a text call keeps 20 s, at most two images (`RESEARCH_VISION_MAX_IMAGES`) of at most 2 MB each. Every way this can end in "no image" is a named state on the report — `chart_not_rendered`, `job_not_retained`, `job_unfinished`, `image_absent`, `image_not_stored`, `image_store_unreachable`, `image_too_large`, `image_undecodable`, `over_image_budget`, `model_declines_images`, `sdk_has_no_image_part` — never an exception and never a silent text-only call, because an answer that says "the chart shows" over a call that carried no chart cannot be told apart from a good one by reading the prose. **Known gap:** the rendered Sharpe heatmap still has no chart document, so it has no citable home and is deliberately not stored — an image with no citable document is one the generator refuses to send. |
 | **Abuse and cost bound** | `modules/research_quota.py` + `research_quota_gate.py` on `POST /ask` | The rate half **is** the gateway's own `risk_proxy.rate_limit.TokenBucket`, imported rather than reinvented; the spend half is a rolling window priced from the token counts the SDK reports. Spend is refused *before* a rate token is consumed, so a capped deployment does not also drain its bucket. Refusals are typed — `rate_limited` / `spend_capped` / `scope_unavailable`, on 429 with `Retry-After` or 503 — never a bare 500, and never confusable with the three refusals that mean the request *was* served. Two limits stated rather than hidden: a call the provider reports no token counts for is recorded **unpriced** and the window total is a floor (`state: "partial"`), because inventing an average price to fire a real refusal would be a fabricated measurement enforcing a real one; and the cap **lags by one request**, since token counts are only known after the call returns. Inert with no `GEMINI_API_KEY` — a deployment that cannot reach a model cannot spend, and refusing a free query because a paid one would be expensive is an outage, not a bound. |
-| **Tenant predicate** | `filter_desk_id` on both retrieval RPCs (migration `20260822090000`) | Applied inside the candidate CTE **before** either ranking is taken, so a scoped rank is a rank among rows the caller was allowed rather than "rank 4 of everybody". Null means *unscoped*, never "rows whose owner is null". Off by default (`RESEARCH_SCOPE_TO_DESK`), so today's behaviour is byte-for-byte unchanged; when it is on and the predicate cannot be applied the route **refuses** rather than serving a full-corpus read. **Owed, and named in the migration header:** RLS itself is still bypassed (the gateway reads with the service-role key, the writer sets no `user_id`) and the scope is per-desk, not per-user — one shared gateway token means there is no per-user identity to key on yet. |
-| **Graph read model** | `modules/research_graph_projection.py` → Neo4j → `research_graph_read_model.py` (optional: `requirements-graph.txt`) | Postgres stays authoritative; the 6h reconcile sweep MERGEs the same derived edges into Neo4j, and a daily sweep partitions the whole corpus off one read and writes **both** label sets back — Louvain communities on a fixed seed, and PageRank centrality — each stamped with the sweep that made them (`requirements-communities.txt`). **It is no longer write-only:** `/communities` and `/centrality` read those labels back and fall back to the in-process computation, marking which answered (`source: "neo4j" \| "corpus"`) and carrying the read model's refusal whole. Nothing is invented on that path — modularity, seed, resolution and damping are not in the graph, so they are absent rather than restated — and labels from two different sweeps refuse as "mid-rebuild", because community ids are comparable only within one sweep. A writer may not read its own output: the sweep is forced onto the corpus path, since a sweep that read its last partition back would be a fixpoint. Request-time **traversal** stays on Postgres, and the algorithms are not run inside Neo4j (Louvain and PageRank live in the GDS library, which Aura Free does not have and CI cannot install). Drift is a non-event: drop the graph and re-project. |
+| **Tenant predicate** | `filter_desk_id` on similarity and graph RPCs (migrations `20260822090000`, `20260831130000`) | Similarity applies it inside the candidate CTE **before** ranking. Traversal applies it to the seed, both edge directions, every reached document and the final projection. Null means *unscoped*, never "rows whose owner is null". Off by default (`RESEARCH_SCOPE_TO_DESK`) while the successor migration rolls out; when enabled, `/search`, `/ask` and `/graph/{document_id}` carry the desk through the whole pipeline or **refuse** instead of serving a full-corpus read. The anomaly writer's immediate neighbour read is always scoped to the row it just wrote. **Still owed:** RLS is bypassed by the service-role gateway, the writer sets no `user_id`, and scope is per-desk rather than per-user. |
+| **Graph read model** | `modules/research_graph_projection.py` → Neo4j → `research_graph_read_model.py` (optional: `requirements-graph.txt`) | Postgres stays authoritative; the 6h reconcile sweep MERGEs the same derived edges into Neo4j, and a daily sweep partitions the whole corpus off one read and writes **both** label sets back — Louvain communities on a fixed seed, and PageRank centrality — each stamped with the sweep that made them (`requirements-communities.txt`). **The source path can read the projection back:** `/communities` and `/centrality` try those labels and fall back to the in-process computation, marking which answered (`source: "neo4j" \| "corpus"`) and carrying the read model's refusal whole. The 2026-08-31 audit did not probe live Aura. Nothing is invented on that path — modularity, seed, resolution and damping are not in the graph, so they are absent rather than restated — and labels from two different sweeps refuse as "mid-rebuild", because community ids are comparable only within one sweep. A writer may not read its own output: the sweep is forced onto the corpus path, since a sweep that read its last partition back would be a fixpoint. Request-time **traversal** stays on Postgres, and the algorithms are not run inside Neo4j (Louvain and PageRank live in the GDS library, which Aura Free does not have and CI cannot install). The projection/read-model Cypher does not carry `desk_id`; when `RESEARCH_SCOPE_TO_DESK=1`, the source guard refuses Neo4j before opening its driver and both reports automatically use the desk-scoped corpus fallback. With the flag off, Neo4j is safe only for one desk or a per-desk database. Drift is a non-event: drop the graph and re-project. |
 | **Surfaces** | `POST /api/research/rag/search` · `/ask` · `GET /api/research/rag/status` · `GET /api/research/graph/communities` · `/centrality` | Top-3 similar historical reports attach to the alert already being broadcast. When Supabase is absent the routes return a typed `unavailable` — never `[]`, because "searched, found nothing" is a different fact. The two graph routes return whole-corpus reports (partition, PageRank) whose absent keys carry meaning. Every research route refuses without a credential and with a wrong one, and the case table is compared against `app.openapi()` so a route nobody wrote a case for fails the suite. `/search` writes one `research_search` ledger row on **every** branch including `unavailable`, and both routes publish a correlation id (`X-Research-Correlation-Id`; also in `/search`'s body) that is the same id the `research_plan`, `research_tool_call` and `research_generation` rows carry. **`/ask` has no UI consumer**: the workspace proxies `/search` (`web/app/api/gateway/research/rag/route.ts`) and the two graph reports, and nothing in `web/` calls `/ask`. |
 
 ### Machine learning
@@ -608,7 +611,8 @@ Part2_Infrastructure/
 │   ├── operations.py       Typed, secret-free ops snapshot (/api/ops/snapshot)
 │   ├── metrics/            Prometheus text exposition, hand-rolled (no client lib)
 │   ├── web_telemetry.py    Cross-instance ops ledger the web instances sync into
-│   ├── data_ops_store.py   Strict SQLite store (WAL, one lock) for the data-ops tables
+│   ├── data_ops_store.py   Strict SQLite store (WAL, one lock) for four operational
+│   │                       tables and four Diffusion ledgers
 │   ├── data_quality.py     Contract-finding ledger, escalation rules, Telegram + audit publish
 │   ├── work_items.py       The Data tab's persisted, versioned, audit-logged work queue
 │   ├── data_jobs.py        Replay and backfill executors, and the Python bar contract
@@ -640,7 +644,7 @@ Part2_Infrastructure/
 ├── templates/miniapp.html  Independent gateway console (single file, no build step)
 ├── notebooks/              research_template.ipynb, and coherence_lab/ — the 14
 │                           lesson notebooks the Coherence tab's curriculum names
-├── tests/                  185 test_*.py files: gateway, risk, portfolio, data-ops,
+├── tests/                  213 test_*.py files: gateway, risk, portfolio, data-ops,
 │                           research, ML, coherence and bot, plus the file-size,
 │                           complexity and migration-bundle ratchets
 ├── tools/                  Parity-fixture generators; bench_decision.py,
@@ -653,7 +657,8 @@ Part2_Infrastructure/
 ├── OpenBB_Service/         Unit 3 — stateless OpenBB API (deployed separately)
 └── LICENSE
 
-../supabase/                Postgres mirror + RAG: 37 migrations, seed, 2 edge functions
+../supabase/                Postgres mirror + RAG: 41 worktree/bundled migrations,
+                            seed, 2 edge functions; live application is separate
 ../oracle/                  The optional in-database GBM VaR: schema, procedure, app user
 ../tools/bundle_migrations.py
                             Emits the re-runnable supabase/apply_all.generated.sql
@@ -716,9 +721,10 @@ SMART ROUTE:
   venue — a feed that stops updating is excluded from pricing before it can
   poison a fill estimate.
 
-**Offline behaviour.** If every venue is unreachable, a synthetic random-walk
-book is generated so the system stays demonstrable. Every payload derived from it
-carries `synthetic: true` and the UI shows a **⚠ SYNTHETIC** badge. Nothing
+**Offline behaviour.** The default is fail-closed: if every venue is
+unreachable, no book is invented. For an explicit offline demonstration,
+`ALLOW_SYNTHETIC_BOOK=1` enables a random-walk book. Every payload derived from
+it carries `synthetic: true` and the UI shows a **⚠ SYNTHETIC** badge. Nothing
 derived from simulated data is ever presented as live.
 
 ---
@@ -1014,8 +1020,10 @@ An 82% backtest return that the system refuses to endorse. That is the feature.
   stated reason rather than forgotten — it needs a third parameter axis, and
   folding a third value into one of the two existing ones makes a slider that
   lies about its units. Named axes on the request are what would admit it.
-- Data: Binance public klines → DuckDB cache → deterministic synthetic. The cache
-  is what makes an offline environment work.
+- Data: observed mode reads Binance public klines, then the DuckDB cache, and
+  fails if neither can satisfy the request. `data_mode=synthetic_demo` is the
+  explicit generated-data path; the saved request, `data_source`, warning and
+  dataset hash preserve that provenance.
 - Outputs an equity curve (with drawdown panel and the DSR verdict rendered into
   the image) and a Sharpe surface heatmap — a smooth plateau is a robust region,
   an isolated peak is an overfit. Telegram can queue a sweep on the same jobs
@@ -1029,12 +1037,14 @@ An 82% backtest return that the system refuses to endorse. That is the feature.
 The companion is optional: the gateway, API and web workspace remain fully
 functional with no Telegram token. When enabled, it is an independent text and
 visual-chart interface for phone-friendly portfolio, OpenBB, execution and
-health cards. It does not render a web page or send web links, and it cannot
-open a position. The companion registers **136 commands**; **6** of them change
+health cards. It does not render or scrape a web page, and it cannot open a
+position. When `WEB_WORKSPACE_URL` is configured, the three engine cards may
+carry an HTTPS link to the equivalent read-only view; the values still come
+from gateway domain read models. The companion registers **138 commands**; **6** of them change
 what the desk is allowed to do — `/halt`, `/resume`, `/flatten`, `/reduceonly`,
 `/resetbook` and `/replay` — and each requires membership of `TELEGRAM_CONTROL_USER_IDS`
 (**Gated controls**, below), which is separate from the read allow-list and
-empty by default, and **99** are pushed to Telegram's `/` menu (the API caps
+empty by default, and **100** are pushed to Telegram's `/` menu (the API caps
 that list at 100; the rest still dispatch, and `/commands` lists them all). Of
 the reads, all but one are pure — the exception is `/backtest`, which queues a
 sweep on the same jobs engine the API and the web use. That crosses into
@@ -1045,7 +1055,7 @@ tables below are generated from the registry by `tools/telegram_catalogue.py`,
 so these counts and the pushed menu cannot drift from what the bot dispatches.
 
 **It is interactive, not a text pager.** The command centre (`/start`,
-`/menu`), the nine tab cards and their section cards carry inline keyboards
+`/menu`), all eleven workspace-tab cards and their section cards carry inline keyboards
 built by `kb()` against the same registry, so a button that points at nothing
 is a red test rather than a dead button a user finds first; a tap is authorised
 on the *tapper* (`callback.from`), never on the tapped message's author, and
@@ -1148,7 +1158,9 @@ can scale independently from portfolio state.
 | `/data` | Quality, freshness & failover + chart |
 | `/reliability` | Telemetry & latency + chart |
 | `/developer` | CI/CD, OpenAPI & repo posture + chart |
-| `/coherence` | Kalshi baskets against the dollar they pay |
+| `/markets [SERIES]` | Markets engine — executable Kalshi books, family cost and provenance |
+| `/proofs [SERIES]` | Proofs engine — coherence certificate, witness and index sample |
+| `/diffusion` | Diffusion engine — absorption, survival and finding sample gates |
 | `/portfolio` | Whole-book PM summary + charts |
 | `/risk` | Drawdown, gateway budget & limit utilisation + charts |
 
@@ -1238,7 +1250,7 @@ can scale independently from portfolio state.
 | `/job JOB_ID` | Inspect one job |
 | `/backtests [COUNT]` | Completed backtest history |
 | `/backtest SYMBOL [INTERVAL] [STRATEGY]` | Queue a parameter sweep on the shared jobs engine |
-| `/rag QUERY` | Similarity search over this desk's own runs and incidents |
+| `/rag QUERY` | Similarity search (desk-scoped when enabled) |
 | `/strategies [STRATEGY]` | Supported strategy catalogue |
 | `/intervals` | Supported market horizons |
 | `/events [COUNT]` | Recent risk/audit events |
@@ -1349,6 +1361,13 @@ whole Risk category is read-only — `/rebalance` and `/allocation` compose a tr
 list and never send one — and computed by `modules/quant_risk/` against the
 gateway's own book, so a VaR quoted on a phone and the same VaR on the risk tab
 cannot be allowed to disagree.
+
+`/rag` follows the research rollout flag rather than claiming tenancy
+unconditionally: it searches the research corpus unscoped while
+`RESEARCH_SCOPE_TO_DESK=0` (the default), and uses `SUPABASE_DESK_ID` when the
+flag is `1`. If that scope is absent or cannot cross the retrieval call chain,
+the command refuses before searching. Apply migration `20260831130000` before
+enabling the flag.
 
 #### Gated controls, in detail
 
@@ -1547,13 +1566,12 @@ The data-quality ledger adds its own, all with defaults that need no setting:
 
 | Variable | Default | What it sets |
 |---|---|---|
-| `DATA_OPS_DB_PATH` | `$DATA_DIR/data_ops.sqlite` | the SQLite file holding the quality ledger (and, later, work items and schedules) |
+| `DATA_OPS_DB_PATH` | `$DATA_DIR/data_ops.sqlite` | the SQLite file holding the four operational tables and four Diffusion ledgers |
 | `DATA_QUALITY_RETENTION_DAYS` | `7` | how long findings are kept (1–90) |
 | `DATA_QUALITY_VIEW_WINDOW_MINUTES` | `1440` | the window the merged view summarises |
 | `DATA_QUALITY_ESCALATE_FATAL_COUNT` / `_WINDOW_MINUTES` | `3` / `15` | rule 1: this many payloads with a fatal finding from one provider inside the window |
 | `DATA_QUALITY_ESCALATE_FAIL_RATE` / `_MIN_SAMPLES` | `0.25` / `8` | rule 2: a contract-fail rate above the fraction once at least this many payloads were evaluated |
 | `DATA_QUALITY_ESCALATE_COOLDOWN_MINUTES` | `60` | one escalation per (rule, provider) per cooldown |
-| `DATA_WORK_SEED` | `true` | seed the work queue with its nine sample rows the first time the table is empty |
 | `WEB_WORKSPACE_URL` | origin of `PAPER_EQUITY_QUOTE_URL`, else empty | the web workspace the replay executor (and an equity backfill) calls back into |
 | `DATA_JOB_TIMEOUT_S` | `20` | the replay/backfill executor's HTTP timeout |
 | `DATA_BACKFILL_MAX_BARS` | `20000` | the most bars one backfill may span |
@@ -1608,44 +1626,39 @@ The summary line still looks healthy while the vectorbt engine goes entirely
 untested. Read the skip REASONS with `-rs`, not the count: the interpreter is
 wrong when the vectorbt skip appears, whatever the total.
 
-**On 3.12 this tree prints two different totals, and both are right.** With the
-cross-encoder weights seeded locally, `venv/bin/python -m pytest` reports
-**3,039 passed, 1 skipped** (re-measured 2026-08-24 on this working tree, native
-core built, no `.env` sourced). Without the weights — which is CI — the real-ONNX
-tests of `tests/test_research_rerank_real.py` collapse into a single skipped item,
-because that file reports its absence at *module* level
-(`pytest.skip(..., allow_module_level=True)`), so CI collects fewer items and
-reports **two** skips instead of one. The second skip either way is
-`tests/test_data_ops_postgrest.py`, which says plainly that no Supabase
-credentials were in the environment so the Postgres backend never ran. Read the
-reasons with `-rs`; the difference is an opt-in, not drift.
+**On 3.12 the collected total can change with explicit opt-ins.** The dated
+release record lives in [`../docs/CURRENT_STATE.md`](../docs/CURRENT_STATE.md),
+not in this operating section. Without weights,
+`tests/test_research_rerank_real.py` reports one module-level skip rather than
+collecting its real-model cases. Without the Supabase URL, service key and desk,
+`tests/test_data_ops_postgrest.py` reports the missing live-backend case. Read
+the reasons with `-rs`; an environment-dependent collection shape is not a
+substitute for a fresh measurement.
 
-**No test is red on this tree.** The migration-bundle ratchet, which was failing
-in August because `supabase/apply_all.generated.sql` had not been regenerated
-after a migration landed, is green: the bundle carries all 37 migrations
-including the two diffusion tables added on 2026-08-23.
+The migration-bundle ratchet reads `supabase/apply_all.generated.sql` and fails
+when it omits any migration in the current directory. That check is a source
+and bundle assertion; it says nothing about whether a live project has applied
+the bundle. A current full-suite green claim requires a fresh full run.
 
-**Do not read 3,039 as the number CI will print.** CI seeds no cross-encoder
-weights, so it collects fewer items and reports two skips where a seeded machine
-reports one. CI also runs the *committed* tree rather than a working copy, so
-re-derive the figure on the commit under test rather than believing a number in
-prose. What the arithmetic above settles is the *weights* opt-in, which is a
-property of the machine and not of the commit.
+**Do not assume a local release count is the number CI will print.** CI does not
+seed cross-encoder weights and runs the committed tree rather than a working
+copy. Re-derive the figure on the commit under test and name the skip reasons;
+the generated gateway line is a dated record, not a CI gate.
 
-Both opt-in paths have been exercised, not merely written: the live Postgres
-pass runs all 11 tests in `tests/test_data_ops_postgrest.py` green against a real
-Supabase project, and the real-ONNX cross-encoder path runs green against weights
-seeded by `tools/bench_rerank.py --seed --model-path DIR` (1.05 GiB). Neither
-total needs a network; the opt-ins are a local credential and a local directory,
-and CI's `rerank-real` job proves the second one by **failing if that suite
-skips** rather than by trusting it ran.
+Both opt-in paths have historical evidence, but neither was freshly exercised
+against an external service in the 2026-08-31 source audit. Re-run the Postgres
+case with its three scoped variables and inspect the skip reason/result; seed the
+real-ONNX weights with `tools/bench_rerank.py --seed --model-path DIR`. CI's
+`rerank-real` job proves the second path by **failing if that suite skips** rather
+than by trusting it ran.
 
 **A trap worth naming, because it costs an afternoon.** Do not
 `set -a && . ./.env` before running the suite. That also exports `REQUIRE_AUTH`,
 `tests/conftest.py` uses `setdefault` and cannot override an exported variable,
 and about 80 tests then fail with 401 that have nothing wrong with them. Pass
-one variable per run instead — `SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=…
-venv/bin/python -m pytest tests/test_data_ops_postgrest.py`. `conftest.py` also
+one scoped set per run instead — `SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=…
+SUPABASE_DESK_ID=… venv/bin/python -m pytest
+tests/test_data_ops_postgrest.py`. `conftest.py` also
 blanks `GEMINI_API_KEY` and `RERANK_MODEL_PATH` **by assignment** so no test can
 spend quota or silently load ~110M parameters off a developer's exported path;
 the real-ONNX file reads a *different* variable (`RERANK_TEST_MODEL_PATH`) for
@@ -1678,7 +1691,7 @@ and the RAG index are no-ops and every test passes offline:
 | `SUPABASE_URL` | *(empty — disabled)* | the project's `https://<ref>.supabase.co` origin |
 | `SUPABASE_SERVICE_ROLE_KEY` | *(empty — disabled)* | server-side PostgREST credential; **gateway env only, never Vercel** |
 | `SUPABASE_MIRROR_ENABLED` | `0` | stream gateway order decisions to `public.order_blotter` |
-| `SUPABASE_DESK_ID` | fixed UUID `…0001` | the single-tenant desk id until auth ships |
+| `SUPABASE_DESK_ID` | *(empty — required when scoped)* | required for `DATA_OPS_BACKEND=postgres`; also supplies the predicate when `RESEARCH_SCOPE_TO_DESK=1`. Missing scope refuses instead of reading the full corpus |
 | `SUPABASE_TIMEOUT_S` | `5.0` | per-request timeout for mirror/RAG writes |
 | `SUPABASE_MIRROR_QUEUE_MAX` | `1000` | bounded queue; overflow is counted and dropped, never blocking |
 | `RESEARCH_RAG_ENABLED` | `0` | embed completed backtests, their charts, fitted ML runs and risk incidents, and retrieve on anomaly. Execution summaries are **not** written by this path — they have no live producer (see **Retrieval (RAG)** above) |
@@ -1701,7 +1714,7 @@ discovered by reading source:
 | `RESEARCH_ASK_RATE_PER_S` · `_BURST` | `0.2` · `5` | `research_quota.py` | the `/ask` token bucket |
 | `RESEARCH_ASK_SPEND_WINDOW_S` · `_CEILING_USD` | `3600` · `2.0` | `research_quota.py` | the rolling spend cap |
 | `RESEARCH_ASK_PRICE_INPUT_USD_PER_MTOK` · `_OUTPUT_` | `0.30` · `2.50` | `research_quota.py` | list prices used to price a call; published in every snapshot so a reader can check the bill against the prices that made it |
-| `RESEARCH_SCOPE_TO_DESK` | `0` | `research_quota_scope.py` | send `filter_desk_id` to the retrieval RPCs; when on and unappliable, the route refuses rather than reading the whole corpus |
+| `RESEARCH_SCOPE_TO_DESK` | `0` | `research_quota_scope.py` | send `filter_desk_id` through similarity and graph retrieval; when on and unappliable, the route refuses rather than reading the whole corpus |
 | `RESEARCH_VISION_TIMEOUT_MS` | `45000` | `research_generate_vision.py` | the wall-clock budget for a **multimodal** call, deliberately separate from `research_generate.TIMEOUT_MS` (20 000 ms) for text: two live calls measured 20.6 s and 29.9 s, so one budget for both would either starve the picture or slacken the text |
 | `RESEARCH_VISION_MAX_IMAGES` · `_MAX_IMAGE_BYTES` | `2` · `2097152` | `research_generate_vision.py` | how many charts one answer may carry, and how large each may be; over either bound is a named state (`over_image_budget`, `image_too_large`), never a silent drop |
 | `RESEARCH_CHART_IMAGE_FETCH_TIMEOUT_MS` | `1200` | `research_image_store.py` | the bound on the one synchronous PostgREST GET that fetches a stored chart. **`0` disables the fetch outright**, for an operator who would rather have the latency than the picture |
@@ -1736,11 +1749,12 @@ matched against the consolidated touch rather than by a venue's matching engine 
 so it has no queue ahead of it, which is the **queue position and partial fills**
 row of the table below. This is exactly what a pre-production risk gateway does
 before it is pointed at a venue, and it is the only honest thing to do without a
-funded account. The synthetic order book (§3) is a clearly-labelled offline
-fallback, never a silent substitute. The Data tab's **Work Queue** is persisted
-on the gateway (versioned, audit-logged, seeded samples marked as such); what it
-is not is a ticketing or incident system with a workflow engine — the board says
-"queue" and means it.
+funded account. The synthetic order book (§3) is a clearly-labelled, explicit
+offline demo mode, never a silent substitute. The Data tab's **Work Queue** is
+persisted on the gateway (versioned and audit-logged). A fresh store is empty
+and rows enter only through an explicit create request; there is no runtime
+sample-population switch. What it is not is a ticketing or incident system with
+a workflow engine — the board says "queue" and means it.
 
 **Mirror and RAG (Supabase):** the Postgres mirror and the pgvector research
 index are real code with real tests, and **off by default** — the gateway is
@@ -1844,12 +1858,12 @@ Key risks and their mitigations, all implemented here:
 
 ## 10. Testing
 
-**185 suites**, counted as `tests/test_*.py`. The `tests/` directory holds 189
-`.py` files: those 185 plus `conftest.py` (fixtures, not a suite),
+**213 suite files**, counted as `tests/test_*.py`. The `tests/` directory holds 217
+`.py` files: those 213 plus `conftest.py` (fixtures, not a suite),
 `research_seam.py` (a shared substitution seam, likewise) and two coherence
 harnesses (`coherence_fixtures.py`, `coherence_lab_harness.py`). Both figures are
-`ls`, not memory — `ls tests/test_*.py | wc -l` and `ls tests/*.py | wc -l`
-(2026-08-24). This figure was 38 for a long time and then 130, each written when
+`find`, not memory — `find tests -maxdepth 1 -name 'test_*.py'` and the same for
+`*.py` (2026-08-29). This figure was 38 for a long time and then 130, each written when
 it was true; the number of *suites* is the one thing here nothing regenerates, so
 re-derive it rather than believing it. No per-suite test counts are quoted
 below, because parametrised cases mean a file's `def test_` count is not the
@@ -1866,9 +1880,9 @@ grow, it must be split), `test_complexity_debt.py`, `test_migration_bundle.py`
 (the re-runnable `supabase/apply_all.generated.sql` is read as a *generated
 file*, not re-derived and compared with itself — so a migration added without
 regenerating the bundle turns this suite red rather than shipping a bundle that
-silently omits a table; it was red in August for exactly that reason and is
-green now, with all 37 migrations in the bundle) and `test_api_routers.py` (the router split itself,
-after the wire surface outgrew one module).
+silently omits a table; it was red in August for exactly that reason) and
+`test_api_routers.py` (the router split itself, after the wire surface outgrew
+one module).
 
 *Modules A, B and C — the engines*
 
@@ -1985,7 +1999,7 @@ tests/test_research_rag.py the research index's honesty contract, verified
                            offline
 ```
 
-Fifty-four `tests/test_research*.py` suites cover the plane (2026-08-24, `ls`);
+Fifty-six `tests/test_research*.py` suite files cover the plane (2026-08-29, `find`);
 the ones that exist because a *claim* needed holding rather than a function:
 
 ```
@@ -2318,7 +2332,7 @@ runtime cannot. So the engine is reimplemented in TypeScript — and
 [`web/tests/parity.test.ts`](web/tests/parity.test.ts) replays real Binance bars
 through it and asserts it reproduces what the Python reference produced from
 identical input — **48 cases covering all 46 strategies and both directions**
-(2026-08-24, counted out of `web/tests/fixtures/parity.json`). Trade counts,
+(recounted 2026-08-29 from `web/tests/fixtures/parity.json`). Trade counts,
 exposure and turnover must match exactly; return statistics to 1e-6.
 
 That test caught two real bugs in the port. It is regenerated with:
@@ -2414,18 +2428,15 @@ on different iterations and disagree by more than the fixture allows.
 Everything a reviewer needs to check runs offline:
 
 ```bash
-pytest                                    # 3,039 passed / 1 skipped on this working tree, with the
-                                          # re-ranker weights seeded (3.12, native core built); CI
-                                          # seeds none and reports two skips over a smaller total — §8
+pytest                                    # run fresh; read skip reasons with -rs — §8
 python tools/bench_decision.py            # regenerates docs/architecture/latency-bench.generated.json
                                           # and the table LATENCY_BUDGET.md §2.1 quotes from it
 python tools/bench_image_retrieval.py --model-path DIR
                                           # the image arm's nDCG@3 / MRR / recall@3 against its own answer key;
                                           # offline once `--seed --model-path DIR` has fetched the weights
-python tools/synthetic_probe.py           # end-to-end: book → cost → gate → audit; 6/6 steps
-cd OpenBB_Service && pytest               # 24 stateless service tests
-cd web && npm install && npm test         # 4,728 passed, 2 skipped, across 1,028 suites —
-                                          # incl. the parity suites
+python tools/synthetic_probe.py           # end-to-end: book → cost → gate → audit
+cd OpenBB_Service && pytest               # stateless service suite
+cd web && npm install && npm test         # web suite, including parity cases
 bash tools/check_repo_complete.sh         # builds the *committed* tree
 ```
 
@@ -2447,8 +2458,8 @@ authoritative.
 |---|---|---|---|
 | `web/lib/gateway-openapi-digest.generated.ts` | **Gate** — `npm run prebuild`, so `next build` and every Vercel deploy; and `tools/export_openapi.py --check` in CI | `Gateway OpenAPI digest is stale`, exit 1. It is a **canonical-JSON SHA-256 with sorted keys**, not a file hash, so re-ordering the same content does not move it | `python tools/export_openapi.py`, then commit the new digest |
 | `web/lib/repository-manifest.generated.json` | **Gate** — the second half of the same `prebuild` | `Repository manifest is stale (N added…)`, exit 1. It compares **only the file list** from `git ls-files --cached --others --exclude-standard`; `generatedAt` and `commit` change every commit and gating on those would fail every push. Expect it red on any commit that adds a file | `cd web && npm run catalog:refresh` |
-| `web/lib/test-counts.generated.ts` | **Half a gate** — CI runs `check-test-counts.mjs web <log>`, and that script accepts only `suite === "web"` | The web line fails the push. The **gateway and service lines are checked by nothing**: refreshed 2026-08-24 in the CI shape to 3,033 (3,031 passed, 2 skipped), where a weights-seeded run of the same suite prints 3,040 — quote the shape with the number or the two read as a contradiction | `cd web && npm run counts:refresh`, or `-- --suite=web` for the web line alone |
-| `supabase/apply_all.generated.sql` | **Gate, inside the suite** — `tests/test_migration_bundle.py` reads the *generated* file rather than re-deriving it and checking it agrees with itself | Two red tests naming the migration the bundle omits. Green on this tree: all 37 migrations are in the bundle | `python3 tools/bundle_migrations.py`, from the repository **root** |
+| `web/lib/test-counts.generated.ts` | **Half a gate** — CI runs `check-test-counts.mjs web <log>`, and that script accepts only `suite === "web"` | The web line fails the push. The **gateway and service lines are checked by nothing**; all three are dated records until their owning runner refreshes them | `cd web && npm run counts:refresh`, or `-- --suite=web` for the web line alone |
+| `supabase/apply_all.generated.sql` | **Gate, inside the suite** — `tests/test_migration_bundle.py` reads the *generated* file rather than re-deriving it and checking it agrees with itself | Red tests name any migration the bundle omits. Passing proves directory/bundle agreement, not live application | `python3 tools/bundle_migrations.py`, from the repository **root** |
 
 Two more are generated and neither is gated:
 `web/lib/mc-parity-reference.generated.ts` (the Monte Carlo digest, recomputed
@@ -2481,7 +2492,9 @@ gateway, the live Vercel deployment and the live databases — is scheduled and
 manual only. It exists because every deployment failure this repository has
 actually had passed the full offline suite first: a directory excluded from the
 Vercel upload, an image that pushed but never swapped, a database that requires
-a wallet, an env file truncated to five variables. All green locally.
+a wallet, an env file truncated to five variables. Those are historical cases
+where local checks were green, not a claim that the current worktree or live
+deployment was fully re-verified on 2026-08-31.
 
 The last one exists because of a real incident: a bare `lib/` pattern inherited
 from GitHub's Python `.gitignore` template silently swallowed the web app's
