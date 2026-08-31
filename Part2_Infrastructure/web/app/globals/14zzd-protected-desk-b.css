@@ -1,0 +1,348 @@
+/* Presentation-only work-surface pass for Risk, Data, Reliability and
+   Developer. The selectors are rooted in the four existing workspaces so this
+   layer cannot change the engine products or the other protected desks. */
+
+:where(
+  #panel-risk,
+  .data-control-plane,
+  #panel-reliability,
+  .developer-control-plane
+) {
+  --protected-desk-b-gap: var(--space-3);
+}
+
+/* The rail is chrome; the selected panel begins on the next spacing step.
+   Hidden panels retain their existing lifecycle and the global [hidden] rule
+   remains the sole authority over their display. */
+:where(
+  #panel-risk,
+  .data-control-plane,
+  #panel-reliability,
+  .developer-control-plane
+) > .workspace-subtab-panel:not([hidden]) {
+  min-inline-size: 0;
+  padding-block-start: var(--protected-desk-b-gap);
+  padding-block-end: var(--space-4);
+}
+
+/* A card may contain a matrix wider than itself, but it may not enlarge the
+   page plane. The named scroll port below owns that width. */
+:where(
+  #panel-risk,
+  .data-control-plane,
+  #panel-reliability,
+  .developer-control-plane
+) :where(
+  .card,
+  .console-card,
+  .data-trust-overview,
+  .reliability-overview,
+  .developer-cp-stack,
+  .developer-cp-overview,
+  .codebase-explorer,
+  .developer-work
+) {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+/* One keyboard-reachable inner viewport for wide tables, diagrams and work
+   boards. Stable gutters prevent a late scrollbar from moving evidence cells. */
+:where(
+  #panel-risk,
+  .data-control-plane,
+  #panel-reliability,
+  .developer-control-plane
+) :is(
+  .table-wrap,
+  .data-workboard__board,
+  .developer-work__table-wrap,
+  .developer-cp-table,
+  .developer-cp-artifacts,
+  .developer-cp-jobs__table,
+  .developer-cp-pipeline-scroll
+) {
+  max-inline-size: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-gutter: stable;
+}
+
+:where(
+  #panel-risk,
+  .data-control-plane,
+  #panel-reliability,
+  .developer-control-plane
+) :is(
+  .table-wrap,
+  .data-workboard__board,
+  .developer-work__table-wrap,
+  .developer-cp-table,
+  .developer-cp-artifacts,
+  .developer-cp-jobs__table,
+  .developer-cp-pipeline-scroll
+):focus-visible {
+  border-radius: var(--radius-sm);
+  outline: 2px solid var(--series-1);
+  outline-offset: 2px;
+}
+
+/* Headings keep evidence and controls in separate alignment groups. Wrapping
+   is a geometry fallback only; DOM and reading order remain untouched. */
+:where(
+  #panel-risk,
+  .data-control-plane,
+  #panel-reliability,
+  .developer-control-plane
+) :is(
+  .portfolio-card-heading,
+  .section-heading,
+  .developer-cp-heading,
+  .developer-cp-section-hero,
+  .developer-work__heading,
+  .data-workboard__heading,
+  .console-action__head
+) {
+  min-inline-size: 0;
+  align-items: flex-start;
+  column-gap: var(--space-4);
+  row-gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+/* Guarded writes and queue mutations start below a rule instead of reading as
+   another evidence row. Existing labels, warnings and button order stay put. */
+#risk-subpanel-controls .page-actions,
+#reliability-subpanel-controls .operator-confirmation__actions,
+.data-control-plane .data-workboard__footer,
+.developer-control-plane .developer-work__footer {
+  margin-block-start: var(--space-3);
+  padding-block-start: var(--space-3);
+  border-block-start: 1px solid var(--border);
+}
+
+/* The compact secondary controls may wrap their actions; none is moved into a
+   second navigation row and the primary section rail remains unchanged. */
+:where(
+  #panel-risk,
+  .data-control-plane,
+  #panel-reliability,
+  .developer-control-plane
+) :is(
+  .page-actions,
+  .console-row-actions,
+  .developer-cp-section-hero__actions,
+  .developer-work__actions,
+  .data-work-card__foot
+) {
+  min-inline-size: 0;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+/* Container queries follow the work surface rather than the viewport. This
+   matters when a pane sits beside another inspector on a wide screen. */
+@container (max-width: 620px) {
+  :where(
+    #panel-risk,
+    .data-control-plane,
+    #panel-reliability,
+    .developer-control-plane
+  ) :is(
+    .data-console-pair,
+    .reliability-overview__split,
+    .compact-grid-2col
+  ) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* A one-column grid still defaults to an intrinsic `auto` track. The
+     Dependencies pane's five-label segment made that track 30px wider than a
+     390px phone even though the grid container itself was correctly bounded.
+     Make the track, not just the container, willing to shrink. */
+  #reliability-subpanel-planes .reliability-overview {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  :where(
+    #panel-risk,
+    .data-control-plane,
+    #panel-reliability,
+    .developer-control-plane
+  ) :is(
+    .reliability-remediation-seg,
+    .stress-scenarios,
+    .developer-work__kinds,
+    .data-workboard__kinds
+  ) {
+    max-inline-size: 100%;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-gutter: stable;
+  }
+
+  :where(
+    #panel-risk,
+    .data-control-plane,
+    #panel-reliability,
+    .developer-control-plane
+  ) :is(
+    .reliability-remediation-seg,
+    .stress-scenarios,
+    .developer-work__kinds,
+    .data-workboard__kinds
+  ) > button {
+    flex: 0 0 auto;
+  }
+}
+
+/* Data Quality owns one disclosure and one card boundary. Reconciliation stays
+   above it as the resting surface; opening this owner reveals the complete
+   durable ledger without a second summary/card pair around the same heading. */
+.data-control-plane .data-quality-ledger {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+.data-control-plane .data-quality-ledger > summary {
+  cursor: pointer;
+  padding-block: var(--space-1);
+}
+
+.data-control-plane .data-quality-ledger__summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-2) var(--space-4);
+  min-inline-size: 0;
+}
+
+.data-control-plane .data-quality-ledger__title {
+  display: block;
+  margin-block-start: var(--space-1);
+  color: var(--text-primary);
+  font-size: var(--fs-h2);
+  font-weight: 700;
+  line-height: var(--lh-snug);
+}
+
+.data-control-plane .data-quality-ledger__body {
+  min-inline-size: 0;
+  margin-block-start: var(--space-3);
+  padding-block-start: var(--space-3);
+  border-block-start: 1px solid var(--border);
+}
+
+.data-control-plane .data-quality-ledger__context {
+  display: grid;
+  grid-template-columns: minmax(min-content, auto) minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: baseline;
+  margin-block: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--grid);
+  border-radius: var(--radius-control);
+  background: var(--surface-2);
+}
+
+.data-control-plane .data-quality-ledger__context > :where(strong, p) {
+  min-inline-size: 0;
+  margin: 0;
+}
+
+/* The trace card is the query container: the decision to stack is based on the
+   actual work surface, not on a viewport that may also contain another rail. */
+#reliability-subpanel-events .console-log-card {
+  container-type: inline-size;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+#reliability-subpanel-events .console-trace-split {
+  grid-template-columns: minmax(0, 1fr) minmax(min(100%, 20rem), .72fr);
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+#reliability-subpanel-events :is(
+  .console-trace-master,
+  .console-trace-detail,
+  .console-trace-detail__body,
+  .console-trace-detail__title,
+  .console-trace-meta,
+  .console-trace-fields
+) {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+#reliability-subpanel-events .console-trace-pane-heading {
+  min-inline-size: 0;
+  flex-wrap: wrap;
+}
+
+#reliability-subpanel-events .console-trace-detail {
+  min-block-size: 0;
+  max-block-size: min(60vh, 36rem);
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+#reliability-subpanel-events .console-trace-detail__body {
+  min-inline-size: 0;
+}
+
+#reliability-subpanel-events .console-trace-meta dd,
+#reliability-subpanel-events .console-trace-fields dd {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+#reliability-subpanel-events .console-trace-meta dd code,
+#reliability-subpanel-events .console-trace-fields dd code {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+#reliability-subpanel-events .console-trace-detail:focus-visible {
+  outline: 2px solid var(--series-1);
+  outline-offset: 2px;
+}
+
+@container (max-width: 760px) {
+  #reliability-subpanel-events .console-trace-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #reliability-subpanel-events .console-trace-detail {
+    max-block-size: min(44vh, 28rem);
+  }
+
+  #reliability-subpanel-events .console-trace-split .console-log__line {
+    grid-template-columns: max-content max-content minmax(36px, max-content) minmax(0, 1fr);
+  }
+
+  #reliability-subpanel-events .console-trace-split :is(.console-log__msg, .console-log__fields) {
+    grid-column: 1 / -1;
+    padding-inline-start: var(--space-1);
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+@container (max-width: 520px) {
+  .data-control-plane .data-quality-ledger__summary,
+  .data-control-plane .data-quality-ledger__context {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #reliability-subpanel-events .console-trace-meta > div,
+  #reliability-subpanel-events .console-trace-fields > div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
