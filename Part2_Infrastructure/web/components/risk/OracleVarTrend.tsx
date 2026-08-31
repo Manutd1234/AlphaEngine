@@ -113,6 +113,8 @@ const HEIGHT = 132;
 const RUG = 5;
 /** The reserved box, so a re-run repaints the chart and never moves the card. */
 export const ORACLE_TREND_RESERVE = 156;
+const SIMULATED_LABEL = "Simulated in Oracle 23ai";
+const CLOSED_FORM_LABEL = "Closed form, dashed";
 
 export default function OracleVarTrend({
   observations,
@@ -203,10 +205,10 @@ export default function OracleVarTrend({
     <div className="oracle-var-trend">
       <div className="legend">
         <span>
-          <i style={{ background: "var(--series-1)" }} aria-hidden /> Simulated in Oracle 23ai
+          <i style={{ background: "var(--series-1)" }} aria-hidden /> {SIMULATED_LABEL}
         </span>
         <span>
-          <i style={{ background: "var(--text-muted)" }} aria-hidden /> Closed form, dashed
+          <i style={{ background: "var(--text-muted)" }} aria-hidden /> {CLOSED_FORM_LABEL}
         </span>
         {missing > 0 && (
           <span>
@@ -229,7 +231,35 @@ export default function OracleVarTrend({
         reading="The dashed line is the analytic answer; the question is how far the simulation sits from it, and the dash says which one is analytic without relying on colour."
         missing={missing > 0 ? `${missing} of ${shown.length} re-runs could not be computed, and are drawn as gaps rather than as zero.` : null}
       >
-        <Plot height={HEIGHT}>
+        <Plot
+          height={HEIGHT}
+          sharedX={(measured) => ({
+            count: shown.length,
+            x0,
+            x1: Math.max(x0 + 40, measured - m.right),
+            arriveAt: "last",
+            read: (index) => {
+              const o = shown[index];
+              return {
+                title: String(index + 1),
+                rows: [
+                  {
+                    label: SIMULATED_LABEL,
+                    value: o.var99 === null ? "—" : usd(o.var99, 0),
+                    raw: o.var99,
+                    color: "var(--series-1)",
+                  },
+                  {
+                    label: CLOSED_FORM_LABEL,
+                    value: o.clientVar === null ? "—" : usd(o.clientVar, 0),
+                    raw: o.clientVar,
+                    color: "var(--text-muted)",
+                  },
+                ],
+              };
+            },
+          })}
+        >
           {(measured) => {
             // Everything downstream of the right edge follows the measured
             // width, so it all belongs to the plot.
@@ -240,6 +270,24 @@ export default function OracleVarTrend({
             return (
               <>
         <Grid yTicks={ticks(lo, hi, 3)} yScale={yScale} x0={x0} x1={x1} format={(v) => usd(v, 0)} />
+
+        {shown.slice(1).map((o, i) => {
+          const previous = shown[i];
+          if (previous.var99 === null || previous.clientVar === null
+              || o.var99 === null || o.clientVar === null) return null;
+          return (
+            <polygon
+              key={`${o.key}-ribbon`}
+              className="oracle-var-ribbon"
+              points={[
+                `${xScale(i)},${yScale(previous.var99)}`,
+                `${xScale(i + 1)},${yScale(o.var99)}`,
+                `${xScale(i + 1)},${yScale(o.clientVar)}`,
+                `${xScale(i)},${yScale(previous.clientVar)}`,
+              ].join(" ")}
+            />
+          );
+        })}
 
         {/* The closed form first and dashed, so the simulated line reads on
             top of it: the panel's question is how far the simulation sits from
