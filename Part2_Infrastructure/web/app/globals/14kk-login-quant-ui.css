@@ -1,0 +1,163 @@
+/* ==========================================================================
+   Access portal — a restrained operator-console surface.
+
+   This layer is intentionally presentation-only. Authentication modes, copy,
+   provider safety and the measured async reserve remain owned by the existing
+   components and 14k. Every colour and type decision comes from the house
+   tokens so light, dark, high-contrast and text-size modes stay one system.
+   ========================================================================== */
+
+.auth-shell {
+  position: relative;
+  isolation: isolate;
+  width: min(500px, 100%);
+  padding-inline: clamp(var(--space-4), 5vw, var(--space-6));
+}
+
+/* A quiet plotting-paper plane: enough structure to identify the product as
+   an analytical workspace, never enough contrast to compete with the form. */
+.auth-shell::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--border) 42%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--border) 42%, transparent) 1px, transparent 1px),
+    radial-gradient(circle at 50% 18%, color-mix(in srgb, var(--series-1) 7%, transparent), transparent 36%);
+  background-size: 32px 32px, 32px 32px, 100% 100%;
+  mask-image: linear-gradient(to bottom, currentColor, transparent 92%);
+}
+
+.auth-shell .brand-lockup--lg {
+  align-self: flex-start;
+  padding: 0;
+}
+
+.auth-shell .brand-lockup--lg .brand-mark {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--series-1) 24%, var(--border));
+}
+
+.auth-shell .brand-lockup--lg .brand-copy small {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--ls-caps);
+}
+
+.card.auth-card {
+  position: relative;
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--text-primary) 13%, var(--border));
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--surface-2) 48%, transparent), transparent 42%),
+    var(--surface-1);
+  box-shadow: var(--shadow-sm);
+}
+
+.card.auth-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  background: linear-gradient(
+    to right,
+    var(--series-1),
+    color-mix(in srgb, var(--series-1) 30%, transparent) 62%,
+    transparent
+  );
+}
+
+.auth-card h1 {
+  max-width: 15ch;
+  text-wrap: balance;
+}
+
+.auth-card .auth-blurb {
+  max-width: 42ch;
+}
+
+.auth-card form > div:not(.auth-providers) {
+  min-width: 0;
+}
+
+.auth-card label:not([for="auth-remember"]) {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+.auth-card input:not([type="checkbox"]) {
+  border-color: color-mix(in srgb, var(--text-primary) 10%, var(--border));
+  background: color-mix(in srgb, var(--surface-0) 58%, var(--surface-1));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text-primary) 3%, transparent);
+}
+
+.auth-card input:not([type="checkbox"]):hover {
+  border-color: color-mix(in srgb, var(--series-1) 34%, var(--border));
+}
+
+.auth-card input:not([type="checkbox"]):focus-visible {
+  border-color: var(--series-1);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--series-1) 16%, transparent);
+}
+
+.auth-card [for="auth-remember"] {
+  min-width: 0;
+}
+
+.auth-card [data-slot="checkbox"] {
+  border-color: color-mix(in srgb, var(--text-primary) 22%, var(--border));
+  background: var(--surface-1);
+}
+
+.auth-provider-separator {
+  display: grid;
+  grid-template-columns: minmax(20px, 1fr) auto minmax(20px, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.auth-provider-separator__label {
+  margin: 0;
+  font-family: var(--mono);
+  white-space: nowrap;
+}
+
+.auth-card .primary-action {
+  position: relative;
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--series-1) 18%, transparent);
+}
+
+.auth-provider,
+.auth-guest {
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--text-primary) 4%, transparent);
+}
+
+.auth-provider:hover:not(:disabled),
+.auth-guest:hover:not(:disabled) {
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--text-primary) 7%, transparent);
+}
+
+.auth-guest__note {
+  max-width: 46ch;
+  align-self: center;
+  text-wrap: pretty;
+}
+
+@media (max-width: 620px) {
+  .auth-shell {
+    width: 100%;
+    gap: var(--space-3);
+    padding-block: var(--space-4);
+  }
+
+  .card.auth-card {
+    padding: var(--space-5);
+  }
+
+  .auth-provider-separator {
+    gap: var(--space-2);
+  }
+}
