@@ -64,11 +64,14 @@ jobs:
           # Two probes: the first may pay the cold start, the second confirms
           # the warm path answers quickly. Fail only if the service does not
           # answer at all, not on how slow the first one was.
-          code=$(curl -s -m 30 -o /dev/null -w '%{http_code}' "$url" || echo 000)
+          first=$(curl -s -m 30 -o /dev/null -w '%{http_code} %{time_total}' "$url" || echo '000 30')
           sleep 2
-          t=$(curl -s -m 30 -o /dev/null -w '%{time_total}' "$url" || echo 30)
-          echo "healthz -> $code in ${t}s (warm)"
-          if [ "$code" != "200" ]; then
-            echo "::warning::OpenBB liveness returned $code — the service may be down or the URL renamed."
+          warm=$(curl -s -m 30 -o /dev/null -w '%{http_code} %{time_total}' "$url" || echo '000 30')
+          first_code="${first%% *}"
+          warm_code="${warm%% *}"
+          warm_time="${warm#* }"
+          echo "healthz -> first ${first_code}; warm ${warm_code} in ${warm_time}s"
+          if [ "$first_code" != "200" ] || [ "$warm_code" != "200" ]; then
+            echo "::warning::OpenBB liveness returned first=${first_code}, warm=${warm_code} — the service may be down or the URL renamed."
             exit 1
           fi
