@@ -22,9 +22,11 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query
 
 from modules.api import coherence_lab_views as views
+from modules.api.coherence import bounded_certify
 from modules.api.deps import trader_identity
 from modules.coherence import fee_meta, tunables, warm
 from modules.coherence.drivers.kalshi_auth import signing_available
+from modules.coherence.drivers.kalshi_auth import status as signing_status
 from modules.coherence.drivers.kalshi_rest import KalshiClient, KalshiUnavailable
 from modules.coherence.drivers.rfq import read_panel
 from modules.coherence.fs import corpus
@@ -33,7 +35,6 @@ from modules.coherence.kernel.band_usage import band_usage
 from modules.coherence.kernel.costs import FeeSchedule, net_fee, no_arbitrage_bound
 from modules.coherence.kernel.money import DOLLAR, MoneyError, format_dollars, parse_fp
 from modules.coherence.syscalls import calibrate, combos, settlement, shell, surface
-from modules.coherence.syscalls.certify import certify
 from modules.coherence.syscalls.observe import observe_event, observe_series
 from modules.schemas import (
     CoherenceCalibration,
@@ -47,8 +48,7 @@ from modules.schemas import (
     CoherenceSurface,
 )
 
-# One tag per router module, as with the other two halves: /docs then answers
-# "which file is this route in" without anyone opening the tree.
+# One tag per router module, so /docs answers "which file is this route in" without opening the tree.
 router = APIRouter(tags=["coherence lab"])
 
 
@@ -219,11 +219,13 @@ async def coherence_rfq(_actor: str = Depends(trader_identity)) -> CoherenceRfqP
     unsigned read is reported as no view rather than a worse one.
     """
     if not signing_available() or not tunables.DEMO_KEY_ID:
+        signing_detail = str(signing_status().get("detail") or "signed demo reads are unavailable")
         return CoherenceRfqPanel(
             state="signing_unavailable",
             detail=(
-                "the RFQ channel is signed-only. No demo key is configured here, or the signing "
-                "library is absent, so there is no view of it at all — which is not an empty one"
+                f"Private maker RFQs are unavailable: {signing_detail}. "
+                "Configure KALSHI_DEMO_KEY_ID and KALSHI_DEMO_PRIVATE_KEY_PATH on the gateway. "
+                "Public market reads remain available while this private channel is unconfigured."
             ),
         )
     panel = await read_panel(KalshiClient(base_url=tunables.DEMO_BASE_URL, signed=True))
@@ -263,26 +265,32 @@ async def coherence_shell(
     refusals: list[str] = []
     for series in tunables.SERIES_WATCHLIST or ():
         try:
-            observations.extend(await observe_series(client, series, max_events=tunables.MAX_EVENTS_PER_SERIES))
+            observations.extend(await observe_series(
+                client, series, max_events=tunables.SHELL_MAX_EVENTS_PER_SERIES, require_complete=True,
+            ))
         except KalshiUnavailable as exc:
             refusals.append(f"{series}: {exc.reason}")
 
-    if not observations:
+    if refusals:
         # A read that failed and a path that is not there are different answers,
         # and this route used to give both of them the same one — `exists=False`,
         # which the pane renders as "no such path". The venue's own reason is
         # carried through so the reader can tell an outage from an empty tree.
-        if refusals:
-            return CoherenceShell(
-                state="unavailable",
-                path=path,
-                command=command,
-                exists=True,
-                detail=(
-                    "the watched universe could not be read, so this is not a statement about the "
-                    "path: " + "; ".join(refusals[:3])
-                ),
-            )
+        # Fail closed even when another watched series did answer: passing a
+        # partial universe to `ls`/`cat` would turn the refused series into a
+        # false "missing" path and silently omit its shard from a root listing.
+        return CoherenceShell(
+            state="unavailable",
+            path=path,
+            command=command,
+            exists=True,
+            detail=(
+                "the watched universe could not be read completely, so this is not a statement about the "
+                "path: " + "; ".join(refusals[:3])
+            ),
+        )
+
+    if not observations:
         return CoherenceShell(
             state="unavailable",
             path=path,
@@ -315,7 +323,7 @@ async def _certificate_for(observations: list[Any], path: str) -> Any:
     if observation is None:
         return None
     schedule = await fee_meta.schedule_for_event(observation.event.series_ticker, observation.event.event_ticker)
-    return certify(observation, schedule)
+    return await bounded_certify(observation, schedule)
 
 
 @router.get("/api/coherence/fees/curve", response_model=CoherenceFeeCurve)
