@@ -28,11 +28,13 @@ from importlib.util import find_spec
 import pytest
 
 from modules.coherence.drivers.kalshi_parse import Event, Market
+from modules.coherence.kernel import dutchbook
 from modules.coherence.kernel.book import Book, Level
 from modules.coherence.kernel.costs import FeeSchedule
 from modules.coherence.kernel.grid import Band, PriceGrid
 from modules.coherence.syscalls.certify import certify
 from modules.coherence.syscalls.observe import MarketObservation, Observation
+from modules.schemas_coherence import CoherenceCertificate as CoherenceCertificateSchema
 
 linprog_required = pytest.mark.skipif(
     find_spec("scipy") is None,
@@ -127,3 +129,80 @@ class TestTheIncoherentButPricedOutCertificate:
         assert certificate.priced_out is False
         assert certificate.gross_edge is None
         assert certificate.margin is not None
+
+
+@linprog_required
+class TestStructuredProofEvidenceAtTheSyscallBoundary:
+    def test_separates_observation_solver_and_constraint_counts(self):
+        certificate = certify(observation(), SCHEDULE)
+        evidence = certificate.proof_evidence
+        assert evidence is not None
+        assert evidence.observation.markets_observed == 3
+        assert evidence.observation.markets_in_event == 3
+        assert evidence.observation.outcomes_in_component == 3
+        assert evidence.observation.executable_buy_sides == 3
+        assert evidence.observation.executable_sell_sides == 3
+
+        # Six quote-side variables and three logical states are the LP matrix;
+        # the two additive rows are a different, named explainer calculation.
+        assert evidence.solver.variables == 6
+        assert evidence.solver.state_rows == 3
+        assert evidence.solver.optimum == certificate.margin
+        assert evidence.solver.decision_boundary == Decimal("0.0001")
+        assert evidence.solver.verdict == certificate.verdict
+        assert evidence.constraints.tested == 2
+        assert evidence.constraints.untestable == 0
+        assert len(evidence.constraints.rows) == 2
+
+    def test_the_constraint_values_change_with_the_observed_quotes(self):
+        priced_out = certify(observation(no_bid="0.67"), SCHEDULE)
+        coherent = certify(observation(no_bid="0.60"), SCHEDULE)
+        assert priced_out.proof_evidence is not None
+        assert coherent.proof_evidence is not None
+        priced_out_row = priced_out.proof_evidence.constraints.rows[0]
+        coherent_row = coherent.proof_evidence.constraints.rows[0]
+        assert priced_out_row.cost == Decimal("0.99")
+        assert priced_out_row.slack == Decimal("-0.01")
+        assert priced_out_row.violated is True
+        assert coherent_row.cost == Decimal("1.20")
+        assert coherent_row.slack == Decimal("0.20")
+        assert coherent_row.violated is False
+
+    def test_the_api_schema_serialises_fixed_point_evidence_without_dropping_rows(self):
+        certificate = certify(observation(), SCHEDULE)
+        payload = certificate.to_dict()
+        payload["proof"] = certificate.render_text()
+        wire = CoherenceCertificateSchema(**payload).model_dump()
+        evidence = wire["proof_evidence"]
+        assert evidence is not None
+        assert evidence["observation"] == {
+            "markets_observed": 3,
+            "markets_in_event": 3,
+            "outcomes_in_component": 3,
+            "executable_buy_sides": 3,
+            "executable_sell_sides": 3,
+        }
+        assert evidence["solver"]["optimum"] == wire["margin"]
+        assert evidence["solver"]["decision_boundary"] == "0.000100"
+        assert evidence["constraints"]["rows"][0]["cost"] == "0.990000"
+        assert evidence["constraints"]["rows"][0]["slack"] == "-0.010000"
+        assert evidence["constraints"]["rows"][0]["legs"][0]["price"] == "0.330000"
+
+
+def test_the_closed_form_fallback_keeps_actual_observation_counts_and_rows(monkeypatch):
+    monkeypatch.setattr(dutchbook, "import_linprog", lambda: (None, "not installed for this test"))
+    certificate = certify(observation(), SCHEDULE)
+    evidence = certificate.proof_evidence
+    assert certificate.engine == "closed_form"
+    assert evidence is not None
+    assert evidence.observation.markets_observed == 3
+    assert evidence.observation.markets_in_event == 3
+    assert evidence.observation.executable_buy_sides == 3
+    assert evidence.observation.executable_sell_sides == 3
+    assert evidence.solver.engine == "closed_form"
+    assert evidence.solver.variables is None
+    assert evidence.solver.state_rows is None
+    assert evidence.solver.optimum == Decimal("-0.01")
+    assert evidence.solver.verdict == certificate.verdict
+    assert evidence.constraints.tested == 2
+    assert len(evidence.constraints.rows) == 2
