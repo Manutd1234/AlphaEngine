@@ -160,7 +160,7 @@ async def research_rag_ask(
     as an UNPRICED call, never as a free one.
     """
     rag = get_rag()
-    _desk, unscopable, scope = scope_for((answer_from_corpus, rag.search))
+    _desk, unscopable, scope = scope_for((answer_from_corpus, rag.search, rag.connected))
     if unscopable is not None:
         return refusal_response(unscopable, ASK_ROUTE, req.query)
 
@@ -278,7 +278,7 @@ async def research_graph(
         description="Traverse only these relations; repeat for several. Omit for every relation.",
     ),
     _actor: str = Depends(trader_identity),
-) -> ResearchGraphResponse:
+) -> ResearchGraphResponse | JSONResponse:
     """What is CONNECTED to one research document — the question similarity cannot answer.
 
     `/api/research/rag/search` finds what a document resembles. This walks
@@ -301,8 +301,12 @@ async def research_graph(
     key off — because `relations = '{}'` matches no edge at all and would answer
     "this document is connected to nothing", which is a lie about the corpus.
     """
-    result = await get_rag().connected(
-        document_id, max_depth=max_depth, match_count=limit, relations=relations,
+    rag = get_rag()
+    _desk, unscopable, scope = scope_for((rag.connected,))
+    if unscopable is not None:
+        return refusal_response(unscopable, "/api/research/graph/{document_id}", document_id)
+    result = await rag.connected(
+        document_id, max_depth=max_depth, match_count=limit, relations=relations, **scope,
     )
     return ResearchGraphResponse(**result)
 
