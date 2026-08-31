@@ -78,15 +78,15 @@ const FOLDED: readonly Folded[] = [
   // Seeded with what was folded BEFORE this pass, so it cannot quietly come back out.
   { file: "components/coherence/BasketWhatIf.tsx", in: "notes", facts: ["Offers only", "Dutch book before"] },
   { file: "components/coherence/CorpusHistory.tsx", in: "notes", facts: ["record of RUNS"] },
-  { file: "components/coherence/ConstraintLadder.tsx", in: "notes", facts: ["both counts are honest"] },
+  { file: "components/coherence/SolverProofLoom.tsx", in: "notes", facts: ["not relabelled as the LP's"] },
   { file: "components/coherence/CalibrationCorpus.tsx", in: "details", facts: ["never stands in for it"] },
   { file: "components/coherence/IndexFamilies.tsx", in: "details", facts: ["never folded into the measured ones"] },
   {
     file: "components/coherence/murphy-terms.ts", in: "module",
     facts: ["only this term notices"],
-    // The glossary is mapped inside the fold as `{term.meaning}`; the sentence
-    // itself lives in the module, one entry per term.
-    renderedBy: "components/coherence/MurphyBars.tsx", through: "term.meaning",
+    // The glossary table is mapped inside the fold as `{term.meaning}`; the
+    // sentence itself lives in the module, one entry per term.
+    renderedBy: "components/coherence/MurphyTermTable.tsx", through: "term.meaning",
   },
   { file: "components/coherence/CertificateViews.tsx", in: "details", facts: ["What it decides"] },
 ];
@@ -99,6 +99,8 @@ const SINGULAR: Record<string, string> = {
   // `EngineStatePanel`'s "How this budget was chosen" is shared chrome, outside
   // this closure; `engine-head-state` owns it.
   "Where these numbers came from": "one wire paragraph — the engine's detail for the composition",
+  "The solver&rsquo;s own words": "one proof artefact; its old line count was implementation noise",
+  "What the solver had to assume to reach this verdict": "one assumption list attached to the selected verdict",
 };
 
 const MARKS: ReadonlyArray<[string, string]> = [
@@ -107,6 +109,18 @@ const MARKS: ReadonlyArray<[string, string]> = [
   ["○", "an absent measurement"],
   ["◌", "a measurement still waiting"],
 ];
+
+/**
+ * A folded exact ledger may repeat a finding that is already visible in the
+ * figure. This is deliberately narrower than an exemption for the component:
+ * the duplicate mark, its open counterpart, and the counted ledger summary
+ * are all pinned here.
+ */
+const FOLDED_MARK_DUPLICATES: Record<string, Record<string, readonly [string, string]>> = {
+  "components/coherence/ConstraintLadder.tsx": {
+    "✕": ["constraint.violated ? \"✕\" : \"●\"", "All ${tested.length} independent quote checks"],
+  },
+};
 
 describe("the closure this guard reads is the tab, not a corner of it", () => {
   it("reaches the figure files, not just the seven owners", () => {
@@ -198,6 +212,16 @@ describe("a mark is never folded, and neither is a withheld reason", () => {
     it(`${entry.path.split("/").pop()} folds no mark and no missing=`, () => {
       for (const body of bodies) {
         for (const [mark, what] of MARKS) {
+          const duplicate = FOLDED_MARK_DUPLICATES[entry.path]?.[mark];
+          if (body.includes(mark) && duplicate) {
+            const [openReading, countedSummary] = duplicate;
+            const firstDetails = entry.code.indexOf("<details");
+            assert.ok(firstDetails > -1 && entry.code.slice(0, firstDetails).includes(openReading),
+              `${entry.path} folds ${mark} without the same finding already visible in the open figure`);
+            assert.ok(entry.code.includes(countedSummary),
+              `${entry.path} folds ${mark} in an exact ledger whose summary does not name its row count`);
+            continue;
+          }
           assert.ok(!body.includes(mark),
             `${entry.path} has ${mark} — ${what} — inside a <details> body. Folding an aside and folding a finding look identical in a diff, and this is the second kind.`);
         }
