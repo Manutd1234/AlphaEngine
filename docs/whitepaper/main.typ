@@ -11,10 +11,10 @@
 #import "template.typ": *
 
 #show: whitepaper.with(
-  title: "AlphaEngine",
-  subtitle: "From market signal to governed decision — architecture, mathematics and operations of a quantitative trading desk",
-  version: "Revision A",
-  generated: "24 August 2026",
+  title: "AlphaEngine Quant OS",
+  subtitle: "Institutional architecture, mathematical controls and operating contracts from signal to governed decision",
+  version: "Revision B - repository architecture 2026-08-29",
+  generated: "29 August 2026",
 )
 
 #include "sections/01-abstract-topology.typ"
