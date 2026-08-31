@@ -3,7 +3,7 @@
    ---------------------------------------------------------------------------
    Colour roles come from a validated palette (see web/README.md). Categorical
    slots are assigned in fixed order and never cycled; the Sharpe surface uses a
-   diverging blue↔grey↔red scale because Sharpe is signed around a meaningful
+   diverging cognac↔ivory↔red scale because Sharpe is signed around a meaningful
    zero. Dark mode is a *selected* set of steps for the dark surface, not an
    automatic inversion.
    =========================================================================== */
@@ -11,69 +11,76 @@
 :root {
   color-scheme: light;
 
-  /* Graphite light palette. The plane is clean zinc, cards stay pure white,
-     and the one accent stays a restrained blue — quiet neutrals under cool
-     data, with every colour job carried by the semantic steps below rather
-     than by the ground. Every text role was re-computed against the new
-     --surface-2; the contrast contract lives in tests/theme-contrast.test.ts. */
-  --surface-1: #ffffff; /* card / chart surface */
-  --surface-0: #f8fafc; /* page plane — slate */
-  --surface-2: #f1f5f9; /* inset controls */
-  --surface-3: #e8edf3;
+  /* Warm-neutral light hierarchy: cream is confined to the canvas and inset
+     planes, while cards and controls remain true white. Normal rules stay
+     quiet; the darker axis/border-strong step is reserved for interactive
+     boundaries and analytical marks. */
+  --surface-0: #f5efe9; --surface-1: #ffffff; /* canvas / card */
+  --surface-2: #f2ebe5; --surface-3: #e4d6ca; /* inset / selected */
+  --text-primary: #1f1b18; --text-secondary: #463d37; --text-muted: #5d524b;
+  --grid: #c3b3a8; --axis: #78665b;
+  --border: #a38f82;
+  --border-strong: var(--axis);
 
-  --text-primary: #171c25;
-  --text-secondary: #4e5764;
-  --text-muted: #616a79;
-
-  --grid: #ebeff5;
-  --axis: #b1bccb;
-  --border: #e2e8f0;
-
-  /* Light-blue tints. The accent below is the AA-safe step for text and lines;
-     these two are the fill steps that carry the blue into surfaces. */
-  --sky-1: #eef4fc;
-  --sky-2: #dbe7f8;
+  /* Stable accent washes: restrained blue supplies a modern analytical plane
+     while the canvas and selected surface keep the product's warm identity. */
+  --sky-1: #eef6fa;
+  --sky-2: #d9eaf3;
 
   /* Categorical — fixed order, never cycled. Validated as a set (lightness
      band, chroma floor, CVD separation, contrast) against --surface-1. */
-  --series-1: #2563eb; /* blue   — strategy / close */
-  --series-2: #cf6a3c; /* orange — benchmark / fast MA */
-  --series-3: #0a9c78; /* aqua   — slow MA */
+  --series-1: #075985; /* analytical blue — strategy / close */
+  --series-2: #942f3e; /* ruby            — benchmark / fast MA */
+  --series-3: #086548; /* pine            — slow MA */
 
   /* Diverging poles for signed measures (Sharpe surface, drawdown) */
-  --diverging-pos: #2563eb;
-  --diverging-neg: #e34948;
-  --diverging-mid: #eef1f5;
+  --diverging-pos: #6f3820;
+  --diverging-neg: #942f3e;
+  --diverging-mid: #e4d6ca;
 
   /* Status — reserved, never reused as a series colour.
-     These three are FILL steps: dots, meter fills, swatches. Against white they
-     are 3.0–3.8:1, which is fine for a graphical object and fails for body text.
-     Every status rendered as *text* uses the -text roles below instead. */
-  --status-good: #159467;
-  --status-warning: #d99216;
-  --status-critical: #cf424c;
+     These are the strong edge/fill steps for dots, meters, swatches and state
+     keylines. Text still uses the named roles below so semantics do not drift
+     when graphical contrast is retuned independently. */
+  --status-good: #0b7652;
+  --status-warning: #985100;
+  --status-critical: #b03445;
 
   /* Text steps for the same four meanings. --success-text predates the others;
      the systems console renders status as icon + word + colour, so the missing
      three had to exist before that word could be read at AA. */
-  --success-text: #087552;
-  --warning-text: #85570b;
-  --critical-text: #b3242e;
+  --success-text: #086548;
+  --warning-text: #854400;
+  --critical-text: #942f3e;
   /* Deliberate, operator-caused conditions (a simulated outage) — distinct from
      an amber warning, so the two are never confused at a glance. */
-  --notice-text: #9a4415;
+  --notice-text: #7a351d;
 
   /* JSON tree keys/booleans sit on --surface-2 inside a <details>. --series-1
      clears AA there in light (4.70:1) but not in dark, and --series-1 has
      other jobs, so the tree carries its own accent step. */
-  --json-accent: #2563eb;
+  --json-accent: #075985;
 
+  /* Saturated fills need a foreground that flips with the theme. White is
+     correct on coffee/ruby in light mode and fails on the lifted caramel and
+     coral fills in dark mode. */
+  --on-accent: #ffffff; --focus-ring: #075985; --heatmap-ink-dark: #000000; --heatmap-ink-light: #ffffff; --critical-action-bg: #b3242e; --critical-action-hover: #9d1c27; --critical-action-fg: #ffffff;
+
+  /* The mark follows the palette rather than carrying a blue/brown exception:
+     cognac in light, electric blue in the dark operator desk below. */
+  --brand-mark-start: #a96128; --brand-mark-mid: #7a3510; --brand-mark-end: #4b1f0a; --brand-mark-shadow: rgba(91, 40, 7, 0.34);
+  --nav-hover-bg: var(--surface-2); --nav-selected-bg: var(--state-info-bg);
+  --control-selected-bg: var(--surface-1); --table-header-bg: var(--surface-2);
+  --disabled-bg: var(--surface-2); --disabled-border: var(--axis); --disabled-text: var(--text-muted);
+  --state-good-bg: #dcefe5; --state-warning-bg: #f7e5c7; --state-critical-bg: #f4dfe2; --state-info-bg: #d9eaf3;
+  --overlay-scrim: rgba(24, 16, 12, 0.58);
   /* `--radius` used to be declared here at 14px, duplicating `--radius-lg`
      below it to the pixel. Two names for one value is how a ladder stops being
      a ladder: half the sheet reached for one, half for the other, and neither
      could be retuned without hunting the other down. One name each now —
      sm 8 / md 10 / lg 14 / pill 999. */
-  --shadow-sm: 0 1px 2px rgba(24, 24, 27, 0.04), 0 8px 24px rgba(24, 24, 27, 0.04);
+  --shadow-control: 0 1px 2px rgba(55, 34, 24, 0.14);
+  --shadow-sm: 0 1px 2px rgba(55, 34, 24, 0.07), 0 8px 20px rgba(55, 34, 24, 0.08);
   /* The type stacks. --font-sans/--font-mono are published on <html> by
      next/font in app/layout.tsx — self-hosted variable Inter and JetBrains
      Mono. The var() fallback head plus the trailing system stack keep every
@@ -236,7 +243,7 @@
 
   /* The chrome tokens: the header row, the ≤900 switcher and the ≤620 bottom
      bar. Fixed px, no --type-step, for the reason above. */
-  --fs-chrome-tab: 14px;
+  --fs-chrome-tab: 15px;
   --fs-chrome-chip: 12px;
   --fs-chrome-caption: 11px;
   --fs-chrome-brand: 16px;
@@ -264,6 +271,14 @@
   --card-pad: 16px;
   --card-pad-y: 11px;
   --card-pad-tight: 13px;
+
+  /* One outer-surface contract for legacy `.card` and source-owned Card.
+     Variants may change their internal layout, but the default boundary and
+     inset always resolve through these aliases instead of restating geometry. */
+  --surface-radius: var(--radius-lg);
+  --surface-pad-block: var(--card-pad-y);
+  --surface-pad-inline: var(--card-pad);
+  --surface-boundary: 1px solid var(--rule);
 
   /* One hairline vocabulary, for the same reason there is one card scale.
      Every divider in the workspace reached for whichever of --grid and
@@ -328,48 +343,59 @@ p, li, .sub, .console-footnote, .research-note, .page-heading p, small {
   :root:where(:not([data-theme="light"])) {
     color-scheme: dark;
 
-    --surface-1: #1c222b;
-    --surface-0: #151a22;
-    --surface-2: #232a34;
-    --surface-3: #2e3743;
+    /* Neutral graphite planes retain the operator hierarchy without making
+       every card edge as bright as an axis. Interactive controls opt into the
+       stronger step through --border-strong. */
+    --surface-0: #0b0e12;
+    --surface-1: #151a21;
+    --surface-2: #202832;
+    --surface-3: #2d3845;
 
-    --text-primary: #f1f5f9;
-    --text-secondary: #aeb8c6;
-    --text-muted: #8b94a4;
+    --text-primary: #f7f9fc;
+    --text-secondary: #ccd3dc;
+    --text-muted: #a7b2bf;
 
-    --grid: #262d37;
-    --axis: #434b59;
-    --border: #2b323d;
+    --grid: #46515f;
+    --axis: #8996a6;
+    --border: #56616f;
+    --border-strong: var(--axis);
 
-    --series-1: #3987e5;
-    --series-2: #d96e3e;
-    --series-3: #23a67d;
+    --series-1: #6db2ff;
+    --series-2: #ff9a84;
+    --series-3: #5bdbab;
 
-    --diverging-pos: #3987e5;
-    --diverging-neg: #e66767;
-    --diverging-mid: #2c333d;
+    --diverging-pos: #6db2ff;
+    --diverging-neg: #ff7f86;
+    --diverging-mid: #202832;
 
-    --success-text: #12b312;
+    --success-text: #7ce5bc;
 
     /* The three status hues are the light-theme steps and were inherited
        unchanged into dark, where #159467 and #d99216 on #0f1c2c fall below AA
        as text. They are used as text in the systems console (icon + word +
        colour), so they are lifted here for the same reason --success-text
        already was. */
-    --status-good: #35c48f;
-    --status-warning: #e8ab3d;
-    --status-critical: #f0737c;
+    --status-good: #5bdbab;
+    --status-warning: #f3c565;
+    --status-critical: #ff7f86;
 
-    --warning-text: #e8ab3d;
-    --critical-text: #f0737c;
-    --notice-text: #f08a5a;
-    --json-accent: #5a9ceb;
-    --sky-1: #16202e;
-    --sky-2: #1c2c47;
-
-    /* rgba(22,34,51,0.035) is invisible over a dark plane — every card silently
-       lost its elevation in dark mode. */
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 24px rgba(0, 0, 0, 0.28);
+    --warning-text: #f7ce79;
+    --critical-text: #ffa0a5;
+    --notice-text: #f1ad7a;
+    --json-accent: #82bdff;
+    --on-accent: #07131f;
+    --focus-ring: #6db2ff;
+    --sky-1: #17212d;
+    --sky-2: #213a55;
+    --brand-mark-start: #68b0ff; --brand-mark-mid: #377fda; --brand-mark-end: #17467f; --brand-mark-shadow: rgba(37, 99, 216, 0.34);
+    --nav-hover-bg: var(--surface-2); --nav-selected-bg: var(--state-info-bg);
+    --control-selected-bg: var(--surface-1); --table-header-bg: var(--surface-3);
+    --disabled-bg: var(--surface-2); --disabled-border: var(--axis); --disabled-text: var(--text-muted);
+    --state-good-bg: #19382f; --state-warning-bg: #3d3019; --state-critical-bg: #402329; --state-info-bg: #1a2d42;
+    --overlay-scrim: rgba(0, 0, 0, 0.72);
+    /* Give dark cards visible elevation. */
+    --shadow-control: 0 1px 2px rgba(0, 0, 0, 0.52);
+    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.48), 0 12px 28px rgba(0, 0, 0, 0.36);
   }
 }
 
@@ -388,57 +414,72 @@ p, li, .sub, .console-footnote, .research-note, .page-heading p, small {
  * redeclares the SAME token names the dark theme uses, so everything inside it
  * — the page head, the metric chips, the loop tiles, the buttons, the
  * sparkline — renders dark without knowing anything about where it is. One
- * palette, declared once, applied in two places. The plane itself is
- * `--surface-0` (#18181b), which is the value the old `--hero-plane` held.
+ * palette, declared once, applied in two places. The plane itself is the
+ * current graphite `--surface-0`; no component pins that literal locally.
  */
 :root[data-theme="dark"],
 [data-plane="inverted"] {
   color-scheme: dark;
 
-  --surface-1: #1c222b;
-  --surface-0: #151a22;
-  --surface-2: #232a34;
-  --surface-3: #2e3743;
+  --surface-0: #0b0e12;
+  --surface-1: #151a21;
+  --surface-2: #202832;
+  --surface-3: #2d3845;
 
-  --text-primary: #f1f5f9;
-  --text-secondary: #aeb8c6;
-  --text-muted: #8b94a4;
+  --text-primary: #f7f9fc;
+  --text-secondary: #ccd3dc;
+  --text-muted: #a7b2bf;
 
-  --grid: #262d37;
-  --axis: #434b59;
-  --border: #2b323d;
+  --grid: #46515f;
+  --axis: #8996a6;
+  --border: #56616f;
+  --border-strong: var(--axis);
 
-  --series-1: #3987e5;
-  --series-2: #d96e3e;
-  --series-3: #23a67d;
+  --series-1: #6db2ff;
+  --series-2: #ff9a84;
+  --series-3: #5bdbab;
 
-  --diverging-pos: #3987e5;
-  --diverging-neg: #e66767;
-  --diverging-mid: #2c333d;
+  --diverging-pos: #6db2ff;
+  --diverging-neg: #ff7f86;
+  --diverging-mid: #202832;
 
-  --success-text: #12b312;
+  --success-text: #7ce5bc;
 
   /* See the note in the prefers-color-scheme block above — same fix, same
      reason. These two dark blocks MUST stay identical: this one wins on
      specificity, so a token declared only above silently reverts to its light
      value for anyone who has pressed the theme toggle. `tests/theme-preference.test.ts`
      asserts they match. */
-  --status-good: #35c48f;
-  --status-warning: #e8ab3d;
-  --status-critical: #f0737c;
+  --status-good: #5bdbab;
+  --status-warning: #f3c565;
+  --status-critical: #ff7f86;
 
-  --warning-text: #e8ab3d;
-  --critical-text: #f0737c;
-  --notice-text: #f08a5a;
-  --json-accent: #5a9ceb;
-  --sky-1: #16202e;
-  --sky-2: #1c2c47;
+  --warning-text: #f7ce79;
+  --critical-text: #ffa0a5;
+  --notice-text: #f1ad7a;
+  --json-accent: #82bdff;
+  --on-accent: #07131f;
+  --focus-ring: #6db2ff;
+  --sky-1: #17212d;
+  --sky-2: #213a55;
+  --brand-mark-start: #68b0ff; --brand-mark-mid: #377fda; --brand-mark-end: #17467f; --brand-mark-shadow: rgba(37, 99, 216, 0.34);
+  --nav-hover-bg: var(--surface-2); --nav-selected-bg: var(--state-info-bg);
+  --control-selected-bg: var(--surface-1); --table-header-bg: var(--surface-3);
+  --disabled-bg: var(--surface-2); --disabled-border: var(--axis); --disabled-text: var(--text-muted);
+  --state-good-bg: #19382f; --state-warning-bg: #3d3019; --state-critical-bg: #402329; --state-info-bg: #1a2d42;
+  --overlay-scrim: rgba(0, 0, 0, 0.72);
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 24px rgba(0, 0, 0, 0.28);
+  --shadow-control: 0 1px 2px rgba(0, 0, 0, 0.52);
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.48), 0 12px 28px rgba(0, 0, 0, 0.36);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 * {
-  box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
@@ -502,78 +543,31 @@ html {
   }
 }
 
-/* ---------- thumb-reach navigation ----------
-   Hidden entirely above 620px: a desk has eight tabs in the header and needs
-   no second navigation. Below it, four destinations plus the palette, which is
-   where the other four desks live — eight 44px targets across a 390px screen
-   would leave no gap between them, and adjacent 48px targets are a row of
-   mis-taps. */
-.workspace-bottom-nav {
-  display: none;
-}
-
-@media (max-width: 620px) {
-  .workspace-bottom-nav {
-    position: fixed;
-    inset: auto 0 0 0;
-    z-index: var(--z-rail);
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 2px;
-    padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
-    border-top: 1px solid var(--border);
-    background: var(--surface-0);
-  }
-
-  .workspace-bottom-nav button {
-    min-height: 44px;
-    padding: 4px 2px;
-    border: 0;
-    border-top: 2px solid transparent;
-    border-radius: 0;
-    background: transparent;
-    color: var(--text-muted);
-    font-size: var(--fs-chrome-chip);
-    font-weight: 600;
-  }
-
-  /* Colour is not the only signal: the rule above the label and aria-current
-     both say which desk is open. */
-  .workspace-bottom-nav button.is-active {
-    border-top-color: var(--series-1);
-    color: var(--series-1);
-  }
-
-  /* The page must end above the bar rather than under it. The footer is a
-     sibling of <main>, not inside the shell, so the clearance goes on the
-     footer — the shell's own padding would never reach it. */
-  .workspace-footer {
-    padding-bottom: calc(var(--space-6) + 62px + env(safe-area-inset-bottom));
-  }
-}
-
 /* The palette's only entry point was ⌘K, which meant the palette, the
    reviewer tour and the shortcut map did not exist on a touch device. */
 .header-command-button {
-  display: inline-flex;
-  align-items: center;
+  display: inline-flex; align-items: center; justify-content: center;
   gap: 7px;
-  min-height: 32px;
-  padding: 0 11px;
+  min-width: 56px;
+  min-height: 40px;
+  padding: 0 8px;
   color: var(--text-secondary);
-  font-size: var(--fs-chrome-chip);
-  font-weight: 600;
+  font-family: var(--mono);
+  font-size: var(--fs-chrome-tab);
+  font-weight: 700;
 }
 
 .header-command-button span[aria-hidden] {
   font-family: var(--mono);
-  font-size: var(--fs-chrome-chip);
-  color: var(--text-muted);
+  font-size: var(--fs-chrome-brand);
+  line-height: var(--lh-none);
+  color: var(--text-secondary);
 }
 
 /* First rung of the header's priority ladder — the full ladder, with the
    measurements behind it, sits under "The header's priority ladder" below. */
-@media (max-width: 2050px) {
+@media (max-width: 2160px) {
+  .header-command-button { width: 56px; }
   .header-command-button__label {
     display: none;
   }
@@ -656,7 +650,8 @@ body {
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--series-1) 24%, transparent);
+  background: var(--state-info-bg);
+  color: var(--text-primary);
 }
 
 a {
@@ -1451,8 +1446,8 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="
   width: 100%;
   padding: 8px 10px;
   border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  background: var(--surface-1);
   color: var(--text-primary);
   font-family: var(--mono);
   font-size: var(--fs-xl);
@@ -1460,7 +1455,7 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="
 }
 select:focus,
 input:focus {
-  outline: 2px solid var(--series-1);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
 }
 .row {
@@ -1514,8 +1509,8 @@ button {
   font-family: var(--sans);
   cursor: pointer;
   border-radius: var(--radius-control);
-  border: 1px solid var(--border);
-  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  background: var(--surface-1);
   color: var(--text-primary);
   padding: 9px 14px;
   min-height: var(--control-h);
@@ -1525,6 +1520,7 @@ button {
 }
 button:hover:not(:disabled) {
   border-color: var(--axis);
+  background: var(--surface-2);
 }
 button:active:not(:disabled) {
   transform: translateY(1px);
@@ -1534,17 +1530,21 @@ a:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--series-1) 70%, transparent);
-  outline-offset: 0px;
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 button:disabled {
-  opacity: 0.5;
+  border-color: var(--disabled-border);
+  background: var(--disabled-bg);
+  color: var(--disabled-text);
   cursor: not-allowed;
 }
 input:disabled,
 select:disabled,
 textarea:disabled {
-  opacity: 0.5;
+  border-color: var(--disabled-border);
+  background: var(--disabled-bg);
+  color: var(--disabled-text);
   cursor: not-allowed;
 }
 /* button.primary is retired. It was a second accent-fill spelling with its own
@@ -1594,8 +1594,8 @@ button.icon {
  * A selected segment is not a call to action.
  *
  * This used to fill with `--series-1` and set `color: #fff` — the exact
- * treatment of **Send order**, **Sign in** and **Promote strategy**. Twenty-two
- * components render a `.seg`, across all eight tabs, so choosing a log level, a
+ * treatment of **Send order**, **Sign in** and **Promote strategy**. Components
+ * render a `.seg` across the workspace, so choosing a log level, a
  * chart's colouring or a blotter filter shouted in the same voice as submitting
  * an order. When everything is emphasised, the emphasis stops carrying
  * information — and the things it should have been reserved for are the ones
@@ -1610,9 +1610,9 @@ button.icon {
  * survives forced-colors.
  */
 .seg button[aria-pressed="true"] {
-  background: var(--surface-1);
+  background: var(--control-selected-bg);
   color: var(--text-primary);
-  box-shadow: 0 1px 2px color-mix(in srgb, var(--text-primary) 8%, transparent);
+  box-shadow: inset 0 -2px 0 var(--series-1), var(--shadow-control);
 }
 
 /*
@@ -1631,7 +1631,7 @@ button.icon {
  * own — the word BUY or SELL is the label.
  */
 .seg--side button[aria-pressed="true"] {
-  color: #fff;
+  color: var(--on-accent);
   box-shadow: none;
 }
 
@@ -1646,7 +1646,8 @@ button.icon {
    never hidden — an absent control reads as a missing feature, and this one is
    the only place the seg control can say "the numbers below are yours". */
 .seg button:disabled {
-  opacity: 0.45;
+  background: var(--disabled-bg);
+  color: var(--disabled-text);
   cursor: default;
 }
 
@@ -1699,7 +1700,7 @@ th {
      different kind of edge from the seam between two rows, and drawing both
      at the same weight is why a long table loses its header. */
   border-bottom: 1px solid var(--rule);
-  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+  background: var(--table-header-bg);
   white-space: nowrap;
 }
 /* The column rule. Never on the last cell of a row — the frame draws that
@@ -1778,12 +1779,12 @@ tbody tr[tabindex]:focus-visible {
   align-items: flex-start;
 }
 .banner.warn {
-  background: color-mix(in srgb, var(--status-warning) 12%, var(--surface-1));
-  border-color: color-mix(in srgb, var(--status-warning) 40%, transparent);
+  background: var(--state-warning-bg);
+  border-color: var(--status-warning);
 }
 .banner.error {
-  background: color-mix(in srgb, var(--status-critical) 12%, var(--surface-1));
-  border-color: color-mix(in srgb, var(--status-critical) 40%, transparent);
+  background: var(--state-critical-bg);
+  border-color: var(--status-critical);
 }
 
 /* `list-style: none` is load-bearing, not tidiness. This rule was written for a
@@ -1929,4 +1930,3 @@ tbody tr[tabindex]:focus-visible {
 .skip-link:focus {
   transform: translateY(0);
 }
-
