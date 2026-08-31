@@ -19,11 +19,9 @@
  * any fold is every fact about it in one card.
  *
  * THE EMPTY BRANCH DRAWS TOO. `oosRank` and `combosRanked` are optional on
- * the wire — the seed run carries them on all four folds (74, 39, 40 and 10
- * of 74), so a ranked ladder is the normal case here, but a run that omits
- * them must not be a grey sentence. A withheld rung is drawn hatched at full
- * height with its reason in the mark: the shape the answer takes, and why
- * this one is empty.
+ * the wire, so a run that omits them must not collapse to a grey sentence. A
+ * withheld rung is drawn hatched at full height with its reason in the mark:
+ * the shape the answer takes, and why this one is empty.
  */
 
 import Figure, { Plot } from "@/components/coherence/Figure";
