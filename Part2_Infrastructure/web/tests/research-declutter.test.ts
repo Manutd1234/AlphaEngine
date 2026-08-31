@@ -49,14 +49,17 @@ const history = code(read("../components/research/ExperimentHistory.tsx"));
 const css = globalsCss;
 
 describe("the research view keeps one sweep trigger per condition", () => {
-  it("has no unreachable empty-state map with its own Run research action", () => {
-    // `data` seeds from SEED_RUN and the sole setData call writes completed
-    // runs, so a `!data` branch is dead code — and its primary-action was a
-    // duplicate of the rail's pinned "Run now". If the seed is ever removed,
-    // restore a *reported* empty state; do not resurrect the button.
+  it("starts without a committed result and reports the empty state without a duplicate action", () => {
+    // A failed first request must leave no plausible result behind. The rail's
+    // pinned Run now remains the one action; the result pane says what is
+    // unavailable and Setup stays reachable for changing the request.
     assert.doesNotMatch(researchAll, /research-empty-section/);
     assert.doesNotMatch(css, /research-empty-section/);
-    assert.match(sweepHook, /useState<SweepResponse \| null>\(SEED_RUN\)/);
+    assert.match(sweepHook, /useState<SweepResponse \| null>\(null\)/);
+    assert.doesNotMatch(sweepHook, /seed-run\.json|SEED_RUN/);
+    assert.match(research, /No research result is available/);
+    assert.match(research, /Nothing has been substituted/);
+    assert.match(research, /summaryView === "setup"/);
   });
 
   it("announces a stale desk context without offering a third run button", () => {
