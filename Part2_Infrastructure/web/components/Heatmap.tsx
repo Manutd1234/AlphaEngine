@@ -4,7 +4,7 @@
  * Sharpe surface over the parameter grid.
  *
  * Sharpe is signed around a meaningful zero, so this is a *diverging* scale:
- * blue ↔ neutral grey ↔ red, with grey meaning "no edge". (A red-yellow-green
+ * red ↔ neutral beige ↔ cognac, with beige meaning "no edge". (A red-yellow-green
  * ramp would put a hue at the midpoint, so zero reads as a value rather than as
  * nothing — and yellow/green is the pair colour-blind readers lose first.
  * Viridis is rejected for the same reason: sequential ramps have no neutral
@@ -36,12 +36,12 @@ import { type KeyboardEvent, useEffect, useRef, useState } from "react";
  * legend, because these five are exactly the sort of set colour alone cannot
  * carry.
  */
-const KIND_STYLE: Record<CellKind, { fill: string; darkFill: string; glyph: string; label: string }> = {
-  plateau: { fill: "#2f8f66", darkFill: "#35c48f", glyph: "▰", label: "plateau — neighbours hold up" },
-  slope: { fill: "#c08a1f", darkFill: "#e8ab3d", glyph: "◪", label: "slope — degrading" },
-  cliff: { fill: "#c2454f", darkFill: "#f0737c", glyph: "▲", label: "cliff — neighbours collapse" },
-  dead: { fill: "#9a9aa1", darkFill: "#3f3f46", glyph: "·", label: "no edge" },
-  isolated: { fill: "#d4d4d8", darkFill: "#26262b", glyph: "◌", label: "grid edge — cannot judge" },
+const KIND_STYLE: Record<CellKind, { fill: string; glyph: string; label: string }> = {
+  plateau: { fill: "var(--status-good)", glyph: "▰", label: "plateau — neighbours hold up" },
+  slope: { fill: "var(--notice-text)", glyph: "◪", label: "slope — degrading" },
+  cliff: { fill: "var(--status-critical)", glyph: "▲", label: "cliff — neighbours collapse" },
+  dead: { fill: "var(--grid)", glyph: "·", label: "no edge" },
+  isolated: { fill: "var(--surface-2)", glyph: "◌", label: "grid edge — cannot judge" },
 };
 
 export default function Heatmap({
@@ -173,7 +173,8 @@ export default function Heatmap({
                 <i
                   aria-hidden
                   style={{
-                    background: isDark ? KIND_STYLE[kind].darkFill : KIND_STYLE[kind].fill,
+                    background: KIND_STYLE[kind].fill,
+                    border: "1px solid var(--border)",
                     borderRadius: 3,
                   }}
                 />
@@ -221,7 +222,7 @@ export default function Heatmap({
         <span className="muted heatmap-legend__hint" style={{ fontSize: "var(--fs-body)" }}>
           {showKinds
             ? "click a cell for its parameters"
-            : "grey = no edge; click a cell for its parameters"}
+            : "beige = no edge; click a cell for its parameters"}
         </span>
       </div>
 
@@ -264,13 +265,12 @@ export default function Heatmap({
                 fill={
                   showKinds
                     ? (() => {
-                        const style = KIND_STYLE[kinds.get(`${f}:${s}`)?.kind ?? "isolated"];
-                        return isDark ? style.darkFill : style.fill;
+                        return KIND_STYLE[kinds.get(`${f}:${s}`)?.kind ?? "isolated"].fill;
                       })()
                     : sharpeColor(r.sharpe)
                 }
-                stroke={isSel || isBest ? "var(--text-primary)" : "none"}
-                strokeWidth={isSel ? 2 : isBest ? 1.4 : 0}
+                stroke={isSel || isBest ? "var(--text-primary)" : showKinds ? "var(--border)" : "none"}
+                strokeWidth={isSel ? 2 : isBest ? 1.4 : showKinds ? 0.75 : 0}
                 strokeDasharray={isBest && !isSel ? "3 2" : undefined}
                 style={{
                   cursor: onSelect ? "pointer" : "default",
