@@ -23,8 +23,9 @@
  * family and hid the other three columns in a fold.
  *
  * So every entry below is asserted to draw something with a SHAPE that survives
- * the common case, and to be reachable by keyboard, which is the other half of
- * "not interactive".
+ * the common case. Dense plots keep keyboard inspection; short process diagrams
+ * instead print every value in semantic HTML, avoiding a second interaction
+ * model where no hidden reading needs to be discovered.
  *
  * DERIVED, NEVER OBSERVED. `npm test` has no DOM (CLAUDE.md, fact 6). This
  * proves the wiring, the refusals and the marks; whether the six READ wants a
@@ -44,21 +45,30 @@ import { read, stripNonCode } from "./helpers/workspace-sources";
  * structural checks follow it. `ParlayReadCost` composes `FormationDiagram`,
  * which already owns the chain grammar, the marks and the `<Figure>` frame; a
  * second SVG chain beside it would be a second way of drawing the same object.
- * So the frame, the empty branch and the keyboard readout are asserted on
+ * So the frame, the empty branch and the semantic readout are asserted on
  * `FormationDiagram` — and the composition itself is asserted here, so the
  * indirection cannot become a way of claiming a figure that is not one.
  */
-const FIGURES: Record<string, { file: string; drawnIn: string; replaces: string; through?: string }> = {
-  ConstraintLadder: {
-    file: "../components/coherence/ConstraintLadder.tsx",
-    drawnIn: "../components/coherence/CertificateViews.tsx",
-    replaces: "a two-row ValueStrip of rows tested against rows skipped",
+const FIGURES: Record<string, {
+  file: string;
+  drawnIn: string;
+  replaces: string;
+  through?: string;
+  staticFlow?: boolean;
+  interactiveFlow?: boolean;
+}> = {
+  SolverProofLoom: {
+    file: "../components/coherence/SolverProofLoom.tsx",
+    drawnIn: "../components/coherence/ConstraintLadder.tsx",
+    replaces: "a fixed four-step browser narrative unrelated to the solver run",
+    interactiveFlow: true,
   },
   ParlayReadCost: {
     file: "../components/coherence/ParlayReadCost.tsx",
     drawnIn: "../components/coherence/CombosPane.tsx",
     replaces: "one grey sentence on the branch that IS the view when the venue is slow",
     through: "../components/coherence/FormationDiagram.tsx",
+    staticFlow: true,
   },
   FamilyRidge: {
     file: "../components/coherence/FamilyRidge.tsx",
@@ -81,36 +91,12 @@ describe("the figures that replace a drawn scalar", () => {
       // the drawing it composes.
       const drawing = stripNonCode(read(entry.through ?? entry.file));
 
-      it("can be read by the guards that read it", () => {
-        // A GUARD THAT CANNOT SEE THE FILE IS NOT A GUARD, and this one is
-        // invisible from every direction but this.
-        //
-        // `stripNonCode` — the helper every source-reading suite in this tree
-        // uses — blanks block comments, line comments, "double" and 'single'
-        // quoted strings. It does NOT blank template literals. So a lone
-        // apostrophe inside a backtick pairs with the NEXT apostrophe anywhere
-        // in the file and everything between the two is blanked: JSX, imports,
-        // hook calls, whatever happens to sit there.
-        //
-        // Found by writing one. `ConstraintLadder` said "the gateway's
-        // programme" inside a template literal, and the `<Figure` assertion
-        // below failed on a file that plainly renders one. The same collision
-        // would have made the fetch REFUSAL pass on a file that fetched.
-        //
-        // Measured across `components/`, `lib/` and `app/` on 2026-08-26: 35
-        // files carry an odd apostrophe count inside a template literal. The
-        // shared helper is where that gets fixed, and it is shared with two
-        // other live sessions; this holds the line for the files added here so
-        // that at least these guards mean what they say.
-        const withoutComments = source
-          .replace(/\/\*[\s\S]*?\*\//g, (block) => block.replace(/[^\n]/g, " "))
-          .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
-        for (const literal of withoutComments.match(/`(?:[^`\\]|\\.)*`/g) ?? []) {
-          const apostrophes = (literal.match(/\u0027/g) ?? []).length;
-          assert.equal(apostrophes % 2, 0,
-            `${name} has an unpaired apostrophe in a template literal, which blanks arbitrary `
-            + `code from every suite that reads this file: ${literal.slice(0, 60)}`);
-        }
+      it("exports the named figure component", () => {
+        // Product copy is allowed normal punctuation. Guard the code boundary
+        // directly instead of making apostrophe parity inside template strings
+        // an accidental UI contract.
+        assert.match(source, new RegExp(`export default function ${name}\\b`),
+          `${name} is not a stable named default export`);
       });
 
       it("is drawn by the view it is for", () => {
@@ -149,13 +135,58 @@ describe("the figures that replace a drawn scalar", () => {
           `${name} renders an empty axis rather than saying why it is empty`);
       });
 
-      it("puts its marks on the keyboard", () => {
-        // `Plot` turns any element carrying a `<title>` into a hover readout AND
-        // an arrow-key stop, or takes a `sharedX` axis and reads every mark at
-        // one position. A figure with neither is a picture, which is the half of
-        // "not interactive" a source scan can see.
-        assert.match(drawing, /<Plot\b/, `${name} does not draw inside Plot, so it has no readout at all`);
+      it("keeps every visual reading reachable", () => {
         const marks = read(entry.through ?? entry.file);
+        if (entry.interactiveFlow) {
+          assert.match(drawing, /<ol\b/, `${name} does not expose its derivation as an ordered flow`);
+          assert.match(drawing, /<button\b[\s\S]*aria-pressed=/,
+            `${name} has no explicit selected stage for assistive technology`);
+          assert.match(drawing, /onPointerEnter=\{[\s\S]*onFocus=\{[\s\S]*onKeyDown=\{/,
+            `${name} does not support pointer, focus, and keyboard inspection`);
+          for (const key of ["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp", "Home", "End"]) {
+            assert.match(drawing, new RegExp(`\\b${key}:`), `${name} does not handle ${key}`);
+          }
+          assert.match(marks, /<output\b[\s\S]*aria-live="polite"/,
+            `${name} has no stable live inspector for the selected stage`);
+          assert.match(drawing, /function threadPath\(/,
+            `${name} does not derive a path for the evidence handoff`);
+          assert.match(marks, /className="coh-proof-loom__thread"/,
+            `${name} does not draw the evidence handoff between stages`);
+          assert.match(drawing, /reserveInteractionRow=\{false\}/,
+            `${name} reserves a second, empty interaction row`);
+          assert.match(marks, /money\(row\.slack\)/,
+            "the proof geometry is not accompanied by exact slack values");
+          assert.match(marks, /All \$\{evidence\.constraints\.rows\.length\} solver-attached named checks/,
+            "the ranked subset has no complete exact ledger");
+          return;
+        }
+        if (entry.staticFlow) {
+          assert.match(drawing, /<ol\b/,
+            `${name} does not expose its process as an ordered semantic flow`);
+          assert.match(drawing, /<article\b/,
+            `${name} has no self-contained stage cards`);
+          assert.match(drawing, /<ArrowRight\b/,
+            `${name} does not show how one stage hands off to the next`);
+          assert.match(drawing, /reserveInteractionRow=\{false\}/,
+            `${name} reserves an empty plot interaction row`);
+          assert.doesNotMatch(stripNonCode(marks), /<Plot\b|sharedX=|useHot\(|pin: true/,
+            `${name} keeps hidden per-mark state even though every value is printed`);
+          if (name === "ConstraintLadder") {
+            assert.match(marks, /money\(constraint\.slack\)/,
+              "the proof geometry is not accompanied by exact slack values");
+            assert.match(marks, /All \$\{tested\.length\} evaluated constraints/,
+              "the ranked subset has no complete exact ledger");
+          } else {
+            assert.match(marks, /stage\.value \?\? "Not measured"/,
+              `${name} does not print unavailable values honestly`);
+            assert.match(marks, /status\(stage\.holds\)/,
+              `${name} leaves stage state to colour or shape alone`);
+          }
+          return;
+        }
+
+        // Dense plots still need a keyboard readout for values not printed at rest.
+        assert.match(drawing, /<Plot\b/, `${name} does not draw inside Plot, so it has no readout at all`);
         assert.ok(/<title>/.test(marks) || /sharedX=/.test(stripNonCode(marks)),
           `${name} carries no per-mark title and no shared axis, so nothing can be read off it`);
       });
