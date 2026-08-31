@@ -24,8 +24,9 @@
 
 import { Grid, XAxis, bandPath, linearScale, ticks } from "@/components/chart-kit";
 import { Plot } from "../Figure";
-import { absorptionBand, bandCoverage } from "@/lib/coherence/absorption-band";
+import { absorptionBand } from "@/lib/coherence/absorption-band";
 import { pct } from "@/lib/format";
+import { useState } from "react";
 
 import type { StageRun, StageSummary } from "./types";
 
@@ -43,13 +44,11 @@ export interface AbsorptionCurveProps {
   release: (number | null)[];
   call: (number | null)[];
   stages: StageSummary[];
-  /**
-   * The runs the two curves are the MEAN of, for the spread behind them.
-   * Optional: the curves are complete without it, and a caller that has not
-   * got the runs draws the means alone rather than an empty band.
-   */
+  /** Retained on the public prop contract for the evidence table beside this plot. */
   runs?: StageRun[];
 }
+
+export type AbsorptionSeries = "both" | "release" | "call";
 
 /** Broken at gaps rather than bridged: an unmeasured horizon is a hole in the
  *  record, and a line drawn across it asserts a fraction nobody read. */
@@ -72,14 +71,69 @@ function brokenPath(
 }
 
 export default function AbsorptionCurve({ horizons, release, call, stages, runs }: AbsorptionCurveProps) {
+  const [series, setSeries] = useState<AbsorptionSeries>("both");
   return (
-    <Plot height={HEIGHT} minWidth={320}>
-      {(width) => <Curve width={width} horizons={horizons} release={release} call={call} stages={stages} runs={runs} />}
-    </Plot>
+    <div className="diff-instrument">
+      <div className="diff-lens" role="group" aria-label="Absorption lines">
+        {(["both", "release", "call"] as const).map((option) => (
+          <button
+            key={option}
+            type="button"
+            aria-pressed={series === option}
+            onClick={() => setSeries(option)}
+          >
+            {option === "both" ? "Both lines" : option === "release" ? "Statement" : "Conference"}
+          </button>
+        ))}
+      </div>
+      <Plot
+        height={HEIGHT}
+        minWidth={300}
+        scrollLabel="Absorption lines diagram"
+        sharedX={(width) => {
+          const x0 = MARGIN.left;
+          const x1 = Math.max(x0 + 60, width - MARGIN.right);
+          return {
+            count: horizons.length,
+            x0,
+            x1,
+            arriveAt: "first" as const,
+            width: 310,
+            read: (index: number) => ({
+              title: `Horizon ${horizons[index]}`,
+              rows: [
+                ...(series !== "call"
+                  ? [{ label: "Statement", value: pct(release[index]), raw: release[index] }]
+                  : []),
+                ...(series !== "release"
+                  ? [{ label: "Press conference", value: pct(call[index]), raw: call[index] }]
+                  : []),
+                ...(release[index] == null && call[index] == null
+                  ? [{ label: "Resolution", value: "not measured inside one minute" }]
+                  : []),
+              ],
+            }),
+          };
+        }}
+      >
+        {(width) => (
+          <Curve
+            width={width}
+            horizons={horizons}
+            release={release}
+            call={call}
+            stages={stages}
+            runs={runs}
+            series={series}
+          />
+        )}
+      </Plot>
+    </div>
   );
 }
 
-function Curve({ width, horizons, release, call, stages, runs }: AbsorptionCurveProps & { width: number }) {
+function Curve({ width, horizons, release, call, stages, runs, series }:
+  AbsorptionCurveProps & { width: number; series: AbsorptionSeries }) {
   const x0 = MARGIN.left;
   const x1 = Math.max(x0 + 60, width - MARGIN.right);
   const y0 = HEIGHT - MARGIN.bottom;
@@ -94,17 +148,16 @@ function Curve({ width, horizons, release, call, stages, runs }: AbsorptionCurve
   // would place every label at the far right of the plot.
   const points = horizons.map((_, index) => index);
   const summaryOf = (stage: "release" | "call") => stages.find((row) => row.stage === stage);
-  const measured = (curve: (number | null)[]) => curve.filter((value) => value != null).length;
-
   const half = yScale(0.5);
 
-  // The spread the two means are means OF, drawn behind them. Same population
-  // as the mean by construction — the filter lives in `absorption-band.ts`.
+  // The translucent shadows are the middle half of the exact floor-cleared
+  // runs behind each mean. They follow the line selector and are drawn first,
+  // so the uncertainty never covers a mark or an axis.
   const bands = runs?.length
-    ? ({
+    ? {
         release: absorptionBand(runs, "release", horizons),
         call: absorptionBand(runs, "call", horizons),
-      })
+      }
     : null;
   const bandFor = (rows: ReturnType<typeof absorptionBand>) =>
     bandPath(
@@ -122,21 +175,19 @@ function Curve({ width, horizons, release, call, stages, runs }: AbsorptionCurve
     <>
         <Grid yTicks={yTicks} yScale={yScale} x0={x0} x1={x1} format={(value) => pct(value, 0)} />
 
-        {/* The middle half of the runs at each horizon, behind the mean each is
-            a mean of. Drawn FIRST so the two lines stay the thing being read. */}
-        {bands ? (
-          <>
-            <path d={bandFor(bands.release)} className="diff-curve__band diff-curve__band--release">
-              <title>
-                {`The middle half of the statement stages at each horizon — the mean is a mean of paths this far apart`}
-              </title>
-            </path>
-            <path d={bandFor(bands.call)} className="diff-curve__band diff-curve__band--call">
-              <title>
-                {`The middle half of the press-conference stages at each horizon`}
-              </title>
-            </path>
-          </>
+        {bands && series !== "call" ? (
+          <path
+            d={bandFor(bands.release)}
+            className="diff-curve__band diff-curve__band--release"
+            aria-hidden="true"
+          />
+        ) : null}
+        {bands && series !== "release" ? (
+          <path
+            d={bandFor(bands.call)}
+            className="diff-curve__band diff-curve__band--call"
+            aria-hidden="true"
+          />
         ) : null}
 
         {/* Drawn only when a path overshot its own terminal and came back, which
@@ -153,8 +204,12 @@ function Curve({ width, horizons, release, call, stages, runs }: AbsorptionCurve
           half the move
         </text>
 
-        <path d={brokenPath(release, xScale, yScale)} className="diff-curve__release" fill="none" />
-        <path d={brokenPath(call, xScale, yScale)} className="diff-curve__call" fill="none" />
+        {series !== "call" ? (
+          <path d={brokenPath(release, xScale, yScale)} className="diff-curve__release" fill="none" />
+        ) : null}
+        {series !== "release" ? (
+          <path d={brokenPath(call, xScale, yScale)} className="diff-curve__call" fill="none" />
+        ) : null}
 
         {/* A hover line on every dot and every gap mark (fourth review of
             2026-08-24). The two curves cross and the horizon axis is ordinal,
@@ -168,23 +223,17 @@ function Curve({ width, horizons, release, call, stages, runs }: AbsorptionCurve
           const callValue = call[index];
           return (
             <g key={horizon}>
-              {releaseValue != null ? (
+              {series !== "call" && releaseValue != null ? (
                 <circle cx={xScale(index)} cy={yScale(releaseValue)} r={3}
-                        className="diff-curve__dot diff-curve__dot--release">
-                  <title>{`Statement, ${horizon}: ${pct(releaseValue)} of the move arrived`}</title>
-                </circle>
+                        className="diff-curve__dot diff-curve__dot--release" />
               ) : null}
-              {callValue != null ? (
+              {series !== "release" && callValue != null ? (
                 <circle cx={xScale(index)} cy={yScale(callValue)} r={3}
-                        className="diff-curve__dot diff-curve__dot--call">
-                  <title>{`Press conference, ${horizon}: ${pct(callValue)} of the move arrived`}</title>
-                </circle>
+                        className="diff-curve__dot diff-curve__dot--call" />
               ) : null}
               {releaseValue == null && callValue == null ? (
                 <text x={xScale(index)} y={y0 - 6} textAnchor="middle"
-                      className="diff-curve__gap" aria-hidden="true">◌
-                  <title>{`${horizon}: not measured on either stage — no free bar source resolves it`}</title>
-                </text>
+                      className="diff-curve__gap" aria-hidden="true">◌</text>
               ) : null}
             </g>
           );
@@ -198,18 +247,18 @@ function Curve({ width, horizons, release, call, stages, runs }: AbsorptionCurve
             necessary, and it was the stack that left no room for the caption
             gap. Left-anchored at the axis origin, right-anchored at the axis
             end, the `EpisodeTape.tsx` two-key idiom. */}
-        <text x={x0} y={MARGIN.top - 12} className="diff-curve__key diff-curve__key--release">
+        {series !== "call" ? <text x={x0} y={MARGIN.top - 12} className="diff-curve__key diff-curve__key--release">
           <tspan aria-hidden="true">●</tspan> statement
           {summaryOf("release")?.median_half_life_s
             ? ` — half in ${Math.round(summaryOf("release")!.median_half_life_s!)}s`
             : ""}
-        </text>
-        <text x={x1} y={MARGIN.top - 12} textAnchor="end" className="diff-curve__key diff-curve__key--call">
+        </text> : null}
+        {series !== "release" ? <text x={x1} y={MARGIN.top - 12} textAnchor="end" className="diff-curve__key diff-curve__key--call">
           <tspan aria-hidden="true">▲</tspan> press conference
           {summaryOf("call")?.median_half_life_s
             ? ` — half in ${Math.round(summaryOf("call")!.median_half_life_s!)}s`
             : ""}
-        </text>
+        </text> : null}
     </>
   );
 }
