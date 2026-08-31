@@ -3,6 +3,15 @@
 What was measured, including what failed. An audit that records only what
 passed is a claim rather than a measurement.
 
+*Repository contracts and current file locations last re-checked
+**2026-08-29**. The payloads, browser geometry, timings and suite totals below
+remain dated measurements from the day printed beside each run; they were not
+silently promoted to 2026-08-29 observations.*
+
+For the current repository topology, suite totals and build evidence, use
+[`CURRENT_STATE.md`](../CURRENT_STATE.md); this file remains the measurement
+notebook for the Diffusion work.
+
 Baseline taken **2026-08-25** at `be9e8a3`, before the seven-section
 restructure. Gateway on 8912, Next dev on 3000, headless Chrome on 9222.
 
@@ -72,6 +81,13 @@ against the other. The magnitudes confirm they cannot share a length axis:
 wall-clock runs 60s to 1,402s, the volatility clock 1.2e-07 to 1.2e-04, because
 it is a position on accumulated control variance rather than a duration. A rank
 slopegraph is the honest form and it has a real signal to show.
+
+**Current interaction contract (2026-08-30):** stage is encoded by colour in
+both panels; material crossings are solid blue/red and non-material context is
+dotted gray. The figure reports **248 total input paths · 89 clock-ranked** so
+the 159 floor-refused paths remain counted without being assigned invented
+clock ranks. The local filters select dotted backdrop, solid main paths or all
+clock-ranked paths without reranking.
 
 ## 4. Frontend — and a false alarm worth recording
 
@@ -838,7 +854,7 @@ HTTPS hop — `vercel.json` pins `sin1` to the VM's city for that reason. So
 Investigated rather than explained, because 128 against 83 looks like a
 regression and would be one if the core had slowed.
 
-    the same core, the same Mac, re-benched today (load ~3, IDE and Chrome open):
+    the same core, the same Mac, re-benched 2026-08-26 (load ~3, IDE and Chrome open):
       p50 83 ns   p99 166 ns   p999 541 ns   max 6,208 ns   fraction ≤ 2 ticks 0.974
     the doc, 2026-08-20, quiet machine:
       p50 83 ns   p99  84 ns   p999 167 ns   max   375 ns   fraction ≤ 2 ticks 0.995
@@ -853,7 +869,7 @@ The header's 128 comes from two things, neither a defect:
    in `[120, 128)` and prints as 128. The p99 of four ticks (167) prints as 167
    only because the quantile is clamped to `max_value`.
 2. **The header's 300 samples are taken once, at startup, at whatever load the
-   Mac has at that instant** (`main.py:171`). Under today's load the p99
+   Mac has at that instant** (`main.py:171`). Under that 2026-08-26 run's load the p99
    doubled from 84 to 166 while the p50 held — the startup run's p50 landed one
    tick higher, and the bucket rounded it up.
 
@@ -1349,3 +1365,33 @@ above every panel, 215 is the desk-wide page heading and 138 is the section
 head and switcher — neither is Diffusion's to cut. Those three views need a
 scroll on a 900px window, and the honest fix is desk-wide chrome rather than
 anything on this tab.
+
+## 2026-08-29 source-contract follow-up — older history and recorder alignment
+
+This follow-up is a **tree verification, not a new browser measurement**. The
+rendered geometry numbers above retain their 2026-08-25 through 2026-08-27
+dates.
+
+The two white leading cards in the absorption fan were not data. They were the
+transparent missing-horizon hatch showing plot paper underneath, which looked
+like an overlay failure. `ReturnFan.tsx` now keeps the complete eight-horizon
+domain and layers three things over its unmeasured leading span:
+
+1. a grey `diff-fan__unmeasured-ground`, derived from surface and muted-text
+   tokens;
+2. the existing quantitative hatch and mark title, preserving the wire's reason;
+3. real SVG text — stacked **older / history** plus the derived horizon range —
+   so the name survives print, scaling and forced colours.
+
+The forced-colour layer maps the ground to `Canvas`, the hatch border and text
+to `CanvasText`. `diffusion-original-restoration.test.ts` holds the full-domain
+width, grey ground, derived range, visible label and keyboard title;
+`forced-colors.test.ts` holds the system-colour version. A future edit must not
+compress the missing horizons into a legend token or return them to white.
+
+The Announcement-arm recorder facts now use one explicit grid contract: three
+equal columns on wide panes, two at 760px and one at 480px, with a common
+minimum row height and wrapping values. That keeps **Families watched** aligned
+with the row beside it instead of letting its longer value shift the following
+row. `interface-density-followup.test.ts` pins those columns, rows and
+non-ellipsising labels.
