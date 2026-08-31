@@ -701,7 +701,7 @@ html:active-view-transition .view-panel {
 
   .workspace-switcher {
     order: 3;
-    flex: 1 0 100%;
+    flex: 1 1 260px;
     min-width: 0;
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
@@ -743,7 +743,7 @@ html:active-view-transition .view-panel {
    at the bottom of the screen. `WorkspaceBottomNav` already argues the case in
    its own header — the select is "correct for completeness, wrong for the hand
    holding the device" — and its All desks button opens the palette, which lists
-   all eight workspaces with their descriptions and can be searched. Nothing
+   all eleven workspaces with their descriptions and can be searched. Nothing
    moves out of reach; a header row is given back on the viewport that has the
    least of it.
 
@@ -812,9 +812,9 @@ html:active-view-transition .view-panel {
   display: none;
 }
 
-/* Rung 1 (≤2040, with the Search label rule in 00-tokens-and-base.css): the
+/* Rung 1 (≤2110, with the Search label rule in 00-tokens-and-base.css): the
    Search label, the providers sentence → its short form, the ghost with it. */
-@media (min-width: 901px) and (max-width: 2050px) {
+@media (min-width: 901px) and (max-width: 2160px) {
   .system-health__label {
     display: none;
   }
@@ -849,8 +849,8 @@ html:active-view-transition .view-panel {
 @media (min-width: 901px) and (max-width: 1850px) {
   .workspace-header__utility > .header-settings,
   .workspace-header__utility > .header-anchor > .header-settings {
-    width: 36px;
-    min-width: 36px;
+    width: 56px;
+    min-width: 56px;
     padding-inline: 0;
   }
 
@@ -867,65 +867,24 @@ html:active-view-transition .view-panel {
 
    Not a rung: the core annotation inside the decision chip. Measured, it adds
    no width — the DECISION P99 caption above it is the wider line — so hiding
-   it buys nothing; it stays until the chip's own copy folds (rung 8). */
-
-/* Rung 7 (≤1590): the providers chip is its dot alone — the count is one tap
-   away in Settings and the panel it opens; the aria-label keeps the sentence. */
-@media (min-width: 901px) and (max-width: 1590px) {
-  .system-health-action {
-    width: 44px;
-    min-width: 44px;
-    max-width: 44px;
-    justify-content: center;
-    gap: 0;
-    padding-inline: 0;
-    overflow: hidden;
-    font-size: 0;
-  }
-
-  .system-health-action i {
-    flex: 0 0 7px;
-  }
-}
-
-/* Rung 8 (≤1520): the tabs' side padding, and the tab labels back to chip
-   size. 4px and not 5px since the eleventh tab; 14p has the measurement. */
-@media (min-width: 901px) and (max-width: 1520px) {
-  .workspace-tabs button {
-    padding-inline: 4px;
-  }
-
-  .workspace-tabs button span {
-    font-size: var(--fs-chrome-chip);
-  }
-}
-
-/* Rung 9 (≤1380): the decision figure folds to its gauge; the title still
-   names both planes and the Reliability tab has the numbers. */
-@media (min-width: 901px) and (max-width: 1380px) {
-  .latency-chip__copy {
-    display: none;
-  }
-
-  .latency-chip {
-    grid-template-columns: auto;
-    padding: 5px;
-  }
-}
+   it buys nothing. The complete decision readout stays visible on desktop. */
 
 /* Rung 10 (≤1280): the Kill switch and Sign in labels fold to their icons —
    the same fold the ≤520px rule makes, a rung earlier for the widths between
    the last one-row fit and the wrap. Both controls keep their aria-label and
    title; HALTED is never folded. */
 @media (min-width: 901px) and (max-width: 1280px) {
+  .header-kill-trigger,
+  .header-account-trigger {
+    width: 40px; min-width: 40px; padding-inline: 0;
+  }
+
   .header-kill-label,
   .header-signin-label {
     display: none;
   }
 }
 
-
 /* ══════════════════════════════════════════════════════════════════════════
    Narrow screens and paper — explicit affordances for the dense evidence UI
    ══════════════════════════════════════════════════════════════════════════ */
-
