@@ -38,6 +38,8 @@
  */
 
 import { type ReactNode } from "react";
+import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 export interface PaneHeadProps {
   /** The rail's own word for this section, in the kicker slot. */
@@ -57,9 +59,11 @@ export interface PaneHeadProps {
   note?: ReactNode;
   /** One sentence under the head. The only prose a section opens with. */
   lede?: ReactNode;
+  /** Proofs can keep the rationale available without front-loading it. */
+  ledeSummary?: string;
 }
 
-export default function PaneHead({ kicker, title, id, note, lede }: PaneHeadProps) {
+export default function PaneHead({ kicker, title, id, note, lede, ledeSummary }: PaneHeadProps) {
   return (
     <>
       <div className="section-heading compact">
@@ -69,7 +73,18 @@ export default function PaneHead({ kicker, title, id, note, lede }: PaneHeadProp
         </div>
         {note ? <span className="section-note">{note}</span> : null}
       </div>
-      {lede ? <p className="sub">{lede}</p> : null}
+      {lede ? ledeSummary ? (
+        <Collapsible className="proofs-method-note">
+          <CollapsibleTrigger asChild>
+            <Button type="button" variant="ghost" size="xs">
+              <span aria-hidden="true">＋</span> {ledeSummary}
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="sub"><p>{lede}</p></div>
+          </CollapsibleContent>
+        </Collapsible>
+      ) : <p className="sub">{lede}</p> : null}
     </>
   );
 }
@@ -88,16 +103,18 @@ export default function PaneHead({ kicker, title, id, note, lede }: PaneHeadProp
  * decides whether the panel has anything. This is that shape, made reusable so
  * the eleven cannot drift apart again.
  */
-export function PaneHeadEmpty({ head, mark, children }: {
+export function PaneHeadEmpty({ head, mark, busy = false, children }: {
   head: PaneHeadProps;
   /** The status vocabulary's own mark — ◌ waiting, ○ absent, ✕ failed. */
   mark: string;
+  /** True only while a gateway read is genuinely in flight. */
+  busy?: boolean;
   children: ReactNode;
 }) {
   return (
     <>
       <PaneHead {...head} />
-      <p className="console-empty">
+      <p className="console-empty" role={busy ? "status" : undefined} aria-busy={busy || undefined}>
         <span aria-hidden="true">{mark}</span> {children}
       </p>
     </>
