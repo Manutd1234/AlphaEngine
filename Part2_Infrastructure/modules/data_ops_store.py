@@ -16,57 +16,24 @@ deploys; strict semantics; no new dependency and no second process.
 
 from __future__ import annotations
 
+import logging
 import re
 import sqlite3
 import threading
+import time
 from pathlib import Path
 from typing import Any
 
-#: How long a connection waits on another connection's lock before raising
-#: ``database is locked``, in seconds.
-#:
-#: Python's default is five. That was the CI flake: ``PRAGMA journal_mode=WAL``
-#: is the first statement on every fresh connection, and it has to read the
-#: file. A WAL reader never waits for a WAL writer — but it does wait for the
-#: EXCLUSIVE lock the last connection takes as it closes, to checkpoint the
-#: WAL and delete the -wal and -shm files. Under the old test fixture that
-#: close happened whenever the garbage collector reached a leaked handle, on
-#: whatever thread it was running, while the next test was opening the same
-#: file — and on a loaded runner the checkpoint outlasted five seconds. The
-#: lifecycle tests reproduce the lock with ``locking_mode=EXCLUSIVE`` and show
-#: that without a timeout the open raises at once. Thirty seconds is ``PRAGMA
-#: busy_timeout=30000``: a wait a lock-holder cannot plausibly exceed, and far
-#: shorter than a red build.
-BUSY_TIMEOUT_S = 30.0
+from modules.sqlite_connection import BUSY_TIMEOUT_S, open_sqlite_db
 
-#: One open at a time, process-wide.
-#:
-#: The busy timeout above covers a lock another connection HOLDS. It does not
-#: cover two connections in one process opening the same file at the same
-#: instant and both running ``PRAGMA journal_mode=WAL``: measured on a fresh
-#: file with six threads released by a barrier, 2 of 240 opens failed at once
-#: with ``database is locked`` — in 0.00s, the busy handler never consulted.
-#: That is how the gateway's own shutdown failed in the suite: the event loop
-#: and a worker thread each found the shared store unbuilt and each opened it.
-#: Opens are rare and take a millisecond; a lock here costs nothing and turns
-#: a race SQLite refuses to wait out into a queue.
-_OPEN_LOCK = threading.Lock()
+log = logging.getLogger("alphaengine.data_ops.sqlite")
 
 
-def open_data_ops_db(path: Path | str) -> sqlite3.Connection:
-    """Open (creating) the store with the pragmas a shared-file ledger wants."""
-    if str(path) != ":memory:":
-        Path(path).parent.mkdir(parents=True, exist_ok=True)
-    with _OPEN_LOCK:
-        conn = sqlite3.connect(
-            str(path), timeout=BUSY_TIMEOUT_S, check_same_thread=False, isolation_level=None,
-        )
-        conn.row_factory = sqlite3.Row
-        if str(path) != ":memory:":
-            conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA synchronous=NORMAL")
-        conn.execute("PRAGMA foreign_keys=ON")
-    return conn
+def open_data_ops_db(
+    path: Path | str, *, busy_timeout_s: float = BUSY_TIMEOUT_S,
+) -> sqlite3.Connection:
+    """Backward-compatible, domain-named entry point for the shared helper."""
+    return open_sqlite_db(path, busy_timeout_s=busy_timeout_s)
 
 
 class SqliteStore:
@@ -97,6 +64,16 @@ class SqliteStore:
         self.path = str(path)
         self._conn: sqlite3.Connection | None = open_data_ops_db(path)
         self._lock = threading.Lock()
+        # Store wrappers are cheap and constructed by several routes; their
+        # CREATE INDEX/CREATE TABLE bundles are not.  Startup applies each
+        # statement once and later constructors hit this in-memory set.
+        self._applied_ddl: set[str] = set()
+        self._checkpoint_total = 0
+        self._last_checkpoint_duration_ms = 0.0
+        self._last_checkpoint_busy = 0
+        self._last_checkpoint_log_frames = 0
+        self._last_checkpointed_frames = 0
+        self._last_checkpoint_error: str | None = None
 
     @property
     def closed(self) -> bool:
@@ -120,7 +97,10 @@ class SqliteStore:
         with self._lock:
             conn = self._connection()
             for statement in ddl:
+                if statement in self._applied_ddl:
+                    continue
                 conn.execute(statement)
+                self._applied_ddl.add(statement)
 
     def execute(self, sql: str, params: tuple[Any, ...] | list[Any] = ()) -> sqlite3.Cursor:
         with self._lock:
@@ -274,12 +254,72 @@ class SqliteStore:
     def transaction(self) -> "_Transaction":
         return _Transaction(self)
 
-    def close(self) -> None:
-        """Close the handle. Idempotent; a file store reopens on its next use."""
+    def _discard_connection_locked(self) -> None:
+        """Drop a connection whose transaction state can no longer be trusted."""
+        conn = self._conn
+        self._conn = None
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception as exc:  # cleanup must not mask the transaction failure
+                log.warning("SQLite connection discard failed (%s)", type(exc).__name__)
+
+    def _checkpoint_locked(self, conn: sqlite3.Connection) -> None:
+        if self.path == ":memory:":
+            return
+        started = time.perf_counter()
+        self._checkpoint_total += 1
+        try:
+            row = conn.execute("PRAGMA wal_checkpoint(PASSIVE)").fetchone()
+            self._last_checkpoint_busy = int(row[0])
+            self._last_checkpoint_log_frames = int(row[1])
+            self._last_checkpointed_frames = int(row[2])
+            self._last_checkpoint_error = None
+        except sqlite3.Error as exc:
+            self._last_checkpoint_error = type(exc).__name__
+            raise
+        finally:
+            self._last_checkpoint_duration_ms = (time.perf_counter() - started) * 1_000
+
+    def checkpoint(self) -> dict[str, Any]:
+        """Run one bounded passive WAL checkpoint and return its telemetry."""
         with self._lock:
-            if self._conn is not None:
-                self._conn.close()
+            self._checkpoint_locked(self._connection())
+            return self.sqlite_status(_locked=True)
+
+    def sqlite_status(self, *, _locked: bool = False) -> dict[str, Any]:
+        """Expose checkpoint evidence without opening a closed connection."""
+        if not _locked:
+            self._lock.acquire()
+        try:
+            return {
+                "busy_timeout_ms": round(BUSY_TIMEOUT_S * 1_000),
+                "journal_mode": "memory" if self.path == ":memory:" else "wal",
+                "checkpoint_total": self._checkpoint_total,
+                "last_checkpoint_duration_ms": round(self._last_checkpoint_duration_ms, 3),
+                "last_checkpoint_busy": self._last_checkpoint_busy,
+                "last_checkpoint_log_frames": self._last_checkpoint_log_frames,
+                "last_checkpointed_frames": self._last_checkpointed_frames,
+                "last_checkpoint_error": self._last_checkpoint_error,
+            }
+        finally:
+            if not _locked:
+                self._lock.release()
+
+    def close(self) -> None:
+        """Attempt a passive checkpoint, then close even if checkpointing fails."""
+        with self._lock:
+            conn = self._conn
+            if conn is not None:
+                # Detach first: even if sqlite raises from close(), no caller
+                # can reuse a handle whose final state is unknowable.
                 self._conn = None
+                try:
+                    self._checkpoint_locked(conn)
+                except sqlite3.Error as exc:
+                    log.warning("SQLite close checkpoint failed (%s)", type(exc).__name__)
+                finally:
+                    conn.close()
 
 
 class _Transaction:
@@ -311,8 +351,24 @@ class _Transaction:
         try:
             assert self._conn is not None
             if exc_type is None:
-                self._conn.execute("COMMIT")
+                try:
+                    self._conn.execute("COMMIT")
+                except BaseException:
+                    # SQLite can leave a failed COMMIT inside the transaction.
+                    # Roll it back before reuse; if even that cannot complete,
+                    # discard the handle so the next file-backed operation
+                    # opens a clean connection rather than inheriting a lock.
+                    try:
+                        self._conn.execute("ROLLBACK")
+                    except BaseException:
+                        self._store._discard_connection_locked()
+                    raise
             else:
-                self._conn.execute("ROLLBACK")
+                try:
+                    self._conn.execute("ROLLBACK")
+                except BaseException:
+                    # Preserve the block's original exception while ensuring a
+                    # poisoned transaction is never returned to the store.
+                    self._store._discard_connection_locked()
         finally:
             self._store._lock.release()
