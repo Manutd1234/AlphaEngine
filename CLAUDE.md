@@ -4,6 +4,10 @@ AlphaEngine — a FastAPI risk gateway, a Next.js desk workspace, and a stateles
 research service, sharing one append-only audit log. British spelling
 throughout, in prose and in identifiers.
 
+**Last verified: 2026-08-29.** Use [`docs/CURRENT_STATE.md`](docs/CURRENT_STATE.md)
+for volatile topology, dependency, contract and test facts. Historical
+benchmarks and deployment probes keep their original observation dates.
+
 `SETUP.md` is the running instructions. This file is the things an agent
 otherwise gets wrong.
 
@@ -12,13 +16,13 @@ otherwise gets wrong.
 **1. The virtualenv must be named `venv`, at `Part2_Infrastructure/venv`.**
 `web/package.json`'s `dev:gateway` runs `cd .. && ./venv/bin/python`, and
 `web/scripts/start-dev-all.mjs` spawns `resolve(rootDir, "venv/bin/python")`
-with no existence check and no `error` handler on the child process. A `.venv`,
-a conda env or a uv env produces an unhandled `ENOENT` that looks nothing like
-"wrong Python path". Never rename it, never add a second one.
+from the same fixed path. Its child error handler names the failed gateway and
+stops the workspace peer, but a `.venv`, conda env or uv env still cannot be
+used by the integrated command. Never rename it, never add a second one.
 
 **2. The web app has no `lint` script.** `web/package.json` has exactly `dev`,
-`dev:gateway`, `dev:all`, `prebuild`, `build`, `catalog:refresh`, `start`,
-`typecheck`, `test`, `counts:refresh`. `npm run lint` there fails as a missing
+`dev:web`, `dev:gateway`, `dev:all`, `prebuild`, `build`, `catalog:refresh`, `start`,
+`typecheck`, `test`, `audit:layout`, `counts:refresh`. `npm run lint` there fails as a missing
 script — it is not a broken linter. Linting is Python-side: `ruff check .` from
 `Part2_Infrastructure`, configured in `pyproject.toml`, installed only by
 `requirements-dev.txt`.
@@ -30,32 +34,25 @@ extra skip is `tests/test_backtester.py`, "vectorbt not installed", because
 numba has no 3.14 wheel — so the vectorbt engine goes untested and the summary
 line still reads green.
 
-**Count the skips, not the passes — and know which of the two runs you are
-reading.** This section is the authoritative arithmetic; `README.md` and
-`SETUP.md` quote the headline and link back here. There are two green gateway
-numbers and both are correct, because two files in the suite are opt-ins that
-skip with a named reason rather than pretending they ran. Re-measured
-2026-08-24 on this tree, after the Kalshi engine split into Quotes and Proofs,
-the settled-score history landed and the market size fields joined the universe
-read — both shapes run back to back, neither derived from the other:
+**Count the skips, not just the passes, and name the environment you ran.** The
+2026-08-29 documentation release used Python 3.12.14 with the native core and
+the locally configured optional re-ranker; the owning generator recorded:
 
-| Run | Passed | Skipped |
-|---|---|---|
-| CI, and any fresh 3.12 venv with no `.env` | 3,031 | 2 |
-| With re-ranker weights seeded | 3,039 | 1 |
+| Run | Passed | Skipped | Total |
+|---|---:|---:|---:|
+| 2026-08-29 release verification | 3,254 | 1 | 3,255 |
 
-The eight-pass gap is not tests appearing from nowhere. It is the arithmetic of
-a MODULE-level skip:
+Optional credentials and model weights can change collection and skip reasons
+without changing source. Two important examples are:
 
 1. `tests/test_data_ops_postgrest.py` — a `@pytest.mark.skipif` on one test, so
    it is collected either way and reported as a skip when there is no
    `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY`. The Postgres backend never ran.
 2. `tests/test_research_rerank_real.py` — `pytest.skip(..., allow_module_level=True)`,
-   so when `RERANK_TEST_MODEL_PATH` is unset its **eight** tests are never
-   collected at all and the file contributes exactly one skip. Seed the weights
-   (`python tools/bench_rerank.py --seed --model-path DIR`, ~1.05 GiB) and give
-   the variable to the run, and you gain 8 passes and lose 1 skip:
-   3,031 + 8 = 3,039, 2 − 1 = 1. CI's opt-in `rerank-real` job does exactly that
+   so when `RERANK_TEST_MODEL_PATH` is unset its tests are not collected and the
+   file contributes one skip. Seed the weights (`python tools/bench_rerank.py
+   --seed --model-path DIR`, ~1.05 GiB) and give the variable to the run. CI's
+   opt-in `rerank-real` job does exactly that
    in a setup step, and it runs on `workflow_dispatch` or a `rerank` label, not
    on every push.
 
@@ -67,10 +64,8 @@ not touch `RERANK_TEST_MODEL_PATH` at all, deliberately, because that variable
 IS the opt-in. `config.py` calls `env_coerce.load_dotenv_if_present()` at
 import, which hands `Part2_Infrastructure/.env` to python-dotenv without
 `override`, filling any variable not already set — so a developer whose `.env`
-carries
-`RERANK_TEST_MODEL_PATH=/path/to/weights` gets the 3,039 / 1 shape with nothing
-exported and no flag passed. Measured today: this machine's `.env` line 41 is
-what produced it. Before reporting a gateway count, check whether that file
+carries `RERANK_TEST_MODEL_PATH=/path/to/weights` changes the collected suite
+with nothing exported and no flag passed. Before reporting a gateway count, check whether that file
 names the variable — `grep RERANK_TEST_MODEL_PATH Part2_Infrastructure/.env` —
 or force the CI shape with `RERANK_TEST_MODEL_PATH= venv/bin/python -m pytest`,
 which is one variable on one command line and therefore still obeys fact 5.
@@ -83,10 +78,8 @@ run green — ten of them already do without credentials, and the eleventh,
 local ONNX directory.
 
 `web/lib/test-counts.generated.ts` is the desk's copy of all three figures.
-Refreshed 2026-08-24 with `RERANK_TEST_MODEL_PATH=` blanked — the CI shape, and
-say the shape whenever you quote the gateway line — it reads gateway
-3,033 / 3,031 / 2 and web **4,730 tests across 1,028 suites** (4,728 passed, 2
-skipped, 318 `.test.ts` files in `web/tests/`). It goes stale
+Refreshed 2026-08-29, it reads gateway **3,255 / 3,254 / 1**, web **6,519
+tests across 1,408 suites**, and service **24**. It goes stale
 the moment a test file lands without `npm run counts:refresh` — it did for a
 week in August, when the tree grew test files faster than anyone re-ran the
 script — and that is not cosmetic: CI's web job runs
@@ -123,7 +116,7 @@ and vectorbt (the backtester's parity test) skip the same way; measured
 skipped. Both are now in `requirements-dev.txt`, so CI and a 3.12 venv built
 from it print the same line. Build it with `python3.12 -m venv venv`
 explicitly; the default `python3` on a current macOS/Homebrew is 3.14. Two more
-things the 3,031 needs: `requirements-native.txt` and a built native decision
+things the full gateway suite needs: `requirements-native.txt` and a built native decision
 core (`python native/decision_core/setup.py build_ext --inplace --build-temp
 build/native`) — `tests/test_decision_core_native.py` and
 `tests/test_core_self_measure.py` *fail*, not skip, when `modules/_decision_core`
@@ -145,8 +138,8 @@ the web line of `lib/test-counts.generated.ts` against the run it just made. The
 gateway and service lines in that file are regenerated by
 `npm run counts:refresh` and gated by nothing.
 
-**All four generated artefacts were current on 2026-08-24 at `dee08fb`, and two
-of them are gates.** Measured by running the checkers themselves rather than by
+**All four generated artefacts were current on 2026-08-29, and two of them are
+build/CI gates.** Measured by running the checkers themselves rather than by
 reading them; the table keeps what each one looked like when it was last behind,
 so the failure is recognisable when it recurs. **Re-measure the "current" column
 whenever you refresh one** — a stale value here is worse than an empty row,
@@ -156,10 +149,10 @@ this column, which is exactly why it drifts.
 
 | Artefact | State | Regenerator |
 |---|---|---|
-| `web/lib/repository-manifest.generated.json` | current — **1,994 paths at `25fb56f`**, refreshed 2026-08-26 from a detached worktree of that sha with `git status` empty (a `venv` or `node_modules` SYMLINK in the worktree is listed as a path — clone them, `cp -Rc`); when it is behind, `generate-codebase-manifest.mjs --check` reports N added, and `npm run build` stops in `prebuild`. It walks `git ls-files --cached --others`, so refresh it only when the tree is clean or another session's untracked files are recorded as repository paths | `npm run catalog:refresh` |
-| `web/lib/test-counts.generated.ts` | current — web 5,485 across 1,154 suites, gateway 3,107 / 3,105 / 2, service 24, refreshed 2026-08-26 at `25fb56f` in CI shape; when it is behind, CI's count step fails the push | `npm run counts:refresh` |
-| `supabase/apply_all.generated.sql` | current — re-verified 2026-08-24 by regenerating it, which produced no diff, and `tests/test_migration_bundle.py` is green; it had been missing `20260822110000_research_chart_images.sql` on 2026-08-23, which failed two tests in that file | `python3 tools/bundle_migrations.py`, repo root |
-| `web/lib/gateway-openapi-digest.generated.ts` | current — the checker verified **`6689ae0f…`** against `tools/openapi.json` on 2026-08-26, after `horizon_s` joined the calibration wire on both `CoherenceCalibration` and `CoherenceCalibrationPoint` (before that, `d8f7e72c…` at `25fb56f` for the diffusion absorption fields, and `6e7d9d29…` from 2026-08-24). Take the value the checker PRINTS: it is a canonical-JSON sha256 with sorted keys, not a hash of the file | `python tools/export_openapi.py`, then the digest module, then `node --import tsx scripts/generate-gateway-client.ts` |
+| `web/lib/repository-manifest.generated.json` | current — **2,283 paths**, generated 2026-08-29 and accepted by `npm run build`; when behind, `generate-codebase-manifest.mjs --check` reports the added/removed paths | `npm run catalog:refresh` |
+| `web/lib/test-counts.generated.ts` | current — web 6,519 across 1,408 suites, gateway 3,255 / 3,254 / 1, service 24, refreshed 2026-08-29; when behind, CI's web-count step fails the push | `npm run counts:refresh` |
+| `supabase/apply_all.generated.sql` | current — regenerated from all **41 migrations** and checked by `tests/test_migration_bundle.py` | `python3 tools/bundle_migrations.py`, repo root |
+| `web/lib/gateway-openapi-digest.generated.ts` | current — the checker verified **`12b53e1f…`** against the 76-path / 79-operation `tools/openapi.json` contract on 2026-08-29. Take the value the checker prints: it is a canonical-JSON SHA-256 with sorted keys, not a raw file hash | `python tools/export_openapi.py`, then the digest module, then `node --import tsx scripts/generate-gateway-client.ts` |
 
 None of that is a code defect when it recurs; it is the cost of a tree that
 grows faster than the indexes that describe it. Run the refreshes before the
@@ -186,13 +179,14 @@ parameters into an unrelated suite. `RESEARCH_IMAGE_MODEL_PATH` is NOT blanked
 there yet — the CLIP arm's own suite blanks it in an autouse fixture instead,
 which is a hole conftest should close.
 
-**6. The web suite has no browser, no DOM and no layout engine, so no test in
-it has ever seen a pixel.** `npm test` is `node --import tsx --test tests/*.test.ts`
-— plain Node, no jsdom, no Playwright, no Puppeteer, and none of those may be
-added (see the no-new-dependencies rule below). Of the 279 suites, 135 read
-component source with `readFileSync` and assert against the text; the rest
-import modules and assert on their values. Nothing calls `render()`; nothing
-imports `react-dom/server`.
+**6. The default web suite has no browser, no DOM and no layout engine, so a
+passing `npm test` has not seen a pixel.** `npm test` is
+`node --import tsx --test tests/*.test.ts` — plain Node, no jsdom and no browser.
+The second frontend upgrade tranche adds pinned, development-only Playwright and
+axe qualification under the exact dependency ADR; those journeys are a separate
+release gate and must be run before claiming browser verification. The default
+runner imports modules and inspects source/contracts; its 1,408 suites do not
+launch Chromium.
 
 What follows from that is the thing to hold on to: **every geometric claim in
 this repository is derived, not observed.** An SVG's viewBox, a grid's row
@@ -210,13 +204,14 @@ Safari 16+, Firefox 71+, and where it is not, the declaration is dropped and the
 card degrades to the plain five-row auto grid it used to be, which is the old
 layout rather than a broken one.
 
-So: do not write "verified in the browser" when what happened was a test pass,
-and if you have a viewport in front of you, the three surfaces above are the
-ones worth a look. The browser-level check that does exist is
-`web/scripts/desk-sweep.mjs`, which drives all 47 rail sections over Chrome
-DevTools Protocol under six fault profiles — a real harness with real
-prerequisites (a dev server on port 3100, a headless Chrome on 9222), not part
-of any suite and not run by CI.
+So: do not write "verified in the browser" when what happened was a Node test
+pass. Two browser-dependent tools exist: `web/scripts/desk-sweep.mjs` drives all
+70 rail sections over Chrome DevTools Protocol under six fault profiles, and
+`npm run audit:layout -- --url=http://localhost:3000` measures every declared
+engine view at eight viewports with Playwright. Both have real prerequisites and
+are outside the default Node suite. The 2026-08-29 release run used the local
+webpack server and passed all 872 state/viewport combinations with zero console
+errors; the six-profile DevTools desk sweep remained a separate activity.
 
 ## House rules
 
@@ -227,18 +222,24 @@ These are enforced by tests, not by convention — `web/tests/house-rules.test.t
 `decision-latency.test.ts`, `middle-dot.test.ts`, `file-size.test.ts`. Breaking
 one turns the suite red.
 
-Sixteen more are per-tab copy guards — `summarised-<tab>.test.ts` and
-`disclosure-<tab>.test.ts`, one pair for each of the eight tabs. They pin
+Per-tab copy guards — `summarised-<tab>.test.ts` and
+`disclosure-<tab>.test.ts` — pin
 rendered sentences byte for byte, both that the new wording is present and that
 the old wording is gone, because a fluent rewrite can drop a number, a negation
 or the reason a measurement is missing while every line still looks present in
 the diff. You may ADD an assertion to one; never weaken one to let a change
 through.
 
-- **No new npm dependencies.** The workspace ships on Next, React,
-  `lucide-react`, `@supabase/supabase-js` and `oracledb`. Everything else is
-  written here. Reach for a package and you are changing the argument the
-  project makes about itself.
+- **Exact npm dependency allowlist.** The former blanket ban was superseded on
+  2026-08-27 by
+  `docs/architecture/ADR_2026-08-27_SHADCN_SOURCE_PRIMITIVES.md`. Four exact
+  runtime packages (`radix-ui`, `class-variance-authority`, `clsx`, and
+  `tailwind-merge`) support source-owned shadcn primitives; two exact dev-only
+  packages (`@playwright/test` and `@axe-core/playwright`) qualify them in a real
+  browser. `web/tests/dependency-policy.test.ts` pins the complete old-plus-new
+  manifest and the audited nanoid override. Anything else still requires a new
+  ADR; never install `shadcn`, `tw-animate-css`, a chart library, or a generic
+  data grid to make a local component easier.
 - **No emoji in UI.** Not in components, not in `app/`. The status vocabulary is
   typographic marks — `● ▲ ✕ ○ ◌ ✓ ✗ →` — which inherit the text colour and
   render in the app's own font. Coloured geometric shapes (🟢🔴🟡) count as emoji
@@ -296,18 +297,18 @@ Part2_Infrastructure/
                                  battery is modules/risk_proxy/ — a PACKAGE, not
                                  risk_proxy.py; gates.py declares GATE_ORDER and
                                  decision.py evaluates it. The audit log is
-                                 modules/audit/, likewise a package. Routes are
-                                 eight routers under modules/api/, not main.py.
+                                 modules/audit/, likewise a package. HTTP route
+                                 modules live under modules/api/, not main.py.
   native/decision_core/          the C++ (pybind11) decision core; built into
                                  modules/_decision_core*.so, DECISION_CORE=auto|native|python
   tools/                         fixture generators, OpenAPI export, probes,
                                  bench_decision.py, bench_rerank.py,
                                  bench_image_retrieval.py
-  tests/                         gateway pytest suite (130 files)
-  web/                           Next.js desk workspace (port 3000), 279 test files
+  tests/                         gateway pytest suite (213 test_*.py files)
+  web/                           Next.js desk workspace (port 3000), 459 test files
   OpenBB_Service/                stateless research service, own pyproject
   developer-console/             separate Cloudflare/vinext app, needs Node >=22.13
-oracle/, supabase/               schema DDL for the optional backends; 35
+oracle/, supabase/               schema DDL for the optional backends; 37
                                  migrations, bundled into
                                  supabase/apply_all.generated.sql
 tools/bundle_migrations.py       regenerates that bundle — repo root, not
@@ -344,8 +345,8 @@ docs/                            architecture · engineering · planning ·
 - Telegram §6 of `Part2_Infrastructure/README.md` is generated:
   `venv/bin/python tools/telegram_catalogue.py --write` from
   `Part2_Infrastructure`, then `--check`. Never edit the tables by hand. It is
-  the only authority on the command count — **135 commands**, 6 of them gated
-  controls, 99 pushed to Telegram's `/` menu (the API caps that list at 100).
+  the only authority on the command count — **138 commands**, 6 of them gated
+  controls, 100 pushed to Telegram's `/` menu.
 - Section ids in `web/lib/sections.ts` are public deep links and never change;
   the PANE ids inside a section are component state and are not addressable.
   Renaming a pane breaks no URL, and the hash whitelist and "Copy link to this
@@ -366,13 +367,10 @@ docs/                            architecture · engineering · planning ·
 - The institutional whitepaper is Typst source at `docs/whitepaper/` — six
   chapter files under `sections/`, one shell (`main.typ`) and one
   `template.typ`. Compile it with
-  `typst compile docs/whitepaper/main.typ out.pdf`; measured 2026-08-24 it
-  builds clean to **85 A4 pages**. A built PDF IS committed, at the repo root as
-  `AlphaEngine_Institutional_Whitepaper.pdf` — this file said otherwise until
-  2026-08-24 and was wrong. NOT GATED, which is the part that still holds:
-  `typst` is in no requirements file and no CI job compiles it, so a broken
-  chapter is caught by whoever next runs the command, and the committed PDF goes
-  stale silently whenever a chapter changes without a rebuild. One Typst trap worth
+  `typst compile docs/whitepaper/main.typ docs/whitepaper/AlphaEngine_Institutional_Whitepaper.pdf`.
+  The 2026-08-29 documentation release recompiles the paper and renders every
+  page for visual inspection. PDFs are gitignored and source is authoritative;
+  Typst is still not a CI gate. One Typst trap worth
   knowing before editing a chapter: `#include` evaluates a file in its own
   scope, so `main.typ`'s `#import "template.typ": *` does NOT reach section
   files. Every chapter that uses `#measured`, `#illustrative` or `#note` carries
