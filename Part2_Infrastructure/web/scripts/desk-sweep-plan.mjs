@@ -9,28 +9,25 @@
  * by hand — the sweep runs against a built page, not against `lib/sections.ts`
  * — so the count is the only thing standing between a renamed section and a
  * section nobody sweeps. `desk-sweep.mjs` refuses to run when the two disagree,
- * and `tour-truth.test.ts` holds the same 60 against the rails themselves.
+ * and `tour-truth.test.ts` holds the same 70 against the rails themselves.
  *
- * 59 → 65 → 59 → 57, all on 2026-08-24 and none of it pushed. The Kalshi engine
- * split into two tabs and promoted six in-pane `.seg` views to rail sections,
- * which is what took the count to 65 and is the only reason the sweep could
- * walk those six at all: a view behind an `aria-pressed` button is not in the
- * hash, and this harness drives the hash. The merge back to one tab returned
- * them to views; the consolidation that followed folded `index` and `combos`
- * into the sections answering the same question, which is the last two. So
- * eight subjects on this engine were reachable only by pressing a button and
- * the sweep did not walk them — the cost the reader chose, recorded here rather
- * than left to be rediscovered.
+ * HISTORICAL SEQUENCE. 59 → 65 → 59 → 57, all on 2026-08-24 and none pushed.
+ * The engine split into two tabs and promoted six in-pane `.seg` views to rail
+ * sections, which took the count to 65 and was then the only way the sweep could
+ * walk them: a local button was not in the hash. The merge returned them to
+ * views; consolidation folded `index` and `combos` into sections answering the
+ * same question. At that point eight subjects were button-only and unswept.
  *
- * 57 → 58 → 60. The last step is 2026-08-25, and it BUYS two of those eight
+ * 57 → 58 → 60 followed on 2026-08-25 and bought two of those eight
  * back: Dutch book's three groups became three sections, so `portfolio` and
- * `combos` are in the hash again and this harness walks them. Six subjects
- * remain view-only, which is the smallest that number has been since the
- * consolidation.
+ * `combos` returned to the hash. Those figures are preserved history, not the
+ * current topology.
  *
- * The engine is two tabs again and the ids below are the tab IDS, not the
- * labels: `markets` renders "Prices" and `coherence` renders "Proofs". The
- * sweep drives `#<id>/<section>`, so ids are the only thing it can use.
+ * CURRENT TOPOLOGY. The plan mirrors 11 tabs and 70 rail sections. The
+ * quantitative engine spans Markets, Proofs and Diffusion and registers 71
+ * views (26 / 29 / 16). `VIEW_CELLS` adds the 50 non-default addresses, so the
+ * sweep drives `#<id>/<section>/<view>` instead of losing them behind buttons.
+ * The ids below remain routing ids: `markets`, `coherence` and `diffusion`.
  */
 
 /** Every rail section, from lib/sections.ts. Kept in sync by hand — a missing
@@ -53,37 +50,47 @@ const EXPECTED_SECTIONS = 70;
 
 /**
  * The NON-DEFAULT views the sweep walks inside each section, per tab that
- * declares views in `lib/section-views.ts` — the eight-then-six subjects the
- * header above records as "view-only" are addresses now, and this harness
- * drives the hash. Mirrored by hand like `TABS`; `tests/desk-sweep-views.test.ts`
+ * declares views in `lib/section-views.ts`. These are addresses now, so this
+ * harness drives their third hash segment. Mirrored by hand like `TABS`;
+ * `tests/desk-sweep-views.test.ts`
  * derives the same cells from the table and holds this to them, count
- * included. Declared BELOW `TABS` and with no `diffusion` key on purpose:
- * `diffusion-sections.test.ts` reads the first `diffusion: [` literal in this
- * file as the Diffusion rail.
+ * included. Declared BELOW `TABS`: `diffusion-sections.test.ts` reads the first
+ * `diffusion: [` literal in this file as the Diffusion rail, while the view
+ * mirror uses `diffusion: {` and therefore cannot be mistaken for it.
  */
 const VIEW_CELLS = {
+  research: {
+    summary: ["setup"],
+  },
   markets: {
-    universe: ["families"],
+    universe: ["positions", "families"],
     settlement: ["formation", "pending"],
     books: ["identity", "history"],
     dispersion: ["channel"],
-    lattice: ["mass", "moments"],
+    lattice: ["mass", "moments", "support"],
     stake: ["capital", "method", "family"],
     fees: ["shape", "comparison", "table"],
-    shell: ["tree"],
+    shell: ["route", "tree"],
   },
   coherence: {
-    certificate: ["proof", "prices"],
+    certificate: ["proof", "checks", "prices", "sizes"],
     portfolio: ["basket", "size"],
-    combos: ["parlays", "bounds"],
+    combos: ["parlays", "inputs", "legs", "bounds"],
     index: ["families"],
-    calibration: ["bands"],
+    calibration: ["decomposition", "components", "measures", "reliability", "bands"],
     corpus: ["trend"],
     lessons: ["prices", "structure", "bounds", "record", "states"],
   },
+  diffusion: {
+    arm: ["floor", "clocks"],
+    meetings: ["calendar", "mechanism"],
+    episodes: ["episodes"],
+    sandbox: ["simulator", "spectrum"],
+    findings: ["table", "instrument"],
+  },
 };
 
-const EXPECTED_VIEW_CELLS = 29;
+const EXPECTED_VIEW_CELLS = 50;
 
 /**
  * The two tabs whose job is to report infrastructure truth.
