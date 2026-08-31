@@ -258,6 +258,7 @@ function confess(tab: WorkspaceView, section: string, view: string | undefined):
 export function followLocation(
   applier: Record<WorkspaceView, SectionApplier>,
   setView: (next: WorkspaceView) => void,
+  onApplied?: (view: WorkspaceView, section: string) => void,
 ): () => void {
   const readLocation = () => {
     const [workspace, nestedSection, nestedView] = window.location.hash.slice(1).split("/");
@@ -287,6 +288,7 @@ export function followLocation(
       setView(hashView);
       onRail();
       confess(hashView, named, nestedView);
+      onApplied?.(hashView, named);
       return;
     }
     // A relocated id keeps its view too. The segment was written against the
@@ -299,10 +301,12 @@ export function followLocation(
       setView(moved.view);
       relocated();
       confess(moved.view, moved.section, nestedView);
+      onApplied?.(moved.view, moved.section);
       return;
     }
     setView(hashView);
     applier[hashView](DEFAULT_SECTION[hashView])?.();
+    onApplied?.(hashView, DEFAULT_SECTION[hashView]);
   };
   restoreRememberedLocation();
   readLocation();
