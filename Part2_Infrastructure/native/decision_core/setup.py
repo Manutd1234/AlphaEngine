@@ -12,22 +12,83 @@ compiler and the loader falls back to the Python engine when the .so is absent.
 multiply-add into one rounding step; the core's whole reason to exist is to
 reproduce the Python reference's float sequence to the bit, and an FMA would
 round once where CPython rounds twice.
+
+``ALPHAENGINE_NATIVE_SANITIZERS=1`` enables ASAN and UBSAN together.
+``ALPHAENGINE_NATIVE_SANITIZERS=undefined`` is the UBSAN-only execution
+fallback for Python runtimes into which macOS cannot interpose ASAN.
 """
 
 from __future__ import annotations
 
+import hashlib
+import json
+import os
+import platform
+import sysconfig
 from pathlib import Path
 
 from pybind11.setup_helpers import Pybind11Extension, build_ext
 from setuptools import setup
 
 HERE = Path(__file__).resolve().parent
+ABI_VERSION = 1
 
-ext_modules = [
-    Pybind11Extension(
+
+def _build_flags(sanitizers: str | None) -> tuple[list[str], list[str]]:
+    """Compiler and linker contract for production or the opt-in safety build."""
+    mode = (sanitizers or "").strip()
+    if not mode:
+        return ["-O3", "-ffp-contract=off", "-fvisibility=hidden"], []
+    sanitizer_flag = {
+        "1": "-fsanitize=address,undefined",
+        # macOS cannot interpose ASAN into every Python distribution. This
+        # fallback still executes the full parity suite under UB checks rather
+        # than treating a successful combined compile as a successful run.
+        "undefined": "-fsanitize=undefined",
+    }.get(mode)
+    if sanitizer_flag is None:
+        raise RuntimeError("ALPHAENGINE_NATIVE_SANITIZERS must be unset, 1, or undefined")
+    return (
+        [
+            "-O1",
+            "-g",
+            "-fno-omit-frame-pointer",
+            sanitizer_flag,
+            "-fno-sanitize-recover=all",
+            "-ffp-contract=off",
+            "-fvisibility=hidden",
+            "-Wall",
+            "-Wextra",
+            "-Wpedantic",
+            "-Werror",
+        ],
+        [sanitizer_flag, "-fno-sanitize-recover=all"],
+    )
+
+
+def _build_id(sanitizers: str | None) -> str:
+    """Identify the exact source, compiler contract and Python/CPU target."""
+    source_hash = hashlib.sha256((HERE / "decision_core.cpp").read_bytes()).hexdigest()[:16]
+    compile_args, _ = _build_flags(sanitizers)
+    flags_hash = hashlib.sha256("\0".join(compile_args).encode()).hexdigest()[:12]
+    machine = platform.machine() or "unknown-machine"
+    soabi = sysconfig.get_config_var("SOABI") or "unknown-soabi"
+    return (
+        f"alphaengine-decision-core/abi-{ABI_VERSION}/src-{source_hash}/"
+        f"flags-{flags_hash}/{machine}/{soabi}"
+    )
+
+
+def _extension() -> Pybind11Extension:
+    sanitizers = os.getenv("ALPHAENGINE_NATIVE_SANITIZERS")
+    compile_args, link_args = _build_flags(sanitizers)
+    return Pybind11Extension(
         "modules._decision_core",
         [str(HERE / "decision_core.cpp")],
         cxx_std=17,
+        # The optimisation notes below describe the normal production build.
+        # A sanitizer mode deliberately selects O1, symbols and frame pointers
+        # so diagnostics remain actionable.
         # -O3, not -O2: this is a tight numeric kernel whose whole job is the
         # arithmetic, and -O3's extra inlining and unrolling is exactly the
         # class of optimisation it can use. It does NOT imply -ffast-math —
@@ -64,15 +125,25 @@ ext_modules = [
         # NOT here, deliberately: -march=native. The Docker builder stage and
         # a developer's Mac must emit the same floats, and a build tuned to
         # whichever CPU compiled it cannot promise that.
-        extra_compile_args=["-O3", "-ffp-contract=off", "-fvisibility=hidden"],
-    ),
-]
+        # The sanitizer mode is an opt-in CI build. Production keeps the exact
+        # three-flag list it used before this gate existed; no deployment pays
+        # for instrumentation and its arithmetic contract is unchanged.
+        extra_compile_args=compile_args,
+        extra_link_args=link_args,
+        define_macros=[("ALPHAENGINE_BUILD_ID", json.dumps(_build_id(sanitizers)))],
+    )
 
-setup(
-    name="alphaengine-decision-core",
-    version="0.1.0",
-    description="Native pre-trade decision core for AlphaEngine (slice S3).",
-    ext_modules=ext_modules,
-    cmdclass={"build_ext": build_ext},
-    zip_safe=False,
-)
+
+def main() -> None:
+    setup(
+        name="alphaengine-decision-core",
+        version="0.1.0",
+        description="Native pre-trade decision core for AlphaEngine (slice S3).",
+        ext_modules=[_extension()],
+        cmdclass={"build_ext": build_ext},
+        zip_safe=False,
+    )
+
+
+if __name__ == "__main__":
+    main()
