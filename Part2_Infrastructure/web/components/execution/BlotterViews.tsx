@@ -32,10 +32,11 @@
  *    rewriting.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import OrderBlotter from "@/components/execution/OrderBlotter";
 import WorkingOrders from "@/components/portfolio/WorkingOrders";
+import { useWorkspaceEntity } from "@/lib/use-workspace-entity";
 
 type View = "active" | "fills" | "unfilled";
 
@@ -69,6 +70,14 @@ export default function BlotterViews({
 }) {
   const [view, setView] = useState<View>("fills");
   const [query, setQuery] = useState("");
+  const selectedOrder = useWorkspaceEntity("order");
+
+  useEffect(() => {
+    if (!selectedOrder) return;
+    setQuery(selectedOrder.value);
+    const row = rows.find((candidate) => candidate.orderId === selectedOrder.value);
+    if (row) setView(row.accepted ? "fills" : "unfilled");
+  }, [rows, selectedOrder]);
 
   return (
     <div className="blotter-views">
