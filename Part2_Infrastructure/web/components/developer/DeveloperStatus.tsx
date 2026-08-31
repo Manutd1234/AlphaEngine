@@ -56,26 +56,69 @@ export function gateVerdict(state: ControlState): GateVerdict {
 }
 
 export const PIPELINE_STAGES = [
-  { name: "Code", note: APP_COMMIT, tone: HAS_COMMIT_IDENTITY ? "good" as const : "warn" as const },
-  { name: "Build", note: IS_VERCEL_DEPLOYMENT ? "Vercel build" : "Local build", tone: IS_VERCEL_DEPLOYMENT ? "good" as const : "warn" as const },
-  { name: "Tests", note: "Configured gates", tone: "warn" as const },
-  { name: "Contracts", note: "Configured gates", tone: "warn" as const },
-  { name: "Package", note: IS_VERCEL_DEPLOYMENT ? "Vercel artifact" : "Unverified local output", tone: IS_VERCEL_DEPLOYMENT ? "good" as const : "warn" as const },
+  { name: "Code", note: HAS_COMMIT_IDENTITY ? `${APP_COMMIT}; run unverified` : "Identity unverified", tone: "warn" as const },
+  { name: "Build", note: IS_VERCEL_DEPLOYMENT ? "Vercel configured; run unverified" : "Local build; run unverified", tone: "warn" as const },
+  { name: "Tests", note: "Configured; result unverified", tone: "warn" as const },
+  { name: "Contracts", note: "Configured; result unverified", tone: "warn" as const },
+  { name: "Package", note: IS_VERCEL_DEPLOYMENT ? "Vercel output; unverified" : "Local output; unverified", tone: "warn" as const },
   {
     name: "Deploy",
-    note: APP_DEPLOYMENT_ENV === "production" ? "Production" : APP_DEPLOYMENT_ENV === "preview" ? "Preview" : "Not deployed",
-    tone: IS_VERCEL_DEPLOYMENT ? "good" as const : "warn" as const,
+    note: APP_DEPLOYMENT_ENV === "production"
+      ? "Production target; unverified"
+      : APP_DEPLOYMENT_ENV === "preview" ? "Preview target; unverified" : "Not deployed; unverified",
+    tone: "warn" as const,
   },
 ] as const;
 
-/* The last two rows carry no committed verdict of their own: their state comes
-   from the live evidence in the health payload, resolved in SchemaGateTable. */
+/* Repository metadata establishes that the first three comparisons are
+   configured, not that they passed for this commit. The last two rows resolve
+   from current health evidence when that evidence is present. */
 export const SCHEMA_GATES = [
-  { object: "Gateway OpenAPI", baseline: "tools/openapi.json", candidate: "FastAPI runtime", impact: "CI gated", tone: "good" as const },
-  { object: "Risk parity", baseline: "Python fixture", candidate: "TypeScript consumer", impact: "CI gated", tone: "good" as const },
-  { object: "Gateway payloads", baseline: "Canonical fixtures", candidate: "Web validators", impact: "CI gated", tone: "good" as const },
-  { object: "Production schema", baseline: "Authenticated endpoint", candidate: "Current commit", impact: "Not connected", tone: "warn" as const },
-  { object: "Monte Carlo numerics", baseline: "Committed reference", candidate: "Node, this instance", impact: "Not connected", tone: "warn" as const },
+  {
+    object: "Gateway OpenAPI",
+    baseline: "tools/openapi.json",
+    candidate: "FastAPI runtime",
+    impact: "Configured; unverified",
+    tone: "warn" as const,
+    detail: "The comparison is configured in the repository; this tab received no live CI attestation for this commit.",
+    unmeasured: true,
+  },
+  {
+    object: "Risk parity",
+    baseline: "Python fixture",
+    candidate: "TypeScript consumer",
+    impact: "Configured; unverified",
+    tone: "warn" as const,
+    detail: "The comparison is configured in the repository; this tab received no live CI attestation for this commit.",
+    unmeasured: true,
+  },
+  {
+    object: "Gateway payloads",
+    baseline: "Canonical fixtures",
+    candidate: "Web validators",
+    impact: "Configured; unverified",
+    tone: "warn" as const,
+    detail: "The comparison is configured in the repository; this tab received no live CI attestation for this commit.",
+    unmeasured: true,
+  },
+  {
+    object: "Production schema",
+    baseline: "Authenticated endpoint",
+    candidate: "Current commit",
+    impact: "Not connected",
+    tone: "warn" as const,
+    detail: "Resolved from the current health payload when live schema evidence is present.",
+    unmeasured: true,
+  },
+  {
+    object: "Monte Carlo numerics",
+    baseline: "Committed reference",
+    candidate: "Node, this instance",
+    impact: "Not connected",
+    tone: "warn" as const,
+    detail: "Resolved from the current health payload when live numerics evidence is present.",
+    unmeasured: true,
+  },
 ] as const;
 
 export function StatusPill({
@@ -242,42 +285,21 @@ export function SchemaGateTable({ view, compact = false }: { view: SystemHealthV
   const liveNumerics = numericsParityState(view);
   const rows = SCHEMA_GATES.map((row) => {
     if (row.object === "Production schema") {
-      return { ...row, impact: liveSchema.label, tone: liveSchema.tone, detail: liveSchema.detail };
+      return { ...row, impact: liveSchema.label, tone: liveSchema.tone, detail: liveSchema.detail, unmeasured: Boolean(liveSchema.unmeasured) };
     }
     if (row.object === "Monte Carlo numerics") {
-      return { ...row, impact: liveNumerics.label, tone: liveNumerics.tone, detail: liveNumerics.detail };
+      return { ...row, impact: liveNumerics.label, tone: liveNumerics.tone, detail: liveNumerics.detail, unmeasured: Boolean(liveNumerics.unmeasured) };
     }
-    return { ...row, detail: `${row.baseline} → ${row.candidate}` };
+    return row;
   });
   /*
-   * WHICH THREE OF THESE FIVE WERE READ HERE, AND WHICH TWO WERE NOT.
-   *
-   * Three rows carry a committed verdict — `CI gated`, toned `good` — and two
-   * are resolved from the live health payload above. Nothing on screen told
-   * the two apart: the pill is the same shape and the same green in both, the
-   * `live` pulse this file reserves for poll-fed states is passed on neither,
-   * and a reader scanning the State column reasonably took five current
-   * readings off a table that holds two. That is the file's own three-verdict
-   * rule applied against itself — a gate that did not run in this deployment
-   * has not passed here — so the split is stated rather than left to be
-   * inferred from which two words happen to change.
-   *
-   * LABELLED, NOT RE-VERDICTED. The alternative was to demote the three to
-   * `info` or to `unverified`. Both refused: `CI gated` is TRUE — `.github/
-   * workflows/ci.yml` runs `tools/export_openapi.py --check`, the Python and
-   * TypeScript engine parity suite and the payload fixture suite on every
-   * push — and `info` is this file's "Checking" tone, so it would trade a
-   * reader believing a stale pass for a reader believing a poll is in flight.
-   * Downgrading a true claim is not the honest move; naming where it was read
-   * is.
-   *
-   * Folded since 2026-08-23, on a reader's report: the caveat crowded the
-   * figures it annotates, and the State pills already carry the distinction
-   * ("CI gated" against "Exact match") in the same glance.
+   * A configured workflow is metadata, not an attestation. The first three
+   * rows therefore remain unverified until this tab receives evidence for the
+   * current commit; only the two health-backed rows may resolve to a verdict.
    */
   return (
     <>
-    <div className={`developer-cp-table${compact ? " is-compact" : ""}`} role="table" aria-label="Schema compatibility gates">
+    <div className={`developer-cp-table${compact ? " is-compact" : ""}`} tabIndex={0} role="table" aria-label="Schema compatibility gates">
       <div className="developer-cp-table__row is-head" role="row">
         <span role="columnheader">Contract</span><span role="columnheader">Baseline</span><span role="columnheader">Candidate</span><span role="columnheader">State</span>
       </div>
@@ -291,19 +313,22 @@ export function SchemaGateTable({ view, compact = false }: { view: SystemHealthV
           <strong role="cell">{row.object}</strong>
           <code role="cell">{row.baseline}</code>
           <span role="cell">{row.candidate}</span>
-          <StatusPill state={{ label: row.impact, detail: row.detail, tone: row.tone }} compact role="cell" />
+          <StatusPill
+            state={{ label: row.impact, detail: row.detail, tone: row.tone, unmeasured: row.unmeasured }}
+            compact
+            role="cell"
+          />
         </div>
       ))}
     </div>
-    {/* Folded on a reader's report that the table's footnotes crowded the
-        figures. The caveat is one click away and the pills themselves still
-        say "CI gated" against "Exact match", which is the distinction. */}
-    <details className="disclosure">
+    {/* Method stays folded; the visible pills already distinguish configured
+        checks from health-backed verdicts. */}
+    <details className="disclosure developer-cp-state-guide">
       <summary>How to read the State column</summary>
       <p>
-        Only Production schema and Monte Carlo numerics resolve from this poll. The three CI gated
-        rows are the verdict of the continuous-integration run for this commit, not a check this
-        deployment repeated.
+        Production schema and Monte Carlo numerics take their verdicts from the current health
+        payload. The first three rows describe configured comparisons only; this tab received no
+        live CI attestation for this commit.
       </p>
     </details>
     </>
@@ -313,7 +338,7 @@ export function SchemaGateTable({ view, compact = false }: { view: SystemHealthV
 export function ArtifactLineage({ view, workspace, compact = false }: { view: SystemHealthView; workspace: ControlState; compact?: boolean }) {
   const states = Object.fromEntries(DEPLOYABLES.map((item) => [item.id, stateForDeployable(item.id, view, workspace)]));
   return (
-    <div className={`developer-cp-artifacts${compact ? " is-compact" : ""}`} role="table" aria-label="Deployment artifact lineage">
+    <div className={`developer-cp-artifacts${compact ? " is-compact" : ""}`} tabIndex={0} role="table" aria-label="Deployment artifact lineage">
       <div className="developer-cp-artifacts__row is-head" role="row">
         <span role="columnheader">Commit / build</span><span role="columnheader">Artifact</span><span role="columnheader">Runtime</span><span role="columnheader">Environment</span>
       </div>
