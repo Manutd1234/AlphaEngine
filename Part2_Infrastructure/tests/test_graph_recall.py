@@ -5,9 +5,8 @@ the real object is how a green suite hides a broken tool. It is an ``httpx.MockT
 real ``httpx.Client``, so URL building, query encoding and JSON handling are httpx's own; it refuses
 a request carrying no ``apikey``, as PostgREST does; it filters on ``desk_id`` and projects to the
 columns ``select`` asked for, so reading a column the tool never selected fails here rather than in
-production; and it reads the traversal function's ARGUMENT NAMES out of migration 20260820090500,
-answering PGRST202 for any other argument the way PostgREST answers a call that matches no
-signature.
+production; and it reads the traversal's ARGUMENT NAMES out of the current successor migration,
+answering PGRST202 for any other argument exactly as PostgREST does.
 
 The `claude` paths use real processes on a real PATH — a script that exits 3, one that prints
 nothing, one that answers — because the interesting failures are exit codes and empty stdout, and a
@@ -20,6 +19,7 @@ import json
 import pathlib
 import re
 import stat
+from types import SimpleNamespace
 
 import httpx
 import pytest
@@ -28,7 +28,7 @@ from tools import graph_recall
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 MIGRATIONS = REPO.parent / "supabase" / "migrations"
-TRAVERSAL_SQL = MIGRATIONS / "20260820090500_research_graph_traverse.sql"
+TRAVERSAL_SQL = MIGRATIONS / "20260831130000_research_graph_desk_scope.sql"
 EDGES_SQL = MIGRATIONS / "20260820090400_research_edges.sql"
 
 #: The desk every fixture row belongs to. Every read the tool makes is scoped to it, exactly as
@@ -54,7 +54,7 @@ EDGES = [
 
 
 def traversal_arguments() -> set[str]:
-    """The argument names migration 20260820090500 actually declares."""
+    """The argument names the current traversal migration actually declares."""
     assert TRAVERSAL_SQL.exists(), f"missing {TRAVERSAL_SQL} — this test is reading a path that moved"
     signature = TRAVERSAL_SQL.read_text(encoding="utf-8").split("traverse_research_graph(", 1)[1].split(")\nreturns", 1)[0]
     names = {line.strip().split()[0] for line in signature.splitlines() if line.strip()}
@@ -189,6 +189,7 @@ class TestTheTraversal:
                               relations=["same_data"])
         call = json.loads(fake.requests[-1].content)
         assert set(call) <= traversal_arguments()
+        assert call["filter_desk_id"] == DESK
         assert call["max_depth"] == 4, "the CTE caps depth at 4; asking for 9 must not send 9"
         assert call["match_count"] == 100
         assert call["relations"] == ["same_data"]
@@ -333,11 +334,10 @@ class TestTheNarrator:
         prompt = graph_recall.narration_prompt(self.result())
         assert len(prompt) <= graph_recall.NARRATION_BUDGET + 600
         assert "service-role-secret" not in prompt and "apikey" not in prompt
-
-
 class TestTheCommandLine:
     def run(self, argv, fake, monkeypatch, capsys):
         client = fake.client()  # built before the patch, so the real open_client is what makes it
+        monkeypatch.setattr(graph_recall, "settings", SimpleNamespace(supabase_desk_id=DESK))
         monkeypatch.setattr(graph_recall, "open_client", lambda **_: (client, None))
         code = graph_recall.main(argv)
         return code, capsys.readouterr().out
@@ -376,8 +376,6 @@ class TestTheCommandLine:
     def test_an_entry_point_is_required(self):
         with pytest.raises(SystemExit):
             graph_recall.main([])
-
-
 class TestTheGatewayNeverDependsOnThis:
     def test_no_module_and_not_main_imports_the_tool(self):
         assert (REPO / "tools" / "graph_recall.py").exists(), "the tool moved; this scan is reading nothing"
