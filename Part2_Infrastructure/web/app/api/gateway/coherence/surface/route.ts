@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { callGateway, failureBody } from "@/lib/gateway";
 import { isCoherenceSurface } from "@/lib/coherence/types-lab";
+import { gatewayRequestContext, gatewayResponseHeaders } from "@/lib/gateway-request-context";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,6 +14,7 @@ export const dynamic = "force-dynamic";
  * Never cached: every one of these reads a live venue or a growing tape.
  */
 export async function GET(request: Request) {
+  const context = gatewayRequestContext(request, "H4");
   const incoming = new URL(request.url).searchParams;
   const forwarded = new URLSearchParams();
   for (const key of ["event_ticker"]) {
@@ -24,10 +26,18 @@ export async function GET(request: Request) {
     subject: "the distribution these prices imply",
     validate: isCoherenceSurface,
     timeoutMs: 25_000,
+    context,
   });
+  const responseHeaders = {
+    ...gatewayResponseHeaders(context),
+    "Cache-Control": "no-store",
+  };
 
   if (!result.ok) {
-    return NextResponse.json(failureBody(result.failure), { status: result.failure.status });
+    return NextResponse.json(failureBody(result.failure, context), {
+      status: result.failure.status,
+      headers: responseHeaders,
+    });
   }
-  return NextResponse.json(result.data, { headers: { "Cache-Control": "no-store" } });
+  return NextResponse.json(result.data, { headers: responseHeaders });
 }
