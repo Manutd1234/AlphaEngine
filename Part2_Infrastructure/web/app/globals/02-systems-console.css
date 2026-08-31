@@ -95,7 +95,7 @@ button
 }
 
 .console-card summary:focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--series-1) 35%, transparent);
+  outline: 3px solid var(--focus-ring);
   outline-offset: -1px;
 }
 
@@ -272,7 +272,7 @@ button
   padding: 1px 6px;
   border-radius: var(--radius-pill);
   background: var(--series-1);
-  color: #fff;
+  color: var(--on-accent);
   letter-spacing: 0.04em;
 }
 
@@ -662,42 +662,28 @@ button
   line-height: var(--lh-body);
 }
 
-/* The dark plane. Tokens are redefined on the container rather than colours
-   being hard-coded, so nested primitives resolve correctly; `color-scheme`
-   is what keeps the OS scrollbar from rendering light over it.
-
-   This plane RAISED itself above the card when dark --surface-0 was #0a0a0b: at
-   that depth a log painted the same value as the page read as a void rather than
-   an inset panel. Now that the page has moved up to zinc #18181b and the card to
-   #1f1f23, raising no longer separates anything — #1f1f25 against a #1f1f23 card
-   is a contrast of 1.002, which is to say invisible.
-
-   So it sinks instead, which is the better answer twice over. A terminal reads
-   naturally as recessed rather than raised, and going darker in a dark theme
-   INCREASES the contrast of the text on it: the tightest role here was 4.80:1
-   against the old raised plane and is 5.42:1 against this one. Separation from
-   the card is 1.128, which is what it was before the palette moved (1.131), and
-   the internal ladder — row washes, origin chips, selected-row tint — keeps the
-   steps it was designed with. */
+/* The terminal is an invariant high-contrast instrument surface in both
+   themes. A neutral graphite plane keeps log-level blue, green, amber and red
+   distinct without introducing a second brown palette. */
 .console-log {
   color-scheme: dark;
 
-  --surface-1: #131317;
-  --surface-2: #191920;
-  --surface-3: #232329;
-  --text-primary: #f4f4f5;
-  --text-secondary: #b1b1b9;
-  --text-muted: #8a8a94;
-  --border: #2c2c34;
-  --grid: #212129;
+  --surface-1: #1a2029;
+  --surface-2: #26303c;
+  --surface-3: #354252;
+  --text-primary: #f7f9fc;
+  --text-secondary: #b8c2ce;
+  --text-muted: #b8c2ce;
+  --border: #7f8c9c;
+  --grid: #556270;
 
   max-height: 340px;
   overflow: auto;
   padding: 10px 12px;
-  border: 1px solid #34343c;
+  border: 1px solid #7f8c9c;
   border-radius: var(--radius-md);
-  background: #16161c;
-  color: #d4d4d8;
+  background: #0d1117;
+  color: #f7f9fc;
   font-family: var(--mono);
   font-size: var(--fs-xs);
   line-height: var(--lh-loose);
@@ -705,12 +691,12 @@ button
 }
 
 .console-log:focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--series-1) 45%, transparent);
+  outline: 3px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
 .console-log__empty {
-  color: #a4a4ad;
+  color: #b8c2ce;
   font-size: var(--fs-sm);
 }
 
@@ -723,16 +709,17 @@ button
 }
 
 .console-log__line.is-warn {
-  background: rgba(232, 171, 61, 0.08);
+  background: rgba(243, 197, 101, 0.16);
 }
 
 .console-log__line.is-error {
-  background: rgba(240, 115, 124, 0.1);
+  background: rgba(255, 127, 134, 0.18);
 }
 
 .console-log__ts {
-  color: #8a8a94;
+  color: #b8c2ce;
   flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Level is a word, not a colour swatch — the colour is reinforcement. */
@@ -741,34 +728,34 @@ button
   font-weight: 700;
 }
 
-.console-log__level.is-debug { color: #85858f; }
-.console-log__level.is-info { color: #5a9ceb; }
-.console-log__level.is-warn { color: #e8ab3d; }
-.console-log__level.is-error { color: #f0737c; }
+.console-log__level.is-debug { color: #b8c2ce; }
+.console-log__level.is-info { color: #82bdff; }
+.console-log__level.is-warn { color: #f3c565; }
+.console-log__level.is-error { color: #ffa0a5; }
 
 .console-log__origin {
   flex: 0 0 auto;
-  padding: 0 4px;
+  min-width: 36px;
+  padding: 2px var(--space-2);
   border-radius: 4px;
-  background: #24242b;
-  /* Lifted with the chip beneath it. The old #8a8a94 lands at 4.51:1 on the
-     new background — passing on paper, and too close to the line for 9.5px
-     mono. #9a9aa4 restores 5.5:1. */
-  color: #9a9aa4;
+  background: #26303c;
+  color: #ccd3dc;
   font-size: var(--fs-2xs);
+  text-align: center;
 }
+.console-log__ts, .console-log__level, .console-log__origin { white-space: nowrap; }
 
 .console-log__source {
-  color: #35c48f;
+  color: #5bdbab;
   flex: 0 0 auto;
 }
 
 .console-log__msg {
-  color: #d4d4d8;
+  color: #f7f9fc;
 }
 
 .console-log__fields {
-  color: #8a8a94;
+  color: #b8c2ce;
 }
 
 .console-log-jump {
@@ -1118,4 +1105,3 @@ button
 .console-matrix .console-wrap {
   max-width: 28ch;
 }
-
