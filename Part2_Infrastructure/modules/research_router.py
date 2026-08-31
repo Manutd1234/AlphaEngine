@@ -241,6 +241,7 @@ class ResearchRouter:
         *,
         match_count: int = 3,
         kind: str | None = None,
+        desk_id: str | None = None,
     ) -> Execution:
         """Run a plan against the corpus and record every call. Never raises.
 
@@ -264,7 +265,8 @@ class ResearchRouter:
         states: list[str] = []
         for call in ordered:
             result = await run_call(
-                call, rag, execution, match_count=match_count, kind=kind, store=self.audit
+                call, rag, execution, match_count=match_count, kind=kind,
+                desk_id=desk_id, store=self.audit,
             )
             execution.calls.append(result)
             self._write(
