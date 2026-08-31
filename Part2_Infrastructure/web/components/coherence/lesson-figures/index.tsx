@@ -57,8 +57,9 @@ function Frechet() {
       label={`Fréchet band from ${low.toFixed(2)} to ${high.toFixed(2)} with the independence product at ${product.toFixed(2)}`}
       claim="the band is the answer; the product is one point inside it"
     >
-      <text x={left} y={26} className="coh-form__note">
-        {`two legs at ${p.toFixed(2)}, and every joint they permit`}
+      <text x={left} y={20} className="coh-form__note">
+        <tspan x={left} dy={0}>{`two legs at ${p.toFixed(2)}`}</tspan>
+        <tspan x={left} dy={12}>every joint they permit</tspan>
       </text>
       <line x1={x(0)} x2={x(1)} y1={bandY + bandH} y2={bandY + bandH} className="coh-lessonfig__rule" />
       <text x={x(0)} y={bandY + bandH + 15} className="coh-lessonfig__tick">0</text>
@@ -240,7 +241,9 @@ function Calibration() {
         overpriced
       </text>
       <text x={left} y={bottom + 15} className="coh-form__note">price quoted</text>
-      <text x={right + 6} y={top + 10} className="coh-form__note">how often it paid</text>
+      <text x={WIDTH - 16} y={top + 10} textAnchor="end" className="coh-form__note">
+        how often it paid
+      </text>
     </Frame>
   );
 }
@@ -299,5 +302,14 @@ export const LESSON_FIGURES: Record<string, () => ReactNode> = {
 export default function LessonFigure({ id }: { id: string }) {
   const Drawing = LESSON_FIGURES[id];
   if (!Drawing) return null;
-  return <div className="coh-lessonfig">{Drawing()}</div>;
+  return (
+    <div
+      className="coh-lessonfig"
+      role="region"
+      aria-label={`${id} lesson technical diagram`}
+      tabIndex={0}
+    >
+      {Drawing()}
+    </div>
+  );
 }
