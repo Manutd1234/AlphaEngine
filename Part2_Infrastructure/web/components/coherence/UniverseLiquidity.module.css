@@ -1,0 +1,233 @@
+.liquidityPanel {
+  inline-size: 100%;
+  max-inline-size: none;
+  min-inline-size: 0;
+  margin: 0;
+}
+
+.bandChartShell {
+  --plot-inset: var(--space-4);
+  display: grid;
+  grid-template-columns: 4.5rem minmax(40rem, 1fr);
+  grid-template-rows: 15rem auto auto;
+  overflow-x: auto;
+  padding-block-start: var(--space-2);
+  border-bottom: 1px solid var(--grid);
+  background: var(--surface-1);
+}
+
+.bandYAxis {
+  grid-column: 1;
+  grid-row: 1;
+  display: grid;
+  grid-template-columns: 1.4rem minmax(0, 1fr);
+  min-height: 15rem;
+  color: var(--text-muted);
+  font: 650 var(--fs-2xs) var(--font-mono);
+}
+
+.bandYAxisTitle {
+  grid-column: 1;
+  align-self: center;
+  justify-self: center;
+  font-family: var(--font-sans);
+  font-weight: 730;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
+.bandYTicks {
+  grid-column: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 0 var(--space-2) 0 0;
+}
+
+.bandYTicks i {
+  font-style: normal;
+  line-height: 1;
+}
+
+.bandChart {
+  grid-column: 2;
+  grid-row: 1;
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(20, minmax(1.65rem, 1fr));
+  gap: 3px;
+  min-width: 40rem;
+  min-height: 15rem;
+  padding-inline: var(--plot-inset);
+  border-inline-start: 1px solid var(--border);
+  background:
+    linear-gradient(to top, color-mix(in srgb, var(--grid) 62%, transparent) 1px, transparent 1px),
+    var(--surface-1);
+  background-size: 100% 25%;
+}
+
+.bandChart::before {
+  position: absolute;
+  inset: auto var(--plot-inset) 0 var(--plot-inset);
+  border-bottom: 1px solid var(--border);
+  pointer-events: none;
+  content: "";
+}
+
+.bandColumn {
+  position: relative;
+  display: block;
+  min-width: 0;
+  min-height: 0;
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.bandColumn:hover,
+.bandColumn[aria-selected="true"] {
+  background: color-mix(in srgb, var(--series-1) 5%, transparent);
+}
+
+.bandColumn[aria-selected="true"] { box-shadow: inset 0 -2px 0 var(--series-1); }
+
+.bandPlot {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.bandPlot::before {
+  position: absolute;
+  inset: 0 12%;
+  border-inline: 1px solid color-mix(in srgb, var(--grid) 34%, transparent);
+  background: linear-gradient(to top, color-mix(in srgb, var(--grid) 62%, transparent) 0 2px, transparent 2px);
+  content: "";
+}
+
+.bandPlot i {
+  position: absolute;
+  z-index: 1;
+  inset: auto 16% 0;
+  height: var(--bar-height);
+  min-height: 0;
+  border-radius: var(--radius-sm) var(--radius-sm) 2px 2px;
+  background: color-mix(in srgb, var(--series-1) 76%, var(--surface-1));
+  transition: height var(--dur) var(--ease);
+}
+
+.bandPlot strong {
+  position: absolute;
+  inset-inline: 0;
+  bottom: clamp(0.3rem, calc(var(--bar-height) + 0.3rem), calc(100% - 1.2rem));
+  z-index: 2;
+  color: var(--text-primary);
+  font-size: var(--fs-2xs);
+  line-height: 1;
+  text-align: center;
+}
+
+.bandReadout small {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 730;
+  letter-spacing: var(--ls-caps);
+}
+
+.bandAxisTicks {
+  grid-column: 2;
+  grid-row: 2;
+  display: flex;
+  justify-content: space-between;
+  min-width: 40rem;
+  padding: var(--space-2) var(--plot-inset) 0;
+  color: var(--text-muted);
+  font: 650 var(--fs-2xs) var(--font-mono);
+}
+
+.bandXAxis {
+  grid-column: 2;
+  grid-row: 3;
+  display: grid;
+  gap: var(--space-2);
+  min-width: 40rem;
+  padding: var(--space-2) var(--plot-inset) var(--space-3);
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 730;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+.bandXAxisHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.bandXAxisHead b { font: inherit; }
+
+.bandXAxis input[type="range"] {
+  width: calc(100% - 5%);
+  min-width: 0;
+  margin-inline: 2.5%;
+  accent-color: var(--series-1);
+  cursor: ew-resize;
+}
+
+.bandXAxis output {
+  color: var(--text-primary);
+  font: 700 var(--fs-xs) var(--font-mono);
+  white-space: nowrap;
+}
+
+.bandReadout {
+  display: grid;
+  grid-template-columns: minmax(10rem, auto) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 3.25rem;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--grid);
+  background: var(--surface-2);
+  color: var(--text-primary);
+  font-size: var(--fs-xs);
+}
+
+.bandReadout > span {
+  display: grid;
+  gap: 2px;
+}
+
+.bandReadout p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: var(--lh-snug);
+  overflow-wrap: anywhere;
+}
+
+.liquidityMetrics {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-bottom: 0;
+}
+
+@media (max-width: 760px) {
+  .liquidityMetrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bandReadout { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 480px) {
+  .bandChartShell {
+    grid-template-columns: 3.75rem minmax(40rem, 1fr);
+  }
+
+  .bandXAxisHead { align-items: flex-start; }
+}
