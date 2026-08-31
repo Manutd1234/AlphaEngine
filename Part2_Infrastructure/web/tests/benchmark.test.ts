@@ -274,30 +274,21 @@ describe("the sanitiser accepts every strategy the engines implement", () => {
   });
 });
 
-/**
- * The empty state reaches a control. The control has to be there.
- *
- * It used to say "No benchmark selected. Choose one in the controls…" and stop,
- * which is a cross-reference nothing in the suite checked resolves — delete the
- * select from Controls.tsx and every test stayed green while the sentence
- * became a direction to a place that does not exist. Same failure mode as the
- * stale tour label and the "Open Data Ops" mismatch.
- *
- * The sentence is now a button that focuses the real select, so the reference
- * is an id rather than a description, and these tests hold that id from both
- * ends. A duplicate select rendered inside the card would resolve the same
- * prose complaint and is the thing being guarded against: it would own no part
- * of the request and would drift from the control that does.
- */
+/** The empty state must route to, focus, and open the one request-owning select. */
 describe("the benchmark empty state reaches a control that exists", () => {
   const controls = read("../components/Controls.tsx");
   const panel = read("../components/research/BenchmarkPanel.tsx");
+  const workspace = read("../components/ResearchWorkspace.tsx");
+  const attribution = read("../components/research/AttributionSection.tsx");
+  const focus = read("../components/research/use-benchmark-focus.ts");
 
-  it("the panel jumps at the control by id rather than describing where it is", () => {
+  it("the panel hands the action to the workspace that owns the routed Setup view", () => {
     assert.match(panel, /const BENCHMARK_CONTROL_ID = "benchmark"/,
       "the panel no longer names the control it jumps at");
-    assert.match(panel, /getElementById\(BENCHMARK_CONTROL_ID\)/,
-      "the empty state stopped reaching the benchmark control");
+    assert.match(panel, /onClick=\{onChooseBenchmark\}/,
+      "the empty state stopped delegating to the owner of the routed Setup view");
+    assert.match(attribution, /onChooseBenchmark=\{onChooseBenchmark\}/,
+      "Attribution stopped carrying the action back to ResearchWorkspace");
     assert.match(panel, /Choose a benchmark →/);
   });
 
@@ -309,27 +300,39 @@ describe("the benchmark empty state reaches a control that exists", () => {
   });
 
   it("renders no benchmark control of its own", () => {
-    // A second select would drift from `req.benchmarkSymbol`, which this
-    // component does not own and cannot write. Comments stripped: the doc
-    // comment on the id names the `<select>` it points at.
     const rendered = panel.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, "");
     assert.doesNotMatch(rendered, /<select/,
       "the panel grew its own benchmark control beside the one that owns the request");
   });
 
-  it("says so when the jump cannot land instead of appearing to do nothing", () => {
-    // The setup panel collapses under a width breakpoint and the select is
-    // display:none there — in the DOM, unfocusable, and focus() a silent no-op.
-    assert.match(panel, /document\.activeElement === control/,
-      "the panel assumes focus landed rather than checking");
-    assert.match(controls, /Hide setup" : "Edit setup"/,
-      "the collapsed-rail hint names a toggle Controls.tsx no longer renders");
+  it("opens the addressable Setup view before focusing its newly mounted select", () => {
+    assert.match(focus, /onSectionChange\(RESEARCH_SECTIONS\[0\]\.id\)/,
+      "the action no longer returns to the Summary section that owns Setup");
+    assert.match(focus, /onSummaryViewChange\(summaryViews\[1\]\?\.\[0\] \?\? summaryView\)/,
+      "the action no longer opens the routed Setup view");
+    assert.match(controls, /ref=\{benchmarkSelectRef\}/,
+      "the real benchmark select is not attached to the workspace focus ref");
+    assert.match(focus, /select\.scrollIntoView/,
+      "the mounted benchmark selector is not scrolled into view");
+    assert.match(focus, /select\.focus\(\{ preventScroll: true \}\)/,
+      "the mounted benchmark selector is not focused directly");
+    assert.match(focus, /select\.showPicker\?\.\(\)/,
+      "supported browsers no longer open the native benchmark picker");
+  });
+
+  it("says so when the routed jump cannot land instead of appearing to do nothing", () => {
+    assert.match(focus, /document\.activeElement === select/,
+      "the workspace assumes focus landed rather than checking");
+    assert.match(controls, /RETIRED_SETUP_DISCLOSURE_COPY = \["Hide setup", "Edit setup"\]/,
+      "the signed copy ledger no longer carries the retired disclosure labels");
+    assert.match(workspace, /summaryView === "setup"/,
+      "the benchmark control no longer has an addressable Setup view");
     assert.match(panel, /Open Edit setup in the research rail/);
   });
 
   it("does not animate the jump for a reader who asked it not to", () => {
-    assert.match(panel, /prefers-reduced-motion: reduce/);
-    assert.match(panel, /behavior: reduced \? "auto" : "smooth"/);
+    assert.match(focus, /prefers-reduced-motion: reduce/);
+    assert.match(focus, /behavior: reduced \? "auto" : "smooth"/);
   });
 
   it("the controls carry a labelled benchmark selector", () => {
