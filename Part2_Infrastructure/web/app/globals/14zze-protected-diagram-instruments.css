@@ -1,0 +1,566 @@
+/* Source-owned quantitative cursors for the protected desks. The layer adds
+   focus geometry and linked-row structure only; data and copy remain owned by
+   the seven desk components. */
+
+:where(
+  .protected-sparkline,
+  .latency-histogram svg,
+  .latency-trend svg,
+  .protected-category-instrument
+):focus-visible {
+  border-radius: var(--radius-sm);
+  outline: 2px solid var(--series-1);
+  outline-offset: 2px;
+}
+
+.protected-chart-reading > line {
+  stroke: var(--text-primary);
+  stroke-width: 1;
+  stroke-dasharray: 2 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.protected-chart-range {
+  fill: color-mix(in srgb, var(--series-1) 10%, transparent);
+  pointer-events: none;
+}
+
+.walkforward-trajectory,
+.latency-cdf {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.walkforward-trajectory {
+  stroke-width: 1.5;
+  opacity: 0.72;
+}
+
+.walkforward-trajectory--is { stroke: var(--series-1); }
+.walkforward-trajectory--oos { stroke: var(--series-2); stroke-dasharray: 4 3; }
+.walkforward-gap-vector { stroke: var(--axis); stroke-width: 1; stroke-dasharray: 2 2; }
+
+.latency-cdf {
+  stroke: var(--text-primary);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 2;
+}
+
+.latency-cdf__reading {
+  fill: var(--surface-1);
+  stroke: var(--text-primary);
+  stroke-width: 1.5;
+}
+
+.oracle-var-ribbon {
+  fill: color-mix(in srgb, var(--series-1) 14%, transparent);
+  stroke: none;
+}
+
+.latency-trend__band {
+  fill: color-mix(in srgb, var(--series-1) 9%, transparent);
+  stroke: none;
+}
+
+.protected-chart-reading > circle {
+  stroke: var(--surface-1);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.protected-chart-reading > text {
+  fill: var(--text-primary);
+  font-family: var(--mono);
+  font-size: var(--fs-tick);
+  font-variant-numeric: tabular-nums;
+  paint-order: stroke;
+  stroke: var(--surface-1);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+.latency-histogram rect[data-linked="true"],
+.walkforward-chart g[data-linked="true"] rect {
+  opacity: 1;
+  stroke: var(--text-primary);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+:where(
+  .walkforward-table tr,
+  .protected-category-instrument .category-bars__row,
+  .developer-cp-jobs__row
+)[data-linked="true"] {
+  box-shadow: inset 3px 0 0 var(--text-primary);
+  outline: 1px solid var(--border-strong);
+  outline-offset: -1px;
+}
+
+:where(
+  .walkforward-table tr,
+  .protected-category-instrument .category-bars__row,
+  .developer-cp-jobs__row
+)[data-linked="true"] > :first-child {
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.protected-chart-output {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin-block: var(--space-1);
+  margin-inline-start: auto;
+  padding: 2px var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-primary);
+  font-size: var(--fs-2xs);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+/* The CI matrix and its three numeric bars are one selectable instrument. The
+   repository audit remains a table-only gate because it has no count to plot. */
+.developer-ci-counts {
+  margin: 0;
+}
+
+.developer-ci-counts__caption {
+  margin-block: var(--space-2) var(--space-1);
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 750;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+/* The exact reading occupies a fixed row even before a suite is pinned. That
+   keeps the card's height stable when selection adds or clears the output. */
+.developer-ci-counts__reading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  min-height: 32px;
+}
+
+.developer-cp-jobs__select,
+.developer-ci-counts .category-bars__row {
+  cursor: pointer;
+}
+
+.developer-cp-jobs__select,
+.developer-ci-counts button.category-bars__row {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+}
+
+.developer-cp-jobs__select {
+  width: 100%;
+  font-weight: inherit;
+}
+
+.developer-ci-counts button.category-bars__row {
+  width: 100%;
+}
+
+.developer-cp-jobs__row[data-linked="true"],
+.developer-ci-counts .category-bars__row[data-linked="true"] {
+  outline: 0;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--series-1) 7%, var(--surface-1));
+  box-shadow: inset 3px 0 0 var(--series-1);
+}
+
+.developer-cp-jobs__row[data-linked="true"] > :first-child {
+  background: color-mix(in srgb, var(--series-1) 7%, var(--surface-1));
+}
+
+.developer-ci-counts .category-bars__row[data-selected="true"]:not([data-linked="true"]) {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--series-1) 58%, var(--border));
+}
+
+/* The browser-parity card is the only schema card with a direct action row.
+   That stable structure lets the disclosure and Run button share one compact
+   grid row without adding a one-off wrapper to the component. */
+:where(.developer-cp-schema-card:has(> .developer-cp-section-hero__actions)) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: var(--space-3);
+}
+
+:where(.developer-cp-schema-card:has(> .developer-cp-section-hero__actions)) >
+  :is(.developer-cp-heading, p.developer-cp-disclosure) {
+  grid-column: 1 / -1;
+}
+
+:where(.developer-cp-schema-card:has(> .developer-cp-section-hero__actions)) >
+  details.developer-cp-disclosure {
+  grid-column: 1;
+  min-width: 0;
+  margin-block-start: var(--space-2);
+}
+
+:where(.developer-cp-schema-card:has(> .developer-cp-section-hero__actions)) >
+  .developer-cp-section-hero__actions {
+  grid-column: 2;
+  align-self: start;
+  margin-block-start: var(--space-2);
+  padding-block-start: var(--space-1);
+  border-block-start: 1px solid var(--grid);
+}
+
+:where(.developer-cp-schema-card:has(> .developer-cp-section-hero__actions)) >
+  p.developer-cp-disclosure ~ .developer-cp-section-hero__actions {
+  padding-block-start: 0;
+  border-block-start: 0;
+}
+
+:where(.developer-cp-schema-card:has(> .developer-cp-section-hero__actions)) >
+  .developer-cp-section-hero__actions + div {
+  grid-column: 1 / -1;
+  min-width: 0;
+  margin-block-start: var(--space-2) !important;
+}
+
+/* The five numerics steps share one stage width and three internal bands:
+   role, artefact, then output + state. Long paths wrap inside their box rather
+   than crossing the arrow or pushing a neighbouring box out of alignment. */
+:where(.developer-cp-schema-card:has(> .developer-cp-section-hero__actions)) >
+  .developer-cp-section-hero__actions + div .signal-workflow__track {
+  gap: var(--space-2);
+  margin-block-end: var(--space-3);
+  padding: var(--space-3);
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+}
+
+:where(.developer-cp-schema-card:has(> .developer-cp-section-hero__actions)) >
+  .developer-cp-section-hero__actions + div .signal-workflow__stage {
+  display: grid;
+  grid-template-columns: minmax(214px, 1fr) 64px;
+  flex: 1 0 286px;
+  gap: var(--space-2);
+  min-width: 286px;
+}
+
+:where(.developer-cp-schema-card:has(> .developer-cp-section-hero__actions)) >
+  .developer-cp-section-hero__actions + div .signal-workflow__node {
+  grid-template-rows: auto auto 1fr;
+  min-width: 0;
+  padding: var(--space-3);
+  border-color: var(--border-strong);
+  box-shadow: inset 0 0 0 1px var(--rule-soft);
+}
+
+:where(.developer-cp-schema-card:has(> .developer-cp-section-hero__actions)) >
+  .developer-cp-section-hero__actions + div .signal-workflow__step {
+  min-height: calc(var(--fs-2xs) * var(--lh-snug) * 3);
+  overflow-wrap: anywhere;
+}
+
+:where(.developer-cp-schema-card:has(> .developer-cp-section-hero__actions)) >
+  .developer-cp-section-hero__actions + div .signal-workflow__node > strong {
+  min-height: calc(var(--fs-body) * var(--lh-snug) * 3);
+  overflow-wrap: anywhere;
+}
+
+:where(.developer-cp-schema-card:has(> .developer-cp-section-hero__actions)) >
+  .developer-cp-section-hero__actions + div .signal-workflow__meta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  align-items: start;
+  gap: var(--space-2);
+  min-width: 0;
+  padding-block-start: var(--space-2);
+  border-block-start: 1px solid var(--rule-soft);
+}
+
+:where(.developer-cp-schema-card:has(> .developer-cp-section-hero__actions)) >
+  .developer-cp-section-hero__actions + div .signal-workflow__meta > * {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+:where(.developer-cp-schema-card:has(> .developer-cp-section-hero__actions)) >
+  .developer-cp-section-hero__actions + div .signal-workflow__arrow {
+  width: 64px;
+}
+
+/* The existing digest rows become a four-column evidence grid: source,
+   complete digest, state and explanation. `display: contents` releases the
+   caption and verdict from their old flex wrapper without changing the DOM or
+   the copyable sixty-four-character value. */
+:where(.developer-cp-schema-card:has(> .developer-cp-section-hero__actions)) >
+  .developer-cp-section-hero__actions + div > .signal-workflow__detail:last-child {
+  display: grid;
+  gap: 0;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+
+:where(.developer-cp-schema-card:has(> .developer-cp-section-hero__actions)) >
+  .developer-cp-section-hero__actions + div > .signal-workflow__detail:last-child::before {
+  content: "SHA-256 comparison — source · digest · state · evidence";
+  display: block;
+  padding: var(--space-2) var(--space-3);
+  border-block-end: 1px solid var(--rule-soft);
+  background: var(--sky-1);
+  color: var(--series-1);
+  font-size: var(--fs-2xs);
+  font-weight: 750;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+:where(.developer-cp-schema-card:has(> .developer-cp-section-hero__actions)) >
+  .developer-cp-section-hero__actions + div > .signal-workflow__detail:last-child > div {
+  display: grid !important;
+  grid-template-columns: minmax(0, 18fr) minmax(0, 30fr) minmax(0, 14fr) minmax(0, 38fr);
+  min-width: 0;
+  margin: 0 !important;
+  border-block-end: 1px solid var(--rule-soft);
+}
+
+:where(.developer-cp-schema-card:has(> .developer-cp-section-hero__actions)) >
+  .developer-cp-section-hero__actions + div > .signal-workflow__detail:last-child > div:last-child {
+  border-block-end: 0;
+}
+
+:where(.developer-cp-schema-card:has(> .developer-cp-section-hero__actions)) >
+  .developer-cp-section-hero__actions + div > .signal-workflow__detail:last-child > div > div:first-child {
+  display: contents !important;
+}
+
+:where(.developer-cp-schema-card:has(> .developer-cp-section-hero__actions)) >
+  .developer-cp-section-hero__actions + div > .signal-workflow__detail:last-child .signal-workflow__step,
+:where(.developer-cp-schema-card:has(> .developer-cp-section-hero__actions)) >
+  .developer-cp-section-hero__actions + div > .signal-workflow__detail:last-child > div > code,
+:where(.developer-cp-schema-card:has(> .developer-cp-section-hero__actions)) >
+  .developer-cp-section-hero__actions + div > .signal-workflow__detail:last-child > div > div:first-child > strong,
+:where(.developer-cp-schema-card:has(> .developer-cp-section-hero__actions)) >
+  .developer-cp-section-hero__actions + div > .signal-workflow__detail:last-child > div > .signal-workflow__source {
+  min-width: 0;
+  margin: 0 !important;
+  padding: var(--space-3);
+  overflow-wrap: anywhere;
+}
+
+:where(.developer-cp-schema-card:has(> .developer-cp-section-hero__actions)) >
+  .developer-cp-section-hero__actions + div > .signal-workflow__detail:last-child .signal-workflow__step {
+  grid-column: 1;
+  grid-row: 1;
+  min-height: 0;
+  border-inline-end: 1px solid var(--rule-soft);
+}
+
+:where(.developer-cp-schema-card:has(> .developer-cp-section-hero__actions)) >
+  .developer-cp-section-hero__actions + div > .signal-workflow__detail:last-child > div > code {
+  grid-column: 2;
+  grid-row: 1;
+  border-inline-end: 1px solid var(--rule-soft);
+  color: var(--text-primary);
+  white-space: normal;
+  word-break: break-all;
+}
+
+:where(.developer-cp-schema-card:has(> .developer-cp-section-hero__actions)) >
+  .developer-cp-section-hero__actions + div > .signal-workflow__detail:last-child > div > div:first-child > strong {
+  grid-column: 3;
+  grid-row: 1;
+  border-inline-end: 1px solid var(--rule-soft);
+  font-size: var(--fs-xs) !important;
+}
+
+:where(.developer-cp-schema-card:has(> .developer-cp-section-hero__actions)) >
+  .developer-cp-section-hero__actions + div > .signal-workflow__detail:last-child > div > .signal-workflow__source {
+  grid-column: 4;
+  grid-row: 1;
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-body);
+}
+
+@media (max-width: 720px) {
+  :where(.developer-cp-schema-card:has(> .developer-cp-section-hero__actions)) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  :where(.developer-cp-schema-card:has(> .developer-cp-section-hero__actions)) >
+    :is(details.developer-cp-disclosure, .developer-cp-section-hero__actions) {
+    grid-column: 1;
+  }
+
+  :where(.developer-cp-schema-card:has(> .developer-cp-section-hero__actions)) >
+    .developer-cp-section-hero__actions {
+    justify-content: flex-start;
+    margin-block-start: 0;
+    padding-block-start: 0;
+    border-block-start: 0;
+  }
+
+  :where(.developer-cp-schema-card:has(> .developer-cp-section-hero__actions)) >
+    .developer-cp-section-hero__actions + div > .signal-workflow__detail:last-child > div {
+    grid-template-columns: minmax(120px, 2fr) minmax(0, 3fr);
+  }
+
+  :where(.developer-cp-schema-card:has(> .developer-cp-section-hero__actions)) >
+    .developer-cp-section-hero__actions + div > .signal-workflow__detail:last-child .signal-workflow__step {
+    grid-column: 1;
+    grid-row: 1;
+    border-block-end: 1px solid var(--rule-soft);
+  }
+
+  :where(.developer-cp-schema-card:has(> .developer-cp-section-hero__actions)) >
+    .developer-cp-section-hero__actions + div > .signal-workflow__detail:last-child > div > code {
+    grid-column: 2;
+    grid-row: 1;
+    border-block-end: 1px solid var(--rule-soft);
+    border-inline-end: 0;
+  }
+
+  :where(.developer-cp-schema-card:has(> .developer-cp-section-hero__actions)) >
+    .developer-cp-section-hero__actions + div > .signal-workflow__detail:last-child > div > div:first-child > strong {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  :where(.developer-cp-schema-card:has(> .developer-cp-section-hero__actions)) >
+    .developer-cp-section-hero__actions + div > .signal-workflow__detail:last-child > div > .signal-workflow__source {
+    grid-column: 2;
+    grid-row: 2;
+  }
+}
+
+/* This chain crosses two deployments, so every stage receives the same box
+   width and internal rows. Its shared renderer stays untouched for Numerics. */
+.gateway-contract-custody .signal-workflow__track {
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+}
+
+.gateway-contract-custody .signal-workflow__stage {
+  display: grid;
+  grid-template-columns: minmax(200px, 1fr) 72px;
+  flex: 1 0 280px;
+  gap: var(--space-2);
+  min-width: 280px;
+}
+
+.gateway-contract-custody .signal-workflow__node {
+  min-width: 0;
+  border-color: var(--border-strong);
+  box-shadow: inset 0 0 0 1px var(--rule-soft);
+}
+
+.gateway-contract-custody .signal-workflow__node > strong {
+  min-height: calc(var(--fs-body) * var(--lh-snug) * 3);
+  overflow-wrap: anywhere;
+}
+
+.gateway-contract-custody .signal-workflow__meta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  align-items: start;
+  gap: 3px;
+  min-height: calc(var(--fs-2xs) * var(--lh-snug) * 4);
+}
+
+.gateway-contract-custody .signal-workflow__meta > * {
+  overflow-wrap: anywhere;
+}
+
+.gateway-contract-digests {
+  margin-block-start: var(--space-3);
+  overflow-x: auto;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  scrollbar-width: thin;
+}
+
+.gateway-contract-digests:focus-visible {
+  outline: 2px solid var(--series-1);
+  outline-offset: 2px;
+}
+
+.gateway-contract-digests table {
+  width: 100%;
+  min-width: 920px;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+
+.gateway-contract-digests__source { width: 18%; }
+.gateway-contract-digests__digest { width: 27%; }
+.gateway-contract-digests__state { width: 17%; }
+.gateway-contract-digests__evidence { width: 38%; }
+
+.gateway-contract-digests :is(th, td) {
+  padding: var(--space-3);
+  border-inline-end: 1px solid var(--rule-soft);
+  border-block-end: 1px solid var(--rule-soft);
+  vertical-align: top;
+  text-align: left;
+}
+
+.gateway-contract-digests tr > :last-child {
+  border-inline-end: 0;
+}
+
+.gateway-contract-digests tbody tr:last-child > * {
+  border-block-end: 0;
+}
+
+.gateway-contract-digests thead th {
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 750;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+.gateway-contract-digests tbody th {
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+}
+
+.gateway-contract-digests tbody td {
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-body);
+  white-space: normal;
+}
+
+.gateway-contract-digests td code {
+  display: block;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+  white-space: normal;
+  word-break: break-all;
+}
+
+.gateway-contract-digests td strong {
+  font-size: var(--fs-xs);
+  font-weight: 750;
+}
