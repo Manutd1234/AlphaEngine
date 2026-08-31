@@ -62,6 +62,8 @@ from modules.research_rag import (  # noqa: E402
     render_backtest_card,
     render_ml_card,
 )
+from modules.research_rag.query_cache import invalidate  # noqa: E402
+from modules.research_rag.replacement import REPLACE_PATH, prepare_replacement  # noqa: E402
 
 
 def _stamp(value: Any) -> str:
@@ -72,29 +74,21 @@ def _stamp(value: Any) -> str:
 
 
 async def _store(rag: ResearchRag, payload: dict[str, Any]) -> str:
-    """Embed one document and upsert it. Returns written / pending / failed.
-
-    A failed embed is stored ``embedding_status='pending'`` with a NULL vector,
-    never a zero vector — which is equidistant from everything and would come
-    back as "similar" to any query. A later run of this tool picks those up.
-    """
-    vector = await rag._embed(payload["body"])
+    """Replace one logical document in a single server-side transaction."""
     assert rag._client is not None  # the caller started the client
+    prepared = await prepare_replacement(
+        payload, desk_id=settings.supabase_desk_id,
+        embedding_model=EMBEDDING_MODEL, embed=rag._embed,
+    )
     response = await rag._client.post(
-        "/rest/v1/research_documents",
-        json={
-            **payload,
-            "desk_id": settings.supabase_desk_id,
-            "embedding": vector,
-            "embedding_model": EMBEDDING_MODEL if vector else None,
-            "embedding_status": "ready" if vector else "pending",
-        },
-        headers={"Prefer": "resolution=merge-duplicates,return=minimal"},
+        REPLACE_PATH, json=prepared.payload, headers={"Prefer": "return=minimal"},
     )
     if response.status_code >= 300:
         print(f"  ! {payload['kind']} {payload['source_ref']}: HTTP {response.status_code}")
         return "failed"
-    return "written" if vector else "pending"
+    if prepared.indexed:
+        invalidate(rag)
+    return "pending" if prepared.pending else "written"
 
 
 def _tally(outcome: str, written: int, pending: int) -> tuple[int, int]:
