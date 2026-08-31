@@ -120,7 +120,7 @@ describe("tiers change density, never navigation", () => {
       "../components/research/StrategyDocCard.tsx",
     ]) {
       const source = read(file);
-      assert.match(source, /<details[^>]*open=\{/, `${file} gates content on something other than a disclosure`);
+      assert.match(source, /<details[^>]*(?:defaultOpen|open)=\{/, `${file} gates content on something other than a disclosure`);
     }
   });
 
