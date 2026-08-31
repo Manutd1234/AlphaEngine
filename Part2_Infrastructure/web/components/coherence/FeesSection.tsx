@@ -21,25 +21,17 @@
  * and the `framing()` helper it carried when it had to say "not read on this
  * view" for a chip whose read was gated on a sibling.
  *
- * So: one read here, gated on the section, and one figure of its own — the
- * share of notional the fee comes to, which no table below states. The picker
- * that chooses the worked example is drawn inside the worked-example view; the
+ * So: one read here, gated on the section. The picker that chooses the worked
+ * example is drawn inside the worked-example view; the
  * section owns WHICH example is chosen, because that choice is what the fees
  * query is built from.
  *
  * TWO CONTROL ROWS BECAME ONE ON 2026-08-25, and this section was the worst
  * case on the tab. It drew `.coh-status__chips` twice: the four views and the
  * example picker on the first, and the fee-share chip alone on the second — so
- * a reader met two full-width rows of chrome before the first drawing, and the
- * second row held a MEASUREMENT wearing a state chip's clothes. `SectionFrame`
- * has one control row and a KPI row under it, which is where a measurement
- * belongs and is the same tile grid Lattice and Stake answer in.
- *
- * THE CHIP'S WARNING SURVIVED THE MOVE, and it had to: "the net fee exceeds
- * the notional traded" is the section's most consequential reading and a tile
- * that printed 1.4200 with no mark would say nothing about it. The mark and
- * the words ride the tile's note, so the warning is legible with colour
- * stripped — which is what `forced-colors.test.ts` and the house rule require.
+ * a reader met two full-width rows of chrome before the first drawing. The
+ * standalone KPI row is now gone; Cost shape keeps the fee-share tape where
+ * the measurement has visual context.
  */
 
 import { useState } from "react";
@@ -50,14 +42,14 @@ import type { CoherenceFeeCurve } from "@/lib/coherence/types-history";
 import { feesCurveRoute, feesRoute } from "@/lib/coherence/routes";
 import FeeCurve, { drawableFeePoints } from "./FeeCurve";
 import LiveTape from "./LiveTape";
+import MarketsSectionContainment from "./MarketsSectionContainment";
 import { toUnit } from "@/lib/coherence/decimals";
 import { useLiveSeries } from "@/lib/coherence/use-live-series";
 import PaneHead from "./PaneHead";
 import SectionFrame from "./SectionFrame";
-import type { Reading } from "./KpiRow";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import AblationPane, { type AblationView } from "./AblationPane";
-import FeesPane, { EXAMPLES, feesExceedNotional, type FeeExample, type FeesView } from "./FeesPane";
+import FeesPane, { EXAMPLES, type FeeExample, type FeesView } from "./FeesPane";
 
 /** The venue's cost model, then what that cost does to the answer. */
 type SectionView = FeesView | AblationView;
@@ -79,11 +71,11 @@ export default function FeesSection(
   const [example, setExample] = useState<FeeExample>(EXAMPLES[0]);
 
   const onReplay = REPLAY_VIEWS.includes(view);
-  // Not gated on the view: the chip below is drawn on all four, and this read
-  // is one request against the fee endpoint rather than a tape replay.
+  // One request against the fee endpoint rather than a tape replay. It remains
+  // active across views because Worked example and Cost shape both consume it.
   const fees = useCoherenceRead<CoherenceFees>(
     feesRoute(example.price, example.contracts, example.fills),
-    active,
+    active && !onReplay,
   );
 
   /* The whole curve, gated on the one view that draws it. The cheapest read on
@@ -101,7 +93,6 @@ export default function FeesSection(
   const pricedAt = drawableFeePoints(curve.data).map((d) => d.p);
 
   const share = fees.data?.net_as_fraction_of_notional ?? null;
-  const overNotional = feesExceedNotional(share);
 
   /* The fee share over time, keyed by the WORKED EXAMPLE, because changing the
      example changes the question — a series that stepped from one example to
@@ -111,37 +102,20 @@ export default function FeesSection(
      something a reader can see rather than something they are told. */
   const shareTape = useLiveSeries(`fees:${example.id}:share`, fees.updatedAt, toUnit(share));
 
-  /* The one figure neither table states, and it is answered on all four views
-     because the read is one request against the fee endpoint rather than a tape
-     replay. Null while the read is in flight or after it failed — never zero,
-     which on this section would read as a free trade. */
-  const kpis: Reading[] = [
-    {
-      label: "Fee as a share of notional",
-      value: share,
-      withheld: share == null && fees.error ? `the read failed, ${fees.error}` : undefined,
-      note: overNotional ? (
-        <>
-          <span aria-hidden="true">▲</span> more than the notional traded
-        </>
-      ) : undefined,
-    },
-  ];
-
   return (
+    <MarketsSectionContainment variant="fees">
     <SectionFrame
       className="coh-fees"
       aria-labelledby="markets-fees-heading"
       head={
         <PaneHead
           kicker="Fees"
-          title="What a real position pays, and whether it changes the answer"
+          title="How fees change a position’s answer"
           id="markets-fees-heading"
           note="three components, charged per fill"
           lede={
             <>
-              The component nobody models is the largest: on Kalshi&rsquo;s own example the rounding fee is
-              nineteen times the trading fee and the net fee exceeds the notional traded.
+              In Kalshi&rsquo;s example, rounding is nineteen times the trading fee; net fee exceeds the notional traded.
             </>
           }
         />
@@ -150,7 +124,7 @@ export default function FeesSection(
       view={view}
       onView={onView}
       viewsLabel="Fees view"
-      subject={
+      subject={!onReplay ? (
         /* A native `<select>` rather than the listbox the family and market
            pickers use, and the difference is the OPTIONS: four fixed prose
            labels that never change with the read, where those two choose from a
@@ -160,7 +134,7 @@ export default function FeesSection(
            the same label-beside-control `.coh-universe__filter` the Universe
            asset filter uses. */
         <label className="coh-universe__filter">
-          <span>Worked example</span>
+          <span>Example</span>
           <select
             value={example.id}
             onChange={(change) => setExample(EXAMPLES.find((item) => item.id === change.target.value) ?? EXAMPLES[0])}
@@ -168,11 +142,10 @@ export default function FeesSection(
             {EXAMPLES.map((item) => (
               <option key={item.id} value={item.id}>{item.label}</option>
             ))}
+            {example.id === "custom" ? <option value="custom">Custom simulation</option> : null}
           </select>
         </label>
-      }
-      kpis={kpis}
-      kpiSource="this read"
+      ) : undefined}
     >
       {onReplay ? (
         <AblationPane view={view as AblationView} active={active && onReplay} />
@@ -188,6 +161,8 @@ export default function FeesSection(
             fees={fees.data}
             error={fees.error}
             view={view as FeesView}
+            example={example}
+            onExample={setExample}
             parabolaAt={pricedAt}
             parabolaLink="fee-price"
           />
@@ -203,13 +178,16 @@ export default function FeesSection(
           trading one becomes a gap a reader can see rather than a sentence they
           are asked to take. */}
 
-      <LiveTape
-        points={shareTape}
-        caption={`What ${example.label.toLowerCase()} has cost as a share of its notional, poll by poll`}
-        ariaLabel="The fee as a share of notional over the polls seen since this tab opened"
-        reference={{ value: 1, label: "the notional traded" }}
-        reading="Above the line the fee is larger than the position it is charged on, which is the claim this section opens with."
-      />
+      {view === "shape" ? (
+        <LiveTape
+          points={shareTape}
+          caption={`What ${example.label.toLowerCase()} has cost as a share of its notional, poll by poll`}
+          ariaLabel="The fee as a share of notional over the polls seen since this tab opened"
+          reference={{ value: 1, label: "the notional traded" }}
+          reading="Above the line the fee is larger than the position it is charged on, which is the claim this section opens with."
+        />
+      ) : null}
     </SectionFrame>
+    </MarketsSectionContainment>
   );
 }
