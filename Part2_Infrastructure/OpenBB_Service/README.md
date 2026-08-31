@@ -1,5 +1,9 @@
 # AlphaEngine OpenBB Service
 
+**Last verified: 2026-08-29.** This remains a separately deployable, stateless
+read-only adapter. Current platform versions and release evidence are indexed in
+[`../../docs/CURRENT_STATE.md`](../../docs/CURRENT_STATE.md).
+
 A standalone, stateless and read-only FastAPI service for AlphaEngine market
 research. It has no trading routes, Telegram lifecycle, portfolio state,
 database, background worker, or writable runtime files.
@@ -75,7 +79,7 @@ if you would rather see each step:
 cd OpenBB_Service
 python3.12 -m venv .venv            # pyproject requires >=3.12,<3.15
 .venv/bin/python -m pip install -r requirements-dev.txt
-.venv/bin/python -m pytest          # 14 passed (re-measured 2026-08-22)
+.venv/bin/python -m pytest          # 24 passed (re-measured 2026-08-29)
 .venv/bin/python -m uvicorn app:app --host 127.0.0.1 --port 8010
 ```
 
