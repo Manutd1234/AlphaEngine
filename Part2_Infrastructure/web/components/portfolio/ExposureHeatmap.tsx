@@ -172,7 +172,7 @@ export default function ExposureHeatmap({
                     {u > 1 && (
                       // Clamped for the bar, honest in the text. The caret says
                       // the value ran past the axis rather than stopping at it.
-                      <text x={x(1) + 4} y={barY + 9.5} fontSize={14} fill="var(--status-critical)">
+                      <text x={x(1) + 4} y={barY + 9.5} fontSize={14} fill="var(--critical-text)">
                         ›
                       </text>
                     )}
