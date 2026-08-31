@@ -213,9 +213,8 @@ export default function DataWorkBoard({
       </div>
 
       {/* At rest the scope line is gone (a reader asked, 2026-08-23): the
-          queue-not-ticket-system sentence and the seeded-row count ride in
-          the fold below, and every seeded row still wears its own ‹sample›
-          mark. The two states that are NOT the steady one keep the line. */}
+          queue-not-ticket-system sentence rides in the fold below. The two
+          states that are NOT the steady one keep the line. */}
       {/* Why the controls are dimmed is never folded. */}
       {source?.kind === "gateway" && readOnly && readOnlyReason && (
         <p className="data-workboard__scope">{readOnlyReason}</p>
@@ -224,8 +223,9 @@ export default function DataWorkBoard({
       <p className="data-workboard__scope">
         {source?.kind === "local" ? (
           <>
-            The gateway could not be reached ({source.reason}), so this is the last list loaded — or
-            the seeded sample if none has — and edits are held in this browser until it answers.
+            The gateway could not be reached ({source.reason}), so this is the last list loaded.
+            If no read has succeeded, the empty columns mean unavailable, not an empty gateway queue.
+            New edits are held in this browser until it answers.
             Nothing here is lost silently, and nothing here is confirmed either.
           </>
         ) : (
@@ -239,17 +239,14 @@ export default function DataWorkBoard({
           Persistence tile above already print the gateway, SQLite and the
           audit log; what moves here is only HOW a write is recorded once it
           gets there. The scope line above keeps every absence and every
-          degradation on screen — the local-hold sentence, the seeded-row
-          count and the read-only reason are all outside this fold. */}
+          degradation on screen — the local-hold sentence and the read-only
+          reason are outside this fold. */}
       {source?.kind === "gateway" && (
         <details className="disclosure">
           <summary>How an edit is recorded</summary>
           <p className="sub">
             Persisted on the gateway, {source.count} {source.count === 1 ? "item" : "items"}.
             This is a queue, not a ticket system.
-            {source.seeded > 0
-              ? ` ${source.seeded} of these ${source.seeded === 1 ? "is a seeded sample row" : "are seeded sample rows"}, marked ‹sample›.`
-              : ""}
             {" "}Every create and status change is versioned in the gateway&apos;s work-item table;
             a stale edit is refused rather than overwritten.
           </p>
@@ -316,7 +313,7 @@ export default function DataWorkBoard({
         />
       )}
 
-      <div className="data-workboard__board" aria-label="Data engineering work board">
+      <div className="data-workboard__board" tabIndex={0} aria-label="Data engineering work board">
         {STATUS_META.map((status) => {
           const columnItems = visible.filter((item) => item.status === status.id);
           const actualCount = items.filter((item) => item.status === status.id).length;
@@ -369,10 +366,8 @@ export default function DataWorkBoard({
 
       <div className="data-workboard__footer">
         <span>{visible.length} of {items.length} items shown</span>
-        {/* "Reset sample queue" stood here and restored the seeded items. It
-            demonstrated the mock rather than the workflow; now that the queue
-            is the gateway's, a reset would be a destructive write dressed as a
-            convenience, and there is still no such control. */}
+        {/* A reset control would be a destructive write dressed as a
+            convenience, so there is no such control. */}
         <div>
           {(query || kind !== "all" || sort !== "priority") && (
             <button type="button" onClick={clearFilters}>Clear filters</button>
