@@ -83,8 +83,9 @@ export function Grid() {
       })}
       <text x={x(0)} y={y - 16} className="coh-form__note">$0.01</text>
       <text x={x(1)} y={y - 16} textAnchor="end" className="coh-form__note">$0.99</text>
-      <text x={WIDTH / 2} y={20} textAnchor="middle" className="coh-form__note">
-        ten times finer at both ends than through the middle
+      <text x={WIDTH / 2} y={16} textAnchor="middle" className="coh-form__note">
+        <tspan x={WIDTH / 2} dy={0}>ten times finer at both ends</tspan>
+        <tspan x={WIDTH / 2} dy={12}>than through the middle</tspan>
       </text>
     </Frame>
   );
