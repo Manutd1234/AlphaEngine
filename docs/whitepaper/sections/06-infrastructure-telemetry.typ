@@ -39,18 +39,34 @@ reads it, and every figure carries the artefact it came from.
 
 == The persistence topology, and what "authoritative" means here
 
-Five stores are in play and only one of them is authoritative for decisions. The
+Six stores are in play and only one of them is authoritative for decisions. The
 distinction is not decorative. A system with two authoritative stores has no
 authoritative store; it has a reconciliation problem it has not noticed yet.
 
 #table(
-  columns: (auto, 1fr, auto, auto),
-  [Store], [Authoritative for], [Durability], [Rebuild],
-  [DuckDB audit log], [orders, order events, risk events, TCA snapshots, backtest runs, equity snapshots], [Docker named volume on the OCI VM], [none, it is the source],
-  [SQLite data-operations ledger], [quality findings, escalations, schedule runs, work items], [same mounted volume], [none, it is the source],
-  [Supabase Postgres], [nothing; mirror of decisions plus the research corpus], [managed], [replay from the audit log],
-  [Neo4j], [nothing; a projection of `research_edges`], [managed, optional], [drop and re-project],
-  [Oracle Autonomous Database], [nothing; an in-database simulation surface], [managed, optional], [re-apply the schema],
+  columns: (0.72fr, 2.28fr),
+  [Store], [Authority, durability and rebuild contract],
+  [DuckDB audit log], [Authoritative for orders, order/risk events, TCA
+    snapshots, backtest runs and equity snapshots. It lives on the OCI VM's
+    Docker volume and has no rebuild source.],
+  [DuckDB coherence tape], [Domain record for prediction-market books, quote
+    history, episodes, outcomes and calibration records. It lives at
+    `COHERENCE_DB_PATH`, independently of the order ledger.],
+  [Data-operations ledger], [Operational authority for eight logical
+    data-operations and Diffusion tables. SQLite on the mounted volume is the
+    complete default. The opt-in PostgREST backend covers the four original
+    operations tables. A `diffusion_events` migration exists, but the generic
+    count path assumes an `id` column that this table does not have; runs and
+    texts are absent and studies lag current skill fields. Postgres therefore
+    does not yet implement the current Diffusion store contract; selection is
+    fail-closed, never an implicit fallback.],
+  [Supabase Postgres], [Derived decision mirror plus the managed research
+    corpus. Decision rows can be replayed from the audit log; corpus and
+    account records follow their own ingest contracts.],
+  [Neo4j], [Optional projection of `research_edges`; drop and re-project it
+    whenever it disagrees with Postgres.],
+  [Oracle Autonomous Database], [Optional in-database simulation surface; it
+    owns no trading fact and is rebuilt by reapplying its schema.],
 )
 
 The rule that follows: *the audit log is embedded on purpose*, because the desk
@@ -263,11 +279,20 @@ PostgREST, and the translation is exact rather than approximate.
   [Aggregates], [`GROUP BY` in the query], [`data_quality_rollup`, one round trip],
 )
 
+#note[Parity in source; rollout remains separate][The current migration set is parity-complete for all four Diffusion adapters:
+`20260831120000` adds runs, texts, `vote_line`, the current `skill_*` fields and
+desk-qualified keys. The generic count path projects `desk_id`, and
+`open_data_ops_store()` requires and passes an explicit `SUPABASE_DESK_ID`.
+Migration `20260831121000` refuses ambiguous legacy `desk_id='default'` rows
+before removing unsafe defaults. Those migrations are present in source and the
+generated bundle; this source audit does not claim they have been applied to a
+live project. SQLite remains the complete zero-configuration default.]
+
 Two boundaries are stated plainly in `docs/architecture/DATA_OPS_BACKEND.md`.
 Selecting `postgres` without credentials raises at startup rather than falling
 back, because a fall-back would leave a deployment reporting one backend and
 using another while the `backend` field on the wire said `sqlite`. And moving
-these four tables to Postgres does *not* make a second gateway process possible:
+these eight logical tables to Postgres does *not* make a second gateway process possible:
 the book, the bucket and the kill switch remain process-local, held by the two
 mechanisms of §6.1.
 
@@ -276,8 +301,9 @@ mechanisms of §6.1.
   `Prefer` headers, the filter grammar and the conflict target, against
   `httpx.MockTransport`. That is where the translation lives, and a test that
   only checked the parsed response would pass with `Prefer` missing entirely.
-  The live pass skips with its reason printed unless the credentials are
-  exported. `tests/test_data_quality_rollup.py` pins the Python `_AGGREGATE` and
+  The live pass skips with its reason printed unless `SUPABASE_URL`,
+  `SUPABASE_SERVICE_ROLE_KEY` and `SUPABASE_DESK_ID` are exported for that run.
+  `tests/test_data_quality_rollup.py` pins the Python `_AGGREGATE` and
   the SQL `data_quality_rollup` to the same six figures, because if one moves
   without the other both backends answer, neither errors, and they disagree.
 ]
@@ -502,17 +528,55 @@ anonymous request may spend. One honesty note travels with the output: this is a
 *terminal-value* VaR, it says nothing about the path, and it must not be
 presented as comparable to a maximum-drawdown figure.
 
+== The lifespan-owned runtime boundary
+
+`main.py` owns the FastAPI shell, middleware, routers, console routes and public
+exception shape. `modules/application_lifecycle.py` owns process construction.
+It claims the single-writer boundary, creates the stores and service facades,
+starts bounded runtime and read models, then starts audit, schedulers, coherence
+tasks, Telegram and core self-measurement under one `AsyncExitStack`. Cleanup is
+registered before startup and runs in reverse order; one cleanup failure is
+recorded without preventing the remaining graph from releasing.
+
+The published `ApplicationContext` is frozen and slot-backed. It contains one
+runtime, market-data provider, execution gateway, risk manager, job service,
+audit service, Telegram runtime, health service and latest-state stream. Routes
+receive services from that context instead of retrieving module globals or
+constructing an alternate book. `tests/test_application_lifecycle.py` proves
+partial-start unwind, while `tests/test_application_runtime_contracts.py`
+proves context immutability, service delegation, route ownership, budget classes
+and the WebSocket topic.
+
+Synchronous request work crosses one bounded `BackendRuntime` rather than the
+global unbounded `asyncio.to_thread` queue. Its repository defaults and public
+failure semantics are:
+
+#table(
+  columns: (1fr, auto, 1.35fr),
+  [Boundary], [Committed default], [Operational contract],
+  [Worker capacity], [4 running + 12 queued], [Admission is bounded; not-yet-started work may be cancelled, running Python threads are drained and never reported as killed.],
+  [H1 / H2 / H3 / H4 / H5 budgets], [3 / 8 / 15 / 25 / 3 s], [The proxy sends the fixed class and remaining milliseconds; the gateway accepts only the tighter ceiling.],
+  [Deadline], [HTTP 504], [The caller's budget ended before a trustworthy answer arrived.],
+  [Saturation], [HTTP 503], [`Retry-After: 1`; capacity, not an upstream auth error, refused admission.],
+  [Telemetry], [256-sample windows], [Queue and duration p95, counts by bounded operation label, and event-loop lag in milliseconds.],
+)
+
+The response echoes the sanitised request identity and budget class and emits
+`Server-Timing` for total backend, queue and blocking duration. These are
+instrumentation contracts, not live measurements; this revision does not claim
+a current saturation rate or lag percentile.
+
 == API and websocket protocols
 
 === The committed REST surface
 
 The gateway's OpenAPI schema is a contract between two separately deployed units,
 so it is committed rather than generated at runtime:
-#measured("73 paths carrying 76 operations", "tools/openapi.json, counted 2026-08-24") —
-#measured("54 GET, 20 POST, 1 PATCH, 1 DELETE", "tools/openapi.json") — clustered
+#measured("76 paths carrying 79 operations", "tools/openapi.json, counted 2026-08-29") -
+#measured("57 GET, 20 POST, 1 PATCH, 1 DELETE", "tools/openapi.json") - clustered
 by the tag each router carries: research (15), risk and orders (14), data and
-data-quality (11), the Kalshi coherence lab (7), coherence (5), meta (5),
-audit (4), diffusion (4), coherence history (3), machine-learning research (3),
+data-quality (11), the Kalshi coherence lab (8), coherence (5), meta (5),
+coherence history (5), audit (4), diffusion (4), machine-learning research (3),
 telegram (3) and TCA (2). The paths are fewer than the operations because a few
 serve two verbs each --- `/api/orders` submits and lists, `/api/data/work-items`
 creates and lists.
@@ -523,7 +587,9 @@ verifies the contract before it ships: `prebuild` runs
 `check-gateway-openapi-digest.mjs`, which canonicalises the JSON with sorted keys
 and compares its SHA-256 against `COMMITTED_GATEWAY_OPENAPI_SHA256` in
 `web/lib/gateway-openapi-digest.generated.ts`. Two independently deployed units
-assert their shared contract before either one of them deploys.
+assert their shared contract before either one of them deploys. The verified
+2026-08-29 digest is
+#measured("12b53e1fe2f5...81df96be", "web/lib/gateway-openapi-digest.generated.ts").
 
 === Server-sent events: `/api/stream/desk`
 
@@ -584,17 +650,25 @@ figures two sources that can disagree.
 
 === The book websocket
 
-`/ws/book/{symbol}` pushes the consolidated ladder and a live TCA report at
-approximately 4 Hz for the depth visualiser:
+`/ws/book/{symbol}` pushes the consolidated ladder and a live TCA report from
+one shared producer for each `book:{SYMBOL}` topic. The publication interval is
+#measured("300 ms", "modules/latest_state_stream.py") for the depth visualiser:
 
 ```json
 { "type": "book", "symbol": "BTCUSDT",
   "consolidated_mid": 64182.15, "venues_online": 2,
   "books": [ { "venue": "BINANCE", "bids": [[p,q]...], "asks": [[p,q]...] } ],
-  "tca":   { "per_venue": [...], "consolidated": {...} } }
+  "tca":   { "per_venue": [...], "consolidated": {...} },
+  "heartbeat": { "source_sequence": 42,
+    "freshness": { "state": "live", "age_ms": 18.4 },
+    "coalesced_total": 0 } }
 ```
 
-Websockets are never part of an OpenAPI document, so this shape is pinned by
+Each consumer has a size-one queue and a two-second send budget. A slow consumer
+may coalesce a superseded market snapshot; the next heartbeat exposes the count.
+Order, execution, rejection, kill-switch and audit events never use this feed,
+because replacing current state is valid and dropping a safety fact is not.
+WebSockets are never part of an OpenAPI document, so this shape is pinned by
 tests rather than by the committed schema, and `modules/api/tca.py` says so
 rather than leaving a reader to wonder why the contract omits it. The browser's
 own order book is a separate, faster path entirely: the
@@ -605,10 +679,14 @@ gateway would make it slower rather than faster.
 === The server-side proxy boundary
 
 `ALPHAENGINE_GATEWAY_URL` and `ALPHAENGINE_GATEWAY_TOKEN` are read in
-`web/lib/gateway.ts` and nowhere in the client bundle; 44 route handlers under
-`web/app/api/` are the only path from a browser to gateway credentials. The
+`web/lib/gateway.ts` and nowhere in the client bundle. The workspace owns
+#measured("65 same-origin route handlers, 44 importing the gateway boundary", "web/app/api/**/route.ts, counted 2026-08-29"); those 44 are the only path from a
+browser to gateway credentials. The
 module does four things every route would otherwise repeat: resolve the base URL,
-attach the token, bound the wait (8 s default), and *classify* the failure.
+attach the token, bound the wait, and *classify* the failure. A context-free call
+uses the 8 s default. A proxy request carries a fixed H1-H5 class, sanitised
+request ID, caller cancellation and remaining budget; `callGateway` always uses
+the smaller of its route timeout and that remaining budget.
 
 The classification is the part that matters. A 401 from the gateway is not a 401
 from this application, and relaying it straight through would make a browser
@@ -836,13 +914,13 @@ the spend for the same answer.
 
 === The generated artefacts and their gates
 
-Seven files in the tree are generated, and each one exists because the same fact
-was previously written by hand in two places and drifted. Each is paired with the
-gate that proves it is current.
+Eight files in the tree are generated, and each one exists because the same fact
+was previously written by hand in two places and drifted. Each is paired with its
+generator and either a drift gate or an explicit evidence boundary.
 
 #table(
   columns: (1fr, 1fr, 1.1fr),
-  [Artefact], [Generator], [Gate, and what it proves],
+  [Artefact], [Generator], [Verification or evidence contract],
   [`web/lib/gateway-openapi-digest.generated.ts`], [`tools/export_openapi.py`], [`prebuild` re-hashes canonical `tools/openapi.json`; the web build refuses to ship against a contract it has not seen],
   [`web/lib/test-counts.generated.ts`], [`scripts/refresh-test-counts.mjs`], [`check-test-counts.mjs`, run one step *outside* the suite against the runner's own summary line],
   [`web/lib/repository-manifest.generated.json`], [`generate-codebase-manifest.mjs`], [`--check` in `prebuild`],
@@ -850,20 +928,23 @@ gate that proves it is current.
   [`web/lib/mc-parity-reference.generated.ts`], [`generate-mc-parity.ts`], [the Monte Carlo parity suite],
   [`supabase/apply_all.generated.sql`], [`tools/bundle_migrations.py`, at the repository root], [`tests/test_migration_bundle.py` fails when the bundle is behind `supabase/migrations/`; the fix is to regenerate it, never to edit the SQL],
   [`docs/architecture/latency-bench.generated.json`], [`tools/bench_decision.py`], [regenerated, never edited; the block stamps its own UTC date],
+  [`Part2_Infrastructure/docs/native-latency.generated.json`], [`tools/bench_native_boundary.py`], [`tests/test_native_latency_benchmark.py` pins nearest-rank and release-criterion evaluation; the operability document preserves the measurement boundary and reproduction command],
 )
+
+At this revision the repository manifest records
+#measured("2 283 paths at commit e5d9725", "web/lib/repository-manifest.generated.json, generated 2026-08-29"),
+and the 2026-08-31 source audit found #measured("41 ordered migrations present in the worktree and generated bundle", "supabase/migrations/*.sql and supabase/apply_all.generated.sql"). The newest chunk-replacement migration and `research_rag/replacement.py` commit one complete logical-document generation atomically and retain the previous complete generation if any incoming text embedding is pending. That RPC migration must be applied before the new chunked ingest path is deployed; it was not verified applied live. These are catalogue and source-contract facts, not runtime health claims.
 
 The test count is the one figure in the repository that *cannot* be asserted
 from inside the thing it measures, since a test that checks the total changes the
 total. It is therefore generated, checked from outside, and is a measurement with
 a date rather than a contract. As of
-#measured("2026-08-24", "web/lib/test-counts.generated.ts") the committed figures
-are gateway #measured("2 998 collected, 2 996 passed, 2 skipped", "web/lib/test-counts.generated.ts, refreshed in the CI shape with RERANK_TEST_MODEL_PATH blanked"),
-web #measured("4 730 tests across 1 028 suites", "web/lib/test-counts.generated.ts")
-and service #measured("24", "web/lib/test-counts.generated.ts"). The two gateway
-skips are the two opt-ins described below, and the shape belongs with the
-figure: seed the re-ranker weights and the same tree collects eight more tests
-and reports one skip instead of two, so a gateway count with no shape stated is
-not yet a measurement. Prose elsewhere
+#measured("2026-08-29", "web/lib/test-counts.generated.ts") the dated generated figures
+are gateway #measured("3 255 total, 3 254 passed, 1 skipped", "web/lib/test-counts.generated.ts"),
+web #measured("6 519 tests across 1 408 suites", "web/lib/test-counts.generated.ts")
+and service #measured("24", "web/lib/test-counts.generated.ts"). The skip cause
+belongs to the runner output for that dated run, not to an inference from the
+total. Prose elsewhere
 in the tree still quotes earlier figures, which is exactly what this file exists
 to prevent: never quote a count from a document, including this one. Run the
 suite, or read the generated file.
@@ -955,7 +1036,8 @@ The skip line is a report, not noise. Each of the two suites that can skip state
 in full what it did *not* exercise.
 
 + *Live Postgres.* `tests/test_data_ops_postgrest.py::TestAgainstTheRealProject`
-  skips unless `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are exported. Its
+  skips unless `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` and
+  `SUPABASE_DESK_ID` are exported. Its
   message says CI is network-free by design, so a green suite there has *not*
   reached Postgres. `live-smoke` in `ci.yml` is the dispatch-only counterpart:
   it sends a `HEAD` to PostgREST and treats 401 or 403 as the pass, because
