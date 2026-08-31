@@ -1,0 +1,358 @@
+/* Diffusion workbench — intentionally imported by the root integrator. */
+
+.coherence-plane.diffusion-plane .diff-view-control {
+  inline-size: 100%;
+  min-inline-size: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.coherence-plane.diffusion-plane .diff-view-control [data-slot="toggle-group-item"] {
+  flex: 1 0 max-content;
+  min-inline-size: 8rem;
+  border-color: var(--rule-soft);
+  font-family: var(--font-sans);
+}
+
+.coherence-plane.diffusion-plane .diff-view-control :is([data-state="on"], button[aria-pressed="true"]) {
+  border-color: var(--series-1);
+  box-shadow: none;
+}
+
+/* Flat, shared controls for the data-rich Diffusion figures. Active state is
+   carried by border and surface only: no inset shadow, glow or drop-shadow. */
+.coherence-plane.diffusion-plane .diff-instrument {
+  display: grid;
+  gap: var(--space-2);
+  min-inline-size: 0;
+}
+
+/* Figure reserves a stable inspection readout so the drawing does not jump
+   when a reader enters a mark. On Diffusion that rail used to sit between the
+   caption and the instrument, leaving an empty 55px band above every control
+   and plot. Keep the stability contract, but put the readout where chart
+   feedback belongs: directly below the drawing, in one compact line. */
+.coherence-plane.diffusion-plane .coh-figure__plot { order: 1; }
+
+.coherence-plane.diffusion-plane .coh-figure__interaction {
+  --interaction-row-size: calc(1.45em + 2 * var(--space-1) + 2px);
+  order: 2;
+  align-items: center;
+  padding-block: var(--space-1);
+  overflow-y: hidden;
+}
+
+.coherence-plane.diffusion-plane .coh-figure__interaction > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.coherence-plane.diffusion-plane :is(
+  .coh-figure__reading,
+  .coh-figure__missing,
+  .coh-figure__notes
+) {
+  order: 3;
+}
+
+.coherence-plane.diffusion-plane .diff-lens {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-inline-size: 0;
+  padding: 4px;
+  border: 1px solid var(--rule-soft);
+  border-radius: var(--radius-control);
+  background: var(--surface-2);
+  background: color-mix(in srgb, var(--surface-2) 70%, var(--surface-1));
+}
+
+.coherence-plane.diffusion-plane .diff-lens--inside {
+  inline-size: fit-content;
+  max-inline-size: calc(100% - 2 * var(--space-2));
+  margin: var(--space-1) var(--space-2) 0;
+}
+
+.coherence-plane.diffusion-plane .diff-lens button {
+  min-block-size: 30px;
+  padding: 4px 10px;
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius-control) - 2px);
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 650;
+  cursor: pointer;
+  transition:
+    background-color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+
+.coherence-plane.diffusion-plane .diff-lens button:hover {
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+
+.coherence-plane.diffusion-plane .diff-lens button[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--series-1) 58%, var(--border));
+  background: var(--surface-1);
+  box-shadow: none;
+  color: var(--text-primary);
+}
+
+.coherence-plane.diffusion-plane :is(
+  .diff-lens button,
+  .diff-probe input,
+  .diff-evidence-controls input
+):focus-visible {
+  outline: 2px solid var(--series-1);
+  outline-offset: 2px;
+}
+
+.coherence-plane.diffusion-plane .diff-lens__readout {
+  margin-inline-start: auto;
+  padding-inline: 8px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.coherence-plane.diffusion-plane :is(.diff-probe, .diff-evidence-controls) {
+  display: grid;
+  gap: var(--space-2);
+  min-inline-size: 0;
+  margin: var(--space-2);
+}
+
+.coherence-plane.diffusion-plane :is(.diff-probe label, .diff-evidence-controls > label) {
+  display: grid;
+  grid-template-columns: minmax(7rem, auto) auto;
+  align-items: center;
+  gap: 2px var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+}
+
+.coherence-plane.diffusion-plane :is(.diff-probe input, .diff-evidence-controls input) {
+  grid-column: 1 / -1;
+  inline-size: 100%;
+  min-inline-size: 0;
+  accent-color: var(--series-1);
+}
+
+.coherence-plane.diffusion-plane .diff-evidence-controls {
+  grid-template-columns: minmax(17rem, 1fr) repeat(2, minmax(11rem, .65fr));
+  align-items: center;
+}
+
+.coherence-plane.diffusion-plane .diff-evidence-controls .diff-lens {
+  max-inline-size: none;
+  margin: 0;
+}
+
+.coherence-plane.diffusion-plane .diff-field__mark.is-qualified {
+  filter: none;
+  stroke-width: 2.4;
+}
+
+.coherence-plane.diffusion-plane .coh-survival__probe {
+  stroke: var(--series-3);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.coherence-plane.diffusion-plane .coh-survival__probe-dot {
+  fill: var(--surface-1);
+  stroke: var(--series-3);
+  stroke-width: 2;
+}
+
+/* The three driven figures share one containment boundary. Controls retain
+   their focus rings; only the bounded plot viewport clips paint, after each
+   model has fitted its own mathematical domain. */
+.coherence-plane.diffusion-plane .coh-diffusion--sandbox,
+.coherence-plane.diffusion-plane .coh-diffusion--sandbox .diff-pane,
+.coherence-plane.diffusion-plane .coh-diffusion--sandbox .coh-figure,
+.coherence-plane.diffusion-plane .coh-diffusion--sandbox .coh-figure__plot,
+.coherence-plane.diffusion-plane .coh-diffusion--sandbox .coh-plot {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+.coherence-plane.diffusion-plane .coh-diffusion--sandbox {
+  overflow: hidden;
+}
+
+.coherence-plane.diffusion-plane .coh-diffusion--sandbox .diff-pane {
+  min-block-size: clamp(28rem, 62dvh, 48rem);
+  align-content: start;
+}
+
+.coherence-plane.diffusion-plane .coh-diffusion--sandbox .coh-model__controls {
+  min-inline-size: 0;
+}
+
+.coherence-plane.diffusion-plane .coh-diffusion--sandbox .coh-model__controls > :is(label, fieldset),
+.coherence-plane.diffusion-plane .coh-diffusion--sandbox .coh-model__controls input[type="range"] {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+.coherence-plane.diffusion-plane .coh-diffusion--sandbox .coh-model__controls input[type="range"] {
+  inline-size: 100%;
+}
+
+.coherence-plane.diffusion-plane .coh-diffusion--sandbox .coh-figure {
+  min-block-size: 20rem;
+  overflow: hidden;
+}
+
+.coherence-plane.diffusion-plane .coh-diffusion--sandbox .coh-figure__plot {
+  overflow: hidden;
+  contain: inline-size paint;
+}
+
+.coherence-plane.diffusion-plane .coh-diffusion--sandbox .coh-plot > svg {
+  display: block;
+  inline-size: 100%;
+  max-inline-size: 100%;
+}
+
+.coherence-plane.diffusion-plane .diff-sparse {
+  display: grid;
+  min-block-size: 11rem;
+  align-content: start;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background:
+    linear-gradient(90deg, transparent 49.8%, var(--grid) 50%, transparent 50.2%),
+    linear-gradient(var(--surface-1), color-mix(in srgb, var(--surface-2) 42%, var(--surface-1)));
+}
+
+.coherence-plane.diffusion-plane .diff-sparse__svg {
+  display: block;
+  inline-size: 100%;
+  max-inline-size: 100%;
+  block-size: 9.5rem;
+  min-inline-size: 0;
+}
+
+.coherence-plane.diffusion-plane .diff-sparse__node {
+  fill: var(--surface-1);
+  stroke: var(--border);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.coherence-plane.diffusion-plane .diff-sparse__hatch {
+  stroke: var(--grid);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.coherence-plane.diffusion-plane .diff-sparse__edge,
+.coherence-plane.diffusion-plane .diff-sparse__axis,
+.coherence-plane.diffusion-plane .diff-sparse__tick {
+  stroke: var(--text-muted);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.coherence-plane.diffusion-plane .diff-sparse__edge { stroke-dasharray: 3 3; }
+.coherence-plane.diffusion-plane .diff-sparse__arrow { fill: none; stroke: var(--text-muted); }
+.coherence-plane.diffusion-plane .diff-sparse__label { fill: var(--text-primary); font-size: var(--fs-2xs); font-weight: 650; }
+.coherence-plane.diffusion-plane .diff-sparse__ordinal {
+  fill: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-tick);
+  font-weight: 600;
+}
+.coherence-plane.diffusion-plane .diff-sparse__tickword {
+  fill: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--fs-tick);
+}
+.coherence-plane.diffusion-plane .diff-sparse__gate {
+  fill: var(--series-1);
+  font-family: var(--font-mono);
+  font-size: var(--fs-tick);
+  font-weight: 600;
+}
+
+.coherence-plane.diffusion-plane .diff-sparse__reason {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+}
+
+.coherence-plane.diffusion-plane .diff-sparse__reason > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A hard refresh starts without the module-memory read cache. Keep the pending
+   Arm pane at the measured height of the view it will reveal, so one sparse
+   frame does not jump into a one- or two-figure stack when the first answer
+   lands. These selectors exist only while read === null and error === null;
+   typed empty states and terminal failures never inherit the loading well. */
+.coherence-plane.diffusion-plane .diff-pane[data-arm-loading="absorption"] { min-block-size: 60.5rem; }
+.coherence-plane.diffusion-plane .diff-pane[data-arm-loading="floor"] { min-block-size: 42.125rem; }
+.coherence-plane.diffusion-plane .diff-pane[data-arm-loading="clocks"] { min-block-size: 39.0625rem; }
+
+@media (max-width: 1100px) {
+  .coherence-plane.diffusion-plane .diff-pane[data-arm-loading="absorption"] { min-block-size: calc(74.4375rem - 20vw); }
+  .coherence-plane.diffusion-plane .diff-pane[data-arm-loading="floor"] { min-block-size: calc(53.8125rem - 15vw); }
+  .coherence-plane.diffusion-plane .diff-pane[data-arm-loading="clocks"] { min-block-size: calc(56.6875rem - 24vw); }
+}
+
+@media (max-width: 720px) {
+  .coherence-plane.diffusion-plane .diff-pane[data-arm-loading="absorption"] { min-block-size: calc(76.9375rem - 26vw); }
+  .coherence-plane.diffusion-plane .diff-pane[data-arm-loading="floor"] { min-block-size: calc(58.9375rem - 27vw); }
+  .coherence-plane.diffusion-plane .diff-pane[data-arm-loading="clocks"] { min-block-size: calc(53.0625rem - 16vw); }
+}
+
+@media (max-width: 600px) {
+  .coherence-plane.diffusion-plane .diff-pane[data-arm-loading="absorption"] { min-block-size: calc(109.3125rem - 112vw); }
+  .coherence-plane.diffusion-plane .diff-pane[data-arm-loading="floor"] { min-block-size: calc(83.64rem - 92.5vw); }
+  .coherence-plane.diffusion-plane .diff-pane[data-arm-loading="clocks"] { min-block-size: calc(86.9125rem - 106vw); }
+}
+
+@media (max-width: 720px) {
+  .coherence-plane.diffusion-plane .diff-lens button {
+    min-block-size: 44px;
+  }
+
+  .coherence-plane.diffusion-plane .coh-diffusion--sandbox .diff-pane {
+    min-block-size: 25rem;
+  }
+  .coherence-plane.diffusion-plane .diff-sparse { padding-inline: var(--space-2); }
+  .coherence-plane.diffusion-plane .diff-sparse__svg { block-size: 8.5rem; }
+  .coherence-plane.diffusion-plane .diff-sparse__reason { align-items: flex-start; }
+  .coherence-plane.diffusion-plane .diff-sparse__reason > span:last-child { white-space: normal; }
+
+  .coherence-plane.diffusion-plane .diff-evidence-controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .coherence-plane.diffusion-plane .diff-lens--inside {
+    inline-size: auto;
+  }
+
+  .coherence-plane.diffusion-plane .diff-lens__readout {
+    inline-size: 100%;
+    margin-inline-start: 0;
+  }
+}
