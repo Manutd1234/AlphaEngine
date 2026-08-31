@@ -35,107 +35,103 @@
  * this pane's lede leads both views.
  */
 
+import { useState, type CSSProperties } from "react";
+
 import type { CoherenceAblation, CoherenceReplay } from "@/lib/coherence/types";
 import { replayRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
-import Figure, { FigureEmpty, Plot, StateChip } from "./Figure";
-import { statValue } from "@/lib/coherence/decimals";
-import { HotSource, useHot } from "@/lib/coherence/use-hot";
-import ValueStrip from "./ValueStrip";
+import { groupDigits } from "@/lib/coherence/universe-metrics";
+import { StateChip } from "./Figure";
+import { useRovingListbox } from "./use-stable-selection-key";
+import baseStyles from "./MarketInstruments.module.css";
+import replayStyles from "./FeeReplayInstrument.module.css";
 
-const HEIGHT = 120;
-const ROW_HEIGHT = 22;
+const styles = { ...baseStyles, ...replayStyles };
+
 const CAPTION = "Tradable arbitrages found, by how much of the cost model is switched on";
 
-/**
- * What the replay could not test, and therefore could not draw.
- *
- * `untestable` is counted per configuration, so the worst of them is the honest
- * bound: the chart used to omit these rows without saying it had.
- */
-function untestableNote(ablations: CoherenceAblation[]): string | null {
-  const worst = ablations.reduce((most, row) => Math.max(most, row.untestable), 0);
-  if (worst === 0) return null;
-  return `Up to ${worst} observation(s) per configuration could not be tested and are counted in no bar.`;
+type ReplayStyle = CSSProperties & {
+  "--replay-survive"?: string;
+  "--replay-reject"?: string;
+  "--replay-untestable"?: string;
+  "--replay-gross"?: string;
+  "--replay-net"?: string;
+};
+
+function projected(value: number, sample: number): number {
+  return Math.round(value * sample / 100);
 }
 
 function Bars({ ablations }: { ablations: CoherenceAblation[] }) {
-  const peak = Math.max(...ablations.map((row) => row.worth_doing), 1);
+  const modelKeys = ablations.map((row) => row.name);
+  const [selectedKey, setSelectedKey, optionProps] = useRovingListbox(modelKeys);
+  const [sample, setSample] = useState(100);
+  const selected = Math.max(0, modelKeys.indexOf(selectedKey ?? ""));
   const naive = ablations.find((row) => row.name === "no_fees");
   const full = ablations.find((row) => row.name === "full");
   // A configuration the tape did not run is not a configuration that found
   // zero. With either missing there is no difference to report, and the
   // reading says so rather than announcing agreement (null-honest, 2026-08-26).
   const invented = naive && full ? naive.worth_doing - full.worth_doing : null;
-  const missing = untestableNote(ablations);
+  const active = ablations[selected] ?? ablations[0];
+  const maxPopulation = Math.max(1, ...ablations.map((row) => row.violations + row.untestable));
 
   if (!ablations.some((row) => row.violations > 0)) {
     return (
-      <Figure
-        caption={CAPTION}
-        ariaLabel={`Bar chart, ${ablations.length} configurations, no bars drawn`}
-        reading="No configuration found a violation on this tape yet, so there is nothing to separate the models on."
-        missing={missing}
-      >
-        <FigureEmpty reason="No violation caught yet." />
-      </Figure>
+      <figure className={styles.instrument} aria-label={`${ablations.length} configurations; no violation caught`}>
+        <figcaption>{CAPTION}</figcaption>
+        <p className={styles.empty}>◌ No configuration found a violation on this tape yet.</p>
+      </figure>
     );
   }
 
-  const height = Math.max(HEIGHT, ablations.length * ROW_HEIGHT + 20);
-
   return (
-    <Figure
-      caption={CAPTION}
-      ariaLabel={`${ablations.length} configurations compared; ${naive ? `the naive test finds ${naive.worth_doing}` : "the naive test did not run"} and ${full ? `the full model finds ${full.worth_doing}` : "the full model did not run"}`}
-      reading={
-        invented === null
-          ? `The tape ran ${!naive && !full ? "neither the fee-free nor the full-model" : naive ? "no full-model" : "no fee-free"} configuration, so the two cannot be compared.`
-          : invented > 0
-            ? `Fees off reports ${invented} more tradable arbitrage(s) than fees on — opportunities that do not exist.`
-            : "The naive and fee-aware tests agree on this tape."
-      }
-      missing={missing}
-    >
-      {/* THROUGH `Plot` since 2026-08-27. It drew into its own `<svg>` over
-          `useMeasuredWidth`, which is the shape that left the fee parabola and
-          the strike ladder mouse-only: no tab stop, no arrow keys, no live
-          region, and each bar's `<title>` reachable only by hovering it. The
-          titles were already one per row, so the mark readout walks them as
-          they stand — and the plot publishes the walked row into any
-          `HotSource` above it, the way the strip beside the table does. */}
-      <Plot height={height}>
-        {(width) => (
-          <g className="coh-ablation">
+    <figure className={styles.instrument} aria-label={`${ablations.length} cost-model configurations compared`}>
+      <figcaption className={styles.instrumentHead}>
+        <span><small>Counterfactual switchboard and replay simulator</small>{CAPTION}</span>
+        <strong>{invented == null ? "—" : `${invented} invented`}</strong>
+      </figcaption>
+      <label className={styles.replayScrubber}>
+        <span><strong>Replay sample</strong><small>A linear sensitivity projection; 100% is the measured tape.</small></span>
+        <input type="range" min={10} max={100} step={10} value={sample}
+               onChange={(event) => setSample(Number(event.target.value))} aria-label="Replay sample percentage" />
+        <output className="num">{sample}%</output>
+      </label>
+      <div className={styles.replayGraph} role="listbox" aria-label="Inspect a replay configuration">
+        <div className={styles.replayLegend} aria-hidden="true"><span data-kind="survive">survives costs</span><span data-kind="reject">rejected</span><span data-kind="unknown">untestable</span></div>
         {ablations.map((row, index) => {
-          // 96px of label column against the longest configuration name the
-          // gateway declares — "direct_member", 13 chars x 6.72px/char at the
-          // 12px label rung (14r) = 87px — so no name is elided mid-word.
-          const barW = (row.worth_doing / peak) * (width - 140);
-          const y = 6 + index * ROW_HEIGHT;
+          const survivors = projected(row.worth_doing, sample);
+          const rejected = projected(Math.max(0, row.violations - row.worth_doing), sample);
+          const untestable = projected(row.untestable, sample);
+          const style = {
+            "--replay-survive": `${survivors / maxPopulation * 100}%`,
+            "--replay-reject": `${rejected / maxPopulation * 100}%`,
+            "--replay-untestable": `${untestable / maxPopulation * 100}%`,
+          } as ReplayStyle;
           return (
-            <g key={row.name}>
-              <title>{`${row.name}: ${row.worth_doing} of ${row.violations} violations survive its fees`}</title>
-              <text x="0" y={y + 8} className="coh-ablation__label">
-                {row.name}
-              </text>
-              <rect
-                x="96"
-                y={y}
-                width={Math.max(0.4, barW)}
-                height={12}
-                className={`coh-ablation__bar ${row.name === "no_fees" ? "is-naive" : ""}`}
-              />
-              <text x={Math.min(width - 6, 100 + barW)} y={y + 9} className="coh-ablation__value">
-                {row.worth_doing}
-              </text>
-            </g>
+            <button type="button" key={row.name} role="option" className={styles.replayLane}
+                    aria-selected={selectedKey === row.name} {...optionProps(row.name, index)} style={style}
+                    onClick={() => setSelectedKey(row.name)}>
+              <span className={styles.replayLaneLabel}><strong>{row.name.replaceAll("_", " ")}</strong><small>{row.description}</small></span>
+              <span className={styles.replayTrack} aria-label={`${survivors} survive, ${rejected} rejected, ${untestable} untestable at ${sample}%`}>
+                <i data-kind="survive" /><i data-kind="reject" /><i data-kind="unknown" />
+              </span>
+              <span className={`${styles.replayCount} num`}>{survivors}<small> survive</small></span>
+            </button>
           );
         })}
-          </g>
-        )}
-      </Plot>
-    </Figure>
+      </div>
+      {active ? (
+        <output className={styles.modelReadout} aria-live="polite" aria-atomic="true">
+          <span><small>Selected model</small><strong>{active.name}</strong><span className={styles.modelDescription}>{active.description}</span></span>
+          <span><small>Violations seen</small><strong className="num">{projected(active.violations, sample)}</strong></span>
+          <span><small>Survive costs</small><strong className="num">{projected(active.worth_doing, sample)}</strong></span>
+          <span><small>Rejected</small><strong className="num">{projected(Math.max(0, active.violations - active.worth_doing), sample)}</strong></span>
+          <span><small>Untestable</small><strong className="num">{projected(active.untestable, sample)}</strong></span>
+        </output>
+      ) : null}
+      <p className="coh-figure__reading">{invented == null ? "The fee-free and full models cannot be compared on this tape." : invented > 0 ? `Fees off reports ${invented} opportunities that disappear once the full cost model is switched on.` : "The naive and fee-aware tests agree on this tape."}</p>
+    </figure>
   );
 }
 
@@ -169,7 +165,7 @@ export default function AblationPane({ view, active }: { view: AblationView; act
     return (
       <div className="coh-ablation-pane">
         <Lede />
-        <p className="console-empty muted">Replaying the tape…</p>
+        <p className="console-empty muted" role="status" aria-busy="true">Replaying the tape…</p>
       </div>
     );
   }
@@ -191,7 +187,7 @@ export default function AblationPane({ view, active }: { view: AblationView; act
       {/* One chip, not four. Books replayed and families tested are facts about
           the tape the table's caption already introduces, and the span rides
           with it — so what is left is the engine's own headline. */}
-      <div className="coh-status__chips">
+      <div className={`coh-status__chips ${styles.replayStatus}`}>
         <StateChip mark="→" word="Replay verdict" value={data.headline} tone="muted" />
         <StateChip mark="●" word="Tape replayed" value={`${data.rows} books over ${data.span_seconds}s`} tone="muted" />
       </div>
@@ -199,12 +195,7 @@ export default function AblationPane({ view, active }: { view: AblationView; act
       {view === "comparison" ? (
         <Bars ablations={data.ablations} />
       ) : (
-        /* The provider, and it wraps a CHILD rather than this component's own
-           body: a component cannot consume the context it renders, so the pair
-           that shares the index has to live one level down. */
-        <HotSource>
-          <ReplayTable data={data} />
-        </HotSource>
+        <ReplayTable data={data} />
       )}
     </div>
   );
@@ -222,61 +213,51 @@ export default function AblationPane({ view, active }: { view: AblationView; act
  * other. A stroke, never a fill — hot is where the hand is, not a meaning.
  */
 function ReplayTable({ data }: { data: CoherenceReplay }) {
-  const { hot, setHot } = useHot();
+  const modelKeys = data.ablations.map((row) => row.name);
+  const [selectedKey, setSelectedKey, optionProps] = useRovingListbox(modelKeys);
+  const selected = Math.max(0, modelKeys.indexOf(selectedKey ?? ""));
+  const active = data.ablations[selected] ?? data.ablations[0];
+  const magnitude = (raw: string) => {
+    const value = Number(raw);
+    return Number.isFinite(value) ? Math.abs(value) : 0;
+  };
+  const scale = Math.max(1e-9, ...data.ablations.flatMap((row) => [magnitude(row.gross_total), magnitude(row.net_total)]));
   return (
     <>
-      {/* The table's decisive column, drawn: what each cost model says the
-          whole tape netted. The Comparison bars count opportunities; this
-          strip prices them, which is the other half of the ablation. */}
-      <ValueStrip
-        hot={hot}
-        caption="Net edge per configuration over the whole tape, against zero"
-        ariaLabel={`Net total per configuration for ${data.ablations.length} cost models`}
-        rows={data.ablations.map((row) => ({
-          label: row.name,
-          value: statValue(row.net_total),
-          text: row.net_total,
-          title: `${row.name}: ${row.violations} violations, ${row.worth_doing} worth doing, gross ${row.gross_total}, net ${row.net_total}`,
-          noBar: statValue(row.net_total) == null ? "not readable" : undefined,
-        }))}
-      />
-      <div className="table-wrap" tabIndex={0}>
-        <table className="coh-table">
-          <caption className="coh-table__caption">
-            The same tape under every configuration — {data.rows} books, {data.observations} families.{" "}
-            <code>worth_doing</code> counts violations whose net edge survives the fees.
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">Configuration</th>
-              <th scope="col">What it models</th>
-              <th scope="col" className="num">Violations</th>
-              <th scope="col" className="num"><code>worth_doing</code></th>
-              <th scope="col" className="num">Gross</th>
-              <th scope="col" className="num">Net</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.ablations.map((row, index) => (
-              <tr
-                key={row.name}
-                className={index === hot ? "is-hot" : undefined}
-                onPointerEnter={() => setHot(index)}
-                onPointerLeave={() => setHot(null)}
-                onFocus={() => setHot(index)}
-                onBlur={() => setHot(null)}
-              >
-                <th scope="row">{row.name}</th>
-                <td>{row.description}</td>
-                <td className="num">{row.violations}</td>
-                <td className="num">{row.worth_doing}</td>
-                <td className="num">{row.gross_total}</td>
-                <td className="num">{row.net_total}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <figure className={styles.instrument} aria-label={`Fee replay display, ${data.ablations.length} configurations`}>
+        <figcaption className={styles.instrumentHead}>
+          <span><small>Gross-to-net bridge</small>Trace how each fee model moves recorded edge</span>
+          <strong className="num">{groupDigits(String(data.rows))} books</strong>
+        </figcaption>
+        <div className={styles.edgeGraph} role="listbox" aria-label="Replay configurations">
+          <div className={styles.edgeAxis} aria-hidden="true"><span>0</span><span>maximum absolute edge</span></div>
+          {data.ablations.map((row, index) => {
+            const style = {
+              "--replay-gross": `${magnitude(row.gross_total) / scale * 100}%`,
+              "--replay-net": `${magnitude(row.net_total) / scale * 100}%`,
+            } as ReplayStyle;
+            return (
+            <button key={row.name} type="button" role="option" aria-selected={selectedKey === row.name}
+                    className={styles.edgeLane} {...optionProps(row.name, index)} style={style}
+                    onClick={() => setSelectedKey(row.name)}>
+              <span className={styles.edgeLabel}><small>{String(index + 1).padStart(2, "0")}</small><strong>{row.name.replaceAll("_", " ")}</strong></span>
+              <span className={styles.edgeTracks} aria-label={`Gross edge ${row.gross_total}; net edge ${row.net_total}`}>
+                <i data-kind="gross"><b /></i><i data-kind="net" data-negative={Number(row.net_total) < 0 || undefined}><b /></i>
+              </span>
+              <span className={`${styles.edgeValue} num`}><small>gross {row.gross_total}</small><strong>net {row.net_total}</strong></span>
+            </button>
+          );})}
+        </div>
+        {active ? (
+          <output className={styles.modelReadout} aria-live="polite" aria-atomic="true">
+            <span><small>Model anatomy</small><strong>{active.name}</strong><span className={styles.modelDescription}>{active.description}</span></span>
+            <span><small>Gross edge</small><strong className="num">{active.gross_total}</strong></span>
+            <span><small>Net edge</small><strong className="num">{active.net_total}</strong></span>
+            <span><small>Survive fees</small><strong className="num">{active.worth_doing}/{active.violations}</strong></span>
+            <span><small>Untestable</small><strong className="num">{active.untestable}</strong></span>
+          </output>
+        ) : null}
+      </figure>
 
       {/* The gateway's own notes describe the tape the table reads, so they
           travel with it rather than trailing both views — and since the fourth
