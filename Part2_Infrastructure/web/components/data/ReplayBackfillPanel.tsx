@@ -24,6 +24,7 @@ import { INTERVALS } from "@/lib/types";
 import { probeGateway } from "@/lib/use-gateway-connection";
 import { usePolling } from "@/lib/use-polling";
 
+export const REPLAY_BACKFILL_HEADING = "Replay & backfill";
 const CAPABILITIES = ["quote", "bars", "news", "fundamentals"] as const;
 /** The write's own deadline; longer than the read probe because the gateway forwards to the queue. */
 const SUBMIT_DEADLINE_MS = 9_000;
@@ -238,7 +239,7 @@ export default function ReplayBackfillPanel({
       <div className="portfolio-card-heading">
         <div>
           <span className="page-kicker">Orchestration</span>
-          <h2 id="replay-backfill-heading">Replay &amp; backfill</h2>
+          <h2 id="replay-backfill-heading">{REPLAY_BACKFILL_HEADING}</h2>
         </div>
         <span className="section-note">
           {jobs ? `${jobs.backend} queue; ${jobs.jobs.length} recent ${jobs.jobs.length === 1 ? "job" : "jobs"}` : jobsError ? "queue unreachable" : "reading the queue"}
@@ -329,7 +330,7 @@ export default function ReplayBackfillPanel({
         <p className="sub">No replay or backfill job has been submitted since the gateway started.</p>
       )}
       {jobs && jobs.jobs.length > 0 && (
-        <div className="table-wrap table-wrap--clamped">
+        <div className="table-wrap table-wrap--clamped" tabIndex={0}>
           <table>
             <caption className="sr-only">Recent replay and backfill jobs.</caption>
             <thead>
