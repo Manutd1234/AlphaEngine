@@ -180,8 +180,8 @@ describe("chrome offsets are measured", () => {
     // the persistent-panel change threads into every poller.
     assert.match(
       subtabs,
-      /useEffect\(\(\) => \{\s*if \(!active\) return;[\s\S]{0,600}--rail-h[\s\S]{0,400}\}, \[active\]\);/,
-      "the --rail-h effect must bail when inactive and re-run on activation",
+      /useLayoutEffect\(\(\) => \{\s*if \(!active\) return;[\s\S]{0,600}--rail-h[\s\S]{0,400}\}, \[active\]\);/,
+      "the pre-paint --rail-h effect must bail when inactive and re-run on activation",
     );
     assert.doesNotMatch(
       subtabs,
