@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSharedSecondHand } from "@/lib/shared-second-hand";
 
 /**
  * How old the snapshot on screen is.
@@ -37,20 +37,16 @@ export default function FreshnessStamp({
    */
   transport?: "stream" | "poll" | null;
 }) {
-  const [, tick] = useState(0);
-
-  // One shared second-hand. Mounted unconditionally: the hook has to run on
-  // every render whether or not there is a snapshot yet.
-  useEffect(() => {
-    const id = setInterval(() => tick((n) => n + 1), 1000);
-    return () => clearInterval(id);
-  }, []);
+  // All stamps subscribe to one module-owned timer. The zero server snapshot
+  // renders a deterministic "0s ago" before hydration, then the shared hand
+  // takes over without allocating one interval per surface.
+  const now = useSharedSecondHand();
 
   if (!updatedAt) {
     return <span className="freshness-stamp is-waiting">Awaiting first snapshot</span>;
   }
 
-  const seconds = Math.max(0, Math.round((Date.now() - updatedAt.getTime()) / 1000));
+  const seconds = Math.max(0, Math.round(((now || updatedAt.getTime()) - updatedAt.getTime()) / 1000));
   const ago = seconds < 60
     ? `${seconds}s ago`
     : seconds < 3600
