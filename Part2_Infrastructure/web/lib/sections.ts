@@ -117,47 +117,50 @@ export type DeveloperSection = (typeof DEVELOPER_SECTIONS)[number]["id"];
 export const DEVELOPER_SECTION_IDS =
   DEVELOPER_SECTIONS.map((s) => s.id) as readonly DeveloperSection[];
 
-// The Kalshi engine — TWO tabs, TEN sections, and the fifth shape of one day.
+// The quantitative engine — THREE tabs, TWENTY-TWO rail sections and SIXTY-SIX
+// registered views. The whole workspace is eleven tabs and seventy sections;
+// Markets contributes 8 sections / 23 views, Proofs 7 / 27 and Diffusion 7 /
+// 16. `lib/section-views.ts` gives every non-default view an optional third hash
+// segment, so views are deep-linkable, command-visible and swept.
 //
 // THE HONEST HISTORY, because pretending this was always obvious would make the
 // next reader distrust every other comment in the file. On 2026-08-24 this rail
 // went: one tab of eleven (the shape `origin/main` published) → Markets +
 // Coherence → seventeen, when six in-pane `.seg` views were promoted to rails →
-// back to one tab of eleven → consolidated to nine → and now two tabs again,
-// renamed, with those nine divided by what they are FOR. Each move was right
-// about its own cost and wrong about the total; what survives from every one of
-// them is the consolidation, because nine sections is the number a reader can
-// hold and seventeen was not.
+// back to one tab of eleven → consolidated to nine. Later passes restored the
+// subjects that warranted rails, split Markets from Proofs, and extracted
+// Diffusion. That sequence is history, not the current count above; what
+// survives is the rule that one rail entry answers one question.
 //
 // THE IDS ARE THE PUBLISHED ONES AND THE LABELS ARE NEW, which is house practice
 // here rather than a smell — `live` renders "Execution", `codex` renders
 // "Strategies", `activity` renders "Blotter", `model` renders "Risk engine".
 //
-//   `markets` → "Quotes"   what the exchange is quoting.
-//   `coherence` → "Proofs"  what this engine proves about those quotes.
+//   `markets`   → "Markets"    what the exchange is quoting.
+//   `coherence` → "Proofs"     what this engine proves about those quotes.
+//   `diffusion` → "Diffusion"  how quickly new information reaches the price.
 //
-// THE FIFTH MOVE IS THE ONLY ONE THAT ADDED A SECTION BACK, and it is worth the
-// sentence because every earlier move subtracted. `stake` was a rail section for
+// THE HISTORICAL STAKE MOVE ADDED A SECTION BACK, and it is worth the sentence
+// because the earlier moves subtracted. `stake` was a rail section for
 // part of 2026-08-24 and was demoted into `lattice`'s switcher; there it stacked
 // a SECOND `.seg` under the first, so a reader met five buttons, then three more,
 // then a family picker before any drawing — three rows of chrome over an empty
 // state. The subject is also not the same question: `lattice` reads what measure
 // the quotes imply (`/surface`), `stake` reads what to bet against that measure
 // (`/stake`), and one read per section is what removes the second control row.
-// So ten, and the id is the one it was published under.
+// At that point the two-tab engine had ten sections; the current three-tab
+// topology and totals are stated above, and the id remains the published one.
 //
 // `coherence` is the only tab id `origin/main` ever published, so it keeps the
 // half that carries the proof and every `#coherence/<section>` link in the world
 // still resolves natively. `markets` was alive for one unpushed day and is
-// reused rather than invented: today's tests, the relocation table and the desk
+// reused rather than invented: the tests, relocation table and desk
 // sweep already speak it, and a third vocabulary would be a migration mechanism
 // for no migration.
 //
-// WHAT THE SPLIT COSTS AND WHAT IT BUYS. It costs the tenth tab back — about
-// 74px of header row, owned and measured by another session — and it costs four
-// sections their native `#coherence/<id>` link. It buys the thing eleven
-// sections on one rail could not give: a reader holds ONE question per tab.
-// Prices is a reading; Proofs is an argument about that reading. Nothing in
+// WHAT THE CURRENT SPLIT BUYS. Markets is a reading; Proofs is an argument
+// about that reading; Diffusion is a recorded-time study. The eleven-tab header
+// and all seventy rail sections share the same navigation registry. Nothing in
 // `RELOCATED_SECTIONS` (`lib/workspace-hash.ts`) is optional here — every id
 // that moved tab, and every id that stopped being a section, resolves to the tab
 // AND section that carries it, or a live link lands on a rail default while the
@@ -177,14 +180,16 @@ export const DEVELOPER_SECTION_IDS =
 //     same failure, same verdict vocabulary, one leg structure the exchange
 //     states rather than one this engine infers.
 //
-// A view is not in the URL, not in the command palette, and not walked by
-// `scripts/desk-sweep.mjs`. Eight subjects on this engine are reachable only by
-// pressing a button, and the sweep's count is 57 rather than 65 for exactly that
-// reason. The reader used the addressable shape for a day and chose depth:
+// HISTORICAL ADDRESSABILITY COST. In the 57-section consolidation, a view was
+// not in the URL, command palette or sweep, so eight subjects were reachable
+// only by pressing a button. That is no longer the current contract:
+// `lib/section-views.ts` registers 64 engine views and the optional third hash
+// segment lets the sweep open every non-default destination. The reader used
+// the earlier rail-heavy shape for a day and chose depth:
 // "make sure the markets and coherance tabs do not have so many subtabs, if we
 // can merge and summarise it will be good."
 
-// Prices — what the exchange is quoting, read live and recorded.
+// Markets — what the exchange is quoting, read live and recorded.
 //
 // EIGHT SINCE 2026-08-25, AND THE SPLIT IS THE SAME ONE PROOFS JUST MADE.
 // "the universe section has too many subtabs" — five, over two different
@@ -216,7 +221,7 @@ export const DEVELOPER_SECTION_IDS =
 // is the second-level rail, not the tab row, so the measured header ladder is
 // untouched. WHAT IT BUYS: no section on this tab now carries more than four
 // views, every one of them is one question, and four subjects that were
-// reachable only by pressing an unaddressable button have their URLs back.
+// once reachable only by pressing a local button now have third-segment URLs.
 export const MARKETS_SECTIONS = [
   { id: "universe", label: "Universe", description: "Every family against the dollar it pays" },
   { id: "settlement", label: "Settlement", description: "The published index, how it is formed & what is pending" },
@@ -306,12 +311,14 @@ export const COHERENCE_SECTION_IDS =
 // answers a question about how long absorption takes rather than about what a
 // price implies.
 //
-// It also stopped fitting. Four groups over eleven views is a whole rail's
-// worth of subject sitting behind one section's button, and it had already
+// It also stopped fitting. Before extraction, four groups over eleven views
+// were a whole rail's worth of subject sitting behind one section's button,
+// and it had already
 // grown a THIRD level: `FindingsPane` drew its own switcher inside a view
 // inside a group, which `coherence-sections.test.ts` carried as a named
-// exemption because there was nowhere else for it to go. As a tab there is:
-// four sections, one control row each, and the exemption is deleted rather than
+// exemption because there was nowhere else for it to go. The current tab has
+// seven sections and sixteen registered views, with one section row and at most
+// one addressable view row inside it; the exemption was deleted rather than
 // inherited.
 //
 // `findings` is a PUBLISHED id and takes its own section back here, which is
@@ -330,7 +337,7 @@ export const DIFFUSION_SECTION_IDS =
   DIFFUSION_SECTIONS.map((s) => s.id) as readonly DiffusionSection[];
 
 /**
- * Both halves of the Kalshi engine, in reading order.
+ * All three quantitative tabs, in reading order.
  *
  * The curriculum, its coverage strip and anything else that asks "which section
  * teaches this" span the whole engine rather than one tab, and a lesson's
