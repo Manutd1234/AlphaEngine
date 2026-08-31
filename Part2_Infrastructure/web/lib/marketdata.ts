@@ -8,11 +8,9 @@
  *
  * Where the bars come from is decided by what the symbol is. Crypto pairs go
  * straight to Binance's public klines (`binance-klines.ts`); equities and FX go
- * through the multi-provider registry. If neither can answer we fall back to a
- * deterministic synthetic series so the portal still demonstrates the research
- * workflow, and every response says which one it used. Until this commit the
- * routing step did not exist, so three of the fifteen symbols on offer could
- * never return real prices at all — `loadBars` below records how.
+ * through the multi-provider registry. If neither can answer, the request fails
+ * with every attempted source named. A live route never substitutes generated
+ * bars for a market-data failure.
  */
 
 import { fetchBinanceKlines } from "./binance-klines";
@@ -20,61 +18,7 @@ import { fetchBybitKlines } from "./bybit-klines";
 import { getBars } from "./providers/registry";
 import { classify } from "./providers/symbols";
 import type { Attempt } from "./providers/types";
-import { mulberry32, seedFromString } from "./random";
-import { Bar, BARS_PER_YEAR, type DataSource } from "./types";
-
-/** Deterministic GBM with a regime shift, seeded off the symbol so the same
- *  request always reproduces the same series and results stay comparable. */
-export function syntheticBars(symbol: string, interval: string, bars: number): Bar[] {
-  const rand = mulberry32(seedFromString(symbol));
-  const gauss = () => {
-    const u = Math.max(rand(), 1e-12);
-    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * rand());
-  };
-
-  const anchor: Record<string, number> = {
-    BTCUSDT: 68_000,
-    ETHUSDT: 3_500,
-    SOLUSDT: 160,
-    BNBUSDT: 600,
-    XRPUSDT: 0.6,
-    ADAUSDT: 0.45,
-    DOGEUSDT: 0.16,
-    AVAXUSDT: 36,
-    LINKUSDT: 18,
-    DOTUSDT: 7,
-    LTCUSDT: 85,
-    TRXUSDT: 0.13,
-  };
-  const ann = BARS_PER_YEAR[interval] ?? 8760;
-  const vol = 0.6 / Math.sqrt(ann);
-  const drift = 0.25 / ann;
-
-  const stepMs =
-    { "15m": 9e5, "1h": 36e5, "4h": 144e5, "1d": 864e5 }[interval] ?? 36e5;
-  // Quantised to the bar interval: raw Date.now() gave identical closes a
-  // different dataHash on every run, breaking compareRuns for synthetic data.
-  const now = Math.floor(Date.now() / stepMs) * stepMs;
-
-  const out: Bar[] = [];
-  let price = anchor[symbol.toUpperCase()] ?? 100;
-  for (let i = 0; i < bars; i++) {
-    const mu = i < bars / 2 ? drift : -drift * 0.6;
-    const ret = gauss() * vol + mu + Math.sin(i / 90) * vol * 0.4;
-    const open = price;
-    price *= Math.exp(ret);
-    const noise = Math.abs(gauss()) * vol * 0.5;
-    out.push({
-      t: now - (bars - i) * stepMs,
-      o: open,
-      h: price * (1 + noise),
-      l: price * (1 - noise),
-      c: price,
-      v: 1e6 * (0.5 + rand()),
-    });
-  }
-  return out;
-}
+import { Bar, type DataSource } from "./types";
 
 /** The registry options `loadBars` passes straight through. */
 type RegistryOptions = Parameters<typeof getBars>[3];
@@ -103,6 +47,11 @@ export interface LoadedBars {
   bars: Bar[];
   source: DataSource;
   warnings: string[];
+}
+
+/** A source failure, distinct from an invalid sweep request. */
+export class MarketDataUnavailableError extends Error {
+  override readonly name = "MarketDataUnavailableError";
 }
 
 /**
@@ -149,18 +98,9 @@ export async function loadCryptoBars(
       attempts.push(`${venue.label} declined (${(err as Error).message})`);
     }
   }
-  return fellBackToSynthetic(symbol, interval, bars, attempts.join("; "));
-}
-
-function fellBackToSynthetic(symbol: string, interval: string, bars: number, why: string): LoadedBars {
-  return {
-    bars: syntheticBars(symbol, interval, bars),
-    source: "synthetic",
-    warnings: [
-      `Could not load live market data (${why}). ` +
-        `This run uses a deterministic synthetic price series — the workflow is real, the prices are not.`,
-    ],
-  };
+  throw new MarketDataUnavailableError(
+    `No measured bars are available for ${symbol} at ${interval}: ${attempts.join("; ")}.`,
+  );
 }
 
 /**
@@ -184,19 +124,16 @@ function whyNoProvider(err: unknown): string {
  * THE BUG THIS CLOSES
  *
  * This function used to call Binance's klines endpoint for every symbol, and
- * fall back to a synthetic random walk on failure. AAPL, NVDA and MSFT have
+ * used to fall back to a synthetic random walk on failure. AAPL, NVDA and MSFT have
  * been selectable in the UI the whole time, and Binance cannot ever answer for
  * them, so those three always took the fallback: every equity backtest this
  * portal has ever run was computed on invented prices, while four configured
  * providers sat in the registry able to serve them.
  *
  * The label was honest — the result did say `synthetic` and the banner did
- * appear. What was wrong is the diagnosis. The fallback exists for
- * "region-blocked, rate-limited, offline preview", and it reported the outage
- * wording for what was a routing mistake, so the message a user got said the
- * market was unreachable rather than that the request had been sent somewhere
- * that could never answer it. A warning that misnames the cause is how a
- * fixable problem survives: nobody goes looking for a router in an outage.
+ * appear. The substitution was still a result about invented prices in answer
+ * to a request for market history. The route now reports the provider failure
+ * and returns no result.
  *
  * WHY CRYPTO STILL TAKES THE DIRECT PATH
  *
@@ -204,10 +141,9 @@ function whyNoProvider(err: unknown): string {
  * asks for up to 2000 bars and the klines endpoint returns 1000 at a time. The
  * registry's binance adapter calls this same function, so routing crypto
  * through the façade would work — but it would also put crypto behind a shared
- * circuit breaker and a failover chain whose other members decline intraday
- * data, converting a transient quote-side failure into a synthetic backtest.
- * The façade earns its keep where there is genuinely more than one provider;
- * for crypto klines there is one, and it is this.
+ * circuit breaker and providers that decline intraday data, converting a
+ * transient quote-side failure into an unrelated refusal. Crypto instead uses
+ * the dedicated two-venue chain above, where both sources speak kline data.
  *
  * WHY BYBIT IS TRIED FIRST
  *
@@ -286,6 +222,8 @@ export async function loadBars(
       warnings,
     };
   } catch (err) {
-    return fellBackToSynthetic(symbol, interval, bars, whyNoProvider(err));
+    throw new MarketDataUnavailableError(
+      `No measured bars are available for ${symbol} at ${interval}: ${whyNoProvider(err)}.`,
+    );
   }
 }
