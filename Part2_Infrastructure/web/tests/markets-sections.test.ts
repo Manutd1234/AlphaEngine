@@ -35,7 +35,6 @@ import { MARKETS_SECTIONS, MARKETS_SECTION_IDS } from "../lib/sections";
 import { NAV_ITEMS } from "../lib/workspace-nav";
 import { declaredSelectors } from "./helpers/css-selectors";
 import { read, stripNonCode } from "./helpers/workspace-sources";
-
 const console_ = read("../components/MarketsConsole.tsx");
 const code = stripNonCode(console_);
 const prose = read("../app/globals/14q-markets-density.css");
@@ -139,7 +138,7 @@ describe("exactly one subtab rail on the tab", () => {
 
   it("and the frame draws exactly one, only when there is a choice", () => {
     const frame = read("../components/coherence/SectionFrame.tsx");
-    assert.equal((frame.match(/className="seg[ "]/g) ?? []).length, 1,
+    assert.equal((frame.match(/<QuantViewSwitcher\b/g) ?? []).length, 1,
       "SectionFrame draws more than one switcher, which is the defect it was written to make impossible");
     // One option is not a choice. A section down to a single view must draw no
     // control at all rather than a row with one pressed button in it — the same
@@ -211,7 +210,8 @@ describe("exactly one subtab rail on the tab", () => {
     assert.match(read(SECTION_FILES.shell), /viewsLabel="Shell view"/);
     // And the frame spends it. Without this the eight strings above could all
     // be present and reach no accessible name at all.
-    assert.match(read("../components/coherence/SectionFrame.tsx"), /aria-label=\{viewsLabel\}/);
+    assert.match(read("../components/coherence/SectionFrame.tsx"), /label=\{viewsLabel \?\? "Section view"\}/);
+    assert.match(read("../components/workspace/QuantViewSwitcher.tsx"), /aria-label=\{label\}/);
   });
 });
 
@@ -313,20 +313,21 @@ describe("the reads are gated by section, and the expensive views by view", () =
   });
 });
 
-describe("the page head is one sentence", () => {
-  it("the description is a plain string, not a paragraph of JSX", () => {
-    // It rendered as a four-to-five-line paragraph before the condensation
-    // pass. The tab's argument belongs in the file's own header comment, which
-    // is long on purpose; what a reader meets above the rail is one sentence.
-    const match = console_.match(/description="([^"]+)"/);
-    assert.ok(match, "the description is no longer a plain string prop — a fragment is how it grew last time");
+describe("the page premise is one disclosed sentence", () => {
+  it("keeps the exact premise as a plain Evidence Sheet string", () => {
+    // The exact premise is one action away instead of repeating on 23 routes.
+    const match = console_.match(/deskContext="([^"]+)"/);
+    assert.ok(match, "the Markets premise is no longer a plain Evidence Sheet string");
     const sentence = match![1];
-    assert.ok(sentence.length <= 160, `the description is ${sentence.length} characters, which is a paragraph again`);
+    assert.ok(sentence.length <= 110, `the description is ${sentence.length} characters, which has outgrown the compact technical head`);
     assert.equal((sentence.match(/\. /g) ?? []).length, 0, `the description is more than one sentence: ${sentence}`);
-    // What a contract IS. The other half of the argument — what follows when a
-    // family of them admits no measure — is the Proofs head's sentence, and
-    // neither may borrow the other's.
-    assert.match(sentence, /probability with a price on it/);
+    // A terse inventory of the technical objects this tab reads. The proof
+    // claims stay on Proofs, and the evidence row below the rail carries the
+    // per-view unit, method and source instead of growing this sentence again.
+    assert.match(sentence, /Executable family totals/);
+    assert.match(sentence, /implied distributions/);
+    const head = console_.slice(console_.indexOf("<PageHead"), console_.indexOf("<EngineStatePanel"));
+    assert.doesNotMatch(head, /description=/, "the premise is still repeated at rest above every route");
   });
 });
 
