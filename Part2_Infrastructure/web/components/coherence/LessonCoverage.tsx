@@ -52,25 +52,51 @@
  * two. Strip every hue and the strip still reads.
  */
 
+import { useState } from "react";
+
 import { COHERENCE_LESSONS } from "@/lib/coherence/lessons";
-import { ENGINE_SECTIONS } from "@/lib/sections";
+import {
+  COHERENCE_SECTION_IDS,
+  DIFFUSION_SECTION_IDS,
+  ENGINE_SECTIONS,
+  MARKETS_SECTION_IDS,
+} from "@/lib/sections";
+import type { WorkspaceView } from "@/lib/workspace-nav";
 
 import Figure, { FigureEmpty, Plot } from "./Figure";
+import styles from "./LessonCoverage.module.css";
 
-const CAPTION = "One column per section of the engine, in rail order, one mark per lesson taught there";
+const CAPTION = "Coverage topology by engine plane — one node per section, radius proportional to lessons";
+/** Enough inline room for the count word and a useful pointer target per rail
+ *  section. Narrow viewports get a named local scroll region rather than
+ *  overlapping twenty-two columns into an unreadable hatch. */
+const MARKETS_IDS = new Set<string>(MARKETS_SECTION_IDS);
+const PROOFS_IDS = new Set<string>(COHERENCE_SECTION_IDS);
+const DIFFUSION_IDS = new Set<string>(DIFFUSION_SECTION_IDS);
 
-const MARK_H = 12;
-const MARK_GAP = 4;
-const KEY_Y = 11;
-const COUNT_Y = 30;
-const MARKS_TOP = 38;
+type CoveragePlane = "markets" | "proofs" | "diffusion";
 
-/** Room under the axis for the rotated labels. "Coherence index" is still the
- *  longest of the seventeen at 15 characters, and the labels sit on the
- *  diagram ladder's 12px rung since 2026-08-24 (14r), so 15 x 12 x 0.56 =
- *  ~101px of run plus slack. At the old 10px band of 92 the lift would have
- *  clipped the two longest labels mid-word. */
-const LABEL_BAND = 112;
+const PLANES: ReadonlyArray<{ id: CoveragePlane; label: string; ids: Set<string> }> = [
+  { id: "markets", label: "Markets", ids: MARKETS_IDS },
+  { id: "proofs", label: "Proofs", ids: PROOFS_IDS },
+  { id: "diffusion", label: "Diffusion", ids: DIFFUSION_IDS },
+];
+
+function labelLines(label: string): [string, string?] {
+  const words = label.split(" ");
+  if (words.length < 2 || label.length < 13) return [label];
+  const cut = Math.ceil(words.length / 2);
+  return [words.slice(0, cut).join(" "), words.slice(cut).join(" ")];
+}
+
+function tabForSection(section: string): WorkspaceView {
+  if (MARKETS_IDS.has(section)) return "markets";
+  if (PROOFS_IDS.has(section)) return "coherence";
+  if (DIFFUSION_IDS.has(section)) return "diffusion";
+  // An orphan is already reported by the figure. Keep the fallback local to
+  // Proofs rather than manufacturing a destination on an unrelated desk.
+  return "coherence";
+}
 
 /** "Shell and Lessons", "A, B and C" — never a bare comma list in prose. */
 function listOf(names: string[]): string {
@@ -78,7 +104,10 @@ function listOf(names: string[]): string {
   return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }
 
-export default function LessonCoverage() {
+export default function LessonCoverage({ onOpenSection }: {
+  onOpenSection?: (tab: WorkspaceView, section?: string) => void;
+}) {
+  const [plane, setPlane] = useState<CoveragePlane>("markets");
   const columns = ENGINE_SECTIONS.map((section) => ({
     id: section.id,
     label: section.label,
@@ -128,88 +157,66 @@ export default function LessonCoverage() {
 
   const missing = `No mark stands for pending work — all ${COHERENCE_LESSONS.length} lessons are shipped. The strip counts lessons, not depth: a column of one is one lesson\u2019s section, not a smaller one.${orphanNote}`;
 
-  const tallest = Math.max(1, ...columns.map((column) => column.lessons.length));
-  const axisY = MARKS_TOP + tallest * MARK_H + (tallest - 1) * MARK_GAP;
+  const planeIds = PLANES.find((item) => item.id === plane)?.ids ?? MARKETS_IDS;
+  const visibleColumns = columns.filter((column) => planeIds.has(column.id));
+  const plotFloor = Math.max(720, visibleColumns.length * 108);
+  const axisY = 104;
 
   return (
+    <div className={styles.coverageLab}>
+      <div className={styles.planeSwitch} role="group" aria-label="Coverage plane">
+        {PLANES.map((item) => {
+          const planeColumns = columns.filter((column) => item.ids.has(column.id));
+          const count = planeColumns.reduce((sum, column) => sum + column.lessons.length, 0);
+          return <button type="button" key={item.id} aria-pressed={plane === item.id} onClick={() => setPlane(item.id)}><strong>{item.label}</strong><span>{count} lessons across {planeColumns.length} sections</span></button>;
+        })}
+      </div>
     <Figure caption={CAPTION} ariaLabel={ariaLabel} reading={reading} missing={missing}>
-      <Plot height={axisY + LABEL_BAND}>
+      <Plot
+        height={166}
+        minWidth={plotFloor}
+        scrollLabel="Lesson coverage by engine section"
+        onSelect={onOpenSection
+          ? (index) => {
+              const column = visibleColumns[index];
+              if (column) onOpenSection(tabForSection(column.id), column.id);
+            }
+          : undefined}
+      >
         {(width) => {
-          const colW = width / columns.length;
-          const markW = Math.max(6, Math.min(colW - 10, 26));
+          const colW = width / Math.max(1, visibleColumns.length);
           return (
             <>
-              {/* The key, so a mark is not left to be inferred from its stack.
-                  A legend, so it takes the ladder's 13px rung (coh-svg-note,
-                  14r) rather than the column labels' 12. */}
-              <text x={0} y={KEY_Y} className="coh-svg-note">
-                <tspan>▪ one lesson</tspan>
-                <tspan dx={14}>◌ none taught</tspan>
+              <text x={0} y={14} className="coh-svg-note">
+                <tspan>● radius = lesson count</tspan>
+                <tspan dx={14}>○ hollow = none taught</tspan>
+                <tspan dx={14}>activate a node to open its section</tspan>
               </text>
-
               <line x1={0} x2={width} y1={axisY} y2={axisY} className="coh-surface__axis" />
-
-              {columns.map((column, index) => {
+              {visibleColumns.map((column, index) => {
                 const cx = index * colW + colW / 2;
                 const count = column.lessons.length;
-                // Rotated -90°, so the anchor's glyphs hang below and to the
-                // left of it; nudged right to sit optically over the column.
-                const labelX = cx + 3.5;
-                const labelY = axisY + 8;
+                const cy = 78 - Math.min(3, count) * 10;
+                const radius = count ? 9 + count * 4 : 9;
+                const [first, second] = labelLines(column.label);
                 return (
                   <g key={column.id}>
-                    {count === 0 ? (
-                      <>
-                        {/* A stub ON the axis, not a gap: the section exists and
-                            teaches nothing, which is not the same as absent. */}
-                        <rect
-                          x={cx - markW / 2}
-                          y={axisY - 3}
-                          width={markW}
-                          height={3}
-                          className="coh-surface__bar-zero"
-                        >
-                          <title>{`${column.label}: no lesson is taught here`}</title>
-                        </rect>
-                        {/* Mark and word on separate rows, not "◌ none" on
-                            one. Two bare sections sit adjacent at the end of
-                            the rail, and a six-character label in a column
-                            narrower than it is a label that lands on its
-                            neighbour. The key at the top pairs the two. */}
-                        <text x={cx} y={axisY - 6} textAnchor="middle" className="coh-surface__unread">
-                          ◌
-                        </text>
-                        <text x={cx} y={COUNT_Y} textAnchor="middle" className="coh-surface__unread">
-                          none
-                        </text>
-                      </>
-                    ) : (
-                      <>
-                        {column.lessons.map((lesson, row) => (
-                          <rect
-                            key={lesson.id}
-                            x={cx - markW / 2}
-                            y={axisY - (row + 1) * MARK_H - row * MARK_GAP}
-                            width={markW}
-                            height={MARK_H}
-                            className="coh-surface__bar"
-                          >
-                            <title>{`${column.label}: ${lesson.title}`}</title>
-                          </rect>
-                        ))}
-                        <text x={cx} y={COUNT_Y} textAnchor="middle" className="coh-surface__value">
-                          {count}
-                        </text>
-                      </>
-                    )}
-                    <text
-                      x={labelX}
-                      y={labelY}
-                      textAnchor="end"
-                      transform={`rotate(-90 ${labelX.toFixed(2)} ${labelY.toFixed(2)})`}
-                      className="coh-surface__tick"
-                    >
-                      {column.label}
+                    {/* One semantic mark per section. The previous per-lesson
+                        titles made Arrow navigation visit several stops in one
+                        column and made an Enter action impossible to map back
+                        to a section. The full lesson titles remain available
+                        here without truncation, and activating the mark opens
+                        the section when the workspace supplied navigation. */}
+                    <title>
+                      {`${column.label}: ${count
+                        ? `${count} ${count === 1 ? "lesson" : "lessons"} — ${column.lessons.map((lesson) => lesson.title).join("; ")}`
+                        : "no lesson is taught here"}. Activate to open ${column.label}.`}
+                    </title>
+                    <line x1={cx} x2={cx} y1={cy + radius} y2={axisY} className={styles.stem} />
+                    <circle cx={cx} cy={cy} r={radius} className={count ? styles.node : `${styles.node} ${styles.emptyNode}`} />
+                    <text x={cx} y={cy + 4} textAnchor="middle" className={count ? styles.count : styles.none}>{count || "◌"}</text>
+                    <text x={cx} y={axisY + 22} textAnchor="middle" className="coh-surface__tick">
+                      <tspan x={cx}>{first}</tspan>{second ? <tspan x={cx} dy={14}>{second}</tspan> : null}
                     </text>
                   </g>
                 );
@@ -219,5 +226,6 @@ export default function LessonCoverage() {
         }}
       </Plot>
     </Figure>
+    </div>
   );
 }
