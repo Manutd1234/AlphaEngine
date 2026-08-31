@@ -81,6 +81,9 @@ describe("Fill quality is two readings, not one scroll", () => {
       assert.match(where, new RegExp(`<${panel}`), `${panel} is not in the Where pane`);
     }
     assert.doesNotMatch(where, /<ExecutionQuality/);
+    const quality = read("components/execution/ExecutionQuality.tsx");
+    assert.doesNotMatch(quality, /<\/dd>\s*<span className="muted">/,
+      "definition-list captions must stay inside their dd rather than beside it");
   });
 
   it("cuts above the decomposition and mix pair, never through it", () => {
