@@ -38,6 +38,12 @@ export default function QuantEducationalTooltip({
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
+  const [pinned, setPinned] = useState(false);
+
+  const close = useCallback(() => {
+    setPinned(false);
+    setOpen(false);
+  }, []);
 
   /** Pins the panel above the trigger, clamped into the viewport. */
   const place = useCallback(() => {
@@ -56,7 +62,9 @@ export default function QuantEducationalTooltip({
     // Above by default; below when there is not room, so the panel never sits
     // half off the top of a viewport it was opened near.
     const above = anchor.top - height - margin;
-    const top = above >= margin ? above : anchor.bottom + margin;
+    const preferredTop = above >= margin ? above : anchor.bottom + margin;
+    const maxTop = Math.max(margin, window.innerHeight - height - margin);
+    const top = Math.min(Math.max(margin, preferredTop), maxTop);
 
     panel.style.left = `${Math.round(left)}px`;
     panel.style.top = `${Math.round(top)}px`;
@@ -77,19 +85,26 @@ export default function QuantEducationalTooltip({
   // a scroll would detach from its trigger. Close instead of chasing it.
   useEffect(() => {
     if (!open) return;
-    const close = () => setOpen(false);
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") close();
+    };
+    const onPointerDown = (event: globalThis.PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (triggerRef.current?.contains(target) || popoverRef.current?.contains(target)) return;
+      close();
     };
     window.addEventListener("scroll", close, true);
     window.addEventListener("resize", close);
     window.addEventListener("keydown", onKeyDown);
+    document.addEventListener("pointerdown", onPointerDown, true);
     return () => {
       window.removeEventListener("scroll", close, true);
       window.removeEventListener("resize", close);
       window.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("pointerdown", onPointerDown, true);
     };
-  }, [open]);
+  }, [close, open]);
 
   return (
     <>
@@ -100,7 +115,11 @@ export default function QuantEducationalTooltip({
         aria-label={`Learn about ${term}`}
         aria-expanded={open}
         aria-describedby={open ? popoverId : undefined}
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={() => {
+          const nextPinned = !pinned;
+          setPinned(nextPinned);
+          setOpen(nextPinned);
+        }}
         /* Hover-to-open only where hover exists. iOS synthesises
            mouseenter → click for a single tap, so the two handlers cancelled
            each other and the tooltip never opened on a phone at all. */
@@ -108,10 +127,16 @@ export default function QuantEducationalTooltip({
           if (window.matchMedia("(hover: hover)").matches) setOpen(true);
         }}
         onMouseLeave={() => {
-          if (window.matchMedia("(hover: hover)").matches) setOpen(false);
+          if (
+            window.matchMedia("(hover: hover)").matches
+            && !pinned
+            && document.activeElement !== triggerRef.current
+          ) setOpen(false);
         }}
         onFocus={() => setOpen(true)}
-        onBlur={() => setOpen(false)}
+        onBlur={() => {
+          if (!pinned) setOpen(false);
+        }}
       >
         {/* The glyph alone. Its only caller is StatTile, which prints {label}
             immediately before this and passes the same string as `term` — so
