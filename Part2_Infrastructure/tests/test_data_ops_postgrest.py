@@ -33,10 +33,10 @@ def _store(handler) -> PostgrestStore:
     return store
 
 
-def _ok(body, status=200):
+def _ok(body, status=200, headers=None):
     def handler(request: httpx.Request) -> httpx.Response:
         SEEN.append(request)
-        return httpx.Response(status, json=body)
+        return httpx.Response(status, json=body, headers=headers)
     return handler
 
 
@@ -57,12 +57,25 @@ class TestTheRequestItBuilds:
         )
         assert params["status"] == "eq.intake"
 
+    def test_a_caller_cannot_replace_the_read_scope(self):
+        store = _store(_ok([]))
+        store.fetch("data_work_items", filters={"desk_id": "desk-2"})
+
+        assert SEEN[0].url.params["desk_id"] == "eq.desk-1"
+
     def test_insert_stamps_the_desk_and_asks_for_nothing_back_by_default(self):
         store = _store(_ok([], status=201))
         store.add("data_schedule_runs", {"schedule_id": "s1"})
         body = json.loads(SEEN[0].content)
         assert body[0]["desk_id"] == "desk-1"
         assert SEEN[0].headers["Prefer"] == "return=minimal"
+
+    def test_a_row_cannot_replace_the_insert_scope(self):
+        store = _store(_ok([], status=201))
+        store.add("data_schedule_runs", {"desk_id": "desk-2", "schedule_id": "s1"})
+
+        body = json.loads(SEEN[0].content)
+        assert body[0]["desk_id"] == "desk-1"
 
     def test_returning_asks_for_the_representation(self):
         store = _store(_ok([{"id": 7}], status=201))
@@ -93,10 +106,56 @@ class TestTheRequestItBuilds:
             "under a lock this does not need"
         )
 
+    def test_an_update_cannot_replace_either_side_of_the_scope(self):
+        store = _store(_ok([]))
+        store.patch(
+            "data_work_items",
+            filters={"desk_id": "desk-2", "id": "BUG-095"},
+            patch={"desk_id": "desk-2", "status": "resolved"},
+        )
+
+        assert SEEN[0].url.params["desk_id"] == "eq.desk-1"
+        assert json.loads(SEEN[0].content)["desk_id"] == "desk-1"
+
+    def test_count_projects_the_column_every_data_ops_table_shares(self):
+        store = _store(_ok([], status=206, headers={"Content-Range": "0-0/7"}))
+
+        assert store.count("diffusion_events", filters={"desk_id": "desk-2"}) == 7
+        assert SEEN[0].url.params["select"] == "desk_id"
+        assert SEEN[0].url.params["desk_id"] == "eq.desk-1"
+
     def test_a_filter_may_carry_its_own_operator(self):
         store = _store(_ok([]))
         store.fetch("data_quality_escalations", filters={"resolved_at": "is.null"})
         assert SEEN[0].url.params["resolved_at"] == "is.null"
+
+    @pytest.mark.parametrize(
+        "adapter",
+        [
+            pytest.param("event", id="events"),
+            pytest.param("run", id="runs"),
+            pytest.param("text", id="texts"),
+            pytest.param("study", id="studies"),
+        ],
+    )
+    def test_each_diffusion_adapter_derives_its_desk_from_the_store(self, adapter):
+        from modules.coherence.diffusion.events import DiffusionEventStore
+        from modules.coherence.diffusion.runs import AbsorptionRunStore
+        from modules.coherence.diffusion.studies import DiffusionStudyStore
+        from modules.coherence.diffusion.texts import DiffusionTextStore
+
+        adapters = {
+            "event": DiffusionEventStore,
+            "run": AbsorptionRunStore,
+            "text": DiffusionTextStore,
+            "study": DiffusionStudyStore,
+        }
+        store = _store(_ok([]))
+
+        domain = adapters[adapter](store, desk_id="caller-desk")
+
+        assert domain._desk_id == "desk-1"  # noqa: SLF001 - the constructor contract under test
+        domain.close()
 
 
 class TestItRefusesQuietly:
@@ -131,7 +190,11 @@ class TestItRefusesQuietly:
 
 
 @pytest.mark.skipif(
-    not (os.getenv("SUPABASE_URL") and os.getenv("SUPABASE_SERVICE_ROLE_KEY")),
+    not (
+        os.getenv("SUPABASE_URL")
+        and os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+        and os.getenv("SUPABASE_DESK_ID")
+    ),
     reason=(
         "no SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY in the environment, so the "
         "Postgres backend was NOT exercised. This skip is the honest report: a "
@@ -139,13 +202,15 @@ class TestItRefusesQuietly:
     ),
 )
 class TestAgainstTheRealProject:
-    def test_the_four_tables_are_reachable(self):
+    def test_all_eight_data_ops_tables_are_reachable(self):
         store = PostgrestStore(
             os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_ROLE_KEY"],
+            desk_id=os.environ["SUPABASE_DESK_ID"],
         )
         for table in (
             "data_quality_findings", "data_quality_escalations",
             "data_schedule_runs", "data_work_items",
+            "diffusion_events", "diffusion_runs", "diffusion_texts", "diffusion_studies",
         ):
             store.fetch(table, limit=1)
         store.close()
