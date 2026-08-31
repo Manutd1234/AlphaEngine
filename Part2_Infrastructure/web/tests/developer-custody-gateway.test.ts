@@ -58,6 +58,7 @@ const REPO_ROOT = join(GATEWAY_ROOT, "..");
 
 const PANEL = "components/developer/GatewayContractCustodyChain.tsx";
 const TRACK = "components/developer/CustodyChainTrack.tsx";
+const DIGEST_TABLE = "components/developer/GatewayContractDigestTable.tsx";
 const INTERFACES = "components/developer/DeveloperInterfaces.tsx";
 
 /** Comments blanked: a comment quoting a sentence is not the sentence rendering. */
@@ -161,7 +162,8 @@ describe("the gate the panel claims is the gate that runs", () => {
   it("prebuild runs the checker, so npm run build cannot reach Next.js with a stale digest", () => {
     const pkg = JSON.parse(readFileSync(join(WEB, "package.json"), "utf8")) as { scripts: Record<string, string> };
     assert.match(pkg.scripts.prebuild, /node scripts\/check-gateway-openapi-digest\.mjs/);
-    assert.equal(pkg.scripts.build, "next build");
+    assert.match(pkg.scripts.build, /^next build(?:\s|$)/,
+      "the build may select a supported bundler, but it must remain a Next.js build reached through npm's prebuild hook");
   });
 
   it("CI runs each half in the unit that owns it", () => {
@@ -301,17 +303,26 @@ describe("the panel states what it knows, and separates the two things it knows"
 describe("the digest is shown whole, and the fault is shown with its remedy", () => {
   const panel = rendered(PANEL);
 
-  it("prints all sixty-four characters through the row the first chain established", () => {
+  it("prints all sixty-four characters through the semantic digest table", () => {
+    const table = rendered(DIGEST_TABLE);
     assert.equal(COMMITTED_GATEWAY_OPENAPI_SHA256.length, 64);
-    assert.match(panel, /hex=\{COMMITTED_GATEWAY_OPENAPI_SHA256\}/);
-    assert.equal(panel.match(/<CustodyDigestRow/g)?.length, 2, "both digests, in the shared row");
-    // No second digest renderer, and no truncation anywhere.
+    assert.match(panel, /<GatewayContractDigestTable/);
+    assert.equal(panel.match(/<GatewayContractDigestTable/g)?.length, 1, "one table owns both digest readings");
+    assert.match(panel, /source: "Committed in this repository", hex: COMMITTED_GATEWAY_OPENAPI_SHA256/);
+    assert.match(panel, /source: "Served by the live gateway", hex: served/);
+    assert.doesNotMatch(panel, /CustodyDigestRow/);
+    assert.match(table, /<table>/);
+    assert.equal(table.match(/<th scope="col">/g)?.length, 4, "source, digest, state and evidence stay aligned");
+    assert.match(table, /<th scope="row">\{row\.source\}<\/th>/);
+    assert.match(table, /<code className="num" title=\{row\.hex\}>\{row\.hex\}<\/code>/);
+    // No truncation anywhere.
     assert.doesNotMatch(panel, /groupDigest|fontSize: "var\(--fs-h1\)"/);
     assert.deepEqual([...panel.matchAll(/(\w*(?:DIGEST|SHA256|Digest|digest)\w*)\.slice\(/g)].map((m) => m[0]), []);
   });
 
   it("borrows the shared track rather than growing a second custody visual", () => {
     assert.match(panel, /<CustodyChainTrack chain=\{chain\} label="Gateway OpenAPI custody chain" \/>/);
+    assert.match(panel, /className="card developer-cp-schema-card gateway-contract-custody stagger-reveal"/);
     // The markup lives in one file. If these class names appear here too, the
     // near-duplicate this extraction existed to prevent has been written anyway.
     for (const className of ["signal-workflow__track", "signal-workflow__stage", "signal-workflow__node"]) {
@@ -332,14 +343,14 @@ describe("the digest is shown whole, and the fault is shown with its remedy", ()
   });
 
   it("never lets colour carry the verdict, and never ticks an unverified digest", () => {
-    assert.match(panel, /word=\{gate\.ran \? "verified at build time" : "not verified this session"\}/);
-    assert.match(panel, /glyph=\{gate\.ran \? STAGE_GLYPH\.ok : STAGE_GLYPH\.unknown\}/);
-    assert.match(panel, /glyph=\{STAGE_GLYPH\[terminal\.state\]\}/);
+    assert.match(panel, /word: gate\.ran \? "verified at build time" : "not verified this session"/);
+    assert.match(panel, /glyph: gate\.ran \? STAGE_GLYPH\.ok : STAGE_GLYPH\.unknown/);
+    assert.match(panel, /glyph: STAGE_GLYPH\[terminal\.state\]/);
     // And no pulsing dot: the card's pill reports the build gate, which is
     // committed evidence. A pulse there would claim the 30s poll produced it.
     assert.doesNotMatch(panel, /<StatusPill[^>]*live=/);
     // Tint is applied beside the glyph and the word, never instead of them.
-    assert.match(panel, /tint=\{gate\.ran \? TINT\.ok : TINT\.unknown\}/);
+    assert.match(panel, /tint: gate\.ran \? TINT\.ok : TINT\.unknown/);
   });
 
   it("adds no npm dependency", () => {
@@ -350,7 +361,7 @@ describe("the digest is shown whole, and the fault is shown with its remedy", ()
      * import specifier to a scan that does not care where the line began.
      */
     const inTree = /^(react|react-dom|next(\/.+)?|node:.+|@\/.+|\.{1,2}\/.+)$/;
-    for (const file of [PANEL, TRACK]) {
+    for (const file of [PANEL, TRACK, DIGEST_TABLE]) {
       for (const [, specifier] of readSource(file).matchAll(/^import[\s\S]*?from "([^"]+)";$/gm)) {
         assert.match(specifier, inTree, `${file} imports "${specifier}", which is neither this tree nor the framework`);
       }
