@@ -2,8 +2,9 @@
 
 Mixed into :class:`~modules.tca_engine.engine.TCAEngine`. Kept apart from the
 engine's own accessors because this is the *operational* half — it decides when
-a venue counts as down, when that is worth telling a human about, and when the
-synthetic book has to stand in — and none of it is on the decision path.
+a venue counts as down, when that is worth telling a human about, and whether
+an explicitly enabled synthetic demo book should stand in — and none of it is
+on the decision path.
 """
 
 from __future__ import annotations
@@ -16,6 +17,8 @@ from modules.tca_engine.feed import VenueFeed
 from modules.tca_engine.synthetic import SyntheticFeed
 
 log = logging.getLogger("alphaengine.tca")
+ALERT_HOOK_DEADLINE_S = 1.0
+ALERT_HOOK_CANCEL_GRACE_S = 0.05
 
 
 class FeedSupervision:
@@ -29,14 +32,37 @@ class FeedSupervision:
         only trace was a log line nobody was reading. Same shape, same
         failure-isolation rule: an alert transport must never break ingestion.
         """
-        self._alert_hooks.append(hook)
+        if hook not in self._alert_hooks:
+            self._alert_hooks.append(hook)
 
     async def _alert(self, severity: str, message: str) -> None:
-        for hook in self._alert_hooks:
+        async def invoke(hook) -> None:
             try:
                 await hook(severity, message)
+            except asyncio.CancelledError:
+                raise
             except Exception as exc:
-                log.error("feed alert hook failed: %s", exc)
+                log.error("feed alert hook failed: %s", type(exc).__name__)
+
+        tasks = [asyncio.create_task(invoke(hook)) for hook in self._alert_hooks]
+        if not tasks:
+            return
+        try:
+            _, pending = await asyncio.wait(tasks, timeout=ALERT_HOOK_DEADLINE_S)
+            if pending:
+                log.error(
+                    "feed alert delivery exceeded %.1fs; ingestion will continue",
+                    ALERT_HOOK_DEADLINE_S,
+                )
+        finally:
+            pending = [task for task in tasks if not task.done()]
+            for task in pending:
+                if not task.done():
+                    task.cancel()
+            if pending:
+                _, stubborn = await asyncio.wait(pending, timeout=ALERT_HOOK_CANCEL_GRACE_S)
+                for task in stubborn:
+                    task.add_done_callback(_consume_background_task_result)
 
     def _feed_health(self, feed: VenueFeed) -> tuple[str, str]:
         """Classify one venue as up / stale / down, with a human reason."""
@@ -84,7 +110,7 @@ class FeedSupervision:
             )
 
     async def _watch(self) -> None:
-        """Bring up the synthetic feed only if every real venue is dark."""
+        """Bring up the opt-in synthetic feed only if every real venue is dark."""
         while True:
             await asyncio.sleep(5)
             try:
@@ -140,3 +166,13 @@ class FeedSupervision:
                 raise
             except Exception as exc:
                 log.error("tca snapshot failed: %s", exc)
+
+
+def _consume_background_task_result(task: asyncio.Task[None]) -> None:
+    """Retrieve a detached hook result without holding up feed supervision."""
+    try:
+        task.result()
+    except asyncio.CancelledError:
+        pass
+    except Exception as exc:
+        log.error("detached feed alert hook failed: %s", type(exc).__name__)
