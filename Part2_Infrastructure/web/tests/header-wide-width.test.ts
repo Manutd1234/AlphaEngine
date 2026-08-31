@@ -1,24 +1,21 @@
 /**
- * The header's WIDE band — and, far more importantly, proof that adding it
- * changed nothing narrower.
+ * The header's desktop rail — and proof that its fixed rhythm does not create
+ * a hidden width rung.
  *
  * WHY THIS FILE EXISTS
  * --------------------
- * "fix the top bar also to utilize the empty space since now it is a bit
- * small." The empty space is real and it is measurable: `.workspace-tabs` and
- * `.header-spacer` are both `flex: 1` over a 0 basis, so every spare pixel in
- * the row is split 50/50 between the eight destinations and an empty `<div>`.
- * At 2560 both measured exactly 623.7px on live strings (592.8px on the
- * sweep's widest ones). Half the gap a reader sees is the nav's share already;
- * the other half is the spacer doing nothing at all with it.
+ * The original wide fix put a flex-grown empty spacer between Diffusion and
+ * Telegram. It kept the right edge aligned by turning every spare desktop
+ * pixel into a variable hole in the middle of the command rail. The current
+ * contract has no spacer at all: the tabs are content-led and the same 6px gap
+ * joins every neighbouring destination and action.
  *
  * The dangerous way to answer that is to take width from somewhere. There is
  * nowhere to take it from: at 1440 the guest row overflows its clip by 15px on
  * the widest strings, and `overflow-x: clip` swallows the evidence — the exact
  * defect df63e49 fixed and the data-tier chip re-opened at 30px past the clip.
- * So the answer is a min-width rung that only ever REDISTRIBUTES SURPLUS, and
- * the assertions below are in two halves: the rung exists and is shaped so it
- * cannot clip, and the ladder underneath it is byte-for-byte where it was.
+ * The assertions below therefore pin both sides: no fixed replacement track
+ * may appear, and the priority ladder underneath stays explicit.
  *
  * The second half is the one that matters. `header-ladder.test.ts` pins what
  * each rung sheds; this pins the SET of widths the header reacts to at all, so
@@ -27,6 +24,7 @@
  */
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import { globalsCss, readGlobalsPartial } from "./globals-css";
@@ -37,6 +35,7 @@ const css = globalsCss.replace(/\/\*[\s\S]*?\*\//g, (block) =>
 
 const shell = readGlobalsPartial("app/globals/01-workspace-shell.css");
 const standardisation = readGlobalsPartial("app/globals/12-workspace-standardisation.css");
+const header = readFileSync(new URL("../components/WorkspaceHeader.tsx", import.meta.url), "utf8");
 
 /** Anything that paints, sizes or hides a control in the utility row. */
 const HEADER_SELECTOR =
@@ -79,12 +78,6 @@ const mediaBlocks: MediaBlock[] = (() => {
 /** The blocks that reach a header control, in cascade order. */
 const headerBlocks = mediaBlocks.filter((block) => HEADER_SELECTOR.test(block.body));
 
-const one = (condition: string) => {
-  const hits = headerBlocks.filter((block) => block.condition === condition);
-  assert.equal(hits.length, 1, `expected exactly one header ${condition}, found ${hits.length}`);
-  return hits[0].body;
-};
-
 describe("the parser reads the whole cascade", () => {
   // A walker that quietly returned nothing would make every assertion below
   // vacuously true — the shape of dead test this codebase keeps catching.
@@ -94,63 +87,44 @@ describe("the parser reads the whole cascade", () => {
   });
 });
 
-describe("the wide band exists, and it can only add", () => {
-  const wide = one("@media (min-width: 1441px)");
+describe("the desktop rail has no manufactured middle track", () => {
+  it("contains neither a spacer element nor a spacer selector", () => {
+    assert.doesNotMatch(header, /header-spacer/,
+      "the component reintroduced an empty flex child between navigation and Telegram");
+    assert.doesNotMatch(css, /\.header-spacer\b/,
+      "a spacer rule or media rung would make the seam viewport-dependent again");
+  });
 
-  it("the surplus goes to the nav instead of splitting 50/50 with an empty div", () => {
+  it("fills the row through the tabs and makes the pseudo-element generate nothing", () => {
+    assert.match(css, /\.workspace-tabs \{[^}]*gap: 2px;[^}]*flex: 1 1 auto;/,
+      "the tab strip must absorb surplus so the operator cluster reaches the right edge");
+    assert.match(css, /\.workspace-tabs button \{[^}]*flex: 1 1 auto;/,
+      "each destination must share the available rail");
+    assert.match(css, /\.workspace-tabs::after \{\s*content: none;\s*\}/,
+      "a zero-width generated flex item still incurs a second gap");
+  });
+
+  it("uses borderless destinations and outlined signals on a common 42px control rail", () => {
     assert.match(
-      wide,
-      /\.header-spacer \{\s*flex-grow: 0;\s*\}/,
-      "the wide rung no longer hands the row's surplus to the tabs",
+      css,
+      /\.workspace-tabs button \{[^}]*min-height: 42px;[^}]*padding: 7px 6px;[^}]*border: 0;[^}]*border-radius: 6px;/,
     );
-  });
-
-  it("it starts above the band that has no slack to lend", () => {
-    // 1441, not 1440: the measured clip band runs to 1440 inclusive, and the
-    // gate is what makes "nothing narrower changed" textual rather than an
-    // argument about flexbox.
-    const threshold = Number(/min-width: (\d+)px/.exec("@media (min-width: 1441px)")![1]);
-    assert.ok(threshold > 1440, `the wide rung starts at ${threshold}px, inside the protected band`);
-    assert.doesNotMatch("@media (min-width: 1441px)", /max-width/, "a min-width rung may not carry a ceiling");
-  });
-
-  it("only the grow is dropped — the basis stays 0, which is the no-clip guarantee", () => {
-    // The seductive version of this rung reserves the separation as a `width`
-    // (or a `min-width`) on the spacer, so the nav and the cluster stay apart
-    // at every width. Measured in Chrome 151 against the live row with the
-    // sweep's widest strings, that is NOT free: a 20px basis does not collapse
-    // under deficit — it put the row 12px past its clip at 1728 and 16px at
-    // 1920, both of which fit exactly today. Only `flex-grow` may change here,
-    // because grow is the one flex term that never runs when the surplus is 0.
-    const spacer = /\.header-spacer \{([^}]*)\}/.exec(wide)![1];
-    for (const property of ["width", "min-width", "flex-basis", "flex-shrink", "padding", "margin"]) {
-      assert.doesNotMatch(
-        spacer,
-        new RegExp(`(^|[;\\s])${property}:`),
-        `${property} on the wide spacer adds to the row's MINIMUM, which the clipping bands cannot pay`,
-      );
-    }
-    assert.doesNotMatch(spacer, /flex:\s/, "the `flex` shorthand resets the basis; set flex-grow alone");
-    assert.match(spacer, /flex-grow: 0;/);
-  });
-
-  it("the tabs are the row's only grower, so the utility cluster stays hard right", () => {
-    // If the tabs stopped growing while the spacer already had, the leftover
-    // space would collect at the END of the line and drag Settings, the
-    // account chip and the kill switch leftwards into the middle of the bar.
-    assert.match(css, /\.workspace-tabs \{[^}]*flex: 1;/, "the tab strip must keep flex-grow");
-    assert.doesNotMatch(wide, /\.workspace-tabs \{[^}]*(max-width|flex-grow: 0|flex: 0)/,
-      "capping the tabs here would move the surplus to the far right of the row");
-    // Restated from `auth-header.test.ts`: a `min-width: 0` here would let the
-    // strip shrink past its own labels instead of the ladder folding them.
-    assert.doesNotMatch(css, /\.workspace-tabs \{\s*min-width: 0;/);
+    assert.match(
+      css,
+      /\.workspace-header__utility > :is\(button, a\),\s*\.workspace-header__utility > \.header-anchor > :is\(button, a\) \{\s*min-height: 42px;\s*\}/,
+    );
+    assert.match(
+      css,
+      /\.workspace-header__utility > :is\(\.telegram-cta, \.header-command-button, \.latency-chip, \.system-health-action\),[\s\S]*?\.header-anchor > :is\(\.data-tier, \.header-kill-trigger\)[\s\S]*?box-shadow:/,
+      "the operator controls lost their subtle shared outline hierarchy",
+    );
   });
 });
 
 describe("the narrow ladder is exactly where it was — the regression guard", () => {
   /**
-   * Every width the header reacts to, in cascade order, with the wide rung as
-   * the only min-width entry above 901px.
+   * Every width the header reacts to, in cascade order. There is deliberately
+   * no min-width desktop rung: surplus no longer changes the middle seam.
    *
    * A snapshot on purpose. `header-ladder.test.ts` asserts what each rung
    * SHEDS; the failure this list catches is different and quieter — a rung
@@ -170,9 +144,8 @@ describe("the narrow ladder is exactly where it was — the regression guard", (
    * after 14, so rungs 4 and 11 sit at the end of it.
    */
   const LADDER = [
-    "@media (max-width: 2050px)",                        // rung 1, the Search word
+    "@media (max-width: 2160px)",                        // rung 1, the Search word
     "@media (max-width: 1720px)",                        // rung 5, the "Live data" label
-    "@media (min-width: 1441px)",                        // the wide band added 2026-08-22
     "@media (min-width: 901px)",                         // the nav's left margin
     "@media (max-width: 900px)",                         // the tabs take their own row
     "@media (max-width: 720px)",
@@ -181,15 +154,13 @@ describe("the narrow ladder is exactly where it was — the regression guard", (
     "@media (max-width: 900px)",
     "@media (max-width: 900px)",
     "@media (max-width: 620px)",                         // the switcher goes
-    "@media (min-width: 901px) and (max-width: 2050px)", // rung 1
+    "@media (min-width: 901px) and (max-width: 2160px)", // rung 1
     "@media (min-width: 901px) and (max-width: 1950px)", // rung 2
     "@media (min-width: 901px) and (max-width: 1850px)", // rung 3
-    "@media (min-width: 901px) and (max-width: 1590px)", // rung 7
-    "@media (min-width: 901px) and (max-width: 1520px)", // rung 8
-    "@media (min-width: 901px) and (max-width: 1380px)", // rung 9
     "@media (min-width: 901px) and (max-width: 1280px)", // rung 10
     "@media (min-width: 901px) and (max-width: 1790px)", // rung 4, the tagline (14p)
-    "@media (min-width: 901px) and (max-width: 1170px)", // rung 11, the wordmark (14p)
+    "@media (min-width: 901px) and (max-width: 1590px)", // rung 7, contained full tab rail (14p)
+    "@media (min-width: 901px) and (max-width: 1280px)", // rung 11, the wordmark (14p)
     "@media (max-width: 620px)",
     "@media (pointer: coarse)",
     "@media (forced-colors: active)",
@@ -200,12 +171,10 @@ describe("the narrow ladder is exactly where it was — the regression guard", (
     assert.deepEqual(headerBlocks.map((block) => block.condition), LADDER);
   });
 
-  it("nothing at or below 1440 was touched to pay for the wide band", () => {
-    // The one rule that could have been: the spacer's desk declaration. It is
-    // what every width up to 1440 still uses, unchanged.
-    assert.match(shell, /\n\.header-spacer \{\n  flex: 1;\n\}\n/,
-      "the desk spacer no longer grows — every width below 1441 just lost its right alignment");
-    for (const max of [2050, 1950, 1850, 1790, 1590, 1520, 1380, 1280, 1170]) {
+  it("the measured compact rungs remain after removing the obsolete wide rung", () => {
+    assert.doesNotMatch(headerBlocks.map((block) => block.condition).join("\n"), /min-width: 1441px/,
+      "the retired spacer-only wide rung returned");
+    for (const max of [2160, 1950, 1850, 1790, 1590, 1280]) {
       assert.ok(
         headerBlocks.some((block) => block.condition === `@media (min-width: 901px) and (max-width: ${max}px)`),
         `rung ${max} has left the ladder`,
@@ -235,7 +204,17 @@ describe("the narrow ladder is exactly where it was — the regression guard", (
   it("the selected tab is still said by something that is not colour", () => {
     // Restated here beside the width work: widening the strip must not be paid
     // for by letting hue alone carry selection.
+    assert.match(
+      css,
+      /\.workspace-tabs button:hover:not\(:disabled\):not\(\[aria-selected="true"\]\)/,
+      "hover must not replace the active destination's stronger selected paint",
+    );
     assert.match(css, /\.workspace-tabs button::after \{[^}]*background: transparent;/);
+    assert.match(
+      css,
+      /\.workspace-tabs button\[aria-selected="true"\] \{[^}]*background: transparent;/,
+      "the active destination should rely on its underline instead of a bordered or filled box",
+    );
     assert.match(css, /\.workspace-tabs button\[aria-selected="true"\]::after \{\s*background: var\(--series-1\);/);
   });
 });
@@ -256,7 +235,7 @@ describe("the row's box is declared once", () => {
     }
     assert.match(
       standardisation,
-      /\.workspace-header__utility \{\n  min-height: var\(--chrome-header\);\n  padding-left: var\(--shell-pad\);\n  padding-right: var\(--shell-pad\);\n\}/,
+      /\.workspace-header__utility \{\n  min-height: var\(--chrome-header\);\n  padding-left: 16px;\n  padding-right: 16px;\n\}/,
       "12 is where the row's box lives; if it moved, 01's deletion has to be revisited",
     );
   });
