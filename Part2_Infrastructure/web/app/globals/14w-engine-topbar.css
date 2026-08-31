@@ -23,7 +23,8 @@
    every element inside already reads a rung through 14q and 13.
    ========================================================================== */
 
-.coherence-plane .coh-topbar {
+.coherence-plane .coh-topbar,
+.coherence-plane > .page-heading {
   margin-bottom: var(--space-3);
   padding: var(--space-3) var(--space-4);
   border: 1px solid var(--border);
@@ -72,7 +73,6 @@
    rule in `14v` — two rules for one selector across two partials is the
    duplicate this sheet has been bitten by before, and the guards' `.includes()`
    lookups find whichever comes first. */
-.coherence-plane .page-heading__actions .coh-headlive,
 .coherence-plane .page-heading__actions .coh-headchips {
   display: contents;
 }
@@ -127,25 +127,78 @@
   justify-content: flex-end;
 }
 
-/* THE FACTS TABLE IS A STRIP UNDER THE HEAD, a sibling of `.page-heading`
-   inside this box, since the evening of 2026-08-26. Two shapes came before
-   it: `PageHead` children (full-width by construction, the head's right half
-   empty) and a flex item of the actions slot (a column that grew taller than
-   the title's and left white under the lede). A sibling strip is full-width
-   by decision: it takes the box's inner width — 1,526px at 1600, 304px a
-   tile across five — and the chips keep the slot beside the title.
-
-   `flex: 0 0 100%` on it is GONE with the move: it was the line-break inside
-   the slot, and the strip is not in the slot. The 1120 duplicate below went
-   with it; `14v` already gives the panel the whole width there. */
-.coherence-plane .coh-topbar .coh-headstate {
+/* Engine detail is a compact disclosure in the venue row, not a strip below
+   the page heading. Auto margin holds it against the top-right edge. */
+.coherence-plane .page-heading__actions .coh-headstate {
+  flex: 0 0 auto;
   max-inline-size: none;
-  margin-top: var(--space-2);
+  margin-inline-start: auto;
+}
+
+/* Markets has a live control surface that Proofs does not. Keep its status in
+   two authored rows instead of flattening `EngineChips` and relying on flex to
+   discover a third break from the current values. The shared selectors above
+   remain the Proofs contract; every selector in this block is Markets-only. */
+.coherence-plane .engine-topbar-status {
+  display: grid;
+  width: 100%;
+  min-inline-size: 0;
+  gap: var(--space-2);
+}
+
+.coherence-plane .engine-topbar-status__row {
+  display: flex;
+  align-items: center;
+  min-inline-size: 0;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.coherence-plane .engine-topbar-status__recorder > .coh-chip .coh-chip__value {
+  inline-size: 12ch;
+}
+
+.coherence-plane .engine-topbar-status .coh-live--markets {
+  flex: 1 1 32rem;
+  min-inline-size: 0;
+}
+
+/* Both changing readouts reserve the longest normal-state value. Seconds and
+   the clock can tick without moving either button or the chips before them. */
+.coherence-plane .engine-topbar-status :is(.coh-live__updated, .coh-live__next) .coh-chip__value {
+  inline-size: 8ch;
+  text-align: end;
+}
+
+@media (min-width: 1121px) {
+  .coherence-plane .page-heading__actions:has(.engine-topbar-status) {
+    flex: 1 1 42rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .coherence-plane .engine-topbar-status__row,
+  .coherence-plane .engine-topbar-status .coh-live--markets {
+    flex-wrap: nowrap;
+  }
 }
 
 @media (max-width: 620px) {
-  .coherence-plane .coh-topbar {
+  .coherence-plane .coh-topbar,
+  .coherence-plane > .page-heading {
     padding: var(--space-2);
+  }
+
+  .coherence-plane .engine-topbar-status__row,
+  .coherence-plane .engine-topbar-status .coh-live--markets {
+    max-inline-size: 100%;
+  }
+
+  .coherence-plane .coh-headchips .freshness-stamp {
+    min-width: 0;
+    max-width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
   }
 }
 
