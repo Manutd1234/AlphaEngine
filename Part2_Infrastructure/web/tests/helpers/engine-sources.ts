@@ -62,7 +62,8 @@ export const READING_OWNED = new Set([
   "SettlementPane.tsx", "FormationDiagram.tsx", "PendingMinutes.tsx", "BooksSection.tsx",
   "BooksPane.tsx", "LadderChart.tsx", "IdentityStrip.tsx", "RfqPane.tsx",
   "DispersionStrips.tsx", "ChannelStates.tsx", "SurfacePane.tsx",
-  "ShellPane.tsx", "ShellListing.tsx", "ShellTree.tsx", "ShellCommandReference.tsx", "PmfChart.tsx",
+  "ShellPane.tsx", "ShellBrowser.tsx", "ShellRouteFlow.tsx", "ShellListing.tsx", "ShellTree.tsx",
+  "ShellCommandReference.tsx", "PmfChart.tsx",
   "SurvivalChart.tsx",
 ]);
 
