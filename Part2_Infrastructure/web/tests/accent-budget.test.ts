@@ -61,7 +61,8 @@ describe("a selected segment is not a call to action", () => {
       /background:\s*var\(--series-1\)/,
       "every segmented control in the app is shouting in the Send-order voice again",
     );
-    assert.match(body, /background:\s*var\(--surface-1\)/);
+    assert.match(body, /background:\s*var\(--control-selected-bg\)/);
+    assert.match(body, /box-shadow:\s*inset 0 -2px 0 var\(--series-1\)/);
     assert.match(body, /color:\s*var\(--text-primary\)/);
   });
 
