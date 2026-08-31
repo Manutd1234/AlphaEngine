@@ -34,11 +34,30 @@ export interface PollingEnvironment {
   onVisibilityChange: (listener: () => void) => () => void;
 }
 
+export interface PollingTickContext {
+  /** Aborted when the loop stops, so owned transport does not outlive its pane. */
+  signal: AbortSignal;
+}
+
+export interface PollingFailure {
+  ok: false;
+  reason: string;
+}
+
+export type PollingTickResult = void | PollingFailure;
+
+/** A resolved request can still be a failed poll (for example data-null/error). */
+export function pollingFailure(reason: string): PollingFailure {
+  return { ok: false, reason };
+}
+
+export type PollingCircuitState = "closed" | "open" | "half-open";
+
 export interface PollingOptions {
   /** Milliseconds between ticks. 0 or less is a genuine pause, not an error. */
   intervalMs: number;
   /** The work. A rejection is a failure and drives the backoff. */
-  tick: () => void | Promise<void>;
+  tick: (context: PollingTickContext) => PollingTickResult | Promise<PollingTickResult>;
   /**
    * Skip the tick while the page is hidden.
    *
@@ -84,6 +103,8 @@ export interface PollingOptions {
    * shorten a countdown the reader cannot see.
    */
   onSchedule?: (delayMs: number, consecutiveFailures: number) => void;
+  /** Opt-in outage circuit; after cooldown exactly one probe is admitted. */
+  circuit?: { failureThreshold: number; cooldownMs: number };
   environment?: Partial<PollingEnvironment>;
 }
 
@@ -107,6 +128,8 @@ export class PollingController {
   private failures = 0;
   /** True while a tick is in flight, so a slow tick cannot be overlapped. */
   private inFlight = false;
+  private tickController: AbortController | null = null;
+  private circuitValue: PollingCircuitState = "closed";
 
   constructor(private readonly options: PollingOptions) {
     this.environment = { ...browserEnvironment(), ...options.environment };
@@ -115,6 +138,10 @@ export class PollingController {
   /** Consecutive failures. Exposed so a surface can disclose degradation. */
   get consecutiveFailures(): number {
     return this.failures;
+  }
+
+  get circuitState(): PollingCircuitState {
+    return this.circuitValue;
   }
 
   /**
@@ -128,6 +155,7 @@ export class PollingController {
    * before it was configurable — `intervalMs * 2 ** failures`, unchanged.
    */
   nextDelayMs(): number {
+    if (this.circuitValue === "open") return Math.max(0, this.options.circuit?.cooldownMs ?? 0);
     const base = Math.max(0, this.options.intervalMs);
     const ceiling = this.options.maxBackoffMs;
     if (!this.failures || ceiling == null) return base;
@@ -156,6 +184,8 @@ export class PollingController {
 
   stop(): void {
     this.running = false;
+    this.tickController?.abort();
+    this.tickController = null;
     if (this.handle !== null) this.environment.clearTimeout(this.handle);
     this.handle = null;
     this.unsubscribe?.();
@@ -164,6 +194,7 @@ export class PollingController {
 
   /** Tick now and restart the schedule from now. */
   async runNow(): Promise<void> {
+    if (this.circuitValue === "open") return;
     if (this.handle !== null) this.environment.clearTimeout(this.handle);
     this.handle = null;
     await this.fire();
@@ -188,16 +219,27 @@ export class PollingController {
     }
 
     this.inFlight = true;
+    if (this.circuitValue === "open") this.circuitValue = "half-open";
+    const controller = new AbortController();
+    this.tickController = controller;
     try {
-      await this.options.tick();
-      this.failures = 0;
+      const outcome = await this.options.tick({ signal: controller.signal });
+      if (!this.running) return;
+      if (outcome?.ok === false) this.recordFailure();
+      else this.recordSuccess();
     } catch {
       // Swallowed on purpose: a poll that throws into an unhandled rejection
       // takes the loop down with it, and a dead loop looks exactly like a quiet
       // system. The failure is recorded in the backoff instead.
-      this.failures += 1;
+      if (this.running) this.recordFailure();
     } finally {
+      if (this.tickController === controller) this.tickController = null;
       this.inFlight = false;
+      // `stop()` owns the terminal transition. In particular, aborting an
+      // in-flight transport during unmount must not call `onSchedule`: React
+      // consumers use that callback to publish retry state, and an inactive
+      // pane has neither a retry nor a mounted state owner left to update.
+      if (!this.running) return;
       const delay = this.nextDelayMs();
       try {
         this.options.onSchedule?.(delay, this.failures);
@@ -206,6 +248,19 @@ export class PollingController {
         // not worth the loop, and a listener that throws would take it down.
       }
       this.schedule(delay);
+    }
+  }
+
+  private recordSuccess(): void {
+    this.failures = 0;
+    this.circuitValue = "closed";
+  }
+
+  private recordFailure(): void {
+    this.failures += 1;
+    const threshold = this.options.circuit?.failureThreshold;
+    if (threshold !== undefined && this.failures >= Math.max(1, threshold)) {
+      this.circuitValue = "open";
     }
   }
 }
