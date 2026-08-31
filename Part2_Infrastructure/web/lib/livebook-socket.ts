@@ -34,6 +34,8 @@ import type { LiveVenueState } from "./livebook";
 
 export const STALE_AFTER_MS = 8_000;
 const MAX_BACKOFF_MS = 20_000;
+export const SOCKET_HANDSHAKE_DEADLINE_MS = 10_000;
+export const SOCKET_SILENCE_DEADLINE_MS = 20_000;
 
 export function emptyBook(venue: VenueName, symbol: string): VenueBook {
   return {
@@ -104,11 +106,18 @@ type Handlers = {
   onRestart?: () => void;
 };
 
+export interface SocketSupervisionOptions {
+  /** Test seam; production uses the named deadlines above. */
+  handshakeDeadlineMs?: number;
+  silenceDeadlineMs?: number;
+}
+
 /** One supervised socket with exponential backoff + jitter. */
 export function connect(
   venue: VenueName,
   symbol: string,
   handlers: Handlers,
+  options: SocketSupervisionOptions = {},
 ): SocketHandle {
   let ws: WebSocket | null = null;
   let closed = false;
@@ -116,41 +125,137 @@ export function connect(
   let retryTimer: ReturnType<typeof setTimeout> | null = null;
   let heartbeat: ReturnType<typeof setInterval> | null = null;
   let stableTimer: ReturnType<typeof setTimeout> | null = null;
+  let handshakeTimer: ReturnType<typeof setTimeout> | null = null;
+  let silenceTimer: ReturnType<typeof setTimeout> | null = null;
   const ladder = new Ladder();
   let seq = 0;
+  const handshakeDeadlineMs = Math.max(1, options.handshakeDeadlineMs ?? SOCKET_HANDSHAKE_DEADLINE_MS);
+  const silenceDeadlineMs = Math.max(1, options.silenceDeadlineMs ?? SOCKET_SILENCE_DEADLINE_MS);
+
+  const clearAttemptTimers = () => {
+    if (heartbeat) clearInterval(heartbeat);
+    heartbeat = null;
+    if (stableTimer) clearTimeout(stableTimer);
+    stableTimer = null;
+    if (handshakeTimer) clearTimeout(handshakeTimer);
+    handshakeTimer = null;
+    if (silenceTimer) clearTimeout(silenceTimer);
+    silenceTimer = null;
+  };
+
+  /** Detach first: `close()` is asynchronous and must not schedule a second retry. */
+  const discardSocket = () => {
+    const dying = ws;
+    ws = null;
+    if (!dying) return;
+    dying.onclose = null;
+    dying.onerror = null;
+    dying.onmessage = null;
+    dying.onopen = null;
+    try {
+      dying.close();
+    } catch {
+      // It is already unusable; the supervised retry remains the recovery path.
+    }
+  };
+
+  /** One idempotent path for constructor, handshake, stream, error, and close faults. */
+  const retry = (error?: string) => {
+    clearAttemptTimers();
+    discardSocket();
+    if (closed || retryTimer) return;
+    seq = 0;
+    ladder.snapshot([], []);
+    handlers.onStatus("error", error);
+    handlers.onReconnect();
+    const wait = backoff + Math.random() * backoff * 0.3;
+    retryTimer = setTimeout(() => {
+      retryTimer = null;
+      open();
+    }, wait);
+    backoff = Math.min(backoff * 2, MAX_BACKOFF_MS);
+  };
 
   const open = () => {
     if (closed) return;
     handlers.onStatus("connecting");
+    let receivedBook = false;
+    let stabilityWindowElapsed = false;
 
     const url =
       venue === "BINANCE"
         ? `wss://stream.binance.com:9443/stream?streams=${symbol.toLowerCase()}@depth20@100ms`
         : "wss://stream.bybit.com/v5/public/spot";
 
+    let socket: WebSocket;
     try {
-      ws = new WebSocket(url);
+      socket = new WebSocket(url);
+      ws = socket;
     } catch (err) {
       return retry((err as Error).message);
     }
 
-    ws.onopen = () => {
-      // Reset the backoff only once the socket has PROVEN stable. Resetting on
-      // handshake alone defeats the ceiling on an accept-then-drop path: a proxy
-      // or a flapping venue completes the upgrade, drops, and every retry starts
-      // from 1s again — measured 54 reconnects in 60s instead of backing off.
-      stableTimer = setTimeout(() => {
-        backoff = 1000;
-      }, 10_000);
-      handlers.onStatus("live");
-      if (venue === "BYBIT") {
-        ws?.send(JSON.stringify({ op: "subscribe", args: [`orderbook.50.${symbol.toUpperCase()}`] }));
-        // Bybit expects an application-level ping inside 30s.
-        heartbeat = setInterval(() => ws?.send(JSON.stringify({ op: "ping" })), 20_000);
+    // A TCP path can accept the connection attempt and never finish the
+    // upgrade. Browser WebSockets expose no native handshake timeout, so this
+    // deadline is the only thing that prevents "connecting" forever.
+    handshakeTimer = setTimeout(() => {
+      if (ws === socket) retry(`socket handshake exceeded ${handshakeDeadlineMs}ms`);
+    }, handshakeDeadlineMs);
+
+    const armSilenceWatchdog = () => {
+      if (silenceTimer) clearTimeout(silenceTimer);
+      silenceTimer = setTimeout(() => {
+        if (ws === socket) retry(`socket book stream was silent for ${silenceDeadlineMs}ms`);
+      }, silenceDeadlineMs);
+    };
+
+    const send = (payload: string): boolean => {
+      if (ws !== socket || socket.readyState !== WebSocket.OPEN) return false;
+      try {
+        socket.send(payload);
+        return true;
+      } catch (error) {
+        retry((error as Error).message || "socket send failed");
+        return false;
       }
     };
 
-    ws.onmessage = (event) => {
+    socket.onopen = () => {
+      if (ws !== socket || closed) return;
+      if (handshakeTimer) clearTimeout(handshakeTimer);
+      handshakeTimer = null;
+      // A successful upgrade is not yet a usable price feed. Require the first
+      // book, then keep requiring books; pongs and subscription acknowledgments
+      // deliberately do not keep a wrong or stalled subscription alive.
+      armSilenceWatchdog();
+      if (venue === "BYBIT") {
+        if (!send(JSON.stringify({ op: "subscribe", args: [`orderbook.50.${symbol.toUpperCase()}`] }))) {
+          return;
+        }
+        // Bybit expects an application-level ping inside 30s.
+        heartbeat = setInterval(() => send(JSON.stringify({ op: "ping" })), 20_000);
+      }
+    };
+
+    const noteValidBook = () => {
+      armSilenceWatchdog();
+      if (!receivedBook) {
+        receivedBook = true;
+        handlers.onStatus("live");
+        // Opening is not stability, and neither is one frame followed by
+        // silence. Only a later valid book after this window may reset the
+        // exponential backoff.
+        stableTimer = setTimeout(() => {
+          stableTimer = null;
+          if (ws === socket) stabilityWindowElapsed = true;
+        }, 10_000);
+      } else if (stabilityWindowElapsed) {
+        backoff = 1000;
+      }
+    };
+
+    socket.onmessage = (event) => {
+      if (ws !== socket || closed) return;
       try {
         const msg = JSON.parse(event.data as string);
         // Captured here, above every venue branch, because three early returns
@@ -167,6 +272,7 @@ export function connect(
             d.bids.map(([p, q]: [string, string]) => [Number(p), Number(q)] as Level),
             d.asks.map(([p, q]: [string, string]) => [Number(p), Number(q)] as Level),
           );
+          noteValidBook();
           handlers.onBook(ladder.toBook(venue, symbol, 0));
           return;
         }
@@ -190,44 +296,34 @@ export function connect(
           // dropped frame leaves a permanently crossed book: a stale bid sits
           // above the real ask and the UI reports it as a cross-venue arbitrage.
           if (seq && u && u !== seq + 1) {
-            ws?.close(); // force a fresh snapshot rather than trust a holed book
+            retry("socket sequence gap"); // fresh snapshot; never trust a holed book
             return;
           }
           ladder.delta(bids, asks);
         }
         seq = u || seq;
         const latency = msg.ts ? Math.max(0, Date.now() - Number(msg.ts)) : 0;
+        noteValidBook();
         handlers.onBook(ladder.toBook(venue, symbol, latency));
       } catch {
         /* a malformed frame must not kill the socket */
       }
     };
 
-    ws.onerror = () => handlers.onStatus("error", "socket error");
-    ws.onclose = () => retry();
-  };
-
-  const retry = (error?: string) => {
-    if (heartbeat) clearInterval(heartbeat);
-    heartbeat = null;
-    if (stableTimer) clearTimeout(stableTimer);
-    stableTimer = null;
-    if (closed) return;
-    handlers.onStatus("error", error);
-    handlers.onReconnect();
-    const wait = backoff + Math.random() * backoff * 0.3;
-    retryTimer = setTimeout(open, wait);
-    backoff = Math.min(backoff * 2, MAX_BACKOFF_MS);
+    socket.onerror = () => {
+      if (ws === socket) retry("socket error");
+    };
+    socket.onclose = () => {
+      if (ws === socket) retry("socket closed");
+    };
   };
 
   /**
    * Operator-forced reconnect. Every line here fixes something a naive
    * `ws.close(); open();` gets wrong:
    *
-   *  - `retry()` clears the heartbeat and the stability timer but **never**
-   *    `retryTimer`, because it assumes it is only ever called from a socket
-   *    event. Leaving a pending retry and calling `open()` gives you two live
-   *    sockets on one venue, both writing into one ladder.
+   *  - A pending retry is cleared, or `open()` would create two live sockets on
+   *    one venue, both writing into one ladder.
    *  - Detaching the handlers before `close()` stops the dying socket's
    *    `onclose` from scheduling a *third*.
    *  - `backoff` resets: a reconnect someone asked for is not evidence of
@@ -242,20 +338,11 @@ export function connect(
   const restart = () => {
     if (closed) return;
     if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
-    if (heartbeat) { clearInterval(heartbeat); heartbeat = null; }
-    if (stableTimer) { clearTimeout(stableTimer); stableTimer = null; }
+    clearAttemptTimers();
     backoff = 1000;
     seq = 0;
     ladder.snapshot([], []);
-    const dying = ws;
-    ws = null;
-    if (dying) {
-      dying.onclose = null;
-      dying.onerror = null;
-      dying.onmessage = null;
-      dying.onopen = null;
-      dying.close();
-    }
+    discardSocket();
     handlers.onRestart?.();
     open();
   };
@@ -269,23 +356,15 @@ export function connect(
     stop: () => {
       closed = true;
       if (retryTimer) clearTimeout(retryTimer);
-      if (heartbeat) clearInterval(heartbeat);
-      if (stableTimer) clearTimeout(stableTimer);
+      retryTimer = null;
+      clearAttemptTimers();
       // Detached before closing, exactly as `restart()` does. `close()` is
       // asynchronous: frames already queued still fire `onmessage` afterwards,
       // and those handlers close over the *previous* effect's state map. On a
       // symbol change that means the dying BTC socket writes a BTC book into the
       // new ADA state — or, once React has replaced the map, throws on the
       // non-null assertion in `state.current.get(venue)!`.
-      const dying = ws;
-      ws = null;
-      if (dying) {
-        dying.onclose = null;
-        dying.onerror = null;
-        dying.onmessage = null;
-        dying.onopen = null;
-        dying.close();
-      }
+      discardSocket();
       sockets.remove(handle.id);
     },
   };
