@@ -29,7 +29,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { MIN_PRICED_FILLS, venueQuality, type BlotterRow, type ProvenanceMark } from "@/lib/blotter";
-import { SHARPE_RAMP_DARK, SHARPE_RAMP_LIGHT, divergingScale } from "@/lib/colormap";
+import { SHARPE_RAMP_DARK, SHARPE_RAMP_LIGHT, divergingScale, readableRampInk } from "@/lib/colormap";
 import { fmt } from "@/lib/format";
 
 /* The floor lives in lib/blotter.ts now: three panels on this subtab report
@@ -184,11 +184,12 @@ export default function FillQualityHeatmap({
                     // An empty cell is "no fills this hour", not zero slippage.
                     return <td key={hour} className="is-empty" aria-label={`${venue}, ${hour}:00 UTC: no fills`} />;
                   }
+                  const fill = colour(cell.mean);
                   return (
                     <td
                       key={hour}
                       className="num"
-                      style={{ background: colour(cell.mean) }}
+                      style={{ background: fill, color: readableRampInk(fill) }}
                       title={`${venue} at ${String(hour).padStart(2, "0")}:00 UTC: ${fmt(cell.mean, 2)} bps over ${cell.count} fill${cell.count === 1 ? "" : "s"}`}
                     >
                       {fmt(cell.mean, 1)}
