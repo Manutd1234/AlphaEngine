@@ -1,0 +1,167 @@
+.instrument { min-width: 0; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-card); background: var(--surface-1); box-shadow: 0 8px 24px color-mix(in srgb, var(--text-primary) 5%, transparent); }
+.head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3); border-bottom: 1px solid var(--grid); background: color-mix(in srgb, var(--surface-2) 72%, var(--surface-1)); }
+.head > span { display: grid; gap: 2px; min-width: 0; color: var(--text-primary); font-size: var(--fs-sm); font-weight: 680; overflow-wrap: anywhere; }
+.head small, .readout small, .momentReadout small, .simulator small { color: var(--text-muted); font-size: var(--fs-2xs); font-weight: 720; letter-spacing: var(--ls-caps); text-transform: uppercase; }
+.head > strong { max-width: 45%; padding: 5px 9px; border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--surface-1); font: 720 var(--fs-xs) var(--font-mono); text-align: right; overflow-wrap: anywhere; }
+.empty { margin: 0; padding: var(--space-5); border: 1px solid var(--border); border-radius: var(--radius-card); color: var(--text-secondary); }
+
+.curveReading {
+  margin: 0;
+  padding: var(--space-3);
+  border-top: 1px solid var(--grid);
+  background: color-mix(in srgb, var(--surface-2) 52%, var(--surface-1));
+  color: var(--text-secondary);
+  font-weight: 450;
+  line-height: 1.5;
+}
+
+.samplingNote {
+  display: grid;
+  grid-template-columns: 1.35rem minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-2);
+  margin: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--series-1) 28%, var(--border));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--series-1) 5%, var(--surface-1));
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+  font-weight: 450;
+  line-height: 1.5;
+}
+
+/* The shared note grid reserves a compact column for ordinary glyphs. This
+   note owns a bordered information mark, so its track must follow the mark's
+   real width instead of letting the circle enter the sentence. */
+.instrument .samplingNote:has(> .noteMark:first-child) {
+  grid-template-columns: max-content minmax(0, 1fr);
+  margin-block-start: var(--space-3);
+}
+
+.noteMark {
+  display: grid;
+  inline-size: 1.35rem;
+  block-size: 1.35rem;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--series-1) 42%, var(--border));
+  border-radius: 50%;
+  color: var(--series-1);
+  font: 650 var(--fs-xs) var(--font-mono);
+}
+
+.currentViewport { overflow-x: auto; overscroll-behavior-inline: contain; border-bottom: 1px solid var(--grid); background: radial-gradient(circle at 50% 0, color-mix(in srgb, var(--series-1) 10%, transparent), transparent 58%), var(--surface-1); }
+.currentViewport:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.currentCanvas { position: relative; min-width: 62rem; aspect-ratio: 1000 / 330; }
+.currentCanvas svg, .probeLayer { position: absolute; inset: 0; width: 100%; height: 100%; }
+.currentGrid { stroke: color-mix(in srgb, var(--grid) 62%, transparent); stroke-width: 1; stroke-dasharray: 3 8; vector-effect: non-scaling-stroke; }
+.currentGrid[data-half="true"] { stroke: var(--series-3); stroke-width: 1.5; stroke-dasharray: 7 5; }
+.currentAxisLabel { fill: var(--text-muted); font: 680 var(--fs-tick) var(--font-mono); font-variant-numeric: tabular-nums; }
+.currentTick { stroke: var(--axis); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.currentArea { pointer-events: none; }
+.currentLine { fill: none; stroke: var(--series-1); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; transition: d var(--dur) var(--ease); }
+.halfBracket { fill: color-mix(in srgb, var(--series-3) 15%, transparent); stroke: var(--series-3); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.halfLabel { fill: var(--series-3); font-size: var(--fs-tick); font-weight: 720; paint-order: stroke; stroke: var(--surface-1); stroke-width: 4px; }
+.violationArc { fill: none; stroke: var(--status-critical); stroke-width: 2; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; }
+.selectedBeam { stroke: var(--series-1); stroke-width: 1; stroke-dasharray: 3 5; vector-effect: non-scaling-stroke; }
+.selectedHalo { fill: color-mix(in srgb, var(--series-1) 13%, transparent); stroke: var(--series-1); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.probeLayer { pointer-events: none; }
+.probeNode { position: absolute; left: var(--probe-x); top: var(--probe-y); width: 14px; height: 14px; padding: 0; transform: translate(-50%, -50%); border: 2px solid var(--series-1); border-radius: 50%; background: var(--surface-1); color: var(--text-primary); cursor: pointer; pointer-events: auto; transition: width var(--dur-fast) var(--ease), height var(--dur-fast) var(--ease), border-width var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease); }
+.probeNode:hover { width: 20px; height: 20px; }
+.probeNode[aria-selected="true"] { width: 24px; height: 24px; border-width: 4px; background: var(--series-1); box-shadow: 0 0 0 5px color-mix(in srgb, var(--series-1) 14%, transparent); }
+.probeNode[data-violation="true"] { border-color: var(--status-critical); background: var(--state-critical-bg); }
+.probeNode[data-violation="true"]::after { position: absolute; left: 50%; bottom: calc(100% + 5px); translate: -50% 0; color: var(--critical-text); content: "▲"; font-size: var(--fs-2xs); }
+.probeNode[data-unreadable="true"] { border-style: dashed; border-color: var(--text-muted); background: transparent; }
+.probeNode:focus-visible, .massTile:focus-visible, .compassPoint:focus-visible, .reservoir button:focus-visible, .simulator button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
+
+.stressLab, .simulator { display: grid; grid-template-columns: minmax(13rem, 1fr) minmax(13rem, 1fr) auto; align-items: center; gap: var(--space-3); padding: var(--space-3); border-top: 1px solid var(--grid); background: color-mix(in srgb, var(--surface-2) 45%, var(--surface-1)); }
+.stressLab > div, .stressLab label, .stressLab output, .simulator > div, .simulator label { display: grid; gap: 4px; min-width: 0; }
+.stressLab small, .stressLab label span, .simulator label span { color: var(--text-muted); font-size: var(--fs-2xs); font-weight: 720; letter-spacing: var(--ls-caps); text-transform: uppercase; }
+.stressLab p, .simulator p { margin: 0; color: var(--text-secondary); font-size: var(--fs-xs); line-height: 1.45; }
+.stressLab input, .simulator input { width: 100%; accent-color: var(--series-1); }
+.stressLab output { padding: var(--space-2); border-inline-start: 3px solid var(--series-3); background: var(--surface-2); }
+.stressLab output[data-holds="no"] { border-inline-start-color: var(--status-critical); }
+.stressLab output[data-holds="unknown"] { border-inline-start-style: dashed; border-inline-start-color: var(--border); }
+.stressLab output span { color: var(--text-secondary); font-size: var(--fs-xs); }
+.simulator button { min-height: 2.5rem; padding: 0 var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--surface-1); color: var(--text-primary); font-weight: 680; cursor: pointer; }
+.simulator button:disabled { border-color: var(--grid); background: var(--surface-2); color: var(--text-muted); cursor: default; }
+
+.massPlot, .momentPlot { overflow-x: auto; padding: var(--space-2) var(--space-3) 0; background: linear-gradient(to bottom, color-mix(in srgb, var(--series-1) 4%, var(--surface-1)), var(--surface-1)); }
+.massPlot:focus-visible, .momentPlot:focus-visible { outline: 2px solid var(--series-1); outline-offset: -2px; }
+.massPlot svg, .momentPlot svg { display: block; inline-size: 100%; min-inline-size: 46rem; block-size: auto; font-family: var(--font-mono); }
+.zeroLine { stroke: var(--text-secondary); stroke-width: 1.4; vector-effect: non-scaling-stroke; }
+.gridLine { stroke: var(--grid); stroke-width: 1; stroke-dasharray: 4 5; vector-effect: non-scaling-stroke; }
+.massBar { fill: color-mix(in srgb, var(--series-1) 52%, var(--surface-1)); stroke: var(--series-1); stroke-width: 1; vector-effect: non-scaling-stroke; transition: opacity 160ms ease, stroke-width 160ms ease; }
+.negativeBar { fill: color-mix(in srgb, var(--status-critical) 16%, var(--surface-1)); stroke: var(--status-critical); stroke-width: 1.5; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; }
+.massMark:not([data-selected="true"]) .massBar { opacity: .72; }
+.massMark[data-selected="true"] .massBar, .massMark[data-selected="true"] .negativeBar { stroke-width: 3; opacity: 1; }
+.cumulativeLine { fill: none; stroke: var(--series-3); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.cumulativeAxis { stroke: var(--series-3); stroke-width: 1; stroke-dasharray: 3 4; vector-effect: non-scaling-stroke; }
+.cumulativeAxisText { fill: var(--series-3); font-size: var(--fs-tick); font-weight: 720; paint-order: stroke; stroke: var(--surface-1); stroke-width: 3px; }
+.axisText, .tickText { fill: var(--text-muted); font-size: var(--fs-tick); font-variant-numeric: tabular-nums; }
+.lineLabel { fill: var(--text-secondary); font-size: var(--fs-tick); font-weight: 720; paint-order: stroke; stroke: var(--surface-1); stroke-width: 4px; }
+.plotLegend { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); padding: 0 var(--space-3) var(--space-3); color: var(--text-secondary); font-size: var(--fs-xs); }
+.plotLegend span { display: inline-flex; align-items: center; gap: 6px; }
+.plotLegend span::before { width: 1.15rem; height: 3px; background: var(--border); content: ""; }
+.plotLegend span[data-legend="bar"]::before { height: 8px; background: color-mix(in srgb, var(--series-1) 52%, var(--surface-1)); border: 1px solid var(--series-1); }
+.plotLegend span[data-legend="line"]::before { background: var(--series-3); }
+.plotLegend span[data-legend="live"]::before { height: 0; border-top: 2px dashed var(--text-muted); background: transparent; }
+
+.massScrubber { display: flex; gap: 2px; overflow-x: auto; padding: var(--space-2) var(--space-3); border-block: 1px solid var(--grid); background: var(--surface-2); }
+.massTile { display: inline-flex; flex: 0 0 auto; align-items: center; gap: var(--space-2); max-width: 13rem; min-height: 2.75rem; padding: var(--space-1) var(--space-2); border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--text-secondary); text-align: left; cursor: pointer; }
+.massTile:hover { background: var(--surface-1); color: var(--text-primary); }
+.massTile[aria-selected="true"] { border-bottom-color: var(--series-1); background: color-mix(in srgb, var(--series-1) 7%, var(--surface-1)); color: var(--text-primary); }
+.massTile > span { display: grid; flex: 0 0 1.5rem; width: 1.5rem; height: 1.5rem; place-items: center; border: 1px solid var(--border); border-radius: 50%; font: 720 var(--fs-2xs) var(--font-mono); }
+.massTile small { overflow-wrap: anywhere; white-space: normal; }
+
+.readout { display: grid; grid-template-columns: 1fr 1fr 1.25fr; gap: 1px; border-top: 1px solid var(--grid); background: var(--grid); }
+.readout > span { display: grid; align-content: start; gap: 4px; min-width: 0; padding: var(--space-3); background: var(--surface-2); }
+.readoutNote { margin: 0; color: var(--text-secondary); font-size: var(--fs-xs); line-height: 1.45; overflow-wrap: anywhere; }
+.readout code, .momentReadout code, .accountingEquation code { font-family: var(--font-mono); color: var(--text-primary); }
+
+.momentTabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-bottom: 1px solid var(--grid); background: var(--surface-2); }
+.compassPoint { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); min-width: 0; min-height: 3rem; padding: var(--space-2) var(--space-3); border: 0; border-bottom: 3px solid transparent; background: transparent; color: var(--text-primary); cursor: pointer; }
+.compassPoint:hover { background: var(--surface-1); }
+.compassPoint[aria-selected="true"] { border-bottom-color: var(--series-1); background: color-mix(in srgb, var(--series-1) 7%, var(--surface-1)); }
+.compassPoint small { color: var(--text-muted); }
+.sigmaBand { fill: color-mix(in srgb, var(--series-2) 10%, transparent); stroke: var(--series-2); stroke-width: 1; stroke-dasharray: 5 5; vector-effect: non-scaling-stroke; }
+.shapeArea { fill: color-mix(in srgb, var(--series-1) 10%, transparent); }
+.liveProfile { fill: none; stroke: var(--text-muted); stroke-width: 1.5; stroke-dasharray: 6 5; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.scenarioProfile { fill: none; stroke: var(--series-1); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.meanLine { stroke: var(--series-2); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.shapePoint { fill: var(--surface-1); stroke: var(--series-1); stroke-width: 2.5; vector-effect: non-scaling-stroke; }
+.momentReadout { display: grid; grid-template-columns: minmax(8rem, .7fr) minmax(8rem, .7fr) minmax(15rem, 1.6fr); gap: 1px; margin: 0; border-top: 1px solid var(--grid); background: var(--grid); }
+.reservoirReadout { grid-template-columns: minmax(10rem, .8fr) minmax(0, 2.2fr); }
+.momentReadout > span { display: grid; align-content: center; gap: 3px; min-width: 0; margin: 0; padding: var(--space-3); background: var(--surface-2); }
+.momentReadout em { color: var(--text-muted); font-size: var(--fs-2xs); font-style: normal; }
+
+.accountingEquation { margin: 0; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--grid); color: var(--text-secondary); font-size: var(--fs-xs); }
+.reservoir { display: flex; align-items: stretch; gap: 2px; min-height: 7rem; padding: var(--space-3); background: var(--grid); }
+.reservoir button { display: grid; flex-basis: 5rem; align-content: center; justify-items: start; gap: 4px; min-width: 5rem; padding: var(--space-3); border: 0; border-top: 4px solid var(--border); background: var(--surface-1); color: var(--text-primary); cursor: pointer; }
+.reservoir button:nth-child(2) { border-top-color: var(--series-1); }
+.reservoir button[data-negative="true"] { border-top-color: var(--status-critical); background: color-mix(in srgb, var(--status-critical) 8%, var(--surface-1)); }
+.reservoir button:hover { background: var(--surface-2); }
+.reservoir button[aria-selected="true"] { outline: 2px solid var(--series-1); outline-offset: -2px; background: color-mix(in srgb, var(--series-1) 7%, var(--surface-1)); }
+.reservoir small { color: var(--text-muted); overflow-wrap: anywhere; }
+
+@media (max-width: 680px) {
+  .readout, .stressLab, .simulator, .momentReadout { grid-template-columns: 1fr; }
+  .momentTabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .compassPoint { align-items: start; flex-direction: column; }
+  .reservoir { overflow-x: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .currentLine, .probeNode, .massBar { transition: none; }
+}
+
+@media (forced-colors: active) {
+  .currentLine, .currentGrid[data-half="true"], .halfBracket, .selectedBeam, .selectedHalo, .probeNode { stroke: Highlight; border-color: Highlight; }
+  .currentArea { fill: Canvas; }
+  .probeNode[aria-selected="true"] { background: Highlight; }
+  .violationArc, .probeNode[data-violation="true"] { stroke: Mark; border-color: Mark; }
+  .massBar, .shapeArea { fill: Canvas; stroke: CanvasText; }
+  .negativeBar, .cumulativeAxis, .cumulativeLine, .scenarioProfile, .meanLine, .shapePoint { stroke: Highlight; }
+  .sigmaBand { fill: Canvas; stroke: CanvasText; }
+  .massTile[aria-selected="true"], .compassPoint[aria-selected="true"], .reservoir button[aria-selected="true"] { outline: 2px solid Highlight; }
+}
