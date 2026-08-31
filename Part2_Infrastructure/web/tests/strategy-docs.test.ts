@@ -134,6 +134,15 @@ describe("the card does not restate what other maps own", () => {
     assert.match(card, /STRATEGY_LABELS/);
   });
 
+  it("owns native disclosure changes instead of resetting them on a parent render", () => {
+    assert.match(card, /const mechanicsOpen = atLeast\(tier, "standard"\)/);
+    assert.match(card, /const mechanicsDefaultOpen = mechanicsOpen && tier !== COMPLEXITY_TIERS\[1\]/);
+    assert.match(card, /useDisclosurePreference\(mechanicsDefaultOpen\)/);
+    assert.match(card, /open=\{mechanicsExpanded\}/);
+    assert.match(card, /onToggle=\{\(event\) => setMechanicsExpanded\(event\.currentTarget\.open\)\}/);
+    assert.doesNotMatch(card, /\sopen=\{mechanicsOpen\}/);
+  });
+
   it("is mounted and follows the selected strategy", () => {
     assert.match(page, /import StrategyDocCard/);
     // The codex now remains mounted outside the result gate. Follow the live
