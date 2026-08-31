@@ -17,6 +17,9 @@
  * `#coherence/<section>` link in the world resolving natively while reading
  * "Proofs", and `markets` is reused rather than re-invented because the tests,
  * the relocation table and the desk sweep already speak it.
+ * The current registry has eleven tabs and seventy rail sections; its three
+ * quantitative destinations read Markets, Proofs and Diffusion and expose 68
+ * engine views (26 / 29 / 16).
  */
 
 export type WorkspaceView =
@@ -41,10 +44,10 @@ export const NAV_ITEMS: { id: WorkspaceView; label: string; role: string; access
   { id: "data", label: "Data", role: "Data", accessibleLabel: "Data operations" },
   { id: "reliability", label: "Reliability", role: "SRE" },
   { id: "developer", label: "Developer", role: "Dev" },
-  // The Kalshi engine reaches the reader as TWO tabs, in the order the argument
-  // runs: what the exchange quotes, then what this engine proves about it. Ten
-  // destinations, which is the count the priority ladder below is measured
-  // against.
+  // The quantitative engine reaches the reader as THREE tabs, in the order the
+  // argument runs: what the exchange quotes, what this engine proves about it,
+  // then how quickly new information is absorbed. Eleven destinations share
+  // this row.
   //
   // THE IDS DISAGREE WITH THE LABELS ON PURPOSE, and that is house practice on
   // this row rather than a mistake to tidy: `live` renders "Execution",
@@ -82,12 +85,35 @@ export const NAV_ITEMS: { id: WorkspaceView; label: string; role: string; access
   // never the same question as the rail it sat on: everything else there argues
   // from one poll of the exchange — does this family admit a probability, what
   // does the failure hand back — while this argues from a recorded research
-  // panel and answers how long absorption takes. Four groups over eleven views
-  // is a rail's worth of subject behind one button, and it had already grown a
-  // third switcher level to hold it.
+  // panel and answers how long absorption takes. Before extraction, four groups
+  // over eleven views sat behind one button and had grown a third switcher
+  // level. The current Diffusion tab has seven sections and sixteen addressable
+  // views.
   //
-  // "Diffusion" is nine characters, so this row is wider than the ten-tab row
-  // the ladder was last measured against and the measurement has to be re-run:
-  // `scripts/header-ladder-measure.mjs`, and `14p` owns the rule.
+  // "Diffusion" is nine characters. The old ten-tab comparison is historical;
+  // the current header is the eleven-tab row and must be measured as such by
+  // `scripts/header-ladder-measure.mjs`, with `14p` owning the rule.
   { id: "diffusion", label: "Diffusion", role: "Quant", accessibleLabel: "Information diffusion into prices" },
 ];
+
+/**
+ * The decision-loop neighbours, derived from the same order the header renders.
+ *
+ * The footer formerly copied eleven `nextId` edges while the phone navigator
+ * froze a separate four-item prefix. Both became hidden migration work whenever
+ * a tab moved or landed. Keeping the index private means callers can ask for a
+ * neighbour without gaining a second mutable navigation registry.
+ */
+const NAV_INDEX_BY_ID = new Map<WorkspaceView, number>(
+  NAV_ITEMS.map((item, index) => [item.id, index]),
+);
+
+export function nextWorkspaceView(view: WorkspaceView): WorkspaceView {
+  const index = NAV_INDEX_BY_ID.get(view) ?? 0;
+  return NAV_ITEMS[(index + 1) % NAV_ITEMS.length].id;
+}
+
+export function previousWorkspaceView(view: WorkspaceView): WorkspaceView {
+  const index = NAV_INDEX_BY_ID.get(view) ?? 0;
+  return NAV_ITEMS[(index - 1 + NAV_ITEMS.length) % NAV_ITEMS.length].id;
+}
