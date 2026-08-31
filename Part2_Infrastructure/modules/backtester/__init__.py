@@ -45,6 +45,7 @@ from modules.backtester._common import (
     bars_per_year,
 )
 from modules.backtester.data import (
+    MarketDataUnavailable,
     fetch_binance_range,
     fetch_ohlcv,
 )
@@ -99,6 +100,7 @@ __all__ = [
     "LINREG_MIN_ROWS",
     "LINREG_REFIT_EVERY",
     "LINREG_WARMUP",
+    "MarketDataUnavailable",
     "NumpyEngine",
     "VECTORBT_AVAILABLE",
     "VectorbtEngine",
