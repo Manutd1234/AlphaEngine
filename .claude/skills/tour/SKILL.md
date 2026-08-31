@@ -1,9 +1,12 @@
 ---
 name: tour
-description: Walk the AlphaEngine architecture — the three deployment units, the two-implementation parity argument that pins Python against TypeScript, the honesty doctrine (null never coerced to zero, withheld values dashed, sample floors), the ten tabs, and which of the seven quant-desk roles each surface serves. Use whenever the user says explain, walk me through, tour, overview, "how does this work", "what is this", "give me the architecture", "where is X", "why is it built this way", "onboard me", "I am reviewing this repo", or asks about parity, fixtures, the audit log, the gateway proxy, or where a role's questions get answered.
+description: Walk the AlphaEngine architecture — the three deployment units, the two-implementation parity argument that pins Python against TypeScript, the honesty doctrine (null never coerced to zero, withheld values dashed, sample floors), the eleven tabs, and which of the seven quant-desk roles each surface serves. Use whenever the user says explain, walk me through, tour, overview, "how does this work", "what is this", "give me the architecture", "where is X", "why is it built this way", "onboard me", "I am reviewing this repo", or asks about parity, fixtures, the audit log, the gateway proxy, or where a role's questions get answered.
 ---
 
 # Tour AlphaEngine
+
+**Last verified: 2026-08-29.** Read `docs/CURRENT_STATE.md` before quoting any
+volatile topology, dependency, contract or test figure.
 
 Give the argument, not a file listing. Every claim below is anchored to a file —
 open it and quote it rather than paraphrasing, and check the line before you
@@ -224,21 +227,17 @@ a language model, which is the surface most likely to invent something.
 
 ---
 
-## 5. Ten tabs, seven roles
+## 5. Eleven tabs, seven roles
 
 Tab ids live in `web/components/WorkspaceHeader.tsx`; sections in
 `web/lib/sections.ts`, whose ids never change because they are public deep links
 (`#<view>/<section>`).
 
-**Fifty-eight sections in total**, counted off `lib/sections.ts` on 2026-08-24
-and confirmed against `scripts/desk-sweep-plan.mjs`, whose
-`EXPECTED_SECTIONS = 57` is mirrored by hand and swept one by one. This figure
-has been wrong here more than once: it read 47 while the ninth and tenth tabs
-were added, then 65 for the hours the Kalshi engine's in-pane views were
-promoted to rail sections. It went 59 → 65 → 59 → 57 in a single day.
-`tour-truth.test.ts` holds it against the rails themselves; nothing holds it
-here, which is how it drifts — re-derive it from `lib/sections.ts` rather than
-quoting this line back:
+**Seventy addressable rail sections in total**, counted from the eleven section
+arrays in `lib/sections.ts` and mirrored by `EXPECTED_SECTIONS = 70` in
+`scripts/desk-sweep-plan.mjs`. Markets, Proofs and Diffusion additionally expose
+60 keyed engine views (23 / 21 / 16) from `lib/section-views.ts`; those views are
+not double-counted as rail sections. Re-derive both figures before quoting them:
 
 | Tab id | Label | Role | Sections |
 |---|---|---|---|
@@ -250,47 +249,36 @@ quoting this line back:
 | `data` | Data | Data engineer | overview, feeds, quality, incidents, lineage, providers, queue |
 | `reliability` | Reliability | SRE | overview, planes, services, events, controls |
 | `developer` | Developer | Quant developer | overview, readiness, quality, apis, codebase, work |
-| `markets` | **Quotes** | Quant researcher | universe, books, lattice, fees, shell |
-| `coherence` | **Proofs** | Quant researcher | certificate, calibration, diffusion, lessons |
+| `markets` | **Markets** | Quant researcher | universe, settlement, books, dispersion, lattice, stake, fees, shell |
+| `coherence` | **Proofs** | Quant researcher | certificate, portfolio, combos, index, calibration, corpus, lessons |
+| `diffusion` | **Diffusion** | Quant researcher | arm, meetings, episodes, model, instrument, sandbox, findings |
 
-The last two are one Kalshi engine split across two tabs — what the exchange
-quotes, then what the engine proves about it. Their labels are newer than their
-ids and were relabelled from "Markets" and "Coherence" on 2026-08-24 without
-either id moving, so `#coherence/certificate` is still the address of the
-section a reader now reaches by clicking **Proofs**. Four of their sections'
-labels differ from their ids too: `certificate` renders "Dutch book" and
-`calibration` renders "Scorecard" — the latter having absorbed the published
-section `index`, as `certificate` absorbed the published `combos`.
-`RELOCATED_SECTIONS` in `web/lib/workspace-hash.ts` keeps every historical link
-resolving — sixteen entries covering the 25 distinct locations the engine has
-ever published.
+The last three form the quant engine: Markets reads executable venue state,
+Proofs tests whether prices admit a probability measure, and Diffusion measures
+how event information reaches price. Stable ids preserve published links:
+`markets`, `coherence` and `diffusion`; `coherence` continues to display as
+Proofs. `RELOCATED_SECTIONS` in `web/lib/workspace-hash.ts` preserves historical
+section locations after earlier consolidations and promotions.
 
 **Ids and labels have drifted apart, and that is the design.** Ids are frozen
 because they are public deep links; labels were rewritten as the surfaces
 matured. Most gaps are harmless expansions (`loop` renders "Decision loop"). The ones
-that would actively mislead someone reasoning from the URL are, at the tab
-level, `live` → "Execution", `markets` → "Quotes" and `coherence` → "Proofs";
-and at the section level `codex` → "Strategies", `activity` → "Blotter",
+worth naming are, at the tab level, `live` → "Execution" and `coherence` →
+"Proofs"; and at the section level `codex` → "Strategies", `activity` → "Blotter",
 `model` → "Risk engine", `planes` → "Dependencies", `controls` →
-"Remediation", `work` → "Task Queue", `certificate` → "Dutch book" and
+"Remediation", `work` → "Task Queue", `certificate` → "Coherence test" and
 `calibration` → "Scorecard". Read the file rather than infer
 a label from a hash, and never rename an id to close the gap.
 
-**Sections are addressable; the panes inside them are not.** Several sections
-now split into panes held in component state — Reliability → Remediation opens
-on five (`mutations`, `scope`, `session`, `recovery`, `history`), Developer →
-API & Schema on three (Contracts, Routes, Numerics), and every one of the Kalshi
-engine's nine sections is a `.seg` switcher over four to seven views — ten segs
-in all, because Lattice's Stake view opens a second one (Plan, Capital, Method).
-That last case is the one to understand before reading a section count: a view
-is not in the URL, not in the command palette and not walked by
-`scripts/desk-sweep.mjs`, so eight subjects that were rail sections for part of
-2026-08-24 are reachable today only by pressing a button — which is exactly the
-difference between 65 and 57. No pane is in the hash
-whitelist and "Copy link to this view" cannot address one, so a pane rename
-breaks no URL — but five sentences in other tabs point a reader at
-"Reliability → Remediation" for the operator token, and they are right only
-because `mutations` is the pane that lands and holds the token field.
+**Engine views are addressable as a third hash segment.** A location such as
+`#markets/fees/example` names tab, rail section and view. The router treats the
+third segment as opaque and the owning tab resolves it through
+`lib/section-views.ts`; an unknown view confesses by rewriting to the section's
+default rather than leaving a plausible but false URL. Research Summary also
+uses the mechanism for Results/Setup. Presentation-only subcontrols inside a
+view do not add a fourth URL level. This is why 70 rail sections and 60 engine
+views are different units, and why `npm run audit:layout` walks the full view
+catalogue rather than only the rail.
 
 One naming collision worth knowing before someone else finds it: the Overview
 hero's pipeline kicker reads "Decision loop", and so does the first rail
@@ -310,17 +298,12 @@ managers get a Kupiec VaR backtest and a kill switch but no margin or
 liquidation modelling. Point the user at that table rather than reciting it; the
 gaps column is the argument.
 
-Test counts, measured 2026-08-24: **3,031 gateway passed with 2 skipped** in a
-clean shell, **3,039 passed with 1 skipped** once the optional cross-encoder
-weights are seeded, **4,449 web across 977 suites** (4,447 passed, 2 skipped),
-**14 service**. `web/lib/test-counts.generated.ts` was refreshed the same day
-and agrees; it will not stay that way without `npm run counts:refresh` after
-every test file. The standing rule outranks every sentence in this file: **never quote a
+The 2026-08-29 generated release record is 3,255 gateway tests (3,254 passed,
+1 skipped), 6,519 web tests across 1,408 suites (6,513 passed, 6 skipped), and
+24 service tests. It will not stay that way without `npm run counts:refresh`
+after the suites change. The standing rule outranks every sentence in this file: **never quote a
 test count from prose.** Run the `verify` skill and read the number off the
-output. Every count in this repository has drifted at least once, and prose in
-`Part2_Infrastructure/README.md`, `docs/testing/TESTING.md` and
-`docs/architecture/ARCHITECTURE.md` still carries earlier figures than the
-generated file does.
+output. The generated file is a dated record and only its web line is a CI gate.
 
 ---
 
@@ -348,15 +331,16 @@ honest read-only state rather than to a blank one.
 ## 7. If they want the long form
 
 `docs/whitepaper/` is the institutional whitepaper — Typst source, six chapters,
-83 A4 pages when built (`typst compile docs/whitepaper/main.typ out.pdf`,
-measured 2026-08-22). It is the same argument as this tour at ten times the
+compiled and visually verified for the 2026-08-29 documentation release with
+`typst compile docs/whitepaper/main.typ docs/whitepaper/AlphaEngine_Institutional_Whitepaper.pdf`.
+Read the current page count from `pdfinfo`, not this skill. It is the same argument as this tour at ten times the
 length, with real notation: the seventeen-gate evaluation order printed, absence
 as a typed state written out formally, and every measured figure carrying the
 file it was read from.
 
-Two honest things to say about it rather than oversell it. **No PDF is
-committed**, `typst` is in no requirements file, and no CI job compiles it — so
-it is documentation nothing gates. And the chapters run long: the brief was
+Two honest things to say about it rather than oversell it. PDFs are ignored,
+source is authoritative, and no CI job compiles it — so the release workflow
+must compile and inspect it deliberately. The chapters run long: the brief was
 about eight pages each and four of the six came in at 10 to 16, which their
 authors reported rather than hid.
 
