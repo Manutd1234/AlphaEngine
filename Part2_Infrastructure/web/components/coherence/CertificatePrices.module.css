@@ -1,0 +1,147 @@
+.chartKey {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  min-inline-size: 0;
+  padding: var(--space-2) var(--space-3);
+  border-block-end: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+}
+
+.chartKey > span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.chartHint {
+  margin-inline-start: auto;
+  color: var(--text-muted);
+}
+
+.bidKey,
+.askKey,
+.spreadKey {
+  display: inline-block;
+  flex: none;
+  inline-size: 1rem;
+  block-size: 0;
+  border-block-start: 3px solid var(--series-1);
+}
+
+.askKey {
+  border-block-start-color: var(--series-2);
+  border-block-start-style: dashed;
+}
+
+.spreadKey {
+  inline-size: 0.65rem;
+  block-size: 0.65rem;
+  border: 0;
+  border-inline-start: 2px solid var(--axis);
+}
+
+.gridLine {
+  stroke: var(--grid);
+  stroke-width: 1;
+}
+
+.axisText,
+.outcomeTick,
+.axisCaption {
+  fill: var(--text-muted);
+  font-family: var(--mono);
+  font-size: var(--fs-2xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.axisCaption {
+  font-family: var(--sans);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.bidLine,
+.askLine {
+  fill: none;
+  stroke: var(--series-1);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.askLine {
+  stroke: var(--series-2);
+  stroke-dasharray: 6 4;
+}
+
+.spreadStem {
+  stroke: var(--axis);
+  stroke-width: 3;
+  opacity: 0.45;
+  vector-effect: non-scaling-stroke;
+}
+
+.bidPoint,
+.askPoint {
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.bidPoint {
+  fill: var(--series-1);
+  stroke: var(--surface-1);
+}
+
+.askPoint {
+  fill: var(--surface-1);
+  stroke: var(--series-2);
+}
+
+.exactTable {
+  margin-block-start: var(--space-2);
+}
+
+.tableTicker {
+  display: block;
+  max-inline-size: 24rem;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 700px) {
+  .chartHint {
+    flex-basis: 100%;
+    margin-inline-start: 0;
+  }
+}
+
+@media (forced-colors: active) {
+  .bidLine,
+  .askLine,
+  .spreadStem,
+  .bidPoint,
+  .askPoint,
+  .bidKey,
+  .askKey,
+  .spreadKey {
+    border-color: CanvasText;
+    stroke: CanvasText;
+  }
+
+  .bidPoint {
+    fill: CanvasText;
+  }
+
+  .askPoint {
+    fill: Canvas;
+  }
+}
