@@ -169,7 +169,8 @@ describe("the one hash writer", () => {
     assert.equal(locationHash("coherence", "lessons", "coverage"), "coherence/lessons");
     assert.equal(locationHash("coherence", "lessons", "record"), "coherence/lessons/record");
     assert.equal(locationHash("coherence", "portfolio", "anything"), "coherence/portfolio");
-    assert.equal(locationHash("research", "summary", "x"), "research/summary");
+    assert.equal(locationHash("research", "summary", "results"), "research/summary");
+    assert.equal(locationHash("research", "summary", "setup"), "research/summary/setup");
     assert.equal(locationHash("coherence", "certificate", undefined), "coherence/certificate");
   });
 });
@@ -230,11 +231,13 @@ describe("resolving the third segment", () => {
     assert.equal(railView("coherence", "portfolio", "size"), "size");
   });
 
-  it("returns null for a tab that declares no views, so the router leaves it alone", () => {
-    // Diffusion and the rest keep working untouched: the segment is carried and
-    // ignored until that tab declares a table of its own.
-    assert.equal(railView("diffusion", "arm", "absorption"), null);
-    assert.equal(railView("research", "summary", "anything"), null);
+  it("resolves Research Summary while tabs without a table stay untouched", () => {
+    // Diffusion was the third adopter; Research Summary is the fourth and only
+    // declares the result/setup split rather than teaching every role section views.
+    assert.equal(railView("diffusion", "arm", "absorption"), "absorption");
+    assert.equal(railView("research", "summary", "setup"), "setup");
+    assert.equal(railView("research", "summary", "anything"), "results");
+    assert.equal(railView("portfolio", "overview", "anything"), null);
   });
 
   it("returns null for a section the tab does not have", () => {
