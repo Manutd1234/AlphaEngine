@@ -37,14 +37,14 @@
  */
 
 import Figure, { FigureEmpty, StateChip } from "../Figure";
-import { STAGE_TERMINAL_MIN, STAGE_WORD, absorptionNotice, absorptionReady } from "./AbsorptionGate";
-import { absorptionBand, bandCoverage } from "@/lib/coherence/absorption-band";
+import { STAGE_TERMINAL_MIN, absorptionNotice, absorptionReady } from "./AbsorptionGate";
 import AbsorptionCurve from "./AbsorptionCurve";
+import AbsorptionWorkbench from "./AbsorptionWorkbench";
 import ReturnFan from "./ReturnFan";
 import ClockAgreement from "./ClockAgreement";
 import ControlRank from "./ControlRank";
 import FloorDistance from "./FloorDistance";
-import type { AbsorptionRead, StageRun } from "./types";
+import type { AbsorptionRead } from "./types";
 
 
 function ratio(read: AbsorptionRead): string | null {
@@ -54,9 +54,30 @@ function ratio(read: AbsorptionRead): string | null {
   return `${(call / release).toFixed(1)}x`;
 }
 
+type ArmView = "absorption" | "floor" | "clocks";
+
+const EMPTY_CAPTION: Record<ArmView, string> = {
+  absorption: "How much of each stage's move had arrived by each horizon",
+  floor: "Every stage against the noise floor and matched no-news windows",
+  clocks: "Each stage ranked on the wall and volatility clocks",
+};
+
+/** A view's real frame while its marks are unknowable, never a zero-valued plot. */
+function UnavailableArmFigure({ view }: { view: ArmView }) {
+  return (
+    <Figure
+      caption={EMPTY_CAPTION[view]}
+      ariaLabel={`${EMPTY_CAPTION[view]}; no measurement is drawn because the absorption ledger is not readable`}
+      missing="No mark is placed until the absorption ledger can be read."
+    >
+      <FigureEmpty reason="This view has no readable sample yet." />
+    </Figure>
+  );
+}
+
 
 export default function InformationDiffusionPane({ view, read, error }: {
-  view: "absorption" | "floor" | "clocks";
+  view: ArmView;
   read: AbsorptionRead | null;
   error: string | null;
 }) {
@@ -64,7 +85,24 @@ export default function InformationDiffusionPane({ view, read, error }: {
   // absence differently. The predicate is what narrows `read` for everything
   // below it, rather than a non-null assertion at each use.
   const notice = absorptionNotice(read, error);
-  if (!absorptionReady(read)) return notice;
+  if (!absorptionReady(read)) {
+    // A browser reload starts with an empty module cache. Reserve the settled
+    // view only while that first read is genuinely pending; otherwise the one
+    // sparse frame grows into a one- or two-figure stack when the answer lands
+    // and moves everything below it by hundreds of pixels. Errors and typed
+    // empty/unconfigured reads deliberately lose the reserve.
+    const pending = read === null && error === null;
+    return (
+      <div
+        className="diff-pane"
+        data-arm-loading={pending ? view : undefined}
+        aria-busy={pending || undefined}
+      >
+        {notice}
+        <UnavailableArmFigure view={view} />
+      </div>
+    );
+  }
 
   // ONE CHIP ROW FOR ALL THREE VIEWS, hoisted 2026-08-25. It used to render
   // inside the Absorption branch only, so switching to Control or Clocks made
@@ -88,8 +126,7 @@ export default function InformationDiffusionPane({ view, read, error }: {
 
   // EACH VIEW DERIVES WHAT IT DRAWS AND NOTHING ELSE. These five used to be
   // computed together above the branches, so Control and Clocks both paid for
-  // an absorption band neither renders — and that band is the most expensive
-  // derivation on the tab. Nothing here is shared between the branches, so
+  // absorption geometry neither renders. Nothing here is shared between the branches, so
   // there is no saving to trade away by moving them down.
   if (view === "floor") {
     return (
@@ -123,8 +160,6 @@ export default function InformationDiffusionPane({ view, read, error }: {
 
   const measured = read.stages.reduce((total, stage) => total + stage.measured, 0);
   const measuredOn = (curve: (number | null)[]) => curve.filter((value) => value != null).length;
-  const coverage = bandCoverage(absorptionBand(read.runs, "release", read.horizons));
-
   return (
     <div className="diff-pane">
       {chips}
@@ -136,7 +171,7 @@ export default function InformationDiffusionPane({ view, read, error }: {
         // to assistive technology, so it had never been read to anyone.
         ariaLabel={`Absorbed fraction against horizon for both stages, over ${measured} measured stages: `
           + `statement ${measuredOn(read.release_curve)} of ${read.horizons.length} horizons, `
-          + `press conference ${measuredOn(read.call_curve)}, each with the middle half of its runs drawn behind it`}
+          + `press conference ${measuredOn(read.call_curve)}; either line or both can be selected`}
         // NO READING as of 2026-08-25. It said "the statement is half absorbed
         // in Ns and the press conference takes 4.4x as long" — which is the
         // chip above the figure ("Conference slower by 4.4x") and both curve
@@ -147,19 +182,9 @@ export default function InformationDiffusionPane({ view, read, error }: {
         // first two horizons are gaps. That is a fact about the sources, not
         // about the shape.
         reading={null}
-        missing={[
-          read.horizons.length && read.release_curve[0] == null
-            ? "The first two horizons are drawn as gaps: no free source resolves a move inside one minute."
-            : null,
-          // The band and the line are drawn at the same weight whatever the
-          // sample, so the count is the only thing that says which is which.
-          // The "which overshoot makes them" clause left on 2026-08-27: the fan
-          // below is the only figure on this view that SHOWS an overshoot, and
-          // it carries the sentence.
-          coverage
-            ? `Each band is the middle half of ${coverage}; the line through it is a MEAN, so it can sit off-centre where the runs are skewed.`
-            : null,
-        ].filter(Boolean).join(" ") || null}
+        missing={read.horizons.length && read.release_curve[0] == null
+          ? "The first two horizons are drawn as gaps: no free source resolves a move inside one minute."
+          : null}
       >
         {read.runs.length ? (
           <AbsorptionCurve horizons={read.horizons} release={read.release_curve}
@@ -169,16 +194,24 @@ export default function InformationDiffusionPane({ view, read, error }: {
         )}
       </Figure>
 
-      {/* The curve's own denominator, drawn under it. `absorbed(h)` is a ratio
-          against the terminal, so the figure above shows the SHAPE of an
-          average approach and can say nothing about how big a move was, how
-          much the cross-section spreads, or how often a path overshoots — and
-          it is a mean over the 89 runs that cleared the floor, while the fan
-          draws all 248. Paired here rather than given a view of its own for the
-          reason `ArmSection` already argues about the noise floor: a reader who
-          can reach the curve without meeting the raw paths reads a normalised
-          mean as if it were the data. */}
+      {/* The original pair stays uninterrupted: normalised absorption first,
+          then every measured path. The exact estimator ledger remains
+          available one interaction away instead of lengthening the default
+          view or displacing the denominator figure. */}
       <ReturnFan read={read} />
+
+      {read.runs.length ? (
+        <details className="disclosure diff-absorption-audit">
+          <summary>Exact estimator audit</summary>
+          <AbsorptionWorkbench
+            horizons={read.horizons}
+            release={read.release_curve}
+            call={read.call_curve}
+            stages={read.stages}
+            runs={read.runs}
+          />
+        </details>
+      ) : null}
     </div>
   );
 }
