@@ -1,0 +1,99 @@
+/* Thumb-reach projection of the canonical eleven-tab decision loop. */
+
+:root {
+  /* The measured fixed bar itself. Keep this separate from the extra focus-ring
+     air so the scroll viewport can end exactly where the bar begins. */
+  --mobile-nav-height: 53px;
+  /* 53px measured bar (44px target + 8px inset + 1px rule), plus 9px air so
+     the final action's focus ring cannot touch the fixed navigation. */
+  --mobile-nav-clearance: 62px;
+}
+
+.workspace-bottom-nav { display: none; }
+
+@media (max-width: 620px) {
+  .workspace-bottom-nav {
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: var(--z-rail);
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 2px;
+    padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--border);
+    background: var(--surface-0);
+  }
+
+  .workspace-bottom-nav button {
+    display: flex;
+    min-width: 0;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 4px 2px;
+    border: 0;
+    border-top: 2px solid transparent;
+    border-radius: 0;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: var(--fs-chrome-chip);
+    font-weight: 600;
+  }
+
+  .workspace-bottom-nav__label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .workspace-bottom-nav__current { flex-direction: column; gap: 0; }
+
+  .workspace-bottom-nav__current small {
+    color: var(--text-muted);
+    font-size: var(--fs-2xs);
+    font-weight: 500;
+    line-height: 1.15;
+  }
+
+  .workspace-bottom-nav button.is-active {
+    border-top-color: var(--series-1);
+    color: var(--series-1);
+  }
+
+  /* The shell, not the page footer below it, owns vertical scrolling. Reserve
+     the fixed thumb bar inside that scroll tail so max-scroll content clears
+     both the bar and the device safe area. `main` outranks the later base
+     padding shorthand without changing the desktop cascade. */
+  main.workspace-shell {
+    /* A padding tail protects max-scroll content, but cannot stop an item in
+       the middle of the scrollport from painting underneath a fixed bar. End
+       the scroll viewport above the bar as well. */
+    height: calc(100vh - var(--header-h) - var(--mobile-nav-height) - env(safe-area-inset-bottom));
+    height: calc(100svh - var(--header-h) - var(--mobile-nav-height) - env(safe-area-inset-bottom));
+    padding-bottom: calc(var(--mobile-nav-clearance) + env(safe-area-inset-bottom));
+  }
+
+  /* Data and Developer carry longer infrastructure labels than the three-cell
+     compact default can hold at 390px. Two local columns preserve the numbers
+     and provenance without changing the other desks' denser lead strips. */
+  .data-control-plane .page-heading__insights[data-count],
+  .developer-control-plane .page-heading__insights[data-count] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Risk carries four decision-critical figures with the longest labels in the
+     role headers. Auto-fit produced three ~113px columns at 390px: “Binding
+     constraint” and “Moving-average crossover” broke into single letters,
+     made the strip hundreds of pixels taller, and pushed the section picker
+     under the fixed thumb navigator. Two honest columns keep each value
+     readable and pull the shared picker clear on every Risk substate. */
+  #panel-risk .page-heading__insights[data-count="4"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .workspace-footer {
+    padding-bottom: calc(var(--space-6) + 62px + env(safe-area-inset-bottom));
+  }
+}
