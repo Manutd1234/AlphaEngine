@@ -1,324 +1,269 @@
 "use client";
 
-/**
- * The tree's shape, drawn once, instead of listed one level at a time.
- *
- * `ls` answers a path. That is the right answer to the question it is asked and
- * the wrong shape for the question underneath it: a reader stepping through
- * /shards, a shard, a series and an event sees four listings and never the
- * hierarchy they came out of — shards OR series OR events, never the shape.
- * Two of this section's load-bearing claims live in that shape rather than in
- * any one listing, and both were prose only.
- *
- * The first is the shard boundary. Shard directories are separate exchange
- * instances, collateral is held per shard, and one order group cannot span
- * two — so a basket with legs under different shard directories cannot be
- * protected as a single position. That is a cost of where a market lives, not
- * a naming convention, and it is drawn as a line with the order group that
- * would have crossed it severed on it. The tree's own edge does cross that
- * line, because the filesystem genuinely contains both shards; it is the
- * collateral that does not follow it.
- *
- * The second is that an event directory carries five derived readings. Their
- * names otherwise reach a reader only as an `entry.detail` four levels down,
- * which is no use to someone deciding whether the reading they want exists at
- * all. They are drawn from the same `DERIVED_FILES` table the reference under
- * the listing reads, so the picture cannot drift from the list.
- *
- * Nothing here is measured, and that is the point: the shape is the same at
- * every path, so this view reads nothing at all — `ShellPane` gates its poll on
- * the view not being this one, which is also what makes it the only view that
- * still answers while the venue is unreachable. Angle brackets mark every
- * placeholder, so the drawing cannot be mistaken for a listing of what is
- * watched today.
- *
- * No class here is its own. The tree borrows what the other figures on this tab
- * already paint: the dollar line for the boundary, because it is the reference
- * the reader is asked to judge against and the one thing nothing may occlude,
- * and the implied-offer dash for the order group, because a dash is what this
- * tab already uses for something derived rather than resting. Anything closer
- * to a tree of its own would be new CSS, and new CSS is not this figure's to
- * add.
- */
+import { useState } from "react";
 
-import Figure, { Plot } from "./Figure";
+import type { CoherenceShell } from "@/lib/coherence/types-lab";
+import type { LivePoint } from "@/lib/coherence/use-live-series";
 
-/**
- * The five readings an event directory carries beyond its markets: the
- * browser's copy of the gateway's own `EVENT_FILES` table. These names and
- * meanings otherwise reach a reader only as an `entry.detail` four directories
- * down, which is no use to someone deciding whether the reading they want
- * exists at all — so they are stated on the views that read them, the tree
- * below and the reference table under a listing.
- */
-export const DERIVED_FILES: ReadonlyArray<{ name: string; reads: string; silent: string }> = [
+import baseStyles from "./MarketStructures.module.css";
+import topologyStyles from "./ShellTopology.module.css";
+import { useRovingListbox } from "./use-stable-selection-key";
+
+const styles = { ...baseStyles, ...topologyStyles };
+
+type EmptyKind = "always" | "family" | "read";
+
+/** Computed files and their explicit empty-state semantics. */
+export const DERIVED_FILES: ReadonlyArray<{
+  name: string;
+  reads: string;
+  silent: string;
+  emptyKind: EmptyKind;
+}> = [
   {
     name: "implied_pmf",
-    reads: "The probability mass each interval carries, differenced off the strike ladder.",
-    silent: "When the books build no surface. The reason is returned in place of a mass, never a zero.",
+    reads: "Probability mass differenced from the strike ladder.",
+    silent: "Unavailable when the books build no surface; never coerced to zero.",
+    emptyKind: "family",
   },
   {
     name: "survival",
-    reads: "The survival function the strike ladder samples, strike by strike.",
-    silent: "When the event quotes intervals rather than a ladder of strikes: no curve to read off.",
+    reads: "The strike ladder's survival function.",
+    silent: "Unavailable for interval families without a threshold curve.",
+    emptyKind: "family",
   },
   {
     name: "lattice",
-    reads: "Which markets imply which, and why the exchange says so.",
-    silent: "Never. It is built from the exchange's own metadata, so it answers with no book quoted.",
+    reads: "Market implications from exchange metadata.",
+    silent: "Always addressable, even without a quoted book.",
+    emptyKind: "always",
   },
   {
     name: "certificate",
     reads: "The coherence test and its proof.",
-    silent: "When none was computed in this read: it is solved on demand, not for every event listed.",
+    silent: "Absent from this read until solved on demand.",
+    emptyKind: "read",
   },
   {
     name: "books",
-    reads: "The two bid ladders and the offers implied from them.",
-    silent: "Never. An empty side reads as a dash, never as a price of zero.",
+    reads: "Bid ladders and their implied offers.",
+    silent: "Always answers; an empty side is a dash, never a zero price.",
+    emptyKind: "always",
   },
 ];
 
-/** One line of the drawing: how deep it sits, what it is called, and the note
- *  it carries when there is width for one. */
-interface TreeRow {
-  depth: number;
-  name: string;
-  note?: string;
+const LEVELS = [
+  { name: "/shards", type: "root", note: "live watchlist root" },
+  { name: "<shard>/", type: "shard", note: "one collateral pool" },
+  { name: "<series>/", type: "series", note: "one watched series" },
+  { name: "<event>/", type: "event", note: "market and computed files" },
+  { name: "<market>", type: "market", note: "native contract" },
+] as const;
+
+const ARIA = "Live filesystem namespace from shards through series, events, markets, and computed files.";
+
+function topologyPath(level: number, shard: string | null): string {
+  const names = LEVELS.slice(1, level + 1).map((item, index) => {
+    if (index === 0 && shard) return shard;
+    return item.name.replace(/\/$/, "");
+  });
+  return ["/shards", ...names].join("/");
 }
 
-/** Two shards, because one shard cannot show a boundary. Everything below the
- *  root is a placeholder: these are the shape of a path, never a watchlist. */
-const ROWS: readonly TreeRow[] = [
-  { depth: 0, name: "/shards" },
-  { depth: 1, name: "<n>/", note: "one collateral pool" },
-  { depth: 2, name: "<series>/" },
-  { depth: 3, name: "<event>/" },
-  { depth: 4, name: "<market>" },
-  ...DERIVED_FILES.map((file) => ({ depth: 4, name: file.name })),
-  { depth: 1, name: "<m>/", note: "a second pool" },
-  { depth: 2, name: "<series>/" },
-  { depth: 3, name: "<event>/", note: "the same five readings" },
-  { depth: 4, name: "<market>" },
-];
-
-const LEFT = 8;
-const INDENT = 16;
-const TOP = 14;
-const ROW_H = 18;
-/** The air between the two subtrees: the boundary line and its two labels.
- *  38 rather than the 30 the 10px pass used: the words under the line sit at
- *  the 13px legend rung now, and with the gap at 30 the lower label's baseline
- *  (boundary + 13) sat 11px above the second shard's first row — inside a 13px
- *  line's own height. At 38 the boundary is (18 + 38) / 2 = 28px above that
- *  row, leaving 15px between the two baselines. */
-const BOUNDARY_GAP = 38;
-/** Where the notes and the brace begin — clear of the deepest name, which is
- *  `implied_pmf`: eleven characters at the 12px series-label rung is ≈76px
- *  from x = 72, so the names end near 148 and the notes start past them. */
-const NOTE_X = 168;
-/** Under this the note column and the order-group column would sit on top of
- *  each other, so both are dropped. What goes is annotation: every filename,
- *  the boundary and the words on it stay drawn at every width. */
-const NARROW = 340;
-/** Baselines sit three pixels under the line the connectors run on. */
-const MID = 3;
-/** The boundary's own words, indented past the edge that runs from /shards down
- *  to the second shard: that edge crosses the boundary at x=14, and words drawn
- *  from the margin would have it struck through them. */
-const LABEL_X = 32;
-
-const MARKET_ABOVE = 4;
-const FIRST_FILE = MARKET_ABOVE + 1;
-const LAST_FILE = FIRST_FILE + DERIVED_FILES.length - 1;
-/** Rows above the boundary. Everything from here down is the second shard. */
-const ABOVE = LAST_FILE + 1;
-const MARKET_BELOW = ROWS.length - 1;
-
-function xOf(depth: number): number {
-  return LEFT + depth * INDENT;
+interface TapeMark {
+  index: number;
+  x: number;
+  y: number;
 }
 
-function rowY(index: number): number {
-  return TOP + index * ROW_H + (index >= ABOVE ? BOUNDARY_GAP : 0);
+function tapeMarks(points: readonly LivePoint[]): Array<TapeMark | null> {
+  const readable = points.map((point) => point.value).filter((value): value is number => value != null);
+  if (!readable.length) return points.map(() => null);
+  const low = Math.min(...readable);
+  const high = Math.max(...readable);
+  const span = Math.max(1, high - low);
+  return points.map((point, index) => {
+    if (point.value == null) return null;
+    const x = points.length < 2 ? 50 : (index / (points.length - 1)) * 100;
+    const y = 28 - ((point.value - low) / span) * 22;
+    return { index, x, y };
+  });
 }
 
-/** The row this one hangs off: the nearest row above it a level shallower. */
-function parentOf(index: number): number {
-  for (let above = index - 1; above >= 0; above -= 1) {
-    if (ROWS[above].depth === ROWS[index].depth - 1) return above;
-  }
-  return 0;
+function tapePath(marks: ReadonlyArray<TapeMark | null>): string {
+  let connected = false;
+  return marks.map((mark) => {
+    if (mark == null) {
+      connected = false;
+      return "";
+    }
+    const command = connected ? "L" : "M";
+    connected = true;
+    return `${command}${mark.x},${mark.y}`;
+  }).filter(Boolean).join(" ");
 }
 
-const EDGES = ROWS.flatMap((row, index) =>
-  index === 0 ? [] : [{ index, depth: row.depth, parent: parentOf(index) }],
-);
+export default function ShellTree({
+  root,
+  loading = false,
+  error = null,
+  updatedAt = null,
+  points = [],
+  onBrowse,
+}: {
+  root?: CoherenceShell | null;
+  loading?: boolean;
+  error?: string | null;
+  updatedAt?: Date | null;
+  points?: readonly LivePoint[];
+  onBrowse?: (path?: string) => void;
+}) {
+  const shards = (root?.entries ?? []).filter((entry) => entry.kind === "dir");
+  const [selectedShard, setSelectedShard] = useState<string | null>(null);
+  const [level, setLevel] = useState(3);
+  const [file, setFile] = useState<number | null>(null);
+  const activeShard = shards.some((entry) => entry.name === selectedShard) ? selectedShard : shards[0]?.name ?? null;
+  const shardKeys = shards.map((entry) => entry.name);
+  const levelKeys = LEVELS.map((item) => item.name);
+  const fileKeys = DERIVED_FILES.map((item) => item.name);
+  const [, setShardKey, shardOptionProps] = useRovingListbox(shardKeys, shardKeys[0], activeShard, setSelectedShard);
+  const [, setLevelKey, levelOptionProps] = useRovingListbox(levelKeys, levelKeys[3]);
+  const [, setFileKey, fileOptionProps] = useRovingListbox(fileKeys);
+  const activeLevel = LEVELS[level];
+  const activeFile = file == null ? null : DERIVED_FILES[file];
+  const eventPath = topologyPath(3, activeShard);
+  const command = activeFile ? `cat ${eventPath}/${activeFile.name}` : `ls ${topologyPath(level, activeShard)}`;
+  const timestamp = updatedAt ? `${updatedAt.toISOString().slice(11, 19)}Z` : "waiting";
+  const rootAvailable = root?.state === "available";
+  const rootUnavailable = root != null && !rootAvailable;
+  const liveState = error ? "stale" : rootUnavailable ? "unavailable" : rootAvailable ? "live" : loading ? "connecting" : "idle";
+  const marks = tapeMarks(points);
+  const trace = tapePath(marks);
 
-const HEIGHT = rowY(MARKET_BELOW) + 14;
-const BOUNDARY_Y = (rowY(ABOVE - 1) + rowY(ABOVE)) / 2;
+  const chooseLevel = (index: number) => {
+    setLevel(index);
+    setLevelKey(levelKeys[index]);
+    setFile(null);
+  };
 
-/* The caption used to list the hierarchy the drawing draws — /shards holds
- * shards, a shard holds series, and so on for four more clauses. A figure that
- * needs its own contents read out in prose is a figure that failed; what a
- * caption owes a reader is the two conventions the picture cannot state. */
-const CAPTION =
-  "Directories end in a slash as ls -F writes them, and angle brackets are placeholders, not tickers.";
+  const chooseFile = (index: number) => {
+    setLevel(3);
+    setLevelKey(levelKeys[3]);
+    setFile(index);
+    setFileKey(fileKeys[index]);
+  };
 
-/* The boundary's consequence lives in the READING and in the drawing's own
- * label ("one order group cannot cross it"); the aria stops at the line, so
- * a screen reader is not read the same fact three times. */
-const ARIA =
-  "Four levels: /shards, two shard directories, each holding series, events, then markets beside five " +
-  "derived readings — implied_pmf, survival, lattice, certificate, books. A line separates the two shards.";
-
-const READING =
-  "The shard boundary is a collateral boundary, not a naming convention: collateral is held per shard, so legs " +
-  "under both shards cannot be protected as one position.";
-
-const MISSING =
-  "The tree is the watchlist, not the venue: Kalshi lists some thirteen thousand series and only the ones " +
-  "COHERENCE_SERIES names appear under a shard; only a listing says how many are watched today.";
-
-/**
- * The four levels, the five readings, and the line an order group stops at.
- *
- * Static at every path, so it takes no props and makes no read.
- */
-export default function ShellTree() {
   return (
-    <Figure caption={CAPTION} ariaLabel={ARIA} reading={READING} missing={MISSING}>
-      <Plot height={HEIGHT}>
-        {(width) => {
-          const roomy = width >= NARROW;
-          // The order group runs in a column of its own, right of the notes and
-          // inside the plot at any width where the notes survive at all.
-          // Clear of the widest note: "five derived readings" is 21 characters
-          // at the 12px rung, ≈139px from NOTE_X, so 150 keeps a margin.
-          const groupX = Math.max(NOTE_X + 150, width - 56);
-          // Clear of `<market>`, the name on both rows the group would join.
-          const stubX = xOf(ROWS[MARKET_ABOVE].depth) + 52;
-          return (
-            <>
-              {EDGES.map(({ index, depth, parent }) => (
-                <g key={`edge-${index}`}>
-                  <line
-                    x1={xOf(depth) - 10}
-                    x2={xOf(depth) - 10}
-                    y1={rowY(parent) - MID}
-                    y2={rowY(index) - MID}
-                    className="coh-ladder__axis"
-                  />
-                  <line
-                    x1={xOf(depth) - 10}
-                    x2={xOf(depth) - 3}
-                    y1={rowY(index) - MID}
-                    y2={rowY(index) - MID}
-                    className="coh-ladder__axis"
-                  />
-                </g>
-              ))}
+    <figure className={styles.instrument} aria-label={ARIA}>
+      <figcaption className={styles.head}>
+        <span><small>Filesystem lens — live namespace</small>Follow one address from the watched root to its native and computed files</span>
+        <strong data-state={liveState}>{liveState}</strong>
+      </figcaption>
 
-              {ROWS.map((row, index) => (
-                <text
-                  key={`row-${index}-${row.name}`}
-                  x={xOf(row.depth)}
-                  y={rowY(index)}
-                  className="coh-ablation__value"
-                >
-                  {row.name}
-                </text>
-              ))}
+      <div className={styles.shellStage}>
+        <div className={styles.commandTrace}>
+          <span aria-hidden="true">$</span><code>{command}</code>
+          <strong>{rootUnavailable ? root.detail || "root unavailable" : rootAvailable ? `${root.entries.length} root entries; ${timestamp}` : error ? "last read failed" : "opening root"}</strong>
+        </div>
 
-              {roomy
-                ? ROWS.map((row, index) =>
-                    row.note ? (
-                      <text key={`note-${index}`} x={NOTE_X} y={rowY(index)} className="coh-identity__label">
-                        {row.note}
-                      </text>
-                    ) : null,
-                  )
-                : null}
-
-              {/* The five readings are braced and counted, so the group reads as
-                  one thing an event carries rather than five loose files. */}
-              {roomy ? (
-                <g>
-                  <line
-                    x1={NOTE_X - 8}
-                    x2={NOTE_X - 8}
-                    y1={rowY(FIRST_FILE) - 11}
-                    y2={rowY(LAST_FILE) + 1}
-                    className="coh-ladder__axis"
-                  />
-                  <text
-                    x={NOTE_X}
-                    y={(rowY(FIRST_FILE) + rowY(LAST_FILE)) / 2 + MID}
-                    className="coh-identity__label"
+        <section className={styles.liveRoot} aria-label="Live shard root">
+          <header>
+            <span><small>Live root</small><strong>/shards</strong></span>
+            <span className={styles.livePulse} data-state={liveState}>{timestamp}</span>
+          </header>
+          <div className={styles.rootWorkbench}>
+            <div className={styles.shardRail} role="listbox" aria-label="Choose a live shard">
+              {shards.length ? shards.map((entry, index) => {
+                const option = shardOptionProps(entry.name, index);
+                return (
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={activeShard === entry.name}
+                    key={entry.name}
+                    tabIndex={option.tabIndex}
+                    onKeyDown={option.onKeyDown}
+                    onFocus={option.onFocus}
+                    onClick={() => setShardKey(entry.name)}
                   >
-                    five derived readings
-                  </text>
-                </g>
-              ) : null}
+                    <span className="num">{String(index + 1).padStart(2, "0")}</span>
+                    <strong>{entry.name}/</strong>
+                    <small>{entry.detail || "collateral pool"}</small>
+                  </button>
+                );
+              }) : (
+                <p>{rootUnavailable ? root.detail || "Root unavailable" : error ? "Root unavailable" : "Waiting for shard directories…"}</p>
+              )}
+            </div>
+            <div className={styles.rootTape}>
+              <span><small>Browser-observed feed</small><strong>{rootAvailable ? root.entries.length : "—"} entries</strong></span>
+              <svg viewBox="0 0 100 32" preserveAspectRatio="none" role="img" aria-label="Root entry count over polls seen in this browser">
+                <line x1="0" x2="100" y1="28" y2="28" />
+                {trace ? <path d={trace} /> : null}
+                {marks.map((mark) => mark == null ? null : <circle key={mark.index} cx={mark.x} cy={mark.y} r="1.7" />)}
+              </svg>
+              <small>{points.length} poll{points.length === 1 ? "" : "s"} retained locally</small>
+            </div>
+          </div>
+        </section>
 
-              {/* Dashed, because it is the one thing here that does not exist:
-                  an order group holding a leg in each shard. */}
-              {roomy ? (
-                <g>
-                  <line
-                    x1={stubX}
-                    x2={groupX}
-                    y1={rowY(MARKET_ABOVE) - MID}
-                    y2={rowY(MARKET_ABOVE) - MID}
-                    className="coh-ladder__implied"
-                  />
-                  <line
-                    x1={groupX}
-                    x2={groupX}
-                    y1={rowY(MARKET_ABOVE) - MID}
-                    y2={BOUNDARY_Y - 8}
-                    className="coh-ladder__implied"
-                  />
-                  <line
-                    x1={groupX}
-                    x2={groupX}
-                    y1={BOUNDARY_Y + 8}
-                    y2={rowY(MARKET_BELOW) - MID}
-                    className="coh-ladder__implied"
-                  />
-                  <line
-                    x1={stubX}
-                    x2={groupX}
-                    y1={rowY(MARKET_BELOW) - MID}
-                    y2={rowY(MARKET_BELOW) - MID}
-                    className="coh-ladder__implied"
-                  />
-                </g>
-              ) : null}
+        <div className={styles.pathTopology} role="listbox" aria-label="Inspect the address schema">
+          {LEVELS.map((item, index) => {
+            const props = levelOptionProps(levelKeys[index], index);
+            const display = index === 1 && activeShard ? `${activeShard}/` : item.name;
+            return (
+              <span className={styles.pathStep} key={item.name} data-active={level === index || undefined}
+                    data-traversed={index < level || undefined}>
+                <button type="button" role="option" className={styles.nodeButton} aria-selected={level === index}
+                        tabIndex={props.tabIndex} onKeyDown={props.onKeyDown}
+                        onFocus={() => { props.onFocus(); chooseLevel(index); }} onClick={() => chooseLevel(index)}>
+                  <small>{String(index + 1).padStart(2, "0")} — {item.type}</small><strong>{display}</strong><span>{item.note}</span>
+                </button>
+              </span>
+            );
+          })}
+        </div>
 
-              {/* Last, and full width: it is the reference the reader is asked to
-                  judge against, so nothing on the drawing may cover it. */}
-              <line x1={0} x2={width} y1={BOUNDARY_Y} y2={BOUNDARY_Y} className="coh-dollarbar__dollar" />
-              <text x={LABEL_X} y={BOUNDARY_Y - 6} className="coh-dollarbar__dollar-label">
-                ✕ shard boundary
-              </text>
-              <text x={LABEL_X} y={BOUNDARY_Y + 13} className="coh-dollarbar__dollar-label">
-                one order group cannot cross it
-              </text>
-              {roomy ? (
-                <g>
-                  <text x={groupX} y={BOUNDARY_Y + MID} textAnchor="middle" className="coh-dollarbar__dollar-label">
-                    ✕
-                  </text>
-                  <text x={groupX} y={BOUNDARY_Y + 13} textAnchor="middle" className="coh-identity__label">
-                    blocked
-                  </text>
-                </g>
-              ) : null}
-            </>
-          );
-        }}
-      </Plot>
-    </Figure>
+        <section className={styles.fileBranch} aria-label="Computed files beneath an event">
+          <header><span><small>Event fan-out</small><strong>Computed files</strong></span><em>{level < 3 ? "Select the event node first" : "Select a file to form its cat command"}</em></header>
+          <div className={styles.fileFan} role="listbox" aria-label="Inspect an event's computed files">
+            <span className={styles.fanHub} aria-hidden="true"><strong>&lt;event&gt;/</strong><small>compute</small></span>
+            {DERIVED_FILES.map((item, index) => {
+              const props = fileOptionProps(fileKeys[index], index);
+              return (
+                <button type="button" role="option" key={item.name} className={styles.fileButton}
+                        aria-selected={file === index} disabled={level < 3}
+                        tabIndex={props.tabIndex} onKeyDown={props.onKeyDown}
+                        onFocus={() => { props.onFocus(); chooseFile(index); }} onClick={() => chooseFile(index)}>
+                  <span aria-hidden="true">{item.name === "books" ? "↔" : "◇"}</span><strong>{item.name}</strong><small>{item.emptyKind}</small>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+      </div>
+
+      <div className={styles.readout}>
+        <span><small>Topology probe</small><strong>{activeFile?.name ?? activeLevel.name}</strong></span>
+        <span className={styles.readoutCopy}>{activeFile ? `${activeFile.reads} ${activeFile.silent}` : `${activeLevel.note}. ${level < 4 ? "Follow the line to inspect the next address level." : "Native bid ladders live here."}`}</span>
+        {onBrowse ? (
+          <button type="button" className={styles.browseButton} onClick={() => onBrowse(activeShard ? `/shards/${activeShard}` : "/")}>
+            Browse live shard →
+          </button>
+        ) : null}
+      </div>
+      <output className="sr-only" aria-live="polite" aria-atomic="true">
+        {command}. {activeFile ? `${activeFile.reads} ${activeFile.silent}` : activeLevel.note}.
+      </output>
+      <p className="coh-figure__reading">
+        This is the configured watchlist, not the whole exchange. The highlighted address is one traversable path;
+        Routing shows what its shard boundary means for a two-leg order.
+      </p>
+      <p className="coh-figure__missing">
+        <span aria-hidden="true">◌</span>
+        <span>The map reads only the configured root; Browse resolves deeper paths on demand.</span>
+      </p>
+    </figure>
   );
 }
