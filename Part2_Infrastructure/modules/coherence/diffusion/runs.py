@@ -101,7 +101,7 @@ class AbsorptionRunStore:
 
     def __init__(self, store: DataOpsStore | None = None, *, desk_id: str = "default") -> None:
         self._store = store if store is not None else get_data_ops_store()
-        self._desk_id = desk_id
+        self._desk_id = str(getattr(self._store, "desk_id", None) or desk_id)
         self._store.migrate(self._DDL)
 
     @property
