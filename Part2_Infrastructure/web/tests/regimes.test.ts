@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 
 import { NAMED_WINDOWS, regimeReport } from "../lib/regimes";
 import { runSweep } from "../lib/engine";
-import { syntheticBars } from "../lib/marketdata";
+import { syntheticBars } from "./helpers/synthetic-bars";
 import { BARS_PER_YEAR, DEFAULT_REQUEST, type Bar } from "../lib/types";
 
 const HOUR4 = 144e5;
