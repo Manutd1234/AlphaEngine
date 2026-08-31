@@ -17,23 +17,15 @@ Two honesty rules live here and neither may be relaxed:
   empty list. "Searched and found nothing" is a different fact from "could not
   search", and the workspace renders them differently.
 
-Retrieval fuses FOUR arms, all at RRF k = 60 — an arm on another constant would
-be a second fusion wearing the first one's name. Two live in Postgres (dense over
-gte-small, sparse from ``ts_rank_cd``, fused inside ``..._hybrid``);
-``modules.research_bm25`` re-scores the rows they returned; and
-``modules.research_image_arm`` ranks the ``image_embedding`` column — a chart's
-PIXELS, via CLIP — and alone can ADD a document where the other three reorder.
-Both optional arms report ``ranked: False`` with a named ``reason`` in
-``search``'s ``bm25``/``image`` rather than failing, so with either absent the
-ordering the desk served yesterday stands UNCHANGED.
+Retrieval fuses FOUR arms at RRF k = 60: Postgres dense/sparse, in-process BM25,
+and the CLIP ``image_embedding`` ranker, which alone can ADD a document. Both
+optional arms report ``ranked: False`` with a named ``reason`` rather than
+failing, so with either absent yesterday's ordering stands UNCHANGED.
 
-THE TENANT SCOPE. ``search``, ``_match_arms`` and ``_match`` take ``desk_id``,
-and it is threaded through to the two retrieval RPCs as ``filter_desk_id`` —
-the argument name ``supabase/migrations/20260822090000_research_tenant_scope.sql``
-declares and ``modules/research_quota_scope.SCOPE_PARAM`` pins on this side.
-``None`` means UNSCOPED and is byte-for-byte today's behaviour: see ``_scope``
-for why an unscoped call leaves the key off the payload rather than sending a
-null, which is a rollout property and not a style preference.
+THE TENANT SCOPE. ``search``, ``connected``, ``_match_arms`` and ``_match``
+thread ``desk_id`` to every corpus-reading RPC as ``filter_desk_id``, the
+migrations' pinned argument. ``None`` means UNSCOPED and leaves the key off;
+see ``_scope`` for the rollout reason.
 """
 
 from __future__ import annotations
@@ -54,7 +46,6 @@ import httpx
 # called from `arms.apply_bm25`, one import away.
 from modules import research_bm25  # noqa: F401 - re-exported: the wiring suite reads the arm off this module
 from modules.research_graph_fusion import fuse_graph_matches  # noqa: F401 - re-exported: the arms are named here
-from modules.research_image import unavailable as _image_unavailable
 from modules.research_image_arm import image_arm
 from modules.research_rag.arms import (
     RAG_MIN_SIMILARITY,
@@ -66,11 +57,13 @@ from modules.research_rag.arms import (
     _unretrieved,
     apply_bm25,
 )
+from modules.research_rag.chunking import collapse_parent_matches
 from modules.research_rag.embedding import (
     EMBEDDING_DIMENSIONS,  # noqa: F401 - re-exported
     EMBEDDING_MODEL,  # noqa: F401 - re-exported
     _EmbeddingMixin,
 )
+from modules.research_rag.query_cache import search_with_cache
 
 log = logging.getLogger("alphaengine.rag")
 
@@ -108,17 +101,22 @@ def _body(response: Any) -> tuple[list[dict[str, Any]] | None, str]:
     handlers by exactly the same route.
     """
     try:
-        return list(response.json()), ""
+        payload = response.json()
     except ValueError:
         return None, (
             f"the RPC answered HTTP {getattr(response, 'status_code', '2xx')} with a body that is "
             f"not JSON ({REASON_UNPARSEABLE_BODY}), so nothing was retrieved"
         )
+    if not isinstance(payload, list) or not all(isinstance(row, dict) for row in payload):
+        return None, (
+            f"the RPC answered HTTP {getattr(response, 'status_code', '2xx')} with JSON that is "
+            f"not an array of documents ({REASON_UNPARSEABLE_BODY}), so nothing was retrieved"
+        )
+    return payload, ""
 
 
 class _RetrievalMixin(_EmbeddingMixin):
     """The read half of ``ResearchRag``; see ``writer.ResearchRag``."""
-
     _client: httpx.AsyncClient | None
 
     # -- retrieval --------------------------------------------------------- #
@@ -145,7 +143,14 @@ class _RetrievalMixin(_EmbeddingMixin):
         matches, _report = await self._match_arms(
             vector, match_count=match_count, kind=kind, query_text=query_text, desk_id=desk_id,
         )
-        return matches
+        collapsed, duplicate = collapse_parent_matches(matches, match_count)
+        wider = min(20, max(match_count + 1, match_count * 4))
+        if duplicate and len(collapsed) < match_count and wider > match_count:
+            matches, _report = await self._match_arms(
+                vector, match_count=wider, kind=kind, query_text=query_text, desk_id=desk_id,
+            )
+            collapsed = collapse_parent_matches(matches, match_count)[0][:match_count]
+        return collapsed
 
     async def _hybrid_arms(
         self,
@@ -277,40 +282,8 @@ class _RetrievalMixin(_EmbeddingMixin):
         self, query: str, match_count: int = 3, kind: str | None = None,
         desk_id: str | None = None,
     ) -> dict[str, Any]:
-        """Typed result: `unavailable` is a state, never an empty list.
-
-        ``bm25`` and ``image`` are on every branch, ranked or not, for the reason
-        ``state`` is: nobody should tell "an arm declined" from "key missing".
-
-        ``desk_id`` is the tenant bound `modules/research_quota_scope` decides
-        and `modules/research_quota_gate.scope_for` hands over; that module
-        probes this signature by the name `SCOPE_PARAM` before it passes
-        anything, so the spelling here is a contract rather than a local choice.
-        ``None`` is the default and the common path: scoping is off unless an
-        operator turned it on, and an unscoped call is exactly today's call.
-        """
-        if not self.enabled or not self._client:
-            unconfigured = "the research index is not configured, so nothing was retrieved"
-            return {"state": "unavailable", "matches": [], "bm25": _unretrieved(unconfigured),
-                    "image": _image_unavailable(REASON_RETRIEVAL_UNAVAILABLE, unconfigured)}
-        vector = await self._embed(query)
-        if vector is None:
-            unembeddable = "the query could not be embedded, so nothing was retrieved"
-            return {"state": "embed_failed", "matches": [], "bm25": _unretrieved(unembeddable),
-                    "image": _image_unavailable(REASON_RETRIEVAL_UNAVAILABLE, unembeddable)}
-        matches, bm25 = await self._match_arms(
-            vector, match_count=match_count, kind=kind, query_text=query, desk_id=desk_id,
-        )
-        # LAST, over the fused rows, and NEVER handed `vector`: that one is
-        # gte-small and the column it would be compared against is CLIP.
-        matches, image = await image_arm(self._client, query, matches, match_count, kind, desk_id)
-        return {
-            "state": "ok",
-            "matches": matches,
-            "corpus_size": await self._corpus_size(desk_id),
-            "bm25": bm25,
-            "image": image,
-        }
+        """Typed, cached search; ``desk_id`` is part of both query and cache scope."""
+        return await search_with_cache(self, query, match_count, kind, desk_id, image_arm)
 
     async def _corpus_size(self, desk_id: str | None = None) -> int | None:
         """How many embedded documents the search could have matched.
@@ -348,7 +321,7 @@ class _RetrievalMixin(_EmbeddingMixin):
 
     async def connected(
         self, document_id: str, max_depth: int = 2, match_count: int = 10,
-        relations: list[str] | None = None,
+        relations: list[str] | None = None, desk_id: str | None = None,
     ) -> dict[str, Any]:
         """Documents reachable from one document over research_edges.
 
@@ -367,11 +340,11 @@ class _RetrievalMixin(_EmbeddingMixin):
         as well: ``None`` traverses every relation, and ``[]`` is left OFF the
         payload, never sent as an empty array.
 
-        NO ``desk_id`` HERE, and the absence is deliberate rather than missed.
-        `20260822090000_research_tenant_scope.sql` added `filter_desk_id` to the
-        two retrieval functions and NOT to `traverse_research_graph`, so passing
-        one would be answered PGRST202 and 404 every traversal. The gap is real
-        and is owed to that migration's successor, not papered over here.
+        ``desk_id`` is optional for the same staged-rollout reason as on
+        ``search``. With the default scope setting off the key stays absent and
+        a deployment predating the graph-scope migration receives the exact old
+        payload. Once the setting is enabled, a missing migration produces the
+        typed ``unavailable`` state below rather than an unscoped fallback.
         """
         if not self.enabled or not self._client:
             return {"state": "unavailable", "connected": []}
@@ -383,6 +356,7 @@ class _RetrievalMixin(_EmbeddingMixin):
                     "max_depth": max(1, min(int(max_depth), 4)),
                     "match_count": max(1, min(int(match_count), 50)),
                     **({"relations": list(relations)} if relations else {}),
+                    **_scope(desk_id),
                 },
             )
         except httpx.HTTPError:
