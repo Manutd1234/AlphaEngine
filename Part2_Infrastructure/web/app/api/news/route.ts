@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     );
     return NextResponse.json(
       { symbols, count: items.length, items, provenance: result.provenance, attempts: result.attempts },
-      { headers: cacheHeaders(180) },
+      { headers: cacheHeaders(180, result.provenance.synthetic === true) },
     );
   } catch (err) {
     return failure(err);
