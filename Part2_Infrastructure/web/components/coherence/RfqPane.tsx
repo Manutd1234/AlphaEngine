@@ -18,7 +18,7 @@
  * is the rule `coherence-pane-head.test.ts` holds, and the sentence that was
  * this pane's lede leads the two views instead.
  *
- * THE FOUR STATES ARE A TABLE NOW, and that is the point of this rewrite. They
+ * THE CHANNEL STATES ARE A TABLE NOW, and that is the point of this rewrite. They
  * were four two-paragraph explanations, one rendered at a time, seventy lines of
  * prose that between them said one thing four ways: a channel that could not be
  * read and a channel with nothing on it are different facts. A reader met
@@ -42,7 +42,7 @@
  *     measurement, not an absence.
  *   - `available` — quotes in hand.
  *
- * A fifth state — the gateway saying something this pane has not been taught —
+ * An additional state — the gateway saying something this pane has not been taught —
  * gets its own row rather than being folded into the nearest of the four.
  *
  * Two quantities in the dispersion table are routinely conflated and are kept
@@ -65,15 +65,17 @@
  * ("some tabs inside have no diagrams"): this was the one view on the
  * whole engine that was tables end to end. `DispersionStrips` draws each panel's lowest-to-highest
  * range on one shared dollar axis — the section's own question, ranked by eye —
- * and it renders only when there are rows, so the demo deployment's empty
- * channel keeps its `.console-empty` line rather than gaining a bordered plot
- * with nothing in it.
+ * and it renders only when there are rows, so an empty private channel gets a
+ * connection state and outcome map rather than a fabricated dispersion plot.
  */
 
 import { type ReactNode } from "react";
 
-import type { CoherenceDispersion, CoherenceRfqPanel } from "@/lib/coherence/types-lab";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import type { CoherenceRfqPanel } from "@/lib/coherence/types-lab";
 import { rfqRoute } from "@/lib/coherence/routes";
+import { measuredOpenRequests } from "@/lib/coherence/rfq-measurements";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import { useLiveSeries } from "@/lib/coherence/use-live-series";
 import LiveTape from "./LiveTape";
@@ -81,6 +83,7 @@ import ChannelStates from "./ChannelStates";
 import DispersionTable, { THIN_PANEL } from "./DispersionTable";
 import KpiRow, { type Reading } from "./KpiRow";
 import DispersionStrips from "./DispersionStrips";
+import ProofsTransportNotice from "./ProofsTransportNotice";
 
 /** The section's two subjects since the second 2026-08-24 pass: the quotes
  *  themselves, and the channel that did or did not carry them. They were
@@ -91,9 +94,9 @@ import DispersionStrips from "./DispersionStrips";
 export type RfqView = "quotes" | "channel";
 
 /**
- * The four answers the channel can give, as data rather than as four branches.
+ * The answers the channel can give, as data rather than as rendering branches.
  *
- * `not` is the load-bearing column. Every one of these four would be reported as
+ * `not` is the load-bearing column. Every one of these would be reported as
  * "no data" by a panel that only tracked whether it had quotes, and three of the
  * four are then indistinguishable from the fourth — which is the failure this
  * whole pane exists to prevent.
@@ -101,83 +104,102 @@ export type RfqView = "quotes" | "channel";
 const STATES: ReadonlyArray<{ state: string; mark: string; word: string; means: string; not: string }> = [
   {
     state: "signing_unavailable",
-    mark: "○",
-    word: "No view, unsigned",
-    means: "Nothing was asked: no key, or no signing library.",
-    not: "Not an empty market. Our credentials, not their quotes.",
+    mark: "⚙",
+    word: "Private channel setup",
+    means: "The gateway needs its demo key id and private-key path.",
+    not: "Not an empty market. Public market reads remain live.",
+  },
+  {
+    state: "unavailable",
+    mark: "⊘",
+    word: "Channel offline",
+    means: "The gateway could not complete the private read.",
+    not: "Not an empty panel, and not a venue refusal.",
   },
   {
     state: "refused",
     mark: "✕",
-    word: "Signed and refused",
+    word: "Credentials refused",
     means: "The venue said no.",
     not: "Not silence. The same key will be refused again.",
   },
   {
     state: "empty",
     mark: "◌",
-    word: "Read, and empty",
+    word: "Connected, no RFQs",
     means: "Zero open requests.",
     not: "Not a failed read. Makers do not quote a sandbox, so the zero is a measurement.",
   },
   {
     state: "available",
     mark: "●",
-    word: "Quotes in hand",
+    word: "Connected, quotes live",
     means: "Quotes on the channel.",
     not: "Not a price. Several makers answering independently.",
   },
 ];
 
 /**
- * The three numbers a reader wants before any drawing, whatever the channel said.
+ * The two measurable counts a reader wants before any drawing.
  *
- * EVERY BRANCH CAN ANSWER ALL THREE, which is why they are a row rather than
- * chips inside the available branch. A refusal still has a state, still has an
- * open-request count (zero, measured, not missing), and still knows whether a
- * panel came back — and on a keyless deployment those three are the entire
- * section. The panel width is the one that is genuinely absent then, and it is
- * withheld with its reason rather than printed as a zero: no panels means no
- * width, not a width of nothing.
+ * The state always answers. Counts appear only after a completed private read;
+ * setup and transport states do not manufacture zeros from a list never read.
  */
 function channelReadings(panel: CoherenceRfqPanel): Reading[] {
   const panels = panel.dispersions.length;
   const thin = panel.dispersions.filter((row) => row.thin).length;
+  const openRequests = measuredOpenRequests(panel);
+  if (openRequests == null) return [];
   return [
-    { label: "Channel said", value: wordFor(panel.state) },
-    {
-      label: "Open requests",
-      value: String(panel.open_requests),
-      note: panel.open_requests === 0 ? "a measured zero: the venue looked and found none" : undefined,
-    },
+    { label: "Open requests", value: String(openRequests), note: openRequests === 0 ? "live read completed" : undefined },
     {
       label: "Maker panels",
-      value: panels ? `${panels} ${panels === 1 ? "market" : "markets"}` : null,
-      withheld: "no panel came back on this read, so there is none to count",
-      note: thin ? (
-        <>
-          <span aria-hidden="true">▲</span> {thin} of {panels} thin, under {THIN_PANEL} makers
-        </>
-      ) : undefined,
+      value: `${panels} ${panels === 1 ? "market" : "markets"}`,
+      note: thin ? <><span aria-hidden="true">▲</span> {thin} thin, under {THIN_PANEL} makers</> : undefined,
     },
   ];
 }
 
-function wordFor(state: string): string {
-  return STATES.find((row) => row.state === state)?.word ?? `State ${state}`;
+function ChannelNotice({ panel, onRetry }: { panel: CoherenceRfqPanel; onRetry: () => void }) {
+  const fault = panel.state === "unavailable" || panel.state === "refused";
+  const title = panel.state === "signing_unavailable"
+    ? "Connect the private maker channel"
+    : panel.state === "empty"
+      ? "Private maker channel connected"
+      : panel.state === "available"
+        ? "Private channel connected; no panel is drawable"
+        : panel.state === "refused"
+          ? "Private-channel credentials were refused"
+          : "Private maker channel is temporarily offline";
+  return (
+    <Alert
+      role={fault ? "alert" : "status"}
+      variant={fault ? "destructive" : "default"}
+      className="coh-rfq__connection"
+      data-state={panel.state}
+    >
+      <AlertTitle>{title}</AlertTitle>
+      <AlertDescription>
+        <p>The gateway says: {panel.detail}</p>
+        <Button type="button" variant="outline" size="sm" onClick={onRetry}>
+          Check channel now
+        </Button>
+      </AlertDescription>
+    </Alert>
+  );
 }
 
-/** All four outcomes, with this read's own marked. */
+/** Every known outcome, with this read's own marked. */
 function StateTable({ panel }: { panel: CoherenceRfqPanel }) {
   const known = STATES.some((row) => row.state === panel.state);
-  /* The untaught state gets a fifth row, so the count in the summary is
+  /* An untaught state gets one additional row, so the count in the summary is
      computed rather than written down — a summary that says "4 rows" over five
      is the kind of small lie that costs a guard its credibility. */
   const rows = known ? STATES.length : STATES.length + 1;
   return (
     <div className="coh-rfq__state">
       {/* FOLDED on the fourth pass of 2026-08-24. `ChannelStates` above draws
-          the same four answers in order and marks the one this read got, so
+          the same alternative answers as branches and marks the one this read got, so
           open, this table is the figure again in words; what it alone carries
           is the "what it is not" column, which is the distinction the whole
           pane exists to defend. That is worth a click and not worth the screen.
@@ -185,7 +207,7 @@ function StateTable({ panel }: { panel: CoherenceRfqPanel }) {
           answer, not the vocabulary. */}
       <details className="disclosure">
         <summary>What each of the {rows} answers means, and what it is not</summary>
-        <div className="table-wrap">
+        <div className="table-wrap" role="region" aria-label="Private-channel outcome definitions" tabIndex={0}>
         <table className="coh-table">
           <caption className="coh-table__caption">
             This read&rsquo;s own answer is marked in the second column.
@@ -216,41 +238,41 @@ function StateTable({ panel }: { panel: CoherenceRfqPanel }) {
                 </th>
                 <td>→ this one</td>
                 <td>A state this pane has not been taught.</td>
-                <td>Not one of the four. Shown as itself, rather than folded into the nearest.</td>
+                <td>Not one of the five. Shown as itself, rather than folded into the nearest.</td>
               </tr>
             )}
           </tbody>
         </table>
         </div>
       </details>
-      {panel.detail ? <p className="coh-rfq__lead">The gateway says: {panel.detail}</p> : null}
     </div>
   );
 }
 
 export default function RfqPane({ view, active }: { view: RfqView; active: boolean }) {
-  const { data, error, updatedAt } = useCoherenceRead<CoherenceRfqPanel>(rfqRoute(), active);
+  const read = useCoherenceRead<CoherenceRfqPanel>(rfqRoute(), active);
+  const { data, error, updatedAt } = read;
 
   /* How far the makers are apart, poll by poll.
-     ON ONE MARKET, NOT THE PANEL. `median_width` is a per-market measurement
+     ON ONE MARKET, NOT THE PANEL. `spread` is a per-market measurement
      and averaging it across the panel would invent a number the venue never
      sent — the same rule the four size fields on Universe are drawn under. So
-     the tape follows the first market that HAS a width, and is keyed on that
+     the tape follows the first market that HAS a spread, and is keyed on that
      market: when the panel reorders, a different ticker starts a different
      series rather than welding two markets into one line.
      Null where nothing is measured, which on a keyless deployment is always —
      and a null is drawn as a break rather than bridged. */
-  const spread = data?.dispersions.find((row) => row.median_width != null) ?? null;
-  const widthTape = useLiveSeries(
-    `rfq:${spread?.market_ticker ?? "unquoted"}:width`,
+  const spread = data?.dispersions.find((row) => row.spread != null) ?? null;
+  const spreadTape = useLiveSeries(
+    `rfq:${spread?.market_ticker ?? "unquoted"}:spread`,
     updatedAt,
-    spread?.median_width == null ? null : Number(spread.median_width),
+    spread?.spread == null ? null : Number(spread.spread),
   );
 
   /** The count, and one thing under it. Drawn on every branch. */
   const framed = (body: ReactNode) => (
     <div className="coh-rfq">
-      {/* THE CLAIM LEFT THIS LINE ON 2026-08-25 and only the count stayed.
+      {/* THE CLAIM LEFT THIS LINE ON 2026-08-25 and only measurable counts stayed.
           While this pane was two views of Books it opened with the sentence
           that a book shows one most aggressive opinion and this channel is the
           only place the venue exposes several professionals answering
@@ -262,7 +284,7 @@ export default function RfqPane({ view, active }: { view: RfqView; active: boole
           What is NOT prose is the open-request count, which is this read's own
           answer and belongs beside the figure it describes. */}
       {data ? (
-        /* The channel's own three numbers, in the row every other section on
+        /* The channel's own measured counts, in the row every other section on
            the tab answers in. They were one sentence — "N open requests on the
            channel." — which is the right fact in the wrong object: a count, a
            verdict and a panel width are measurements, and this section was one
@@ -273,30 +295,37 @@ export default function RfqPane({ view, active }: { view: RfqView; active: boole
       ) : (
         <p className="sub">Asking the channel now.</p>
       )}
+      <ProofsTransportNotice
+        subject="Maker channel read"
+        error={error}
+        hasSnapshot={Boolean(data)}
+        transport={read.transport}
+        retryAt={read.retryAt}
+        consecutiveFailures={read.consecutiveFailures}
+        onRetry={read.refresh}
+      />
       {body}
     </div>
   );
 
   if (error && !data) {
     return framed(
-      <p className="console-empty">
-        <span aria-hidden="true">✕</span> The RFQ panel could not be read: {error}. That is this desk failing to reach
-        its own gateway, not the venue answering.
-      </p>,
+      <ChannelStates states={STATES} current="unavailable" openRequests={null} />,
     );
   }
-  if (!data) return framed(<p className="console-empty muted">Asking the makers…</p>);
+  if (!data) return framed(<p className="console-empty muted" role="status" aria-busy="true">Asking the makers…</p>);
 
   const available = data.state === "available";
 
   return framed(
     <>
+      {available && data.dispersions.length ? null : <ChannelNotice panel={data} onRetry={read.refresh} />}
       {view === "channel" ? (
         <>
           {/* The figure carries the state and the count; the chips that said
               the same two things again are gone (third 2026-08-24 review:
               duplicates out, a drawing in). */}
-          <ChannelStates states={STATES} current={data.state} openRequests={data.open_requests} />
+          <ChannelStates states={STATES} current={data.state} openRequests={measuredOpenRequests(data)} />
           <StateTable panel={data} />
         </>
       ) : available && data.dispersions.length ? (
@@ -305,30 +334,8 @@ export default function RfqPane({ view, active }: { view: RfqView; active: boole
           <DispersionTable rows={data.dispersions} />
         </>
       ) : (
-        <>
-          {/* A DRAWING IN THE EMPTY STATE, since 2026-08-25 and the report that
-              this section is "too wordy and no diagrams". It was one grey
-              sentence, and on every keyless deployment — which is every demo of
-              this engine — that sentence WAS the view. `ChannelStates` is the
-              right figure for it rather than a placeholder: the question a
-              reader has when no panel comes back is how far the request got,
-              and that is precisely what it draws. It is the same figure the
-              Channel view leads with, drawn from the same four rows; what
-              Channel adds under it is the table of what each answer is NOT. */}
-          <ChannelStates states={STATES} current={data.state} openRequests={data.open_requests} />
-          <p className="console-empty">
-            <span aria-hidden="true">◌</span> No dispersion to rank on this read: the channel answered
-            &ldquo;{wordFor(data.state).toLowerCase()}&rdquo;, so there are no maker panels to draw. Channel says what
-            that answer means and what it does not.
-          </p>
-        </>
+        <ChannelStates states={STATES} current={data.state} openRequests={measuredOpenRequests(data)} />
       )}
-
-      {error ? (
-        <p className="coh-rfq__note">
-          <span aria-hidden="true">✕</span> The last refresh failed: {error}. What is above is the previous answer.
-        </p>
-      ) : null}
 
       {/* Drawn only where there is a market to name. A tape captioned "no
           market" would be a figure about the absence of a subject, and the
@@ -336,9 +343,9 @@ export default function RfqPane({ view, active }: { view: RfqView; active: boole
           far the request got rather than a flat line at nothing. */}
       {spread ? (
         <LiveTape
-          points={widthTape}
+          points={spreadTape}
           caption={`How far the makers are apart on ${spread.market_ticker}, poll by poll`}
-          ariaLabel="The median width between independent maker quotes on this market, over the polls seen since this tab opened"
+          ariaLabel="The maker-to-maker price spread on this market, over the polls seen since this tab opened"
           reference={{ value: 0, label: "the makers agree exactly" }}
           reading="Widening means the professionals are disagreeing more about the same contract; a gap in the line is a poll that measured nothing, never a poll that measured zero."
         />
