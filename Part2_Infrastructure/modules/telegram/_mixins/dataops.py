@@ -229,11 +229,9 @@ class DataOpsMixin:
         by_work_status: dict[str, int] = {}
         for item in items:
             by_work_status[item.status] = by_work_status.get(item.status, 0) + 1
-        seeded = sum(1 for item in items if item.created_by == "seed")
         lines += [
             f"<b>Data work queue</b> — persisted on this gateway (SQLite): "
-            f"<code>{len(items)}</code> items, <code>{len(open_items)}</code> open, "
-            f"<code>{seeded}</code> seeded samples.",
+            f"<code>{len(items)}</code> items, <code>{len(open_items)}</code> open.",
         ]
         for status in ("intake", "ready", "progress", "resolved"):
             lines.append(f"<code>{status:<10}</code> <code>{by_work_status.get(status, 0)}</code>")
