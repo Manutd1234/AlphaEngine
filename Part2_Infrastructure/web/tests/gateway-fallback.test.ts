@@ -50,26 +50,39 @@ describe("a tier says what the payload is made of", () => {
     assert.deepEqual(resolveTier(false, true, refused), { tier: "cached", cause: null });
   });
 
-  it("a failure with no cache generates, and distinguishes absent from broken", () => {
-    // Collapsing these two is how an incident comes to look like a configuration
-    // choice. The public workspace has no gateway by design; a refused
-    // connection to one that should exist is an incident and says so.
-    assert.deepEqual(resolveTier(false, false, absent), { tier: "sandbox", cause: "not-configured" });
-    assert.deepEqual(resolveTier(false, false, refused), { tier: "sandbox", cause: "incident" });
-    assert.deepEqual(resolveTier(false, false, timeout), { tier: "sandbox", cause: "incident" });
+  it("a failure with no cache is unavailable, and distinguishes absent from broken", () => {
+    assert.deepEqual(resolveTier(false, false, absent), { tier: "unavailable", cause: "not-configured" });
+    assert.deepEqual(resolveTier(false, false, refused), { tier: "unavailable", cause: "incident" });
+    assert.deepEqual(resolveTier(false, false, timeout), { tier: "unavailable", cause: "incident" });
   });
 
-  it("has no way to express a dead end", () => {
-    // `"unavailable"` was a member of this union and every component that could
-    // construct one grew a branch that rendered a sentence instead of a panel.
-    // The type is the enforcement; this asserts the runtime never invents one.
+  it("distinguishes no payload from a chosen sandbox", () => {
     for (const [ok, cached, failure] of [
       [true, true, null], [true, false, null],
       [false, true, refused], [false, false, refused], [false, false, absent],
     ] as const) {
       const { tier } = resolveTier(ok, cached, failure);
-      assert.ok(["live", "cached", "sandbox"].includes(tier), `invented tier ${tier}`);
+      assert.ok(["live", "cached", "unavailable"].includes(tier), `unexpected tier ${tier}`);
     }
+  });
+});
+
+describe("generation is opt-in, never a failed-read side effect", () => {
+  const hook = readFileSync(
+    fileURLToPath(new URL("../lib/use-gateway-connection.ts", import.meta.url)),
+    "utf8",
+  ).replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, "");
+
+  it("clears an unmeasured payload after a failed live probe", () => {
+    assert.match(hook, /else \{\s*setPayload\(null\);\s*setLastGoodAt\(null\);/);
+  });
+
+  it("calls the generator only inside the explicit paused branch", () => {
+    const paused = hook.indexOf("if (paused)");
+    const generated = hook.indexOf("generate(seed)");
+    const apply = hook.indexOf("const apply = useCallback");
+    assert.ok(paused > apply && generated > paused, "fallback generation escaped the paused sandbox branch");
+    assert.doesNotMatch(hook.slice(apply, paused), /fallback\(|generate\(/);
   });
 });
 
@@ -81,11 +94,13 @@ describe("only live data may be acted on", () => {
     // is a real order.
     assert.equal(writesEnabled("cached"), false);
     assert.equal(writesEnabled("sandbox"), false);
+    assert.equal(writesEnabled("unavailable"), false);
   });
 
   it("separates 'real' from 'actionable'", () => {
     assert.equal(isMeasured("cached"), true);
     assert.equal(isMeasured("sandbox"), false);
+    assert.equal(isMeasured("unavailable"), false);
   });
 });
 
@@ -177,10 +192,11 @@ describe("the badge cannot dress generated data as measured", () => {
     describeTier({ tier, cause, lastGoodAt }, now);
 
   it("says Live only when the gateway actually answered", () => {
-    assert.equal(at("live", null, new Date(now)).label, "Live data");
+    assert.equal(at("live", null, new Date(now)).label, "Live");
     assert.equal(at("sandbox", "incident", null).label, "Sandbox");
     assert.equal(at("sandbox", "not-configured", null).label, "Sandbox");
     assert.equal(at("sandbox", "chosen", null).label, "Sandbox");
+    assert.equal(at("unavailable", "incident", null).label, "Unavailable");
   });
 
   it("carries the age of cached numbers, which is the whole tier", () => {
@@ -202,6 +218,7 @@ describe("the badge cannot dress generated data as measured", () => {
       { tier: "cached", cause: null, lastGoodAt: new Date(now - 1000) },
       { tier: "sandbox", cause: "incident", lastGoodAt: null },
       { tier: "sandbox", cause: "not-configured", lastGoodAt: null },
+      { tier: "unavailable", cause: "incident", lastGoodAt: null },
     ];
     for (const state of states) {
       const badge = describeTier(state, now);
