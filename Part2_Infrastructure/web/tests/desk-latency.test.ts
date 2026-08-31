@@ -74,5 +74,12 @@ describe("a tape wakes the readers of its own series, and no others", () => {
     // The subscribe function has to be stable per key or `useSyncExternalStore`
     // resubscribes on every render, which trades one wasted render for another.
     assert.match(series, /useCallback\(/, "the subscription is rebuilt on every render");
+    assert.match(series, /useEffect\(\(\) => \{\s*recordLive\(/,
+      "a live poll is published during render, so an existing subscriber can update while its component renders");
+    const hook = series.slice(series.indexOf("export function useLiveSeries"));
+    const effect = hook.indexOf("useEffect");
+    const publish = hook.indexOf("recordLive(");
+    assert.ok(effect >= 0 && publish > effect,
+      "recordLive runs before the hook enters a post-commit effect");
   });
 });
