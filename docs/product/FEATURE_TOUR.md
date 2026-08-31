@@ -1,36 +1,37 @@
 # Feature tour — the whole infrastructure, walked as the decision loop
 
+**Last verified: 2026-08-29.** The source-level topology and release evidence
+below were reconciled with the [current-state ledger](../CURRENT_STATE.md).
+Historical deployment walks and benchmark readings retain their observation
+dates; a current document is not evidence that an external origin was re-probed.
+
 This is the guided walkthrough of AlphaEngine: the Vercel portal, the OCI gateway behind it,
 the operator modes, and the Oracle/Supabase/Neo4j persistence layer. Eight of its eleven tabs are
 structured as the decision loop itself — **Overview → Research → Execution → Portfolio → Risk →
 Data → Reliability → Developer** — because that is the order a desk makes decisions in, and the
-workspace's tabs are that loop made navigable. The last two, **Quotes** (`#markets`) and
-**Proofs** (`#coherence`), are not stops on that loop: they are one self-contained research
-engine over a prediction market, split across two tabs — what the venue quotes, then what the
-engine proves about it — with no order path at all. Their ids are older than their labels and
-do not match them, which is deliberate and explained under Tab 9.
+workspace's tabs are that loop made navigable. The last three, **Markets** (`#markets`),
+**Proofs** (`#coherence`) and **Diffusion** (`#diffusion`), are not stops on that loop: they are
+one self-contained prediction-market research engine — what the venue quotes, what follows from
+those quotes, then how information moves through them — with no order path at all.
 
 *Walked against the deployed system on 2026-08-17. The panel descriptions were re-read against
 the tree on 2026-08-22, when the Remediation and API & Schema sections changed shape, and again on
-2026-08-24, when this engine was restructured six times in one day and came to rest as the two
-tabs described below, **Quotes** and **Proofs** — those parts
-are described from the source, not from a walk, and the stamps are kept apart rather than merged
-into one flattering date. The rail lists are pinned to `lib/sections.ts` by
-`web/tests/tour-truth.test.ts`, so a rail here cannot drift from the app without the suite saying
-so; a **view** inside a section is component state and has no such guard, which is why the view
-lists below are the part of this document most worth distrusting.*
+2026-08-24, when this engine was restructured six times in one day. The current three-tab engine
+was re-read from the tree on 2026-08-30 — those parts are described from source, not from a live
+walk, and the stamps stay separate. Rails are pinned to `lib/sections.ts`; all 64 engine views are
+pinned to `lib/section-views.ts` and each has a canonical hash, palette entry and sweep cell.*
 
 **Live URLs.**
 - Portal: <https://alphaengine-workspace.vercel.app> (also answers on `developer-analyst-infra.vercel.app`)
 - Gateway (OCI, Singapore): `http://149.118.48.255:8000` — `GET /health` answers keyless and
   names the decision engine (`native` on 2026-08-17); `https://149.118.48.255:8443` is the same
   gateway behind the Caddy sidecar's pinned internal CA (`docs/engineering/TLS_FLIP.md`).
-- Local: `cd Part2_Infrastructure/web && npm run dev:all` starts both (gateway on `:8000`,
-  portal on `:3000`).
+- Local: `cd Part2_Infrastructure/web && npm run dev` starts both (gateway on `:8000`,
+  portal on `:3000`); `dev:all` is an alias and `dev:web` is frontend-only.
 
-**Keyboard access, everywhere:** `Alt+1` through `Alt+9` and then `Alt+0` for the tenth switch
-tabs in the order above — 1–9 then 0, because there is no `Alt+10` keystroke and that is what a
-browser's own tab strip binds. The
+**Keyboard access, everywhere:** `Alt+1` through `Alt+9` and then `Alt+0` switch the first ten
+tabs in order. Diffusion, the eleventh, is reached from the tablist or `⌘K`; there is no claimed
+`Alt+11` control. The
 listener is in `lib/use-tab-shortcuts.ts` (it left `components/WorkspaceHeader.tsx` when the
 tenth tab pushed that file over its 400-line ceiling) and matches on `event.code` rather than
 `event.key`, because on macOS `Option+digit` types `¡™£` and a key-range test never fires; it
@@ -43,7 +44,7 @@ On Chromium, tab switches cross-fade under the fixed header via View Transitions
 and always under reduced motion, they cut cleanly.
 
 **The header, on every tab.** One row, one structure for guest and signed-in alike: the brand,
-the ten tabs (14px, the fixed --fs-chrome-tab token), and a utility strip whose words are all 12px — the data-tier chip, the
+the eleven tabs (14px, the fixed --fs-chrome-tab token), and a utility strip whose words are all 12px — the data-tier chip, the
 providers sentence, the **DECISION P99** chip, Connect, the Kill switch, Settings and the account
 chip or Sign in. The decision chip is the one figure on every screen and it headlines the
 gateway's own in-process decision p99 in **microseconds**, with the compiled core's
@@ -64,13 +65,13 @@ its aria-label and title; HALTED is never folded.
 **Where the rail lists below come from.** Every rail in this document is transcribed from
 `Part2_Infrastructure/web/lib/sections.ts`, which is the single definition the rails, the
 command palette, the hash whitelist and "Copy link to this view" all read. **70 sections across
-the eleven tabs** — 48 on the eight decision-loop tabs, 8 on Quotes, 6 on Proofs and 7 on
+the eleven tabs** — 48 on the eight decision-loop tabs, 8 on Markets, 7 on Proofs and 7 on
 Diffusion — a total
 `web/scripts/desk-sweep-plan.mjs` mirrors by hand as `EXPECTED_SECTIONS = 70` and the tour test
-asserts against the arrays themselves. Seven ids deliberately disagree with their labels, because
-the deep link came first and ids never change: view `live` renders "Execution", view `markets`
-renders "Quotes", view `coherence` renders "Proofs", section `codex` renders "Strategies",
-section `activity` renders "Blotter", and TWO different sections called `model` render
+asserts against the arrays themselves. Six ids deliberately disagree with their labels, because
+the deep link came first and ids never change: view `live` renders "Execution", view `coherence`
+renders "Proofs", section `codex` renders "Strategies", section `activity` renders "Blotter",
+and two different sections called `model` render
 something else — Diffusion's renders "Measurement", because since 2026-08-25 it is one half of
 the estimator and its peer is "Instrument", so calling one half "Model" while the other is named
 for what it holds would be a category error on the rail; and Risk's renders "Risk engine" — it
@@ -102,7 +103,7 @@ capability the desk does not already give a guest.
 
 | Tier | What you get | Needs |
 |---|---|---|
-| **Zero-config** | Keyless Binance + Bybit market data: parameter sweeps, all 46 strategies, L2 depth, TCA, the full Research tab on crypto symbols — plus the whole Quotes and Proofs pair, which read Kalshi's public endpoints | nothing |
+| **Zero-config** | Keyless Binance + Bybit market data: parameter sweeps, all 46 strategies, L2 depth, TCA, the full Research tab on crypto symbols — plus the Markets and Proofs reads over Kalshi's public endpoints and deterministic sparse-state instruments across the three-tab engine | nothing |
 | **Keyed** | Equities and benchmarks via FMP / Tiingo / Massive / AlphaVantage, with provider failover | API keys in env |
 | **Gateway-backed** | The live consolidated book, paper orders through the pre-trade gates — **17 defined, 15 reachable by any order** — kill switch state, decision histograms | the OCI gateway reachable |
 | **Operator-gated** | Actions that mutate: sending orders, halt/flatten, cache purges, simulated outages | see guard modes below |
@@ -435,12 +436,12 @@ reader will "correct" one of them into agreement with another:
 
 | Figure | Count | Basis |
 |---|---|---|
-| Route decorators in the tree | **80** | 3 `@app.get` left in `main.py` (the HTML console aliases `/`, `/app`, `/ui`) + 77 across the twelve routers in `modules/api/` — 54 `get`, 20 `post`, 1 `patch`, 1 `delete`, 1 `websocket` |
-| Operations in the OpenAPI schema | **76** | the 80 less the WebSocket, which OpenAPI does not describe, and less the three console aliases, all three marked `include_in_schema=False` |
-| Paths in the OpenAPI schema | **73** | the 76 operations, less three — `/api/orders`, `/api/data/work-items` and `/api/data/work-items/{item_id}` each serve two verbs |
+| Route decorators in the tree | **83** | 3 `@app.get` console aliases in `main.py` (`/`, `/app`, `/ui`) + 80 across the twelve routers in `modules/api/` — 60 `get`, 20 `post`, 1 `patch`, 1 `delete`, 1 `websocket` in total |
+| Operations in the OpenAPI schema | **79** | the 83 less the WebSocket, which OpenAPI does not describe, and less the three console aliases, all marked `include_in_schema=False` |
+| Paths in the OpenAPI schema | **76** | the 79 operations, less three — `/api/orders`, `/api/data/work-items` and `/api/data/work-items/{item_id}` each serve two verbs |
 
-Counted 2026-08-24. `main.py`'s own docstring still says "the fifty-two routes now live in
-`modules/api/`" and is behind the tree; the router split is what made it so, and
+Recounted 2026-08-29. `main.py`'s docstring now records the same 76-path,
+79-operation contract. The router split is why
 `grep -cE '^@app\.' main.py` alone answers 4 (three routes and an exception handler), which
 would understate the tree by an order of magnitude. Re-derive with
 `grep -rhcE '^@(app|router)\.' main.py modules/api/*.py` for the first, and `len(paths)` against
@@ -451,7 +452,7 @@ committed digest of the gateway's OpenAPI and compares it against the live one.
 
 ---
 
-## Tab 9 — Quotes (`#markets`, Alt+9)
+## Tab 9 — Markets (`#markets`, Alt+9)
 
 **The question it answers:** what is this exchange actually quoting, and what does a whole
 dollar of it cost?
@@ -460,42 +461,32 @@ A prediction-market contract pays $1 if an event happens, so its price *is* a pr
 the exchange publishes the logical structure between contracts in its own metadata. That makes a
 whole family of markets one dollar sold in pieces. This tab is the reading of it — the families,
 their ladders, the structure between their outcomes, what a real position pays, and the same
-universe walked as a filesystem. Page header: kicker **Quotes**, title **"The exchange as it is
+universe walked as a filesystem. Page header: kicker **Markets**, title **"The exchange as it is
 quoted"**, and metric tiles that are readings rather than claims — Exchange, Families priced,
 Books recorded. The "it sends nothing" safety tile sits once, on Tab 10, where a reader has just
 been handed a certificate that is literally a portfolio with legs, quantities and fees on it and
 "and then it is traded" is the reachable misreading.
 
-**The tab id is `markets` and the label is "Quotes", and they are allowed to disagree.** An id is
-a public deep link and never changes; a label is what a reader reads. `#markets/books` is the
-address, "Quotes → Books" is the words. Four other tabs are already in that state: `live` renders
-"Execution", `codex` renders "Strategies", `activity` renders "Blotter", `model` renders "Risk
-engine".
+**The tab id and label are both Markets.** `#markets/books` is the durable address and
+"Markets → Books" is the current product vocabulary. Other ids still intentionally preserve
+older public links: `live` renders "Execution", `coherence` renders "Proofs", `codex` renders
+"Strategies", `activity` renders "Blotter", and the two `model` section ids render "Risk engine"
+and "Measurement" in their respective tabs.
 
-**One day, six shapes.** On 2026-08-24 this engine was one tab of eleven sections — the shape
-`origin/main` still publishes. It was **split** into two; six in-pane `.seg` views were
+**One day, six shapes.** On 2026-08-24 this engine was one tab of eleven sections. It was
+**split** into two; six in-pane `.seg` views were
 **promoted** to rails, taking the pair to seventeen; Fees and Combos **moved** across the seam;
 the two tabs were **merged** back into one; the eleven were **consolidated** to nine; and the
 nine were **split again**, divided by what they are for — the reading on this tab, the argument
-about that reading on the next. Every move was right about its own cost and wrong about the
-total. Two things survive all six: the consolidation, because nine sections is a number a reader
-can hold and seventeen was not, and the ids, because ids are deep links.
+about that reading on the next. The history matters because it established two current rules:
+one question per rail section, and stable ids across presentation changes. The 2026-08-25 split
+then separated Diffusion and brought the current engine to 8 + 7 + 7 sections.
 
-**Every link this engine has ever published still resolves.** Eight ids stopped being sections
-during the day and five more changed tab, so `RELOCATED_SECTIONS` in
-`web/lib/workspace-hash.ts` maps each to the tab **and** section that now carries it — **sixteen
-entries**, thirteen under `#coherence/` and three under `#markets/`, covering all
-**25 distinct locations** this engine has ever published.
-`web/tests/coherence-sections.test.ts` pins the table entry by entry, asserts that every id ever
-shipped resolves somewhere, and — the check that matters — that an entry does not quietly land on
-its tab's own rail default, which is indistinguishable from not resolving at all. One entry does
-land on a default and is exempted **by name**, because its carrier is simply first in rail
-order: `#markets/settlement` to Universe. It was three until 2026-08-25, when `portfolio` and
-`combos` became sections again and left the table altogether — an id back on its own rail is
-reached before the table is consulted. One demoted id that remains, `index`, is
-published on `origin/main`, which is what makes that table load-bearing rather than a courtesy. A
-section the named tab still has always wins over the table, so nothing rests on ids staying
-unique by luck.
+**Published links still resolve.** `RELOCATED_SECTIONS` in
+`web/lib/workspace-hash.ts` now carries only the section ids whose tab or owner actually moved;
+restored ids such as `portfolio`, `combos` and `index` resolve natively and therefore do not keep
+unreachable migration entries. The routing tests pin each remaining relocation and require the
+resolved screen, section and corrected URL to agree.
 
 **60 seconds:** rail: **Universe → Settlement → Books → Makers → Lattice → Stake → Fees →
 Shell**. Eight sections, each asking ONE question and splitting its answer across an in-pane
@@ -509,23 +500,30 @@ is structural, not cosmetic: `WorkspaceSubtabs` publishes `--rail-h` onto
 the custom property the outer rail owns, and the two would fight. A `.seg` is plain CSS keyed off
 `aria-pressed` and publishes nothing.
 
-**What a view gives up, because it is the whole argument of the day.** A section id is a public
-deep link; a view is component state. A view is **not in the URL**, **not in the command
-palette**, and **not walked by `web/scripts/desk-sweep.mjs`** — which is exactly why the sweep
-walks 57 cells rather than the 65 the promotion pass produced. That cost was paid deliberately:
-making every subject addressable produced a rail of seventeen that no reader could hold. The
-Views column below is also the part of this table with no test behind it, so distrust it first;
-the five section names are asserted against `lib/sections.ts`.
+**Every view is now a place.** The third hash segment names one of the 64 engine views; the
+router, command palette and browser sweep consume the same `lib/section-views.ts` registry. The
+default keeps the compact two-segment URL, while a non-default such as
+`#markets/fees/comparison` is independently linkable and testable. The sweep covers 70 section
+landings plus 43 non-default view cells across the whole workspace (42 in this engine and
+Research Setup).
 
 | Section | Views | What it answers |
 |---|---|---|
 | **Universe** | Baskets · Families | What does a whole mutually exclusive family cost against the dollar it is certain to pay? Both directions are priced, because buying every outcome needs every ask and selling needs every bid — and in the tails a market routinely has an ask and no bid, so a family that cannot be SOLD as a basket can often still be BOUGHT as one. One figure carries every watched family on a single dollar axis, with each family's outcome table behind a disclosure that states its row count: measured live, four watched families carry 80, 188, 6 and 6 markets, and drawing them all was 280 rows of quotes above the fold. **Families** cuts the universe by Kalshi's own `category` — "Crypto", "Climate and Weather" — read from `GET /series/{ticker}` and never inferred from a ticker prefix; a series the exchange will not categorise is grouped as uncategorised rather than guessed at. |
 | **Settlement** | Index · Formation · Pending | What does the contract actually resolve against, given it is not the price on the screen? A weather contract settles on the MEAN of a published index over a window, and the gap between that and the latest print is basis a position carries for free. **Index** draws the published series against the window it settles on; **Formation** draws the chain that produces it — stations, quality control, a published minute, a sixty-minute mean — as a pipeline rather than a table, because a table cannot show that the figure a contract settles on is four transformations away from a thermometer; and **Pending** is the trailing minutes the stations have reported and the exchange has not published, drawn with the station DISAGREEMENT as the bar, because a provisional mean built from readings 3.6° apart is a different object from the same figure built from readings that agree. Three views of Universe until 2026-08-25, and a section again under the id it was published under. |
-| **Books** | Ladder · Identity | What does this market look like as the exchange really publishes it? Two BID ladders and no asks; the offer ladder is IMPLIED and is the one the exchange never sends you. **Identity** draws `yes_ask + no_ask = 1 + spread` as two bars landing on the same tick — the reason the "buy both sides for under a dollar" branch in two of the most-starred bots in this space is unreachable rather than rare. |
+| **Books** | Ladder · Identity · History | What does this market look like as the exchange really publishes it? Two BID ladders and no asks; the offer ladder is IMPLIED and is the one the exchange never sends you. **Identity** makes `yes_ask + no_ask = 1 + spread` inspectable piece by piece; **History** adds an exact snapshot scrubber over the recorded book without synthesising missing observations. |
 | **Makers** | Dispersion · Channel | What do several professionals say when the book shows one opinion, or none? A book publishes the most aggressive resting order rather than the typical view, and for a combo it publishes nothing at all; the request-for-quote channel is the only place the venue exposes N independent answers to a question it never asked. **Dispersion** ranks each panel's lowest-to-highest range on one dollar axis and keeps `spread` (what the makers disagree about) apart from `median_width` (one maker's own bid-offer), because a wide panel of tight makers and a tight panel of wide makers are opposite situations that read identically if either number stands alone. **Channel** is the four answers the channel itself can give — unsigned, refused, read-and-empty, quotes-in-hand — drawn as a figure and tabulated with what each one is NOT, because all four would be reported as "no data" by a panel that only tracked whether it had quotes. Two views of Books until 2026-08-25, and a section again under the id it was published under; the label is "Makers" because the section is about who is quoting, and a reader scanning a rail should not need the statistic to find the people. |
-| **Lattice** | Survival · Mass · Moments · Whole family · Stake | What measure do these prices imply, and what would it be right to bet? **Survival** is the function the strikes sample, **Mass** what differencing leaves between them, **Moments** the summary that falls out, and **Whole family** every outcome the solver ranked including the ones it passed over. **Stake** opens a second `.seg` — Plan · Capital · Method — for a multi-asset Kelly plan whose WORST OUTCOME is printed beside its growth rate, because log-optimal is not riskless. It is the only place on either tab that talks about size, and it still places nothing. |
-| **Fees** | Worked example · Cost shape · Ablation · Replay table | What does a real position pay, and does the cost model change the answer? The defaults reproduce Kalshi's own documented case, where the component nobody models is nineteen times the one everybody does and the net fee exceeds the notional traded. **Ablation** replays the recorded tape under four configurations — including `no_fees`, the test every bot in this space ships with — and **Replay table** is that run row by row. `/replay?limit=20000` is the largest read on either tab, so it is gated on those two views alone and, uniquely, warmed by nothing. |
-| **Shell** | Tree · Reading · Commands · Layout | Where does a market live, and what has actually been derived about it? `ls` a path and `cat` a derived reading, because the shard a market sits on is a directory and crossing that boundary is a real cost. Four outcomes are kept apart and never collapsed into "no data": a path that does not exist, a reading this read could not produce, a genuinely empty directory, and a venue that could not be read at all. |
+| **Lattice** | Survival · Mass · Moments | What measure do these prices imply? **Survival** is the function the strikes sample, **Mass** what differencing leaves between them, and **Moments** the summary that falls out. The redesigned mass reservoir and selectable moment tiles keep every exact input beside the structural shape. |
+| **Stake** | Plan · Capital · Method · All outcomes | What would it be right to bet against that measure? The bankroll vault exposes plan, capital split, growth method and every ranked or declined outcome. Worst-case wealth stays beside growth because log-optimal is not riskless. It sizes and sends nothing. |
+| **Fees** | Worked example · Cost shape · Ablation · Replay table | What does a real position pay, and does the cost model change the answer? The defaults reproduce Kalshi's documented case. The receipt stack makes every component selectable; the counterfactual switchboard replays the tape under four configurations, including `no_fees`; Replay table preserves that run row by row. `/replay?limit=20000` is gated on the two replay views and warmed by nothing. |
+| **Shell** | Map · Browse | Where does a market live, and what has actually been derived about it? The filesystem lens maps directories and lets a reader browse the listing and live tape. Missing path, unavailable reading, empty directory and unreachable venue remain four distinct outcomes. |
+
+**The interaction is quantitative, not ornamental.** Every redesigned family has a real button
+or range control, explicit selected state and an atomic exact-value output. Dense selectors use
+one roving tab stop with arrow, Home and End navigation. The family constellation, settlement
+board, book identity pieces, lattice reservoir, bankroll vault, fee switchboard and filesystem
+lens are purpose-built HTML/CSS instruments rather than generic line, bar or SVG chart shells;
+they only transform values already present in the payload.
 ---
 
 ## Tab 10 — Proofs (`#coherence`, Alt+0)
@@ -535,8 +533,8 @@ what is the portfolio that profits whichever way the world goes?
 
 Coherence is a property you can test rather than a pattern you scan for, and this tab is the
 test plus everything that survives it — what the cost model does to the edge, how far from
-coherent the venue sits over time, whether the prices were right once settled, and how fast
-anything is absorbed at all. Page header: kicker **Proofs**, title **"Prices as probabilities,
+coherent the venue sits over time, and whether the prices were right once settled. Information
+absorption is now Tab 11. Page header: kicker **Proofs**, title **"Prices as probabilities,
 tested for coherence"**, and the **Order path — none** tile, noted "this engine reads, records
 and certifies; it sends nothing". That tile sits here and is deliberately not repeated on Tab 9:
 a head metric is per-tab either way, and this is the tab where a reader meets a certificate that
@@ -545,8 +543,8 @@ is literally a portfolio with legs, quantities and fees on it.
 **The tab id is `coherence` and the label is "Proofs".** `coherence` is the only Kalshi tab id
 `origin/main` ever published, so it keeps the half that carries the proof and every
 `#coherence/<section>` link in the world still resolves natively. The six-shape history and the
-relocation table are described under Tab 9 and apply here unchanged, as does the note on what a
-`.seg` view gives up.
+relocation table are described under Tab 9 and apply here unchanged. Its 25 views use the same
+address grammar and shared view control as Markets.
 
 **60 seconds:** rail: **Coherence test → Basket → Parlays → Coherence index → Scorecard → Corpus → Lessons**.
 Seven sections, Lessons carried as secondary because it is reference material rather than a step.
@@ -567,13 +565,26 @@ section's own header admitted. Every section on this rail is now one question.
 |---|---|---|
 | **Coherence test** | Verdict · Proof · Prices | Do these prices admit a probability measure? Almost always yes — and that is the CLAIM, not a disappointment: a detector that spoke only when it found something would leave "no opportunity" and "the feed is down" looking identical. Which is why the verdict now reports the programme's own margin, the signed figure it was read off, rather than four money rows that are correctly empty whenever no portfolio exists. **Proof** is the whole certificate in a fixed-width block you can check by hand or paste elsewhere, because "arbitrage, 3.2 cents" is not evidence. |
 | **Basket** | Cover · Basket · Size | The portfolio the test hands back, drawn state by state — the constructive half of the theorem and the reason this engine tests for coherence instead of scanning for arbitrage shapes. Where no measure fits a family's prices, duality returns the basket that wins in every state, so the certificate of infeasibility IS the trade. Every leg carries all three fee components, because a gross edge is not an answer. |
-| **Parlays** | Bands · Parlays · Bounds | The same test run on the parlays the venue states rather than on a family's strikes: two probabilities never determine the probability of both, so the legs give a Fréchet band and never a price, and the band's width is how far the parlay can move with no leg moving at all. It takes no family picker, and that is the structural reason it is its own section: a parlay is a listing the exchange publishes, not a family this engine chooses. |
+| **Parlays** | Bands · Comparison · Parlays · Legs · Bounds | The same test run on the parlays the venue states rather than on a family's strikes: two probabilities never determine the probability of both, so the legs give a Fréchet band and never a price, and the band's width is how far the parlay can move with no leg moving at all. Comparison keeps the venue quote beside that band; Legs makes the inputs inspectable. It takes no family picker, and that is the structural reason it is its own section: a parlay is a listing the exchange publishes, not a family this engine chooses. |
 | **Coherence index** | By poll · By family | How far do these prices sit from admitting a probability, right now? The Scorecard scores a SETTLED corpus against what paid; this measures the L1 distance from the quoted price vector to the nearest one summing to a dollar, on every poll, on markets that have not settled and may never. One is a verdict about the past and the other a time series about the present — they shared a section for a day on the argument that both ask "were these prices right", which is a question rather than a subject. The score trend moved to Corpus on 2026-08-25 for the same reason in reverse: it reads the settled history, so it belongs beside the settled corpus rather than beside a live distance. Unmeasurable readings are drawn as gaps, never dropped or zeroed, because a line closing over them would claim continuity nobody observed. |
-| **Scorecard** | Score · Bands | Were these prices right — once settled, and over time? The Brier score is split under Murphy's decomposition — reliability, resolution, uncertainty, and the residual the binning leaves (`modules/coherence/kernel/calibration.py`); What the score was taken OVER is next door, in Corpus. |
+| **Scorecard** | Overview · Decomposition · Measures · Reliability · Bands | Were these prices right once settled? Overview leads into the Murphy decomposition; the waterfall and exact term inspector share one selected term, while Measures keeps the exact score table separate. Reliability and Bands link each calibration cell's quote, realised frequency, count and contribution on one keyboard-operable Brier surface; what the score was taken over is next door, in Corpus. |
 | **Corpus** | Composition · Score trend | What was that score computed on, and how did it accrue? A Brier score is a score of whatever happened to settle, so the mixture decides what the figure next door is a figure about — the composition names each series' share and its own favourite–longshot slope, and refuses to let the aggregate stand in for a series, because the aggregate averages series that are not the same question. **Score trend** is the settled score as it was recorded, accruing forward only: nothing back-fills it, so the first point is where the recorder started rather than where the venue did. Runs that could not be scored are drawn as gaps, never as zeroes. |
-| **Lessons** | Coverage · Prices · Structure · Bounds · Record | What is the curriculum, and what guards each claim? Fourteen lessons rendered from `lib/coherence/lessons.ts`, each naming the code it is about and the tests that pin it, matched one-to-one by the notebooks in `Part2_Infrastructure/notebooks/coherence_lab/`. **Coverage** is the map of the catalogue against both rails at once — a lesson's `pane` is a section id with no tab inside it, and half of them are taught on Quotes. |
+| **Lessons** | Prices · Structure · Bounds · Record · Coverage · Episode states | What is the curriculum, and what guards each claim? Fourteen lessons rendered from `lib/coherence/lessons.ts`, each naming the code and tests that pin it. The selectable verification loom reveals full module and suite paths; the detail sheet keeps long formulae readable and actionable instead of making labels themselves the click target. |
 
-**Every view on Quotes and Proofs is an address.** The grammar is `#<tab>/<section>/<view>` — `#coherence/certificate/proof`, `#markets/fees/comparison` — declared once in `web/lib/section-views.ts` and read by the router, the command palette (one entry per non-default view) and `desk-sweep.mjs`, which walks the 26 non-default views beside the 70 sections. A bare two-segment link opens the section's default, an unknown third segment falls back to it, and pressing a view replaces the address rather than pushing it, so Back steps sections.
+**Every engine view is an address.** The grammar is `#<tab>/<section>/<view>` —
+`#coherence/certificate/proof`, `#markets/fees/comparison`,
+`#diffusion/sandbox/spectrum` — declared once in `web/lib/section-views.ts` and
+read by the router, command palette and browser sweep. A bare two-segment link
+opens the section default; an unknown third segment falls back and corrects the
+URL; selecting a view replaces the address so Back still steps through sections.
+
+**The proof is directly inspectable.** Verdict checkpoints, constraint slack,
+state payoffs, basket size, Fréchet marks, coherence polls, Murphy terms,
+calibration cells and corpus rows use stable-key selection shared across every
+representation. Pointer and keyboard focus drive the same exact readout, so a
+highlight never becomes a colour-only claim. The common coherent/zero-leg case
+keeps a quantitative, pinnable lifecycle instead of degrading into an empty
+white panel.
 
 **Reads are gated on the open section *and*, where a view alone is expensive, on the open view.**
 The universe read asks for `?max_events=2` because four events took 10.1 s before the reads were
@@ -589,8 +600,6 @@ warming would pre-fetch a refusal.
 `/replay?limit=20000`, the largest read on either tab, is gated on Fees → Ablation and Replay
 table the same way, and is the one read the rail warms with nothing at all — pre-fetching it
 would put the desk's heaviest read on the exchange for a view nobody has opened.
-largest read on either tab, is gated the same way and is the one read the rail warms with
-nothing at all.
 
 **A gated read is not a cold one, and that is the other half of the decision.** Gating on the
 open section is right for the exchange and was wrong for the reader: the live reads take
@@ -606,17 +615,18 @@ crossing. A warmed payload paints only while it is under 100 s old — past that
 shows its loading line again rather than a figure from a different market — and the section's own
 poll is `immediate`, so a live answer replaces the warm one within a tick either way.
 
-**The moment worth showing (Quotes):** Books → Ladder — the implied offer ladder drawn as a
+**The moment worth showing (Markets):** Books → Ladder — the implied offer ladder drawn as a
 ghost one spread away from the YES bids. It is the ladder you would trade against and the one the exchange
 never sends you. Then press Identity and watch the two bars land on the same tick.
 
-**What it may not claim.** Nothing on either tab places an order, and that is structural rather
-than a setting: all 15 `/api/coherence/*` routes are `GET`, and
+**What it may not claim.** Nothing on Markets, Proofs or Diffusion places an order, and that is
+structural rather than a setting: all 18 `/api/coherence/*` routes are `GET`, and
 `tests/test_coherence_security_auth.py` sweeps every one of them against the app's own OpenAPI
 document so a route added without an entry fails the suite. The workspace's own proxies —
-fifteen under `app/api/gateway/coherence/` and three under `app/api/gateway/diffusion/` — export
-`GET` and nothing else. `modules/coherence/tunables.py` says it beside the `DRY_RUN` flag:
-turning that flag off is not sufficient to trade, because there is no send path in this version.
+18 under `app/api/gateway/coherence/` and three under `app/api/gateway/diffusion/` — export
+`GET` and nothing else. The gateway has one additional authenticated, idempotent Diffusion stage
+write for recording a research observation; it is not a trade route. Turning `DRY_RUN` off is
+still insufficient to trade because this engine contains no executor.
 
 Three more refusals are worth pressing on, because each sits where the opposite would be
 believed:
@@ -696,12 +706,31 @@ secondary, because they are the instrument rather than a reading of it.
 | Section | Views | What it answers |
 |---|---|---|
 | **Announcement arm** | Absorption · Control · Clocks | How much of the move had arrived, and by when? A stage is measured against matched windows in which nothing was announced, so a fast absorption has to be faster than the market is anyway — **Control** is that comparison drawn, and it is what stops a decay curve being read as a finding. It stays inside this section deliberately: a section boundary is how a reader stops encountering something, and a reader who could reach the curve without its control could take a half-life away without the caveat that makes it one. **Clocks** is the second control: the same stages ranked by the wall clock and by a clock built from matched windows, where a crossing means a path stopped moving because the market had rather than because it had finished. |
-| **Meetings** | Meeting by meeting · Mechanism | What did each decision do? The same ledger the arm reads, cut per meeting rather than per stage — a blank stage never moved enough to measure, which is a property of the decision rather than of the data. **Mechanism** reads nothing: its drawing is two stage constants, and it is here because the two windows being the same length is what a reader has to accept before any per-meeting number means anything. Sharing the arm's read costs nothing — `read-cache.ts` holds one payload per URL. |
+| **Meetings** | Meeting by meeting · Calendar · Mechanism | What did each decision do? The same ledger the arm reads, cut per meeting and calendar state rather than only by stage — a blank stage never moved enough to measure, which is a property of the decision rather than of the data. **Mechanism** reads nothing: its drawing is two stage constants, and it is here because the two windows being the same length is what a reader has to accept before any per-meeting number means anything. |
 | **Kalshi episodes** | Survival · Episodes | How long does a published mispricing survive? An episode earns a lifetime only by CLOSING, which is why the survival curve is drawn from closed episodes alone and why the median can be withheld while episodes are still open. This is the measurement that says whether the executor is worth building — half-life before P&L. |
 | **Measurement** | one view | What does the estimator compute on a price path? Seven cards: the absorbed fraction, the gate that decides whether there was a move at all, the crossing, and the two fits that are reported but are never the verdict. Every card names the reference module it is a port of and states what BREAKS it above what it measures. |
 | **Instrument** | one view | What is built on top of the measurement? Six cards: a clock that is not made of the event, the control percentile, and the closed-form information spectrum the study reads. Split from Measurement because they are two questions — and because the thirteen cards together measured 2,724px, four times the next largest view on the tab. |
-| **Sandbox** | Half-life · Simulator · Spectrum | What happens when you move the inputs? The only views on this tab a reader can DRIVE, and the interesting case is the refusal: each can be driven to a state where the honest output is a named reason rather than a number. Every figure computes in this browser from `lib/coherence/diffusion-model.ts`, a TypeScript port held to the Python original by a committed parity fixture — which is what makes a slider possible at all, since a round trip per keystroke would make all three unusable. |
-| **Findings** | Effects · Table · Instrument | What did the study conclude, and was it fit to? The absorption clock is predictable without the text at all — R² +0.14 out of sample — and the statement's spectrum adds nothing to it. That is a sharper and falsifiable claim, not "nothing predicts anything", and **Instrument** is what keeps the verdict separated from the mechanism that produced it: a finding read while standing inside the model that generated it is the easiest place on the desk to confuse a fit with a result. It stays one section for the same reason the control does — that view is what makes the null readable at all. |
+| **Sandbox** | Half-life · Simulator · Spectrum | What happens when you move the model inputs? These are the tab's browser-computed what-if views, and the interesting case is the refusal: each can be driven to a state where the honest output is a named reason rather than a number. Every figure computes in this browser from `lib/coherence/diffusion-model.ts`, a TypeScript port held to the Python original by a committed parity fixture — which is what makes a slider possible at all, since a round trip per keystroke would make all three unusable. |
+| **Findings** | Effect plot · Findings table · Instrument | What did the study conclude, and was it fit to? The reported run finds no qualifying text effect, but has not itself been scored out of sample; the Instrument view says so instead of borrowing the score stored on a different run. A stage selector plus adjustable t and shuffled-p thresholds recompute the evidence gate locally over the full finding rows; **Instrument** keeps the verdict separated from the mechanism that produced it. |
+
+`d6:s7` is a run key, not a tab or view id. Find it under **Diffusion → Findings →
+Instrument**, then open **The run, and what it was held to**. `d6` means six latent
+dimensions and `s7` means random seed 7; the pair was selected by the pre-registered
+rule for best recovery of the known fact among well-conditioned candidates.
+
+The Diffusion figures keep their complete source arrays while exposing local analytical lenses:
+either or both absorption lines; solid-cleared, dotted-refused or all measured returns;
+statement, conference or both control-rank strips; dotted background, solid main or all
+clock-ranked paths; calendar all/cleared/refused state; an arbitrary episode-lifetime probe; and
+effect stage, |t| and shuffled-p thresholds. The announcement curves include their measured
+middle-50% shadows. Both stage colours can be solid in Clocks, while gray dotted lines stay in
+the backdrop; the readout reports 248 total input paths and 89 clock-ranked paths without
+pretending the other 159 have clock values. The Findings thresholds span |t| 0–5 (or the payload
+maximum when larger) and shuffled p 0–1. Each control is labelled and keyboard reachable. Filters
+keep axes and panel positions fixed without reranking; sliders recompute the loaded payload;
+neither path refetches or fabricates a market observation. During a cold reload, the selected
+Announcement-arm view reserves its settled stack height only until its first read resolves;
+terminal failures and genuine empty reads stay compact.
 
 ---
 
@@ -710,13 +739,13 @@ secondary, because they are the instrument rather than a reading of it.
 **The question it answers:** can the desk be read, and stopped, from a phone — without becoming
 a second way in?
 
-This is not a tenth tab. It is the one control a visitor meets on all nine of them: every
+This is not another tab. It is the companion a visitor can reach from every workspace tab: each
 header carries a **Connect** chip. The bot is
 [`@alpha_engine_nussif_bot`](https://t.me/alpha_engine_nussif_bot), and it is a companion, never
 an auth provider: a binding runs **one way**, from a web identity to a Telegram read, and the
 bot never authenticates the website.
 
-**What the companion is, today.** 136 commands from one registry that also drives dispatch and
+**What the companion is, today.** 138 commands from one registry that also drives dispatch and
 the `/` menu — README §6 and the live checklist are generated from it, and
 `tests/test_telegram_docs.py` runs the generator's own `--check` inside the suite, so a new
 command that never reached the tables turns the suite red rather than shipping a stale count. The
@@ -727,11 +756,11 @@ sending another; sixteen matplotlib chart
 generators in `modules/telegram_charts/` (series, bars, depth, drawdown, histogram and heatmap;
 equity, paired bars, gate ladder, latency CDF and scatter; multi-series, VaR breach, pipeline,
 cone and status grid) draw what they were handed or return `None`, never a placeholder captioned
-as data; and **nine tab commands** — `/overview`, `/research`, `/execution`, `/portfolio`,
-`/risk`, `/data`, `/reliability`, `/developer`, `/coherence` — against the desk's ten tabs.
-Quotes has no command of its own, and the ninth is named `/coherence` after the tab **id**, not
-after the "Proofs" label a reader sees; `modules/telegram/registry.py` is the authority and its
-tables in `Part2_Infrastructure/README.md` §6 are generated, never hand-edited.
+as data; and **eleven tab commands**, one for every workspace tab. `/markets` occupies a menu
+slot; `/proofs` and `/diffusion` remain available through `/commands` and inline buttons so the
+Telegram API's 100-entry menu cap is respected. `/coherence` remains a compatibility alias for
+`/proofs`; `modules/telegram/registry.py` is the authority and its tables in
+`Part2_Infrastructure/README.md` §6 are generated, never hand-edited.
 `/sli` and `/latency` quote the native core's nanosecond figure beside the decision's
 microseconds — the same two planes the header chip keeps apart.
 
@@ -847,20 +876,18 @@ the order-gate cascade and tick flashes on Execution, drawing charts throughout,
 search with recents, and View Transitions between tabs. The passes that followed — one type
 scale, the moving desk, the decision chip and its three planes, the header's priority ladder
 and larger type, the interactive Telegram companion, and the Kalshi engine's six restructures
-in one day, ending as Quotes and Proofs — are recorded in the audit's closing table. This tour doubles as the acceptance script:
+in one day, followed by the current Markets, Proofs and Diffusion instrument architecture. This
+tour doubles as the acceptance script:
 walking it end to end — once with motion on, once with the OS reduce-motion switch set, and once
 at ~1200px wide to watch the header fold without clipping — is the manual verification pass.
 
-That pass is not optional politeness, and one item on it is now load-bearing. The web suite has
-no DOM and no layout engine: it reads source and stylesheet text, so it can prove a rule is
-present and correct in the cascade and can prove nothing about where the pixels land
-([`TESTING.md` §"No DOM, and therefore no layout"](../testing/TESTING.md)). Three surfaces
-described above are argued rather than observed and want a human at ~1000px and ~1400px: the
-blast-radius map and the eight-column mutation matrix on Reliability → Remediation → Mutations
-(the matrix scrolls inside its own container, so the check is that the **page** does not scroll
-sideways), and the two 64-character digest rows on Developer → API & Schema → Numerics. A fourth
-now joins them: the nine sections of Quotes and Proofs are the only two tabs with no
-`disclosure-<tab>.test.ts` / `summarised-<tab>.test.ts` pair. Their copy is not unguarded — the
-claim suites `web/tests/coherence-reading-claims.test.ts` and `coherence-proof-claims.test.ts`
-pin its rendered phrases at exact site counts — but those pin claims rather than whole sentences, so a fluent
-rewrite there would not be caught the way the same rewrite would be on Risk.*
+That pass is not optional politeness. The Node suite has no DOM or layout engine: it can prove a
+rule is present and correct in source and cannot prove where Chromium placed the pixels
+([`TESTING.md` §"No DOM, and therefore no layout"](../testing/TESTING.md)). The browser-backed
+`npm run audit:layout -- --url=http://localhost:3000` closes that boundary by measuring local
+ownership, named scrollports, sibling intersections, sticky occlusion and framework errors over
+109 addressable states at eight viewport sizes. The 2026-08-29 release sweep passed all
+**872/872** combinations with zero geometry failures and zero console errors. A source-only green
+run is never reported as a geometry pass. The manual pass still checks meaning — linked exact readouts, full long labels,
+focus order, motion and the absence of colour-only state — because collision-free pixels do not
+prove that an instrument is understandable.*
