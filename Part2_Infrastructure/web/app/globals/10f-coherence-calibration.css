@@ -77,6 +77,18 @@
   min-width: 0;
 }
 
+/* The score matrix remains complete at narrow widths. This named, focusable
+   region owns horizontal overflow instead of allowing the table to enlarge the
+   workspace canvas. */
+[data-calibration-score-scroll] {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-gutter: stable;
+}
+
 /* ── The reliability diagram ─────────────────────────────────────────────── */
 
 .coh-calib__axis {
@@ -206,54 +218,20 @@
 
 .coh-calib__barvalue { fill: var(--text-primary); font-weight: 640; }
 
-/* The four terms in words: what each one is, and which direction is good. A
-   bar chart can show that resolution subtracts; only the words can say that
-   subtracting more of it is the forecaster doing better. */
-.coh-calib__terms {
-  display: grid;
-  gap: 6px;
-  margin: 0;
+/* The four term definitions are a compact comparison table. The wrapper owns
+   narrow-width overflow; direction and meaning may wrap inside bounded columns. */
+.coh-calib__terms-wrap { min-width: 0; }
+.coh-calib__terms { min-width: 62rem; table-layout: fixed; }
+.coh-calib__terms :is(th, td) { vertical-align: top; }
+.coh-calib__terms :is(th, td):nth-child(1) { width: 3.5rem; text-align: center; }
+.coh-calib__terms :is(th, td):nth-child(2) { width: 9rem; }
+.coh-calib__terms :is(th, td):nth-child(3) { width: 11rem; }
+.coh-calib__terms :is(th, td):nth-child(n + 4) {
+  text-align: left;
+  white-space: normal;
 }
-
-.coh-calib__terms > div {
-  display: grid;
-  gap: 2px;
-  padding: 6px 8px;
-  border-left: 2px solid var(--rule-soft);
-  min-width: 0;
-}
-
-.coh-calib__terms dt {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 6px;
-  font-size: var(--fs-sm);
-  font-weight: 640;
-}
-
-.coh-calib__term-sign {
-  font-variant-numeric: tabular-nums;
-  color: var(--text-primary);
-}
-
-.coh-calib__term-dir {
-  font-size: var(--fs-xs);
-  font-weight: 400;
-  color: var(--text-secondary);
-}
-
-.coh-calib__terms dd {
-  margin: 0;
-  font-size: var(--fs-xs);
-  color: var(--text-secondary);
-  line-height: 1.45;
-}
-
-.coh-calib__terms dd b {
-  font-variant-numeric: tabular-nums;
-  color: var(--text-primary);
-}
+.coh-calib__terms td { font-size: var(--fs-xs); line-height: 1.45; }
+.coh-calib__term-sign { color: var(--text-primary); font-weight: 700; }
 
 /* ── Composition: the selection the score was taken over ─────────────────── */
 
