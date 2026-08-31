@@ -23,8 +23,8 @@
  *
  * **1. Measured data is never replaced by generated data.** Once a probe has
  * succeeded even once, failure demotes `live` to `cached` and stops there.
- * The sandbox is reachable only from a desk that has never had a reading, or
- * by someone clicking Sandbox. `cached` is what most gateway failures deserve:
+ * With no reading, failure stays empty; the sandbox is reachable only when
+ * someone explicitly clicks Sandbox. `cached` is what most gateway failures deserve:
  * a redeploy, a dropped connection, an Always-Free database that auto-stopped
  * — real numbers from forty seconds ago, carried with their age.
  *
@@ -75,7 +75,7 @@ export type ProbeOutcome<T> =
 export type DeskShowing<T> =
   /** A payload the backend really returned. `tier` says how long ago. */
   | { kind: "measured"; payload: T; tier: "live" | "cached"; lastGoodAt: Date }
-  /** Nothing measured to show, and generating one is allowed. */
+  /** Nothing measured to show, because a human explicitly chose generation. */
   | { kind: "generated"; cause: TierCause }
   /**
    * Nothing to show and nothing may be invented: the first probe has not
@@ -89,12 +89,8 @@ export interface DeskSourceState<T> {
   /**
    * The flat tier, for the badge and for `writesEnabled`.
    *
-   * An `empty` desk reports `"sandbox"`. That is the safe reading rather than
-   * an accurate one — there is no member meaning "nothing yet", and inventing
-   * one would reintroduce the dead-end branch `data-tier.ts` deleted. What
-   * matters is that `writesEnabled("sandbox")` is false, so a desk with no
-   * reading cannot submit. Anything that needs to tell "nothing yet" from
-   * "generated" reads `showing.kind` or `settled`, never this field.
+   * An `empty` desk reports `"unavailable"`; it must never share the generated
+   * tier merely because both disable live writes.
    */
   tier: DataTier;
   cause: TierCause | null;
@@ -177,8 +173,7 @@ export class DeskSourceMachine<T> {
     this.lastFailure = outcome.failure;
     this.successes = 0;
     // Only meaningful with data behind it. With none, the desk is not demoted
-    // from anything — it has never been live — and `showing` falls to
-    // `generated` or `empty` on its own.
+    // from anything — it has never been live — and `showing` stays empty.
     if (this.lastGood) this.demoted = true;
   }
 
@@ -205,10 +200,15 @@ export class DeskSourceMachine<T> {
 
   get state(): DeskSourceState<T> {
     const showing = this.resolve();
+    const emptyCause: TierCause | null = showing.kind === "empty" && showing.failure
+      ? showing.failure.code === "gateway_not_configured" ? "not-configured" : "incident"
+      : null;
     return {
       showing,
-      tier: showing.kind === "measured" ? showing.tier : "sandbox",
-      cause: showing.kind === "generated" ? showing.cause : null,
+      tier: showing.kind === "measured"
+        ? showing.tier
+        : showing.kind === "generated" ? "sandbox" : "unavailable",
+      cause: showing.kind === "generated" ? showing.cause : emptyCause,
       settled: this.settledYet,
       lastGoodAt: this.lastGood?.at ?? null,
       chosen: this.chosenSource,
@@ -236,18 +236,9 @@ export class DeskSourceMachine<T> {
     // finding to report — see `settled`.
     if (!this.settledYet) return { kind: "empty", failure: null };
 
-    // Someone pressed Live on a desk with no reading. Honour it: they asked
-    // for the real thing and there isn't one, which is a card, not a fiction.
-    if (this.chosenSource === "live") return { kind: "empty", failure: this.lastFailure };
-
-    if (!this.lastFailure) return { kind: "empty", failure: null };
-
-    // `gateway_not_configured` is the deployed workspace's normal state, not a
-    // fault; anything else is an incident, and the badge must not imply this
-    // desk never had a gateway.
-    return {
-      kind: "generated",
-      cause: this.lastFailure.code === "gateway_not_configured" ? "not-configured" : "incident",
-    };
+    // A settled failure with no prior reading is absence, never permission to
+    // fabricate a replacement. The failure card may offer Sandbox, but only a
+    // click on that control reaches the generated branch at the top.
+    return { kind: "empty", failure: this.lastFailure };
   }
 }
