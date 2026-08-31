@@ -52,7 +52,7 @@ export default function McHistogram({ result }: { result: McDistributionResult }
   ];
 
   return (
-    <>
+    <div className="mc-histogram">
       {/* Through `Figure` and `Plot` since 2026-08-26. The bars had no `<title>`
           at all, so a reader could see the distribution's SHAPE and could not
           get a single number off it by any means but a mouse hover that showed
@@ -113,19 +113,21 @@ export default function McHistogram({ result }: { result: McDistributionResult }
             );
           }}
         </Plot>
+        <dl className="mc-histogram__scale muted num" aria-label="Terminal outcome range">
+          <div>
+            <dt>Worst outcome</dt>
+            <dd>{mcUsd(lo)}</dd>
+          </div>
+          <div>
+            <dt>Break-even</dt>
+            <dd>$0</dd>
+          </div>
+          <div>
+            <dt>Best outcome</dt>
+            <dd>{mcUsd(hi)}</dd>
+          </div>
+        </dl>
       </Figure>
-      <div
-        className="muted num"
-        style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--fs-2xs)" }}
-      >
-        {/* `mcUsd` rather than the bare dollar formatter: an axis end a hair
-            below break-even renders as a sign the figure does not have, on the
-            very label a reader takes the chart's scale from. Same
-            normalisation `pct` already applies to percentage axes. */}
-        <span>{mcUsd(lo)}</span>
-        <span>break-even at $0</span>
-        <span>{mcUsd(hi)}</span>
-      </div>
-    </>
+    </div>
   );
 }
