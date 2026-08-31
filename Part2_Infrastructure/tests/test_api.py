@@ -237,7 +237,7 @@ class TestRiskRoutes:
 class TestJobs:
     def test_backtest_job_lifecycle(self, client):
         job = client.post("/api/backtest", json={
-            "symbol": "BTCUSDT", "interval": "1h", "bars": 400,
+            "symbol": "BTCUSDT", "interval": "1h", "bars": 400, "data_mode": "synthetic_demo",
             "fast_min": 5, "fast_max": 15, "fast_step": 5,
             "slow_min": 30, "slow_max": 60, "slow_step": 30,
             "walk_forward": False}).json()
