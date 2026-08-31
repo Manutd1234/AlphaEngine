@@ -61,9 +61,6 @@ import { booksHistoryRoute, booksRoute } from "@/lib/coherence/routes";
 import { useCoherenceRead } from "@/lib/coherence/use-coherence";
 import BookHistory from "./BookHistory";
 import BooksPane, { type BookDetailView } from "./BooksPane";
-import LiveTape from "./LiveTape";
-import { toUnit } from "@/lib/coherence/decimals";
-import { useLiveSeries } from "@/lib/coherence/use-live-series";
 import MarketPicker from "./MarketPicker";
 import PaneHead from "./PaneHead";
 import SectionFrame from "./SectionFrame";
@@ -95,19 +92,6 @@ export default function BooksSection(
   // picker has to show the ticker the drawing is actually of, and after a
   // repoll that dropped the chosen market they are not the same string.
   const current = books_.find((book) => book.ticker === selected)?.ticker ?? books_[0]?.ticker ?? "";
-  const drawn = books_.find((book) => book.ticker === current) ?? null;
-
-  /* The best YES bid over time, keyed by the MARKET. The bid and not the
-     implied ask, because the bid is what the venue actually sends — the ask on
-     every other figure here is read off the opposite ladder, and a tape of a
-     derived number would put two inferences between the reader and the venue.
-     No reference line: a price has no level it ought to be at, which is exactly
-     what distinguishes this section from the baskets. */
-  const bidTape = useLiveSeries(
-    `books:${current}:bid`,
-    books.updatedAt,
-    drawn ? toUnit(drawn.best_yes_bid) : null,
-  );
 
   /* The recorded tape, gated on its OWN view and on having a market to ask
      about. It is the cheap read of the two — DuckDB, no exchange call, no
@@ -129,14 +113,14 @@ export default function BooksSection(
            book views and it is what the rest of the section rests on. */
         <PaneHead
           kicker="Books"
-          title="Two bid ladders & the offers they imply"
+          title="Two ladders, mirrored offers"
           id="markets-books-heading"
           note={books.data
             ? books.data.origin === "tape"
               ? "recorded tape, newest snapshot per market"
               : "read live from the exchange"
             : "reading the exchange"}
-          lede="Kalshi sends YES bids and NO bids and no asks at all, so every offer on this section is read off the opposite ladder."
+          lede="Native bids imply each opposite offer as 1 minus bid."
         />
       }
       views={VIEWS}
@@ -166,15 +150,6 @@ export default function BooksSection(
       ) : (
         <BooksPane books={books.data} error={books.error} view={view} selected={selected} />
       )}
-
-      {current ? (
-        <LiveTape
-          points={bidTape}
-          caption={`What ${current} has been bid, poll by poll`}
-          ariaLabel="The best YES bid over the polls seen since this tab opened"
-          reading="The bid as the venue sends it; every offer on this section is read off the opposite ladder, so this is the one price here that is not an inference."
-        />
-      ) : null}
     </SectionFrame>
   );
 }
