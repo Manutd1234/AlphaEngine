@@ -31,6 +31,10 @@ import { readRepoFile, readWebFile } from "./helpers/deployment-files";
 
 const envExample = readWebFile(".env.example");
 const ci = readRepoFile(".github/workflows/ci.yml");
+const schema = readRepoFile(".github/workflows/schema.yml");
+const keepalive = readRepoFile(".github/workflows/openbb-keepalive.yml");
+const e2e = readRepoFile(".github/workflows/e2e.yml");
+const vercel = readWebFile("vercel.json");
 
 describe("every runtime variable is documented where someone will find it", () => {
   for (const name of ["ORACLE_CONN_STRING", "ORACLE_PASSWORD", "ORACLE_USER"]) {
@@ -142,5 +146,35 @@ describe("CI keeps its network-free guarantee", () => {
     for (const secret of ["ORACLE_CONN_STRING", "SUPABASE_URL", "ORACLE_PASSWORD"]) {
       assert.ok(!defaults.includes(secret), `${secret} reached a job that runs on every push`);
     }
+  });
+});
+
+describe("deployment automation fails honestly and remains reproducible", () => {
+  it("installs the committed dependency graph on Vercel", () => {
+    assert.match(vercel, /"installCommand":\s*"npm ci"/);
+    assert.doesNotMatch(vercel, /"installCommand":\s*"npm install"/);
+  });
+
+  it("does not bake one gateway address into the schema workflow", () => {
+    assert.match(schema, /ALPHAENGINE_GATEWAY_URL:\s*\$\{\{ vars\.ALPHAENGINE_GATEWAY_URL \}\}/);
+    assert.doesNotMatch(schema, /ALPHAENGINE_GATEWAY_URL:\s*https?:\/\/\d+\.\d+\.\d+\.\d+/);
+    assert.match(schema, /case "\$ALPHAENGINE_GATEWAY_URL" in[\s\S]*https:\/\/\*\)/);
+    assert.match(schema, /refusing to send WEB_API_TOKEN over plaintext/);
+  });
+
+  it("accepts the full Supabase project-ref alphabet and refuses an empty parse", () => {
+    assert.match(schema, /project_id = \"\[a-z0-9\]\+\"/);
+    assert.match(schema, /if \[ -z "\$ref" \]/);
+  });
+
+  it("checks the warm OpenBB response, not only the cold response", () => {
+    assert.match(keepalive, /warm_code=/);
+    assert.match(keepalive, /\[ "\$warm_code" != "200" \]/);
+  });
+
+  it("runs the live smoke once and publishes that same report", () => {
+    assert.equal((e2e.match(/python tools\/e2e_smoke\.py --full/g) ?? []).length, 1);
+    assert.match(e2e, /tee \/tmp\/alphaengine-e2e-smoke\.log/);
+    assert.match(e2e, /cat \/tmp\/alphaengine-e2e-smoke\.log/);
   });
 });
