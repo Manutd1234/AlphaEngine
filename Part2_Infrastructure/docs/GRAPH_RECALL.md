@@ -1,5 +1,10 @@
 # Graph recall — walking the research graph from a terminal
 
+**Source/worktree audited: 2026-08-31.** The reader boundary and current
+research graph projection were checked against this tree; current platform
+topology is in [`../../docs/CURRENT_STATE.md`](../../docs/CURRENT_STATE.md).
+No live Supabase or Neo4j deployment is implied by this stamp.
+
 `tools/graph_recall.py` answers the question hybrid search cannot:
 
 > every run sharing this data_hash that later tripped the breaker
@@ -17,8 +22,14 @@ in `modules/` or `main.py` imports it.
 | Object | Where it comes from | What it gives |
 | --- | --- | --- |
 | `research_edges` | migration `20260820090400`; rows written by `modules/research_graph.persist_edges` | the link table: `src_id`, `dst_id`, `relation`, `evidence` |
-| `traverse_research_graph` | migration `20260820090500` | a recursive CTE, depth capped at 4, refusing revisits, carrying `depth`, `arrived_by`, `evidence` and `path` |
+| `traverse_research_graph` | migrations `20260820090500` and `20260831130000` | a desk-scoped recursive CTE, depth capped at 4, refusing revisits, carrying `depth`, `arrived_by`, `evidence` and `path` |
 | `research_documents` | migration `20260808120400` and later | the rows an edge points at |
+
+The desk-scoped RPC requires migration `20260831130000` to be applied to the
+target Supabase project. Its presence in `supabase/migrations/` and the generated
+bundle proves only that the schema is available to deploy; it does not prove a
+live project has applied it. The tool also requires an explicit
+`SUPABASE_DESK_ID` matching the rows to be read.
 
 Edges are derived from STRUCTURED columns — symbol, interval, strategy,
 `data_hash`, kind, and regime off the metrics — with no LLM in the ingest path.
@@ -157,7 +168,7 @@ object that is `null` when no narrator was asked for.
 ## Running it
 
 ```sh
-SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... \
+SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... SUPABASE_DESK_ID=... \
     venv/bin/python tools/graph_recall.py --data-hash 9f2c1a77 --narrate
 ```
 
