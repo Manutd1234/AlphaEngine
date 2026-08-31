@@ -17,15 +17,21 @@
  */
 
 import type { CoherenceCalibration } from "@/lib/coherence/types-lab";
+import BrierCalibrationSurface from "./BrierCalibrationSurface";
 import CalibrationBands from "./CalibrationBands";
 import CalibrationCorpus from "./CalibrationCorpus";
 import CalibrationGauge from "./CalibrationGauge";
-import { ScoreView, horizonText, scoreFacts } from "./CalibrationScore";
-import HorizonAxis from "./HorizonAxis";
+import {
+  ScoreDecompositionView,
+  ScoreMeasuresView,
+  ScoreOverview,
+  ScoreComponentsView,
+  scoreFacts,
+} from "./CalibrationScore";
 import { StateChip } from "./Figure";
 import SectionVerdict from "./SectionVerdict";
 
-export type SettledView = "score" | "bands" | "corpus";
+export type SettledView = "score" | "decomposition" | "components" | "measures" | "reliability" | "bands" | "corpus";
 
 /**
  * The three settled views, with the four different absences told apart.
@@ -61,19 +67,14 @@ export default function CalibrationSettled({ data, error, view }: {
 
   return (
     <>
-      {/* The chips no figure, note or heading below already says. "Settled
-          markets" and "bands quoted" each repeated a neighbour and stayed out;
-          what a reader cannot get elsewhere in one glance is whether the sample
-          is too thin to conclude from, and what the corpus scored. */}
-      <SectionVerdict>
-        <StateChip
-          mark={data.thin ? "▲" : "●"}
-          word={data.thin ? "Thin sample" : "Not flagged thin"}
-          value={data.thin ? "too few to conclude from" : null}
-          tone={data.thin ? "warn" : "muted"}
-        />
-        <StateChip mark="◇" word="Settled markets scored" value={String(data.count)} tone="muted" />
-      </SectionVerdict>
+      {/* Silence is the compact healthy state. The count remains in Measures;
+          only a thin sample changes how every score below may be read, so only
+          that warning earns a row above the active view. */}
+      {data.thin ? (
+        <SectionVerdict>
+          <StateChip mark="▲" word="Thin sample" value="too few to conclude from" tone="warn" />
+        </SectionVerdict>
+      ) : null}
 
       {view === "score" ? (
         <>
@@ -85,17 +86,18 @@ export default function CalibrationSettled({ data, error, view }: {
               WHICH PRICES were scored, which is the question the reliability
               bands are read against, and the second drew the table below it. */}
           <CalibrationGauge data={data} />
-          <ScoreView data={data} facts={scoreFacts(data)} />
+          <ScoreOverview facts={scoreFacts(data)} />
         </>
+      ) : view === "decomposition" ? (
+        <ScoreDecompositionView data={data} />
+      ) : view === "components" ? (
+        <ScoreComponentsView data={data} />
+      ) : view === "measures" ? (
+        <ScoreMeasuresView facts={scoreFacts(data)} />
+      ) : view === "reliability" ? (
+        <BrierCalibrationSurface data={data} error={null} />
       ) : view === "bands" ? (
-        <CalibrationBands
-          data={data}
-          horizonNote={
-            data.engine === "final_trade"
-              ? "last traded prices, so the x axis is what the exchange had already converged on"
-              : horizonText(data.median_horizon_s)
-          }
-        />
+        <CalibrationBands data={data} />
       ) : (
         <CalibrationCorpus data={data} />
       )}
