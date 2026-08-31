@@ -27,7 +27,7 @@ import {
   type FavouriteMethod,
   type FavouriteSeries,
 } from "@/lib/favourites";
-import { loadBars } from "@/lib/marketdata";
+import { loadBars, MarketDataUnavailableError } from "@/lib/marketdata";
 import { DEFAULT_REQUEST, INTERVALS, STRATEGY_LABELS, type SweepRequest } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -176,7 +176,7 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "unknown error" },
-      { status: 400 },
+      { status: err instanceof MarketDataUnavailableError ? 503 : 400 },
     );
   }
 }
