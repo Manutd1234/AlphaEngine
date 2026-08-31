@@ -9,28 +9,28 @@
  * episodes are still open.
  */
 
-import { memo, useState } from "react";
+import { memo } from "react";
 
+import { viewsFor } from "@/lib/section-views";
 import type { CoherenceEpisodes, CoherenceIndexSeries, CoherenceStatus } from "@/lib/coherence/types";
 import PaneHead from "../PaneHead";
+import DiffusionViewControl from "./DiffusionViewControl";
 import KalshiArm from "./KalshiArm";
 
-type EpisodeView = "survival" | "episodes";
+export type EpisodeView = "survival" | "episodes";
 
-const VIEWS: ReadonlyArray<[EpisodeView, string]> = [
-  ["survival", "Survival"],
-  ["episodes", "Episodes"],
-];
+const VIEWS = viewsFor("diffusion", "episodes") as ReadonlyArray<readonly [EpisodeView, string]>;
 
-function EpisodesSection({ data, error, status, index }: {
+function EpisodesSection({ data, error, status, index, view, onView }: {
   data: CoherenceEpisodes | null;
   error: string | null;
   /** The recorder behind the tape, so an empty tape can report its watch. */
   status: CoherenceStatus | null;
   /** The index the episode ledger is downstream of, for the Episodes view. */
   index: CoherenceIndexSeries | null;
+  view: EpisodeView;
+  onView: (next: EpisodeView) => void;
 }) {
-  const [view, setView] = useState<EpisodeView>("survival");
   return (
     <section className="card console-card coh-diffusion" aria-labelledby="diffusion-episodes-heading">
       <PaneHead
@@ -38,18 +38,18 @@ function EpisodesSection({ data, error, status, index }: {
         title="How long a published mispricing survives"
         id="diffusion-episodes-heading"
         note="from closed episodes only, on the recorded tape"
-        lede="Measure how long a dislocation lasts before building anything that trades it — it is the one figure that says whether this is a race worth entering."
+        lede="Measure how long a dislocation survives before trading it — the lifetime determines whether this is an executable race worth entering."
       />
       {/* Wrapped 2026-08-25: a bare `.seg` could be reached by neither
           the sticky rule nor the wrap rule, both `.coh-bar`-scoped. */}
       <div className="coh-bar">
-        <div className="seg" role="group" aria-label="Episodes view">
-          {VIEWS.map(([name, label]) => (
-            <button key={name} type="button" aria-pressed={view === name} onClick={() => setView(name)}>
-              {label}
-            </button>
-          ))}
-        </div>
+        <DiffusionViewControl
+          className="seg diff-view-control"
+          label="Episodes view"
+          value={view}
+          views={VIEWS}
+          onValueChange={onView}
+        />
       </div>
       <KalshiArm data={data} error={error} view={view} status={status} index={index} />
     </section>
