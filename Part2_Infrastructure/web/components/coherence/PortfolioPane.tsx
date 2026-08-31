@@ -40,13 +40,14 @@
 
 import type { CoherenceCertificate, CoherenceEventView } from "@/lib/coherence/types";
 import BasketFootprint from "./BasketFootprint";
-import Figure, { FigureEmpty } from "./Figure";
 import ShortfallScale from "./ShortfallScale";
 import { LinkedX } from "@/lib/coherence/linked-x";
 import PayoffByState from "./PayoffByState";
 import { statValue } from "@/lib/coherence/decimals";
 import StateCoverage, { type CoverageState } from "./StateCoverage";
 import ValueStrip from "./ValueStrip";
+import BasketNullInstrument from "./BasketNullInstrument";
+import BasketScenarioTerminal from "./BasketScenarioTerminal";
 
 /**
  * The legs, and the three numbers the verdict is actually read off.
@@ -176,23 +177,21 @@ export function CoverView({ certificate, states, exact }: {
  * indistinguishable from a feed that failed. That distinction is the whole
  * argument this tab makes.
  */
-export function BasketView({ certificate, states, exact }: {
+export function BasketView({ certificate, chosen, states, exact }: {
   certificate: CoherenceCertificate;
+  chosen: CoherenceEventView | null;
   states: CoverageState[];
   exact: boolean;
 }) {
   if (!certificate.legs.length) {
     return (
-      <Figure
-        caption="What the portfolio pays in each state this family can settle into"
-        ariaLabel="No portfolio was returned for this family"
-        missing={
-          `Coherent — the programme's optimum is ${certificate.margin ?? "not reported"}, so no portfolio of these`
-          + " quotes pays more than it costs in every state. Cover shows how far the best available one fell short."
-        }
-      >
-        <FigureEmpty reason="Coherent — no portfolio to hold." />
-      </Figure>
+      <>
+        {chosen ? <BasketScenarioTerminal key={chosen.event_ticker} event={chosen} certificate={certificate} /> : null}
+        <details className="disclosure">
+          <summary>Why the live certificate returned no basket, 3 stages</summary>
+          <BasketNullInstrument variant="basket" certificate={certificate} states={states} exact={exact} />
+        </details>
+      </>
     );
   }
 
@@ -243,18 +242,7 @@ export function SizeView({ certificate, chosen }: {
   chosen: CoherenceEventView | null;
 }) {
   if (!certificate.legs.length) {
-    return (
-      <Figure
-        caption="What the basket needs, against what is outstanding at each leg"
-        ariaLabel="No portfolio was returned, so there is nothing to size"
-        missing={
-          "Coherent — no portfolio was returned, so there is no size to check. Cover shows how far the best"
-          + " available basket fell short."
-        }
-      >
-        <FigureEmpty reason="Coherent — no basket to size." />
-      </Figure>
-    );
+    return <BasketNullInstrument variant="size" certificate={certificate} event={chosen} />;
   }
   return <BasketFootprint certificate={certificate} event={chosen} />;
 }
@@ -280,7 +268,7 @@ export default function PortfolioPane({ certificate, chosen, view }: {
   // ONE DISPATCH, and the state space above is computed once for all three:
   // rebuilding it per view is how two views come to disagree about whether a
   // covering is exact.
-  if (view === "basket") return <BasketView certificate={certificate} states={states} exact={exact} />;
+  if (view === "basket") return <BasketView certificate={certificate} chosen={chosen} states={states} exact={exact} />;
   if (view === "size") return <SizeView certificate={certificate} chosen={chosen} />;
   return <CoverView certificate={certificate} states={states} exact={exact} />;
 }
