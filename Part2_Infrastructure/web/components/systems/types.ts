@@ -257,6 +257,24 @@ export interface SystemHealth {
       observedDigest: string | null;
       detail: string;
     };
+    /** Canonical Markets, Proofs and Diffusion fixtures through production guards. */
+    payloads?: {
+      kind: "gateway_payload_parity";
+      state: "match" | "mismatch";
+      passed: boolean;
+      expectedDigest: string;
+      observedDigest: string;
+      checks: number;
+      detail: string;
+    };
+    /** Python-generated risk fixture through the TypeScript consumer. */
+    risk?: {
+      kind: "risk_parity";
+      state: "match" | "mismatch";
+      passed: boolean;
+      checks: number;
+      detail: string;
+    };
     /** Cross-engine Monte Carlo parity; absent on deployments predating it. */
     numerics?: {
       kind: "mc_parity";
