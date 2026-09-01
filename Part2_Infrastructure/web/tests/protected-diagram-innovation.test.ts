@@ -34,6 +34,7 @@ describe("protected desk diagrams are keyboard and pointer instruments", () => {
       ...fixture.protectedDeveloperContractReview20260901,
       ...fixture.protectedEquityQuoteHealth20260901,
       ...fixture.protectedDataTransportTruth20260901,
+      ...fixture.protectedUiGatewaySweep20260902,
     });
   });
 
