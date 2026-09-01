@@ -133,11 +133,10 @@ const MOVED = [
     ownerClass: "developer-cp-state-guide",
     summary: "How to read the State column",
     text:
-      "Gateway OpenAPI, runtime payload contracts and Monte Carlo numerics take their verdicts "
-      + "from the current health payload. Gateway payloads and Risk parity remain unverified because "
-      + "that payload carries no cross-runtime result for either comparison.",
-    why: "the first sentence identifies every health-backed row, while the second keeps both"
-      + " configured cross-runtime comparisons from borrowing unrelated live evidence",
+      "Every row takes its verdict from executable evidence in the current health payload: live "
+      + "OpenAPI, canonical route fixtures, the runtime validation ledger, the Python risk fixture, "
+      + "and the committed Monte Carlo reference.",
+    why: "the sentence names the distinct evidence source behind every compatibility row",
   },
 ] as const;
 
