@@ -71,6 +71,9 @@
   "protectedDataTransportTruth20260901": {
     "data": { "sha256": "196538452779de15f9bf6d26a7caaf81cc391afb89a34c4843c057c7858b1033", "strings": 1560, "words": 5783 }
   },
+  "protectedUiGatewaySweep20260902": {
+    "developer": { "sha256": "4e47cb24293047a5621021d600bd0b22922fa8183d8656d155c0185dc30276b2", "strings": 1643, "words": 6739 }
+  },
   "engineViews": [
     { "product": "markets", "routeTab": "markets", "section": "universe", "view": "baskets", "label": "Basket pricing", "id": "markets/universe/baskets", "deepLink": "markets/universe" },
     { "product": "markets", "routeTab": "markets", "section": "universe", "view": "positions", "label": "Positions", "id": "markets/universe/positions", "deepLink": "markets/universe/positions" },
@@ -231,6 +234,11 @@
       "markets": { "sha256": "0fae1001f4ec3705883926d615ae75d2989865ecf68cfb75f53f0aa15c7ac94f", "strings": 2693, "words": 10479 },
       "proofs": { "sha256": "1ca8ec9bd889f6d98164fefa628b684e11bdcb4c6d9051297613e1d6ee76e7a8", "strings": 2988, "words": 16632 },
       "diffusion": { "sha256": "ac901a1531ef7d816c8ef338a8dd85f24a705f2bdd392f1d09e6a9fe97c1b682", "strings": 1931, "words": 10649 }
+    },
+    "uiGatewaySweep20260902Tabs": {
+      "markets": { "sha256": "cf16c67ce7a70f35d7680d944b7d83e06312f9695c04de638317d1daa6419dfe", "strings": 2725, "words": 10689 },
+      "proofs": { "sha256": "1ca8ec9bd889f6d98164fefa628b684e11bdcb4c6d9051297613e1d6ee76e7a8", "strings": 2988, "words": 16632 },
+      "diffusion": { "sha256": "2ceb77275b7f2ac76aff9dcf5ea9b9030beda3132cfecb1011cced5efc49fd58", "strings": 1941, "words": 10707 }
     },
     "summaryCopy": {
       "browserObserved": false,
