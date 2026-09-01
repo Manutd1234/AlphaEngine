@@ -97,7 +97,7 @@ describe("every engine table is declared, and every declaration is a table", () 
       Object.fromEntries([...declared].sort()),
       "a <table> exists without a row in engine-tables.ts, or a row names a table that has gone",
     );
-    assert.equal(TABLES.length, 27);
+    assert.equal(TABLES.length, 28);
   });
 
   it("KNOWN_RED names only declared tables and rules this file checks", () => {
