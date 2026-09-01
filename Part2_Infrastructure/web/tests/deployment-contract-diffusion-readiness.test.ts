@@ -32,7 +32,7 @@ describe("continuous deployment restores the Diffusion evidence ledger", () => {
 
   it("proves Diffusion history is populated before accepting a healthy replacement", () => {
     const healthy = deployWorkflow.indexOf('echo "==> Healthy. Confirming the port answers"');
-    const diffusion = deployWorkflow.indexOf("python tools/check_diffusion_ready.py", healthy);
+    const diffusion = deployWorkflow.indexOf("python -m tools.check_diffusion_ready", healthy);
     const rfq = deployWorkflow.indexOf("Confirming the authenticated private maker channel state", diffusion);
     assert.ok(
       healthy > 0 && diffusion > healthy && rfq > diffusion,
@@ -43,7 +43,7 @@ describe("continuous deployment restores the Diffusion evidence ledger", () => {
       deployWorkflow.lastIndexOf('echo "==> Confirming the restored Diffusion history', diffusion),
       rfq,
     );
-    assert.match(block, /docker exec "\$CONTAINER" python tools\/check_diffusion_ready\.py/);
+    assert.match(block, /docker exec "\$CONTAINER" python -m tools\.check_diffusion_ready/);
     assert.match(
       block,
       /rollback_gateway/,

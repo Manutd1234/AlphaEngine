@@ -1149,7 +1149,7 @@ jobs:
             fi
 
             echo "==> Confirming the restored Diffusion history and diagram inputs"
-            if ! docker exec "$CONTAINER" python tools/check_diffusion_ready.py; then
+            if ! docker exec "$CONTAINER" python -m tools.check_diffusion_ready; then
               echo "::error::The replacement gateway is healthy but its Diffusion event/run history is incomplete."
               if ! rollback_gateway; then
                 echo "::error::Automatic gateway rollback failed; operator intervention is required."
