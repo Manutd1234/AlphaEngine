@@ -2,7 +2,7 @@
  * Every table on the two engine tabs, declared: what it is, what each column
  * is headed, what kind of cell sits under it, and how it is framed.
  *
- * Twenty-seven `<table>` elements in twenty-five files, measured on 2026-08-31 by
+ * Twenty-eight `<table>` elements in twenty-six files, measured on 2026-09-02 by
  * reading every `<table` under `components/coherence/` (surface included,
  * Diffusion excluded — it has its own contract). `engine-data-contract.test.ts`
  * derives the same list by scanning, so a table added without a row here is
@@ -260,6 +260,12 @@ export const TABLES: readonly TableDecl[] = [
     what: "the shell's commands",
     columns: [["Name", "ls", "text"], ["What it reads", "A path", "text"], ["When it has no answer", "Answers", "text"]],
     rowKey: "identifier", wrapper: "folded",
+  },
+  {
+    file: "components/coherence/ShellReadings.tsx", tab: "markets",
+    what: "derived namespace files grouped by empty-result semantics",
+    columns: [["Reading", "file.name", "text"], ["What it reads", "file.reads", "text"]],
+    rowKey: "identifier", wrapper: "open", nested: true,
   },
   {
     file: "components/coherence/UniversePane.tsx", tab: "markets",
