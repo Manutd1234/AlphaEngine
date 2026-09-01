@@ -171,6 +171,6 @@ describe("a switched-away pane is unmounted, not hidden", () => {
     const numerics = interfaces.slice(interfaces.indexOf('pane === "numerics"'));
     assert.match(numerics, /<McBrowserParityCheck \/>/);
     assert.match(status_, /object: "Monte Carlo numerics"/);
-    assert.match(functionBody(status_, "SchemaGateTable"), /Monte Carlo numerics/);
+    assert.match(functionBody(status_, "SchemaGateTable"), /committed Monte Carlo reference/);
   });
 });
