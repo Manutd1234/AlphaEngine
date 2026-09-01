@@ -33,6 +33,7 @@ import DispersionTable, { THIN_PANEL } from "./DispersionTable";
 import KpiRow, { type Reading } from "./KpiRow";
 import DispersionStrips from "./DispersionStrips";
 import ProofsTransportNotice from "./ProofsTransportNotice";
+import { RfqAccessNotice, rfqAccessFailure, type RfqStateRow } from "./RfqAccessState";
 
 /** The section's two subjects since the second 2026-08-24 pass: the quotes
  *  themselves, and the REST poll that did or did not carry them. They were
@@ -50,7 +51,6 @@ export type RfqView = "quotes" | "channel";
  * would otherwise be indistinguishable — which is the failure this pane prevents.
  */
 type SigningEnvironment = NonNullable<CoherenceRfqPanel["signing_environment"]>;
-type RfqStateRow = { state: string; mark: string; word: string; means: string; not: string };
 
 function environmentName(environment: SigningEnvironment | null | undefined): string | null {
   if (environment === "production") return "Production";
@@ -276,6 +276,7 @@ function StateTable({ panel, states }: { panel: CoherenceRfqPanel; states: Reado
 export default function RfqPane({ view, active }: { view: RfqView; active: boolean }) {
   const read = useCoherenceRead<CoherenceRfqPanel>(rfqRoute(), active);
   const { data, error, updatedAt } = read;
+  const access = rfqAccessFailure(read.transport?.code, error);
 
   /* How far the makers are apart, poll by poll.
      ON ONE REQUEST, NOT THE PANEL. `spread` is a per-RFQ measurement
@@ -325,22 +326,30 @@ export default function RfqPane({ view, active }: { view: RfqView; active: boole
       ) : (
         <p className="sub">Polling the authenticated RFQ REST endpoint now.</p>
       )}
-      <ProofsTransportNotice
-        subject="Maker RFQ REST poll"
-        error={error}
-        hasSnapshot={Boolean(data)}
-        transport={read.transport}
-        retryAt={read.retryAt}
-        consecutiveFailures={read.consecutiveFailures}
-        onRetry={read.refresh}
-      />
+      {access ? (
+        <RfqAccessNotice row={access} onRetry={read.refresh} />
+      ) : (
+        <ProofsTransportNotice
+          subject="Maker RFQ REST poll"
+          error={error}
+          hasSnapshot={Boolean(data)}
+          transport={read.transport}
+          retryAt={read.retryAt}
+          consecutiveFailures={read.consecutiveFailures}
+          onRetry={read.refresh}
+        />
+      )}
       {body}
     </div>
   );
 
   if (error && !data) {
     return framed(
-      <ChannelStates states={statesFor(undefined)} current="unavailable" openRequests={null} />,
+      <ChannelStates
+        states={access ? [...statesFor(undefined), access] : statesFor(undefined)}
+        current={access?.state ?? "unavailable"}
+        openRequests={null}
+      />,
     );
   }
   if (!data) return framed(<p className="console-empty muted" role="status" aria-busy="true">Polling the makers…</p>);
