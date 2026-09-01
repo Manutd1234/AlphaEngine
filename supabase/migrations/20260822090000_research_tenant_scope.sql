@@ -212,12 +212,19 @@ comment on function public.match_research_documents_hybrid is
   'position among rows the caller was allowed to see; null means unscoped.';
 
 -- Re-applied, not decorative: the drops above discarded the ACL these two
--- statements installed in 20260812091000, and a newly created function is
--- executable by PUBLIC. The gateway reads with the service role, which is
--- unaffected by either statement.
+-- functions had, and PostgreSQL makes a newly created function executable by
+-- PUBLIC. State the complete intended ACL: only the service-role gateway may
+-- call either retrieval RPC directly.
 revoke execute on function public.match_research_documents(
   extensions.vector, integer, double precision, public.research_doc_kind, uuid, uuid
-) from anon, authenticated;
+) from public, anon, authenticated;
+grant execute on function public.match_research_documents(
+  extensions.vector, integer, double precision, public.research_doc_kind, uuid, uuid
+) to service_role;
+
 revoke execute on function public.match_research_documents_hybrid(
   extensions.vector, text, integer, public.research_doc_kind, integer, uuid, uuid
-) from anon, authenticated;
+) from public, anon, authenticated;
+grant execute on function public.match_research_documents_hybrid(
+  extensions.vector, text, integer, public.research_doc_kind, integer, uuid, uuid
+) to service_role;

@@ -169,9 +169,26 @@ def _event_dir(observation: Observation) -> Listing:
     )
 
 
-def _find(observations: Sequence[Observation], event_ticker: str) -> Observation | None:
+def find_observation(
+    observations: Sequence[Observation],
+    shard: int,
+    series_ticker: str,
+    event_ticker: str,
+) -> Observation | None:
+    """Find an event only at the exact namespace address that names it.
+
+    A filesystem path includes every parent segment.  Matching only the event
+    leaf let a real event open below a made-up shard or series and then silently
+    canonicalised the response to its actual home.
+    """
     return next(
-        (item for item in observations if item.event.event_ticker == event_ticker),
+        (
+            item
+            for item in observations
+            if item.event.exchange_index == shard
+            and item.event.series_ticker == series_ticker
+            and item.event.event_ticker == event_ticker
+        ),
         None,
     )
 
@@ -191,9 +208,14 @@ def ls(observations: Sequence[Observation], path: str = "/") -> Listing:
         return _series_in(observations, shard)
     if len(parts) == 3:
         return _events_in(observations, shard, parts[2])
-    observation = _find(observations, parts[3])
+    observation = find_observation(observations, shard, parts[2], parts[3])
     if observation is None:
-        return Listing(path, (), f"{parts[3]} is not a watched event", exists=False)
+        return Listing(
+            path,
+            (),
+            f"{parts[3]} is not a watched event at /shards/{shard}/{parts[2]}",
+            exists=False,
+        )
     if len(parts) == 4:
         return _event_dir(observation)
     return Listing(path, (), f"{parts[4]} is a file; read it with cat", exists=False)
@@ -268,6 +290,66 @@ def _or_dash(value: Any) -> str:
     return "-" if value is None else str(value)
 
 
+def _strike(market: Any) -> str:
+    bounds = [
+        value
+        for value in (
+            f"floor {market.floor_strike}" if market.floor_strike is not None else "",
+            f"cap {market.cap_strike}" if market.cap_strike is not None else "",
+        )
+        if value
+    ]
+    suffix = f" ({', '.join(bounds)})" if bounds else ""
+    return f"{market.strike_kind}{suffix}"
+
+
+def _market_body(observation: Observation, name: str) -> FileBody:
+    """Render one native contract without manufacturing absent quote data."""
+    found = next((item for item in observation.markets if item.ticker == name), None)
+    if found is None:
+        return FileBody(name, "missing", "", f"no file called {name} in this event")
+
+    market = found.market
+    book = found.book
+    lines = [
+        f"ticker            {market.ticker}",
+        f"label             {market.yes_sub_title or '-'}",
+        f"event             {observation.event.event_ticker}",
+        f"series            {observation.event.series_ticker}",
+        f"shard             {observation.event.exchange_index}",
+        f"status            {market.status or '-'}",
+        f"strike            {_strike(market)}",
+        f"price grid        {market.grid.structure}",
+        "",
+        "published price bands",
+    ]
+    lines.extend(
+        f"  {band.start} .. {band.end}  step {band.step}"
+        for band in market.grid.bands
+    )
+    lines.extend(
+        [
+            "",
+            "top of book (dollars)",
+            f"  yes bid         {_or_dash(book.best_yes_bid)}",
+            f"  yes ask         {_or_dash(book.best_yes_ask)}",
+            f"  no bid          {_or_dash(book.best_no_bid)}",
+            f"  no ask          {_or_dash(book.best_no_ask)}",
+            f"  yes spread      {_or_dash(book.spread)}",
+            f"  depth            {book.depth}",
+            "",
+            "published activity",
+            f"  open interest    {_or_dash(market.open_interest)}",
+            f"  liquidity        {_or_dash(market.liquidity)}",
+            f"  volume           {_or_dash(market.volume)}",
+            f"  notional value   {_or_dash(market.notional_value)}",
+            "",
+            "an absent quote or activity field is a dash, never an invented zero",
+        ]
+    )
+    return FileBody(name, "ok", "\n".join(lines), f"native contract; {book.depth} book")
+
+
 def cat(
     observations: Sequence[Observation],
     path: str,
@@ -277,23 +359,32 @@ def cat(
     parts = _split(path)
     if len(parts) != 5 or parts[0] != "shards":
         return FileBody(path, "missing", "", "a readable file lives at /shards/<n>/<series>/<event>/<name>")
-    observation = _find(observations, parts[3])
+    try:
+        shard = int(parts[1])
+    except ValueError:
+        return FileBody(path, "missing", "", f"{parts[1]} is not an exchange instance")
+    observation = find_observation(observations, shard, parts[2], parts[3])
     if observation is None:
-        return FileBody(path, "missing", "", f"{parts[3]} is not a watched event")
+        return FileBody(
+            path,
+            "missing",
+            "",
+            f"{parts[3]} is not a watched event at /shards/{shard}/{parts[2]}",
+        )
     name = parts[4]
 
-    if name == "implied_pmf":
-        return _pmf_body(observation)
-    if name == "survival":
-        return _survival_body(observation)
-    if name == "lattice":
-        return _lattice_body(observation)
-    if name == "books":
-        return _books_body(observation)
+    derived_reader = {
+        "implied_pmf": _pmf_body,
+        "survival": _survival_body,
+        "lattice": _lattice_body,
+        "books": _books_body,
+    }.get(name)
+    if derived_reader is not None:
+        return derived_reader(observation)
     if name == "certificate":
         if certificate is None:
             return FileBody(path, "unavailable", "", "no certificate was computed for this event in this read")
         return FileBody(path, "ok", certificate.render_text(), f"engine: {certificate.engine}")
     if any(item.ticker == name for item in observation.markets):
-        return FileBody(path, "unavailable", "", "a single market is a directory entry, not a readable file yet")
+        return _market_body(observation, name)
     return FileBody(path, "missing", "", f"no file called {name} in this event")

@@ -43,7 +43,7 @@ describe("restored Diffusion drawings remain keyboard-readable", () => {
     assert.doesNotMatch(controlRank, /index % 3/);
   });
 
-  it("keeps a Plot instrument or framed empty state in every restored view", () => {
+  it("keeps a Plot instrument and an honest framed sparse state in every restored view", () => {
     for (const [name, source] of [
       ["clocks", clock],
       ["calendar", calendar],
@@ -53,7 +53,16 @@ describe("restored Diffusion drawings remain keyboard-readable", () => {
     ] as const) {
       const code = stripNonCode(source);
       assert.match(code, /<Plot\b/, `${name} lost its technical drawing`);
-      assert.match(code, /<FigureEmpty\b/, `${name} lost its framed empty state`);
+    }
+    for (const [name, source] of [
+      ["clocks", clock],
+      ["calendar", calendar],
+      ["findings field", effect],
+    ] as const) {
+      assert.match(stripNonCode(source), /<DiffusionSparseState\b/, `${name} lost its connected sparse state`);
+    }
+    for (const [name, source] of [["Kalshi episodes", kalshi], ["findings matrix", matrix]] as const) {
+      assert.match(stripNonCode(source), /<FigureEmpty\b/, `${name} lost its framed empty state`);
     }
   });
 

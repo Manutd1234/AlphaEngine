@@ -33,42 +33,170 @@ import Figure, { FigureEmpty, Plot, StateChip } from "./Figure";
 import type { CoherenceEventView } from "@/lib/coherence/types";
 import { DOLLAR_CC, fromCenticents, sumPrices, toCenticents } from "@/lib/coherence/fixed-point";
 import { useBasketScenario } from "./use-basket-scenario";
+import IncompleteExclusiveBasketStructure from "./IncompleteExclusiveBasketStructure";
 
 const HEIGHT = 104;
 const MARGIN = { top: 26, right: 12, bottom: 30, left: 12 };
 /** The axis runs to here, so a basket may be dragged well past a dollar. */
 const AXIS_MAX = 1.5;
+const STRUCTURE_HEIGHT = 142;
+const STRUCTURE_MIN_WIDTH = 800;
+const STRUCTURE_BOX_H = 64;
+const STRUCTURE_GAP = 32;
+const STRUCTURE_DECISION_W = 126;
+
+function FlowEdge({
+  id,
+  x1,
+  x2,
+  y,
+  label,
+}: {
+  id: string;
+  x1: number;
+  x2: number;
+  y: number;
+  label?: string;
+}) {
+  return (
+    <g className="coh-form__arrow" data-basket-flow-edge={id}>
+      <line x1={x1} x2={x2 - 8} y1={y} y2={y} />
+      <polygon points={`${x2 - 8},${y - 4} ${x2},${y} ${x2 - 8},${y + 4}`} />
+      {label ? (
+        <text x={(x1 + x2) / 2} y={y - 8} textAnchor="middle" className="coh-form__note">
+          {label}
+        </text>
+      ) : null}
+    </g>
+  );
+}
+
+/**
+ * A non-exclusive family still carries a complete live reading; what it lacks
+ * is the one-winner settlement topology that makes "buy every outcome" a $1
+ * cover. Keep the quotes visible and draw the refusal as a connected decision,
+ * instead of replacing all of that evidence with an empty box.
+ */
+function NonExclusiveBasketStructure({ event }: { event: CoherenceEventView }) {
+  const total = event.markets.length;
+  const quotedAsks = event.markets.filter((market) => market.yes_ask != null).length;
+  const quotedBids = event.markets.filter((market) => market.yes_bid != null).length;
+  const twoSided = event.markets.filter(
+    (market) => market.yes_ask != null && market.yes_bid != null,
+  ).length;
+  const thresholds = event.markets.filter(
+    (market) => market.floor_strike != null || market.cap_strike != null,
+  ).length;
+  const isLadder = total > 0 && thresholds === total;
+  const topology = isLadder ? "Threshold ladder" : "Non-exclusive family";
+  const topologyDetail = isLadder
+    ? `${thresholds} strike contract${thresholds === 1 ? "" : "s"}`
+    : "one-winner flag absent";
+
+  return (
+    <Figure
+      caption={CAPTION}
+      ariaLabel={
+        `${event.event_ticker} returned ${total} market records: ${quotedAsks} carry a yes offer, `
+        + `${quotedBids} carry a yes bid, and ${twoSided} are two-sided. The settlement topology is `
+        + `${topology.toLowerCase()}, not a mutually exclusive partition, so no one-dollar cover is invented.`
+      }
+      readout={<span className="num">{`${quotedAsks}/${total} offers; ${quotedBids}/${total} bids`}</span>}
+      reading={
+        `${total} live market record${total === 1 ? "" : "s"} reached the browser; the path withholds only `
+        + "the invalid cover, not the quote evidence."
+      }
+      missing={event.basket_note
+        ?? "This event is not mutually exclusive, so its prices need not sum to anything and no $1 payoff is invented."}
+      notes={[
+        "The quote counts are venue observations, including explicit one-sided books; an absent side remains absent rather than becoming zero.",
+        isLadder
+          ? "A threshold can win wherever another threshold wins. Lattice reads the linked strikes as a survival curve; Basket cannot relabel them as disjoint outcomes."
+          : "The exchange did not mark these contracts as a one-winner partition. Without that settlement guarantee, adding their offers is not a cover price.",
+      ]}
+      reserveInteractionRow={false}
+    >
+      <Plot
+        height={STRUCTURE_HEIGHT}
+        minWidth={STRUCTURE_MIN_WIDTH}
+        scrollLabel={`Quote-to-cover eligibility path for ${event.event_ticker}`}
+      >
+        {(width) => {
+          const diagramW = Math.min(width - 24, 1120);
+          const originX = (width - diagramW) / 2;
+          const boxW = (diagramW - 3 * STRUCTURE_GAP - STRUCTURE_DECISION_W) / 3;
+          const booksX = originX;
+          const topologyX = booksX + boxW + STRUCTURE_GAP;
+          const decisionX = topologyX + boxW + STRUCTURE_GAP;
+          const decisionCx = decisionX + STRUCTURE_DECISION_W / 2;
+          const resultX = decisionX + STRUCTURE_DECISION_W + STRUCTURE_GAP;
+          const y = 42;
+          const cy = y + STRUCTURE_BOX_H / 2;
+
+          return (
+            <>
+              <text x={booksX} y={17} className="coh-figure__key">01 — QUOTES</text>
+              <text x={topologyX} y={17} className="coh-figure__key">02 — SETTLEMENT</text>
+              <text x={decisionCx} y={17} textAnchor="middle" className="coh-figure__key">03 — GATE</text>
+              <text x={resultX} y={17} className="coh-figure__key">04 — OUTCOME</text>
+
+              <FlowEdge id="quotes-to-topology" x1={booksX + boxW} x2={topologyX} y={cy} />
+              <FlowEdge id="topology-to-gate" x1={topologyX + boxW} x2={decisionX} y={cy} />
+              <FlowEdge id="gate-to-outcome" x1={decisionX + STRUCTURE_DECISION_W} x2={resultX} y={cy} label="no" />
+
+              <rect x={booksX} y={y} width={boxW} height={STRUCTURE_BOX_H} rx={6} className="coh-form__box">
+                <title>{`${quotedAsks} yes offers, ${quotedBids} yes bids, ${twoSided} two-sided markets out of ${total}.`}</title>
+              </rect>
+              <text x={booksX + 8} y={y + 20} className="coh-form__title">Venue books</text>
+              <text x={booksX + 8} y={y + 40} className="coh-form__note">
+                {`${quotedAsks}/${total} offers; ${quotedBids}/${total} bids`}
+              </text>
+              <text x={booksX + 8} y={y + 55} className="coh-form__note">{`${twoSided} two-sided`}</text>
+
+              <rect x={topologyX} y={y} width={boxW} height={STRUCTURE_BOX_H} rx={6} className="coh-form__box">
+                <title>{`${topology}: ${topologyDetail}.`}</title>
+              </rect>
+              <text x={topologyX + 8} y={y + 20} className="coh-form__title">{topology}</text>
+              <text x={topologyX + 8} y={y + 42} className="coh-form__note">{topologyDetail}</text>
+
+              <polygon
+                points={`${decisionCx},${y} ${decisionX + STRUCTURE_DECISION_W},${cy} ${decisionCx},${y + STRUCTURE_BOX_H} ${decisionX},${cy}`}
+                className="coh-form__box"
+              >
+                <title>The exchange's mutually-exclusive partition flag is false.</title>
+              </polygon>
+              <text x={decisionCx} y={cy - 4} textAnchor="middle" className="coh-form__title">partition?</text>
+              <text x={decisionCx} y={cy + 14} textAnchor="middle" className="coh-form__note">✕ no</text>
+
+              <rect
+                x={resultX}
+                y={y}
+                width={boxW}
+                height={STRUCTURE_BOX_H}
+                rx={6}
+                className="coh-form__box"
+                fill="url(#diff-hatch)"
+              >
+                <title>The quote evidence remains visible, but no flat one-dollar cover is calculated.</title>
+              </rect>
+              <text x={resultX + 8} y={y + 20} className="coh-form__title">✕ Cover withheld</text>
+              <text x={resultX + 8} y={y + 42} className="coh-form__note">quotes kept; no sum</text>
+            </>
+          );
+        }}
+      </Plot>
+    </Figure>
+  );
+}
 
 export default function BasketWhatIf({ event }: { event: CoherenceEventView }) {
   const scenario = useBasketScenario(event);
 
   if (!event.mutually_exclusive) {
-    return (
-      <Figure
-        caption={CAPTION}
-        ariaLabel="This family is not a partition, so there is no basket to price"
-        missing={event.basket_note
-          ?? "This event is not mutually exclusive, so its outcomes are not a partition and their prices need not sum to anything."}
-      >
-        <FigureEmpty reason="Not a partition — no basket to buy." />
-      </Figure>
-    );
+    return <NonExclusiveBasketStructure event={event} />;
   }
   if (!scenario) {
-    const missing = event.markets.filter((market) => market.yes_ask == null).length;
-    return (
-      <Figure
-        caption={CAPTION}
-        ariaLabel="This family cannot be bought as a whole"
-        missing={
-          `${missing} of ${event.markets.length} legs have no offer, so the basket cannot be bought as a`
-          + " whole and its cost is unknowable rather than high."
-          + (event.basket_note ? ` ${event.basket_note}` : "")
-        }
-      >
-        <FigureEmpty reason="A leg is unquoted — the basket has no price." />
-      </Figure>
-    );
+    return <IncompleteExclusiveBasketStructure event={event} />;
   }
 
   const { asks: live, moved } = scenario;

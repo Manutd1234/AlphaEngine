@@ -27,6 +27,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from modules.backoff import Backoff
+from modules.coherence import recorder_durability as durable
 from modules.coherence import tunables
 from modules.coherence.drivers.kalshi_rest import KalshiClient, KalshiUnavailable
 from modules.coherence.episodes import EpisodeTracker
@@ -65,13 +66,17 @@ class RecorderState:
     last_error_ts_ns: int | None = None
     consecutive_failures: int = 0
     episodes_closed: int = 0
+    episodes_recovered: int = 0
+    certification_decisions: int = 0
+    campaign: dict[str, Any] = field(default_factory=dict)
+    storage: dict[str, Any] = field(default_factory=dict)
     series_seen: set[str] = field(default_factory=set)
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "running": self.running,
             "configured": tunables.watchlist_configured() and tunables.POLL_SECONDS > 0,
-            "poll_seconds": tunables.POLL_SECONDS,
+            "poll_seconds": durable.active_poll_seconds(self.campaign),
             "watchlist": list(tunables.SERIES_WATCHLIST),
             "polls": self.polls,
             "books_written": self.books_written,
@@ -82,6 +87,10 @@ class RecorderState:
             "last_error": self.last_error,
             "consecutive_failures": self.consecutive_failures,
             "episodes_closed": self.episodes_closed,
+            "episodes_recovered": self.episodes_recovered,
+            "certification_decisions": self.certification_decisions,
+            "campaign": self.campaign or durable.default_campaign_status(),
+            "storage": self.storage or durable.default_storage_status(),
             "series_seen": sorted(self.series_seen),
         }
 
@@ -133,23 +142,33 @@ async def poll_once(client: KalshiClient, store: CoherenceStore, state: Recorder
     same path, and so a single poll can be triggered without a background task.
     """
     tracked = state or _STATE
-    written = 0
+    poll_id, written = time.time_ns(), 0
+    series_decisions: dict[str, int] = {}
     for series_ticker in tunables.SERIES_WATCHLIST:
-        observations = await observe_series(client, series_ticker, max_events=tunables.MAX_EVENTS_PER_SERIES)
+        series_decisions[series_ticker] = 0
+        observations = await observe_series(
+            client, series_ticker, max_events=tunables.MAX_EVENTS_PER_SERIES, require_selected_complete=True
+        )
         for observation in observations:
             rows = rows_from(observation)
             if not rows:
                 continue
             written += await asyncio.to_thread(store.record_books, rows)
             tracked.series_seen.add(series_ticker)
-            await _measure(observation, store, tracked)
+            if await _measure(observation, store, tracked):
+                series_decisions[series_ticker] += 1
+
+    await durable.finish_campaign_poll(
+        store, tracked, poll_id=poll_id,
+        series_decisions=series_decisions, books_written=written,
+    )
     tracked.polls += 1
     tracked.books_written += written
     tracked.last_poll_ts_ns = time.time_ns()
     return written
 
 
-async def _measure(observation: Observation, store: CoherenceStore, tracked: RecorderState) -> None:
+async def _measure(observation: Observation, store: CoherenceStore, tracked: RecorderState) -> bool:
     """Index the family and track its violation episode.
 
     Failures here are recorded and swallowed rather than allowed to stop the
@@ -173,6 +192,14 @@ async def _measure(observation: Observation, store: CoherenceStore, tracked: Rec
 
     certificate = certify(observation, _schedule())
     violated = certificate.verdict == "incoherent" and certificate.worth_doing
+    inserted = await durable.persist_decision(
+        store, component=component, observation=observation,
+        certificate=certificate, reading=reading, violated=violated,
+    )
+    if not inserted:
+        # Counting the same snapshot twice would shorten an open episode.
+        return False
+    tracked.certification_decisions += 1
     closed = _EPISODES.observe(
         component_id=component.component_id,
         series_ticker=component.series_ticker,
@@ -187,7 +214,15 @@ async def _measure(observation: Observation, store: CoherenceStore, tracked: Rec
     if closed is not None:
         await asyncio.to_thread(store.record_episode, closed)
         tracked.episodes_closed += 1
+    return True
 
+
+def restore_episode_tracker(store: CoherenceStore) -> tuple[int, int]:
+    global _EPISODES
+    _EPISODES, recovered = durable.restore_episode_tracker(store)
+    return len(_EPISODES.open_episodes), recovered
+
+maintain_storage = durable.maintain_storage
 
 def _calibration_due(store: CoherenceStore, now_ns: int | None) -> int | None:
     """The instant to score at when the cadence says so, else None.
@@ -289,6 +324,7 @@ async def recorder_loop() -> None:
     down — while every other failure backs off and continues, because the
     recorder's value is cumulative and a gap costs more than a retry.
     """
+    global _EPISODES
     if not tunables.watchlist_configured() or tunables.POLL_SECONDS <= 0:
         logger.info("coherence: recorder idle (set COHERENCE_SERIES and COHERENCE_POLL_S to record)")
         return
@@ -304,8 +340,16 @@ async def recorder_loop() -> None:
     )
     try:
         await _seed_budget(client)
+        durable_state_ready = False
         while True:
             try:
+                if not durable_state_ready:
+                    # Recovery must precede the first new observation.
+                    _EPISODES = await asyncio.to_thread(
+                        durable.initialise_durable_state, store, _STATE
+                    )
+                    durable_state_ready = True
+                await asyncio.to_thread(maintain_storage, store, _STATE)
                 written = await poll_once(client, store)
                 _STATE.consecutive_failures = 0
                 _STATE.last_error = None
@@ -320,7 +364,7 @@ async def recorder_loop() -> None:
                     logger.debug("coherence: harvested settled markets")
                 if await asyncio.to_thread(score_if_due, store):
                     logger.debug("coherence: recorded a settled score")
-                await asyncio.sleep(tunables.POLL_SECONDS)
+                await asyncio.sleep(durable.active_poll_seconds(_STATE.campaign))
             except asyncio.CancelledError:
                 raise
             except (KalshiUnavailable, TapeUnavailable) as exc:

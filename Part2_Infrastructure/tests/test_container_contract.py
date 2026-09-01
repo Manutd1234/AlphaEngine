@@ -107,14 +107,28 @@ class TestDockerfile:
             "the production build cannot install the Kalshi signing extra if its "
             "requirements file is absent from the builder"
         )
-        assert re.search(
-            r'pip install[^\n]*--prefix=/install[^\n]*-r "\$\{REQUIREMENTS\}"[^\n]*'
-            r"-r requirements-coherence\.txt",
-            builder,
-        ), "the coherence extra must land in /install, which is copied into the runtime image"
+        install = builder[
+            builder.index("RUN pip install --no-cache-dir --prefix=/install"):
+            builder.index("RUN pip install --no-cache-dir -r requirements-native.txt")
+        ]
+        assert '-r "${REQUIREMENTS}"' in install
+        assert "-r requirements-coherence.txt" in install, (
+            "the coherence extra must land in /install, which is copied into the runtime image"
+        )
         assert re.search(r"^cryptography(?:[<>=!~].*)?$", COHERENCE_REQUIREMENTS, re.M), (
             "requirements-coherence.txt no longer provides the RSA library the Kalshi signer imports"
         )
+
+    def test_configured_graph_dependencies_ship_in_the_runtime(self):
+        builder_start = DOCKERFILE_CODE.index("FROM python:3.12-slim AS builder")
+        runtime_start = DOCKERFILE_CODE.index("FROM python:3.12-slim", builder_start + 1)
+        builder = DOCKERFILE_CODE[builder_start:runtime_start]
+        for requirements in ("requirements-communities.txt", "requirements-graph.txt"):
+            assert requirements in builder
+            assert re.search(rf"-r {re.escape(requirements)}", builder), (
+                f"{requirements} must land in /install; credentials alone cannot make the "
+                "production graph projection run"
+            )
 
     def test_native_core_is_built_in_the_builder_and_copied_not_compiled_at_runtime(self):
         # g++ lives in the builder stage only; a compiler in the runtime image

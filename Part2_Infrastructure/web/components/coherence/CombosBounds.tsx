@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * The Bounds view: every tested portfolio against the bound it is judged on.
+ * The Bounds view: every structural portfolio against the bound it tests.
  *
  * Split out of `CombosViews.tsx` on 2026-08-25, when that file crossed the
  * four-hundred-line ceiling. The seam is the one the file already had a banner
@@ -16,7 +16,7 @@
  * `0`, which is what a chart looks like when it has failed rather than when the
  * book it describes is sound. The reader said it read as broken, and it did.
  *
- * It is a dumbbell now, over EVERY tested row: a tick at the bound, a dot at
+ * It is a dumbbell now, over EVERY structural row: a tick at the bound, a dot at
  * what the portfolio costs, and the span between them IS the slack. That makes
  * the quantity a LENGTH — comparable across rows at a glance, without reading
  * six signed numbers — and it makes the common answer informative, because "how
@@ -36,6 +36,12 @@ import { useStableSelectionKey } from "./use-stable-selection-key";
  *  now that every tested row is drawn rather than only the violated ones. */
 const ROW_H = 26;
 
+/** Backward compatible across a rolling gateway deploy: older snapshots have
+ * no explicit flag, but nullable arithmetic carried the same fact. */
+function isTestable(row: CoherenceComboRow): boolean {
+  return row.testable ?? (row.cost != null && row.slack != null);
+}
+
 /** Identity fields only: live cost/slack updates must not move the selection. */
 function rowKey(row: CoherenceComboRow): string {
   const legs = row.legs.map((leg) => `${leg.ticker}:${leg.side}`).join("|");
@@ -52,7 +58,7 @@ function RowLegs({ legs }: { legs: CoherenceComboLeg[] }) {
     >
       <table className={`coh-table ${styles.legTable}`}>
         <caption className="coh-table__caption">
-          A sold leg shows a dash: its price is absent from the payload, never zero.
+          A dash means the executable side was unquoted; it is never treated as zero.
         </caption>
         <thead>
           <tr>
@@ -66,11 +72,11 @@ function RowLegs({ legs }: { legs: CoherenceComboLeg[] }) {
           {legs.map((leg, index) => (
             <tr key={`${leg.ticker}-${index}`}>
               <th scope="row">{leg.label || leg.ticker}</th>
-              <td>{leg.buy_cost == null ? "Sell" : "Buy"}</td>
+              <td>{(leg.direction ?? (leg.buy_cost == null ? "sell" : "buy")) === "sell" ? "Sell" : "Buy"}</td>
               <td>
                 <span className="coh-combo__side">{leg.side}</span>
               </td>
-              <td className="num">{priceLabel(leg.buy_cost)}</td>
+              <td className="num">{priceLabel(leg.execution_cost ?? leg.buy_cost)}</td>
             </tr>
           ))}
         </tbody>
@@ -100,9 +106,10 @@ function SlackStrip({
     cost: toUnit(row.cost),
     slack: toUnit(row.slack),
     violated: row.violated,
-    label: `${row.violated ? "▲" : "●"} ${priceLabel(row.bound)} bound, ${row.scope}`,
+    label: `${!isTestable(row) ? "◌" : row.violated ? "▲" : "●"} ${priceLabel(row.bound)} bound, ${row.scope}`,
     row,
   }));
+  const testedCount = cells.filter((cell) => isTestable(cell.row)).length;
   const priced = cells.flatMap((cell) => [cell.bound, cell.cost].filter((v): v is number => v != null));
   const lo = priced.length ? Math.min(...priced) : 0;
   const hi = priced.length ? Math.max(...priced) : 1;
@@ -122,7 +129,9 @@ function SlackStrip({
       reading={
         cells.some((cell) => cell.violated)
           ? "Cost left of the bound fails; cost right of it passes."
-          : "Every tested cost sits to the right of its bound."
+          : testedCount
+            ? `${testedCount} of ${cells.length} structural checks have executable prices; every tested cost passes.`
+            : `${cells.length} structural checks are present; missing executable quote sides leave every cost untested.`
       }
       reserveInteractionRow={false}
     >
@@ -246,11 +255,17 @@ function SelectedRowSummary({ row }: { row: CoherenceComboRow }) {
           <strong>Reason</strong>
           <span>{row.because}</span>
         </p>
+        {!isTestable(row) && row.untestable_reason ? (
+          <p className={styles.reason}>
+            <strong>Why untested</strong>
+            <span>{row.untestable_reason}</span>
+          </p>
+        ) : null}
       </div>
       {/* A new selection gets a newly folded portfolio, keeping the main read
           compact while leaving every proving leg one disclosure away. */}
       <details key={rowKey(row)} className={styles.legsDisclosure}>
-        <summary>{`Tested legs (${row.legs.length})`}</summary>
+        <summary>{`Portfolio legs (${row.legs.length})`}</summary>
         <RowLegs legs={row.legs} />
       </details>
     </article>
@@ -261,7 +276,7 @@ function SelectedRowSummary({ row }: { row: CoherenceComboRow }) {
 export function BoundsView(
   { rows, violated, tightest }: { rows: CoherenceComboRow[]; violated: CoherenceComboRow[]; tightest: CoherenceComboRow | null },
 ) {
-  // EVERY tested row is drawn, not just the violated ones or the closest.
+  // EVERY structural row is drawn, not just the violated/testable ones or the closest.
   // Showing one row made the figure a single mark on an axis, which reads as a
   // chart that failed rather than as a book with nothing wrong in it — and it
   // hid the thing the figure is for: how much room the rest have. Start on a
@@ -289,8 +304,8 @@ export function BoundsView(
         </>
       ) : (
         <div className={styles.empty} role="status">
-          <strong>No testable bounds</strong>
-          <span>Every row depends on a leg that is unquoted on the side its bound uses.</span>
+          <strong>No structural bounds</strong>
+          <span>The selected listing did not describe any parlay legs from which a Fréchet row can be built.</span>
         </div>
       )}
     </section>

@@ -61,6 +61,7 @@
  */
 
 import Figure, { FigureEmpty, Plot, StateChip } from "../Figure";
+import { episodeFloors, outagesOf, pollsOf, type PollCadence } from "./episode-cadence";
 import type {
   CoherenceEpisodes,
   CoherenceIndexPoint,
@@ -92,50 +93,21 @@ function seconds(value: number): string {
   return `${(value / 3600).toFixed(1)}h`;
 }
 
+function bytes(value: number | null): string {
+  if (value == null || !Number.isFinite(value)) return "—";
+  if (value < 1024) return `${value} B`;
+  const units = ["KiB", "MiB", "GiB", "TiB"];
+  let scaled = value / 1024;
+  let unit = 0;
+  while (scaled >= 1024 && unit < units.length - 1) {
+    scaled /= 1024;
+    unit += 1;
+  }
+  return `${scaled.toFixed(scaled >= 10 ? 1 : 2)} ${units[unit]}`;
+}
+
 function clock(ms: number): string {
   return new Date(ms).toISOString().slice(5, 16).replace("T", " ");
-}
-
-interface Poll {
-  /** Milliseconds, from the first reading in the cluster. */
-  readonly at: number;
-  /** How many events the recorder read on that visit. */
-  readonly readings: number;
-}
-
-/**
- * The readings, clustered back into the polls that wrote them.
- *
- * Each poll writes one reading per EVENT, not one per family, so 757 readings
- * are 218 visits. Anything closer together than a poll interval belongs to the
- * same visit; the cut is deliberately generous because a poll takes real time
- * to walk its watchlist.
- */
-function pollsOf(points: readonly CoherenceIndexPoint[], pollSeconds: number): Poll[] {
-  const stamps = points
-    .map((point) => Number(point.ts_ns) / 1e6)
-    .filter((ms) => Number.isFinite(ms))
-    .sort((a, b) => a - b);
-  if (!stamps.length) return [];
-
-  const cut = Math.max(1, pollSeconds) * 1000 * 0.5;
-  const out: Poll[] = [{ at: stamps[0], readings: 1 }];
-  for (let i = 1; i < stamps.length; i += 1) {
-    const last = out[out.length - 1];
-    if (stamps[i] - last.at > cut) out.push({ at: stamps[i], readings: 1 });
-    else out[out.length - 1] = { at: last.at, readings: last.readings + 1 };
-  }
-  return out;
-}
-
-/** The stretches between polls where the recorder was not looking. */
-function outagesOf(polls: readonly Poll[], pollSeconds: number) {
-  const limit = Math.max(1, pollSeconds) * 1000 * OUTAGE_POLLS;
-  const out: Array<{ from: number; to: number }> = [];
-  for (let i = 1; i < polls.length; i += 1) {
-    if (polls[i].at - polls[i - 1].at > limit) out.push({ from: polls[i - 1].at, to: polls[i].at });
-  }
-  return out;
 }
 
 export default function EpisodeWatch({ data, status, points }: {
@@ -157,59 +129,61 @@ export default function EpisodeWatch({ data, status, points }: {
   const snapshots = tapeCount(status, "book_snapshots");
   const indexRows = tapeCount(status, "coherence_index_rows");
   const recorded = tapeCount(status, "violation_episodes");
+  const decisions = recorder?.certification_decisions ?? tapeCount(status, "certification_decisions");
+  const recovered = recorder?.episodes_recovered ?? null;
+  const campaign = recorder?.campaign ?? null;
+  const campaignTarget = typeof campaign?.target === "number" ? campaign.target : null;
+  const campaignSuccessful = typeof campaign?.successful === "number" ? campaign.successful : null;
+  const campaignConfigured = campaign?.configured === true;
+  const campaignComplete = campaign?.state === "complete";
+  const campaignPollSeconds = typeof campaign?.poll_seconds === "number"
+    ? campaign.poll_seconds
+    : pollSeconds;
+  const baselinePollSeconds = typeof campaign?.post_campaign_poll_seconds === "number"
+    ? campaign.post_campaign_poll_seconds
+    : pollSeconds;
+  const campaignFromMs = typeof campaign?.first_completed_ts_ns === "number"
+    ? campaign.first_completed_ts_ns / 1e6
+    : null;
+  const campaignThroughMs = campaignComplete && typeof campaign?.last_completed_ts_ns === "number"
+    ? campaign.last_completed_ts_ns / 1e6
+    : null;
+  const storage = recorder?.storage ?? null;
+  const storageState = storage?.state ?? null;
+  const tapeBytes = typeof storage?.tape_bytes === "number" ? storage.tape_bytes : null;
+  const freeBytes = typeof storage?.disk_free_bytes === "number" ? storage.disk_free_bytes : null;
 
-  const polls = pollSeconds ? pollsOf(points, pollSeconds) : [];
-  const outages = pollSeconds ? outagesOf(polls, pollSeconds) : [];
+  const cadence: PollCadence | null = pollSeconds && campaignPollSeconds && baselinePollSeconds
+    ? {
+        baselineSeconds: baselinePollSeconds,
+        campaignSeconds: campaignPollSeconds,
+        campaignFromMs,
+        campaignThroughMs,
+      }
+    : null;
+  const polls = cadence ? pollsOf(points, cadence) : [];
+  const outages = cadence ? outagesOf(polls, cadence, OUTAGE_POLLS) : [];
+  const floors = cadence && pollSeconds
+    ? episodeFloors(cadence, pollSeconds, campaignConfigured)
+    : null;
   const since = recorder?.seconds_since_last_poll ?? null;
   const first = polls.length ? polls[0].at : null;
   const last = polls.length ? polls[polls.length - 1].at : null;
-  const missed = outages.reduce(
-    (total, gap) => total + Math.round((gap.to - gap.from) / 1000 / Math.max(1, pollSeconds ?? 1)) - 1,
-    0,
-  );
+  const missed = outages.reduce((total, gap) => total + gap.missed, 0);
   // Two polls to close, so this is the shortest lifetime the tape can record —
   // not one poll, which is what this figure used to imply.
-  const floor = pollSeconds ? pollSeconds * 2 : null;
+  const floorReading = floors == null
+    ? null
+    : campaignConfigured && floors.campaign != null
+      ? campaignComplete
+        ? `During the bounded campaign the two-poll episode floor was ${seconds(floors.campaign)}. `
+          + `The recorder is now back at the baseline, so its current floor is ${seconds(floors.current)}.`
+        : `The active campaign's two-poll episode floor is ${seconds(floors.campaign)}. `
+          + `The post-campaign baseline floor will be ${seconds(floors.baseline)}.`
+      : `The current two-poll episode floor is ${seconds(floors.current)}.`;
 
   return (
     <>
-      {/* The live counters, in the tab's own chip vocabulary. Each is a number
-          the recorder actually holds; a missing one renders as a dash and says
-          it was not read rather than as a zero. */}
-      <div className="coh-status__chips coh-episode-watch-stats">
-        <StateChip
-          mark={recorder?.running ? "●" : "○"}
-          word="Recorder"
-          value={recorder ? (recorder.running ? "watching" : "stopped") : "not read"}
-          tone={recorder?.running ? "good" : "muted"}
-        />
-        <StateChip
-          mark="→"
-          word="Families watched"
-          value={recorder?.watchlist.length ? recorder.watchlist.join(", ") : "—"}
-          tone="muted"
-        />
-        <StateChip mark="✓" word="Polls taken" value={recorder ? String(recorder.polls) : "—"} tone="muted" />
-        <StateChip
-          mark="✓"
-          word="Book snapshots"
-          value={snapshots == null ? "—" : snapshots.toLocaleString("en-GB")}
-          tone="muted"
-        />
-        <StateChip
-          mark="●"
-          word="Index readings"
-          value={indexRows == null ? "—" : indexRows.toLocaleString("en-GB")}
-          tone="muted"
-        />
-        <StateChip
-          mark={recorded ? "✓" : "◌"}
-          word="Episodes recorded"
-          value={recorded == null ? "—" : String(recorded)}
-          tone={recorded ? "good" : "muted"}
-        />
-      </div>
-
       <Figure
         caption="Every poll the recorder has taken, and the one it is waiting on"
         ariaLabel={polls.length
@@ -217,9 +191,8 @@ export default function EpisodeWatch({ data, status, points }: {
             + `${outages.length} stretches where the recorder was not looking, `
             + `and the current interval ${since == null ? "unknown" : `${Math.round(since)} of ${pollSeconds} seconds`} through`
           : "The recorder has taken no poll this read can see"}
-        reading={polls.length && floor
-          ? `Nothing has closed on this tape yet. A violation has to survive two polls to be recorded at `
-            + `all — about ${seconds(floor)} at this cadence — so an absence here is a bound on what the `
+        reading={polls.length && floorReading
+          ? `Nothing has closed on this tape yet. ${floorReading} An absence here is a bound on what the `
             + "recorder can see, not evidence that nothing happened."
           : "The recorder has written no reading this view can place in time."}
         missing={[
@@ -342,6 +315,77 @@ export default function EpisodeWatch({ data, status, points }: {
           <FigureEmpty reason="Fewer than two polls carry a timestamp, so there is no watch to draw yet." />
         )}
       </Figure>
+
+      {/* The live counters follow the watch they qualify, in the tab's own chip
+          vocabulary. Each is a number the recorder actually holds; a missing
+          one renders as a dash and says it was not read rather than as a zero. */}
+      <div className="coh-status__chips coh-episode-watch-stats">
+        <StateChip
+          mark={recorder?.running ? "●" : "○"}
+          word="Recorder"
+          value={recorder ? (recorder.running ? "watching" : "stopped") : "not read"}
+          tone={recorder?.running ? "good" : "muted"}
+        />
+        <StateChip
+          mark="→"
+          word="Families watched"
+          value={recorder?.watchlist.length ? recorder.watchlist.join(", ") : "—"}
+          tone="muted"
+        />
+        <StateChip mark="✓" word="Polls this process" value={recorder ? String(recorder.polls) : "—"} tone="muted" />
+        <StateChip
+          mark="✓"
+          word="Book snapshots"
+          value={snapshots == null ? "—" : snapshots.toLocaleString("en-GB")}
+          tone="muted"
+        />
+        <StateChip
+          mark="●"
+          word="Index readings"
+          value={indexRows == null ? "—" : indexRows.toLocaleString("en-GB")}
+          tone="muted"
+        />
+        <StateChip
+          mark={recorded ? "✓" : "◌"}
+          word="Episodes recorded"
+          value={recorded == null ? "—" : String(recorded)}
+          tone={recorded ? "good" : "muted"}
+        />
+        <StateChip
+          mark="↔"
+          word="Two-poll episode floors"
+          value={floors == null
+            ? "not read"
+            : floors.campaign == null
+              ? `current ${seconds(floors.current)}`
+              : `campaign ${seconds(floors.campaign)}; baseline ${seconds(floors.baseline)}; current ${seconds(floors.current)}`}
+          tone="muted"
+        />
+        <StateChip
+          mark={campaignComplete ? "✓" : "→"}
+          word="Observation campaign"
+          value={campaignTarget == null || campaignSuccessful == null
+            ? "not read"
+            : `${campaignSuccessful.toLocaleString("en-GB")} / ${campaignTarget.toLocaleString("en-GB")} successful polls`}
+          tone={campaignComplete ? "good" : "muted"}
+        />
+        <StateChip
+          mark={decisions == null ? "◌" : "✓"}
+          word="Certification decisions"
+          value={decisions == null
+            ? "not read"
+            : `${decisions.toLocaleString("en-GB")} durable; ${recovered ?? 0} close${recovered === 1 ? "" : "s"} recovered`}
+          tone="muted"
+        />
+        <StateChip
+          mark={storageState === "guarded" ? "▲" : storageState === "ok" ? "✓" : "◌"}
+          word="Storage guard"
+          value={storageState == null
+            ? "not read"
+            : `${storageState}; ${bytes(tapeBytes)} tape; ${bytes(freeBytes)} free`}
+          tone={storageState === "guarded" ? "warn" : storageState === "ok" ? "good" : "muted"}
+        />
+      </div>
     </>
   );
 }

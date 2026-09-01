@@ -8,9 +8,10 @@ the budget to answer one question.
 
 The join is where the honesty lives. Most listed parlays are unquoted, and an
 unquoted combo has no band position and no violation; it has a Fréchet band,
-which is a fact about its legs and worth showing on its own. So the reading is
-computed for every combo, and only the ones whose rows are testable are offered
-to the certificate.
+which is a fact about its legs and worth showing on its own. So the reading and
+every structural constraint are returned for every combo. A row whose required
+book side is missing carries null cost and slack: it is untested, never silently
+dropped and never counted as satisfied.
 """
 
 from __future__ import annotations
@@ -187,7 +188,7 @@ async def observe_combos(
     for combo in taken:
         reading = assess(combo, result.books)
         result.readings.append(reading)
-        result.rows.extend(row for row in rows_for_combo(combo, result.books) if row.testable)
+        result.rows.extend(rows_for_combo(combo, result.books))
 
     unquoted = len(taken) - len(result.quoted)
     if unquoted:

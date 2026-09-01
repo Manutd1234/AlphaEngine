@@ -35,6 +35,7 @@ from typing import Any, Iterator, Sequence
 
 import duckdb
 
+from modules.coherence.fs.durable_store import DURABILITY_DDL, DurableCoherenceStoreMixin
 from modules.coherence.kernel.book import Book
 
 # Whole ladders as JSON text rather than a row per level. A level table would be
@@ -83,7 +84,7 @@ _DDL: tuple[str, ...] = (
         samples           VARCHAR   NOT NULL
     )
     """,
-)
+) + DURABILITY_DDL
 
 
 class TapeUnavailable(RuntimeError):
@@ -117,7 +118,7 @@ def _ladder_json(levels: Sequence[Any]) -> str:
     return json.dumps([[str(level.price), str(level.size)] for level in levels])
 
 
-class CoherenceStore:
+class CoherenceStore(DurableCoherenceStoreMixin):
     """One connection, one lock, one file.
 
     The connection discipline is ``modules/audit/store.py``'s, for its reason:
@@ -288,33 +289,6 @@ class CoherenceStore:
         columns = ("ts_ns", "series_ticker", "event_ticker", "exchange_index", "ci", "engine", "detail")
         return [dict(zip(columns, row, strict=True)) for row in rows]
 
-    def record_episode(self, episode: Any) -> None:
-        """One closed violation episode.
-
-        Written on close rather than on open: an episode with no end has no
-        lifetime, and a half-written row would enter the survival curve as a
-        zero-length violation — biasing the median toward "too fast to trade",
-        which is the direction that would wrongly retire a real opportunity.
-        """
-        row = episode.to_dict()
-        with self._lock:
-            conn = self._connect()
-            conn.execute(
-                """
-                INSERT INTO violation_episodes
-                    (component_id, series_ticker, event_ticker, family, exchange_index,
-                     opened_ts_ns, closed_ts_ns, peak_ci, peak_net_edge, samples)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    row["component_id"], row["series_ticker"], row["event_ticker"], row["family"],
-                    row["exchange_index"], row["opened_ts_ns"], row["closed_ts_ns"],
-                    None if row["peak_ci"] is None else Decimal(row["peak_ci"]),
-                    None if row["peak_net_edge_dollars"] is None else Decimal(row["peak_net_edge_dollars"]),
-                    json.dumps(row["samples"]),
-                ),
-            )
-
     def episodes(self, series_ticker: str | None = None, limit: int = 500) -> list[dict[str, Any]]:
         """Closed episodes, newest first."""
         with self._lock:
@@ -360,6 +334,7 @@ class CoherenceStore:
             "tickers_seen": int(books[1]),
             "coherence_index_rows": int(index_rows[0]),
             "violation_episodes": int(episodes[0]),
+            **self.durability_counts(),
         }
 
     def health(self) -> dict[str, Any]:
@@ -368,7 +343,7 @@ class CoherenceStore:
             counts = self.counts()
         except TapeUnavailable as exc:
             return {"state": "unavailable", "reason": str(exc), "path": self.db_path.name}
-        return {"state": "ok", "path": self.db_path.name, **counts}
+        return self.extended_health(counts)
 
     def close(self) -> None:
         with self._lock:

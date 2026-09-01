@@ -113,8 +113,17 @@ describe("targeted Markets views use exact interactive instruments instead of or
       "the twenty bankroll tokens regressed to twenty independent tab stops");
   });
 
-  it("keeps Shell file selection and collateral routes semantically aligned", () => {
-    assert.match(shellMap, /const chooseFile = \(index: number\) => \{[\s\S]*?setLevel\(3\);[\s\S]*?setLevelKey\(levelKeys\[3\]\);/);
+  it("keeps Shell exact-path selection and collateral routes semantically aligned", () => {
+    assert.match(shellMap, /const browsePath = exactStage === "shard" \? `\/shards\/\$\{activeShard\}` : "\/shards"/);
+    assert.match(shellMap, /onBrowse\(browsePath, "ls"\)/);
+    assert.match(shellMap, /function StageArrow[\s\S]*?<svg[\s\S]*?<line[\s\S]*?<path/,
+      "the staged namespace has no explicit pointer connector");
+    assert.match(shellMap, /className=\{styles\.branchFork\}[\s\S]*?className=\{styles\.branchGrid\}/,
+      "the event-to-native/computed fan-out is not one connected flow");
+    assert.doesNotMatch(stripNonCode(shellMap), /topologyPath|<shard>|<series>|<event>|<market>/,
+      "a placeholder address can still become a runnable Shell command");
+    assert.match(shellCss, /@media \(max-width: 980px\)[\s\S]*?\.stageArrow svg\s*\{[^}]*transform:\s*rotate\(90deg\);/,
+      "phone-width namespace stages lose their pointer connectors");
     assert.match(shellRoute, /const crossShard = route === "cross" && Boolean\(secondShard\)/);
     assert.match(shellRoute, /const sameActive = Boolean\(activeShard\) && !crossShard/,
       "the same-shard route cannot become active before a live shard exists");

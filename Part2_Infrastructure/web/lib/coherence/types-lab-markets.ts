@@ -97,6 +97,9 @@ export interface CoherenceComboLeg {
   probability: string | null;
   buy_cost: string | null;
   opposite_cost: string | null;
+  /** Portfolio direction/cost; populated only when this leg belongs to a bound row. */
+  direction?: "buy" | "sell" | null;
+  execution_cost?: string | null;
 }
 
 export interface CoherenceCombo {
@@ -134,6 +137,8 @@ export interface CoherenceComboRow {
   bound: string;
   cost: string | null;
   slack: string | null;
+  testable?: boolean;
+  untestable_reason?: string | null;
   violated: boolean;
   legs: CoherenceComboLeg[];
 }

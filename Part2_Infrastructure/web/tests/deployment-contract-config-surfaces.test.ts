@@ -36,6 +36,33 @@ const keepalive = readRepoFile(".github/workflows/openbb-keepalive.yml");
 const e2e = readRepoFile(".github/workflows/e2e.yml");
 const vercel = readWebFile("vercel.json");
 
+function workflowRunSources(workflow: string): string[] {
+  const lines = workflow.split("\n");
+  const sources: string[] = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const match = /^(\s*)run:\s*(.*)$/.exec(lines[index] ?? "");
+    if (!match) continue;
+    const indent = match[1]?.length ?? 0;
+    const tail = match[2] ?? "";
+    if (tail !== "|" && tail !== ">") {
+      sources.push(tail);
+      continue;
+    }
+    const block: string[] = [];
+    for (index += 1; index < lines.length; index += 1) {
+      const line = lines[index] ?? "";
+      const leading = /^\s*/.exec(line)?.[0].length ?? 0;
+      if (line.trim() && leading <= indent) {
+        index -= 1;
+        break;
+      }
+      block.push(line);
+    }
+    sources.push(block.join("\n"));
+  }
+  return sources;
+}
+
 describe("every runtime variable is documented where someone will find it", () => {
   for (const name of ["ORACLE_CONN_STRING", "ORACLE_PASSWORD", "ORACLE_USER"]) {
     it(`${name} appears in .env.example`, () => {
@@ -165,6 +192,68 @@ describe("deployment automation fails honestly and remains reproducible", () => 
   it("accepts the full Supabase project-ref alphabet and refuses an empty parse", () => {
     assert.match(schema, /project_id = \"\[a-z0-9\]\+\"/);
     assert.match(schema, /if \[ -z "\$ref" \]/);
+  });
+
+  it("passes schema credentials through step environments, never shell interpolation", () => {
+    const sources = workflowRunSources(schema);
+    assert.ok(sources.length >= 10, "the schema run-source scanner stopped finding workflow steps");
+    for (const source of sources) {
+      assert.doesNotMatch(
+        source,
+        /\$\{\{\s*secrets\./,
+        "a raw GitHub secret is interpolated into shell source; map it through the step env instead",
+      );
+    }
+  });
+
+  it("fails a manually selected database when its required connection pair is absent", () => {
+    const credentialGate = schema.slice(
+      schema.indexOf("\n  credential-gate:"),
+      schema.indexOf("\n  oracle:"),
+    );
+    const oracle = schema.slice(schema.indexOf("\n  oracle:"), schema.indexOf("\n  supabase:"));
+    const supabase = schema.slice(schema.indexOf("\n  supabase:"));
+    assert.match(credentialGate, /both\|oracle[\s\S]*DB_CONNECTION_STRING[\s\S]*DB_PASSWORD/);
+    assert.match(credentialGate, /both\|supabase[\s\S]*SUPABASE_ACCESS_TOKEN[\s\S]*SUPABASE_DB_PASSWORD/);
+    assert.match(credentialGate, /missing required repository secrets[\s\S]*exit 1/);
+    assert.match(oracle, /needs: credential-gate/);
+    assert.match(supabase, /needs: credential-gate/);
+    assert.match(oracle, /if: inputs\.target == 'both' \|\| inputs\.target == 'oracle'/);
+    assert.match(supabase, /if: inputs\.target == 'both' \|\| inputs\.target == 'supabase'/);
+
+    const oracleGate = oracle.slice(
+      oracle.indexOf("- name: Secrets present?"),
+      oracle.indexOf("- name: Apply"),
+    );
+    assert.match(oracleGate, /DB_CONNECTION_STRING:\s*\$\{\{ secrets\.DB_CONNECTION_STRING \}\}/);
+    assert.match(oracleGate, /DB_PASSWORD:\s*\$\{\{ secrets\.DB_PASSWORD \}\}/);
+    assert.match(oracleGate, /::error::Oracle was selected[\s\S]*exit 1/);
+    assert.doesNotMatch(oracleGate, /nothing applied|exit 0/);
+
+    const supabaseGate = supabase.slice(
+      supabase.indexOf("- name: Secrets present?"),
+      supabase.indexOf("- uses: supabase\/setup-cli@v3"),
+    );
+    assert.match(supabaseGate, /SUPABASE_ACCESS_TOKEN:\s*\$\{\{ secrets\.SUPABASE_ACCESS_TOKEN \}\}/);
+    assert.match(supabaseGate, /SUPABASE_DB_PASSWORD:\s*\$\{\{ secrets\.SUPABASE_DB_PASSWORD \}\}/);
+    assert.match(supabaseGate, /::error::Supabase was selected[\s\S]*exit 1/);
+    assert.doesNotMatch(supabaseGate, /nothing applied|exit 0/);
+  });
+
+  it("repairs only the legacy migrations verified live", () => {
+    assert.match(schema, /repair_legacy_history:[\s\S]*default: false/);
+    const repair = schema.slice(
+      schema.indexOf("- name: Repair verified legacy migration history"),
+      schema.indexOf("- name: Show what would change"),
+    );
+    assert.match(repair, /20260820090000/);
+    assert.match(repair, /20260820100500/);
+    assert.doesNotMatch(
+      repair,
+      /20260820100600|20260820100700/,
+      "the security revokes are safe to replay and the live enum still lacks chart",
+    );
+    assert.match(repair, /inputs\.repair_legacy_history && !inputs\.dry_run/);
   });
 
   it("checks the warm OpenBB response, not only the cold response", () => {

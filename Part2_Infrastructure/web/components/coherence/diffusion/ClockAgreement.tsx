@@ -25,7 +25,8 @@
 
 import { useState } from "react";
 
-import Figure, { FigureEmpty, Plot } from "../Figure";
+import Figure, { Plot } from "../Figure";
+import DiffusionSparseState from "./DiffusionSparseState";
 import type { StageRun } from "./types";
 
 /**
@@ -134,6 +135,7 @@ export default function ClockAgreement({ runs }: { runs: StageRun[] }) {
     rows.filter((row) => clockPathIsMaterial(row, rows.length)).length;
   const totalMoved = drawable.reduce((sum, panel) => sum + movedIn(panel.rows), 0);
   const totalRows = drawable.reduce((sum, panel) => sum + panel.rows.length, 0);
+  const clockReadable = panels.reduce((sum, panel) => sum + panel.rows.length, 0);
   const totalRecords = runs.length;
   const totalSolid = totalMoved;
   const totalDotted = totalRows - totalSolid;
@@ -142,6 +144,12 @@ export default function ClockAgreement({ runs }: { runs: StageRun[] }) {
     (sum, panel) => sum + clockRowsForMode(panel.rows, pathMode).length,
     0,
   );
+  const sparseReason = totalRecords === 0
+    ? "No stage path has been recorded. The connected boxes show how two clock readings become a rank movement, not a result."
+    : clockReadable === 0
+      ? `${totalRecords} recorded path${totalRecords === 1 ? " carries" : "s carry"} no complete, accepted pair of clock readings. `
+        + "The dependency path is shown, but no rank is invented."
+      : `${clockReadable} of ${totalRecords} recorded paths carry both clocks, but neither stage has the two paths required for a ranking.`;
 
   return (
     <Figure
@@ -150,7 +158,11 @@ export default function ClockAgreement({ runs }: { runs: StageRun[] }) {
         totalRows
           ? `Two rank slopegraphs, one per stage, over ${totalRows} clock-ranked paths from ${totalRecords} total paths; `
             + `${totalMoved} move more than a tenth of their own field between the clocks`
-          : "No stage carries both clocks yet"
+          : clockReadable
+            ? `${clockReadable} path${clockReadable === 1 ? " carries" : "s carry"} both clocks, but no stage has the two paths required for a ranking`
+            : totalRecords
+              ? `${totalRecords} recorded path${totalRecords === 1 ? " carries" : "s carry"} no complete, accepted pair of clock readings`
+              : "No stage path has been recorded"
       }
       reading={
         totalRows
@@ -243,7 +255,7 @@ export default function ClockAgreement({ runs }: { runs: StageRun[] }) {
           }}
         </Plot>
       ) : (
-        <FigureEmpty reason="Fewer than two stages in either arm carry both clocks, which is not a ranking." />
+        <DiffusionSparseState kind="clocks" sampleCount={clockReadable} reason={sparseReason} />
       )}
     </Figure>
   );

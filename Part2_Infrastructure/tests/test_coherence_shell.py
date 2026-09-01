@@ -158,6 +158,19 @@ class TestWhereALsFindsNothing:
         assert listing.exists is False
         assert "is not a watched event" in listing.detail
 
+    @pytest.mark.parametrize(
+        "path",
+        (
+            f"/shards/9/KXHIGHNY/{WEATHER}",
+            f"/shards/0/KXNOTREAL/{WEATHER}",
+        ),
+    )
+    def test_a_real_event_cannot_be_opened_below_a_false_parent(self, universe, path):
+        listing = ls(universe, path)
+        assert listing.exists is False
+        assert listing.path == path
+        assert "is not a watched event at" in listing.detail
+
     def test_the_tree_has_one_root_and_says_so(self, universe):
         listing = ls(universe, "/markets/KXHIGHNY")
         assert listing.exists is False
@@ -268,12 +281,27 @@ class TestMissingIsNotUnavailable:
     def test_a_path_outside_the_tree_is_missing(self, universe):
         assert cat(universe, "/etc/passwd").state == "missing"
 
-    def test_a_market_is_a_directory_entry_and_not_yet_a_readable_file(self, universe):
-        """Unavailable, not missing: the name is real and the reader has nothing
-        to print for it, which is a different sentence from 'no such file'."""
+    def test_a_native_market_is_a_readable_live_file(self, universe):
         read = cat(universe, f"{WEATHER_PATH}/{WEATHER}-T87")
-        assert read.state == "unavailable"
-        assert read.detail == "a single market is a directory entry, not a readable file yet"
+        assert read.state == "ok"
+        assert f"ticker            {WEATHER}-T87" in read.body
+        assert "top of book (dollars)" in read.body
+        assert "yes bid" in read.body and "no ask" in read.body
+        assert "published activity" in read.body
+        assert read.detail == "native contract; full book"
+
+    @pytest.mark.parametrize(
+        "path",
+        (
+            f"/shards/9/KXHIGHNY/{WEATHER}/implied_pmf",
+            f"/shards/0/KXNOTREAL/{WEATHER}/{WEATHER}-T87",
+        ),
+    )
+    def test_cat_rejects_a_real_leaf_below_a_false_parent(self, universe, path):
+        read = cat(universe, path)
+        assert read.state == "missing"
+        assert read.body == ""
+        assert "is not a watched event at" in read.detail
 
     def test_a_missing_file_never_carries_a_body(self, universe):
         for path in (f"{WEATHER_PATH}/implied_cdf", "/etc/passwd", WEATHER_PATH):

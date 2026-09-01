@@ -219,7 +219,7 @@ export function LatticeMoments({ surface }: { surface: CoherenceSurface }) {
       ? `${Math.abs(tilt)}% requested; less than one centicent, so no mass moved`
       : `${fmt(actualTransferPct, 2)}% moved (${fromCenticents(moved)})`;
   return (
-    <figure className={styles.instrument} aria-label="Four moments of the implied distribution">
+    <figure className={`${styles.instrument} coh-surface__moment-shape`} aria-label="Four moments of the implied distribution">
       <figcaption className={styles.head}><span><small>Moment shape simulator</small>Move mass from the centre into either tail and watch the profile and moments respond</span><strong>{moved ? "local what-if" : `${points.length} usable bins`}</strong></figcaption>
       <div className={styles.momentTabs} role="listbox" aria-label="Choose a moment to explain">
         {moments.map((moment, index) => (
@@ -253,7 +253,7 @@ export function LatticeMoments({ surface }: { surface: CoherenceSurface }) {
       <output className="sr-only" aria-live="polite" aria-atomic="true">
         {active.term} local what-if: {fmt(scenarioValues[selected], 4)}. {transferReading}.
       </output>
-      <p className="coh-figure__missing">
+      <p className="coh-figure__missing coh-surface__moments-note coh-surface__moments-note--shape">
         <span aria-hidden="true">◌</span>
         <span>{surface.moments_note}. Unbounded tails have no midpoint and receive no invented width; the simulation only moves mass among bounded representatives.</span>
       </p>

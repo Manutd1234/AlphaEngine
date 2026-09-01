@@ -245,7 +245,7 @@ async def sweep_edges(
 
     guard = _EdgeWriteGuard(client)
     last_clean = await _sweep_batch(guard, batch, desk_id=desk_id, candidates=candidates, report=report)
-    report["graph"] = _project_graph(batch, guard.rows_seen)
+    report["graph"] = _project_graph(batch, guard.rows_seen, desk_id=desk_id)
     report["edges_derived"] = guard.edges_derived
     report["edges_written"] = guard.edges_written
     report["edges_already_present"] = guard.edges_already_present
@@ -266,7 +266,9 @@ async def sweep_edges(
     return report
 
 
-def _project_graph(batch: list[dict[str, Any]], edges: list[dict[str, Any]]) -> dict[str, Any]:
+def _project_graph(
+    batch: list[dict[str, Any]], edges: list[dict[str, Any]], *, desk_id: str,
+) -> dict[str, Any]:
     """Copy this tick's derived edges into Neo4j, if one is configured.
 
     Postgres is authoritative and this is a read model, so a projection failure
@@ -280,6 +282,7 @@ def _project_graph(batch: list[dict[str, Any]], edges: list[dict[str, Any]]) -> 
         [{k: d.get(k) for k in ("id", "kind", "symbol", "strategy", "data_hash", "occurred_at")}
          for d in batch],
         edges,
+        desk_id=desk_id,
     )
 
 

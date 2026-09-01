@@ -1,19 +1,7 @@
-"""Wire models for the coherence lab: distribution, combos, calibration, feeds, shell.
+"""Wire models for the coherence lab's distributions, combos, feeds, and shell.
 
-Split from ``schemas_coherence.py`` when that file reached its length ceiling.
-The seam is the same one the routers use: the other module carries the engine's
-running state — universe, books, certificate, index — and this one carries the
-readings built on top of it.
-
-Every decimal crosses as a **string**, as everywhere else in this package. A
-probability mass of ``0.0500`` and a bin midpoint of ``77549.99`` are both
-fixed-point quantities whose last place decides an answer, and JSON numbers are
-binary64. The client parses them with the same integer-centicent helpers the
-rest of the tab uses.
-
-Nullable fields are null and mean it. A mean that cannot be computed, a band
-with an unquoted leg, a maker spread from a single quote — each comes across as
-null with a sentence saying why, and none of them is ever zero.
+Decimals cross as fixed-point strings. Unavailable measurements cross as null
+with an explanatory detail, never as a misleading numeric zero.
 """
 
 from __future__ import annotations
@@ -117,6 +105,9 @@ class CoherenceComboLeg(BaseModel):
     probability: str | None = None
     buy_cost: str | None = None
     opposite_cost: str | None = None
+    # Bound-row execution evidence; reading-only legs leave both fields null.
+    direction: str | None = None
+    execution_cost: str | None = None
 
 
 class CoherenceCombo(BaseModel):
@@ -149,13 +140,19 @@ class CoherenceCombo(BaseModel):
 
 
 class CoherenceComboRow(BaseModel):
-    """A Frechet bound as a testable portfolio."""
+    """A Fréchet bound and the portfolio that would test it.
 
+    Cost and slack stay null when a required executable side is unquoted. The
+    structural check still crosses the wire so a reader can distinguish
+    "untested" from "no constraint exists".
+    """
     because: str
     scope: str
     bound: str
     cost: str | None = None
     slack: str | None = None
+    testable: bool = False
+    untestable_reason: str | None = None
     violated: bool = False
     legs: list[CoherenceComboLeg] = Field(default_factory=list)
 

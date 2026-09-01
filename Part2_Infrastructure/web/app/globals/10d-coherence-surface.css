@@ -58,6 +58,19 @@
   color: var(--text-secondary);
 }
 
+/* The simulator's conditional-moment note can wrap to three lines on a live
+   strike ladder. Keep its last line off the bordered box edge, then keep a
+   separate card step before the definition disclosure that follows the whole
+   instrument. Both reserves belong to the moment-shape source; short notes in
+   other figures do not inherit broad geometry for one long sentence. */
+.coh-surface__moments-note--shape {
+  padding-block-end: max(12px, var(--space-3));
+}
+
+.coh-surface__moment-shape + .disclosure {
+  margin-block-start: max(12px, var(--space-3));
+}
+
 /* ── The stake ───────────────────────────────────────────────────────────── */
 
 .coh-kelly {

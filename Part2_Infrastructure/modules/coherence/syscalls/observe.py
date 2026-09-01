@@ -205,12 +205,18 @@ async def observe_series(
     max_events: int = 12,
     *,
     require_complete: bool = False,
+    require_selected_complete: bool = False,
 ) -> list[Observation]:
     """Every open event in one series, read concurrently.
 
     ``max_events`` bounds the walk rather than the data: a series with hundreds
     of open events would otherwise spend a poll's whole budget on one series and
     starve the rest of the watchlist. When it bites, the observation says so.
+
+    ``require_selected_complete`` makes every event inside that configured
+    bound succeed without claiming the bound is the whole exchange namespace.
+    The recorder uses it so a partial-series failure cannot advance a campaign;
+    the filesystem's stronger ``require_complete`` also refuses caps/pages.
 
     **The events are read in parallel, and that is a correctness fix rather than
     a speed-up.** Read serially, each event costs two round trips, and a
@@ -242,7 +248,7 @@ async def observe_series(
     # The Shell opts into this stricter namespace contract so none of those
     # partial reads can become a false `missing` answer. Notes alone are not a
     # namespace gap: the top-of-book fallback still names every market path.
-    if require_complete:
+    if require_complete or require_selected_complete:
         strict_failures = _strict_observation_failures(observations, failures)
         if strict_failures:
             raise KalshiUnavailable("; ".join(strict_failures))

@@ -24,7 +24,8 @@
 .commandTrace code { min-width: 0; color: inherit; font-weight: 650; overflow-wrap: anywhere; white-space: normal; }
 .commandTrace > strong { color: var(--text-secondary); font-size: var(--fs-xs); overflow-wrap: anywhere; }
 
-.liveRoot {
+.liveRoot,
+.umlDiagram {
   min-width: 0;
   overflow: hidden;
   border: 1px solid var(--border);
@@ -32,7 +33,8 @@
   background: var(--surface-1);
 }
 
-.liveRoot > header {
+.liveRoot > header,
+.umlDiagram > header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -42,20 +44,28 @@
   background: var(--surface-2);
 }
 
-.liveRoot > header > span:first-child,
-.rootTape > span {
+.liveRoot > header > span:first-child {
   display: grid;
   gap: 3px;
   min-width: 0;
 }
 
 .liveRoot header small,
-.rootTape small {
+.rootTape small,
+.umlDiagram > header small {
   color: var(--text-muted);
   font-size: var(--fs-2xs);
   font-weight: 720;
   letter-spacing: var(--ls-caps);
   text-transform: uppercase;
+}
+
+.umlDiagram > header {
+  justify-content: flex-start;
+}
+
+.umlDiagram > header strong {
+  overflow-wrap: anywhere;
 }
 
 .livePulse {
@@ -74,13 +84,17 @@
   content: "";
 }
 
-.livePulse[data-state="live"]::before { background: var(--status-good); box-shadow: 0 0 0 4px color-mix(in srgb, var(--status-good) 14%, transparent); }
+.livePulse[data-state="live"]::before {
+  background: var(--status-good);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--status-good) 14%, transparent);
+}
+
 .livePulse[data-state="stale"]::before,
 .livePulse[data-state="unavailable"]::before { background: var(--status-critical); }
 
 .rootWorkbench {
   display: grid;
-  grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
+  grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
   min-width: 0;
 }
 
@@ -110,15 +124,19 @@
 }
 
 .shardRail button:hover { background: var(--surface-2); }
-.shardRail button[aria-selected="true"] { border-color: var(--series-1); background: color-mix(in srgb, var(--series-1) 9%, var(--surface-1)); box-shadow: inset 3px 0 0 var(--series-1); }
+.shardRail button[aria-selected="true"] {
+  border-color: var(--series-1);
+  background: color-mix(in srgb, var(--series-1) 9%, var(--surface-1));
+  box-shadow: inset 3px 0 0 var(--series-1);
+}
 .shardRail button > span { color: var(--series-1); }
 .shardRail button small { overflow-wrap: anywhere; color: var(--text-secondary); }
 .shardRail p { margin: 0; color: var(--text-secondary); }
 
 .rootTape {
   display: grid;
-  grid-template-columns: minmax(0, .7fr) minmax(0, 1.3fr);
-  grid-template-rows: minmax(8rem, 1fr) auto;
+  grid-template-columns: minmax(8rem, .55fr) minmax(0, 1.45fr);
+  grid-template-rows: minmax(5rem, 1fr) auto;
   align-items: center;
   gap: var(--space-3);
   min-width: 0;
@@ -131,182 +149,139 @@
   isolation: isolate;
 }
 
-.rootTape svg { display: block; width: 100%; min-height: 0; block-size: clamp(8rem, 12vw, 10rem); }
+.rootTape > span { display: grid; gap: 3px; min-width: 0; }
+.rootTape svg { display: block; width: 100%; min-height: 0; block-size: 5rem; }
 .rootTape svg line { stroke: var(--text-secondary); stroke-width: .6; }
 .rootTape svg path { fill: none; stroke: var(--series-1); stroke-width: 2.2; vector-effect: non-scaling-stroke; }
 .rootTape svg circle { fill: var(--surface-1); stroke: var(--series-1); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .rootTape > span,
-.rootTape > small { position: relative; z-index: 1; width: fit-content; max-width: 100%; padding: 4px 6px; border-radius: var(--radius-sm); background: color-mix(in srgb, var(--surface-1) 94%, transparent); }
+.rootTape > small {
+  position: relative;
+  z-index: 1;
+  width: fit-content;
+  max-width: 100%;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--surface-1) 94%, transparent);
+}
 .rootTape > small { grid-column: 2; justify-self: start; }
 
-.pathTopology {
+.primaryFlow {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  align-items: stretch;
-  min-width: 0;
-}
-
-.pathStep {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(18px, .22fr);
+  grid-template-columns: minmax(0, 1fr) 44px minmax(0, 1fr) 44px minmax(0, 1fr);
   align-items: center;
+  width: min(100%, 68rem);
   min-width: 0;
+  margin-inline: auto;
+  padding: var(--space-4) var(--space-4) 0;
 }
 
-.pathStep:last-child { grid-template-columns: minmax(0, 1fr); }
-.pathStep:not(:last-child)::after {
-  width: 100%;
-  height: 3px;
-  background: color-mix(in srgb, var(--text-secondary) 45%, var(--grid));
-  content: "";
-}
-
-.pathStep:not(:last-child)::before {
-  position: absolute;
-  z-index: 2;
-  inset-inline-end: -1px;
-  color: var(--text-muted);
-  content: "›";
-  font-size: var(--fs-xl);
-}
-
-.pathStep[data-traversed="true"]::after { background: var(--series-1); }
-.pathStep[data-traversed="true"]::before { color: var(--series-1); }
-.pathStep[data-traversed="true"] .nodeButton { border-color: color-mix(in srgb, var(--series-1) 38%, var(--border)); background: color-mix(in srgb, var(--series-1) 5%, var(--surface-1)); }
-
-.nodeButton,
-.fileButton {
-  z-index: 3;
+.stageCard {
   display: grid;
+  grid-template-rows: auto auto 1fr;
+  align-content: start;
+  gap: 5px;
   min-width: 0;
-  gap: 4px;
+  min-height: 108px;
   padding: var(--space-3);
-  border: 1px solid var(--border);
+  border: 1px solid color-mix(in srgb, var(--series-1) 34%, var(--border));
   border-radius: var(--radius-md);
-  background: var(--surface-1);
+  background: color-mix(in srgb, var(--series-1) 5%, var(--surface-1));
   color: var(--text-primary);
   text-align: left;
-  cursor: pointer;
 }
 
-.nodeButton { width: 100%; min-height: 104px; grid-template-rows: auto auto 1fr; align-content: start; }
-.nodeButton small,
-.fileButton small { color: var(--text-muted); font-size: var(--fs-2xs); letter-spacing: var(--ls-caps); text-transform: uppercase; }
-.nodeButton span { color: var(--text-secondary); font-size: var(--fs-xs); overflow-wrap: anywhere; }
-.nodeButton strong,
-.fileButton strong { overflow-wrap: anywhere; }
-.nodeButton:hover,
-.fileButton:hover { border-color: var(--text-secondary); background: var(--surface-2); }
-.nodeButton[aria-selected="true"],
-.fileButton[aria-selected="true"] {
+button.stageCard { width: 100%; font: inherit; cursor: pointer; }
+.stageCard[data-schema="true"] { border-style: dashed; background: var(--surface-2); }
+.stageCard[aria-pressed="true"] {
   border-color: var(--series-1);
+  background: color-mix(in srgb, var(--series-1) 13%, var(--surface-1));
   box-shadow: inset 0 -4px 0 var(--series-1);
-  background: color-mix(in srgb, var(--series-1) 12%, var(--surface-1));
 }
-
-.nodeButton:focus-visible,
-.fileButton:focus-visible,
-.collateralLab button:focus-visible,
-.browseButton:focus-visible { outline: 2px solid var(--text-primary); outline-offset: 2px; }
-
-.fileBranch,
-.collateralLab {
-  min-width: 0;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  background: color-mix(in srgb, var(--series-1) 3%, var(--surface-2));
+.stageCard small {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 720;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
 }
+.stageCard strong { overflow-wrap: anywhere; }
+.stageCard > span { color: var(--text-secondary); font-size: var(--fs-xs); overflow-wrap: anywhere; }
 
-.fileBranch > header,
-.collateralLab > header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-3);
-  border-bottom: 1px solid var(--border);
-  background: var(--surface-1);
-}
-
-.fileBranch > header > span,
-.collateralLab > header > span { display: grid; min-width: 0; gap: 3px; }
-.fileBranch header small,
-.collateralLab header small { color: var(--text-muted); font-size: var(--fs-2xs); font-weight: 720; letter-spacing: var(--ls-caps); text-transform: uppercase; }
-.fileBranch header strong,
-.collateralLab header strong { overflow-wrap: anywhere; }
-.fileBranch header em { color: var(--text-secondary); font-size: var(--fs-xs); font-style: normal; text-align: right; }
-
-.fileFan {
-  position: relative;
+.stageArrow,
+.dropArrow {
   display: grid;
-  grid-template-columns: minmax(110px, .7fr) repeat(5, minmax(110px, 1fr));
+  place-items: center;
+  min-width: 0;
+  color: var(--series-1);
+}
+
+.stageArrow svg { width: 100%; height: 24px; }
+.dropArrow { width: 42px; height: 46px; margin-inline: auto; }
+.dropArrow svg { width: 42px; height: 22px; transform: rotate(90deg); }
+.stageArrow line,
+.stageArrow path,
+.dropArrow line,
+.dropArrow path,
+.branchFork path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.stageArrow path,
+.dropArrow path,
+.branchFork path:last-child { stroke-linecap: round; stroke-linejoin: round; }
+
+.umlDiagram > .stageCard {
+  width: min(calc(100% - (2 * var(--space-4))), 22rem);
+  margin-inline: auto;
+}
+
+.branchFork {
+  width: min(calc(100% - (2 * var(--space-4))), 48rem);
+  height: 42px;
+  margin-inline: auto;
+  color: var(--series-1);
+}
+
+.branchFork svg { display: block; width: 100%; height: 42px; overflow: visible; }
+
+.branchGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: stretch;
-  gap: var(--space-3);
+  gap: var(--space-4);
+  width: min(calc(100% - (2 * var(--space-4))), 48rem);
+  margin: 0 auto var(--space-4);
+}
+
+.branchGrid > .stageCard { min-height: 138px; }
+
+.computedStage { grid-template-rows: auto auto auto 1fr; }
+.computedStage ul {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: start;
+  gap: 5px;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.computedStage li {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   min-width: 0;
-  overflow-x: auto;
-  padding: var(--space-4);
-}
-
-.fileFan::before {
-  position: absolute;
-  z-index: 0;
-  inset-inline: 8%;
-  inset-block-start: 50%;
-  height: 2px;
-  background: color-mix(in srgb, var(--series-1) 38%, var(--border));
-  content: "";
-}
-
-.fanHub {
-  z-index: 1;
-  display: grid;
-  min-width: 100px;
-  min-height: 100px;
-  place-content: center;
-  gap: 4px;
-  border: 2px solid var(--series-1);
-  border-radius: 50%;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
   background: var(--surface-1);
-  color: var(--text-primary);
-  text-align: center;
-  box-shadow: 0 0 0 6px var(--surface-2);
 }
+.computedStage li code { overflow-wrap: anywhere; }
+.computedStage li small { font-size: 9px; }
 
-.fanHub small { color: var(--text-muted); }
-.fileFan .fileButton { min-height: 100px; align-content: center; justify-items: center; text-align: center; }
-.fileButton > span { color: var(--series-1); font-size: var(--fs-lg); }
-.fileButton:disabled { border-style: dashed; border-color: var(--grid); background: var(--surface-2); color: var(--text-muted); cursor: not-allowed; }
-
-.collateralLab > header > div { display: flex; gap: 2px; padding: 2px; border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--surface-2); }
-.collateralLab > header button {
-  min-height: 34px;
-  padding: 0 var(--space-3);
-  border: 0;
-  border-radius: calc(var(--radius-control) - 2px);
-  background: transparent;
-  color: var(--text-secondary);
-  font-weight: 680;
-  cursor: pointer;
-}
-.collateralLab > header button[aria-pressed="true"] { background: var(--surface-1); color: var(--text-primary); box-shadow: 0 0 0 1px var(--border); }
-
-.routeGraph { overflow-x: auto; padding: var(--space-2) var(--space-3) 0; background: var(--surface-2); overscroll-behavior-inline: contain; }
-.routeGraph:focus-visible { outline: 2px solid var(--series-1); outline-offset: -2px; }
-.routeGraph svg { display: block; inline-size: 100%; min-inline-size: 46rem; block-size: auto; font-family: var(--font-mono); }
-.routeBase { stroke: var(--border); stroke-width: 8; stroke-linecap: round; }
-.routePassed { stroke: var(--series-3); stroke-width: 5; stroke-linecap: round; }
-.routeBlocked { stroke: var(--status-critical); stroke-width: 4; stroke-dasharray: 8 5; }
-.routeBoundary { stroke: var(--text-secondary); stroke-width: 2; stroke-dasharray: 5 5; }
-.routeCut { fill: none; stroke: var(--status-critical); stroke-width: 4; stroke-linecap: round; }
-.routeNode { fill: var(--surface-1); stroke: var(--text-primary); stroke-width: 3; }
-.routeMark { fill: var(--text-primary); font-size: var(--fs-sm); font-weight: 800; }
-.routeLabel,
-.boundaryLabel { fill: var(--text-secondary); font-size: var(--fs-tick); font-weight: 700; }
-.boundaryLabel { fill: var(--text-primary); letter-spacing: var(--ls-caps); }
-
-.routeReadout,
 .readout {
   display: grid;
   grid-template-columns: minmax(170px, .7fr) minmax(240px, 1.5fr) auto;
@@ -317,15 +292,10 @@
   border-top: 1px solid var(--grid);
   background: var(--surface-1);
 }
-
-.routeReadout { border-inline-start: 4px solid var(--status-critical); }
-.routeReadout[data-pass="true"] { border-inline-start-color: var(--series-3); }
-.routeReadout strong { color: var(--text-primary); }
-.routeReadout span,
-.readoutCopy { margin: 0; color: var(--text-secondary); font-size: var(--fs-xs); overflow-wrap: anywhere; }
 .readout > span { display: grid; min-width: 0; gap: 3px; }
 .readout small { color: var(--text-muted); font-size: var(--fs-2xs); font-weight: 720; letter-spacing: var(--ls-caps); text-transform: uppercase; }
 .readout strong { overflow-wrap: anywhere; }
+.readoutCopy { margin: 0; color: var(--text-secondary); font-size: var(--fs-xs); overflow-wrap: anywhere; }
 
 .browseButton {
   min-height: 36px;
@@ -339,20 +309,26 @@
   cursor: pointer;
 }
 
-@media (max-width: 880px) {
+.stageCard:focus-visible,
+.shardRail button:focus-visible,
+.browseButton:focus-visible { outline: 2px solid var(--text-primary); outline-offset: 2px; }
+
+/* The note owns its inset: at least 12px remains below it inside the figure,
+   and the pane adds the same gap before the following disclosure. */
+.instrumentNote {
+  margin: 0 var(--space-3) var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+@media (max-width: 980px) {
   .rootWorkbench { grid-template-columns: 1fr; }
   .shardRail { border-inline-end: 0; border-bottom: 1px solid var(--border); }
-  .pathTopology { grid-template-columns: 1fr; gap: 2px; background: var(--grid); }
-  .pathStep,
-  .pathStep:last-child { grid-template-columns: 1fr; }
-  .pathStep::before,
-  .pathStep::after { display: none; }
-  .nodeButton { min-height: 68px; border-radius: 0; }
-  .fileFan { grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: visible; gap: 2px; background: var(--grid); }
-  .fileFan::before { display: none; }
-  .fanHub { grid-column: 1 / -1; min-height: 70px; border-radius: var(--radius-md); box-shadow: none; }
-  .fileFan .fileButton { min-height: 76px; border-radius: 0; }
-  .routeReadout,
+  .primaryFlow { grid-template-columns: minmax(0, 1fr); gap: 0; width: min(100%, 34rem); }
+  .stageArrow { width: 42px; height: 46px; margin-inline: auto; }
+  .stageArrow svg { width: 42px; height: 22px; transform: rotate(90deg); }
   .readout { grid-template-columns: 1fr; }
 }
 
@@ -360,27 +336,27 @@
   .shellStage { padding: var(--space-3); }
   .commandTrace { grid-template-columns: auto minmax(0, 1fr); }
   .commandTrace > strong { grid-column: 2; }
-  .fileBranch > header,
-  .collateralLab > header { align-items: flex-start; flex-direction: column; }
-  .fileBranch header em { text-align: left; }
-  .collateralLab > header > div { width: 100%; }
-  .collateralLab > header button { flex: 1; }
-  .fileFan { grid-template-columns: 1fr; }
-  .fanHub { grid-column: auto; }
   .rootTape { grid-template-columns: 1fr; grid-template-rows: auto; }
   .rootTape > small { grid-column: auto; }
   .shardRail button { grid-template-columns: auto minmax(0, 1fr); }
   .shardRail button small { grid-column: 2; }
+  .primaryFlow { padding: var(--space-3) var(--space-3) 0; }
+  .umlDiagram > .stageCard { width: calc(100% - (2 * var(--space-3))); }
+  .branchFork { width: calc(100% - (2 * var(--space-3))); }
+  .branchGrid { width: calc(100% - (2 * var(--space-3))); gap: var(--space-2); margin-bottom: var(--space-3); }
+  .branchGrid > .stageCard { min-height: 156px; padding: var(--space-2); }
+  .computedStage li { padding: 3px 5px; }
 }
 
 @media (forced-colors: active) {
-  .pathStep[data-traversed="true"]::after,
-  .routePassed { background: Highlight; stroke: Highlight; }
-  .nodeButton[aria-selected="true"],
-  .fileButton[aria-selected="true"] { outline: 2px solid Highlight; }
-  .routeBlocked,
-  .routeCut { stroke: Mark; }
+  .stageCard[aria-pressed="true"],
+  .shardRail button[aria-selected="true"] { outline: 2px solid Highlight; }
   .rootTape svg path,
-  .rootTape svg circle { stroke: Highlight; }
+  .rootTape svg circle,
+  .stageArrow line,
+  .stageArrow path,
+  .dropArrow line,
+  .dropArrow path,
+  .branchFork path { stroke: Highlight; }
   .rootTape svg circle { fill: Canvas; }
 }

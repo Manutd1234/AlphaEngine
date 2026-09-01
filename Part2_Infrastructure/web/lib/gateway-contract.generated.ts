@@ -241,6 +241,8 @@ export interface CoherenceCombo {
 
 export interface CoherenceComboLeg {
   buy_cost?: string | null;
+  direction?: string | null;
+  execution_cost?: string | null;
   label: string;
   opposite_cost?: string | null;
   probability?: string | null;
@@ -255,6 +257,8 @@ export interface CoherenceComboRow {
   legs?: Array<CoherenceComboLeg>;
   scope: string;
   slack?: string | null;
+  testable?: boolean;
+  untestable_reason?: string | null;
   violated?: boolean;
 }
 
@@ -455,6 +459,22 @@ export interface CoherenceMarketView {
   yes_sub_title: string;
 }
 
+export interface CoherenceObservationCampaignStatus {
+  books_written?: number;
+  campaign_id?: string | null;
+  configured?: boolean;
+  event_observations?: number;
+  first_completed_ts_ns?: number | null;
+  last_completed_ts_ns?: number | null;
+  poll_seconds?: number;
+  post_campaign_poll_seconds?: number;
+  remaining?: number;
+  state?: string;
+  successful?: number;
+  target?: number;
+  unit?: string;
+}
+
 export interface CoherencePendingMinute {
   provisional?: string | null;
   spread?: string | null;
@@ -525,15 +545,34 @@ export interface CoherenceProofSolver {
 
 export interface CoherenceRecorderStatus {
   books_written: number;
+  campaign?: CoherenceObservationCampaignStatus;
+  certification_decisions?: number;
   configured: boolean;
   consecutive_failures?: number;
+  episodes_closed?: number;
+  episodes_recovered?: number;
   last_error?: string | null;
+  last_poll_ts_ns?: number | null;
   poll_seconds: number;
   polls: number;
   running: boolean;
   seconds_since_last_poll?: number | null;
   series_seen?: Array<string>;
+  storage?: CoherenceRecorderStorageStatus;
   watchlist: Array<string>;
+}
+
+export interface CoherenceRecorderStorageStatus {
+  disk_free_bytes?: number | null;
+  disk_total_bytes?: number | null;
+  last_retention_check_ts_ns?: number | null;
+  max_tape_bytes?: number;
+  min_free_bytes?: number;
+  reason?: string | null;
+  retention_days?: number;
+  retention_pruned_books?: number;
+  state?: string;
+  tape_bytes?: number | null;
 }
 
 export interface CoherenceReliabilityBin {

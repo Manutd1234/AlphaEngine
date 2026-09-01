@@ -103,7 +103,8 @@ def _clear_application_context(app: FastAPI) -> None:
 
 
 def _prepare_backend_read_models() -> dict[str, Any]:
-    """Apply local schemas once, before the first browser poll can race them."""
+    """Apply schemas and verified evidence before a browser poll can race them."""
+    from modules.coherence.diffusion.bootstrap import restore_verified_fomc
     from modules.coherence.diffusion.events import DiffusionEventStore
     from modules.coherence.diffusion.runs import AbsorptionRunStore
     from modules.coherence.diffusion.studies import DiffusionStudyStore
@@ -115,10 +116,15 @@ def _prepare_backend_read_models() -> dict[str, Any]:
     stores = (DiffusionEventStore, AbsorptionRunStore, DiffusionTextStore, DiffusionStudyStore)
     for store_type in stores:
         store_type(data_ops)
+    bootstrap = restore_verified_fomc(data_ops)
     tape = get_store().health()
     if tape.get("state") != "ok":
         raise RuntimeError(str(tape.get("reason") or "coherence tape is not readable"))
-    return {"data_ops_backend": data_ops.backend, "coherence_tape": tape.get("state")}
+    return {
+        "data_ops_backend": data_ops.backend,
+        "coherence_tape": tape.get("state"),
+        "diffusion_bootstrap": bootstrap.as_dict(),
+    }
 
 
 def _measure_decision_core_readiness(gateway: Any, backend_runtime: Any) -> int:

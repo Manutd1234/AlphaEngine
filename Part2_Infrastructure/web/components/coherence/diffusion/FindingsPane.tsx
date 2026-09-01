@@ -61,6 +61,7 @@ import EvidenceMatrix from "./EvidenceMatrix";
 import FindingsFolds from "./FindingsFolds";
 import FindingsTable from "./FindingsTable";
 import InstrumentFit from "./InstrumentFit";
+import { findingsEvidenceValue, summarizeFindings } from "./findings-summary";
 import type { Finding, FindingsRead, GateCheck } from "./types";
 
 const GATE_MARK: Record<GateCheck["state"], string> = {
@@ -82,10 +83,16 @@ export default function FindingsPane({ active, view, onView }: {
   const { data, error } = useCoherenceRead<FindingsRead>(findingsRoute(), active);
   const read = data?.state === "ok" ? data : null;
   const findings = read?.findings ?? EMPTY_FINDINGS;
-  const held = findings.filter((row) => row.verdict === "holds").length;
+  const evidence = summarizeFindings(findings);
   const calendar = read?.calendar ?? null;
   const gate = read?.gate ?? null;
   const study = read?.study ?? null;
+  // The wire exposes the storage backend and snapshot observation time, but no
+  // dataset-vintage or bootstrap flag. Label exactly what it exposes without
+  // promoting the read time into a claim that the historical sample is live.
+  const sourceStamp = read
+    ? `${read.backend ?? "unreported"} API snapshot observed at ${read.observed_at}`
+    : null;
   const studyAbsenceReason = read
     ? "the study has not been built"
     : error && !data
@@ -99,9 +106,11 @@ export default function FindingsPane({ active, view, onView }: {
       ? <>Measuring the relationships…</>
       : data.state !== "ok"
         ? <>{data.reason ?? "Nothing has been measured yet — not the same as nothing being there."}</>
-        : findings.length === 0
-          ? <>Zero relationships have been measured; the structures below show what will be assessed, not a result.</>
-          : null;
+        : evidence.planned === 0
+          ? <>Zero relationships have been measured; the structures below show what will be assessed, not a result. {sourceStamp}.</>
+          : evidence.assessable === 0
+            ? <>{evidence.planned} planned relationships have been registered, but none is assessable yet; the connected figure below shows the measurement path, not a result. {sourceStamp}.</>
+            : null;
   // "0 of 0" is not a clean bill of health. A desk that has fetched no
   // statement has verified nothing, and a tick beside that would be the exact
   // claim this section exists to avoid making.
@@ -127,9 +136,12 @@ export default function FindingsPane({ active, view, onView }: {
           value={calendar?.of ? String(calendar.dissent_meetings) : "—"}
           tone="muted"
         />
-        <StateChip mark={held ? "✓" : "◌"} word="Relationships that hold"
-                   value={findings.length ? `${held} of ${findings.length}` : "not measured"}
-                   tone={held ? "good" : "muted"} />
+        <StateChip
+          mark={evidence.assessable ? "✓" : "◌"}
+          word="Assessable relationships"
+          value={findingsEvidenceValue(evidence)}
+          tone={evidence.assessable ? "good" : "muted"}
+        />
         <StateChip
           mark={gate ? GATE_MARK[gate.state] : "◌"}
           word="Representation gate"

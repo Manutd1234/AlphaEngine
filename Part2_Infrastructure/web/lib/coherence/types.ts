@@ -34,6 +34,35 @@ export interface CoherenceShardStatus {
   trading_active: boolean;
 }
 
+export interface CoherenceObservationCampaignStatus {
+  configured?: boolean;
+  state?: string;
+  campaign_id?: string | null;
+  unit?: string;
+  target?: number;
+  successful?: number;
+  remaining?: number;
+  event_observations?: number;
+  books_written?: number;
+  first_completed_ts_ns?: number | null;
+  last_completed_ts_ns?: number | null;
+  poll_seconds?: number;
+  post_campaign_poll_seconds?: number;
+}
+
+export interface CoherenceRecorderStorageStatus {
+  state?: string;
+  reason?: string | null;
+  tape_bytes?: number | null;
+  disk_total_bytes?: number | null;
+  disk_free_bytes?: number | null;
+  min_free_bytes?: number;
+  max_tape_bytes?: number;
+  retention_days?: number;
+  retention_pruned_books?: number;
+  last_retention_check_ts_ns?: number | null;
+}
+
 export interface CoherenceRecorderStatus {
   running: boolean;
   configured: boolean;
@@ -45,6 +74,12 @@ export interface CoherenceRecorderStatus {
   last_error: string | null;
   consecutive_failures: number;
   series_seen: string[];
+  last_poll_ts_ns?: number | null;
+  episodes_closed?: number;
+  episodes_recovered?: number;
+  certification_decisions?: number;
+  campaign?: CoherenceObservationCampaignStatus;
+  storage?: CoherenceRecorderStorageStatus;
 }
 
 export interface CoherenceBudgetStatus {

@@ -8,8 +8,10 @@
 #  * requirements-core.txt, not requirements.txt. vectorbt/numba adds hundreds
 #    of megabytes and can fail to compile per-platform; the NumPy backtest
 #    engine is the documented, tested degradation and /health reports which
-#    engine is live. The focused coherence extra is installed separately below
-#    so the deployed gateway can parse and sign with a configured Kalshi key.
+#    engine is live. The focused coherence, community and graph extras are
+#    installed separately below: this deployment signs Kalshi requests and
+#    maintains the configured Supabase -> Neo4j read model without pulling the
+#    full ML dependency set.
 #    Opt back into the full dependency set with:
 #      --build-arg REQUIREMENTS=requirements.txt
 #
@@ -50,8 +52,12 @@ WORKDIR /build
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements-core.txt requirements.txt requirements-native.txt requirements-coherence.txt ./
-RUN pip install --no-cache-dir --prefix=/install -r "${REQUIREMENTS}" -r requirements-coherence.txt
+COPY requirements-core.txt requirements.txt requirements-native.txt requirements-coherence.txt requirements-communities.txt requirements-graph.txt ./
+RUN pip install --no-cache-dir --prefix=/install \
+    -r "${REQUIREMENTS}" \
+    -r requirements-coherence.txt \
+    -r requirements-communities.txt \
+    -r requirements-graph.txt
 # The build toolchain (setuptools, pybind11) is builder-local, not in /install,
 # so it never reaches the runtime site-packages.
 RUN pip install --no-cache-dir -r requirements-native.txt

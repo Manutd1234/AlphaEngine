@@ -40,7 +40,13 @@ from modules.schemas_coherence import CoherenceHostStatus as CoherenceHostStatus
 from modules.schemas_coherence import CoherenceIndexPoint as CoherenceIndexPoint  # noqa: F401
 from modules.schemas_coherence import CoherenceIndexSeries as CoherenceIndexSeries  # noqa: F401
 from modules.schemas_coherence import CoherenceMarketView as CoherenceMarketView  # noqa: F401
+from modules.schemas_coherence import (
+    CoherenceObservationCampaignStatus as CoherenceObservationCampaignStatus,  # noqa: F401,E501
+)
 from modules.schemas_coherence import CoherenceRecorderStatus as CoherenceRecorderStatus  # noqa: F401
+from modules.schemas_coherence import (
+    CoherenceRecorderStorageStatus as CoherenceRecorderStorageStatus,  # noqa: F401,E501
+)
 from modules.schemas_coherence import CoherenceReplay as CoherenceReplay  # noqa: F401
 from modules.schemas_coherence import CoherenceShardStatus as CoherenceShardStatus  # noqa: F401
 from modules.schemas_coherence import CoherenceStatus as CoherenceStatus  # noqa: F401

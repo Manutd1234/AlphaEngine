@@ -169,6 +169,20 @@ DEMO_PRIVATE_KEY_PATH: Final = resolve_private_key_path(
 SERIES_WATCHLIST: Final = parse_series_watchlist(_env("COHERENCE_SERIES", ""))
 POLL_SECONDS: Final = _env_int("COHERENCE_POLL_S", 0)  # 0 keeps the recorder off
 
+# A collection campaign counts successful, observation-bearing passes over the
+# complete watchlist. It never calls a pass an episode: episodes remain the
+# much rarer, fee-positive violations tracked by ``episodes.py``. The ID makes
+# progress survive a process/container restart without accidentally continuing
+# a previous campaign that happened to have the same numerical target.
+CAMPAIGN_ID: Final = _env("COHERENCE_CAMPAIGN_ID", "")
+CAMPAIGN_TARGET: Final = max(0, _env_int("COHERENCE_CAMPAIGN_TARGET", 0))
+if CAMPAIGN_TARGET > 0 and not CAMPAIGN_ID:
+    raise ValueError("COHERENCE_CAMPAIGN_ID is required when COHERENCE_CAMPAIGN_TARGET is positive")
+# The accelerated cadence is bounded by the campaign. Once it completes, keep
+# collecting forward at the original five-minute baseline instead of turning a
+# ~1.15 GB/day experiment into an unbounded operating mode.
+POST_CAMPAIGN_POLL_SECONDS: Final = max(1, _env_int("COHERENCE_POST_CAMPAIGN_POLL_S", 300))
+
 # How often the recorder scores the SETTLED corpus, which is a different
 # question on a different clock. Nothing settles in five minutes, so scoring on
 # every book poll would write three hundred near-identical rows a day and call
@@ -253,6 +267,17 @@ CARRY_APY: Final = _env_optional_decimal("COHERENCE_CARRY_APY")
 # ledger's single-writer lock would make a recorder stall look like an audit
 # failure.
 DB_PATH: Final = Path(_env("COHERENCE_DB_PATH", str(Path(_env("DATA_DIR", str(BASE_DIR / "data"))) / "coherence.duckdb")))
+
+# The raw order-book tape is the high-volume part of the corpus. Refuse a poll
+# before it consumes the host's safety reserve; an explicit tape cap is
+# available when the volume size is known. Retention is opt-in because deleting
+# evidence by default would contradict the recorder's purpose. When enabled it
+# removes only expired raw ladders; index readings, certification decisions,
+# campaign progress and episodes remain permanent.
+MIN_FREE_BYTES: Final = max(0, _env_int("COHERENCE_MIN_FREE_BYTES", 0))
+MAX_TAPE_BYTES: Final = max(0, _env_int("COHERENCE_MAX_TAPE_BYTES", 0))
+RETENTION_DAYS: Final = max(0, _env_int("COHERENCE_RETENTION_DAYS", 0))
+RETENTION_CHECK_SECONDS: Final = max(60, _env_int("COHERENCE_RETENTION_CHECK_S", 3600))
 
 # ── Safety ───────────────────────────────────────────────────────────────────
 # The engine sizes orders and renders an order plan. It does not send one.

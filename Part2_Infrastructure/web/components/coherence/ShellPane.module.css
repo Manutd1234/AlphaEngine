@@ -4,3 +4,13 @@
   max-inline-size: 100%;
   animation: none;
 }
+
+.mapStack {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.mapStack > :global(.disclosure) {
+  margin-top: 0;
+}

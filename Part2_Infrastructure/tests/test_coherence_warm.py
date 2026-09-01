@@ -114,6 +114,81 @@ class TestARefresherThatIsNotConfiguredDoesNothing:
         assert await warm.refresh_once(object()) == 0
 
 
+class TestTheWarmRefresherKeepsTheGatewayResponsive:
+    @staticmethod
+    def _arrange_pass(monkeypatch, solve):
+        observation = SimpleNamespace(
+            event=SimpleNamespace(
+                event_ticker="KXTEST-1", series_ticker="KXTEST", exchange_index=0,
+            ),
+            notes=[],
+        )
+
+        async def observe(*_args, **_kwargs):
+            return [observation]
+
+        async def schedule(*_args, **_kwargs):
+            return object()
+
+        async def no_combo_listing(*_args, **_kwargs):
+            raise ValueError("no combo listing in this focused pass")
+
+        monkeypatch.setattr(tunables, "SERIES_WATCHLIST", ("KXTEST",))
+        monkeypatch.setattr(warm, "observe_series", observe)
+        monkeypatch.setattr(warm.fee_meta, "schedule_for_event", schedule)
+        monkeypatch.setattr(warm, "event_view", lambda _observation: {
+            "event_ticker": "KXTEST-1",
+            "series_ticker": "KXTEST",
+            "title": "Test event",
+            "mutually_exclusive": True,
+            "exchange_index": 0,
+            "markets": [],
+        })
+        monkeypatch.setattr(warm, "certify", solve)
+
+        from modules.coherence.syscalls import combos
+        monkeypatch.setattr(combos, "fetch_listing", no_combo_listing)
+
+    @pytest.mark.asyncio
+    async def test_the_warm_solve_and_proof_render_run_off_the_event_loop(self, monkeypatch):
+        def solve(*_args, **_kwargs):
+            time.sleep(0.15)
+            return Certificate(
+                verdict="coherent", engine="highs", component_id="KXTEST-1",
+                series_ticker="KXTEST", exchange_index=0,
+            )
+
+        self._arrange_pass(monkeypatch, solve)
+        started = time.perf_counter()
+        task = asyncio.create_task(warm.refresh_once(object()))
+
+        await asyncio.sleep(0.02)
+
+        assert time.perf_counter() - started < 0.10, "the warm solver blocked the gateway event loop"
+        assert not task.done(), "the blocking stand-in should still be running in its worker"
+        assert await task == 2  # one certificate and its same-observation universe
+
+    @pytest.mark.asyncio
+    async def test_a_failed_warm_solve_leaves_the_last_good_certificate_held(self, monkeypatch):
+        old = _certificate("KXTEST-1")
+        old_taken = time.time_ns() - 1_000_000
+        key = warm.snapshot_key("certify", event_ticker="KXTEST-1", max_contracts=1000)
+        warm._store(
+            "certify", old, old_taken,
+            event_ticker="KXTEST-1", max_contracts=1000,
+        )
+
+        def fail(*_args, **_kwargs):
+            raise ValueError("solver refused this refresh")
+
+        self._arrange_pass(monkeypatch, fail)
+        assert await warm.refresh_once(object()) == 1  # universe only
+
+        held = warm._CACHE[key]
+        assert held.value is old
+        assert held.taken_at_ns == old_taken
+
+
 class TestTheRouteDoesNotTouchTheVenueWhenAnAnswerIsHeld:
     @pytest.mark.asyncio
     async def test_certify_answers_from_the_snapshot_without_a_client(self, monkeypatch):

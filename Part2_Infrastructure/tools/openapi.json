@@ -1547,6 +1547,28 @@
             ],
             "title": "Buy Cost"
           },
+          "direction": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Direction"
+          },
+          "execution_cost": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Execution Cost"
+          },
           "label": {
             "title": "Label",
             "type": "string"
@@ -1591,7 +1613,7 @@
         "type": "object"
       },
       "CoherenceComboRow": {
-        "description": "A Frechet bound as a testable portfolio.",
+        "description": "A Fr\u00e9chet bound and the portfolio that would test it.\n\nCost and slack stay null when a required executable side is unquoted. The\nstructural check still crosses the wire so a reader can distinguish\n\"untested\" from \"no constraint exists\".",
         "properties": {
           "because": {
             "title": "Because",
@@ -1633,6 +1655,22 @@
               }
             ],
             "title": "Slack"
+          },
+          "testable": {
+            "default": false,
+            "title": "Testable",
+            "type": "boolean"
+          },
+          "untestable_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Untestable Reason"
           },
           "violated": {
             "default": false,
@@ -2847,6 +2885,96 @@
         "title": "CoherenceMarketView",
         "type": "object"
       },
+      "CoherenceObservationCampaignStatus": {
+        "description": "A bounded count of successful observation polls, never episodes.",
+        "properties": {
+          "books_written": {
+            "default": 0,
+            "title": "Books Written",
+            "type": "integer"
+          },
+          "campaign_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Campaign Id"
+          },
+          "configured": {
+            "default": false,
+            "title": "Configured",
+            "type": "boolean"
+          },
+          "event_observations": {
+            "default": 0,
+            "title": "Event Observations",
+            "type": "integer"
+          },
+          "first_completed_ts_ns": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Completed Ts Ns"
+          },
+          "last_completed_ts_ns": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Completed Ts Ns"
+          },
+          "poll_seconds": {
+            "default": 60,
+            "title": "Poll Seconds",
+            "type": "integer"
+          },
+          "post_campaign_poll_seconds": {
+            "default": 300,
+            "title": "Post Campaign Poll Seconds",
+            "type": "integer"
+          },
+          "remaining": {
+            "default": 0,
+            "title": "Remaining",
+            "type": "integer"
+          },
+          "state": {
+            "default": "disabled",
+            "title": "State",
+            "type": "string"
+          },
+          "successful": {
+            "default": 0,
+            "title": "Successful",
+            "type": "integer"
+          },
+          "target": {
+            "default": 0,
+            "title": "Target",
+            "type": "integer"
+          },
+          "unit": {
+            "default": "successful_observation_poll",
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "title": "CoherenceObservationCampaignStatus",
+        "type": "object"
+      },
       "CoherencePendingMinute": {
         "description": "A minute the stations have reported and the exchange has not published.\n\nThe index is published in two stages: readings arrive, then quality control\ndisposes of them and the value appears. Inside that window the next value is\narithmetic on data already handed over, not a forecast.",
         "properties": {
@@ -3237,6 +3365,14 @@
             "title": "Books Written",
             "type": "integer"
           },
+          "campaign": {
+            "$ref": "#/components/schemas/CoherenceObservationCampaignStatus"
+          },
+          "certification_decisions": {
+            "default": 0,
+            "title": "Certification Decisions",
+            "type": "integer"
+          },
           "configured": {
             "title": "Configured",
             "type": "boolean"
@@ -3244,6 +3380,16 @@
           "consecutive_failures": {
             "default": 0,
             "title": "Consecutive Failures",
+            "type": "integer"
+          },
+          "episodes_closed": {
+            "default": 0,
+            "title": "Episodes Closed",
+            "type": "integer"
+          },
+          "episodes_recovered": {
+            "default": 0,
+            "title": "Episodes Recovered",
             "type": "integer"
           },
           "last_error": {
@@ -3256,6 +3402,17 @@
               }
             ],
             "title": "Last Error"
+          },
+          "last_poll_ts_ns": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Poll Ts Ns"
           },
           "poll_seconds": {
             "title": "Poll Seconds",
@@ -3287,6 +3444,9 @@
             "title": "Series Seen",
             "type": "array"
           },
+          "storage": {
+            "$ref": "#/components/schemas/CoherenceRecorderStorageStatus"
+          },
           "watchlist": {
             "items": {
               "type": "string"
@@ -3304,6 +3464,93 @@
           "books_written"
         ],
         "title": "CoherenceRecorderStatus",
+        "type": "object"
+      },
+      "CoherenceRecorderStorageStatus": {
+        "description": "The tape's measured capacity and fail-closed guard state.",
+        "properties": {
+          "disk_free_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Disk Free Bytes"
+          },
+          "disk_total_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Disk Total Bytes"
+          },
+          "last_retention_check_ts_ns": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Retention Check Ts Ns"
+          },
+          "max_tape_bytes": {
+            "default": 0,
+            "title": "Max Tape Bytes",
+            "type": "integer"
+          },
+          "min_free_bytes": {
+            "default": 0,
+            "title": "Min Free Bytes",
+            "type": "integer"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "retention_days": {
+            "default": 0,
+            "title": "Retention Days",
+            "type": "integer"
+          },
+          "retention_pruned_books": {
+            "default": 0,
+            "title": "Retention Pruned Books",
+            "type": "integer"
+          },
+          "state": {
+            "default": "unchecked",
+            "title": "State",
+            "type": "string"
+          },
+          "tape_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tape Bytes"
+          }
+        },
+        "title": "CoherenceRecorderStorageStatus",
         "type": "object"
       },
       "CoherenceReliabilityBin": {

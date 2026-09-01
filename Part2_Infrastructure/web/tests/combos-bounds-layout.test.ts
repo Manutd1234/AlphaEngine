@@ -44,17 +44,21 @@ describe("Bounds is a compact, selectable cost-to-bound instrument", () => {
       assert.match(bounds, new RegExp(`>${label}<`));
     }
     assert.match(bounds, /<details key=\{rowKey\(row\)\} className=\{styles\.legsDisclosure\}>/);
-    assert.match(bounds, /Tested legs \(\$\{row\.legs\.length\}\)/);
+    assert.match(bounds, /Portfolio legs \(\$\{row\.legs\.length\}\)/);
+    assert.match(bounds, /leg\.direction \?\?/);
+    assert.match(bounds, /priceLabel\(leg\.execution_cost \?\? leg\.buy_cost\)/);
     assert.equal((bounds.match(/<RowLegs /g) ?? []).length, 1);
     assert.doesNotMatch(bounds, /function RowFacts|function RowBlock|testable rows violated/);
   });
 
   it("keeps nulls explicit, the caveat visible and the true empty state intact", () => {
     assert.match(bounds, /row\.cost != null && row\.slack != null/);
+    assert.match(bounds, /row\.untestable_reason/);
     assert.match(bounds, /priceLabel\(row\.cost\)/);
     assert.match(bounds, /priceLabel\(row\.slack\)/);
     assert.match(bounds, /A dash means untested\./);
-    assert.match(bounds, /<strong>No testable bounds<\/strong>/);
+    assert.match(bounds, /structural checks are present/);
+    assert.match(bounds, /<strong>No structural bounds<\/strong>/);
   });
 
   it("contains long content locally without widening the page", () => {

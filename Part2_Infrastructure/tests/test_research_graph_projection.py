@@ -81,6 +81,7 @@ def wired(monkeypatch):
 
 DOCS = [{"id": "a", "kind": "backtest", "symbol": "BTCUSDT"}, {"id": "b", "kind": "ml_run"}]
 EDGES = [{"src_id": "a", "dst_id": "b", "relation": "same_symbol"}]
+DESK = "00000000-0000-0000-0000-000000000001"
 
 
 class TestAbsenceIsReportedNeverRaised:
@@ -171,6 +172,22 @@ class TestItIsSafeToRunTwice:
 
 
 class TestItDoesNotLeakOrOverreach:
+    def test_a_scoped_projection_stamps_every_node_and_upgrades_legacy_merges(self, wired):
+        gp.project(DOCS, EDGES, desk_id=DESK)
+        props = [row["props"] for batch in wired.rows for row in batch if "props" in row]
+        assert props and all(row["desk_id"] == DESK for row in props)
+        assert "MERGE (d:Document {id: row.id})" in " ".join(wired.statements), (
+            "a rebuild must add desk_id to existing nodes rather than requiring a destructive drop"
+        )
+
+    def test_a_scoped_projection_refuses_a_mixed_desk_batch(self, wired):
+        out = gp.project(
+            [{"id": "a", "desk_id": "another-desk"}], [], desk_id=DESK,
+        )
+        assert out["projected"] is False
+        assert "mixed desk scopes" in out["reason"]
+        assert wired.statements == [], "scope disagreement must be found before the first graph write"
+
     def test_null_properties_are_dropped_rather_than_written_as_null(self, wired):
         gp.project([{"id": "a", "kind": "backtest", "symbol": None}], [])
         props = wired.rows[0][0]["props"]

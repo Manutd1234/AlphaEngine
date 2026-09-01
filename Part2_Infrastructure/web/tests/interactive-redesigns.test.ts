@@ -17,6 +17,8 @@ const survival = read("../components/coherence/surface/LatticeSurvival.tsx");
 const latticeCss = read("../components/coherence/surface/LatticeInstruments.module.css");
 const shellPane = read("../components/coherence/ShellPane.tsx");
 const shellMap = read("../components/coherence/ShellTree.tsx");
+const shellTopologyCss = read("../components/coherence/ShellTopology.module.css");
+const shellPaneCss = read("../components/coherence/ShellPane.module.css");
 const shellBrowser = read("../components/coherence/ShellBrowser.tsx");
 const shellBrowserCss = read("../components/coherence/ShellBrowser.module.css");
 const shellRoute = read("../components/coherence/ShellRouteFlow.tsx");
@@ -82,8 +84,16 @@ describe("Markets worked examples are operated, not decorative", () => {
     assert.match(shellMap, /if \(mark == null\) \{[\s\S]*?connected = false/);
     assert.match(shellMap, /<circle key=\{mark\.index\}/);
     assert.match(shellMap, /Browser-observed feed/);
-    assert.match(shellMap, /onBrowse\(activeShard \? `\/shards\/\$\{activeShard\}` : "\/"\)/);
+    assert.match(shellMap, /const browsePath = exactStage === "shard" \? `\/shards\/\$\{activeShard\}` : "\/shards"/);
+    assert.match(shellMap, /onBrowse\(browsePath, "ls"\)/);
+    assert.match(shellMap, /function StageArrow[\s\S]*?<svg[\s\S]*?<line[\s\S]*?<path/);
+    assert.match(shellMap, /className=\{styles\.branchFork\}[\s\S]*?M50 0 V16 H25 V32/);
+    assert.doesNotMatch(stripNonCode(shellMap), /topologyPath|<shard>|<series>|<event>|<market>/);
     assert.match(shellMap, /emptyKind: "always"[\s\S]*emptyKind: "family"|emptyKind: "family"[\s\S]*emptyKind: "always"/);
+    assert.match(shellTopologyCss, /@media \(max-width: 980px\)[\s\S]*?\.stageArrow svg\s*\{[^}]*transform:\s*rotate\(90deg\);/);
+    assert.doesNotMatch(shellTopologyCss, /@media[^}]+[\s\S]*?\.stageArrow\s*\{[^}]*display:\s*none;/);
+    assert.match(shellTopologyCss, /\.instrumentNote\s*\{[^}]*margin:\s*0 var\(--space-3\) var\(--space-3\);[^}]*padding:\s*var\(--space-3\);/s);
+    assert.match(shellPaneCss, /\.mapStack\s*\{[^}]*gap:\s*var\(--space-3\);/s);
     assert.match(readings, /return file\.emptyKind/);
     assert.doesNotMatch(stripNonCode(readings), /in this read\)\) return|silent\.trim/);
   });
@@ -114,6 +124,8 @@ describe("the requested Markets layouts stay separated and bounded", () => {
     assert.match(shellBrowser, /directoryUnavailable \? \([\s\S]*?role="status"[\s\S]*?Retry directory/);
     assert.match(shellBrowser, /directoryUnavailable \? \([\s\S]*?\) : mode === "cat" \? \([\s\S]*?<FileReading/,
       "unavailable file reads must retain their file-specific preview instead of becoming directory outages");
+    assert.match(shellBrowser, /data\?\.command === "ls" && data\.detail && !repeatsScope && !directoryUnavailable/,
+      "cat detail must be rendered only by the file preview, not duplicated above it");
     assert.match(shellBrowser, /READ_OK\.has\(data\.state\) && measuredPolls >= 2 \? \([\s\S]*?<LiveTape/);
     assert.match(shellBrowserCss, /\.recovery\s*\{[^}]*grid-template-columns:\s*auto minmax\(0, 1fr\) auto;[^}]*border:/s);
     assert.match(shellBrowserCss, /@media \(max-width: 620px\)[\s\S]*?\.recovery\s*\{[^}]*grid-template-columns:\s*auto minmax\(0, 1fr\);/);

@@ -194,18 +194,20 @@ class TestTheSqlContract:
         sql = statements()
         assert sql.count("drop function if exists") == 2
 
-    def test_the_execute_revokes_are_reapplied_after_the_drop(self):
+    def test_the_service_role_only_acls_are_reapplied_after_the_drop(self):
         """Dropping a function drops its ACL, and a new one is executable by PUBLIC.
 
-        `20260812091000_close_authenticated_writes.sql` revoked execute on both
-        of these from anon and authenticated. Without these two statements this
-        migration would reopen that grant as a side effect of adding a tenancy
-        predicate — a security regression shipped by a security fix.
+        Without the complete revoke-plus-grant pairs, this migration would
+        reopen the RPC to PUBLIC as a side effect of adding a tenancy predicate
+        or leave its intended gateway caller implicit.
         """
         sql = statements()
         revokes = re.findall(r"revoke execute on function\s+public\.(\w+)", sql)
+        grants = re.findall(r"grant execute on function\s+public\.(\w+)", sql)
         assert sorted(revokes) == ["match_research_documents", "match_research_documents_hybrid"]
-        assert sql.count("from anon, authenticated;") == 2
+        assert sorted(grants) == ["match_research_documents", "match_research_documents_hybrid"]
+        assert sql.count("from public, anon, authenticated;") == 2
+        assert sql.count("to service_role;") == 2
 
     def test_the_predicate_scopes_the_candidate_set_of_the_hybrid_function(self):
         """Filtered in `candidates`, before either ranking is taken.

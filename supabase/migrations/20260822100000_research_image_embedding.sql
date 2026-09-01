@@ -192,9 +192,12 @@ comment on function public.match_research_document_images is
   'filter_desk_id / filter_user_id scope the candidate set; null is unscoped. '
   'min_similarity null means no floor, never "similarity is null".';
 
--- The gateway reads with the service role, which is unaffected by this; anon
--- and authenticated are revoked for the reason `20260812091000` gives, and a
--- newly created function is executable by PUBLIC until somebody says otherwise.
+-- PostgreSQL makes a newly created function executable by PUBLIC. State the
+-- complete intended ACL: only the service-role gateway may call this retrieval
+-- RPC directly.
 revoke execute on function public.match_research_document_images(
   extensions.vector, integer, public.research_doc_kind, uuid, uuid, double precision
-) from anon, authenticated;
+) from public, anon, authenticated;
+grant execute on function public.match_research_document_images(
+  extensions.vector, integer, public.research_doc_kind, uuid, uuid, double precision
+) to service_role;

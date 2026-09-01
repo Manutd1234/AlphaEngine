@@ -174,13 +174,21 @@ def combos_view(observation: Any) -> CoherenceCombos:
                 bound=str(row.bound),
                 cost=text(row.cost),
                 slack=text(row.slack),
+                testable=row.testable,
+                untestable_reason=row.untestable_reason,
                 violated=row.violated,
                 legs=[
                     CoherenceComboLeg(
                         ticker=leg.ticker,
                         label=leg.label,
                         side=leg.side,
+                        # Kept during the rolling contract transition: the old
+                        # web bundle reads buy legs from this field, while the
+                        # new bundle uses direction + execution_cost for both
+                        # sides. A sell remains null here, exactly as before.
                         buy_cost=text(leg.price) if leg.direction == "buy" else None,
+                        direction=leg.direction,
+                        execution_cost=text(leg.price),
                     )
                     for leg in row.legs
                 ],

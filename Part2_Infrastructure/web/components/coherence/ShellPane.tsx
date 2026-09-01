@@ -178,9 +178,9 @@ export default function ShellPane(
     command === "ls" && data?.state === "available" ? data.entries.length : null,
   );
 
-  const navigate = (next: string) => {
+  const navigate = (next: string, nextMode: "ls" | "cat" = "ls") => {
     setPath(next);
-    setMode("ls");
+    setMode(nextMode);
     onView("tree");
   };
 
@@ -243,20 +243,20 @@ export default function ShellPane(
       <div className={styles.mapContainment}>
         {framed(
           "the namespace from watched root to derived file",
-          <>
+          <div className={styles.mapStack}>
             <ShellTree
               root={topology.data}
               loading={topology.loading}
               error={topology.error}
               updatedAt={topology.updatedAt}
               points={topologyTape}
-              onBrowse={(next = "/") => navigate(next)}
+              onBrowse={(next, nextCommand) => navigate(next, nextCommand)}
             />
             <details className="disclosure">
               <summary>Command and derived-file reference</summary>
               <CommandReference />
             </details>
-          </>,
+          </div>,
         )}
       </div>
     );

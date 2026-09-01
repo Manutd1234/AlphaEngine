@@ -205,6 +205,127 @@ describe("continuous deployment keeps the desk alive across a swap", () => {
     );
   });
 
+  it("forwards the scoped Supabase and Neo4j read-model configuration deterministically", () => {
+    const remoteEnvs = /^\s*envs: ([^\n]+)$/m.exec(deployWorkflow)?.[1] ?? "";
+    const forwarded = [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "SUPABASE_DESK_ID",
+      "SUPABASE_MIRROR_ENABLED",
+      "RESEARCH_RAG_ENABLED",
+      "RESEARCH_SCOPE_TO_DESK",
+      "NEO4J_URI",
+      "NEO4J_USERNAME",
+      "NEO4J_PASSWORD",
+      "NEO4J_DATABASE",
+    ];
+    for (const name of forwarded) {
+      assert.ok(
+        remoteEnvs.split(",").includes(name),
+        `${name} is not forwarded through the SSH action`,
+      );
+      assert.match(
+        deployWorkflow,
+        new RegExp(`put ${name} "\\$\\{${name}:-\\}"`),
+        `${name} is forwarded to the VM but never written into the container env`,
+      );
+    }
+
+    assert.match(deployWorkflow, /SUPABASE_MIRROR_ENABLED: \$\{\{ vars\.SUPABASE_MIRROR_ENABLED \|\| '1' \}\}/);
+    assert.match(deployWorkflow, /RESEARCH_RAG_ENABLED: \$\{\{ vars\.RESEARCH_RAG_ENABLED \|\| '1' \}\}/);
+    assert.match(deployWorkflow, /RESEARCH_SCOPE_TO_DESK: \$\{\{ vars\.RESEARCH_SCOPE_TO_DESK \|\| '1' \}\}/);
+    assert.doesNotMatch(
+      deployWorkflow,
+      /put DATA_OPS_BACKEND/,
+      "Supabase is a mirror and research authority here; OCI's production ledger must not be silently replaced",
+    );
+  });
+
+  it("supports a configured production pair and an intentionally keyless revoke", () => {
+    const start = deployWorkflow.indexOf("- name: Required secrets are present");
+    const end = deployWorkflow.indexOf("- name: Pull, swap, verify, roll back on failure", start);
+    assert.ok(start > 0 && end > start, "the required-secret preflight step was not found");
+    const preflight = deployWorkflow.slice(start, end);
+
+    const halfPair = preflight.indexOf("must be configured together");
+    const invalidRevoke = preflight.indexOf("KALSHI_DEMO_REVOKE must be 0 or 1");
+    const revokeConflict = preflight.indexOf("conflicts with a configured demo credential");
+    const normalMode = preflight.indexOf('if [ "$KALSHI_DEMO_REVOKE" = "0" ]');
+    const genericMissing = preflight.indexOf("Missing repository secrets");
+    assert.ok(
+      halfPair > 0
+        && invalidRevoke > halfPair
+        && revokeConflict > invalidRevoke
+        && normalMode > revokeConflict
+        && genericMissing > normalMode,
+      "the generic missing-secret exit hides the actionable Kalshi pair/revoke diagnostic",
+    );
+    const normalRequirements = preflight.slice(normalMode, genericMissing);
+    assert.match(normalRequirements, /\[ -n "\$KALSHI_DEMO_KEY_ID" \] \|\| missing\+=\("KALSHI_DEMO_KEY_ID"\)/);
+    assert.match(
+      normalRequirements,
+      /\[ -n "\$KALSHI_DEMO_PRIVATE_KEY_PEM_B64" \] \|\| missing\+=\("KALSHI_DEMO_PRIVATE_KEY_PEM_B64"\)/,
+      "production must still refuse a deployment without the complete configured Kalshi pair",
+    );
+    assert.doesNotMatch(
+      preflight.slice(0, normalMode),
+      /missing\+=\("KALSHI_DEMO_(?:KEY_ID|PRIVATE_KEY_PEM_B64)"\)/,
+      "keyless revoke mode must not be rejected by the generic missing-secret inventory",
+    );
+
+    const canary = deployWorkflow.slice(
+      deployWorkflow.indexOf("Confirming the authenticated private maker channel state"),
+      deployWorkflow.indexOf("unset RFQ_JSON"),
+    );
+    assert.match(canary, /if \[ "\$KALSHI_DEMO_REVOKE" = "1" \]; then[\s\S]*"signing_unavailable"/);
+    assert.match(canary, /KALSHI_DEMO_KEY_ID[\s\S]*Private Makers credential revocation verified/);
+    assert.match(canary, /elif ! printf[\s\S]*"\(empty\|available\)"/,
+      "normal production mode must still prove a signed private Makers read");
+  });
+
+  it("rebuilds the scoped research read model before the replacement scheduler starts", () => {
+    const bootstrap = deployWorkflow.indexOf("python tools/reconcile_research_once.py");
+    const cutover = deployWorkflow.indexOf('echo "==> Stopping the current container"', bootstrap);
+    const stop = deployWorkflow.indexOf('docker stop --time 20 "$CONTAINER"', cutover);
+    const remove = deployWorkflow.indexOf('remove_container_checked "$CONTAINER"', stop);
+    const replacement = deployWorkflow.indexOf('start_container "$IMAGE"', remove);
+    assert.ok(bootstrap > 0 && cutover > bootstrap && stop > cutover && remove > stop && replacement > remove,
+      "the bounded one-shot must finish while the old gateway serves, immediately before replacement cutover");
+
+    const preflight = deployWorkflow.slice(
+      deployWorkflow.lastIndexOf("RESEARCH_BOOTSTRAP_CONTAINER=", bootstrap),
+      cutover,
+    );
+    assert.match(preflight, /timeout --signal=TERM --kill-after=10s 180s/);
+    assert.match(preflight, /docker run --rm[\s\S]*--env-file "\$ENV_FILE"/);
+    assert.match(preflight, /--limit 200/);
+    assert.match(preflight, /--sweep "deploy-\$\{KALSHI_KEY_SLOT\}"/);
+    assert.match(
+      preflight,
+      /scoped Supabase-to-Neo4j rebuild[\s\S]*unwind_unstarted_replacement/,
+      "a failed or timed-out rebuild must unwind the candidate transaction while the old gateway stays live",
+    );
+    assert.doesNotMatch(preflight, /docker stop[^\n]*"\$CONTAINER"|remove_container_checked "\$CONTAINER"/,
+      "the old gateway must remain present throughout the bounded research preflight");
+    assert.doesNotMatch(preflight, /curl[^\n]*research/,
+      "the bootstrap must stay an in-container one-shot, not expose or call a write route");
+
+    const unwind = deployWorkflow.slice(
+      deployWorkflow.indexOf("unwind_unstarted_replacement() {"),
+      deployWorkflow.indexOf('REPLACEMENT_GATEWAY="$IMAGE"'),
+    );
+    const runningState = unwind.indexOf("{{.State.Running}}");
+    const stoppedBranch = unwind.indexOf('[ "$prior_running" != "true" ]', runningState);
+    const restart = unwind.indexOf('docker start "$CONTAINER"', stoppedBranch);
+    assert.ok(runningState > 0 && stoppedBranch > runningState && restart > stoppedBranch,
+      "preflight unwind must leave an already-running prior gateway untouched");
+
+    const cutoverBlock = deployWorkflow.slice(cutover, replacement);
+    assert.doesNotMatch(cutoverBlock, /reconcile_research_once|timeout --signal/,
+      "no bounded preflight may widen the old-gateway-to-replacement outage window");
+    assert.match(cutoverBlock, /docker stop --time 20[\s\S]*remove_container_checked "\$CONTAINER"/);
+  });
+
   it("embeds no multi-line quoted program in the remote script", () => {
     /**
      * The script reaches the VM through the SSH action with CRLF endings.

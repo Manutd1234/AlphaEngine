@@ -70,6 +70,55 @@ def check_supabase() -> Result:
     return Result("supabase rls", FAIL, f"unexpected status {status}")
 
 
+def check_supabase_mirror(token: str | None) -> Result:
+    """The gateway's durable decision mirror, through its secret-free counters."""
+    if not token:
+        return Result("supabase decision mirror", SKIP, "needs the gateway token")
+    status, body, ms = fetch(f"{GATEWAY}/api/ops/snapshot", token=token)
+    if status != 200 or not isinstance(body, dict):
+        return Result(
+            "supabase decision mirror",
+            FAIL,
+            f"operations snapshot answered HTTP {status}",
+            fix="The authenticated operations snapshot must answer before mirror readiness can be verified.",
+        )
+    mirror = body.get("supabase")
+    if not isinstance(mirror, dict) or not mirror.get("configured"):
+        return Result(
+            "supabase decision mirror",
+            SKIP,
+            "the gateway reports no configured Supabase mirror",
+            fix="Set SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_DESK_ID and "
+            "SUPABASE_MIRROR_ENABLED=1 on the gateway.",
+        )
+    if not mirror.get("running"):
+        return Result(
+            "supabase decision mirror",
+            FAIL,
+            "configured but its drain task is not running",
+            fix="Inspect gateway startup logs for `supabase mirror started`; one configured mirror needs one drain task.",
+        )
+    failed = int(mirror.get("failed") or 0)
+    dropped = int(mirror.get("dropped") or 0)
+    if failed or dropped:
+        return Result(
+            "supabase decision mirror",
+            FAIL,
+            f"running, but {failed} decision(s) failed and {dropped} were dropped",
+            fix="Inspect the classified last_error_kind and reconcile the missing decision rows from the OCI ledger.",
+        )
+    return Result(
+        "supabase decision mirror",
+        OK,
+        f"running · {int(mirror.get('written') or 0)} written · "
+        f"{int(mirror.get('queued') or 0)} queued · {ms:.0f}ms",
+        data={
+            "written": int(mirror.get("written") or 0),
+            "queued": int(mirror.get("queued") or 0),
+        },
+    )
+
+
 def check_market_data() -> Result:
     """The backtester's own data path, through Vercel."""
     status, body, ms = fetch(f"{VERCEL}/api/ohlcv?symbol=BTCUSDT&interval=1h&bars=120")
@@ -135,3 +184,130 @@ def check_rag_embed(token: str | None) -> Result:
             fix="A dimension mismatch means the corpus and queries used different models — retrieval would rank nonsense.",
         )
     return Result("rag embed route", OK, f"{len(vectors)}x{dims}-dim vector in {ms:.0f}ms")
+
+
+def check_rag_status(token: str | None) -> Result:
+    """The live corpus writer, not merely an embedding function that answers once."""
+    if not token:
+        return Result("rag index drain", SKIP, "needs the gateway token")
+    status, body, ms = fetch(f"{GATEWAY}/api/research/rag/status", token=token)
+    if status != 200 or not isinstance(body, dict):
+        return Result(
+            "rag index drain", FAIL, f"HTTP {status}",
+            fix="The authenticated RAG status route must answer before ingestion can be verified.",
+        )
+    if not body.get("configured"):
+        return Result(
+            "rag index drain", SKIP, "Supabase corpus ingestion is not configured",
+            fix="Set SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_DESK_ID and "
+                "RESEARCH_RAG_ENABLED=1 on the gateway.",
+        )
+    if not body.get("running"):
+        return Result(
+            "rag index drain", FAIL, "configured but the drain task is not running",
+            fix="Inspect gateway logs for `alphaengine.rag`; a configured index must have one live drain task.",
+        )
+    dropped = int(body.get("dropped") or 0)
+    failed = int(body.get("failed") or 0)
+    if dropped or failed:
+        return Result(
+            "rag index drain", FAIL,
+            f"running, but {failed} document(s) failed and {dropped} were dropped",
+            fix="Replay the RAG dead-letter/backfill input after fixing the reported Supabase or embed failure.",
+        )
+    return Result(
+        "rag index drain", OK,
+        f"running · {int(body.get('indexed') or 0)} indexed · "
+        f"{int(body.get('queued') or 0)} queued · {ms:.0f}ms",
+        data={
+            "indexed": int(body.get("indexed") or 0),
+            "queued": int(body.get("queued") or 0),
+            "pending_embeddings": int(body.get("pending_embeddings") or 0),
+        },
+    )
+
+
+def _read_model_reason(body: dict) -> str:
+    read_model = body.get("read_model") or {}
+    return str(read_model.get("reason") or "the Neo4j read model did not answer")
+
+
+def check_graph_linkage(token: str | None) -> Result:
+    """Prove Supabase edges were projected and read back from one Neo4j sweep.
+
+    A successful corpus fallback is useful product behaviour, but it does not
+    prove the optional projection works. This check therefore requires both
+    whole-corpus reports to say ``source: neo4j`` and to agree on the sweep and
+    graph population. It never writes or starts a sweep.
+    """
+    if not token:
+        return Result("neo4j graph readback", SKIP, "needs the gateway token")
+
+    responses: dict[str, dict] = {}
+    for name in ("communities", "centrality"):
+        status, body, _ = fetch(f"{GATEWAY}/api/research/graph/{name}", token=token)
+        if status != 200 or not isinstance(body, dict):
+            return Result(
+                "neo4j graph readback", FAIL, f"{name} answered HTTP {status}",
+                fix="Check the gateway graph route and Supabase/Neo4j connectivity before running the sweep.",
+            )
+        responses[name] = body
+
+    communities = responses["communities"]
+    centrality = responses["centrality"]
+    if communities.get("source") != "neo4j" or centrality.get("source") != "neo4j":
+        reasons = [_read_model_reason(communities), _read_model_reason(centrality)]
+        detail = "; ".join(dict.fromkeys(reasons))
+        optional = any(
+            marker in detail
+            for marker in ("NEO4J_URI", "neo4j driver is not installed", "requirements-graph.txt")
+        )
+        return Result(
+            "neo4j graph readback", SKIP if optional else FAIL,
+            f"served from the corpus fallback: {detail}",
+            fix=(
+                "Set NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD and NEO4J_DATABASE, install "
+                "requirements-graph.txt, then let the graph and community schedules complete."
+                if optional else
+                "The graph is configured but its projection is absent, stale or mid-rebuild; inspect the "
+                "research reconcile job and run one complete graph/community sweep."
+            ),
+        )
+
+    detection = communities.get("detection") or {}
+    ranking = centrality.get("ranking") or {}
+    if not detection.get("detected") or not ranking.get("ranked"):
+        return Result(
+            "neo4j graph readback", FAIL, "Neo4j answered without a complete partition and ranking",
+            fix="Run one complete whole-corpus community sweep; partial labels are refused by design.",
+        )
+
+    community_sweep = str(communities.get("sweep") or detection.get("sweep") or "")
+    centrality_sweep = str(ranking.get("sweep") or "")
+    community_documents = int(detection.get("documents") or 0)
+    centrality_documents = int(ranking.get("documents") or 0)
+    community_edges = int(detection.get("edges") or 0)
+    centrality_edges = int(ranking.get("edges") or 0)
+    if (
+        not community_sweep
+        or community_sweep != centrality_sweep
+        or community_documents != centrality_documents
+        or community_edges != centrality_edges
+    ):
+        return Result(
+            "neo4j graph readback", FAIL,
+            "community and centrality projections do not describe the same sweep/population",
+            fix="Let one whole-corpus sweep write both label sets; never combine rows from two sweeps.",
+        )
+
+    return Result(
+        "neo4j graph readback", OK,
+        f"{community_documents} documents · {community_edges} edges · "
+        f"{int(detection.get('community_count') or 0)} communities · sweep {community_sweep}",
+        data={
+            "documents": community_documents,
+            "edges": community_edges,
+            "communities": int(detection.get("community_count") or 0),
+            "sweep": community_sweep,
+        },
+    )

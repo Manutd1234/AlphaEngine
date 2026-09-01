@@ -66,204 +66,47 @@ from modules.research_communities import _unavailable as _undetected
 from modules.research_communities import _unranked
 
 # Bound independently so patching the projection's writer driver cannot redirect reads.
-from modules.research_graph_projection import RELATION_TYPES, _driver
+from modules.research_graph_projection import _driver
+from modules.research_graph_read_model_support import _COUNT_PAIRS_IN as _COUNT_PAIRS_IN
+from modules.research_graph_read_model_support import (
+    COUNT_CENTRALITY_PAIRS as COUNT_CENTRALITY_PAIRS,
+)
+from modules.research_graph_read_model_support import (
+    COUNT_COMMUNITY_PAIRS as COUNT_COMMUNITY_PAIRS,
+)
+from modules.research_graph_read_model_support import READ_CENTRALITY as READ_CENTRALITY
+from modules.research_graph_read_model_support import READ_COMMUNITIES as READ_COMMUNITIES
+from modules.research_graph_read_model_support import (
+    READ_COMMUNITY_RELATIONS as READ_COMMUNITY_RELATIONS,
+)
+from modules.research_graph_read_model_support import (
+    RELATIONS_BY_TYPE as RELATIONS_BY_TYPE,
+)
+from modules.research_graph_read_model_support import _count as _count
+from modules.research_graph_read_model_support import _impossible as _impossible
+from modules.research_graph_read_model_support import _one_sweep as _one_sweep
+from modules.research_graph_read_model_support import _rows as _rows
+from modules.research_graph_read_model_support import _summarise as _summarise
+from modules.research_graph_read_model_support import _tally as _tally
 
 log = logging.getLogger("alphaengine.research_graph_read_model")
-
-_DESK_SCOPE_REASON = ("RESEARCH_SCOPE_TO_DESK is on, but the Neo4j projection carries no "
-                      "desk_id; the desk-scoped corpus fallback was used")
-
 
 def _read_model_refusal(offered: bool) -> str | None:
     if not offered:
         return "the caller asked for the corpus computation, so Neo4j was not consulted"
-    if research_quota_scope.SCOPE_TO_DESK:
-        return _DESK_SCOPE_REASON
+    if research_quota_scope.SCOPE_TO_DESK and not str(settings.supabase_desk_id or "").strip():
+        return (
+            "RESEARCH_SCOPE_TO_DESK is on but SUPABASE_DESK_ID is empty, so the Neo4j "
+            "projection was not read"
+        )
     return None
 
-#: Labels grouped by the sweep's id; only ``(community_sweep, community)`` is citable.
-#: A bare integer after the corpus moves may have been renumbered.
-READ_COMMUNITIES = (
-    "MATCH (d:Document) WHERE d.community IS NOT NULL "
-    "RETURN d.community AS community, d.community_sweep AS sweep, collect(d.id) AS members"
-)
 
-#: The internal relation tally, one row per (community, relationship type).
-#: Internal ties ONLY — both endpoints in the same community — because that is
-#: what a community is made of; counting the ties leaving it would describe the
-#: boundary, which is a different question and one nothing here asks. Matches
-#: what ``research_communities._summarise`` counts, so the two paths report the
-#: same field to mean the same thing.
-READ_COMMUNITY_RELATIONS = (
-    "MATCH (a:Document)-[r]->(b:Document) "
-    "WHERE a.community IS NOT NULL AND a.community = b.community "
-    "RETURN a.community AS community, type(r) AS relation, count(r) AS n"
-)
-
-#: Distinct undirected PAIRS, not relationships, AMONG THE NODES THE REPORT IS
-#: ABOUT. ``_build`` collapses parallel edges into one weighted edge, so
-#: ``graph.number_of_edges()`` counts pairs — two documents joined by both
-#: ``same_symbol`` and ``same_data`` are two relationships here and one edge
-#: there — and counting relationships would report a bigger graph than the
-#: networkx path does under the same field name. The scope predicate corrects a
-#: served falsehood: unscoped, this counted every Document pair in the INSTANCE
-#: — nodes no sweep has labelled, and test fixtures MERGEd in by past runs —
-#: while ``documents`` beside it counts labelled nodes only. Live that printed
-#: 44 edges over 7 documents, and 7 documents admit at most C(7,2) = 21 pairs:
-#: two populations served as one graph's two measurements. Scoped it read 8,
-#: and THAT DROP IS THE FIX rather than a loss of edges. Both endpoints are
-#: constrained and the sweep stamps must MATCH, because a pair spanning two
-#: sweeps belongs to neither partition — the argument ``_one_sweep`` makes
-#: about labels, applied to the ties between them. ``a.id <> b.id`` is here
-#: because ``_build`` drops self-loops before counting, so a loop counted as a
-#: pair would break the same parity a second way. The rejected alternative was
-#: the sibling ``READ_COMMUNITY_RELATIONS`` form, ``a.community =
-#: b.community``: that counts INTERNAL ties only, describing the communities
-#: rather than the graph they partition, and ``number_of_edges()`` is the whole
-#: graph.
-_COUNT_PAIRS_IN = (
-    "MATCH (a:Document)-[r]->(b:Document) "
-    "WHERE {scope} AND a.id <> b.id "
-    "RETURN count(DISTINCT CASE WHEN a.id < b.id THEN [a.id, b.id] ELSE [b.id, a.id] END) AS n"
-)
-
-#: The pairs among the documents this sweep LABELLED — the graph it partitioned.
-COUNT_COMMUNITY_PAIRS = _COUNT_PAIRS_IN.format(
-    scope="a.community IS NOT NULL AND b.community IS NOT NULL "
-          "AND a.community_sweep = b.community_sweep"
-)
-
-#: The pairs among the documents this sweep SCORED. Keyed on the centrality
-#: stamp rather than the community one: the two sweeps are written by different
-#: calls and either can be the older of the pair.
-COUNT_CENTRALITY_PAIRS = _COUNT_PAIRS_IN.format(
-    scope="a.centrality IS NOT NULL AND b.centrality IS NOT NULL "
-          "AND a.centrality_sweep = b.centrality_sweep"
-)
-
-#: The PageRank scores ``project_centrality`` wrote, already in rank order. The
-#: ORDER BY is not decoration: ``rank_documents`` returns an ordered list because
-#: the order is the product, and a score quoted on its own means nothing.
-READ_CENTRALITY = (
-    "MATCH (d:Document) WHERE d.centrality IS NOT NULL "
-    "RETURN d.id AS id, d.centrality AS score, d.centrality_sweep AS sweep "
-    "ORDER BY d.centrality DESC, d.id ASC"
-)
-
-#: Neo4j relationship type back to the ``public.research_relation`` value. Built
-#: from the projection's own map so a relation added there cannot be read back
-#: here under a name Postgres never used.
-RELATIONS_BY_TYPE: dict[str, str] = {value: key for key, value in RELATION_TYPES.items()}
-
-
-def _rows(result: Any) -> list[dict[str, Any]] | None:
-    """Every record as a plain dict, or ``None`` when the driver returned nothing readable.
-
-    ``None`` and ``[]`` are different answers and both are normal: an empty list
-    is a graph with no labels in it, and ``None`` is a result object this code
-    could not read — which must fall back to the corpus rather than be reported
-    as an empty partition.
-    """
-    try:
-        records = list(result)
-    except Exception:  # noqa: BLE001 - an unreadable result is an absence, not a failure
+def _desk_scope() -> str | None:
+    """The node property predicate for this read, or None for legacy unscoped mode."""
+    if not research_quota_scope.SCOPE_TO_DESK:
         return None
-    rows: list[dict[str, Any]] = []
-    for record in records:
-        if not hasattr(record, "keys") or not hasattr(record, "get"):
-            return None
-        rows.append({key: record.get(key) for key in record.keys()})
-    return rows
-
-
-def _count(result: Any) -> int | None:
-    """The single ``n`` a count query returns, or ``None`` — never 0 on failure."""
-    rows = _rows(result)
-    if not rows:
-        return None
-    value = rows[0].get("n")
-    return int(value) if isinstance(value, int) else None
-
-
-def _impossible(pairs: int, documents: int) -> str | None:
-    """Why ``pairs`` cannot be an edge count over ``documents`` nodes, or ``None``.
-
-    The arithmetic is total and cheap, and it is what would have caught the
-    unscoped pair count the day it shipped: a count taken over one population
-    and printed beside a size taken over another eventually exceeds what the
-    smaller population can hold, and the report then refutes itself in public.
-    Checked on the RESPONSE, not the query, because it is the served pair of
-    numbers that must cohere however either was obtained — so the next query
-    somebody writes here is checked by this one too.
-    """
-    ceiling = documents * (documents - 1) // 2
-    if pairs <= ceiling:
-        return None
-    return (
-        f"the projection reported {pairs} edges over {documents} documents, and {documents} "
-        f"documents admit at most {ceiling} undirected pairs, so the two were counted over "
-        "different populations and neither can be quoted"
-    )
-
-
-def _one_sweep(rows: list[dict[str, Any]]) -> tuple[str | None, str | None]:
-    """The single sweep stamp these labels carry, or a reason they cannot be used."""
-    stamps = {row.get("sweep") for row in rows}
-    if None in stamps or "" in stamps:
-        return None, (
-            "the projected labels carry no sweep stamp, so a stale partition could not be told "
-            "apart from a current one"
-        )
-    if len(stamps) > 1:
-        return None, (
-            f"the projection holds labels from {len(stamps)} different sweeps "
-            f"({sorted(str(s) for s in stamps)}), so it is mid-rebuild; ids are comparable only "
-            "within one sweep"
-        )
-    return str(next(iter(stamps))), None
-
-
-def _summarise(rows: list[dict[str, Any]], tally: dict[Any, dict[str, int]]) -> list[dict[str, Any]]:
-    """One row per community, in the shape ``research_communities._summarise`` returns.
-
-    ``id`` is the label the sweep WROTE, not a position in this list. The
-    networkx path numbers communities by size because it has just computed them
-    and nothing else names them; here the number is already in the graph, it is
-    half of the ``(sweep, community)`` pair a reader cites, and renumbering it by
-    size would break that pairing for anyone holding a label from yesterday.
-    """
-    communities: list[dict[str, Any]] = []
-    for row in rows:
-        members = sorted((member for member in (row.get("members") or []) if member), key=str)
-        relations = dict(sorted(tally.get(row.get("community"), {}).items()))
-        top = max(relations.values(), default=0)
-        communities.append({
-            "id": row.get("community"),
-            "members": members,
-            "size": len(members),
-            "relations": relations,
-            # A LIST, as in the networkx path: a genuine tie between two relation
-            # types is common in this corpus and picking one would invent a fact.
-            "dominant_relations": sorted(name for name, n in relations.items() if n == top) if top else [],
-        })
-    communities.sort(key=lambda row: (-row["size"], str(row["members"][0]) if row["members"] else ""))
-    return communities
-
-
-def _tally(rows: list[dict[str, Any]]) -> dict[Any, dict[str, int]]:
-    """Relation counts per community, with the Neo4j type mapped back to the enum value."""
-    tally: dict[Any, dict[str, int]] = {}
-    for row in rows:
-        relation = RELATIONS_BY_TYPE.get(str(row.get("relation")))
-        count = row.get("n")
-        if relation is None or not isinstance(count, int):
-            # An unmapped type is a relationship this projection did not write.
-            # Skipped rather than reported under its Cypher name, which would put
-            # a relation Postgres has never heard of into a desk's report.
-            continue
-        tally.setdefault(row.get("community"), {})[relation] = count
-    return tally
-
+    return str(settings.supabase_desk_id or "").strip() or None
 
 def _session(read: Any) -> tuple[dict[str, Any] | None, str | None]:
     """Open a session, run ``read`` against it, and turn every failure into a reason.
@@ -302,10 +145,11 @@ def community_labels(*, writing: bool = False, offered: bool = True) -> dict[str
             "be a fixpoint — the corpus could change every day and the partition never would"
         )
     def _read(session: Any) -> dict[str, Any]:
+        desk_id = _desk_scope()
         return {
-            "communities": _rows(session.run(READ_COMMUNITIES)),
-            "relations": _rows(session.run(READ_COMMUNITY_RELATIONS)),
-            "pairs": _count(session.run(COUNT_COMMUNITY_PAIRS)),
+            "communities": _rows(session.run(READ_COMMUNITIES, desk_id=desk_id)),
+            "relations": _rows(session.run(READ_COMMUNITY_RELATIONS, desk_id=desk_id)),
+            "pairs": _count(session.run(COUNT_COMMUNITY_PAIRS, desk_id=desk_id)),
         }
 
     answer, reason = _session(_read)
@@ -358,7 +202,11 @@ def centrality_scores(*, offered: bool = True) -> dict[str, Any]:
         return _unranked(refusal)
 
     def _read(session: Any) -> dict[str, Any]:
-        return {"scores": _rows(session.run(READ_CENTRALITY)), "pairs": _count(session.run(COUNT_CENTRALITY_PAIRS))}
+        desk_id = _desk_scope()
+        return {
+            "scores": _rows(session.run(READ_CENTRALITY, desk_id=desk_id)),
+            "pairs": _count(session.run(COUNT_CENTRALITY_PAIRS, desk_id=desk_id)),
+        }
 
     answer, reason = _session(_read)
     if answer is None:

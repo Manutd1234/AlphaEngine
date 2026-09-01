@@ -185,6 +185,16 @@
       "proofs": { "sha256": "13998ca9673651ac007e5c1da51966f6f529b8e2a6c713289ee7846800cc96fc", "strings": 2930, "words": 16327 },
       "diffusion": { "sha256": "e5cba74b4a9a46b83bfb7b0d3ad0ec9c8b4b0fccea5b8b1339f6d5515ac59afe", "strings": 1894, "words": 10419 }
     },
+    "kalshiDurability20260901Tabs": {
+      "markets": { "sha256": "a5e59a079860aa32f8cd5d0c6855f050976a3b9772f3160630ecf06acb45b2ac", "strings": 2622, "words": 10106 },
+      "proofs": { "sha256": "13998ca9673651ac007e5c1da51966f6f529b8e2a6c713289ee7846800cc96fc", "strings": 2930, "words": 16327 },
+      "diffusion": { "sha256": "3e4302df746c8c7fe5acf6dcab548c992b30c819e829b63b5460370bd3012754", "strings": 1909, "words": 10431 }
+    },
+    "combosQuoteCoverage20260901Tabs": {
+      "markets": { "sha256": "a5e59a079860aa32f8cd5d0c6855f050976a3b9772f3160630ecf06acb45b2ac", "strings": 2622, "words": 10106 },
+      "proofs": { "sha256": "394396d40b5b536e2f1b0a215e345982d440a11eb35419f28846d28a8fdc509e", "strings": 2934, "words": 16343 },
+      "diffusion": { "sha256": "3e4302df746c8c7fe5acf6dcab548c992b30c819e829b63b5460370bd3012754", "strings": 1909, "words": 10431 }
+    },
     "summaryCopy": {
       "browserObserved": false,
       "method": "source-derived summary-copy checks with product-specific scopes",

@@ -219,6 +219,15 @@ jobs:
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           WEB_API_TOKEN: ${{ secrets.WEB_API_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_DESK_ID: ${{ vars.SUPABASE_DESK_ID || '00000000-0000-0000-0000-000000000001' }}
+          RESEARCH_RAG_ENABLED: ${{ vars.RESEARCH_RAG_ENABLED || '1' }}
+          RESEARCH_SCOPE_TO_DESK: ${{ vars.RESEARCH_SCOPE_TO_DESK || '1' }}
+          NEO4J_URI: ${{ secrets.NEO4J_URI }}
+          NEO4J_USERNAME: ${{ secrets.NEO4J_USERNAME }}
+          NEO4J_PASSWORD: ${{ secrets.NEO4J_PASSWORD }}
+          NEO4J_DATABASE: ${{ secrets.NEO4J_DATABASE }}
           KALSHI_DEMO_KEY_ID: ${{ secrets.KALSHI_DEMO_KEY_ID }}
           KALSHI_DEMO_PRIVATE_KEY_PEM_B64: ${{ secrets.KALSHI_DEMO_PRIVATE_KEY_PEM_B64 }}
           KALSHI_DEMO_REVOKE: ${{ vars.KALSHI_DEMO_REVOKE || '0' }}
@@ -228,18 +237,18 @@ jobs:
           [ -n "$SSH_USER" ]      || missing+=("SSH_USER")
           [ -n "$SSH_KEY" ]       || missing+=("SSH_PRIVATE_KEY")
           [ -n "$WEB_API_TOKEN" ] || missing+=("WEB_API_TOKEN")
-          [ -n "$KALSHI_DEMO_KEY_ID" ] || missing+=("KALSHI_DEMO_KEY_ID")
-          [ -n "$KALSHI_DEMO_PRIVATE_KEY_PEM_B64" ] || missing+=("KALSHI_DEMO_PRIVATE_KEY_PEM_B64")
-          if [ ${#missing[@]} -gt 0 ]; then
-            echo "::error::Missing repository secrets: ${missing[*]}"
-            echo "WEB_API_TOKEN must equal ALPHAENGINE_GATEWAY_TOKEN in the Vercel project."
-            echo "Generate one with: openssl rand -hex 32"
-            exit 1
-          fi
-
-          # Makers is a production surface in this deployment. Both values are
-          # required above, and this separate pair check preserves the precise
-          # diagnostic for a half-rotation.
+          [ -n "$SUPABASE_URL" ] || missing+=("SUPABASE_URL")
+          [ -n "$SUPABASE_SERVICE_ROLE_KEY" ] || missing+=("SUPABASE_SERVICE_ROLE_KEY")
+          [ -n "$SUPABASE_DESK_ID" ] || missing+=("SUPABASE_DESK_ID repository variable")
+          [ -n "$NEO4J_URI" ] || missing+=("NEO4J_URI")
+          [ -n "$NEO4J_USERNAME" ] || missing+=("NEO4J_USERNAME")
+          [ -n "$NEO4J_PASSWORD" ] || missing+=("NEO4J_PASSWORD")
+          [ -n "$NEO4J_DATABASE" ] || missing+=("NEO4J_DATABASE")
+          # Makers is a production surface in this deployment. Normal mode
+          # requires the complete pair; the explicit one-shot revoke mode
+          # requires both values absent. Validate that state before building the
+          # generic inventory so revoke mode is reachable and a half-rotation or
+          # contradictory revoke request keeps its precise diagnostic.
           if { [ -n "$KALSHI_DEMO_KEY_ID" ] && [ -z "$KALSHI_DEMO_PRIVATE_KEY_PEM_B64" ]; } \
             || { [ -z "$KALSHI_DEMO_KEY_ID" ] && [ -n "$KALSHI_DEMO_PRIVATE_KEY_PEM_B64" ]; }; then
             echo "::error::KALSHI_DEMO_KEY_ID and KALSHI_DEMO_PRIVATE_KEY_PEM_B64 must be configured together."
@@ -252,6 +261,17 @@ jobs:
           if [ "$KALSHI_DEMO_REVOKE" = "1" ] \
             && { [ -n "$KALSHI_DEMO_KEY_ID" ] || [ -n "$KALSHI_DEMO_PRIVATE_KEY_PEM_B64" ]; }; then
             echo "::error::KALSHI_DEMO_REVOKE=1 conflicts with a configured demo credential. Remove both repository secrets before revoking."
+            exit 1
+          fi
+          if [ "$KALSHI_DEMO_REVOKE" = "0" ]; then
+            [ -n "$KALSHI_DEMO_KEY_ID" ] || missing+=("KALSHI_DEMO_KEY_ID")
+            [ -n "$KALSHI_DEMO_PRIVATE_KEY_PEM_B64" ] || missing+=("KALSHI_DEMO_PRIVATE_KEY_PEM_B64")
+          fi
+
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing repository secrets: ${missing[*]}"
+            echo "WEB_API_TOKEN must equal ALPHAENGINE_GATEWAY_TOKEN in the Vercel project."
+            echo "Generate one with: openssl rand -hex 32"
             exit 1
           fi
 
@@ -294,7 +314,7 @@ jobs:
           command_timeout: 10m
           # Correction 5 — passed as environment variables, so none of these
           # appears in the VM's process list or shell history.
-          envs: IMAGE,REGISTRY,CONTAINER,VOLUME,KALSHI_KEY_VOLUME,KALSHI_KEY_SLOT,KALSHI_DEMO_REVOKE,PORT,GH_ACTOR,GH_TOKEN,WEB_API_TOKEN,SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,TELEGRAM_BOT_TOKEN,TELEGRAM_ALLOWED_USER_IDS,TELEGRAM_CONTROL_USER_IDS,TELEGRAM_ALERT_CHAT_IDS,TELEGRAM_LINK_SECRET,KALSHI_DEMO_KEY_ID,KALSHI_DEMO_PRIVATE_KEY_PEM_B64,COHERENCE_SERIES,COHERENCE_POLL_S,COHERENCE_MAX_EVENTS,COHERENCE_CALIBRATION_EVERY_S
+          envs: IMAGE,REGISTRY,CONTAINER,VOLUME,KALSHI_KEY_VOLUME,KALSHI_KEY_SLOT,KALSHI_DEMO_REVOKE,PORT,GH_ACTOR,GH_TOKEN,WEB_API_TOKEN,SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,SUPABASE_DESK_ID,SUPABASE_MIRROR_ENABLED,RESEARCH_RAG_ENABLED,RESEARCH_SCOPE_TO_DESK,NEO4J_URI,NEO4J_USERNAME,NEO4J_PASSWORD,NEO4J_DATABASE,TELEGRAM_BOT_TOKEN,TELEGRAM_ALLOWED_USER_IDS,TELEGRAM_CONTROL_USER_IDS,TELEGRAM_ALERT_CHAT_IDS,TELEGRAM_LINK_SECRET,KALSHI_DEMO_KEY_ID,KALSHI_DEMO_PRIVATE_KEY_PEM_B64,COHERENCE_SERIES,COHERENCE_POLL_S,COHERENCE_POST_CAMPAIGN_POLL_S,COHERENCE_MAX_EVENTS,COHERENCE_CALIBRATION_EVERY_S,COHERENCE_CAMPAIGN_ID,COHERENCE_CAMPAIGN_TARGET,COHERENCE_MIN_FREE_BYTES,COHERENCE_MAX_TAPE_BYTES,COHERENCE_RETENTION_DAYS
           script: |
             set -euo pipefail
 
@@ -367,8 +387,8 @@ jobs:
             # knows the subset of it that exists as a repository secret. A
             # deploy that truncated and rewrote it would silently drop every
             # variable configured directly on the VM — which at the time of
-            # writing is most of them: the Telegram bot token, the Supabase
-            # mirror credentials, RESEARCH_RAG_ENABLED, SYMBOLS, VENUES. The
+            # writing is most of them: SYMBOLS, VENUES, and provider-specific
+            # operational toggles that are deliberately host-local. The
             # container would come back healthy, pass its health check, pass
             # the external reachability probe, and have quietly lost its bot
             # and its mirror. Nothing would report it.
@@ -494,7 +514,17 @@ jobs:
             put WEB_API_TOKEN "${WEB_API_TOKEN:-}"
             put SUPABASE_URL "${SUPABASE_URL:-}"
             put SUPABASE_SERVICE_ROLE_KEY "${SUPABASE_SERVICE_ROLE_KEY:-}"
-            if [ -n "${SUPABASE_URL:-}" ]; then put SUPABASE_MIRROR_ENABLED "1"; fi
+            put SUPABASE_DESK_ID "${SUPABASE_DESK_ID:-}"
+            put SUPABASE_MIRROR_ENABLED "${SUPABASE_MIRROR_ENABLED:-}"
+            put RESEARCH_RAG_ENABLED "${RESEARCH_RAG_ENABLED:-}"
+            put RESEARCH_SCOPE_TO_DESK "${RESEARCH_SCOPE_TO_DESK:-}"
+            # Postgres research_edges is authoritative; Aura is the rebuildable
+            # desk-scoped read model. All four values are forwarded explicitly
+            # so a deploy never depends on a hand-maintained VM env file.
+            put NEO4J_URI "${NEO4J_URI:-}"
+            put NEO4J_USERNAME "${NEO4J_USERNAME:-}"
+            put NEO4J_PASSWORD "${NEO4J_PASSWORD:-}"
+            put NEO4J_DATABASE "${NEO4J_DATABASE:-}"
             put TELEGRAM_BOT_TOKEN "${TELEGRAM_BOT_TOKEN:-}"
             put TELEGRAM_ALLOWED_USER_IDS "${TELEGRAM_ALLOWED_USER_IDS:-}"
             # Both of these gate a FAIL-CLOSED check in the bot, so omitting
@@ -531,27 +561,32 @@ jobs:
             # WHAT THIS COSTS, measured on the live exchange rather than
             # estimated: one poll of KXBTCD + KXHIGHNY at COHERENCE_MAX_EVENTS=2
             # reads 274 books for 90 read tokens and writes about 780 KiB. At
-            # 300s that is 0.23 GB a day and 0.3 tokens per second — well inside
-            # the engine's own self-imposed budget, which is already a quarter
-            # of Kalshi's smallest published tier.
+            # 60s that is about 1.15 GB a day and 1.5 tokens per second. The
+            # bounded campaign and free-space guard below make that accelerated
+            # collection explicit rather than an unbounded new baseline.
             #
             # The tape lands on the SAME named volume as the audit ledger
             # (DATA_DIR=/app/data, -v ${VOLUME}:/app/data), so it persists
             # across deploys and it shares space with the one file on this box
-            # that must never run out of room. 0.23 GB/day is the number to
-            # watch; narrow COHERENCE_SERIES or raise COHERENCE_POLL_S to cut it.
+            # that must never run out of room. The recorder checks free bytes
+            # before every campaign poll and returns to the 300s baseline at the
+            # configured target; narrow COHERENCE_SERIES or raise
+            # COHERENCE_POLL_S to cut it.
             #
-            # Five-minute resolution is chosen for what this is currently for —
-            # a level comparison of the coherence index either side of the shard
-            # migration — and it is NOT fine enough to measure a dislocation
-            # that lives for seconds. The episode survival curve inherits the
-            # poll interval as its floor and will only ever see violations that
-            # outlast one; that is a real limit of this cadence, not of the
-            # measurement.
+            # One-minute resolution is still not tick data. The episode survival
+            # curve inherits the poll interval as its floor and a CLOSED episode
+            # still needs two coherent observations, so nothing here is labelled
+            # as 1,000 episodes: the campaign unit is a successful observation poll.
             put COHERENCE_SERIES "${COHERENCE_SERIES:-}"
             put COHERENCE_POLL_S "${COHERENCE_POLL_S:-}"
+            put COHERENCE_POST_CAMPAIGN_POLL_S "${COHERENCE_POST_CAMPAIGN_POLL_S:-}"
             put COHERENCE_MAX_EVENTS "${COHERENCE_MAX_EVENTS:-}"
             put COHERENCE_CALIBRATION_EVERY_S "${COHERENCE_CALIBRATION_EVERY_S:-}"
+            put COHERENCE_CAMPAIGN_ID "${COHERENCE_CAMPAIGN_ID:-}"
+            put COHERENCE_CAMPAIGN_TARGET "${COHERENCE_CAMPAIGN_TARGET:-}"
+            put COHERENCE_MIN_FREE_BYTES "${COHERENCE_MIN_FREE_BYTES:-}"
+            put COHERENCE_MAX_TAPE_BYTES "${COHERENCE_MAX_TAPE_BYTES:-}"
+            put COHERENCE_RETENTION_DAYS "${COHERENCE_RETENTION_DAYS:-}"
             echo "    overlaying $(grep -cE '^[A-Za-z_][A-Za-z0-9_]*=' "$OVERLAY" || true) CI-supplied variable(s)"
 
             # Overlay first (so it wins), then any KEY= line from the preserved
@@ -845,12 +880,31 @@ jobs:
               fi
 
               if [ -n "$PREVIOUS" ]; then
-                if ! docker start "$CONTAINER" >/dev/null 2>&1; then
-                  if ! remove_container_checked "$CONTAINER" \
-                      || ! start_container "$PREVIOUS" "$ENV_FILE"; then
-                    echo "::error::The prior gateway could not be restarted after the aborted cutover."
+                # A failed preflight reaches this function while the prior
+                # gateway is still serving. Prove that state and leave it alone;
+                # `docker start` must not be used as a running-state probe whose
+                # ambiguous failure could lead to removing a healthy process.
+                if ! prior_containers="$(docker container ls -a --format '{{.Names}}')"; then
+                  echo "::error::Docker could not inspect the prior gateway during pre-cutover unwind."
+                  return 1
+                fi
+                if grep -Fxq "$CONTAINER" <<< "$prior_containers"; then
+                  if ! prior_running="$(docker inspect --format '{{.State.Running}}' "$CONTAINER")"; then
+                    echo "::error::Docker could not verify the prior gateway running state during pre-cutover unwind."
                     return 1
                   fi
+                  if [ "$prior_running" != "true" ]; then
+                    if ! docker start "$CONTAINER" >/dev/null 2>&1; then
+                      if ! remove_container_checked "$CONTAINER" \
+                          || ! start_container "$PREVIOUS" "$ENV_FILE"; then
+                        echo "::error::The prior gateway could not be restarted after the aborted cutover."
+                        return 1
+                      fi
+                    fi
+                  fi
+                elif ! start_container "$PREVIOUS" "$ENV_FILE"; then
+                  echo "::error::The prior gateway could not be recreated after the aborted cutover."
+                  return 1
                 fi
                 if ! wait_for_gateway || ! curl -fsS "http://127.0.0.1:${PORT}/health" >/dev/null; then
                   echo "::error::The prior gateway did not recover after the aborted cutover."
@@ -874,10 +928,60 @@ jobs:
 
             REPLACEMENT_GATEWAY="$IMAGE"
 
+            # Scope migration bootstrap. The durable schedule store survives a
+            # deploy, so its last-run row can postpone the normal graph sweep by
+            # six hours. Legacy Neo4j nodes have no desk_id and the correctly
+            # scoped reader must hide them in the meantime. Reuse the existing
+            # reconcilers in strict order inside a disposable NEW-image process:
+            # nodes/edges, whole-corpus labels, then exact-sweep readback. Keep
+            # the old gateway serving throughout this bounded preflight. The
+            # unique deploy-scoped sweep stamp prevents an overlapping scheduler
+            # sweep from being mistaken for this verification: if one replaces
+            # either label set, the exact-sweep readback fails closed while the
+            # old gateway remains live. No write route is exposed.
+            RESEARCH_BOOTSTRAP_CONTAINER="${CONTAINER}-research-once"
+            if ! remove_container_checked "$RESEARCH_BOOTSTRAP_CONTAINER"; then
+              echo "::error::A prior research bootstrap process could not be cleared safely."
+              if ! unwind_unstarted_replacement; then
+                echo "::error::Automatic pre-cutover unwind failed; operator intervention is required."
+              fi
+              exit 1
+            fi
+            echo "==> Rebuilding and verifying the desk-scoped research read model"
+            research_bootstrap_ok=0
+            if timeout --signal=TERM --kill-after=10s 180s \
+                docker run --rm \
+                  --name "$RESEARCH_BOOTSTRAP_CONTAINER" \
+                  --env-file "$ENV_FILE" \
+                  "$IMAGE" \
+                  python tools/reconcile_research_once.py \
+                    --limit 200 \
+                    --sweep "deploy-${KALSHI_KEY_SLOT}"; then
+              research_bootstrap_ok=1
+            fi
+            if [ "$research_bootstrap_ok" != "1" ]; then
+              echo "::error::The scoped Supabase-to-Neo4j rebuild did not complete and verify within 180 seconds."
+              if ! remove_container_checked "$RESEARCH_BOOTSTRAP_CONTAINER"; then
+                echo "::error::The failed research bootstrap process requires operator cleanup."
+              fi
+              if ! unwind_unstarted_replacement; then
+                echo "::error::Automatic pre-cutover unwind failed; operator intervention is required."
+              fi
+              exit 1
+            fi
+            if ! remove_container_checked "$RESEARCH_BOOTSTRAP_CONTAINER"; then
+              echo "::error::The verified research bootstrap process did not exit cleanly."
+              if ! unwind_unstarted_replacement; then
+                echo "::error::Automatic pre-cutover unwind failed; operator intervention is required."
+              fi
+              exit 1
+            fi
+
             echo "==> Stopping the current container"
-            # 20s, not the 10s default: main.py writes a final gateway_stop risk
-            # event and closes the audit log on SIGTERM. SIGKILL mid-write
-            # strands a .duckdb.wal.
+            # Stop only after every bounded replacement preflight has passed,
+            # and immediately before starting the replacement. 20s, not the 10s
+            # default: main.py writes a final gateway_stop risk event and closes
+            # the audit log on SIGTERM. SIGKILL mid-write strands a .duckdb.wal.
             docker stop --time 20 "$CONTAINER" 2>/dev/null || true
             if ! remove_container_checked "$CONTAINER"; then
               echo "::error::The current gateway could not be removed safely; undoing the unstarted replacement transaction."
@@ -927,12 +1031,29 @@ jobs:
               exit 1
             fi
 
-            echo "==> Confirming the authenticated private maker channel"
+            echo "==> Confirming the authenticated private maker channel state"
             if ! RFQ_JSON=$(curl -fsS --max-time 20 \
                 -H "X-AlphaEngine-Token: ${WEB_API_TOKEN}" \
-                "http://127.0.0.1:${PORT}/api/coherence/rfq") \
-                || ! printf '%s' "$RFQ_JSON" \
-                  | grep -Eq '"state"[[:space:]]*:[[:space:]]*"(empty|available)"'; then
+                "http://127.0.0.1:${PORT}/api/coherence/rfq"); then
+              echo "::error::The replacement gateway private Makers route did not answer."
+              if ! rollback_gateway; then
+                echo "::error::Automatic gateway rollback failed; operator intervention is required."
+              fi
+              exit 1
+            fi
+            if [ "$KALSHI_DEMO_REVOKE" = "1" ]; then
+              if ! printf '%s' "$RFQ_JSON" \
+                  | grep -Eq '"state"[[:space:]]*:[[:space:]]*"signing_unavailable"' \
+                  || ! printf '%s' "$RFQ_JSON" | grep -q 'KALSHI_DEMO_KEY_ID'; then
+                echo "::error::The replacement gateway still exposes a configured private Makers credential after explicit revocation."
+                if ! rollback_gateway; then
+                  echo "::error::Automatic gateway rollback failed; operator intervention is required."
+                fi
+                exit 1
+              fi
+              echo "==> Private Makers credential revocation verified"
+            elif ! printf '%s' "$RFQ_JSON" \
+                | grep -Eq '"state"[[:space:]]*:[[:space:]]*"(empty|available)"'; then
               echo "::error::The replacement gateway did not prove a signed Makers read; refusing signing_unavailable, refused, and transport-degraded states."
               if ! rollback_gateway; then
                 echo "::error::Automatic gateway rollback failed; operator intervention is required."
@@ -970,6 +1091,14 @@ jobs:
           WEB_API_TOKEN: ${{ secrets.WEB_API_TOKEN }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_DESK_ID: ${{ vars.SUPABASE_DESK_ID || '00000000-0000-0000-0000-000000000001' }}
+          SUPABASE_MIRROR_ENABLED: ${{ vars.SUPABASE_MIRROR_ENABLED || '1' }}
+          RESEARCH_RAG_ENABLED: ${{ vars.RESEARCH_RAG_ENABLED || '1' }}
+          RESEARCH_SCOPE_TO_DESK: ${{ vars.RESEARCH_SCOPE_TO_DESK || '1' }}
+          NEO4J_URI: ${{ secrets.NEO4J_URI }}
+          NEO4J_USERNAME: ${{ secrets.NEO4J_USERNAME }}
+          NEO4J_PASSWORD: ${{ secrets.NEO4J_PASSWORD }}
+          NEO4J_DATABASE: ${{ secrets.NEO4J_DATABASE }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_ALLOWED_USER_IDS: ${{ secrets.TELEGRAM_ALLOWED_USER_IDS }}
           TELEGRAM_CONTROL_USER_IDS: ${{ secrets.TELEGRAM_CONTROL_USER_IDS }}
@@ -989,7 +1118,8 @@ jobs:
           # across that boundary can be told apart from a change in the whole
           # exchange's, which one series alone cannot do.
           COHERENCE_SERIES: ${{ vars.COHERENCE_SERIES || 'KXBTCD,KXHIGHNY' }}
-          COHERENCE_POLL_S: ${{ vars.COHERENCE_POLL_S || '300' }}
+          COHERENCE_POLL_S: ${{ vars.COHERENCE_POLL_S || '60' }}
+          COHERENCE_POST_CAMPAIGN_POLL_S: ${{ vars.COHERENCE_POST_CAMPAIGN_POLL_S || '300' }}
           COHERENCE_MAX_EVENTS: ${{ vars.COHERENCE_MAX_EVENTS || '2' }}
           # The scoring cadence. Off (0) is what the tape ran on for a week and
           # what left the Scorecard with nothing to score: the settlements table
@@ -997,6 +1127,14 @@ jobs:
           # local cadence; inline like its neighbours, for the reason at the top
           # of this block.
           COHERENCE_CALIBRATION_EVERY_S: ${{ vars.COHERENCE_CALIBRATION_EVERY_S || '900' }}
+          # A bounded real-observation campaign, not 1,000 manufactured
+          # violations. Zero retention preserves every raw book; the two-GiB
+          # free-space floor is the fail-closed storage bound.
+          COHERENCE_CAMPAIGN_ID: ${{ vars.COHERENCE_CAMPAIGN_ID || 'kalshi-1000-60s-v1' }}
+          COHERENCE_CAMPAIGN_TARGET: ${{ vars.COHERENCE_CAMPAIGN_TARGET || '1000' }}
+          COHERENCE_MIN_FREE_BYTES: ${{ vars.COHERENCE_MIN_FREE_BYTES || '2147483648' }}
+          COHERENCE_MAX_TAPE_BYTES: ${{ vars.COHERENCE_MAX_TAPE_BYTES || '0' }}
+          COHERENCE_RETENTION_DAYS: ${{ vars.COHERENCE_RETENTION_DAYS || '0' }}
 
       # -----------------------------------------------------------------------
       # TLS termination (FEAT-077). README has claimed "Caddy — Automatic HTTPS"

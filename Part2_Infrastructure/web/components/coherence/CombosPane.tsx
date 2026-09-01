@@ -194,7 +194,8 @@ export default function CombosPane({ active, view }: { active: boolean; view: Co
   }
 
   const violated = data.rows.filter((row) => row.violated);
-  const satisfied = data.rows.filter((row) => !row.violated);
+  const testable = data.rows.filter((row) => row.testable ?? (row.cost != null && row.slack != null));
+  const satisfied = testable.filter((row) => !row.violated);
   const tightest = satisfied.reduce<CoherenceComboRow | null>((best, row) => {
     const slack = toCenticents(row.slack);
     if (slack == null) return best;
@@ -214,6 +215,9 @@ export default function CombosPane({ active, view }: { active: boolean; view: Co
                    value={String(data.outside_band)} tone={data.outside_band ? "critical" : "good"} />
         <StateChip mark={data.violations ? "▲" : "●"} word="Bound failures"
                    value={String(data.violations)} tone={data.violations ? "critical" : "good"} />
+        <StateChip mark={testable.length ? "●" : "◌"} word="Checks quoted"
+                   value={`${testable.length}/${data.rows.length}`}
+                   tone={testable.length === data.rows.length ? "good" : testable.length ? "warn" : "muted"} />
       </SectionVerdict>
 
       {search}

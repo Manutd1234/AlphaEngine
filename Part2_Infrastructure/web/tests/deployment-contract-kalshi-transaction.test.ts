@@ -37,18 +37,39 @@ describe("gateway and Kalshi rotation are one guarded transaction", () => {
       /put KALSHI_DEMO_PRIVATE_KEY_PEM_B64/,
       "the private-key bytes must never enter the container environment",
     );
-    assert.match(workflow, /\[ -n "\$KALSHI_DEMO_KEY_ID" \] \|\| missing\+=\("KALSHI_DEMO_KEY_ID"\)/);
-    assert.match(workflow, /\[ -n "\$KALSHI_DEMO_PRIVATE_KEY_PEM_B64" \] \|\| missing\+=\("KALSHI_DEMO_PRIVATE_KEY_PEM_B64"\)/);
   });
 
-  it("accepts the release only after a token-authenticated signed Makers read", () => {
+  it("requires a configured production pair but permits an intentionally keyless revoke", () => {
+    const start = workflow.indexOf("- name: Required secrets are present");
+    const end = workflow.indexOf("- name: Pull, swap, verify, roll back on failure", start);
+    assert.ok(start > 0 && end > start, "the deploy credential gate was not found");
+    const gate = workflow.slice(start, end);
+    const revokeConflict = gate.indexOf("KALSHI_DEMO_REVOKE=1 conflicts");
+    const normalStart = gate.indexOf('if [ "$KALSHI_DEMO_REVOKE" = "0" ]');
+    const genericMissing = gate.indexOf("Missing repository secrets", normalStart);
+    assert.ok(revokeConflict > 0 && normalStart > revokeConflict && genericMissing > normalStart);
+
+    const normalMode = gate.slice(normalStart, genericMissing);
+    assert.match(normalMode, /\[ -n "\$KALSHI_DEMO_KEY_ID" \] \|\| missing\+=\("KALSHI_DEMO_KEY_ID"\)/);
+    assert.match(normalMode, /\[ -n "\$KALSHI_DEMO_PRIVATE_KEY_PEM_B64" \] \|\| missing\+=\("KALSHI_DEMO_PRIVATE_KEY_PEM_B64"\)/);
+    assert.doesNotMatch(
+      gate.slice(0, normalStart),
+      /missing\+=\("KALSHI_DEMO_(?:KEY_ID|PRIVATE_KEY_PEM_B64)"\)/,
+      "revoke=1 with both credentials absent must reach the remote tombstone transaction",
+    );
+  });
+
+  it("accepts normal signing or explicit revocation only after a token-authenticated Makers proof", () => {
     const health = workflow.indexOf('if ! HEALTH_JSON=$(curl -fsS "http://127.0.0.1:${PORT}/health")');
-    const makers = workflow.indexOf('echo "==> Confirming the authenticated private maker channel"');
+    const makers = workflow.indexOf('echo "==> Confirming the authenticated private maker channel state"');
     const deployed = workflow.indexOf('echo "==> Deployed', makers);
     assert.ok(health > 0 && makers > health && deployed > makers);
     const canary = workflow.slice(makers, deployed);
     assert.match(canary, /X-AlphaEngine-Token: \$\{WEB_API_TOKEN\}/);
     assert.match(canary, /\/api\/coherence\/rfq/);
+    assert.match(canary, /if \[ "\$KALSHI_DEMO_REVOKE" = "1" \]; then/);
+    assert.match(canary, /"signing_unavailable"[\s\S]*KALSHI_DEMO_KEY_ID/);
+    assert.match(canary, /Private Makers credential revocation verified/);
     assert.match(canary, /"\(empty\|available\)"/);
     assert.match(canary, /rollback_gateway/);
     assert.match(canary, /refusing signing_unavailable, refused, and transport-degraded states/);

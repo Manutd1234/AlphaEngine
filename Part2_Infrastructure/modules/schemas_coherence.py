@@ -21,67 +21,17 @@ from modules.schemas_coherence_proof import CoherenceProofConstraints as Coheren
 from modules.schemas_coherence_proof import CoherenceProofEvidence as CoherenceProofEvidence
 from modules.schemas_coherence_proof import CoherenceProofObservation as CoherenceProofObservation
 from modules.schemas_coherence_proof import CoherenceProofSolver as CoherenceProofSolver
-
-
-class CoherenceHostStatus(BaseModel):
-    """Whether Kalshi answered, and which host did."""
-
-    host: str
-    reachable: bool
-    detail: str | None = None
-
-
-class CoherenceShardStatus(BaseModel):
-    """One exchange instance. Collateral is per shard, so this is a hard gate."""
-
-    exchange_index: int
-    description: str
-    exchange_active: bool
-    trading_active: bool
-
-
-class CoherenceRecorderStatus(BaseModel):
-    """What the recorder has done, not what it was configured to do."""
-
-    running: bool
-    configured: bool
-    poll_seconds: int
-    watchlist: list[str]
-    polls: int
-    books_written: int
-    seconds_since_last_poll: float | None = None
-    last_error: str | None = None
-    consecutive_failures: int = 0
-    series_seen: list[str] = Field(default_factory=list)
-
-
-class CoherenceBudgetStatus(BaseModel):
-    """The client's model of its own read bucket, with the basis for it."""
-
-    tokens_per_second: int
-    burst: int
-    tokens_available: float
-    default_cost: int
-    published_costs_known: int
-    tokens_spent: int
-    refusals: int
-    basis: str
-
-
-class CoherenceStatus(BaseModel):
-    """Everything a reader needs to judge whether the rest of the tab is real."""
-
-    state: str
-    hosts: list[CoherenceHostStatus] = Field(default_factory=list)
-    shards: list[CoherenceShardStatus] = Field(default_factory=list)
-    schema_probe: dict[str, object] = Field(default_factory=dict)
-    recorder: CoherenceRecorderStatus
-    budget: CoherenceBudgetStatus
-    tape: dict[str, object] = Field(default_factory=dict)
-    solver: dict[str, object] = Field(default_factory=dict)
-    signing: dict[str, object] = Field(default_factory=dict)
-    dry_run: bool = True
-    notes: list[str] = Field(default_factory=list)
+from modules.schemas_coherence_status import CoherenceBudgetStatus as CoherenceBudgetStatus
+from modules.schemas_coherence_status import CoherenceHostStatus as CoherenceHostStatus
+from modules.schemas_coherence_status import (
+    CoherenceObservationCampaignStatus as CoherenceObservationCampaignStatus,
+)
+from modules.schemas_coherence_status import CoherenceRecorderStatus as CoherenceRecorderStatus
+from modules.schemas_coherence_status import (
+    CoherenceRecorderStorageStatus as CoherenceRecorderStorageStatus,
+)
+from modules.schemas_coherence_status import CoherenceShardStatus as CoherenceShardStatus
+from modules.schemas_coherence_status import CoherenceStatus as CoherenceStatus
 
 
 class CoherenceMarketView(BaseModel):

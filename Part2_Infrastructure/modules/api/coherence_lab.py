@@ -302,11 +302,8 @@ async def coherence_shell(
             ),
         )
     if command == "cat":
-        # The certificate is the one file the shell cannot render from the
-        # observation alone — it has to be solved for. Solved on demand rather
-        # than for every event on every listing, because certifying a family
-        # nobody asked about spends a read budget and a solver run to produce a
-        # file that is never opened.
+        # A certificate needs a solver run beyond the observation. Solve only
+        # the requested event instead of spending that budget on every listing.
         certificate = None
         if path.rstrip("/").endswith("/certificate"):
             certificate = await _certificate_for(observations, path)
@@ -317,9 +314,12 @@ async def coherence_shell(
 async def _certificate_for(observations: list[Any], path: str) -> Any:
     """Certify the event this path names, or return None and let ``cat`` say so."""
     parts = [part for part in path.strip("/").split("/") if part]
-    if len(parts) != 5:
+    if len(parts) != 5 or parts[0] != "shards" or parts[4] != "certificate":
         return None
-    observation = next((item for item in observations if item.event.event_ticker == parts[3]), None)
+    if not parts[1].isdigit():
+        return None
+    shard = int(parts[1])
+    observation = shell.find_observation(observations, shard, parts[2], parts[3])
     if observation is None:
         return None
     schedule = await fee_meta.schedule_for_event(observation.event.series_ticker, observation.event.event_ticker)

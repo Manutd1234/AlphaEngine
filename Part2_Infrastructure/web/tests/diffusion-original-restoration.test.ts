@@ -86,16 +86,23 @@ describe("the original Diffusion figure graph", () => {
     assert.ok(windowsAt >= 0 && resolutionAt > windowsAt, "Mechanism lost windows-then-resolution order");
   });
 
-  it("does not replace a protected figure with a generic lifecycle drawing", () => {
+  it("keeps protected rich-data figures and confines lifecycle drawings to sparse branches", () => {
     for (const file of [
       "InformationDiffusionPane", "ReturnFan", "FloorDistance", "ControlRank",
-      "ClockAgreement", "MeetingCalendar", "HorizonResolution",
+      "HorizonResolution",
     ]) {
       assert.doesNotMatch(
         stripNonCode(read(`../components/coherence/diffusion/${file}.tsx`)),
         /DiffusionSparseState/,
         `${file} still substitutes the generic three-step lifecycle`,
       );
+    }
+    for (const file of ["ClockAgreement", "MeetingCalendar"]) {
+      const source = stripNonCode(read(`../components/coherence/diffusion/${file}.tsx`));
+      const plotAt = source.indexOf("<Plot");
+      const sparseAt = source.indexOf("<DiffusionSparseState");
+      assert.ok(plotAt >= 0, `${file} lost its original rich-data plot`);
+      assert.ok(sparseAt >= 0, `${file} lost its explicit sparse branch`);
     }
   });
 

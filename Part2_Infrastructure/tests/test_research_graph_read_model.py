@@ -25,138 +25,22 @@ What is asserted here, in order of what would hurt most if it broke:
 
 from __future__ import annotations
 
-from importlib.util import find_spec
 from types import SimpleNamespace
-from typing import Any
 
 import pytest
-from test_research_graph_reads import DESK, TRIANGLES, FakePostgrest
+from research_graph_read_model_support import DESK, SWEEP, Record
+from research_graph_read_model_support import FakeDriver as FakeDriver
+from research_graph_read_model_support import FakeSession as FakeSession
+from research_graph_read_model_support import _Session as _Session
+from research_graph_read_model_support import centrality_answer as centrality_answer
+from research_graph_read_model_support import communities_answer as communities_answer
+from research_graph_read_model_support import corpus as corpus
+from research_graph_read_model_support import graph as graph
+from research_graph_read_model_support import networkx_required as networkx_required
 
 from modules import research_graph_read_model as rm
 from modules import research_graph_reads as gr
 from modules import research_quota_scope as scope_module
-
-networkx_required = pytest.mark.skipif(
-    find_spec("networkx") is None,
-    reason="networkx is not installed (pip install -r requirements-communities.txt)",
-)
-
-SWEEP = "2026-08-22T00:00:00.000Z"
-
-
-class Record(dict):
-    """A neo4j Record is a mapping with ``keys()`` and ``get()``; this is one."""
-
-
-class FakeSession:
-    """Answers each Cypher by matching on a fragment of it. Records what it was asked."""
-
-    def __init__(self, answers: dict[str, Any], *, fail_on: str | None = None) -> None:
-        self.answers = answers
-        self.fail_on = fail_on
-        self.statements: list[str] = []
-
-    def run(self, cypher: str, **params: Any) -> Any:
-        self.statements.append(cypher)
-        if self.fail_on and self.fail_on in cypher:
-            raise RuntimeError("the graph went away mid-read")
-        for fragment, answer in self.answers.items():
-            if fragment in cypher:
-                return answer
-        raise AssertionError(f"the reader ran a statement the fake was not given: {cypher}")
-
-    def __enter__(self) -> FakeSession:
-        return self
-
-    def __exit__(self, *_: Any) -> bool:
-        return False
-
-
-class FakeDriver:
-    def __init__(self, session: FakeSession) -> None:
-        self._session = session
-        self.closed = False
-
-    def session(self, **_: Any) -> FakeSession:
-        return self._session
-
-    def close(self) -> None:
-        self.closed = True
-
-
-def communities_answer(sweep: str = SWEEP) -> dict[str, Any]:
-    """The two triangles, as the graph holds them after a sweep labelled them."""
-    return {
-        "d.community AS community": [
-            Record(community=0, sweep=sweep, members=["a", "b", "c"]),
-            Record(community=1, sweep=sweep, members=["x", "y", "z"]),
-        ],
-        "type(r) AS relation": [
-            Record(community=0, relation="SAME_SYMBOL", n=2),
-            Record(community=0, relation="SAME_DATA", n=1),
-            Record(community=1, relation="SAME_STRATEGY", n=3),
-        ],
-        "count(DISTINCT": [Record(n=6)],
-    }
-
-
-def centrality_answer(sweep: str = SWEEP) -> dict[str, Any]:
-    """One triangle, scored. THREE pairs, not six.
-
-    It said six until the pair count was scoped, and six pairs over three
-    documents is not a graph — three documents admit C(3,2) = 3. The fixture
-    was describing the whole-instance count the served field used to carry,
-    which is the defect itself; a fixture that cannot exist proves nothing
-    about a reader of graphs that can.
-    """
-    return {
-        "d.centrality AS score": [
-            Record(id="a", score=0.4, sweep=sweep),
-            Record(id="b", score=0.35, sweep=sweep),
-            Record(id="c", score=0.25, sweep=sweep),
-        ],
-        "count(DISTINCT": [Record(n=3)],
-    }
-
-
-@pytest.fixture
-def graph(monkeypatch):
-    """A configured Neo4j whose answers each test chooses."""
-    def _serve(answers: dict[str, Any], *, fail_on: str | None = None) -> FakeDriver:
-        session = FakeSession(answers, fail_on=fail_on)
-        driver = FakeDriver(session)
-        monkeypatch.setattr(rm, "_driver", lambda: (driver, None))
-        monkeypatch.setattr(rm, "settings", SimpleNamespace(neo4j_database="neo4j"))
-        return driver
-
-    return _serve
-
-
-@pytest.fixture
-def corpus(monkeypatch):
-    """A configured PostgREST corpus, so the fallback has somewhere to fall back TO."""
-    def _serve(rows=TRIANGLES) -> FakePostgrest:
-        store = FakePostgrest(rows)
-        monkeypatch.setattr(gr, "settings", SimpleNamespace(
-            supabase_url="https://example.supabase.co",
-            supabase_service_role_key="sb_secret_test",
-            supabase_desk_id=DESK, supabase_timeout_s=5.0,
-        ))
-        monkeypatch.setattr(gr, "httpx", SimpleNamespace(AsyncClient=lambda **_: _Session(store)))
-        return store
-
-    return _serve
-
-
-class _Session:
-    def __init__(self, store) -> None:
-        self._store = store
-
-    async def __aenter__(self):
-        return self._store
-
-    async def __aexit__(self, *_):
-        return False
 
 
 class TestTheProjectionIsReadBack:
@@ -368,19 +252,59 @@ class TestTheRoutesReadTheGraphAndFallBackWhenTheyCannot:
 
 
 @networkx_required
-class TestTenantScopeNeverReadsTheGlobalProjection:
-    def test_both_read_models_refuse_before_opening_the_driver(self, monkeypatch):
+class TestTenantScopedProjection:
+    def test_every_scoped_query_constrains_all_nodes_it_reads(self):
+        assert "d.desk_id = $desk_id" in rm.READ_COMMUNITIES
+        assert "d.desk_id = $desk_id" in rm.READ_CENTRALITY
+        for statement in (
+            rm.READ_COMMUNITY_RELATIONS,
+            rm.COUNT_COMMUNITY_PAIRS,
+            rm.COUNT_CENTRALITY_PAIRS,
+        ):
+            assert "a.desk_id = $desk_id AND b.desk_id = $desk_id" in statement, (
+                "a relationship query scoped only at one endpoint can leak the other desk's node"
+            )
+
+    def test_both_read_models_apply_the_desk_predicate(self, graph, monkeypatch):
         monkeypatch.setattr(scope_module, "SCOPE_TO_DESK", True)
+        community_driver = graph(communities_answer())
+
+        community = rm.community_labels()
+        assert community["detected"] is True
+        assert all(params.get("desk_id") == DESK for params in community_driver._session.params)
+        assert "a.desk_id = $desk_id AND b.desk_id = $desk_id" in " ".join(
+            community_driver._session.statements
+        )
+
+        centrality_driver = graph(centrality_answer())
+        centrality = rm.centrality_scores()
+        assert centrality["ranked"] is True
+        assert all(params.get("desk_id") == DESK for params in centrality_driver._session.params)
+
+    def test_legacy_unscoped_nodes_are_refused_until_rebuilt(self, graph, monkeypatch):
+        monkeypatch.setattr(scope_module, "SCOPE_TO_DESK", True)
+        # A real scoped Cypher query returns no rows for legacy nodes that have
+        # no desk_id. The empty answer is a named fallback, never global data.
+        graph({"d.community AS community": [], "type(r) AS relation": [],
+               "count(DISTINCT": [Record(n=0)]})
+        community = rm.community_labels()
+        assert not community["detected"]
+        assert "has not run" in community["reason"]
+
+    def test_a_missing_desk_refuses_before_opening_the_driver(self, monkeypatch):
+        monkeypatch.setattr(scope_module, "SCOPE_TO_DESK", True)
+        monkeypatch.setattr(rm, "settings", SimpleNamespace(
+            neo4j_database="neo4j", supabase_desk_id="",
+        ))
         monkeypatch.setattr(rm, "_driver", lambda: (_ for _ in ()).throw(
-            AssertionError("a scoped request opened the global graph"),
+            AssertionError("a scoped request with no desk opened the graph"),
         ))
 
         community = rm.community_labels()
         centrality = rm.centrality_scores()
-
         assert not community["detected"] and not centrality["ranked"]
-        assert "RESEARCH_SCOPE_TO_DESK" in community["reason"]
-        assert "carries no desk_id" in centrality["reason"]
+        assert "SUPABASE_DESK_ID is empty" in community["reason"]
+        assert "SUPABASE_DESK_ID is empty" in centrality["reason"]
 
     async def test_reports_fall_back_to_the_desk_filtered_corpus(self, corpus, monkeypatch):
         monkeypatch.setattr(scope_module, "SCOPE_TO_DESK", True)
@@ -389,6 +313,8 @@ class TestTenantScopeNeverReadsTheGlobalProjection:
         community = await gr.community_report(project=False)
         centrality = await gr.centrality_report()
 
+        # The fake graph fixture is not configured in this test, so the read
+        # model falls back. What matters here is that the fallback stays scoped.
         assert community["source"] == centrality["source"] == "corpus"
         assert store.requests
         assert all(request["desk_id"] == f"eq.{DESK}" for request in store.requests)

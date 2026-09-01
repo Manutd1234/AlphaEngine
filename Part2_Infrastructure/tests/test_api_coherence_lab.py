@@ -8,10 +8,12 @@ line ceiling. The stubbed venue both halves share lives in
 from __future__ import annotations
 
 import time
+from copy import deepcopy
 
 import httpx
 import pytest
 from coherence_lab_harness import (
+    COMBO_BOOKS,
     COMBO_MARKETS,
     EVENT,
     PARLAY,
@@ -156,8 +158,45 @@ class TestTheCombosRoute:
         venue(monkeypatch)
         payload = client.get("/api/coherence/combos?limit=1").json()
         assert payload["rows"], "the cover row is testable once the parlay is offered"
-        assert all(row["cost"] is not None and row["slack"] is not None for row in payload["rows"])
+        assert any(row["testable"] and row["cost"] is not None and row["slack"] is not None for row in payload["rows"])
+        assert all(
+            leg["direction"] in {"buy", "sell"} and "execution_cost" in leg
+            for row in payload["rows"]
+            for leg in row["legs"]
+        )
+        assert all(
+            leg["buy_cost"] == leg["execution_cost"] if leg["direction"] == "buy" else leg["buy_cost"] is None
+            for row in payload["rows"]
+            for leg in row["legs"]
+        ), "the additive row-leg contract stopped supporting the previous web bundle"
         assert payload["violations"] == sum(1 for row in payload["rows"] if row["violated"])
+
+    def test_unquoted_parlays_keep_their_structural_checks_as_untested(self, client, monkeypatch):
+        """No quote means null arithmetic, not an empty Checks tab.
+
+        The live venue commonly lists parlays whose own orderbook has neither
+        side. Dropping their rows made the UI say there were no bounds at all,
+        even though the leg structure still implies an upper row per leg and a
+        cover row. Those rows must survive with explicit nulls and no false
+        violation.
+        """
+        books = deepcopy(COMBO_BOOKS)
+        books["orderbooks"][0]["orderbook_fp"] = {"yes_dollars": [], "no_dollars": []}
+
+        def unquoted_combo(request: httpx.Request) -> httpx.Response:
+            if "/markets/orderbooks" in request.url.path:
+                return httpx.Response(200, json=books)
+            return exchange(request)
+
+        venue(monkeypatch, unquoted_combo)
+        payload = client.get("/api/coherence/combos?limit=1").json()
+
+        assert payload["state"] == "available"
+        assert payload["rows"], "the structural Fréchet rows were discarded"
+        assert all(not row["testable"] and row["cost"] is None and row["slack"] is None for row in payload["rows"])
+        assert all(row["untestable_reason"] for row in payload["rows"])
+        assert all(row["violated"] is False for row in payload["rows"])
+        assert payload["violations"] == 0
 
     def test_a_named_parlay_reuses_a_warmed_listing_instead_of_asking_again(
         self, client, monkeypatch

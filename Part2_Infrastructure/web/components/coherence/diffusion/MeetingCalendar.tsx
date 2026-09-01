@@ -35,7 +35,8 @@
 import { memo, useState } from "react";
 
 import { signedLog } from "@/lib/coherence/return-path";
-import Figure, { FigureEmpty, Plot } from "../Figure";
+import Figure, { Plot } from "../Figure";
+import DiffusionSparseState from "./DiffusionSparseState";
 import type { AbsorptionRead, StageRun } from "./types";
 
 const HEIGHT = 300;
@@ -72,13 +73,17 @@ function meetingsOf(runs: readonly StageRun[]) {
 function MeetingCalendar({ read }: { read: AbsorptionRead | null }) {
   const [sample, setSample] = useState<CalendarSample>("all");
   if (!read?.runs.length) {
+    const reason = read
+      ? `The ${read.backend ?? "unreported"} API snapshot observed at ${read.observed_at} contains no recorded meeting. `
+        + "The connected boxes show how a timestamp becomes a calendar mark; they do not invent one."
+      : "The meeting ledger is not readable yet. The connected boxes show the calendar dependency without placing a date or return.";
     return (
       <Figure
         caption="Every decision on the ledger, and the move each stage produced"
         ariaLabel="No meeting timestamp or return is drawn"
         missing="No date or return is placed without a recorded timestamp."
       >
-        <FigureEmpty reason={read ? "No meeting has been recorded yet." : "The meeting ledger is not readable yet."} />
+        <DiffusionSparseState kind="calendar" sampleCount={read ? 0 : null} reason={reason} />
       </Figure>
     );
   }
@@ -89,7 +94,11 @@ function MeetingCalendar({ read }: { read: AbsorptionRead | null }) {
       ariaLabel="No meeting timestamp or return is drawn"
       missing="No date or return is placed without a recorded timestamp."
     >
-      <FigureEmpty reason="No run carries a valid meeting timestamp." />
+      <DiffusionSparseState
+        kind="calendar"
+        sampleCount={0}
+        reason={`${read.runs.length} recorded run${read.runs.length === 1 ? " carries" : "s carry"} no valid meeting timestamp, so no date is placed.`}
+      />
     </Figure>
   );
   const stamps = meetings.map((meeting) => meeting.at);
@@ -214,7 +223,7 @@ function MeetingCalendar({ read }: { read: AbsorptionRead | null }) {
           }}
         </Plot>
       ) : (
-        <FigureEmpty reason="No meeting carries a timestamp yet." />
+        <DiffusionSparseState kind="calendar" sampleCount={0} reason="No meeting carries a timestamp yet, so no date is placed." />
       )}
     </Figure>
   );

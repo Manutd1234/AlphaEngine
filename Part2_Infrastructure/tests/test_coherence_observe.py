@@ -112,6 +112,8 @@ class TestOneSeries:
         assert await observe_series(Client(), "SERIES") == [good]
         with pytest.raises(KalshiUnavailable, match="REFUSED: read budget exhausted"):
             await observe_series(Client(), "SERIES", require_complete=True)
+        with pytest.raises(KalshiUnavailable, match="REFUSED: read budget exhausted"):
+            await observe_series(Client(), "SERIES", require_selected_complete=True)
 
     @pytest.mark.anyio
     async def test_a_filesystem_read_refuses_a_series_cut_off_by_its_event_cap(self, monkeypatch):

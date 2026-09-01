@@ -202,6 +202,28 @@ describe("engine copy has a reproducible source-static word baseline", () => {
     proofs: { sha256: "13998ca9673651ac007e5c1da51966f6f529b8e2a6c713289ee7846800cc96fc", strings: 2930, words: 16327 },
     diffusion: { sha256: "e5cba74b4a9a46b83bfb7b0d3ad0ec9c8b4b0fccea5b8b1339f6d5515ac59afe", strings: 1894, words: 10419 },
   };
+  const kalshiDurability20260901Checkpoint = {
+    // Durable campaign, recovery, and capacity evidence add only the new
+    // observation semantics; the prior UI checkpoint remains immutable.
+    markets: { sha256: "a5e59a079860aa32f8cd5d0c6855f050976a3b9772f3160630ecf06acb45b2ac", strings: 2622, words: 10106 },
+    proofs: { sha256: "13998ca9673651ac007e5c1da51966f6f529b8e2a6c713289ee7846800cc96fc", strings: 2930, words: 16327 },
+    diffusion: { sha256: "3e4302df746c8c7fe5acf6dcab548c992b30c819e829b63b5460370bd3012754", strings: 1909, words: 10431 },
+  };
+  const combosQuoteCoverage20260901Checkpoint = {
+    // Unquoted parlays now keep their structural Fréchet checks visible and
+    // explicitly untested instead of collapsing the diagram to an empty state.
+    markets: { sha256: "a5e59a079860aa32f8cd5d0c6855f050976a3b9772f3160630ecf06acb45b2ac", strings: 2622, words: 10106 },
+    proofs: { sha256: "394396d40b5b536e2f1b0a215e345982d440a11eb35419f28846d28a8fdc509e", strings: 2934, words: 16343 },
+    diffusion: { sha256: "3e4302df746c8c7fe5acf6dcab548c992b30c819e829b63b5460370bd3012754", strings: 1909, words: 10431 },
+  };
+  const connectedAvailability20260901Checkpoint = {
+    // Connected Stake/Basket/Namespace paths and honest Diffusion sparse-state
+    // diagrams deliberately add availability and evidence copy. Keep the
+    // Parlay-only checkpoint above as the immediately preceding signed state.
+    markets: { sha256: "6f2f85627772eba6720e398757edb076ae7f89b76ccb7f49f87a641131c1c54b", strings: 2653, words: 10223 },
+    proofs: { sha256: "8d167ae4813a6d26edfc3f578124e3f5840cd8816093afcc42f76c27062fcd23", strings: 2983, words: 16623 },
+    diffusion: { sha256: "25f1331c14331536fb22680e38fc25f8001da60a765d535f769dd503c0c6e545", strings: 1929, words: 10645 },
+  };
 
   it("retains Phase 0 and records the current upper bound as a separate signature", () => {
     assert.equal(fixture.wordBaseline.browserObserved, false);
@@ -220,7 +242,9 @@ describe("engine copy has a reproducible source-static word baseline", () => {
     assert.deepEqual(fixture.wordBaseline.frontendSweep20260831Tabs, frontendSweep20260831Checkpoint);
     assert.deepEqual(fixture.wordBaseline.diagramGatewayRepair20260831Tabs, diagramGatewayRepair20260831Checkpoint);
     assert.deepEqual(fixture.wordBaseline.uiCorrection20260831Tabs, uiCorrection20260831Checkpoint);
-    assert.deepEqual(buildEngineWordBaseline(), uiCorrection20260831Checkpoint);
+    assert.deepEqual(fixture.wordBaseline.kalshiDurability20260901Tabs, kalshiDurability20260901Checkpoint);
+    assert.deepEqual(fixture.wordBaseline.combosQuoteCoverage20260901Tabs, combosQuoteCoverage20260901Checkpoint);
+    assert.deepEqual(buildEngineWordBaseline(), connectedAvailability20260901Checkpoint);
   });
 
   it("retains the historical starting points for the product-specific summary-copy checks", () => {

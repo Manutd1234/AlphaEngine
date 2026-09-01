@@ -191,7 +191,9 @@ export default function ShellBrowser({
             </p>
           ) : null}
 
-          {data?.detail && !repeatsScope && !directoryUnavailable ? <p className={styles.detail}>{data.detail}.</p> : null}
+          {data?.command === "ls" && data.detail && !repeatsScope && !directoryUnavailable
+            ? <p className={styles.detail}>{data.detail}.</p>
+            : null}
 
           {!data ? (
             <p className={styles.empty}>

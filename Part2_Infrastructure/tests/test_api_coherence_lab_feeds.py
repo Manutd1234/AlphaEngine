@@ -180,6 +180,24 @@ class TestTheShellRoute:
         assert payload["entries"] == []
         assert "interval" in payload["body"]
 
+    def test_a_native_market_cat_returns_its_live_quotes_and_metadata(self, client, monkeypatch):
+        venue(monkeypatch)
+        monkeypatch.setattr(tunables, "SERIES_WATCHLIST", ("KXHIGHNY",))
+        event_path = f"/shards/0/KXHIGHNY/{EVENT}"
+        listing = client.get(
+            "/api/coherence/shell", params={"path": event_path, "command": "ls"},
+        ).json()
+        market = listing["entries"][0]["name"]
+
+        payload = client.get(
+            "/api/coherence/shell", params={"path": f"{event_path}/{market}", "command": "cat"},
+        ).json()
+
+        assert payload["state"] == "ok"
+        assert f"ticker            {market}" in payload["body"]
+        assert "top of book (dollars)" in payload["body"]
+        assert payload["detail"].startswith("native contract;")
+
     def test_a_cat_of_a_file_that_is_not_there_is_missing_and_says_so(self, client, monkeypatch):
         venue(monkeypatch)
         monkeypatch.setattr(tunables, "SERIES_WATCHLIST", ("KXHIGHNY",))
@@ -187,6 +205,25 @@ class TestTheShellRoute:
         payload = client.get(f"/api/coherence/shell?path={path}&command=cat").json()
         assert payload["state"] == "missing"
         assert payload["exists"] is False
+
+    def test_a_certificate_cannot_be_solved_below_a_false_parent(self, client, monkeypatch):
+        venue(monkeypatch)
+        monkeypatch.setattr(tunables, "SERIES_WATCHLIST", ("KXHIGHNY",))
+
+        async def schedule_must_not_run(*_args, **_kwargs):
+            pytest.fail("a false namespace path reached certificate work")
+
+        monkeypatch.setattr(lab.fee_meta, "schedule_for_event", schedule_must_not_run)
+        for path in (
+            f"/shards/9/KXHIGHNY/{EVENT}/certificate",
+            f"/shards/0/KXNOTREAL/{EVENT}/certificate",
+        ):
+            payload = client.get(
+                "/api/coherence/shell", params={"path": path, "command": "cat"},
+            ).json()
+            assert payload["state"] == "missing"
+            assert payload["exists"] is False
+            assert "is not a watched event at" in payload["detail"]
 
     def test_a_partial_watchlist_read_cannot_be_mislabeled_as_a_missing_path(self, client, monkeypatch):
         path = "/shards/1/REFUSED/REFUSED-EVENT/implied_pmf"

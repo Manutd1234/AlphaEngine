@@ -59,10 +59,13 @@ from tools.e2e_checks import (  # noqa: E402
     check_decision_histogram,
     check_gateway_auth,
     check_gateway_health,
+    check_graph_linkage,
     check_market_data,
     check_oracle,
     check_rag_embed,
+    check_rag_status,
     check_supabase,
+    check_supabase_mirror,
     check_venue_feeds,
     check_vercel_app,
     check_vercel_health,
@@ -104,7 +107,10 @@ def main() -> int:
         ("data", check_backtest),
         ("databases", check_oracle),
         ("databases", check_supabase),
+        ("databases", lambda: check_supabase_mirror(token)),
         ("research", lambda: check_rag_embed(token)),
+        ("research", lambda: check_rag_status(token)),
+        ("research", lambda: check_graph_linkage(token)),
     ]
     if args.drill:
         checks += [

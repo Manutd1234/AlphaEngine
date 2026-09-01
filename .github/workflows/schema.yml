@@ -13,8 +13,8 @@
 #
 #   Actions → Apply database schema → Run workflow
 #
-# Both halves skip cleanly when their secrets are absent, so a fork or a clone
-# gets a green run that did nothing rather than a red one it cannot fix.
+# A manually selected target must have its complete connection pair. Silently
+# skipping a selected database would turn a green run into a false apply report.
 
 name: Apply database schema
 
@@ -30,6 +30,10 @@ on:
         description: "Parse and list the statements without connecting"
         type: boolean
         default: false
+      repair_legacy_history:
+        description: "One-time: mark the verified 20260820 legacy objects as applied before pushing"
+        type: boolean
+        default: false
 
 concurrency:
   # Two concurrent applies against one database would race on the same CREATE.
@@ -37,8 +41,39 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  credential-gate:
+    name: Selected database credentials
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every selected connection pair
+        env:
+          TARGET: ${{ inputs.target }}
+          DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          missing=()
+          case "$TARGET" in
+            both|oracle)
+              [ -n "$DB_CONNECTION_STRING" ] || missing+=("DB_CONNECTION_STRING")
+              [ -n "$DB_PASSWORD" ] || missing+=("DB_PASSWORD")
+              ;;
+          esac
+          case "$TARGET" in
+            both|supabase)
+              [ -n "$SUPABASE_ACCESS_TOKEN" ] || missing+=("SUPABASE_ACCESS_TOKEN")
+              [ -n "$SUPABASE_DB_PASSWORD" ] || missing+=("SUPABASE_DB_PASSWORD")
+              ;;
+          esac
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::The selected schema target is missing required repository secrets: ${missing[*]}"
+            exit 1
+          fi
+
   oracle:
     name: Oracle Autonomous Database
+    needs: credential-gate
     if: inputs.target == 'both' || inputs.target == 'oracle'
     runs-on: ubuntu-latest
     defaults:
@@ -65,12 +100,16 @@ jobs:
 
       - name: Secrets present?
         id: gate
+        env:
+          DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
-          if [ -n "${{ secrets.DB_CONNECTION_STRING }}" ] && [ -n "${{ secrets.DB_PASSWORD }}" ]; then
+          if [ -n "$DB_CONNECTION_STRING" ] && [ -n "$DB_PASSWORD" ]; then
             echo "ready=yes" >> "$GITHUB_OUTPUT"
           else
             echo "ready=no" >> "$GITHUB_OUTPUT"
-            echo "::notice::DB_CONNECTION_STRING / DB_PASSWORD absent — nothing applied."
+            echo "::error::Oracle was selected, but DB_CONNECTION_STRING / DB_PASSWORD is incomplete."
+            exit 1
           fi
 
       - name: Apply
@@ -144,6 +183,7 @@ jobs:
 
   supabase:
     name: Supabase migrations and functions
+    needs: credential-gate
     if: inputs.target == 'both' || inputs.target == 'supabase'
     runs-on: ubuntu-latest
     steps:
@@ -151,13 +191,17 @@ jobs:
 
       - name: Secrets present?
         id: gate
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
-          if [ -n "${{ secrets.SUPABASE_ACCESS_TOKEN }}" ] && [ -n "${{ secrets.SUPABASE_DB_PASSWORD }}" ]; then
+          if [ -n "$SUPABASE_ACCESS_TOKEN" ] && [ -n "$SUPABASE_DB_PASSWORD" ]; then
             echo "ready=yes" >> "$GITHUB_OUTPUT"
           else
             echo "ready=no" >> "$GITHUB_OUTPUT"
-            echo "::notice::SUPABASE_ACCESS_TOKEN / SUPABASE_DB_PASSWORD absent — nothing applied."
-            echo "::notice::Create a token at https://supabase.com/dashboard/account/tokens"
+            echo "::error::Supabase was selected, but SUPABASE_ACCESS_TOKEN / SUPABASE_DB_PASSWORD is incomplete."
+            echo "::error::Create a token at https://supabase.com/dashboard/account/tokens"
+            exit 1
           fi
 
       # v3 installs the CLI from npm rather than from GitHub releases, and
@@ -184,6 +228,41 @@ jobs:
           fi
           echo "Linking $ref"
           supabase link --project-ref "$ref"
+
+      # This production project predates the committed migration ledger. The
+      # relations, policies and RPCs through 20260820100500 are present (and
+      # were probed through PostgREST), but their versions are absent from
+      # supabase_migrations.schema_migrations. Replaying the first batch would
+      # fail on its intentionally non-idempotent CREATE TABLE / CREATE TYPE
+      # statements before any of the genuinely missing Diffusion migrations
+      # could run. This explicit, manual-only repair advances history only to
+      # the last object verified live. The idempotent 20260820100600 security
+      # revokes intentionally replay, and 20260820100700 also stays pending:
+      # the live research_doc_kind enum still lacks `chart`, so both it and
+      # every successor must be applied normally.
+      - name: Repair verified legacy migration history
+        if: steps.gate.outputs.ready == 'yes' && inputs.repair_legacy_history && !inputs.dry_run
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          for version in \
+            20260820090000 \
+            20260820090100 \
+            20260820090200 \
+            20260820090300 \
+            20260820090400 \
+            20260820090500 \
+            20260820090600 \
+            20260820100000 \
+            20260820100100 \
+            20260820100200 \
+            20260820100300 \
+            20260820100400 \
+            20260820100500
+          do
+            supabase migration repair "$version" --status applied
+          done
 
       - name: Show what would change
         if: steps.gate.outputs.ready == 'yes'

@@ -123,12 +123,18 @@ def _driver() -> tuple[Any, str | None]:
     ), None
 
 
-def project(documents: list[dict[str, Any]], edges: list[dict[str, Any]]) -> dict[str, Any]:
+def project(
+    documents: list[dict[str, Any]], edges: list[dict[str, Any]], *, desk_id: str | None = None,
+) -> dict[str, Any]:
     """MERGE `documents` and `edges` into Neo4j. Idempotent by construction.
 
     `documents` carry at least ``id``; any of kind, symbol, strategy, data_hash
     and occurred_at present are set on the node. `edges` carry ``src_id``,
-    ``dst_id`` and ``relation``.
+    ``dst_id`` and ``relation``. ``desk_id`` is supplied by the reconciler and
+    written onto every node it touches. That makes an existing unscoped graph
+    upgrade in place: ``MERGE`` finds the old node and ``SET`` adds the scope;
+    until a node has been revisited, scoped reads cannot see it and fall back to
+    the authoritative corpus instead of leaking a legacy global projection.
 
     Returns a report rather than raising: a projection is maintenance, and a
     maintenance task that takes the gateway down with it is worse than one that
@@ -144,6 +150,18 @@ def project(documents: list[dict[str, Any]], edges: list[dict[str, Any]]) -> dic
         # become an undeclared relationship type in the graph.
         return _unavailable(f"unmapped relation(s) {unknown}; add them to RELATION_TYPES")
 
+    scope = str(desk_id or "").strip() or None
+    foreign = sorted({
+        str(row.get("desk_id"))
+        for row in [*documents, *edges]
+        if row.get("desk_id") not in (None, "", scope)
+    }) if scope else []
+    if foreign:
+        return _unavailable(
+            "the projection batch mixed desk scopes; refusing to write nodes from "
+            f"{foreign} into desk {scope}"
+        )
+
     try:
         with driver.session(database=settings.neo4j_database) as session:
             session.run(CONSTRAINT)
@@ -153,7 +171,8 @@ def project(documents: list[dict[str, Any]], edges: list[dict[str, Any]]) -> dic
                     "MERGE (d:Document {id: row.id}) "
                     "SET d += row.props",
                     rows=[{"id": d["id"], "props": {
-                        k: v for k, v in d.items() if k != "id" and v is not None
+                        **{k: v for k, v in d.items() if k != "id" and v is not None},
+                        **({"desk_id": scope} if scope else {}),
                     }} for d in documents[start:start + BATCH]],
                 )
             written = 0

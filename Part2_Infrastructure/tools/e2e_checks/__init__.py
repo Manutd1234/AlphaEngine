@@ -13,10 +13,13 @@ module would have left that scan matching a file that no longer defines it.
 from __future__ import annotations
 
 from tools.e2e_checks.data import check_backtest as check_backtest  # noqa: F401
+from tools.e2e_checks.data import check_graph_linkage as check_graph_linkage  # noqa: F401
 from tools.e2e_checks.data import check_market_data as check_market_data  # noqa: F401
 from tools.e2e_checks.data import check_oracle as check_oracle  # noqa: F401
 from tools.e2e_checks.data import check_rag_embed as check_rag_embed  # noqa: F401
+from tools.e2e_checks.data import check_rag_status as check_rag_status  # noqa: F401
 from tools.e2e_checks.data import check_supabase as check_supabase  # noqa: F401
+from tools.e2e_checks.data import check_supabase_mirror as check_supabase_mirror  # noqa: F401
 from tools.e2e_checks.drills import drill_kill_switch as drill_kill_switch  # noqa: F401
 from tools.e2e_checks.drills import drill_outage as drill_outage  # noqa: F401
 from tools.e2e_checks.infrastructure import check_decision_histogram as check_decision_histogram  # noqa: F401

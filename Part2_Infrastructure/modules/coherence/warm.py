@@ -161,6 +161,21 @@ def _store(route: str, value: Any, taken_at_ns: int, **params: Any) -> None:
     _CACHE[snapshot_key(route, **params)] = Snapshot(value=value, taken_at_ns=taken_at_ns)
 
 
+def _certificate_payload(observation: Observation, schedule: Any) -> dict[str, Any]:
+    """Run the synchronous solve and proof rendering in one worker boundary.
+
+    ``refresh_once`` runs on FastAPI's event loop. HiGHS and the text proof are
+    synchronous work, just as they are on the cold certificate route, so doing
+    either inline can stall status and every other read on each warm cadence.
+    Return a complete payload: the event-loop side stores only after the whole
+    snapshot has succeeded, leaving any last-good entry untouched on failure.
+    """
+    certificate = certify(observation, schedule, max_contracts=Decimal(_MAX_CONTRACTS))
+    payload = certificate.to_dict()
+    payload["proof"] = certificate.render_text()
+    return payload
+
+
 async def refresh_once(client: KalshiClient) -> int:
     """One pass over the watchlist. Returns how many answers it stored.
 
@@ -196,9 +211,7 @@ async def refresh_once(client: KalshiClient) -> int:
             schedule = await fee_meta.schedule_for_event(
                 observation.event.series_ticker, observation.event.event_ticker,
             )
-            certificate = certify(observation, schedule, max_contracts=Decimal(_MAX_CONTRACTS))
-            payload = certificate.to_dict()
-            payload["proof"] = certificate.render_text()
+            payload = await asyncio.to_thread(_certificate_payload, observation, schedule)
             _store(
                 "certify", CoherenceCertificate(**payload), observed_at,
                 event_ticker=observation.event.event_ticker, max_contracts=_MAX_CONTRACTS,

@@ -36,8 +36,10 @@ import { memo, useState } from "react";
 
 import { DIAGRAM_LABEL_PX, truncateMiddle } from "@/lib/coherence/label-metrics";
 import { fmt } from "@/lib/format";
-import Figure, { FigureEmpty, Plot } from "../Figure";
+import Figure, { Plot } from "../Figure";
 import { STAGE_WORD } from "./AbsorptionGate";
+import DiffusionSparseState from "./DiffusionSparseState";
+import { findingIsAssessable } from "./findings-summary";
 import type { Finding } from "./types";
 
 const MARGIN = { top: 40, right: 24, bottom: 108, left: 52 };
@@ -61,8 +63,7 @@ export function qualifyingEvidence(
 ): Finding[] {
   return findings.filter((row) =>
     (stage === "all" || row.stage === "both" || row.stage === stage)
-    && row.t_statistic != null
-    && row.shuffled_p != null
+    && findingIsAssessable(row)
     && Math.abs(row.t_statistic) >= minAbsT
     && row.shuffled_p <= maxP,
   );
@@ -83,7 +84,7 @@ interface Placed {
 function placed(findings: readonly Finding[]): Placed[] {
   const out: Placed[] = [];
   for (const row of findings) {
-    if (row.t_statistic == null || row.shuffled_p == null) continue;
+    if (!findingIsAssessable(row)) continue;
     out.push({ row, t: row.t_statistic, p: row.shuffled_p });
   }
   return out;
@@ -139,12 +140,20 @@ function EffectField({ findings }: { findings: readonly Finding[] }) {
       : share < 1
         ? " — a smaller sample than the one that found the control"
         : "";
+  const emptyReason = allPoints.length === 0
+    ? findings.length
+      ? `${findings.length} planned relationship${findings.length === 1 ? " is" : "s are"} not assessable yet. `
+        + "The connected boxes show the registered measurement path; they do not place an effect."
+      : "No relationship has been registered yet. The connected boxes show the measurement path, not a result."
+    : `No assessable relationship belongs to the selected stage; ${allPoints.length} remain across all stages.`;
 
   return (
     <Figure
       caption="Every relationship by its t statistic and its shuffled p, each mark sized by the meetings behind it"
-      ariaLabel={`${points.length} relationships placed by t across and shuffled p up; ${holds.length} hold, `
-        + `${nulls.length} sit inside the band a shuffled pairing reaches`}
+      ariaLabel={points.length
+        ? `${points.length} relationships placed by t across and shuffled p up; ${holds.length} hold, `
+          + `${nulls.length} sit inside the band a shuffled pairing reaches`
+        : `No assessable relationship is placed; ${findings.length} planned relationship${findings.length === 1 ? " remains" : "s remain"} in the table`}
       reading={points.length
         ? holds.length
           ? `The ${holds.length} that clear the band rest on ${list(holdN)} meetings; every null rests on `
@@ -152,8 +161,8 @@ function EffectField({ findings }: { findings: readonly Finding[] }) {
           : "Nothing clears the band, the control included — so no row can be read as absence rather than broken measurement."
         : null}
       missing={undrawn
-        ? `${undrawn} relationship${undrawn === 1 ? "" : "s"} carried no t or no p and ${undrawn === 1 ? "is" : "are"} `
-          + `not placed; the table counts ${undrawn === 1 ? "it" : "them"}.`
+        ? `${undrawn} relationship${undrawn === 1 ? " is" : "s are"} not assessable or carried no complete t/p pair, `
+          + `so ${undrawn === 1 ? "it is" : "they are"} not placed; the table still counts ${undrawn === 1 ? "it" : "them"}.`
         : null}
     >
       <div className="diff-evidence-controls">
@@ -268,7 +277,7 @@ function EffectField({ findings }: { findings: readonly Finding[] }) {
           }}
         </Plot>
       ) : (
-        <FigureEmpty reason="No relationship has enough meetings behind it yet." />
+        <DiffusionSparseState kind="effects" sampleCount={points.length} reason={emptyReason} />
       )}
     </Figure>
   );
