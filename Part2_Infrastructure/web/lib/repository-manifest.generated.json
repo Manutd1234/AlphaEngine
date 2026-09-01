@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-09-01",
-  "commit": "7eeae687",
+  "commit": "ed94d051",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -1150,6 +1150,7 @@
     "Part2_Infrastructure/web/components/coherence/ProofsViewControl.tsx",
     "Part2_Infrastructure/web/components/coherence/QuantInspectionPair.tsx",
     "Part2_Infrastructure/web/components/coherence/ReliabilityDiagram.tsx",
+    "Part2_Infrastructure/web/components/coherence/RfqAccessState.tsx",
     "Part2_Infrastructure/web/components/coherence/RfqPane.tsx",
     "Part2_Infrastructure/web/components/coherence/SectionFrame.tsx",
     "Part2_Infrastructure/web/components/coherence/SectionVerdict.tsx",
@@ -1166,6 +1167,7 @@
     "Part2_Infrastructure/web/components/coherence/ShellPane.module.css",
     "Part2_Infrastructure/web/components/coherence/ShellPane.tsx",
     "Part2_Infrastructure/web/components/coherence/ShellPath.tsx",
+    "Part2_Infrastructure/web/components/coherence/ShellReadings.module.css",
     "Part2_Infrastructure/web/components/coherence/ShellReadings.tsx",
     "Part2_Infrastructure/web/components/coherence/ShellRouteFlow.module.css",
     "Part2_Infrastructure/web/components/coherence/ShellRouteFlow.tsx",
@@ -1553,6 +1555,7 @@
     "Part2_Infrastructure/web/lib/data-work-delete.ts",
     "Part2_Infrastructure/web/lib/data-work-queue.ts",
     "Part2_Infrastructure/web/lib/decision-plane.ts",
+    "Part2_Infrastructure/web/lib/delivery-parity.ts",
     "Part2_Infrastructure/web/lib/delivery-readiness.ts",
     "Part2_Infrastructure/web/lib/dependency-graph.ts",
     "Part2_Infrastructure/web/lib/desk-cookie.ts",
