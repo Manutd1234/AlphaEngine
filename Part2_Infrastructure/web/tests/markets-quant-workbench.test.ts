@@ -101,7 +101,7 @@ describe("Markets renders an interactive technical command bar", () => {
     // closed workbench therefore adds no repeated section/view label at rest.
     const currentChangedSurface = currentLedeWords;
     const reduction = 1 - (currentChangedSurface / priorLedeWords);
-    assert.equal(currentChangedSurface, 101, "the source-derived Markets lede count drifted");
+    assert.equal(currentChangedSurface, 107, "the source-derived Markets lede count drifted");
     assert.ok(reduction >= 0.10,
       `Markets lede source copy moved ${(reduction * 100).toFixed(1)}%; expected at least a 10% reduction`);
     assert.doesNotMatch(barSource, />\s*(?:Reset view|Copy deep link)\s*</,

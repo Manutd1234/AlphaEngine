@@ -26,8 +26,8 @@ scipy>=1.11
 
 # ── cryptography ─────────────────────────────────────────────────────────────
 # RSA-PSS request signing, for the handful of Kalshi endpoints that need a key:
-# GET /account/limits for the real rate tier, and the demo environment's
-# portfolio surface. Nothing on the read path needs it.
+# GET /account/limits for the real rate tier, private RFQs/quotes on production
+# or demo, and the production CF Benchmarks feed. Public reads do not need it.
 #
 # Node's built-in crypto does RSA-PSS with no dependency at all, and the web
 # side would therefore have been free. It is here rather than there because the

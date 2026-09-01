@@ -8,7 +8,7 @@
  * that file past the 400-line ceiling: the house rule is to split rather than
  * shave prose, and the seam was already drawn in the pane's own comments —
  * everything here is the PANEL's evidence, and what is left there is the
- * CHANNEL's vocabulary and the four ways it can answer.
+ * CHANNEL's outcome vocabulary.
  *
  * FOLDED, AND THE SUMMARY COUNTS. It is the longest table on the tab and every
  * column is per-row detail, so it opens when a reader wants to check a figure
@@ -21,15 +21,16 @@
  */
 
 import type { CoherenceDispersion } from "@/lib/coherence/types-lab";
+import { makerPanelKey, makerPanelLabel } from "@/lib/coherence/maker-dispersion";
 
 /** Below this many independent makers a spread is an anecdote, not a distribution. */
 export const THIN_PANEL = 3;
 
-function Row({ row }: { row: CoherenceDispersion }) {
+function Row({ row, label }: { row: CoherenceDispersion; label: string }) {
   const band = row.lowest == null || row.highest == null ? "—" : `${row.lowest} to ${row.highest}`;
   return (
     <tr>
-      <th scope="row">{row.market_ticker}</th>
+      <th scope="row">{label}</th>
       <td className="num">{row.quotes}</td>
       <td className="num">{row.usable}</td>
       <td className="num">{row.median ?? "—"}</td>
@@ -69,7 +70,7 @@ export default function DispersionTable({ rows }: { rows: CoherenceDispersion[] 
     <details className="disclosure">
       <summary>
         Every maker panel across twelve columns, {rows.length}{" "}
-        {rows.length === 1 ? "market" : "markets"}
+        {rows.length === 1 ? "request" : "requests"}
       </summary>
     <div className="table-wrap" role="region" aria-label="Maker dispersion evidence" tabIndex={0}>
       <table className="coh-table">
@@ -80,7 +81,7 @@ export default function DispersionTable({ rows }: { rows: CoherenceDispersion[] 
         </caption>
         <thead>
           <tr>
-            <th scope="col">Market</th>
+            <th scope="col">Market / request</th>
             <th scope="col" className="num">Quotes</th>
             <th scope="col" className="num">Usable</th>
             <th scope="col" className="num">Median</th>
@@ -95,8 +96,12 @@ export default function DispersionTable({ rows }: { rows: CoherenceDispersion[] 
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
-            <Row key={row.market_ticker} row={row} />
+          {rows.map((row, index) => (
+            <Row
+              key={makerPanelKey(row, index)}
+              row={row}
+              label={makerPanelLabel(row, index, rows)}
+            />
           ))}
         </tbody>
       </table>

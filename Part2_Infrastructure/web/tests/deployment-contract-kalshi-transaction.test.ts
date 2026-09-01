@@ -48,23 +48,19 @@ describe("gateway and Kalshi rotation are one guarded transaction", () => {
     );
   });
 
-  it("requires the demo pair and rejects a half-configured optional production reference pair", () => {
+  it("accepts either environment independently and rejects every half-configured pair", () => {
     const start = workflow.indexOf("- name: Required secrets are present");
     const end = workflow.indexOf("- name: Pull, swap, verify, roll back on failure", start);
     assert.ok(start > 0 && end > start, "the deploy credential gate was not found");
     const gate = workflow.slice(start, end);
     const revokeConflict = gate.indexOf("KALSHI_DEMO_REVOKE=1 conflicts");
-    const normalStart = gate.indexOf('if [ "$KALSHI_DEMO_REVOKE" = "0" ]');
-    const genericMissing = gate.indexOf("Missing repository secrets", normalStart);
-    assert.ok(revokeConflict > 0 && normalStart > revokeConflict && genericMissing > normalStart);
+    const genericMissing = gate.indexOf("Missing repository secrets", revokeConflict);
+    assert.ok(revokeConflict > 0 && genericMissing > revokeConflict);
 
-    const normalMode = gate.slice(normalStart, genericMissing);
-    assert.match(normalMode, /\[ -n "\$KALSHI_DEMO_KEY_ID" \] \|\| missing\+=\("KALSHI_DEMO_KEY_ID"\)/);
-    assert.match(normalMode, /\[ -n "\$KALSHI_DEMO_PRIVATE_KEY_PEM_B64" \] \|\| missing\+=\("KALSHI_DEMO_PRIVATE_KEY_PEM_B64"\)/);
     assert.doesNotMatch(
-      gate.slice(0, normalStart),
+      gate,
       /missing\+=\("KALSHI_DEMO_(?:KEY_ID|PRIVATE_KEY_PEM_B64)"\)/,
-      "revoke=1 with both credentials absent must reach the remote tombstone transaction",
+      "production-only deploys and demo revocation must reach the remote transaction",
     );
     assert.match(
       gate,
@@ -105,24 +101,32 @@ describe("gateway and Kalshi rotation are one guarded transaction", () => {
     );
   });
 
-  it("accepts normal signing or explicit revocation only after a token-authenticated Makers proof", () => {
-    const health = workflow.indexOf('if ! HEALTH_JSON=$(curl -fsS "http://127.0.0.1:${PORT}/health")');
+  it("proves the selected production-or-demo Makers boundary after a token-authenticated read", () => {
+    const health = workflow.indexOf('if ! HEALTH_JSON=$(curl -fsS --connect-timeout 3 --max-time 10 "http://127.0.0.1:${PORT}/health")');
     const makers = workflow.indexOf('echo "==> Confirming the authenticated private maker channel state"');
     const deployed = workflow.indexOf('echo "==> Deployed', makers);
     assert.ok(health > 0 && makers > health && deployed > makers);
     const canary = workflow.slice(makers, deployed);
     assert.match(canary, /X-AlphaEngine-Token: \$\{WEB_API_TOKEN\}/);
+    assert.match(canary, /X-AlphaEngine-Budget-Class: H4/);
+    assert.match(canary, /X-AlphaEngine-Remaining-Budget-Ms: 25000/,
+      "the canary must propagate the same finite H4 budget the web tier sends");
+    assert.match(canary, /curl -fsS --connect-timeout 5 --max-time 30/,
+      "the outer canary must outlive the gateway's H4 25-second budget");
     assert.match(canary, /\/api\/coherence\/rfq/);
-    assert.match(canary, /if \[ "\$KALSHI_DEMO_REVOKE" = "1" \]; then/);
-    assert.match(canary, /"signing_unavailable"[\s\S]*KALSHI_DEMO_KEY_ID/);
+    assert.match(canary, /environment=tunables\.preferred_rfq_signing_environment\(\)/);
+    assert.match(canary, /status\(environment\)\["available"\]/);
+    assert.match(canary, /"signing_environment" in payload or fail/);
+    assert.match(canary, /expectation\.endswith\("_unavailable"\)/);
+    assert.match(canary, /state in \{"empty", "requests_only", "available"\} and reported == expectation/);
+    assert.match(canary, /silently crossed signing environments/);
     assert.match(canary, /Private Makers credential revocation verified/);
-    assert.match(canary, /"\(empty\|available\)"/);
     assert.match(canary, /rollback_gateway/);
-    assert.match(canary, /refusing signing_unavailable, refused, and transport-degraded states/);
+    assert.match(canary, /refusing cross-environment fallback, refused credentials, and transport-degraded states/);
     assert.match(workflow, /KALSHI_PRODUCTION_REVOKE: \$\{\{ vars\.KALSHI_PRODUCTION_REVOKE \|\| '0' \}\}/);
     assert.match(
       workflow,
-      /if \[ "\$KALSHI_PRODUCTION_REVOKE" = "1" \]; then[\s\S]*status\("production"\)[\s\S]*key_id_missing[\s\S]*Production reference credential revocation verified/,
+      /if \[ "\$KALSHI_PRODUCTION_REVOKE" = "1" \]; then[\s\S]*status\("production"\)[\s\S]*key_id_missing[\s\S]*Production read credential revocation verified/,
     );
   });
 
@@ -157,6 +161,9 @@ describe("gateway and Kalshi rotation are one guarded transaction", () => {
     assert.match(workflow, /docker container ls -a --format '\{\{\.Names\}\}'/);
     assert.match(workflow, /grep -Fxq "\$target_container" <<< "\$present_containers"/);
     assert.match(workflow, /fall_forward_gateway[\s\S]*start_container "\$REPLACEMENT_GATEWAY" "\$ENV_FILE"/);
+    const healthCurls = workflow.match(/curl -fsS[^\n]*"http:\/\/127\.0\.0\.1:\$\{PORT\}\/health"/g) ?? [];
+    assert.ok(healthCurls.length >= 5 && healthCurls.every((call) =>
+      call.includes("--connect-timeout 3 --max-time 10")), "every local gateway health proof must be bounded");
     assert.doesNotMatch(rollback, /docker rm -f "\$CONTAINER"[^\n]*\|\| true/);
     assert.doesNotMatch(workflow, /rollback_(gateway|caddy) \|\| true/);
   });
@@ -184,7 +191,7 @@ describe("gateway and Kalshi rotation are one guarded transaction", () => {
     const markerInstall = workflow.indexOf('mv "$CUTOVER_PENDING_NEXT" "$CUTOVER_PENDING"');
     const keyStaging = workflow.indexOf("==> Staging and verifying the Kalshi demo private key");
     const productionKeyStaging = workflow.indexOf(
-      "==> Staging and verifying the Kalshi production reference private key",
+      "==> Staging and verifying the Kalshi production read private key",
     );
     const envInstall = workflow.indexOf('mv "$MERGED" "$ENV_FILE"', markerInstall);
     assert.ok(

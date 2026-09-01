@@ -100,27 +100,92 @@ class TestTheSettlementRoute:
 
 
 class TestTheRfqRoute:
+    @pytest.fixture(autouse=True)
+    def no_inherited_signing_material(self, monkeypatch):
+        """Each selection test owns all four credential inputs."""
+        monkeypatch.setattr(tunables, "PRODUCTION_KEY_ID", "")
+        monkeypatch.setattr(tunables, "PRODUCTION_PRIVATE_KEY_PATH", "")
+        monkeypatch.setattr(tunables, "DEMO_KEY_ID", "")
+        monkeypatch.setattr(tunables, "DEMO_PRIVATE_KEY_PATH", "")
+
     def test_an_unsigned_deployment_reports_no_view_rather_than_an_empty_one(self, client):
         payload = client.get("/api/coherence/rfq").json()
         assert payload["state"] == "signing_unavailable"
-        assert "KALSHI_DEMO_KEY_ID" in payload["detail"]
+        assert payload["signing_environment"] is None
+        assert "neither a production nor demo" in payload["detail"]
         assert "Public market reads remain available" in payload["detail"]
         assert payload["dispersions"] == []
 
     def test_a_signed_read_of_a_quiet_sandbox_is_empty_rather_than_refused(self, client, monkeypatch):
-        venue(monkeypatch)
-        monkeypatch.setattr(lab, "signing_available", lambda: True)
+        venue(monkeypatch, authenticate=True)
+        monkeypatch.setattr(lab, "signing_available", lambda environment: environment == "demo")
         monkeypatch.setattr(tunables, "DEMO_KEY_ID", "a-demo-key")
+        monkeypatch.setattr(tunables, "DEMO_PRIVATE_KEY_PATH", "/test/demo.pem")
         payload = client.get("/api/coherence/rfq").json()
         assert payload["state"] == "empty"
-        assert "makers do not quote a sandbox" in payload["detail"]
+        assert payload["signing_environment"] == "demo"
+        assert "usual sandbox state" in payload["detail"]
+
+    def test_any_broken_production_material_blocks_demo_fallback(self, client, monkeypatch):
+        monkeypatch.setattr(tunables, "PRODUCTION_KEY_ID", "incomplete-production-key")
+        monkeypatch.setattr(tunables, "DEMO_KEY_ID", "complete-demo-key")
+        monkeypatch.setattr(tunables, "DEMO_PRIVATE_KEY_PATH", "/test/demo.pem")
+        monkeypatch.setattr(lab, "signing_available", lambda environment: environment == "demo")
+
+        payload = client.get("/api/coherence/rfq").json()
+
+        assert payload["state"] == "signing_unavailable"
+        assert payload["signing_environment"] == "production"
+        assert "will not fall back" in payload["detail"]
+
+    def test_a_placeholder_production_mount_path_does_not_disable_demo(self, client, monkeypatch):
+        venue(monkeypatch, authenticate=True)
+        monkeypatch.setattr(tunables, "PRODUCTION_PRIVATE_KEY_PATH", "/run/reference-secrets/missing.pem")
+        monkeypatch.setattr(tunables, "DEMO_KEY_ID", "complete-demo-key")
+        monkeypatch.setattr(tunables, "DEMO_PRIVATE_KEY_PATH", "/test/demo.pem")
+        monkeypatch.setattr(lab, "signing_available", lambda environment: environment == "demo")
+
+        payload = client.get("/api/coherence/rfq").json()
+
+        assert payload["state"] == "empty"
+        assert payload["signing_environment"] == "demo"
+
+    def test_broken_demo_material_names_demo_as_the_selected_environment(self, client, monkeypatch):
+        monkeypatch.setattr(tunables, "DEMO_KEY_ID", "incomplete-demo-key")
+        monkeypatch.setattr(lab, "signing_available", lambda _environment: False)
+
+        payload = client.get("/api/coherence/rfq").json()
+
+        assert payload["state"] == "signing_unavailable"
+        assert payload["signing_environment"] == "demo"
+
+    def test_a_valid_production_pair_is_preferred_over_demo(self, client, monkeypatch):
+        venue(monkeypatch, authenticate=True)
+        monkeypatch.setattr(tunables, "PRODUCTION_KEY_ID", "production-key")
+        monkeypatch.setattr(tunables, "PRODUCTION_PRIVATE_KEY_PATH", "/test/production.pem")
+        monkeypatch.setattr(tunables, "DEMO_KEY_ID", "demo-key")
+        monkeypatch.setattr(tunables, "DEMO_PRIVATE_KEY_PATH", "/test/demo.pem")
+        monkeypatch.setattr(lab, "signing_available", lambda _environment: True)
+
+        payload = client.get("/api/coherence/rfq").json()
+
+        assert payload["state"] == "empty"
+        assert payload["signing_environment"] == "production"
+        assert "production private channel" in payload["detail"]
+        assert "sandbox" not in payload["detail"]
 
     def test_a_refused_channel_is_a_refusal_and_not_an_empty_market(self, client, monkeypatch):
-        venue(monkeypatch, lambda request: httpx.Response(401, json={"error": "signed only"}))
-        monkeypatch.setattr(lab, "signing_available", lambda: True)
+        venue(
+            monkeypatch,
+            lambda request: httpx.Response(401, json={"error": "signed only"}),
+            authenticate=True,
+        )
+        monkeypatch.setattr(lab, "signing_available", lambda _environment: True)
         monkeypatch.setattr(tunables, "DEMO_KEY_ID", "a-demo-key")
+        monkeypatch.setattr(tunables, "DEMO_PRIVATE_KEY_PATH", "/test/demo.pem")
         payload = client.get("/api/coherence/rfq").json()
         assert payload["state"] == "refused"
+        assert payload["signing_environment"] == "demo"
         assert payload["open_requests"] == 0
 
     def test_a_crypto_signing_error_returns_a_typed_state_not_a_500(self, client, monkeypatch):
@@ -140,7 +205,7 @@ class TestTheRfqRoute:
             )
 
         monkeypatch.setattr(lab, "KalshiClient", signed_client)
-        monkeypatch.setattr(lab, "signing_available", lambda: True)
+        monkeypatch.setattr(lab, "signing_available", lambda _environment: True)
         monkeypatch.setattr(tunables, "DEMO_KEY_ID", "a-demo-key")
         monkeypatch.setattr(tunables, "DEMO_PRIVATE_KEY_PATH", "/configured/do-not-disclose.pem")
         monkeypatch.setattr(kalshi_auth, "_load_key", lambda _path: BrokenRsaKey())
@@ -149,6 +214,7 @@ class TestTheRfqRoute:
 
         assert response.status_code == 200
         assert response.json()["state"] == "signing_unavailable"
+        assert response.json()["signing_environment"] == "demo"
         assert "could not sign" in response.json()["detail"]
         assert "do-not-disclose.pem" not in response.json()["detail"]
         assert "test-only crypto detail" not in response.json()["detail"]

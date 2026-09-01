@@ -10,7 +10,8 @@ rejects on every paginated call and nowhere else.
 Almost nothing in the read path needs this. Kalshi's markets, events, series,
 trades, fee feeds and exchange status are public, so the engine still runs with
 no account. Signing exists for the endpoints that do need a key: the demo
-environment's private-channel surface and production ``/cfbenchmarks/values``.
+environment's private-channel surface and production account-only reads,
+including RFQs and ``/cfbenchmarks/values``.
 
 **Production and demo keys are not interchangeable.** A sandbox key generated at
 demo.kalshi.co cannot sign a production request, so the client keeps the two
@@ -305,7 +306,7 @@ def status(environment: SigningEnvironment = "demo") -> dict[str, object]:
             + (
                 "public production reads need no key"
                 if environment == "demo"
-                else "the CF Benchmarks read will not fall back to an unsigned request"
+                else "production account-only reads will not fall back to an unsigned request"
             )
         ),
     }

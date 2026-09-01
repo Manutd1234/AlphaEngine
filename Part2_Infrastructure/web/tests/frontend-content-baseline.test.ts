@@ -259,6 +259,22 @@ describe("engine copy has a reproducible source-static word baseline", () => {
     proofs: { sha256: "8d167ae4813a6d26edfc3f578124e3f5840cd8816093afcc42f76c27062fcd23", strings: 2983, words: 16623 },
     diffusion: { sha256: "25f1331c14331536fb22680e38fc25f8001da60a765d535f769dd503c0c6e545", strings: 1929, words: 10645 },
   };
+  const rfqRestEnvironment20260901Checkpoint = {
+    // RFQ reads now publish their production/demo signer provenance and name
+    // the operation as a bounded authenticated REST poll, never a connection.
+    // Keep the gateway-readiness checkpoint above as the pre-provenance state.
+    markets: { sha256: "366165b44208ff1c36e5205addbf9bbe659c97b2f3815901ffd38d1c54e53912", strings: 2681, words: 10416 },
+    proofs: { sha256: "8d167ae4813a6d26edfc3f578124e3f5840cd8816093afcc42f76c27062fcd23", strings: 2983, words: 16623 },
+    diffusion: { sha256: "25f1331c14331536fb22680e38fc25f8001da60a765d535f769dd503c0c6e545", strings: 1929, words: 10645 },
+  };
+  const rfqCompleteRead20260901Checkpoint = {
+    // Complete paginated RFQ reads, account verification, per-request panels,
+    // and the six explicit REST-poll outcomes add measured setup/evidence copy.
+    // Keep the signer-provenance checkpoint above as the pre-completeness state.
+    markets: { sha256: "0fae1001f4ec3705883926d615ae75d2989865ecf68cfb75f53f0aa15c7ac94f", strings: 2693, words: 10479 },
+    proofs: { sha256: "1ca8ec9bd889f6d98164fefa628b684e11bdcb4c6d9051297613e1d6ee76e7a8", strings: 2988, words: 16632 },
+    diffusion: { sha256: "ac901a1531ef7d816c8ef338a8dd85f24a705f2bdd392f1d09e6a9fe97c1b682", strings: 1931, words: 10649 },
+  };
 
   it("retains Phase 0 and records the current upper bound as a separate signature", () => {
     assert.equal(fixture.wordBaseline.browserObserved, false);
@@ -281,7 +297,9 @@ describe("engine copy has a reproducible source-static word baseline", () => {
     assert.deepEqual(fixture.wordBaseline.combosQuoteCoverage20260901Tabs, combosQuoteCoverage20260901Checkpoint);
     assert.deepEqual(fixture.wordBaseline.connectedAvailability20260901Tabs, connectedAvailability20260901Checkpoint);
     assert.deepEqual(fixture.wordBaseline.gatewayReadiness20260901Tabs, gatewayReadiness20260901Checkpoint);
-    assert.deepEqual(buildEngineWordBaseline(), gatewayReadiness20260901Checkpoint);
+    assert.deepEqual(fixture.wordBaseline.rfqRestEnvironment20260901Tabs, rfqRestEnvironment20260901Checkpoint);
+    assert.deepEqual(fixture.wordBaseline.rfqCompleteRead20260901Tabs, rfqCompleteRead20260901Checkpoint);
+    assert.deepEqual(buildEngineWordBaseline(), rfqCompleteRead20260901Checkpoint);
   });
 
   it("retains the historical starting points for the product-specific summary-copy checks", () => {

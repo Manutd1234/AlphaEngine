@@ -230,6 +230,7 @@ export function rfq() {
   return {
     state: "available",
     detail: SNAPSHOT_NOTE,
+    signing_environment: "demo",
     open_requests: 2,
     dispersions: markets.slice(0, 2).map((market, index) => ({
       market_ticker: market.ticker,

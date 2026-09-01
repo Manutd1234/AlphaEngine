@@ -4,5 +4,7 @@ import type { CoherenceRfqPanel } from "./types-lab";
 export function measuredOpenRequests(
   panel: Pick<CoherenceRfqPanel, "state" | "open_requests">,
 ): number | null {
-  return panel.state === "empty" || panel.state === "available" ? panel.open_requests : null;
+  return panel.state === "empty" || panel.state === "requests_only" || panel.state === "available"
+    ? panel.open_requests
+    : null;
 }

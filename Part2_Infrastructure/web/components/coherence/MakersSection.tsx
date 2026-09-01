@@ -17,22 +17,21 @@
  * on the tab answers "what is this quoted at". A book is ONE number the
  * exchange publishes; a maker panel is N independent answers to a question the
  * exchange never asked. Those are different objects with different failure
- * modes — a book can be thin, a panel can be unsigned — and the four-state
+ * modes — a book can be thin, a panel can be unsigned — and the outcome
  * table this section carries exists precisely because they are confused.
  *
  * The seam is also the read, and it is the sharpest one on the tab. Books reads
- * the exchange's public book; this reads a SIGNED private-channel call on a
- * 25-second gateway budget. While the two were one section the gate was a
+ * the exchange's public book; this reads a SIGNED RFQ REST call on a bounded
+ * gateway budget. While the two were one section the gate was a
  * `CHANNEL_VIEWS.includes(view)` predicate whose whole job was to keep the
- * slowest call on the desk from firing for a reader who came to look at a
+ * account-scoped call from firing for a reader who came to look at a
  * ladder. As two sections the console gates each on itself and the predicate
  * is gone.
  *
  * IT IS STILL NOT WARMED, and that is deliberate. `MarketsConsole`'s warm plan
  * spends a read when a reader looks like they are about to open a section —
  * and this is the one section on the tab where that trade is wrong, because the
- * read is signed, slow, and on the demo deployment answers "no view, unsigned"
- * every time. A reader who wants it presses it.
+ * read is signed, paginated and account-scoped. A reader who wants it presses it.
  *
  * LABELLED "Makers" AND NOT "Dispersion", which is house practice on this row
  * — `live` renders "Execution", `activity` renders "Blotter". The id is what
@@ -51,10 +50,10 @@ import RfqPane, { type RfqView } from "./RfqPane";
 import PaneHead from "./PaneHead";
 import SectionFrame from "./SectionFrame";
 
-/** The panel itself, then the channel that did or did not carry it. */
+/** The panel itself, then the REST poll that did or did not carry it. */
 const VIEWS: ReadonlyArray<[RfqView, string]> = [
   ["quotes", "Dispersion"],
-  ["channel", "Channel"],
+  ["channel", "REST poll"],
 ];
 
 export default function MakersSection(
@@ -68,10 +67,10 @@ export default function MakersSection(
       head={
         <PaneHead
           kicker="Makers"
-          title="Independent maker views of one event"
+          title="Independent maker views by request"
           id="markets-dispersion-heading"
-          note="a signed HTTP read, requested only while this section is open"
-          lede="The signed channel returns independent professional quotes beyond the book’s most aggressive opinion."
+          note="one bounded authenticated REST poll, requested only while this section is open"
+          lede="Each open RFQ returns independent quotes beyond the book’s most aggressive opinion and stays separate from every other request."
         />
       }
       views={VIEWS}

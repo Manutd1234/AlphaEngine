@@ -14,8 +14,9 @@ different facts, and the panes render them differently.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
+from modules.coherence.kernel.band_usage import band_usage
 from modules.schemas import (
     CoherenceBin,
     CoherenceCalibration,
@@ -294,20 +295,22 @@ def settlement_view(feed: dict[str, Any], reference: dict[str, Any], city: str) 
     )
 
 
-def rfq_view(panel: dict[str, Any], usage: dict[str, Any] | None = None) -> CoherenceRfqPanel:
+def rfq_view(panel: dict[str, Any], usage: dict[tuple[str, str], Any] | None = None) -> CoherenceRfqPanel:
     """The panel, with each market's disagreement set against its own band.
 
-    ``usage`` maps a market ticker to a ``frechet.BandUsage``. Absent, the
-    band columns come across null and say nothing, which is the honest state
-    when no combo reading covers the market a maker was quoting.
+    ``usage`` maps an RFQ/market pair to a ``frechet.BandUsage``. Absent, the
+    band columns cross as null, which is honest when no combo covers that RFQ.
     """
     found = usage or {}
     return CoherenceRfqPanel(
         state=str(panel.get("state") or "refused"),
         detail=str(panel.get("detail") or ""),
+        signing_environment=panel.get("signing_environment"),
         open_requests=len(panel.get("rfqs") or []),
+        open_quotes=int(panel.get("open_quotes") or 0),
         dispersions=[
             CoherenceDispersion(
+                rfq_id=item.rfq_id,
                 market_ticker=item.market_ticker,
                 quotes=item.quotes,
                 usable=item.usable,
@@ -319,16 +322,54 @@ def rfq_view(panel: dict[str, Any], usage: dict[str, Any] | None = None) -> Cohe
                 crossed=item.crossed,
                 thin=item.thin,
                 detail=item.detail,
-                band_width=text(found[item.market_ticker].band_width)
-                if item.market_ticker in found
+                band_width=text(found[(item.rfq_id, item.market_ticker)].band_width)
+                if (item.rfq_id, item.market_ticker) in found
                 else None,
-                band_fraction=text(found[item.market_ticker].fraction)
-                if item.market_ticker in found
+                band_fraction=text(found[(item.rfq_id, item.market_ticker)].fraction)
+                if (item.rfq_id, item.market_ticker) in found
                 else None,
-                band_note=found[item.market_ticker].detail if item.market_ticker in found else "",
+                band_note=found[(item.rfq_id, item.market_ticker)].detail
+                if (item.rfq_id, item.market_ticker) in found else "",
             )
             for item in (panel.get("dispersions") or [])
         ],
+    )
+
+
+def rfq_band_usage(dispersions: list[Any], readings: list[Any]) -> dict[tuple[str, str], Any]:
+    """Compare each RFQ separately even when several ask about one market."""
+    result: dict[tuple[str, str], Any] = {}
+    for item in dispersions:
+        for reading in readings:
+            if item.market_ticker != reading.combo_ticker:
+                continue
+            measured = band_usage(reading, item.spread, item.usable)
+            if measured is not None:
+                result[(item.rfq_id, item.market_ticker)] = measured
+    return result
+
+
+def rfq_signing_unavailable(
+    environment: Literal["production", "demo"] | None,
+    signing_detail: str | None = None,
+) -> CoherenceRfqPanel:
+    """Map an absent or unusable selected signer without implying an empty channel."""
+    if environment is None:
+        detail = (
+            "Private maker RFQs are unavailable: neither a production nor demo signing "
+            "credential is configured. Configure one environment's KEY_ID and PRIVATE_KEY_PATH "
+            "pair on the gateway. Public market reads remain available while this private channel "
+            "is unconfigured."
+        )
+    else:
+        reason = signing_detail or f"signed {environment} reads are unavailable"
+        detail = (
+            f"Private maker RFQs are unavailable in {environment}: {reason}. The gateway will not "
+            "fall back to another environment while this environment's key ID is configured. Public "
+            "market reads remain available."
+        )
+    return CoherenceRfqPanel(
+        state="signing_unavailable", signing_environment=environment, detail=detail,
     )
 
 

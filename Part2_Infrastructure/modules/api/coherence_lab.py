@@ -23,7 +23,6 @@ from modules.coherence.drivers.kalshi_rest import KalshiClient, KalshiUnavailabl
 from modules.coherence.drivers.rfq import read_panel
 from modules.coherence.fs import corpus
 from modules.coherence.fs.store import TapeUnavailable, get_store
-from modules.coherence.kernel.band_usage import band_usage
 from modules.coherence.kernel.costs import FeeSchedule, net_fee, no_arbitrage_bound
 from modules.coherence.kernel.money import DOLLAR, MoneyError, format_dollars, parse_fp
 from modules.coherence.syscalls import calibrate, combos, settlement, shell, surface
@@ -212,37 +211,32 @@ async def coherence_settlement(
 async def coherence_rfq(_actor: str = Depends(trader_identity)) -> CoherenceRfqPanel:
     """What the makers disagree about, where the public book shows nothing.
 
-    Signed-only, and on the demo environment usually empty — makers do not quote
-    a sandbox. Empty is reported as empty rather than as a quiet market, and an
-    unsigned read is reported as no view rather than a worse one.
+    Signed-only. A configured production credential is preferred so the panel
+    can show the account's live RFQs; demo is used only when no production
+    key ID declares production intent. Empty is reported as empty rather than
+    as a quiet market, and an unsigned read is reported as no view rather than
+    a worse one.
     """
-    if not signing_available() or not tunables.DEMO_KEY_ID:
-        signing_detail = str(signing_status().get("detail") or "signed demo reads are unavailable")
-        return CoherenceRfqPanel(
-            state="signing_unavailable",
-            detail=(
-                f"Private maker RFQs are unavailable: {signing_detail}. "
-                "Configure KALSHI_DEMO_KEY_ID and KALSHI_DEMO_PRIVATE_KEY_PATH on the gateway. "
-                "Public market reads remain available while this private channel is unconfigured."
-            ),
-        )
-    panel = await read_panel(KalshiClient(base_url=tunables.DEMO_BASE_URL, signed=True))
+    # Presence wins even when broken, so demo cannot disguise a production fault.
+    environment = tunables.preferred_rfq_signing_environment()
+    if environment is None:
+        return views.rfq_signing_unavailable(None)
+
+    if not signing_available(environment):
+        signing_detail = str(signing_status(environment).get("detail") or f"signed {environment} reads are unavailable")
+        return views.rfq_signing_unavailable(environment, signing_detail)
+
+    base_url = tunables.PUBLIC_BASE_URL if environment == "production" else tunables.DEMO_BASE_URL
+    panel = await read_panel(KalshiClient(base_url=base_url, signing_environment=environment))
 
     # The measurement §8.4 is actually about: how much of the room the legs
     # leave do the makers use? Reading the combos costs two calls, so it is
     # done only when there is a panel to set them against — on a sandbox with
     # no quotes the join would be two requests to compare nothing.
-    usage: dict[str, Any] = {}
+    usage: dict[tuple[str, str], Any] = {}
     if panel.get("dispersions"):
-        spreads = {item.market_ticker: (item.spread, item.usable) for item in panel["dispersions"]}
         observed = await combos.observe_combos(KalshiClient(), limit=10)
-        for reading in observed.readings:
-            found = spreads.get(reading.combo_ticker)
-            if found is None:
-                continue
-            measured = band_usage(reading, found[0], found[1])
-            if measured is not None:
-                usage[reading.combo_ticker] = measured
+        usage = views.rfq_band_usage(panel["dispersions"], observed.readings)
     return views.rfq_view(panel, usage)
 
 

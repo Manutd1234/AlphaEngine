@@ -15,8 +15,8 @@
  *     empty          the tape is real and holds nothing for THIS market.
  *     ok             a series.
  *
- * `RfqPane`'s four-state table defends the same distinction for the signed
- * channel, and it exists there because those four kept being confused.
+ * `RfqPane`'s outcome table defends the same distinction for the authenticated
+ * RFQ poll, and it exists there because those outcomes kept being confused.
  */
 
 /** Narrow an unknown payload to an object before reading fields off it.

@@ -56,7 +56,8 @@ function circuitGeometry(width: number, height: number): CircuitGeometry {
       signing_unavailable: { x: sign + 66, y: TOP_Y },
       unavailable: { x: transport + 66, y: TOP_Y },
       refused: { x: venue + 66, y: TOP_Y },
-      empty: { x: read - 80, y: BOTTOM_Y },
+      empty: { x: read - 174, y: BOTTOM_Y },
+      requests_only: { x: read - 46, y: BOTTOM_Y },
       // Keep the 126px interaction target inside the minimum-width viewBox.
       available: { x: read + 82, y: BOTTOM_Y },
       unknown: { x: read, y: height - 68 },
@@ -75,7 +76,7 @@ function activePath(state: string, geometry: CircuitGeometry): string {
   if (state === "refused") {
     return `M${start},${TRUNK_Y} H${venue} V${TOP_Y} H${nodes.refused.x}`;
   }
-  if (state === "empty" || state === "available") {
+  if (state === "empty" || state === "requests_only" || state === "available") {
     const node = nodes[state];
     return `M${start},${TRUNK_Y} H${read} V${BOTTOM_Y} H${node.x}`;
   }
@@ -84,9 +85,9 @@ function activePath(state: string, geometry: CircuitGeometry): string {
 
 function liveReading(state: string, openRequests: number | null) {
   if (openRequests != null) return { label: "Open requests", value: String(openRequests), numeric: true };
-  if (state === "signing_unavailable") return { label: "Connection", value: "setup required", numeric: false };
-  if (state === "refused") return { label: "Connection", value: "credentials refused", numeric: false };
-  return { label: "Connection", value: "offline", numeric: false };
+  if (state === "signing_unavailable") return { label: "REST poll", value: "signing setup required", numeric: false };
+  if (state === "refused") return { label: "REST poll", value: "credentials refused", numeric: false };
+  return { label: "REST poll", value: "request unavailable", numeric: false };
 }
 
 /** An inspectable branch map: each terminal answer is an alternative, not a step. */
@@ -108,15 +109,15 @@ export default function ChannelStates({ states, current, openRequests }: {
 
   return (
     <Figure
-      caption="Private-channel outcome map"
-      ariaLabel={`The private request branches at signing, transport, venue response and quote reading. This read ended at ${drawn[currentIndex].word}.`}
+      caption="Authenticated RFQ REST-poll outcome map"
+      ariaLabel={`The bounded RFQ REST request branches at signing, transport, venue response and quote reading. This poll ended at ${drawn[currentIndex].word}.`}
       readout={<span className="num">{drawn[currentIndex].word}</span>}
-      reading={`The live trace followed one branch to ${drawn[currentIndex].word}; the other nodes are alternative outcomes, not earlier steps.`}
+      reading={`The poll trace followed one branch to ${drawn[currentIndex].word}; the other nodes are alternative outcomes, not earlier steps. This is not a persistent connection.`}
     >
       <Plot
         height={height}
         minWidth={MIN_WIDTH}
-        scrollLabel="Scroll the private-channel outcome map horizontally"
+        scrollLabel="Scroll the authenticated RFQ REST-poll outcome map horizontally"
         onSelect={(index) => setInspection({ read: current, state: drawn[index]?.state ?? current })}
       >
         {(width) => {
@@ -139,7 +140,7 @@ export default function ChannelStates({ states, current, openRequests }: {
                 [sign, "SIGN"],
                 [transport, "TRANSPORT"],
                 [venue, "VENUE"],
-                [read, "PRIVATE READ"],
+                [read, "RFQ RESPONSE"],
               ].map(([x, label]) => (
                 <g key={label}>
                   <circle cx={Number(x)} cy={TRUNK_Y} r="4" className={styles.branchHub} />

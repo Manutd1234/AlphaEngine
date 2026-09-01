@@ -248,11 +248,11 @@ jobs:
           [ -n "$NEO4J_USERNAME" ] || missing+=("NEO4J_USERNAME")
           [ -n "$NEO4J_PASSWORD" ] || missing+=("NEO4J_PASSWORD")
           [ -n "$NEO4J_DATABASE" ] || missing+=("NEO4J_DATABASE")
-          # Makers is a production surface in this deployment. Normal mode
-          # requires the complete pair; the explicit one-shot revoke mode
-          # requires both values absent. Validate that state before building the
-          # generic inventory so revoke mode is reachable and a half-rotation or
-          # contradictory revoke request keeps its precise diagnostic.
+          # Demo and production are independent read environments. Either pair
+          # may be rotated or explicitly revoked; a production-only deployment
+          # must not retain a sandbox credential just to pass preflight. Validate
+          # half-pairs and contradictory revoke requests before the generic
+          # inventory so each operator error keeps its precise diagnostic.
           if { [ -n "$KALSHI_DEMO_KEY_ID" ] && [ -z "$KALSHI_DEMO_PRIVATE_KEY_PEM_B64" ]; } \
             || { [ -z "$KALSHI_DEMO_KEY_ID" ] && [ -n "$KALSHI_DEMO_PRIVATE_KEY_PEM_B64" ]; }; then
             echo "::error::KALSHI_DEMO_KEY_ID and KALSHI_DEMO_PRIVATE_KEY_PEM_B64 must be configured together."
@@ -267,15 +267,11 @@ jobs:
             echo "::error::KALSHI_DEMO_REVOKE=1 conflicts with a configured demo credential. Remove both repository secrets before revoking."
             exit 1
           fi
-          if [ "$KALSHI_DEMO_REVOKE" = "0" ]; then
-            [ -n "$KALSHI_DEMO_KEY_ID" ] || missing+=("KALSHI_DEMO_KEY_ID")
-            [ -n "$KALSHI_DEMO_PRIVATE_KEY_PEM_B64" ] || missing+=("KALSHI_DEMO_PRIVATE_KEY_PEM_B64")
-          fi
           # The production credential is an optional, read-only capability for
-          # the CF Benchmarks reference rate. Both absent means "do not rotate":
-          # preserve a deployed pair, or remain authentication_required on a
-          # keyless host. A half-pair is always an operator error and must never
-          # fall through to an unsigned request.
+          # private RFQs, quotes, and the CF Benchmarks reference rate. Both
+          # absent means "do not rotate": preserve a deployed pair, or remain
+          # authentication_required on a keyless host. A half-pair is always
+          # an operator error and must never fall through to an unsigned request.
           if { [ -n "$KALSHI_PRODUCTION_KEY_ID" ] && [ -z "$KALSHI_PRODUCTION_PRIVATE_KEY_PEM_B64" ]; } \
             || { [ -z "$KALSHI_PRODUCTION_KEY_ID" ] && [ -n "$KALSHI_PRODUCTION_PRIVATE_KEY_PEM_B64" ]; }; then
             echo "::error::KALSHI_PRODUCTION_KEY_ID and KALSHI_PRODUCTION_PRIVATE_KEY_PEM_B64 must be configured together."
@@ -554,7 +550,7 @@ jobs:
               # Empty first-wins entries prevent the legacy env from restoring
               # a pair after this one-shot repository variable returns to zero.
               printf 'KALSHI_PRODUCTION_KEY_ID=\nKALSHI_PRODUCTION_PRIVATE_KEY_PATH=\n' >> "$PRESERVED"
-              echo "    revoking the deployed Kalshi production reference credential"
+              echo "    revoking the deployed Kalshi production read credential"
             fi
             echo "    carrying forward $(grep -cE '^[A-Za-z_][A-Za-z0-9_]*=' "$PRESERVED" || true) existing line(s)"
 
@@ -751,7 +747,7 @@ jobs:
               fi
             fi
             if [ -n "${KALSHI_PRODUCTION_PRIVATE_KEY_PEM_B64:-}" ]; then
-              echo "==> Staging and verifying the Kalshi production reference private key"
+              echo "==> Staging and verifying the Kalshi production read private key"
               export KALSHI_PRODUCTION_KEY_NAME \
                 KALSHI_PRODUCTION_PRIVATE_KEY_PATH="$KALSHI_PRODUCTION_KEY_PATH"
               if ! printf '%s' "$KALSHI_PRODUCTION_PRIVATE_KEY_PEM_B64" \
@@ -774,7 +770,7 @@ jobs:
               KALSHI_PRODUCTION_KEY_INSTALLED=1
               # Prove the key ID and PEM together against a production private
               # read that does not depend on the separate CF product entitlement.
-              # The reference endpoint remains responsible for reporting an
+              # The CF reference endpoint remains responsible for reporting an
               # entitlement_required state after authentication succeeds.
               if ! docker run --rm \
                   -e KALSHI_PRODUCTION_KEY_ID \
@@ -862,7 +858,7 @@ jobs:
                 echo "::error::The replacement gateway could not be restarted."
                 return 1
               fi
-              if wait_for_gateway && curl -fsS "http://127.0.0.1:${PORT}/health" >/dev/null; then
+              if wait_for_gateway && curl -fsS --connect-timeout 3 --max-time 10 "http://127.0.0.1:${PORT}/health" >/dev/null; then
                 echo "::warning::The replacement gateway is healthy again, but the deployment remains failed for operator review."
                 rm -f "${ENV_FILE}.restore" || echo "::warning::The resolved rollback scratch file requires manual cleanup."
                 return 0
@@ -933,7 +929,7 @@ jobs:
                 fi
                 return 1
               fi
-              if wait_for_gateway && curl -fsS "http://127.0.0.1:${PORT}/health" >/dev/null; then
+              if wait_for_gateway && curl -fsS --connect-timeout 3 --max-time 10 "http://127.0.0.1:${PORT}/health" >/dev/null; then
                 if ! mv "$ENV_RESTORE" "$ENV_FILE"; then
                   echo "::error::The prior gateway is healthy, but its environment could not be installed as the live file."
                   return 1
@@ -1011,7 +1007,7 @@ jobs:
                   echo "::error::The prior gateway could not be recreated after the aborted cutover."
                   return 1
                 fi
-                if ! wait_for_gateway || ! curl -fsS "http://127.0.0.1:${PORT}/health" >/dev/null; then
+                if ! wait_for_gateway || ! curl -fsS --connect-timeout 3 --max-time 10 "http://127.0.0.1:${PORT}/health" >/dev/null; then
                   echo "::error::The prior gateway did not recover after the aborted cutover."
                   docker logs --tail 60 "$CONTAINER" 2>&1 || true
                   return 1
@@ -1128,7 +1124,7 @@ jobs:
             fi
 
             echo "==> Healthy. Confirming the port answers"
-            if ! HEALTH_JSON=$(curl -fsS "http://127.0.0.1:${PORT}/health"); then
+            if ! HEALTH_JSON=$(curl -fsS --connect-timeout 3 --max-time 10 "http://127.0.0.1:${PORT}/health"); then
               echo "::error::The replacement gateway health endpoint did not answer."
               if ! rollback_gateway; then
                 echo "::error::Automatic gateway rollback failed; operator intervention is required."
@@ -1137,8 +1133,10 @@ jobs:
             fi
 
             echo "==> Confirming the authenticated private maker channel state"
-            if ! RFQ_JSON=$(curl -fsS --max-time 20 \
+            if ! RFQ_JSON=$(curl -fsS --connect-timeout 5 --max-time 30 \
                 -H "X-AlphaEngine-Token: ${WEB_API_TOKEN}" \
+                -H "X-AlphaEngine-Budget-Class: H4" \
+                -H "X-AlphaEngine-Remaining-Budget-Ms: 25000" \
                 "http://127.0.0.1:${PORT}/api/coherence/rfq"); then
               echo "::error::The replacement gateway private Makers route did not answer."
               if ! rollback_gateway; then
@@ -1146,40 +1144,52 @@ jobs:
               fi
               exit 1
             fi
-            if [ "$KALSHI_DEMO_REVOKE" = "1" ]; then
-              if ! printf '%s' "$RFQ_JSON" \
-                  | grep -Eq '"state"[[:space:]]*:[[:space:]]*"signing_unavailable"' \
-                  || ! printf '%s' "$RFQ_JSON" | grep -q 'KALSHI_DEMO_KEY_ID'; then
-                echo "::error::The replacement gateway still exposes a configured private Makers credential after explicit revocation."
-                if ! rollback_gateway; then
-                  echo "::error::Automatic gateway rollback failed; operator intervention is required."
-                fi
-                exit 1
-              fi
-              echo "==> Private Makers credential revocation verified"
-            elif ! printf '%s' "$RFQ_JSON" \
-                | grep -Eq '"state"[[:space:]]*:[[:space:]]*"(empty|available)"'; then
-              echo "::error::The replacement gateway did not prove a signed Makers read; refusing signing_unavailable, refused, and transport-degraded states."
+            # The production pair may have been preserved from an earlier
+            # rotation, so the current workflow inputs cannot tell us which
+            # credential the replacement actually selected. Ask the running
+            # process, then require the RFQ response to name the same boundary.
+            # The key ID declares the account environment. Placeholder mount
+            # paths are not credentials; once an ID is declared, however, a
+            # missing or invalid PEM fails closed instead of crossing to demo.
+            if ! RFQ_SIGNING_EXPECTATION=$(docker exec "$CONTAINER" python -c 'from modules.coherence import tunables; from modules.coherence.drivers.kalshi_auth import status; environment=tunables.preferred_rfq_signing_environment(); print((environment if status(environment)["available"] else f"{environment}_unavailable") if environment else "none")'); then
+              echo "::error::The replacement gateway could not report its private Makers signing boundary."
               if ! rollback_gateway; then
                 echo "::error::Automatic gateway rollback failed; operator intervention is required."
               fi
               exit 1
             fi
-            unset RFQ_JSON
+            export RFQ_SIGNING_EXPECTATION
+            if ! printf '%s' "$RFQ_JSON" \
+                | docker exec -i \
+                    -e "RFQ_SIGNING_EXPECTATION=$RFQ_SIGNING_EXPECTATION" \
+                    "$CONTAINER" \
+                    python -c 'import json,os,sys; payload=json.load(sys.stdin); expectation=os.environ["RFQ_SIGNING_EXPECTATION"]; fail=lambda message: (_ for _ in ()).throw(SystemExit(message)); "signing_environment" in payload or fail("the RFQ response omitted signing_environment"); state=payload.get("state"); reported=payload.get("signing_environment"); unavailable=expectation.endswith("_unavailable"); expected_environment=expectation.removesuffix("_unavailable") if unavailable else expectation; (not unavailable or (state == "signing_unavailable" and reported == expected_environment)) or fail("the RFQ route silently crossed signing environments"); not unavailable or fail(f"configured {expected_environment} signing is unusable"); (expectation != "none" or (state == "signing_unavailable" and reported is None)) or fail("the RFQ route reported a signed read with no configured credential"); (expectation == "none" or (state in {"empty", "requests_only", "available"} and reported == expectation)) or fail(f"the RFQ route did not prove the selected {expectation} signed read")'; then
+              echo "::error::The replacement gateway did not prove the configured private Makers REST read; refusing cross-environment fallback, refused credentials, and transport-degraded states."
+              if ! rollback_gateway; then
+                echo "::error::Automatic gateway rollback failed; operator intervention is required."
+              fi
+              exit 1
+            fi
+            case "$RFQ_SIGNING_EXPECTATION" in
+              production) echo "==> Production private Makers REST read verified" ;;
+              demo) echo "==> Demo private Makers REST read verified" ;;
+              none) echo "==> Private Makers credential revocation verified" ;;
+            esac
+            unset RFQ_JSON RFQ_SIGNING_EXPECTATION
 
             if [ "$KALSHI_PRODUCTION_REVOKE" = "1" ]; then
-              echo "==> Confirming the production reference credential state"
+              echo "==> Confirming the production read credential state"
               # Local process-state proof, not a venue request: revocation must
               # stay verifiable even when the external reference feed is down.
               if ! docker exec "$CONTAINER" \
                   python -c 'from modules.coherence.drivers.kalshi_auth import status; state=status("production"); assert state["configured"] is False and state["reason"] == "key_id_missing"'; then
-                echo "::error::The replacement gateway still exposes a configured production reference credential after explicit revocation."
+                echo "::error::The replacement gateway still exposes a configured production read credential after explicit revocation."
                 if ! rollback_gateway; then
                   echo "::error::Automatic gateway rollback failed; operator intervention is required."
                 fi
                 exit 1
               fi
-              echo "==> Production reference credential revocation verified"
+              echo "==> Production read credential revocation verified"
             fi
 
             # Which decision engine shipped. A container that built the native
@@ -1378,7 +1388,7 @@ jobs:
             wait_for_gateway() {
               for _ in $(seq 1 30); do
                 STATUS="$(docker inspect --format '{{.State.Health.Status}}' "$CONTAINER" 2>/dev/null || echo starting)"
-                if [ "$STATUS" = "healthy" ] && curl -fsS "http://127.0.0.1:${PORT}/health" >/dev/null; then return 0; fi
+                if [ "$STATUS" = "healthy" ] && curl -fsS --connect-timeout 3 --max-time 10 "http://127.0.0.1:${PORT}/health" >/dev/null; then return 0; fi
                 if [ "$STATUS" = "unhealthy" ]; then return 1; fi
                 sleep 4
               done

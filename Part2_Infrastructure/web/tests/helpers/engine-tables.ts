@@ -233,7 +233,7 @@ export const TABLES: readonly TableDecl[] = [
     file: "components/coherence/DispersionTable.tsx", tab: "markets",
     what: "the maker panel per market",
     columns: [
-      ["Market", "", "text"], ["Quotes", "", "num"], ["Usable", "", "num"], ["Median", "", "num"],
+      ["Market / request", "", "text"], ["Quotes", "", "num"], ["Usable", "", "num"], ["Median", "", "num"],
       ["Lowest to highest", "", "num"], ["Spread between makers", "", "num"], ["Median maker width", "", "num"],
       ["Crossed", "", "num"], ["Band the legs leave", "", "num"], ["Share of it used", "", "num"],
       ["Panel", "", "marks"], ["Notes", "", "text"],

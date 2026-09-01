@@ -6,7 +6,7 @@
  * Added 2026-08-24 on the reported complaint that some sections carry no
  * diagram at all. Dispersion was the one view on the engine that was tables end
  * to end, and its subject is the most drawable thing on the tab: several
- * professionals pricing one event independently, and the distance between
+ * professionals pricing one request independently, and the distance between
  * their answers. A twelve-column table states that distance; this shows it,
  * on the same $0-to-$1 axis every strip shares, so the market the makers
  * disagree about most is the widest thing on screen rather than the largest
@@ -38,7 +38,7 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { DOLLAR_CC, fromCenticents, priceLabel, toCenticents } from "@/lib/coherence/fixed-point";
 import { DIAGRAM_LABEL_PX, gutterFor, truncateMiddle } from "@/lib/coherence/label-metrics";
-import { hasDrawableMakerRange } from "@/lib/coherence/maker-dispersion";
+import { hasDrawableMakerRange, makerPanelKey, makerPanelLabel } from "@/lib/coherence/maker-dispersion";
 import type { CoherenceDispersion } from "@/lib/coherence/types-lab";
 import Figure, { Plot } from "./Figure";
 import styles from "./DispersionStrips.module.css";
@@ -51,7 +51,8 @@ const AXIS_GAP = 10;
 const AXIS_LABEL_DROP = 14;
 
 interface Strip {
-  ticker: string;
+  key: string;
+  label: string;
   lo: number;
   hi: number;
   median: number | null;
@@ -63,12 +64,14 @@ const READINESS_ROW_H = 48;
 const PLOT_MIN_WIDTH = 620;
 const PLOT_MAX_HEIGHT = 680;
 
-function NoRangePanels({ rows, selectedTicker, onSelect }: {
+function NoRangePanels({ rows, selectedKey, onSelect }: {
   rows: CoherenceDispersion[];
-  selectedTicker: string | null;
-  onSelect: (ticker: string) => void;
+  selectedKey: string | null;
+  onSelect: (key: string) => void;
 }) {
-  const selected = rows.find((row) => row.market_ticker === selectedTicker) ?? rows[0];
+  const selectedIndex = Math.max(0, rows.findIndex((row, index) => makerPanelKey(row, index) === selectedKey));
+  const selected = rows[selectedIndex];
+  const selectedLabel = makerPanelLabel(selected, selectedIndex, rows);
   const height = rows.length * READINESS_ROW_H + 42;
   const scrollable = height > PLOT_MAX_HEIGHT;
   const maximum = Math.max(1, ...rows.flatMap((row) => [row.quotes, row.usable, row.crossed]));
@@ -78,8 +81,8 @@ function NoRangePanels({ rows, selectedTicker, onSelect }: {
       <Figure
         caption="Panel readiness: replies received, usable and crossed"
         ariaLabel={`${rows.length} maker panels returned without a measurable maker-to-maker range.`}
-        readout={<span className="num">{selected.market_ticker}</span>}
-        reading="The channel returned panel rows, but none has two usable answers and both range endpoints. Counts remain measurable; maker disagreement does not."
+        readout={<span className="num">{selectedLabel}</span>}
+        reading="The RFQ poll returned panel rows, but none has two usable answers and both range endpoints. Counts remain measurable; maker disagreement does not."
         missing="No band is drawn from one usable quote or a missing endpoint; neither means the makers agreed."
       >
         <div
@@ -93,22 +96,25 @@ function NoRangePanels({ rows, selectedTicker, onSelect }: {
           height={height}
           minWidth={PLOT_MIN_WIDTH}
           scrollLabel="Scroll maker-panel readiness horizontally"
-          onSelect={(index) => onSelect(rows[index]?.market_ticker ?? selected.market_ticker)}
+          onSelect={(index) => onSelect(makerPanelKey(rows[index] ?? selected, index))}
         >
           {(width) => {
-            const gutter = gutterFor(rows.map((row) => row.market_ticker), width, DIAGRAM_LABEL_PX, { min: 120, maxFraction: 0.32 });
+            const labels = rows.map((row, index) => makerPanelLabel(row, index, rows));
+            const gutter = gutterFor(labels, width, DIAGRAM_LABEL_PX, { min: 120, maxFraction: 0.32 });
             const track = Math.max(80, width - gutter - 12);
             const x = (value: number) => gutter + (value / maximum) * track;
             return (
               <>
                 {rows.map((row, index) => {
                   const y = 8 + index * READINESS_ROW_H;
-                  const chosen = row.market_ticker === selected.market_ticker;
+                  const key = makerPanelKey(row, index);
+                  const label = makerPanelLabel(row, index, rows);
+                  const chosen = key === makerPanelKey(selected, selectedIndex);
                   return (
-                    <g key={row.market_ticker} className={chosen ? styles.readinessSelected : undefined}>
+                    <g key={key} className={chosen ? styles.readinessSelected : undefined}>
                       <rect x={0} y={y - 4} width={width} height={READINESS_ROW_H - 4} rx={6} className={styles.readinessRow} />
                       <text x={0} y={y + 16} className={styles.readinessLabel}>
-                        {truncateMiddle(row.market_ticker, gutter - 12, DIAGRAM_LABEL_PX)}
+                        {truncateMiddle(label, gutter - 12, DIAGRAM_LABEL_PX)}
                       </text>
                       <line x1={gutter} x2={gutter + track} y1={y + 17} y2={y + 17} className={styles.readinessTrack} />
                       <line x1={gutter} x2={x(row.usable)} y1={y + 17} y2={y + 17} className={styles.readinessUsable} />
@@ -117,7 +123,7 @@ function NoRangePanels({ rows, selectedTicker, onSelect }: {
                       <text x={gutter} y={y + 37} className={styles.readinessLegend}>{row.usable} usable</text>
                       <text x={gutter + track} y={y + 37} textAnchor="end" className={styles.readinessLegend}>{row.quotes} replies, {row.crossed} crossed</text>
                       <rect x={0} y={y - 4} width={width} height={READINESS_ROW_H - 4} fill="transparent" className={styles.readinessHit}>
-                        <title>{`${row.market_ticker}: ${row.quotes} replies, ${row.usable} usable, ${row.crossed} crossed; quote range unavailable.`}</title>
+                        <title>{`${label}: ${row.quotes} replies, ${row.usable} usable, ${row.crossed} crossed; quote range unavailable.`}</title>
                       </rect>
                     </g>
                   );
@@ -130,8 +136,8 @@ function NoRangePanels({ rows, selectedTicker, onSelect }: {
         </Plot>
         </div>
       </Figure>
-      <Card className={styles.inspector} role="region" aria-label={`Selected maker panel: ${selected.market_ticker}`}>
-        <header><span>Selected panel</span><strong>{selected.market_ticker}</strong></header>
+      <Card className={styles.inspector} role="region" aria-label={`Selected maker panel: ${selectedLabel}`}>
+        <header><span>Selected panel</span><strong>{selectedLabel}</strong></header>
         <dl>
           <div><dt>Replies</dt><dd>{selected.quotes}</dd></div>
           <div><dt>Usable</dt><dd>{selected.usable}</dd></div>
@@ -149,44 +155,45 @@ function shown(value: string | number | null): string {
 
 function selectionLabel(strip: Strip): string {
   const { row } = strip;
-  return `${strip.ticker}: ${row.quotes} maker quotes, ${row.usable} usable; median ${shown(row.median)}; `
+  return `${strip.label}: ${row.quotes} maker quotes, ${row.usable} usable; median ${shown(row.median)}; `
     + `range ${shown(row.lowest)} to ${shown(row.highest)}; maker dispersion ${shown(row.spread)}; `
     + `median maker width ${shown(row.median_width)}; crossed ${row.crossed}; `
     + `combo band used ${shown(row.band_fraction)}`;
 }
 
 export default function DispersionStrips({ rows }: { rows: CoherenceDispersion[] }) {
-  const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const strips: Strip[] = [];
   let undrawn = 0;
-  for (const row of rows) {
+  rows.forEach((row, index) => {
     if (!hasDrawableMakerRange(row)) {
       undrawn += 1;
-      continue;
+      return;
     }
     const lo = toCenticents(row.lowest);
     const hi = toCenticents(row.highest);
     if (lo == null || hi == null) {
       undrawn += 1;
-      continue;
+      return;
     }
     strips.push({
-      ticker: row.market_ticker,
+      key: makerPanelKey(row, index),
+      label: makerPanelLabel(row, index, rows),
       lo,
       hi,
       median: toCenticents(row.median),
       spread: row.spread,
       row,
     });
-  }
+  });
 
   if (!rows.length) return null;
 
   if (!strips.length) {
-    return <NoRangePanels rows={rows} selectedTicker={selectedTicker} onSelect={setSelectedTicker} />;
+    return <NoRangePanels rows={rows} selectedKey={selectedKey} onSelect={setSelectedKey} />;
   }
 
-  const selected = strips.find((strip) => strip.ticker === selectedTicker) ?? strips[0];
+  const selected = strips.find((strip) => strip.key === selectedKey) ?? strips[0];
   const widest = strips.reduce((best, strip) => (strip.hi - strip.lo > best.hi - best.lo ? strip : best), strips[0]);
   const axisY = TOP + strips.length * ROW_H + AXIS_GAP;
   const height = axisY + AXIS_LABEL_DROP + 4;
@@ -196,8 +203,8 @@ export default function DispersionStrips({ rows }: { rows: CoherenceDispersion[]
     <div className={`coh-dispersion-instrument ${styles.instrument}`}>
     <Figure
       caption="Where the makers' answers sit on the dollar"
-      ariaLabel={`${strips.length} market${strips.length === 1 ? "" : "s"}: lowest-to-highest maker quotes on a $0-to-$1 axis, median marked`}
-      readout={<span className="num">{selected.ticker}</span>}
+      ariaLabel={`${strips.length} RFQ${strips.length === 1 ? "" : "s"}: lowest-to-highest maker quotes on a $0-to-$1 axis, median marked`}
+      readout={<span className="num">{selected.label}</span>}
       reading={
         // THE TERNARY WAS INVERTED UNTIL 2026-08-25, so this figure was silent
         // in exactly the case it exists for. `widest.hi > widest.lo` is true
@@ -211,14 +218,14 @@ export default function DispersionStrips({ rows }: { rows: CoherenceDispersion[]
           // is made ONCE, in the table's caption below, and `prices-claims`
           // pins it at one site. Restating it here would be the same claim
           // twice on one view — which is the reading this tab was reported for.
-          ? `The widest disagreement is on ${widest.ticker}, ${fromCenticents(widest.lo)} to `
+          ? `The widest disagreement is on ${widest.label}, ${fromCenticents(widest.lo)} to `
             + `${fromCenticents(widest.hi)}: that is how far apart independent makers priced one `
-            + "event, before any of them is called right."
+            + "request, before any of them is called right."
           : "Every panel here agrees to the tick, so each strip collapses to a single mark."
       }
       missing={
         undrawn
-          ? `${undrawn} of ${rows.length} markets have no strip: fewer than two usable quotes leaves no range; they stay in the table.`
+          ? `${undrawn} of ${rows.length} requests have no strip: fewer than two usable quotes leaves no range; they stay in the table.`
           : null
       }
     >
@@ -233,7 +240,7 @@ export default function DispersionStrips({ rows }: { rows: CoherenceDispersion[]
         height={height}
         minWidth={PLOT_MIN_WIDTH}
         scrollLabel="Scroll maker-dispersion bands horizontally"
-        onSelect={(index) => setSelectedTicker(strips[index]?.ticker ?? null)}
+        onSelect={(index) => setSelectedKey(strips[index]?.key ?? null)}
       >
         {(width) => {
           const x = (cc: number) => (cc / DOLLAR_CC) * width;
@@ -243,11 +250,11 @@ export default function DispersionStrips({ rows }: { rows: CoherenceDispersion[]
                 const y = TOP + index * ROW_H;
                 return (
                   <g
-                    key={strip.ticker}
-                    className={`coh-dispersion__row${selected.ticker === strip.ticker ? " is-selected" : ""}`}
+                    key={strip.key}
+                    className={`coh-dispersion__row${selected.key === strip.key ? " is-selected" : ""}`}
                   >
                     <text x={0} y={y + 10} className="coh-combo__label">
-                      {strip.ticker}
+                      {strip.label}
                     </text>
                     {strip.spread != null ? (
                       <text x={width} y={y + 10} textAnchor="end" className="coh-combo__label">
@@ -300,14 +307,14 @@ export default function DispersionStrips({ rows }: { rows: CoherenceDispersion[]
     <Card
       className={`markets-dispersion-inspector ${styles.inspector}`}
       role="region"
-      aria-label={`Selected maker panel: ${selected.ticker}`}
+      aria-label={`Selected maker panel: ${selected.label}`}
       aria-live="polite"
       aria-atomic="true"
-      data-selected-ticker={selected.ticker}
+      data-selected-panel={selected.label}
     >
       <header>
         <span>Selected maker panel</span>
-        <strong>{selected.ticker}</strong>
+        <strong>{selected.label}</strong>
       </header>
       <dl>
         <div><dt>Makers</dt><dd>{selected.row.quotes}</dd></div>

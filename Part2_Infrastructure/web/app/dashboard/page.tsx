@@ -291,7 +291,8 @@ export default function Page() {
         <p>
           Educational demonstration, not a brokerage or investment service and not investment
           advice. No brokerage accounts, no funds, no real orders; execution is paper-only, gated
-          by the risk gateway. Signing in is optional and stores workspace preferences only.
+          by the risk gateway. Public reads and local preferences allow guest access; account-private
+          RFQ reads require a verified sign-in.
         </p>
       </footer>
     </>

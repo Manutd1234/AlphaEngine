@@ -6,6 +6,8 @@ with an explanatory detail, never as a misleading numeric zero.
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 # --------------------------------------------------------------------------- #
@@ -339,6 +341,7 @@ class CoherenceSettlementFeed(BaseModel):
 
 
 class CoherenceDispersion(BaseModel):
+    rfq_id: str
     market_ticker: str
     #: The Frechet band this market's legs leave, and the share of it the
     #: makers actually disagree over. Null where no combo reading covers this
@@ -362,7 +365,9 @@ class CoherenceDispersion(BaseModel):
 class CoherenceRfqPanel(BaseModel):
     state: str
     detail: str = ""
+    signing_environment: Literal["production", "demo"] | None = None
     open_requests: int = 0
+    open_quotes: int = 0
     dispersions: list[CoherenceDispersion] = Field(default_factory=list)
 
 

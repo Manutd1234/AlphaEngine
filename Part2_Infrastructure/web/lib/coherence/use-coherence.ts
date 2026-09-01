@@ -24,6 +24,7 @@ import { useCallback, useRef, useState } from "react";
 import { usePolling } from "@/lib/use-polling";
 import { pollingFailure, type PollingTickContext } from "@/lib/polling";
 import { peek, read, warm } from "./read-cache";
+import { rfqAuthorizationHeaders, shouldDiscardRfqSnapshot } from "./rfq-auth";
 import { isLiveRead } from "./routes";
 import {
   COHERENCE_REQUEST_ID_HEADER,
@@ -79,18 +80,23 @@ async function readJson<T>(url: string, signal: AbortSignal) {
   const deadline = deadlineFor(url);
   const requestId = coherenceRequestId();
   let deadlineElapsed = false;
-  const timer = setTimeout(() => {
-    deadlineElapsed = true;
-    controller.abort();
-  }, deadline);
+  let timer: ReturnType<typeof setTimeout> | undefined;
   const cancel = () => controller.abort();
   if (signal.aborted) cancel();
   else signal.addEventListener("abort", cancel, { once: true });
   try {
+    const authorization = await rfqAuthorizationHeaders(url);
+    // RFQ account proof has its own two-second bound. Start the browser's
+    // 28-second route guard only once the actual HTTP read begins, preserving
+    // its promised three-second headroom beyond the server's H4 budget.
+    timer = setTimeout(() => {
+      deadlineElapsed = true;
+      controller.abort();
+    }, deadline);
     const response = await fetch(url, {
       signal: controller.signal,
       cache: "no-store",
-      headers: { [COHERENCE_REQUEST_ID_HEADER]: requestId },
+      headers: { [COHERENCE_REQUEST_ID_HEADER]: requestId, ...authorization },
     });
     const payload = (await response.json().catch(() => null)) as (T & {
       code?: string;
@@ -103,7 +109,12 @@ async function readJson<T>(url: string, signal: AbortSignal) {
     const transport = coherenceTransportMeta(response, payload, requestId, deadline);
     if (!response.ok) {
       const detail = payload?.detail ?? payload?.error ?? `the gateway answered ${response.status}`;
-      return { data: null as T | null, error: String(detail), transport };
+      return {
+        data: null as T | null,
+        error: String(detail),
+        transport,
+        discardPrevious: shouldDiscardRfqSnapshot(url, payload?.code),
+      };
     }
     return { data: payload as T | null, error: null, transport };
   } catch (error) {
@@ -131,7 +142,7 @@ async function readJson<T>(url: string, signal: AbortSignal) {
       ),
     };
   } finally {
-    clearTimeout(timer);
+    if (timer) clearTimeout(timer);
     signal.removeEventListener("abort", cancel);
   }
 }
@@ -274,9 +285,16 @@ export function useCoherenceRead<T>(url: string, enabled: boolean, pollMs = COHE
   // read `universe` and each held its own, so a tab switch could put three
   // identical live reads on the exchange's token bucket at once.
   const tick = useCallback(async ({ signal }: PollingTickContext) => {
-    const { data, error, transport } = await read<T>(url, readJson, signal);
+    const { data, error, transport, discardPrevious } = await read<T>(url, readJson, signal);
     if (!data) {
-      setState((previous) => ({ ...previous, error, loading: false, transport: transport ?? null }));
+      setState((previous) => ({
+        ...previous,
+        data: discardPrevious ? null : previous.data,
+        error,
+        loading: false,
+        transport: transport ?? null,
+        updatedAt: discardPrevious ? null : previous.updatedAt,
+      }));
       return pollingFailure(error ?? "invalid_payload");
     }
     const reading = readingOf(data);

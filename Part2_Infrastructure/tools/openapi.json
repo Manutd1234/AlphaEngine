@@ -1856,6 +1856,10 @@
             "title": "Quotes",
             "type": "integer"
           },
+          "rfq_id": {
+            "title": "Rfq Id",
+            "type": "string"
+          },
           "spread": {
             "anyOf": [
               {
@@ -1879,6 +1883,7 @@
           }
         },
         "required": [
+          "rfq_id",
           "market_ticker"
         ],
         "title": "CoherenceDispersion",
@@ -3686,10 +3691,30 @@
             "title": "Dispersions",
             "type": "array"
           },
+          "open_quotes": {
+            "default": 0,
+            "title": "Open Quotes",
+            "type": "integer"
+          },
           "open_requests": {
             "default": 0,
             "title": "Open Requests",
             "type": "integer"
+          },
+          "signing_environment": {
+            "anyOf": [
+              {
+                "enum": [
+                  "production",
+                  "demo"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signing Environment"
           },
           "state": {
             "title": "State",
@@ -12243,7 +12268,7 @@
     },
     "/api/coherence/rfq": {
       "get": {
-        "description": "What the makers disagree about, where the public book shows nothing.\n\nSigned-only, and on the demo environment usually empty \u2014 makers do not quote\na sandbox. Empty is reported as empty rather than as a quiet market, and an\nunsigned read is reported as no view rather than a worse one.",
+        "description": "What the makers disagree about, where the public book shows nothing.\n\nSigned-only. A configured production credential is preferred so the panel\ncan show the account's live RFQs; demo is used only when no production\nkey ID declares production intent. Empty is reported as empty rather than\nas a quiet market, and an unsigned read is reported as no view rather than\na worse one.",
         "operationId": "coherence_rfq_api_coherence_rfq_get",
         "parameters": [
           {

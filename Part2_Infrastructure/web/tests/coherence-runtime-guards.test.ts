@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { isCoherenceShell, isCoherenceSurface } from "../lib/coherence/types-lab";
+import { isCoherenceRfqPanel, isCoherenceShell, isCoherenceSurface } from "../lib/coherence/types-lab";
 import { coherenceFallbackFor } from "./helpers/coherence-fallback-data";
 
 describe("coherence runtime guards", () => {
@@ -30,5 +30,29 @@ describe("coherence runtime guards", () => {
       ...(payload as object),
       entries: [{ name: "implied_pmf", kind: "link", detail: "not navigable" }],
     }), false);
+  });
+
+  it("accepts RFQ signer provenance across a rolling deploy and rejects unknown environments", () => {
+    const payload = coherenceFallbackFor("/api/gateway/coherence/rfq") as Record<string, unknown>;
+    assert.equal(payload.signing_environment, "demo");
+    assert.equal(isCoherenceRfqPanel(payload), true);
+    assert.equal(isCoherenceRfqPanel({ ...payload, signing_environment: "production" }), true);
+    assert.equal(isCoherenceRfqPanel({ ...payload, signing_environment: null }), true);
+    assert.equal(isCoherenceRfqPanel({ ...payload, open_quotes: 10 }), true);
+    assert.equal(isCoherenceRfqPanel({ ...payload, open_quotes: -1 }), false);
+    assert.equal(isCoherenceRfqPanel({ ...payload, open_quotes: 1.5 }), false);
+    assert.equal(isCoherenceRfqPanel({
+      ...payload,
+      dispersions: [{ ...((payload.dispersions as object[])[0]), rfq_id: "private-rfq" }],
+    }), true);
+    assert.equal(isCoherenceRfqPanel({
+      ...payload,
+      dispersions: [{ ...((payload.dispersions as object[])[0]), rfq_id: 3 }],
+    }), false);
+
+    const olderGateway = { ...payload };
+    delete olderGateway.signing_environment;
+    assert.equal(isCoherenceRfqPanel(olderGateway), true);
+    assert.equal(isCoherenceRfqPanel({ ...payload, signing_environment: "sandbox" }), false);
   });
 });

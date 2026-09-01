@@ -14,19 +14,19 @@ const pane = read("../components/coherence/RfqPane.tsx");
 const css = read("../components/coherence/DispersionStrips.module.css");
 
 describe("maker dispersion is a selectable quantitative instrument", () => {
-  it("selects one market through Plot's existing pointer and keyboard contract", () => {
+  it("selects one RFQ through Plot's existing pointer and keyboard contract", () => {
     assert.match(strips, /import \{ useState \} from "react"/);
-    assert.match(strips, /const \[selectedTicker, setSelectedTicker\] = useState/);
-    assert.match(strips, /<Plot[^>]*onSelect=\{\(index\) => setSelectedTicker\(strips\[index\]\?\.ticker \?\? null\)\}/s);
+    assert.match(strips, /const \[selectedKey, setSelectedKey\] = useState/);
+    assert.match(strips, /<Plot[^>]*onSelect=\{\(index\) => setSelectedKey\(strips\[index\]\?\.key \?\? null\)\}/s);
     assert.match(strips, /className="coh-dispersion__hit"/);
     assert.match(strips, /<title>\{selectionLabel\(strip\)\}<\/title>/);
-    assert.match(strips, /className=\{`coh-dispersion__row\$\{selected\.ticker === strip\.ticker \? " is-selected" : ""\}`\}/);
+    assert.match(strips, /className=\{`coh-dispersion__row\$\{selected\.key === strip\.key \? " is-selected" : ""\}`\}/);
   });
 
-  it("shows only gateway-owned exact fields for the selected market", () => {
+  it("shows only gateway-owned exact fields for the selected RFQ", () => {
     assert.match(strips, /import \{ Card \} from "@\/components\/ui\/card"/);
     assert.match(strips, /className=\{`markets-dispersion-inspector \$\{styles\.inspector\}`\}/);
-    assert.match(strips, /data-selected-ticker=\{selected\.ticker\}/);
+    assert.match(strips, /data-selected-panel=\{selected\.label\}/);
     assert.match(strips, /aria-live="polite"/);
     for (const field of [
       "quotes", "usable", "median", "spread", "median_width", "crossed", "band_fraction",
@@ -45,7 +45,7 @@ describe("maker dispersion is a selectable quantitative instrument", () => {
   });
 });
 
-describe("the selected-market inspector is dense without widening the page", () => {
+describe("the selected-RFQ inspector is dense without widening the page", () => {
   it("uses a scoped auto-fitting metric grid with wrap-safe cells", () => {
     assert.match(css, /\.instrument\s*\{[^}]*container-type:\s*inline-size[^}]*min-inline-size:\s*0/s);
     assert.match(css, /\.inspector\s*\{[^}]*min-inline-size:\s*0/s);

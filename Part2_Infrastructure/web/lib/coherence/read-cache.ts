@@ -51,6 +51,8 @@ export type CoherenceAnswer<T> = {
   data: T | null;
   error: string | null;
   transport?: import("./transport-state").CoherenceTransportMeta;
+  /** Failures normally retain last-good data; an authorization loss must not. */
+  discardPrevious?: boolean;
 };
 export type CoherenceFetcher<T> = (url: string, signal: AbortSignal) => Promise<CoherenceAnswer<T>>;
 
@@ -135,7 +137,7 @@ export function read<T>(url: string, fetcher: CoherenceFetcher<T>, signal?: Abor
       // transport state. Once every subscriber has left, that state belongs to
       // teardown—not to the next reader—so never let it replace the last answer.
       if (controller.signal.aborted) throw cancelledRead();
-      const previous = answered.get(url);
+      const previous = answer.discardPrevious ? undefined : answered.get(url);
       const effectiveData = answer.data ?? previous?.data ?? null;
       answered.set(url, {
         data: effectiveData,

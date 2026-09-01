@@ -84,9 +84,9 @@ def build_orderbooks_query(tickers: Sequence[str]) -> list[tuple[str, str]]:
 class KalshiClient:
     """Read-only Kalshi calls with an explicit authentication boundary.
 
-    Public reads remain unsigned by default. The private demo channel and the
-    production CF Benchmarks read opt into their own credential environments.
-    There is no ``post`` here; adding one would change what this engine is.
+    Public reads remain unsigned by default. Private-channel and account-only
+    reads opt explicitly into demo or production credentials. There is no
+    ``post`` here; adding one would change what this engine is.
     """
 
     def __init__(
@@ -103,9 +103,9 @@ class KalshiClient:
             raise ValueError("choose signed=True for demo compatibility or one signing_environment, not both")
         if signing_environment not in {None, "demo", "production"}:
             raise ValueError("signing_environment must be demo or production")
-        # ``signed=True`` is retained as the demo-only compatibility spelling
-        # used by the RFQ path. Production signing always has to be named; it
-        # can never turn on because a demo caller happened to request signing.
+        # ``signed=True`` is retained as a demo-only compatibility spelling.
+        # Production signing always has to be named; it can never turn on
+        # because a legacy demo caller happened to request signing.
         self._signing_environment: Literal["demo", "production"] | None = (
             "demo" if signed else signing_environment
         )
@@ -135,9 +135,9 @@ class KalshiClient:
         self._transport = transport
         self._budget = budget or get_read_budget()
         self._timeout_s = float(timeout_s if timeout_s is not None else tunables.REQUEST_TIMEOUT_S)
-        # Off by default. The one signed production read is constructed
-        # explicitly by the settlement route; every ordinary public client
-        # remains keyless.
+        # Off by default. Signed production reads are constructed explicitly by
+        # the settlement and RFQ routes; every ordinary public client remains
+        # keyless.
         self._signed = self._signing_environment is not None
         if self._signed:
             signed_hosts = (

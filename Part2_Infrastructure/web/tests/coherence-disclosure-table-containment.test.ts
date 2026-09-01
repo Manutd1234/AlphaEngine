@@ -36,7 +36,7 @@ describe("opened engine evidence remains contained at mobile width", () => {
     assert.match(indexFamilies, /className="table-wrap"\s+role="region"\s+aria-label="Watched family index readings"\s+tabIndex=\{0\}/);
     assert.match(calibrationBands, /className="table-wrap"\s+role="region"\s+aria-label="Calibration price bands"\s+tabIndex=\{0\}/);
     assert.match(calibrationCorpus, /className="table-wrap"\s+role="region"\s+aria-label="Calibration corpus series"\s+tabIndex=\{0\}/);
-    assert.match(rfqPane, /className="table-wrap"\s+role="region"\s+aria-label="Private-channel outcome definitions"\s+tabIndex=\{0\}/);
+    assert.match(rfqPane, /className="table-wrap"\s+role="region"\s+aria-label="RFQ REST-poll outcome definitions"\s+tabIndex=\{0\}/);
     assert.match(dispersionTable, /className="table-wrap"\s+role="region"\s+aria-label="Maker dispersion evidence"\s+tabIndex=\{0\}/);
     assert.match(booksInstruments, /aria-label=\{`Exact level ledger, \$\{ordered\.length\} rows`\}\s+className="table-wrap table-wrap--clamped"/);
     assert.match(universePane, /className="table-wrap table-wrap--clamped"\s+role="region"\s+aria-label=\{`\$\{event\.title \|\| event\.event_ticker\} outcome quotes`\}\s+tabIndex=\{0\}/);

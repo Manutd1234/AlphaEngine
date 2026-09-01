@@ -20,13 +20,13 @@
  * every section on this tab answers "what is this quoted at". A book is ONE
  * number the exchange publishes; a maker panel is N independent answers to a
  * question the exchange never asked — different objects, different failure
- * modes, and a four-state table exists over there precisely because the two get
+ * modes, and an outcome table exists over there precisely because the two get
  * confused. `MakersSection` owns it under the id it was published under.
  *
  * WHAT LEAVES WITH IT IS THE LAST OF THE PLUMBING. While Dispersion was a view
  * of Books the CONSOLE owned the book read and had to be told which view was
  * open — a `booksView` state up there and an `onViewChange` callback down
- * through here — purely so a signed 25-second private-channel call and a public
+ * through here — purely so a signed 25-second RFQ REST call and a public
  * book read were never in flight together. That callback went when the reads
  * came here; the predicate that replaced it goes now, because there is no
  * second read in this file to be exclusive with. One section, one read, gated
@@ -82,7 +82,7 @@ export default function BooksSection(
   // ONE read, gated on the section. The `!onChannel` half of this gate went
   // with the channel on 2026-08-25: while the RFQ panel was two of this
   // section's four views, a predicate here had to keep a signed 25-second
-  // private-channel call from firing beside a public book read. `MakersSection`
+  // RFQ REST call from firing beside a public book read. `MakersSection`
   // owns that call now and the console gates it on its own section, so there is
   // no second read here to be exclusive with.
   const books = useCoherenceRead<CoherenceBooks>(booksRoute(), active);

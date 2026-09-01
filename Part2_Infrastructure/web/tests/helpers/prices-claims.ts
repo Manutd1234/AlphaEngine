@@ -94,7 +94,7 @@ export const CLAIMS: ReadonlyArray<{ claim: string; phrase: string; at?: number;
   // ---- maker dispersion --------------------------------------------------
   {
     claim: "signing_unavailable is a fact about this deployment, not an empty market",
-    phrase: "Not an empty market.",
+    phrase: "Not an empty market: no authenticated RFQ request was sent",
   },
   {
     claim: "refused means the channel answered, which is stronger than silence",
@@ -102,11 +102,11 @@ export const CLAIMS: ReadonlyArray<{ claim: string; phrase: string; at?: number;
   },
   {
     claim: "empty is a completed authenticated measurement, not a failed read",
-    phrase: "signed HTTP poll completed with zero open requests",
+    phrase: "completed with zero account-visible open requests",
   },
   {
     claim: "available is not one price, it is several independent answers",
-    phrase: "Several makers answered independently",
+    phrase: "independent quotes beyond the book’s most aggressive opinion",
   },
   {
     claim: "a state the pane has not been taught is named rather than folded into the four",

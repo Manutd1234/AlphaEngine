@@ -166,6 +166,8 @@ export interface CoherenceSettlementFeed {
 /* ------------------------------------------------------------------ rfq -- */
 
 export interface CoherenceDispersion {
+  /** Optional while the web can still meet a gateway that grouped by market. */
+  rfq_id?: string;
   market_ticker: string;
   /**
    * The Frechet band this market's legs leave, and the share of it the makers
@@ -191,7 +193,17 @@ export interface CoherenceDispersion {
 export interface CoherenceRfqPanel {
   state: string;
   detail: string;
+  /**
+   * The credential environment used for this authenticated REST poll.
+   *
+   * Optional while the web deployment can still meet an older gateway. Null
+   * means the gateway reported that no signer was selected; an omitted field
+   * means the gateway predates this provenance field.
+   */
+  signing_environment?: "production" | "demo" | null;
   open_requests: number;
+  /** Complete, deduplicated open quote count; absent on an older gateway. */
+  open_quotes?: number;
   dispersions: CoherenceDispersion[];
 }
 
@@ -228,7 +240,19 @@ export function isCoherenceSettlementFeed(value: unknown): value is CoherenceSet
 }
 
 export function isCoherenceRfqPanel(value: unknown): value is CoherenceRfqPanel {
-  return isRecord(value) && typeof value.state === "string" && Array.isArray(value.dispersions);
+  return isRecord(value)
+    && typeof value.state === "string"
+    && Array.isArray(value.dispersions)
+    && value.dispersions.every((row) => isRecord(row)
+      && (!("rfq_id" in row) || typeof row.rfq_id === "string"))
+    && (!("open_quotes" in value)
+      || (typeof value.open_quotes === "number"
+        && Number.isInteger(value.open_quotes)
+        && value.open_quotes >= 0))
+    && (!("signing_environment" in value)
+      || value.signing_environment === null
+      || value.signing_environment === "production"
+      || value.signing_environment === "demo");
 }
 
 export function isCoherenceShell(value: unknown): value is CoherenceShell {

@@ -241,7 +241,7 @@ describe("continuous deployment keeps the desk alive across a swap", () => {
     );
   });
 
-  it("supports configured demo signing and an intentionally keyless revoke", () => {
+  it("supports independent demo or production signing and intentional revocation", () => {
     const start = deployWorkflow.indexOf("- name: Required secrets are present");
     const end = deployWorkflow.indexOf("- name: Pull, swap, verify, roll back on failure", start);
     assert.ok(start > 0 && end > start, "the required-secret preflight step was not found");
@@ -250,36 +250,34 @@ describe("continuous deployment keeps the desk alive across a swap", () => {
     const halfPair = preflight.indexOf("must be configured together");
     const invalidRevoke = preflight.indexOf("KALSHI_DEMO_REVOKE must be 0 or 1");
     const revokeConflict = preflight.indexOf("conflicts with a configured demo credential");
-    const normalMode = preflight.indexOf('if [ "$KALSHI_DEMO_REVOKE" = "0" ]');
     const genericMissing = preflight.indexOf("Missing repository secrets");
     assert.ok(
       halfPair > 0
         && invalidRevoke > halfPair
         && revokeConflict > invalidRevoke
-        && normalMode > revokeConflict
-        && genericMissing > normalMode,
+        && genericMissing > revokeConflict,
       "the generic missing-secret exit hides the actionable Kalshi pair/revoke diagnostic",
     );
-    const normalRequirements = preflight.slice(normalMode, genericMissing);
-    assert.match(normalRequirements, /\[ -n "\$KALSHI_DEMO_KEY_ID" \] \|\| missing\+=\("KALSHI_DEMO_KEY_ID"\)/);
-    assert.match(
-      normalRequirements,
-      /\[ -n "\$KALSHI_DEMO_PRIVATE_KEY_PEM_B64" \] \|\| missing\+=\("KALSHI_DEMO_PRIVATE_KEY_PEM_B64"\)/,
-      "production must still refuse a deployment without the complete configured Kalshi pair",
-    );
     assert.doesNotMatch(
-      preflight.slice(0, normalMode),
+      preflight,
       /missing\+=\("KALSHI_DEMO_(?:KEY_ID|PRIVATE_KEY_PEM_B64)"\)/,
-      "keyless revoke mode must not be rejected by the generic missing-secret inventory",
+      "a production-only deployment must not be forced to retain demo credentials",
     );
     const canary = deployWorkflow.slice(
       deployWorkflow.indexOf("Confirming the authenticated private maker channel state"),
       deployWorkflow.indexOf("unset RFQ_JSON"),
     );
-    assert.match(canary, /if \[ "\$KALSHI_DEMO_REVOKE" = "1" \]; then[\s\S]*"signing_unavailable"/);
-    assert.match(canary, /KALSHI_DEMO_KEY_ID[\s\S]*Private Makers credential revocation verified/);
-    assert.match(canary, /elif ! printf[\s\S]*"\(empty\|available\)"/,
-      "normal production mode must still prove a signed private Makers read");
+    assert.match(canary, /environment=tunables\.preferred_rfq_signing_environment\(\)/);
+    assert.match(canary, /status\(environment\)\["available"\]/);
+    assert.match(canary, /f"\{environment\}_unavailable"/,
+      "present but invalid production material must not silently select demo");
+    assert.match(canary, /"signing_environment" in payload or fail/);
+    assert.match(canary, /state in \{"empty", "requests_only", "available"\} and reported == expectation/,
+      "the canary must prove both a signed read and its selected environment");
+    assert.match(canary, /expectation != "none" or \(state == "signing_unavailable" and reported is None\)/,
+      "explicitly removing every credential must still prove the typed no-signing state");
+    assert.match(canary, /configured \{expected_environment\} signing is unusable/,
+      "an invalid configured pair must fail deployment after proving there was no demo fallback");
   });
 
   it("rebuilds the scoped research read model before the replacement scheduler starts", () => {

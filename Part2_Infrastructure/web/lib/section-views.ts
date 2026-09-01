@@ -90,7 +90,7 @@ const MARKETS_VIEWS = {
   // The id is `dispersion` and the label is "Makers", which is house practice on
   // this rail rather than drift — `live` renders "Execution", `activity` renders
   // "Blotter". Its two view ids keep the same split.
-  dispersion: [["quotes", "Dispersion"], ["channel", "Channel"]],
+  dispersion: [["quotes", "Dispersion"], ["channel", "REST poll"]],
   lattice: [["survival", "Survival"], ["mass", "Mass"], ["moments", "Moment shape"], ["support", "Moment support"]],
   stake: [["plan", "Plan"], ["capital", "Capital"], ["method", "Method"], ["family", "All outcomes"]],
   fees: [["example", "Worked example"], ["shape", "Cost shape"], ["comparison", "Ablation"], ["table", "Replay table"]],

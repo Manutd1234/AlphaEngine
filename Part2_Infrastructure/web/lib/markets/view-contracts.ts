@@ -125,7 +125,7 @@ const MARKET_VIEW_DETAILS = {
     exactAlternative: "sortable maker response rows",
   },
   "dispersion/channel": {
-    viewLabel: "Channel",
+    viewLabel: "REST poll",
     leadSurface: "signed-channel lifecycle diagram",
     exactAlternative: "request-state and response ledger",
   },

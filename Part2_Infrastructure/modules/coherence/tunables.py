@@ -17,7 +17,7 @@ import os
 import re
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from typing import Final
+from typing import Final, Literal
 from urllib.parse import urlsplit, urlunsplit
 
 from env_coerce import BASE_DIR
@@ -146,8 +146,9 @@ PUBLIC_FAILOVER_URL: Final = normalize_base_url(
     _env("KALSHI_PUBLIC_FAILOVER_URL", "https://api.elections.kalshi.com/trade-api/v2"),
     name="KALSHI_PUBLIC_FAILOVER_URL",
 )
-# Demo for private-channel reads. A demo key cannot sign a production request,
-# so these two hosts are not interchangeable and the client keeps them apart.
+# Demo fallback for private-channel reads. A demo key cannot sign a production
+# request, so these two hosts are not interchangeable and the client keeps them
+# apart.
 DEMO_BASE_URL: Final = normalize_base_url(
     _env("KALSHI_DEMO_BASE_URL", "https://external-api.demo.kalshi.co/trade-api/v2"),
     name="KALSHI_DEMO_BASE_URL",
@@ -162,15 +163,27 @@ DEMO_KEY_ID: Final = os.environ.get("KALSHI_DEMO_KEY_ID", "").strip()
 DEMO_PRIVATE_KEY_PATH: Final = resolve_private_key_path(
     os.environ.get("KALSHI_DEMO_PRIVATE_KEY_PATH", "")
 )
-# The CF Benchmarks passthrough is the one production read in this subsystem
-# that requires authentication.  Its credential is deliberately separate from
-# the demo RFQ credential above: silently sending a sandbox key to production
-# earns a misleading 401 and can make an entitlement problem look like broken
-# signing.  Empty keeps the reference-rate call fail-closed before transport.
+# Production account-only reads, including the RFQ panel and CF Benchmarks
+# passthrough, share this read credential. It is deliberately separate from the
+# demo RFQ credential above: silently sending a sandbox key to production earns
+# a misleading 401. The key ID declares which account environment the operator
+# intends to use; once declared, an incomplete or invalid pair fails closed
+# instead of quietly falling back to demo. A path alone is not intent because
+# the documented Compose override always supplies its in-container mount path,
+# even when no production key has been staged there.
 PRODUCTION_KEY_ID: Final = os.environ.get("KALSHI_PRODUCTION_KEY_ID", "").strip()
 PRODUCTION_PRIVATE_KEY_PATH: Final = resolve_private_key_path(
     os.environ.get("KALSHI_PRODUCTION_PRIVATE_KEY_PATH", "")
 )
+
+
+def preferred_rfq_signing_environment() -> Literal["production", "demo"] | None:
+    """Select by account key ID so placeholder mount paths are not credentials."""
+    if PRODUCTION_KEY_ID:
+        return "production"
+    if DEMO_KEY_ID:
+        return "demo"
+    return None
 
 # ── What to watch ────────────────────────────────────────────────────────────
 # Series tickers, comma separated. Empty means the recorder has nothing to do

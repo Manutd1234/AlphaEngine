@@ -290,6 +290,7 @@ export interface CoherenceDispersion {
   median?: string | null;
   median_width?: string | null;
   quotes?: number;
+  rfq_id: string;
   spread?: string | null;
   thin?: boolean;
   usable?: number;
@@ -600,7 +601,9 @@ export interface CoherenceReplay {
 export interface CoherenceRfqPanel {
   detail?: string;
   dispersions?: Array<CoherenceDispersion>;
+  open_quotes?: number;
   open_requests?: number;
+  signing_environment?: "production" | "demo" | null;
   state: string;
 }
 

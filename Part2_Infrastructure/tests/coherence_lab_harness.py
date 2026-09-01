@@ -17,6 +17,7 @@ from fastapi.testclient import TestClient
 
 import main
 from modules.api import coherence_lab as lab
+from modules.coherence.drivers.kalshi_auth import SignedHeaders
 from modules.coherence.drivers.kalshi_rest import KalshiClient
 from modules.coherence.fs.store import CoherenceStore
 from modules.coherence.scheduler.budget import ReadBudget
@@ -101,13 +102,28 @@ def unreachable(_request: httpx.Request) -> httpx.Response:
     raise httpx.ConnectError("no route to the exchange from this test")
 
 
-def venue(monkeypatch, handler=exchange) -> None:
-    """Point the router's client factory at a transport instead of a socket."""
+def venue(monkeypatch, handler=exchange, *, authenticate: bool = False) -> None:
+    """Point the router's client factory at a transport instead of a socket.
+
+    Most feed tests intentionally keep the fake unsigned so account preflight
+    stays deterministic. Private-channel tests opt into the route's selected
+    signing environment and use the signer seam below.
+    """
     transport = httpx.MockTransport(handler)
 
-    def factory(*_args, **kwargs) -> KalshiClient:
-        return KalshiClient(base_url=kwargs.get("base_url"), transport=transport, budget=ReadBudget())
+    def sign(_method: str, _path: str, host: str) -> SignedHeaders:
+        return SignedHeaders(key_id="test", timestamp_ms="1", signature="signature", host=host)
 
+    def factory(*_args, **kwargs) -> KalshiClient:
+        return KalshiClient(
+            base_url=kwargs.get("base_url"),
+            signed=kwargs.get("signed", False) if authenticate else False,
+            signing_environment=kwargs.get("signing_environment") if authenticate else None,
+            transport=transport,
+            budget=ReadBudget(),
+        )
+
+    monkeypatch.setattr("modules.coherence.drivers.kalshi_rest.kalshi_auth.sign", sign)
     monkeypatch.setattr(lab, "KalshiClient", factory)
 
 

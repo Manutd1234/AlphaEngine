@@ -36,6 +36,21 @@ describe("coalesced coherence reads", () => {
     await secondCancelled;
     assert.equal(transportSignal.aborted, true, "an abandoned shared request kept running");
   });
+
+  it("drops a private last-good snapshot when authorization is revoked", async () => {
+    const route = "/api/gateway/coherence/rfq";
+    const privatePanel = { state: "available", open_requests: 1 };
+    await read(route, async () => ({ data: privatePanel, error: null }));
+
+    const refused = await read(route, async () => ({
+      data: null,
+      error: "account session expired",
+      discardPrevious: true,
+    }));
+
+    assert.equal(refused.data, null);
+    assert.equal(refused.error, "account session expired");
+  });
 });
 
 describe("section warming", () => {

@@ -5,6 +5,7 @@ import { measuredOpenRequests } from "../lib/coherence/rfq-measurements";
 import { read } from "./helpers/workspace-sources";
 
 const rfq = read("../components/coherence/RfqPane.tsx");
+const makers = read("../components/coherence/MakersSection.tsx");
 const makerChromeCss = read("../app/globals/10g-coherence-shell.css");
 const channel = read("../components/coherence/ChannelStates.tsx");
 const channelCss = read("../components/coherence/ChannelStates.module.css");
@@ -22,6 +23,7 @@ describe("RFQ state semantics", () => {
       assert.equal(measuredOpenRequests({ state, open_requests: 0 }), null);
     }
     assert.equal(measuredOpenRequests({ state: "empty", open_requests: 0 }), 0);
+    assert.equal(measuredOpenRequests({ state: "requests_only", open_requests: 2 }), 2);
     assert.equal(measuredOpenRequests({ state: "available", open_requests: 3 }), 3);
     assert.match(rfq, /openRequests=\{measuredOpenRequests\(data\)\}/);
   });
@@ -38,18 +40,40 @@ describe("RFQ state semantics", () => {
   it("names the time series as maker-to-maker spread", () => {
     assert.match(rfq, /maker-to-maker price spread/);
     assert.doesNotMatch(rfq, /median width between independent maker quotes/);
-    assert.match(rfq, /Not one of the five/);
+    assert.match(rfq, /Not one of the named outcomes/);
+    assert.match(rfq, /const spreadKey = spread \? makerPanelKey\(spread, spreadIndex\) : "unquoted"/);
+    assert.match(rfq, /`rfq:\$\{spreadKey\}:spread`/,
+      "two RFQs on one ticker must not be welded into one live series");
+    assert.match(rfq, /makerPanelLabel\(spread, spreadIndex, data\.dispersions\)/,
+      "the private RFQ key must be represented by a safe request label");
   });
 
-  it("uses an actionable private-channel state without the removed placeholder copy", () => {
-    assert.match(rfq, /Private channel setup/);
+  it("uses an actionable RFQ REST-poll state without the removed placeholder copy", () => {
+    assert.match(rfq, /REST signing setup/);
+    assert.match(rfq, /if \(environment === "production"\) return "Production"/);
+    assert.match(rfq, /if \(environment === "demo"\) return "Demo"/);
+    assert.match(rfq, /\$\{name\} authenticated REST poll/);
+    assert.match(rfq, /Signing unavailable; environment unreported/);
+    assert.match(rfq, /panel\.signing_environment === null[\s\S]*?Signing not configured[\s\S]*?Signing unavailable; environment unreported/);
+    assert.match(rfq, /state: "requests_only"/);
+    assert.match(rfq, /label: "Open maker quotes"/);
+    assert.match(rfq, /panel\.open_quotes \?\? panel\.dispersions\.reduce/);
+    assert.match(makers, /title="Independent maker views by request"/);
+    assert.match(makers, /\["channel", "REST poll"\]/);
+    assert.doesNotMatch(makers, /one event|four-state/);
+    assert.match(rfq, /Not a WebSocket or persistent connection/);
+    assert.doesNotMatch(channel, /label: "Connection"/,
+      "a bounded HTTP poll must not be presented as a persistent connection");
+    assert.match(channel, /caption="Authenticated RFQ REST-poll outcome map"/);
     assert.match(rfq, /<ProofsTransportNotice/);
     const readings = rfq.slice(rfq.indexOf("function channelReadings"), rfq.indexOf("function ChannelNotice"));
     assert.doesNotMatch(readings, /label: "Private channel"/,
       "the setup state returned as a duplicate full-width KPI row");
-    assert.match(readings, /if \(openRequests == null\) return \[\];/);
+    assert.match(readings, /label: "RFQ REST poll"/);
+    assert.match(readings, /if \(openRequests == null\) return \[poll\];/,
+      "setup may show signer provenance but must still withhold unmeasured counts");
     assert.match(rfq, /role=\{fault \? "alert" : "status"\}/,
-      "routine connected or empty reads should not interrupt the reader as an assertive alert");
+      "routine completed or empty reads should not interrupt the reader as an assertive alert");
     for (const removed of [
       "No view, unsigned",
       "No dispersion to rank on this read",
@@ -106,9 +130,9 @@ describe("Stake and maker instruments remain valid and usable when narrow or tal
   });
 
   it("names both Makers table scrollports and keeps fallback selection visible", () => {
-    assert.match(rfq, /className="table-wrap"\s+role="region"\s+aria-label="Private-channel outcome definitions"\s+tabIndex=\{0\}/);
+    assert.match(rfq, /className="table-wrap"\s+role="region"\s+aria-label="RFQ REST-poll outcome definitions"\s+tabIndex=\{0\}/);
     assert.match(dispersionTable, /className="table-wrap"\s+role="region"\s+aria-label="Maker dispersion evidence"\s+tabIndex=\{0\}/);
-    assert.match(dispersion, /const chosen = row\.market_ticker === selected\.market_ticker/);
+    assert.match(dispersion, /const chosen = key === makerPanelKey\(selected, selectedIndex\)/);
   });
 
   it("bounds large maker panels and preserves both scroll axes", () => {
