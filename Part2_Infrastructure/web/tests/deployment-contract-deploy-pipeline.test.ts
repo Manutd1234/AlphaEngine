@@ -226,7 +226,7 @@ describe("continuous deployment keeps the desk alive across a swap", () => {
       );
       assert.match(
         deployWorkflow,
-        new RegExp(`put ${name} "\\$\\{${name}:-\\}"`),
+        new RegExp(`put ${name}\\b`),
         `${name} is forwarded to the VM but never written into the container env`,
       );
     }

@@ -213,7 +213,10 @@ jobs:
       # Fail here, loudly, rather than deploying a gateway the web project
       # cannot authenticate against. REQUIRE_AUTH=1 below means every portfolio,
       # order and research call needs this token, and it must equal the web
-      # project's ALPHAENGINE_GATEWAY_TOKEN on Vercel.
+      # project's ALPHAENGINE_GATEWAY_TOKEN on Vercel. Supabase and Neo4j are
+      # optional read models: missing repository copies must not block the core
+      # gateway, and the remote merge below preserves any values already on the
+      # VM. A configured candidate still has to pass its bounded reconciliation.
       - name: Required secrets are present
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
@@ -241,13 +244,6 @@ jobs:
           [ -n "$SSH_USER" ]      || missing+=("SSH_USER")
           [ -n "$SSH_KEY" ]       || missing+=("SSH_PRIVATE_KEY")
           [ -n "$WEB_API_TOKEN" ] || missing+=("WEB_API_TOKEN")
-          [ -n "$SUPABASE_URL" ] || missing+=("SUPABASE_URL")
-          [ -n "$SUPABASE_SERVICE_ROLE_KEY" ] || missing+=("SUPABASE_SERVICE_ROLE_KEY")
-          [ -n "$SUPABASE_DESK_ID" ] || missing+=("SUPABASE_DESK_ID repository variable")
-          [ -n "$NEO4J_URI" ] || missing+=("NEO4J_URI")
-          [ -n "$NEO4J_USERNAME" ] || missing+=("NEO4J_USERNAME")
-          [ -n "$NEO4J_PASSWORD" ] || missing+=("NEO4J_PASSWORD")
-          [ -n "$NEO4J_DATABASE" ] || missing+=("NEO4J_DATABASE")
           # Demo and production are independent read environments. Either pair
           # may be rotated or explicitly revoked; a production-only deployment
           # must not retain a sandbox credential just to pass preflight. Validate
@@ -568,19 +564,32 @@ jobs:
             put DB_PATH "/app/data/alphaengine.duckdb"
             put PAPER_EQUITY_QUOTE_URL "https://alphaengine-workspace.vercel.app/api/quote"
             put WEB_API_TOKEN "${WEB_API_TOKEN:-}"
-            put SUPABASE_URL "${SUPABASE_URL:-}"
-            put SUPABASE_SERVICE_ROLE_KEY "${SUPABASE_SERVICE_ROLE_KEY:-}"
+            # These credentials are one rotation. A partial repository pair
+            # must not replace half of a working VM pair; preserve both and let
+            # the optional readiness check below decide whether to reconcile.
+            if [ -n "${SUPABASE_URL:-}" ] && [ -n "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
+              put SUPABASE_URL "$SUPABASE_URL"
+              put SUPABASE_SERVICE_ROLE_KEY "$SUPABASE_SERVICE_ROLE_KEY"
+            elif [ -n "${SUPABASE_URL:-}" ] || [ -n "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
+              echo "::warning::A partial Supabase repository pair was ignored; preserving the deployed VM pair."
+            fi
             put SUPABASE_DESK_ID "${SUPABASE_DESK_ID:-}"
             put SUPABASE_MIRROR_ENABLED "${SUPABASE_MIRROR_ENABLED:-}"
             put RESEARCH_RAG_ENABLED "${RESEARCH_RAG_ENABLED:-}"
             put RESEARCH_SCOPE_TO_DESK "${RESEARCH_SCOPE_TO_DESK:-}"
             # Postgres research_edges is authoritative; Aura is the rebuildable
-            # desk-scoped read model. All four values are forwarded explicitly
-            # so a deploy never depends on a hand-maintained VM env file.
-            put NEO4J_URI "${NEO4J_URI:-}"
-            put NEO4J_USERNAME "${NEO4J_USERNAME:-}"
-            put NEO4J_PASSWORD "${NEO4J_PASSWORD:-}"
-            put NEO4J_DATABASE "${NEO4J_DATABASE:-}"
+            # desk-scoped read model. Rotate the four values together; an
+            # absent repository copy leaves the already-deployed optional group
+            # intact, and a partial copy cannot create a mixed credential.
+            if [ -n "${NEO4J_URI:-}" ] && [ -n "${NEO4J_USERNAME:-}" ] \
+                && [ -n "${NEO4J_PASSWORD:-}" ] && [ -n "${NEO4J_DATABASE:-}" ]; then
+              put NEO4J_URI "$NEO4J_URI"
+              put NEO4J_USERNAME "$NEO4J_USERNAME"
+              put NEO4J_PASSWORD "$NEO4J_PASSWORD"
+              put NEO4J_DATABASE "$NEO4J_DATABASE"
+            elif [ -n "${NEO4J_URI:-}${NEO4J_USERNAME:-}${NEO4J_PASSWORD:-}${NEO4J_DATABASE:-}" ]; then
+              echo "::warning::A partial Neo4j repository group was ignored; preserving the deployed VM group."
+            fi
             put TELEGRAM_BOT_TOKEN "${TELEGRAM_BOT_TOKEN:-}"
             put TELEGRAM_ALLOWED_USER_IDS "${TELEGRAM_ALLOWED_USER_IDS:-}"
             # Both of these gate a FAIL-CLOSED check in the bot, so omitting
@@ -1041,41 +1050,48 @@ jobs:
             # either label set, the exact-sweep readback fails closed while the
             # old gateway remains live. No write route is exposed.
             RESEARCH_BOOTSTRAP_CONTAINER="${CONTAINER}-research-once"
-            if ! remove_container_checked "$RESEARCH_BOOTSTRAP_CONTAINER"; then
-              echo "::error::A prior research bootstrap process could not be cleared safely."
-              if ! unwind_unstarted_replacement; then
-                echo "::error::Automatic pre-cutover unwind failed; operator intervention is required."
-              fi
-              exit 1
-            fi
-            echo "==> Rebuilding and verifying the desk-scoped research read model"
-            research_bootstrap_ok=0
-            if timeout --signal=TERM --kill-after=10s 180s \
-                docker run --rm \
-                  --name "$RESEARCH_BOOTSTRAP_CONTAINER" \
-                  --env-file "$ENV_FILE" \
-                  "$IMAGE" \
-                  python tools/reconcile_research_once.py \
-                    --limit 200 \
-                    --sweep "deploy-${KALSHI_KEY_SLOT}"; then
-              research_bootstrap_ok=1
-            fi
-            if [ "$research_bootstrap_ok" != "1" ]; then
-              echo "::error::The scoped Supabase-to-Neo4j rebuild did not complete and verify within 180 seconds."
+            if docker run --rm \
+                --env-file "$ENV_FILE" \
+                "$IMAGE" \
+                python -c 'from config import settings as s; raise SystemExit(0 if s.research_rag_enabled and s.supabase_url and s.supabase_service_role_key and s.supabase_desk_id and s.neo4j_uri and s.neo4j_password else 1)'; then
               if ! remove_container_checked "$RESEARCH_BOOTSTRAP_CONTAINER"; then
-                echo "::error::The failed research bootstrap process requires operator cleanup."
+                echo "::error::A prior research bootstrap process could not be cleared safely."
+                if ! unwind_unstarted_replacement; then
+                  echo "::error::Automatic pre-cutover unwind failed; operator intervention is required."
+                fi
+                exit 1
               fi
-              if ! unwind_unstarted_replacement; then
-                echo "::error::Automatic pre-cutover unwind failed; operator intervention is required."
+              echo "==> Rebuilding and verifying the desk-scoped research read model"
+              research_bootstrap_ok=0
+              if timeout --signal=TERM --kill-after=10s 180s \
+                  docker run --rm \
+                    --name "$RESEARCH_BOOTSTRAP_CONTAINER" \
+                    --env-file "$ENV_FILE" \
+                    "$IMAGE" \
+                    python tools/reconcile_research_once.py \
+                      --limit 200 \
+                      --sweep "deploy-${KALSHI_KEY_SLOT}"; then
+                research_bootstrap_ok=1
               fi
-              exit 1
-            fi
-            if ! remove_container_checked "$RESEARCH_BOOTSTRAP_CONTAINER"; then
-              echo "::error::The verified research bootstrap process did not exit cleanly."
-              if ! unwind_unstarted_replacement; then
-                echo "::error::Automatic pre-cutover unwind failed; operator intervention is required."
+              if [ "$research_bootstrap_ok" != "1" ]; then
+                echo "::error::The scoped Supabase-to-Neo4j rebuild did not complete and verify within 180 seconds."
+                if ! remove_container_checked "$RESEARCH_BOOTSTRAP_CONTAINER"; then
+                  echo "::error::The failed research bootstrap process requires operator cleanup."
+                fi
+                if ! unwind_unstarted_replacement; then
+                  echo "::error::Automatic pre-cutover unwind failed; operator intervention is required."
+                fi
+                exit 1
               fi
-              exit 1
+              if ! remove_container_checked "$RESEARCH_BOOTSTRAP_CONTAINER"; then
+                echo "::error::The verified research bootstrap process did not exit cleanly."
+                if ! unwind_unstarted_replacement; then
+                  echo "::error::Automatic pre-cutover unwind failed; operator intervention is required."
+                fi
+                exit 1
+              fi
+            else
+              echo "::notice::Supabase-to-Neo4j reconciliation is not configured; continuing with the core gateway and its durable Diffusion ledger."
             fi
 
             echo "==> Stopping the current container"
@@ -1126,6 +1142,15 @@ jobs:
             echo "==> Healthy. Confirming the port answers"
             if ! HEALTH_JSON=$(curl -fsS --connect-timeout 3 --max-time 10 "http://127.0.0.1:${PORT}/health"); then
               echo "::error::The replacement gateway health endpoint did not answer."
+              if ! rollback_gateway; then
+                echo "::error::Automatic gateway rollback failed; operator intervention is required."
+              fi
+              exit 1
+            fi
+
+            echo "==> Confirming the restored Diffusion history and diagram inputs"
+            if ! docker exec "$CONTAINER" python tools/check_diffusion_ready.py; then
+              echo "::error::The replacement gateway is healthy but its Diffusion event/run history is incomplete."
               if ! rollback_gateway; then
                 echo "::error::Automatic gateway rollback failed; operator intervention is required."
               fi

@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-09-01",
-  "commit": "0d1a3e68",
+  "commit": "7eeae687",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -603,6 +603,7 @@
     "Part2_Infrastructure/tests/test_diffusion_capture.py",
     "Part2_Infrastructure/tests/test_diffusion_clock.py",
     "Part2_Infrastructure/tests/test_diffusion_decay.py",
+    "Part2_Infrastructure/tests/test_diffusion_deploy_canary.py",
     "Part2_Infrastructure/tests/test_diffusion_estimator.py",
     "Part2_Infrastructure/tests/test_diffusion_events.py",
     "Part2_Infrastructure/tests/test_diffusion_findings.py",
@@ -768,6 +769,7 @@
     "Part2_Infrastructure/tools/bench_preamble.py",
     "Part2_Infrastructure/tools/bench_rerank.py",
     "Part2_Infrastructure/tools/capture_kalshi_fixtures.py",
+    "Part2_Infrastructure/tools/check_diffusion_ready.py",
     "Part2_Infrastructure/tools/check_repo_complete.sh",
     "Part2_Infrastructure/tools/colocation_probe.py",
     "Part2_Infrastructure/tools/diffusion_phase0.py",
@@ -1920,6 +1922,7 @@
     "Part2_Infrastructure/web/tests/dependency-policy.test.ts",
     "Part2_Infrastructure/web/tests/deployment-contract-config-surfaces.test.ts",
     "Part2_Infrastructure/web/tests/deployment-contract-deploy-pipeline.test.ts",
+    "Part2_Infrastructure/web/tests/deployment-contract-diffusion-readiness.test.ts",
     "Part2_Infrastructure/web/tests/deployment-contract-kalshi-transaction.test.ts",
     "Part2_Infrastructure/web/tests/deployment-contract-upload-scope.test.ts",
     "Part2_Infrastructure/web/tests/desk-interconnect-cross-links.test.ts",
