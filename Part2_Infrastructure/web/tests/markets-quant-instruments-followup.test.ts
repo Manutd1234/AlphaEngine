@@ -14,6 +14,7 @@ const shellMap = read("../components/coherence/ShellTree.tsx");
 const shellRoute = read("../components/coherence/ShellRouteFlow.tsx");
 const shell = `${shellMap}\n${shellRoute}`;
 const shellReadings = read("../components/coherence/ShellReadings.tsx");
+const shellReadingsCss = read("../components/coherence/ShellReadings.module.css");
 const shellCss = read("../components/coherence/ShellTopology.module.css");
 const shellRouteCss = read("../components/coherence/ShellRouteFlow.module.css");
 const books = read("../components/coherence/BooksInstruments.tsx");
@@ -139,7 +140,7 @@ describe("targeted Markets views use exact interactive instruments instead of or
     assert.match(shellRouteCss, /\.instrument\s*\{[^}]*border:\s*1px solid var\(--border\);/s);
   });
 
-  it("scopes Shell announcements and gives its reading groups a named keyboard-scroll floor", () => {
+  it("scopes Shell announcements and keeps its reading matrix inside responsive cards", () => {
     assert.match(shell, /<div className=\{styles\.commandTrace\}>/,
       "the visible command trace should not duplicate the scoped selection announcement");
     assert.match(shell, /<div className=\{styles\.readout\}>/,
@@ -150,11 +151,12 @@ describe("targeted Markets views use exact interactive instruments instead of or
       "Shell has no concise path/file selection announcement");
     assert.equal((shell.match(/aria-live="polite"/g) ?? []).length, 2,
       "Shell should expose one path/file status and one independently controlled route status");
-    assert.match(shellReadings, /const READINGS_MIN_WIDTH = 720/);
-    assert.match(shellReadings, /<Plot height=\{height\} minWidth=\{READINGS_MIN_WIDTH\} scrollLabel="Derived-reading empty-state groups">/,
-      "the Shell reading figure has no named keyboard-focusable horizontal scroll owner");
-    assert.match(shellReadings, /<tspan key=\{line \|\| lineIndex\} x=\{x\} dy=\{lineIndex === 0 \? 0 : NOTE_LINE_H\}>/,
-      "the exact empty-state explanations no longer wrap inside the reading figure");
+    assert.match(shellReadings, /<div className=\{styles\.flow\} aria-label="How a derived file reaches a reading">/);
+    assert.match(shellReadings, /<table className="coh-table">[\s\S]*?<th scope="col">Reading<\/th>[\s\S]*?<th scope="col">What it reads<\/th>/,
+      "the Shell reading figure no longer puts its loose file details into a table");
+    assert.match(shellReadingsCss, /\.groups\s*\{[^}]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\);/s);
+    assert.match(shellReadingsCss, /@media \(max-width: 1100px\)[\s\S]*?\.groups\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\);/,
+      "the reading groups have no single-column containment fallback");
   });
 
   it("bounds Survival shocks to probabilities and keys local scenarios to the selected quote", () => {
