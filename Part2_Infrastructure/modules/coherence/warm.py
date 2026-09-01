@@ -67,7 +67,7 @@ _MAX_CONTRACTS = 1000
 # refresher fills a cache nobody reads, every request goes to the venue, the
 # latency comes back and every test stays green. `test_coherence_warm.py` pins
 # the two together so that cannot happen quietly.
-WARM_MAX_EVENTS = 2
+WARM_MAX_EVENTS = 6
 
 # The parlay count the desk asks for, spelled once, for the same reason.
 WARM_COMBOS_LIMIT = 6
