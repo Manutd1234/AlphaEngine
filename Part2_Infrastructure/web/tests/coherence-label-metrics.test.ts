@@ -161,10 +161,8 @@ describe("no figure keeps a per-glyph constant of its own", () => {
   const REWIRED = [
     "../components/coherence/ComboBandStrips.tsx",
     "../components/coherence/ValueStrip.tsx",
-    // Joined 2026-08-25 with the Makers split. It divided by a literal 7.37 —
-    // the 13px rung times an assumed 0.567 — which clips an uppercase station
-    // word, since uppercase sets at 0.69 in this face.
-    "../components/coherence/ChannelStates.tsx",
+    // ChannelStates left this list when its SVG labels became wrapping HTML
+    // cards; it no longer performs glyph or gutter arithmetic at all.
     // Joined 2026-08-25 with the Universe rebuild: it divided by a literal
     // 7.48 for a label column that holds both prose titles and tickers.
     "../components/coherence/BasketOverview.tsx",
