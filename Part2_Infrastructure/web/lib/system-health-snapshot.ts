@@ -6,6 +6,7 @@ import {
   gatewayOpenApiEvidence,
   mcParityEvidence,
 } from "@/lib/delivery-readiness";
+import { gatewayPayloadParityEvidence, riskParityEvidence } from "@/lib/delivery-parity";
 import { callGateway } from "@/lib/gateway";
 import {
   guardMode,
@@ -254,6 +255,10 @@ export async function buildSystemHealthSnapshot(priority: Priority): Promise<Sys
     validation: sharedLedger ? ledgerValidation(sharedLedger) : validationTelemetry.snapshot(),
     delivery: {
       schema: schemaEvidence,
+      // Production route guards executed against canonical payload families.
+      payloads: gatewayPayloadParityEvidence(),
+      // The TypeScript consumer executed against the Python-generated fixture.
+      risk: riskParityEvidence(),
       // The numerics gate: this instance recomputed the committed Monte Carlo
       // fixture. Cached after the first poll — determinism is the claim.
       numerics: mcParityEvidence(),
