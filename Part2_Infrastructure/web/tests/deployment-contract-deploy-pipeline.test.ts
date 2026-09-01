@@ -281,7 +281,7 @@ describe("continuous deployment keeps the desk alive across a swap", () => {
   });
 
   it("rebuilds the scoped research read model before the replacement scheduler starts", () => {
-    const bootstrap = deployWorkflow.indexOf("python tools/reconcile_research_once.py");
+    const bootstrap = deployWorkflow.indexOf("python -m tools.reconcile_research_once");
     const cutover = deployWorkflow.indexOf('echo "==> Stopping the current container"', bootstrap);
     const stop = deployWorkflow.indexOf('docker stop --time 20 "$CONTAINER"', cutover);
     const remove = deployWorkflow.indexOf('remove_container_checked "$CONTAINER"', stop);

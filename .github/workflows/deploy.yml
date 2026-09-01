@@ -1068,7 +1068,7 @@ jobs:
                     --name "$RESEARCH_BOOTSTRAP_CONTAINER" \
                     --env-file "$ENV_FILE" \
                     "$IMAGE" \
-                    python tools/reconcile_research_once.py \
+                    python -m tools.reconcile_research_once \
                       --limit 200 \
                       --sweep "deploy-${KALSHI_KEY_SLOT}"; then
                 research_bootstrap_ok=1
