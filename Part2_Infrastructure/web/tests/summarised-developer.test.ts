@@ -264,7 +264,7 @@ const TAB_FACTS: ReadonlyArray<readonly [string, string]> = [
   ["Nothing read the live contract this poll", "why a cached verdict is not repeated"],
   ["an earlier reading found", "the history kept rather than deleted beside that refusal"],
   ["zero evidence is not a clean contract result", "why an empty payload ledger is not green"],
-  ["no cross-language risk-parity result", "why the one comparison without runtime evidence remains unverified"],
+  ["Fixture-exact", "the Python-to-TypeScript risk comparison now reports its executable evidence"],
   ["run unverified", "the delivery strip's refusal to turn build metadata into a CI result"],
   ["No suite reports a documented baseline", "the empty state for the test-count bars"],
   ["Read-only", "the scope fact kept visible in the explorer's inline provenance row"],
