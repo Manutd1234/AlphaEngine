@@ -16,6 +16,11 @@ const rfqRoute = readRepoFile("Part2_Infrastructure/web/app/api/gateway/coherenc
 
 describe("gateway and Kalshi rotation are one guarded transaction", () => {
   it("routes Makers through the server while the Kalshi credential stays on the gateway", () => {
+    assert.doesNotMatch(
+      workflow,
+      /script_stop:/,
+      "appleboy/ssh-action no longer accepts script_stop; each remote script owns set -euo pipefail",
+    );
     assert.match(rfqRoute, /callGateway\("\/api\/coherence\/rfq"/);
     assert.match(rfqRoute, /runtime = "nodejs"/);
     assert.match(rfqRoute, /"Cache-Control": "no-store"/);

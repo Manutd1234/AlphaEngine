@@ -311,8 +311,18 @@ async def read_panel(client: KalshiClient, limit: int = 50) -> dict[str, Any]:
     "nothing quoted" and "not allowed to look" it is rendering.
     """
     try:
-        rfq_page = await client.get("/communications/rfqs", {"limit": limit})
-        quote_page = await client.get("/communications/quotes", {"limit": limit})
+        # A quote is private to its maker and the RFQ's requester.  Kalshi no
+        # longer accepts an unfiltered quote-list request, and a global RFQ
+        # page cannot be joined honestly to quotes only this requester may
+        # read.  Keep both halves on the authenticated requester's own RFQs.
+        rfq_page = await client.get(
+            "/communications/rfqs",
+            {"limit": limit, "user_filter": "self"},
+        )
+        quote_page = await client.get(
+            "/communications/quotes",
+            {"limit": limit, "rfq_user_filter": "self"},
+        )
     except KalshiRefused as exc:
         return {
             "state": "refused",

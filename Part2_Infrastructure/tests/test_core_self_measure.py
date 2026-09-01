@@ -16,12 +16,16 @@ put a flattering number under the wrong label; that is the defect to catch.
 from __future__ import annotations
 
 import importlib
+import importlib.util
+from pathlib import Path
 
 import pytest
 
 from modules import metrics
 from modules.operations import _decision_latency_snapshot
 from modules.risk_proxy import RiskGateway
+
+SETUP = Path(__file__).resolve().parent.parent / "native" / "decision_core" / "setup.py"
 
 
 @pytest.fixture(autouse=True)
@@ -54,6 +58,15 @@ def _gateway() -> RiskGateway:
     return RiskGateway(audit=None)
 
 
+def _build_setup_module():
+    """Load the build recipe so timing policy follows the artifact, not env."""
+    spec = importlib.util.spec_from_file_location("decision_core_self_measure_build_setup", SETUP)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def test_self_measure_fills_the_core_histogram_and_never_the_decision_one(monkeypatch):
     gateway = _native_gateway(monkeypatch)
     recorded = gateway.run_core_self_measure()
@@ -63,9 +76,22 @@ def test_self_measure_fills_the_core_histogram_and_never_the_decision_one(monkey
     assert core["samples"] == recorded
     assert core["self_test_samples"] == recorded, "the self-measure count is published beside the total"
     assert 0 < core["p50"] <= core["p99"] <= core["max"]
-    # A real compiled battery on a two-venue book, not an empty call: the
-    # figure must be sub-microsecond but non-trivial.
-    assert core["p99"] < 1_000, core
+    # A real production-compiled battery on a two-venue book, not an empty
+    # call: the deploy figure must be sub-microsecond but non-trivial. ASan and
+    # UBSan deliberately replace O3 with O1, redzones and runtime checks, so
+    # their timing is not a production measurement. Identify the artifact by
+    # its source/flags build id rather than trusting a mutable process env.
+    build_setup = _build_setup_module()
+    build_id = gateway._decision_core.BUILD_ID
+    production_build_id = build_setup._build_id(None)
+    sanitizer_build_ids = {
+        build_setup._build_id("1"),
+        build_setup._build_id("undefined"),
+    }
+    if build_id == production_build_id:
+        assert core["p99"] < 1_000, core
+    else:
+        assert build_id in sanitizer_build_ids, f"unrecognised instrumented build: {build_id}"
 
     decision = metrics.decision_latency_summary()
     assert decision["samples"] == 0, "the µs plane is the whole submit() under its lock; nothing synthetic may enter it"

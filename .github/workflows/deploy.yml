@@ -295,7 +295,6 @@ jobs:
           # Correction 5 — passed as environment variables, so none of these
           # appears in the VM's process list or shell history.
           envs: IMAGE,REGISTRY,CONTAINER,VOLUME,KALSHI_KEY_VOLUME,KALSHI_KEY_SLOT,KALSHI_DEMO_REVOKE,PORT,GH_ACTOR,GH_TOKEN,WEB_API_TOKEN,SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,TELEGRAM_BOT_TOKEN,TELEGRAM_ALLOWED_USER_IDS,TELEGRAM_CONTROL_USER_IDS,TELEGRAM_ALERT_CHAT_IDS,TELEGRAM_LINK_SECRET,KALSHI_DEMO_KEY_ID,KALSHI_DEMO_PRIVATE_KEY_PEM_B64,COHERENCE_SERIES,COHERENCE_POLL_S,COHERENCE_MAX_EVENTS,COHERENCE_CALIBRATION_EVERY_S
-          script_stop: true
           script: |
             set -euo pipefail
 
@@ -1022,7 +1021,6 @@ jobs:
           # state transitions, so leave enough room for the full recovery path.
           command_timeout: 15m
           envs: PUBLIC_IP,IMAGE,CONTAINER,VOLUME,KALSHI_KEY_VOLUME,KALSHI_KEY_SLOT,KALSHI_DEMO_REVOKE,PORT
-          script_stop: true
           script: |
             set -euo pipefail
 

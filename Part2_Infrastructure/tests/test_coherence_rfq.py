@@ -194,6 +194,34 @@ class TestReadingTheChannel:
     ROUTE_QUOTES = "/communications/quotes"
 
     @pytest.mark.anyio
+    async def test_the_private_panel_filters_both_reads_to_this_requester(self):
+        """Kalshi rejects an unfiltered quote list, and quotes are private.
+
+        The RFQs and their answers must therefore describe the same authenticated
+        requester's panel rather than joining global questions to private answers.
+        """
+        queries: dict[str, httpx.QueryParams] = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            queries[request.url.path] = request.url.params
+            if request.url.path.endswith(self.ROUTE_RFQS):
+                return httpx.Response(200, json={"rfqs": []})
+            if request.url.path.endswith(self.ROUTE_QUOTES):
+                return httpx.Response(200, json={"quotes": []})
+            return httpx.Response(404, json={"error": "unexpected path in test"})
+
+        made = KalshiClient(
+            transport=httpx.MockTransport(handler),
+            budget=ReadBudget(),
+        )
+
+        result = await read_panel(made)
+
+        assert result["state"] == "empty"
+        assert queries[f"/trade-api/v2{self.ROUTE_RFQS}"]["user_filter"] == "self"
+        assert queries[f"/trade-api/v2{self.ROUTE_QUOTES}"]["rfq_user_filter"] == "self"
+
+    @pytest.mark.anyio
     async def test_an_unsigned_read_is_no_view_rather_than_a_worse_one(self):
         made = client({self.ROUTE_RFQS: (401, {}), self.ROUTE_QUOTES: (401, {})})
         result = await read_panel(made)
