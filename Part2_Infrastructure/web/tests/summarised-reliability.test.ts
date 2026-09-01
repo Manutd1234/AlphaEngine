@@ -189,13 +189,13 @@ const REWRITES: Rewrite[] = [
     after: "Not configured — nothing to probe.",
   },
   {
-    path: LEDGER, what: "the no-MTTR-trend refusal",
+    path: LEDGER, what: "the bounded retained-window MTTR proxy",
     facts: [
-      "No MTTR trend is drawn", "sample surviving a bounded ring",
-      "biased short", "slope toward a recovery time nobody achieved",
+      "Bounded retained-window MTTR proxy", "Completed pairs only",
+      "sample surviving a bounded ring", "biased short", "not a durable history",
     ],
-    wasteGone: "sample that survives a bounded ring",
-    after: "The sample surviving a bounded ring is biased short,",
+    wasteGone: "durable MTTR history",
+    after: "The sample surviving a bounded ring is biased short:",
   },
   {
     path: LEDGER, what: "the pairing disclosure",

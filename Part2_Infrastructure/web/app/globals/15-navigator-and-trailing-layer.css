@@ -1295,6 +1295,14 @@
   font-weight: 650;
 }
 
+.remediation-ledger__trend svg {
+  display: block;
+}
+
+.remediation-ledger__trend .legend {
+  margin-bottom: var(--space-2);
+}
+
 /* ══════════════════════════════════════════════════════════════════════════
    Motion vocabulary — the workspace-wide pass
    ══════════════════════════════════════════════════════════════════════════

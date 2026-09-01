@@ -213,7 +213,12 @@ export async function loadBars(
       );
     }
     for (const violation of sourced.provenance.contract?.violations ?? []) {
-      warnings.push(`Data contract — ${violation.check}: ${violation.message}`);
+      // Coverage is already stated above in the reader-facing vocabulary. The
+      // structured violation remains in provenance and the validation ledger;
+      // repeating it here made one short series look like two failures.
+      if (violation.check === "bars.coverage" && sourced.data.length < bars) continue;
+      const warning = `Data contract — ${violation.check}: ${violation.message}`;
+      if (!warnings.includes(warning)) warnings.push(warning);
     }
 
     return {

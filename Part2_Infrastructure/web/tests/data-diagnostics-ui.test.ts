@@ -103,6 +103,18 @@ describe("the pipeline inspector separates zones instead of narrating them", () 
     assert.ok(restTrace.includes("None — the cache answered."));
     assert.ok(socketTrace.includes("No frame received yet."));
   });
+
+  it("separates an equity REST quote and paper route from unavailable direct L2", () => {
+    assert.match(pipeline, /marketCapabilitiesFor\(symbol\)/);
+    assert.match(pipeline, /setLastGoodQuote\(inspected\)/,
+      "the socket view no longer retains the last successful REST quote evidence");
+    assert.ok(socketTrace.includes("REST quote"));
+    assert.ok(socketTrace.includes("Quote freshness"));
+    assert.ok(socketTrace.includes("Paper order route"));
+    assert.ok(socketTrace.includes("Not provisioned for equities; no socket opened"));
+    assert.ok(socketTrace.includes("No failed {symbol} socket is hidden here."));
+    assert.ok(!socketTrace.includes("No failed AAPL socket is hidden here."));
+  });
 });
 
 describe("a capability the symbol cannot answer is refused, not traced", () => {

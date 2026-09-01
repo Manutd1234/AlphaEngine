@@ -72,6 +72,7 @@ const CALLERS: Record<string, Array<{ format: (v: number) => string; points: num
   ],
   "components/portfolio/RiskAdjustedTrend.tsx": [{ format: clock, points: minutely(240) }],
   "components/systems/LatencyTrend.tsx": [{ format: clockDefaultLocale, points: minutely(240) }],
+  "components/systems/RemediationLedger.tsx": [{ format: clock, points: minutely(300) }],
   // Ordinal over a fixed eight-cell horizon grid, so the widest label is the
   // three characters of "30m" and the points never grow past eight.
   "components/coherence/diffusion/AbsorptionCurve.tsx": [
@@ -275,6 +276,16 @@ describe("a tick is dropped rather than overprinted", () => {
     const single = axisTicks({ points: daily(1), x0: 52, x1: 664, format: shortDate });
     assert.equal(single.length, 1);
     assert.equal(single[0].label, shortDate(daily(1)[0]));
+
+    const irregular = axisTicks({
+      points: [1_000, 2_000, 10_000],
+      xPositions: [52, 120, 664],
+      x0: 52,
+      x1: 664,
+      format: String,
+    });
+    assert.deepEqual(irregular.map((tick) => tick.x), [52, 120, 664],
+      "a time-proportional axis replaced supplied mark positions with ordinal spacing");
   });
 
   it("returns nothing for an empty series rather than inventing a domain", () => {

@@ -146,8 +146,8 @@ PUBLIC_FAILOVER_URL: Final = normalize_base_url(
     _env("KALSHI_PUBLIC_FAILOVER_URL", "https://api.elections.kalshi.com/trade-api/v2"),
     name="KALSHI_PUBLIC_FAILOVER_URL",
 )
-# Demo for anything signed. A demo key cannot sign a production request, so
-# these two hosts are not interchangeable and the client keeps them apart.
+# Demo for private-channel reads. A demo key cannot sign a production request,
+# so these two hosts are not interchangeable and the client keeps them apart.
 DEMO_BASE_URL: Final = normalize_base_url(
     _env("KALSHI_DEMO_BASE_URL", "https://external-api.demo.kalshi.co/trade-api/v2"),
     name="KALSHI_DEMO_BASE_URL",
@@ -161,6 +161,15 @@ if {PUBLIC_BASE_URL, PUBLIC_FAILOVER_URL} & {DEMO_BASE_URL, DEMO_FAILOVER_URL}:
 DEMO_KEY_ID: Final = os.environ.get("KALSHI_DEMO_KEY_ID", "").strip()
 DEMO_PRIVATE_KEY_PATH: Final = resolve_private_key_path(
     os.environ.get("KALSHI_DEMO_PRIVATE_KEY_PATH", "")
+)
+# The CF Benchmarks passthrough is the one production read in this subsystem
+# that requires authentication.  Its credential is deliberately separate from
+# the demo RFQ credential above: silently sending a sandbox key to production
+# earns a misleading 401 and can make an entitlement problem look like broken
+# signing.  Empty keeps the reference-rate call fail-closed before transport.
+PRODUCTION_KEY_ID: Final = os.environ.get("KALSHI_PRODUCTION_KEY_ID", "").strip()
+PRODUCTION_PRIVATE_KEY_PATH: Final = resolve_private_key_path(
+    os.environ.get("KALSHI_PRODUCTION_PRIVATE_KEY_PATH", "")
 )
 
 # ── What to watch ────────────────────────────────────────────────────────────
@@ -292,5 +301,10 @@ def watchlist_configured() -> bool:
 
 
 def signing_configured() -> bool:
-    """True when a demo key pair is present. Never true for production reads."""
+    """True when the demo private-channel key pair is present."""
     return bool(DEMO_KEY_ID and DEMO_PRIVATE_KEY_PATH)
+
+
+def production_signing_configured() -> bool:
+    """True only when both halves of the production read credential exist."""
+    return bool(PRODUCTION_KEY_ID and PRODUCTION_PRIVATE_KEY_PATH)

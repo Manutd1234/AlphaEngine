@@ -1,21 +1,13 @@
-"""The lab: readings built on top of the engine rather than inside it.
+"""Lab readings built on top of the coherence engine.
 
-``modules/api/coherence.py`` answers what is true of the exchange now, and
-``coherence_history.py`` what has been true over time. This third router answers
-questions that take the engine's output as their input: what distribution do
-these prices imply, what do the parlays say about dependence, were the prices
-right, how much would you stake, what does the contract actually settle on, and
-what the whole watched universe looks like as a tree.
-
-Every route is a GET, every route names its engine, and every route returns a
-``state`` a pane can render without guessing. Nothing here places an order.
-
-The response mapping lives in ``coherence_lab_views.py`` so that this file reads
-as the list of questions the lab answers.
+Every route is a GET, names its engine and returns a renderable ``state``;
+nothing here places an order. Response mapping lives in
+``coherence_lab_views.py`` so this file remains the list of questions answered.
 """
 
 from __future__ import annotations
 
+import asyncio
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
@@ -205,8 +197,14 @@ async def coherence_settlement(
     position carries whether or not anyone notices it.
     """
     client = KalshiClient()
-    feed = await settlement.weather(client, city)
-    reference = await settlement.reference_rate(client)
+    reference_client = KalshiClient(signing_environment="production")
+    # The weather index and CF reference-rate capability are independent venue
+    # reads.  Serialising them made the slower one consume the other's latency
+    # allowance and needlessly lengthened an already large response.
+    feed, reference = await asyncio.gather(
+        settlement.weather(client, city),
+        settlement.reference_rate(reference_client),
+    )
     return views.settlement_view(feed, reference, city)
 
 

@@ -47,6 +47,6 @@ describe("Data Lineage keeps replay orchestration behind one native disclosure",
   });
 
   it("keeps the signed Data static-copy signature byte-identical", () => {
-    assert.deepEqual(buildProtectedBaseline().signatures.data, fixture.protectedFrontendSweep20260831.data);
+    assert.deepEqual(buildProtectedBaseline().signatures.data, fixture.protectedDataTransportTruth20260901.data);
   });
 });

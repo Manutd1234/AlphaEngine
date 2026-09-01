@@ -126,16 +126,16 @@ const STATES: ReadonlyArray<{ state: string; mark: string; word: string; means: 
   {
     state: "empty",
     mark: "◌",
-    word: "Connected, no RFQs",
-    means: "Zero open requests.",
-    not: "Not a failed read. Makers do not quote a sandbox, so the zero is a measurement.",
+    word: "Authenticated read, no RFQs",
+    means: "The signed HTTP poll completed with zero open requests.",
+    not: "Not a websocket subscription and not a failed read. Demo makers usually do not quote a sandbox.",
   },
   {
     state: "available",
     mark: "●",
-    word: "Connected, quotes live",
-    means: "Quotes on the channel.",
-    not: "Not a price. Several makers answering independently.",
+    word: "Authenticated read, quotes present",
+    means: "The signed HTTP poll returned quotes.",
+    not: "Not a persistent connection or one price. Several makers answered independently.",
   },
 ];
 
@@ -165,9 +165,9 @@ function ChannelNotice({ panel, onRetry }: { panel: CoherenceRfqPanel; onRetry: 
   const title = panel.state === "signing_unavailable"
     ? "Connect the private maker channel"
     : panel.state === "empty"
-      ? "Private maker channel connected"
+      ? "Private maker read completed; no RFQs"
       : panel.state === "available"
-        ? "Private channel connected; no panel is drawable"
+        ? "Private maker read completed with quotes"
         : panel.state === "refused"
           ? "Private-channel credentials were refused"
           : "Private maker channel is temporarily offline";

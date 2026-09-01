@@ -23,6 +23,7 @@ import pytest
 from coherence_fixtures import body
 
 from modules.coherence.drivers import livedata
+from modules.coherence.drivers.kalshi_auth import SignedHeaders
 from modules.coherence.drivers.kalshi_rest import KalshiClient
 from modules.coherence.drivers.livedata import (
     KNOWN_WEATHER_CITIES,
@@ -37,13 +38,17 @@ from modules.coherence.scheduler.budget import ReadBudget
 MIAMI = "live_data_weather_miami"
 
 
-def client(status: int, payload: dict | None = None) -> KalshiClient:
+def client(status: int, payload: dict | None = None, *, production_signed: bool = False) -> KalshiClient:
     """The venue at one status code, through an injected transport."""
 
     def handler(_request: httpx.Request) -> httpx.Response:
         return httpx.Response(status, json=payload if payload is not None else {"error": "refused"})
 
-    return KalshiClient(transport=httpx.MockTransport(handler), budget=ReadBudget())
+    return KalshiClient(
+        transport=httpx.MockTransport(handler),
+        budget=ReadBudget(),
+        signing_environment="production" if production_signed else None,
+    )
 
 
 def sample(ts_ms: int, value: str, contributors: int = 5, status: str = "normal") -> dict:
@@ -250,18 +255,60 @@ class TestTheReferenceRateIsReportedRatherThanRaised:
     deployment, not an error that should interrupt a poll."""
 
     @pytest.mark.anyio
-    async def test_a_401_is_an_entitlement_and_never_a_network_fault(self):
-        state = await livedata.cfbenchmarks_state(client(401))
-        assert state["state"] == "entitlement_required"
-        assert "gated on an account entitlement rather than on signing" in state["detail"]
+    async def test_authentication_and_entitlement_refusals_stay_distinct(self, monkeypatch):
+        budget = ReadBudget()
+        local_failure = await livedata.cfbenchmarks_state(KalshiClient(
+            transport=httpx.MockTransport(lambda _request: httpx.Response(200, json={})),
+            budget=budget,
+            signing_environment="production",
+        ))
+        assert local_failure["state"] == "authentication_required"
+        assert budget.spent_tokens == 0, "a local signing failure consumed the venue read bucket"
+        monkeypatch.setattr(
+            "modules.coherence.drivers.livedata.kalshi_auth.status",
+            lambda _environment: {"available": True},
+        )
+        monkeypatch.setattr(
+            "modules.coherence.drivers.kalshi_rest.kalshi_auth.sign",
+            lambda _method, _path, host: SignedHeaders("production-test", "1", "signature", host),
+        )
+        unsigned = await livedata.cfbenchmarks_state(client(200, {"values": []}))
+        unauthenticated = await livedata.cfbenchmarks_state(client(401, production_signed=True))
+        forbidden = await livedata.cfbenchmarks_state(client(403, production_signed=True))
+        assert unsigned["state"] == "authentication_required"
+        assert "refused locally" in unsigned["detail"]
+        assert unauthenticated["state"] == "authentication_required"
+        assert "before an entitlement could be checked" in unauthenticated["detail"]
+        assert forbidden["state"] == "entitlement_required"
+        assert "authentication reached Kalshi" in forbidden["detail"]
 
     @pytest.mark.anyio
-    async def test_a_server_fault_stays_unavailable(self):
-        assert (await livedata.cfbenchmarks_state(client(503)))["state"] == "unavailable"
+    async def test_a_server_fault_stays_unavailable(self, monkeypatch):
+        monkeypatch.setattr(
+            "modules.coherence.drivers.livedata.kalshi_auth.status",
+            lambda _environment: {"available": True},
+        )
+        monkeypatch.setattr(
+            "modules.coherence.drivers.kalshi_rest.kalshi_auth.sign",
+            lambda _method, _path, host: SignedHeaders("production-test", "1", "signature", host),
+        )
+        assert (
+            await livedata.cfbenchmarks_state(client(503, production_signed=True))
+        )["state"] == "unavailable"
 
     @pytest.mark.anyio
-    async def test_a_reachable_passthrough_hands_the_payload_back(self):
-        state = await livedata.cfbenchmarks_state(client(200, {"values": [{"id": "BRTI"}]}))
+    async def test_a_reachable_passthrough_hands_the_payload_back(self, monkeypatch):
+        monkeypatch.setattr(
+            "modules.coherence.drivers.livedata.kalshi_auth.status",
+            lambda _environment: {"available": True},
+        )
+        monkeypatch.setattr(
+            "modules.coherence.drivers.kalshi_rest.kalshi_auth.sign",
+            lambda _method, _path, host: SignedHeaders("production-test", "1", "signature", host),
+        )
+        state = await livedata.cfbenchmarks_state(
+            client(200, {"values": [{"id": "BRTI"}]}, production_signed=True)
+        )
         assert state["state"] == "available"
         assert state["payload"] == {"values": [{"id": "BRTI"}]}
 

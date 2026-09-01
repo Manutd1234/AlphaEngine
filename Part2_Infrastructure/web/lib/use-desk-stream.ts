@@ -105,11 +105,10 @@ const FIRST_RETRY_MS = 2_500;
 const MAX_BACKOFF_MS = 60_000;
 
 /**
- * How long the **handshake** may take. The stream itself is never deadlined.
+ * How long the **handshake** may take. Healthy serverless sessions rotate
+ * before the platform deadline and reconnect without changing live state.
  *
- * The proxy holds an upstream fetch open for the life of the stream, cancelled
- * by the browser disconnecting rather than by a timer — a deadline on that
- * fetch would kill a healthy connection the moment it fired. But a gateway
+ * The proxy holds an upstream fetch open for one bounded session. A gateway
  * that accepts the connection and then says nothing leaves the proxy waiting
  * on headers, so no `desk-state` frame is ever emitted, and without this the
  * `connect` promise never settles: the reconnect loop sees a tick still in
@@ -194,6 +193,16 @@ function connect(): Promise<void> {
       resolve();
     };
 
+    /** Planned serverless rotation: keep live state and reconnect immediately. */
+    const rotate = () => {
+      clearTimeout(handshake);
+      es.close();
+      if (source !== es) return;
+      source = null;
+      if (!settled) { settled = true; resolve(); }
+      globalThis.setTimeout(() => void loop?.runNow(), 0);
+    };
+
     es.addEventListener("desk-state", (event) => {
       let body: { state?: string; reason?: string };
       try {
@@ -203,6 +212,7 @@ function connect(): Promise<void> {
         return;
       }
       if (body.state === "ok") up({ ...snapshot, state: "live", reason: null });
+      else if (body.state === "rotate") rotate();
       else fail(body.reason ?? "gateway_unavailable");
     });
 

@@ -131,16 +131,16 @@ describe("a disclosure is not a deletion", () => {
       sentence: "Measured inside the gateway process : handler time, not the round trip a browser pays and not exchange order-to-ack. Sorted slowest first by p95; a route with fewer than {MIN_SAMPLES} samples prints its numbers and draws no bar." },
     /* A second pass, three folds, each split from something that had to stay —
        which is why each is pinned on both sides. The reconciliation note kept
-       its price and folded its method; the MTTR refusal kept its headline and
-       its truncation caveat and folded its reasoning; the quarantine footnote
+       its price and folded its method; the MTTR proxy kept its scope and
+       truncation caveat visible and folded its bias explanation; the quarantine footnote
        folded whole, scope and handling being provenance, with none of the
        evidence — the evaluated/passed figures, both empty states, every flagged
        excerpt — ever having been in that paragraph. The halves that stayed are
        in the honesty floor below, each named by the kind that held it there. */
     { path: "components/systems/CrossSourceCheck.tsx", what: "what a median across sources catches",
       sentence: "Each leg&apos;s distance from the median, the only check here that catches a stale price served with HTTP 200." },
-    { path: "components/systems/RemediationLedger.tsx", what: "the reasoning under the MTTR refusal",
-      sentence: "The sample surviving a bounded ring is biased short, so a trend through it would slope toward a recovery time nobody achieved." },
+    { path: "components/systems/RemediationLedger.tsx", what: "the bias behind the bounded MTTR proxy",
+      sentence: "The sample surviving a bounded ring is biased short: long incidents are likelier to lose their opening event before they close. The line describes retained matched pairs, not a durable history." },
     { path: "components/systems/QuarantinePanel.tsx", what: "the gateway-ledger scope of the counts",
       sentence: "the counts are the gateway's durable ledger, merged across instances, kept across restarts; the excerpts are this instance's bounded buffer." },
     { path: "components/systems/QuarantinePanel.tsx", what: "the per-instance scope of the counts",
@@ -229,9 +229,9 @@ describe("what a reader would be wrong not to have seen stays on screen", () => 
     /* The second pass folded three things and put these four back, each named
        by the kind that stopped it. The recovery rate is not printed below
        MIN_TRIPS_FOR_RATE and this sentence is the only reason a reader can see
-       for the missing percentage. The MTTR headline and the truncation caveat
-       are the halves that fold left standing — a chart absent by decision says
-       so unopened, and eviction changes what the counts above MEAN. The
+       for the missing percentage. The MTTR scope and the truncation caveat
+       stay visible beside the new retained-window chart because eviction
+       changes what the counts and proxy above MEAN. The
        reconciliation price is what its note kept, on the line above the button
        that spends it. Four more were weighed and refused for the same reasons,
        and did not need a new pin to hold them: OutageIncidents' "says nothing
@@ -240,7 +240,7 @@ describe("what a reader would be wrong not to have seen stays on screen", () => 
        are polls below" (the key to a gap being read right now) and
        PipelineSocketTrace's "no streaming venue coverage" (empty state). */
     { path: "components/systems/RemediationLedger.tsx", kind: "NULL EXPLANATION", needle: "A recovery rate is withheld below" },
-    { path: "components/systems/RemediationLedger.tsx", kind: "REFUSAL HEADLINE", needle: "<strong>No MTTR trend is drawn.</strong>" },
+    { path: "components/systems/RemediationLedger.tsx", kind: "SCOPE OF A FIGURE", needle: "<strong>Completed pairs only; this is not fleet MTTR or an SLA.</strong>" },
     { path: "components/systems/RemediationLedger.tsx", kind: "CAVEAT ON A FIGURE", needle: "the counts above are a floor." },
     { path: "components/systems/CrossSourceCheck.tsx", kind: "COST", needle: "This check spends a call per provider, so it runs only when you ask." },
     /* Added when the server mutations took their own Remediation pane. The

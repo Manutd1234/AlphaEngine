@@ -7,11 +7,10 @@ and **excludes the query string** — the documentation says so twice, and signi
 the query is the mistake that produces a valid-looking signature the exchange
 rejects on every paginated call and nowhere else.
 
-Nothing in the read path needs this. Kalshi's markets, events, series, trades,
-fee feeds and exchange status are all public, and that is the whole reason this
-engine can run with no account at all. Signing exists for the endpoints that do
-need a key — ``/account/limits`` for the real rate tier, and the demo
-environment's portfolio surface.
+Almost nothing in the read path needs this. Kalshi's markets, events, series,
+trades, fee feeds and exchange status are public, so the engine still runs with
+no account. Signing exists for the endpoints that do need a key: the demo
+environment's private-channel surface and production ``/cfbenchmarks/values``.
 
 **Production and demo keys are not interchangeable.** A sandbox key generated at
 demo.kalshi.co cannot sign a production request, so the client keeps the two
@@ -34,8 +33,11 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from types import ModuleType
+from typing import Literal
 
 from modules.coherence import tunables
+
+SigningEnvironment = Literal["demo", "production"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,27 +81,39 @@ def import_rsa() -> tuple[ModuleType | None, str | None]:
     return _Primitives(), None  # type: ignore[return-value]
 
 
-def signing_available() -> bool:
-    """A complete configuration whose key parses as an RSA private key."""
-    return _availability_problem() is None
+def _credentials(environment: SigningEnvironment) -> tuple[str, str, str]:
+    """Key id, key path and operator-facing variable prefix for one venue."""
+    if environment == "production":
+        return (
+            tunables.PRODUCTION_KEY_ID,
+            tunables.PRODUCTION_PRIVATE_KEY_PATH,
+            "KALSHI_PRODUCTION",
+        )
+    return tunables.DEMO_KEY_ID, tunables.DEMO_PRIVATE_KEY_PATH, "KALSHI_DEMO"
 
 
-def _configuration_problem() -> SigningProblem | None:
+def signing_available(environment: SigningEnvironment = "demo") -> bool:
+    """A complete environment-specific configuration with a valid RSA key."""
+    return _availability_problem(environment) is None
+
+
+def _configuration_problem(environment: SigningEnvironment = "demo") -> SigningProblem | None:
     """Name the incomplete half without exposing a configured path."""
-    if not tunables.DEMO_KEY_ID:
-        return SigningProblem("key_id_missing", "KALSHI_DEMO_KEY_ID is not set on the gateway")
-    if not tunables.DEMO_PRIVATE_KEY_PATH:
+    key_id, private_key_path, prefix = _credentials(environment)
+    if not key_id:
+        return SigningProblem("key_id_missing", f"{prefix}_KEY_ID is not set on the gateway")
+    if not private_key_path:
         return SigningProblem(
             "private_key_path_missing",
-            "KALSHI_DEMO_PRIVATE_KEY_PATH is not set on the gateway",
+            f"{prefix}_PRIVATE_KEY_PATH is not set on the gateway",
         )
-    path = Path(tunables.DEMO_PRIVATE_KEY_PATH)
+    path = Path(private_key_path)
     try:
         mode = path.stat().st_mode
     except FileNotFoundError:
         return SigningProblem(
             "private_key_missing",
-            "KALSHI_DEMO_PRIVATE_KEY_PATH points to a missing file",
+            f"{prefix}_PRIVATE_KEY_PATH points to a missing file",
         )
     except OSError:
         return SigningProblem(
@@ -109,7 +123,7 @@ def _configuration_problem() -> SigningProblem | None:
     if not stat.S_ISREG(mode):
         return SigningProblem(
             "private_key_not_file",
-            "KALSHI_DEMO_PRIVATE_KEY_PATH must point to a regular PEM file",
+            f"{prefix}_PRIVATE_KEY_PATH must point to a regular PEM file",
         )
     return None
 
@@ -190,9 +204,9 @@ def _load_key(pem_path: str):
     return key
 
 
-def _availability_problem() -> SigningProblem | None:
+def _availability_problem(environment: SigningEnvironment = "demo") -> SigningProblem | None:
     """Validate every local prerequisite without sending or signing a request."""
-    configuration_problem = _configuration_problem()
+    configuration_problem = _configuration_problem(environment)
     if configuration_problem is not None:
         return configuration_problem
     primitives, error = import_rsa()
@@ -202,7 +216,7 @@ def _availability_problem() -> SigningProblem | None:
             error or "cryptography is unavailable",
         )
     try:
-        _load_key(tunables.DEMO_PRIVATE_KEY_PATH)
+        _load_key(_credentials(environment)[1])
     except SigningUnavailable as exc:
         return SigningProblem(exc.code, exc.reason)
     return None
@@ -216,18 +230,22 @@ def sign(method: str, path: str, host: str, timestamp_ms: int | None = None) -> 
     whoever debugs it looking at the key rather than at the code that decided
     not to use it.
     """
-    if not tunables.signing_configured():
-        raise SigningUnavailable(
-            "no demo key configured; set KALSHI_DEMO_KEY_ID and KALSHI_DEMO_PRIVATE_KEY_PATH"
-        )
     try:
         signing_host = tunables.normalize_base_url(host, name="signing host")
     except ValueError as exc:
         raise SigningUnavailable("the signing host is not a valid Kalshi API root") from exc
-    if signing_host not in {tunables.DEMO_BASE_URL, tunables.DEMO_FAILOVER_URL}:
+    if signing_host in {tunables.DEMO_BASE_URL, tunables.DEMO_FAILOVER_URL}:
+        environment: SigningEnvironment = "demo"
+    elif signing_host in {tunables.PUBLIC_BASE_URL, tunables.PUBLIC_FAILOVER_URL}:
+        environment = "production"
+    else:
         raise SigningUnavailable(
-            "this key belongs to the demo environment and cannot sign a production request; "
-            "the public read path needs no key at all"
+            "the signing host is not one of the configured Kalshi demo or production API roots"
+        )
+    key_id, private_key_path, prefix = _credentials(environment)
+    if not key_id or not private_key_path:
+        raise SigningUnavailable(
+            f"no {environment} key configured; set {prefix}_KEY_ID and {prefix}_PRIVATE_KEY_PATH"
         )
     path_without_query = path.split("?", 1)[0]
     if path_without_query != tunables.API_ROOT_PATH and not path_without_query.startswith(
@@ -243,7 +261,7 @@ def sign(method: str, path: str, host: str, timestamp_ms: int | None = None) -> 
         )
 
     stamp = timestamp_ms if timestamp_ms is not None else int(time.time() * 1000)
-    key = _load_key(tunables.DEMO_PRIVATE_KEY_PATH)
+    key = _load_key(private_key_path)
     try:
         signature = key.sign(
             signing_message(stamp, method, path),
@@ -259,18 +277,19 @@ def sign(method: str, path: str, host: str, timestamp_ms: int | None = None) -> 
             code="private_key_sign_failed",
         ) from exc
     return SignedHeaders(
-        key_id=tunables.DEMO_KEY_ID,
+        key_id=key_id,
         timestamp_ms=str(stamp),
         signature=base64.b64encode(signature).decode("ascii"),
         host=signing_host,
     )
 
 
-def status() -> dict[str, object]:
-    """What the surface reports about signing. Never a bare boolean."""
+def status(environment: SigningEnvironment = "demo") -> dict[str, object]:
+    """What a surface reports about one signing environment."""
     primitives, error = import_rsa()
-    configured = tunables.signing_configured()
-    problem = _availability_problem()
+    key_id, private_key_path, _prefix = _credentials(environment)
+    configured = bool(key_id and private_key_path)
+    problem = _availability_problem(environment)
     available = problem is None
     return {
         "configured": configured,
@@ -278,11 +297,15 @@ def status() -> dict[str, object]:
         "reason": problem.code if problem is not None else None,
         "library": "available" if primitives is not None else "unavailable",
         "library_detail": error,
-        "environment": "demo" if available else None,
+        "environment": environment if available else None,
         "detail": (
-            "signed demo reads are available"
+            f"signed {environment} reads are available"
             if available
-            else f"{problem.detail if problem is not None else 'signed demo reads are unavailable'}; "
-            "public production reads need no key"
+            else f"{problem.detail if problem is not None else f'signed {environment} reads are unavailable'}; "
+            + (
+                "public production reads need no key"
+                if environment == "demo"
+                else "the CF Benchmarks read will not fall back to an unsigned request"
+            )
         ),
     }

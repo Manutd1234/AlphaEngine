@@ -144,15 +144,21 @@ describe("the outcome ring respects the floor that withholds the rate", () => {
     assert.doesNotMatch(code(ledger), /trips >= [0-9]/);
   });
 
-  it("keeps the refusal headline out of every disclosure", () => {
+  it("keeps the bounded-proxy scope out of every disclosure", () => {
     /**
-     * Position alone proves nothing here — the panel has several disclosures
-     * and the refusal sits between two of them. What matters is that the
-     * headline survives with every `<details>` block removed.
+     * Position alone proves nothing here — the panel has several disclosures.
+     * What matters is that the scope survives with every `<details>` removed,
+     * while the longer bias explanation is genuinely folded.
      */
-    assert.match(uncollapsed(ledger), /No MTTR trend is drawn/);
-    // And the reasoning genuinely did move.
-    assert.doesNotMatch(uncollapsed(ledger), /biased toward incidents|shares with dispatch, cache/);
+    assert.match(uncollapsed(ledger), /Completed pairs only; this is not fleet MTTR or an SLA/);
+    assert.doesNotMatch(uncollapsed(ledger), /sample surviving a bounded ring is biased short/);
+  });
+
+  it("draws only after two completed incidents and leaves unresolved trips as gaps", () => {
+    assert.match(ledger, /trend\.completed >= MIN_COMPLETED_FOR_TREND/);
+    assert.match(ledger, /linePath\(trendView\.points\)/);
+    assert.match(ledger, /gaps are incomplete incidents, excluded from the proxy/);
+    assert.match(ledger, /A single\s+recovery is a duration, not a trend/);
   });
 
   it("keeps the truncation warning visible, since it changes what the counts mean", () => {

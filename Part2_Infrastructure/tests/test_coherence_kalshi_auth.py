@@ -64,14 +64,16 @@ class TestRefusals:
         a bad signature rather than as the wrong environment."""
         monkeypatch.setattr(tunables, "DEMO_KEY_ID", "key-id")
         monkeypatch.setattr(tunables, "DEMO_PRIVATE_KEY_PATH", "/nowhere.pem")
-        with pytest.raises(SigningUnavailable, match="demo environment"):
+        monkeypatch.setattr(tunables, "PRODUCTION_KEY_ID", "")
+        monkeypatch.setattr(tunables, "PRODUCTION_PRIVATE_KEY_PATH", "")
+        with pytest.raises(SigningUnavailable, match="no production key configured"):
             kalshi_auth.sign("GET", "/trade-api/v2/x", tunables.PUBLIC_BASE_URL)
 
     def test_refuses_a_host_whose_name_only_prefixes_the_demo_origin(self, monkeypatch):
         monkeypatch.setattr(tunables, "DEMO_KEY_ID", "key-id")
         monkeypatch.setattr(tunables, "DEMO_PRIVATE_KEY_PATH", "/nowhere.pem")
         lookalike = "https://external-api.demo.kalshi.co.evil.example/trade-api/v2"
-        with pytest.raises(SigningUnavailable, match="demo environment"):
+        with pytest.raises(SigningUnavailable, match="configured Kalshi demo or production API roots"):
             kalshi_auth.sign("GET", "/trade-api/v2/x", lookalike)
 
     def test_refuses_a_path_outside_the_validated_api_root(self, monkeypatch):
@@ -121,6 +123,10 @@ class TestWhatTheSurfaceIsTold:
         monkeypatch.setattr(tunables, "DEMO_KEY_ID", "key-id")
         monkeypatch.setattr(tunables, "DEMO_PRIVATE_KEY_PATH", "")
         assert not tunables.signing_configured()
+        monkeypatch.setattr(tunables, "PRODUCTION_KEY_ID", "production-key-id")
+        monkeypatch.setattr(tunables, "PRODUCTION_PRIVATE_KEY_PATH", "")
+        assert not tunables.production_signing_configured()
+        assert "KALSHI_PRODUCTION_PRIVATE_KEY_PATH" in str(status("production")["detail"])
 
     def test_a_nonexistent_configured_path_is_not_reported_available(self, monkeypatch, tmp_path):
         missing = tmp_path / "do-not-disclose-this-key-name.pem"
@@ -265,6 +271,25 @@ class TestARealSignature:
         private.public_key().verify(
             base64.b64decode(headers.signature),
             signing_message(1_700_000_000_000, "GET", "/trade-api/v2/portfolio/balance"),
+            padding.PSS(mgf=padding.MGF1(hashes.SHA256()), salt_length=padding.PSS.DIGEST_LENGTH),
+            hashes.SHA256(),
+        )
+
+        # Production uses a different, explicitly configured credential. The
+        # same generated key is reused only as a test vector; the distinct key
+        # id proves the signer selected the production slot by exact host.
+        monkeypatch.setattr(tunables, "PRODUCTION_KEY_ID", "production-test-key-id")
+        monkeypatch.setattr(tunables, "PRODUCTION_PRIVATE_KEY_PATH", str(pem))
+        production_headers = kalshi_auth.sign(
+            "GET",
+            "/trade-api/v2/cfbenchmarks/values",
+            tunables.PUBLIC_BASE_URL,
+            timestamp_ms=1_700_000_000_000,
+        )
+        assert production_headers.key_id == "production-test-key-id"
+        private.public_key().verify(
+            base64.b64decode(production_headers.signature),
+            signing_message(1_700_000_000_000, "GET", "/trade-api/v2/cfbenchmarks/values"),
             padding.PSS(mgf=padding.MGF1(hashes.SHA256()), salt_length=padding.PSS.DIGEST_LENGTH),
             hashes.SHA256(),
         )

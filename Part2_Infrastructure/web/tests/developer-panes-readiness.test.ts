@@ -25,8 +25,18 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import {
+  payloadValidationState,
+  riskParityState,
+  schemaGateRows,
+} from "../components/developer/DeveloperStatus";
+import type { SystemHealthView } from "../lib/use-system-health";
 import { functionBody, overview_, status_ } from "./helpers/developer-sources";
 import { stripCode } from "./helpers/source-files";
+
+function view(health: unknown): SystemHealthView {
+  return { health } as unknown as SystemHealthView;
+}
 
 describe("configuration metadata does not impersonate an attestation", () => {
   const pipeline = stripCode(status_.slice(
@@ -47,10 +57,126 @@ describe("configuration metadata does not impersonate an attestation", () => {
     assert.match(pipeline, /run unverified/);
   });
 
-  it("calls configured schema comparisons unverified, never CI-gated green", () => {
-    assert.doesNotMatch(schemaGates, /CI gated|tone:\s*"good"/);
-    assert.equal(schemaGates.match(/impact:\s*"Configured; unverified"/g)?.length, 3);
-    assert.match(schemaGates, /no live CI attestation for this commit/);
+  it("keeps only comparison identity in the static rows", () => {
+    assert.equal(schemaGates.match(/id:\s*"/g)?.length, 5);
+    assert.doesNotMatch(schemaGates, /impact:|tone:|unmeasured:|Configured; unverified/);
+    assert.doesNotMatch(schemaGates, /Production schema/, "the live OpenAPI comparison was counted twice");
+    assert.match(schemaGates, /Gateway payloads[\s\S]*Canonical fixtures[\s\S]*Web validators/);
+  });
+});
+
+describe("schema rows report only evidence the health payload carries", () => {
+  const schemaMatch = {
+    kind: "gateway_openapi" as const,
+    state: "match" as const,
+    passed: true,
+    algorithm: "sha256" as const,
+    expectedDigest: "a".repeat(64),
+    observedDigest: "a".repeat(64),
+    detail: "The live contract matches.",
+  };
+  const numericsMatch = {
+    kind: "mc_parity" as const,
+    state: "match" as const,
+    passed: true,
+    algorithm: "sha256" as const,
+    expectedDigest: "b".repeat(64),
+    observedDigest: "b".repeat(64),
+    paths: 10,
+    horizonBars: 2,
+    detail: "The Node result is byte-exact.",
+  };
+  const cleanLedger = {
+    scope: "gateway-ledger" as const,
+    evaluated: 7,
+    passed: 7,
+    fatal: 0,
+    warn: 0,
+    drift: 0,
+    notEvaluated: 0,
+    windowStart: "2026-09-01T00:00:00.000Z",
+    lastValidationAt: "2026-09-01T00:01:00.000Z",
+    retained: 7,
+    capacity: null,
+    byCapability: {},
+    byProvider: {},
+  };
+
+  it("maps live evidence without lending it to configured cross-runtime comparisons", () => {
+    const rows = schemaGateRows(view({
+      platform: {},
+      validation: cleanLedger,
+      delivery: { schema: schemaMatch, numerics: numericsMatch },
+    }));
+    assert.deepEqual(rows.map((row) => row.id), [
+      "gateway-openapi",
+      "gateway-payloads",
+      "runtime-payloads",
+      "risk-parity",
+      "mc-parity",
+    ]);
+    const states = Object.fromEntries(rows.map((row) => [row.id, row.state]));
+    assert.equal(states["gateway-openapi"].label, "Exact match");
+    assert.equal(states["gateway-openapi"].tone, "good");
+    assert.equal(states["gateway-payloads"].label, "Unverified");
+    assert.equal(states["gateway-payloads"].unmeasured, true);
+    assert.match(states["gateway-payloads"].detail, /No live cross-runtime result/);
+    assert.equal(states["runtime-payloads"].label, "Clean");
+    assert.equal(states["runtime-payloads"].tone, "good");
+    assert.equal(states["risk-parity"].label, "Unverified");
+    assert.equal(states["risk-parity"].unmeasured, true);
+    assert.equal(states["mc-parity"].label, "Byte-exact");
+    assert.equal(states["mc-parity"].tone, "good");
+  });
+
+  it("propagates measured contract and parity failures instead of softening them to unverified", () => {
+    const rows = schemaGateRows(view({
+      platform: {},
+      validation: { ...cleanLedger, passed: 6, fatal: 1 },
+      delivery: {
+        schema: { ...schemaMatch, state: "mismatch", passed: false, observedDigest: "c".repeat(64) },
+        numerics: { ...numericsMatch, state: "mismatch", passed: false, observedDigest: "d".repeat(64) },
+      },
+    }));
+    const states = Object.fromEntries(rows.map((row) => [row.id, row.state]));
+    assert.equal(states["gateway-openapi"].tone, "bad");
+    assert.equal(states["gateway-payloads"].unmeasured, true);
+    assert.equal(states["runtime-payloads"].tone, "bad");
+    assert.equal(states["risk-parity"].unmeasured, true);
+    assert.equal(states["mc-parity"].tone, "bad");
+  });
+
+  it("does not turn an absent or empty payload ledger into a clean result", () => {
+    const absent = payloadValidationState(view({}));
+    assert.equal(absent.label, "Unverified");
+    assert.equal(absent.unmeasured, true);
+
+    const empty = payloadValidationState(view({ validation: { ...cleanLedger, evaluated: 0, passed: 0 } }));
+    assert.equal(empty.label, "Unverified");
+    assert.equal(empty.unmeasured, true);
+    assert.match(empty.detail, /zero evidence is not a clean contract result/);
+  });
+
+  it("keeps non-fatal findings visible and fatal findings blocking", () => {
+    const warning = payloadValidationState(view({ validation: { ...cleanLedger, warn: 2 } }));
+    assert.equal(warning.label, "Warnings / drift");
+    assert.equal(warning.tone, "warn");
+    assert.equal(warning.unmeasured, undefined);
+    assert.match(warning.detail, /2 warn/);
+
+    const partial = payloadValidationState(view({ validation: { ...cleanLedger, notEvaluated: 3 } }));
+    assert.equal(partial.label, "Partial coverage");
+    assert.equal(partial.tone, "warn");
+
+    const fatal = payloadValidationState(view({ validation: { ...cleanLedger, passed: 6, fatal: 1 } }));
+    assert.equal(fatal.label, "Fatal findings");
+    assert.equal(fatal.tone, "bad");
+  });
+
+  it("states why the unrelated risk-parity comparison remains unverified", () => {
+    const state = riskParityState();
+    assert.equal(state.unmeasured, true);
+    assert.match(state.detail, /no cross-language risk-parity result/);
   });
 });
 

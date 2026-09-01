@@ -51,6 +51,23 @@ const protectedFrontendSweep20260831 = {
   reliability: { sha256: "11437f9adfe4bb5b8f491e8133db09e101bc01064acaf260ec8a47fc1dea8158", strings: 1541, words: 6023 },
   developer: { sha256: "2265b1f6e2a17fea901e597a767991fccc5806eb33acbda9c77f1e1c1b38a3cb", strings: 1627, words: 6731 },
 };
+const protectedRemediationTrend20260901 = {
+  reliability: { sha256: "8d13fbf29376da2b504e19af2e61166adb7a61ef5b540d4423345925678928de", strings: 1557, words: 6111 },
+};
+const protectedGatewayReadiness20260901 = {
+  execution: { sha256: "951a6b41803113e0e9ab0bbe0b641acf0df07e442508d6199f85d3fdc7fb9ed5", strings: 1322, words: 4701 },
+  data: { sha256: "72f38b562de2c2f3e07c67399b945e3b0299c60045ab550f2f72a1115ec700e0", strings: 1559, words: 5784 },
+  developer: { sha256: "4aca200d0015348f5753341892bcba176f5b7f768980f7b9c5e7d101635fdaf0", strings: 1630, words: 6711 },
+};
+const protectedDeveloperContractReview20260901 = {
+  developer: { sha256: "3dba1e50d2ee2a3ddc2992366d790177a15f5c0e866a5e733f093a872505b980", strings: 1635, words: 6730 },
+};
+const protectedEquityQuoteHealth20260901 = {
+  execution: { sha256: "f1e3a5b617245cae200ca6d2703b38e23df98e8fe80f40f977f146e2d4fbb6e0", strings: 1334, words: 4746 },
+};
+const protectedDataTransportTruth20260901 = {
+  data: { sha256: "196538452779de15f9bf6d26a7caaf81cc391afb89a34c4843c057c7858b1033", strings: 1560, words: 5783 },
+};
 
 describe("the protected eight keep their signed history and current static-copy multisets", () => {
   const current = buildProtectedBaseline();
@@ -74,12 +91,22 @@ describe("the protected eight keep their signed history and current static-copy 
     assert.deepEqual(fixture.protectedRequest20260830, protectedRequest20260830);
     assert.deepEqual(fixture.protectedRuntimeIntegrity20260831, protectedRuntimeIntegrity20260831);
     assert.deepEqual(fixture.protectedFrontendSweep20260831, protectedFrontendSweep20260831);
+    assert.deepEqual(fixture.protectedRemediationTrend20260901, protectedRemediationTrend20260901);
+    assert.deepEqual(fixture.protectedGatewayReadiness20260901, protectedGatewayReadiness20260901);
+    assert.deepEqual(fixture.protectedDeveloperContractReview20260901, protectedDeveloperContractReview20260901);
+    assert.deepEqual(fixture.protectedEquityQuoteHealth20260901, protectedEquityQuoteHealth20260901);
+    assert.deepEqual(fixture.protectedDataTransportTruth20260901, protectedDataTransportTruth20260901);
     assert.deepEqual(current.signatures, {
       ...fixture.protected,
       ...protectedNavigationFollowup20260829,
       ...protectedRequest20260830,
       ...protectedRuntimeIntegrity20260831,
       ...protectedFrontendSweep20260831,
+      ...protectedRemediationTrend20260901,
+      ...protectedGatewayReadiness20260901,
+      ...protectedDeveloperContractReview20260901,
+      ...protectedEquityQuoteHealth20260901,
+      ...protectedDataTransportTruth20260901,
     });
   });
 
@@ -224,6 +251,14 @@ describe("engine copy has a reproducible source-static word baseline", () => {
     proofs: { sha256: "8d167ae4813a6d26edfc3f578124e3f5840cd8816093afcc42f76c27062fcd23", strings: 2983, words: 16623 },
     diffusion: { sha256: "25f1331c14331536fb22680e38fc25f8001da60a765d535f769dd503c0c6e545", strings: 1929, words: 10645 },
   };
+  const gatewayReadiness20260901Checkpoint = {
+    // A signed-production reference-rate state and the corrected maker/AAPL
+    // capability boundaries add only evidence and setup copy. The connected
+    // availability checkpoint above remains the pre-repair state.
+    markets: { sha256: "abc5643ec857be2414cd0896e9e91349cf4c1976f47256b44e706ed53fe1fac6", strings: 2655, words: 10243 },
+    proofs: { sha256: "8d167ae4813a6d26edfc3f578124e3f5840cd8816093afcc42f76c27062fcd23", strings: 2983, words: 16623 },
+    diffusion: { sha256: "25f1331c14331536fb22680e38fc25f8001da60a765d535f769dd503c0c6e545", strings: 1929, words: 10645 },
+  };
 
   it("retains Phase 0 and records the current upper bound as a separate signature", () => {
     assert.equal(fixture.wordBaseline.browserObserved, false);
@@ -244,7 +279,9 @@ describe("engine copy has a reproducible source-static word baseline", () => {
     assert.deepEqual(fixture.wordBaseline.uiCorrection20260831Tabs, uiCorrection20260831Checkpoint);
     assert.deepEqual(fixture.wordBaseline.kalshiDurability20260901Tabs, kalshiDurability20260901Checkpoint);
     assert.deepEqual(fixture.wordBaseline.combosQuoteCoverage20260901Tabs, combosQuoteCoverage20260901Checkpoint);
-    assert.deepEqual(buildEngineWordBaseline(), connectedAvailability20260901Checkpoint);
+    assert.deepEqual(fixture.wordBaseline.connectedAvailability20260901Tabs, connectedAvailability20260901Checkpoint);
+    assert.deepEqual(fixture.wordBaseline.gatewayReadiness20260901Tabs, gatewayReadiness20260901Checkpoint);
+    assert.deepEqual(buildEngineWordBaseline(), gatewayReadiness20260901Checkpoint);
   });
 
   it("retains the historical starting points for the product-specific summary-copy checks", () => {

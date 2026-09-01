@@ -1,32 +1,9 @@
-"""The variable a market actually settles on, which is not the price you watch.
+"""The published variables Kalshi markets actually settle against.
 
-Every reference implementation of a Kalshi crypto strategy reaches for a
-Binance last trade. Kalshi does not settle on a last trade. It settles on a
-published index, and the two differ in ways that decide whether a position that
-looked right was right:
-
-* The index is **time-averaged**. ``GET /live_data/events/{ticker}`` returns the
-  exchange's own candles for the settlement variable, and a fifteen-minute
-  candle whose close is 77,185 is not a print at 77,185 — it is the average of a
-  window. A basket priced off a spot tick is priced off a different random
-  variable from the one that pays.
-* The index is **quality-controlled**. The weather feed returns, per minute, how
-  many stations contributed and whether the reading is ``normal`` or
-  ``degraded``. Miami's index today runs 1,435 minutes with five contributors
-  throughout and two degraded minutes. A degraded minute is not a missing
-  minute and not a normal one, and collapsing the three loses the only signal
-  there is about whether the number can be trusted.
-* The index is **not always published**. Kalshi's weather endpoint currently
-  serves exactly one city — it answers a request for any other with a 400 that
-  names the ones it has. This module reports that refusal as a refusal rather
-  than as an empty series, because an empty temperature series and a city that
-  is not covered are different facts and only one of them is about the weather.
-
-**CF Benchmarks needs an entitlement this engine does not have.** The
-``/cfbenchmarks`` passthrough answers 401 to a keyless call and to a demo key:
-it is gated on an account entitlement, not merely on signing. That is reported
-as ``entitlement_required`` and never as a network fault, so nobody spends an
-afternoon debugging a key that was never going to work.
+Event indexes are time-averaged, weather samples retain contributor/QC state,
+and uncovered cities remain distinct from empty series. CF Benchmarks is a
+production-authenticated capability: 401 means authentication failed before
+entitlement could be tested, while 403 is the entitlement boundary.
 """
 
 from __future__ import annotations
@@ -35,6 +12,8 @@ from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from typing import Any, Literal, Sequence
 
+from modules.coherence.drivers import kalshi_auth
+from modules.coherence.drivers.kalshi_auth import SigningUnavailable
 from modules.coherence.drivers.kalshi_rest import Fetched, KalshiClient, KalshiRefused, KalshiUnavailable
 
 #: The venue serves the weather index per city and refuses unknown ones with a
@@ -332,14 +311,47 @@ async def cfbenchmarks_state(client: KalshiClient) -> dict[str, Any]:
     standing property of the deployment that belongs on the status pane, not an
     error that interrupts a poll.
     """
+    if client.signing_environment != "production":
+        return {
+            "state": "authentication_required",
+            "detail": (
+                "Production reference-rate signing is not configured; the request was refused locally "
+                "before an entitlement could be checked."
+            ),
+        }
+    signing = kalshi_auth.status("production")
+    if not signing.get("available"):
+        return {
+            "state": "authentication_required",
+            "detail": str(
+                signing.get("detail")
+                or "Production reference-rate signing is unavailable; no request was sent."
+            ),
+        }
     try:
         fetched = await client.get("/cfbenchmarks/values", {"id": "BRTI"})
+    except SigningUnavailable as exc:
+        return {
+            "state": "authentication_required",
+            "detail": (
+                "Production reference-rate signing could not start before an entitlement could be checked: "
+                + exc.reason
+            ),
+        }
     except KalshiRefused as exc:
+        if exc.status == 401:
+            return {
+                "state": "authentication_required",
+                "detail": (
+                    "Kalshi refused the production reference-rate read before an entitlement could be checked; "
+                    "configure a production credential and sign this endpoint: " + exc.reason
+                ),
+            }
         return {
             "state": "entitlement_required",
             "detail": (
-                "the CF Benchmarks passthrough is gated on an account entitlement rather than on "
-                "signing, so a demo key does not open it: " + exc.reason
+                "production authentication reached Kalshi, but the account is not permitted to read "
+                "the CF Benchmarks passthrough: " + exc.reason
             ),
         }
     except KalshiUnavailable as exc:

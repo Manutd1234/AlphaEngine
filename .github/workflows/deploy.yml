@@ -90,6 +90,7 @@ env:
   # exactly like a clean install. Verified on the running VM before this was set.
   VOLUME: alphaengine_alphaengine_audit
   KALSHI_KEY_VOLUME: alphaengine_kalshi_demo_key
+  KALSHI_PRODUCTION_KEY_VOLUME: alphaengine_kalshi_production_key
   PORT: "8000"
 
 jobs:
@@ -230,7 +231,10 @@ jobs:
           NEO4J_DATABASE: ${{ secrets.NEO4J_DATABASE }}
           KALSHI_DEMO_KEY_ID: ${{ secrets.KALSHI_DEMO_KEY_ID }}
           KALSHI_DEMO_PRIVATE_KEY_PEM_B64: ${{ secrets.KALSHI_DEMO_PRIVATE_KEY_PEM_B64 }}
+          KALSHI_PRODUCTION_KEY_ID: ${{ secrets.KALSHI_PRODUCTION_KEY_ID }}
+          KALSHI_PRODUCTION_PRIVATE_KEY_PEM_B64: ${{ secrets.KALSHI_PRODUCTION_PRIVATE_KEY_PEM_B64 }}
           KALSHI_DEMO_REVOKE: ${{ vars.KALSHI_DEMO_REVOKE || '0' }}
+          KALSHI_PRODUCTION_REVOKE: ${{ vars.KALSHI_PRODUCTION_REVOKE || '0' }}
         run: |
           missing=()
           [ -n "$SSH_HOST" ]      || missing+=("SSH_HOST")
@@ -266,6 +270,25 @@ jobs:
           if [ "$KALSHI_DEMO_REVOKE" = "0" ]; then
             [ -n "$KALSHI_DEMO_KEY_ID" ] || missing+=("KALSHI_DEMO_KEY_ID")
             [ -n "$KALSHI_DEMO_PRIVATE_KEY_PEM_B64" ] || missing+=("KALSHI_DEMO_PRIVATE_KEY_PEM_B64")
+          fi
+          # The production credential is an optional, read-only capability for
+          # the CF Benchmarks reference rate. Both absent means "do not rotate":
+          # preserve a deployed pair, or remain authentication_required on a
+          # keyless host. A half-pair is always an operator error and must never
+          # fall through to an unsigned request.
+          if { [ -n "$KALSHI_PRODUCTION_KEY_ID" ] && [ -z "$KALSHI_PRODUCTION_PRIVATE_KEY_PEM_B64" ]; } \
+            || { [ -z "$KALSHI_PRODUCTION_KEY_ID" ] && [ -n "$KALSHI_PRODUCTION_PRIVATE_KEY_PEM_B64" ]; }; then
+            echo "::error::KALSHI_PRODUCTION_KEY_ID and KALSHI_PRODUCTION_PRIVATE_KEY_PEM_B64 must be configured together."
+            exit 1
+          fi
+          if [ "$KALSHI_PRODUCTION_REVOKE" != "0" ] && [ "$KALSHI_PRODUCTION_REVOKE" != "1" ]; then
+            echo "::error::KALSHI_PRODUCTION_REVOKE must be 0 or 1."
+            exit 1
+          fi
+          if [ "$KALSHI_PRODUCTION_REVOKE" = "1" ] \
+            && { [ -n "$KALSHI_PRODUCTION_KEY_ID" ] || [ -n "$KALSHI_PRODUCTION_PRIVATE_KEY_PEM_B64" ]; }; then
+            echo "::error::KALSHI_PRODUCTION_REVOKE=1 conflicts with a configured production credential. Remove both repository secrets before revoking."
+            exit 1
           fi
 
           if [ ${#missing[@]} -gt 0 ]; then
@@ -314,7 +337,7 @@ jobs:
           command_timeout: 10m
           # Correction 5 — passed as environment variables, so none of these
           # appears in the VM's process list or shell history.
-          envs: IMAGE,REGISTRY,CONTAINER,VOLUME,KALSHI_KEY_VOLUME,KALSHI_KEY_SLOT,KALSHI_DEMO_REVOKE,PORT,GH_ACTOR,GH_TOKEN,WEB_API_TOKEN,SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,SUPABASE_DESK_ID,SUPABASE_MIRROR_ENABLED,RESEARCH_RAG_ENABLED,RESEARCH_SCOPE_TO_DESK,NEO4J_URI,NEO4J_USERNAME,NEO4J_PASSWORD,NEO4J_DATABASE,TELEGRAM_BOT_TOKEN,TELEGRAM_ALLOWED_USER_IDS,TELEGRAM_CONTROL_USER_IDS,TELEGRAM_ALERT_CHAT_IDS,TELEGRAM_LINK_SECRET,KALSHI_DEMO_KEY_ID,KALSHI_DEMO_PRIVATE_KEY_PEM_B64,COHERENCE_SERIES,COHERENCE_POLL_S,COHERENCE_POST_CAMPAIGN_POLL_S,COHERENCE_MAX_EVENTS,COHERENCE_CALIBRATION_EVERY_S,COHERENCE_CAMPAIGN_ID,COHERENCE_CAMPAIGN_TARGET,COHERENCE_MIN_FREE_BYTES,COHERENCE_MAX_TAPE_BYTES,COHERENCE_RETENTION_DAYS
+          envs: IMAGE,REGISTRY,CONTAINER,VOLUME,KALSHI_KEY_VOLUME,KALSHI_PRODUCTION_KEY_VOLUME,KALSHI_KEY_SLOT,KALSHI_DEMO_REVOKE,KALSHI_PRODUCTION_REVOKE,PORT,GH_ACTOR,GH_TOKEN,WEB_API_TOKEN,SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,SUPABASE_DESK_ID,SUPABASE_MIRROR_ENABLED,RESEARCH_RAG_ENABLED,RESEARCH_SCOPE_TO_DESK,NEO4J_URI,NEO4J_USERNAME,NEO4J_PASSWORD,NEO4J_DATABASE,TELEGRAM_BOT_TOKEN,TELEGRAM_ALLOWED_USER_IDS,TELEGRAM_CONTROL_USER_IDS,TELEGRAM_ALERT_CHAT_IDS,TELEGRAM_LINK_SECRET,KALSHI_DEMO_KEY_ID,KALSHI_DEMO_PRIVATE_KEY_PEM_B64,KALSHI_PRODUCTION_KEY_ID,KALSHI_PRODUCTION_PRIVATE_KEY_PEM_B64,COHERENCE_SERIES,COHERENCE_POLL_S,COHERENCE_POST_CAMPAIGN_POLL_S,COHERENCE_MAX_EVENTS,COHERENCE_CALIBRATION_EVERY_S,COHERENCE_CAMPAIGN_ID,COHERENCE_CAMPAIGN_TARGET,COHERENCE_MIN_FREE_BYTES,COHERENCE_MAX_TAPE_BYTES,COHERENCE_RETENTION_DAYS
           script: |
             set -euo pipefail
 
@@ -352,6 +375,7 @@ jobs:
             docker volume create "$VOLUME" >/dev/null
 
             docker volume create "$KALSHI_KEY_VOLUME" >/dev/null
+            docker volume create "$KALSHI_PRODUCTION_KEY_VOLUME" >/dev/null
             case "$KALSHI_KEY_SLOT" in
               ""|*[!0-9-]*) echo "::error::The deployment key slot is invalid."; exit 1 ;;
             esac
@@ -362,21 +386,45 @@ jobs:
               KALSHI_KEY_NAME="kalshi-demo-private-key-${KALSHI_KEY_SLOT}.pem"
               KALSHI_KEY_PATH="/run/secrets/${KALSHI_KEY_NAME}"
             fi
+            KALSHI_PRODUCTION_KEY_NAME=""
+            KALSHI_PRODUCTION_KEY_PATH=""
+            KALSHI_PRODUCTION_KEY_INSTALLED=0
+            if [ -n "${KALSHI_PRODUCTION_PRIVATE_KEY_PEM_B64:-}" ]; then
+              KALSHI_PRODUCTION_KEY_NAME="kalshi-production-private-key-${KALSHI_KEY_SLOT}.pem"
+              KALSHI_PRODUCTION_KEY_PATH="/run/reference-secrets/${KALSHI_PRODUCTION_KEY_NAME}"
+            fi
 
             remove_candidate_key() {
-              if [ "$KALSHI_KEY_INSTALLED" != "1" ]; then return 0; fi
-              if ! docker run --rm \
-                  --user 0 \
-                  --entrypoint /bin/sh \
-                  -e KALSHI_KEY_NAME \
-                  -v "${KALSHI_KEY_VOLUME}:/run/secrets" \
-                  "$IMAGE" \
-                  -c 'rm -f "/run/secrets/$KALSHI_KEY_NAME" "/run/secrets/$KALSHI_KEY_NAME.next"'; then
-                echo "::error::The unused Kalshi demo key candidate could not be removed."
-                return 1
+              candidate_cleanup_ok=1
+              if [ "$KALSHI_KEY_INSTALLED" = "1" ]; then
+                if docker run --rm \
+                    --user 0 \
+                    --entrypoint /bin/sh \
+                    -e KALSHI_KEY_NAME \
+                    -v "${KALSHI_KEY_VOLUME}:/run/secrets" \
+                    "$IMAGE" \
+                    -c 'rm -f "/run/secrets/$KALSHI_KEY_NAME" "/run/secrets/$KALSHI_KEY_NAME.next"'; then
+                  KALSHI_KEY_INSTALLED=0
+                else
+                  echo "::error::The unused Kalshi demo key candidate could not be removed."
+                  candidate_cleanup_ok=0
+                fi
               fi
-              KALSHI_KEY_INSTALLED=0
-              return 0
+              if [ "$KALSHI_PRODUCTION_KEY_INSTALLED" = "1" ]; then
+                if docker run --rm \
+                    --user 0 \
+                    --entrypoint /bin/sh \
+                    -e KALSHI_PRODUCTION_KEY_NAME \
+                    -v "${KALSHI_PRODUCTION_KEY_VOLUME}:/run/reference-secrets" \
+                    "$IMAGE" \
+                    -c 'rm -f "/run/reference-secrets/$KALSHI_PRODUCTION_KEY_NAME" "/run/reference-secrets/$KALSHI_PRODUCTION_KEY_NAME.next"'; then
+                  KALSHI_PRODUCTION_KEY_INSTALLED=0
+                else
+                  echo "::error::The unused Kalshi production key candidate could not be removed."
+                  candidate_cleanup_ok=0
+                fi
+              fi
+              [ "$candidate_cleanup_ok" = "1" ]
             }
 
             # 0600, owned by the SSH user, outside the image and outside any
@@ -496,6 +544,18 @@ jobs:
               printf 'KALSHI_DEMO_KEY_ID=\nKALSHI_DEMO_PRIVATE_KEY_PATH=\n' >> "$PRESERVED"
               echo "    revoking the deployed Kalshi demo credential"
             fi
+            if [ "$KALSHI_PRODUCTION_REVOKE" = "1" ]; then
+              WITHOUT_KALSHI_PRODUCTION="${PRESERVED}.without-kalshi-production"
+              sed -E '/^KALSHI_PRODUCTION_(KEY_ID|PRIVATE_KEY_PATH)=/d' "$PRESERVED" > "$WITHOUT_KALSHI_PRODUCTION"
+              mv "$WITHOUT_KALSHI_PRODUCTION" "$PRESERVED"
+              # Revocation is explicit. Ordinary secret absence preserves the
+              # verified pair already serving on the VM, so an unrelated deploy
+              # cannot turn a working reference feed into authentication_required.
+              # Empty first-wins entries prevent the legacy env from restoring
+              # a pair after this one-shot repository variable returns to zero.
+              printf 'KALSHI_PRODUCTION_KEY_ID=\nKALSHI_PRODUCTION_PRIVATE_KEY_PATH=\n' >> "$PRESERVED"
+              echo "    revoking the deployed Kalshi production reference credential"
+            fi
             echo "    carrying forward $(grep -cE '^[A-Za-z_][A-Za-z0-9_]*=' "$PRESERVED" || true) existing line(s)"
 
             put() {
@@ -545,14 +605,18 @@ jobs:
             # Connect refuses and says the secret is missing.
             put TELEGRAM_LINK_SECRET "${TELEGRAM_LINK_SECRET:-}"
 
-            # GitHub carries the PEM bytes, never a host-dependent path. A
-            # verified rotation points only the replacement environment at its
-            # run-scoped file; absence preserves the deployed pair, while the
-            # explicit KALSHI_DEMO_REVOKE switch installs blank tombstones for
-            # both names above.
+            # GitHub carries PEM bytes, never host-dependent paths. A verified
+            # rotation points only the replacement environment at its separate,
+            # run-scoped file. Demo absence is governed by the explicit revoke
+            # switch. Production absence preserves a verified deployed pair;
+            # only KALSHI_PRODUCTION_REVOKE installs fail-closed tombstones.
             if [ -n "${KALSHI_DEMO_KEY_ID:-}" ]; then
               put KALSHI_DEMO_KEY_ID "$KALSHI_DEMO_KEY_ID"
               put KALSHI_DEMO_PRIVATE_KEY_PATH "$KALSHI_KEY_PATH"
+            fi
+            if [ -n "${KALSHI_PRODUCTION_KEY_ID:-}" ]; then
+              put KALSHI_PRODUCTION_KEY_ID "$KALSHI_PRODUCTION_KEY_ID"
+              put KALSHI_PRODUCTION_PRIVATE_KEY_PATH "$KALSHI_PRODUCTION_KEY_PATH"
             fi
 
             # The Kalshi coherence recorder. Off unless BOTH of the first two
@@ -686,6 +750,46 @@ jobs:
                 exit 1
               fi
             fi
+            if [ -n "${KALSHI_PRODUCTION_PRIVATE_KEY_PEM_B64:-}" ]; then
+              echo "==> Staging and verifying the Kalshi production reference private key"
+              export KALSHI_PRODUCTION_KEY_NAME \
+                KALSHI_PRODUCTION_PRIVATE_KEY_PATH="$KALSHI_PRODUCTION_KEY_PATH"
+              if ! printf '%s' "$KALSHI_PRODUCTION_PRIVATE_KEY_PEM_B64" \
+                  | base64 -d \
+                  | docker run --rm -i \
+                      --user 0 \
+                      --entrypoint /bin/sh \
+                      -e KALSHI_PRODUCTION_KEY_NAME \
+                      -v "${KALSHI_PRODUCTION_KEY_VOLUME}:/run/reference-secrets" \
+                      "$IMAGE" \
+                      -c 'set -eu; umask 077; incoming="/run/reference-secrets/$KALSHI_PRODUCTION_KEY_NAME.next"; target="/run/reference-secrets/$KALSHI_PRODUCTION_KEY_NAME"; cat > "$incoming"; chown 10001:10001 "$incoming"; chmod 0400 "$incoming"; mv "$incoming" "$target"'; then
+                KALSHI_PRODUCTION_KEY_INSTALLED=1
+                if ! clear_pending_after_candidate_cleanup; then
+                  echo "::error::The failed production-key staging attempt requires operator reconciliation before another deploy."
+                fi
+                rm -f "$MERGED" || echo "::warning::The rejected runtime-env scratch file could not be removed."
+                echo "::error::The Kalshi production private key could not be decoded and staged."
+                exit 1
+              fi
+              KALSHI_PRODUCTION_KEY_INSTALLED=1
+              # Prove the key ID and PEM together against a production private
+              # read that does not depend on the separate CF product entitlement.
+              # The reference endpoint remains responsible for reporting an
+              # entitlement_required state after authentication succeeds.
+              if ! docker run --rm \
+                  -e KALSHI_PRODUCTION_KEY_ID \
+                  -e KALSHI_PRODUCTION_PRIVATE_KEY_PATH \
+                  -v "${KALSHI_PRODUCTION_KEY_VOLUME}:/run/reference-secrets:ro" \
+                  "$IMAGE" \
+                  python -c 'import asyncio; from modules.coherence import tunables; from modules.coherence.drivers.kalshi_rest import KalshiClient; asyncio.run(KalshiClient(base_url=tunables.PUBLIC_BASE_URL, signing_environment="production").account_limits())'; then
+                if ! clear_pending_after_candidate_cleanup; then
+                  echo "::error::The rejected production credential requires operator reconciliation before another deploy."
+                fi
+                rm -f "$MERGED" || echo "::warning::The rejected runtime-env scratch file could not be removed."
+                echo "::error::Kalshi rejected the staged production key ID/private-key pair; the running gateway was not changed."
+                exit 1
+              fi
+            fi
 
             if ! mv "$MERGED" "$ENV_FILE"; then
               # Rename has an atomic destination but its reported failure can
@@ -706,6 +810,7 @@ jobs:
                 --env-file "$container_env_file" \
                 -v "${VOLUME}:/app/data" \
                 -v "${KALSHI_KEY_VOLUME}:/run/secrets:ro" \
+                -v "${KALSHI_PRODUCTION_KEY_VOLUME}:/run/reference-secrets:ro" \
                 --log-driver json-file \
                 --log-opt max-size=10m \
                 --log-opt max-file=3 \
@@ -1062,6 +1167,21 @@ jobs:
             fi
             unset RFQ_JSON
 
+            if [ "$KALSHI_PRODUCTION_REVOKE" = "1" ]; then
+              echo "==> Confirming the production reference credential state"
+              # Local process-state proof, not a venue request: revocation must
+              # stay verifiable even when the external reference feed is down.
+              if ! docker exec "$CONTAINER" \
+                  python -c 'from modules.coherence.drivers.kalshi_auth import status; state=status("production"); assert state["configured"] is False and state["reason"] == "key_id_missing"'; then
+                echo "::error::The replacement gateway still exposes a configured production reference credential after explicit revocation."
+                if ! rollback_gateway; then
+                  echo "::error::Automatic gateway rollback failed; operator intervention is required."
+                fi
+                exit 1
+              fi
+              echo "==> Production reference credential revocation verified"
+            fi
+
             # Which decision engine shipped. A container that built the native
             # core reports "native"; one where the build silently fell back to
             # the Python reference reports "python". This is a WARNING, not a
@@ -1083,8 +1203,10 @@ jobs:
           CONTAINER: ${{ env.CONTAINER }}
           VOLUME: ${{ env.VOLUME }}
           KALSHI_KEY_VOLUME: ${{ env.KALSHI_KEY_VOLUME }}
+          KALSHI_PRODUCTION_KEY_VOLUME: ${{ env.KALSHI_PRODUCTION_KEY_VOLUME }}
           KALSHI_KEY_SLOT: ${{ github.run_id }}-${{ github.run_attempt }}
           KALSHI_DEMO_REVOKE: ${{ vars.KALSHI_DEMO_REVOKE || '0' }}
+          KALSHI_PRODUCTION_REVOKE: ${{ vars.KALSHI_PRODUCTION_REVOKE || '0' }}
           PORT: ${{ env.PORT }}
           GH_ACTOR: ${{ github.actor }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -1106,6 +1228,8 @@ jobs:
           TELEGRAM_LINK_SECRET: ${{ secrets.TELEGRAM_LINK_SECRET }}
           KALSHI_DEMO_KEY_ID: ${{ secrets.KALSHI_DEMO_KEY_ID }}
           KALSHI_DEMO_PRIVATE_KEY_PEM_B64: ${{ secrets.KALSHI_DEMO_PRIVATE_KEY_PEM_B64 }}
+          KALSHI_PRODUCTION_KEY_ID: ${{ secrets.KALSHI_PRODUCTION_KEY_ID }}
+          KALSHI_PRODUCTION_PRIVATE_KEY_PEM_B64: ${{ secrets.KALSHI_PRODUCTION_PRIVATE_KEY_PEM_B64 }}
           # The Kalshi book recorder. Defaults live HERE rather than in a bare
           # `vars.` reference, because the env-file writer skips an empty value
           # — a repository variable that was never created would leave the
@@ -1158,7 +1282,7 @@ jobs:
           # waits. Five minutes can terminate the shell between their checked
           # state transitions, so leave enough room for the full recovery path.
           command_timeout: 15m
-          envs: PUBLIC_IP,IMAGE,CONTAINER,VOLUME,KALSHI_KEY_VOLUME,KALSHI_KEY_SLOT,KALSHI_DEMO_REVOKE,PORT
+          envs: PUBLIC_IP,IMAGE,CONTAINER,VOLUME,KALSHI_KEY_VOLUME,KALSHI_PRODUCTION_KEY_VOLUME,KALSHI_KEY_SLOT,KALSHI_DEMO_REVOKE,KALSHI_PRODUCTION_REVOKE,PORT
           script: |
             set -euo pipefail
 
@@ -1180,6 +1304,8 @@ jobs:
             fi
             KALSHI_KEY_NAME="kalshi-demo-private-key-${KALSHI_KEY_SLOT}.pem"
             export KALSHI_KEY_NAME
+            KALSHI_PRODUCTION_KEY_NAME="kalshi-production-private-key-${KALSHI_KEY_SLOT}.pem"
+            export KALSHI_PRODUCTION_KEY_NAME
             GATEWAY_IMAGE="$IMAGE"
             if ! REPLACEMENT_GATEWAY="$(docker inspect --format '{{.Image}}' "$CONTAINER")"; then
               echo "::error::The verified replacement gateway image identity could not be captured."
@@ -1242,6 +1368,7 @@ jobs:
                 --env-file "$2" \
                 -v "${VOLUME}:/app/data" \
                 -v "${KALSHI_KEY_VOLUME}:/run/secrets:ro" \
+                -v "${KALSHI_PRODUCTION_KEY_VOLUME}:/run/reference-secrets:ro" \
                 --log-driver json-file \
                 --log-opt max-size=10m \
                 --log-opt max-file=3 \
@@ -1284,6 +1411,7 @@ jobs:
             }
 
             remove_candidate_key() {
+              candidate_cleanup_ok=1
               if ! docker run --rm \
                   --user 0 \
                   --entrypoint /bin/sh \
@@ -1292,9 +1420,19 @@ jobs:
                   "$GATEWAY_IMAGE" \
                   -c 'rm -f "/run/secrets/$KALSHI_KEY_NAME" "/run/secrets/$KALSHI_KEY_NAME.next"'; then
                 echo "::error::The unused Kalshi demo key candidate could not be removed."
-                return 1
+                candidate_cleanup_ok=0
               fi
-              return 0
+              if ! docker run --rm \
+                  --user 0 \
+                  --entrypoint /bin/sh \
+                  -e KALSHI_PRODUCTION_KEY_NAME \
+                  -v "${KALSHI_PRODUCTION_KEY_VOLUME}:/run/reference-secrets" \
+                  "$GATEWAY_IMAGE" \
+                  -c 'rm -f "/run/reference-secrets/$KALSHI_PRODUCTION_KEY_NAME" "/run/reference-secrets/$KALSHI_PRODUCTION_KEY_NAME.next"'; then
+                echo "::error::The unused Kalshi production key candidate could not be removed."
+                candidate_cleanup_ok=0
+              fi
+              [ "$candidate_cleanup_ok" = "1" ]
             }
 
             fall_forward_gateway() {
@@ -1709,6 +1847,19 @@ jobs:
               echo "::error::Inactive or revoked Kalshi demo key files remain in the private volume."
               exit 1
             fi
+            ACTIVE_KALSHI_PRODUCTION_KEY_PATH="$(sed -n 's/^KALSHI_PRODUCTION_PRIVATE_KEY_PATH=//p' "$HOME/.alphaengine.env" | tail -n 1)"
+            ACTIVE_KALSHI_PRODUCTION_KEY_NAME="${ACTIVE_KALSHI_PRODUCTION_KEY_PATH##*/}"
+            export ACTIVE_KALSHI_PRODUCTION_KEY_NAME
+            if ! docker run --rm \
+                --user 0 \
+                --entrypoint /bin/sh \
+                -e ACTIVE_KALSHI_PRODUCTION_KEY_NAME \
+                -v "${KALSHI_PRODUCTION_KEY_VOLUME}:/run/reference-secrets" \
+                "$GATEWAY_IMAGE" \
+                -c 'if [ -n "${ACTIVE_KALSHI_PRODUCTION_KEY_NAME:-}" ]; then find /run/reference-secrets -maxdepth 1 -type f -name "kalshi-production-private-key*" ! -name "$ACTIVE_KALSHI_PRODUCTION_KEY_NAME" -delete; else find /run/reference-secrets -maxdepth 1 -type f -name "kalshi-production-private-key*" -delete; fi'; then
+              echo "::error::Inactive or revoked Kalshi production key files remain in the private volume."
+              exit 1
+            fi
             if ! pending_cutover_slot="$(cat "$CUTOVER_PENDING")" \
                 || [ "$pending_cutover_slot" != "$KALSHI_KEY_SLOT" ]; then
               echo "::error::The cutover marker changed before final commit; it was not cleared."
@@ -1768,8 +1919,10 @@ jobs:
           PUBLIC_IP: ${{ secrets.SSH_HOST }}
           IMAGE: ${{ needs.build.outputs.image }}:sha-${{ github.sha }}
           KALSHI_KEY_VOLUME: ${{ env.KALSHI_KEY_VOLUME }}
+          KALSHI_PRODUCTION_KEY_VOLUME: ${{ env.KALSHI_PRODUCTION_KEY_VOLUME }}
           KALSHI_KEY_SLOT: ${{ github.run_id }}-${{ github.run_attempt }}
           KALSHI_DEMO_REVOKE: ${{ vars.KALSHI_DEMO_REVOKE || '0' }}
+          KALSHI_PRODUCTION_REVOKE: ${{ vars.KALSHI_PRODUCTION_REVOKE || '0' }}
 
   # ---------------------------------------------------------------------------
   # Prove it from the outside. The deploy job checked 127.0.0.1 from inside the

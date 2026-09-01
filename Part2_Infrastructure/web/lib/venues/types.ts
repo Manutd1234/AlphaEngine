@@ -1,5 +1,8 @@
 import { HostPreference } from "../host-preference";
 import { recordUpstream } from "../observability";
+import { isApplicable } from "../providers/capabilities";
+import { classify } from "../providers/symbols";
+import type { AssetClass } from "../providers/types";
 import { failed } from "./adapters";
 import { spreadBps } from "./book-maths";
 import { consolidatedMid, smartRoute } from "./fill-tolerance";
@@ -107,6 +110,34 @@ export const SYMBOLS = [
   "LTCUSDT",
   "TRXUSDT",
 ] as const;
+
+/**
+ * The market paths the desk can honestly offer for one instrument.
+ *
+ * A provider quote, a direct venue book and a paper order are three different
+ * capabilities. Treating them as one `liveSupported` flag made an equity with
+ * a healthy REST quote and a working paper route look entirely offline merely
+ * because Binance and Bybit do not carry its L2 book. Keep the distinctions in
+ * one client-safe model so Execution and the pipeline inspector cannot make
+ * different claims about the same symbol.
+ */
+export interface MarketCapabilities {
+  asset: AssetClass;
+  restQuote: boolean;
+  directL2: boolean;
+  paperMarketOrder: boolean;
+}
+
+export function marketCapabilitiesFor(symbol: string): MarketCapabilities {
+  const normalised = symbol.trim().toUpperCase();
+  const asset = classify(normalised);
+  return {
+    asset,
+    restQuote: isApplicable("quote", asset),
+    directL2: (SYMBOLS as readonly string[]).includes(normalised),
+    paperMarketOrder: asset === "equity",
+  };
+}
 
 export const BINANCE_HOSTS = ["https://api.binance.com", "https://data-api.binance.vision"];
 

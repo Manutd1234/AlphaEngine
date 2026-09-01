@@ -213,6 +213,7 @@ export function Grid({
  */
 export function XAxis({
   points,
+  xPositions,
   y,
   x0,
   x1,
@@ -220,6 +221,8 @@ export function XAxis({
   minGap,
 }: {
   points: number[];
+  /** Mark positions when the horizontal domain is elapsed time, not row order. */
+  xPositions?: number[];
   y: number;
   x0: number;
   x1: number;
@@ -227,7 +230,7 @@ export function XAxis({
   /** Density floor for short labels. Wide ones are always given more room. */
   minGap?: number;
 }) {
-  const ticks = axisTicks({ points, x0, x1, format, minGap });
+  const ticks = axisTicks({ points, xPositions, x0, x1, format, minGap });
   if (!ticks.length) return null;
 
   return (

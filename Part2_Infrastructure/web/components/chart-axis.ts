@@ -82,6 +82,7 @@ export function labelExtent(
 /** Which ticks get a label, and where each label lands. */
 export function axisTicks({
   points,
+  xPositions,
   x0,
   x1,
   format,
@@ -89,6 +90,8 @@ export function axisTicks({
   fontSize = TICK_FONT_SIZE,
 }: {
   points: number[];
+  /** Optional mark positions for a time-proportional rather than ordinal axis. */
+  xPositions?: number[];
   x0: number;
   x1: number;
   format: (v: number) => string;
@@ -97,12 +100,15 @@ export function axisTicks({
   fontSize?: number;
 }): AxisTick[] {
   if (!points.length) return [];
+  if (xPositions && xPositions.length !== points.length) {
+    throw new RangeError(String(xPositions.length));
+  }
 
   const last = points.length - 1;
   const span = Math.max(1, x1 - x0);
   // `linearScale(0, last, x0, x1)`, written out: this module imports nothing,
   // so the geometry can be exercised without pulling a client component in.
-  const xScale = (i: number) => x0 + (i / Math.max(1, last)) * (x1 - x0);
+  const xScale = (i: number) => xPositions?.[i] ?? x0 + (i / Math.max(1, last)) * (x1 - x0);
 
   const tick = (i: number): AxisTick => ({
     index: i,

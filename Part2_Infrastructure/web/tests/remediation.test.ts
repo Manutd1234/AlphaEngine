@@ -11,7 +11,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { MIN_TRIPS_FOR_RATE, deriveRemediation } from "../lib/remediation";
+import {
+  MIN_COMPLETED_FOR_TREND,
+  MIN_TRIPS_FOR_RATE,
+  deriveRecoveryTrend,
+  deriveRemediation,
+  recoveryTrendXPositions,
+} from "../lib/remediation";
 import type { TraceEvent } from "../lib/observability";
 
 let seq = 0;
@@ -182,5 +188,37 @@ describe("the ledger refuses the claims it cannot support", () => {
     assert.equal(model.stillOpen, 1);
     assert.equal(model.longestCloseMs, 60_000);
     assert.equal(model.medianCloseMs, 10_000);
+  });
+
+  it("keeps unresolved trips as gaps and out of the retained-window mean", () => {
+    const model = deriveRemediation(
+      [
+        breaker("a", "open", 1_000), breaker("a", "closed", 11_000),
+        breaker("b", "open", 12_000),
+        breaker("c", "open", 13_000), breaker("c", "closed", 73_000),
+      ],
+      cursor(),
+    );
+    const trend = deriveRecoveryTrend(model.pairs);
+
+    assert.deepEqual(trend.points.map((point) => point.elapsedMs), [10_000, null, 60_000]);
+    assert.equal(trend.completed, 2);
+    assert.equal(trend.incomplete, 1);
+    assert.equal(trend.meanMs, 35_000, "an open incident entered the MTTR denominator as zero");
+    assert.ok(trend.completed >= MIN_COMPLETED_FOR_TREND);
+    const positions = recoveryTrendXPositions(trend.points, 10, 130);
+    assert.deepEqual(positions, [10, 120, 130]);
+    assert.ok(
+      positions[1] - positions[0] > positions[2] - positions[1],
+      "unequal elapsed-time gaps were rendered as equal ordinal steps",
+    );
+  });
+
+  it("withholds a trend when only one completed duration survives", () => {
+    const model = deriveRemediation(
+      [breaker("a", "open", 1_000), breaker("a", "closed", 11_000)],
+      cursor(),
+    );
+    assert.ok(deriveRecoveryTrend(model.pairs).completed < MIN_COMPLETED_FOR_TREND);
   });
 });

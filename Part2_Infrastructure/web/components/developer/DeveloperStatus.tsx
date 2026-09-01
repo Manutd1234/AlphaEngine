@@ -1,29 +1,9 @@
 "use client";
 
-/**
- * The vocabulary the Developer control plane reports in, and the three tables
- * every section of it draws from.
- *
- * Split out of `DeveloperConsole` when that file passed the length ceiling.
- * What lives here is the part that must not be restated: one `ControlState`
- * shape, one derivation per source, one pill that renders it.
- *
- * **The three-verdict ladder is the point of this file.** `gateVerdict` maps a
- * state to `pass`, `failed` or `unverified`, and the third is not a softer
- * second: a gate that could not run has not passed and has not failed, so it
- * may never be counted toward a pass nor named as blocking. `unmeasured` marks
- * the states that carry no reading at all — an unconfigured gateway, an
- * unpinned signing key, a build that is not a deployment. A refused connection
- * is the opposite: the gate ran, and the answer is that the gateway is not
- * healthy.
- *
- * `schemaCompatibilityState` is where that distinction was bought. The panel
- * reported "Drift detected" against an unreachable gateway because
- * `lib/delivery-readiness.ts` holds a comparison for five minutes and the
- * verdict outlived the port. A cached "Drift detected" claims a document
- * nothing read; a cached "Exact match" is worse — a promotion-grade pass
- * invented from a gateway refusing connections.
- */
+/** Shared Developer control states and tables. `unmeasured` is the important
+ * third verdict: a gate that did not run neither passed nor failed. Live rows
+ * resolve only from their own evidence; configured cross-runtime comparisons
+ * stay unverified until the health contract carries their result. */
 
 import { type CSSProperties } from "react";
 
@@ -70,56 +50,43 @@ export const PIPELINE_STAGES = [
   },
 ] as const;
 
-/* Repository metadata establishes that the first three comparisons are
-   configured, not that they passed for this commit. The last two rows resolve
-   from current health evidence when that evidence is present. */
+/* Definitions only: a row's state is always derived below from the evidence
+   that actually proves that comparison. Keeping verdicts out of this array
+   prevents repository metadata from becoming a green runtime claim. */
 export const SCHEMA_GATES = [
   {
+    id: "gateway-openapi",
     object: "Gateway OpenAPI",
     baseline: "tools/openapi.json",
-    candidate: "FastAPI runtime",
-    impact: "Configured; unverified",
-    tone: "warn" as const,
-    detail: "The comparison is configured in the repository; this tab received no live CI attestation for this commit.",
-    unmeasured: true,
+    candidate: "Live FastAPI runtime",
   },
   {
-    object: "Risk parity",
-    baseline: "Python fixture",
-    candidate: "TypeScript consumer",
-    impact: "Configured; unverified",
-    tone: "warn" as const,
-    detail: "The comparison is configured in the repository; this tab received no live CI attestation for this commit.",
-    unmeasured: true,
-  },
-  {
+    id: "gateway-payloads",
     object: "Gateway payloads",
     baseline: "Canonical fixtures",
     candidate: "Web validators",
-    impact: "Configured; unverified",
-    tone: "warn" as const,
-    detail: "The comparison is configured in the repository; this tab received no live CI attestation for this commit.",
-    unmeasured: true,
   },
   {
-    object: "Production schema",
-    baseline: "Authenticated endpoint",
-    candidate: "Current commit",
-    impact: "Not connected",
-    tone: "warn" as const,
-    detail: "Resolved from the current health payload when live schema evidence is present.",
-    unmeasured: true,
+    id: "runtime-payloads",
+    object: "Runtime payload contracts",
+    baseline: "Web validators",
+    candidate: "Runtime validation window",
   },
   {
+    id: "risk-parity",
+    object: "Risk parity",
+    baseline: "Python fixture",
+    candidate: "TypeScript consumer",
+  },
+  {
+    id: "mc-parity",
     object: "Monte Carlo numerics",
     baseline: "Committed reference",
     candidate: "Node, this instance",
-    impact: "Not connected",
-    tone: "warn" as const,
-    detail: "Resolved from the current health payload when live numerics evidence is present.",
-    unmeasured: true,
   },
 ] as const;
+
+export type SchemaGateId = typeof SCHEMA_GATES[number]["id"];
 
 export function StatusPill({
   state,
@@ -205,6 +172,60 @@ export function schemaCompatibilityState(view: SystemHealthView): ControlState {
   return { label: "Unverified", detail: evidence.detail, tone: "warn", unmeasured: true };
 }
 
+/** Runtime ledger only. `passed` means no fatal finding, so green additionally
+ * requires a non-zero denominator and zero warn, drift or unevaluated checks. */
+export function payloadValidationState(view: SystemHealthView): ControlState {
+  if (!view.health) return { label: "Checking", detail: "Waiting for runtime payload-validation evidence.", tone: "info" };
+  const evidence = view.health.validation;
+  if (!evidence) {
+    return {
+      label: "Unverified",
+      detail: "This health route carries no runtime payload-validation ledger yet.",
+      tone: "warn",
+      unmeasured: true,
+    };
+  }
+
+  const scope = evidence.scope === "gateway-ledger" ? "gateway ledger" : "current health-route instance";
+  if (evidence.evaluated === 0) {
+    return {
+      label: "Unverified",
+      detail: `The ${scope} contains no evaluated payloads; zero evidence is not a clean contract result.`,
+      tone: "warn",
+      unmeasured: true,
+    };
+  }
+
+  const detail = `The ${scope} evaluated ${evidence.evaluated} payload${evidence.evaluated === 1 ? "" : "s"}: `
+    + `${evidence.passed} had no fatal finding; ${evidence.fatal} fatal, ${evidence.warn} warn, `
+    + `${evidence.drift} drift, and ${evidence.notEvaluated} checks not evaluated.`;
+  if (evidence.fatal > 0) {
+    return { label: "Fatal findings", detail, tone: "bad" };
+  }
+  if (evidence.passed !== evidence.evaluated) {
+    return { label: "Ledger inconsistent", detail, tone: "bad" };
+  }
+  if (evidence.warn > 0 || evidence.drift > 0) {
+    return { label: "Warnings / drift", detail, tone: "warn" };
+  }
+  if (evidence.notEvaluated > 0) {
+    return { label: "Partial coverage", detail, tone: "warn" };
+  }
+  return { label: "Clean", detail, tone: "good" };
+}
+
+/** No field in `SystemHealth` compares the Python risk fixture with its
+ * TypeScript consumer. Monte Carlo parity is a different computation and may
+ * not be borrowed to turn this row green. */
+export function riskParityState(): ControlState {
+  return {
+    label: "Unverified",
+    detail: "The health snapshot carries no cross-language risk-parity result for this deployment.",
+    tone: "warn",
+    unmeasured: true,
+  };
+}
+
 export function numericsParityState(view: SystemHealthView): ControlState {
   if (!view.health) return { label: "Checking", detail: "Waiting for delivery evidence.", tone: "info" };
   const evidence = view.health.delivery?.numerics;
@@ -212,15 +233,26 @@ export function numericsParityState(view: SystemHealthView): ControlState {
   // No gateway in this claim: the reference is committed and the run is this
   // deployment's own Node instance, so the verdict is measured every poll.
   if (evidence.state === "match") {
-    /* The whole digest, not a twelve-character prefix with an ellipsis after
-       it. This string is the row's `title`, where width is not the constraint
-       a pill's width is, and a truncated hash is a hash a reader cannot check
-       — the reported defect that produced the custody chain in the Numerics
-       pane. The prefix was never wrong, only useless: it asserts that a digest
-       exists rather than handing one over. */
+    // The title carries the full digest so the custody result is checkable.
     return { label: "Byte-exact", detail: `${evidence.detail} sha256 ${evidence.expectedDigest}`, tone: "good" };
   }
   return { label: "Drift detected", detail: evidence.detail, tone: "bad" };
+}
+
+export function schemaGateRows(view: SystemHealthView) {
+  const states: Record<SchemaGateId, ControlState> = {
+    "gateway-openapi": schemaCompatibilityState(view),
+    "gateway-payloads": {
+      label: "Unverified",
+      detail: "No live cross-runtime result compares the canonical gateway fixtures with the Web validators.",
+      tone: "warn",
+      unmeasured: true,
+    },
+    "runtime-payloads": payloadValidationState(view),
+    "risk-parity": riskParityState(),
+    "mc-parity": numericsParityState(view),
+  };
+  return SCHEMA_GATES.map((row) => ({ ...row, state: states[row.id] }));
 }
 
 export function artifactCustodyState(view: SystemHealthView): ControlState {
@@ -281,22 +313,7 @@ export function PipelineStrip() {
 }
 
 export function SchemaGateTable({ view, compact = false }: { view: SystemHealthView; compact?: boolean }) {
-  const liveSchema = schemaCompatibilityState(view);
-  const liveNumerics = numericsParityState(view);
-  const rows = SCHEMA_GATES.map((row) => {
-    if (row.object === "Production schema") {
-      return { ...row, impact: liveSchema.label, tone: liveSchema.tone, detail: liveSchema.detail, unmeasured: Boolean(liveSchema.unmeasured) };
-    }
-    if (row.object === "Monte Carlo numerics") {
-      return { ...row, impact: liveNumerics.label, tone: liveNumerics.tone, detail: liveNumerics.detail, unmeasured: Boolean(liveNumerics.unmeasured) };
-    }
-    return row;
-  });
-  /*
-   * A configured workflow is metadata, not an attestation. The first three
-   * rows therefore remain unverified until this tab receives evidence for the
-   * current commit; only the two health-backed rows may resolve to a verdict.
-   */
+  const rows = schemaGateRows(view);
   return (
     <>
     <div className={`developer-cp-table${compact ? " is-compact" : ""}`} tabIndex={0} role="table" aria-label="Schema compatibility gates">
@@ -314,21 +331,21 @@ export function SchemaGateTable({ view, compact = false }: { view: SystemHealthV
           <code role="cell">{row.baseline}</code>
           <span role="cell">{row.candidate}</span>
           <StatusPill
-            state={{ label: row.impact, detail: row.detail, tone: row.tone, unmeasured: row.unmeasured }}
+            state={row.state}
             compact
             role="cell"
           />
         </div>
       ))}
     </div>
-    {/* Method stays folded; the visible pills already distinguish configured
-        checks from health-backed verdicts. */}
+    {/* Method stays folded; pills separate measured rows from comparisons the
+        current health contract cannot prove. */}
     <details className="disclosure developer-cp-state-guide">
       <summary>How to read the State column</summary>
       <p>
-        Production schema and Monte Carlo numerics take their verdicts from the current health
-        payload. The first three rows describe configured comparisons only; this tab received no
-        live CI attestation for this commit.
+        Gateway OpenAPI, runtime payload contracts and Monte Carlo numerics take their verdicts
+        from the current health payload. Gateway payloads and Risk parity remain unverified because
+        that payload carries no cross-runtime result for either comparison.
       </p>
     </details>
     </>

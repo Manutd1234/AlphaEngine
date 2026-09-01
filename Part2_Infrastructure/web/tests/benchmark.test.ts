@@ -272,6 +272,7 @@ describe("the sanitiser accepts every strategy the engines implement", () => {
     // perfectly well-formed way of saying nothing.
     assert.match(route, /candidate === symbol/);
   });
+
 });
 
 /** The empty state must route to, focus, and open the one request-owning select. */

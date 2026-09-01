@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-09-01",
-  "commit": "f7ce7cb3",
+  "commit": "c1072d69",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -1280,6 +1280,7 @@
     "Part2_Infrastructure/web/components/execution/tape-view.ts",
     "Part2_Infrastructure/web/components/execution/ticket-model.ts",
     "Part2_Infrastructure/web/components/execution/use-cockpit-feed.ts",
+    "Part2_Infrastructure/web/components/execution/use-equity-quote.ts",
     "Part2_Infrastructure/web/components/execution/VenueMixDonut.tsx",
     "Part2_Infrastructure/web/components/header/AccountChip.tsx",
     "Part2_Infrastructure/web/components/header/AnchoredPanel.tsx",

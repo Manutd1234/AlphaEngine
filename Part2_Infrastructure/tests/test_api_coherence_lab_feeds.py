@@ -87,8 +87,8 @@ class TestTheSettlementRoute:
     def test_the_reference_rate_is_a_state_beside_the_feed_rather_than_a_failure(self, client, monkeypatch):
         venue(monkeypatch)
         payload = client.get("/api/coherence/settlement?city=miami").json()
-        assert payload["reference_rate_state"] == "entitlement_required"
-        assert "entitlement" in payload["reference_rate_detail"]
+        assert payload["reference_rate_state"] == "authentication_required"
+        assert "before an entitlement could be checked" in payload["reference_rate_detail"]
 
     def test_a_city_the_venue_refuses_returns_a_state_and_no_samples(self, client, monkeypatch):
         venue(monkeypatch, lambda request: httpx.Response(400, json={"error": "weather covers: miami"}))

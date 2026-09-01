@@ -25,26 +25,22 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import SymbolCombobox from "@/components/SymbolCombobox";
 import LiquidityBook from "@/components/execution/LiquidityBook";
-import MarketWatchlist from "@/components/execution/MarketWatchlist";
+import MarketWatchlist, {
+  EquityMarketPath,
+} from "@/components/execution/MarketWatchlist";
+import {
+  equityQuoteHealthLabel,
+  useEquityQuotePreview,
+} from "@/components/execution/use-equity-quote";
 import RoutingProbe from "@/components/execution/RoutingProbe";
 import { LiveMidContext } from "@/components/execution/live-mid-context";
 import { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
 import { useLiveBook } from "@/lib/livebook";
-import { classify } from "@/lib/providers/symbols";
 import { type ExecutionSection } from "@/lib/sections";
-import { SYMBOLS, type Side, type Ticker } from "@/lib/venues";
+import { SYMBOLS, marketCapabilitiesFor, type Side, type Ticker } from "@/lib/venues";
 import { fmt, priceDp, signedPct } from "@/lib/format";
 import { type SweepResponse } from "@/lib/types";
 import { usePolling } from "@/lib/use-polling";
-
-interface QuotePreview {
-  price: number;
-  changePct: number | null;
-  asOf: string;
-  source: string;
-  delayed: boolean;
-  synthetic: boolean;
-}
 
 export { type ExecutionSection } from "@/lib/sections";
 
@@ -78,13 +74,13 @@ export default function LiveMarket({
   onPriceSelect,
   children,
 }: LiveMarketProps) {
-  const liveSupported = (SYMBOLS as readonly string[]).includes(symbol);
-  const paperEquity = classify(symbol) === "equity";
-  const snap = useLiveBook(symbol, liveSupported);
+  const capabilities = marketCapabilitiesFor(symbol);
+  const paperEquity = capabilities.paperMarketOrder;
+  const snap = useLiveBook(symbol, capabilities.directL2);
   const dp = snap?.consolidatedMid ? priceDp(snap.consolidatedMid) : 2;
   const [tickerBySymbol, setTickerBySymbol] = useState<Record<string, Ticker>>({});
-  const [quotePreview, setQuotePreview] = useState<QuotePreview | null>(null);
-  const [quotePreviewPending, setQuotePreviewPending] = useState(false);
+  const { quote: quotePreview, pending: quotePreviewPending, health: quoteHealth } =
+    useEquityQuotePreview(symbol, paperEquity);
   // Direction of each symbol's last real price change, for the tick flash.
   // Redundant emphasis only: the signed 24h% with its sign glyph sits beside
   // the price, which is what the no-colour-only rule requires.
@@ -157,64 +153,15 @@ export default function LiveMarket({
     maxBackoffMs: 300_000,
   });
 
-  useEffect(() => {
-    if (!paperEquity) {
-      setQuotePreview(null);
-      setQuotePreviewPending(false);
-      return;
-    }
-
-    const controller = new AbortController();
-    setQuotePreview(null);
-    setQuotePreviewPending(true);
-    void fetch(`/api/quote?symbols=${encodeURIComponent(symbol)}`, {
-      cache: "no-store",
-      signal: controller.signal,
-    })
-      .then(async (response) => response.ok ? response.json() : null)
-      .then((body: unknown) => {
-        if (!body || controller.signal.aborted) return;
-        const row = (body as {
-          quotes?: Array<{
-            data?: { price?: unknown; changePct?: unknown; asOf?: unknown; delayed?: unknown };
-            provenance?: { label?: unknown; provider?: unknown; delayed?: unknown; synthetic?: unknown };
-          }>;
-        }).quotes?.[0];
-        const price = Number(row?.data?.price);
-        const asOf = typeof row?.data?.asOf === "string" ? row.data.asOf : "";
-        if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(Date.parse(asOf))) return;
-        const changePct = Number(row?.data?.changePct);
-        const label = typeof row?.provenance?.label === "string"
-          ? row.provenance.label
-          : typeof row?.provenance?.provider === "string" ? row.provenance.provider : "Provider";
-        setQuotePreview({
-          price,
-          changePct: Number.isFinite(changePct) ? changePct : null,
-          asOf,
-          source: label,
-          delayed: row?.data?.delayed === true || row?.provenance?.delayed === true,
-          synthetic: row?.provenance?.synthetic === true,
-        });
-      })
-      .catch(() => {
-        // The order route performs its own authoritative lookup. A preview
-        // failure leaves the ticket available and never supplies a price.
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setQuotePreviewPending(false);
-      });
-
-    return () => controller.abort();
-  }, [paperEquity, symbol]);
-
   const instrumentPanel = (
     <MarketWatchlist
       symbol={symbol}
       onSymbolChange={onSymbolChange}
-      liveSupported={liveSupported}
+      liveSupported={capabilities.directL2}
       snap={snap}
       tickerBySymbol={tickerBySymbol}
       tickDirection={tickDirection}
+      equityHealth={paperEquity ? quoteHealth : null}
     />
   );
 
@@ -245,15 +192,16 @@ export default function LiveMarket({
               <dd>
                 {quotePreview?.source ?? (quotePreviewPending ? "Checking…" : "Unavailable")}
                 {quotePreview ? (
-                  <small className="muted">
-                    {quotePreview.synthetic ? "display only" : quotePreview.delayed ? "delayed" : "provider quote"}
+                  <small className="muted console-wrap">
+                    {quotePreview.synthetic ? "display only" : quotePreview.delayed ? "delayed" : "provider quote"};{" "}
+                    {equityQuoteHealthLabel(quoteHealth)}
                   </small>
                 ) : null}
               </dd>
             </div>
             <div>
               <dt>Execution</dt>
-              <dd>Paper MARKET<small className="muted">no L2 routing</small></dd>
+              <dd>Paper MARKET<small className="muted console-wrap">no L2 routing</small></dd>
             </div>
           </>
         ) : (
@@ -269,15 +217,19 @@ export default function LiveMarket({
           </>
         )}
       </dl>
-      <span className={`execution-market-strip__status${liveVenues > 0 || (quotePreview && !quotePreview.synthetic) ? " is-live" : ""}`}>
+      <span className={`execution-market-strip__status${liveVenues > 0 || (quotePreview && !quotePreview.synthetic && !quotePreview.delayed && quoteHealth.state === "fresh") ? " is-live" : ""}`}>
         <i aria-hidden />
         {paperEquity
           ? quotePreview
             ? quotePreview.synthetic
-              ? "Sandbox preview — not execution evidence"
-              : `Covered US ticker, as of ${new Date(quotePreview.asOf).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
-            : quotePreviewPending ? "Checking equity coverage" : "Equity quote unavailable"
-          : !liveSupported ? "Quote only" : snap ? `${liveVenues} venues live` : "Connecting"}
+              ? `Sandbox preview — not execution evidence; ${equityQuoteHealthLabel(quoteHealth)}`
+              : quoteHealth.state !== "fresh"
+                ? `${equityQuoteHealthLabel(quoteHealth)}; retained ${quotePreview.delayed ? "delayed/EOD" : "provider"} quote`
+                : quotePreview.delayed
+                  ? `Delayed/EOD equity quote; ${equityQuoteHealthLabel(quoteHealth)}; market as of ${new Date(quotePreview.asOf).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                  : `Covered US ticker; ${equityQuoteHealthLabel(quoteHealth)}; market as of ${new Date(quotePreview.asOf).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+            : equityQuoteHealthLabel(quoteHealth)
+          : !capabilities.directL2 ? "Quote only" : snap ? `${liveVenues} venues live` : "Connecting"}
       </span>
     </section>
   );
@@ -288,31 +240,45 @@ export default function LiveMarket({
       ? compactMarketContext
       : null;
 
-  if (!liveSupported) {
+  if (!capabilities.directL2) {
     return (
       <>
         {marketContext}
         {wrappedChildren}
         {(["liquidity", "routing"] as const).map((tabId) => (
-          <WorkspaceSubtabPanel key={tabId} workspaceId="execution" tabId={tabId} activeId={section}>
-            <div className="capability-empty">
-              <span className="role-monogram" aria-hidden>L2</span>
-              <div>
-                <span className="page-kicker">Capability boundary</span>
-                <h2>Live venue routing is not available for {symbol}.</h2>
-                <p>
-                  Quote and news coverage stay in Data &amp; systems. Select a supported crypto
-                  pair above for direct Binance and Bybit books.
-                </p>
+          capabilities.paperMarketOrder ? (
+            <EquityMarketPath
+              key={tabId}
+              symbol={symbol}
+              tabId={tabId}
+              activeId={section}
+              quote={quotePreview}
+              quotePending={quotePreviewPending}
+              quoteHealth={quoteHealth}
+              onOpenData={onOpenData}
+              onOpenResearch={onOpenResearch}
+            />
+          ) : (
+            <WorkspaceSubtabPanel key={tabId} workspaceId="execution" tabId={tabId} activeId={section}>
+              <div className="capability-empty">
+                <span className="role-monogram" aria-hidden>L2</span>
                 <div>
-                  {/* Both are navigation, so both look like navigation. The
-                      first wore the fill reserved for Send order. */}
-                  <button onClick={onOpenData}>Open data workspace</button>
-                  <button onClick={onOpenResearch}>Review research context</button>
+                  <span className="page-kicker">Capability boundary</span>
+                  <h2>Direct L2 routing is not available for {symbol}.</h2>
+                  <p>
+                    Quote and news coverage stay in Data &amp; systems. Select a supported crypto
+                    pair above for direct Binance and Bybit books.
+                  </p>
+                  <div>
+                    {/* Both are navigation, so both look like navigation. The
+                        first wore the fill reserved for Send order. */}
+                    <button onClick={onOpenData}>Open data workspace</button>
+                    <button onClick={onOpenResearch}>Review research context</button>
+                  </div>
                 </div>
               </div>
-            </div>
-          </WorkspaceSubtabPanel>
+            </WorkspaceSubtabPanel>
+          )
         ))}
       </>
     );

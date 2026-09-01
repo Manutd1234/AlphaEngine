@@ -345,10 +345,7 @@ describe("the streamed desk is wired, not orphaned", () => {
   });
 
   it("reconnection is the shared controller's, so it is hidden-gated and backed off", () => {
-    // The three properties EventSource's built-in retry has none of, and the
-    // three this codebase already paid for once — 1,542 requests in ten
-    // seconds from one idle guest tab. Reused rather than reimplemented: a
-    // second copy of the curve is how a backoff comes to disagree with itself.
+    // Reuse the controller's hidden gate and backoff; do not rebuild its curve.
     assert.match(streamHook, /new PollingController\(/,
       "the stream rolled its own reconnect loop instead of using the adopted one");
     assert.match(streamHook, /maxBackoffMs/, "the reconnect loop has no ceiling");
@@ -356,6 +353,11 @@ describe("the streamed desk is wired, not orphaned", () => {
     // retried on any curve at all — the cockpit's reasoning for `!unconfigured`.
     assert.match(streamHook, /gateway_not_configured"\) loop\?\.stop\(\)/,
       "a deployment with no gateway is still being asked for a stream");
+    assert.match(streamRoute, /STREAM_SESSION_MS\s*=\s*4\s*\*\s*60_000/); assert.match(streamRoute, /setTimeout\(rotateSession,\s*STREAM_SESSION_MS\)/);
+    assert.match(streamRoute, /signal:\s*session\.signal/); assert.match(streamRoute, /clearTimeout\(sessionTimer\)/);
+    assert.match(streamRoute, /stateFrame\("rotate"\)/, "planned rotation is indistinguishable from a dropped stream");
+    assert.match(streamHook, /body\.state === "rotate"\) rotate\(\)/); assert.match(streamHook, /const rotate = \(\) => \{[\s\S]{0,300}?loop\?\.runNow\(\)/);
+    assert.doesNotMatch(streamHook.match(/const rotate = \(\) => \{[\s\S]*?\n    \};/)?.[0] ?? "", /publish\([^)]*unavailable/);
   });
 
   it("one connection serves every consumer", () => {

@@ -241,7 +241,7 @@ describe("continuous deployment keeps the desk alive across a swap", () => {
     );
   });
 
-  it("supports a configured production pair and an intentionally keyless revoke", () => {
+  it("supports configured demo signing and an intentionally keyless revoke", () => {
     const start = deployWorkflow.indexOf("- name: Required secrets are present");
     const end = deployWorkflow.indexOf("- name: Pull, swap, verify, roll back on failure", start);
     assert.ok(start > 0 && end > start, "the required-secret preflight step was not found");
@@ -272,7 +272,6 @@ describe("continuous deployment keeps the desk alive across a swap", () => {
       /missing\+=\("KALSHI_DEMO_(?:KEY_ID|PRIVATE_KEY_PEM_B64)"\)/,
       "keyless revoke mode must not be rejected by the generic missing-secret inventory",
     );
-
     const canary = deployWorkflow.slice(
       deployWorkflow.indexOf("Confirming the authenticated private maker channel state"),
       deployWorkflow.indexOf("unset RFQ_JSON"),

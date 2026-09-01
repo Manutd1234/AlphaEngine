@@ -34,14 +34,11 @@ import SocketTrace from "@/components/systems/PipelineSocketTrace";
 import { type InspectResponse } from "@/components/systems/types";
 import { useLiveBook } from "@/lib/livebook";
 import { applicableAssets, inapplicableReason, isApplicable } from "@/lib/providers/capabilities";
-import { classify } from "@/lib/providers/symbols";
-import { SYMBOLS } from "@/lib/venues";
+import { marketCapabilitiesFor } from "@/lib/venues";
 import { usePolling } from "@/lib/use-polling";
 
 const CAPABILITIES = ["quote", "bars", "news", "fundamentals"] as const;
 type Capability = (typeof CAPABILITIES)[number];
-
-const LIVE_SYMBOLS = new Set<string>(SYMBOLS);
 
 /** The equity the callout offers when a capability cannot answer for the desk symbol. */
 const EQUITY_EXAMPLE = "AAPL";
@@ -71,6 +68,10 @@ export default function PipelineInspector({
   const [raw, setRaw] = useState(true);
   const [tab, setTab] = useState<"rest" | "socket">("rest");
   const [result, setResult] = useState<InspectResponse | null>(null);
+  // The WebSocket tab explains the whole market path for an equity. Retain the
+  // last successful quote inspection so selecting Bars and then opening the
+  // socket tab does not erase real provider/freshness evidence.
+  const [lastGoodQuote, setLastGoodQuote] = useState<InspectResponse | null>(null);
   const [resultKey, setResultKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -83,7 +84,8 @@ export default function PipelineInspector({
   // refuse is never sent — not on the first load, and not on every poll after.
   // Fundamentals describe an issuer; a crypto pair has none, and tracing it
   // used to spend four provider calls per poll to be told so four times.
-  const asset = classify(symbol);
+  const marketCapabilities = marketCapabilitiesFor(symbol);
+  const asset = marketCapabilities.asset;
   const inapplicable = !isApplicable(capability, asset);
 
   useEffect(() => setDraft(symbol), [symbol]);
@@ -124,7 +126,11 @@ export default function PipelineInspector({
           if (!quiet) setError((body as { error?: string }).error ?? `HTTP ${response.status}`);
           return;
         }
-        setResult(body as InspectResponse);
+        const inspected = body as InspectResponse;
+        setResult(inspected);
+        if (inspected.ok && inspected.capability === "quote" && inspected.provenance) {
+          setLastGoodQuote(inspected);
+        }
         setResultKey(requestKey);
         setError(null);
         const eventFields: Record<string, string | number | boolean | null> = {
@@ -173,7 +179,7 @@ export default function PipelineInspector({
     else setDraft(symbol);
   };
 
-  const socketSupported = LIVE_SYMBOLS.has(symbol);
+  const socketSupported = marketCapabilities.directL2;
   // Sockets open only while the wire tap is on screen and the pair is covered.
   const snapshot = useLiveBook(symbol, active && tab === "socket" && socketSupported);
   const resultMatchesControls = result !== null && resultKey === inspectionKey;
@@ -295,7 +301,11 @@ export default function PipelineInspector({
       )}
 
       {tab === "socket" && (
-        <SocketTrace symbol={symbol} supported={socketSupported} snapshot={snapshot} />
+        <SocketTrace
+          symbol={symbol}
+          snapshot={snapshot}
+          restQuote={lastGoodQuote?.symbol === symbol ? lastGoodQuote : null}
+        />
       )}
     </div>
   );

@@ -1,29 +1,9 @@
-"""The Kalshi REST client: public reads, planned spend, honest degradation.
+"""Kalshi REST reads with planned spend and honest degradation.
 
-Shaped after ``modules/equity_quote.py`` — an async function taking an
-injectable ``httpx.AsyncBaseTransport`` so every test drives real code against
-recorded payloads instead of a stand-in that agrees with whatever the caller
-expects.
-
-Three behaviours are worth reading before the code.
-
-**Nothing here logs a URL.** ``main.py`` pins httpx's logger to WARNING
-precisely because its INFO request line carries the full URL, and signed
-Kalshi requests put the key id in a header while other venues put credentials
-in query strings. Errors are built from status lines.
-
-**The bulk orderbook takes ``tickers`` repeated, not comma-joined.** Comma-
-joining returns HTTP 200 with one entry whose ticker is the joined string and
-whose ladders are empty — indistinguishable downstream from a market nobody is
-quoting. ``build_orderbooks_query`` is the only place the parameter is built,
-and ``kalshi_parse.parse_orderbooks`` raises if the wrong shape ever comes back.
-
-**A 401 on the orderbook route is expected, not exceptional.** Kalshi's
-OpenAPI marks both orderbook routes as requiring a key while the quick-start
-guide and the live exchange serve them keyless. The client runs keyless, and
-if that tightens it degrades to the Market object's top-of-book fields — which
-are unambiguously public — and reports ``depth="top_of_book"`` so no caller
-mistakes a shallow read for a deep one.
+The injectable transport keeps tests on the real request path. Safety rules:
+errors never log URLs; bulk orderbooks repeat ``tickers`` instead of joining
+them; and an orderbook 401 degrades upstream to public top-of-book data marked
+``depth="top_of_book"`` rather than being mistaken for deep liquidity.
 """
 
 from __future__ import annotations
@@ -31,7 +11,7 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass
-from typing import Any, Sequence
+from typing import Any, Literal, Sequence
 from urllib.parse import quote
 
 import httpx
@@ -102,10 +82,11 @@ def build_orderbooks_query(tickers: Sequence[str]) -> list[tuple[str, str]]:
 
 
 class KalshiClient:
-    """Public, unauthenticated reads against Kalshi's production host.
+    """Read-only Kalshi calls with an explicit authentication boundary.
 
-    Deliberately read-only: there is no ``post`` here, and adding one would be
-    a change to what this engine is, not a new method.
+    Public reads remain unsigned by default. The private demo channel and the
+    production CF Benchmarks read opt into their own credential environments.
+    There is no ``post`` here; adding one would change what this engine is.
     """
 
     def __init__(
@@ -116,7 +97,18 @@ class KalshiClient:
         budget: ReadBudget | None = None,
         timeout_s: float | None = None,
         signed: bool = False,
+        signing_environment: Literal["demo", "production"] | None = None,
     ) -> None:
+        if signed and signing_environment is not None:
+            raise ValueError("choose signed=True for demo compatibility or one signing_environment, not both")
+        if signing_environment not in {None, "demo", "production"}:
+            raise ValueError("signing_environment must be demo or production")
+        # ``signed=True`` is retained as the demo-only compatibility spelling
+        # used by the RFQ path. Production signing always has to be named; it
+        # can never turn on because a demo caller happened to request signing.
+        self._signing_environment: Literal["demo", "production"] | None = (
+            "demo" if signed else signing_environment
+        )
         self.base_url = tunables.normalize_base_url(
             base_url if base_url is not None else tunables.PUBLIC_BASE_URL,
             name="KalshiClient base_url",
@@ -131,7 +123,7 @@ class KalshiClient:
         )
         if self.failover_url == self.base_url:
             self.failover_url = None
-        if signed and any(
+        if self._signing_environment is not None and any(
             httpx.URL(url).scheme != "https"
             for url in filter(None, (self.base_url, self.failover_url))
         ):
@@ -143,16 +135,28 @@ class KalshiClient:
         self._transport = transport
         self._budget = budget or get_read_budget()
         self._timeout_s = float(timeout_s if timeout_s is not None else tunables.REQUEST_TIMEOUT_S)
-        # Off by default, and that is the whole posture: the read path this
-        # engine lives on is public, so a client that signs by habit would fail
-        # closed on production for no benefit.
-        self._signed = signed
+        # Off by default. The one signed production read is constructed
+        # explicitly by the settlement route; every ordinary public client
+        # remains keyless.
+        self._signed = self._signing_environment is not None
         if self._signed:
-            demo_hosts = {tunables.DEMO_BASE_URL, tunables.DEMO_FAILOVER_URL}
-            if self.base_url not in demo_hosts or (
-                self.failover_url is not None and self.failover_url not in demo_hosts
+            signed_hosts = (
+                {tunables.DEMO_BASE_URL, tunables.DEMO_FAILOVER_URL}
+                if self._signing_environment == "demo"
+                else {tunables.PUBLIC_BASE_URL, tunables.PUBLIC_FAILOVER_URL}
+            )
+            if self.base_url not in signed_hosts or (
+                self.failover_url is not None and self.failover_url not in signed_hosts
             ):
-                raise ValueError("a signed KalshiClient may use only configured demo API hosts")
+                raise ValueError(
+                    f"a {self._signing_environment}-signed KalshiClient may use only configured "
+                    f"{self._signing_environment} API hosts"
+                )
+
+    @property
+    def signing_environment(self) -> Literal["demo", "production"] | None:
+        """The explicitly selected credential boundary, if this client signs."""
+        return self._signing_environment
 
     async def get(self, path: str, params: Any = None) -> Fetched:
         """One planned, budgeted GET, with the shared host as a failover.

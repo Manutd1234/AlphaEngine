@@ -188,10 +188,21 @@ function explainShortWindow(
   return `${head} Ask for fewer bars, or pick a symbol with a longer listing history.`;
 }
 
+/** Add one dataset's warnings with stable attribution and no repeated copy. */
+function appendDatasetWarnings(target: string[], dataset: string, incoming: string[]): void {
+  for (const warning of incoming) {
+    const attributed = `${dataset}: ${warning}`;
+    if (!target.includes(attributed)) target.push(attributed);
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { req, coercions } = sanitise((await request.json()) as Partial<SweepRequest>);
-    const { bars, source, warnings } = await loadBars(req.symbol, req.interval, req.bars);
+    const primary = await loadBars(req.symbol, req.interval, req.bars);
+    const { bars, source } = primary;
+    const warnings: string[] = [];
+    appendDatasetWarnings(warnings, `${req.symbol} at ${req.interval}`, primary.warnings);
     // First in the list: "this ran a different strategy than you asked for"
     // outranks every data caveat that follows it.
     warnings.unshift(...coercions);
@@ -227,7 +238,11 @@ export async function POST(request: NextRequest) {
       try {
         const loaded = await loadBars(req.benchmarkSymbol, req.interval, req.bars);
         benchmarkBars = loaded.bars;
-        warnings.push(...loaded.warnings);
+        appendDatasetWarnings(
+          warnings,
+          `Benchmark ${req.benchmarkSymbol} at ${req.interval}`,
+          loaded.warnings,
+        );
       } catch (cause) {
         if (!(cause instanceof MarketDataUnavailableError)) throw cause;
         // A missing benchmark removes the comparison rather than replacing it

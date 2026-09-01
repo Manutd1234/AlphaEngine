@@ -17,9 +17,10 @@
 # gateway_stop risk event and closes the audit log on SIGTERM; the 10s default
 # risks SIGKILL mid-write and a stranded .duckdb.wal.
 #
-# Signed Kalshi demo reads are deliberately opt-in. The override copies the
-# ignored host PEM into a private volume with uid 10001/mode 0400, then mounts
-# only that volume into the gateway read-only:
+# Signed Kalshi reads are deliberately opt-in. The override always stages the
+# ignored demo PEM and, when its production key ID and PEM are both present,
+# stages the separate production reference credential too. Each lands in its
+# own private volume with uid 10001/mode 0400 and is mounted read-only:
 #
 #   docker compose -f docker-compose.yml \
 #     -f Part2_Infrastructure/docker/compose.kalshi.yml up -d --build

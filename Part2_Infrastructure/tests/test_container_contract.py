@@ -247,25 +247,33 @@ class TestCompose:
     def test_default_compose_remains_keyless(self):
         assert "kalshi-demo-key-install" not in COMPOSE_CODE
         assert "kalshi_demo_key:/run/secrets" not in COMPOSE_CODE
+        assert "kalshi_production_key:/run/reference-secrets" not in COMPOSE_CODE
 
-    def test_opt_in_kalshi_key_is_installed_for_the_gateway_uid(self):
-        assert "source: ./Part2_Infrastructure/secrets/kalshi-demo-private-key.pem" in KALSHI_COMPOSE
-        assert "target: /source/kalshi-demo-private-key.pem" in KALSHI_COMPOSE
+    def test_opt_in_kalshi_keys_are_installed_for_the_gateway_uid(self):
+        assert "source: ./Part2_Infrastructure/secrets" in KALSHI_COMPOSE
+        assert "target: /source" in KALSHI_COMPOSE
         assert "read_only: true" in KALSHI_COMPOSE
         assert "create_host_path: false" in KALSHI_COMPOSE, (
-            "a missing PEM must fail the opt-in startup, not become a host directory"
+            "a missing secrets directory must fail the opt-in startup, not be created by Docker"
         )
         assert 'chown 10001:10001 "$${incoming}"' in KALSHI_COMPOSE
+        assert 'chown 10001:10001 "$${production_incoming}"' in KALSHI_COMPOSE
         assert 'chmod 0400 "$${incoming}"' in KALSHI_COMPOSE
-        assert "RSAPrivateKey" in KALSHI_COMPOSE
+        assert 'chmod 0400 "$${production_incoming}"' in KALSHI_COMPOSE
+        assert KALSHI_COMPOSE.count("RSAPrivateKey") == 4
         assert "trap cleanup EXIT" in KALSHI_COMPOSE
-        assert 'rm -f "$${incoming}"' in KALSHI_COMPOSE
+        assert 'rm -f "$${incoming}" "$${production_incoming}"' in KALSHI_COMPOSE
+        assert "KALSHI_PRODUCTION_KEY_ID requires secrets/kalshi-production-private-key.pem" in KALSHI_COMPOSE
+        assert "secrets/kalshi-production-private-key.pem requires KALSHI_PRODUCTION_KEY_ID" in KALSHI_COMPOSE
         assert "condition: service_completed_successfully" in KALSHI_COMPOSE
 
-    def test_opt_in_gateway_sees_only_the_read_only_secret_volume(self):
+    def test_opt_in_gateway_sees_only_the_separate_read_only_secret_volumes(self):
         assert "KALSHI_DEMO_PRIVATE_KEY_PATH: /run/secrets/kalshi-demo-private-key.pem" in KALSHI_COMPOSE
+        assert "KALSHI_PRODUCTION_PRIVATE_KEY_PATH: /run/reference-secrets/kalshi-production-private-key.pem" in KALSHI_COMPOSE
         assert "kalshi_demo_key:/run/secrets:ro" in KALSHI_COMPOSE
         assert "kalshi_demo_key:/run/secrets\n" in KALSHI_COMPOSE
+        assert "kalshi_production_key:/run/reference-secrets:ro" in KALSHI_COMPOSE
+        assert "kalshi_production_key:/run/reference-secrets\n" in KALSHI_COMPOSE
         assert "-----BEGIN" not in KALSHI_COMPOSE
 
     def test_host_container_and_documented_paths_stay_aligned(self):
@@ -274,9 +282,15 @@ class TestCompose:
             ENV_EXAMPLE,
             re.M,
         )
+        assert re.search(
+            r"^KALSHI_PRODUCTION_PRIVATE_KEY_PATH=secrets/kalshi-production-private-key\.pem$",
+            ENV_EXAMPLE,
+            re.M,
+        )
         assert re.search(r"^/secrets/$", GITIGNORE, re.M)
         assert "-f Part2_Infrastructure/docker/compose.kalshi.yml" in SETUP
         assert "Part2_Infrastructure/secrets/kalshi-demo-private-key.pem" in SETUP
+        assert "Part2_Infrastructure/secrets/kalshi-production-private-key.pem" in SETUP
         assert "alphaengine-gateway:local" in COMPOSE
         assert "alphaengine-gateway:local" in KALSHI_COMPOSE
 

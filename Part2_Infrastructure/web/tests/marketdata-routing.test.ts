@@ -22,7 +22,9 @@
  */
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { loadBars, MarketDataUnavailableError } from "@/lib/marketdata";
 import { ADAPTERS } from "@/lib/providers/registry";
@@ -31,6 +33,10 @@ import { DATA_SOURCES } from "@/lib/types";
 
 /** A registry call that cannot reach the network and cannot see a real key. */
 const hermetic = { env: {} as NodeJS.ProcessEnv };
+const marketdataSource = readFileSync(
+  fileURLToPath(new URL("../lib/marketdata.ts", import.meta.url)),
+  "utf8",
+);
 
 describe("the symbol decides the feed", () => {
   it("classifies the three symbols the old code sent to a crypto venue", () => {
@@ -117,5 +123,8 @@ describe("the source label cannot drift from the provider list", () => {
       if (source === "synthetic") continue;
       assert.ok(barsCapable.has(source), `DATA_SOURCES names ${source}, which cannot serve bars`);
     }
+    assert.match(marketdataSource, /violation\.check === "bars\.coverage"/);
+    assert.match(marketdataSource, /sourced\.data\.length < bars/);
+    assert.match(marketdataSource, /continue;/);
   });
 });

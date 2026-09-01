@@ -15,24 +15,31 @@
  * reader take a durable claim off a volatile line — the same hazard
  * TraceConsole's `origin` tagging exists to prevent.
  *
- * NO TREND LINE, and the refusal is rendered where a reader would look for the
- * chart. Pairing needs both the opening and the closing still in a 600-event
- * ring shared with dispatch, cache and quota traffic; the longest outages are
- * the likeliest to lose their opening to eviction, so the surviving sample is
- * biased short and a line through it slopes toward a recovery time nobody
- * achieved. That is a wrong answer rather than an imprecise one.
+ * The trend is deliberately narrower than fleet MTTR: recovery duration for
+ * completed open→closed pairs retained by this instance. Open incidents break
+ * the line instead of becoming zeroes, and eviction stays visible because the
+ * longest incidents are the likeliest to lose their opening event first.
  */
 
 import { useCallback, useEffect, useState } from "react";
 
 import CategoryBars, { type BarRow } from "@/components/charts/CategoryBars";
+import { Grid, XAxis, linePath, linearScale, ticks, useMeasuredWidth } from "@/components/chart-kit";
 import DonutChart, { type DonutSlice } from "@/components/common/DonutChart";
 import type { TraceEvent } from "@/lib/observability";
-import { MIN_TRIPS_FOR_RATE, deriveRemediation } from "@/lib/remediation";
+import {
+  MIN_COMPLETED_FOR_TREND,
+  MIN_TRIPS_FOR_RATE,
+  deriveRecoveryTrend,
+  deriveRemediation,
+  recoveryTrendXPositions,
+} from "@/lib/remediation";
 import { usePolling } from "@/lib/use-polling";
 
 const POLL_MS = 15_000;
-
+const TREND_HEIGHT = 168;
+const TREND_MARGIN = { top: 12, right: 24, bottom: 28, left: 58 };
+const TREND_TIME = { hour: "2-digit", minute: "2-digit" } as const;
 interface EventsResponse {
   events: TraceEvent[];
   cursor: { oldest: number; latest: number; retained: number; capacity: number };
@@ -50,6 +57,7 @@ function duration(ms: number): string {
 export default function RemediationLedger({ active }: { active: boolean }) {
   const [data, setData] = useState<EventsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [trendRef, trendWidth] = useMeasuredWidth<HTMLDivElement>(680, data?.cursor.latest ?? 0);
 
   const load = useCallback(async () => {
     try {
@@ -83,6 +91,28 @@ export default function RemediationLedger({ active }: { active: boolean }) {
     data?.cursor ?? { oldest: 1, latest: 0, retained: 0, capacity: 0 },
   );
   const truncated = model.truncated || Boolean(data?.dropped);
+  const trend = deriveRecoveryTrend(model.pairs);
+  const trendView = trend.completed >= MIN_COMPLETED_FOR_TREND
+    ? (() => {
+        const width = Math.max(280, trendWidth);
+        const x0 = TREND_MARGIN.left;
+        const x1 = width - TREND_MARGIN.right;
+        const baseline = TREND_HEIGHT - TREND_MARGIN.bottom;
+        const peak = Math.max(...trend.points.map((point) => point.elapsedMs ?? 0));
+        const ceiling = Math.max(1_000, peak * 1.08);
+        const y = linearScale(0, ceiling, baseline, TREND_MARGIN.top);
+        const xPositions = recoveryTrendXPositions(trend.points, x0, x1);
+        return {
+          width, x0, x1, baseline, y, xPositions,
+          yTicks: ticks(0, ceiling, 4),
+          times: trend.points.map((point) => point.openedAt),
+          points: trend.points.map((point, index) => ({
+            x: xPositions[index],
+            y: point.elapsedMs == null ? null : y(point.elapsedMs),
+          })),
+        };
+      })()
+    : null;
 
   const byProvider = new Map<string, { auto: number; operator: number; open: number }>();
   for (const pair of model.pairs) {
@@ -209,6 +239,76 @@ export default function RemediationLedger({ active }: { active: boolean }) {
             </p>
           )}
 
+          <div className="remediation-ledger__trend" ref={trendRef}>
+            <p className="console-subhead" id="remediation-mttr-title">
+              Bounded retained-window MTTR proxy
+              <small>
+                {` — ${trend.completed} completed; ${trend.incomplete} incomplete; `}
+                {trend.meanMs == null ? "mean unavailable" : `mean ${duration(trend.meanMs)}`}
+              </small>
+            </p>
+            {trendView ? (
+              <>
+                <svg
+                  width="100%"
+                  height={TREND_HEIGHT}
+                  viewBox={`0 0 ${trendView.width} ${TREND_HEIGHT}`}
+                  role="img"
+                  aria-labelledby="remediation-mttr-title"
+                  aria-describedby="remediation-mttr-desc"
+                >
+                  <desc id="remediation-mttr-desc">
+                    Recovery duration for {trend.completed} completed circuit incidents in this
+                    instance&apos;s retained event window. {trend.incomplete} incomplete incidents are
+                    excluded from the mean and break the line.
+                  </desc>
+                  <Grid
+                    yTicks={trendView.yTicks}
+                    yScale={trendView.y}
+                    x0={trendView.x0}
+                    x1={trendView.x1}
+                    format={duration}
+                  />
+                  <path
+                    d={linePath(trendView.points)}
+                    fill="none"
+                    stroke="var(--series-1)"
+                    strokeWidth={1.75}
+                    strokeLinejoin="round"
+                    strokeLinecap="round"
+                  />
+                  {trendView.points.map((point, index) => point.y == null ? null : (
+                    <circle
+                      key={`${trend.points[index].provider}-${trend.points[index].openedAt}`}
+                      cx={point.x}
+                      cy={point.y}
+                      r={3}
+                      fill="var(--series-1)"
+                    />
+                  ))}
+                  <XAxis
+                    points={trendView.times}
+                    xPositions={trendView.xPositions}
+                    y={trendView.baseline}
+                    x0={trendView.x0}
+                    x1={trendView.x1}
+                    format={(time) => new Date(time).toLocaleTimeString("en-GB", TREND_TIME)}
+                  />
+                </svg>
+                <div className="legend">
+                  <span><i style={{ background: "var(--series-1)" }} /> completed recovery duration</span>
+                  <span className="muted">gaps are incomplete incidents, excluded from the proxy</span>
+                </div>
+              </>
+            ) : (
+              <p className="muted console-empty">
+                Fewer than {MIN_COMPLETED_FOR_TREND} completed incidents are retained. A single
+                recovery is a duration, not a trend; incomplete incidents are excluded rather than
+                plotted as zero.
+              </p>
+            )}
+          </div>
+
           <CategoryBars
             rows={rows}
             ariaLabel="Circuit trips by provider and how each closed"
@@ -264,36 +364,24 @@ export default function RemediationLedger({ active }: { active: boolean }) {
         </p>
       )}
 
-      {/* The refusal, rendered where a reader would look for the chart. The
-          headline stays on screen and the reasoning collapses — a one-line
-          refusal is read, and a 600-character one is skipped, so this makes the
-          refusal MORE prominent rather than less. That sentence described an
-          intention the file had not carried out; the reasoning now genuinely
-          sits behind the summary below, byte for byte, pinned present and
-          pinned folded in `disclosure-reliability.test.ts`.
-
-          TWO THINGS STAY. The headline, because a chart that is absent by
-          decision must say so without being opened — `breaker-machine.test.ts`
-          asserts it survives with every disclosure stripped. And the
-          truncation warning, because it changes what the counts ABOVE mean: a
-          caveat on a figure a reader is reading is not methodology. */}
+      {/* Scope and truncation stay visible because they change how the figure
+          above may be read; the mechanism and bias explanation may fold. */}
       <p className="research-note">
-        <strong>No MTTR trend is drawn.</strong>
+        <strong>Completed pairs only; this is not fleet MTTR or an SLA.</strong>
         {truncated && " Lines have already been evicted here, so the counts above are a floor."}
       </p>
 
       <details className="disclosure">
-        <summary>Why this sample cannot carry a trend</summary>
+        <summary>Why this trend is a bounded proxy</summary>
         <p className="research-note">
-          The sample surviving a bounded ring is biased short, so a trend through it would slope
-          toward a recovery time nobody achieved.
+          The sample surviving a bounded ring is biased short: long incidents are likelier to lose
+          their opening event before they close. The line describes retained matched pairs, not a
+          durable history.
         </p>
       </details>
 
-      {/* The refusal above already states the conclusion — the surviving
-          sample is biased short — so a summary saying it again charged the
-          reader twice for one sentence. This one names what is inside instead:
-          the pairing mechanism, and the scope these counts never leave. */}
+      {/* Pairing mechanics are separate from the visible scope statement: they
+          explain why this retained-window measurement cannot leave the instance. */}
       <details className="disclosure">
         <summary>How the pairing works, and what these numbers are not</summary>
         <p className="research-note">

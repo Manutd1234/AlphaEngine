@@ -70,7 +70,7 @@ export default function MakersSection(
           kicker="Makers"
           title="Independent maker views of one event"
           id="markets-dispersion-heading"
-          note="a signed channel, read only when this section is open"
+          note="a signed HTTP read, requested only while this section is open"
           lede="The signed channel returns independent professional quotes beyond the book’s most aggressive opinion."
         />
       }

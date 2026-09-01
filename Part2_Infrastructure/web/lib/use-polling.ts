@@ -24,9 +24,11 @@ export interface UsePollingOptions extends Omit<PollingOptions, "tick"> {
   tick: (context: PollingTickContext) => PollingTickResult | Promise<PollingTickResult>;
   /** Stop the loop without unmounting — a closed pane, an unconfigured desk. */
   enabled?: boolean;
+  /** Abort and restart immediately when the identity of the polled resource changes. */
+  restartKey?: unknown;
 }
 
-export function usePolling({ tick, enabled = true, intervalMs, ...rest }: UsePollingOptions): void {
+export function usePolling({ tick, enabled = true, restartKey, intervalMs, ...rest }: UsePollingOptions): void {
   const latest = useRef(tick);
   latest.current = tick;
 
@@ -44,5 +46,5 @@ export function usePolling({ tick, enabled = true, intervalMs, ...rest }: UsePol
     });
     loop.start();
     return () => loop.stop();
-  }, [enabled, intervalMs]);
+  }, [enabled, intervalMs, restartKey]);
 }

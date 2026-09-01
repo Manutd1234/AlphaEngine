@@ -80,8 +80,8 @@ export const CLAIMS: ReadonlyArray<{ claim: string; phrase: string; at?: number;
     phrase: "not screen price",
   },
   {
-    claim: "the CF Benchmarks passthrough is gated on an entitlement, not on signing",
-    phrase: "gated on an account entitlement, not on request signing",
+    claim: "an entitlement failure is only claimed after production authentication succeeds",
+    phrase: "authentication succeeded, but this account lacks access",
   },
   {
     claim: "coverage is one city, so nothing here is venue-wide",
@@ -101,12 +101,12 @@ export const CLAIMS: ReadonlyArray<{ claim: string; phrase: string; at?: number;
     phrase: "Not silence.",
   },
   {
-    claim: "empty is a measurement: makers do not quote a sandbox",
-    phrase: "Makers do not quote a sandbox",
+    claim: "empty is a completed authenticated measurement, not a failed read",
+    phrase: "signed HTTP poll completed with zero open requests",
   },
   {
-    claim: "available is not a price, it is several independent answers",
-    phrase: "Not a price.",
+    claim: "available is not one price, it is several independent answers",
+    phrase: "Several makers answered independently",
   },
   {
     claim: "a state the pane has not been taught is named rather than folded into the four",

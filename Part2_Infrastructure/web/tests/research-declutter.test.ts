@@ -35,6 +35,7 @@ const page = code(read("../app/dashboard/page.tsx"))
 const research = code(read("../components/ResearchWorkspace.tsx"));
 const banners = code(read("../components/research/ResearchBanners.tsx"));
 const sweepHook = code(read("../lib/use-sweep-run.ts"));
+const backtestRoute = code(read("../app/api/backtest/route.ts"));
 /** Every file the Research tab renders from, page shell included. */
 const RESEARCH_SOURCES = [
   page,
@@ -80,6 +81,10 @@ describe("the research view keeps one sweep trigger per condition", () => {
     assert.match(banners, /data\.warnings\.length > 0 &&/);
     assert.doesNotMatch(banners, /warnings\.map\(\(warning\) => \(\s*<div className="banner/);
     assert.equal((researchAll.match(/Inspect data health →/g) ?? []).length, 1);
+    assert.match(backtestRoute, /function appendDatasetWarnings/);
+    assert.match(backtestRoute, /if \(!target\.includes\(attributed\)\) target\.push\(attributed\)/);
+    assert.match(backtestRoute, /`\$\{req\.symbol\} at \$\{req\.interval\}`/);
+    assert.match(backtestRoute, /`Benchmark \$\{req\.benchmarkSymbol\} at \$\{req\.interval\}`/);
   });
 
   it("hands the decision section's data hand-off to the NextStepFooter", () => {

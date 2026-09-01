@@ -16,7 +16,16 @@
 
 import { fmt, priceDp, signedPct } from "@/lib/format";
 import type { LiveSnapshot } from "@/lib/livebook";
+import type { ExecutionSection } from "@/lib/sections";
 import { SYMBOLS, type Ticker } from "@/lib/venues";
+import { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
+import {
+  EQUITY_QUOTE_STALE_MS,
+  EQUITY_QUOTE_TTL_MS,
+  equityQuoteHealthLabel,
+  type EquityQuoteHealth,
+  type EquityQuotePreview,
+} from "./use-equity-quote";
 
 const STATUS_STYLE = {
   live: { icon: "●", label: "live" },
@@ -34,6 +43,121 @@ interface MarketWatchlistProps {
   tickerBySymbol: Record<string, Ticker>;
   /** Direction of each symbol's last real price change, for the tick flash. */
   tickDirection: Record<string, "up" | "down">;
+  equityHealth?: EquityQuoteHealth | null;
+}
+
+/**
+ * Equity market context for the two tabs whose crypto implementation is L2.
+ * A quote-backed paper route is useful evidence, so it stays visible while the
+ * absent licensed equity depth feed is named as one narrow boundary.
+ */
+export function EquityMarketPath({
+  symbol,
+  tabId,
+  activeId,
+  quote,
+  quotePending,
+  quoteHealth,
+  onOpenData,
+  onOpenResearch,
+}: {
+  symbol: string;
+  tabId: "liquidity" | "routing";
+  activeId: ExecutionSection;
+  quote: EquityQuotePreview | null;
+  quotePending: boolean;
+  quoteHealth: EquityQuoteHealth;
+  onOpenData: () => void;
+  onOpenResearch: () => void;
+}) {
+  const titleId = `equity-market-path-${tabId}`;
+  const quoteAsOf = quote
+    ? new Date(quote.asOf).toISOString().replace("T", " ").replace(".000Z", " UTC")
+    : null;
+  return (
+    <WorkspaceSubtabPanel workspaceId="execution" tabId={tabId} activeId={activeId}>
+      <section className="card console-card" aria-labelledby={titleId}>
+        <header className="section-heading compact">
+          <div>
+            <span className="page-kicker">Equity market path</span>
+            <h2 id={titleId}>{symbol} provider quote &amp; paper execution</h2>
+          </div>
+          <span className="section-note">
+            {quotePending && quoteHealth.state === "fresh"
+              ? "REST quote refreshing" : equityQuoteHealthLabel(quoteHealth)}
+          </span>
+        </header>
+
+        <dl className="console-facts" aria-label={`${symbol} equity quote evidence`}>
+          <div>
+            <dt>Last provider quote</dt>
+            <dd>
+              {quote
+                ? `${quote.currency} ${fmt(quote.price, priceDp(quote.price))}`
+                : quotePending ? "Checking…" : "— no answer"}
+            </dd>
+          </div>
+          <div>
+            <dt>Provider</dt>
+            <dd>{quote?.source ?? (quotePending ? "Routing…" : "— no provenance")}</dd>
+          </div>
+          <div>
+            <dt>Quote as of</dt>
+            <dd>{quoteAsOf ? <time dateTime={quote?.asOf}>{quoteAsOf}</time> : "— no timestamp"}</dd>
+          </div>
+          <div>
+            <dt>Delivery</dt>
+            <dd>
+              {quote
+                ? quote.synthetic ? "Synthetic preview — display only"
+                  : quote.delayed ? "Provider delayed/EOD tier" : "Provider current tier"
+                : "— not observed"}
+            </dd>
+          </div>
+          <div className="console-facts__span">
+            <dt>Refresh health</dt>
+            <dd>
+              {equityQuoteHealthLabel(quoteHealth)}
+              <small className="muted console-wrap">
+                {`stale after ${EQUITY_QUOTE_STALE_MS / 1_000} s; live-status TTL ${EQUITY_QUOTE_TTL_MS / 60_000} min; expired values stay as context`}
+              </small>
+            </dd>
+          </div>
+        </dl>
+
+        <p className="console-subhead">Available paper MARKET path</p>
+        <ol className="console-lineage" aria-label={`${symbol} paper order route`}>
+          <li>
+            <strong>Provider registry</strong>
+            <small>
+              {quote
+                ? `${quote.source} supplied the display quote above.`
+                : "The REST quote chain is available; no usable preview is retained yet."}
+            </small>
+          </li>
+          <li>
+            <strong>Risk gateway</strong>
+            <small>Order submission re-fetches and validates a server-side USD quote; browser prices are never trusted.</small>
+          </li>
+          <li>
+            <strong>Paper execution</strong>
+            <small>MARKET only. The gateway returns a modelled paper fill, not a broker order or venue allocation.</small>
+          </li>
+        </ol>
+
+        <div className="banner context-change">
+          <span aria-hidden>i</span>
+          <div>
+            <strong>Direct equity L2 is not provisioned.</strong> That limits depth and live TCA; it does not take the REST quote or paper-order route down.
+          </div>
+        </div>
+        <div className="page-actions">
+          <button type="button" onClick={onOpenData}>Inspect quote lineage</button>
+          <button type="button" onClick={onOpenResearch}>Review research context</button>
+        </div>
+      </section>
+    </WorkspaceSubtabPanel>
+  );
 }
 
 export default function MarketWatchlist({
@@ -43,6 +167,7 @@ export default function MarketWatchlist({
   snap,
   tickerBySymbol,
   tickDirection,
+  equityHealth,
 }: MarketWatchlistProps) {
   return (
     <section className="card instrument-panel market-context-card" aria-labelledby="market-watchlist-title">
@@ -52,7 +177,11 @@ export default function MarketWatchlist({
           <h2 id="market-watchlist-title">Watchlist</h2>
         </div>
         <span className={`market-context-card__mode${liveSupported ? " is-live" : ""}`}>
-          <i aria-hidden /> {liveSupported ? "Direct L2 streaming" : "Quote coverage only"}
+          <i aria-hidden /> {liveSupported
+            ? "Direct L2 streaming"
+            : equityHealth
+              ? `REST quote ${equityHealth.state}${equityHealth.refreshFailed ? "; refresh failed" : ""}`
+              : "Quote coverage only"}
         </span>
       </div>
 

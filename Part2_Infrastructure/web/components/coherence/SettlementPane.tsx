@@ -85,10 +85,17 @@ function cityLabel(city: string | null | undefined): string {
 export type SettlementView = "reading" | "formation" | "pending";
 
 function ReferenceRate({ state, detail }: { state: string; detail: string }) {
+  if (state === "authentication_required") {
+    return (
+      <p className="coh-settle__standing">
+        <span aria-hidden="true">○</span> Reference rate needs a signed production credential. {detail ? `${detail}.` : ""}
+      </p>
+    );
+  }
   if (state === "entitlement_required") {
     return (
       <p className="coh-settle__standing">
-        <span aria-hidden="true">○</span> Reference rate unavailable — gated on an account entitlement, not on request signing.
+        <span aria-hidden="true">○</span> Reference-rate authentication succeeded, but this account lacks access. {detail ? `${detail}.` : ""}
       </p>
     );
   }

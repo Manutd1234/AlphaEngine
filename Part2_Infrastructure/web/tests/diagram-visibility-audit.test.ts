@@ -23,7 +23,7 @@ test("diagram paint audit does not mistake analytical gap notes for loading", ()
   for (const reading of [
     "No poll has landed yet, so there is nothing to plot against time.",
     "Two horizons are drawn as gaps because no source resolves them.",
-    "Reference rate unavailable — entitlement required.",
+    "Reference rate needs a signed production credential.",
   ]) {
     assert.equal(isDiagramLoadingText(reading), false, reading);
   }

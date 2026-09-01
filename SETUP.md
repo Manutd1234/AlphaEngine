@@ -172,10 +172,10 @@ cd Part2_Infrastructure/web && npm run dev:web
 Run the gateway with `Part2_Infrastructure` as the working directory — `main.py`
 is the entrypoint and it resolves the DuckDB audit log relative to itself.
 
-### Optional: signed Kalshi demo reads in Docker Compose
+### Optional: signed Kalshi reads in Docker Compose
 
 The default Compose application is intentionally keyless, so a clean clone can
-always start with `docker compose up -d --build`. To enable only the signed demo
+always start with `docker compose up -d --build`. To enable the signed demo
 channel, set `KALSHI_DEMO_KEY_ID` in `Part2_Infrastructure/.env`, leave
 `KALSHI_DEMO_PRIVATE_KEY_PATH=secrets/kalshi-demo-private-key.pem`, and save the
 matching RSA private key at:
@@ -193,12 +193,26 @@ docker compose -f docker-compose.yml \
   up -d --build
 ```
 
-The override refuses a missing or non-RSA PEM before starting the gateway. It
-copies the key into a private Docker volume as UID 10001 with mode `0400`, then
-mounts that volume read-only at
+The override refuses a missing or non-RSA demo PEM before starting the gateway.
+It copies the key into a private Docker volume as UID 10001 with mode `0400`,
+then mounts that volume read-only at
 `/run/secrets/kalshi-demo-private-key.pem`. The relative value in `.env` remains
 correct for a Python gateway launched directly on the host; the override sets
 the fixed container path only inside Compose.
+
+The production reference credential is independent and optional. Demo-only
+startup needs no production file or key ID. To enable it, set
+`KALSHI_PRODUCTION_KEY_ID` and save the matching production RSA PEM at:
+
+```text
+Part2_Infrastructure/secrets/kalshi-production-private-key.pem
+```
+
+The override rejects either half on its own, stages the production PEM in a
+separate private volume, and mounts it read-only at
+`/run/reference-secrets/kalshi-production-private-key.pem`. Authentication does
+not grant the CF Benchmarks product entitlement; that remains an account-side
+Kalshi prerequisite.
 
 | Service | URL |
 |---|---|

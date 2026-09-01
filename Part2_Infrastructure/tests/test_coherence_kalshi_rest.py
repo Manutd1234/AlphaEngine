@@ -50,7 +50,6 @@ class TestEnvironmentAwareFailover:
             budget=budget(),
         )
         result = await made.exchange_status()
-
         assert result.status == 200
         assert visited == [
             urlsplit(tunables.DEMO_BASE_URL).hostname,
@@ -101,6 +100,8 @@ class TestEnvironmentAwareFailover:
     def test_a_signed_client_refuses_production_hosts_before_any_request(self):
         with pytest.raises(ValueError, match="demo API hosts"):
             KalshiClient(base_url=tunables.PUBLIC_BASE_URL, signed=True, budget=budget())
+        production = KalshiClient(base_url=tunables.PUBLIC_BASE_URL, signing_environment="production", budget=budget())
+        assert production.signing_environment == "production"
 
     @pytest.mark.parametrize(
         ("base_url", "failover_url"),
@@ -353,6 +354,11 @@ class TestRequestConstruction:
         assert signed == [
             ("/trade-api/v2/events/KX%2FODD%3F%20NAME", tunables.DEMO_BASE_URL),
         ]
+
+        production = KalshiClient(base_url=tunables.PUBLIC_BASE_URL, failover_url="", signing_environment="production",
+                                  transport=httpx.MockTransport(handler), budget=budget())
+        await production.get("/cfbenchmarks/values", {"id": "BRTI"})
+        assert signed[-1] == ("/trade-api/v2/cfbenchmarks/values", tunables.PUBLIC_BASE_URL)
 
     @pytest.mark.anyio
     async def test_signed_401_names_a_signed_request(self, monkeypatch):

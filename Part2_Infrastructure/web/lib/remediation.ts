@@ -11,16 +11,11 @@
  * WHAT THIS SUPPORTS: a count of trips, a split by how each was closed, and a
  * distribution of how long circuits stayed open.
  *
- * WHAT IT STILL REFUSES, and why the refusal is not a caveat that a caption
- * could carry:
- *
- *   A TREND OVER TIME. Pairing needs both the opening and the closing line
- *   still in a 600-event ring shared with dispatch, cache, quota and upstream
- *   traffic. The longest outages are the likeliest to lose their opening line
- *   to eviction — so the surviving sample is BIASED SHORT, and a line through
- *   it slopes toward a recovery time nobody achieved. That is a wrong answer,
- *   not an imprecise one, and no amount of labelling fixes a chart whose bias
- *   points the same way as the flattering conclusion.
+ * WHAT A TREND MAY SAY: the durations of completed open→closed pairs that
+ * still survive in this instance's retained ring. It is an operational
+ * diagnostic, explicitly labelled as a bounded-window MTTR proxy. Unresolved
+ * trips are gaps, never zero-duration recoveries, and eviction remains a
+ * visible bias warning rather than being hidden in methodology copy.
  *
  * The bounds it does carry as captions: per function instance, bounded ring,
  * reset by redeploy and by Clear telemetry, and a closure is not a fix — one
@@ -31,6 +26,8 @@ import type { TraceEvent } from "@/lib/observability";
 
 /** Below this a rate is the sample size talking. 1/1 rendered as 100% is theatre. */
 export const MIN_TRIPS_FOR_RATE = 3;
+/** One completed incident is a measurement, but two are the minimum for a trend. */
+export const MIN_COMPLETED_FOR_TREND = 2;
 
 export interface BreakerPair {
   provider: string;
@@ -40,6 +37,21 @@ export interface BreakerPair {
   /** Null while unresolved — an open circuit has no recovery to attribute. */
   by: "automatic" | "operator" | null;
   failures: number | null;
+}
+
+export interface RecoveryTrendPoint {
+  provider: string;
+  openedAt: number;
+  /** Null is an unresolved trip: retained as a line gap, excluded from MTTR. */
+  elapsedMs: number | null;
+}
+
+export interface RecoveryTrend {
+  points: RecoveryTrendPoint[];
+  completed: number;
+  incomplete: number;
+  /** Mean over completed pairs only; null when none have closed. */
+  meanMs: number | null;
 }
 
 export interface RemediationModel {
@@ -64,6 +76,47 @@ export interface RemediationModel {
 
 const num = (value: unknown): number | null =>
   typeof value === "number" && Number.isFinite(value) ? value : null;
+
+/**
+ * The exact sample the retained-window chart is allowed to draw.
+ *
+ * Open incidents stay in the ordered point sequence as nulls so `linePath`
+ * breaks rather than joining two recoveries across an unresolved trip. They
+ * never enter the denominator, which prevents an outage still in progress
+ * from masquerading as an instant recovery.
+ */
+export function deriveRecoveryTrend(pairs: BreakerPair[]): RecoveryTrend {
+  const points = [...pairs]
+    .sort((a, b) => a.openedAt - b.openedAt)
+    .map((pair) => ({
+      provider: pair.provider,
+      openedAt: pair.openedAt,
+      elapsedMs: pair.closedAt != null && pair.elapsedMs != null ? pair.elapsedMs : null,
+    }));
+  const durations = points.flatMap((point) => point.elapsedMs == null ? [] : [point.elapsedMs]);
+
+  return {
+    points,
+    completed: durations.length,
+    incomplete: points.length - durations.length,
+    meanMs: durations.length
+      ? durations.reduce((total, value) => total + value, 0) / durations.length
+      : null,
+  };
+}
+
+/** Map chronological incident openings onto their real elapsed-time geometry. */
+export function recoveryTrendXPositions(
+  points: RecoveryTrendPoint[],
+  x0: number,
+  x1: number,
+): number[] {
+  if (!points.length) return [];
+  const start = points[0].openedAt;
+  const end = points[points.length - 1].openedAt;
+  if (end === start) return points.map(() => (x0 + x1) / 2);
+  return points.map((point) => x0 + ((point.openedAt - start) / (end - start)) * (x1 - x0));
+}
 
 export function deriveRemediation(
   events: TraceEvent[],

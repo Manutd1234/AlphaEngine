@@ -31,15 +31,24 @@ describe("gateway and Kalshi rotation are one guarded transaction", () => {
       workflow,
       /KALSHI_DEMO_PRIVATE_KEY_PEM_B64: \$\{\{ secrets\.KALSHI_DEMO_PRIVATE_KEY_PEM_B64 \}\}/,
     );
+    assert.match(workflow, /KALSHI_PRODUCTION_KEY_ID: \$\{\{ secrets\.KALSHI_PRODUCTION_KEY_ID \}\}/);
+    assert.match(
+      workflow,
+      /KALSHI_PRODUCTION_PRIVATE_KEY_PEM_B64: \$\{\{ secrets\.KALSHI_PRODUCTION_PRIVATE_KEY_PEM_B64 \}\}/,
+    );
     assert.match(workflow, /put KALSHI_DEMO_PRIVATE_KEY_PATH "\$KALSHI_KEY_PATH"/);
+    assert.match(
+      workflow,
+      /put KALSHI_PRODUCTION_PRIVATE_KEY_PATH "\$KALSHI_PRODUCTION_KEY_PATH"/,
+    );
     assert.doesNotMatch(
       workflow,
-      /put KALSHI_DEMO_PRIVATE_KEY_PEM_B64/,
-      "the private-key bytes must never enter the container environment",
+      /put KALSHI_(?:DEMO|PRODUCTION)_PRIVATE_KEY_PEM_B64/,
+      "private-key bytes must never enter the container environment",
     );
   });
 
-  it("requires a configured production pair but permits an intentionally keyless revoke", () => {
+  it("requires the demo pair and rejects a half-configured optional production reference pair", () => {
     const start = workflow.indexOf("- name: Required secrets are present");
     const end = workflow.indexOf("- name: Pull, swap, verify, roll back on failure", start);
     assert.ok(start > 0 && end > start, "the deploy credential gate was not found");
@@ -57,6 +66,43 @@ describe("gateway and Kalshi rotation are one guarded transaction", () => {
       /missing\+=\("KALSHI_DEMO_(?:KEY_ID|PRIVATE_KEY_PEM_B64)"\)/,
       "revoke=1 with both credentials absent must reach the remote tombstone transaction",
     );
+    assert.match(
+      gate,
+      /\[ -n "\$KALSHI_PRODUCTION_KEY_ID" \] && \[ -z "\$KALSHI_PRODUCTION_PRIVATE_KEY_PEM_B64" \]/,
+    );
+    assert.match(
+      gate,
+      /\[ -z "\$KALSHI_PRODUCTION_KEY_ID" \] && \[ -n "\$KALSHI_PRODUCTION_PRIVATE_KEY_PEM_B64" \]/,
+    );
+    assert.doesNotMatch(
+      gate,
+      /missing\+=\("KALSHI_PRODUCTION_(?:KEY_ID|PRIVATE_KEY_PEM_B64)"\)/,
+      "both production secrets absent is allowed and preserves the deployed production pair",
+    );
+    assert.match(gate, /KALSHI_PRODUCTION_REVOKE must be 0 or 1/);
+    assert.match(gate, /KALSHI_PRODUCTION_REVOKE=1 conflicts with a configured production credential/);
+    const productionTombstone = workflow.indexOf("WITHOUT_KALSHI_PRODUCTION=");
+    const productionRevoke = workflow.lastIndexOf(
+      'if [ "$KALSHI_PRODUCTION_REVOKE" = "1" ]; then',
+      productionTombstone,
+    );
+    assert.ok(productionTombstone > 0 && productionRevoke > 0);
+    assert.doesNotMatch(
+      workflow.slice(productionRevoke, productionTombstone),
+      /KALSHI_PRODUCTION_KEY_ID:-/,
+      "ordinary secret absence must not enter the production tombstone transaction",
+    );
+    assert.doesNotMatch(
+      workflow,
+      /if \[ -z "\$\{KALSHI_PRODUCTION_KEY_ID:-\}" \]; then/,
+      "an unrelated deploy with no rotation secrets must preserve the active production pair",
+    );
+    assert.match(workflow, /sed -E '\/\^KALSHI_PRODUCTION_\(KEY_ID\|PRIVATE_KEY_PATH\)=\/d'/);
+    assert.match(
+      workflow,
+      /printf 'KALSHI_PRODUCTION_KEY_ID=\\nKALSHI_PRODUCTION_PRIVATE_KEY_PATH=\\n' >> "\$PRESERVED"/,
+      "explicit revocation must tombstone an old host-side production credential",
+    );
   });
 
   it("accepts normal signing or explicit revocation only after a token-authenticated Makers proof", () => {
@@ -73,6 +119,11 @@ describe("gateway and Kalshi rotation are one guarded transaction", () => {
     assert.match(canary, /"\(empty\|available\)"/);
     assert.match(canary, /rollback_gateway/);
     assert.match(canary, /refusing signing_unavailable, refused, and transport-degraded states/);
+    assert.match(workflow, /KALSHI_PRODUCTION_REVOKE: \$\{\{ vars\.KALSHI_PRODUCTION_REVOKE \|\| '0' \}\}/);
+    assert.match(
+      workflow,
+      /if \[ "\$KALSHI_PRODUCTION_REVOKE" = "1" \]; then[\s\S]*status\("production"\)[\s\S]*key_id_missing[\s\S]*Production reference credential revocation verified/,
+    );
   });
 
   it("distinguishes a verified absent prior gateway from an inspect failure", () => {
@@ -132,10 +183,16 @@ describe("gateway and Kalshi rotation are one guarded transaction", () => {
   it("uses a run marker to detect interruption across gateway and TLS cutover", () => {
     const markerInstall = workflow.indexOf('mv "$CUTOVER_PENDING_NEXT" "$CUTOVER_PENDING"');
     const keyStaging = workflow.indexOf("==> Staging and verifying the Kalshi demo private key");
+    const productionKeyStaging = workflow.indexOf(
+      "==> Staging and verifying the Kalshi production reference private key",
+    );
     const envInstall = workflow.indexOf('mv "$MERGED" "$ENV_FILE"', markerInstall);
     assert.ok(
-      markerInstall > 0 && keyStaging > markerInstall && envInstall > keyStaging,
-      "marker must precede key staging and the live env commit",
+      markerInstall > 0
+        && keyStaging > markerInstall
+        && productionKeyStaging > keyStaging
+        && envInstall > productionKeyStaging,
+      "marker must precede both key staging operations and the live env commit",
     );
     assert.match(
       workflow,
@@ -210,6 +267,23 @@ describe("gateway and Kalshi rotation are one guarded transaction", () => {
       /kalshi-demo-private-key\.pem\.rollback|kalshi-demo-private-key\.pem\.pending/,
       "immutable run-scoped PEMs must never be swapped in place",
     );
+    assert.match(workflow, /KALSHI_PRODUCTION_KEY_VOLUME: alphaengine_kalshi_production_key/);
+    assert.match(workflow, /kalshi-production-private-key-\$\{KALSHI_KEY_SLOT\}\.pem/);
+    assert.match(
+      workflow,
+      /KALSHI_PRODUCTION_PRIVATE_KEY_PATH="\$KALSHI_PRODUCTION_KEY_PATH"/,
+    );
+    assert.match(workflow, /-v "\$\{KALSHI_PRODUCTION_KEY_VOLUME\}:\/run\/reference-secrets:ro"/);
+    assert.match(
+      workflow,
+      /KalshiClient\(base_url=tunables\.PUBLIC_BASE_URL, signing_environment="production"\)\.account_limits\(\)/,
+      "the production key ID and PEM must complete an authenticated production read before cutover",
+    );
+    assert.doesNotMatch(
+      workflow,
+      /kalshi-production-private-key\.pem\.rollback|kalshi-production-private-key\.pem\.pending/,
+      "the production PEM must also rotate as an immutable run-scoped file",
+    );
   });
 
   it("rolls TLS back through a verified config path and can fall forward", () => {
@@ -255,6 +329,8 @@ describe("gateway and Kalshi rotation are one guarded transaction", () => {
     assert.ok(prepared > 0 && removed > prepared && restored > removed
       && healthy > restored && envCommitted > healthy && keyRetired > envCommitted);
     assert.match(rollback, /fall_forward_gateway/);
+    assert.match(tls, /KALSHI_PRODUCTION_KEY_VOLUME/);
+    assert.match(tls, /-v "\$\{KALSHI_PRODUCTION_KEY_VOLUME\}:\/run\/reference-secrets:ro"/);
   });
 
   it("clears the cross-service marker only after complete rollback or key pruning", () => {
@@ -266,9 +342,16 @@ describe("gateway and Kalshi rotation are one guarded transaction", () => {
     );
     assert.match(tls, /clear_cutover_after_rollback "\$GATEWAY_ROLLBACK_OK" "\$CADDY_ROLLBACK_OK"/);
     const prune = tls.lastIndexOf('find /run/secrets -maxdepth 1');
+    const productionPrune = tls.lastIndexOf('find /run/reference-secrets -maxdepth 1');
     const finalMarkerClear = tls.lastIndexOf('rm -f "$CUTOVER_PENDING"');
-    assert.ok(prune > 0 && finalMarkerClear > prune,
-      "normal commit must prune inactive keys before clearing the run marker");
+    assert.ok(prune > 0 && productionPrune > prune && finalMarkerClear > productionPrune,
+      "normal commit must prune inactive demo and production keys before clearing the run marker");
+    assert.match(tls, /ACTIVE_KALSHI_PRODUCTION_KEY_PATH=.*KALSHI_PRODUCTION_PRIVATE_KEY_PATH/);
+    assert.match(
+      tls,
+      /kalshi-production-private-key\*" ! -name "\$ACTIVE_KALSHI_PRODUCTION_KEY_NAME" -delete/,
+      "pruning must preserve the production key named by the committed environment",
+    );
     const imagePrune = tls.lastIndexOf('docker image prune -f');
     assert.ok(imagePrune > finalMarkerClear,
       "rollback images must remain until gateway, key and TLS commit is irreversible");

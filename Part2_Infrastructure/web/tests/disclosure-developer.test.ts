@@ -133,11 +133,11 @@ const MOVED = [
     ownerClass: "developer-cp-state-guide",
     summary: "How to read the State column",
     text:
-      "Production schema and Monte Carlo numerics take their verdicts from the current health "
-      + "payload. The first three rows describe configured comparisons only; this tab received no "
-      + "live CI attestation for this commit.",
-    why: "the first sentence identifies the only health-backed rows, while the second prevents"
-      + " configured repository wiring from impersonating a passing CI run",
+      "Gateway OpenAPI, runtime payload contracts and Monte Carlo numerics take their verdicts "
+      + "from the current health payload. Gateway payloads and Risk parity remain unverified because "
+      + "that payload carries no cross-runtime result for either comparison.",
+    why: "the first sentence identifies every health-backed row, while the second keeps both"
+      + " configured cross-runtime comparisons from borrowing unrelated live evidence",
   },
 ] as const;
 

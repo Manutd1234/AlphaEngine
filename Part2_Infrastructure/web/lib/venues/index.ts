@@ -27,8 +27,18 @@
  * on what may be sent. With `opts` omitted the walk is the parity path.
  */
 
-export { SYMBOLS } from "./types";
-export type { Dislocation, ExecutionEstimate, Level, RoutingLeg, Side, TcaReport, VenueBook, VenueName } from "./types";
+export { SYMBOLS, marketCapabilitiesFor } from "./types";
+export type {
+  Dislocation,
+  ExecutionEstimate,
+  Level,
+  MarketCapabilities,
+  RoutingLeg,
+  Side,
+  TcaReport,
+  VenueBook,
+  VenueName,
+} from "./types";
 export { DEPTH_BAND_BPS, bandImbalance, depthUsd, depthWithinBps, spreadBps } from "./book-maths";
 export { FILL_TOLERANCE, absorbs, consolidatedMid, passiveQuote, smartRoute, walkBook } from "./fill-tolerance";
 export type { PassiveQuote, SmartRouteOptions, SmartRouteResult } from "./fill-tolerance";
