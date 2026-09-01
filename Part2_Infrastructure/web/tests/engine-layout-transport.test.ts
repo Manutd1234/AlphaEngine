@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import {
   isExpectedApiUnavailable,
   isExpectedExternalStreamShutdown,
+  isExpectedPrivateAccessDecision,
 } from "../scripts/engine-layout-audit.mjs";
 
 describe("the rendered audit keeps honest transport unavailability distinct from UI errors", () => {
@@ -15,6 +16,19 @@ describe("the rendered audit keeps honest transport unavailability distinct from
     assert.equal(isExpectedApiUnavailable(
       "TypeError: Cannot read properties of undefined",
       { url: "http://localhost:3101/api/gateway/coherence/books" },
+    ), false);
+  });
+
+  it("separates the protected RFQ route's guest policy answer from transport errors", () => {
+    const unauthorized = "Failed to load resource: the server responded with a status of 401 (Unauthorized)";
+    const forbidden = "Failed to load resource: the server responded with a status of 403 (Forbidden)";
+    const rfq = { url: "http://localhost:3101/api/gateway/coherence/rfq" };
+    assert.equal(isExpectedPrivateAccessDecision(unauthorized, rfq), true);
+    assert.equal(isExpectedPrivateAccessDecision(forbidden, rfq), true);
+    assert.equal(isExpectedPrivateAccessDecision(unauthorized, { url: "http://localhost:3101/api/gateway/coherence/books" }), false);
+    assert.equal(isExpectedPrivateAccessDecision(
+      "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+      rfq,
     ), false);
   });
 
