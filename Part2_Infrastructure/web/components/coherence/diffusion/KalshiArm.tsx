@@ -58,6 +58,38 @@ function SurvivalChart({ data }: { data: CoherenceEpisodes }) {
   const sampleLongest = Math.max(1, ...points.map((point) => point.t));
   const [probe, setProbe] = useState(() => sampleLongest / 2);
   if (points.length < 2) {
+    const measured = data.episodes
+      .filter((episode) => episode.lifetime_s != null)
+      .map((episode) => ({ episode, seconds: Number(episode.lifetime_s) }))
+      .filter((row) => Number.isFinite(row.seconds) && row.seconds >= 0);
+    const roundTrip = Number(data.round_trip_s);
+    if (measured.length) {
+      return (
+        <ValueStrip
+          caption="First recorded lifetimes, before a survival curve is estimable"
+          ariaLabel={`${measured.length} closed episode lifetime measurements compared with the recorded read round trip`}
+          reading={
+            `${measured.length} closed ${measured.length === 1 ? "episode is" : "episodes are"} measured and visible. `
+            + "A survival probability is withheld until a second independent closure makes a step curve meaningful."
+          }
+          missing={data.median_withheld_reason}
+          rows={[
+            ...measured.map(({ episode, seconds }) => ({
+              label: episode.event_ticker,
+              value: seconds,
+              text: `${episode.lifetime_s}s`,
+              title: `${episode.event_ticker} remained dislocated for ${episode.lifetime_s} seconds.`,
+            })),
+            ...(Number.isFinite(roundTrip) ? [{
+              label: data.round_trip_source === "measured" ? "Timed read round trip" : "Assumed round trip",
+              value: roundTrip,
+              text: `${data.round_trip_s}s`,
+              title: `The execution comparison window is ${data.round_trip_s} seconds.`,
+            }] : []),
+          ]}
+        />
+      );
+    }
     return (
       <Figure
         caption="How long a violation survives"
