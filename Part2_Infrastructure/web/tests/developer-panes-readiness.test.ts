@@ -86,6 +86,22 @@ describe("schema rows report only evidence the health payload carries", () => {
     horizonBars: 2,
     detail: "The Node result is byte-exact.",
   };
+  const payloadsMatch = {
+    kind: "gateway_payload_parity" as const,
+    state: "match" as const,
+    passed: true,
+    expectedDigest: "c".repeat(64),
+    observedDigest: "c".repeat(64),
+    checks: 8,
+    detail: "All canonical payloads passed.",
+  };
+  const riskMatch = {
+    kind: "risk_parity" as const,
+    state: "match" as const,
+    passed: true,
+    checks: 50,
+    detail: "All cross-language risk assertions passed.",
+  };
   const cleanLedger = {
     scope: "gateway-ledger" as const,
     evaluated: 7,
@@ -102,11 +118,11 @@ describe("schema rows report only evidence the health payload carries", () => {
     byProvider: {},
   };
 
-  it("maps live evidence without lending it to configured cross-runtime comparisons", () => {
+  it("maps every implemented contract comparison from its own evidence", () => {
     const rows = schemaGateRows(view({
       platform: {},
       validation: cleanLedger,
-      delivery: { schema: schemaMatch, numerics: numericsMatch },
+      delivery: { schema: schemaMatch, payloads: payloadsMatch, risk: riskMatch, numerics: numericsMatch },
     }));
     assert.deepEqual(rows.map((row) => row.id), [
       "gateway-openapi",
@@ -118,13 +134,12 @@ describe("schema rows report only evidence the health payload carries", () => {
     const states = Object.fromEntries(rows.map((row) => [row.id, row.state]));
     assert.equal(states["gateway-openapi"].label, "Exact match");
     assert.equal(states["gateway-openapi"].tone, "good");
-    assert.equal(states["gateway-payloads"].label, "Unverified");
-    assert.equal(states["gateway-payloads"].unmeasured, true);
-    assert.match(states["gateway-payloads"].detail, /No live cross-runtime result/);
+    assert.equal(states["gateway-payloads"].label, "8 families valid");
+    assert.equal(states["gateway-payloads"].tone, "good");
     assert.equal(states["runtime-payloads"].label, "Clean");
     assert.equal(states["runtime-payloads"].tone, "good");
-    assert.equal(states["risk-parity"].label, "Unverified");
-    assert.equal(states["risk-parity"].unmeasured, true);
+    assert.equal(states["risk-parity"].label, "Fixture-exact");
+    assert.equal(states["risk-parity"].tone, "good");
     assert.equal(states["mc-parity"].label, "Byte-exact");
     assert.equal(states["mc-parity"].tone, "good");
   });
@@ -135,14 +150,16 @@ describe("schema rows report only evidence the health payload carries", () => {
       validation: { ...cleanLedger, passed: 6, fatal: 1 },
       delivery: {
         schema: { ...schemaMatch, state: "mismatch", passed: false, observedDigest: "c".repeat(64) },
+        payloads: { ...payloadsMatch, state: "mismatch", passed: false, observedDigest: "d".repeat(64) },
+        risk: { ...riskMatch, state: "mismatch", passed: false },
         numerics: { ...numericsMatch, state: "mismatch", passed: false, observedDigest: "d".repeat(64) },
       },
     }));
     const states = Object.fromEntries(rows.map((row) => [row.id, row.state]));
     assert.equal(states["gateway-openapi"].tone, "bad");
-    assert.equal(states["gateway-payloads"].unmeasured, true);
+    assert.equal(states["gateway-payloads"].tone, "bad");
     assert.equal(states["runtime-payloads"].tone, "bad");
-    assert.equal(states["risk-parity"].unmeasured, true);
+    assert.equal(states["risk-parity"].tone, "bad");
     assert.equal(states["mc-parity"].tone, "bad");
   });
 
@@ -173,10 +190,10 @@ describe("schema rows report only evidence the health payload carries", () => {
     assert.equal(fatal.tone, "bad");
   });
 
-  it("states why the unrelated risk-parity comparison remains unverified", () => {
-    const state = riskParityState();
+  it("keeps risk parity unverified on an older payload that carries no evidence", () => {
+    const state = riskParityState(view({ delivery: { schema: schemaMatch } }));
     assert.equal(state.unmeasured, true);
-    assert.match(state.detail, /no cross-language risk-parity result/);
+    assert.match(state.detail, /no cross-language risk-parity evidence/);
   });
 });
 
