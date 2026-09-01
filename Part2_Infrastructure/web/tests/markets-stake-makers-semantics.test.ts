@@ -28,13 +28,14 @@ describe("RFQ state semantics", () => {
     assert.match(rfq, /openRequests=\{measuredOpenRequests\(data\)\}/);
   });
 
-  it("draws terminal outcomes as branches rather than a progress ladder", () => {
-    assert.match(channel, /function activePath/);
-    assert.match(channel, /alternative outcomes, not earlier steps/);
-    assert.doesNotMatch(channel, /Request outcomes in order/);
-    assert.match(channel, /minWidth=\{MIN_WIDTH\}/);
-    assert.equal((channel.match(/<title>/g) ?? []).length, 1, "each state must contribute exactly one selectable mark");
-    assert.match(channelCss, /\.nodeHit\s*\{[^}]*pointer-events:\s*all;/s);
+  it("draws a contained request trace without conflating unreached stages with failed connections", () => {
+    assert.match(channel, /function requestTrace/);
+    assert.match(channel, /Later stages are marked not reached instead of being reported as failed connections/);
+    assert.match(channel, /<ol className=\{styles\.trace\} aria-label="RFQ request stages">/);
+    assert.match(channel, /name: "Gateway route"[\s\S]*?name: "Account policy"[\s\S]*?name: "Signed transport"/);
+    assert.doesNotMatch(channel, /<Plot|<svg|MIN_WIDTH/);
+    assert.match(channelCss, /\.trace\s*\{[^}]*grid-template-columns:\s*repeat\(5, minmax\(0, 1fr\)\);/s);
+    assert.match(channelCss, /@media \(max-width: 1100px\)[\s\S]*?\.trace\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\);/);
   });
 
   it("names the time series as maker-to-maker spread", () => {
