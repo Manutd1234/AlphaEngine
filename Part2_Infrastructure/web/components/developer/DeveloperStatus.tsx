@@ -214,16 +214,22 @@ export function payloadValidationState(view: SystemHealthView): ControlState {
   return { label: "Clean", detail, tone: "good" };
 }
 
-/** No field in `SystemHealth` compares the Python risk fixture with its
- * TypeScript consumer. Monte Carlo parity is a different computation and may
- * not be borrowed to turn this row green. */
-export function riskParityState(): ControlState {
-  return {
-    label: "Unverified",
-    detail: "The health snapshot carries no cross-language risk-parity result for this deployment.",
-    tone: "warn",
-    unmeasured: true,
-  };
+export function gatewayPayloadParityState(view: SystemHealthView): ControlState {
+  if (!view.health) return { label: "Checking", detail: "Waiting for delivery evidence.", tone: "info" };
+  const evidence = view.health.delivery?.payloads;
+  if (!evidence) return { label: "Unverified", detail: "This health route carries no canonical-payload parity evidence yet.", tone: "warn", unmeasured: true };
+  return evidence.state === "match"
+    ? { label: `${evidence.checks} families valid`, detail: evidence.detail, tone: "good" }
+    : { label: "Validator drift", detail: evidence.detail, tone: "bad" };
+}
+
+export function riskParityState(view: SystemHealthView): ControlState {
+  if (!view.health) return { label: "Checking", detail: "Waiting for delivery evidence.", tone: "info" };
+  const evidence = view.health.delivery?.risk;
+  if (!evidence) return { label: "Unverified", detail: "This health route carries no cross-language risk-parity evidence yet.", tone: "warn", unmeasured: true };
+  return evidence.state === "match"
+    ? { label: "Fixture-exact", detail: evidence.detail, tone: "good" }
+    : { label: "Risk drift", detail: evidence.detail, tone: "bad" };
 }
 
 export function numericsParityState(view: SystemHealthView): ControlState {
@@ -242,14 +248,9 @@ export function numericsParityState(view: SystemHealthView): ControlState {
 export function schemaGateRows(view: SystemHealthView) {
   const states: Record<SchemaGateId, ControlState> = {
     "gateway-openapi": schemaCompatibilityState(view),
-    "gateway-payloads": {
-      label: "Unverified",
-      detail: "No live cross-runtime result compares the canonical gateway fixtures with the Web validators.",
-      tone: "warn",
-      unmeasured: true,
-    },
+    "gateway-payloads": gatewayPayloadParityState(view),
     "runtime-payloads": payloadValidationState(view),
-    "risk-parity": riskParityState(),
+    "risk-parity": riskParityState(view),
     "mc-parity": numericsParityState(view),
   };
   return SCHEMA_GATES.map((row) => ({ ...row, state: states[row.id] }));
@@ -343,9 +344,9 @@ export function SchemaGateTable({ view, compact = false }: { view: SystemHealthV
     <details className="disclosure developer-cp-state-guide">
       <summary>How to read the State column</summary>
       <p>
-        Gateway OpenAPI, runtime payload contracts and Monte Carlo numerics take their verdicts
-        from the current health payload. Gateway payloads and Risk parity remain unverified because
-        that payload carries no cross-runtime result for either comparison.
+        Every row takes its verdict from executable evidence in the current health payload: live
+        OpenAPI, canonical route fixtures, the runtime validation ledger, the Python risk fixture,
+        and the committed Monte Carlo reference.
       </p>
     </details>
     </>
