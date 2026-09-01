@@ -42,10 +42,9 @@ describe("the route names one market and a window", () => {
   });
 
   it("defaults to a window rather than the whole tape", () => {
-    // 2,000 is what the sibling history routes default to and it is the wrong
-    // number here: at a fifteen-second recorder poll it is eight hours of one
-    // market, which is further back than this question ever reaches.
-    assert.match(booksHistoryRoute("KXA"), /limit=600$/);
+    // Long enough to show the recorder's earned history, still bounded well
+    // below the route's 20,000-row ceiling.
+    assert.match(booksHistoryRoute("KXA"), /limit=5000$/);
   });
 
   it("and no component spells the path itself", () => {
