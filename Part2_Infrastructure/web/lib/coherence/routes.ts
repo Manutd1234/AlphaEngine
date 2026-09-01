@@ -26,12 +26,12 @@ export const statusRoute = () => `${COHERENCE}/status`;
 /**
  * The watched families.
  *
- * Two events per series, not four. Each event costs two round trips even read
- * concurrently, and `callGateway` gives up at eight seconds — four took 10.1s
- * before the reads were parallelised and 6.4s after, which is inside the
- * deadline but not comfortably. Two answers in about four and a half.
+ * Six events per series. The gateway now observes each watchlist series
+ * concurrently inside the live-read budget, and the warmer stores this exact
+ * shape. Keeping the old two-event cap made two configured families look like
+ * a four-family universe even when the venue and tape held much more.
  */
-export const universeRoute = (maxEvents = 2) => `${COHERENCE}/universe?max_events=${maxEvents}`;
+export const universeRoute = (maxEvents = 6) => `${COHERENCE}/universe?max_events=${maxEvents}`;
 
 export const booksRoute = () => `${COHERENCE}/books`;
 
@@ -44,11 +44,12 @@ export const booksRoute = () => `${COHERENCE}/books`;
  * — and it is the only route on the tab that can answer what a market has BEEN
  * quoted at rather than what it is quoted at now.
  *
- * 600 rather than the 2,000 its siblings default to, and the number is the
- * cadence: at a fifteen-second recorder poll that is two and a half hours of one
- * market, which is further back than "what has this been doing" ever reaches.
+ * Five thousand retained observations expose the long tape the recorder has
+ * actually earned without manufacturing back-history. The API can return up to
+ * twenty thousand; 5,000 keeps the browser response bounded while covering
+ * days rather than a short inspection window at ordinary recorder cadences.
  */
-export const booksHistoryRoute = (ticker: string, limit = 600) =>
+export const booksHistoryRoute = (ticker: string, limit = 5_000) =>
   `${COHERENCE}/books/history?ticker=${encodeURIComponent(ticker)}&limit=${limit}`;
 
 export const certifyRoute = (eventTicker: string) =>
@@ -106,9 +107,9 @@ export const shellRoute = (path: string, command: "ls" | "cat") =>
 /** The one signed private-channel call; it carries a 25-second budget. */
 export const rfqRoute = () => `${COHERENCE}/rfq`;
 
-export const episodesRoute = (limit = 500) => `${COHERENCE}/episodes?limit=${limit}`;
+export const episodesRoute = (limit = 5_000) => `${COHERENCE}/episodes?limit=${limit}`;
 
-export const absorptionRoute = (limit = 400) => `${DIFFUSION}/absorption?limit=${limit}`;
+export const absorptionRoute = (limit = 600) => `${DIFFUSION}/absorption?limit=${limit}`;
 
 export const findingsRoute = () => `${DIFFUSION}/findings`;
 
