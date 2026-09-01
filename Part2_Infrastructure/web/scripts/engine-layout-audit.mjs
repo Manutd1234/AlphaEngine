@@ -58,21 +58,20 @@ export const LAYOUT_SETTLING = Object.freeze({
   identicalSamples: 2,
 });
 
-/**
- * An API 503 is an exercised unavailable state, not a browser/runtime
- * exception. Keep it visible in the report, but do not let Chromium's generic
- * resource-console message turn truthful degraded rendering into a geometry
- * failure. Other statuses and non-gateway resources remain blockers.
- */
-export function isExpectedApiUnavailable(text, location = {}) {
-  if (!/^Failed to load resource:.*status of 503 \(Service Unavailable\)/.test(text)) return false;
-  try {
-    return new URL(location.url ?? "").pathname.startsWith("/api/");
-  } catch {
-    return false;
-  }
+function locationPath(location) {
+  try { return new URL(location.url ?? "").pathname; }
+  catch { return ""; }
 }
-
+/** A typed API 503 is exercised unavailability, not a browser exception. */
+export function isExpectedApiUnavailable(text, location = {}) {
+  return /^Failed to load resource:.*status of 503 \(Service Unavailable\)/.test(text)
+    && locationPath(location).startsWith("/api/");
+}
+/** A guest RFQ 401/403 is its access-policy answer, not failed transport. */
+export function isExpectedPrivateAccessDecision(text, location = {}) {
+  return /^Failed to load resource:.*status of (?:401 \(Unauthorized\)|403 \(Forbidden\))/.test(text)
+    && locationPath(location) === "/api/gateway/coherence/rfq";
+}
 /** Chromium can report the live-book socket's final ping after the audit has
  * already closed its context. It is a teardown reading, not a page exception. */
 export function isExpectedExternalStreamShutdown(text) {
@@ -313,6 +312,7 @@ async function runAudit() {
   const readings = [];
   const consoleErrors = [];
   const unavailableApiReads = [];
+  const accessPolicyReads = [];
   const externalStreamShutdowns = [];
 
   try {
@@ -327,6 +327,10 @@ async function runAudit() {
         const page = await context.newPage();
         page.on("console", (message) => {
           if (message.type() !== "error") return;
+          if (isExpectedPrivateAccessDecision(message.text(), message.location())) {
+            accessPolicyReads.push(message.location().url);
+            return;
+          }
           if (isExpectedApiUnavailable(message.text(), message.location())) {
             unavailableApiReads.push(message.location().url);
             return;
@@ -379,6 +383,7 @@ async function runAudit() {
     failures,
     consoleErrors: [...new Set(consoleErrors)],
     unavailableApiReads: [...new Set(unavailableApiReads)],
+    accessPolicyReads: [...new Set(accessPolicyReads)],
     externalStreamShutdowns: [...new Set(externalStreamShutdowns)],
   };
   console.log(JSON.stringify(report, null, 2));
