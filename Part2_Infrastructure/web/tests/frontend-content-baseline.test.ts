@@ -68,6 +68,9 @@ const protectedEquityQuoteHealth20260901 = {
 const protectedDataTransportTruth20260901 = {
   data: { sha256: "196538452779de15f9bf6d26a7caaf81cc391afb89a34c4843c057c7858b1033", strings: 1560, words: 5783 },
 };
+const protectedUiGatewaySweep20260902 = {
+  developer: { sha256: "4e47cb24293047a5621021d600bd0b22922fa8183d8656d155c0185dc30276b2", strings: 1643, words: 6739 },
+};
 
 describe("the protected eight keep their signed history and current static-copy multisets", () => {
   const current = buildProtectedBaseline();
@@ -96,6 +99,7 @@ describe("the protected eight keep their signed history and current static-copy 
     assert.deepEqual(fixture.protectedDeveloperContractReview20260901, protectedDeveloperContractReview20260901);
     assert.deepEqual(fixture.protectedEquityQuoteHealth20260901, protectedEquityQuoteHealth20260901);
     assert.deepEqual(fixture.protectedDataTransportTruth20260901, protectedDataTransportTruth20260901);
+    assert.deepEqual(fixture.protectedUiGatewaySweep20260902, protectedUiGatewaySweep20260902);
     assert.deepEqual(current.signatures, {
       ...fixture.protected,
       ...protectedNavigationFollowup20260829,
@@ -107,6 +111,7 @@ describe("the protected eight keep their signed history and current static-copy 
       ...protectedDeveloperContractReview20260901,
       ...protectedEquityQuoteHealth20260901,
       ...protectedDataTransportTruth20260901,
+      ...protectedUiGatewaySweep20260902,
     });
   });
 
@@ -275,6 +280,13 @@ describe("engine copy has a reproducible source-static word baseline", () => {
     proofs: { sha256: "1ca8ec9bd889f6d98164fefa628b684e11bdcb4c6d9051297613e1d6ee76e7a8", strings: 2988, words: 16632 },
     diffusion: { sha256: "ac901a1531ef7d816c8ef338a8dd85f24a705f2bdd392f1d09e6a9fe97c1b682", strings: 1931, words: 10649 },
   };
+  const uiGatewaySweep20260902Checkpoint = {
+    // The RFQ trace, Shell matrix, single-episode survival read and verified
+    // developer contract evidence are the intentional current upper bound.
+    markets: { sha256: "cf16c67ce7a70f35d7680d944b7d83e06312f9695c04de638317d1daa6419dfe", strings: 2725, words: 10689 },
+    proofs: { sha256: "1ca8ec9bd889f6d98164fefa628b684e11bdcb4c6d9051297613e1d6ee76e7a8", strings: 2988, words: 16632 },
+    diffusion: { sha256: "2ceb77275b7f2ac76aff9dcf5ea9b9030beda3132cfecb1011cced5efc49fd58", strings: 1941, words: 10707 },
+  };
 
   it("retains Phase 0 and records the current upper bound as a separate signature", () => {
     assert.equal(fixture.wordBaseline.browserObserved, false);
@@ -299,7 +311,8 @@ describe("engine copy has a reproducible source-static word baseline", () => {
     assert.deepEqual(fixture.wordBaseline.gatewayReadiness20260901Tabs, gatewayReadiness20260901Checkpoint);
     assert.deepEqual(fixture.wordBaseline.rfqRestEnvironment20260901Tabs, rfqRestEnvironment20260901Checkpoint);
     assert.deepEqual(fixture.wordBaseline.rfqCompleteRead20260901Tabs, rfqCompleteRead20260901Checkpoint);
-    assert.deepEqual(buildEngineWordBaseline(), rfqCompleteRead20260901Checkpoint);
+    assert.deepEqual(fixture.wordBaseline.uiGatewaySweep20260902Tabs, uiGatewaySweep20260902Checkpoint);
+    assert.deepEqual(buildEngineWordBaseline(), uiGatewaySweep20260902Checkpoint);
   });
 
   it("retains the historical starting points for the product-specific summary-copy checks", () => {
