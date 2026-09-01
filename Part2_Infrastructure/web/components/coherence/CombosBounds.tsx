@@ -60,6 +60,12 @@ function RowLegs({ legs }: { legs: CoherenceComboLeg[] }) {
         <caption className="coh-table__caption">
           A dash means the executable side was unquoted; it is never treated as zero.
         </caption>
+        <colgroup>
+          <col className={styles.legNameColumn} />
+          <col className={styles.directionColumn} />
+          <col className={styles.sideColumn} />
+          <col className={styles.costColumn} />
+        </colgroup>
         <thead>
           <tr>
             <th scope="col">Leg</th>
