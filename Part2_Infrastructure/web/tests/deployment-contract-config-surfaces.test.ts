@@ -17,8 +17,8 @@
  *    clause below is what keeps that true, and losing any one widens a public
  *    credential.
  *
- *  - CI stays network-free on its default jobs. A red build must mean the code
- *    broke, never that an idle Always Free database had auto-stopped.
+ *  - CI keeps pull-request feedback network-free, then proves live dependencies
+ *    and the real model on every protected-main push.
  *
  * The upload drop-list is in `deployment-contract-upload-scope.test.ts`; the
  * container deploy pipeline in `deployment-contract-deploy-pipeline.test.ts`.
@@ -157,19 +157,20 @@ describe("the published Supabase key is scoped by policy, not by hope", () => {
   });
 });
 
-describe("CI keeps its network-free guarantee", () => {
-  it("the live probe is manual-only", () => {
-    const job = ci.slice(ci.indexOf("live-smoke:"), ci.indexOf("repo-audit:"));
+describe("CI separates deterministic PR checks from main-branch integration", () => {
+  it("the live probe runs on main pushes but stays off pull requests", () => {
+    const job = ci.slice(ci.indexOf("live-smoke:"), ci.indexOf("rerank-real:"));
     assert.match(
       job,
-      /if:\s*github\.event_name == 'workflow_dispatch'/,
-      "the live smoke job would run on push or PR — a red build must mean the code broke, "
-        + "never that an idle Always Free database had auto-stopped",
+      /if:\s*github\.event_name != 'pull_request'/,
+      "main pushes must produce a live result while credential-less PRs stay deterministic",
     );
     assert.match(job, /public demo order_blotter/);
     assert.match(job, /private desk_risk_limits/);
     assert.match(job, /401\|403\|404/);
     assert.doesNotMatch(job, /anon can READ order_blotter/);
+    assert.match(job, /missing required repository secrets/);
+    assert.doesNotMatch(job, /::notice::[\s\S]*skipping/);
   });
 
   it("passes the complete Oracle connection, including its optional mTLS wallet", () => {
@@ -180,13 +181,15 @@ describe("CI keeps its network-free guarantee", () => {
 
   it("keeps the real-model job on current pytest output and action runtimes", () => {
     const job = ci.slice(ci.indexOf("rerank-real:"), ci.indexOf("repo-audit:"));
+    assert.match(job, /github\.event_name != 'pull_request'/);
+    assert.match(job, /contains\(github\.event\.pull_request\.labels\.\*\.name, 'rerank'\)/);
     assert.match(job, /SKIPPED \\\[1\\\] tests\/test_research_rerank_real\\\.py:/);
     assert.doesNotMatch(job, /grep -q "1 skipped"/);
     assert.match(job, /uses: actions\/cache@v6/);
     assert.doesNotMatch(job, /uses: actions\/cache@v[1-5]\b/);
   });
 
-  it("the three default jobs contact nothing", () => {
+  it("the core jobs contact nothing", () => {
     const defaults = ci.slice(0, ci.indexOf("live-smoke:"));
     for (const secret of ["ORACLE_CONN_STRING", "SUPABASE_URL", "ORACLE_PASSWORD"]) {
       assert.ok(!defaults.includes(secret), `${secret} reached a job that runs on every push`);

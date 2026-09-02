@@ -1,9 +1,10 @@
 # Continuous integration for the three deployable units.
 #
-# The suites are network-free by design: market data is disabled, the backtester
-# falls back to its NumPy engine, and every fixture is committed. So this
-# workflow needs no secrets and no services — only dependency installs reach the
-# network, and a red build means the code broke, never that an exchange was slow.
+# The core suites are network-free by design: market data is disabled, the
+# backtester falls back to its NumPy engine, and every fixture is committed.
+# Pull requests therefore get deterministic feedback without production
+# credentials. A push to main additionally proves the live services and the
+# real cross-encoder so the branch's check list contains results, not skips.
 #
 # ONE JOB NOW FETCHES A MODEL, and the sentence above is amended rather than
 # quietly falsified. `rerank-real` seeds the cross-encoder's ONNX weights in a
@@ -11,7 +12,7 @@
 # the same shape as a dependency install (a build-time fetch, never a test-time
 # one), and is precisely what `Part2_Infrastructure/requirements-rerank.txt` has
 # always prescribed: "do it at image build time, never on the request path". It
-# is opt-in and cannot affect the three jobs above; see its own header.
+# remains isolated from the core jobs; see its own header.
 name: CI
 
 on:
@@ -213,20 +214,18 @@ jobs:
         run: npm run build
 
   # ---------------------------------------------------------------------------
-  # Live connectivity — workflow_dispatch ONLY, and deliberately so.
+  # Live connectivity on the protected main branch and explicit dispatches.
   #
-  # The three jobs above are network-free by design (see this file's header): a
-  # red build must mean the code broke, never that a service was slow. Putting an
-  # ADB probe in `pull_request` would trade that guarantee away — an Always Free
-  # Autonomous Database auto-stops when idle, so a perfectly good PR would go red
-  # because nobody had queried the database in a week.
+  # The core jobs above stay network-free. Pull requests do not receive production
+  # secrets and must not go red because an Always Free database is waking up, but
+  # a main-branch push is the release boundary and now verifies the deployed
+  # dependencies instead of displaying a grey skipped check.
   #
-  # It skips cleanly when the secrets are absent, which is every fork and every
-  # clone, so it is opt-in rather than broken-by-default.
+  # Explicit dispatch remains available for an on-demand recheck.
   # ---------------------------------------------------------------------------
   live-smoke:
-    name: Live services (manual)
-    if: github.event_name == 'workflow_dispatch'
+    name: Live services
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -239,24 +238,28 @@ jobs:
           cache: npm
           cache-dependency-path: Part2_Infrastructure/web/package-lock.json
 
-      - name: Are the secrets present?
+      - name: Required live secrets are present
         id: gate
+        env:
+          DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
           # The repository stores these as DB_* — the names the deployment
           # runbook uses. The app reads ORACLE_*, so they are mapped at the step
           # below rather than renamed in either place.
-          if [ -n "${{ secrets.DB_CONNECTION_STRING }}" ] && [ -n "${{ secrets.DB_PASSWORD }}" ]; then
-            echo "oracle=yes" >> "$GITHUB_OUTPUT"
-          else
-            echo "oracle=no" >> "$GITHUB_OUTPUT"
-            echo "::notice::DB_CONNECTION_STRING / DB_PASSWORD absent — skipping the ADB probe."
+          missing=()
+          [ -n "$DB_CONNECTION_STRING" ] || missing+=("DB_CONNECTION_STRING")
+          [ -n "$DB_PASSWORD" ] || missing+=("DB_PASSWORD")
+          [ -n "$SUPABASE_URL" ] || missing+=("SUPABASE_URL")
+          [ -n "$SUPABASE_ANON_KEY" ] || missing+=("SUPABASE_ANON_KEY")
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Main-branch live verification is missing required repository secrets: ${missing[*]}"
+            exit 1
           fi
-          if [ -n "${{ secrets.SUPABASE_URL }}" ]; then
-            echo "supabase=yes" >> "$GITHUB_OUTPUT"
-          else
-            echo "supabase=no" >> "$GITHUB_OUTPUT"
-            echo "::notice::Supabase URL absent — skipping the PostgREST probe."
-          fi
+          echo "oracle=yes" >> "$GITHUB_OUTPUT"
+          echo "supabase=yes" >> "$GITHUB_OUTPUT"
 
       - if: steps.gate.outputs.oracle == 'yes'
         working-directory: Part2_Infrastructure/web
@@ -306,7 +309,7 @@ jobs:
           esac
 
   # ---------------------------------------------------------------------------
-  # The cross-encoder re-ranker, against the REAL weights — opt-in.
+  # The cross-encoder re-ranker, against the REAL weights.
   #
   # `modules/research_rerank.py` shipped as a code path nothing had executed:
   # fastembed is an optional extra, RERANK_MODEL_PATH is empty in every normal
@@ -319,17 +322,16 @@ jobs:
   # A SEPARATE JOB, not a step in `gateway`, and the reason is 1.05 GiB. That is
   # the measured size of BAAI/bge-reranker-base's fp32 ONNX blob (one file of
   # 1,112,459,588 bytes; ~22 s to fetch cold), on top of installing onnxruntime.
-  # `gateway` is the job that gates every push, and hanging a gigabyte off it
-  # would slow the default red/green for everyone in exchange for exercising an
-  # optional extra that a normal deployment does not configure at all.
+  # Keeping it separate preserves useful parallel feedback while the heavier
+  # benchmark runs. The cache means only the first run after a requirements change
+  # pays the model fetch.
   #
-  # OPT-IN, not on `pull_request`, for the reason in this file's header. The
+  # Not automatic on `pull_request`, for the reason in this file's header. The
   # weights come from a third-party hub that rate-limits unauthenticated
   # downloads — a PR-gating job that fetched them would go red because a hub was
-  # busy, which is the exact failure the header forbids. `live-smoke` above is
-  # opt-in for the same class of reason. Two ways in: dispatch the workflow, or
-  # put the `rerank` label on a pull request that touches this code, so a
-  # reviewer can ask for it without leaving the PR.
+  # busy, which is the exact failure the header forbids. It runs on every main
+  # push and explicit dispatch. A reviewer can still request it on a pull request
+  # by applying the `rerank` label.
   #
   # The weights are CACHED, so only the first run per requirements change pays
   # the fetch, and the seed step is skipped entirely on a hit.
@@ -339,9 +341,9 @@ jobs:
   # scikit-learn in here as well would double the install for nothing.
   # ---------------------------------------------------------------------------
   rerank-real:
-    name: Cross-encoder re-ranker (real weights, opt-in)
+    name: Cross-encoder re-ranker (real weights)
     if: >-
-      github.event_name == 'workflow_dispatch' ||
+      github.event_name != 'pull_request' ||
       contains(github.event.pull_request.labels.*.name, 'rerank')
     runs-on: ubuntu-latest
     defaults:
