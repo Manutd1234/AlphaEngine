@@ -18,7 +18,7 @@
  * "Proofs", and `markets` is reused rather than re-invented because the tests,
  * the relocation table and the desk sweep already speak it.
  * The current registry has eleven tabs and seventy rail sections; its three
- * quantitative destinations read Markets, Proofs and Diffusion and expose 68
+ * quantitative destinations read Markets, Proofs and Diffusion and expose 71
  * engine views (26 / 29 / 16).
  */
 

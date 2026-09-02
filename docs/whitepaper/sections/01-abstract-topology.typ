@@ -403,9 +403,9 @@ event-response and absorption diagnostics. Their URL ids are `markets`,
 `coherence` and `diffusion`; the first two predate their visible labels and stay
 unchanged so published links continue to resolve. The eleven tabs carry
 #measured[70 addressable rail sections][`web/lib/sections.ts`, counted
-2026-08-30]. The three engines expose #measured[64 non-placeholder views - 23
-Markets, 25 Proofs and 16 Diffusion][`web/lib/section-views.ts`, counted
-2026-08-30]. Every view is URL-addressable under `#tab/section/view`; the
+2026-09-02]. The three engines expose #measured[71 non-placeholder views - 26
+Markets, 29 Proofs and 16 Diffusion][`web/lib/section-views.ts`, counted
+2026-09-02]. Every view is URL-addressable under `#tab/section/view`; the
 default view omits the third segment without losing its stable identity. The
 navigation rail is pinned to the tour documentation by tests so the two cannot
 drift apart silently. The browser bundle holds zero
@@ -658,7 +658,7 @@ response is to drop it and re-project, never to reconcile two writers.
   columns: (0.7fr, 1fr, 0.8fr, 1.3fr),
   [Unit], [Owns], [Scaling], [Dominant failure mode and its containment],
   [Risk gateway (FastAPI, always-on VM)], [Venue subscriptions, consolidated book, position and resting books, seventeen gates, kill switch, token bucket, authoritative ledger, Telegram companion, research plane], [Vertical only. One process, no workers, enforced by container contract test and a `flock(2)` claim], [*Process loss stops order decisions.* Contained by: the ledger surviving on a mounted volume; strict rehydration on restart; a refusal-to-start on a second writer rather than a shadow desk. Not contained by replication, and this is stated rather than implied.],
-  [Desk workspace (Next.js, serverless)], [Eleven tabs --- eight desk roles plus Markets, Proofs and Diffusion; 70 rail sections; 64 quant-engine views; server-side proxy, provider registry with quota budgeting and ranked failover, operator write path behind a token], [Horizontal, scale-to-zero. Holds no risk state], [*Upstream provider failure or a gateway outage.* Contained by: seven typed gateway failure codes that keep "not configured" apart from "unreachable"; keyless crypto surface that works with no gateway at all; per-provider circuit breaking.],
+  [Desk workspace (Next.js, serverless)], [Eleven tabs --- eight desk roles plus Markets, Proofs and Diffusion; 70 rail sections; 71 quant-engine views; server-side proxy, provider registry with quota budgeting and ranked failover, operator write path behind a token], [Horizontal, scale-to-zero. Holds no risk state], [*Upstream provider failure or a gateway outage.* Contained by: seven typed gateway failure codes that keep "not configured" apart from "unreachable"; keyless crypto surface that works with no gateway at all; per-provider circuit breaking.],
   [OpenBB service (FastAPI, serverless)], [Quotes, bars, company news, fundamentals through pinned fetchers], [Horizontal, unconstrained. No state, no database, no writable dependency], [*Cold start or slow upstream.* Contained by separation: it is a different deployment, so its latency cannot queue behind or crash beside the decision process. That separation is the entire reason it is a third unit.],
   [Shared ledger (DuckDB on a volume)], [Orders, risk events, backtest runs, equity snapshots, session rollovers], [Not scaled. Single writer by construction], [*Two writers forking the history.* Contained by raising a ledger conflict instead of falling back to a private SQLite file, behind the advisory lock, behind the container contract.],
 )
@@ -740,9 +740,9 @@ with its method and machine and refuses to merge two machines into one
 flattering number, and the committed test counts, generated because the prose
 copies had drifted three times before the generator existed. As of this revision
 those counts read
-#measured[3,255 gateway tests - 3,254 passed and one skipped][`web/lib/test-counts.generated.ts`,
-generated 2026-08-29],
-#measured[6,519 web tests across 1,408 suites][same] and
+#measured[3,492 gateway tests - 3,491 passed and one skipped][`web/lib/test-counts.generated.ts`,
+generated 2026-09-02],
+#measured[6,846 web tests across 1,461 suites][same] and
 #measured[24 service tests][same]. A skip count is
 not evidence about its cause; that belongs to the runner output that produced
 the dated record. The generated file is therefore the display contract for the

@@ -1,13 +1,13 @@
 # Data processing flow — end to end
 
-**Source/worktree audited: 2026-08-31.** Module paths are relative to
+**Source/worktree and release evidence audited: 2026-09-02.** Module paths are relative to
 [`Part2_Infrastructure/`](../../Part2_Infrastructure/) unless they start with
 `web/` or `supabase/`. This document names the hops; the arguments behind each
 one live in [`Part2_Infrastructure/README.md`](../../Part2_Infrastructure/README.md)
 (§2 Architecture, §3 Module A, §4 Module B, §RAG & ML) and the measured numbers
 in [`LATENCY_BUDGET.md`](LATENCY_BUDGET.md). Where those documents argue a
 point at length, this one states the conclusion and links. The audit describes
-source and bundled schema; it is not a fresh probe of an external deployment.
+source, bundled schema and the named September 2 deployment/E2E runs.
 [`ARCHITECTURE.md`](ARCHITECTURE.md) is the map — what the pieces are and where
 they run. This is the territory: what one request actually touches.*
 
@@ -49,7 +49,8 @@ and the community/centrality Cypher reads do not carry `desk_id`. When
 `RESEARCH_SCOPE_TO_DESK=1`, the source read-model guard refuses Neo4j before
 opening its driver and both reports automatically use the desk-scoped Postgres
 corpus fallback. With the flag off, use Neo4j only for one desk or an isolated
-database. This audit did not probe live Aura.
+database. E2E run `33633746350` verified the live projection with 15 documents,
+48 edges and 2 communities.
 
 ---
 
@@ -777,10 +778,10 @@ TypeScript parity implementation. Two facts belong in a data-flow document:
 | Multimodal generation (the chart shown to the model) | **Built, optional.** `research_generate_vision.py` attaches a chart document's PNG to the Gemini call as evidence, never a source; ≤2 images, ≤2 MB each, 45 s budget against text's 20 s. Every "no image" outcome is a named state |
 | Durable home for the chart pixels | **Built, with one debt.** `research_chart_images` (migration `20260822110000`) means a chart survives a restart, a Celery worker and a second replica, where the path used to answer `job_not_retained`. The debt: its PostgREST GET is synchronous and runs on the event loop's thread, bounded at 1,200 ms behind an LRU the write path warms — the one owed line is `documents = await hydrate(documents)` in `research_generate.generate`. (`supabase/apply_all.generated.sql` carries that migration and is checked against the current migration directory.) |
 | A backfill for pre-migration chart rows | **NOT BUILT** — rows written before `20260822110000` report `image_not_stored` with re-indexing the run named as the fix; no tool re-stores them |
-| Neo4j on the request path | **partly, in source** — `/communities` and `/centrality` can read the sweep's labels back and fall back to the in-process computation, saying which answered (`source`); request-time *traversal* is still the Postgres CTE, and no request path depends on the graph being up. No live Aura read was made in the 2026-08-31 audit. The projection/read model is not desk-scoped, so its source guard refuses Neo4j whenever `RESEARCH_SCOPE_TO_DESK=1` and the reports automatically use the desk-filtered corpus; with the flag off, Neo4j is single-desk/per-database only. The algorithms are not run inside Neo4j: GDS is not on Aura Free and cannot be installed in CI |
+| Neo4j on the request path | **built, optional and live-verified** — `/communities` and `/centrality` read the sweep's labels back and fall back to the in-process computation, saying which answered (`source`); request-time *traversal* remains the Postgres CTE, and no request path depends on the graph being up. E2E run `33633746350` read 15 documents, 48 edges and 2 communities from Aura. The projection/read model is not desk-scoped, so its source guard refuses Neo4j whenever `RESEARCH_SCOPE_TO_DESK=1` and the reports use the desk-filtered corpus; with the flag off, Neo4j is single-desk/per-database only. GDS is not on Aura Free, so the algorithms run in-process |
 | `/api/research/rag/ask` in the UI | **no consumer** — the workspace proxies `/search` only; `/ask` is reachable, contract-pinned and auth-covered, but nothing in `web/` calls it |
 | RLS on `research_documents` | **still bypassed** — the gateway reads with the service-role key and the writer sets no `user_id`. The service-role query boundary now has optional `filter_desk_id` on both similarity RPCs and graph traversal. Route scoping stays off by default; when enabled, `/search`, `/ask` and `/graph/{document_id}` carry it through the whole pipeline or return typed `scope_unavailable`, never an unscoped fallback. The anomaly writer always scopes its immediate neighbour read to the desk it just wrote |
-| The re-ranker's real ONNX weights in CI | **NOT RUN on a push** — they would have to be downloaded and the default suite is network-free by construction; the ONNX path is exercised through a fake cross-encoder at the import seam. CI's opt-in `rerank-real` job (`workflow_dispatch`, or a PR labelled `rerank`) seeds them and runs eight cases against the real model |
+| The re-ranker's real ONNX weights in CI | **RUN on every `main` push and dispatch** in isolated `rerank-real`; labelled PRs can run it too. A cached setup step seeds the weights, then eight cases run offline and fail on any skip. The default gateway suite remains network-free and exercises the import seam with a fake scorer |
 | The image arm's retrieval bench in CI | **NOT WIRED** — `tools/bench_image_retrieval.py` is an executable entry point with its corpus, answer key, metrics and degrade paths under test, and nothing runs it on a push; it wants the `rerank-real` treatment |
 | Supabase absent | mirror and corpus writes are no-ops; retrieval returns typed `unavailable`, never `[]` |
 | Gemini absent | `/api/research/rag/ask` answers `verdict: refused` with the reason |

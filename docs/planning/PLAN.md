@@ -1,7 +1,7 @@
 # Plan — where the research plane stands, and what it still owes
 
-*Source/worktree state audited on **31 August 2026**; no external deployment
-was probed. "Done" below means wired to a production caller and
+*Source/worktree state and release evidence audited on **2 September 2026**.
+"Done" below means wired to a production caller and
 proven against the real modules, not merely present in the tree — this
 repository has shipped fully-tested modules with no caller before, and the
 lesson is recorded in §1. The owed items in §2 are not a wishlist: each one is
@@ -52,8 +52,10 @@ stays authoritative — drop the graph and re-project, and drift is a non-event.
 Because that projection has no `desk_id`, the read model refuses Neo4j whenever
 `RESEARCH_SCOPE_TO_DESK=1` and both reports automatically compute from the
 desk-filtered Postgres corpus instead. With the flag off, Neo4j is suitable
-only for one desk or an isolated database. This source audit did not probe a
-live Aura instance or assert that `NEO4J_URI` is set in a deployment.
+only for one desk or an isolated database. E2E run `33633746350` read 15
+documents, 48 edges and 2 communities from live Aura sweep
+`deploy-33633139022-1`; the corpus answer under desk scoping remains the
+intentional safety fallback.
 Request-time traversal is still the Postgres CTE, and the algorithms are not run
 inside Neo4j: GDS is not on Aura Free and CI cannot install it, so the read model
 serves what the sweep computed rather than computing something different under
@@ -118,8 +120,20 @@ it, which made a planning file one of five places a number had to be corrected;
 the count belongs where it is generated, and the discipline is unchanged: read
 the *skip reasons*, never the pass count ([`WORKFLOW.md` §2](WORKFLOW.md)). The
 one thing worth stating here is the outcome — the gateway, web and service
-suites are green. In the 2026-08-29 web run, four of six skips were explicit
-browser-origin opt-ins and two were cross-ownership debts.
+suites are green. The 2026-09-02 generated record is 3,492 gateway tests,
+6,846 web tests across 1,461 suites and 24 service tests; main CI also passed
+live Oracle/Supabase and the eight-case real cross-encoder job.
+
+**The September frontend/data parity pass is shipped.** The three quantitative
+tabs now register 71 addressable views (26 Markets, 29 Proofs, 16 Diffusion),
+and the desk sweep covers their 50 non-default destinations as well as all 70
+rail sections. Shell is split into Namespace, Routing and Browse with grouped
+readings tables; Makers renders an account-membership refusal as verified
+access policy rather than a red gateway outage; a single closed Kalshi episode
+renders a value strip rather than an empty survival curve; Findings reports the
+57-meeting out-of-sample score instead of “study not built”. Deployment run
+`33633139022` restored the complete Diffusion ledger to Supabase before
+cutover: 62 events, 248 runs, 62 texts, 4 studies and 14 assessable findings.
 
 ### The information-diffusion instrument — **measured, killed, re-armed, killed again, then re-measured out of sample**
 

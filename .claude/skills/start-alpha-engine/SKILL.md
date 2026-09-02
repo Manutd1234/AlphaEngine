@@ -5,7 +5,7 @@ description: Start AlphaEngine locally — boot the desk workspace and the FastA
 
 # Start AlphaEngine
 
-**Last verified: 2026-08-29.** Volatile topology and release evidence are in
+**Last verified: 2026-09-02.** Volatile topology and release evidence are in
 `docs/CURRENT_STATE.md`.
 
 The workspace runs with **zero configuration**. Do not ask the user for API
@@ -120,8 +120,8 @@ Report:
 
 Say this plainly — it is the point of the setup:
 
-- All eleven tabs, all 70 rail sections and the Markets/Proofs/Diffusion view
-  workbenches, with full navigation.
+- All eleven tabs, all 70 rail sections and all 71 registered
+  Markets/Proofs/Diffusion views, with full navigation.
 - Crypto quotes, bars and L2 depth via Binance's public endpoints.
 - The whole gateway: the seventeen-gate battery (`modules/risk_proxy/` — a
   package, not `risk_proxy.py`), TCA, backtests, the DuckDB audit log.

@@ -1108,7 +1108,7 @@ stored state, and a different book draws a fresh one.
 
 The Proofs workspace turns the chapter's distinction between a theorem, its
 inputs and an empirical verdict into an interaction contract. Its
-#measured[25 views across seven rail sections][`web/lib/section-views.ts` and
+#measured[29 views across seven rail sections][`web/lib/section-views.ts` and
 `web/lib/sections.ts`, counted 2026-08-30] are not alternate illustrations of
 one static page. Each view binds a canonical proof target to the exact data row,
 constraint or score contribution being inspected.

@@ -1,6 +1,6 @@
 # AlphaEngine - All In One Quant Infrastructure
 
-**Last verified: 2026-08-29.** Current topology, contract, dependency and test
+**Last verified: 2026-09-02.** Current topology, contract, dependency and test
 facts are centralised in [`docs/CURRENT_STATE.md`](docs/CURRENT_STATE.md).
 Measurements taken on other hardware — production latency, deployment probes
 and historical benchmarks — keep the dates on which they were actually
@@ -32,9 +32,10 @@ Two parts, in two directories. Start with whichever question you came for.
   everything offline. `web/lib/test-counts.generated.ts` is the dated record the desk displays; CI
   checks only its **web** line, so run the suites rather than reading its gateway line.
 
-**The headline numbers, measured 2026-08-29:** **3,255 gateway + 6,519 web + 24 service tests**, none
-needing a network. The gateway run reported 3,254 passed and 1 skipped; the final web run reported
-6,513 passed, 6 skipped and 0 failed across 1,408 suites. The generated display contract is
+**The headline numbers, measured 2026-09-02:** **3,492 gateway + 6,846 web + 24 service tests**.
+The local gateway refresh reported 3,491 passed and 1 skipped; the web run reported
+6,840 passed, 6 skipped and 0 failed across 1,461 suites. Main CI separately ran
+the network-free gateway shape plus live Oracle/Supabase and eight real cross-encoder cases. The generated display contract is
 `Part2_Infrastructure/web/lib/test-counts.generated.ts`; the ledger records the exact measurement
 boundary. The separate Playwright release audit passed **872/872 rendered geometry states**
 (109 addressable states × 8 viewports) with no layout failures or console errors. Then: 17
@@ -46,8 +47,8 @@ compiled engine against 25.3 µs on the Python reference, with the arithmetic co
 `/metrics` on 2026-08-17); 20/20 gate-parity scenarios bit-exact across both engines; **138 Telegram
 commands** from one generated catalogue; and **76 OpenAPI paths carrying 79 HTTP operations**
 (`tools/openapi.json`, OpenAPI 3.1.0), with the committed contract's canonical-JSON SHA-256
-re-verified on 2026-08-29 (`node web/scripts/check-gateway-openapi-digest.mjs`, digest
-`12b53e1f…`). The deployed gateway's live `/openapi.json` was last compared against that contract on
+re-verified on 2026-09-02 (`node web/scripts/check-gateway-openapi-digest.mjs`, digest
+`6f50ebed…`). The deployed gateway's live `/openapi.json` was last compared against that contract on
 2026-08-17 and has not been re-probed since; that comparison needs the running host, so it is not
 part of the offline verify block.
 
@@ -113,7 +114,7 @@ the number, which moves. The table above explains *why* each path is where it is
 ```
 
 The volatile file count lives in the generated catalogue, not this prose. On
-2026-08-29 it contained 2,283 paths. **The gate, not a copied number, is the
+2026-09-02 it contained 2,422 paths. **The gate, not a copied number, is the
 thing to trust:** `npm run build` refuses to start until
 `web/lib/repository-manifest.generated.json` lists the same files `git ls-files` does, so a stale
 count is caught at `prebuild` rather than believed.
@@ -226,11 +227,10 @@ the mathematical verdict and the event-study workflow: **Markets** carries
 Universe · Books · Lattice · Fees · Shell · Settlement · Stake · Makers;
 **Proofs** carries Coherence test · Basket · Parlays · Coherence index ·
 Scorecard · Corpus · Lessons; and **Diffusion** carries the event, instrument,
-model and findings workflow. Together they expose 64 in-pane views (23 / 25 /
-16), read out of
-[`components/MarketsConsole.tsx`](Part2_Infrastructure/web/components/MarketsConsole.tsx)
-[`components/CoherenceConsole.tsx`](Part2_Infrastructure/web/components/CoherenceConsole.tsx)
-and [`components/DiffusionConsole.tsx`](Part2_Infrastructure/web/components/DiffusionConsole.tsx).
+model and findings workflow. Together they expose 71 addressable views (26 / 29 /
+16), declared once in
+[`web/lib/section-views.ts`](Part2_Infrastructure/web/lib/section-views.ts) and
+consumed by routing, the command palette and the browser sweep.
 The stable tab ids are `markets`, `coherence` and `diffusion`; older
 `#coherence/<section>` links therefore continue to resolve after the display
 label changed to Proofs.
@@ -291,7 +291,7 @@ authority.
 
 ## Tech Stack
 
-Versions re-read on 2026-08-29 from `web/package-lock.json` and the gateway
+Versions re-read on 2026-09-02 from `web/package-lock.json` and the gateway
 virtualenv that CI mirrors (Python 3.12.14). Managed services carry their own
 earlier dates where they were not re-probed. Full detail — every dependency's
 *why*, the API-key table and the per-layer argument — is in
@@ -343,7 +343,7 @@ four being up.
 |---|---|---|
 | **[DuckDB](https://duckdb.org)** | `1.5.5` | **Authoritative.** The embedded append-only audit ledger ([`modules/audit/store.py`](Part2_Infrastructure/modules/audit/store.py)) — every order, risk decision, TCA snapshot and backtest run, on a named Docker volume. Not importable → SQLite fallback, `backend: "sqlite"`. **Locked by another live process → `AuditLedgerConflict` is raised and never fallen back from**, because a second process writing a private divergent history is the worst thing this subsystem could do. A second DuckDB file, `coherence.duckdb`, holds the Kalshi book tape ([`modules/coherence/fs/store.py`](Part2_Infrastructure/modules/coherence/fs/store.py)) and is append-only for the same reason. |
 | **SQLite** | stdlib, 3.12 | The complete default data-ops store ([`modules/data_ops_store.py`](Part2_Infrastructure/modules/data_ops_store.py)): quality findings, escalations, work items, schedule runs and four Diffusion ledgers. Deliberately *not* a table in DuckDB — this is state a person just edited, so it needs a write that **raises** and an UPDATE that reports whether it hit a row. `PRAGMA busy_timeout=30000`, one process-wide open. The opt-in PostgREST backend mirrors all eight logical tables after schema deployment; [`DATA_OPS_BACKEND.md`](docs/architecture/DATA_OPS_BACKEND.md) records the boundary. |
-| **[PostgreSQL](https://www.postgresql.org)** / **[Supabase](https://supabase.com)** | `17.6` / managed | The durable mirror **and** the authoritative home of the research corpus: 40 ordered migrations, two edge functions, RLS deny-by-default. Never a second decision-maker. Absent → `search` and `connected` return a typed `unavailable` **state**, never `[]`, because "searched and found nothing" and "could not search" render differently. |
+| **[PostgreSQL](https://www.postgresql.org)** / **[Supabase](https://supabase.com)** | `17.6` / managed | The durable mirror **and** the authoritative home of the research corpus: 41 ordered migrations, two edge functions, RLS deny-by-default. Never a second decision-maker. Absent → `search` and `connected` return a typed `unavailable` **state**, never `[]`, because "searched and found nothing" and "could not search" render differently. |
 | **[pgvector](https://github.com/pgvector/pgvector)** | `0.8.2` | 384-dim HNSW cosine index over `research_documents` (`gte-small`, served by a Supabase Edge Function — no key, no weights in the image). A separate 512-dim CLIP `image_embedding` column sits beside it and is empty on a default deployment, because two models are two coordinate systems and must never share one column. |
 | **[Neo4j Aura](https://neo4j.com/cloud/aura/)** | driver `5.28.4`, *optional* | A **one-way, rebuildable projection** of the Postgres `research_edges` table — nothing else writes there, asserted by `tests/test_research_graph_projection.py`. Exactly **two** routes read it back, `GET /api/research/graph/communities` and `/centrality`, and both mark `source: "neo4j" \| "corpus"`. Three refusals stay distinguishable — not configured, sweep has not run, mid-rebuild — and a writer may not read its own output. **GDS is not on Aura Free**, so Louvain and PageRank run in-process via networkx ([`modules/research_communities.py`](Part2_Infrastructure/modules/research_communities.py)); request-time traversal is a Postgres recursive CTE capped at depth 4. Drop the graph and re-project: **no request path depends on it being up.** |
 | **[Oracle Autonomous DB](https://www.oracle.com/autonomous-database/)** | managed, *optional* | Authoritative for **nothing**. Runs one thing: a GBM terminal-value VaR as an in-database procedure ([`oracle/`](oracle/)), reached from the web tier through node-oracledb **thin** mode over walletless TLS (`poolMin: 0`, `poolMax: 2` — Vercel scales lambdas independently and a low ADB session limit is the difference between graceful queueing and `ORA-12516`). Absent → a typed result carrying `oracle_not_configured`, never a throw and never a credential in the message. |
@@ -411,7 +411,7 @@ them twice.
 | **[Caddy](https://caddyserver.com)** | `2-alpine` | TLS on `:8443` with a **pinned internal CA** — a bare IP gets no public issuance, and the single client that matters pins the root instead ([`docs/engineering/TLS_FLIP.md`](docs/engineering/TLS_FLIP.md)). |
 | **[Oracle Cloud](https://www.oracle.com/cloud/)** | managed | Always-on host, Singapore. The region is load-bearing, not cosmetic: from US egress Binance returns 451 and Bybit 403. |
 | **[Vercel](https://vercel.com)** | managed | Two serverless projects from one repo with different Root Directories. `Part2_Infrastructure/web/vercel.json` pins the workspace to `sin1`; the OpenBB service's committed `vercel.json` declares no region. Builds are Ed25519-attested against a trust root pinned in reviewed source. |
-| **[GitHub Actions](https://github.com/features/actions)** | managed | **Six workflows.** `ci.yml` runs four **network-free** jobs on every push and every pull request — `gateway` (ruff → native-core build → pytest → `export_openapi.py --check` → the money-path probe), `openbb-service`, `web` (`npm ci` → tests → the committed web test-count check → typecheck → build) and `repo-audit` (`check_repo_complete.sh --fast`, which builds an export of HEAD rather than the working tree). Two more never gate a push: `live-smoke` (`workflow_dispatch` only, because it needs live Oracle and Supabase secrets) and `rerank-real` (`workflow_dispatch` or a `rerank` label; it seeds and caches the 1.05 GiB cross-encoder weights, runs that suite offline, and **fails if it skips**). `deploy.yml` ships the gateway on pushes that touch `Part2_Infrastructure/**` minus `web/**` and `OpenBB_Service/**`: verify → build → GHCR → SSH swap preserving the volume → probe → roll back, with a warning if the container came up on the Python engine. `e2e.yml` smokes the live deployments twice daily (`23 6,18 * * *`) and **never on push** — a venue outage is not a reason to block a code change. `openbb-keepalive.yml` pings every ten minutes (a Vercel function stays warm 5–15 min; Hobby crons run once a day); `oracle-keepalive.yml` runs daily at 02:17 because a free ADB stops itself after seven idle days. `schema.yml` is **`workflow_dispatch` only** — DDL that rides a code deploy is how a table gets altered by someone shipping a CSS change. |
+| **[GitHub Actions](https://github.com/features/actions)** | managed | **Six workflows.** `ci.yml` has seven jobs: five deterministic jobs on every push and pull request (`gateway`, `native-sanitizers`, `openbb-service`, `web`, `repo-audit`) plus `live-smoke` and `rerank-real`. On `main` and explicit dispatch all seven run: live services require Oracle/Supabase secrets and fail if they are missing, while the re-ranker seeds/caches its 1.05 GiB weights, runs offline and fails if it skips. Pull requests omit live services and run the real model only with a `rerank` label. `deploy.yml` ships the gateway on relevant infrastructure pushes: verify → build → GHCR → SSH swap preserving the volume → probe → roll back. `e2e.yml` probes the deployed gateway, Vercel, databases and Neo4j twice daily and on request. `openbb-keepalive.yml` and `oracle-keepalive.yml` keep free-tier services warm; `schema.yml` remains deliberate `workflow_dispatch`-only DDL. |
 
 **Three committed generated artefacts cascade from one schema change**, and this
 is the sequence to run when a field is added to any `modules/schemas_*.py` model:
@@ -437,19 +437,19 @@ From a tree that is already set up:
 
 ```bash
 cd Part2_Infrastructure
-venv/bin/python -m pytest                            # 3,254 passed, 1 skipped; 3,255 total
+venv/bin/python -m pytest                            # 3,491 passed, 1 skipped; 3,492 total in the 2026-09-02 local shape
 venv/bin/python tools/synthetic_probe.py             # book → cost → risk gate → audit; 6/6 steps
-(cd web && npm test)                                 # 6,513 passed, 6 skipped; 1,408 suites
+(cd web && npm test)                                 # 6,840 passed, 6 skipped; 1,461 suites
 (cd OpenBB_Service && ../venv/bin/python -m pytest)  # 24 passed
 ```
 
 Those commands *are* the source of the three numbers — each figure is the count
-its own runner printed on 2026-08-29 (`pytest`'s summary line; `node --test`'s
+its own runner printed on 2026-09-02 (`pytest`'s summary line; `node --test`'s
 `ℹ pass`). The desk displays them from `web/lib/test-counts.generated.ts`, which
 `npm run counts:refresh` regenerates. **Read that file carefully even when it is
 fresh:** CI checks only its **web** line, via
 `node scripts/check-test-counts.mjs web <log>`, so the gateway line in it is a
-dated record and not a gate. The 2026-08-29 generator run used the repository's
+dated record and not a gate. The 2026-09-02 generator run used the repository's
 current local verification environment; run `pytest -rs` to read the name and
 reason of any environment-dependent skip instead of inferring it from a stale
 historical total.
@@ -513,7 +513,7 @@ Described one line each, and indexed in full — with what each is *for* — in
 | [`docs/architecture/LATENCY_BUDGET.md`](docs/architecture/LATENCY_BUDGET.md) | Every latency number the desk claims, with the method and the machine stated. |
 | [`docs/architecture/latency-bench.generated.json`](docs/architecture/latency-bench.generated.json) | The generated bench data behind that budget's §2.1 table. Regenerated, never edited. |
 | [`docs/architecture/DATA_OPS_BACKEND.md`](docs/architecture/DATA_OPS_BACKEND.md) | The four operational tables and four Diffusion ledgers the gateway must not forget across a restart, plus the exact SQLite/Postgres compatibility boundary. |
-| [`docs/CURRENT_STATE.md`](docs/CURRENT_STATE.md) | The 2026-08-29 release ledger for topology, versions, contracts, generated artefacts and test evidence. |
+| [`docs/CURRENT_STATE.md`](docs/CURRENT_STATE.md) | The 2026-09-02 release ledger for topology, versions, contracts, generated artefacts, deployments and test evidence. |
 | [`docs/engineering/CODING_STANDARDS.md`](docs/engineering/CODING_STANDARDS.md) | The house rules, almost every one enforced by a named test rather than by review. |
 | [`docs/engineering/TLS_FLIP.md`](docs/engineering/TLS_FLIP.md) | Moving the web-to-gateway hop to HTTPS behind a pinned internal CA, and why pinning beats public PKI for one client. |
 | [`docs/planning/PRD.md`](docs/planning/PRD.md) | The enterprise RAG requirement and the delivery record: built, substituted with an argument, or NOT BUILT with the reason. |

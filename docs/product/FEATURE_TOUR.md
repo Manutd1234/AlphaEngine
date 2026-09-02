@@ -1,6 +1,6 @@
 # Feature tour — the whole infrastructure, walked as the decision loop
 
-**Last verified: 2026-08-29.** The source-level topology and release evidence
+**Last verified: 2026-09-02.** The source-level topology and release evidence
 below were reconciled with the [current-state ledger](../CURRENT_STATE.md).
 Historical deployment walks and benchmark readings retain their observation
 dates; a current document is not evidence that an external origin was re-probed.
@@ -17,8 +17,8 @@ those quotes, then how information moves through them — with no order path at 
 *Walked against the deployed system on 2026-08-17. The panel descriptions were re-read against
 the tree on 2026-08-22, when the Remediation and API & Schema sections changed shape, and again on
 2026-08-24, when this engine was restructured six times in one day. The current three-tab engine
-was re-read from the tree on 2026-08-30 — those parts are described from source, not from a live
-walk, and the stamps stay separate. Rails are pinned to `lib/sections.ts`; all 64 engine views are
+was re-read from the tree on 2026-09-02 — those parts are described from source, not from a live
+walk, and the stamps stay separate. Rails are pinned to `lib/sections.ts`; all 71 engine views are
 pinned to `lib/section-views.ts` and each has a canonical hash, palette entry and sweep cell.*
 
 **Live URLs.**
@@ -440,7 +440,7 @@ reader will "correct" one of them into agreement with another:
 | Operations in the OpenAPI schema | **79** | the 83 less the WebSocket, which OpenAPI does not describe, and less the three console aliases, all marked `include_in_schema=False` |
 | Paths in the OpenAPI schema | **76** | the 79 operations, less three — `/api/orders`, `/api/data/work-items` and `/api/data/work-items/{item_id}` each serve two verbs |
 
-Recounted 2026-08-29. `main.py`'s docstring now records the same 76-path,
+Recounted 2026-09-02. `main.py`'s docstring now records the same 76-path,
 79-operation contract. The router split is why
 `grep -cE '^@app\.' main.py` alone answers 4 (three routes and an exception handler), which
 would understate the tree by an order of magnitude. Re-derive with
@@ -500,23 +500,23 @@ is structural, not cosmetic: `WorkspaceSubtabs` publishes `--rail-h` onto
 the custom property the outer rail owns, and the two would fight. A `.seg` is plain CSS keyed off
 `aria-pressed` and publishes nothing.
 
-**Every view is now a place.** The third hash segment names one of the 64 engine views; the
+**Every view is now a place.** The third hash segment names one of the 71 engine views; the
 router, command palette and browser sweep consume the same `lib/section-views.ts` registry. The
 default keeps the compact two-segment URL, while a non-default such as
 `#markets/fees/comparison` is independently linkable and testable. The sweep covers 70 section
-landings plus 43 non-default view cells across the whole workspace (42 in this engine and
+landings plus 50 non-default view cells across the whole workspace (49 in this engine and
 Research Setup).
 
 | Section | Views | What it answers |
 |---|---|---|
-| **Universe** | Baskets · Families | What does a whole mutually exclusive family cost against the dollar it is certain to pay? Both directions are priced, because buying every outcome needs every ask and selling needs every bid — and in the tails a market routinely has an ask and no bid, so a family that cannot be SOLD as a basket can often still be BOUGHT as one. One figure carries every watched family on a single dollar axis, with each family's outcome table behind a disclosure that states its row count: measured live, four watched families carry 80, 188, 6 and 6 markets, and drawing them all was 280 rows of quotes above the fold. **Families** cuts the universe by Kalshi's own `category` — "Crypto", "Climate and Weather" — read from `GET /series/{ticker}` and never inferred from a ticker prefix; a series the exchange will not categorise is grouped as uncategorised rather than guessed at. |
+| **Universe** | Basket pricing · Positions · Families | What does a whole mutually exclusive family cost against the dollar it is certain to pay, where is the desk positioned, and how is the watched set grouped? Both directions are priced because buying every outcome needs every ask and selling needs every bid. **Families** cuts the universe by Kalshi's own `category`, read from `GET /series/{ticker}` and never inferred from a prefix. |
 | **Settlement** | Index · Formation · Pending | What does the contract actually resolve against, given it is not the price on the screen? A weather contract settles on the MEAN of a published index over a window, and the gap between that and the latest print is basis a position carries for free. **Index** draws the published series against the window it settles on; **Formation** draws the chain that produces it — stations, quality control, a published minute, a sixty-minute mean — as a pipeline rather than a table, because a table cannot show that the figure a contract settles on is four transformations away from a thermometer; and **Pending** is the trailing minutes the stations have reported and the exchange has not published, drawn with the station DISAGREEMENT as the bar, because a provisional mean built from readings 3.6° apart is a different object from the same figure built from readings that agree. Three views of Universe until 2026-08-25, and a section again under the id it was published under. |
 | **Books** | Ladder · Identity · History | What does this market look like as the exchange really publishes it? Two BID ladders and no asks; the offer ladder is IMPLIED and is the one the exchange never sends you. **Identity** makes `yes_ask + no_ask = 1 + spread` inspectable piece by piece; **History** adds an exact snapshot scrubber over the recorded book without synthesising missing observations. |
-| **Makers** | Dispersion · Channel | What do several professionals say when the book shows one opinion, or none? A book publishes the most aggressive resting order rather than the typical view, and for a combo it publishes nothing at all; the request-for-quote channel is the only place the venue exposes N independent answers to a question it never asked. **Dispersion** ranks each panel's lowest-to-highest range on one dollar axis and keeps `spread` (what the makers disagree about) apart from `median_width` (one maker's own bid-offer), because a wide panel of tight makers and a tight panel of wide makers are opposite situations that read identically if either number stands alone. **Channel** is the four answers the channel itself can give — unsigned, refused, read-and-empty, quotes-in-hand — drawn as a figure and tabulated with what each one is NOT, because all four would be reported as "no data" by a panel that only tracked whether it had quotes. Two views of Books until 2026-08-25, and a section again under the id it was published under; the label is "Makers" because the section is about who is quoting, and a reader scanning a rail should not need the statistic to find the people. |
-| **Lattice** | Survival · Mass · Moments | What measure do these prices imply? **Survival** is the function the strikes sample, **Mass** what differencing leaves between them, and **Moments** the summary that falls out. The redesigned mass reservoir and selectable moment tiles keep every exact input beside the structural shape. |
+| **Makers** | Dispersion · REST poll | What do several professionals say when the book shows one opinion, or none? **Dispersion** separates cross-maker disagreement from each maker's own width. **REST poll** keeps authentication refusal, read-and-empty and quotes-in-hand distinct; an account-membership refusal is verified access policy, not a failed gateway. |
+| **Lattice** | Survival · Mass · Moment shape · Moment support | What measure do these prices imply? Survival is the function the strikes sample, Mass is what differencing leaves, Moment shape summarizes it, and Moment support keeps the observations behind that summary inspectable. |
 | **Stake** | Plan · Capital · Method · All outcomes | What would it be right to bet against that measure? The bankroll vault exposes plan, capital split, growth method and every ranked or declined outcome. Worst-case wealth stays beside growth because log-optimal is not riskless. It sizes and sends nothing. |
 | **Fees** | Worked example · Cost shape · Ablation · Replay table | What does a real position pay, and does the cost model change the answer? The defaults reproduce Kalshi's documented case. The receipt stack makes every component selectable; the counterfactual switchboard replays the tape under four configurations, including `no_fees`; Replay table preserves that run row by row. `/replay?limit=20000` is gated on the two replay views and warmed by nothing. |
-| **Shell** | Map · Browse | Where does a market live, and what has actually been derived about it? The filesystem lens maps directories and lets a reader browse the listing and live tape. Missing path, unavailable reading, empty directory and unreachable venue remain four distinct outcomes. |
+| **Shell** | Namespace · Routing · Browse | Where does a market live, how is the selected shard routed, and what has actually been derived about it? The filesystem lens maps directories and lets a reader browse the listing and live tape. Missing path, unavailable reading, empty directory and unreachable venue remain four distinct outcomes. |
 
 **The interaction is quantitative, not ornamental.** Every redesigned family has a real button
 or range control, explicit selected state and an atomic exact-value output. Dense selectors use
@@ -543,7 +543,7 @@ is literally a portfolio with legs, quantities and fees on it.
 **The tab id is `coherence` and the label is "Proofs".** `coherence` is the only Kalshi tab id
 `origin/main` ever published, so it keeps the half that carries the proof and every
 `#coherence/<section>` link in the world still resolves natively. The six-shape history and the
-relocation table are described under Tab 9 and apply here unchanged. Its 25 views use the same
+relocation table are described under Tab 9 and apply here unchanged. Its 29 views use the same
 address grammar and shared view control as Markets.
 
 **60 seconds:** rail: **Coherence test → Basket → Parlays → Coherence index → Scorecard → Corpus → Lessons**.
@@ -563,13 +563,13 @@ section's own header admitted. Every section on this rail is now one question.
 
 | Section | Views | What it answers |
 |---|---|---|
-| **Coherence test** | Verdict · Proof · Prices | Do these prices admit a probability measure? Almost always yes — and that is the CLAIM, not a disappointment: a detector that spoke only when it found something would leave "no opportunity" and "the feed is down" looking identical. Which is why the verdict now reports the programme's own margin, the signed figure it was read off, rather than four money rows that are correctly empty whenever no portfolio exists. **Proof** is the whole certificate in a fixed-width block you can check by hand or paste elsewhere, because "arbitrage, 3.2 cents" is not evidence. |
+| **Coherence test** | Verdict · Proof · Checks · Prices · Sizes | Do these prices admit a probability measure? Almost always yes — and that is the claim, not a disappointment. Proof preserves the certificate, Checks shows each constraint, and Prices/Sizes keep every input and executable quantity inspectable. |
 | **Basket** | Cover · Basket · Size | The portfolio the test hands back, drawn state by state — the constructive half of the theorem and the reason this engine tests for coherence instead of scanning for arbitrage shapes. Where no measure fits a family's prices, duality returns the basket that wins in every state, so the certificate of infeasibility IS the trade. Every leg carries all three fee components, because a gross edge is not an answer. |
-| **Parlays** | Bands · Comparison · Parlays · Legs · Bounds | The same test run on the parlays the venue states rather than on a family's strikes: two probabilities never determine the probability of both, so the legs give a Fréchet band and never a price, and the band's width is how far the parlay can move with no leg moving at all. Comparison keeps the venue quote beside that band; Legs makes the inputs inspectable. It takes no family picker, and that is the structural reason it is its own section: a parlay is a listing the exchange publishes, not a family this engine chooses. |
+| **Parlays** | Ranges · Test quote · Leg prices · Test legs · Checks | The same test run on venue-listed parlays: two probabilities define a Fréchet range rather than a unique conjunction price. The test quote and leg views keep the exact proposed portfolio inspectable; Checks shows which bound decides. |
 | **Coherence index** | By poll · By family | How far do these prices sit from admitting a probability, right now? The Scorecard scores a SETTLED corpus against what paid; this measures the L1 distance from the quoted price vector to the nearest one summing to a dollar, on every poll, on markets that have not settled and may never. One is a verdict about the past and the other a time series about the present — they shared a section for a day on the argument that both ask "were these prices right", which is a question rather than a subject. The score trend moved to Corpus on 2026-08-25 for the same reason in reverse: it reads the settled history, so it belongs beside the settled corpus rather than beside a live distance. Unmeasurable readings are drawn as gaps, never dropped or zeroed, because a line closing over them would claim continuity nobody observed. |
-| **Scorecard** | Overview · Decomposition · Measures · Reliability · Bands | Were these prices right once settled? Overview leads into the Murphy decomposition; the waterfall and exact term inspector share one selected term, while Measures keeps the exact score table separate. Reliability and Bands link each calibration cell's quote, realised frequency, count and contribution on one keyboard-operable Brier surface; what the score was taken over is next door, in Corpus. |
+| **Scorecard** | Overview · Equation · Component scale · Measures · Reliability · Bands | Were these prices right once settled? Equation and Component scale explain the Murphy decomposition before Measures, Reliability and Bands expose the exact scores, bins and realised frequencies; Corpus remains the record they were computed over. |
 | **Corpus** | Composition · Score trend | What was that score computed on, and how did it accrue? A Brier score is a score of whatever happened to settle, so the mixture decides what the figure next door is a figure about — the composition names each series' share and its own favourite–longshot slope, and refuses to let the aggregate stand in for a series, because the aggregate averages series that are not the same question. **Score trend** is the settled score as it was recorded, accruing forward only: nothing back-fills it, so the first point is where the recorder started rather than where the venue did. Runs that could not be scored are drawn as gaps, never as zeroes. |
-| **Lessons** | Prices · Structure · Bounds · Record · Coverage · Episode states | What is the curriculum, and what guards each claim? Fourteen lessons rendered from `lib/coherence/lessons.ts`, each naming the code and tests that pin it. The selectable verification loom reveals full module and suite paths; the detail sheet keeps long formulae readable and actionable instead of making labels themselves the click target. |
+| **Lessons** | Quotes · Structure · Bounds · Record · Coverage · Episode states | What is the curriculum, and what guards each claim? Fourteen lessons rendered from `lib/coherence/lessons.ts`, each naming the code and tests that pin it. The selectable verification loom reveals full module and suite paths; the detail sheet keeps long formulae readable and actionable instead of making labels themselves the click target. |
 
 **Every engine view is an address.** The grammar is `#<tab>/<section>/<view>` —
 `#coherence/certificate/proof`, `#markets/fees/comparison`,

@@ -1,10 +1,9 @@
 # The TLS flip — moving the web→gateway hop to HTTPS
 
 *TLS reachability and the Vercel Production configuration were last checked
-**2026-09-01**. A probe of `https://149.118.48.255:8443/health` using the
-committed `Part2_Infrastructure/web/certs/gateway-ca.pem` returned HTTP 200.
-The Production environment change is staged for the next deployment; the
-deployed web/API path has not yet been validated through that configuration.*
+**2026-09-02**. Deployment run `33633139022` completed the OCI/TLS cutover, and
+E2E run `33633746350` proved the Vercel application and its proxied gateway book
+over the pinned-CA configuration; all 16 production checks passed.*
 
 [`CURRENT_STATE.md`](../CURRENT_STATE.md) applies the same measurement boundary
 to the repository-wide release ledger.
@@ -21,14 +20,16 @@ the recommended Vercel origin.
 Everything below is deliberate operator action, with one exception: the
 deploy already tries to open 8443 in the *instance* firewall itself (§1).
 
-**Where the flip stands (2026-09-01).** Steps 1–3 are done. The root is
+**Where the flip stands (2026-09-02).** Steps 1–4 are done. The root is
 committed at `Part2_Infrastructure/web/certs/gateway-ca.pem` (since
 2026-08-11), and the pinned external probe of
-`https://149.118.48.255:8443/health` returned HTTP 200 on 2026-09-01. Vercel's
+`https://149.118.48.255:8443/health` returned HTTP 200 again in deployment run
+`33633139022`. Vercel's
 Production environment now has `ALPHAENGINE_GATEWAY_URL` set to that HTTPS
 origin and `NODE_EXTRA_CA_CERTS` set to
-`/var/task/certs/gateway-ca.pem`. Those values take effect on the next
-Production deployment; §4's web/API validation is still pending. This record
+`/var/task/certs/gateway-ca.pem`. E2E run `33633746350` then passed all 16
+production checks, including Vercel reachability and the proxied book read over
+the pinned-CA path. This record
 does not assert any change to the Preview environment or any high-availability
 property.
 
@@ -38,8 +39,7 @@ standalone smoke tool still defaults `E2E_GATEWAY_URL` to
 `http://149.118.48.255:8000`. Neither probe can see Vercel's environment. Keep
 that plaintext path only for the documented deployment check, rollback and
 scripts until their callers have been migrated; it is no longer the canonical
-Production web origin. The TLS flip becomes load-bearing when the staged
-Production configuration is deployed and passes §4.
+Production web origin. The pinned TLS path is now load-bearing for Production.
 
 ## 1. Open ingress TCP 8443
 
@@ -72,7 +72,7 @@ Save it verbatim as:
 commit, and push. (`next.config.mjs` already traces `certs/*.pem` into every
 function bundle.)
 
-## 3. Point the Vercel project at it (configured; deployment pending)
+## 3. Point the Vercel project at it (configured and deployed)
 
 The Vercel project settings for **Production** were set on 2026-09-01 as
 follows:
@@ -83,8 +83,8 @@ follows:
 | `ALPHAENGINE_GATEWAY_URL` | `https://149.118.48.255:8443` |
 
 This is a Production-only status record; it makes no claim about Preview.
-Environment changes are staged for the next Production deployment, so do not
-call the flip complete until §4 passes against that deployment.
+Deployment and E2E runs `33633139022` and `33633746350` completed §4 against
+Production on 2026-09-02.
 
 `NODE_EXTRA_CA_CERTS` **adds** to Node's default trust store — Supabase,
 Oracle and every other TLS peer verify exactly as before. If the path is ever
@@ -110,14 +110,15 @@ curl --cacert Part2_Infrastructure/web/certs/gateway-ca.pem \
   https://149.118.48.255:8443/health
 ```
 
-After the next Production deployment, complete these still-pending checks:
+The 2026-09-02 Production E2E run completed these checks:
 
 - `/api/system/health` → `sources.gateway.state` is `fresh` and
   `delivery.schema.state` is `match` — the same evidence as before, now over
   TLS.
-- `python3 Part2_Infrastructure/tools/e2e_smoke.py` with
+- `python3 Part2_Infrastructure/tools/e2e_smoke.py` ran with
   `E2E_GATEWAY_URL=https://149.118.48.255:8443` and `SSL_CERT_FILE` pointing at
-  the saved `gateway-ca.pem` (Python needs the pin too).
+  the saved `gateway-ca.pem` (Python needs the pin too): 16 passed, 0 failed,
+  0 not configured.
 
 ## 5. Afterwards (optional)
 

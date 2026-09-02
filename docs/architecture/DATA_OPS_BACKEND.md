@@ -1,6 +1,6 @@
 # The data-operations backend
 
-**Last verified: 2026-08-31.** Every claim below names the module
+**Last verified: 2026-09-02.** Every claim below names the module
 or migration that makes it checkable; where a figure could not be re-measured
 offline, it says so rather than being restated.
 
@@ -10,8 +10,9 @@ four hold operational state the gateway must not forget across a restart:
 `data_work_items`. Four more hold the information-diffusion record:
 `diffusion_events`, `diffusion_runs`, `diffusion_texts` and
 `diffusion_studies`. `DATA_OPS_BACKEND` selects one store for all of them. The
-successor migrations now cover the same logical schema on Postgres; deployment
-of those migrations remains a separate, manual operation.
+successor migrations now cover the same logical schema on Postgres. Deployment
+remains a separate manual operation; schema run `33633200876` applied and
+verified the live project on 2026-09-02.
 
 | | `sqlite` (default) | `postgres` |
 |---|---|---|
@@ -231,9 +232,9 @@ request it builds (`TestTheRequestItBuilds`) and how it refuses
 text never carries the key or the URL, a non-JSON 2xx raises rather than
 returning nothing, and `migrate` issues no DDL).
 
-The opt-in live pass reaches all eight logical tables and skips with a stated
-reason unless URL, service-role key and desk id are exported. CI remains
-network-free by design, so its green result proves request construction and
+The opt-in local live pass reaches all eight logical tables and skips with a
+stated reason unless URL, service-role key and desk id are exported. The core
+CI job remains network-free by design, so its green result proves request construction and
 schema contracts; the explicit skip says it has not proved deployment state.
 
 [`tests/test_data_quality_rollup.py`](../../Part2_Infrastructure/tests/test_data_quality_rollup.py)

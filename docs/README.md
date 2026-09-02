@@ -1,6 +1,6 @@
 # docs/ — the index
 
-**Source/worktree audited: 2026-08-31.** One line per document, honest about
+**Source/worktree audited: 2026-09-02.** One line per document, honest about
 what each one is **for** — so a reader can pick one rather than opening five.
 Documents are filed by their path, which is the only arrangement an index
 cannot drift away from. Where a document and the tree disagree, the tree is
@@ -26,7 +26,7 @@ those at length.
 | check a latency claim | [`architecture/LATENCY_BUDGET.md`](architecture/LATENCY_BUDGET.md) |
 | know what is built, what was substituted and what is not built | [`planning/PRD.md`](planning/PRD.md) and [`planning/PLAN.md`](planning/PLAN.md) |
 | change code without breaking a rule a test enforces | [`engineering/CODING_STANDARDS.md`](engineering/CODING_STANDARDS.md) |
-| talk about test counts at all | [`testing/TESTING.md`](testing/TESTING.md) — the only document here allowed to |
+| understand how test counts are generated and interpreted | [`testing/TESTING.md`](testing/TESTING.md); use [`CURRENT_STATE.md`](CURRENT_STATE.md) for the short current release ledger |
 
 ## Architecture
 
@@ -68,7 +68,7 @@ those at length.
 
 | Document | What it is for |
 |---|---|
-| [`testing/TESTING.md`](testing/TESTING.md) | The testing philosophy and practice — why the suites are shaped as they are; the per-suite catalogue stays in `Part2_Infrastructure/README.md` §10. **The one document in this folder allowed to discuss test counts**, and the place the suites' standing blind spots are named: no layout engine, and the opt-in skips that are a local credential and a local weights directory rather than missing coverage. |
+| [`testing/TESTING.md`](testing/TESTING.md) | The testing philosophy and practice — why the suites are shaped as they are; the per-suite catalogue stays in `Part2_Infrastructure/README.md` §10, while `CURRENT_STATE.md` carries the short dated totals. It also names the suites' standing blind spots: no layout engine, and local skips caused by absent credentials or weights rather than missing coverage. |
 
 ## The whitepaper
 
@@ -103,12 +103,11 @@ no summary of its contents.
 - [`../CLAUDE.md`](../CLAUDE.md) is the agent-facing file — the facts that cost
   an hour each — and [`../SETUP.md`](../SETUP.md) is the running instructions.
   Neither is duplicated here.
-- **Test counts** live in `web/lib/test-counts.generated.ts` and, in prose, in
-  exactly one document: [`testing/TESTING.md`](testing/TESTING.md). Everything
-  else links to it. That rule was written after the counts drifted in five files
-  at once, because the paragraph explaining them had been copied into each: the
-  gateway has two correct pass counts depending on whether the cross-encoder
-  weights are seeded, the web figure cannot be asserted from inside the suite
-  that produces it, and the committed record is a dated measurement whose
-  gateway line CI does not check. A count needs all three caveats or none of it;
-  five copies guarantee that some of them will be wrong.
+- **Test counts** are generated into `web/lib/test-counts.generated.ts`.
+  [`CURRENT_STATE.md`](CURRENT_STATE.md) records the short dated release result;
+  [`testing/TESTING.md`](testing/TESTING.md) owns the interpretation and caveats.
+  The gateway has different local and main-CI shapes because the real
+  cross-encoder runs in its own required main-branch job, the web figure cannot
+  be asserted from inside the suite that produces it, and the generated record
+  is a measurement rather than a timeless invariant. Refresh it through its
+  owning command instead of manually changing copied prose.

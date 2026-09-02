@@ -1,6 +1,6 @@
 # AlphaEngine operations runbook
 
-**Procedure audit: 2026-08-29. TLS deployment state: 2026-09-01.** Procedures
+**Procedure audit: 2026-09-02. TLS deployment state: 2026-09-02.** Procedures
 and paths were audited against the single application-context runtime. The TLS
 endpoint and Vercel Production settings have the later observation recorded in
 the deployment section below; other external and latency readings retain their
@@ -319,9 +319,11 @@ are Vercel projects that deploy themselves from git.
 | `SSH_USER` | deploy | `opc` on Oracle Linux, `ubuntu` on Ubuntu images. |
 | `SSH_PRIVATE_KEY` | deploy | Whole PEM including the BEGIN/END lines. |
 | `WEB_API_TOKEN` | deploy | **Required.** Must equal `ALPHAENGINE_GATEWAY_TOKEN` in Vercel. |
-| `DB_CONNECTION_STRING` | `ci.yml` live-smoke | Oracle ADB. Not used by the gateway — see below. |
-| `DB_PASSWORD` | `ci.yml` live-smoke | Same. |
-| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | deploy (optional) | Turns the Postgres mirror on. |
+| `DB_CONNECTION_STRING` | `ci.yml` live services | Oracle ADB. Not used by the gateway — see below. Required on `main`. |
+| `DB_PASSWORD` | `ci.yml` live services | Same. Required on `main`. |
+| `SUPABASE_URL` | CI/deploy | Required by the live-services job on `main`; paired with the service-role key to enable the gateway mirror. |
+| `SUPABASE_ANON_KEY` | `ci.yml` live services | Required on `main` to prove the public-read/private-denial RLS boundary. |
+| `SUPABASE_SERVICE_ROLE_KEY` | deploy | Optional gateway-side mirror/research access; never exposed to the browser. |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ALLOWED_USER_IDS` | deploy (optional) | Notification companion. |
 | `TELEGRAM_CONTROL_USER_IDS` | deploy (optional) | The separate control allow-list. Without it `/halt`, `/resume` and `/flatten` refuse. |
 | `TELEGRAM_ALERT_CHAT_IDS` | deploy (optional) | Where risk and data-quality escalations are pushed. |
@@ -329,13 +331,14 @@ are Vercel projects that deploy themselves from git.
 
 **`DB_*` are not passed to the gateway container.** The gateway is Python and
 has no Oracle client; `ORACLE_*` is read by the Next.js routes on Vercel, which
-is where those values belong. The workflow uses them only for the manual
-live-smoke job, which verifies the database directly.
+is where those values belong. The workflow uses them only for the main-branch
+live-services job, which verifies the database directly. Pull requests omit
+that secret-bearing job.
 
-### Two things the pipeline cannot do for you
+### Two operator-owned deployment boundaries
 
-**1. Point Vercel at the VM over TLS.** The web project's **Production**
-environment was set on 2026-09-01 to:
+**1. Keep Vercel pointed at the VM over TLS.** The web project's **Production**
+environment was verified on 2026-09-02 with:
 
 ```
 ALPHAENGINE_GATEWAY_URL   = https://149.118.48.255:8443
@@ -343,15 +346,17 @@ NODE_EXTRA_CA_CERTS       = /var/task/certs/gateway-ca.pem
 ALPHAENGINE_GATEWAY_TOKEN = <the same value as WEB_API_TOKEN>
 ```
 
-The two TLS values are staged for the next Production deployment, and the
-post-deployment web/API validation is pending. This status covers Production
-only and makes no claim about Preview. Use the **public TLS** address.
+Deployment run `33633139022` re-probed the TLS origin, and E2E run
+`33633746350` passed all 16 production checks, including Vercel reachability
+and the proxied book read over the pinned-CA path. This status covers
+Production only and makes no claim about Preview. Use the **public TLS** address.
 `gatewayState()` in `web/lib/gateway-origin.ts` classifies
 `127.0.0.1`, `10.x`, `192.168.x` and `172.16–31.x` as `loopback` on Vercel and
 refuses them — a serverless function fetching a private address fetches nothing,
 and that failure once read as a gateway outage for a day.
 
-**2. Open the path.** Both layers, or it looks identical to a closed one:
+**2. Keep the path open.** Both layers are required, or it looks identical to a
+closed one:
 
 - OCI VCN security list: ingress TCP 22 and 8443 for the canonical TLS path.
   Keep 8000 only while the current deploy reachability check, explicit rollback
@@ -369,13 +374,13 @@ a deployment compatibility check, not the endorsed Vercel origin.
 ### Web-to-gateway transport
 
 Do not configure a new Vercel deployment with the public plaintext origin. On
-2026-09-01, `https://149.118.48.255:8443/health` was re-probed with the pinned
-`web/certs/gateway-ca.pem` and returned HTTP 200. Vercel Production now has the
-HTTPS origin and `/var/task/certs/gateway-ca.pem` trust path configured, but
-those values are staged for the next Production deployment. Until that deploy
-and its web/API validation finish, do not claim that the live workspace has
-completed the flip. No Preview or high-availability claim follows from this
-change.
+2026-09-02, deployment run `33633139022` re-probed
+`https://149.118.48.255:8443/health` with the pinned
+`web/certs/gateway-ca.pem` and returned HTTP 200. Vercel Production has the
+HTTPS origin and `/var/task/certs/gateway-ca.pem` trust path configured; E2E
+run `33633746350` then passed all 16 production checks. The live Production
+workspace has therefore completed the flip. No Preview or high-availability
+claim follows from this change.
 
 The container half is already built: every deploy runs a Caddy sidecar that
 terminates TLS on `:8443` and proxies to `127.0.0.1:8000`, additively, so
@@ -383,9 +388,10 @@ terminates TLS on `:8443` and proxies to `127.0.0.1:8000`, additively, so
 scripts during validation. It uses Caddy's *internal* CA rather than an
 automatically obtained public certificate — nothing will issue one for a bare
 IP — so the root is pinned by the one client that matters, and that root is
-committed at `Part2_Infrastructure/web/certs/gateway-ca.pem`. What remains is
-the next Production deployment and the post-deployment checks in
-`docs/engineering/TLS_FLIP.md`.
+committed at `Part2_Infrastructure/web/certs/gateway-ca.pem`. The remaining
+transport work is the deliberate compatibility cleanup of direct `:8000`
+probes described in `docs/engineering/TLS_FLIP.md`, not activation of the
+Production TLS path.
 
 ### When a deploy fails
 

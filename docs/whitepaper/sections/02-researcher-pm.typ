@@ -1022,10 +1022,10 @@ decision.
 Markets, Proofs and Diffusion are not three galleries of explanatory charts.
 They are one addressable inspection system that lets a researcher select an
 entity, perturb an assumption and read the exact consequence without asking a
-pixel for a number. The current registry exposes #measured[64 engine views - 23
-Markets, 25 Proofs and 16 Diffusion][`web/lib/section-views.ts`, counted
-2026-08-30] beneath #measured[22 rail sections across the three engine tabs][
-`web/lib/sections.ts`, counted 2026-08-30]. Each destination has a canonical
+pixel for a number. The current registry exposes #measured[71 engine views - 26
+Markets, 29 Proofs and 16 Diffusion][`web/lib/section-views.ts`, counted
+2026-09-02] beneath #measured[22 rail sections across the three engine tabs][
+`web/lib/sections.ts`, counted 2026-09-02]. Each destination has a canonical
 `#tab/section/view` address, so an investment note can cite the state that
 produced a claim rather than a screenshot of an unrepeatable hover.
 

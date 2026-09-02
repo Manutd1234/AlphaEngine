@@ -117,9 +117,9 @@ export type DeveloperSection = (typeof DEVELOPER_SECTIONS)[number]["id"];
 export const DEVELOPER_SECTION_IDS =
   DEVELOPER_SECTIONS.map((s) => s.id) as readonly DeveloperSection[];
 
-// The quantitative engine — THREE tabs, TWENTY-TWO rail sections and SIXTY-SIX
+// The quantitative engine — THREE tabs, TWENTY-TWO rail sections and SEVENTY-ONE
 // registered views. The whole workspace is eleven tabs and seventy sections;
-// Markets contributes 8 sections / 23 views, Proofs 7 / 27 and Diffusion 7 /
+// Markets contributes 8 sections / 26 views, Proofs 7 / 29 and Diffusion 7 /
 // 16. `lib/section-views.ts` gives every non-default view an optional third hash
 // segment, so views are deep-linkable, command-visible and swept.
 //
@@ -183,7 +183,7 @@ export const DEVELOPER_SECTION_IDS =
 // HISTORICAL ADDRESSABILITY COST. In the 57-section consolidation, a view was
 // not in the URL, command palette or sweep, so eight subjects were reachable
 // only by pressing a button. That is no longer the current contract:
-// `lib/section-views.ts` registers 64 engine views and the optional third hash
+// `lib/section-views.ts` registers 71 engine views and the optional third hash
 // segment lets the sweep open every non-default destination. The reader used
 // the earlier rail-heavy shape for a day and chose depth:
 // "make sure the markets and coherance tabs do not have so many subtabs, if we

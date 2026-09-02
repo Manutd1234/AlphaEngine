@@ -1,8 +1,8 @@
 # AlphaEngine — system architecture
 
-**Source/worktree audited: 2026-08-31.** Every current-tree figure here was read
-off the tree on that date, with the file it came from named beside it. This is
-not a fresh probe of an external deployment. Where this document and
+**Source/worktree audited: 2026-09-02.** Every current-tree figure here was read
+off the tree on that date, with the file it came from named beside it. External
+claims cite their deployment/E2E run. Where this document and
 [`Part2_Infrastructure/README.md`](../../Part2_Infrastructure/README.md) disagree,
 re-read the tree — both stamp their dates, and the tree is right.
 
@@ -279,7 +279,7 @@ order path down with it. That is the right contract for *evidence about
 something that already happened* and the wrong one for state a person just
 edited, which is exactly why the data-operations tables use a separate strict
 store whose writes raise and whose UPDATE reports whether it hit a row. SQLite
-is the default implementation; Postgres is the partial opt-in described above.
+is the default implementation; Postgres is the schema-complete opt-in described above.
 The choice is argued at the top of `modules/data_ops_store.py` and its consequences
 are [`DATA_OPS_BACKEND.md`](DATA_OPS_BACKEND.md).
 
@@ -309,7 +309,7 @@ The tab rail is data in
 and the section rails have one definition in
 [`web/lib/sections.ts`](../../Part2_Infrastructure/web/lib/sections.ts). The
 latter holds **70 sections**: 48 across the original eight workspaces, 8 in
-Markets, 7 in Proofs and 7 in Diffusion (read 2026-08-29). The production sweep
+Markets, 7 in Proofs and 7 in Diffusion (read 2026-09-02). The production sweep
 mirrors that topology in `web/scripts/desk-sweep-plan.mjs` and asserts
 `EXPECTED_SECTIONS = 70`.
 
@@ -317,8 +317,9 @@ Sections are not the bottom of the address any more. The optional third hash
 segment is defined by
 [`web/lib/section-views.ts`](../../Part2_Infrastructure/web/lib/section-views.ts):
 the default view keeps the canonical two-segment URL, while every non-default
-view has a stable `#tab/section/view` address. The sweep carries **43 non-default
-view cells** (`EXPECTED_VIEW_CELLS = 43`) in addition to the 70 rail landings.
+view has a stable `#tab/section/view` address. The three engines register **71
+views** (26 Markets, 29 Proofs, 16 Diffusion), and the sweep carries **50 non-default
+view cells** (`EXPECTED_VIEW_CELLS = 50`) in addition to the 70 rail landings.
 `workspace-hash.ts` owns parsing, history correction and the 11 legacy
 cross-tab relocations; individual panes no longer own an unreachable `useState`
 for a view that the URL needs to open.
@@ -394,23 +395,23 @@ view switcher never mounts another rail, so it cannot contend for the global
 the third hash segment described above.
 
 Components are relative to `Part2_Infrastructure/web/components/`; labels below
-were read from `lib/section-views.ts` on 2026-08-29.
+were read from `lib/section-views.ts` on 2026-09-02.
 
 | Tab | Section | Owning component | Views |
 |---|---|---|---|
-| Markets | `universe` | `coherence/UniverseSection.tsx` | Baskets · Families |
+| Markets | `universe` | `coherence/UniverseSection.tsx` | Basket pricing · Positions · Families |
 | Markets | `settlement` | `coherence/SettlementSection.tsx` | Index · Formation · Pending |
 | Markets | `books` | `coherence/BooksSection.tsx` | Ladder · Identity · History |
-| Markets | `dispersion` (Makers) | `coherence/MakersSection.tsx` | Dispersion · Channel |
-| Markets | `lattice` | `coherence/SurfacePane.tsx` | Survival · Mass · Moments |
+| Markets | `dispersion` (Makers) | `coherence/MakersSection.tsx` | Dispersion · REST poll |
+| Markets | `lattice` | `coherence/SurfacePane.tsx` | Survival · Mass · Moment shape · Moment support |
 | Markets | `stake` | `coherence/StakePane.tsx` | Plan · Capital · Method · All outcomes |
 | Markets | `fees` | `coherence/FeesSection.tsx` | Worked example · Cost shape · Ablation · Replay table |
-| Markets | `shell` | `coherence/ShellPane.tsx` | Map · Browse |
-| Proofs | `certificate` | `coherence/CertificatePane.tsx` | Verdict · Proof · Prices |
+| Markets | `shell` | `coherence/ShellPane.tsx` | Namespace · Routing · Browse |
+| Proofs | `certificate` | `coherence/CertificatePane.tsx` | Verdict · Proof · Checks · Prices · Sizes |
 | Proofs | `portfolio` (Basket) | `coherence/BasketSection.tsx` | Cover · Basket · Size |
-| Proofs | `combos` (Parlays) | `coherence/CombosSection.tsx` | Bands · Comparison · Parlays · Legs · Bounds |
+| Proofs | `combos` (Parlays) | `coherence/CombosSection.tsx` | Ranges · Test quote · Leg prices · Test legs · Checks |
 | Proofs | `index` | `coherence/IndexSection.tsx` | By poll · By family |
-| Proofs | `calibration` (Scorecard) | `coherence/CalibrationPane.tsx` | Overview · Decomposition · Measures · Reliability · Bands |
+| Proofs | `calibration` (Scorecard) | `coherence/CalibrationPane.tsx` | Overview · Equation · Component scale · Measures · Reliability · Bands |
 | Proofs | `corpus` | `coherence/CorpusSection.tsx` | Composition · Score trend |
 | Proofs | `lessons` | `coherence/LessonsPane.tsx` | Quotes · Structure · Bounds · Record · Coverage · Episode states |
 | Diffusion | `arm` | `coherence/diffusion/ArmSection.tsx` | Absorption · Control · Clocks |
@@ -442,7 +443,7 @@ new measurements; their measured ancestry stays in
 
 `#diffusion/arm` surfaces
 [`modules/coherence/diffusion/`](../../Part2_Infrastructure/modules/coherence/diffusion/)
-(29 Python modules, read 2026-08-29), which measures how fast an FOMC statement
+(30 Python modules, read 2026-09-02), which measures how fast an FOMC statement
 is absorbed into price and asks whether the *text* of the statement predicts
 that speed.
 
@@ -649,7 +650,7 @@ bypassed** (the gateway reads with the service-role key); what landed instead
 is an optional `filter_desk_id` predicate on both similarity RPCs and graph
 traversal, described under the pipeline below. The current ordered migration
 set lives in
-[`supabase/migrations/`](../../supabase/migrations/) (audited 2026-08-31; its
+[`supabase/migrations/`](../../supabase/migrations/) (audited 2026-09-02; its
 latest rollout sequence includes `20260831120000_diffusion_postgrest_parity.sql`,
 `20260831121000_data_ops_desk_scope_guard.sql` and
 `20260831130000_research_graph_desk_scope.sql`, followed by the bundled
@@ -679,8 +680,8 @@ on a fixed seed, and PageRank centrality, each stamped with the sweep that made
 them (`modules/research_schedule.py`, `DEFAULT_RECONCILE_SCHEDULES`). A dual
 write was the rejected alternative: two systems that must agree, with drift only
 detectable if somebody goes looking. Projection makes divergence a non-event —
-if the graph is wrong, drop it and re-project. That is the source contract; this
-2026-08-31 audit did not probe a live Aura instance.
+if the graph is wrong, drop it and re-project. E2E run `33633746350` verified
+the live projection with 15 documents, 48 edges and 2 communities.
 
 **In source it is no longer write-only.** `modules/research_graph_read_model.py` reads
 those labels and scores back. The `/communities` and `/centrality` routes await
@@ -1038,7 +1039,8 @@ was true when written and is not now, so it is gone.
   Those two routes try the projection first and fall back to the in-process
   networkx computation, saying which answered. Request-time *traversal* still
   runs on the Postgres recursive CTE, and no request path depends on the graph
-  being up. The source path was audited; no live Aura read was made. The
+  being up. E2E run `33633746350` read 15 documents, 48 edges and 2 communities
+  from live Aura sweep `deploy-33633139022-1`. The
   Neo4j projection/read model is not desk-scoped. When
   `RESEARCH_SCOPE_TO_DESK=1`, its source guard refuses Neo4j and the reports
   automatically use the desk-scoped corpus computation; with the flag off,
@@ -1068,15 +1070,13 @@ was true when written and is not now, so it is gone.
   trading-state transition, the corpus is an observer, and an operator who knows
   which session did not file can still run the backfill for it.
   `tools/backfill_research_rag.py` remains the tool for history.
-- **The re-ranker's ONNX weights do not run in CI — but the opt-in is real and
-  has been run.** `BAAI/bge-reranker-base` would have to be downloaded and this
-  suite is network-free by construction (`tests/conftest.py` blanks
-  `RERANK_MODEL_PATH` by *assignment*, so an exported shell variable cannot
-  smuggle it in). What CI proves is the wiring and the arithmetic around the
-  model, through a fake cross-encoder at the import seam. Seed the weights with
-  `tools/bench_rerank.py --seed --model-path DIR` (1.05 GiB) and
-  `tests/test_research_rerank_real.py` runs **eight cases green** against the
-  real cross-encoder — verified, not theoretical. **The equivalent hole one arm
+- **The re-ranker's ONNX weights stay out of the network-free gateway suite,
+  but run in their own CI job.** `tests/conftest.py` blanks `RERANK_MODEL_PATH`
+  by *assignment*, so the core suite proves the wiring and arithmetic through a
+  fake import-seam scorer. The isolated `rerank-real` job seeds/caches the 1.05
+  GiB `BAAI/bge-reranker-base` directory, runs **eight cases** offline on every
+  `main` push and explicit dispatch (or a labelled PR), and fails if they skip.
+  **The equivalent hole one arm
   along has since been closed:** `tests/conftest.py` now blanks
   `RESEARCH_IMAGE_MODEL_PATH` by assignment beside `RERANK_MODEL_PATH`, so a
   developer who has seeded the ~0.6 GB CLIP pair can no longer have unrelated

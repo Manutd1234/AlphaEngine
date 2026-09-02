@@ -5,7 +5,7 @@ description: Run every AlphaEngine check and report the real measured numbers �
 
 # Verify AlphaEngine
 
-**Last verified: 2026-08-29.** Read `docs/CURRENT_STATE.md` for the current
+**Last verified: 2026-09-02.** Read `docs/CURRENT_STATE.md` for the current
 release record, but still re-run every requested check before reporting it.
 
 ## The one rule
@@ -22,8 +22,10 @@ name — see the `start-alpha-engine` skill). The `ruff` step additionally needs
 `requirements-dev.txt` installed; if `ruff` is missing, report the lint step as
 not run rather than skipping it silently.
 
-Nothing here needs the network, a running server, a browser or any API key. The
-suites are network-free by design, so a failure means the code broke.
+Nothing in the seven local commands below needs the network, a running server,
+a browser or an API key. The core suites are network-free by design. Main-branch
+CI adds two release checks with different requirements: live Oracle/Supabase
+credentials and the cached real cross-encoder weights.
 
 **Do not source `.env` into the shell first.** `set -a && . ./.env` is the
 reflex and it poisons the whole run: that file carries `REQUIRE_AUTH=1`,
@@ -80,10 +82,10 @@ collected shape, and both must be named when absent:
    cross-encoder weights were offered. This one skips at MODULE level, so its
    eight tests are not collected at all.
 
-The 2026-08-29 release run reported **3,254 passed, 1 skipped; 3,255 total**
-with the local re-ranker available. A clean CI-shaped environment does not seed
-those weights and can therefore collect a different total. `pytest -rs` is the
-authority, not a memorised delta.
+The 2026-09-02 main-branch CI run reported **3,482 passed, 3 skipped** in the
+network-free gateway job. The separate real-model job ran all eight
+cross-encoder cases against cached weights and failed on any skip. `pytest -rs`
+is the authority, not a memorised delta.
 
 **Check which shape you are in before reporting, because the machine may have
 chosen for you.** `tests/conftest.py` does not blank `RERANK_TEST_MODEL_PATH`,
@@ -95,7 +97,7 @@ which one you ran. Do not "reconcile" the number against
 `web/lib/test-counts.generated.ts`: that file's gateway line is a dated record
 and is NOT checked by CI. Only its web line is
 (`node scripts/check-test-counts.mjs web <log>`). It was refreshed on
-2026-08-29; refresh it again whenever the suites change.
+2026-09-02; refresh it again whenever the suites change.
 
 **`npm test`** ends with a `node:test` summary block. Report `tests`, `pass`,
 `fail` and `suites`. `fail 0` is the thing that matters.
@@ -113,7 +115,7 @@ stale. Expected <hash>; update <path>` and exit 1. Then
 `Repository manifest is stale (N added, M removed) — run npm run catalog:refresh`
 and exits 1.
 
-The 2026-08-29 production build passed both gates. That is a dated result, not a
+The 2026-09-02 production build passed both gates. That is a dated result, not a
 promise: if the repository catalogue has drifted, refresh it with
 `npm run catalog:refresh`; if the OpenAPI digest has drifted, regenerate and
 review the contract deliberately.
@@ -158,10 +160,13 @@ sections under fault injection. `npm run audit:layout --
 --url=http://localhost:3000` is the complementary Playwright geometry audit over
 the addressable view catalogue. Do not fold either into the standard verify run.
 
-Do not run CI's live-connectivity jobs. `live-smoke` is `workflow_dispatch`
-only and needs Oracle and Supabase secrets; `rerank-real` needs a
-`workflow_dispatch` or a `rerank` label and downloads 1.05 GiB of weights. Both
-skip cleanly without them by design.
+Do not fold CI's release checks into the local verification block.
+`live-smoke` (displayed as **Live services**) and `rerank-real` (displayed as
+**Cross-encoder re-ranker (real weights)**) run automatically on every push to
+`main` and on explicit dispatch. Pull requests keep the live job off and run
+the real model only with a `rerank` label. On `main`, missing Oracle/Supabase
+secrets are a failure, never a grey skip; the re-ranker cache avoids repeating
+the 1.05 GiB fetch and its suite fails if it skips.
 
 Do not compile the whitepaper as part of a routine code verify run either.
 `docs/whitepaper/` is Typst source, PDFs are ignored and no CI job builds it. If

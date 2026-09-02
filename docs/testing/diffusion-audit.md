@@ -4,9 +4,9 @@ What was measured, including what failed. An audit that records only what
 passed is a claim rather than a measurement.
 
 *Repository contracts and current file locations last re-checked
-**2026-08-29**. The payloads, browser geometry, timings and suite totals below
+**2026-09-02**. The payloads, browser geometry, timings and suite totals below
 remain dated measurements from the day printed beside each run; they were not
-silently promoted to 2026-08-29 observations.*
+silently promoted to 2026-09-02 observations.*
 
 For the current repository topology, suite totals and build evidence, use
 [`CURRENT_STATE.md`](../CURRENT_STATE.md); this file remains the measurement

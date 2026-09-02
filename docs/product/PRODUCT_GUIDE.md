@@ -1,6 +1,6 @@
 # AlphaEngine — the product guide
 
-**Last verified: 2026-08-29.** Current release counts, locked versions and the
+**Last verified: 2026-09-02.** Current release counts, locked versions and the
 commands that reproduce them live in the
 [current-state ledger](../CURRENT_STATE.md). Historical measurements below keep
 their original dates.
@@ -372,28 +372,28 @@ and links moved by the 2026-08-24/25 restructuring are resolved by
 `RELOCATED_SECTIONS` in `web/lib/workspace-hash.ts`. Current views are also
 addressable: `#<tab>/<section>/<view>` is declared once in
 `web/lib/section-views.ts`, consumed by routing and the command palette, and
-walked by `web/scripts/desk-sweep.mjs`. The engine currently has **64 views**:
-23 Markets, 25 Proofs and 16 Diffusion. A two-segment link opens the declared
+walked by `web/scripts/desk-sweep.mjs`. The engine currently has **71 views**:
+26 Markets, 29 Proofs and 16 Diffusion. A two-segment link opens the declared
 default; an unknown third segment is corrected to that default rather than
 leaving the URL and screen in disagreement.
 
 | Tab | Section | Views | What it answers |
 |---|---|---|---|
-| Markets | **Universe** | Baskets · Families | What does a mutually exclusive family cost against the dollar it pays, and how is the watched universe distributed? |
+| Markets | **Universe** | Basket pricing · Positions · Families | What does a mutually exclusive family cost against the dollar it pays, where is the desk positioned, and how is the watched universe distributed? |
 | Markets | **Settlement** | Index · Formation · Pending | What published index settles the contract, how is it formed, and which station minutes remain provisional? |
 | Markets | **Books** | Ladder · Identity · History | What do the two bid ladders imply, why do their offers obey the dollar identity, and how did the recorded book move? |
-| Markets | **Makers** | Dispersion · Channel | What do independent makers disagree about, and did the private request channel refuse, return empty, or return quotes? |
-| Markets | **Lattice** | Survival · Mass · Moments | What survival curve, probability mass and moments do the family prices imply? |
+| Markets | **Makers** | Dispersion · REST poll | What do independent makers disagree about, and did the authenticated REST request refuse, return empty, or return quotes? |
+| Markets | **Lattice** | Survival · Mass · Moment shape · Moment support | What survival curve, probability mass, moment shape and supporting observations do the family prices imply? |
 | Markets | **Stake** | Plan · Capital · Method · All outcomes | What log-optimal allocation survives the worst state, how is capital split, and which outcomes were declined? It sizes but sends nothing. |
 | Markets | **Fees** | Worked example · Cost shape · Ablation · Replay table | Which fee component dominates, how does cost change across price, and which recorded conclusions survive the four-model ablation? |
-| Markets | **Shell** | Map · Browse | Where does a series live in the watched filesystem, and what derived file can be inspected without collapsing missing, empty and unreachable states? |
-| Proofs | **Coherence test** | Verdict · Proof · Prices | Does this family admit a probability measure, which constraint binds, and which quoted prices produced the verdict? |
+| Markets | **Shell** | Namespace · Routing · Browse | Where does a series live, how is it routed through the watched filesystem, and what derived file can be inspected without collapsing missing, empty and unreachable states? |
+| Proofs | **Coherence test** | Verdict · Proof · Checks · Prices · Sizes | Does this family admit a probability measure, which constraint binds, and which quoted prices and sizes produced the verdict? |
 | Proofs | **Basket** | Cover · Basket · Size | Which state-covering witness comes back from infeasibility, what does it pay state by state, and how large is it relative to reported interest? |
-| Proofs | **Parlays** | Bands · Comparison · Parlays · Legs · Bounds | Where do quoted conjunctions sit inside their Fréchet ranges, how do the listed prices compare, which legs define them, and which exact bound is active? |
+| Proofs | **Parlays** | Ranges · Test quote · Leg prices · Test legs · Checks | Where do quoted conjunctions sit inside their Fréchet ranges, how do the listed prices compare, which legs define them, and which exact bound is active? |
 | Proofs | **Coherence index** | By poll · By family | How far has each live price vector sat from the nearest coherent one, with missing polls kept as gaps? |
-| Proofs | **Scorecard** | Overview · Decomposition · Measures · Reliability · Bands | How does the settled Brier score decompose, what are its exact measures, how reliable are its probability bins, and how do realised frequencies compare with quoted bands? |
+| Proofs | **Scorecard** | Overview · Equation · Component scale · Measures · Reliability · Bands | How does the settled Brier score decompose, how do components compare on a shared scale, how reliable are its probability bins, and how do realised frequencies compare with quoted bands? |
 | Proofs | **Corpus** | Composition · Score trend | What mixture was scored, and how did the settled record accrue without back-filling history? |
-| Proofs | **Lessons** | Prices · Structure · Bounds · Record · Coverage · Episode states | Which claims form the curriculum, which modules and suites pin them, and which states remain open? |
+| Proofs | **Lessons** | Quotes · Structure · Bounds · Record · Coverage · Episode states | Which claims form the curriculum, which modules and suites pin them, and which states remain open? |
 | Diffusion | **Announcement arm** | Absorption · Control · Clocks | How much of a move arrived, how unusual was it against matched quiet windows, and where do wall-clock and control-clock rankings disagree? |
 | Diffusion | **Meetings** | Meeting by meeting · Calendar · Mechanism | Which decisions cleared the measurement gate, when did they occur, and why do the two observation windows compare? |
 | Diffusion | **Kalshi episodes** | Survival · Episodes | How long did published coherence violations survive, including still-open episodes that cannot yet earn a lifetime? |

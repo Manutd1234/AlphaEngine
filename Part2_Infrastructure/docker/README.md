@@ -1,6 +1,6 @@
 # Docker — the always-on gateway
 
-**Last verified: 2026-08-29.** The image/compose contract was checked against
+**Last verified: 2026-09-02.** The image/compose contract was checked against
 the current single-process application-context architecture. Live host and TLS
 claims keep the dates of their last external probe; see
 [`../../docs/CURRENT_STATE.md`](../../docs/CURRENT_STATE.md).

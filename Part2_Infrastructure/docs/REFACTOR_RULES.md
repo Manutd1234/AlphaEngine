@@ -1,6 +1,6 @@
 # Splitting a file in this codebase
 
-**Last verified: 2026-08-29.** Paths and examples below were checked after the
+**Last verified: 2026-09-02.** Paths and examples below were checked after the
 Telegram, metrics and application-lifecycle package splits.
 
 Two ratchets hold the ceiling — `tests/test_file_size.py` and

@@ -1,7 +1,7 @@
 # Testing — the philosophy and the practice
 
 *Current runners, commands and test topology audited against the worktree on
-**31 August 2026**. No external service was probed by that source audit;
+**2 September 2026**. Live release evidence is identified by workflow run;
 historical incidents and measured runs keep their original
 dates. The per-suite catalogue lives in
 [`Part2_Infrastructure/README.md` §10](../../Part2_Infrastructure/README.md#10-testing);
@@ -22,8 +22,8 @@ without it. Three primary runners:
 
 | Suite | Runner | What it guards that nothing else does |
 |---|---|---|
-| **Gateway** — `Part2_Infrastructure/tests/`, 213 `test_*.py` files | `venv/bin/python -m pytest` | The risk decision and its seventeen gates; the audit ledger's two failure contracts; the research plane's refusals; the **API contract** (`test_openapi_contract.py`) and the **container definition** (`test_container_contract.py`) by text analysis, because CI is network-free; the Python↔C++ parity fixture, bit-exact |
-| **Web** — `Part2_Infrastructure/web/tests/`, 459 `*.test.ts` files | `node --import tsx --test tests/*.test.ts` | Everything the browser re-implements, pinned to Python by fixture; structural contracts for file length, CSS, API and navigation truth; plus four opt-in Chromium cases when `ALPHAENGINE_BROWSER_ORIGIN` names a running desk |
+| **Gateway** — `Part2_Infrastructure/tests/`, 230 `test_*.py` files | `venv/bin/python -m pytest` | The risk decision and its seventeen gates; the audit ledger's two failure contracts; the research plane's refusals; the **API contract** (`test_openapi_contract.py`) and the **container definition** (`test_container_contract.py`) by text analysis; the Python↔C++ parity fixture, bit-exact |
+| **Web** — `Part2_Infrastructure/web/tests/`, 489 `*.test.ts` files | `node --import tsx --test tests/*.test.ts` | Everything the browser re-implements, pinned to Python by fixture; structural contracts for file length, CSS, API and navigation truth; plus four opt-in Chromium cases when `ALPHAENGINE_BROWSER_ORIGIN` names a running desk |
 | **OpenBB service** — `Part2_Infrastructure/OpenBB_Service/tests/` | `python -m pytest` | The stateless research bridge's own contract, in its own runtime, with its own pinned `requirements.txt` |
 
 The structural half of the web suite is the part worth reading first, because it
@@ -35,9 +35,9 @@ tests" below.
 
 One committed record:
 [`web/lib/test-counts.generated.ts`](../../Part2_Infrastructure/web/lib/test-counts.generated.ts)
-holds what each runner printed when it was last regenerated on **2026-08-29**.
-The release record for that pass is gateway 3,255 total (3,254 passed, 1
-skipped), web 6,519 total across 1,408 suites (6,513 passed, 6 skipped), and
+holds what each runner printed when it was last regenerated on **2026-09-02**.
+The release record for that pass is gateway 3,492 total (3,491 passed, 1
+skipped), web 6,846 total across 1,461 suites (6,840 passed, 6 skipped), and
 service 24 passed. Its own header explains why it exists: the
 counts were once three hand-copied integers in a component, and they drifted
 three separate times, the last time inside a single afternoon.
@@ -49,12 +49,12 @@ and compares it against the runner's own summary line, teed to a log by the CI
 step above it. The **gateway** and **service** lines are a dated record that
 nothing gates. Cite them as such or not at all.
 
-Measured on this tree on **2026-08-29**:
+Measured on this tree on **2026-09-02**:
 
 | Suite | Measured | Against the record |
 |---|---|---|
-| Gateway, local refresh shape | **3,254 passed, 1 skipped** | 3,255 total. This is a dated local record, not a CI gate; the generated file does not retain the skip reason or optional-capability environment. |
-| Web | **6,513 passed, 0 failed, 6 skipped, 1,408 suites** | 6,513 + 6 = **6,519**. Four skips are Chromium cases awaiting `ALPHAENGINE_BROWSER_ORIGIN`; two are named cross-ownership debts. |
+| Gateway, local refresh shape | **3,491 passed, 1 skipped** | 3,492 total. This is a dated local record, not a CI gate; the generated file does not retain the skip reason or optional-capability environment. |
+| Web | **6,840 passed, 0 failed, 6 skipped, 1,461 suites** | 6,840 + 6 = **6,846**. The skips are explicit browser/live opt-ins; read the runner reasons rather than inferring them from this total. |
 | OpenBB service | **24 passed** | matches |
 
 **The gateway figure has a condition attached, and it is not a discrepancy.**
@@ -935,24 +935,23 @@ measured numbers. By hand, from `Part2_Infrastructure/`:
 
 | Suite | Command | Prerequisites, and what green means |
 |---|---|---|
-| Gateway | `venv/bin/python -m pytest` (add `-rs` to see skip reasons) | venv named exactly `venv`, Python 3.12, `requirements-dev.txt`, `requirements-native.txt` and the built core (`python native/decision_core/setup.py build_ext --inplace --build-temp build/native`). The 2026-08-29 generated record is 3,254 passed and 1 skipped, but the record does not retain the skip reason; read `-rs`, not the count. |
-| Web | `cd web && npm test` | Node 22, `npm ci`. The default runner is `node --import tsx --test tests/*.test.ts` over 459 files. Final 2026-08-29 run: 6,513 passed, 0 failed and 6 skipped across 1,408 suites. Four skips are opt-in Chromium cases; the remaining two are named cross-ownership debts. |
+| Gateway | `venv/bin/python -m pytest` (add `-rs` to see skip reasons) | venv named exactly `venv`, Python 3.12, `requirements-dev.txt`, `requirements-native.txt` and the built core (`python native/decision_core/setup.py build_ext --inplace --build-temp build/native`). Main CI on 2026-09-02 reported 3,482 passed and 3 skipped; read `-rs`, not the count. |
+| Web | `cd web && npm test` | Node 22, `npm ci`. The default runner is `node --import tsx --test tests/*.test.ts` over 489 files. The 2026-09-02 refresh reported 6,840 passed, 0 failed and 6 skipped across 1,461 suites. |
 | Web types | `cd web && npm run typecheck` | There is **no `lint` script** in `web/` — `npm run lint` fails as a missing script, not a broken linter. |
 | Python lint | `venv/bin/python -m ruff check .` | Configured in `pyproject.toml`, installed by `requirements-dev.txt`. |
-| OpenBB service | `cd OpenBB_Service && python -m pytest` | Its own `requirements-dev.txt`; stateless, offline. The 2026-08-29 generated record is 24 passed. |
+| OpenBB service | `cd OpenBB_Service && python -m pytest` | Its own `requirements-dev.txt`; stateless, offline. The 2026-09-02 run reported 24 passed. |
 | API contract | `python tools/export_openapi.py --check` | Run by CI and, as an assertion, by `tests/test_openapi_contract.py`. Fails when a schema changed and `tools/openapi.json` was not regenerated. |
 | Money path | `python tools/synthetic_probe.py` | The end-to-end order path against a synthetic book; prints `N/N steps passed`. CI runs it in the `gateway` job. |
 | Counts contract | `cd web && npm run counts:refresh -- --suite=web`, then commit `lib/test-counts.generated.ts` | CI's `check-test-counts.mjs` step fails when the committed **web** figure drifts from the run it just made. `--suite=web` re-runs only the web suite and keeps the committed Python figures, which is what you want unless the gateway or service suite also moved. |
 | Build gates | `cd web && npm run build` | `prebuild` runs the OpenAPI canonical-JSON digest check and the repository-manifest file-list check first. It **refuses** until `npm run catalog:refresh` has run after files were added or removed. |
 | Rendered layout | `cd web && npm run audit:layout -- --url=http://localhost:3000` | A ready desk and installed Chromium are required. The default sweep covers 109 addressable states at eight viewports; this command is manual and is not a push-gating CI step. The 2026-08-29 release run passed **872/872** combinations with zero geometry failures and zero console errors. |
 
-CI runs five network-free jobs on every push — `gateway`,
-`native-sanitizers`, `openbb-service`, `web`, `repo-audit` — and two that never
-gate one: `live-smoke` (workflow
-dispatch only, because it needs live Oracle and Supabase secrets and a
-secret-gated job on every PR goes red for reasons unrelated to the code) and
-`rerank-real` (workflow dispatch, or a PR carrying the `rerank` label). The
-`rerank-real` job is the one place `ci.yml` amends its own network-free rule,
+CI runs five deterministic jobs on every event — `gateway`,
+`native-sanitizers`, `openbb-service`, `web`, `repo-audit` — plus two release
+jobs on every `main` push and explicit dispatch: `live-smoke`, which requires
+the four Oracle/Supabase secrets and fails if they are absent, and
+`rerank-real`. Pull requests omit live services and run the real model only
+with a `rerank` label. The `rerank-real` job amends the network-free rule,
 and it amends it precisely: a **build-time** fetch of the weights, cached, never
 a test-time one. It then asserts the opposite of the usual thing — it **fails if
 that suite skips**, and a follow-up step asserts the default suite is still
@@ -1001,22 +1000,21 @@ committed.
 - **CI never builds the container image** — `tests/test_container_contract.py`
   holds the committed definition to its promises by text analysis, on purpose,
   because CI is network-free.
-- **The cross-encoder's real ONNX weights never run *on a push*** —
-  `BAAI/bge-reranker-base` would have to be downloaded, and the network-free
-  rule outranks it. What the default suite proves is the wiring, the widening
+- **The cross-encoder's real ONNX weights stay out of the default suite** —
+  `BAAI/bge-reranker-base` requires a setup download. What the default suite proves is the wiring, the widening
   arithmetic, the bulkhead and the grader's handling of a score; not the model's
   quality. Stated as a limit rather than dropped, because "the re-ranker is
   tested" would be the wrong sentence to leave standing — and equally, "the
   re-ranker cannot be tested" would now be wrong the other way, since the seeded
-  opt-in runs eight cases against the real model and CI's `rerank-real` job runs
-  them on request.
+  isolated job runs eight cases against the real model on every `main` push and
+  explicit dispatch, or on a PR carrying the `rerank` label.
 - **The image retrieval arm's bench is not in CI** —
   `tools/bench_image_retrieval.py` measures the CLIP arm against the description
   arm (nDCG@3, MRR, recall@3 over seven charts and nine queries) and its corpus,
   answer key, metrics and degrade paths are under test, but nothing runs it on a
   push. `.github/workflows/ci.yml` already caches weights for
   `tools/bench_rerank.py` and wants the same job here; **nobody has added it**
-  (re-verified 2026-08-29: `bench_image_retrieval` appears nowhere in `ci.yml`).
+  (re-verified 2026-09-02: `bench_image_retrieval` appears nowhere in `ci.yml`).
 - **No end-to-end multimodal generation test against the real model** — the two
   measured calls (20.6 s and 29.9 s, `thinking_budget=0`) were run by hand
   against the real key. The suite exercises the attachment logic, the named

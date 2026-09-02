@@ -1120,24 +1120,24 @@ The two latency files retain their own observation dates; being listed in a
 The OpenAPI gate hashes *canonical* JSON --- keys sorted recursively --- so that
 a re-export which reorders a dictionary does not read as a contract change. The
 committed digest today is
-#measured[`12b53e1…96be`][`web/lib/gateway-openapi-digest.generated.ts`, verified
-against `tools/openapi.json` on 2026-08-29].
+#measured[`6f50ebe…82321`][`web/lib/gateway-openapi-digest.generated.ts`, verified
+against `tools/openapi.json` on 2026-09-02].
 
 The manifest gate compares *only the file list*, not the commit or the
 generation date, because those change on every commit by design and gating on
 them would fail every push. It also skips itself, with a message, when git is
 unavailable --- a tarball build has nothing to compare against, and the gate
 holds where drift can actually happen. The current manifest carries
-#measured[2 283 files][`web/lib/repository-manifest.generated.json`] at commit
-`e5d9725`.
+#measured[2 422 files][`web/lib/repository-manifest.generated.json`, verified
+2026-09-02].
 
 The counts gate is the most interesting of the three, because it cannot live
 inside the thing it measures: *a test that checks the test count changes the
 test count*. So the check runs outside the suite, against the runner's own
 summary line teed to a log file. The committed figures, measured on
-#measured[2026-08-29][`web/lib/test-counts.generated.ts`], are
-#measured[3 255 gateway tests - 3 254 passed and one skipped][`web/lib/test-counts.generated.ts`],
-#measured[6 519 web tests across 1 408 suites][`web/lib/test-counts.generated.ts`]
+#measured[2026-09-02][`web/lib/test-counts.generated.ts`], are
+#measured[3 492 gateway tests - 3 491 passed and one skipped][`web/lib/test-counts.generated.ts`],
+#measured[6 846 web tests across 1 461 suites][`web/lib/test-counts.generated.ts`]
 and #measured[24 service tests][`web/lib/test-counts.generated.ts`]. Only the web
 figure is gated: CI runs `check-test-counts.mjs` with the argument `web` and it
 reads that line alone, so the gateway and service lines beside it are dated

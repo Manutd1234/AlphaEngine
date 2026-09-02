@@ -5,7 +5,7 @@ languages, the backend, the frontend, every datastore actually in use, the
 machine-learning surface, the retrieval stack, the optional-extras pattern, and
 the CI/CD that gates all of it. Current versions, paths, counts and constants
 below were audited from this worktree or a local command's output on
-**2026-08-31**; no external deployment was probed: pins from
+**2026-09-02**: pins from
 [`requirements*.txt`](../../Part2_Infrastructure/) and
 [`OpenBB_Service/pyproject.toml`](../../Part2_Infrastructure/OpenBB_Service/pyproject.toml),
 locked versions from `web/package-lock.json`, installed versions from the
@@ -183,11 +183,11 @@ edited without the sweep being updated fails rather than drifting.
 
 **Addressable section views are an architectural layer, not private component
 state.** [`lib/section-views.ts`](../../Part2_Infrastructure/web/lib/section-views.ts)
-registers **64 quantitative destinations**: Markets 23, Proofs 25 and Diffusion
+registers **71 quantitative destinations**: Markets 26, Proofs 29 and Diffusion
 16. A default keeps the canonical two-segment hash; a non-default adds an
 optional third segment. The command inventory and desk sweep read the same
-registry, whose 43 non-default cells are mirrored by
-`EXPECTED_VIEW_CELLS = 43`. This is why an interactive Fees ablation, Basket
+registry, whose 50 non-default cells are mirrored by
+`EXPECTED_VIEW_CELLS = 50`. This is why an interactive Fees ablation, Basket
 proof or Diffusion clock can be opened directly and audited instead of hiding
 behind local state.
 
@@ -413,9 +413,9 @@ from everything and rank as "similar" to any query.
 
 ### 5. Neo4j Aura — a one-way, rebuildable projection
 
-This is **built and wired in source**; the 2026-08-31 audit did not probe a
-live Aura instance. What follows is the shape of the source contract, not a
-claim that an external deployment used it during this audit.
+This is **built, wired and live-verified**. E2E run `33633746350` read 15
+documents, 48 edges and 2 communities from sweep `deploy-33633139022-1`.
+What follows is the source contract; Postgres remains authoritative.
 
 *What it holds.* A copy of `research_edges` and the sweep's computed community
 labels and centrality scores. Nothing else.
@@ -991,7 +991,8 @@ Three models touch the system, and none of them touches the trade path.
   deliberately and the ONNX path is exercised through a fake cross-encoder at
   the import seam. What that proves is the wiring, the widening arithmetic, the
   bulkhead and the grader's handling of a score — not the model's own quality.
-  The `rerank-real` CI job closes exactly that gap, on request; see below.
+  The `rerank-real` CI job closes exactly that gap on every `main` push and
+  explicit dispatch, or on a PR carrying the `rerank` label; see below.
 - **CLIP `ViT-B/32`** (`Qdrant/clip-ViT-B-32-vision` and `-text`, 512-dim) is
   the optional image arm, reusing the same fastembed/ONNX runtime. The query is
   embedded by the **text** encoder, never by gte-small.
@@ -1059,15 +1060,15 @@ backtester falls back to its NumPy engine, and every fixture is committed, so
 these five jobs need no secrets and no services. A red build means the code
 broke, never that an exchange was slow.
 
-### The two opt-in jobs, and precisely why each is opt-in
+### The two release jobs, and precisely where each runs
 
-- **`live-smoke`** — `if: github.event_name == 'workflow_dispatch'`. It needs
-  **live Oracle and Supabase secrets**: it runs `node scripts/verify-oracle.mjs`
-  and a Supabase PostgREST reachability check. A secret-gated job on every PR
-  would go red for reasons unrelated to the code, and a fork would never pass
-  it. It gates each half on the secrets actually being present.
-- **`rerank-real`** — `if: workflow_dispatch OR the PR carries a 'rerank'
-  label`. Opt-in **because of the weights, not the package**: it installs
+- **`live-smoke`** — `if: github.event_name != 'pull_request'`. It needs four
+  required repository secrets (`DB_CONNECTION_STRING`, `DB_PASSWORD`,
+  `SUPABASE_URL`, `SUPABASE_ANON_KEY`) and runs the Oracle and Supabase policy
+  probes on every `main` push and explicit dispatch. Missing secrets fail
+  loudly. Pull requests omit the job so forks do not need production access.
+- **`rerank-real`** — every non-PR event, or a PR carrying a `rerank` label. It
+  is isolated **because of the weights, not the package**: it installs
   `requirements-core.txt -r requirements-rerank.txt`, **caches** the weight
   directory keyed on `hashFiles('.../requirements-rerank.txt')` (keyed on the
   pin, because a re-ranker that scores differently between releases re-orders
@@ -1245,7 +1246,7 @@ for the structural claims above:
 |---|---|
 | Route count | `grep -h "@router\." Part2_Infrastructure/modules/api/*.py \| wc -l`, then subtract the WebSocket |
 | Contract paths / operations | read `Part2_Infrastructure/tools/openapi.json` |
-| Rail sections and views | `node Part2_Infrastructure/web/scripts/desk-sweep-plan.mjs` — it asserts 70 sections and 43 non-default view cells |
+| Rail sections and views | `node Part2_Infrastructure/web/scripts/desk-sweep-plan.mjs` — it asserts 70 sections and 50 non-default view cells |
 | The fusion constant | `grep -rn "RRF_K" Part2_Infrastructure/modules/` — one definition, the rest imports |
 | Store paths | `Part2_Infrastructure/config.py` and `modules/coherence/tunables.py` |
 | Requirements extras | `ls Part2_Infrastructure/requirements*.txt` |

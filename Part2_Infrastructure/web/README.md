@@ -1,8 +1,8 @@
 # AlphaEngine — Integrated Investment Infrastructure (Vercel)
 
-**Last verified: 2026-08-30.** Local runtime commands and representative gateway
-proxies were rechecked; full-suite release counts retain their actual 2026-08-29
-run date. Locked versions and reproduction commands are centralised in the
+**Last verified: 2026-09-02.** Local runtime commands, the 71-view frontend and
+production gateway proxies were rechecked; historical measurements retain their
+actual run dates. Locked versions and reproduction commands are centralised in the
 [current-state ledger](../../docs/CURRENT_STATE.md); dated deployment and latency
 observations below remain attached to the day they were actually measured.
 
@@ -112,8 +112,8 @@ npm run dev        # gateway :8000 + workspace :3000; requires ../venv
 npm run dev:web    # frontend-only workspace; sandbox is a labelled user choice
 npm run build      # Next.js production build using the explicit webpack path
 npm run typecheck  # tsc --noEmit
-npm test           # 6,519 total: 6,513 passed, 6 skipped, 0 failed
-                   # across 1,408 suites on 2026-08-29; no network required
+npm test           # 6,846 total: 6,840 passed, 6 skipped, 0 failed
+                   # across 1,461 suites on 2026-09-02; no network required
 npm run audit:layout -- --url=http://localhost:3000
                    # browser geometry; requires a ready app and Playwright Chromium
                    # historical 2026-08-29 run: 872/872 on the former 109-route inventory
@@ -335,7 +335,7 @@ gateway did not answer this poll. Both chains share `CustodyChainTrack`, so a
 step, branch, status and remedy carry one interaction grammar instead of two
 look-alike diagrams with different semantics. The 2026-08-29 snapshot contains
 76 paths and 79 HTTP operations; prebuild accepted canonical digest
-`12b53e1fe2f51e399b3e133440a72dce2f13abfe8cdfc68f9b6da3ae81df96be`.
+`6f50ebed6ccc76c0bc733d18ca9e8f86d8d2789f3092526076e727dba0282321`.
 
 *Topology* draws the deployment map: a runtime band, a dashed bracket forking
 from it, three deployable cards. It is DOM and CSS, not SVG — there is no SVG on
@@ -693,7 +693,7 @@ web/
 │   ├── globals.css           design tokens (palette, light + dark)
 │   ├── login/page.tsx        optional sign-in — outside the workspace shell
 │   ├── profile/page.tsx      account and security centre — the other one
-│   └── api/                  65 route handlers (verified 2026-08-29). Re-derive:
+│   └── api/                  65 route handlers (verified 2026-09-02). Re-derive:
 │       │                     find app/api -name route.ts | wc -l
 │       ├── backtest/route.ts parameter sweep
 │       ├── depth/route.ts    live L2 books + consolidated ladder
@@ -766,8 +766,8 @@ web/
 │            alphavantage, firecrawl, openbb)
 ├── components/               SVG charts plus purpose-built quant instruments,
 │                             controls, exact inspectors and tables
-└── tests/                   459 .test.ts files; 6,519 tests across 1,408 suites
-                              (6,513 passed, 6 skipped, 0 failed on 2026-08-29), incl.
+└── tests/                   489 .test.ts files; 6,846 tests across 1,461 suites
+                              (6,840 passed, 6 skipped, 0 failed on 2026-09-02), incl.
                               cross-engine, risk-engine and gate parity, the
                               design-system ratchets (type-scale, motion, house-rules,
                               dead-css, accent-budget, null-honesty, live-motion,

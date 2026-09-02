@@ -5,7 +5,7 @@ description: Walk the AlphaEngine architecture — the three deployment units, t
 
 # Tour AlphaEngine
 
-**Last verified: 2026-08-29.** Read `docs/CURRENT_STATE.md` before quoting any
+**Last verified: 2026-09-02.** Read `docs/CURRENT_STATE.md` before quoting any
 volatile topology, dependency, contract or test figure.
 
 Give the argument, not a file listing. Every claim below is anchored to a file —
@@ -236,7 +236,7 @@ Tab ids live in `web/components/WorkspaceHeader.tsx`; sections in
 **Seventy addressable rail sections in total**, counted from the eleven section
 arrays in `lib/sections.ts` and mirrored by `EXPECTED_SECTIONS = 70` in
 `scripts/desk-sweep-plan.mjs`. Markets, Proofs and Diffusion additionally expose
-60 keyed engine views (23 / 21 / 16) from `lib/section-views.ts`; those views are
+71 keyed engine views (26 / 29 / 16) from `lib/section-views.ts`; those views are
 not double-counted as rail sections. Re-derive both figures before quoting them:
 
 | Tab id | Label | Role | Sections |
@@ -276,7 +276,7 @@ third segment as opaque and the owning tab resolves it through
 `lib/section-views.ts`; an unknown view confesses by rewriting to the section's
 default rather than leaving a plausible but false URL. Research Summary also
 uses the mechanism for Results/Setup. Presentation-only subcontrols inside a
-view do not add a fourth URL level. This is why 70 rail sections and 60 engine
+view do not add a fourth URL level. This is why 70 rail sections and 71 engine
 views are different units, and why `npm run audit:layout` walks the full view
 catalogue rather than only the rail.
 
@@ -298,9 +298,11 @@ managers get a Kupiec VaR backtest and a kill switch but no margin or
 liquidation modelling. Point the user at that table rather than reciting it; the
 gaps column is the argument.
 
-The 2026-08-29 generated release record is 3,255 gateway tests (3,254 passed,
-1 skipped), 6,519 web tests across 1,408 suites (6,513 passed, 6 skipped), and
-24 service tests. It will not stay that way without `npm run counts:refresh`
+The 2026-09-02 generated local record is 3,492 gateway tests (3,491 passing,
+1 skipped), 6,846 web tests across 1,461 suites (6,840 passed, 6 skipped), and
+24 service tests. Main CI separately reported its network-free gateway shape
+and ran eight real cross-encoder cases. It will
+not stay that way without `npm run counts:refresh`
 after the suites change. The standing rule outranks every sentence in this file: **never quote a
 test count from prose.** Run the `verify` skill and read the number off the
 output. The generated file is a dated record and only its web line is a CI gate.

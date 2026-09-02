@@ -1,6 +1,6 @@
 # Telegram live checklist
 
-**Source/worktree audited: 2026-08-31.** The generated catalogue currently
+**Source/worktree audited: 2026-09-02.** The generated catalogue currently
 contains 138 commands, 100 menu entries and 6 guarded controls. The live-phone
 steps remain manual by design and were not re-run by this source audit.
 

@@ -1,9 +1,11 @@
 # Graph recall — walking the research graph from a terminal
 
-**Source/worktree audited: 2026-08-31.** The reader boundary and current
+**Source/worktree audited: 2026-09-02.** The reader boundary and current
 research graph projection were checked against this tree; current platform
 topology is in [`../../docs/CURRENT_STATE.md`](../../docs/CURRENT_STATE.md).
-No live Supabase or Neo4j deployment is implied by this stamp.
+Schema run `33633200876` verified the desk-scoped RPC in Supabase, and E2E run
+`33633746350` separately read 15 documents, 48 edges and 2 communities from
+the live Neo4j projection. Later runtime claims require a later probe.
 
 `tools/graph_recall.py` answers the question hybrid search cannot:
 
@@ -26,9 +28,9 @@ in `modules/` or `main.py` imports it.
 | `research_documents` | migration `20260808120400` and later | the rows an edge points at |
 
 The desk-scoped RPC requires migration `20260831130000` to be applied to the
-target Supabase project. Its presence in `supabase/migrations/` and the generated
-bundle proves only that the schema is available to deploy; it does not prove a
-live project has applied it. The tool also requires an explicit
+target Supabase project. Schema run `33633200876` verified it in the configured
+live project; its presence in `supabase/migrations/` and the generated bundle
+alone proves only that another project can deploy it. The tool also requires an explicit
 `SUPABASE_DESK_ID` matching the rows to be read.
 
 Edges are derived from STRUCTURED columns — symbol, interval, strategy,

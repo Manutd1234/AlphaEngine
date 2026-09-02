@@ -24,6 +24,8 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { VIEWS_BY_TAB } from "../lib/section-views";
+
 const read = (relative: string) =>
   readFileSync(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
 
@@ -35,6 +37,15 @@ const header = read("../lib/workspace-nav.ts");
 const tour = read("../../../docs/product/FEATURE_TOUR.md");
 // The eleven stops are built in lib/workspace-tour.ts since page.tsx was split.
 const page = read("../lib/workspace-tour.ts");
+
+const productGuide = read("../../../docs/product/PRODUCT_GUIDE.md");
+const architecture = read("../../../docs/architecture/ARCHITECTURE.md");
+const currentState = read("../../../docs/CURRENT_STATE.md");
+const setup = read("../../../SETUP.md");
+const rootReadme = read("../../../README.md");
+const infraReadme = read("../../README.md");
+const tourSkill = read("../../../.claude/skills/tour/SKILL.md");
+const verifySkill = read("../../../.claude/skills/verify/SKILL.md");
 
 /** Every `{ id, label }` pair of one workspace, in rail order. */
 function railOf(workspace: string): { id: string; label: string }[] {
@@ -59,6 +70,54 @@ const WORKSPACES = [
  * plainly there.
  */
 const plain = tour.replace(/[*`]/g, "").replace(/&amp;/g, "&").replace(/\s+/g, " ");
+
+describe("current documentation is pinned to the shipped topology", () => {
+  const engineTabs = ["markets", "coherence", "diffusion"] as const;
+  const counts = Object.fromEntries(engineTabs.map((tab) => [
+    tab,
+    Object.values(VIEWS_BY_TAB[tab] ?? {}).reduce((total, views) => total + views.length, 0),
+  ]));
+  const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
+  const nonDefault = engineTabs.reduce(
+    (sum, tab) => sum + Object.values(VIEWS_BY_TAB[tab] ?? {})
+      .reduce((tabSum, views) => tabSum + Math.max(0, views.length - 1), 0),
+    0,
+  ) + 1; // Research Summary → Setup is the one non-engine view cell.
+
+  it("derives 71 engine views and 50 non-default view cells", () => {
+    assert.deepEqual(counts, { markets: 26, coherence: 29, diffusion: 16 });
+    assert.equal(total, 71);
+    assert.equal(nonDefault, 50);
+  });
+
+  it("keeps every current authority on the derived view total", () => {
+    for (const [name, source] of Object.entries({
+      currentState, setup, rootReadme, infraReadme, productGuide, architecture, tour, tourSkill,
+    })) {
+      const statesTotal = new RegExp(`\\b${total}\\b[\\s\\S]{0,100}\\bviews\\b`).test(source)
+        || new RegExp(`\\bviews\\b[^\\n]{0,40}\\| ${total} \\|`).test(source);
+      assert.ok(statesTotal, `${name} does not state the derived ${total}-view topology`);
+    }
+  });
+
+  it("lists every shipped engine-view label in the product and architecture guides", () => {
+    for (const [tab, sections] of engineTabs.map((tab) => [tab, VIEWS_BY_TAB[tab] ?? {}] as const)) {
+      for (const [section, views] of Object.entries(sections)) {
+        for (const [, label] of views) {
+          assert.ok(productGuide.includes(label), `PRODUCT_GUIDE misses ${tab}/${section}: ${label}`);
+          assert.ok(architecture.includes(label), `ARCHITECTURE misses ${tab}/${section}: ${label}`);
+        }
+      }
+    }
+  });
+
+  it("records the current CI and live-service contract in the verification skill", () => {
+    assert.match(verifySkill, /run automatically on every push to\s+`main`/);
+    assert.match(verifySkill, /missing Oracle\/Supabase\s+secrets are a failure/);
+    assert.match(currentState, /15 documents, 48 edges and 2 communities/);
+    assert.doesNotMatch(currentState, /No live Aura instance was probed|live application not re-verified/);
+  });
+});
 
 describe("the feature tour names the sections the app actually ships", () => {
   for (const workspace of WORKSPACES) {

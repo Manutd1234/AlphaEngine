@@ -6,7 +6,7 @@ breaking one turns a suite red rather than starting an argument in review. The
 enforcement suites are named beside each rule; where a rule is convention only,
 that is said, and where a rule was convention until recently, that is said too.
 Current rules and enforcement paths last verified against the tree on
-**29 August 2026**. Dates attached to incidents and measurements below are the
+**2 September 2026**. Dates attached to incidents and measurements below are the
 dates of those records; this verification stamp does not retime them.
 
 The deep arguments live in
@@ -138,10 +138,9 @@ edit is to *state what shipped* rather than to leave a plausible sentence:
 
 **Still not built, or built and off, and named for the same reason:**
 
-- the real cross-encoder does not run on a **push** — the weights would need a
-  download and the default suite is network-free by construction. CI's opt-in
-  `rerank-real` job runs it on request, and eight cases pass against the real
-  model;
+- the real cross-encoder stays out of the network-free gateway suite, but CI's
+  isolated `rerank-real` job runs its eight cases on every `main` push and
+  explicit dispatch (or a labelled PR), offline after a cached setup fetch;
 - the CLIP image retrieval arm is built but **off by default**, because it
   measured 0.671 nDCG@3 alone against the computed description's 0.687 and only
   earns +0.06 in fusion — a price, stated with its number, not an aspiration;
@@ -319,11 +318,11 @@ measured height as the root-level `--rail-h`; a second instance inside a section
 would fight the owning rail over one global publisher.
 
 Views are no longer private component state. `lib/section-views.ts` is the
-registry below `lib/sections.ts`: **23 Markets views, 25 Proofs views and 16
+registry below `lib/sections.ts`: **26 Markets views, 29 Proofs views and 16
 Diffusion views**. The default view preserves the canonical two-segment hash;
 non-default views use the optional third segment. Routing, copy-link, command
 inventory and the desk sweep all read that registry, and
-`desk-sweep-views.test.ts` holds its 43 non-default cells. A new picker option
+`desk-sweep-views.test.ts` holds its 50 non-default cells. A new picker option
 must therefore be registered, deep-linkable and sweepable in the same change.
 
 The question test still decides the level: several readings of one subject are

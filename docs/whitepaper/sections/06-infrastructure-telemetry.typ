@@ -589,7 +589,7 @@ and compares its SHA-256 against `COMMITTED_GATEWAY_OPENAPI_SHA256` in
 `web/lib/gateway-openapi-digest.generated.ts`. Two independently deployed units
 assert their shared contract before either one of them deploys. The verified
 2026-08-29 digest is
-#measured("12b53e1fe2f5...81df96be", "web/lib/gateway-openapi-digest.generated.ts").
+#measured("6f50ebed6ccc...a0282321", "web/lib/gateway-openapi-digest.generated.ts").
 
 === Server-sent events: `/api/stream/desk`
 
@@ -932,22 +932,21 @@ generator and either a drift gate or an explicit evidence boundary.
 )
 
 At this revision the repository manifest records
-#measured("2 283 paths at commit e5d9725", "web/lib/repository-manifest.generated.json, generated 2026-08-29"),
-and the 2026-08-31 source audit found #measured("41 ordered migrations present in the worktree and generated bundle", "supabase/migrations/*.sql and supabase/apply_all.generated.sql"). The newest chunk-replacement migration and `research_rag/replacement.py` commit one complete logical-document generation atomically and retain the previous complete generation if any incoming text embedding is pending. That RPC migration must be applied before the new chunked ingest path is deployed; it was not verified applied live. These are catalogue and source-contract facts, not runtime health claims.
+#measured("2 422 paths", "web/lib/repository-manifest.generated.json, verified 2026-09-02"),
+and the source audit found #measured("41 ordered migrations present in the worktree and generated bundle", "supabase/migrations/*.sql and supabase/apply_all.generated.sql"). The newest chunk-replacement migration and `research_rag/replacement.py` commit one complete logical-document generation atomically and retain the previous complete generation if any incoming text embedding is pending. Schema workflow run `33633200876` applied and verified the complete Oracle and Supabase schema, including that RPC, on 2026-09-02. Deployment run `33633139022` restored the full Diffusion ledger, and E2E run `33633746350` passed all 16 production checks, including Neo4j readback. These are dated deployment observations rather than timeless runtime-health claims.
 
 The test count is the one figure in the repository that *cannot* be asserted
 from inside the thing it measures, since a test that checks the total changes the
 total. It is therefore generated, checked from outside, and is a measurement with
 a date rather than a contract. As of
-#measured("2026-08-29", "web/lib/test-counts.generated.ts") the dated generated figures
-are gateway #measured("3 255 total, 3 254 passed, 1 skipped", "web/lib/test-counts.generated.ts"),
-web #measured("6 519 tests across 1 408 suites", "web/lib/test-counts.generated.ts")
+#measured("2026-09-02", "web/lib/test-counts.generated.ts") the dated generated figures
+are gateway #measured("3 492 total, 3 491 passed, 1 skipped", "web/lib/test-counts.generated.ts"),
+web #measured("6 846 tests across 1 461 suites", "web/lib/test-counts.generated.ts")
 and service #measured("24", "web/lib/test-counts.generated.ts"). The skip cause
 belongs to the runner output for that dated run, not to an inference from the
-total. Prose elsewhere
-in the tree still quotes earlier figures, which is exactly what this file exists
-to prevent: never quote a count from a document, including this one. Run the
-suite, or read the generated file.
+total. These figures are a dated snapshot, not a timeless invariant: never
+quote a count from a document, including this one, as proof of a later run. Run
+the suite, or read the freshly generated file.
 
 A second contract of the same kind pins the two implementations of the pre-trade
 gates against each other. `web/tests/fixtures/gate-parity.json` holds

@@ -2,10 +2,10 @@
 
 Everything you need to get AlphaEngine running, in the order you need it.
 `README.md` explains what it is and why; this file only gets it on screen.
-**Local setup last verified: 2026-08-30; Production TLS state: 2026-09-01.** The
-local supervisor, frontend-only command and representative gateway proxy paths
-were rechecked; the complete suite and count record retains its actual
-2026-08-29 run date. Current topology, dependency and contract facts live in
+**Local setup, production connectivity and CI last verified: 2026-09-02.** The
+local supervisor, frontend-only command, production gateway proxy, Oracle,
+Supabase and Neo4j paths were rechecked. Current topology, dependency and
+contract facts live in
 [`docs/CURRENT_STATE.md`](docs/CURRENT_STATE.md); external probes retain their
 actual observation dates.
 
@@ -28,6 +28,8 @@ the workspace**. Click it and you are on the full **eleven-tab** desk: Overview,
 Research, Execution, Portfolio, Risk, Data, Reliability, Developer, Markets,
 Proofs and Diffusion. The last three are the quant-engine workspaces; their
 stable URL ids are `#markets`, `#coherence` and `#diffusion`.
+Together they expose 71 registered views (26 Markets, 29 Proofs, 16 Diffusion)
+through the shared `web/lib/section-views.ts` registry.
 
 That is the whole first run. With ten minutes rather than two, the
 [full local stack](#the-full-local-stack) adds the gateway and real data.
@@ -109,7 +111,7 @@ the tested one.
 |---|---|---|
 | **`requirements-core.txt`** | fastapi, uvicorn, pydantic, jinja2, python-dotenv, httpx, websockets, duckdb, numpy, pandas, matplotlib, pytest, pytest-asyncio | **The gateway itself, and what the container installs.** This is the tested local path. |
 | `requirements.txt` | core **plus** vectorbt, celery, redis | The full local runtime: the vectorbt backtest engine and the Celery worker. Without it the backtester falls back to its NumPy engine and **every number is identical** — `/health` reports which engine is live. |
-| **`requirements-dev.txt`** | `-r core`, `-r native`, ruff, `-r communities`, `-r ml`, vectorbt, `-r coherence`, httpx2 | **What CI installs**, and what a pre-push run needs. Deliberately excludes `requirements-rerank.txt`: the cross-encoder's default suite drives a fake scorer and runs in full with nothing installed, so installing fastembed would buy zero coverage — the *weights* are what differ, and hanging 1.05 GiB off the push gate would let a busy hub turn a good PR red. |
+| **`requirements-dev.txt`** | `-r core`, `-r native`, ruff, `-r communities`, `-r ml`, vectorbt, `-r coherence`, httpx2 | **What the network-free gateway CI job installs**, and what a pre-push run needs. Deliberately excludes `requirements-rerank.txt`: the default suite drives a fake scorer, while a separate cached real-model job runs on every `main` push and explicit dispatch (or a labelled PR). Keeping the 1.05 GiB weights out of the core job preserves fast deterministic feedback. |
 | `requirements-ml.txt` | `scikit-learn>=1.5,!=1.8.0,<2.0` | The `modules/ml/` model families that do not solve in closed form. Absent → the hand-rolled NumPy ridge and logistic run instead, and **the run says so**: the engine is recorded on `ml_runs.engine`, reported on `/health` and named in the strategy's unavailability message. A run that fell back is a different run. |
 | `requirements-graph.txt` | `neo4j>=5.20` | The Neo4j projection sweep **and** reading its labels back on the two graph report routes. Absent → those routes answer from the corpus and mark `source: "corpus"` with a named reason. Nothing else changes: no request path depends on the graph. |
 | `requirements-communities.txt` | `networkx>=3.2`, `scipy>=1.11` | In-process Louvain and PageRank — the algorithms Aura Free's missing GDS library cannot run. **This is the extra that costs skips if you forget it:** four suites sit behind a `find_spec("networkx")` guard. It is in `requirements-dev.txt` for that reason. |
@@ -251,17 +253,17 @@ ALPHAENGINE_GATEWAY_TOKEN=<the same value>
 
 ## Verify it
 
-The counts below are what the runners printed in the 2026-08-31 UTC generated
-record (2026-09-01 in Singapore). Re-run them rather than trusting the numbers:
+The counts below are what the runners printed on 2026-09-02. Re-run them rather
+than trusting the numbers:
 a figure nobody re-measured is not a measurement.
 
 ```bash
-# Gateway suite — 3,408 passed, 1 skipped; 3,409 total.
+# Gateway suite — 3,491 passed, 1 skipped in the 2026-09-02 local refresh.
 # Native core built, Python 3.12.14. Read skip REASONS with -rs.
 
 cd Part2_Infrastructure && venv/bin/python -m pytest
 
-# Web suite — 6,767 passed, 6 skipped, across 1,448 suites; no browser
+# Web suite — 6,840 passed, 6 skipped, across 1,461 suites; no browser
 cd Part2_Infrastructure/web && npm test
 
 # Research service — 24 passed
@@ -301,7 +303,8 @@ venv/bin/python tools/bench_rerank.py --seed --model-path .rerank-weights
 RERANK_TEST_MODEL_PATH=.rerank-weights venv/bin/python -m pytest tests/test_research_rerank_real.py
 ```
 
-That is what CI's opt-in `rerank-real` job does. **A `.env` does it too, and
+That is what CI's `rerank-real` job does on every `main` push and explicit
+dispatch, and on a pull request carrying the `rerank` label. **A `.env` does it too, and
 that surprises people:** `conftest.py` deliberately does not blank
 `RERANK_TEST_MODEL_PATH`, and python-dotenv fills it from
 `Part2_Infrastructure/.env`, so a machine whose deployment file names a weights
@@ -309,7 +312,7 @@ directory gets the seeded shape with nothing exported. Force the CI shape with
 `RERANK_TEST_MODEL_PATH= venv/bin/python -m pytest`. Only the **web** line of
 `web/lib/test-counts.generated.ts` is checked in CI
 (`node scripts/check-test-counts.mjs web <log>`), so its gateway line is a dated
-record rather than a gate. The current generated record is dated 2026-08-31 UTC;
+record rather than a gate. The current generated record is dated 2026-09-02;
 use `npm run counts:refresh` after the suites change and inspect `pytest -rs`
 before treating a changed skip count as drift.
 
@@ -327,15 +330,15 @@ which is in `requirements-dev.txt` only.
    64-hex literal in `web/lib/gateway-openapi-digest.generated.ts`. It prints
    `Gateway OpenAPI digest verified: <hash>` on a match and exits 1 with
    `Gateway OpenAPI digest is stale` on drift — a contract assertion between two
-   separately deployed units, not a broken build. Verified on 2026-08-29 at
-   `12b53e1f…`.
+   separately deployed units, not a broken build. Verified on 2026-09-02 at
+   `6f50ebed…`.
 2. The second refuses to build if `web/lib/repository-manifest.generated.json`
    no longer lists the same files `git ls-files --cached --others
    --exclude-standard` does — **only the file list**, because `generatedAt` and
    `commit` change every commit and gating on those would fail every push. It
    skips cleanly when git is unavailable, so a tarball build still works. Expect
    it to be red whenever a file has landed since the last refresh. The
-   2026-08-31 UTC catalogue contains 2,391 paths and passed its file-list gate;
+   2026-09-02 catalogue contains 2,422 paths and passed its file-list gate;
    the fix for later drift is `npm run catalog:refresh`, never an edit to the
    JSON.
 
@@ -357,7 +360,7 @@ node --import tsx scripts/generate-gateway-client.ts     # 3. lib/gateway-contra
 ### Advanced: the desk sweep
 
 `web/scripts/desk-sweep.mjs` drives **all 70 rail sections across all 11 tabs**
-under six backend fault profiles, using Chrome DevTools Protocol fault
+plus all **50 non-default view cells** under six backend fault profiles, using Chrome DevTools Protocol fault
 injection, and asserts no surface can dead-end. `npm test` is plain Node with no
 DOM or layout engine; the sweep and `npm run audit:layout --
 --url=http://localhost:3000` are the browser-dependent qualification tools and
@@ -379,9 +382,8 @@ Flags are `--name=value` only — `--profile=gateway-hang --tab=portfolio`; a
 space-separated `--profile gateway-hang` is not parsed. The counts above are
 `EXPECTED_SECTIONS = 70` and the eleven-key `TABS` map in
 `web/scripts/desk-sweep-plan.mjs`, which is what the script executes. The script
-header and executable plan now agree on that topology. In-pane engine views are
-audited by the layout route catalogue and are not double-counted as rail
-sections.
+header and executable plan now agree on that topology. Views are not
+double-counted as rail sections.
 
 The separate Playwright geometry audit was run on 2026-08-29 against the local
 webpack server and passed all **872/872** state/viewport combinations with zero
@@ -432,9 +434,9 @@ those rather than any list here, which would go stale:
 - `Part2_Infrastructure/web/.env.example` — web: provider keys, gateway
   connection, Oracle, Supabase, operator token.
 
-`config.py` resolves **100** distinct environment names through its `_env*`
+`config.py` resolves **98** distinct environment names through its `_env*`
 helpers — `grep -oE '_env[a-z_]*\("[A-Z][A-Z0-9_]+"' config.py | sort -u | wc -l`,
-recounted 2026-08-29 — and the modules listed at the end of this section read a further
+recounted 2026-09-02 — and the modules listed at the end of this section read a further
 set straight from `os.environ`. The groups below name the ones you would
 actually set.
 
@@ -556,13 +558,14 @@ is a notification companion, never an auth provider.
 | | |
 |---|---|
 | Desk workspace | https://alphaengine-workspace.vercel.app |
-| Risk gateway | `https://149.118.48.255:8443` behind the Caddy sidecar's pinned internal CA; a 2026-09-01 probe with `Part2_Infrastructure/web/certs/gateway-ca.pem` returned HTTP 200 (`docs/engineering/TLS_FLIP.md`) |
+| Risk gateway | `https://149.118.48.255:8443` behind the Caddy sidecar's pinned internal CA; the 2026-09-02 deploy and E2E runs returned healthy |
 
 Vercel **Production** now has `ALPHAENGINE_GATEWAY_URL` set to
 `https://149.118.48.255:8443` and `NODE_EXTRA_CA_CERTS` set to
-`/var/task/certs/gateway-ca.pem`. Those values are staged for the next
-Production deployment; post-deployment web/API validation is pending. This
-status does not cover Preview and does not claim high availability. Direct
+`/var/task/certs/gateway-ca.pem`. Production E2E run `33633746350` proved the
+Vercel app, root guard and Vercel-to-gateway proxied book, plus Oracle,
+Supabase RLS, the decision mirror and Neo4j readback; all 16 checks passed.
+This status does not cover Preview and does not claim high availability. Direct
 `http://149.118.48.255:8000` remains temporarily for the deploy workflow's
 reachability check, explicit rollback and other documented scripts, not as the
 normal Vercel origin.

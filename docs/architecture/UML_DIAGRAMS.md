@@ -1,6 +1,6 @@
 # UML diagrams — anti-twitch state, research, parity and the prediction-market workspace
 
-**Source/worktree audited: 2026-08-31.** Every class, member, file and constant
+**Source/worktree audited: 2026-09-02.** Every class, member, file and constant
 here was opened and read on that date; no external deployment was probed. If a
 diagram disagrees with the code, the code is right and this file is stale — fix
 it here.
@@ -708,8 +708,8 @@ to a committed canonical-JSON reference that carries its own SHA-256.
 
 ## 6. The prediction-market workspace — component diagram
 
-The workspace now exposes **22 rail sections and 64 views** across three tabs:
-Markets has 8 sections / 23 views, Proofs 7 / 25, and Diffusion 7 / 16. Those
+The workspace now exposes **22 rail sections and 71 views** across three tabs:
+Markets has 8 sections / 26 views, Proofs 7 / 29, and Diffusion 7 / 16. Those
 figures are derived from
 [`web/lib/sections.ts`](../../Part2_Infrastructure/web/lib/sections.ts) and
 [`web/lib/section-views.ts`](../../Part2_Infrastructure/web/lib/section-views.ts),
@@ -721,7 +721,7 @@ mounts a second rail.
 flowchart TB
     nav["workspace-nav.ts<br/>11 ordered top-level tabs"]
     rails["sections.ts<br/>70 rail sections total<br/>22 in the prediction-market workspace"]
-    views["section-views.ts<br/>64 engine views<br/>default = two-segment URL<br/>non-default = third hash segment"]
+    views["section-views.ts<br/>71 engine views<br/>default = two-segment URL<br/>non-default = third hash segment"]
     router["use-workspace-routing.ts + use-rail-sections.ts<br/>one selected tab, section and view state"]
     legacy["workspace-hash.ts<br/>active rail wins, then 11 legacy relocations"]
 
@@ -731,8 +731,8 @@ flowchart TB
     legacy --> router
 
     subgraph consoles["Exactly one WorkspaceSubtabs rail per visible tab"]
-        markets["MarketsConsole.tsx<br/>8 sections · 23 views"]
-        proofs["CoherenceConsole.tsx<br/>7 sections · 25 views"]
+        markets["MarketsConsole.tsx<br/>8 sections · 26 views"]
+        proofs["CoherenceConsole.tsx<br/>7 sections · 29 views"]
         diffusion["DiffusionConsole.tsx<br/>7 sections · 16 views"]
     end
     router --> markets

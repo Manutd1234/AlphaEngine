@@ -1,8 +1,9 @@
 # Supabase — Postgres mirror + pgvector research index
 
-**Source/worktree audited: 2026-08-31.** The 41 ordered migrations and generated
-bundle were audited against the current gateway architecture. This is not a
-fresh live-project probe. Volatile repository counts are centralised in
+**Source/worktree audited: 2026-09-02.** The 41 ordered migrations and generated
+bundle were audited against the current gateway architecture. Schema workflow
+run `33633200876` also applied and verified all migrations, both edge functions
+and the RLS denial boundary in the live project. Volatile repository counts are centralised in
 [`../docs/CURRENT_STATE.md`](../docs/CURRENT_STATE.md).
 
 DuckDB in the gateway is **authoritative**; everything here is a durable
@@ -28,8 +29,8 @@ the service-role key and never holds the Postgres connection string.
 ## What is in here
 
 The worktree contains forty-one migrations, and the generated bundle contains
-the same set. The schema workflow applies them in filename order; this source
-audit did not confirm their live application. Together they define 19
+the same set. The schema workflow applies them in filename order; run
+`33633200876` confirmed their live application on 2026-09-02. Together they define 19
 application tables, grouped by ownership rather than presented as one flat database:
 
 | Plane | Tables | Why Postgres owns them |
@@ -47,8 +48,9 @@ PostgREST store stamps and filters the configured desk on every read and write;
 the scope guard refuses ambiguous legacy `desk_id='default'` rows instead of
 silently hiding them, locks out legacy writers during the transition, and
 installs constraints that reject the sentinel afterward. These are current-worktree and generated-bundle
-contracts: a live project does not gain them until the manual schema workflow
-below succeeds.
+contracts. The live project has them because schema run `33633200876`
+succeeded; a different project does not gain them until the manual schema
+workflow below succeeds.
 
 Migration `20260831131000_research_chunk_replace.sql` adds the transactional
 RAG chunk-replacement RPC: upsert the current chunk set and delete stale sibling
@@ -56,8 +58,8 @@ chunks in one database transaction. `modules/research_rag/replacement.py`
 prepares the full physical set first; if any text embedding is pending, the RPC
 keeps the proposed generation non-retrievable and retains the previous complete
 generation. Apply this migration before deploying the new chunked ingest path.
-It is present in the migration directory and generated bundle; this audit did
-not verify it as applied to the live project.
+It is present in the migration directory and generated bundle and was verified
+applied to the live project by schema run `33633200876`.
 
 Two edge functions: `embed-research` (writes the vectors) and
 `evaluate-order` (the labelled sandbox gate behind `submit_alphaengine_order`).

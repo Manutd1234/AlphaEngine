@@ -1,7 +1,7 @@
 # PRD — enterprise RAG over the desk's own research
 
-*Current delivery state audited against the worktree on **31 August 2026**,
-with the file named beside each claim. No external deployment was probed;
+*Current delivery state audited against the worktree on **2 September 2026**,
+with the file named beside each claim. Live claims name their workflow evidence;
 historical benchmarks retain the date of the run that produced them. The requirement itself is restated
 from the brief; the delivery record against it is checkable, and where a stage
 is NOT BUILT this document says so plainly rather than rounding it up to
@@ -143,9 +143,9 @@ model, and the ingest path is deterministic, free and replayable
 limitation it accepts). That is why an enterprise parsing service has nothing
 to parse here yet.
 
-**The Neo4j path is real in source, and no request path depends on it.** This is
+**The Neo4j path is live-verified, and no request path depends on it.** This is
 the row most likely to be over-read, so it is stated plainly at each layer;
-this source audit did not probe live Aura. *Database:* a configured instance
+E2E run `33633746350` read 15 documents, 48 edges and 2 communities. *Database:* a configured instance
 holds a **one-way, rebuildable projection** of `research_edges`.
 `RELATION_TYPES` maps the six Postgres `research_relation` values to uppercase
 relationship types by name, so a new enum value fails loudly rather than
@@ -326,14 +326,14 @@ is per-desk rather than per-user — every web request authenticates against one
 shared gateway token, so there is no per-user identity to key on yet. The
 migration header names all three debts.
 
-**The re-ranker's ONNX weights do not run on the CI path that gates a push, and
-that is the precise claim.** The default suite is network-free by construction —
+**The re-ranker's ONNX weights stay out of the network-free gateway job.** The
+default suite is network-free by construction —
 `tests/conftest.py` blanks `RERANK_MODEL_PATH` by assignment, the ONNX path is
 exercised through a fake cross-encoder at the import seam, and what a green push
 proves is the wiring and the arithmetic around the model, not the model.
 
-The real weights *do* run, in the opt-in `rerank-real` job
-(`.github/workflows/ci.yml`), on `workflow_dispatch` or a PR labelled `rerank`.
+The real weights run in the isolated `rerank-real` job
+(`.github/workflows/ci.yml`) on every `main` push and explicit dispatch, or a PR labelled `rerank`.
 It is a deliberate hole in the network-free rule rather than an exception to it:
 the one networked step is **setup** — `python tools/bench_rerank.py --seed`, the
 same call an image build makes, so CI and the deployment seed through one code
@@ -378,16 +378,11 @@ What "done" means for this feature, all of them checkable in the verified tree:
   a PostgREST insert naming a column the deployed schema has not got is answered
   400 and would dead-letter *every* document on a deployment that asked for no
   image search at all.
-- The opt-in paths have historical execution evidence, but the 2026-08-31 audit
-  did not freshly probe an external service. Seeded with
-  `tools/bench_rerank.py --seed --model-path DIR` (1.05 GiB),
-  `tests/test_research_rerank_real.py` exercises the real ONNX cross-encoder;
-  with `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` and `SUPABASE_DESK_ID`
-  supplied only for the command, `tests/test_data_ops_postgrest.py` exercises
-  its live case. Neither
-  runs on the four jobs that gate a push — the re-ranker's has an opt-in CI job
-  (`rerank-real`, dispatch or a `rerank` label) and the Postgres one has none —
-  so a green push is not evidence that either ran. Read the skip *reasons*.
+- The live service and real-model paths were freshly exercised on 2026-09-02.
+  CI run `33637631574` passed both jobs; schema run `33633200876` applied and
+  verified Oracle/Supabase; E2E run `33633746350` passed all 16 production
+  probes, including Neo4j readback. A local default suite can still omit those
+  paths, so read its skip *reasons* rather than borrowing CI's evidence.
 - No fabricated recall: below the refuse band the model is never called; a
   citation not in the supplied context refuses the whole answer; `corpus_silent`
   is a verdict, not an error (`modules/research_generate.py`).
