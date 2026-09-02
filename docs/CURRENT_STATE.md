@@ -1,6 +1,6 @@
 # AlphaEngine current-state ledger
 
-**Source/worktree and deployment evidence audited: 2026-09-02.** This page is the short, reproducible
+**Source/worktree and deployment evidence audited: 2026-09-03.** This page is the short, reproducible
 release record for facts that change as the repository changes. Historical benchmark,
 incident, deployment-probe and ADR dates elsewhere in the documentation remain
 attached to the day they were actually observed; they are not silently
@@ -19,7 +19,7 @@ that observed them; source facts are still reproducible from the tree.
 | Gateway OpenAPI | 76 paths, 79 HTTP operations | `Part2_Infrastructure/tools/openapi.json` |
 | Web route handlers | 65 | `find Part2_Infrastructure/web/app/api -name route.ts` |
 | Local developer default | `npm run dev` supervises gateway `:8000` and workspace `:3000`; `npm run dev:web` is frontend-only | `Part2_Infrastructure/web/package.json`; `scripts/start-dev-all.mjs` |
-| Supabase migrations | 42 present and bundled; first 41 applied to the live project | `supabase/migrations/*.sql`; `supabase/apply_all.generated.sql`; schema run `33633200876`; RFQ membership successor awaiting its manual schema run |
+| Supabase migrations | 42 present, bundled and applied to the live project | `supabase/migrations/*.sql`; `supabase/apply_all.generated.sql`; combined Oracle/Supabase schema run `33653417165` |
 | Telegram commands | 138 total, 100 in the pushed menu, 6 guarded controls | `Part2_Infrastructure/modules/telegram/registry.py`; `tools/telegram_catalogue.py --check` |
 | Repository catalogue | 2,424 paths | `web/lib/repository-manifest.generated.json`; `cd Part2_Infrastructure/web && npm run build` prebuild check |
 
@@ -40,7 +40,7 @@ separately deployable, read-only research adapter and owns no trading state.
   `open_data_ops_store()` requires and passes an explicit `SUPABASE_DESK_ID`.
   Migration `20260831121000` refuses ambiguous legacy `desk_id='default'` rows,
   removes unsafe defaults and installs constraints that reject the sentinel.
-  Workflow `schema.yml` run `33633200876` applied and verified the complete
+  Workflow `schema.yml` run `33653417165` applied and verified the complete
   Oracle and Supabase schema, deployed the edge functions and proved the anon
   denial boundary. Missing live relations still fail honestly rather than
   falling back.
@@ -56,12 +56,14 @@ separately deployable, read-only research adapter and owns no trading state.
   physical chunk before that call. If any text embedding is pending, the whole
   proposed generation stays non-retrievable and the previous complete
   generation remains in place. The RPC migration is present in the live schema
-  verified by run `33633200876`.
+  verified by run `33653417165`.
 - Migration `20260902090000` removes email-specific RFQ provisioning: it
   backfills the fixed desk's active `PAPER_ONLY` membership from every existing
   `auth.users.id` and installs an after-insert trigger for future accounts.
   Anonymous guests remain denied, authenticated users can read only their own
-  limits row, and browsers still cannot write memberships.
+  limits row, and browsers still cannot write memberships. Combined schema run
+  `33653417165` applied it; an independent aggregate service-role read then
+  found 3 Auth users, 3 active RFQ members, 0 missing and 0 orphan memberships.
 - The optional Neo4j projection/read model is configured in the live deployment.
   E2E run `33633746350` read back 15 documents, 48 edges and 2 communities from
   sweep `deploy-33633139022-1`. It is still not desk-isolated:
@@ -118,7 +120,7 @@ digest `6f50ebed6ccc76c0bc733d18ca9e8f86d8d2789f3092526076e727dba0282321`
 and the 2,424-path repository catalogue before Next.js compiled and generated
 all static pages.
 
-CI run `33637631574` completed all seven jobs successfully with zero
+CI run `33652700677` completed all seven jobs successfully with zero
 annotations: gateway, native ASan/UBSan, OpenBB, web test/typecheck/build,
 committed-tree audit, live Oracle/Supabase services and the real cross-encoder.
 On `main`, the last two are required results rather than grey skips. Pull

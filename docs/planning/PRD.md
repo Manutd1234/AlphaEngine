@@ -379,7 +379,7 @@ What "done" means for this feature, all of them checkable in the verified tree:
   400 and would dead-letter *every* document on a deployment that asked for no
   image search at all.
 - The live service and real-model paths were freshly exercised on 2026-09-02.
-  CI run `33637631574` passed both jobs; schema run `33633200876` applied and
+  CI run `33652700677` passed both jobs; schema run `33653417165` applied and
   verified Oracle/Supabase; E2E run `33633746350` passed all 16 production
   probes, including Neo4j readback. A local default suite can still omit those
   paths, so read its skip *reasons* rather than borrowing CI's evidence.

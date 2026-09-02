@@ -1,10 +1,9 @@
 # Supabase — Postgres mirror + pgvector research index
 
-**Source/worktree audited: 2026-09-02.** The 42 ordered migrations and generated
+**Source/worktree audited: 2026-09-03.** The 42 ordered migrations and generated
 bundle were audited against the current gateway architecture. Schema workflow
-run `33633200876` applied and verified the first 41 migrations, both edge functions
-and the RLS denial boundary in the live project; the automatic RFQ membership
-successor is ready for the next manual schema run. Volatile repository counts are centralised in
+run `33653417165` applied and verified all 42 migrations, both edge functions
+and the RLS denial boundary in the live project. Volatile repository counts are centralised in
 [`../docs/CURRENT_STATE.md`](../docs/CURRENT_STATE.md).
 
 DuckDB in the gateway is **authoritative**; everything here is a durable
@@ -31,7 +30,7 @@ the service-role key and never holds the Postgres connection string.
 
 The worktree contains forty-two migrations, and the generated bundle contains
 the same set. The schema workflow applies them in filename order; run
-`33633200876` confirmed the first 41 live on 2026-09-02. Together they define 19
+`33653417165` confirmed all 42 live on 2026-09-03. Together they define 19
 application tables, grouped by ownership rather than presented as one flat database:
 
 | Plane | Tables | Why Postgres owns them |
@@ -58,7 +57,7 @@ PostgREST store stamps and filters the configured desk on every read and write;
 the scope guard refuses ambiguous legacy `desk_id='default'` rows instead of
 silently hiding them, locks out legacy writers during the transition, and
 installs constraints that reject the sentinel afterward. These are current-worktree and generated-bundle
-contracts. The live project has them because schema run `33633200876`
+contracts. The live project has them because schema run `33653417165`
 succeeded; a different project does not gain them until the manual schema
 workflow below succeeds.
 
@@ -69,7 +68,7 @@ prepares the full physical set first; if any text embedding is pending, the RPC
 keeps the proposed generation non-retrievable and retains the previous complete
 generation. Apply this migration before deploying the new chunked ingest path.
 It is present in the migration directory and generated bundle and was verified
-applied to the live project by schema run `33633200876`.
+applied to the live project by schema run `33653417165`.
 
 Two edge functions: `embed-research` (writes the vectors) and
 `evaluate-order` (the labelled sandbox gate behind `submit_alphaengine_order`).

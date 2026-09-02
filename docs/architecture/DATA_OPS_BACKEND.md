@@ -11,7 +11,7 @@ four hold operational state the gateway must not forget across a restart:
 `diffusion_events`, `diffusion_runs`, `diffusion_texts` and
 `diffusion_studies`. `DATA_OPS_BACKEND` selects one store for all of them. The
 successor migrations now cover the same logical schema on Postgres. Deployment
-remains a separate manual operation; schema run `33633200876` applied and
+remains a separate manual operation; schema run `33653417165` applied and
 verified the live project on 2026-09-02.
 
 | | `sqlite` (default) | `postgres` |
