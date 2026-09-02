@@ -166,6 +166,10 @@ describe("CI keeps its network-free guarantee", () => {
       "the live smoke job would run on push or PR — a red build must mean the code broke, "
         + "never that an idle Always Free database had auto-stopped",
     );
+    assert.match(job, /public demo order_blotter/);
+    assert.match(job, /private desk_risk_limits/);
+    assert.match(job, /401\|403\|404/);
+    assert.doesNotMatch(job, /anon can READ order_blotter/);
   });
 
   it("passes the complete Oracle connection, including its optional mTLS wallet", () => {

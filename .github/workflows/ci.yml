@@ -276,23 +276,33 @@ jobs:
           ORACLE_WALLET_PASSWORD: ${{ secrets.ORACLE_WALLET_PASSWORD }}
         run: node scripts/verify-oracle.mjs
 
-      # A HEAD against PostgREST proves reachability and that the anon key is
-      # accepted, without reading a row — deny-by-default RLS means anon can
-      # read nothing, and a 200 here would actually be the bug.
-      - name: Supabase PostgREST reachable
+      # Probe both sides of the deliberate anon boundary. The public demo
+      # blotter must be readable (its rows are desk-scoped by RLS), while the
+      # desk's configured risk thresholds must remain unavailable to anon.
+      # HEAD proves routing, grants and the key without reading either body.
+      - name: Supabase public and private policies hold
         if: steps.gate.outputs.supabase == 'yes'
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
-          code=$(curl -s -o /dev/null -w '%{http_code}' -I \
+          public_code=$(curl -s -o /dev/null -w '%{http_code}' -I \
             -H "apikey: $SUPABASE_ANON_KEY" \
             "$SUPABASE_URL/rest/v1/order_blotter?select=id&limit=1")
-          echo "PostgREST returned $code"
-          case "$code" in
-            401|403) echo "Reachable, and anon is correctly denied by RLS." ;;
-            200)     echo "::error::anon can READ order_blotter — RLS is not deny-by-default"; exit 1 ;;
-            *)       echo "::error::unexpected status $code"; exit 1 ;;
+          echo "anon → public demo order_blotter: $public_code"
+          case "$public_code" in
+            200) echo "Reachable, and the public demo read is available." ;;
+            *)   echo "::error::public demo order_blotter returned unexpected status $public_code"; exit 1 ;;
+          esac
+
+          private_code=$(curl -s -o /dev/null -w '%{http_code}' -I \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            "$SUPABASE_URL/rest/v1/desk_risk_limits?select=id&limit=1")
+          echo "anon → private desk_risk_limits: $private_code"
+          case "$private_code" in
+            401|403|404) echo "Private risk limits are correctly denied." ;;
+            200) echo "::error::anon can read desk_risk_limits — the private boundary was lost"; exit 1 ;;
+            *)   echo "::error::private risk limits returned unexpected status $private_code"; exit 1 ;;
           esac
 
   # ---------------------------------------------------------------------------
