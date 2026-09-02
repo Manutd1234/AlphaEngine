@@ -570,8 +570,12 @@ jobs:
             if [ -n "${SUPABASE_URL:-}" ] && [ -n "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
               put SUPABASE_URL "$SUPABASE_URL"
               put SUPABASE_SERVICE_ROLE_KEY "$SUPABASE_SERVICE_ROLE_KEY"
-            elif [ -n "${SUPABASE_URL:-}" ] || [ -n "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
-              echo "::warning::A partial Supabase repository pair was ignored; preserving the deployed VM pair."
+            elif [ -n "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
+              # A dangling privileged key is an actual rotation defect. The URL
+              # by itself is not: the public live probes use that same secret.
+              echo "::warning::A Supabase service-role key without its URL was ignored; preserving the deployed VM pair."
+            elif [ -n "${SUPABASE_URL:-}" ]; then
+              echo "Supabase URL is configured for public probes; no rotation pair was supplied, so the verified deployed VM pair is preserved."
             fi
             put SUPABASE_DESK_ID "${SUPABASE_DESK_ID:-}"
             put SUPABASE_MIRROR_ENABLED "${SUPABASE_MIRROR_ENABLED:-}"

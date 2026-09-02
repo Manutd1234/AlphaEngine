@@ -17,7 +17,13 @@ describe("continuous deployment restores the Diffusion evidence ledger", () => {
       "an optional Supabase/Neo4j read model is blocking the gateway image swap again",
     );
 
-    assert.match(deployWorkflow, /A partial Supabase repository pair was ignored/);
+    assert.match(
+      deployWorkflow,
+      /Supabase URL is configured for public probes; no rotation pair was supplied/,
+      "the shared public probe URL must not create an amber deployment annotation",
+    );
+    assert.match(deployWorkflow, /::warning::A Supabase service-role key without its URL was ignored/);
+    assert.doesNotMatch(deployWorkflow, /::warning::A partial Supabase repository pair/);
     assert.match(deployWorkflow, /A partial Neo4j repository group was ignored/);
     assert.match(
       deployWorkflow,
