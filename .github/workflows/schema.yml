@@ -165,6 +165,12 @@ jobs:
           # Deployment-specific, deliberately not baked into the workflow.
           # Configure this repository variable with the gateway origin.
           ALPHAENGINE_GATEWAY_URL: ${{ vars.ALPHAENGINE_GATEWAY_URL }}
+          # The production gateway terminates TLS with the repository-pinned
+          # Caddy root. urllib (used by the backfill) reads SSL_CERT_FILE when
+          # it builds its default context, so the authenticated history and
+          # embedding calls validate that exact certificate instead of either
+          # disabling verification or failing on the private CA.
+          SSL_CERT_FILE: ${{ github.workspace }}/Part2_Infrastructure/web/certs/gateway-ca.pem
           WEB_API_TOKEN: ${{ secrets.WEB_API_TOKEN }}
         # NOT `continue-on-error`. It was, and it reported this step as a
         # success while the script died on a missing import — the corpus stayed

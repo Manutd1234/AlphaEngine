@@ -262,9 +262,9 @@ jobs:
         working-directory: Part2_Infrastructure/web
         run: npm ci
 
-      # Connects over walletless TLS, checks both schema objects exist, and runs
-      # one small Monte Carlo. Its error taxonomy names the fix for each failure
-      # rather than printing an ORA stack.
+      # Connects over walletless TLS or the configured mTLS wallet, checks both
+      # schema objects exist, and runs one small Monte Carlo. Its error taxonomy
+      # names the fix for each failure rather than printing an ORA stack.
       - name: Oracle Autonomous Database
         if: steps.gate.outputs.oracle == 'yes'
         working-directory: Part2_Infrastructure/web
@@ -272,6 +272,8 @@ jobs:
           ORACLE_CONN_STRING: ${{ secrets.DB_CONNECTION_STRING }}
           ORACLE_PASSWORD: ${{ secrets.DB_PASSWORD }}
           ORACLE_USER: ${{ secrets.ORACLE_USER }}
+          ORACLE_WALLET_PEM_B64: ${{ secrets.ORACLE_WALLET_PEM_B64 }}
+          ORACLE_WALLET_PASSWORD: ${{ secrets.ORACLE_WALLET_PASSWORD }}
         run: node scripts/verify-oracle.mjs
 
       # A HEAD against PostgREST proves reachability and that the anon key is
@@ -403,7 +405,8 @@ jobs:
           set -o pipefail
           python -m pytest tests/test_research_rerank.py tests/test_research_rerank_real.py \
             -q -rs 2>&1 | tee "$RUNNER_TEMP/rerank-default.log"
-          grep -q "1 skipped" "$RUNNER_TEMP/rerank-default.log" || {
+          grep -Eq '^SKIPPED \[1\] tests/test_research_rerank_real\.py:' \
+            "$RUNNER_TEMP/rerank-default.log" || {
             echo "::error::the real-model file did not skip with the opt-in unset"
             exit 1
           }

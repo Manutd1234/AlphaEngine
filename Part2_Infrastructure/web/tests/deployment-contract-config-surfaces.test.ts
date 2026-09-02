@@ -168,6 +168,18 @@ describe("CI keeps its network-free guarantee", () => {
     );
   });
 
+  it("passes the complete Oracle connection, including its optional mTLS wallet", () => {
+    const job = ci.slice(ci.indexOf("live-smoke:"), ci.indexOf("rerank-real:"));
+    assert.match(job, /ORACLE_WALLET_PEM_B64:\s*\$\{\{ secrets\.ORACLE_WALLET_PEM_B64 \}\}/);
+    assert.match(job, /ORACLE_WALLET_PASSWORD:\s*\$\{\{ secrets\.ORACLE_WALLET_PASSWORD \}\}/);
+  });
+
+  it("recognises pytest's current explicit skip report for the weight-free check", () => {
+    const job = ci.slice(ci.indexOf("rerank-real:"), ci.indexOf("repo-audit:"));
+    assert.match(job, /SKIPPED \\\[1\\\] tests\/test_research_rerank_real\\\.py:/);
+    assert.doesNotMatch(job, /grep -q "1 skipped"/);
+  });
+
   it("the three default jobs contact nothing", () => {
     const defaults = ci.slice(0, ci.indexOf("live-smoke:"));
     for (const secret of ["ORACLE_CONN_STRING", "SUPABASE_URL", "ORACLE_PASSWORD"]) {
@@ -187,6 +199,11 @@ describe("deployment automation fails honestly and remains reproducible", () => 
     assert.doesNotMatch(schema, /ALPHAENGINE_GATEWAY_URL:\s*https?:\/\/\d+\.\d+\.\d+\.\d+/);
     assert.match(schema, /case "\$ALPHAENGINE_GATEWAY_URL" in[\s\S]*https:\/\/\*\)/);
     assert.match(schema, /refusing to send WEB_API_TOKEN over plaintext/);
+    assert.match(
+      schema,
+      /SSL_CERT_FILE:\s*\$\{\{ github\.workspace \}\}\/Part2_Infrastructure\/web\/certs\/gateway-ca\.pem/,
+      "the Oracle backfill must trust the repository-pinned gateway CA",
+    );
   });
 
   it("accepts the full Supabase project-ref alphabet and refuses an empty parse", () => {
