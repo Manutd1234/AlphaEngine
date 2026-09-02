@@ -32,8 +32,8 @@ env:
 # ACTION VERSIONS, and why these ones.
 #
 # GitHub now forces actions built on the Node 20 runtime onto Node 24 and warns;
-# eventually it will stop. `actions/checkout@v4` and `supabase/setup-cli@v1`
-# were the two still on it, so every action here moved to a current major.
+# eventually it will stop. The last holdouts were retired, so every JavaScript
+# action here now runs on a current Node 24-compatible major.
 #
 # Each documented breaking change was checked against this repository rather
 # than assumed harmless:
@@ -366,7 +366,7 @@ jobs:
       # bump to that pin is exactly when these weights must be re-fetched.
       - name: Cache the cross-encoder weights
         id: weights
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ env.RERANK_WEIGHTS }}
           key: bge-reranker-base-${{ hashFiles('Part2_Infrastructure/requirements-rerank.txt') }}

@@ -178,10 +178,12 @@ describe("CI keeps its network-free guarantee", () => {
     assert.match(job, /ORACLE_WALLET_PASSWORD:\s*\$\{\{ secrets\.ORACLE_WALLET_PASSWORD \}\}/);
   });
 
-  it("recognises pytest's current explicit skip report for the weight-free check", () => {
+  it("keeps the real-model job on current pytest output and action runtimes", () => {
     const job = ci.slice(ci.indexOf("rerank-real:"), ci.indexOf("repo-audit:"));
     assert.match(job, /SKIPPED \\\[1\\\] tests\/test_research_rerank_real\\\.py:/);
     assert.doesNotMatch(job, /grep -q "1 skipped"/);
+    assert.match(job, /uses: actions\/cache@v6/);
+    assert.doesNotMatch(job, /uses: actions\/cache@v[1-5]\b/);
   });
 
   it("the three default jobs contact nothing", () => {
