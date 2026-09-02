@@ -3189,8 +3189,6 @@ notify pgrst, 'reload schema';
 -- 20260831121000_data_ops_desk_scope_guard.sql
 -- ========================================================================
 
-begin;
-
 -- Fail closed before the data-ops factory starts enforcing SUPABASE_DESK_ID.
 --
 -- Older PostgREST stores used the constructor default `default` because the
@@ -3199,11 +3197,13 @@ begin;
 -- desk.  SQL cannot infer which desk owns an ambiguous legacy row, so the
 -- migration refuses and tells the operator to map it deliberately.
 --
--- This source migration deliberately has no BEGIN/COMMIT. `supabase db push`
--- owns the transaction that also records migration history, so authoring a
--- nested COMMIT here could persist the schema while leaving history
--- unrecorded. For a manual SQL Editor run, use apply_all.generated.sql; its
--- generator adds a transaction around this section.
+-- This migration owns its transaction explicitly. Current `supabase db push`
+-- submits source statements without an enclosing transaction; without this
+-- boundary PostgreSQL rejects the access-exclusive LOCK before any preflight
+-- can run. Migration history is written only after this file exits cleanly, so
+-- a failed preflight still rolls back the lock and every following DDL change.
+
+begin;
 
 -- Hold old writers outside the preflight/DDL window.  Without this lock a
 -- process using the former column default could recreate an ambiguous row

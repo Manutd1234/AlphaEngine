@@ -127,8 +127,11 @@ def test_scope_guard_locks_out_legacy_writers_then_refuses_all_default_ownership
         assert f"add constraint {constraint} check (desk_id <> 'default')" in sql
     assert "raise exception" in sql
     assert "SUPABASE_DESK_ID" in sql
-    assert sql.index("lock table") < sql.index("select count(*)")
     statements = "\n".join(
         line for line in sql.splitlines() if not line.lstrip().startswith("--")
     )
-    assert not re.search(r"^\s*(?:begin|commit)\s*;", statements, re.I | re.M)
+    assert re.search(r"^\s*begin\s*;", statements, re.I | re.M)
+    assert re.search(r"^\s*commit\s*;", statements, re.I | re.M)
+    assert statements.index("begin;") < statements.index("lock table")
+    assert statements.rindex("commit;") > statements.index("notify pgrst")
+    assert sql.index("lock table") < sql.index("select count(*)")

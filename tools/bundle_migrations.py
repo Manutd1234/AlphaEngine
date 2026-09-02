@@ -60,15 +60,6 @@ TARGET = ROOT / "supabase" / "apply_all.generated.sql"
 
 RULE = "-- " + "=" * 72
 
-# Migration runners such as `supabase db push` already wrap each source file
-# and its migration-history insert in one transaction. The hand-pasteable
-# bundle has no runner, so migrations whose correctness depends on locks need a
-# generated transaction wrapper here instead of authored BEGIN/COMMIT that can
-# prematurely end the runner-owned transaction.
-TRANSACTIONAL_BUNDLE_MIGRATIONS = frozenset({
-    "20260831121000_data_ops_desk_scope_guard.sql",
-})
-
 HEADER = """\
 -- AlphaEngine — every migration, concatenated and made re-runnable.
 --
@@ -198,8 +189,6 @@ def build() -> str:
     parts = [HEADER.rstrip()]
     for path in sorted(MIGRATIONS.glob("*.sql")):
         body = idempotent(path.read_text(encoding="utf-8").rstrip())
-        if path.name in TRANSACTIONAL_BUNDLE_MIGRATIONS:
-            body = f"begin;\n\n{body}\n\ncommit;"
         parts.append(f"\n\n{RULE}\n-- {path.name}\n{RULE}\n\n{body}")
     return "\n".join(parts) + "\n"
 

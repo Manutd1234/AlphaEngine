@@ -137,10 +137,11 @@ class TestTheGeneratorsAssumptions:
         missing = [n for n in names if n not in bundle]
         assert missing == [], f"the bundle is missing {missing}"
 
-    def test_locking_migration_uses_runner_transaction_and_bundle_wrapper(self):
-        """Do not commit before `db push` records migration history."""
+    def test_locking_migration_owns_the_transaction_its_lock_requires(self):
+        """The CLI submits source statements without an enclosing transaction."""
         source = _statements(SCOPE_GUARD.read_text(encoding="utf-8"))
-        assert not re.search(r"^\s*(?:begin|commit)\s*;", source, re.I | re.M)
+        assert source.index("begin;") < source.index("lock table")
+        assert source.rindex("commit;") > source.index("notify pgrst")
 
         bundle = _bundle()
         rule = "-- " + "=" * 72
@@ -150,6 +151,8 @@ class TestTheGeneratorsAssumptions:
         section = bundle[start:end if end >= 0 else None]
         assert section.index("begin;") < section.index("lock table")
         assert section.rindex("commit;") > section.index("notify pgrst")
+        assert section.count("begin;") == 1
+        assert section.count("commit;") == 1
 
     def test_the_bundle_is_not_stale(self):
         """Generated, so it must equal what the generator produces right now."""
