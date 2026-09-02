@@ -152,11 +152,13 @@ describe("targeted Markets views use exact interactive instruments instead of or
     assert.equal((shell.match(/aria-live="polite"/g) ?? []).length, 2,
       "Shell should expose one path/file status and one independently controlled route status");
     assert.match(shellReadings, /<div className=\{styles\.flow\} aria-label="How a derived file reaches a reading">/);
-    assert.match(shellReadings, /<table className="coh-table">[\s\S]*?<th scope="col">Reading<\/th>[\s\S]*?<th scope="col">What it reads<\/th>/,
-      "the Shell reading figure no longer puts its loose file details into a table");
+    assert.match(shellReadings, /<table className="coh-table">[\s\S]*?<th scope="col">Reading<\/th>[\s\S]*?<th scope="col">What it reads<\/th>/);
     assert.match(shellReadingsCss, /\.groups\s*\{[^}]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\);/s);
-    assert.match(shellReadingsCss, /@media \(max-width: 1100px\)[\s\S]*?\.groups\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\);/,
-      "the reading groups have no single-column containment fallback");
+    assert.match(shellReadingsCss, /\.groups > \*\s*\{[^}]*min-inline-size:\s*0;/s);
+    assert.match(shellReadingsCss, /\.tableWrap\s*\{[^}]*inline-size:\s*100%;[^}]*max-inline-size:\s*100%;[^}]*margin:\s*0;[^}]*overflow:\s*hidden;/s);
+    assert.match(shellReadingsCss, /\.group \.tableWrap :is\(th, td\)\s*\{[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;[^}]*word-break:\s*break-word;/s);
+    assert.match(shellReadingsCss, /\.group \.tableWrap code\s*\{[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/s);
+    assert.match(shellReadingsCss, /@media \(max-width: 1100px\)[\s\S]*?\.groups\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\);/);
   });
 
   it("bounds Survival shocks to probabilities and keys local scenarios to the selected quote", () => {

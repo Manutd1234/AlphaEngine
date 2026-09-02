@@ -26,6 +26,10 @@
   padding: 16px;
 }
 
+.groups > * {
+  min-inline-size: 0;
+}
+
 .group {
   display: grid;
   grid-template-rows: auto auto 1fr auto;
@@ -95,23 +99,50 @@
 }
 
 .tableWrap {
+  box-sizing: border-box;
+  inline-size: 100%;
+  max-inline-size: 100%;
   min-inline-size: 0;
+  margin: 0;
   padding: 0 14px 14px;
+  overflow: hidden;
 }
 
-.group table {
+.group .tableWrap table {
   inline-size: 100%;
+  max-inline-size: 100%;
+  min-inline-size: 0;
   border-collapse: collapse;
   table-layout: fixed;
   font-size: var(--fs-tick);
 }
 
-.group :is(th, td) {
+.group .tableWrap caption {
+  max-inline-size: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.group .tableWrap :is(th, td) {
+  min-inline-size: 0;
+  max-inline-size: 100%;
   padding: 8px;
   border: 1px solid var(--rule-soft);
   text-align: start;
   vertical-align: top;
+  white-space: normal;
   overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.group .tableWrap tbody :is(th, td) {
+  font-size: var(--fs-tick);
+}
+
+.group .tableWrap code {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .group thead th {
