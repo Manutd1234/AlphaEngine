@@ -67,6 +67,23 @@ def test_a_different_configuration_is_a_different_row(store: DiffusionStudyStore
     assert store.latest()["gate_state"] == "failed", "newest first"
 
 
+def test_best_prefers_a_complete_out_of_sample_score(store: DiffusionStudyStore) -> None:
+    store.record(_study(
+        study_id="prior:decision:d6:s7", latent_dim=6,
+        gate_r_squared=0.74, effective_rank=9.99, centroid_spread=0.92,
+    ), ran_at=2.0)
+    store.record(_study(
+        study_id="prior:guidance:d10:s7", segment="guidance",
+        gate_r_squared=0.58, effective_rank=9.98, centroid_spread=1.14,
+        skill_meetings=57, skill_baseline_r2=0.144, skill_gain=-0.343,
+        skill_shuffled_p=0.875, skill_stage_minutes=30.0,
+    ), ran_at=1.0)
+    selected = store.best()
+    assert selected is not None
+    assert selected["study_id"] == "prior:guidance:d10:s7"
+    assert selected["skill_meetings"] == 57
+
+
 def test_the_newest_run_wins_regardless_of_insert_order(store: DiffusionStudyStore) -> None:
     store.record(_study(study_id="late"), ran_at=99.0)
     store.record(_study(study_id="early", verdict="inadmissible"), ran_at=1.0)

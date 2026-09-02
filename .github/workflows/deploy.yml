@@ -1038,6 +1038,51 @@ jobs:
 
             REPLACEMENT_GATEWAY="$IMAGE"
 
+            # Mirror the complete, verified Diffusion evidence set into
+            # Supabase before cutover. The serving gateway keeps SQLite as its
+            # durable primary; this one-shot makes the tenant-scoped Postgres
+            # copy complete without putting a remote call on every diagram.
+            DIFFUSION_SUPABASE_CONTAINER="${CONTAINER}-diffusion-supabase-once"
+            if docker run --rm \
+                --env-file "$ENV_FILE" \
+                "$IMAGE" \
+                python -c 'from config import settings as s; raise SystemExit(0 if s.supabase_url and s.supabase_service_role_key and s.supabase_desk_id else 1)'; then
+              if ! remove_container_checked "$DIFFUSION_SUPABASE_CONTAINER"; then
+                echo "::error::A prior Supabase Diffusion restore process could not be cleared safely."
+                if ! unwind_unstarted_replacement; then
+                  echo "::error::Automatic pre-cutover unwind failed; operator intervention is required."
+                fi
+                exit 1
+              fi
+              echo "==> Restoring and verifying the complete Diffusion ledger in Supabase"
+              diffusion_supabase_ok=0
+              if timeout --signal=TERM --kill-after=10s 120s \
+                  docker run --rm \
+                    --name "$DIFFUSION_SUPABASE_CONTAINER" \
+                    --env-file "$ENV_FILE" \
+                    "$IMAGE" \
+                    python -m tools.restore_diffusion_supabase_once; then
+                diffusion_supabase_ok=1
+              fi
+              if [ "$diffusion_supabase_ok" != "1" ]; then
+                echo "::error::The tenant-scoped Supabase Diffusion restore did not complete and verify within 120 seconds."
+                remove_container_checked "$DIFFUSION_SUPABASE_CONTAINER" || true
+                if ! unwind_unstarted_replacement; then
+                  echo "::error::Automatic pre-cutover unwind failed; operator intervention is required."
+                fi
+                exit 1
+              fi
+              if ! remove_container_checked "$DIFFUSION_SUPABASE_CONTAINER"; then
+                echo "::error::The verified Supabase Diffusion restore process did not exit cleanly."
+                if ! unwind_unstarted_replacement; then
+                  echo "::error::Automatic pre-cutover unwind failed; operator intervention is required."
+                fi
+                exit 1
+              fi
+            else
+              echo "::notice::Supabase is not configured; the complete Diffusion ledger remains on the durable gateway volume."
+            fi
+
             # Scope migration bootstrap. The durable schedule store survives a
             # deploy, so its last-run row can postpone the normal graph sweep by
             # six hours. Legacy Neo4j nodes have no desk_id and the correctly

@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   DEFAULT_LAYOUT_VIEWPORTS,
+  DEFAULT_AUDIT_HASH,
   EXPLICIT_LAYOUT_THEMES,
   LAYOUT_AUDIT_ROUTES,
   LAYOUT_SETTLING,
@@ -141,8 +142,9 @@ describe("the all-workspace geometry audit", () => {
   });
 
   it("verifies workspace readiness even when the guest gate is already absent", async () => {
-    let readyWaited = false;
+    let readyWaits = 0;
     let bootstrapWaited = false;
+    let seededHash: string | null = null;
     const page = {
       goto: async () => undefined,
       waitForTimeout: async () => undefined,
@@ -154,10 +156,13 @@ describe("the all-workspace geometry audit", () => {
           waitFor: async (options: { state: string; timeout: number }) => {
             assert.equal(selector, WORKSPACE_READY_SELECTOR);
             assert.deepEqual(options, { state: WORKSPACE_READY_STATE, timeout: 15_000 });
-            readyWaited = true;
+            readyWaits += 1;
           },
         }),
       }),
+      evaluate: async (_predicate: unknown, defaultHash: string) => {
+        seededHash = defaultHash;
+      },
       waitForFunction: async (
         predicate: unknown,
         argument: unknown,
@@ -171,7 +176,8 @@ describe("the all-workspace geometry audit", () => {
     };
 
     await enterWorkspace(page, "http://localhost:3000");
-    assert.equal(readyWaited, true);
+    assert.equal(readyWaits, 1);
+    assert.equal(seededHash, DEFAULT_AUDIT_HASH);
     assert.equal(bootstrapWaited, true);
   });
 

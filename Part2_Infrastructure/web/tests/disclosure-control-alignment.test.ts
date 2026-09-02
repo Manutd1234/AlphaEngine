@@ -107,6 +107,14 @@ describe("the reviewed Markets disclosures", () => {
     assert.match(mobile, /\.coh-market__panel \{[\s\S]*right: auto;[\s\S]*left: 0;[\s\S]*width: 100%;[\s\S]*min-width: 0;[\s\S]*max-width: 100%;/);
   });
 
+  it("contains long gateway identifiers inside phone-width KPI cards", () => {
+    const css = read("app/globals/14t-quotes-layout.css");
+    assert.match(css, /\.coh-facts--boxed > div \{[\s\S]*?min-width: 0;/,
+      "KPI grid items can still force the Markets section wider than its card");
+    assert.match(css, /\.coh-facts--boxed :is\(dd, \.coh-kpi__note\) \{[\s\S]*?overflow-wrap: anywhere;/,
+      "long rule versions and machine identifiers do not wrap inside KPI cards");
+  });
+
   it("aligns the ledger caption and fixes its five column tracks", () => {
     const css = read("components/coherence/BooksInstruments.module.css");
     assert.match(css, /\.ledger table \{[^}]*table-layout: fixed;/);

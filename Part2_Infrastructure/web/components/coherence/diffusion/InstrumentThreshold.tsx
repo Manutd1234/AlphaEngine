@@ -24,13 +24,12 @@
  * by very different margins, against very different demands" are different
  * readings, and this is the one that draws the second.
  *
- * THE UNSCORED ROWS HAVE NO POSITION AND ARE NOT GIVEN ONE. Two requirements
- * are unmeasured on this deployment (`skill_meetings` is 0). A point at y=0
+ * THE UNSCORED ROWS HAVE NO POSITION AND ARE NOT GIVEN ONE. A point at y=0
  * would read as "scored, and scored nought", which is the opposite of what an
- * absent measurement means — so they sit in a hatched strip BELOW the x axis,
- * at the floor they would have been held to, with the reason in their own
- * title. The strip is the width of the field: a gap the size of the question,
- * not a mark at the bottom of the answer.
+ * absent measurement means — so any missing checks sit in a hatched strip
+ * BELOW the x axis, linked to the floor they would have been held to, with the
+ * reason in their own title. The strip is the width of the field: a gap the
+ * size of the question, not a mark at the bottom of the answer.
  *
  * NOT COLOUR-ALONE. Every mark carries its number, the key carries the same
  * number with `✓`/`✗`/`◌`, and the two unscored ones are hatched as well as
@@ -57,22 +56,64 @@ export interface ThresholdGroup {
   readonly rows: readonly ThresholdCheck[];
 }
 
-const HEIGHT = 300;
+const HEIGHT = 336;
 /** `left` carries the y ticks AND the rotated axis word outside them. */
 // `bottom` holds exactly what is drawn under the axis and no more: the x ticks
-// at +14, the no-reading band at +24 through +42, and the axis word at +58.
-// It was 74 for a 62px stack, and every pixel of that slack came off the side
-// of a SQUARE field — which is the one dimension this figure cannot spare,
-// because the two indices sit 0.078 apart and need the room to separate.
-const MARGIN = { top: 22, bottom: 46, left: 58 };
+// at +14, two no-reading lanes from +24 through +60, and the axis word at +78.
+// Two lanes are necessary for the honest all-missing state: six capsules cannot
+// occupy their floor positions in one 212px row without covering each other.
+const MARGIN = { top: 22, bottom: 54, left: 58 };
 /** The hatched band under the x axis where an unmeasured requirement sits. */
-const GAP_STRIP_H = 26;
+const GAP_STRIP_H = 48;
 const FIELD = HEIGHT - MARGIN.top - MARGIN.bottom - GAP_STRIP_H;
 const DOT_R = 6;
-/** Two requirements can share a floor, so their capsules step sideways. */
-const GAP_W = 46;
+/** Missing readings are packed in two lanes; 3 × 30px still fits a 96px field. */
+const GAP_W = 30;
+const GAP_MARK_H = 16;
+const GAP_MARK_GAP = 3;
+const GAP_LANES = 2;
+const GAP_ROW_H = 20;
+/** Keep the band caption outside the rightmost no-reading capsule. */
+const GAP_LABEL_RAIL = 72;
+const GAP_LABEL_GAP = 10;
 
 const MARK: Record<string, string> = { met: "✓", missed: "✗", absent: "◌" };
+
+export interface GapPlacement {
+  readonly offset: number;
+  readonly lane: number;
+}
+
+/**
+ * Pack missing-reading capsules without changing their left-to-right floor
+ * order. Every lane has an exact feasible interval for each slot, which keeps
+ * adjacent capsules separated even at the 96px responsive minimum.
+ */
+export function layoutGapFloors(floors: readonly number[], side: number): GapPlacement[] {
+  const half = GAP_W / 2;
+  const minimum = half;
+  const maximum = Math.max(minimum, side - half);
+  const separation = GAP_W + GAP_MARK_GAP;
+  const ordered = floors
+    .map((floor, index) => ({ floor: Math.min(1, Math.max(0, floor)), index }))
+    .sort((left, right) => left.floor - right.floor || left.index - right.index);
+  const lanes = Array.from({ length: GAP_LANES }, () => [] as typeof ordered);
+  ordered.forEach((item, index) => lanes[index % GAP_LANES].push(item));
+
+  const placements = floors.map(() => ({ offset: minimum, lane: 0 }));
+  lanes.forEach((items, lane) => {
+    items.forEach((item, index) => {
+      const lower = minimum + index * separation;
+      const upper = maximum - (items.length - index - 1) * separation;
+      const desired = item.floor * side;
+      placements[item.index] = {
+        offset: Math.min(upper, Math.max(lower, desired)),
+        lane,
+      };
+    });
+  });
+  return placements;
+}
 
 function markOf(check: ThresholdCheck): string {
   if (check.met == null) return MARK.absent;
@@ -130,11 +171,18 @@ function InstrumentThreshold({ groups }: { groups: readonly ThresholdGroup[] }) 
             // 45° line and the height above it a readable margin. The field
             // contracts only when its owner is narrower; the key reflows as
             // HTML below it so neither labels nor lifecycle states are clipped.
-            const side = Math.max(150, Math.min(FIELD, width - MARGIN.left - 16));
+            // The no-reading caption owns a rail to the right of the square.
+            // It used to be anchored at x(1), directly over the rightmost
+            // absent capsule whenever several requirements shared a floor.
+            const side = Math.max(
+              96,
+              Math.min(FIELD, width - MARGIN.left - GAP_LABEL_RAIL - 12),
+            );
             const x = (unit: number) => MARGIN.left + unit * side;
             const y = (unit: number) => MARGIN.top + (1 - unit) * side;
             const base = MARGIN.top + side;
             const stripTop = base + 24;
+            const gapPlacements = layoutGapFloors(absent.map((check) => check.floor), side);
 
             return (
               <>
@@ -169,7 +217,7 @@ function InstrumentThreshold({ groups }: { groups: readonly ThresholdGroup[] }) 
                 ))}
                 {/* BELOW the band, not above it: at `base + 30` this line ran
                     straight through the hatched capsules and their marks. */}
-                <text className="diff-thresh__axisword" x={x(0)} y={base + 58}>
+                <text className="diff-thresh__axisword" x={x(0)} y={base + 78}>
                   floor demanded, on each check&rsquo;s own scale →
                 </text>
                 {/* ROTATED, so the y axis names itself beside its own ticks
@@ -197,22 +245,20 @@ function InstrumentThreshold({ groups }: { groups: readonly ThresholdGroup[] }) 
                   const number = index + 1;
                   if (check.at == null) {
                     // No reading: a hatched capsule in the band under the axis,
-                    // at the floor it would have been held to. Two requirements
-                    // can share a floor — both unscored ones sit at nought on
-                    // the live read — so they step sideways rather than stack.
-                    const peers = absent.filter((other) => other.floor === check.floor);
-                    const slot = peers.indexOf(check);
-                    const cx = Math.min(
-                      x(1) - GAP_W / 2,
-                      x(check.floor) + GAP_W / 2 + slot * (GAP_W + 6),
-                    );
+                    // linked to the floor it would have been held to. Packing
+                    // owns collision avoidance across equal AND nearby floors.
+                    const placement = gapPlacements[absent.indexOf(check)];
+                    const cx = MARGIN.left + placement.offset;
+                    const gapTop = stripTop + placement.lane * GAP_ROW_H;
                     return (
                       <g key={check.what}>
-                        <rect className="diff-thresh__gap" x={cx - GAP_W / 2} y={stripTop}
-                              width={GAP_W} height={GAP_STRIP_H - 8} rx={3}>
+                        <line className="diff-thresh__gapleader" x1={x(check.floor)} y1={base + 6}
+                              x2={cx} y2={gapTop} />
+                        <rect className="diff-thresh__gap" x={cx - GAP_W / 2} y={gapTop}
+                              width={GAP_W} height={GAP_MARK_H} rx={3}>
                           <title>{titleOf(check, number)}</title>
                         </rect>
-                        <text className="diff-thresh__gapmark" x={cx} y={stripTop + 13} textAnchor="middle">
+                        <text className="diff-thresh__gapmark" x={cx} y={gapTop + 12} textAnchor="middle">
                           <tspan aria-hidden="true">{MARK.absent}</tspan> {number}
                         </text>
                       </g>
@@ -235,7 +281,8 @@ function InstrumentThreshold({ groups }: { groups: readonly ThresholdGroup[] }) 
                 {/* The band's own word, so it is not a mystery: it is where a
                     requirement with no reading is placed. */}
                 {absent.length ? (
-                  <text className="diff-thresh__tick" x={x(1)} y={stripTop + 13} textAnchor="end">
+                  <text className="diff-thresh__gaplabel" x={x(1) + GAP_LABEL_GAP}
+                        y={stripTop + 13} textAnchor="start">
                     no reading
                   </text>
                 ) : null}

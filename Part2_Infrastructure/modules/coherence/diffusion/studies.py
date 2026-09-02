@@ -180,10 +180,16 @@ class DiffusionStudyStore:
                   and row.get("gate_r_squared") is not None]
         if not passed:
             return None
-        conditioned = [row for row in passed
+        # A fully scored run answers the study's actual out-of-sample question.
+        # Older runs predate that score; prefer completeness before applying
+        # the fixed, outcome-blind conditioning rule. `skill_meetings` is a
+        # sample-size field, not a result, so this cannot select on the answer.
+        scored = [row for row in passed if int(row.get("skill_meetings") or 0) > 0]
+        candidates = scored or passed
+        conditioned = [row for row in candidates
                        if (row.get("effective_rank") or 0) >= MIN_EFFECTIVE_RANK
                        and (row.get("centroid_spread") or 0) >= MIN_CENTROID_SPREAD]
-        return max(conditioned or passed, key=lambda row: float(row["gate_r_squared"]))
+        return max(conditioned or candidates, key=lambda row: float(row["gate_r_squared"]))
 
     def latest(self, *, admissible: bool = False) -> dict[str, Any] | None:
         """The newest run, whatever it concluded — including a refusal.

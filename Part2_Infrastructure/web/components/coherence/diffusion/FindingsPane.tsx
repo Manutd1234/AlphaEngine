@@ -22,15 +22,12 @@
  * a residence time defined for every meeting, precision weights instead of the
  * gate, both stages pooled, and leave-one-meeting-out scoring against a
  * baseline that already knows the stage and the rate move. It lands on the
- * wire as `study.skill_*`, PER STUDY — and the study this pane reports is the
- * one a rule fixed in advance picks among the well conditioned, which is not
- * the rule that decides which study gets scored. On this deployment the
- * reported run has `skill_meetings: 0`: the score exists in the ledger on a
- * different run, and the wire does not carry it. So the Instrument ladder's
- * last two rows say "not scored for this run", the fold beneath says the null
- * rests on the control alone, and no fixed prose on this pane asserts a
- * number the payload can contradict. This docblock did, until 2026-08-26, and
- * the number was true of a run the reader was not looking at.
+ * wire as `study.skill_*`, PER STUDY. The reporting rule first prefers an
+ * admissible run that actually carries that out-of-sample score, then applies
+ * its fixed conditioning rule without looking at the answer. The committed
+ * production ledger therefore reports the completed 57-meeting run instead of
+ * borrowing its score for a different study. If a future deployment has no
+ * study, or only older unscored rows, every missing value remains explicit.
  *
  * The calendar strip above it is the other half of the claim. Every stated
  * timestamp was checked against the issuer's own release line, not against a

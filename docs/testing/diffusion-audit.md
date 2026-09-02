@@ -999,6 +999,15 @@ not. A guard pins both branches and was proven red by making either
 unconditional. Whether the reporting rule should prefer a scored run is a
 gateway question, recorded here and not decided here.
 
+**Closed 2026-09-02.** The verified deployment artifact now carries all four
+pre-registered study rows as well as the event/text/run evidence. The reporting
+rule prefers a completed admissible score before applying its outcome-blind
+conditioning comparison, so `prior:guidance:d10:s7` supplies its own 57-meeting
+baseline and text-gain readings. The deployment canary rejects a missing or
+partially scored study, and a bounded pre-cutover one-shot mirrors the same four
+tenant-scoped tables to Supabase. The historical measurements above document
+the defect that this closure guards against.
+
 **One clash the new column found in an old figure.** `InstrumentFit`'s first
 row names the fact it recovers since 2026-08-25 — forty characters — and at
 1100px it ran into the value end-anchored beside it ("Recovers the policy move

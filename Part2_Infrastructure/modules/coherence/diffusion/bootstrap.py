@@ -1,13 +1,16 @@
 """Restore the committed, issuer-verified FOMC evidence into the live ledger.
 
 This is deliberately an INSERT-ONLY bootstrap, not a database copy.  The
-artifact contains exactly three allowlisted projections and no tenant id:
-events reconstructed from issuer evidence, issuer statement texts, and
-measured absorption runs.  The configured backend owns the tenant stamp.
+artifact contains exactly four allowlisted projections and no tenant id:
+events reconstructed from issuer evidence, issuer statement texts, measured
+absorption runs, and the four pre-registered spectrum studies built from those
+inputs.  The configured backend owns the tenant stamp.
 
-Existing rows are never patched.  That matters because a later operator may
-replace an estimated call clock with a recorded one, refetch a revised issuer
-page, or recompute a run under new parameters.  A partial prior import resumes
+Existing observations are never patched.  That matters because a later
+operator may replace an estimated call clock with a recorded one, refetch a
+revised issuer page, or recompute a run under new parameters.  The sole narrow
+exception fills a missing out-of-sample score on the matching legacy study row;
+it refuses if that row's gate evidence differs.  A partial prior import resumes
 by inserting only missing natural keys; a key whose identity points at a
 different event/source/stage fails readiness instead of being overwritten.
 """
@@ -23,8 +26,14 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from modules.coherence.diffusion.bootstrap_studies import (
+    STUDY_FIELDS,
+    backfill_legacy_scores,
+    validate_studies,
+)
 from modules.coherence.diffusion.events import DiffusionEventStore
 from modules.coherence.diffusion.runs import AbsorptionRunStore
+from modules.coherence.diffusion.studies import DiffusionStudyStore
 from modules.coherence.diffusion.texts import DiffusionTextStore
 from modules.data_ops_backend import DataOpsStore, get_data_ops_store
 
@@ -32,11 +41,12 @@ log = logging.getLogger("alphaengine.diffusion.bootstrap")
 
 SCHEMA = "alphaengine.diffusion.fomc-bootstrap.v1"
 ARTIFACT = Path(__file__).resolve().parent / "bootstrap_data/fomc_issuer_evidence_v1.json"
-ARTIFACT_FILE_SHA256 = "445c439a613963987ed546f7e0653f0b4579bb8c71b5eb450aba94f1227521c5"
+ARTIFACT_FILE_SHA256 = "1dfa9fa2d20b7d5fe797c142346077da0f532b21209b3627495490122ae11629"
 EXPECTED_COUNTS = {
     "diffusion_events": 62,
     "diffusion_texts": 62,
     "diffusion_runs": 248,
+    "diffusion_studies": 4,
 }
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
 _HEX16 = re.compile(r"^[0-9a-f]{16}$")
@@ -67,6 +77,7 @@ _KEYS = {
     "diffusion_events": "source_ref",
     "diffusion_texts": "text_id",
     "diffusion_runs": "run_id",
+    "diffusion_studies": "study_id",
 }
 _IDENTITY = {
     # Fields that define what a key *is*. Mutable evidence/results are excluded
@@ -74,6 +85,7 @@ _IDENTITY = {
     "diffusion_events": ("source_ref", "kind", "release_at", "statement_url"),
     "diffusion_texts": ("text_id", "source_ref", "stage", "source", "url"),
     "diffusion_runs": ("run_id", "source_ref", "symbol", "stage", "interval", "t0_ms"),
+    "diffusion_studies": ("study_id", "conditioning", "segment", "latent_dim"),
 }
 
 
@@ -223,6 +235,7 @@ def load_artifact(path: Path = ARTIFACT) -> dict[str, Any]:
         _validate_text(row)
     for row in tables["diffusion_runs"]:
         _validate_run(row)
+    validate_studies(tables["diffusion_studies"], error=DiffusionBootstrapError)
     _validate_links(tables)
     return artifact
 
@@ -260,9 +273,12 @@ def _equal(left: Any, right: Any) -> bool:
 
 
 def _db_rows(table: str, rows: list[dict[str, Any]], *, desk_id: str) -> list[dict[str, Any]]:
-    expected = _RUN_ARTIFACT_FIELDS if table == "diffusion_runs" else (
-        _EVENT_FIELDS if table == "diffusion_events" else _TEXT_FIELDS
-    )
+    expected = {
+        "diffusion_events": _EVENT_FIELDS,
+        "diffusion_texts": _TEXT_FIELDS,
+        "diffusion_runs": _RUN_ARTIFACT_FIELDS,
+        "diffusion_studies": STUDY_FIELDS,
+    }[table]
     converted: list[dict[str, Any]] = []
     for source in rows:
         _require_exact_fields(source, expected, label=f"{table} row")
@@ -309,6 +325,7 @@ def restore_verified_fomc(
     DiffusionEventStore(target)
     DiffusionTextStore(target)
     AbsorptionRunStore(target)
+    DiffusionStudyStore(target)
     desk_id = str(getattr(target, "desk_id", None) or "default")
     tables = {
         name: _db_rows(name, artifact["tables"][name], desk_id=desk_id)
@@ -326,13 +343,18 @@ def restore_verified_fomc(
 
     # Parent before child, and insert-only. `ignore-duplicates` makes a retry
     # after a partial write or a concurrent identical bootstrap harmless.
-    for name in ("diffusion_events", "diffusion_texts", "diffusion_runs"):
+    for name in ("diffusion_events", "diffusion_texts", "diffusion_runs", "diffusion_studies"):
         key = _KEYS[name]
         missing = [row for row in tables[name] if str(row[key]) not in before[name]]
         if missing:
             target.add(
                 name, missing, on_conflict=key, resolution="ignore-duplicates",
             )
+    # Fill only a missing score on the exact same legacy gate evidence; never
+    # replace a later or different study with the committed artifact.
+    backfill_legacy_scores(
+        target, tables["diffusion_studies"], error=DiffusionBootstrapError,
+    )
 
     after = {name: _existing(target, name) for name in EXPECTED_COUNTS}
     final_conflicts = {
@@ -367,10 +389,11 @@ def restore_verified_fomc(
         tables=results,
     )
     log.info(
-        "verified FOMC bootstrap ready: backend=%s events=%d texts=%d runs=%d",
+        "verified FOMC bootstrap ready: backend=%s events=%d texts=%d runs=%d studies=%d",
         target.backend,
         results["diffusion_events"].final_present,
         results["diffusion_texts"].final_present,
         results["diffusion_runs"].final_present,
+        results["diffusion_studies"].final_present,
     )
     return result

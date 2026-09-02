@@ -70,9 +70,21 @@
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
 }
+.coherence-plane.diffusion-plane .diff-thresh__gapleader {
+  stroke: var(--rule-soft);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
 .coherence-plane.diffusion-plane .diff-thresh__gapmark {
   fill: var(--text-secondary);
   font-size: var(--fs-tick);
+}
+/* Its own rail after the square keeps this caption clear of the final capsule,
+   including when several absent requirements share one floor. */
+.coherence-plane.diffusion-plane .diff-thresh__gaplabel {
+  fill: var(--text-muted);
+  font-size: var(--fs-tick);
+  font-weight: 600;
 }
 /* The requirement key reflows below the square field. Keeping it in the SVG
    required a 560px canvas and cut the final lifecycle states off on phones;

@@ -100,12 +100,29 @@ def readiness_report() -> dict[str, int | str]:
     if assessable == 0:
         raise DiffusionReadinessError("the findings read contains no measured relationship")
 
+    study = findings.get("study")
+    gate = findings.get("gate")
+    if not isinstance(study, dict):
+        raise DiffusionReadinessError("the information-spectrum study has not been built")
+    if not isinstance(gate, dict) or gate.get("state") != "passed" \
+            or gate.get("r_squared") is None:
+        raise DiffusionReadinessError("the information-spectrum representation gate did not pass")
+    skill_meetings = int(study.get("skill_meetings") or 0)
+    if skill_meetings <= 0:
+        raise DiffusionReadinessError("the information-spectrum study has no out-of-sample score")
+    if any(study.get(field) is None for field in (
+        "skill_baseline_r2", "skill_gain", "skill_shuffled_p", "skill_stage_minutes",
+    )):
+        raise DiffusionReadinessError("the information-spectrum score is incomplete")
+
     return {
         "backend": str(events.get("backend") or "unreported"),
         "events": len(event_rows),
         "runs": len(run_rows),
         "findings": len(finding_rows),
         "assessable_findings": assessable,
+        "study": str(study.get("study_id") or "unreported"),
+        "skill_meetings": skill_meetings,
     }
 
 

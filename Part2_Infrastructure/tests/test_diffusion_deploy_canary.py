@@ -27,6 +27,15 @@ def _payloads() -> dict[str, dict]:
             "state": "ok",
             "backend": "sqlite",
             "calendar": {"of": events},
+            "gate": {"state": "passed", "r_squared": 0.58},
+            "study": {
+                "study_id": "prior:guidance:d10:s7",
+                "skill_meetings": 57,
+                "skill_baseline_r2": 0.144,
+                "skill_gain": -0.343,
+                "skill_shuffled_p": 0.875,
+                "skill_stage_minutes": 30.0,
+            },
             "findings": [{"n": 10}, {"n": 0}],
         },
     }
@@ -51,6 +60,8 @@ def test_canary_accepts_every_populated_diagram_input(monkeypatch: pytest.Monkey
         "runs": 248,
         "findings": 2,
         "assessable_findings": 1,
+        "study": "prior:guidance:d10:s7",
+        "skill_meetings": 57,
     }
 
 
@@ -61,6 +72,11 @@ def test_canary_accepts_every_populated_diagram_input(monkeypatch: pytest.Monkey
         (lambda payloads: payloads["absorption"].update(runs=[]), "absorption ledger contains 0 runs"),
         (lambda payloads: payloads["absorption"].update(release_curve=[]), "no drawable horizons"),
         (lambda payloads: payloads["findings"].update(findings=[{"n": 0}]), "no measured relationship"),
+        (lambda payloads: payloads["findings"].update(study=None), "study has not been built"),
+        (
+            lambda payloads: payloads["findings"]["study"].update(skill_meetings=0),
+            "study has no out-of-sample score",
+        ),
     ],
 )
 def test_canary_refuses_a_healthy_but_empty_gateway(

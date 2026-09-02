@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { returnFanReading } from "../components/coherence/diffusion/ReturnFan";
+import { layoutGapFloors } from "../components/coherence/diffusion/InstrumentThreshold";
 import {
   DIFFUSION_SPARSE_SPECS,
   sampleStateLabel,
@@ -219,6 +220,27 @@ describe("sparse Diffusion reads remain truthful and visible", () => {
     const threshold = read("../components/coherence/diffusion/InstrumentThreshold.tsx");
     assert.match(threshold, /className="diff-thresh__legend"/,
       "the instrument key is still trapped in the fixed-width SVG instead of reflowing below it");
+    assert.match(threshold, /width - MARGIN\.left - GAP_LABEL_RAIL/,
+      "the no-reading caption has no reserved rail beside the threshold field");
+    assert.match(threshold, /className="diff-thresh__gaplabel"[\s\S]*?x=\{x\(1\) \+ GAP_LABEL_GAP\}[\s\S]*?textAnchor="start"/,
+      "the no-reading caption is still anchored over the rightmost absent capsule");
+  });
+
+  it("packs all six missing readings without capsule or caption collisions", () => {
+    const placements = layoutGapFloors([0, 0.9, 0.9, 0, 0, 0], 96);
+    assert.equal(placements.length, 6);
+    for (const lane of [0, 1]) {
+      const offsets = placements
+        .filter((placement) => placement.lane === lane)
+        .map((placement) => placement.offset)
+        .sort((left, right) => left - right);
+      for (let index = 1; index < offsets.length; index += 1) {
+        assert.ok(offsets[index] - offsets[index - 1] >= 33,
+          `lane ${lane} still contains overlapping missing-reading capsules`);
+      }
+    }
+    assert.ok(Math.max(...placements.map((placement) => placement.offset)) <= 81,
+      "a missing-reading capsule entered the caption rail");
   });
 
   it("keeps the empty episode watch fluid instead of creating an unnamed scrollport", () => {

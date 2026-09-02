@@ -52,6 +52,7 @@ export const EXPLICIT_LAYOUT_THEMES = Object.freeze(["light", "dark"]);
 
 export const WORKSPACE_READY_SELECTOR = ".workspace-tabs, .workspace-bottom-nav";
 export const WORKSPACE_READY_STATE = "attached";
+export const DEFAULT_AUDIT_HASH = "overview/loop";
 export const LAYOUT_SETTLING = Object.freeze({
   timeoutMs: 35_000,
   sampleIntervalMs: 100,
@@ -164,16 +165,16 @@ function parseThemes(value) {
 }
 
 export async function waitForWorkspaceReady(page, timeoutMs = 15_000) {
+  await page.evaluate((defaultHash) => {
+    if (!window.location.hash.slice(1)) window.location.hash = defaultHash;
+  }, DEFAULT_AUDIT_HASH);
   await page.locator(WORKSPACE_READY_SELECTOR).first().waitFor({
     state: WORKSPACE_READY_STATE,
     timeout: timeoutMs,
   });
-  /* The rail is server-rendered before useWorkspaceBootstrap has applied and
-     confessed the initial hash. On a cold guest redirect it can therefore be
-     attached while `data-workspace-boot="pending"` is still hiding the body.
-     Mutating the hash in that window starts a lazy console render which the
-     bootstrap's later default-location commit can abandon before mount—the
-     intermittent React state-update warning this guard was added to prevent. */
+  /* The clean guest has no hash, so the audit names the app's own default.
+     The rail can be server-rendered while workspace bootstrap still hides the
+     body; require the named panel after that bootstrap has fully confessed. */
   await page.waitForFunction(() => {
     if (document.documentElement.dataset.workspaceBoot) return false;
     const [desk, section] = window.location.hash.slice(1).split("/");

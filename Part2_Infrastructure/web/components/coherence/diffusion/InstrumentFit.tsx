@@ -5,11 +5,12 @@
  *
  * REPLACES `InstrumentTable` AND THE STRIP THAT SAT ABOVE IT, and the reason is
  * what a look at the rendered view showed rather than what the source suggested.
- * The strip drew the two out-of-sample rows as bars; on this deployment both are
- * null, so it rendered two rows of "— — not measured" under a caption — a figure
- * carrying no information, and its row labels were clipped mid-word. Those same
- * two facts were then the last two rows of the table underneath it. So the view
- * opened on an empty drawing that duplicated part of the table below it.
+ * The strip drew the two out-of-sample rows as bars; before the completed study
+ * ledger shipped, both were null, so it rendered two rows of "— — not measured"
+ * under a caption — a figure carrying no information, and its row labels were
+ * clipped mid-word. Those same two facts were then the last two rows of the table
+ * underneath it. So the view opened on an empty drawing that duplicated part of
+ * the table below it.
  *
  * The table's own defect was its fifth column. "What failing it would mean" is
  * six fixed sentences that never change with the data, wrapped to three lines
@@ -31,10 +32,10 @@
  * first four are measured blind to absorption speed, so reporting them cannot
  * manufacture a relationship with it. The last two ARE the headline, scored on
  * meetings the fit never saw — both stages of a meeting leave together, so a
- * statement can never help predict its own absorption. Scored PER STUDY: when
- * the reported run carries `skill_meetings: 0`, as this deployment's does, the
- * two rows say "not scored for this run" rather than "0 meetings scored", which
- * reads as a measurement of nothing rather than as no measurement.
+ * statement can never help predict its own absorption. Scored PER STUDY: the
+ * committed production ledger now selects the admissible 57-meeting scored run;
+ * if a future read carries `skill_meetings: 0`, the two rows still say "not
+ * scored for this run" rather than turning absence into a zero.
  *
  * An unmeasured requirement is a gap with a reason beside it, never a bar of
  * length zero: "nothing predicts the clock" and "nobody has scored the clock

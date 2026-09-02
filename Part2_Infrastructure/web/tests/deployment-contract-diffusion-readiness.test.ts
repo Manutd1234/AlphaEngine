@@ -50,4 +50,19 @@ describe("continuous deployment restores the Diffusion evidence ledger", () => {
       "an empty but healthy replacement must roll back instead of promoting blank diagrams",
     );
   });
+
+  it("mirrors the verified Diffusion study ledger to Supabase before cutover", () => {
+    const restore = deployWorkflow.indexOf("python -m tools.restore_diffusion_supabase_once");
+    const cutover = deployWorkflow.indexOf('echo "==> Stopping the current container"', restore);
+    assert.ok(restore > 0 && cutover > restore,
+      "the Supabase Diffusion restore must finish while the prior gateway is still serving");
+    const block = deployWorkflow.slice(
+      deployWorkflow.lastIndexOf("DIFFUSION_SUPABASE_CONTAINER=", restore),
+      cutover,
+    );
+    assert.match(block, /timeout --signal=TERM --kill-after=10s 120s/);
+    assert.match(block, /--env-file "\$ENV_FILE"/);
+    assert.match(block, /tenant-scoped Supabase Diffusion restore[\s\S]*unwind_unstarted_replacement/,
+      "an incomplete Supabase copy must fail before replacement cutover");
+  });
 });

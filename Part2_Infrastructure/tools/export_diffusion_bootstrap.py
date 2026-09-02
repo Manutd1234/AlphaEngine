@@ -11,7 +11,9 @@ It also derives the minimum event index from two independent pieces of stored
 evidence: the issuer statement's own ``For release at`` clock and the measured
 run anchors.  The release clock is labelled ``issuer``; the later call anchor
 is deliberately labelled ``estimated_offset`` because the statement does not
-verify when a press conference began.
+verify when a press conference began.  The four pre-registered spectrum runs
+ship with those inputs so production can show the same completed instrument
+and negative result as the reproducible local ledger.
 """
 
 from __future__ import annotations
@@ -54,11 +56,22 @@ RUN_COLUMNS = (
     "controls_used", "measured_horizons", "of_horizons", "market_adjusted",
     "data_hash", "params_version", "t0_ms", "points_json", "computed_at",
 )
+STUDY_COLUMNS = (
+    "study_id", "ran_at", "conditioning", "segment", "latent_dim", "events",
+    "state", "verdict", "verdict_reason", "gate_state", "gate_r_squared",
+    "gate_floor", "gate_fact", "gate_reason", "gate_samples", "effective_rank",
+    "centroid_spread", "regressions_json", "skill_meetings", "skill_baseline_r2",
+    "skill_gain", "skill_shuffled_p", "skill_stage_minutes",
+)
 
 
 def _rows(connection: sqlite3.Connection, table: str, columns: tuple[str, ...]) -> list[dict[str, Any]]:
     """Read an allowlisted projection; callers cannot pass arbitrary SQL."""
-    allowed = {"diffusion_texts": TEXT_COLUMNS, "diffusion_runs": RUN_COLUMNS}
+    allowed = {
+        "diffusion_texts": TEXT_COLUMNS,
+        "diffusion_runs": RUN_COLUMNS,
+        "diffusion_studies": STUDY_COLUMNS,
+    }
     if allowed.get(table) != columns:
         raise ValueError(f"unsupported bootstrap projection: {table}")
     cursor = connection.execute(
@@ -119,6 +132,30 @@ def _validate_run(row: dict[str, Any]) -> None:
     if not isinstance(points, list) or len(points) != int(row["of_horizons"]):
         raise ValueError(f"{source_ref}: horizon evidence does not match its count")
     row["points"] = points
+
+
+def _validate_study(row: dict[str, Any]) -> None:
+    study_id = str(row["study_id"])
+    if not re.fullmatch(r"prior:(decision|guidance):d(6|10):s7", study_id):
+        raise ValueError(f"{study_id}: unexpected pre-registered study identity")
+    expected_id = f"{row['conditioning']}:{row['segment']}:d{row['latent_dim']}:s7"
+    if study_id != expected_id:
+        raise ValueError(f"{study_id}: study id does not match its configuration")
+    if row["state"] != "ok" or row["gate_state"] != "passed":
+        raise ValueError(f"{study_id}: only completed, admissible studies may ship")
+    if int(row["events"]) < 50 or int(row["gate_samples"]) < 50:
+        raise ValueError(f"{study_id}: study sample is incomplete")
+    if row["gate_r_squared"] is None or row["effective_rank"] is None \
+            or row["centroid_spread"] is None:
+        raise ValueError(f"{study_id}: study instrument evidence is incomplete")
+    regressions = json.loads(str(row["regressions_json"]))
+    if not isinstance(regressions, list) or len(regressions) != 10:
+        raise ValueError(f"{study_id}: expected eight findings and two controls")
+    if int(row["skill_meetings"] or 0) > 0 and any(
+        row[field] is None
+        for field in ("skill_baseline_r2", "skill_gain", "skill_shuffled_p", "skill_stage_minutes")
+    ):
+        raise ValueError(f"{study_id}: out-of-sample score is incomplete")
 
 
 def _event_rows(texts: list[dict[str, Any]], runs: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -190,24 +227,34 @@ def build_artifact(source: Path) -> dict[str, Any]:
     try:
         texts = _rows(connection, "diffusion_texts", TEXT_COLUMNS)
         runs = _rows(connection, "diffusion_runs", RUN_COLUMNS)
+        studies = _rows(connection, "diffusion_studies", STUDY_COLUMNS)
     finally:
         connection.close()
     for row in texts:
         _validate_text(row)
     for row in runs:
         _validate_run(row)
+    for row in studies:
+        _validate_study(row)
     events = _event_rows(texts, runs)
-    if (len(events), len(texts), len(runs)) != (62, 62, 248):
+    if (len(events), len(texts), len(runs), len(studies)) != (62, 62, 248, 4):
         raise ValueError(
             f"refusing incomplete evidence: events={len(events)}, texts={len(texts)}, "
-            f"runs={len(runs)}"
+            f"runs={len(runs)}, studies={len(studies)}"
         )
-    tables = {"diffusion_events": events, "diffusion_texts": texts, "diffusion_runs": runs}
+    if not any(int(row["skill_meetings"] or 0) > 0 for row in studies):
+        raise ValueError("refusing study ledger with no out-of-sample score")
+    tables = {
+        "diffusion_events": events,
+        "diffusion_texts": texts,
+        "diffusion_runs": runs,
+        "diffusion_studies": studies,
+    }
     refs = sorted(row["source_ref"] for row in events)
     return {
         "manifest": {
             "schema": SCHEMA,
-            "dataset_id": "fomc-issuer-evidence-2019-01-30--2026-07-29-v1",
+            "dataset_id": "fomc-issuer-evidence-2019-01-30--2026-07-29-v2",
             "first_source_ref": refs[0],
             "last_source_ref": refs[-1],
             "counts": {name: len(rows) for name, rows in tables.items()},
@@ -233,10 +280,14 @@ def build_artifact(source: Path) -> dict[str, Any]:
                     "Previously computed Binance 1m BTCUSDT/ETHUSDT measurements; "
                     "each row carries data_hash and params_version"
                 ),
+                "studies": (
+                    "Four pre-registered information-spectrum runs over the issuer "
+                    "statements; one carries the complete leave-one-meeting-out score"
+                ),
             },
             "excluded_tables": [
                 "data_quality_findings", "data_quality_escalations", "data_schedule_runs",
-                "data_work_items", "data_work_item_ids", "diffusion_studies",
+                "data_work_items", "data_work_item_ids",
             ],
         },
         "tables": tables,
@@ -259,7 +310,7 @@ def main(argv: list[str] | None = None) -> int:
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(rendered, encoding="utf-8")
     print(
-        f"wrote {args.out}: 62 issuer events, 62 texts, 248 runs; "
+        f"wrote {args.out}: 62 issuer events, 62 texts, 248 runs, 4 studies; "
         f"sha256={artifact['manifest']['payload_sha256']}"
     )
     return 0

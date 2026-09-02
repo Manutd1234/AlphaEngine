@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "generatedAt": "2026-09-01",
-  "commit": "ed94d051",
+  "generatedAt": "2026-09-02",
+  "commit": "f602b70d",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -143,6 +143,7 @@
     "Part2_Infrastructure/modules/coherence/diffusion/absorption.py",
     "Part2_Infrastructure/modules/coherence/diffusion/bars.py",
     "Part2_Infrastructure/modules/coherence/diffusion/bootstrap_data/fomc_issuer_evidence_v1.json",
+    "Part2_Infrastructure/modules/coherence/diffusion/bootstrap_studies.py",
     "Part2_Infrastructure/modules/coherence/diffusion/bootstrap.py",
     "Part2_Infrastructure/modules/coherence/diffusion/calendar.py",
     "Part2_Infrastructure/modules/coherence/diffusion/capture.py",
@@ -797,6 +798,7 @@
     "Part2_Infrastructure/tools/openapi.json",
     "Part2_Infrastructure/tools/oracle_keepalive.py",
     "Part2_Infrastructure/tools/reconcile_research_once.py",
+    "Part2_Infrastructure/tools/restore_diffusion_supabase_once.py",
     "Part2_Infrastructure/tools/synthetic_probe.py",
     "Part2_Infrastructure/tools/telegram_catalogue.py",
     "Part2_Infrastructure/web/.env.example",

@@ -23,19 +23,23 @@ def test_committed_artifact_is_complete_and_self_verifying():
         "diffusion_events": 62,
         "diffusion_texts": 62,
         "diffusion_runs": 248,
+        "diffusion_studies": 4,
     }
     tables = artifact["tables"]
-    assert set(tables) == {"diffusion_events", "diffusion_texts", "diffusion_runs"}
+    assert set(tables) == {
+        "diffusion_events", "diffusion_texts", "diffusion_runs", "diffusion_studies",
+    }
     assert all(row["release_at_source"] == "issuer" for row in tables["diffusion_events"])
     assert all(row["call_at_source"] == "estimated_offset" for row in tables["diffusion_events"])
     assert all(len(row["sha256"]) == 64 for row in tables["diffusion_texts"])
     assert all(len(row["data_hash"]) == 64 for row in tables["diffusion_runs"])
+    assert sum(int(row["skill_meetings"] or 0) > 0 for row in tables["diffusion_studies"]) == 1
     provenance = artifact["manifest"]["provenance"]
     assert "estimated_offset" in provenance["call"]
     assert "discarded event row" in provenance["event_first_seen"]
 
 
-def test_restore_creates_only_the_three_allowlisted_tables_and_is_idempotent():
+def test_restore_creates_only_the_four_allowlisted_tables_and_is_idempotent():
     store = SqliteStore(":memory:")
     try:
         first = restore_verified_fomc(store)
@@ -43,13 +47,16 @@ def test_restore_creates_only_the_three_allowlisted_tables_and_is_idempotent():
             "diffusion_events": 62,
             "diffusion_texts": 62,
             "diffusion_runs": 248,
+            "diffusion_studies": 4,
         }
         tables = {
             row["name"] for row in store.query(
                 "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
             )
         }
-        assert tables == {"diffusion_events", "diffusion_texts", "diffusion_runs"}
+        assert tables == {
+            "diffusion_events", "diffusion_texts", "diffusion_runs", "diffusion_studies",
+        }
 
         second = restore_verified_fomc(store)
         assert all(item.restored == 0 for item in second.tables.values())
@@ -57,6 +64,7 @@ def test_restore_creates_only_the_three_allowlisted_tables_and_is_idempotent():
         assert store.count("diffusion_events") == 62
         assert store.count("diffusion_texts") == 62
         assert store.count("diffusion_runs") == 248
+        assert store.count("diffusion_studies") == 4
     finally:
         store.close()
 
@@ -83,6 +91,7 @@ def test_gateway_readiness_restores_evidence_before_serving(monkeypatch):
             "final_present": 62,
         }
         assert target.count("diffusion_runs") == 248
+        assert target.count("diffusion_studies") == 4
     finally:
         target.close()
 
@@ -114,16 +123,21 @@ def test_gateway_readiness_stays_live_when_recorder_capacity_is_guarded(
         target.close()
 
 
-def test_restored_rows_reach_both_diagram_api_read_models(monkeypatch):
+def test_restored_rows_reach_every_diagram_api_read_model(monkeypatch):
     from modules.api import diffusion as diffusion_api
     from modules.coherence.diffusion.events import DiffusionEventStore
+    from modules.coherence.diffusion.findings import collect as collect_findings
     from modules.coherence.diffusion.runs import AbsorptionRunStore
+    from modules.coherence.diffusion.studies import DiffusionStudyStore
+    from modules.coherence.diffusion.texts import DiffusionTextStore
 
     target = SqliteStore(":memory:")
     try:
         restore_verified_fomc(target)
         events = DiffusionEventStore(target)
         runs = AbsorptionRunStore(target)
+        texts = DiffusionTextStore(target)
+        studies = DiffusionStudyStore(target)
         monkeypatch.setattr(diffusion_api, "_store", lambda: events)
         monkeypatch.setattr(diffusion_api, "_runs", lambda: runs)
 
@@ -136,6 +150,13 @@ def test_restored_rows_reach_both_diagram_api_read_models(monkeypatch):
         assert by_stage["release"].measured == 42
         assert by_stage["call"].measured == 47
         assert sum(stage.no_signal for stage in absorption.stages) == 159
+        findings = collect_findings(
+            runs_store=runs, text_store=texts, study_store=studies,
+        )
+        assert findings["study"]["study_id"] == "prior:guidance:d10:s7"
+        assert findings["study"]["skill_meetings"] == 57
+        assert findings["gate"]["state"] == "passed"
+        assert len(findings["findings"]) == 14
     finally:
         target.close()
 
@@ -143,6 +164,7 @@ def test_restored_rows_reach_both_diagram_api_read_models(monkeypatch):
 def test_postgrest_restore_is_tenant_stamped_and_resumable():
     rows: dict[str, dict[str, dict]] = {
         "diffusion_events": {}, "diffusion_texts": {}, "diffusion_runs": {},
+        "diffusion_studies": {},
     }
     posts: list[httpx.Request] = []
 
@@ -153,12 +175,17 @@ def test_postgrest_restore_is_tenant_stamped_and_resumable():
             "diffusion_events": "source_ref",
             "diffusion_texts": "text_id",
             "diffusion_runs": "run_id",
+            "diffusion_studies": "study_id",
         }[table]
         if request.method == "GET":
             selected = request.url.params["select"].split(",")
+            candidates = list(rows[table].values())
+            if request.url.params.get(key):
+                wanted = request.url.params[key].removeprefix("eq.")
+                candidates = [row for row in candidates if str(row[key]) == wanted]
             body = [
-                {field: row[field] for field in selected}
-                for row in rows[table].values()
+                row if selected == ["*"] else {field: row[field] for field in selected}
+                for row in candidates[:int(request.url.params.get("limit", len(candidates)))]
             ]
             return httpx.Response(200, json=body)
         posts.append(request)
@@ -178,13 +205,13 @@ def test_postgrest_restore_is_tenant_stamped_and_resumable():
     )
     try:
         first = restore_verified_fomc(target)
-        assert [item.restored for item in first.tables.values()] == [62, 62, 248]
-        assert len(posts) == 3
+        assert [item.restored for item in first.tables.values()] == [62, 62, 248, 4]
+        assert len(posts) == 4
         assert all("resolution=ignore-duplicates" in request.headers["Prefer"] for request in posts)
         assert all(request.url.params["on_conflict"].startswith("desk_id,") for request in posts)
         second = restore_verified_fomc(target)
         assert all(item.restored == 0 for item in second.tables.values())
-        assert len(posts) == 3, "a complete retry must perform no writes"
+        assert len(posts) == 4, "a complete retry must perform no writes"
     finally:
         target.close()
 
@@ -224,6 +251,7 @@ def test_partial_restore_resumes_without_overwriting_newer_live_evidence():
             "diffusion_events": 1,
             "diffusion_texts": 1,
             "diffusion_runs": 1,
+            "diffusion_studies": 0,
         }
         event = store.fetch_one("diffusion_events", filters={"source_ref": event_key})
         text = store.fetch_one("diffusion_texts", filters={"text_id": text_key})
@@ -231,6 +259,35 @@ def test_partial_restore_resumes_without_overwriting_newer_live_evidence():
         assert event and event["call_at_source"] == "recorded" and event["call_offset_min"] == 45.0
         assert text and text["fetched_at"] == 9_999_999_999_999.0
         assert run and run["signal_reason"] == "newer live recomputation"
+    finally:
+        store.close()
+
+
+def test_restore_backfills_only_the_missing_score_on_matching_legacy_study():
+    store = SqliteStore(":memory:")
+    try:
+        restore_verified_fomc(store)
+        study_id = "prior:guidance:d10:s7"
+        store.patch(
+            "diffusion_studies",
+            filters={"study_id": study_id},
+            patch={
+                "skill_meetings": 0,
+                "skill_baseline_r2": None,
+                "skill_gain": None,
+                "skill_shuffled_p": None,
+                "skill_stage_minutes": None,
+            },
+        )
+
+        resumed = restore_verified_fomc(store)
+        assert resumed.tables["diffusion_studies"].restored == 0
+        study = store.fetch_one("diffusion_studies", filters={"study_id": study_id})
+        assert study and study["skill_meetings"] == 57
+        assert study["skill_baseline_r2"] is not None
+        assert study["skill_gain"] is not None
+        assert study["skill_shuffled_p"] is not None
+        assert study["skill_stage_minutes"] is not None
     finally:
         store.close()
 
