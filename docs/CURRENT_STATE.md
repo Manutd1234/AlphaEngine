@@ -19,9 +19,9 @@ that observed them; source facts are still reproducible from the tree.
 | Gateway OpenAPI | 76 paths, 79 HTTP operations | `Part2_Infrastructure/tools/openapi.json` |
 | Web route handlers | 65 | `find Part2_Infrastructure/web/app/api -name route.ts` |
 | Local developer default | `npm run dev` supervises gateway `:8000` and workspace `:3000`; `npm run dev:web` is frontend-only | `Part2_Infrastructure/web/package.json`; `scripts/start-dev-all.mjs` |
-| Supabase migrations | 41 present, bundled and applied to the live project | `supabase/migrations/*.sql`; `supabase/apply_all.generated.sql`; schema run `33633200876` |
+| Supabase migrations | 42 present and bundled; first 41 applied to the live project | `supabase/migrations/*.sql`; `supabase/apply_all.generated.sql`; schema run `33633200876`; RFQ membership successor awaiting its manual schema run |
 | Telegram commands | 138 total, 100 in the pushed menu, 6 guarded controls | `Part2_Infrastructure/modules/telegram/registry.py`; `tools/telegram_catalogue.py --check` |
-| Repository catalogue | 2,422 paths | `web/lib/repository-manifest.generated.json`; `cd Part2_Infrastructure/web && npm run build` prebuild check |
+| Repository catalogue | 2,424 paths | `web/lib/repository-manifest.generated.json`; `cd Part2_Infrastructure/web && npm run build` prebuild check |
 
 The gateway is a single application context: one lifespan-owned service graph
 provides the risk gateway, audit/data stores, background jobs, latest-state
@@ -57,6 +57,11 @@ separately deployable, read-only research adapter and owns no trading state.
   proposed generation stays non-retrievable and the previous complete
   generation remains in place. The RPC migration is present in the live schema
   verified by run `33633200876`.
+- Migration `20260902090000` removes email-specific RFQ provisioning: it
+  backfills the fixed desk's active `PAPER_ONLY` membership from every existing
+  `auth.users.id` and installs an after-insert trigger for future accounts.
+  Anonymous guests remain denied, authenticated users can read only their own
+  limits row, and browsers still cannot write memberships.
 - The optional Neo4j projection/read model is configured in the live deployment.
   E2E run `33633746350` read back 15 documents, 48 edges and 2 communities from
   sweep `deploy-33633139022-1`. It is still not desk-isolated:
@@ -101,7 +106,7 @@ The repository-owned count generator and main-branch CI were run on 2026-09-02:
 
 | Suite | Result |
 |---|---:|
-| Gateway | Local generated record: 3,491 passed, 1 skipped (3,492 total). Main CI shape: 3,482 passed, 3 skipped; the separate real-model job ran 8 cases with 0 skips |
+| Gateway | Local generated record: 3,495 passed, 1 skipped (3,496 total). Main CI shape before the RFQ provisioning successor: 3,482 passed, 3 skipped; the separate real-model job ran 8 cases with 0 skips |
 | Web | 6,846 tests across 1,461 suites - 6,840 passed, 6 skipped, 0 failed |
 | OpenBB service | 24 passed |
 | Rendered layout | 872 passed, 0 failed - 109 addressable states at 8 responsive viewports |
@@ -110,7 +115,7 @@ The generated display contract is
 `Part2_Infrastructure/web/lib/test-counts.generated.ts`. The web production
 build also passed on 2026-09-02: its prebuild verified the canonical OpenAPI
 digest `6f50ebed6ccc76c0bc733d18ca9e8f86d8d2789f3092526076e727dba0282321`
-and the 2,422-path repository catalogue before Next.js compiled and generated
+and the 2,424-path repository catalogue before Next.js compiled and generated
 all static pages.
 
 CI run `33637631574` completed all seven jobs successfully with zero

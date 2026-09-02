@@ -365,7 +365,7 @@ twenty-six seconds writes about 1.2 GB a day.
 *What it holds.* `public.order_blotter` (the decision mirror), the pgvector
 research index (`public.research_documents`, HNSW over
 `extensions.vector_cosine_ops`), `public.research_edges`, the ML run tables,
-and the eight data-operations/Diffusion tables. **41 ordered migrations are
+and the eight data-operations/Diffusion tables. **42 ordered migrations are
 present in `supabase/migrations/` and the generated bundle**; the newest is
 `20260831131000_research_chunk_replace.sql`. This source/bundle count is not a
 claim that a live project has applied them. Two edge functions:

@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-09-02",
-  "commit": "f602b70d",
+  "commit": "9f02ad1c",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -720,6 +720,7 @@
     "Part2_Infrastructure/tests/test_research_vision_durable_ingest.py",
     "Part2_Infrastructure/tests/test_research_vision_durable.py",
     "Part2_Infrastructure/tests/test_research.py",
+    "Part2_Infrastructure/tests/test_rfq_membership_migration.py",
     "Part2_Infrastructure/tests/test_risk_alerts.py",
     "Part2_Infrastructure/tests/test_risk_proxy_package.py",
     "Part2_Infrastructure/tests/test_risk_proxy.py",
@@ -2422,6 +2423,7 @@
     "supabase/migrations/20260831121000_data_ops_desk_scope_guard.sql",
     "supabase/migrations/20260831130000_research_graph_desk_scope.sql",
     "supabase/migrations/20260831131000_research_chunk_replace.sql",
+    "supabase/migrations/20260902090000_rfq_membership_for_all_authenticated_users.sql",
     "supabase/README.md",
     "supabase/seed.sql",
     "tools/bundle_migrations.py"

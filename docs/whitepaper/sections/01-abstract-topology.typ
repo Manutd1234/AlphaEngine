@@ -740,7 +740,7 @@ with its method and machine and refuses to merge two machines into one
 flattering number, and the committed test counts, generated because the prose
 copies had drifted three times before the generator existed. As of this revision
 those counts read
-#measured[3,492 gateway tests - 3,491 passed and one skipped][`web/lib/test-counts.generated.ts`,
+#measured[3,496 gateway tests - 3,495 passed and one skipped][`web/lib/test-counts.generated.ts`,
 generated 2026-09-02],
 #measured[6,846 web tests across 1,461 suites][same] and
 #measured[24 service tests][same]. A skip count is

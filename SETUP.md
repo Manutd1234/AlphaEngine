@@ -258,7 +258,7 @@ than trusting the numbers:
 a figure nobody re-measured is not a measurement.
 
 ```bash
-# Gateway suite — 3,491 passed, 1 skipped in the 2026-09-02 local refresh.
+# Gateway suite — 3,495 passed, 1 skipped in the 2026-09-02 local refresh.
 # Native core built, Python 3.12.14. Read skip REASONS with -rs.
 
 cd Part2_Infrastructure && venv/bin/python -m pytest
@@ -338,7 +338,7 @@ which is in `requirements-dev.txt` only.
    `commit` change every commit and gating on those would fail every push. It
    skips cleanly when git is unavailable, so a tarball build still works. Expect
    it to be red whenever a file has landed since the last refresh. The
-   2026-09-02 catalogue contains 2,422 paths and passed its file-list gate;
+   2026-09-02 catalogue contains 2,424 paths and passed its file-list gate;
    the fix for later drift is `npm run catalog:refresh`, never an edit to the
    JSON.
 

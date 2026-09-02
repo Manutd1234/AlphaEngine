@@ -36,7 +36,7 @@ tests" below.
 One committed record:
 [`web/lib/test-counts.generated.ts`](../../Part2_Infrastructure/web/lib/test-counts.generated.ts)
 holds what each runner printed when it was last regenerated on **2026-09-02**.
-The release record for that pass is gateway 3,492 total (3,491 passed, 1
+The release record for that pass is gateway 3,496 total (3,495 passed, 1
 skipped), web 6,846 total across 1,461 suites (6,840 passed, 6 skipped), and
 service 24 passed. Its own header explains why it exists: the
 counts were once three hand-copied integers in a component, and they drifted
@@ -53,7 +53,7 @@ Measured on this tree on **2026-09-02**:
 
 | Suite | Measured | Against the record |
 |---|---|---|
-| Gateway, local refresh shape | **3,491 passed, 1 skipped** | 3,492 total. This is a dated local record, not a CI gate; the generated file does not retain the skip reason or optional-capability environment. |
+| Gateway, local refresh shape | **3,495 passed, 1 skipped** | 3,496 total. This is a dated local record, not a CI gate; the generated file does not retain the skip reason or optional-capability environment. |
 | Web | **6,840 passed, 0 failed, 6 skipped, 1,461 suites** | 6,840 + 6 = **6,846**. The skips are explicit browser/live opt-ins; read the runner reasons rather than inferring them from this total. |
 | OpenBB service | **24 passed** | matches |
 

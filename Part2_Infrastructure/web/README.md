@@ -68,6 +68,12 @@ and nothing else changes. `NEXT_PUBLIC_TELEGRAM_BOT_USERNAME` is public for the
 same reason and, when unset, simply removes the header's Telegram button. The
 bot token, the service-role key and every gateway credential stay server-side.
 
+The private Makers RFQ proxy still requires a valid Supabase session. Migration
+`20260902090000_rfq_membership_for_all_authenticated_users.sql` provisions the
+fixed paper-only desk for every existing Auth account and every future sign-up,
+so there is no email-specific SQL step. Anonymous guests remain blocked, and
+the browser cannot create or reactivate its own membership.
+
 ---
 
 ## Deploy to Vercel

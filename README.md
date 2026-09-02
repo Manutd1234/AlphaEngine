@@ -32,8 +32,8 @@ Two parts, in two directories. Start with whichever question you came for.
   everything offline. `web/lib/test-counts.generated.ts` is the dated record the desk displays; CI
   checks only its **web** line, so run the suites rather than reading its gateway line.
 
-**The headline numbers, measured 2026-09-02:** **3,492 gateway + 6,846 web + 24 service tests**.
-The local gateway refresh reported 3,491 passed and 1 skipped; the web run reported
+**The headline numbers, measured 2026-09-02:** **3,496 gateway + 6,846 web + 24 service tests**.
+The local gateway refresh reported 3,495 passed and 1 skipped; the web run reported
 6,840 passed, 6 skipped and 0 failed across 1,461 suites. Main CI separately ran
 the network-free gateway shape plus live Oracle/Supabase and eight real cross-encoder cases. The generated display contract is
 `Part2_Infrastructure/web/lib/test-counts.generated.ts`; the ledger records the exact measurement
@@ -108,13 +108,13 @@ the number, which moves. The table above explains *why* each path is where it is
 │   ├── OpenBB_Service/                   the stateless research service (own pyproject, 24 tests)
 │   ├── developer-console/                experimental; not a deployment unit, not assessed
 │   └── templates/                        the gateway's single-file console
-├── supabase/                             41 migrations, seed, 2 edge functions, one generated
+├── supabase/                             42 migrations, seed, 2 edge functions, one generated
 │                                         bundle — the Postgres mirror + the research corpus
 └── oracle/                               plain DDL: schema, in-DB Monte Carlo VaR, least-privilege user
 ```
 
 The volatile file count lives in the generated catalogue, not this prose. On
-2026-09-02 it contained 2,422 paths. **The gate, not a copied number, is the
+2026-09-02 it contained 2,424 paths. **The gate, not a copied number, is the
 thing to trust:** `npm run build` refuses to start until
 `web/lib/repository-manifest.generated.json` lists the same files `git ls-files` does, so a stale
 count is caught at `prebuild` rather than believed.
@@ -343,7 +343,7 @@ four being up.
 |---|---|---|
 | **[DuckDB](https://duckdb.org)** | `1.5.5` | **Authoritative.** The embedded append-only audit ledger ([`modules/audit/store.py`](Part2_Infrastructure/modules/audit/store.py)) — every order, risk decision, TCA snapshot and backtest run, on a named Docker volume. Not importable → SQLite fallback, `backend: "sqlite"`. **Locked by another live process → `AuditLedgerConflict` is raised and never fallen back from**, because a second process writing a private divergent history is the worst thing this subsystem could do. A second DuckDB file, `coherence.duckdb`, holds the Kalshi book tape ([`modules/coherence/fs/store.py`](Part2_Infrastructure/modules/coherence/fs/store.py)) and is append-only for the same reason. |
 | **SQLite** | stdlib, 3.12 | The complete default data-ops store ([`modules/data_ops_store.py`](Part2_Infrastructure/modules/data_ops_store.py)): quality findings, escalations, work items, schedule runs and four Diffusion ledgers. Deliberately *not* a table in DuckDB — this is state a person just edited, so it needs a write that **raises** and an UPDATE that reports whether it hit a row. `PRAGMA busy_timeout=30000`, one process-wide open. The opt-in PostgREST backend mirrors all eight logical tables after schema deployment; [`DATA_OPS_BACKEND.md`](docs/architecture/DATA_OPS_BACKEND.md) records the boundary. |
-| **[PostgreSQL](https://www.postgresql.org)** / **[Supabase](https://supabase.com)** | `17.6` / managed | The durable mirror **and** the authoritative home of the research corpus: 41 ordered migrations, two edge functions, RLS deny-by-default. Never a second decision-maker. Absent → `search` and `connected` return a typed `unavailable` **state**, never `[]`, because "searched and found nothing" and "could not search" render differently. |
+| **[PostgreSQL](https://www.postgresql.org)** / **[Supabase](https://supabase.com)** | `17.6` / managed | The durable mirror **and** the authoritative home of the research corpus: 42 ordered migrations, two edge functions, RLS deny-by-default. Every authenticated account is provisioned into the fixed desk for the private paper-only RFQ read; anonymous guests remain denied. Never a second decision-maker. Absent → `search` and `connected` return a typed `unavailable` **state**, never `[]`, because "searched and found nothing" and "could not search" render differently. |
 | **[pgvector](https://github.com/pgvector/pgvector)** | `0.8.2` | 384-dim HNSW cosine index over `research_documents` (`gte-small`, served by a Supabase Edge Function — no key, no weights in the image). A separate 512-dim CLIP `image_embedding` column sits beside it and is empty on a default deployment, because two models are two coordinate systems and must never share one column. |
 | **[Neo4j Aura](https://neo4j.com/cloud/aura/)** | driver `5.28.4`, *optional* | A **one-way, rebuildable projection** of the Postgres `research_edges` table — nothing else writes there, asserted by `tests/test_research_graph_projection.py`. Exactly **two** routes read it back, `GET /api/research/graph/communities` and `/centrality`, and both mark `source: "neo4j" \| "corpus"`. Three refusals stay distinguishable — not configured, sweep has not run, mid-rebuild — and a writer may not read its own output. **GDS is not on Aura Free**, so Louvain and PageRank run in-process via networkx ([`modules/research_communities.py`](Part2_Infrastructure/modules/research_communities.py)); request-time traversal is a Postgres recursive CTE capped at depth 4. Drop the graph and re-project: **no request path depends on it being up.** |
 | **[Oracle Autonomous DB](https://www.oracle.com/autonomous-database/)** | managed, *optional* | Authoritative for **nothing**. Runs one thing: a GBM terminal-value VaR as an in-database procedure ([`oracle/`](oracle/)), reached from the web tier through node-oracledb **thin** mode over walletless TLS (`poolMin: 0`, `poolMax: 2` — Vercel scales lambdas independently and a low ADB session limit is the difference between graceful queueing and `ORA-12516`). Absent → a typed result carrying `oracle_not_configured`, never a throw and never a credential in the message. |
@@ -437,7 +437,7 @@ From a tree that is already set up:
 
 ```bash
 cd Part2_Infrastructure
-venv/bin/python -m pytest                            # 3,491 passed, 1 skipped; 3,492 total in the 2026-09-02 local shape
+venv/bin/python -m pytest                            # 3,495 passed, 1 skipped; 3,496 total in the 2026-09-02 local shape
 venv/bin/python tools/synthetic_probe.py             # book → cost → risk gate → audit; 6/6 steps
 (cd web && npm test)                                 # 6,840 passed, 6 skipped; 1,461 suites
 (cd OpenBB_Service && ../venv/bin/python -m pytest)  # 24 passed

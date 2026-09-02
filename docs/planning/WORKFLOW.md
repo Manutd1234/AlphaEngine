@@ -121,8 +121,8 @@ carries the committed record, and it is worth knowing exactly how much of it CI
 holds. **Only the web line is gated** — `web/scripts/check-test-counts.mjs`
 refuses any suite argument but `web`, and the `web` job compares it against the
 log the runner just teed. The **gateway** and **service** lines in that file are
-*dated records nothing checks*. On 2026-09-02 they read gateway 3,492 total
-(3,491 passed, 1 skipped) and service 24 total. The generator does not encode
+*dated records nothing checks*. On 2026-09-02 they read gateway 3,496 total
+(3,495 passed, 1 skipped) and service 24 total. The generator does not encode
 which optional capability produced that one skip, so the number alone must not
 be labelled the CI shape. That the lines agree on the machine that refreshed
 them is not a gate; re-run the suite, read `-rs`, and refresh the generated file
@@ -233,7 +233,7 @@ scripts/check-test-counts.mjs web "$RUNNER_TEMP/web-tests.log"`. So the
 `gateway` and `service` lines in that file are **dated records, not gates**.
 They are still worth committing — the console displays them and a reader
 deserves to know when they were taken — but nothing goes red when they drift.
-Refreshed 2026-09-02 to 3,492 total (3,491 passed, 1 skipped). Because the file
+Refreshed 2026-09-02 to 3,496 total (3,495 passed, 1 skipped). Because the file
 does not store the skip reason or optional-capability environment, cite it as a
 dated record and never as a checked CI figure.
 

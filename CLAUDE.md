@@ -40,7 +40,7 @@ the locally configured optional re-ranker; the owning generator recorded:
 
 | Run | Passed | Skipped | Total |
 |---|---:|---:|---:|
-| 2026-09-02 local count refresh | 3,491 | 1 | 3,492 |
+| 2026-09-02 local count refresh | 3,495 | 1 | 3,496 |
 
 Optional credentials and model weights can change collection and skip reasons
 without changing source. Two important examples are:
@@ -78,7 +78,7 @@ run green — ten of them already do without credentials, and the eleventh,
 local ONNX directory.
 
 `web/lib/test-counts.generated.ts` is the desk's copy of all three figures.
-Refreshed 2026-09-02, it reads gateway **3,492 / 3,491 / 1**, web **6,846
+Refreshed 2026-09-02, it reads gateway **3,496 / 3,495 / 1**, web **6,846
 tests across 1,461 suites**, and service **24**. It goes stale
 the moment a test file lands without `npm run counts:refresh` — it did for a
 week in August, when the tree grew test files faster than anyone re-ran the
@@ -149,9 +149,9 @@ this column, which is exactly why it drifts.
 
 | Artefact | State | Regenerator |
 |---|---|---|
-| `web/lib/repository-manifest.generated.json` | current — **2,422 paths**, generated 2026-09-02 and accepted by `npm run build`; when behind, `generate-codebase-manifest.mjs --check` reports the added/removed paths | `npm run catalog:refresh` |
-| `web/lib/test-counts.generated.ts` | current — web 6,846 across 1,461 suites, gateway 3,492 / 3,491 / 1, service 24, refreshed 2026-09-02; when behind, CI's web-count step fails the push | `npm run counts:refresh` |
-| `supabase/apply_all.generated.sql` | current — regenerated from all **41 migrations** and checked by `tests/test_migration_bundle.py` | `python3 tools/bundle_migrations.py`, repo root |
+| `web/lib/repository-manifest.generated.json` | current — **2,424 paths**, generated 2026-09-02 and accepted by `npm run build`; when behind, `generate-codebase-manifest.mjs --check` reports the added/removed paths | `npm run catalog:refresh` |
+| `web/lib/test-counts.generated.ts` | current — web 6,846 across 1,461 suites, gateway 3,496 / 3,495 / 1, service 24, refreshed 2026-09-02; when behind, CI's web-count step fails the push | `npm run counts:refresh` |
+| `supabase/apply_all.generated.sql` | current — regenerated from all **42 migrations** and checked by `tests/test_migration_bundle.py` | `python3 tools/bundle_migrations.py`, repo root |
 | `web/lib/gateway-openapi-digest.generated.ts` | current — the checker verified **`6f50ebed…`** against the 76-path / 79-operation `tools/openapi.json` contract on 2026-09-02. Take the value the checker prints: it is a canonical-JSON SHA-256 with sorted keys, not a raw file hash | `python tools/export_openapi.py`, then the digest module, then `node --import tsx scripts/generate-gateway-client.ts` |
 
 None of that is a code defect when it recurs; it is the cost of a tree that

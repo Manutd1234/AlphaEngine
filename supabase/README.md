@@ -1,9 +1,10 @@
 # Supabase — Postgres mirror + pgvector research index
 
-**Source/worktree audited: 2026-09-02.** The 41 ordered migrations and generated
+**Source/worktree audited: 2026-09-02.** The 42 ordered migrations and generated
 bundle were audited against the current gateway architecture. Schema workflow
-run `33633200876` also applied and verified all migrations, both edge functions
-and the RLS denial boundary in the live project. Volatile repository counts are centralised in
+run `33633200876` applied and verified the first 41 migrations, both edge functions
+and the RLS denial boundary in the live project; the automatic RFQ membership
+successor is ready for the next manual schema run. Volatile repository counts are centralised in
 [`../docs/CURRENT_STATE.md`](../docs/CURRENT_STATE.md).
 
 DuckDB in the gateway is **authoritative**; everything here is a durable
@@ -28,9 +29,9 @@ the service-role key and never holds the Postgres connection string.
 
 ## What is in here
 
-The worktree contains forty-one migrations, and the generated bundle contains
+The worktree contains forty-two migrations, and the generated bundle contains
 the same set. The schema workflow applies them in filename order; run
-`33633200876` confirmed their live application on 2026-09-02. Together they define 19
+`33633200876` confirmed the first 41 live on 2026-09-02. Together they define 19
 application tables, grouped by ownership rather than presented as one flat database:
 
 | Plane | Tables | Why Postgres owns them |
@@ -41,6 +42,15 @@ application tables, grouped by ownership rather than presented as one flat datab
 | ML lineage | `ml_runs`, `ml_folds`, `ml_features`, `ml_artefacts` | Immutable run/fold/feature/artefact custody used to compare experiments without inventing provenance. |
 | Data operations | `data_quality_findings`, `data_quality_escalations`, `data_schedule_runs`, `data_work_items` | Durable quality, escalation, schedule and work-queue state consumed by the Data workspace. |
 | Diffusion research | `diffusion_events`, `diffusion_runs`, `diffusion_texts`, `diffusion_studies` | Point-in-time events and texts, absorption runs and study results behind the dedicated Diffusion workspace. |
+
+Migration `20260902090000_rfq_membership_for_all_authenticated_users.sql`
+backfills an active `PAPER_ONLY` membership for every existing Supabase Auth
+user and installs an `auth.users` trigger for future sign-ups. It intentionally
+does not authorize anonymous guests: every registered account may use the
+shared private Makers RFQ read, while the existing RLS and write revokes still
+prevent browser-side membership creation or cross-account reads. The trigger
+function is `SECURITY DEFINER`, uses an empty `search_path`, and has EXECUTE
+revoked from `public`, `anon`, and `authenticated`.
 
 The Diffusion successor migration mirrors all four SQLite ledgers, including
 late `vote_line`/`skill_*` fields and desk-qualified natural keys. The shared

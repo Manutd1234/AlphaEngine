@@ -120,7 +120,7 @@ it, which made a planning file one of five places a number had to be corrected;
 the count belongs where it is generated, and the discipline is unchanged: read
 the *skip reasons*, never the pass count ([`WORKFLOW.md` §2](WORKFLOW.md)). The
 one thing worth stating here is the outcome — the gateway, web and service
-suites are green. The 2026-09-02 generated record is 3,492 gateway tests,
+suites are green. The 2026-09-02 generated record is 3,496 gateway tests,
 6,846 web tests across 1,461 suites and 24 service tests; main CI also passed
 live Oracle/Supabase and the eight-case real cross-encoder job.
 
