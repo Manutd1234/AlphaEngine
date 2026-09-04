@@ -1,0 +1,49 @@
+# Keep the public REST venue observation inside its fifteen-minute window.
+#
+# The workspace health route performs one uncached, two-sided BTCUSDT book
+# probe against Binance and Bybit. Its browser polls every 30 seconds while the
+# desk is visible, but a browser tab is not a scheduler: it pauses when hidden
+# and disappears when closed. This ten-minute call supplies the deployment-owned
+# cadence and fails visibly when either venue cannot return a usable live book.
+
+name: Observe public market data
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: market-data-watch
+  cancel-in-progress: true
+
+jobs:
+  poll:
+    name: Poll Binance and Bybit live books
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read and validate the live venue probes
+        env:
+          # Override with an Actions variable in forks or renamed deployments.
+          WORKSPACE_BASE_URL: ${{ vars.WEB_WORKSPACE_URL || 'https://alphaengine-workspace.vercel.app' }}
+        run: |
+          response_file="$(mktemp)"
+          trap 'rm -f "$response_file"' EXIT
+          url="${WORKSPACE_BASE_URL%/}/api/system/health?priority=background"
+          status="$(curl --silent --show-error --max-time 20 --output "$response_file" --write-out '%{http_code}' "$url")"
+          if [ "$status" != "200" ]; then
+            echo "::error::Workspace health returned HTTP $status."
+            exit 1
+          fi
+
+          jq -e '
+            (.venues | length >= 2)
+            and all(.venues[]; .observation.state == "fresh")
+            and all(.venues[]; .observation.bestBid != null and .observation.bestAsk != null)
+          ' "$response_file" >/dev/null || {
+            jq '{fetchedAt, venues: [.venues[] | {id, observation}]}' "$response_file"
+            echo "::error::At least one public venue did not return a fresh two-sided order book."
+            exit 1
+          }
+
+          jq -r '.venues[] | "\(.id): \(.observation.state), \(.observation.symbol), bid \(.observation.bestBid), ask \(.observation.bestAsk)"' "$response_file"

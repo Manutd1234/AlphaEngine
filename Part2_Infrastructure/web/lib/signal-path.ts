@@ -112,19 +112,36 @@ export function deriveSignalPath(
     }),
     { n: 0, errorRate: 0, p50: null as number | null },
   );
+  const venueObservations = health.venues.flatMap((venue) =>
+    venue.observation ? [venue.observation] : []);
+  const failedVenueObservations = venueObservations.filter((observation) =>
+    observation.state === "failed").length;
+  const staleVenueObservations = venueObservations.filter((observation) =>
+    observation.state === "stale").length;
+  const allVenuesObserved = health.venues.length > 0
+    && venueObservations.length === health.venues.length;
+  const observedVenueState: StageState | null = !allVenuesObserved ? null
+    : failedVenueObservations === health.venues.length ? "down"
+    : failedVenueObservations > 0 ? "degraded"
+    : staleVenueObservations > 0 ? "unknown"
+    : "ok";
 
   const venues: SignalStage = {
     id: "venues",
     name: "Venue market data",
     role: `${health.venues.length} direct REST clients`,
-    state: health.venues.length === 0 ? "absent" : fromErrorRate(venueStats),
+    state: health.venues.length === 0 ? "absent" : observedVenueState ?? fromErrorRate(venueStats),
     measured: latencyLabel(venueStats),
-    source: "health.venues[].latency",
+    source: allVenuesObserved ? "health.venues[].observation + .latency" : "health.venues[].latency",
     detail:
       health.venues.length === 0
         ? "No venue client is configured in this deployment."
-        : `Consolidated L2 depth and klines, read directly by /api/depth and /api/tca. ${
-            Math.round(venueStats.errorRate * 1000) / 10}% of attempts failed in the rolling window.`,
+        : allVenuesObserved
+          ? `${venueObservations.length - failedVenueObservations - staleVenueObservations}/${health.venues.length} current `
+            + `BTCUSDT order-book probes are fresh; ${Math.round(venueStats.errorRate * 1000) / 10}% of REST attempts `
+            + "failed in the rolling window."
+          : `Consolidated L2 depth and klines, read directly by /api/depth and /api/tca. ${
+              Math.round(venueStats.errorRate * 1000) / 10}% of attempts failed in the rolling window.`,
   };
 
   const readyRatio = health.summary.total > 0 ? health.summary.ready / health.summary.total : 0;

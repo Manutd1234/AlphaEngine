@@ -50,6 +50,7 @@ from typing import Any
 from modules.coherence import fee_meta, tunables
 from modules.coherence.drivers.kalshi_rest import KalshiClient, KalshiUnavailable
 from modules.coherence.syscalls.certify import certify
+from modules.coherence.syscalls.live_universe import LiveUniverseBatch, observe_live_families
 from modules.coherence.syscalls.observe import Observation, observe_series
 from modules.coherence.views import event_view
 
@@ -101,7 +102,7 @@ class RefresherState:
     def to_dict(self) -> dict[str, Any]:
         return {
             "running": self.running,
-            "configured": tunables.WARM_SECONDS > 0 and bool(tunables.SERIES_WATCHLIST),
+            "configured": tunables.WARM_SECONDS > 0 and tunables.watchlist_configured(),
             "cadence_s": tunables.WARM_SECONDS or None,
             "passes": self.passes,
             "entries": self.entries,
@@ -116,6 +117,7 @@ class RefresherState:
 
 _CACHE: dict[tuple[str, ...], Snapshot] = {}
 _STATE = RefresherState()
+_LAST_RECORDER_PASS_NS: int | None = None
 
 
 def warm_state() -> RefresherState:
@@ -157,8 +159,75 @@ def snapshot_for(route: str, **params: Any) -> Snapshot | None:
     return held
 
 
+def observation_for(event_ticker: str) -> Snapshot | None:
+    """The shared raw family observation behind every selected-family view."""
+    return snapshot_for("observation", event_ticker=event_ticker)
+
+
 def _store(route: str, value: Any, taken_at_ns: int, **params: Any) -> None:
     _CACHE[snapshot_key(route, **params)] = Snapshot(value=value, taken_at_ns=taken_at_ns)
+
+
+def publish_observations(
+    observations: list[Observation],
+    *,
+    notes: list[str] | None = None,
+    watchlist: list[str] | None = None,
+    family_limit: int | None = None,
+    max_events: int = WARM_MAX_EVENTS,
+    mark_pass: bool = False,
+) -> int:
+    """Publish one atomic family set for Universe and selected-family reads.
+
+    The recorder calls this with the exact observations it writes to the tape,
+    so Markets, Proofs and Diffusion advance from one venue read instead of
+    three independent browser-triggered reads.
+    """
+    global _LAST_RECORDER_PASS_NS
+    from modules.schemas import CoherenceUniverse
+
+    if not observations and not notes:
+        return 0
+    fallback_stamp = time.time_ns()
+    taken_at_ns = min(
+        (getattr(observation, "ts_ns", fallback_stamp) for observation in observations),
+        default=fallback_stamp,
+    )
+    for observation in observations:
+        _store(
+            "observation", observation, taken_at_ns,
+            event_ticker=observation.event.event_ticker,
+        )
+    seen_series = list(dict.fromkeys(observation.event.series_ticker for observation in observations))
+    categories = {
+        observation.event.series_ticker: getattr(observation.event, "category", "")
+        for observation in observations
+        if getattr(observation.event, "category", "")
+    }
+    all_notes = [*(notes or []), *(note for observation in observations for note in observation.notes)]
+    params: dict[str, Any] = {"max_events": max_events}
+    if family_limit is not None:
+        params["family_limit"] = family_limit
+    _store(
+        "universe",
+        CoherenceUniverse(
+            state="ok" if observations else "unavailable",
+            events=[event_view(observation) for observation in observations],
+            watchlist=watchlist if watchlist is not None else seen_series,
+            categories=categories,
+            notes=list(dict.fromkeys(all_notes)),
+        ),
+        taken_at_ns,
+        **params,
+    )
+    if mark_pass:
+        _LAST_RECORDER_PASS_NS = time.time_ns()
+        _STATE.entries = len(observations) + 1
+        _STATE.passes += 1
+        _STATE.last_pass_ns = time.time_ns()
+        _STATE.last_error = None
+        _STATE.consecutive_failures = 0
+    return 1
 
 
 def _certificate_payload(observation: Observation, schedule: Any) -> dict[str, Any]:
@@ -183,16 +252,21 @@ async def refresh_once(client: KalshiClient) -> int:
     was built from, so the two cannot disagree, and the venue is read once for
     both rather than once each.
     """
-    from modules.schemas import CoherenceCertificate, CoherenceUniverse
+    from modules.schemas import CoherenceCertificate
 
     watchlist = list(tunables.SERIES_WATCHLIST)
-    if not watchlist:
+    live_batch: LiveUniverseBatch | None = None
+    if tunables.LIVE_FAMILY_LIMIT > 0:
+        live_batch = await observe_live_families(client, tunables.LIVE_FAMILY_LIMIT)
+        observations = live_batch.observations
+        watchlist = list(dict.fromkeys(item.event.series_ticker for item in observations))
+    elif watchlist:
+        observations = []
+    else:
         return 0
 
     observed_at = time.time_ns()
-    events: list[Any] = []
-    notes: list[str] = []
-    observations: list[Observation] = []
+    notes: list[str] = list(live_batch.notes) if live_batch is not None else []
 
     async def read(series_ticker: str) -> None:
         try:
@@ -201,12 +275,16 @@ async def refresh_once(client: KalshiClient) -> int:
         except KalshiUnavailable as exc:
             notes.append(f"{series_ticker} could not be read: {exc.reason}")
 
-    await asyncio.gather(*(read(ticker) for ticker in watchlist))
+    if live_batch is None:
+        await asyncio.gather(*(read(ticker) for ticker in watchlist))
 
     stored = 0
-    for observation in observations:
-        events.append(event_view(observation))
-        notes.extend(observation.notes)
+    to_certify = [] if live_batch is not None else observations
+    for observation in to_certify:
+        _store(
+            "observation", observation, getattr(observation, "ts_ns", observed_at),
+            event_ticker=observation.event.event_ticker,
+        )
         try:
             schedule = await fee_meta.schedule_for_event(
                 observation.event.series_ticker, observation.event.event_ticker,
@@ -223,18 +301,13 @@ async def refresh_once(client: KalshiClient) -> int:
             # honest outcome and the one the reader would have had anyway.
             logger.info("coherence warm: %s did not certify (%s)", observation.event.event_ticker, exc)
 
-    if events or notes:
-        _store(
-            "universe",
-            CoherenceUniverse(
-                state="ok" if events else ("unavailable" if notes else "empty"),
-                events=events, watchlist=watchlist, categories={},
-                notes=list(dict.fromkeys(notes)),
-            ),
-            observed_at,
-            max_events=WARM_MAX_EVENTS,
-        )
-        stored += 1
+    stored += publish_observations(
+        observations,
+        notes=notes,
+        watchlist=watchlist,
+        family_limit=tunables.LIVE_FAMILY_LIMIT if live_batch is not None else None,
+        max_events=WARM_MAX_EVENTS,
+    )
 
     # COMBOS, because it is the slowest route on the tab and warming the other
     # two left the reader's worst page untouched: measured p95 6,252ms against
@@ -272,16 +345,26 @@ async def refresh_once(client: KalshiClient) -> int:
 async def warm_loop() -> None:
     """Refresh on a cadence, or return immediately when unconfigured."""
     cadence = tunables.WARM_SECONDS
-    if cadence <= 0 or not tunables.SERIES_WATCHLIST:
+    if cadence <= 0 or not tunables.watchlist_configured():
         logger.info("coherence warm: idle (COHERENCE_WARM_S=%s)", cadence)
         return
 
     client = KalshiClient()
     _STATE.running = True
     logger.info("coherence warm: refreshing every %ss", cadence)
+    recorder_grace_given = False
     try:
         while True:
             try:
+                if tunables.POLL_SECONDS > 0 and _LAST_RECORDER_PASS_NS is None and not recorder_grace_given:
+                    recorder_grace_given = True
+                    await asyncio.sleep(cadence)
+                    continue
+                if tunables.POLL_SECONDS > 0 and _LAST_RECORDER_PASS_NS is not None:
+                    age_s = (time.time_ns() - _LAST_RECORDER_PASS_NS) / 1_000_000_000
+                    if age_s <= cadence * 1.5:
+                        await asyncio.sleep(cadence)
+                        continue
                 _STATE.entries = await refresh_once(client)
                 _STATE.passes += 1
                 _STATE.last_pass_ns = time.time_ns()
@@ -303,4 +386,6 @@ async def warm_loop() -> None:
 
 def forget_snapshots() -> None:
     """Drop every entry. For tests; one suite must not seed the next."""
+    global _LAST_RECORDER_PASS_NS
     _CACHE.clear()
+    _LAST_RECORDER_PASS_NS = None

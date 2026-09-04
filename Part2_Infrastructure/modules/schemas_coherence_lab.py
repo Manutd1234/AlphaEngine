@@ -39,6 +39,7 @@ class CoherenceBin(BaseModel):
 class CoherenceSurface(BaseModel):
     """The distribution a family's prices imply, or the reason there is none."""
 
+    observed_age_s: float | None = None
     state: str
     engine: str
     basis: str | None = None
@@ -79,6 +80,7 @@ class CoherenceStake(BaseModel):
 class CoherenceKelly(BaseModel):
     """The log-optimal plan, and the riskless alternative where one exists."""
 
+    observed_age_s: float | None = None
     state: str
     engine: str
     stakes: list[CoherenceStake] = Field(default_factory=list)

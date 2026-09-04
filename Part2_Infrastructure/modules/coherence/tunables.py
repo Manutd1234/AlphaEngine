@@ -189,6 +189,11 @@ def preferred_rfq_signing_environment() -> Literal["production", "demo"] | None:
 # Series tickers, comma separated. Empty means the recorder has nothing to do
 # and says so rather than inventing a universe.
 SERIES_WATCHLIST: Final = parse_series_watchlist(_env("COHERENCE_SERIES", ""))
+# Broad live discovery. Zero retains the explicit-series behaviour; 1..100
+# asks Kalshi for that many open event families in venue order and obtains all
+# of their books through the bulk route. The cap is deliberately below the
+# events endpoint's own page size so one poll cannot become an exchange crawl.
+LIVE_FAMILY_LIMIT: Final = max(0, min(100, _env_int("COHERENCE_LIVE_FAMILIES", 0)))
 POLL_SECONDS: Final = _env_int("COHERENCE_POLL_S", 0)  # 0 keeps the recorder off
 
 # A collection campaign counts successful, observation-bearing passes over the
@@ -310,7 +315,7 @@ DRY_RUN: Final = _env("COHERENCE_DRY_RUN", "1") not in {"0", "false", "no", "off
 
 def watchlist_configured() -> bool:
     """True when someone has told the recorder what to watch."""
-    return bool(SERIES_WATCHLIST)
+    return bool(SERIES_WATCHLIST or LIVE_FAMILY_LIMIT > 0)
 
 
 def signing_configured() -> bool:

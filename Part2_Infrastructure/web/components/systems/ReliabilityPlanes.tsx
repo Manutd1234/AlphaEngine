@@ -54,9 +54,11 @@ const DEPENDENCY_PANES: Array<{ id: DependencyPane; label: string; hint: string 
  * not hold is recorded as such by dispatch, never as an error, so a trace on
  * the wrong asset class cannot mark four healthy vendors as degraded. Idle is
  * configured, within quota and not behind an open circuit, with no call in
- * the window; only OpenBB is probed automatically, so it earns "Probe healthy"
- * without traffic. A provider whose every call failed is Failing, not idle —
- * that reading used to fall through to "no live call observed".
+ * the window. OpenBB has a readiness probe, and keyless Binance and Bybit share
+ * the direct public-API order-book observation, so they can earn "Probe healthy"
+ * without pretending the probe was a capability call. A provider whose every
+ * call failed is Failing, not idle — that reading used to fall through to "no
+ * live call observed".
  */
 function providerSignal(provider: ProviderRow): {
   label: string;
@@ -103,6 +105,27 @@ function providerSignal(provider: ProviderRow): {
       label: "Healthy",
       detail: `${successes} of ${n} ${n === 1 ? "call" : "calls"} succeeded in the last 15 minutes${licence}.`,
       tone: "good",
+    };
+  }
+  if (provider.observation?.state === "fresh") {
+    return {
+      label: "Probe healthy",
+      detail: `${provider.observation.detail} Bars were not requested by this probe${licence}.`,
+      tone: "good",
+    };
+  }
+  if (provider.observation?.state === "failed") {
+    return {
+      label: "Probe failed",
+      detail: `${provider.observation.detail}${licence}`,
+      tone: "critical",
+    };
+  }
+  if (provider.observation?.state === "stale") {
+    return {
+      label: "Probe stale",
+      detail: `The last public-API probe is older than its freshness budget${licence}.`,
+      tone: "neutral",
     };
   }
   if (provider.id === "openbb") {
@@ -294,8 +317,9 @@ export default function ReliabilityPlanes({
           <summary>What Idle means, and what gets probed</summary>
           <p className="reliability-window-note">
             Idle means configured, within quota, no open circuit and no call in the fifteen-minute
-            window. Only OpenBB is probed automatically; probing every paid API each refresh
-            would spend quota.
+            window. OpenBB readiness and the keyless Binance/Bybit order books are probed
+            automatically. Paid APIs stay demand-driven because probing them on every refresh
+            would spend their quota.
           </p>
         </details>
       </section>

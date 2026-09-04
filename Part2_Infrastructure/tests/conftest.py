@@ -80,6 +80,7 @@ os.environ["RERANK_MODEL_PATH"] = ""
 os.environ["RESEARCH_IMAGE_MODEL_PATH"] = ""
 # A fourth: harvest pages per series, so a two-series `.env` doubles a count.
 os.environ["COHERENCE_SERIES"] = ""
+os.environ["COHERENCE_LIVE_FAMILIES"] = "0"
 # The two research BACKENDS, blanked for the same reason and in the same place.
 #
 # `tests/test_research_contract.py` calls `research_reconcile.run_reconcile`,

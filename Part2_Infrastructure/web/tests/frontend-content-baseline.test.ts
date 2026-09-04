@@ -71,6 +71,11 @@ const protectedDataTransportTruth20260901 = {
 const protectedUiGatewaySweep20260902 = {
   developer: { sha256: "4e47cb24293047a5621021d600bd0b22922fa8183d8656d155c0185dc30276b2", strings: 1643, words: 6739 },
 };
+const protectedLiveVenuePolling20260904 = {
+  research: { sha256: "561843806bf98568cea8e795a1ecd92ebd2c7ef6954c304a873d7456a4898dfe", strings: 2297, words: 13211 },
+  reliability: { sha256: "6f5e4dcceccf0c6c493fc2c0ad783a1726e2728ac95485c38dd96f85f7f25601", strings: 1573, words: 6162 },
+  developer: { sha256: "3ff8fbd221c50f320633e561234487abe061de68b1960e03c598599267be7eb0", strings: 1648, words: 6758 },
+};
 
 describe("the protected eight keep their signed history and current static-copy multisets", () => {
   const current = buildProtectedBaseline();
@@ -100,6 +105,7 @@ describe("the protected eight keep their signed history and current static-copy 
     assert.deepEqual(fixture.protectedEquityQuoteHealth20260901, protectedEquityQuoteHealth20260901);
     assert.deepEqual(fixture.protectedDataTransportTruth20260901, protectedDataTransportTruth20260901);
     assert.deepEqual(fixture.protectedUiGatewaySweep20260902, protectedUiGatewaySweep20260902);
+    assert.deepEqual(fixture.protectedLiveVenuePolling20260904, protectedLiveVenuePolling20260904);
     assert.deepEqual(current.signatures, {
       ...fixture.protected,
       ...protectedNavigationFollowup20260829,
@@ -112,6 +118,7 @@ describe("the protected eight keep their signed history and current static-copy 
       ...protectedEquityQuoteHealth20260901,
       ...protectedDataTransportTruth20260901,
       ...protectedUiGatewaySweep20260902,
+      ...protectedLiveVenuePolling20260904,
     });
   });
 
@@ -287,6 +294,11 @@ describe("engine copy has a reproducible source-static word baseline", () => {
     proofs: { sha256: "1ca8ec9bd889f6d98164fefa628b684e11bdcb4c6d9051297613e1d6ee76e7a8", strings: 2988, words: 16632 },
     diffusion: { sha256: "2ceb77275b7f2ac76aff9dcf5ea9b9030beda3132cfecb1011cced5efc49fd58", strings: 1941, words: 10707 },
   };
+  const liveFamilyPolling20260904Checkpoint = {
+    markets: { sha256: "1f120bc581cae363330a9d229e96e69aa7bd2770a189a64cdbd61ce83ad02cf3", strings: 2725, words: 10691 },
+    proofs: { sha256: "859d01c5d7f14743b797933344a92d84b2730282dd3bb26138c4d949f79dd4bc", strings: 2988, words: 16634 },
+    diffusion: { sha256: "689df3f37666419352e27ec2454e56a0e3ba4d411b93eb7ba96f7323f070b8a0", strings: 1941, words: 10709 },
+  };
 
   it("retains Phase 0 and records the current upper bound as a separate signature", () => {
     assert.equal(fixture.wordBaseline.browserObserved, false);
@@ -312,7 +324,8 @@ describe("engine copy has a reproducible source-static word baseline", () => {
     assert.deepEqual(fixture.wordBaseline.rfqRestEnvironment20260901Tabs, rfqRestEnvironment20260901Checkpoint);
     assert.deepEqual(fixture.wordBaseline.rfqCompleteRead20260901Tabs, rfqCompleteRead20260901Checkpoint);
     assert.deepEqual(fixture.wordBaseline.uiGatewaySweep20260902Tabs, uiGatewaySweep20260902Checkpoint);
-    assert.deepEqual(buildEngineWordBaseline(), uiGatewaySweep20260902Checkpoint);
+    assert.deepEqual(fixture.wordBaseline.liveFamilyPolling20260904Tabs, liveFamilyPolling20260904Checkpoint);
+    assert.deepEqual(buildEngineWordBaseline(), liveFamilyPolling20260904Checkpoint);
   });
 
   it("retains the historical starting points for the product-specific summary-copy checks", () => {

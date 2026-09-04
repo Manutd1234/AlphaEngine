@@ -7,6 +7,7 @@ import {
   mcParityEvidence,
 } from "@/lib/delivery-readiness";
 import { gatewayPayloadParityEvidence, riskParityEvidence } from "@/lib/delivery-parity";
+import { observeDirectVenues } from "@/lib/direct-venue-health";
 import { callGateway } from "@/lib/gateway";
 import {
   guardMode,
@@ -79,7 +80,7 @@ export async function buildSystemHealthSnapshot(priority: Priority): Promise<Sys
   const base = providerStatus();
   const configuredOpenBBUrl = process.env.OPENBB_API_URL?.trim() ?? "";
   const gatewayProbeStarted = Date.now();
-  const [openBB, oracle, gatewaySnapshot, schemaEvidence] = await Promise.all([
+  const [openBB, oracle, gatewaySnapshot, schemaEvidence, directVenues] = await Promise.all([
     configuredOpenBBUrl
       ? openBBReadiness(configuredOpenBBUrl)
       : Promise.resolve({ ready: false, statusDetail: "Not configured; set OPENBB_API_URL." }),
@@ -102,33 +103,48 @@ export async function buildSystemHealthSnapshot(priority: Priority): Promise<Sys
       return result;
     }),
     gatewayOpenApiEvidence(),
+    // A current, uncached two-sided book — not just a route registration or an
+    // old latency sample. The helper coalesces concurrent health readers and
+    // keeps a 20s cache, shorter than this console's default 30s cadence.
+    observeDirectVenues(),
   ]);
 
   const providers = base.map((provider) => {
+    // The registry adapters serve quotes/bars while the direct clients serve
+    // order books. A successful public-API probe is useful connectivity
+    // evidence for an otherwise-idle keyless adapter, but remains a separate
+    // `observation` field so nobody can mistake it for a capability request or
+    // a breaker decision.
+    const observation = provider.id === "bybit" || provider.id === "binance"
+      ? { observation: directVenues[provider.id] }
+      : {};
     if (provider.simulatedOutage) {
       const seconds = Math.ceil((provider.simulatedOutage.expiresAt - Date.now()) / 1000);
       return {
         ...provider,
+        ...observation,
         ready: false,
         statusDetail: `Held out of routing by an operator-simulated outage; restores in ${seconds}s.`,
       };
     }
     if (!provider.configured) {
-      return { ...provider, ready: false, statusDetail: `Not configured; set ${provider.keyEnv}.` };
+      return { ...provider, ...observation, ready: false, statusDetail: `Not configured; set ${provider.keyEnv}.` };
     }
     if (provider.breaker.state === "open") {
       return {
         ...provider,
+        ...observation,
         ready: false,
         statusDetail: `Circuit open after ${provider.breaker.failures} consecutive failures; probes again in ${Math.ceil(provider.breaker.cooldownRemainingMs / 1000)}s.`,
       };
     }
     if (provider.quota && provider.quota.remaining <= 0) {
-      return { ...provider, ready: false, statusDetail: "Quota exhausted for the current window." };
+      return { ...provider, ...observation, ready: false, statusDetail: "Quota exhausted for the current window." };
     }
-    if (provider.id === "openbb") return { ...provider, ...openBB };
+    if (provider.id === "openbb") return { ...provider, ...observation, ...openBB };
     return {
       ...provider,
+      ...observation,
       ready: true,
       statusDetail: provider.breaker.state === "half_open"
         ? "Cooldown elapsed — the next call probes this provider."
@@ -208,6 +224,7 @@ export async function buildSystemHealthSnapshot(priority: Priority): Promise<Sys
     venues: DIRECT_VENUES.map((venue) => ({
       ...venue,
       latency: latencyStats(`venue:${venue.id}`),
+      observation: directVenues[venue.id],
     })),
     // The analytics plane, reported beside the market-data providers rather
     // than inside them: it answers a different question (can the desk compute

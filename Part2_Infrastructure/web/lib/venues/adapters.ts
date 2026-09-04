@@ -54,13 +54,20 @@ export function failed(venue: VenueName, symbol: string, error: string, latencyM
   };
 }
 
-export async function fetchBinanceBook(symbol: string, limit = 100): Promise<VenueBook> {
+export async function fetchBinanceBook(
+  symbol: string,
+  limit = 100,
+  timeoutMs?: number,
+): Promise<VenueBook> {
   const t0 = Date.now();
   let lastError = "unreachable";
   for (const host of orderedHosts("BINANCE")) {
     try {
       const d = (await getJson(
         `${host}/api/v3/depth?symbol=${symbol.toUpperCase()}&limit=${limit}`,
+        0,
+        "BINANCE",
+        timeoutMs,
       )) as { bids: [string, string][]; asks: [string, string][] };
       rememberHost("BINANCE", host);
       return finalise(
@@ -77,7 +84,11 @@ export async function fetchBinanceBook(symbol: string, limit = 100): Promise<Ven
   return failed("BINANCE", symbol, lastError, Date.now() - t0);
 }
 
-export async function fetchBybitBook(symbol: string, limit = 50): Promise<VenueBook> {
+export async function fetchBybitBook(
+  symbol: string,
+  limit = 50,
+  timeoutMs?: number,
+): Promise<VenueBook> {
   const t0 = Date.now();
   let lastError = "unreachable";
   for (const host of orderedHosts("BYBIT")) {
@@ -86,6 +97,7 @@ export async function fetchBybitBook(symbol: string, limit = 50): Promise<VenueB
         `${host}/v5/market/orderbook?category=spot&symbol=${symbol.toUpperCase()}&limit=${Math.min(limit, 200)}`,
         0,
         "BYBIT",
+        timeoutMs,
       )) as { retCode: number; retMsg?: string; result?: { b: [string, string][]; a: [string, string][] } };
       // A non-zero retCode is an application-level refusal on an HTTP 200, so it
       // has to be treated as a failure of *this host* and retried on the next —
@@ -108,8 +120,11 @@ export async function fetchBybitBook(symbol: string, limit = 50): Promise<VenueB
 }
 
 /** Both venues in parallel — a slow venue must not delay the fast one. */
-export async function fetchBooks(symbol: string, limit = 100): Promise<VenueBook[]> {
-  return Promise.all([fetchBinanceBook(symbol, limit), fetchBybitBook(symbol, limit)]);
+export async function fetchBooks(symbol: string, limit = 100, timeoutMs?: number): Promise<VenueBook[]> {
+  return Promise.all([
+    fetchBinanceBook(symbol, limit, timeoutMs),
+    fetchBybitBook(symbol, limit, timeoutMs),
+  ]);
 }
 
 export interface Ticker {

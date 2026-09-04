@@ -133,13 +133,11 @@ const REWRITES: Rewrite[] = [
   },
   {
     path: PLANES, what: "the Idle disclosure",
-    facts: [
-      "Idle means configured", "within quota", "no open circuit",
-      "no call in the fifteen-minute", "Only OpenBB is probed automatically",
-      "every paid API", "would spend quota",
-    ],
+    facts: ["Idle means configured", "within quota", "no open circuit", "no call in the fifteen-minute",
+      "OpenBB readiness", "keyless Binance/Bybit order books", "probed automatically",
+      "Paid APIs stay demand-driven", "every refresh", "would spend their quota"],
     wasteGone: "paid API on each refresh",
-    after: "probing every paid API each refresh would spend quota.",
+    after: "Paid APIs stay demand-driven because probing them on every refresh would spend their quota.",
   },
   {
     path: PLATFORM, what: "the missing-gateway empty state",
@@ -325,10 +323,11 @@ describe("the negations and qualifiers a shorter sentence would eat", () => {
     assert.match(prose(source), /a missing measurement, not a set of failures/);
   });
 
-  it("the Idle disclosure still bounds itself to OpenBB only", () => {
+  it("the Idle disclosure still leaves paid APIs demand-driven", () => {
     const source = load(PLANES);
     assert.ok(source.length > 500, "ReliabilityPlanes did not load");
-    assert.match(prose(source), /Only OpenBB is probed automatically/);
+    assert.match(prose(source), /Paid APIs stay demand-driven/);
+    assert.match(prose(source), /keyless Binance\/Bybit order books are probed automatically/);
   });
 });
 

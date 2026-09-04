@@ -55,11 +55,13 @@ async def coherence_surface(
     a monotonicity violation and is flagged rather than clipped, because it is
     the same fault the certificate prices.
     """
+    held = warm.observation_for(event_ticker)
     try:
-        observation = await observe_event(KalshiClient(), event_ticker)
+        observation = held.value if held is not None else await observe_event(KalshiClient(), event_ticker)
     except KalshiUnavailable as exc:
         return CoherenceSurface(state="unavailable", engine="unavailable", detail=exc.reason)
-    return views.surface_view(surface.surface_for(observation), event_ticker)
+    answer = views.surface_view(surface.surface_for(observation), event_ticker)
+    return answer.model_copy(update={"observed_age_s": round(held.age_s(), 1)}) if held else answer
 
 
 @router.get("/api/coherence/stake", response_model=CoherenceKelly)
@@ -87,8 +89,9 @@ async def coherence_stake(
         return CoherenceKelly(
             state="unavailable", engine="unavailable", detail="the shrinkage must be a finite number"
         )
+    held = warm.observation_for(event_ticker)
     try:
-        observation = await observe_event(KalshiClient(), event_ticker)
+        observation = held.value if held is not None else await observe_event(KalshiClient(), event_ticker)
     except KalshiUnavailable as exc:
         return CoherenceKelly(state="unavailable", engine="unavailable", detail=exc.reason)
     reading = surface.surface_for(observation)
@@ -102,7 +105,8 @@ async def coherence_stake(
         if item.book.best_yes_ask is not None
     ]
     bound = no_arbitrage_bound(asks, schedule) if asks else DOLLAR
-    return views.kelly_view(surface.stake_for(observation, reading, fraction, bound))
+    answer = views.kelly_view(surface.stake_for(observation, reading, fraction, bound))
+    return answer.model_copy(update={"observed_age_s": round(held.age_s(), 1)}) if held else answer
 
 
 @router.get("/api/coherence/combos", response_model=CoherenceCombos)

@@ -106,6 +106,7 @@ class Event:
     exchange_index: int
     settlement_sources: tuple[str, ...]
     markets: tuple[Market, ...]
+    category: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -241,6 +242,7 @@ def parse_event(payload: dict[str, Any], markets: Sequence[dict[str, Any]] | Non
         exchange_index=int(event.get("exchange_index") or 0),
         settlement_sources=_settlement_sources(event.get("settlement_sources")),
         markets=tuple(parse_market(row, series_ticker) for row in rows),
+        category=str(event.get("category", "")),
     )
 
 

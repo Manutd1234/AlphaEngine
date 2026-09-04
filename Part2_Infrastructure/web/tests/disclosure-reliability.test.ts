@@ -219,7 +219,7 @@ describe("what a reader would be wrong not to have seen stays on screen", () => 
        naming that plane at all. The two panes of the same absence — nothing read yet, nothing
        registered — are pinned separately, because a panel that reports them as one sends a reader
        hunting a transport fault that is not there. */
-    { path: "components/systems/HealthMatrix.tsx", kind: "EMPTY STATE", needle: "none registered in this deployment, so nothing reaches an exchange" },
+    { path: "components/systems/DirectVenueTable.tsx", kind: "EMPTY STATE", needle: "none registered in this deployment, so nothing reaches an exchange" },
     { path: "components/systems/BreakerStateMachine.tsx", kind: "EMPTY STATE", needle: "No provider is registered in this deployment, so there is no circuit to trip" },
     { path: "components/systems/BreakerStateMachine.tsx", kind: "EMPTY STATE", needle: "The provider registry has not been observed, so no circuit state can be counted" },
     /* The dimmed control that named no reason: with no metered provider the quota select is empty
@@ -265,7 +265,7 @@ describe("what a reader would be wrong not to have seen stays on screen", () => 
      * sentence and lost styling, is a worse screen rather than a shorter one.
      */
     {
-      path: "components/systems/HealthMatrix.tsx",
+      path: "components/systems/DirectVenueTable.tsx",
       kind: "not worth folding",
       needle: "so they have no failover chain and no breaker.",
     },

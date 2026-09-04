@@ -17,6 +17,7 @@
  */
 
 import RowMenu from "@/components/common/RowMenu";
+import DirectVenueTable from "@/components/systems/DirectVenueTable";
 import { UI_OUTAGE_MS, type ActionOptions } from "@/components/systems/OperatorPanel";
 import { fmt, metricRow } from "@/lib/format";
 import {
@@ -24,6 +25,7 @@ import {
   type GuardMode,
   type LatencyStats,
   type ProviderRow,
+  type SystemHealth,
   ROUTE_STATE_STYLE,
 } from "./types";
 
@@ -31,7 +33,7 @@ interface HealthMatrixProps {
   providers: ProviderRow[] | null;
   /** Used to resolve each provider's true position in its preferred chain. */
   routes: FailoverRoute[];
-  venues: { id: string; label: string; latency: LatencyStats }[];
+  venues: SystemHealth["venues"];
   guard: GuardMode;
   /** Token mode is not actionable until the operator has supplied a token. */
   operatorReady: boolean;
@@ -338,62 +340,11 @@ export default function HealthMatrix({
         </table>
       </div>
 
-      {/* Reported, not hidden: an empty `venues` erased subhead, table and caveat together, so the panel
-          stopped naming direct exchange clients at all. `providers === null` is the same snapshot saying
-          it has not been read yet, so an unread registry and an empty one stay distinguishable. */}
-      {providers !== null && (
-        <p className="console-subhead">
-          Direct venue clients
-          <small className="muted">
-            {venues.length > 0
-              ? <>{" "}— reached by <code>/api/depth</code> and <code>/api/tca</code> without the registry, so they have no failover chain and no breaker.</>
-              : <>{" "}— none registered in this deployment, so nothing reaches an exchange without the registry here. An empty registry, not a failed probe.</>}
-          </small>
-        </p>
-      )}
-
-      {venues.length > 0 && (
-        <div className="table-wrap" tabIndex={0}>
-          <table>
-            <caption className="sr-only">Latency of the exchange clients bypassing the provider registry.</caption>
-            <thead>
-              <tr>
-                <th scope="col">Client</th>
-                <th scope="col">p50 / p95 / p99</th>
-                <th scope="col">Error rate</th>
-                <th scope="col">Investigate</th>
-              </tr>
-            </thead>
-            <tbody>
-              {venues.map((venue) => (
-                <tr key={venue.id}>
-                  <td>{venue.label}</td>
-                  <td>{latencyCell(venue.latency)}</td>
-                  <td>
-                    {venue.latency.n
-                      ? `${fmt(venue.latency.errorRate * 100, 1)}%`
-                      : <span className="muted">—</span>}
-                  </td>
-                  <td>
-                    {/* "Logs", the provider rows' name for the identical
-                        action — one label per action inside one card.
-                        Inline rather than a RowMenu because a venue row has
-                        no cost-bearing siblings; a one-item menu would be
-                        a click that buys nothing. */}
-                    <button
-                      type="button"
-                      onClick={() => onInspectEvents(venue.id, venue.label)}
-                      title={`Open Logs & Traces filtered to ${venue.label}`}
-                    >
-                      Logs
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <DirectVenueTable
+        observed={providers !== null}
+        venues={venues}
+        onInspectEvents={onInspectEvents}
+      />
     </section>
   );
 }

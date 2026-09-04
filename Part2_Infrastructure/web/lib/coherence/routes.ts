@@ -26,12 +26,12 @@ export const statusRoute = () => `${COHERENCE}/status`;
 /**
  * The watched families.
  *
- * Six events per series. The gateway now observes each watchlist series
- * concurrently inside the live-read budget, and the warmer stores this exact
- * shape. Keeping the old two-event cap made two configured families look like
- * a four-family universe even when the venue and tape held much more.
+ * Seventy-five open event families in broad-live mode. The gateway discovers
+ * them in one nested listing and hydrates books in 100-ticker bulk reads; the
+ * recorder and warmer store this exact shape for every tab.
  */
-export const universeRoute = (maxEvents = 6) => `${COHERENCE}/universe?max_events=${maxEvents}`;
+export const universeRoute = (maxEvents = 6, familyLimit = 75) =>
+  `${COHERENCE}/universe?max_events=${maxEvents}&family_limit=${familyLimit}`;
 
 export const booksRoute = () => `${COHERENCE}/books`;
 

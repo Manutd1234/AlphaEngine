@@ -122,7 +122,13 @@ async def _run_status_probes(
 ) -> tuple[Any, Any | None, Any]:
     """Start all independent reads together and stop all of them together."""
     status_task = asyncio.create_task(client.exchange_status())
-    probe_task = asyncio.create_task(client.markets(watchlist[0], limit=1)) if watchlist else None
+    probe_task = (
+        asyncio.create_task(client.markets(watchlist[0], limit=1))
+        if watchlist
+        else asyncio.create_task(client.events(status="open", limit=1, nested=True))
+        if tunables.LIVE_FAMILY_LIMIT > 0
+        else None
+    )
     tape_task = asyncio.create_task(
         run_blocking(
             "coherence.status.tape-health",
@@ -205,13 +211,18 @@ def _host_evidence(
 def _schema_evidence(outcome: Any | None) -> tuple[dict[str, Any], list[str]]:
     unavailable = {"schema": "unavailable", "detail": "no market payload was read"}
     if outcome is None:
-        return unavailable, ["no watchlist configured; set COHERENCE_SERIES to record and certify a series"]
+        return unavailable, [
+            "no watchlist configured; set COHERENCE_LIVE_FAMILIES or COHERENCE_SERIES to record families"
+        ]
     if isinstance(outcome, KalshiUnavailable):
         return unavailable, [f"schema could not be probed: {outcome.reason}"]
     if isinstance(outcome, Exception):
         return unavailable, [f"schema probe failed: {type(outcome).__name__}: {outcome}"]
     try:
         rows = outcome.payload.get("markets") or []
+        if not rows:
+            events = outcome.payload.get("events") or []
+            rows = (events[0].get("markets") or []) if events and isinstance(events[0], dict) else []
         return schema_probe(rows[0] if rows else None), []
     except Exception as exc:
         return unavailable, [f"schema probe failed: {type(exc).__name__}: {exc}"]

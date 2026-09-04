@@ -214,7 +214,17 @@ describe("the provider digest speaks one vocabulary and earns every word", () =>
     const labels = [...signal.matchAll(/label: "([^"]+)"/g)].map((m) => m[1]);
     assert.deepEqual(
       [...new Set(labels)].sort(),
-      ["Blocked", "Degraded", "Failing", "Healthy", "Idle", "Not configured", "Probe healthy"].sort(),
+      [
+        "Blocked",
+        "Degraded",
+        "Failing",
+        "Healthy",
+        "Idle",
+        "Not configured",
+        "Probe failed",
+        "Probe healthy",
+        "Probe stale",
+      ].sort(),
     );
     // Retired vocabulary is banned from the whole section, not just from the
     // file the digest happens to live in today.

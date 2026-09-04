@@ -33,6 +33,7 @@ from modules.coherence.series_meta import CONCURRENT_SERIES_READS, categories_fo
 from modules.coherence.status_read import read_status
 from modules.coherence.syscalls.certify import certify
 from modules.coherence.syscalls.fees import worked_example
+from modules.coherence.syscalls.live_universe import observe_live_families
 from modules.coherence.syscalls.observe import observe_event, observe_series
 from modules.coherence.views import book_view, event_view
 from modules.schemas import (
@@ -94,10 +95,35 @@ async def coherence_status(_actor: str = Depends(trader_identity)) -> CoherenceS
     return await read_status(tunables.SERIES_WATCHLIST)
 
 
+async def _broad_live_universe(limit: int) -> CoherenceUniverse:
+    """One broad page, rendered without per-series metadata requests."""
+    try:
+        batch = await observe_live_families(KalshiClient(), limit)
+    except KalshiUnavailable as exc:
+        return CoherenceUniverse(state="unavailable", watchlist=["kalshi:open"], notes=[exc.reason])
+    observations = batch.observations
+    categories = {
+        item.event.series_ticker: item.event.category
+        for item in observations
+        if item.event.category
+    }
+    return CoherenceUniverse(
+        state="ok" if observations else ("unavailable" if batch.notes else "empty"),
+        events=[event_view(item) for item in observations],
+        watchlist=list(dict.fromkeys(item.event.series_ticker for item in observations)),
+        categories=categories,
+        notes=list(dict.fromkeys([
+            *batch.notes,
+            *(note for item in observations for note in item.notes),
+        ])),
+    )
+
+
 @router.get("/api/coherence/universe", response_model=CoherenceUniverse)
 async def coherence_universe(
     series: str | None = Query(default=None, description="One series ticker; defaults to the whole watchlist"),
     max_events: int = Query(default=6, ge=1, le=50),
+    family_limit: int = Query(default=75, ge=1, le=100, description="Maximum open families in broad live mode"),
     _actor: str = Depends(trader_identity),
 ) -> CoherenceUniverse:
     """The watched families, priced, with each basket's total stated.
@@ -106,17 +132,27 @@ async def coherence_universe(
     exclusive event, buying every outcome buys a guaranteed dollar, so what it
     costs is a direct reading of whether the family is coherent.
     """
+    broad_live = series is None and tunables.LIVE_FAMILY_LIMIT > 0
+    effective_family_limit = min(family_limit, tunables.LIVE_FAMILY_LIMIT) if broad_live else None
     watchlist = [series] if series else list(tunables.SERIES_WATCHLIST)
+    if broad_live:
+        watchlist = ["kalshi:open"]
     if not watchlist:
         return CoherenceUniverse(
             state="unconfigured",
             watchlist=[],
-            notes=["no series is being watched; set COHERENCE_SERIES or pass ?series="],
+            notes=["no families are being watched; set COHERENCE_LIVE_FAMILIES, COHERENCE_SERIES, or pass ?series="],
         )
 
-    held = warm.snapshot_for("universe", max_events=max_events)
+    warm_params = {"max_events": max_events}
+    if effective_family_limit is not None:
+        warm_params["family_limit"] = effective_family_limit
+    held = None if series else warm.snapshot_for("universe", **warm_params)
     if held is not None:
         return held.value.model_copy(update={"observed_age_s": round(held.age_s(), 1)})
+
+    if effective_family_limit is not None:
+        return await _broad_live_universe(effective_family_limit)
 
     client = KalshiClient()
     events = []
@@ -193,13 +229,14 @@ async def coherence_books(
     to know that before they look at the numbers rather than after.
     """
     if event_ticker:
+        held = warm.observation_for(event_ticker)
         try:
-            observation = await observe_event(KalshiClient(), event_ticker)
+            observation = held.value if held is not None else await observe_event(KalshiClient(), event_ticker)
         except KalshiUnavailable as exc:
             return CoherenceBooks(state="unavailable", origin="kalshi", notes=[exc.reason])
         return CoherenceBooks(
             state="ok" if observation.markets else "empty",
-            origin="kalshi",
+            origin="shared-live" if held is not None else "kalshi",
             books=[book_view(item.book, source=f"kalshi:{observation.depth}", ts_ns=observation.ts_ns) for item in observation.markets],
             notes=observation.notes,
         )
@@ -279,8 +316,13 @@ async def coherence_certify(
     if held is not None:
         return held.value.model_copy(update={"observed_age_s": round(held.age_s(), 1)})
 
+    observation_held = warm.observation_for(event_ticker)
     try:
-        observation = await observe_event(KalshiClient(), event_ticker)
+        observation = (
+            observation_held.value
+            if observation_held is not None
+            else await observe_event(KalshiClient(), event_ticker)
+        )
     except KalshiUnavailable as exc:
         return CoherenceCertificate(
             verdict="untestable", engine="closed_form", component_id=event_ticker,
@@ -290,7 +332,10 @@ async def coherence_certify(
     certificate = await bounded_certify(observation, schedule, max_contracts=Decimal(max_contracts))
     payload = certificate.to_dict()
     payload["proof"] = certificate.render_text()
-    return CoherenceCertificate(**payload)
+    answer = CoherenceCertificate(**payload)
+    if observation_held is not None:
+        answer = answer.model_copy(update={"observed_age_s": round(observation_held.age_s(), 1)})
+    return answer
 
 
 @router.get("/api/coherence/fees", response_model=CoherenceFees)

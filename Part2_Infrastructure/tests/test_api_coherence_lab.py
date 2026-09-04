@@ -7,6 +7,7 @@ line ceiling. The stubbed venue both halves share lives in
 
 from __future__ import annotations
 
+import asyncio
 import time
 from copy import deepcopy
 
@@ -24,6 +25,7 @@ from coherence_lab_harness import (
     venue,
 )
 
+from modules.api import coherence_lab as lab
 from modules.coherence import tunables, warm
 from modules.coherence.drivers.kalshi_combos import parse_combos
 
@@ -67,6 +69,20 @@ class TestTheSurfaceRoute:
         payload = client.get(f"/api/coherence/surface?event_ticker={EVENT}").json()
         assert "conditional on the outcome landing" in payload["moments_note"]
         assert payload["standard_deviation"] is not None
+
+    def test_surface_and_stake_reuse_one_observation_and_report_its_age(self, client, monkeypatch):
+        venue(monkeypatch)
+        monkeypatch.setattr(tunables, "WARM_SECONDS", 60)
+        observation = asyncio.run(lab.observe_event(lab.KalshiClient(), EVENT))
+        warm._store("observation", observation, time.time_ns() - 3_000_000_000, event_ticker=EVENT)
+        monkeypatch.setattr(lab, "KalshiClient", lambda: pytest.fail("a shared family reached Kalshi again"))
+        try:
+            surface_payload = client.get(f"/api/coherence/surface?event_ticker={EVENT}").json()
+            stake_payload = client.get(f"/api/coherence/stake?event_ticker={EVENT}").json()
+            assert surface_payload["observed_age_s"] == pytest.approx(3, abs=1)
+            assert stake_payload["observed_age_s"] == pytest.approx(3, abs=1)
+        finally:
+            warm.forget_snapshots()
 
 
 class TestTheStakeRoute:

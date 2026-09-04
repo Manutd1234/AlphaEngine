@@ -127,7 +127,15 @@ export function deriveDependencyTree(
   // ---- venues, reached directly and NOT through the gateway -------------
   const venueNodes: DependencyNode[] = health.venues.map((venue) => {
     const stats = venue.latency;
-    const state: DependencyHealth = stats.n === 0 ? "unknown"
+    const observation = venue.observation;
+    // The latest dedicated book probe outranks a rolling average: 100 old
+    // successes must not keep a venue green after the current read failed.
+    // Older deployments have no observation field and retain the latency-only
+    // fallback they shipped with.
+    const state: DependencyHealth = observation?.state === "fresh" ? "ok"
+      : observation?.state === "failed" ? "down"
+      : observation?.state === "stale" ? "unknown"
+      : stats.n === 0 ? "unknown"
       : stats.errorRate >= 0.25 ? "down"
       : stats.errorRate > 0.05 ? "degraded"
       : "ok";
@@ -136,11 +144,13 @@ export function deriveDependencyTree(
       label: venue.label,
       role: "direct REST",
       health: state,
-      detail: stats.n === 0
+      detail: observation?.detail ?? (stats.n === 0
         ? "No call observed in the rolling window."
         : `p95 ${stats.p95 == null ? "—" : `${Math.round(stats.p95)} ms`}, n=${stats.n}, `
-          + `${(stats.errorRate * 100).toFixed(1)}% failed`,
-      source: `health.venues[${venue.id}].latency`,
+          + `${(stats.errorRate * 100).toFixed(1)}% failed`),
+      source: observation
+        ? `health.venues[${venue.id}].observation`
+        : `health.venues[${venue.id}].latency`,
     };
   });
 

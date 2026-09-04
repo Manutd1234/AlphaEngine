@@ -38,6 +38,7 @@ export interface CoherenceBin {
 }
 
 export interface CoherenceSurface {
+  observed_age_s: number | null;
   state: string;
   engine: string;
   basis: string | null;
@@ -71,6 +72,7 @@ export interface CoherenceStake {
 }
 
 export interface CoherenceKelly {
+  observed_age_s: number | null;
   state: string;
   engine: string;
   stakes: CoherenceStake[];

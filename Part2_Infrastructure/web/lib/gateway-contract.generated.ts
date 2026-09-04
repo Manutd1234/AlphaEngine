@@ -422,6 +422,7 @@ export interface CoherenceKelly {
   engine: string;
   full_growth_rate?: string | null;
   growth_rate?: string | null;
+  observed_age_s?: number | null;
   reserve_rate?: string | null;
   riskless_growth?: string | null;
   shrinkage?: string;
@@ -698,6 +699,7 @@ export interface CoherenceSurface {
   mean?: string | null;
   moments_note?: string;
   negative_bins?: Array<string>;
+  observed_age_s?: number | null;
   probes?: Array<CoherenceProbe>;
   skewness?: string | null;
   standard_deviation?: string | null;

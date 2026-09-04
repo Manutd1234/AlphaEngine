@@ -1,10 +1,5 @@
 """The recorder: poll the watchlist, write the tape, keep going.
 
-Shaped after ``modules/tca_engine/supervision.py``'s snapshot loop, and for its
-reasons — sleep the interval, do the work, hand every disk write to a thread so
-the event loop is never held by DuckDB, re-raise ``CancelledError`` and log
-anything else without stopping.
-
 Why this runs before any strategy code exists: depth is forward-only. A book
 you did not record at 14:32 cannot be recovered at 14:33 from any endpoint, and
 the questions this engine is for — how long does a dislocation survive, did
@@ -28,7 +23,7 @@ from typing import Any
 
 from modules.backoff import Backoff
 from modules.coherence import recorder_durability as durable
-from modules.coherence import tunables
+from modules.coherence import tunables, warm
 from modules.coherence.drivers.kalshi_rest import KalshiClient, KalshiUnavailable
 from modules.coherence.episodes import EpisodeTracker
 from modules.coherence.fs import calibration_store, corpus
@@ -39,6 +34,7 @@ from modules.coherence.kernel.lattice import build_component
 from modules.coherence.scheduler.budget import get_read_budget
 from modules.coherence.syscalls import calibrate
 from modules.coherence.syscalls.certify import certify
+from modules.coherence.syscalls.live_universe import observe_live_families
 from modules.coherence.syscalls.observe import Observation, observe_series
 
 logger = logging.getLogger(__name__)
@@ -77,7 +73,10 @@ class RecorderState:
             "running": self.running,
             "configured": tunables.watchlist_configured() and tunables.POLL_SECONDS > 0,
             "poll_seconds": durable.active_poll_seconds(self.campaign),
-            "watchlist": list(tunables.SERIES_WATCHLIST),
+            "watchlist": (
+                [f"up to {tunables.LIVE_FAMILY_LIMIT} open Kalshi families"]
+                if tunables.LIVE_FAMILY_LIMIT else list(tunables.SERIES_WATCHLIST)
+            ),
             "polls": self.polls,
             "books_written": self.books_written,
             "last_poll_ts_ns": self.last_poll_ts_ns,
@@ -138,30 +137,46 @@ async def poll_once(client: KalshiClient, store: CoherenceStore, state: Recorder
     three happen on the same snapshot on purpose — an index computed from a
     later read than the books it describes is a measurement of two moments.
 
-    Separated from the loop so a test, a notebook and the loop all take the
-    same path, and so a single poll can be triggered without a background task.
+    A test, notebook and the loop all take this same path.
     """
     tracked = state or _STATE
     poll_id, written = time.time_ns(), 0
-    series_decisions: dict[str, int] = {}
-    for series_ticker in tunables.SERIES_WATCHLIST:
-        series_decisions[series_ticker] = 0
-        observations = await observe_series(
-            client, series_ticker, max_events=tunables.MAX_EVENTS_PER_SERIES, require_selected_complete=True
-        )
-        for observation in observations:
-            rows = rows_from(observation)
-            if not rows:
-                continue
-            written += await asyncio.to_thread(store.record_books, rows)
-            tracked.series_seen.add(series_ticker)
-            if await _measure(observation, store, tracked):
-                series_decisions[series_ticker] += 1
+    series_decisions = {ticker: 0 for ticker in tunables.SERIES_WATCHLIST}
+    observations: list[Observation] = []
+    tagged: list[tuple[str, Any]] = []
+    live_notes: list[str] = []
+    if tunables.LIVE_FAMILY_LIMIT > 0:
+        batch = await observe_live_families(client, tunables.LIVE_FAMILY_LIMIT)
+        observations, live_notes = batch.observations, batch.notes
+        tagged = [(item.event.series_ticker, item) for item in observations]
+    else:
+        for series_ticker in tunables.SERIES_WATCHLIST:
+            series_observations = await observe_series(
+                client, series_ticker, max_events=tunables.MAX_EVENTS_PER_SERIES,
+                require_selected_complete=True,
+            )
+            observations.extend(series_observations)
+            tagged.extend((series_ticker, item) for item in series_observations)
+
+    for series_ticker, observation in tagged:
+        series_decisions.setdefault(series_ticker, 0)
+        rows = rows_from(observation)
+        if not rows:
+            continue
+        written += await asyncio.to_thread(store.record_books, rows)
+        tracked.series_seen.add(series_ticker)
+        if await _measure(observation, store, tracked):
+            series_decisions[series_ticker] += 1
 
     await durable.finish_campaign_poll(
         store, tracked, poll_id=poll_id,
         series_decisions=series_decisions, books_written=written,
     )
+    if shareable := [item for item in observations if isinstance(item, Observation)]:
+        warm.publish_observations(
+            shareable, notes=live_notes,
+            family_limit=tunables.LIVE_FAMILY_LIMIT or None, mark_pass=True,
+        )
     tracked.polls += 1
     tracked.books_written += written
     tracked.last_poll_ts_ns = time.time_ns()
@@ -171,10 +186,7 @@ async def poll_once(client: KalshiClient, store: CoherenceStore, state: Recorder
 async def _measure(observation: Observation, store: CoherenceStore, tracked: RecorderState) -> bool:
     """Index the family and track its violation episode.
 
-    Failures here are recorded and swallowed rather than allowed to stop the
-    poll: the tape is the asset, and losing a book because an index could not
-    be computed would trade the thing that cannot be recovered for the thing
-    that can be recomputed from it later.
+    Failures here must not cost the forward-only raw tape.
     """
     component = build_component(observation.event, [item.market for item in observation.markets])
     books = {item.ticker: item.book for item in observation.markets}
@@ -251,15 +263,7 @@ async def harvest_if_due(client: KalshiClient, store: CoherenceStore, now_ns: in
     Settlement pane open. On the OCI gateway nobody does, and the recorded
     score series was 98 runs against a corpus nobody had harvested.
 
-    A SIBLING of ``score_if_due``, not a change to it: that function's contract
-    is that it takes no client (pinned in its suite), and the two share one
-    predicate so they fire on the same iteration. Called BEFORE the score.
-
-    WHAT IT COSTS: one settled-markets page per watched series per cadence.
-    At the local cadence of 900 s and two series that is two reads per
-    quarter-hour against a bucket that refills at 50 tokens a second — a
-    rounding error beside the book poll, which is why this can afford to be
-    the honest thing rather than the cheap one.
+    A sibling of ``score_if_due`` on the same predicate, called before it.
 
     Returns whether anything was read. Idempotent on the table: settlements
     are de-duplicated on ticker by ``record_settlements``.
@@ -333,11 +337,8 @@ async def recorder_loop() -> None:
     client = KalshiClient(budget=get_read_budget())
     backoff = Backoff(base_s=BACKOFF_BASE_S, ceiling_s=BACKOFF_CEILING_S)
     _STATE.running = True
-    logger.info(
-        "coherence: recording %s every %ss",
-        ",".join(tunables.SERIES_WATCHLIST),
-        tunables.POLL_SECONDS,
-    )
+    target = f"{tunables.LIVE_FAMILY_LIMIT} live families" if tunables.LIVE_FAMILY_LIMIT else ",".join(tunables.SERIES_WATCHLIST)
+    logger.info("coherence: recording %s every %ss", target, tunables.POLL_SECONDS)
     try:
         await _seed_budget(client)
         durable_state_ready = False
@@ -355,11 +356,7 @@ async def recorder_loop() -> None:
                 _STATE.last_error = None
                 backoff = Backoff(base_s=BACKOFF_BASE_S, ceiling_s=BACKOFF_CEILING_S)
                 logger.debug("coherence: wrote %d books", written)
-                # After the books, never instead of them: a scoring pass that
-                # raised would otherwise cost the poll its tape. The harvest
-                # first, so the score has the settlements it is about; then
-                # the score, threaded for the reason every other DuckDB write
-                # here is — the event loop is not held by the disk.
+                # Score after the books, never instead of them.
                 if await harvest_if_due(client, store):
                     logger.debug("coherence: harvested settled markets")
                 if await asyncio.to_thread(score_if_due, store):

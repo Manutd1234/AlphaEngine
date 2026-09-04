@@ -74,6 +74,11 @@
   "protectedUiGatewaySweep20260902": {
     "developer": { "sha256": "4e47cb24293047a5621021d600bd0b22922fa8183d8656d155c0185dc30276b2", "strings": 1643, "words": 6739 }
   },
+  "protectedLiveVenuePolling20260904": {
+    "research": { "sha256": "561843806bf98568cea8e795a1ecd92ebd2c7ef6954c304a873d7456a4898dfe", "strings": 2297, "words": 13211 },
+    "reliability": { "sha256": "6f5e4dcceccf0c6c493fc2c0ad783a1726e2728ac95485c38dd96f85f7f25601", "strings": 1573, "words": 6162 },
+    "developer": { "sha256": "3ff8fbd221c50f320633e561234487abe061de68b1960e03c598599267be7eb0", "strings": 1648, "words": 6758 }
+  },
   "engineViews": [
     { "product": "markets", "routeTab": "markets", "section": "universe", "view": "baskets", "label": "Basket pricing", "id": "markets/universe/baskets", "deepLink": "markets/universe" },
     { "product": "markets", "routeTab": "markets", "section": "universe", "view": "positions", "label": "Positions", "id": "markets/universe/positions", "deepLink": "markets/universe/positions" },
@@ -239,6 +244,11 @@
       "markets": { "sha256": "cf16c67ce7a70f35d7680d944b7d83e06312f9695c04de638317d1daa6419dfe", "strings": 2725, "words": 10689 },
       "proofs": { "sha256": "1ca8ec9bd889f6d98164fefa628b684e11bdcb4c6d9051297613e1d6ee76e7a8", "strings": 2988, "words": 16632 },
       "diffusion": { "sha256": "2ceb77275b7f2ac76aff9dcf5ea9b9030beda3132cfecb1011cced5efc49fd58", "strings": 1941, "words": 10707 }
+    },
+    "liveFamilyPolling20260904Tabs": {
+      "markets": { "sha256": "1f120bc581cae363330a9d229e96e69aa7bd2770a189a64cdbd61ce83ad02cf3", "strings": 2725, "words": 10691 },
+      "proofs": { "sha256": "859d01c5d7f14743b797933344a92d84b2730282dd3bb26138c4d949f79dd4bc", "strings": 2988, "words": 16634 },
+      "diffusion": { "sha256": "689df3f37666419352e27ec2454e56a0e3ba4d411b93eb7ba96f7323f070b8a0", "strings": 1941, "words": 10709 }
     },
     "summaryCopy": {
       "browserObserved": false,

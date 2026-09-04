@@ -206,9 +206,14 @@ export function rememberHost(venue: VenueName, host: string): void {
  * the place that reports them. The latency key is prefixed `venue:` to keep a
  * direct one-hop measurement out of the same percentile as a registry dispatch.
  */
-export async function getJson(url: string, revalidate = 0, venue: VenueName = "BINANCE"): Promise<unknown> {
+export async function getJson(
+  url: string,
+  revalidate = 0,
+  venue: VenueName = "BINANCE",
+  timeoutMs = FETCH_TIMEOUT_MS,
+): Promise<unknown> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   const startedAt = Date.now();
   const provider = venue.toLowerCase();
   try {
@@ -250,7 +255,7 @@ export async function getJson(url: string, revalidate = 0, venue: VenueName = "B
         status: null,
         ms: Date.now() - startedAt,
         ok: false,
-        error: controller.signal.aborted ? `timed out after ${FETCH_TIMEOUT_MS}ms` : (err as Error).message,
+        error: controller.signal.aborted ? `timed out after ${timeoutMs}ms` : (err as Error).message,
         latencyKey: `venue:${provider}`,
       });
     }

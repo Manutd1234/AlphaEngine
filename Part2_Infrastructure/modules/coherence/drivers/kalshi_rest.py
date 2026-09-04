@@ -1,10 +1,4 @@
-"""Kalshi REST reads with planned spend and honest degradation.
-
-The injectable transport keeps tests on the real request path. Safety rules:
-errors never log URLs; bulk orderbooks repeat ``tickers`` instead of joining
-them; and an orderbook 401 degrades upstream to public top-of-book data marked
-``depth="top_of_book"`` rather than being mistaken for deep liquidity.
-"""
+"""Kalshi REST reads with planned spend and honest degradation."""
 
 from __future__ import annotations
 
@@ -31,10 +25,7 @@ from modules.coherence.scheduler.budget import ReadBudget, get_read_budget
 logger = logging.getLogger(__name__)
 
 
-# One request per call, and the caller decides how many calls to make. The
-# retry curve is the gateway's own Backoff; there is no retry inside a single
-# fetch, because a retry hidden inside a "read the book" call turns one budget
-# decision into several.
+# One request per call; retry/backoff belongs to the supervising caller.
 MAX_TICKERS_PER_BULK_CALL = 100
 MAX_MARKETS_PER_PAGE = 1000
 
@@ -68,12 +59,7 @@ class Fetched:
 
 
 def build_orderbooks_query(tickers: Sequence[str]) -> list[tuple[str, str]]:
-    """``tickers`` as REPEATED pairs — the only correct shape for the bulk route.
-
-    Returned as a list of pairs rather than a dict because a dict cannot hold a
-    repeated key, which is exactly the mistake that makes the comma-joined form
-    look reasonable.
-    """
+    """``tickers`` as repeated pairs — a dict cannot represent this route."""
     if not tickers:
         raise ValueError("no tickers to fetch")
     if len(tickers) > MAX_TICKERS_PER_BULK_CALL:
@@ -292,6 +278,20 @@ class KalshiClient:
             params={"with_nested_markets": str(nested).lower()},
         )
 
+    async def events(
+        self, *, status: str = "open", limit: int = 75,
+        nested: bool = True, cursor: str | None = None,
+    ) -> Fetched:
+        """A scalable family page; nested markets name tickers for bulk books."""
+        params: dict[str, Any] = {
+            "status": status,
+            "limit": max(1, min(int(limit), 200)),
+            "with_nested_markets": str(nested).lower(),
+        }
+        if cursor:
+            params["cursor"] = cursor
+        return await self.get("/events", params=params)
+
     async def markets(self, series_ticker: str, status: str = "open", limit: int = 200) -> Fetched:
         """Markets for one series.
 
@@ -389,6 +389,4 @@ def _request_url(host: str, path: str, params: Any) -> httpx.URL:
         raise ValueError("Kalshi route paths must start with /")
     if params is None:
         return httpx.URL(f"{host}{path}")
-    # Match httpx's existing `get(url, params=...)` behaviour: supplied params
-    # replace a query embedded in `path`, rather than merging it.
     return httpx.URL(f"{host}{path}", params=params)

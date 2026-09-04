@@ -329,7 +329,7 @@ jobs:
           command_timeout: 10m
           # Correction 5 — passed as environment variables, so none of these
           # appears in the VM's process list or shell history.
-          envs: IMAGE,REGISTRY,CONTAINER,VOLUME,KALSHI_KEY_VOLUME,KALSHI_PRODUCTION_KEY_VOLUME,KALSHI_KEY_SLOT,KALSHI_DEMO_REVOKE,KALSHI_PRODUCTION_REVOKE,PORT,GH_ACTOR,GH_TOKEN,WEB_API_TOKEN,SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,SUPABASE_DESK_ID,SUPABASE_MIRROR_ENABLED,RESEARCH_RAG_ENABLED,RESEARCH_SCOPE_TO_DESK,NEO4J_URI,NEO4J_USERNAME,NEO4J_PASSWORD,NEO4J_DATABASE,TELEGRAM_BOT_TOKEN,TELEGRAM_ALLOWED_USER_IDS,TELEGRAM_CONTROL_USER_IDS,TELEGRAM_ALERT_CHAT_IDS,TELEGRAM_LINK_SECRET,KALSHI_DEMO_KEY_ID,KALSHI_DEMO_PRIVATE_KEY_PEM_B64,KALSHI_PRODUCTION_KEY_ID,KALSHI_PRODUCTION_PRIVATE_KEY_PEM_B64,COHERENCE_SERIES,COHERENCE_POLL_S,COHERENCE_POST_CAMPAIGN_POLL_S,COHERENCE_MAX_EVENTS,COHERENCE_CALIBRATION_EVERY_S,COHERENCE_CAMPAIGN_ID,COHERENCE_CAMPAIGN_TARGET,COHERENCE_MIN_FREE_BYTES,COHERENCE_MAX_TAPE_BYTES,COHERENCE_RETENTION_DAYS
+          envs: IMAGE,REGISTRY,CONTAINER,VOLUME,KALSHI_KEY_VOLUME,KALSHI_PRODUCTION_KEY_VOLUME,KALSHI_KEY_SLOT,KALSHI_DEMO_REVOKE,KALSHI_PRODUCTION_REVOKE,PORT,GH_ACTOR,GH_TOKEN,WEB_API_TOKEN,SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,SUPABASE_DESK_ID,SUPABASE_MIRROR_ENABLED,RESEARCH_RAG_ENABLED,RESEARCH_SCOPE_TO_DESK,NEO4J_URI,NEO4J_USERNAME,NEO4J_PASSWORD,NEO4J_DATABASE,TELEGRAM_BOT_TOKEN,TELEGRAM_ALLOWED_USER_IDS,TELEGRAM_CONTROL_USER_IDS,TELEGRAM_ALERT_CHAT_IDS,TELEGRAM_LINK_SECRET,KALSHI_DEMO_KEY_ID,KALSHI_DEMO_PRIVATE_KEY_PEM_B64,KALSHI_PRODUCTION_KEY_ID,KALSHI_PRODUCTION_PRIVATE_KEY_PEM_B64,COHERENCE_SERIES,COHERENCE_LIVE_FAMILIES,COHERENCE_POLL_S,COHERENCE_POST_CAMPAIGN_POLL_S,COHERENCE_MAX_EVENTS,COHERENCE_WARM_S,COHERENCE_WARM_MAX_AGE_S,COHERENCE_CALIBRATION_EVERY_S,COHERENCE_CAMPAIGN_ID,COHERENCE_CAMPAIGN_TARGET,COHERENCE_MIN_FREE_BYTES,COHERENCE_MAX_TAPE_BYTES,COHERENCE_RETENTION_DAYS
           script: |
             set -euo pipefail
 
@@ -628,32 +628,34 @@ jobs:
               put KALSHI_PRODUCTION_PRIVATE_KEY_PATH "$KALSHI_PRODUCTION_KEY_PATH"
             fi
 
-            # The Kalshi coherence recorder. Off unless BOTH of the first two
-            # are set, which is why they are written together or not at all.
+            # The Kalshi coherence recorder. Broad discovery or an explicit
+            # series list supplies its scope; the cadence turns polling on.
             #
-            # WHAT THIS COSTS, measured on the live exchange rather than
-            # estimated: one poll of KXBTCD + KXHIGHNY at COHERENCE_MAX_EVENTS=2
-            # reads 274 books for 90 read tokens and writes about 780 KiB. At
-            # 60s that is about 1.15 GB a day and 1.5 tokens per second. The
-            # bounded campaign and free-space guard below make that accelerated
-            # collection explicit rather than an unbounded new baseline.
+            # Broad mode discovers 75 open families in one nested event page,
+            # then reads their books in 100-ticker chunks. On 2026-09-04 that
+            # meant 762 markets and nine public requests, rather than hundreds
+            # of per-family reads. Seven-day raw-ladder retention and the disk
+            # reserve keep that continuous one-minute collection bounded;
+            # indices, decisions and episodes remain permanent.
             #
             # The tape lands on the SAME named volume as the audit ledger
             # (DATA_DIR=/app/data, -v ${VOLUME}:/app/data), so it persists
             # across deploys and it shares space with the one file on this box
             # that must never run out of room. The recorder checks free bytes
-            # before every campaign poll and returns to the 300s baseline at the
-            # configured target; narrow COHERENCE_SERIES or raise
-            # COHERENCE_POLL_S to cut it.
+            # before every poll. Lower COHERENCE_LIVE_FAMILIES or raise
+            # COHERENCE_POLL_S to reduce volume.
             #
             # One-minute resolution is still not tick data. The episode survival
             # curve inherits the poll interval as its floor and a CLOSED episode
             # still needs two coherent observations, so nothing here is labelled
             # as 1,000 episodes: the campaign unit is a successful observation poll.
             put COHERENCE_SERIES "${COHERENCE_SERIES:-}"
+            put COHERENCE_LIVE_FAMILIES "${COHERENCE_LIVE_FAMILIES:-}"
             put COHERENCE_POLL_S "${COHERENCE_POLL_S:-}"
             put COHERENCE_POST_CAMPAIGN_POLL_S "${COHERENCE_POST_CAMPAIGN_POLL_S:-}"
             put COHERENCE_MAX_EVENTS "${COHERENCE_MAX_EVENTS:-}"
+            put COHERENCE_WARM_S "${COHERENCE_WARM_S:-}"
+            put COHERENCE_WARM_MAX_AGE_S "${COHERENCE_WARM_MAX_AGE_S:-}"
             put COHERENCE_CALIBRATION_EVERY_S "${COHERENCE_CALIBRATION_EVERY_S:-}"
             put COHERENCE_CAMPAIGN_ID "${COHERENCE_CAMPAIGN_ID:-}"
             put COHERENCE_CAMPAIGN_TARGET "${COHERENCE_CAMPAIGN_TARGET:-}"
@@ -1326,23 +1328,29 @@ jobs:
           # across that boundary can be told apart from a change in the whole
           # exchange's, which one series alone cannot do.
           COHERENCE_SERIES: ${{ vars.COHERENCE_SERIES || 'KXBTCD,KXHIGHNY' }}
-          COHERENCE_POLL_S: ${{ vars.COHERENCE_POLL_S || '60' }}
-          COHERENCE_POST_CAMPAIGN_POLL_S: ${{ vars.COHERENCE_POST_CAMPAIGN_POLL_S || '300' }}
+          # These are release invariants for the live-universe rollout, not
+          # repository-variable defaults. Keeping them literal prevents stale
+          # variables from silently restoring the former two-family/slow path.
+          COHERENCE_LIVE_FAMILIES: "75"
+          COHERENCE_POLL_S: "60"
+          COHERENCE_POST_CAMPAIGN_POLL_S: "60"
           COHERENCE_MAX_EVENTS: ${{ vars.COHERENCE_MAX_EVENTS || '2' }}
+          COHERENCE_WARM_S: "60"
+          COHERENCE_WARM_MAX_AGE_S: "150"
           # The scoring cadence. Off (0) is what the tape ran on for a week and
           # what left the Scorecard with nothing to score: the settlements table
           # filled only while a reader had the Settlement pane open. 900 is the
           # local cadence; inline like its neighbours, for the reason at the top
           # of this block.
           COHERENCE_CALIBRATION_EVERY_S: ${{ vars.COHERENCE_CALIBRATION_EVERY_S || '900' }}
-          # A bounded real-observation campaign, not 1,000 manufactured
-          # violations. Zero retention preserves every raw book; the two-GiB
-          # free-space floor is the fail-closed storage bound.
-          COHERENCE_CAMPAIGN_ID: ${{ vars.COHERENCE_CAMPAIGN_ID || 'kalshi-1000-60s-v1' }}
-          COHERENCE_CAMPAIGN_TARGET: ${{ vars.COHERENCE_CAMPAIGN_TARGET || '1000' }}
+          # Continuous real observations, not manufactured violations. Seven
+          # days bounds raw ladders; durable indices, decisions and episodes
+          # remain, and the two-GiB floor is the fail-closed storage bound.
+          COHERENCE_CAMPAIGN_ID: "kalshi-live-families-v1"
+          COHERENCE_CAMPAIGN_TARGET: "0"
           COHERENCE_MIN_FREE_BYTES: ${{ vars.COHERENCE_MIN_FREE_BYTES || '2147483648' }}
           COHERENCE_MAX_TAPE_BYTES: ${{ vars.COHERENCE_MAX_TAPE_BYTES || '0' }}
-          COHERENCE_RETENTION_DAYS: ${{ vars.COHERENCE_RETENTION_DAYS || '0' }}
+          COHERENCE_RETENTION_DAYS: "7"
 
       # -----------------------------------------------------------------------
       # TLS termination (FEAT-077). README has claimed "Caddy — Automatic HTTPS"

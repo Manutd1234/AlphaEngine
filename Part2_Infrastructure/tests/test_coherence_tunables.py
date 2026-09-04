@@ -64,6 +64,11 @@ class TestSeriesWatchlist:
         with pytest.raises(ValueError, match="COHERENCE_SERIES"):
             tunables.parse_series_watchlist(value)
 
+    def test_broad_live_families_configure_the_recorder_without_static_series(self, monkeypatch):
+        monkeypatch.setattr(tunables, "SERIES_WATCHLIST", ())
+        monkeypatch.setattr(tunables, "LIVE_FAMILY_LIMIT", 75)
+        assert tunables.watchlist_configured()
+
 
 class TestDemoPrivateKeyPath:
     def test_resolves_relative_paths_from_the_gateway_root(self, tmp_path):

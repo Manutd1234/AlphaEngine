@@ -18,6 +18,18 @@ export interface LatencyStats {
   lastAt: number | null;
 }
 
+/** One uncached, two-sided public order-book observation. */
+export interface LiveDataObservation {
+  state: "fresh" | "failed" | "stale";
+  observedAt: string;
+  ageMs: number;
+  staleAfterMs: number;
+  symbol: string;
+  bestBid: number | null;
+  bestAsk: number | null;
+  detail: string;
+}
+
 export interface BreakerSnapshot {
   state: "closed" | "open" | "half_open";
   failures: number;
@@ -56,6 +68,8 @@ export interface ProviderRow {
   licence?: Array<{ capability: string; status: number | null; expiresAt: number }>;
   ready: boolean;
   statusDetail: string;
+  /** Optional during rolling deploys; attached to keyless public venues. */
+  observation?: LiveDataObservation;
 }
 
 export type RouteState =

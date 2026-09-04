@@ -17,13 +17,19 @@
  */
 
 import type { GatewayOpsSnapshot } from "./gateway-types";
-import type { FailoverRoute, LatencyStats, ProviderRow } from "./provider-types";
+import type {
+  FailoverRoute,
+  LatencyStats,
+  LiveDataObservation,
+  ProviderRow,
+} from "./provider-types";
 
 export type {
   BreakerSnapshot,
   FailoverNode,
   FailoverRoute,
   LatencyStats,
+  LiveDataObservation,
   ProviderRow,
   QuotaState,
   RouteState,
@@ -195,7 +201,13 @@ export interface SystemHealth {
     cache: CacheCounters;
   };
   providers: ProviderRow[];
-  venues: { id: string; label: string; latency: LatencyStats }[];
+  venues: {
+    id: string;
+    label: string;
+    latency: LatencyStats;
+    /** A real uncached book probe; absent on older deployments. */
+    observation?: LiveDataObservation;
+  }[];
   routes: FailoverRoute[];
   routePriority: string;
   capabilities: Record<string, { available: string[]; unavailable: string[]; missing: string[] }>;

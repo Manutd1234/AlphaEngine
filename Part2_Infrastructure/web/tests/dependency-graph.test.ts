@@ -152,6 +152,52 @@ describe("not configured is not a fault", () => {
   });
 });
 
+describe("direct venue observations outrank rolling traffic", () => {
+  it("turns a current Bybit book green even when no older call is in the window", () => {
+    const tree = deriveDependencyTree(health({
+      venues: [{
+        id: "bybit",
+        label: "Bybit REST",
+        latency: latency({ n: 0 }),
+        observation: {
+          state: "fresh",
+          observedAt: new Date().toISOString(),
+          ageMs: 0,
+          staleAfterMs: 60_000,
+          symbol: "BTCUSDT",
+          bestBid: 100,
+          bestAsk: 101,
+          detail: "Fresh two-sided book.",
+        },
+      }],
+    }), null);
+    assert.equal(find(tree, "venue:bybit")!.health, "ok");
+    assert.match(find(tree, "venue:bybit")!.source, /observation/);
+  });
+
+  it("turns the latest failed probe red despite a clean historical window", () => {
+    const tree = deriveDependencyTree(health({
+      venues: [{
+        id: "bybit",
+        label: "Bybit REST",
+        latency: latency({ n: 100, errorRate: 0 }),
+        observation: {
+          state: "failed",
+          observedAt: new Date().toISOString(),
+          ageMs: 0,
+          staleAfterMs: 60_000,
+          symbol: "BTCUSDT",
+          bestBid: null,
+          bestAsk: null,
+          detail: "No usable book.",
+        },
+      }],
+    }), null);
+    assert.equal(find(tree, "venue:bybit")!.health, "down");
+    assert.equal(find(tree, "venue:bybit")!.detail, "No usable book.");
+  });
+});
+
 describe("every node can be checked rather than trusted", () => {
   it("cites a wire field for each one", () => {
     const tree = deriveDependencyTree(health({ platform: platform() }), null);

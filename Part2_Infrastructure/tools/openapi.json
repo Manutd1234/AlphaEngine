@@ -2618,6 +2618,17 @@
             ],
             "title": "Growth Rate"
           },
+          "observed_age_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed Age S"
+          },
           "reserve_rate": {
             "anyOf": [
               {
@@ -4211,6 +4222,17 @@
             },
             "title": "Negative Bins",
             "type": "array"
+          },
+          "observed_age_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed Age S"
           },
           "probes": {
             "items": {
@@ -12764,6 +12786,20 @@
               "maximum": 50,
               "minimum": 1,
               "title": "Max Events",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Maximum open families in broad live mode",
+            "in": "query",
+            "name": "family_limit",
+            "required": false,
+            "schema": {
+              "default": 75,
+              "description": "Maximum open families in broad live mode",
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Family Limit",
               "type": "integer"
             }
           },
