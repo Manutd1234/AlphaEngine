@@ -67,8 +67,9 @@ describe("the fixed phone navigator never covers the scroll tail", () => {
 
 describe("dense lead metrics remain readable at 390px", () => {
   const phone = mediaBodies("@media (max-width: 620px)").join("\n");
+  const compactPhone = mediaBodies("@media (max-width: 350px)").join("\n");
 
-  it("gives Data, Developer, and the four-metric Risk brief two explicit phone columns", () => {
+  it("gives dense context strips enough columns at standard and compact phone widths", () => {
     assert.match(
       phone,
       /\.data-control-plane \.page-heading__insights\[data-count\],\s*\.developer-control-plane \.page-heading__insights\[data-count\]\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/s,
@@ -77,6 +78,16 @@ describe("dense lead metrics remain readable at 390px", () => {
       phone,
       /#panel-risk \.page-heading__insights\[data-count="4"\]\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/s,
       "Risk's long labels need two columns or the section picker falls under the thumb bar",
+    );
+    assert.match(
+      compactPhone,
+      /\.page-heading__insights\[data-count="3"\]\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/s,
+      "three-metric headers need one track at 320px so labels do not collide with provenance controls",
+    );
+    assert.match(
+      compactPhone,
+      /\.page-heading__insights\[data-count="3"\] \.page-insight \+ \.page-insight\s*\{[^}]*border-block-start:\s*1px solid var\(--border\);[^}]*border-inline-start:\s*0;/s,
+      "stacked metrics need horizontal rules without stale vertical dividers",
     );
   });
 

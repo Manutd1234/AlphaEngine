@@ -1407,6 +1407,20 @@
   animation: health-beat var(--dur-reveal) var(--ease-out) 1;
 }
 
+/* A 320px viewport leaves side-by-side metric tracks too narrow for labels and
+   their provenance controls. Stack the three cells so every label and its help
+   target have independent room instead of colliding or clipping. */
+@media (max-width: 350px) {
+  .page-heading__insights[data-count="3"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .page-heading__insights[data-count="3"] .page-insight + .page-insight {
+    border-block-start: 1px solid var(--border);
+    border-inline-start: 0;
+  }
+}
+
 /* Windows "More contrast" and the like (at the end of the file on purpose:
    theme-palette-parity.test.ts locates the dark palette by the first `:root[data-theme="dark"]`
    in the sheet, and this selector list must not be it): the muted ink steps up to the
