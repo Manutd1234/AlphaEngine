@@ -14,6 +14,7 @@ import pytest
 from coherence_fixtures import body
 
 from modules.coherence.drivers.kalshi_parse import parse_orderbooks
+from modules.coherence.fs.replay import rows_from_store
 from modules.coherence.fs.store import BookRow, CoherenceStore, TapeUnavailable
 
 NOW = 1_700_000_000_000_000_000
@@ -102,6 +103,29 @@ class TestTheIndex:
         store.record_index(NOW + 1_000_000_000, "A", "A-1", 0, Decimal("0.02"), "closed_form")
         store.record_index(NOW, "A", "A-1", 0, Decimal("0.01"), "closed_form")
         assert [row["ts_ns"] for row in store.index_series()] == [NOW, NOW + 1_000_000_000]
+
+    def test_a_bounded_chart_gets_the_newest_readings_not_the_first_ones(self, store):
+        for offset in range(3):
+            store.record_index(
+                NOW + offset * 1_000_000_000, "A", "A-1", 0,
+                Decimal("0.01") + Decimal(offset) / 100, "closed_form",
+            )
+        assert [row["ts_ns"] for row in store.index_series(limit=2)] == [
+            NOW + 1_000_000_000,
+            NOW + 2_000_000_000,
+        ]
+
+
+class TestTheReplayWindow:
+    def test_reads_the_latest_complete_poll_when_the_limit_cuts_the_previous_one(self, store):
+        store.record_books(_rows(NOW))
+        store.record_books(_rows(NOW + 1_000_000_000))
+        store.record_books(_rows(NOW + 2_000_000_000))
+
+        replayed = rows_from_store(store, limit=7)
+
+        assert len(replayed) == 6
+        assert {row.ts_ns for row in replayed} == {NOW + 2_000_000_000}
 
 
 class TestWhenItCannotHelp:

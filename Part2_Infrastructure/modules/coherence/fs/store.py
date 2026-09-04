@@ -273,7 +273,12 @@ class CoherenceStore(DurableCoherenceStoreMixin):
     def index_series(
         self, series_ticker: str | None = None, since_ts_ns: int = 0, limit: int = 5000
     ) -> list[dict[str, Any]]:
-        """The Coherence Index over time, oldest first so a chart can plot it."""
+        """The newest bounded Coherence Index window, returned in plotting order.
+
+        Taking an ascending ``LIMIT`` pins a long-running deployment to its
+        oldest readings forever. Read the newest rows first, then reverse them
+        so the chart still receives time from left to right.
+        """
         with self._lock:
             conn = self._connect()
             rows = conn.execute(
@@ -281,13 +286,13 @@ class CoherenceStore(DurableCoherenceStoreMixin):
                 SELECT ts_ns, series_ticker, event_ticker, exchange_index, ci, engine, detail
                 FROM coherence_index
                 WHERE ts_ns >= ? AND (? IS NULL OR series_ticker = ?)
-                ORDER BY ts_ns ASC
+                ORDER BY ts_ns DESC
                 LIMIT ?
                 """,
                 (int(since_ts_ns), series_ticker, series_ticker, int(limit)),
             ).fetchall()
         columns = ("ts_ns", "series_ticker", "event_ticker", "exchange_index", "ci", "engine", "detail")
-        return [dict(zip(columns, row, strict=True)) for row in rows]
+        return [dict(zip(columns, row, strict=True)) for row in reversed(rows)]
 
     def episodes(self, series_ticker: str | None = None, limit: int = 500) -> list[dict[str, Any]]:
         """Closed episodes, newest first."""

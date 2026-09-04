@@ -66,11 +66,15 @@ class TapeRow:
 
 
 def rows_from_store(store, since_ts_ns: int = 0, limit: int = 50_000) -> list[TapeRow]:
-    """Every recorded book, oldest first.
+    """The newest complete bounded tape window, oldest first.
 
     Reads through the store's own query rather than touching DuckDB here: the
     tape's schema is the store's business, and a second reader that knew the
     column order would break silently the first time it changed.
+
+    ``limit + 1`` reveals whether the result starts inside a poll. If it does,
+    that oldest partial poll is dropped: replaying half an event family would
+    manufacture a coherence result from a snapshot the recorder never made.
     """
     with store._lock:  # noqa: SLF001 - replay is part of the store's own surface
         conn = store._connect()  # noqa: SLF001
@@ -80,12 +84,16 @@ def rows_from_store(store, since_ts_ns: int = 0, limit: int = 50_000) -> list[Ta
                    yes_ladder, no_ladder, depth, source
             FROM book_snapshots
             WHERE ts_ns >= ?
-            ORDER BY ts_ns ASC
+            ORDER BY ts_ns DESC
             LIMIT ?
             """,
-            (int(since_ts_ns), int(limit)),
+            (int(since_ts_ns), int(limit) + 1),
         ).fetchall()
-    return [TapeRow(*row) for row in rows]
+    ordered = list(reversed(rows))
+    if len(ordered) > limit:
+        anchor = int(ordered[0][0])
+        ordered = [row for row in ordered if int(row[0]) - anchor > POLL_WINDOW_NS]
+    return [TapeRow(*row) for row in ordered]
 
 
 def group_into_polls(rows: Sequence[TapeRow]) -> Iterator[list[TapeRow]]:
