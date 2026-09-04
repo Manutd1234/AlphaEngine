@@ -11,7 +11,10 @@ const violationStates = read("../components/coherence/ViolationStates.tsx");
 
 describe("fixed-label SVGs own their narrow-width geometry", () => {
   it("removes the waterfall's unnecessary 18px phone floor", () => {
-    assert.match(waterfall, /<Plot height=\{HEIGHT\} minWidth=\{300\}>/);
+    assert.match(
+      waterfall,
+      /<Plot[\s\S]*?height=\{HEIGHT\}[\s\S]*?minWidth=\{300\}[\s\S]*?scrollLabel="Scrollable day P&L attribution chart"/,
+    );
   });
 
   it("uses the smallest widths that keep the DAG and lifecycle nodes distinct", () => {

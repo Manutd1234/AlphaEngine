@@ -5,6 +5,7 @@ import { useId, useState, type CSSProperties } from "react";
 import { DOLLAR_CC, fromCenticents, priceLabel, toCenticents } from "@/lib/coherence/fixed-point";
 import type { CoherenceSurface } from "@/lib/coherence/types-lab";
 import { useRovingListbox } from "../use-stable-selection-key";
+import CategoricalProbabilityBars from "./CategoricalProbabilityBars";
 
 import styles from "./LatticeInstruments.module.css";
 
@@ -69,6 +70,9 @@ export function LatticeSurvival({ surface }: { surface: CoherenceSurface }) {
     setSelectedKey(key);
   };
   if (!active) {
+    if ((surface.engine === "named" || surface.engine === "independent") && surface.bins.length) {
+      return <CategoricalProbabilityBars surface={surface} mode="probability" />;
+    }
     return (
       <figure className={styles.instrument} data-state="unavailable" aria-label="No survival curve for this family">
         <figcaption className={styles.head}><span><small>Survival ladder</small>No threshold curve is available for this family</span><strong>{surface.engine}</strong></figcaption>

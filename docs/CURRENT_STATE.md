@@ -1,6 +1,6 @@
 # AlphaEngine current-state ledger
 
-**Source/worktree and deployment evidence audited: 2026-09-03.** This page is the short, reproducible
+**Source/worktree and deployment evidence audited: 2026-09-04.** This page is the short, reproducible
 release record for facts that change as the repository changes. Historical benchmark,
 incident, deployment-probe and ADR dates elsewhere in the documentation remain
 attached to the day they were actually observed; they are not silently
@@ -21,7 +21,7 @@ that observed them; source facts are still reproducible from the tree.
 | Local developer default | `npm run dev` supervises gateway `:8000` and workspace `:3000`; `npm run dev:web` is frontend-only | `Part2_Infrastructure/web/package.json`; `scripts/start-dev-all.mjs` |
 | Supabase migrations | 42 present, bundled and applied to the live project | `supabase/migrations/*.sql`; `supabase/apply_all.generated.sql`; combined Oracle/Supabase schema run `33653417165` |
 | Telegram commands | 138 total, 100 in the pushed menu, 6 guarded controls | `Part2_Infrastructure/modules/telegram/registry.py`; `tools/telegram_catalogue.py --check` |
-| Repository catalogue | 2,424 paths | `web/lib/repository-manifest.generated.json`; `cd Part2_Infrastructure/web && npm run build` prebuild check |
+| Repository catalogue | 2,432 paths | `web/lib/repository-manifest.generated.json`; `cd Part2_Infrastructure/web && npm run build` prebuild check |
 
 The gateway is a single application context: one lifespan-owned service graph
 provides the risk gateway, audit/data stores, background jobs, latest-state
@@ -30,6 +30,35 @@ they do not create a second trading state. The web workspace reads server-side
 facades and same-origin route handlers, then preserves missing, loading,
 degraded and measured-zero states as different facts. The OpenBB service is a
 separately deployable, read-only research adapter and owns no trading state.
+
+## Live prediction-market coverage
+
+- Broad discovery is opt-in through `COHERENCE_LIVE_FAMILIES=1..200`. The
+  current browser route requests 200, and the gateway caps the effective value
+  at both the configured limit and Kalshi's bounded event-page maximum. One
+  nested open-event read discovers the families; order books are hydrated in
+  chunks of 100 with at most three concurrent bulk reads. A failed depth chunk
+  retains the same live listing's top of book with an explicit qualification
+  instead of dropping the family.
+- The active Markets and Proofs reads poll every 20 seconds. The lifespan-owned
+  warm loop uses the same cadence for the configured universe, while the
+  append-only recorder uses `COHERENCE_POLL_S` and remains deliberately off
+  when that setting is zero. A displayed observation carries its age, and a
+  timeout, venue refusal or stale cache is not relabelled live.
+- Numeric strike ladders produce survival, mass and moment summaries. Named
+  mutually exclusive outcomes produce live categorical probability bars and
+  deliberately withhold a numeric mean; unrelated YES/NO markets produce an
+  `independent` surface and withhold a joint total. Those are mathematical
+  shape distinctions, not failed data reads.
+- Proofs no longer calls an otherwise healthy family “untestable” merely
+  because Kalshi supplies no cross-market relation. The fallback `book` family
+  certifies three executable constraints per quoted market: ask at least zero,
+  bid at most one and non-negative ask/bid spread. Structural families still
+  use their stronger joint linear programme.
+- The signed RFQ route distinguishes authentication policy, an empty successful
+  response and quotes-in-hand. HTTP 429/5xx responses receive one bounded
+  200-millisecond retry; a persistent 503 remains an upstream venue outage and
+  is reported as such rather than converted into demo data.
 
 ## Current deployment boundaries
 
@@ -104,20 +133,21 @@ host has already been upgraded.
 
 ## Test and build evidence
 
-The repository-owned count generator and main-branch CI were run on 2026-09-02:
+The repository-owned count generator was run locally on 2026-09-04. The CI
+figures below retain their own earlier run date:
 
 | Suite | Result |
 |---|---:|
-| Gateway | Local generated record: 3,495 passed, 1 skipped (3,496 total). Main CI shape before the RFQ provisioning successor: 3,482 passed, 3 skipped; the separate real-model job ran 8 cases with 0 skips |
-| Web | 6,846 tests across 1,461 suites - 6,840 passed, 6 skipped, 0 failed |
+| Gateway | Local generated record: 3,507 passed, 1 skipped (3,508 total). Main CI shape before the RFQ provisioning successor: 3,482 passed, 3 skipped; the separate real-model job ran 8 cases with 0 skips |
+| Web | 6,856 tests across 1,464 suites - 6,850 passed, 6 skipped, 0 failed |
 | OpenBB service | 24 passed |
-| Rendered layout | 872 passed, 0 failed - 109 addressable states at 8 responsive viewports |
+| Rendered layout | 360 passed, 0 failed - all 120 addressable states at 320×844, 390×844 and 1280×900 on 2026-09-04; the earlier 872/872 eight-viewport release record remains dated 2026-08-29 |
 
 The generated display contract is
 `Part2_Infrastructure/web/lib/test-counts.generated.ts`. The web production
-build also passed on 2026-09-02: its prebuild verified the canonical OpenAPI
-digest `6f50ebed6ccc76c0bc733d18ca9e8f86d8d2789f3092526076e727dba0282321`
-and the 2,424-path repository catalogue before Next.js compiled and generated
+build also passed on 2026-09-04: its prebuild verified the canonical OpenAPI
+digest `fde95f8b7452b6b9a04c06db5a3c99b645e07fdf4202a3b7e3b77e4eef343ed2`
+and the 2,432-path repository catalogue before Next.js compiled and generated
 all static pages.
 
 CI run `33652700677` completed all seven jobs successfully with zero
@@ -127,16 +157,14 @@ On `main`, the last two are required results rather than grey skips. Pull
 requests deliberately omit live services and run the real-model job only when
 labelled `rerank`.
 
-The Playwright release sweep ran against the local webpack development server
-at `127.0.0.1:3100`. It reported zero geometry failures and zero console
-errors. Gateway-backed reads were intentionally recorded as typed unavailable
-responses because the gateway was not part of that browser run; those 503s are
-not hidden or counted as successful data reads.
-
-The local browser sweep remains a separate qualification tool because it needs
-a running desk and Chromium. Its last full rendered-layout measurement is kept
-at its actual 2026-08-29 date above; the September 2 CI and live E2E evidence do
-not silently restamp it.
+The 2026-09-04 Playwright sweep ran against the integrated local desk and
+gateway. It reported zero geometry failures and zero console errors across all
+120 registered states at the three requested phone/desktop viewports. One guest
+RFQ 401 was an expected access-policy read, not a console failure or a failed
+public-data route. The local browser sweep remains a separate qualification
+tool because it needs a running desk and Chromium; it does not replace the
+earlier eight-viewport release record or silently widen this run beyond its
+three measured sizes.
 
 ## Measurement boundary
 
@@ -150,7 +178,7 @@ later claims must name a later probe.
 
 ## Documentation release rule
 
-Documentation carrying **Source/worktree audited: 2026-09-02** was checked
+Documentation carrying **Source/worktree audited: 2026-09-04** was checked
 against this tree. A dated example, migration filename, benchmark or incident
 inside such a document remains historical. Generated artefacts must be
 refreshed through their owning commands rather than edited by hand.

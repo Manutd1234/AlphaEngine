@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-09-04",
-  "commit": "98149b1f",
+  "commit": "7f4adb24",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -571,6 +571,7 @@
     "Part2_Infrastructure/tests/test_coherence_recorder_durability.py",
     "Part2_Infrastructure/tests/test_coherence_recorder_harvest.py",
     "Part2_Infrastructure/tests/test_coherence_rfq_paging.py",
+    "Part2_Infrastructure/tests/test_coherence_rfq_retry.py",
     "Part2_Infrastructure/tests/test_coherence_rfq.py",
     "Part2_Infrastructure/tests/test_coherence_round_trip.py",
     "Part2_Infrastructure/tests/test_coherence_security_auth.py",
@@ -1185,6 +1186,7 @@
     "Part2_Infrastructure/web/components/coherence/StakePane.tsx",
     "Part2_Infrastructure/web/components/coherence/StateCoverage.tsx",
     "Part2_Infrastructure/web/components/coherence/StatusPane.tsx",
+    "Part2_Infrastructure/web/components/coherence/surface/CategoricalProbabilityBars.tsx",
     "Part2_Infrastructure/web/components/coherence/surface/DistributionView.tsx",
     "Part2_Infrastructure/web/components/coherence/surface/EdgeScatter.tsx",
     "Part2_Infrastructure/web/components/coherence/surface/FamilyView.tsx",

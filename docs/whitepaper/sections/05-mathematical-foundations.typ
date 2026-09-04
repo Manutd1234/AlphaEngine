@@ -1114,7 +1114,11 @@ one static page. Each view binds a canonical proof target to the exact data row,
 constraint or score contribution being inspected.
 
 The coherence views couple price identities, a constraint ladder and the
-verdict they imply. Basket views expose composition and size as selectable
+verdict they imply. Structural families retain the joint linear programme; if
+the venue supplies quoted books without a cross-market relation, the proof
+falls back to three executable constraints per market --- non-negative ask,
+bid at most one and non-negative ask/bid spread --- rather than treating absent
+metadata as absent evidence. Basket views expose composition and size as selectable
 objects, then recompute the null or shortfall inspection against that stable
 selection. Parlay views join the leg state, Frechet band and bound rather than
 asking a reader to reconcile three unrelated panels. Scorecard views preserve

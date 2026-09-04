@@ -403,9 +403,9 @@ event-response and absorption diagnostics. Their URL ids are `markets`,
 `coherence` and `diffusion`; the first two predate their visible labels and stay
 unchanged so published links continue to resolve. The eleven tabs carry
 #measured[70 addressable rail sections][`web/lib/sections.ts`, counted
-2026-09-02]. The three engines expose #measured[71 non-placeholder views - 26
+2026-09-04]. The three engines expose #measured[71 non-placeholder views - 26
 Markets, 29 Proofs and 16 Diffusion][`web/lib/section-views.ts`, counted
-2026-09-02]. Every view is URL-addressable under `#tab/section/view`; the
+2026-09-04]. Every view is URL-addressable under `#tab/section/view`; the
 default view omits the third segment without losing its stable identity. The
 navigation rail is pinned to the tour documentation by tests so the two cannot
 drift apart silently. The browser bundle holds zero
@@ -740,9 +740,9 @@ with its method and machine and refuses to merge two machines into one
 flattering number, and the committed test counts, generated because the prose
 copies had drifted three times before the generator existed. As of this revision
 those counts read
-#measured[3,496 gateway tests - 3,495 passed and one skipped][`web/lib/test-counts.generated.ts`,
-generated 2026-09-02],
-#measured[6,846 web tests across 1,461 suites][same] and
+#measured[3,508 gateway tests - 3,507 passed and one skipped][`web/lib/test-counts.generated.ts`,
+generated 2026-09-04],
+#measured[6,856 web tests across 1,464 suites][same] and
 #measured[24 service tests][same]. A skip count is
 not evidence about its cause; that belongs to the runner output that produced
 the dated record. The generated file is therefore the display contract for the

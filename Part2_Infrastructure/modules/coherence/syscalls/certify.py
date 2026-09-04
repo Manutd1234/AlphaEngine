@@ -40,6 +40,20 @@ def certify(observation: Observation, schedule: FeeSchedule, max_contracts: Deci
         )
         return _with_observation_notes(_with_proof_evidence(closed, closed, observation), observation)
 
+    if programme.verdict == "untestable" and closed.verdict != "untestable":
+        # The LP needs a joint payoff matrix. Some live venue families publish
+        # neither numeric strikes nor mutual exclusivity, so constructing that
+        # matrix would invent how their outcomes relate. The books are still
+        # testable on their own executable bounds and spread; return that
+        # narrower, named proof instead of discarding it merely because the
+        # stronger solver had no licensed state space.
+        closed.notes.append(
+            "the joint linear programme was not run for this family because the venue publishes no "
+            "state-space relation between its markets; the verdict below covers each observed "
+            "market's executable quote bounds and spread, not an invented cross-market relation"
+        )
+        return _with_observation_notes(_with_proof_evidence(closed, closed, observation), observation)
+
     if programme.verdict != closed.verdict and "untestable" not in (programme.verdict, closed.verdict):
         # Not every disagreement is a fault, and calling one is how this engine
         # would report its own thesis as a bug. The two engines answer

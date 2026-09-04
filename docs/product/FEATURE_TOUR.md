@@ -1,6 +1,6 @@
 # Feature tour — the whole infrastructure, walked as the decision loop
 
-**Last verified: 2026-09-02.** The source-level topology and release evidence
+**Last verified: 2026-09-04.** The source-level topology and release evidence
 below were reconciled with the [current-state ledger](../CURRENT_STATE.md).
 Historical deployment walks and benchmark readings retain their observation
 dates; a current document is not evidence that an external origin was re-probed.
@@ -17,7 +17,7 @@ those quotes, then how information moves through them — with no order path at 
 *Walked against the deployed system on 2026-08-17. The panel descriptions were re-read against
 the tree on 2026-08-22, when the Remediation and API & Schema sections changed shape, and again on
 2026-08-24, when this engine was restructured six times in one day. The current three-tab engine
-was re-read from the tree on 2026-09-02 — those parts are described from source, not from a live
+was re-read from the tree on 2026-09-04 — those parts are described from source, not from a live
 walk, and the stamps stay separate. Rails are pinned to `lib/sections.ts`; all 71 engine views are
 pinned to `lib/section-views.ts` and each has a canonical hash, palette entry and sweep cell.*
 
@@ -512,8 +512,8 @@ Research Setup).
 | **Universe** | Basket pricing · Positions · Families | What does a whole mutually exclusive family cost against the dollar it is certain to pay, where is the desk positioned, and how is the watched set grouped? Both directions are priced because buying every outcome needs every ask and selling needs every bid. **Families** cuts the universe by Kalshi's own `category`, read from `GET /series/{ticker}` and never inferred from a prefix. |
 | **Settlement** | Index · Formation · Pending | What does the contract actually resolve against, given it is not the price on the screen? A weather contract settles on the MEAN of a published index over a window, and the gap between that and the latest print is basis a position carries for free. **Index** draws the published series against the window it settles on; **Formation** draws the chain that produces it — stations, quality control, a published minute, a sixty-minute mean — as a pipeline rather than a table, because a table cannot show that the figure a contract settles on is four transformations away from a thermometer; and **Pending** is the trailing minutes the stations have reported and the exchange has not published, drawn with the station DISAGREEMENT as the bar, because a provisional mean built from readings 3.6° apart is a different object from the same figure built from readings that agree. Three views of Universe until 2026-08-25, and a section again under the id it was published under. |
 | **Books** | Ladder · Identity · History | What does this market look like as the exchange really publishes it? Two BID ladders and no asks; the offer ladder is IMPLIED and is the one the exchange never sends you. **Identity** makes `yes_ask + no_ask = 1 + spread` inspectable piece by piece; **History** adds an exact snapshot scrubber over the recorded book without synthesising missing observations. |
-| **Makers** | Dispersion · REST poll | What do several professionals say when the book shows one opinion, or none? **Dispersion** separates cross-maker disagreement from each maker's own width. **REST poll** keeps authentication refusal, read-and-empty and quotes-in-hand distinct; an account-membership refusal is verified access policy, not a failed gateway. |
-| **Lattice** | Survival · Mass · Moment shape · Moment support | What measure do these prices imply? Survival is the function the strikes sample, Mass is what differencing leaves, Moment shape summarizes it, and Moment support keeps the observations behind that summary inspectable. |
+| **Makers** | Dispersion · REST poll | What do several professionals say when the book shows one opinion, or none? **Dispersion** separates cross-maker disagreement from each maker's own width. **REST poll** keeps authentication refusal, read-and-empty and quotes-in-hand distinct; an account-membership refusal is verified access policy, not a failed gateway. A 429 or 5xx receives one bounded 200 ms retry, after which the exact upstream failure remains visible. |
+| **Lattice** | Survival · Mass · Moment shape · Moment support | What measure do these prices imply? Numeric strike ladders produce survival, adjacent mass and moments. Named mutually exclusive outcomes have live categorical probabilities but no numerical mean; unrelated binaries have independent YES probabilities and no fabricated joint total. Moment support keeps the exact observations and the reason for any withheld aggregate inspectable. |
 | **Stake** | Plan · Capital · Method · All outcomes | What would it be right to bet against that measure? The bankroll vault exposes plan, capital split, growth method and every ranked or declined outcome. Worst-case wealth stays beside growth because log-optimal is not riskless. It sizes and sends nothing. |
 | **Fees** | Worked example · Cost shape · Ablation · Replay table | What does a real position pay, and does the cost model change the answer? The defaults reproduce Kalshi's documented case. The receipt stack makes every component selectable; the counterfactual switchboard replays the tape under four configurations, including `no_fees`; Replay table preserves that run row by row. `/replay?limit=20000` is gated on the two replay views and warmed by nothing. |
 | **Shell** | Namespace · Routing · Browse | Where does a market live, how is the selected shard routed, and what has actually been derived about it? The filesystem lens maps directories and lets a reader browse the listing and live tape. Missing path, unavailable reading, empty directory and unreachable venue remain four distinct outcomes. |
@@ -563,7 +563,7 @@ section's own header admitted. Every section on this rail is now one question.
 
 | Section | Views | What it answers |
 |---|---|---|
-| **Coherence test** | Verdict · Proof · Checks · Prices · Sizes | Do these prices admit a probability measure? Almost always yes — and that is the claim, not a disappointment. Proof preserves the certificate, Checks shows each constraint, and Prices/Sizes keep every input and executable quantity inspectable. |
+| **Coherence test** | Verdict · Proof · Checks · Prices · Sizes | Do these prices admit a probability measure? Almost always yes — and that is the claim, not a disappointment. Structural families use the joint linear programme; a quoted family without cross-market relations uses executable book bounds for every market (ask ≥ 0, bid ≤ 1, ask − bid ≥ 0) rather than becoming “not testable”. Proof preserves the certificate, Checks shows each constraint, and Prices/Sizes keep every input and executable quantity inspectable. |
 | **Basket** | Cover · Basket · Size | The portfolio the test hands back, drawn state by state — the constructive half of the theorem and the reason this engine tests for coherence instead of scanning for arbitrage shapes. Where no measure fits a family's prices, duality returns the basket that wins in every state, so the certificate of infeasibility IS the trade. Every leg carries all three fee components, because a gross edge is not an answer. |
 | **Parlays** | Ranges · Test quote · Leg prices · Test legs · Checks | The same test run on venue-listed parlays: two probabilities define a Fréchet range rather than a unique conjunction price. The test quote and leg views keep the exact proposed portfolio inspectable; Checks shows which bound decides. |
 | **Coherence index** | By poll · By family | How far do these prices sit from admitting a probability, right now? The Scorecard scores a SETTLED corpus against what paid; this measures the L1 distance from the quoted price vector to the nearest one summing to a dollar, on every poll, on markets that have not settled and may never. One is a verdict about the past and the other a time series about the present — they shared a section for a day on the argument that both ask "were these prices right", which is a question rather than a subject. The score trend moved to Corpus on 2026-08-25 for the same reason in reverse: it reads the settled history, so it belongs beside the settled corpus rather than beside a live distance. Unmeasurable readings are drawn as gaps, never dropped or zeroed, because a line closing over them would claim continuity nobody observed. |
@@ -587,8 +587,9 @@ keeps a quantitative, pinnable lifecycle instead of degrading into an empty
 white panel.
 
 **Reads are gated on the open section *and*, where a view alone is expensive, on the open view.**
-The universe read asks for `?max_events=2` because four events took 10.1 s before the reads were
-parallelised and 6.4 s after, against `callGateway`'s eight-second deadline; it is shared by
+The universe read asks for `?max_events=6&family_limit=200`; in broad-live mode one nested event
+page discovers up to 200 open families and chunked bulk calls hydrate all their active markets.
+The bounded explicit-series path remains available. The read is shared by
 Universe, Lattice and the Coherence test — across both tabs — so it is deliberately *not* gated on the
 sub-view. The request-for-quote route is a signed private-channel call on a 25 s budget and must
 never be in flight beside the public book read; that used to be a `booksView` state in the
@@ -614,6 +615,12 @@ the five-a-second the gateway budgets itself. The rail also warms the section a 
 crossing. A warmed payload paints only while it is under 100 s old — past that a cold section
 shows its loading line again rather than a figure from a different market — and the section's own
 poll is `immediate`, so a live answer replaces the warm one within a tick either way.
+
+The section poll and gateway warm loop both run every 20 seconds while the
+configured engine is active. Durable book-tape recording is separate and uses
+`COHERENCE_POLL_S`; setting that to zero stops recording, not the on-demand live
+read. Every payload exposes age or a typed failure, so the UI never labels a
+cached, timed-out or upstream-refused observation as current.
 
 **The moment worth showing (Markets):** Books → Ladder — the implied offer ladder drawn as a
 ghost one spread away from the YES bids. It is the ladder you would trade against and the one the exchange
@@ -886,8 +893,10 @@ rule is present and correct in source and cannot prove where Chromium placed the
 ([`TESTING.md` §"No DOM, and therefore no layout"](../testing/TESTING.md)). The browser-backed
 `npm run audit:layout -- --url=http://localhost:3000` closes that boundary by measuring local
 ownership, named scrollports, sibling intersections, sticky occlusion and framework errors over
-109 addressable states at eight viewport sizes. The 2026-08-29 release sweep passed all
-**872/872** combinations with zero geometry failures and zero console errors. A source-only green
+the addressable state registry and configured viewport set. The 2026-09-04 requested sweep passed
+**360/360** combinations — all 120 states at 320×844, 390×844 and 1280×900 — with zero geometry
+failures and zero console errors. The 2026-08-29 872/872 eight-viewport result remains a historical
+measurement over its older inventory. A source-only green
 run is never reported as a geometry pass. The manual pass still checks meaning — linked exact readouts, full long labels,
 focus order, motion and the absence of colour-only state — because collision-free pixels do not
 prove that an instrument is understandable.*

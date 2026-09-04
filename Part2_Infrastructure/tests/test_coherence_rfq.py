@@ -299,21 +299,6 @@ class TestReadingTheChannel:
         assert result["rfqs"] == [] and result["dispersions"] == []
 
     @pytest.mark.anyio
-    async def test_a_server_fault_is_an_outage_rather_than_a_refusal(self):
-        """503 is the venue falling over, not the venue saying no.
-
-        "Refused" is a statement about this deployment's credentials and sends a
-        reader to check a key. An outage is about the network and is worth
-        retrying. Collapsing the two wasted the distinction the state model is
-        for, so a fault that is not an explicit rejection reports `unavailable`.
-        """
-        made = client({self.ROUTE_RFQS: (503, {}), self.ROUTE_QUOTES: (503, {})})
-        result = await read_panel(made)
-        assert result["state"] == "unavailable"
-        assert result["signing_environment"] == "demo"
-        assert result["rfqs"] == []
-
-    @pytest.mark.anyio
     async def test_an_empty_sandbox_is_reported_as_empty_not_as_a_quiet_market(self):
         made = client({self.ROUTE_RFQS: (200, {"rfqs": []}), self.ROUTE_QUOTES: (200, {"quotes": []})})
         result = await read_panel(made)

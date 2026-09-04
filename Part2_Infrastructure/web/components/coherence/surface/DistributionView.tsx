@@ -96,6 +96,19 @@ function moments(surface: CoherenceSurface): Fact[] {
   ];
 }
 
+function categoricalReadings(surface: CoherenceSurface): Fact[] {
+  const values = surface.bins.map((bin) => Number(bin.mass)).filter(Number.isFinite);
+  const peak = values.length ? Math.max(...values) : null;
+  const named = surface.engine === "named";
+  return [
+    row("Markets read", String(surface.bins.length), "Every bar retains the venue's named outcome; no numeric position is invented."),
+    row("Highest YES probability", peak == null ? "—" : decimalLabel(String(peak), 4), "The largest live quoted probability in this family."),
+    row("Family total", named ? decimalLabel(surface.total_mass, 4) : "Not additive.", named
+      ? "The sum across the mutually exclusive named outcomes on this read."
+      : "These are separate binary markets; the venue does not assert that exactly one must resolve YES."),
+  ];
+}
+
 /**
  * The three readings the mass reservoir draws, split off the moments table on the
  * fourth pass of 2026-08-24.
@@ -129,6 +142,7 @@ export default function DistributionView({ surface, view }: { surface: Coherence
     return <PmfChart key={surface.event_ticker} surface={surface} />;
   }
   if (view === "moments") {
+    const categorical = surface.engine === "named" || surface.engine === "independent";
     return (
       <>
         {/* THE SHAPE FIRST, since 2026-08-25 and "add more diagrams and
@@ -148,25 +162,27 @@ export default function DistributionView({ surface, view }: { surface: Coherence
             alone carries is the exact value and the term it belongs to, which is
             what a reader opens a fold for. */}
         <details className="disclosure">
-          <summary>The four moments as figures, and what each term means</summary>
-          <FactTable caption="The moments of the implied distribution" facts={moments(surface)} />
+          <summary>{categorical ? "The categorical readings behind this shape" : "The four moments as figures, and what each term means"}</summary>
+          <FactTable caption={categorical ? "Live categorical probability readings" : "The moments of the implied distribution"} facts={categorical ? categoricalReadings(surface) : moments(surface)} />
           <p className="coh-surface__moments-note">
-            <span aria-hidden="true">◌</span> Every moment above is {surface.moments_note}. &ldquo;Not
-            computed.&rdquo; means the mass leaves it undefined — missing, never zero.
+            <span aria-hidden="true">◌</span> {categorical
+              ? `${surface.moments_note}. The probability bars above are the applicable live shape.`
+              : <>Every moment above is {surface.moments_note}. &ldquo;Not computed.&rdquo; means the mass leaves it undefined — missing, never zero.</>}
           </p>
         </details>
       </>
     );
   }
   if (view === "support") {
+    const categorical = surface.engine === "named" || surface.engine === "independent";
     return (
       <>
         <MassReservoir key={`support:${surface.event_ticker}`} surface={surface} />
         <details className="disclosure">
-          <summary>The three support readings, and what each excludes</summary>
+          <summary>{categorical ? "Why no numeric support interval is shown" : "The three support readings, and what each excludes"}</summary>
           <FactTable
-            caption="The tails sit outside the bounded moments; the total is what every bin sums to."
-            facts={massReadings(surface)}
+            caption={categorical ? "The live categorical readings that remain available" : "The tails sit outside the bounded moments; the total is what every bin sums to."}
+            facts={categorical ? categoricalReadings(surface) : massReadings(surface)}
           />
         </details>
       </>

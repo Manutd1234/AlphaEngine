@@ -206,3 +206,26 @@ def test_the_closed_form_fallback_keeps_actual_observation_counts_and_rows(monke
     assert evidence.solver.verdict == certificate.verdict
     assert evidence.constraints.tested == 2
     assert len(evidence.constraints.rows) == 2
+
+
+@linprog_required
+def test_a_live_family_without_joint_structure_still_tests_each_executable_book():
+    observed = observation(no_bid="0.60")
+    observed.event = Event(
+        event_ticker=observed.event.event_ticker,
+        series_ticker=observed.event.series_ticker,
+        title=observed.event.title,
+        mutually_exclusive=False,
+        exchange_index=observed.event.exchange_index,
+        settlement_sources=observed.event.settlement_sources,
+        markets=observed.event.markets,
+    )
+
+    certificate = certify(observed, SCHEDULE)
+
+    assert certificate.verdict == "coherent"
+    assert certificate.engine == "closed_form"
+    assert certificate.rows_tested == 9
+    assert certificate.proof_evidence is not None
+    assert {row.family for row in certificate.proof_evidence.constraints.rows} == {"book"}
+    assert "no state-space relation" in certificate.notes[-1]

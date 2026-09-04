@@ -2,7 +2,7 @@
 
 Everything you need to get AlphaEngine running, in the order you need it.
 `README.md` explains what it is and why; this file only gets it on screen.
-**Local setup, production connectivity and CI last verified: 2026-09-02.** The
+**Local setup, production connectivity and CI last verified: 2026-09-04.** The
 local supervisor, frontend-only command, production gateway proxy, Oracle,
 Supabase and Neo4j paths were rechecked. Current topology, dependency and
 contract facts live in
@@ -253,17 +253,17 @@ ALPHAENGINE_GATEWAY_TOKEN=<the same value>
 
 ## Verify it
 
-The counts below are what the runners printed on 2026-09-02. Re-run them rather
+The counts below are what the runners printed on 2026-09-04. Re-run them rather
 than trusting the numbers:
 a figure nobody re-measured is not a measurement.
 
 ```bash
-# Gateway suite — 3,495 passed, 1 skipped in the 2026-09-02 local refresh.
+# Gateway suite — 3,507 passed, 1 skipped in the 2026-09-04 local refresh.
 # Native core built, Python 3.12.14. Read skip REASONS with -rs.
 
 cd Part2_Infrastructure && venv/bin/python -m pytest
 
-# Web suite — 6,840 passed, 6 skipped, across 1,461 suites; no browser
+# Web suite — 6,850 passed, 6 skipped, across 1,464 suites; no browser
 cd Part2_Infrastructure/web && npm test
 
 # Research service — 24 passed
@@ -312,7 +312,7 @@ directory gets the seeded shape with nothing exported. Force the CI shape with
 `RERANK_TEST_MODEL_PATH= venv/bin/python -m pytest`. Only the **web** line of
 `web/lib/test-counts.generated.ts` is checked in CI
 (`node scripts/check-test-counts.mjs web <log>`), so its gateway line is a dated
-record rather than a gate. The current generated record is dated 2026-09-02;
+record rather than a gate. The current generated record is dated 2026-09-04;
 use `npm run counts:refresh` after the suites change and inspect `pytest -rs`
 before treating a changed skip count as drift.
 
@@ -330,15 +330,15 @@ which is in `requirements-dev.txt` only.
    64-hex literal in `web/lib/gateway-openapi-digest.generated.ts`. It prints
    `Gateway OpenAPI digest verified: <hash>` on a match and exits 1 with
    `Gateway OpenAPI digest is stale` on drift — a contract assertion between two
-   separately deployed units, not a broken build. Verified on 2026-09-02 at
-   `6f50ebed…`.
+   separately deployed units, not a broken build. Verified on 2026-09-04 at
+   `fde95f8b…`.
 2. The second refuses to build if `web/lib/repository-manifest.generated.json`
    no longer lists the same files `git ls-files --cached --others
    --exclude-standard` does — **only the file list**, because `generatedAt` and
    `commit` change every commit and gating on those would fail every push. It
    skips cleanly when git is unavailable, so a tarball build still works. Expect
    it to be red whenever a file has landed since the last refresh. The
-   2026-09-02 catalogue contains 2,424 paths and passed its file-list gate;
+   2026-09-04 catalogue contains 2,432 paths and passed its file-list gate;
    the fix for later drift is `npm run catalog:refresh`, never an edit to the
    JSON.
 
@@ -481,12 +481,17 @@ capability and nothing else changes; each one you leave unset produces an honest
 - **The engine selectors:** `DECISION_CORE` (`auto` | `native` | `python`) and
   `ML_ENGINE` (`auto` | `sklearn` | `numpy`). Both are validated at import and
   both publish which engine is live rather than degrading quietly.
-- **The Coherence recorder:** `COHERENCE_SERIES` **and** `COHERENCE_POLL_S` —
-  the tape stays off unless **both** are set (`POLL_SECONDS = 0` keeps it off),
-  plus `COHERENCE_DB_PATH`, `COHERENCE_MAX_EVENTS` (2),
+- **The Coherence recorder:** `COHERENCE_POLL_S` plus either an explicit
+  `COHERENCE_SERIES` watchlist or `COHERENCE_LIVE_FAMILIES` (1–200) — the tape
+  stays off unless a cadence and family source are both set (`POLL_SECONDS = 0`
+  keeps it off). The browser requests up to 200 broad-live families and polls
+  active views every 20 seconds independently of recorder retention. Other
+  controls are `COHERENCE_DB_PATH`, `COHERENCE_MAX_EVENTS` (2),
   `COHERENCE_READ_TOKENS_PER_S`, `COHERENCE_REQUEST_TIMEOUT_S` and the fee
   knobs. The exchange's public endpoints need no key; `KALSHI_DEMO_KEY_ID` and
   `KALSHI_DEMO_PRIVATE_KEY_PATH` are only for the signed private-channel reads.
+  RFQ 429/5xx responses receive one bounded 200 ms retry; a persistent venue
+  failure remains visible and is not converted into an empty response.
   A local relative key path resolves from `Part2_Infrastructure`. For the OCI
   deployment, add the repository secrets `KALSHI_DEMO_KEY_ID` and
   `KALSHI_DEMO_PRIVATE_KEY_PEM_B64` (the PEM file base64-encoded as one line);

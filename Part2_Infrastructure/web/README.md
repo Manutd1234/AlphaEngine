@@ -1,6 +1,6 @@
 # AlphaEngine — Integrated Investment Infrastructure (Vercel)
 
-**Last verified: 2026-09-02.** Local runtime commands, the 71-view frontend and
+**Last verified: 2026-09-04.** Local runtime commands, the 71-view frontend and
 production gateway proxies were rechecked; historical measurements retain their
 actual run dates. Locked versions and reproduction commands are centralised in the
 [current-state ledger](../../docs/CURRENT_STATE.md); dated deployment and latency
@@ -118,11 +118,11 @@ npm run dev        # gateway :8000 + workspace :3000; requires ../venv
 npm run dev:web    # frontend-only workspace; sandbox is a labelled user choice
 npm run build      # Next.js production build using the explicit webpack path
 npm run typecheck  # tsc --noEmit
-npm test           # 6,846 total: 6,840 passed, 6 skipped, 0 failed
-                   # across 1,461 suites on 2026-09-02; no network required
+npm test           # 6,856 total: 6,850 passed, 6 skipped, 0 failed
+                   # across 1,464 suites on 2026-09-04; no network required
 npm run audit:layout -- --url=http://localhost:3000
                    # browser geometry; requires a ready app and Playwright Chromium
-                   # historical 2026-08-29 run: 872/872 on the former 109-route inventory
+                   # 2026-09-04 targeted run: 360/360 (120 routes × 3 viewports)
                    # current 120-route default sweep is 960 states and needs its own run
 ```
 
@@ -341,7 +341,7 @@ gateway did not answer this poll. Both chains share `CustodyChainTrack`, so a
 step, branch, status and remedy carry one interaction grammar instead of two
 look-alike diagrams with different semantics. The 2026-08-29 snapshot contains
 76 paths and 79 HTTP operations; prebuild accepted canonical digest
-`6f50ebed6ccc76c0bc733d18ca9e8f86d8d2789f3092526076e727dba0282321`.
+`fde95f8b7452b6b9a04c06db5a3c99b645e07fdf4202a3b7e3b77e4eef343ed2`.
 
 *Topology* draws the deployment map: a runtime band, a dashed bracket forking
 from it, three deployable cards. It is DOM and CSS, not SVG — there is no SVG on
@@ -477,14 +477,21 @@ ids restored to a live rail resolve natively instead of retaining dead aliases.
 
 The instruments are data-driven and domain-specific:
 
-- **Markets** uses a family constellation, settlement board, selectable book
+- **Markets** uses a family constellation over as many as 200 live open Kalshi
+  events, settlement board, selectable book
   identity and history scrubber, lattice reservoir, bankroll vault, fee
-  counterfactual switchboard and filesystem lens. Dense selectors share roving
-  focus, arrow/Home/End navigation and atomic exact-value readouts.
+  counterfactual switchboard and filesystem lens. Numeric ladders render
+  survival/mass/moments; named outcomes render live categorical probability
+  bars, and unrelated binaries render independent YES probabilities without a
+  fabricated family total. Dense selectors share roving focus, arrow/Home/End
+  navigation and atomic exact-value readouts.
 - **Proofs** links verdict checkpoints, constraint slack, state baskets,
   Fréchet ranges, coherence polls, Murphy terms, calibration cells, corpus rows
-  and lesson guards through stable selection keys. A common coherent/zero-leg
-  result remains quantitative and pinnable rather than becoming an empty panel.
+  and lesson guards through stable selection keys. If a family has no structural
+  cross-market relation, Proofs evaluates executable bid, ask and spread bounds
+  per market; “not testable” is reserved for genuinely absent quoted inputs. A
+  common coherent/zero-leg result remains quantitative and pinnable rather than
+  becoming an empty panel.
 - **Diffusion** preserves complete source arrays while offering local lenses for
   the selected absorption line; solid-cleared, dotted-refused or all measured
   returns; statement, conference or both control ranks; dotted background,
@@ -518,10 +525,11 @@ tabs have disclosure guards, ten tabs have summary-copy guards, Markets and
 Proofs retain exact claim suites, and Diffusion has dedicated sparse-state,
 routing, figure and interaction contracts. Browser geometry is qualified
 separately with `npm run audit:layout`; a source-only test run is not a layout
-pass. The historical 2026-08-29 run passed **872/872** combinations with zero
-geometry failures and zero console errors on the former 109-route inventory; it
-does not qualify the current 120-route surface. The current default system-theme
-sweep is 960 route/viewport combinations and must be recorded separately.
+pass. The 2026-09-04 targeted run passed **360/360** combinations with zero
+geometry failures and zero console errors across the current 120-route surface
+at 320×844, 390×844 and 1280×900. The historical 2026-08-29 run remains an
+872/872 eight-viewport record on the former inventory; neither measurement is
+silently widened to viewports it did not run.
 
 ---
 
@@ -583,7 +591,7 @@ them is a **read**:
 
 | Endpoint | Returns |
 |---|---|
-| `GET /api/gateway/coherence/status` · `universe` · `books` · `certify` · `fees` · `surface` · `stake` · `combos` · `calibration` · `settlement` · `rfq` · `shell` | The watched families and their basket totals, both bid ladders with the implied offers, the coherence test and its failure certificate, the three-component cost model, the implication lattice and its implied mass, parlay bounds, settled-price calibration, and the universe as a filesystem. `rfq` is the one signed private-channel call and carries a 25-second budget |
+| `GET /api/gateway/coherence/status` · `universe` · `books` · `certify` · `fees` · `surface` · `stake` · `combos` · `calibration` · `settlement` · `rfq` · `shell` | Up to 200 current open families and their live books, basket totals where a joint total is meaningful, the coherence test and its failure certificate, the three-component cost model, numeric or categorical probability surfaces, parlay bounds, settled-price calibration, and the universe as a filesystem. Active reads poll every 20 seconds and bypass HTTP caching; returned age and failures remain visible. `rfq` is the signed private-channel call, carries a 25-second budget, and performs one bounded retry on 429/5xx rather than hiding a persistent venue outage |
 | `GET /api/gateway/coherence/index` · `episodes` · `replay` | Pricing efficiency over time, recorded episodes, and the whole tape the fee ablation runs over — the largest read on the tab, which is why the workspace issues it only on one view |
 | `GET /api/gateway/diffusion/events` · `findings` · `absorption` | The FOMC event ledger, the measured relationships (including the five `skill_*` fields of the out-of-sample verdict) and the absorption curve per stage |
 
@@ -699,7 +707,7 @@ web/
 │   ├── globals.css           design tokens (palette, light + dark)
 │   ├── login/page.tsx        optional sign-in — outside the workspace shell
 │   ├── profile/page.tsx      account and security centre — the other one
-│   └── api/                  65 route handlers (verified 2026-09-02). Re-derive:
+│   └── api/                  65 route handlers (verified 2026-09-04). Re-derive:
 │       │                     find app/api -name route.ts | wc -l
 │       ├── backtest/route.ts parameter sweep
 │       ├── depth/route.ts    live L2 books + consolidated ladder
@@ -772,8 +780,8 @@ web/
 │            alphavantage, firecrawl, openbb)
 ├── components/               SVG charts plus purpose-built quant instruments,
 │                             controls, exact inspectors and tables
-└── tests/                   489 .test.ts files; 6,846 tests across 1,461 suites
-                              (6,840 passed, 6 skipped, 0 failed on 2026-09-02), incl.
+└── tests/                   490 .test.ts files; 6,856 tests across 1,464 suites
+                              (6,850 passed, 6 skipped, 0 failed on 2026-09-04), incl.
                               cross-engine, risk-engine and gate parity, the
                               design-system ratchets (type-scale, motion, house-rules,
                               dead-css, accent-budget, null-honesty, live-motion,

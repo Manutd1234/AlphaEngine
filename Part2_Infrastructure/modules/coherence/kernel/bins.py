@@ -29,7 +29,7 @@ from modules.coherence.kernel.lattice import Node
 from modules.coherence.kernel.money import DOLLAR, one_minus
 
 Basis = Literal["mid", "ask", "bid"]
-Engine = Literal["ladder", "bucket", "named", "unavailable"]
+Engine = Literal["ladder", "bucket", "named", "independent", "unavailable"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -100,7 +100,7 @@ def _choose_basis(nodes: list[Node], books: dict[str, Book]) -> tuple[Basis | No
         covered = sum(1 for node in nodes if _reading(books.get(node.ticker), basis) is not None)
         if covered > best[1]:
             best = (basis, covered)  # type: ignore[assignment]
-    return best if best[1] >= 2 else (None, best[1])
+    return best if best[1] >= 1 else (None, best[1])
 
 
 def _probes(nodes: list[Node], books: dict[str, Book], basis: Basis) -> list[Probe]:

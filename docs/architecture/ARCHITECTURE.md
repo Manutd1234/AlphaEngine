@@ -1,6 +1,6 @@
 # AlphaEngine — system architecture
 
-**Source/worktree audited: 2026-09-02.** Every current-tree figure here was read
+**Source/worktree audited: 2026-09-04.** Every current-tree figure here was read
 off the tree on that date, with the file it came from named beside it. External
 claims cite their deployment/E2E run. Where this document and
 [`Part2_Infrastructure/README.md`](../../Part2_Infrastructure/README.md) disagree,
@@ -46,6 +46,16 @@ gateway process, and a Kalshi book recorder rides beside it writing a second,
 separate DuckDB tape. Nothing optional is load-bearing: every absent credential
 degrades to a named, reported state rather than a crash or a silent zero.
 
+The Kalshi plane has two bounded discovery modes. An explicit series watchlist
+retains the targeted path; `COHERENCE_LIVE_FAMILIES=1..200` reads one current
+open-event page and hydrates its active markets through bulk-orderbook chunks.
+Browser reads and the warm cache refresh active data every 20 seconds; durable
+tape recording has its own `COHERENCE_POLL_S` switch. Surface and proof
+semantics are independent of transport: numeric thresholds support moments,
+named outcomes support categorical probability bars, unrelated binaries remain
+independent, and a family without structural relations still receives
+executable bid/ask/spread checks rather than an automatic untestable verdict.
+
 ## Three deployment units, one audit log
 
 ```mermaid
@@ -67,7 +77,7 @@ flowchart TB
             mirror["modules/supabase_mirror.py\nbounded queue, best-effort"]
         end
         audit[("DuckDB audit log\nmodules/audit/ — authoritative,\nappend-only, Docker volume")]
-        tape[("DuckDB book tape\nmodules/coherence/fs/store.py\nOFF unless COHERENCE_POLL_S is set")]
+        tape[("DuckDB book tape\nmodules/coherence/fs/store.py\nOFF unless poll + family source are set")]
         ops[("Data-ops store\nSQLite default / Postgres opt-in\nstrict writes; diffusion ledgers too")]
     end
 
@@ -380,9 +390,10 @@ Three properties keep this plane separate from the trading ledger:
 - **Its own tape and failure contract.** `modules/coherence/fs/store.py` writes
   whole ladders to a separate DuckDB file. Sharing the audit ledger lock would
   make a recorder stall indistinguishable from an order-audit failure.
-- **Explicit opt-in recording.** The recorder declines unless both
-  `COHERENCE_SERIES` and `COHERENCE_POLL_S` are configured; `POLL_SECONDS = 0`
-  is the safe default.
+- **Explicit opt-in recording.** The recorder declines unless
+  `COHERENCE_POLL_S` plus either an explicit `COHERENCE_SERIES` watchlist or
+  `COHERENCE_LIVE_FAMILIES=1..200` is configured; `POLL_SECONDS = 0` is the safe
+  default.
 - **Typed absence.** Routes return `state` discriminators. Unconfigured,
   unavailable, empty and coherent are different answers and never collapse to
   an unexplained empty array.

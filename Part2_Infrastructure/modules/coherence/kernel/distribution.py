@@ -164,7 +164,17 @@ def _shape(
         bins = _numeric_bins(buckets, books, basis)
         detail = f"{len(bins)} bucket(s) quoted directly, no differencing needed"
     else:
-        return None
+        # The family has live prices but no venue-published joint structure.
+        # They remain useful as separate YES probabilities; they are not a PMF
+        # and must never be summed or differenced as though one outcome excludes
+        # another.
+        probes = []
+        engine = "independent"
+        bins = _named_bins(nodes, books, basis)
+        detail = (
+            f"{len(bins)} separate YES probability reading(s); the exchange publishes no "
+            "strike or mutual-exclusivity relation for this family"
+        )
 
     if skipped and engine == "ladder":
         detail += (
@@ -199,7 +209,7 @@ def build_surface(component: Component, books: dict[str, Book]) -> Surface:
     if not bins:
         return _unavailable("no market in this event carries a strike this module can place on an axis")
 
-    total = sum((item.mass for item in bins), Decimal(0))
+    total = None if engine == "independent" else sum((item.mass for item in bins), Decimal(0))
     open_low = [item for item in bins if item.low is None and item.high is not None]
     open_high = [item for item in bins if item.high is None and item.low is not None]
     tail_low = sum((item.mass for item in open_low), Decimal(0)) if open_low else None
@@ -208,6 +218,12 @@ def build_surface(component: Component, books: dict[str, Book]) -> Surface:
     if engine == "named":
         mean = variance = skewness = excess = None
         moments_note = "these outcomes are names rather than numbers, so they have no mean"
+    elif engine == "independent":
+        mean = variance = skewness = excess = None
+        moments_note = (
+            "each bar is a separate YES probability; without a published joint outcome axis, "
+            "their sum and numeric moments are undefined"
+        )
     else:
         mean, variance, skewness, excess, moments_note = _moments(bins)
         outside = (tail_low or Decimal(0)) + (tail_high or Decimal(0))

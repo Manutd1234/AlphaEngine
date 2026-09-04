@@ -1,6 +1,6 @@
 # AlphaEngine — the product guide
 
-**Last verified: 2026-09-02.** Current release counts, locked versions and the
+**Last verified: 2026-09-04.** Current release counts, locked versions and the
 commands that reproduce them live in the
 [current-state ledger](../CURRENT_STATE.md). Historical measurements below keep
 their original dates.
@@ -402,6 +402,32 @@ leaving the URL and screen in disagreement.
 | Diffusion | **Sandbox** | Half-life · Simulator · Spectrum | What changes when a reader drives the model locally, and where does it decline to return a number? |
 | Diffusion | **Findings** | Effect plot · Findings table · Instrument | What survived out of sample, and was the instrument fit to support that claim? |
 
+**What “live family” means.** With `COHERENCE_LIVE_FAMILIES` enabled, Universe
+discovers up to 200 currently open Kalshi events in one bounded venue page and
+hydrates every active market through chunked bulk-orderbook reads. The active
+Markets/Proofs views and the gateway warm cache refresh every 20 seconds. Age,
+top-of-book fallback and venue errors remain visible; a family does not turn
+green merely because a timer fired.
+
+**Why some moments are withheld.** A strike ladder has a numeric axis, so its
+mass can be differenced and its moments computed. “Who will be pope?” has named
+categories rather than numbers: the live category probabilities are meaningful,
+but their mean and variance are not. Unrelated YES/NO markets likewise render
+independent probabilities without claiming they sum to one. This is successful
+live data with a different mathematical shape, not a failed graph.
+
+**What Proofs tests when structure is absent.** Structural families retain the
+joint linear programme. A quoted family without an exchange relation now falls
+back to executable per-book constraints — ask ≥ 0, bid ≤ 1 and ask − bid ≥ 0
+for every market — so available quotes are tested rather than labelled
+untestable. A family is still honestly unavailable when no quoted side exists.
+
+Diffusion is live with respect to its persisted event/study ledger: active
+views poll the latest stored events, runs, texts, studies and coherence episodes
+every 20 seconds. It is not a tick feed and does not re-download historical FOMC
+documents on each browser poll; staging and scheduled ingestion advance the
+ledger, and typed unavailable states expose when that upstream work has not run.
+
 These are not generic dashboard charts. Markets uses keyboard-operable selection
 instruments such as the counterfactual fee switchboard, book snapshot scrubber,
 bankroll vault, filesystem lens and settlement board. Proofs links each plotted
@@ -485,8 +511,9 @@ the second means nothing. The figures above are from the run recorded on
 them as fields rather than as prose.
 
 **Read with no keys.** Every market price on Markets and Proofs comes from
-Kalshi's public endpoints. The recorder that builds the tape is off unless **both**
-`COHERENCE_SERIES` and `COHERENCE_POLL_S` are set on the gateway
+Kalshi's public endpoints. The recorder that builds the tape is off unless
+`COHERENCE_POLL_S` plus either `COHERENCE_SERIES` or
+`COHERENCE_LIVE_FAMILIES=1..200` is set on the gateway
 (`modules/coherence/tunables.py`), and when it is off the sections say what they
 would show and what has to exist first, rather than rendering an empty chart
 frame — an axis with nothing on it and an axis whose data failed to load look
@@ -671,9 +698,11 @@ and why it is not here, is argued in README
 The final verification boundary is visual. Source tests can prove that a
 control, disclosure, focus rule or responsive owner exists; they cannot prove
 where Chromium placed the pixels. `npm run audit:layout` is the browser-backed
-geometry qualification over 109 addressable states and eight viewports. The
-2026-08-29 release run crossed that boundary: **872/872** combinations passed
-with no geometry failure or console error. A source-only green run still must
+geometry qualification over the registered states and requested viewports. The
+2026-09-04 sweep crossed that boundary for all 120 states at 320×844, 390×844
+and 1280×900: **360/360** combinations passed with no geometry failure or
+console error. The 2026-08-29 872/872 eight-viewport result remains a historical
+measurement over its older route inventory. A source-only green run still must
 not be restated as a layout pass.
 
 ## Where to go next

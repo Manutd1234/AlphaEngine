@@ -1,6 +1,6 @@
 # AlphaEngine - All In One Quant Infrastructure
 
-**Last verified: 2026-09-02.** Current topology, contract, dependency and test
+**Last verified: 2026-09-04.** Current topology, contract, dependency and test
 facts are centralised in [`docs/CURRENT_STATE.md`](docs/CURRENT_STATE.md).
 Measurements taken on other hardware — production latency, deployment probes
 and historical benchmarks — keep the dates on which they were actually
@@ -32,13 +32,14 @@ Two parts, in two directories. Start with whichever question you came for.
   everything offline. `web/lib/test-counts.generated.ts` is the dated record the desk displays; CI
   checks only its **web** line, so run the suites rather than reading its gateway line.
 
-**The headline numbers, measured 2026-09-02:** **3,496 gateway + 6,846 web + 24 service tests**.
-The local gateway refresh reported 3,495 passed and 1 skipped; the web run reported
-6,840 passed, 6 skipped and 0 failed across 1,461 suites. Main CI separately ran
+**The headline numbers, measured 2026-09-04:** **3,508 gateway + 6,856 web + 24 service tests**.
+The local gateway refresh reported 3,507 passed and 1 skipped; the web run reported
+6,850 passed, 6 skipped and 0 failed across 1,464 suites. Main CI separately ran
 the network-free gateway shape plus live Oracle/Supabase and eight real cross-encoder cases. The generated display contract is
 `Part2_Infrastructure/web/lib/test-counts.generated.ts`; the ledger records the exact measurement
-boundary. The separate Playwright release audit passed **872/872 rendered geometry states**
-(109 addressable states × 8 viewports) with no layout failures or console errors. Then: 17
+boundary. The latest Playwright qualification passed **360/360 rendered geometry states**
+(120 addressable states × 320px, 390px and 1280px viewports) with no layout failures or
+console errors; the earlier eight-viewport release record remains dated 2026-08-29. Then: 17
 pre-trade gates, 15 of which any order
 can reach and 2 of which fire only for paper-equity orders, decided in **13.2 µs** p50 on the
 compiled engine against 25.3 µs on the Python reference, with the arithmetic core at 83 ns (dev Mac,
@@ -47,8 +48,8 @@ compiled engine against 25.3 µs on the Python reference, with the arithmetic co
 `/metrics` on 2026-08-17); 20/20 gate-parity scenarios bit-exact across both engines; **138 Telegram
 commands** from one generated catalogue; and **76 OpenAPI paths carrying 79 HTTP operations**
 (`tools/openapi.json`, OpenAPI 3.1.0), with the committed contract's canonical-JSON SHA-256
-re-verified on 2026-09-02 (`node web/scripts/check-gateway-openapi-digest.mjs`, digest
-`6f50ebed…`). The deployed gateway's live `/openapi.json` was last compared against that contract on
+re-verified on 2026-09-04 (`node web/scripts/check-gateway-openapi-digest.mjs`, digest
+`fde95f8b…`). The deployed gateway's live `/openapi.json` was last compared against that contract on
 2026-08-17 and has not been re-probed since; that comparison needs the running host, so it is not
 part of the offline verify block.
 
@@ -114,7 +115,7 @@ the number, which moves. The table above explains *why* each path is where it is
 ```
 
 The volatile file count lives in the generated catalogue, not this prose. On
-2026-09-02 it contained 2,424 paths. **The gate, not a copied number, is the
+2026-09-04 it contained 2,432 paths. **The gate, not a copied number, is the
 thing to trust:** `npm run build` refuses to start until
 `web/lib/repository-manifest.generated.json` lists the same files `git ls-files` does, so a stale
 count is caught at `prebuild` rather than believed.
@@ -234,6 +235,18 @@ consumed by routing, the command palette and the browser sweep.
 The stable tab ids are `markets`, `coherence` and `diffusion`; older
 `#coherence/<section>` links therefore continue to resolve after the display
 label changed to Proofs.
+
+The broad-live path reads up to **200 currently open Kalshi event families** in
+one bounded page and hydrates their markets with chunked bulk-orderbook calls.
+Named categorical outcomes render their separate live probabilities but do not
+claim a numerical mean; unrelated YES/NO contracts use an `independent`
+surface for the same reason. Proofs can still test those families: when there
+is no cross-market structural relation it checks each quoted bid, ask and
+spread against executable book bounds instead of mislabelling the family
+untestable. The browser polls active reads every 20 seconds and the gateway warm
+loop refreshes the configured universe on the same cadence; age and upstream
+refusals remain visible because “live” cannot mean inventing data when the venue
+does not answer.
 
 **One result on Proofs is a null, and it is stated as one.** The Information
 Diffusion study asks whether the text of an FOMC statement predicts how fast the
@@ -437,19 +450,19 @@ From a tree that is already set up:
 
 ```bash
 cd Part2_Infrastructure
-venv/bin/python -m pytest                            # 3,495 passed, 1 skipped; 3,496 total in the 2026-09-02 local shape
+venv/bin/python -m pytest                            # 3,507 passed, 1 skipped; 3,508 total in the 2026-09-04 local shape
 venv/bin/python tools/synthetic_probe.py             # book → cost → risk gate → audit; 6/6 steps
-(cd web && npm test)                                 # 6,840 passed, 6 skipped; 1,461 suites
+(cd web && npm test)                                 # 6,850 passed, 6 skipped; 1,464 suites
 (cd OpenBB_Service && ../venv/bin/python -m pytest)  # 24 passed
 ```
 
 Those commands *are* the source of the three numbers — each figure is the count
-its own runner printed on 2026-09-02 (`pytest`'s summary line; `node --test`'s
+its own runner printed on 2026-09-04 (`pytest`'s summary line; `node --test`'s
 `ℹ pass`). The desk displays them from `web/lib/test-counts.generated.ts`, which
 `npm run counts:refresh` regenerates. **Read that file carefully even when it is
 fresh:** CI checks only its **web** line, via
 `node scripts/check-test-counts.mjs web <log>`, so the gateway line in it is a
-dated record and not a gate. The 2026-09-02 generator run used the repository's
+dated record and not a gate. The 2026-09-04 generator run used the repository's
 current local verification environment; run `pytest -rs` to read the name and
 reason of any environment-dependent skip instead of inferring it from a stale
 historical total.
@@ -513,7 +526,7 @@ Described one line each, and indexed in full — with what each is *for* — in
 | [`docs/architecture/LATENCY_BUDGET.md`](docs/architecture/LATENCY_BUDGET.md) | Every latency number the desk claims, with the method and the machine stated. |
 | [`docs/architecture/latency-bench.generated.json`](docs/architecture/latency-bench.generated.json) | The generated bench data behind that budget's §2.1 table. Regenerated, never edited. |
 | [`docs/architecture/DATA_OPS_BACKEND.md`](docs/architecture/DATA_OPS_BACKEND.md) | The four operational tables and four Diffusion ledgers the gateway must not forget across a restart, plus the exact SQLite/Postgres compatibility boundary. |
-| [`docs/CURRENT_STATE.md`](docs/CURRENT_STATE.md) | The 2026-09-02 release ledger for topology, versions, contracts, generated artefacts, deployments and test evidence. |
+| [`docs/CURRENT_STATE.md`](docs/CURRENT_STATE.md) | The 2026-09-04 release ledger for topology, versions, contracts, generated artefacts, deployments and test evidence. |
 | [`docs/engineering/CODING_STANDARDS.md`](docs/engineering/CODING_STANDARDS.md) | The house rules, almost every one enforced by a named test rather than by review. |
 | [`docs/engineering/TLS_FLIP.md`](docs/engineering/TLS_FLIP.md) | Moving the web-to-gateway hop to HTTPS behind a pinned internal CA, and why pinning beats public PKI for one client. |
 | [`docs/planning/PRD.md`](docs/planning/PRD.md) | The enterprise RAG requirement and the delivery record: built, substituted with an argument, or NOT BUILT with the reason. |

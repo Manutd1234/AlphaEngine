@@ -5,7 +5,7 @@ languages, the backend, the frontend, every datastore actually in use, the
 machine-learning surface, the retrieval stack, the optional-extras pattern, and
 the CI/CD that gates all of it. Current versions, paths, counts and constants
 below were audited from this worktree or a local command's output on
-**2026-09-02**: pins from
+**2026-09-04**: pins from
 [`requirements*.txt`](../../Part2_Infrastructure/) and
 [`OpenBB_Service/pyproject.toml`](../../Part2_Infrastructure/OpenBB_Service/pyproject.toml),
 locked versions from `web/package-lock.json`, installed versions from the
@@ -209,6 +209,14 @@ navigation. Small persistent choices remain native button groups with
 twenty-token capital vault from becoming twenty tab stops without inventing a
 custom interaction for every figure.
 
+The Lattice chooses its renderer from the family axis rather than forcing every
+payload through one chart. Numeric thresholds use survival/mass/moment figures;
+named outcomes and unrelated binaries use
+`CategoricalProbabilityBars.tsx`, preserving live probabilities while
+withholding meaningless numeric moments or joint totals. Proofs follows the
+same boundary: structural relations use the LP, while otherwise-valid books use
+per-market bid/ask/spread constraints.
+
 That structure is also what makes the read budget affordable: polls are gated on
 `active`, on the open section, and — where a view alone is expensive — on the
 open view. The signed RFQ channel is isolated in Makers rather than fired beside
@@ -238,7 +246,7 @@ absence is a designed state rather than an exception.
 flowchart TD
     WEB["Next.js workspace — web/<br/>65 same-origin API route handlers"]
     GW["FastAPI risk gateway — main.py"]
-    REC["Kalshi recorder — modules/coherence/recorder.py<br/>off unless COHERENCE_SERIES + COHERENCE_POLL_S"]
+    REC["Kalshi recorder — modules/coherence/recorder.py<br/>off unless poll + explicit or broad-live family source"]
     OBB["OpenBB service — OpenBB_Service/app.py<br/>stateless, no store"]
     DUCK[("DuckDB audit log<br/>modules/audit — AUTHORITATIVE")]
     SQ[("SQLite data-ops ledger<br/>modules/data_ops_store.py")]
@@ -354,11 +362,13 @@ would make a recorder stall look like an audit failure and vice versa.
 *When it is absent or locked.* A **reported state, never a fallback** — the
 opposite of `AuditStore`'s choice, and argued: "a second store quietly
 recording to a different file would split the tape in two and neither half
-would be complete." The recorder is also **off by default**: it needs both
-`COHERENCE_SERIES` and `COHERENCE_POLL_S` set, and `POLL_SECONDS = 0` keeps it
-off. `MAX_EVENTS_PER_SERIES = 2` bounds the tape, because KXBTCD alone carries
-three open events totalling 318 markets and recording all of them every
-twenty-six seconds writes about 1.2 GB a day.
+would be complete." The recorder is also **off by default**: it needs
+`COHERENCE_POLL_S` plus either `COHERENCE_SERIES` or
+`COHERENCE_LIVE_FAMILIES=1..200`, and `POLL_SECONDS = 0` keeps it off. Explicit
+series retain the per-series event bound. Broad mode bounds discovery to one
+nested event page, then hydrates active books in 100-ticker chunks with at most
+three reads in flight; a failed depth chunk is retained as qualified live
+top-of-book rather than silently dropped.
 
 ### 4. Supabase Postgres + pgvector — authoritative for the research corpus
 

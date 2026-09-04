@@ -1,6 +1,6 @@
 # Latency budget
 
-**Last verified: 2026-08-29.** Code paths and mechanisms were re-checked;
+**Last verified: 2026-09-04.** Code paths and mechanisms were re-checked;
 **no figure below was re-measured on that date**. This pass verified that the code each
 number describes still exists at the path it is cited at, and stamped every
 number with the day it was taken. A latency document that quietly refreshes its
@@ -866,7 +866,7 @@ useful their addressable view.** `COHERENCE_POLL_MS` is 20 s:
 | Read | Gated on | Why |
 |---|---|---|
 | `/coherence/status` | active Markets or Proofs; also Diffusion `episodes` | cheap engine state used by the visible chrome or episode explanation |
-| `/coherence/universe?max_events=2` | Markets section ∈ {`universe`, `lattice`, `stake`} or Proofs section ∈ {`certificate`, `portfolio`} | one URL-keyed cache serves five sections. The historical four-event readings remain **10.1 s** before parallelism and **6.4 s** after; the bounded two-event request keeps the declared headroom |
+| `/coherence/universe?max_events=6&family_limit=200` | Markets section ∈ {`universe`, `lattice`, `stake`} or Proofs section ∈ {`certificate`, `portfolio`} | one URL-keyed cache serves five sections. Broad-live mode bounds discovery to one nested event page, bulk books to 100 tickers per request and concurrency to three; the existing 25 s server / 28 s browser deadlines remain the guard. The historical 10.1 s and 6.4 s explicit-series readings are retained as history, not presented as a measurement of the new broad path |
 | `/coherence/books` and `/books/history` | Markets `books`; history additionally requires the History view and a selected ticker | the public current book is section-level, while a tape history nobody opened is not fetched |
 | `/coherence/rfq` | Markets `dispersion` only | signed, slow, and deliberately not warmed on deployments that will answer unsigned |
 | `/coherence/fees`, `/fees/curve`, `/replay?limit=20000` | Markets `fees`; curve only on Cost shape, replay only on Ablation or Replay table | the base fee receipt is visible on every view; the 99-point curve and largest tape read are not |

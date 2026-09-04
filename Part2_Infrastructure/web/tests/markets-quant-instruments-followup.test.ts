@@ -336,7 +336,8 @@ describe("targeted Markets views use exact interactive instruments instead of or
     assert.match(latticeMoments, /const scenarioValues = \[mean, sd, skew, kurt\]/);
     assert.match(latticeMoments, /JSON\.stringify\(\[bin\.label, bin\.representative\]\)/);
     assert.match(latticeMoments, /const transferReading = tilt === 0[\s\S]*?moved === 0[\s\S]*?less than one centicent/);
-    assert.match(latticeMoments, /named \? "Named outcomes do not define a numeric profile"/);
+    assert.match(latticeMoments, /surface\.engine === "named" \|\| surface\.engine === "independent"/);
+    assert.match(latticeMoments, /<CategoricalProbabilityBars surface=\{surface\} mode="concentration" \/>/);
     assert.match(latticeMoments, /<div className=\{styles\.momentReadout\}>/);
     assert.doesNotMatch(latticeMoments, /<output className=\{styles\.momentReadout\}/,
       "each moment-slider step should not reannounce formulas and recorded context");
@@ -351,8 +352,7 @@ describe("targeted Markets views use exact interactive instruments instead of or
   });
 
   it("keeps missing tail readings out of the bounded-interior moment support", () => {
-    assert.match(massReservoir, /if \(surface\.engine === "named"\)[\s\S]*?Named outcomes have no ordered numeric axis[\s\S]*?No support interval is invented/,
-      "the named-outcome view must explain why numeric moment support is not applicable");
+    assert.match(massReservoir, /if \(surface\.engine === "named" \|\| surface\.engine === "independent"\)[\s\S]*?Categorical outcomes have no ordered numeric axis[\s\S]*?No support interval is invented/);
     assert.match(massReservoir, /const hasLowTail = surface\.bins\.some\(\(bin\) => bin\.low == null && bin\.high != null\)/);
     assert.match(massReservoir, /const lowCc = hasLowTail \? toCenticents\(surface\.tail_mass_low\) : 0/);
     assert.match(massReservoir, /const boundedBins = surface\.bins\.filter\(\(bin\) => bin\.representative != null\)/);

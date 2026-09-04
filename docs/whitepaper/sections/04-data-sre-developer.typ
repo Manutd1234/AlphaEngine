@@ -1148,11 +1148,14 @@ regenerates them automatically, because running three suites inside a production
 build would make every deploy pay for them --- so the header names the date each
 figure was printed, and the desk renders that date beside the number.
 
-The separate rendered release qualification was also executed on 2026-08-29:
-#measured[872 of 872 geometry states passed][`web/scripts/engine-layout-audit.mjs`],
-covering 109 addressable workspace states at eight responsive viewports with no
-geometry failure and no console error. Typed gateway-unavailable responses were
-recorded separately rather than mistaken for successful live reads.
+The rendered qualification was repeated on 2026-09-04:
+#measured[360 of 360 geometry states passed][`web/scripts/engine-layout-audit.mjs`],
+covering all 120 current workspace states at 320 by 844, 390 by 844 and 1280 by
+900 with no geometry failure and no console error. The earlier 2026-08-29
+measurement remains 872 of 872 over its older state inventory and eight
+viewports; neither scope is widened after the fact. Typed gateway-unavailable
+responses are recorded separately rather than mistaken for successful live
+reads.
 
 This is what "keeping two deployed units honest with each other" means in
 practice. The web tier and the gateway are separate deployments on separate

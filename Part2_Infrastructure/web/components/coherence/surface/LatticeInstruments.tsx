@@ -7,6 +7,7 @@ import { fromCenticents, priceLabel, sumPrices, toCenticents } from "@/lib/coher
 import type { CoherenceSurface } from "@/lib/coherence/types-lab";
 import { fmt } from "@/lib/format";
 import { useRovingListbox } from "../use-stable-selection-key";
+import CategoricalProbabilityBars from "./CategoricalProbabilityBars";
 
 import styles from "./LatticeInstruments.module.css";
 
@@ -35,6 +36,9 @@ export function LatticeMass({ surface }: { surface: CoherenceSurface }) {
     setSelectedKey(key);
   };
   if (!active) return <p className={styles.empty}>◌ No implied mass was returned.</p>;
+  if (surface.engine === "independent") {
+    return <CategoricalProbabilityBars surface={surface} mode="probability" />;
+  }
   const neighbourIndex = selected < bins.length - 1 ? selected + 1 : Math.max(0, selected - 1);
   const neighbour = bins[neighbourIndex];
   const maxShiftCc = active.cc == null || active.cc <= 0 || neighbour?.cc == null || neighbourIndex === selected ? 0 : Math.floor(active.cc * 0.25);
@@ -163,17 +167,18 @@ export function LatticeMoments({ surface }: { surface: CoherenceSurface }) {
   const [selectedKey, setSelectedKey, optionProps] = useRovingListbox(keys);
   const selected = Math.max(0, keys.indexOf(selectedKey ?? ""));
   const active = moments[selected];
+  const categorical = surface.engine === "named" || surface.engine === "independent";
+  if (categorical && surface.bins.length) {
+    return <CategoricalProbabilityBars surface={surface} mode="concentration" />;
+  }
   if (points.length < 2) {
-    const named = surface.engine === "named";
     const reason = surface.moments_note
-      || (named
-        ? "These outcomes are names rather than numbers, so they have no mean or numeric moment axis."
-        : "Fewer than two positive bounded bins sit on a numeric axis, so no moment shape can be simulated.");
+      || "Fewer than two positive bounded bins sit on a numeric axis, so no moment shape can be simulated.";
     return (
-      <figure className={styles.instrument} aria-label={named ? "Named outcomes have no numeric moment shape" : "No numeric moment shape is available"}>
+      <figure className={styles.instrument} aria-label="No numeric moment shape is available">
         <figcaption className={styles.head}>
-          <span><small>Moment shape simulator</small>{named ? "Named outcomes do not define a numeric profile" : "Not enough bounded mass sits on a numeric axis"}</span>
-          <strong>{named ? "named axis" : `${points.length} usable bins`}</strong>
+          <span><small>Moment shape simulator</small>Not enough bounded mass sits on a numeric axis</span>
+          <strong>{points.length} usable bins</strong>
         </figcaption>
         <p className={styles.empty}>◌ {reason}</p>
         {surface.detail && surface.detail !== reason ? (
@@ -265,16 +270,16 @@ export function MassReservoir({ surface }: { surface: CoherenceSurface }) {
   const chamberKeys = ["low", "interior", "high"];
   const [selectedKey, setSelectedKey, optionProps] = useRovingListbox(chamberKeys, "interior");
   const selected = Math.max(0, chamberKeys.indexOf(selectedKey ?? ""));
-  if (surface.engine === "named") {
+  if (surface.engine === "named" || surface.engine === "independent") {
     return (
-      <figure className={styles.instrument} aria-label="Moment support is not applicable to named outcomes">
+      <figure className={styles.instrument} aria-label="Moment support is not applicable to categorical outcomes">
         <figcaption className={styles.head}>
-          <span><small>Moment support</small>Named outcomes have no ordered numeric axis</span>
+          <span><small>Moment support</small>Categorical outcomes have no ordered numeric axis</span>
           <strong>Not applicable</strong>
         </figcaption>
         <p className="coh-figure__missing">
           <span aria-hidden="true">◌</span>
-          <span>Open tails, bounded representatives, and numeric moments require an ordered strike axis. No support interval is invented for named outcomes.</span>
+          <span>Open tails, bounded representatives, and numeric moments require an ordered strike axis. No support interval is invented for categorical outcomes.</span>
         </p>
       </figure>
     );

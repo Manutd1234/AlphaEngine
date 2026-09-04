@@ -1,6 +1,6 @@
 # AlphaEngine operations runbook
 
-**Procedure audit: 2026-09-02. TLS deployment state: 2026-09-02.** Procedures
+**Procedure audit: 2026-09-04. TLS deployment state: 2026-09-02.** Procedures
 and paths were audited against the single application-context runtime. The TLS
 endpoint and Vercel Production settings have the later observation recorded in
 the deployment section below; other external and latency readings retain their
@@ -248,6 +248,34 @@ credential (`web:token`), not a person. What to do:
    an operator outage on it (Reliability → Remediation) until it recovers.
 4. If the rule is too sensitive for a vendor's normal behaviour, raise the
    threshold in the environment rather than muting the channel.
+
+---
+
+## Kalshi families stale, missing or untestable
+
+1. Read `GET /api/coherence/status` and `GET
+   /api/coherence/universe?family_limit=200`. “Fresh” means the warm snapshot is
+   current; it does not mean every optional provider has been called. Confirm
+   `observed_age_s`, `state`, `notes` and the returned family count before
+   restarting anything.
+2. For broad live coverage set `COHERENCE_LIVE_FAMILIES` between 1 and 200. The
+   browser and warm loop refresh active reads every 20 seconds. Durable history
+   is separate: set `COHERENCE_POLL_S` to a positive interval and provide either
+   broad-live mode or `COHERENCE_SERIES`; zero deliberately leaves the recorder
+   off.
+3. A family with named outcomes should show categorical probability bars and no
+   numeric mean. A family of unrelated binaries should show independent YES
+   probabilities and no joint total. These are successful shape classifications,
+   not missing calculations.
+4. Proofs should run structural LP constraints where metadata defines them. If
+   relations are absent but quotes exist, it should report the `book` family and
+   test three bounds per market. Only no quoted side should remain untestable;
+   inspect Prices and Checks to distinguish absent input from a failed solver.
+5. The private RFQ panel requires a valid authenticated membership and signed
+   demo or production credentials. A 429/5xx gets one 200 ms retry. If the panel
+   still reports Kalshi 503, the gateway and account-policy stages succeeded but
+   the venue's private channel did not; do not turn that upstream outage into a
+   green or empty result.
 
 ---
 

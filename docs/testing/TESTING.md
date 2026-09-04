@@ -1,7 +1,7 @@
 # Testing — the philosophy and the practice
 
 *Current runners, commands and test topology audited against the worktree on
-**2 September 2026**. Live release evidence is identified by workflow run;
+**4 September 2026**. Live release evidence is identified by workflow run;
 historical incidents and measured runs keep their original
 dates. The per-suite catalogue lives in
 [`Part2_Infrastructure/README.md` §10](../../Part2_Infrastructure/README.md#10-testing);
@@ -22,8 +22,8 @@ without it. Three primary runners:
 
 | Suite | Runner | What it guards that nothing else does |
 |---|---|---|
-| **Gateway** — `Part2_Infrastructure/tests/`, 230 `test_*.py` files | `venv/bin/python -m pytest` | The risk decision and its seventeen gates; the audit ledger's two failure contracts; the research plane's refusals; the **API contract** (`test_openapi_contract.py`) and the **container definition** (`test_container_contract.py`) by text analysis; the Python↔C++ parity fixture, bit-exact |
-| **Web** — `Part2_Infrastructure/web/tests/`, 489 `*.test.ts` files | `node --import tsx --test tests/*.test.ts` | Everything the browser re-implements, pinned to Python by fixture; structural contracts for file length, CSS, API and navigation truth; plus four opt-in Chromium cases when `ALPHAENGINE_BROWSER_ORIGIN` names a running desk |
+| **Gateway** — `Part2_Infrastructure/tests/`, 233 `test_*.py` files | `venv/bin/python -m pytest` | The risk decision and its seventeen gates; the audit ledger's two failure contracts; the research plane's refusals; the **API contract** (`test_openapi_contract.py`) and the **container definition** (`test_container_contract.py`) by text analysis; the Python↔C++ parity fixture, bit-exact |
+| **Web** — `Part2_Infrastructure/web/tests/`, 490 `*.test.ts` files | `node --import tsx --test tests/*.test.ts` | Everything the browser re-implements, pinned to Python by fixture; structural contracts for file length, CSS, API and navigation truth; plus four opt-in Chromium cases when `ALPHAENGINE_BROWSER_ORIGIN` names a running desk |
 | **OpenBB service** — `Part2_Infrastructure/OpenBB_Service/tests/` | `python -m pytest` | The stateless research bridge's own contract, in its own runtime, with its own pinned `requirements.txt` |
 
 The structural half of the web suite is the part worth reading first, because it
@@ -31,13 +31,21 @@ is unusual and because it is what stops this repository's *documentation* from
 drifting away from its code. Those are set out in "The gates that are not unit
 tests" below.
 
+The 2026-09-04 family slice adds explicit regression coverage for independent
+book constraints, categorical/independent probability surfaces, single-strike
+numeric families and the RFQ retry boundary. Frontend guards pin the live
+probability-bar integration, small-screen Evidence-table stacking, protected
+diagram spacing, P&L scroll ownership and the 320px Diffusion metric stack.
+Those source contracts are complemented by the 360-state Chromium measurement;
+neither is treated as a substitute for the other.
+
 ## The counts, and why they are generated
 
 One committed record:
 [`web/lib/test-counts.generated.ts`](../../Part2_Infrastructure/web/lib/test-counts.generated.ts)
-holds what each runner printed when it was last regenerated on **2026-09-02**.
-The release record for that pass is gateway 3,496 total (3,495 passed, 1
-skipped), web 6,846 total across 1,461 suites (6,840 passed, 6 skipped), and
+holds what each runner printed when it was last regenerated on **2026-09-04**.
+The release record for that pass is gateway 3,508 total (3,507 passed, 1
+skipped), web 6,856 total across 1,464 suites (6,850 passed, 6 skipped), and
 service 24 passed. Its own header explains why it exists: the
 counts were once three hand-copied integers in a component, and they drifted
 three separate times, the last time inside a single afternoon.
@@ -49,12 +57,12 @@ and compares it against the runner's own summary line, teed to a log by the CI
 step above it. The **gateway** and **service** lines are a dated record that
 nothing gates. Cite them as such or not at all.
 
-Measured on this tree on **2026-09-02**:
+Measured on this tree on **2026-09-04**:
 
 | Suite | Measured | Against the record |
 |---|---|---|
-| Gateway, local refresh shape | **3,495 passed, 1 skipped** | 3,496 total. This is a dated local record, not a CI gate; the generated file does not retain the skip reason or optional-capability environment. |
-| Web | **6,840 passed, 0 failed, 6 skipped, 1,461 suites** | 6,840 + 6 = **6,846**. The skips are explicit browser/live opt-ins; read the runner reasons rather than inferring them from this total. |
+| Gateway, local refresh shape | **3,507 passed, 1 skipped** | 3,508 total. This is a dated local record, not a CI gate; the generated file does not retain the skip reason or optional-capability environment. |
+| Web | **6,850 passed, 0 failed, 6 skipped, 1,464 suites** | 6,850 + 6 = **6,856**. The skips are explicit browser/live opt-ins; read the runner reasons rather than inferring them from this total. |
 | OpenBB service | **24 passed** | matches |
 
 **The gateway figure has a condition attached, and it is not a discrepancy.**
@@ -936,15 +944,15 @@ measured numbers. By hand, from `Part2_Infrastructure/`:
 | Suite | Command | Prerequisites, and what green means |
 |---|---|---|
 | Gateway | `venv/bin/python -m pytest` (add `-rs` to see skip reasons) | venv named exactly `venv`, Python 3.12, `requirements-dev.txt`, `requirements-native.txt` and the built core (`python native/decision_core/setup.py build_ext --inplace --build-temp build/native`). Main CI on 2026-09-02 reported 3,482 passed and 3 skipped; read `-rs`, not the count. |
-| Web | `cd web && npm test` | Node 22, `npm ci`. The default runner is `node --import tsx --test tests/*.test.ts` over 489 files. The 2026-09-02 refresh reported 6,840 passed, 0 failed and 6 skipped across 1,461 suites. |
+| Web | `cd web && npm test` | Node 22, `npm ci`. The default runner is `node --import tsx --test tests/*.test.ts` over 490 files. The 2026-09-04 refresh reported 6,850 passed, 0 failed and 6 skipped across 1,464 suites. |
 | Web types | `cd web && npm run typecheck` | There is **no `lint` script** in `web/` — `npm run lint` fails as a missing script, not a broken linter. |
 | Python lint | `venv/bin/python -m ruff check .` | Configured in `pyproject.toml`, installed by `requirements-dev.txt`. |
-| OpenBB service | `cd OpenBB_Service && python -m pytest` | Its own `requirements-dev.txt`; stateless, offline. The 2026-09-02 run reported 24 passed. |
+| OpenBB service | `cd OpenBB_Service && python -m pytest` | Its own `requirements-dev.txt`; stateless, offline. The 2026-09-04 run reported 24 passed. |
 | API contract | `python tools/export_openapi.py --check` | Run by CI and, as an assertion, by `tests/test_openapi_contract.py`. Fails when a schema changed and `tools/openapi.json` was not regenerated. |
 | Money path | `python tools/synthetic_probe.py` | The end-to-end order path against a synthetic book; prints `N/N steps passed`. CI runs it in the `gateway` job. |
 | Counts contract | `cd web && npm run counts:refresh -- --suite=web`, then commit `lib/test-counts.generated.ts` | CI's `check-test-counts.mjs` step fails when the committed **web** figure drifts from the run it just made. `--suite=web` re-runs only the web suite and keeps the committed Python figures, which is what you want unless the gateway or service suite also moved. |
 | Build gates | `cd web && npm run build` | `prebuild` runs the OpenAPI canonical-JSON digest check and the repository-manifest file-list check first. It **refuses** until `npm run catalog:refresh` has run after files were added or removed. |
-| Rendered layout | `cd web && npm run audit:layout -- --url=http://localhost:3000` | A ready desk and installed Chromium are required. The default sweep covers 109 addressable states at eight viewports; this command is manual and is not a push-gating CI step. The 2026-08-29 release run passed **872/872** combinations with zero geometry failures and zero console errors. |
+| Rendered layout | `cd web && npm run audit:layout -- --url=http://localhost:3000` | A ready desk and installed Chromium are required; this command is manual and is not a push-gating CI step. The 2026-09-04 requested run passed **360/360** combinations: all 120 states at 320×844, 390×844 and 1280×900, with zero geometry failures and zero console errors. The older 872/872 result retains its own 2026-08-29 scope. |
 
 CI runs five deterministic jobs on every event — `gateway`,
 `native-sanitizers`, `openbb-service`, `web`, `repo-audit` — plus two release

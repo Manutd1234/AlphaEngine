@@ -25,7 +25,7 @@ from modules.coherence.kernel.lattice import Component, EdgeScope
 # Which of the spec's families a row belongs to. Carried so a certificate can
 # name the reasoning rather than only the arithmetic, and so a family can be
 # switched off in an ablation without unpicking the matrix.
-Family = Literal["monotone", "additive", "bucket", "density", "frechet"]
+Family = Literal["book", "monotone", "additive", "bucket", "density", "frechet"]
 
 Direction = Literal["buy", "sell"]
 
@@ -137,7 +137,7 @@ def rows_for(component: Component, books: dict[str, Book], families: Sequence[Fa
     ``families`` exists for the ablation harness: running the same tape with a
     family switched off is how you find out whether it earns its complexity.
     """
-    wanted = set(families or ("monotone", "additive", "bucket", "density"))
+    wanted = set(families or ("book", "monotone", "additive", "bucket", "density"))
     labels = {node.ticker: node.label for node in component.nodes}
     rows: list[Row] = []
 
@@ -203,6 +203,50 @@ def rows_for(component: Component, books: dict[str, Book], families: Sequence[Fa
     if "bucket" in wanted:
         rows.extend(_bucket_rows(component, books, labels))
 
+    # A venue can publish a perfectly live book without publishing a relation
+    # between its siblings. In that case there is no honest joint state space
+    # for the LP, but the executable quote still makes three exact claims of
+    # its own: bid and ask lie inside the contract's [0, 1] payoff range, and
+    # the ask is not below the bid. Emit these only when no structural row can
+    # be exercised, so a real ladder/exhaustive family keeps its stronger,
+    # cross-market proof instead of padding it with tautological checks.
+    if "book" in wanted and not any(row.testable for row in rows):
+        rows.extend(_book_rows(component, books, labels))
+
+    return rows
+
+
+def _book_rows(component: Component, books: dict[str, Book], labels: dict[str, str]) -> list[Row]:
+    """Executable single-market invariants when no joint relation is published."""
+    rows: list[Row] = []
+    for node in component.nodes:
+        label = labels.get(node.ticker, node.ticker)
+        book = books.get(node.ticker)
+        ask = _leg(node.ticker, label, "buy", book)
+        bid = _leg(node.ticker, label, "sell", book)
+        rows.extend((
+            Row(
+                family="book",
+                scope="same-event",
+                because=f"{label}'s executable YES ask cannot be below the contract's zero-dollar payoff floor",
+                legs=(ask,),
+                bound=Decimal(0),
+            ),
+            Row(
+                family="book",
+                scope="same-event",
+                because=f"{label}'s executable YES bid cannot exceed the contract's one-dollar payoff ceiling",
+                legs=(bid,),
+                bound=Decimal(-1),
+            ),
+            Row(
+                family="book",
+                scope="same-event",
+                because=f"buying and immediately selling {label} cannot have a negative executable spread",
+                legs=(ask, bid),
+                bound=Decimal(0),
+            ),
+        ))
     return rows
 
 

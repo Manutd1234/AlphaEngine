@@ -538,6 +538,15 @@ tasks, Telegram and core self-measurement under one `AsyncExitStack`. Cleanup is
 registered before startup and runs in reverse order; one cleanup failure is
 recorded without preventing the remaining graph from releasing.
 
+The coherence tasks separate freshness from retention. Active browser reads
+and the warm cache run on a 20-second cadence; the append-only book recorder is
+enabled only when `COHERENCE_POLL_S` and either an explicit series watchlist or
+`COHERENCE_LIVE_FAMILIES=1..200` are configured. Broad mode discovers one
+bounded page of open event families and hydrates active books in chunks, so
+coverage grows without an unbounded cursor crawl. The signed RFQ reader retries
+one 429 or 5xx after 200 milliseconds; a second failure remains a typed upstream
+outage rather than an empty quote set.
+
 The published `ApplicationContext` is frozen and slot-backed. It contains one
 runtime, market-data provider, execution gateway, risk manager, job service,
 audit service, Telegram runtime, health service and latest-state stream. Routes
@@ -589,7 +598,7 @@ and compares its SHA-256 against `COMMITTED_GATEWAY_OPENAPI_SHA256` in
 `web/lib/gateway-openapi-digest.generated.ts`. Two independently deployed units
 assert their shared contract before either one of them deploys. The verified
 2026-08-29 digest is
-#measured("6f50ebed6ccc...a0282321", "web/lib/gateway-openapi-digest.generated.ts").
+#measured("fde95f8b7452...e4eef343ed2", "web/lib/gateway-openapi-digest.generated.ts").
 
 === Server-sent events: `/api/stream/desk`
 

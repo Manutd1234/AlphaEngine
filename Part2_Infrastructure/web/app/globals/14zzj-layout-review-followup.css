@@ -310,9 +310,12 @@ label:has(> select) {
   table-layout: fixed;
 }
 .coh-evidence__detail-table :is(th, td):first-child {
-  width: 9rem;
+  width: clamp(10.5rem, 34%, 12rem);
   color: var(--text-secondary);
   font-weight: 700;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: keep-all;
 }
 .coh-evidence__detail-table :is(th, td) {
   padding-inline: var(--space-3);
@@ -324,8 +327,56 @@ label:has(> select) {
 .coh-evidence__detail-table :is(th, td):last-child {
   text-align: left;
 }
-@media (max-width: 380px) {
+@media (max-width: 480px) {
   .coh-evidence-sheet__body { padding-inline: var(--space-3); }
-  .coh-evidence__detail-table :is(th, td):first-child { width: 7rem; }
-  .coh-evidence__detail-table :is(th, td) { padding-inline: var(--space-2); }
+  .coh-evidence__detail-table { min-width: 0; }
+  .coh-evidence__detail-table thead { display: none; }
+  .coh-evidence__detail-table :is(tbody, tr, th, td) {
+    display: block;
+    width: auto;
+  }
+  .coh-evidence__detail-table tr {
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--border);
+  }
+  .coh-evidence__detail-table tr:last-child { border-bottom: 0; }
+  .coh-evidence__detail-table :is(th, td) {
+    padding: 0;
+    border: 0;
+  }
+  .coh-evidence__detail-table :is(th, td):first-child {
+    width: auto;
+    margin-block-end: var(--space-1);
+    white-space: normal;
+  }
+
+  /* On a phone, a 14px scroll-linked translation is a material share of the
+     gap between stacked surfaces. It also lets a card temporarily paint over
+     the disclosure below it while the viewport timeline is between frames.
+     Keep the spatial entrance on wider canvases; narrow workspaces render at
+     their settled geometry so every card, button and disclosure stays inside
+     the panel that owns it throughout a scroll. */
+  .workspace-subtab-panel > * {
+    animation: none;
+    transform: none;
+  }
+
+  /* Long live readouts belong below the caption on a phone. Leaving the tools
+     rail at flex-basis:auto let its intrinsic text width push through the
+     figure's clipped rounded edge (the basket gap was the concrete 30px case). */
+  :is(.markets-plane, .proofs-plane) .coh-figure__caption {
+    flex-wrap: wrap;
+  }
+  :is(.markets-plane, .proofs-plane) .coh-figure .coh-figure__tools {
+    flex: 1 1 100%;
+    inline-size: 100%;
+    min-inline-size: 0;
+    justify-content: space-between;
+  }
+  :is(.markets-plane, .proofs-plane) .coh-figure .coh-figure__readout {
+    flex: 1 1 auto;
+    min-inline-size: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
 }

@@ -69,6 +69,12 @@ def named(count: int) -> Component:
                      mutually_exclusive=True, nodes=nodes)
 
 
+def independent(count: int) -> Component:
+    component = named(count)
+    component.mutually_exclusive = False
+    return component
+
+
 def rungs(strikes: list[str], survivals: list[str]) -> dict[str, Book]:
     return {f"L-{k}": quoted(f"L-{k}", s) for k, s in zip(strikes, survivals, strict=True)}
 
@@ -198,13 +204,23 @@ class TestAnUnquotedMarketIsAGapNotAZero:
         assert "2 listed market(s) are unquoted on every side" in surface.detail
         assert "not a probability of zero" in surface.detail
 
-    def test_one_priced_market_is_not_a_curve(self):
-        """Differencing needs two adjacent quoted strikes. One is a point."""
+    def test_one_priced_threshold_still_defines_its_binary_split(self):
+        """One threshold and its complement are two exhaustive intervals."""
         strikes = ["10", "20"]
         books = {"L-10": quoted("L-10", "0.40"), "L-20": book("L-20")}
         surface = build_surface(ladder(strikes), books)
-        assert surface.engine == "unavailable"
-        assert "not two points to difference" in surface.detail
+        assert surface.engine == "ladder"
+        assert [item.mass for item in surface.bins] == [Decimal("0.60"), Decimal("0.40")]
+        assert "1 listed market(s) are unquoted" in surface.detail
+
+    def test_unrelated_binary_markets_remain_visible_without_becoming_a_pmf(self):
+        books = {f"N-{index}": quoted(f"N-{index}", value) for index, value in enumerate(("0.25", "0.40"), 1)}
+        surface = build_surface(independent(2), books)
+        assert surface.engine == "independent"
+        assert [item.mass for item in surface.bins] == [Decimal("0.25"), Decimal("0.40")]
+        assert surface.total_mass is None, "unrelated YES probabilities must not be summed"
+        assert surface.mean is None
+        assert "separate YES probability" in surface.detail
 
 
 class TestTheMomentsSayWhatTheyAreConditionalOn:

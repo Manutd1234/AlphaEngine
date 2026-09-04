@@ -19,6 +19,8 @@ RFQ_PAGE_LIMIT = 100
 QUOTE_PAGE_LIMIT = 500
 MAX_RFQ_ROWS = 1_000
 MAX_QUOTE_ROWS = 5_000
+TRANSIENT_READ_ATTEMPTS = 2
+TRANSIENT_RETRY_DELAY_S = 0.2
 
 
 async def _read_pages(
@@ -181,8 +183,18 @@ async def read_panel(client: KalshiClient) -> dict[str, Any]:
     """The complete open RFQs and current maker rows visible to this account."""
     environment = client.signing_environment
     channel = f"{environment} private channel" if environment else "private channel"
+    transient_attempts = 0
     try:
-        raw_rfqs, raw_quotes = await _read_private_collections(client)
+        while True:
+            try:
+                raw_rfqs, raw_quotes = await _read_private_collections(client)
+                break
+            except KalshiUnavailable as exc:
+                retryable = exc.status is not None and (exc.status == 429 or exc.status >= 500)
+                transient_attempts += 1
+                if not retryable or transient_attempts >= TRANSIENT_READ_ATTEMPTS:
+                    raise
+                await asyncio.sleep(TRANSIENT_RETRY_DELAY_S)
     except KalshiRefused as exc:
         return _result(
             "refused",
@@ -195,5 +207,6 @@ async def read_panel(client: KalshiClient) -> dict[str, Any]:
             "signing_unavailable", f"{channel} signing is not ready: {exc}", environment,
         )
     except KalshiUnavailable as exc:
-        return _result("unavailable", f"the {channel} is unavailable: {exc.reason}", environment)
+        retried = " after one bounded retry" if transient_attempts > 1 else ""
+        return _result("unavailable", f"the {channel} is unavailable{retried}: {exc.reason}", environment)
     return _complete_result(raw_rfqs, raw_quotes, environment, channel)

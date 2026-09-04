@@ -1024,17 +1024,17 @@ They are one addressable inspection system that lets a researcher select an
 entity, perturb an assumption and read the exact consequence without asking a
 pixel for a number. The current registry exposes #measured[71 engine views - 26
 Markets, 29 Proofs and 16 Diffusion][`web/lib/section-views.ts`, counted
-2026-09-02] beneath #measured[22 rail sections across the three engine tabs][
-`web/lib/sections.ts`, counted 2026-09-02]. Each destination has a canonical
+2026-09-04] beneath #measured[22 rail sections across the three engine tabs][
+`web/lib/sections.ts`, counted 2026-09-04]. Each destination has a canonical
 `#tab/section/view` address, so an investment note can cite the state that
 produced a claim rather than a screenshot of an unrepeatable hover.
 
 #table(
   columns: (auto, 1.15fr, 1.2fr),
   [Plane], [Question it makes executable], [Interaction contract],
-  [Markets], [How fees, stake, books, lattice mass and moments, settlement and the instrument universe change a tradable claim.], [Stable keyed selection; a single keyboard tab stop in listboxes; Arrow, Home and End traversal; exact atomic readouts; explicit absent sides rather than synthetic zeroes.],
-  [Proofs], [Whether quoted prices, baskets and parlays satisfy the relevant coherence bounds, and which observation drives a verdict.], [Linked selections keep the formula, selected datum and verdict on the same identity; quant-inspection pairs expose the exact value and its interpretation; a changed result is announced as one fact.],
-  [Diffusion], [How an event propagates into price, how long a dislocation survives, and when absorption is supported by the sample.], [Event-study controls drive the fitted study and episode tape; sparse states remain visible and typed; all sixteen views remain individually addressable.],
+  [Markets], [How fees, stake, books, numeric lattice moments, categorical probabilities, settlement and as many as 200 live open event families change a tradable claim.], [Stable keyed selection; a single keyboard tab stop in listboxes; Arrow, Home and End traversal; exact atomic readouts; explicit absent sides rather than synthetic zeroes. Named and independent outcomes retain live probabilities without invented numeric moments or totals.],
+  [Proofs], [Whether quoted prices, baskets and parlays satisfy the relevant coherence bounds, and which observation drives a verdict.], [Linked selections keep the formula, selected datum and verdict on the same identity; structural families use the joint programme, while otherwise-valid books use executable bid, ask and spread bounds instead of being labelled untestable.],
+  [Diffusion], [How an event propagates into price, how long a dislocation survives, and when absorption is supported by the sample.], [Event-study controls drive the latest persisted study and episode tape; sparse states remain visible and typed; all sixteen views remain individually addressable.],
 )
 
 The keyboard model is deliberate. A list of market levels is one listbox owner,

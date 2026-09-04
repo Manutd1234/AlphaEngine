@@ -1,6 +1,6 @@
 # docs/ — the index
 
-**Source/worktree audited: 2026-09-02.** One line per document, honest about
+**Source/worktree audited: 2026-09-04.** One line per document, honest about
 what each one is **for** — so a reader can pick one rather than opening five.
 Documents are filed by their path, which is the only arrangement an index
 cannot drift away from. Where a document and the tree disagree, the tree is
@@ -32,9 +32,9 @@ those at length.
 
 | Document | What it is for |
 |---|---|
-| [`CURRENT_STATE.md`](CURRENT_STATE.md) | The reproducible current-worktree ledger: deployable units, tabs, sections, views, route counts, migration state, toolchain versions and dated verification results. This is the one short current-state summary; external and measured observations keep their original dates in their owning documents. |
+| [`CURRENT_STATE.md`](CURRENT_STATE.md) | The reproducible current-worktree ledger: deployable units, tabs, sections, views, route counts, live-family/polling boundaries, migration state, toolchain versions and dated verification results. This is the one short current-state summary; external and measured observations keep their original dates in their owning documents. |
 | [`architecture/ARCHITECTURE.md`](architecture/ARCHITECTURE.md) | The system in one sitting: the three deployment units and why they are three, the two-implementation parity argument, the three latency planes. Figures read off the tree, files named beside them. Start here if you are reviewing the repository. |
-| [`architecture/DATA_PROCESSING_FLOW.md`](architecture/DATA_PROCESSING_FLOW.md) | Every hop data takes, end to end — vendor bytes to rendered number, and order to audit row. Names the hops and links the arguments rather than repeating them. Read it when you need to know *where* something happens, not *why*. |
+| [`architecture/DATA_PROCESSING_FLOW.md`](architecture/DATA_PROCESSING_FLOW.md) | Every hop data takes, end to end — vendor bytes to rendered number, live Kalshi family discovery through surface/certification, Diffusion ledger refresh, and order to audit row. Names the hops and links the arguments rather than repeating them. Read it when you need to know *where* something happens, not *why*. |
 | [`architecture/UML_DIAGRAMS.md`](architecture/UML_DIAGRAMS.md) | Class, state, sequence and component diagrams for anti-twitch state, research, parity and the 22-section prediction-market workspace. Every member drawn exists in the named source file, which is what makes the diagrams checkable rather than decorative. |
 | [`architecture/LATENCY_BUDGET.md`](architecture/LATENCY_BUDGET.md) | Every latency number the desk claims, with method, machine and measurement date. It keeps the 2026-08-28 native qualification separate from the retained 2026-08-17→20 production/decision history and never averages unlike populations. |
 | [`architecture/latency-bench.generated.json`](architecture/latency-bench.generated.json) | The generated bench data behind that §2.1 table (`tools/bench_decision.py`). Regenerated, never edited by hand. |

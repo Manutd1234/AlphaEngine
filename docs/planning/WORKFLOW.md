@@ -3,7 +3,7 @@
 How to work on AlphaEngine without losing an hour to a trap somebody else has
 already fallen into. The traps are real — each one below cost time before it
 was written down. Current commands, gates and workflow triggers were read from
-the worktree on **2026-09-02**; live evidence is named by workflow run. Where a
+the worktree on **2026-09-04**; live evidence is named by workflow run. Where a
 figure can drift, the document says where the current one lives — or which gate
 enforces it — rather than asking you to trust this page.
 
@@ -112,7 +112,7 @@ plausible under several failure modes — and because the pass count legitimatel
 moves. **The gateway has more than one correct collection shape.** The recorded
 2026-08-24 example measured 3,039 passes and one skip with cross-encoder
 weights, while the same tree collected eight fewer cases and one more skip
-without them. The 2026-09-02 generated record has moved again. Both changes are
+without them. The 2026-09-04 generated record has moved again. Both changes are
 why a bare count is half a fact: always quote the date, environment and skip
 reasons.
 
@@ -121,8 +121,8 @@ carries the committed record, and it is worth knowing exactly how much of it CI
 holds. **Only the web line is gated** — `web/scripts/check-test-counts.mjs`
 refuses any suite argument but `web`, and the `web` job compares it against the
 log the runner just teed. The **gateway** and **service** lines in that file are
-*dated records nothing checks*. On 2026-09-02 they read gateway 3,496 total
-(3,495 passed, 1 skipped) and service 24 total. The generator does not encode
+*dated records nothing checks*. On 2026-09-04 they read gateway 3,508 total
+(3,507 passed, 1 skipped) and service 24 total. The generator does not encode
 which optional capability produced that one skip, so the number alone must not
 be labelled the CI shape. That the lines agree on the machine that refreshed
 them is not a gate; re-run the suite, read `-rs`, and refresh the generated file
@@ -158,14 +158,14 @@ All from `Part2_Infrastructure` unless stated; web commands from
 
 | What | Command | Notes |
 |---|---|---|
-| Gateway tests | `venv/bin/python -m pytest` | **230** `test_*.py` files on 2026-09-02, deterministic and network-free in the default shape. Main CI reported 3,482 passed and 3 skipped; run with `-rs` because the record does not encode which optional path was absent. |
-| Web tests | `npm test` | Node's runner via tsx over **489** `*.test.ts` files. The 2026-09-02 refresh reported **6,840 passed, 0 failed, 6 skipped across 1,461 suites** (6,846 total). Refresh the generated count after the suite changes. |
-| Service tests | `cd OpenBB_Service && python -m pytest` | Own `pyproject.toml` and `requirements-dev.txt`; **24 passed** on 2026-09-02. |
+| Gateway tests | `venv/bin/python -m pytest` | **233** `test_*.py` files on 2026-09-04, deterministic and network-free in the default shape. The local refresh reported 3,507 passed and 1 skipped; run with `-rs` because the record does not encode which optional path was absent. |
+| Web tests | `npm test` | Node's runner via tsx over **490** `*.test.ts` files. The 2026-09-04 refresh reported **6,850 passed, 0 failed, 6 skipped across 1,464 suites** (6,856 total). Refresh the generated count after the suite changes. |
+| Service tests | `cd OpenBB_Service && python -m pytest` | Own `pyproject.toml` and `requirements-dev.txt`; **24 passed** on 2026-09-04. |
 | Typecheck | `npm run typecheck` | `tsc --noEmit`, strict |
 | Lint | `venv/bin/python -m ruff check .` | configured in `pyproject.toml`; installed only by `requirements-dev.txt` |
 | Money-path probe | `venv/bin/python tools/synthetic_probe.py` | book → cost → gate → audit, exits non-zero on any break |
 | Both dev servers | `npm run dev` (`dev:all` is an alias) | gateway `:8000`, portal `:3000`; use `npm run dev:web` only when an explicit frontend-only sandbox is wanted |
-| Rendered layout audit | `npm run audit:layout -- --url=http://localhost:3000` | Playwright walks 109 addressable states at eight viewports by default. It needs a ready origin and installed Chromium; it is not part of the push-gating CI job. The manual 2026-08-29 release run passed **872/872** combinations with zero geometry failures and zero console errors. |
+| Rendered layout audit | `npm run audit:layout -- --url=http://localhost:3000` | Playwright walks the current addressable-state registry at the requested viewport set. It needs a ready origin and installed Chromium; it is not part of the push-gating CI job. The 2026-09-04 requested run passed **360/360** combinations: all 120 states at 320×844, 390×844 and 1280×900, with zero geometry failures and zero console errors. |
 
 **`npm run lint` does not exist.** `web/package.json` has exactly `dev`,
 `dev:web`, `dev:gateway`, `dev:all`, `prebuild`, `build`, `catalog:refresh`, `start`,
@@ -233,7 +233,7 @@ scripts/check-test-counts.mjs web "$RUNNER_TEMP/web-tests.log"`. So the
 `gateway` and `service` lines in that file are **dated records, not gates**.
 They are still worth committing — the console displays them and a reader
 deserves to know when they were taken — but nothing goes red when they drift.
-Refreshed 2026-09-02 to 3,496 total (3,495 passed, 1 skipped). Because the file
+Refreshed 2026-09-04 to 3,508 total (3,507 passed, 1 skipped). Because the file
 does not store the skip reason or optional-capability environment, cite it as a
 dated record and never as a checked CI figure.
 
@@ -243,8 +243,8 @@ re-run only the web suite, which keeps the committed Python figures).
 **The web gate was red for a week in August**, and it is the worked example of
 why it exists: three changes landed on 2026-08-22 adding suites, none refreshed
 the module, and the committed 4,008 faced a measured 4,124 until the 2026-08-23
-refresh. The current 2026-09-02 release ledger records 6,846 total (6,840
-passed + 6 skips) across 1,461
+refresh. The current 2026-09-04 release ledger records 6,856 total (6,850
+passed + 6 skips) across 1,464
 suites. Nothing was broken — the gate is doing precisely its job, which is to
 make "I added tests and forgot" a red step rather than a stale number on the
 Developer tab. Run `npm run counts:refresh -- --suite=web` and commit the

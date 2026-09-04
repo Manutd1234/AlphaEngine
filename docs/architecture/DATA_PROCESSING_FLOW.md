@@ -1,6 +1,6 @@
 # Data processing flow — end to end
 
-**Source/worktree and release evidence audited: 2026-09-02.** Module paths are relative to
+**Source/worktree and release evidence audited: 2026-09-04.** Module paths are relative to
 [`Part2_Infrastructure/`](../../Part2_Infrastructure/) unless they start with
 `web/` or `supabase/`. This document names the hops; the arguments behind each
 one live in [`Part2_Infrastructure/README.md`](../../Part2_Infrastructure/README.md)
@@ -642,14 +642,19 @@ what it would have said.
 
 [`modules/coherence/recorder.py`](../../Part2_Infrastructure/modules/coherence/recorder.py)
 is started by `main.py`'s lifespan as the task `coherence-recorder`, and then
-declines to do anything unless **both** `COHERENCE_SERIES` and
-`COHERENCE_POLL_S` are set (`modules/coherence/tunables.py`; `POLL_SECONDS = 0`
-keeps it off). That default is deliberate: "a process that starts hitting an
-exchange the moment it boots is not something to enable by accident."
+declines to do anything unless `COHERENCE_POLL_S` plus either an explicit
+`COHERENCE_SERIES` watchlist or `COHERENCE_LIVE_FAMILIES=1..200` is set
+(`modules/coherence/tunables.py`; `POLL_SECONDS = 0` keeps durable recording
+off). That default is deliberate: "a process that starts hitting an exchange
+the moment it boots is not something to enable by accident."
 
-When it is on, each tick reads the watchlist, prices each mutually exclusive
-family, and writes **whole bid ladders** — not prices — to its own DuckDB file
-through `modules/coherence/fs/store.py`. The loop is shaped after
+When it is on, each tick reads either the explicit watchlist or one bounded page
+of as many as 200 current open event families, prices the active markets, and
+writes **whole bid ladders** — not prices — to its own DuckDB file through
+`modules/coherence/fs/store.py`. Broad discovery uses one nested event call and
+100-market bulk-book chunks with at most three reads in flight; a failed depth
+chunk retains the same live listing's top of book and records the qualification.
+The loop is shaped after
 `modules/tca_engine/supervision.py`: sleep the interval, do the work, hand every
 disk write to a thread so the event loop is never held by DuckDB, re-raise
 `CancelledError` and log anything else without stopping. A failing exchange
@@ -693,26 +698,36 @@ high on someone else's infrastructure is not our risk to take."
    `requestIdleCallback`, one URL every 600 ms — inside the ~5 requests/second
    the gateway budgets itself — so a section paints on arrival rather than on
    its first answer. A warmed payload paints only while it is under 100 s old.
-3. `web/app/api/gateway/coherence/universe/route.ts` forwards only `series` and
-   `max_events`, raises `callGateway`'s timeout to **25 s** for this route
+3. `web/app/api/gateway/coherence/universe/route.ts` forwards only `series`,
+   `max_events` and `family_limit`, raises `callGateway`'s timeout to **25 s** for this route
    specifically, validates the shape with `isCoherenceUniverse`, and answers
    `Cache-Control: no-store` — "a cached order book is a wrong order book".
-4. `modules/api/coherence.py::coherence_universe` reads each watched series
-   through `observe_series` and returns a `CoherenceUniverse` carrying a
+4. `modules/api/coherence.py::coherence_universe` either reads each watched
+   series through `observe_series` or delegates broad mode to
+   `observe_live_families`. It returns a `CoherenceUniverse` carrying a
    **`state`** discriminator, a de-duplicated `notes` list and a
-   **`categories`** map — Kalshi's own `category` per series ticker, which the
+   **`categories`** map — Kalshi's own category, which the
    Universe section's asset filter groups by. `modules/coherence/series_meta.py`
    reads that once per series for the life of the process: a category is a
    property of what a contract is about rather than of its state, so re-reading
    it every twenty seconds would spend a request per series per poll to
    re-learn a string that cannot have changed. A series the exchange will not
    categorise is ABSENT from the map and named in `notes`, never defaulted.
+5. `surface` classifies the returned family before it computes. Ordered numeric
+   strikes use the threshold engine; named mutually exclusive outcomes use a
+   categorical engine; unrelated binaries use an independent engine. Only the
+   first has a meaningful numeric moment. The latter two still return and render
+   their current probabilities, while impossible aggregates remain `null`.
+6. `certify` first builds structural constraints. If no cross-market row is
+   available but quoted books are, it runs three executable bounds per market:
+   ask ≥ 0, bid ≤ 1 and ask − bid ≥ 0. “Untestable” is therefore reserved for
+   absent quoted inputs, not merely absent family metadata.
 
 ### What comes back when something is missing
 
 | Condition | What the caller gets |
 |---|---|
-| No watchlist configured | `state: "unconfigured"`, empty `watchlist`, and the note `no series is being watched; set COHERENCE_SERIES or pass ?series=` |
+| No live-family mode or watchlist configured | `state: "unconfigured"`, empty `watchlist`, and a note naming `COHERENCE_LIVE_FAMILIES`, `COHERENCE_SERIES` and `?series=` |
 | Kalshi refused one series | that series contributes `"<TICKER> could not be read: <reason>"` to `notes`; other series still return |
 | Every series failed | `state: "unavailable"` — not an empty list |
 | Read fine, nothing open | `state: "empty"` |
@@ -725,6 +740,12 @@ is coherent" are three different answers, and a caller that cannot distinguish
 them cannot respond to any of them.
 
 ### Where the diffusion study's data comes from
+
+The browser polls active Diffusion reads every 20 seconds through the same
+`useCoherenceRead` mechanism, but “live” here means the latest persisted
+research ledger, not re-fetching every historical source on every tick. The
+stage writer and scheduled ingestion advance that ledger; missing or failed
+upstream work remains a typed unavailable/unreadable state.
 
 `modules/api/diffusion.py` serves four routes —
 `GET /api/research/diffusion/events`, `/findings`, `/absorption` and
@@ -788,7 +809,7 @@ TypeScript parity implementation. Two facts belong in a data-flow document:
 | Re-ranker absent | RRF order stands; `rerank_state` says why |
 | Neo4j / networkx absent | sweep reports the named reason and keeps ticking |
 | An order path in the Coherence engine | **NOT BUILT, and deliberately.** Every route in `modules/api/coherence.py` is a GET; `COHERENCE_DRY_RUN` defaults on and is reported so the surface can state it, but turning it off would not be sufficient to trade — the send path does not exist. The tab's own header metric reads `Order path — none` |
-| The Kalshi recorder on a fresh deployment | **off** — it needs both `COHERENCE_SERIES` and `COHERENCE_POLL_S`; `POLL_SECONDS = 0` is the default and every coherence route still answers with a `state` saying which part is missing |
+| The Kalshi recorder on a fresh deployment | **off** — it needs `COHERENCE_POLL_S` plus either `COHERENCE_SERIES` or `COHERENCE_LIVE_FAMILIES=1..200`; `POLL_SECONDS = 0` is the default and every coherence route still answers with a `state` saying which part is missing |
 | The information-diffusion verdict | **Built, and the headline is a NULL.** The absorption clock is predictable out of sample (R² +0.144 from stage and rate move alone; the press conference about 7.0 minutes slower than the statement), and adding the statement's information spectrum changes that by −0.343, shuffled p 0.875 — negative in all nine cells of a declared 3×3 grid. Reported as a null, never softened |
 
 Related reading: [`ARCHITECTURE.md`](ARCHITECTURE.md) for what the pieces are and

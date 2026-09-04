@@ -104,16 +104,18 @@ const HEAD = {
  */
 function readings(surface: CoherenceSurface): Reading[] {
   const mass = decimalLabel(surface.total_mass, 4);
+  const categorical = surface.engine === "named" || surface.engine === "independent";
+  const independent = surface.engine === "independent";
   return [
-    { label: "Family shape", value: surface.engine === "ladder" ? "strike ladder" : `${surface.engine} family` },
-    { label: "Strikes probed", value: String(surface.probes.length) },
-    { label: "Intervals", value: String(surface.bins.length) },
+    { label: "Family shape", value: surface.engine === "ladder" ? "strike ladder" : independent ? "separate binary markets" : `${surface.engine} family` },
+    { label: categorical ? "Markets read" : "Strikes probed", value: String(categorical ? surface.bins.length : surface.probes.length) },
+    { label: categorical ? "Probability bars" : "Intervals", value: String(surface.bins.length) },
     {
       label: "Priced from",
       value: surface.basis ?? null,
       withheld: "neither side of the book was quoted",
     },
-    { label: "Total quoted mass", value: mass === "—" ? null : mass },
+    { label: "Total quoted mass", value: mass === "—" ? null : mass, withheld: independent ? "separate market probabilities are not additive" : undefined },
     {
       label: "Negative mass",
       value: surface.negative_bins.length

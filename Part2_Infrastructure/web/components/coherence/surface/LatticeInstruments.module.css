@@ -107,6 +107,16 @@
 .plotLegend span[data-legend="line"]::before { background: var(--series-3); }
 .plotLegend span[data-legend="live"]::before { height: 0; border-top: 2px dashed var(--text-muted); background: transparent; }
 
+.categoryPlot { display: grid; gap: 2px; max-block-size: 28rem; overflow-y: auto; padding: var(--space-3); background: var(--surface-2); }
+.categoryRow { display: grid; grid-template-columns: 2rem minmax(9rem, 1.3fr) minmax(10rem, 2fr) 4.5rem; align-items: center; gap: var(--space-2); min-width: 0; min-height: 2.75rem; padding: var(--space-2); border: 1px solid transparent; border-radius: var(--radius-control); background: var(--surface-1); color: var(--text-primary); text-align: left; cursor: pointer; }
+.categoryRow:hover { border-color: var(--border); }
+.categoryRow[aria-selected="true"] { border-color: var(--series-1); background: color-mix(in srgb, var(--series-1) 7%, var(--surface-1)); box-shadow: inset 3px 0 0 var(--series-1); }
+.categoryIndex { display: grid; inline-size: 1.6rem; block-size: 1.6rem; place-items: center; border: 1px solid var(--border); border-radius: 50%; color: var(--text-secondary); font: 700 var(--fs-2xs) var(--font-mono); }
+.categoryLabel { min-width: 0; overflow-wrap: anywhere; font-size: var(--fs-sm); font-weight: 650; }
+.categoryTrack { display: block; min-width: 0; height: .7rem; overflow: hidden; border: 1px solid var(--grid); border-radius: var(--radius-pill); background: var(--surface-2); }
+.categoryTrack i { display: block; inline-size: var(--category-width); block-size: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--series-1), var(--series-2)); }
+.categoryRow > strong { justify-self: end; font-size: var(--fs-sm); }
+
 .massScrubber { display: flex; gap: 2px; overflow-x: auto; padding: var(--space-2) var(--space-3); border-block: 1px solid var(--grid); background: var(--surface-2); }
 .massTile { display: inline-flex; flex: 0 0 auto; align-items: center; gap: var(--space-2); max-width: 13rem; min-height: 2.75rem; padding: var(--space-1) var(--space-2); border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--text-secondary); text-align: left; cursor: pointer; }
 .massTile:hover { background: var(--surface-1); color: var(--text-primary); }
@@ -149,6 +159,8 @@
   .momentTabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .compassPoint { align-items: start; flex-direction: column; }
   .reservoir { overflow-x: auto; }
+  .categoryRow { grid-template-columns: 1.8rem minmax(0, 1fr) 4rem; }
+  .categoryTrack { grid-column: 2 / -1; }
 }
 
 @media (prefers-reduced-motion: reduce) {
