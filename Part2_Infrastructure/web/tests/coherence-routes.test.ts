@@ -47,6 +47,9 @@ function paneFiles(relative = "components/coherence"): string[] {
 }
 
 const routes = read("lib/coherence/routes.ts");
+const universeProxy = read("app/api/gateway/coherence/universe/route.ts");
+const marketsWorkbench = read("app/globals/14zza-markets-quant-workbench.css");
+const diffusionConsole = read("components/DiffusionConsole.tsx");
 const consoles = [
   "components/MarketsConsole.tsx",
   "components/CoherenceConsole.tsx",
@@ -84,6 +87,26 @@ describe("the engine's gateway URLs are built in one place", () => {
       .join("\n");
     const unused = exported.filter((name) => !new RegExp(`\\b${name}\\(`).test(callers));
     assert.deepEqual(unused, [], "a route builder nothing calls is a URL that has quietly moved back into a pane");
+  });
+});
+
+describe("the broad live market read stays one bounded, end-to-end contract", () => {
+  it("asks for the venue's bounded 200-family page by default", () => {
+    assert.match(routes, /universeRoute = \(maxEvents = 6, familyLimit = 200\)/);
+  });
+
+  it("forwards the family limit through the same-origin gateway", () => {
+    assert.match(universeProxy, /\["series", "max_events", "family_limit"\]/);
+  });
+
+  it("insets withheld KPI marks with the measurements they qualify", () => {
+    assert.match(marketsWorkbench, /> \.coh-kpi__withheld\s*\{[^}]*margin-inline:\s*18px;/s);
+  });
+
+  it("labels live recorder, recorded-study and local-compute Diffusion modes separately", () => {
+    assert.match(diffusionConsole, /label="Live recorder"/);
+    assert.match(diffusionConsole, /label="Recorded study"/);
+    assert.match(diffusionConsole, /label="Browser-computed"/);
   });
 });
 

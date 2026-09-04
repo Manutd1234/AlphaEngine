@@ -18,7 +18,7 @@ export async function GET(request: Request) {
   const context = gatewayRequestContext(request, "H4");
   const incoming = new URL(request.url).searchParams;
   const forwarded = new URLSearchParams();
-  for (const key of ["series", "max_events"]) {
+  for (const key of ["series", "max_events", "family_limit"]) {
     const value = incoming.get(key);
     if (value) forwarded.set(key, value);
   }

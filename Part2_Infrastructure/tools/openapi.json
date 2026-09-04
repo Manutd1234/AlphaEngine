@@ -12795,9 +12795,9 @@
             "name": "family_limit",
             "required": false,
             "schema": {
-              "default": 75,
+              "default": 200,
               "description": "Maximum open families in broad live mode",
-              "maximum": 100,
+              "maximum": 200,
               "minimum": 1,
               "title": "Family Limit",
               "type": "integer"

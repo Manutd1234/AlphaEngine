@@ -124,6 +124,11 @@ def test_completed_campaign_returns_to_the_baseline_cadence(monkeypatch: pytest.
     assert recorder.durable.active_poll_seconds({"state": "complete"}) == 300
 
 
+def test_recorder_cadence_subtracts_the_time_spent_collecting() -> None:
+    assert recorder.durable.remaining_poll_delay_s(60, 100.0, 108.5) == pytest.approx(51.5)
+    assert recorder.durable.remaining_poll_delay_s(60, 100.0, 165.0) == 0
+
+
 def test_campaign_contract_carries_both_cadences_without_false_storage_measurements(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

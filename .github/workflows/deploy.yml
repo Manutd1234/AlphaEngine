@@ -1331,7 +1331,7 @@ jobs:
           # These are release invariants for the live-universe rollout, not
           # repository-variable defaults. Keeping them literal prevents stale
           # variables from silently restoring the former two-family/slow path.
-          COHERENCE_LIVE_FAMILIES: "75"
+          COHERENCE_LIVE_FAMILIES: "200"
           COHERENCE_POLL_S: "60"
           COHERENCE_POST_CAMPAIGN_POLL_S: "60"
           COHERENCE_MAX_EVENTS: ${{ vars.COHERENCE_MAX_EVENTS || '2' }}

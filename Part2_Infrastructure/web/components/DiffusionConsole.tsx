@@ -102,6 +102,21 @@ export interface DiffusionConsoleProps {
   active?: boolean;
 }
 
+function dateFromNanoseconds(value: number | null | undefined): Date | null {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return null;
+  return new Date(value / 1_000_000);
+}
+
+function DataModeStamp({ label, detail }: { label: string; detail: string }) {
+  return (
+    <span className="freshness-stamp">
+      <i aria-hidden />
+      <span><strong>{label}</strong></span>
+      <small>{detail}</small>
+    </span>
+  );
+}
+
 export default function DiffusionConsole({
   section, onSectionChange, views, onViewChange, active = true,
 }: DiffusionConsoleProps) {
@@ -121,6 +136,43 @@ export default function DiffusionConsole({
   useSectionWarming(SECTION_READS, active);
 
   const metrics = useMemo(() => {
+    if (section === "episodes") {
+      const recorder = status.data?.recorder;
+      return [
+        {
+          label: "Live recorder",
+          value: recorder == null ? "—" : recorder.running ? "running" : recorder.configured ? "stopped" : "not configured",
+          note: recorder ? `fixed cadence every ${recorder.poll_seconds} seconds; ${recorder.consecutive_failures} consecutive failures` : "recorder state has not arrived",
+        },
+        {
+          label: "Series observed",
+          value: recorder == null ? "—" : String(recorder.series_seen.length),
+          note: "live Kalshi series seen by this recorder process",
+        },
+        {
+          label: "Index window",
+          value: index.data == null ? "—" : `${index.data.points.length} points`,
+          note: "latest recorded coherence readings, not a historical first page",
+        },
+      ];
+    }
+
+    if (section === "model" || section === "instrument" || section === "sandbox") {
+      return [
+        { label: "Data mode", value: "browser-computed", note: "reference formulas in this bundle; no market-data claim" },
+        { label: "Update", value: "immediate", note: "recomputed whenever an input changes" },
+        { label: "Live prices", value: "not read", note: "these sections demonstrate the estimator, not a venue feed" },
+      ];
+    }
+
+    if (section === "findings") {
+      return [
+        { label: "Data mode", value: "recorded study", note: "the study API is checked while this section is open" },
+        { label: "Refresh", value: "20 seconds", note: "new backend findings appear without reloading the page" },
+        { label: "Live prices", value: "not used", note: "findings are out-of-sample historical evidence" },
+      ];
+    }
+
     const runs = absorption.data?.state === "ok" ? absorption.data.runs : null;
     const hasControls = runs ? runs.some((run) => run.controls_used > 0) : null;
     return [
@@ -144,7 +196,32 @@ export default function DiffusionConsole({
         note: "the estimator's own arithmetic, computed here rather than fetched",
       },
     ];
-  }, [absorption.data]);
+  }, [absorption.data, index.data, section, status.data]);
+
+  const recorderPollMs = status.data?.recorder.poll_seconds
+    ? status.data.recorder.poll_seconds * 1_000
+    : 60_000;
+  const headerAction = section === "episodes" ? (
+    <FreshnessStamp
+      updatedAt={dateFromNanoseconds(status.data?.recorder.last_poll_ts_ns)}
+      pollMs={recorderPollMs}
+      paused={!active}
+      label="Live recorder"
+      transport="poll"
+    />
+  ) : section === "arm" || section === "meetings" ? (
+    <FreshnessStamp
+      updatedAt={absorption.updatedAt}
+      pollMs={COHERENCE_POLL_MS}
+      paused={!active}
+      label="Study API checked"
+      transport="poll"
+    />
+  ) : section === "findings" ? (
+    <DataModeStamp label="Recorded study" detail="API-polled every 20 s while open" />
+  ) : (
+    <DataModeStamp label="Browser-computed" detail="updates immediately; no API read" />
+  );
 
   const openSection = (next: DiffusionSection) => {
     onSectionChange(next);
@@ -180,9 +257,7 @@ export default function DiffusionConsole({
         kicker="Diffusion"
         title="How fast information reaches the price"
         description="Both arms estimate when the move is finished against matched no-news windows in which no announcement occurred."
-        actions={
-          <FreshnessStamp updatedAt={absorption.updatedAt} pollMs={COHERENCE_POLL_MS} paused={!active} transport="poll" />
-        }
+        actions={headerAction}
         metrics={metrics}
       />
 

@@ -189,11 +189,12 @@ def preferred_rfq_signing_environment() -> Literal["production", "demo"] | None:
 # Series tickers, comma separated. Empty means the recorder has nothing to do
 # and says so rather than inventing a universe.
 SERIES_WATCHLIST: Final = parse_series_watchlist(_env("COHERENCE_SERIES", ""))
-# Broad live discovery. Zero retains the explicit-series behaviour; 1..100
+# Broad live discovery. Zero retains the explicit-series behaviour; 1..200
 # asks Kalshi for that many open event families in venue order and obtains all
-# of their books through the bulk route. The cap is deliberately below the
-# events endpoint's own page size so one poll cannot become an exchange crawl.
-LIVE_FAMILY_LIMIT: Final = max(0, min(100, _env_int("COHERENCE_LIVE_FAMILIES", 0)))
+# of their books through the bulk route. Two hundred is the venue's maximum
+# event-page size, so one recorder pass can cover a broad market without ever
+# becoming an unbounded cursor crawl.
+LIVE_FAMILY_LIMIT: Final = max(0, min(200, _env_int("COHERENCE_LIVE_FAMILIES", 0)))
 POLL_SECONDS: Final = _env_int("COHERENCE_POLL_S", 0)  # 0 keeps the recorder off
 
 # A collection campaign counts successful, observation-bearing passes over the

@@ -344,6 +344,7 @@ async def recorder_loop() -> None:
         durable_state_ready = False
         while True:
             try:
+                cycle_started = time.monotonic()
                 if not durable_state_ready:
                     # Recovery must precede the first new observation.
                     _EPISODES = await asyncio.to_thread(
@@ -361,7 +362,8 @@ async def recorder_loop() -> None:
                     logger.debug("coherence: harvested settled markets")
                 if await asyncio.to_thread(score_if_due, store):
                     logger.debug("coherence: recorded a settled score")
-                await asyncio.sleep(durable.active_poll_seconds(_STATE.campaign))
+                interval = durable.active_poll_seconds(_STATE.campaign)
+                await asyncio.sleep(durable.remaining_poll_delay_s(interval, cycle_started, time.monotonic()))
             except asyncio.CancelledError:
                 raise
             except (KalshiUnavailable, TapeUnavailable) as exc:

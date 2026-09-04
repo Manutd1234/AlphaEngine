@@ -1,9 +1,10 @@
 """Efficiently observe a broad page of live Kalshi event families.
 
-One nested event-list response discovers up to 100 families and all of their
+One nested event-list response discovers up to 200 families and all of their
 active market tickers. Chunked bulk-orderbook reads then hydrate those tickers
-at 100 books per call. A 75-family snapshot is therefore roughly nine venue
-requests today, rather than one listing plus two requests per family.
+at 100 books per call. The page remains bounded at Kalshi's documented maximum;
+the recorder expands markets inside that page without turning one poll into an
+unbounded exchange crawl.
 """
 
 from __future__ import annotations
@@ -55,14 +56,14 @@ async def _bulk_books(
     return books, failures
 
 
-async def observe_live_families(client: KalshiClient, limit: int = 75) -> LiveUniverseBatch:
+async def observe_live_families(client: KalshiClient, limit: int = 200) -> LiveUniverseBatch:
     """Read one current page of families and every active market in that page.
 
     A failed full-depth chunk degrades only those tickers to the top-of-book
     fields carried by the same live event response. That preserves a current,
     explicitly qualified family instead of dropping it from the universe.
     """
-    bounded = max(1, min(int(limit), 100))
+    bounded = max(1, min(int(limit), 200))
     fetched = await client.events(status="open", limit=bounded, nested=True)
     rows = fetched.payload.get("events") or []
     events = []

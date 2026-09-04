@@ -123,7 +123,7 @@ async def _broad_live_universe(limit: int) -> CoherenceUniverse:
 async def coherence_universe(
     series: str | None = Query(default=None, description="One series ticker; defaults to the whole watchlist"),
     max_events: int = Query(default=6, ge=1, le=50),
-    family_limit: int = Query(default=75, ge=1, le=100, description="Maximum open families in broad live mode"),
+    family_limit: int = Query(default=200, ge=1, le=200, description="Maximum open families in broad live mode"),
     _actor: str = Depends(trader_identity),
 ) -> CoherenceUniverse:
     """The watched families, priced, with each basket's total stated.

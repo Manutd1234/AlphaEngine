@@ -250,6 +250,11 @@
       "proofs": { "sha256": "859d01c5d7f14743b797933344a92d84b2730282dd3bb26138c4d949f79dd4bc", "strings": 2988, "words": 16634 },
       "diffusion": { "sha256": "689df3f37666419352e27ec2454e56a0e3ba4d411b93eb7ba96f7323f070b8a0", "strings": 1941, "words": 10709 }
     },
+    "liveExpansion20260904Tabs": {
+      "markets": { "sha256": "1f120bc581cae363330a9d229e96e69aa7bd2770a189a64cdbd61ce83ad02cf3", "strings": 2725, "words": 10691 },
+      "proofs": { "sha256": "859d01c5d7f14743b797933344a92d84b2730282dd3bb26138c4d949f79dd4bc", "strings": 2988, "words": 16634 },
+      "diffusion": { "sha256": "2c6c6eefaf1f14860bb4ffb9cddc5ab5217e9b0da2b0f5b11e01728db400adaa", "strings": 1969, "words": 10821 }
+    },
     "summaryCopy": {
       "browserObserved": false,
       "method": "source-derived summary-copy checks with product-specific scopes",

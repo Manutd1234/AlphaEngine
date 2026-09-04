@@ -66,7 +66,7 @@ class TestSeriesWatchlist:
 
     def test_broad_live_families_configure_the_recorder_without_static_series(self, monkeypatch):
         monkeypatch.setattr(tunables, "SERIES_WATCHLIST", ())
-        monkeypatch.setattr(tunables, "LIVE_FAMILY_LIMIT", 75)
+        monkeypatch.setattr(tunables, "LIVE_FAMILY_LIMIT", 200)
         assert tunables.watchlist_configured()
 
 

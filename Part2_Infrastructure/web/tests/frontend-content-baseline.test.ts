@@ -299,6 +299,13 @@ describe("engine copy has a reproducible source-static word baseline", () => {
     proofs: { sha256: "859d01c5d7f14743b797933344a92d84b2730282dd3bb26138c4d949f79dd4bc", strings: 2988, words: 16634 },
     diffusion: { sha256: "689df3f37666419352e27ec2454e56a0e3ba4d411b93eb7ba96f7323f070b8a0", strings: 1941, words: 10709 },
   };
+  const liveExpansion20260904Checkpoint = {
+    // Source-mode labels distinguish the continuously recorded Kalshi tape
+    // from API-refreshed historical studies and browser-only model exercises.
+    markets: { sha256: "1f120bc581cae363330a9d229e96e69aa7bd2770a189a64cdbd61ce83ad02cf3", strings: 2725, words: 10691 },
+    proofs: { sha256: "859d01c5d7f14743b797933344a92d84b2730282dd3bb26138c4d949f79dd4bc", strings: 2988, words: 16634 },
+    diffusion: { sha256: "2c6c6eefaf1f14860bb4ffb9cddc5ab5217e9b0da2b0f5b11e01728db400adaa", strings: 1969, words: 10821 },
+  };
 
   it("retains Phase 0 and records the current upper bound as a separate signature", () => {
     assert.equal(fixture.wordBaseline.browserObserved, false);
@@ -325,7 +332,8 @@ describe("engine copy has a reproducible source-static word baseline", () => {
     assert.deepEqual(fixture.wordBaseline.rfqCompleteRead20260901Tabs, rfqCompleteRead20260901Checkpoint);
     assert.deepEqual(fixture.wordBaseline.uiGatewaySweep20260902Tabs, uiGatewaySweep20260902Checkpoint);
     assert.deepEqual(fixture.wordBaseline.liveFamilyPolling20260904Tabs, liveFamilyPolling20260904Checkpoint);
-    assert.deepEqual(buildEngineWordBaseline(), liveFamilyPolling20260904Checkpoint);
+    assert.deepEqual(fixture.wordBaseline.liveExpansion20260904Tabs, liveExpansion20260904Checkpoint);
+    assert.deepEqual(buildEngineWordBaseline(), liveExpansion20260904Checkpoint);
   });
 
   it("retains the historical starting points for the product-specific summary-copy checks", () => {

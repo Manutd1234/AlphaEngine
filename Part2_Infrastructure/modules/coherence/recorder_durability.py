@@ -50,6 +50,17 @@ def active_poll_seconds(campaign: dict[str, Any]) -> int:
     return tunables.POLL_SECONDS
 
 
+def remaining_poll_delay_s(interval_s: int, started_s: float, finished_s: float) -> float:
+    """Keep poll starts on cadence instead of adding collection time to it.
+
+    A ten-second pass configured for 60 seconds should wait 50 seconds, not a
+    second full minute. An over-budget pass returns zero and still yields via
+    ``asyncio.sleep(0)`` before the next attempt.
+    """
+    elapsed = max(0.0, finished_s - started_s)
+    return max(0.0, float(interval_s) - elapsed)
+
+
 async def persist_decision(
     store: CoherenceStore,
     *,

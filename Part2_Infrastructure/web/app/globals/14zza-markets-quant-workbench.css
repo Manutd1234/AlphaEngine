@@ -118,6 +118,12 @@
   border-radius: var(--radius-card);
   background: var(--markets-inset);
 }
+.markets-plane [data-market-section] > .coh-kpi__withheld {
+  /* These lines sit beside the inset KPI row, not inside the body that carries
+     its own padding. Without an explicit inset their state marks touched the
+     card edge while every measurement above started 16px in. */
+  margin-inline: 18px;
+}
 .markets-plane [data-market-section] .coh-section__body {
   display: flow-root;
   min-width: 0;

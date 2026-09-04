@@ -62,17 +62,26 @@ class Venue:
 
 
 @pytest.mark.anyio
-async def test_seventy_five_families_need_one_listing_and_one_bulk_book_call() -> None:
-    venue = Venue([_family(index) for index in range(75)], cursor="NEXT")
+async def test_two_hundred_families_need_one_listing_and_bounded_bulk_book_calls() -> None:
+    venue = Venue([_family(index) for index in range(200)], cursor="NEXT")
 
-    batch = await observe_live_families(venue, 75)  # type: ignore[arg-type]
+    batch = await observe_live_families(venue)  # type: ignore[arg-type]
 
-    assert len(batch.observations) == 75
-    assert venue.event_calls == [{"status": "open", "limit": 75, "nested": True}]
-    assert [len(call) for call in venue.book_calls] == [75]
+    assert len(batch.observations) == 200
+    assert venue.event_calls == [{"status": "open", "limit": 200, "nested": True}]
+    assert [len(call) for call in venue.book_calls] == [100, 100]
     assert len({item.ts_ns for item in batch.observations}) == 1
     assert batch.observations[0].event.category == "Economics"
-    assert any("bounded to the first 75" in note for note in batch.notes)
+    assert any("bounded to the first 200" in note for note in batch.notes)
+
+
+@pytest.mark.anyio
+async def test_family_limit_cannot_turn_one_poll_into_a_cursor_crawl() -> None:
+    venue = Venue([_family(index) for index in range(200)])
+
+    await observe_live_families(venue, 999)  # type: ignore[arg-type]
+
+    assert venue.event_calls == [{"status": "open", "limit": 200, "nested": True}]
 
 
 @pytest.mark.anyio
