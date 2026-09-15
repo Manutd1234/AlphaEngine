@@ -1,6 +1,6 @@
-# AlphaEngine - All In One Quant Infrastructure
+# AlphaEngine - Quant Infrastructure
 
-**Last verified: 2026-09-04.** Current topology, contract, dependency and test
+**Last verified: 2026-09-04.** Current topology, contract, dependency, and test
 facts are centralised in [`docs/CURRENT_STATE.md`](docs/CURRENT_STATE.md).
 Measurements taken on other hardware — production latency, deployment probes
 and historical benchmarks — keep the dates on which they were actually
