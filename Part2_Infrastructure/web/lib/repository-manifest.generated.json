@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "generatedAt": "2026-09-04",
-  "commit": "7f4adb24",
+  "generatedAt": "2026-10-05",
+  "commit": "b533c7a6",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -1710,6 +1710,7 @@
     "Part2_Infrastructure/web/lib/remediation.ts",
     "Part2_Infrastructure/web/lib/repository-catalog.ts",
     "Part2_Infrastructure/web/lib/repository-manifest.generated.json",
+    "Part2_Infrastructure/web/lib/research-embedding-server.ts",
     "Part2_Infrastructure/web/lib/research-rag.ts",
     "Part2_Infrastructure/web/lib/research-symbols.ts",
     "Part2_Infrastructure/web/lib/research/fold-ladder.ts",
@@ -2270,6 +2271,7 @@
     "Part2_Infrastructure/web/tests/reproducibility-walk-forward.test.ts",
     "Part2_Infrastructure/web/tests/research-corpus.test.ts",
     "Part2_Infrastructure/web/tests/research-declutter.test.ts",
+    "Part2_Infrastructure/web/tests/research-embedding-server.test.ts",
     "Part2_Infrastructure/web/tests/research-parameters-ranking-disclosure.test.ts",
     "Part2_Infrastructure/web/tests/research-rag.test.ts",
     "Part2_Infrastructure/web/tests/research-rpc-acl.test.ts",
