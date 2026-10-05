@@ -1,0 +1,62 @@
+▶ interaction readout geometry source contract
+  ✔ keeps the shared Figure readout mounted before, during and after inspection (0.480875ms)
+  ✔ lets the lesson comparison table opt out without changing other figures' stable rail (0.107875ms)
+  ✔ puts Proofs evidence directly below its caption and the stable readout after the plot (0.133709ms)
+  ✔ keeps the fixed-canvas lesson readout mounted with one canonical announcement (0.148292ms)
+  ✔ keeps the focused dialog readout mounted in a fixed scrollable footprint (0.148292ms)
+  ✔ reserves exactly two readable lines and scrolls longer facts inside that footprint (0.127375ms)
+  ✔ keeps the Fréchet missing-band explanation's wrapped footprint reserved (0.101209ms)
+✔ interaction readout geometry source contract (1.700584ms)
+▶ shared interaction readout geometry in Chromium
+  ✔ does not move a plot on focus, long content or Escape (8831.513625ms)
+✔ shared interaction readout geometry in Chromium (8831.6825ms)
+▶ Focus inspection in Chromium
+  ✔ preserves one chart, shows its words, scales both axes and drags without dismissal (2479.318041ms)
+✔ Focus inspection in Chromium (2480.0215ms)
+▶ desktop header containment source contract
+  ✔ keeps overflow observable and spends one consistent compact rhythm (0.328709ms)
+  ✔ contains the complete borderless tab rail instead of replacing it with a boxed selector (0.200916ms)
+  ✔ does not add a route-specific title inset inside analytical frames (0.086333ms)
+✔ desktop header containment source contract (1.000625ms)
+▶ desktop header containment in Chromium
+  ✔ contains every visible control and tab in one row from 1120 through 2048 (2040.515416ms)
+  ✔ aligns every title to its own context edge across representative widths (3681.218167ms)
+✔ desktop header containment in Chromium (5721.925208ms)
+▶ responsive header and density source contracts
+  ✔ does not manufacture empty space with a header spacer (0.529ms)
+  ✔ lays the Overview metrics and decision stages out as complete split-screen grids (2.206209ms)
+  ✔ lets the owning frame provide the shared page heading's horizontal inset (0.433584ms)
+✔ responsive header and density source contracts (3.548791ms)
+▶ responsive header and density in Chromium
+  ✔ contains the header and fills the Overview metric grid at every responsive tier (1545.107542ms)
+✔ responsive header and density in Chromium (1545.249708ms)
+▶ workspace hard-refresh bootstrap source contract
+  ✔ gates only the dashboard and always has a no-JavaScript escape (0.258291ms)
+  ✔ applies the location and measures both chrome rows before paint (0.242791ms)
+  ✔ reveals one animation-free target frame without collapsing the shell (0.330208ms)
+  ✔ retains the bounded dynamic console chunks (0.059791ms)
+✔ workspace hard-refresh bootstrap source contract (1.285ms)
+▶ workspace hard-refresh geometry in Chromium
+  ✖ never exposes Overview while a Reliability deep link is booting (33023.393958ms)
+✖ workspace hard-refresh geometry in Chromium (33023.946167ms)
+ℹ tests 23
+ℹ suites 9
+ℹ pass 22
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 53370.794459
+
+✖ failing tests:
+
+test at tests/workspace-refresh-bootstrap.test.ts:3:3838
+✖ never exposes Overview while a Reliability deep link is booting (33023.393958ms)
+  locator.waitFor: Timeout 30000ms exceeded.
+  Call log:
+  [2m  - waiting for locator('.developer-work__table tbody tr select').first() to be visible[22m
+  
+      at TestContext.<anonymous> (/Users/ian/Projects/Developer Analyst/IAN_WANGSA_NUSSIF_INFRA/Part2_Infrastructure/web/tests/workspace-refresh-bootstrap.test.ts:177:26) {
+    name: 'TimeoutError',
+    log: [ "  - waiting for locator('.developer-work__table tbody tr select').first() to be visible" ]
+  }

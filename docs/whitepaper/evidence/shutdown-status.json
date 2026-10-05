@@ -1,0 +1,80 @@
+{
+  "verified_at": "2026-10-05T10:39:13.542820+00:00",
+  "repository": "Manutd1234/AlphaEngine",
+  "deployed_build": "3b9918f6",
+  "disabled_workflows": [
+    "CI",
+    "Deploy gateway to OCI",
+    "End-to-end smoke",
+    "Observe public market data",
+    "Keep OpenBB service warm",
+    "Keep Oracle ADB awake",
+    "Apply database schema"
+  ],
+  "remaining_active_workflows": [],
+  "active_runs": 0,
+  "queued_runs": 0,
+  "oci_containers": "Current state unknown: SSH and HTTPS time out. Earlier successful running observations are historical.",
+  "container_shutdown_verified": false,
+  "oracle_adb": "Direct Vercel queries succeeded; database has not been stopped in OCI.",
+  "data_volumes": "No data or volumes deleted.",
+  "pending": "Oracle console sign-in required to inspect/restore the VM and verify service shutdown.",
+  "historical_state": {
+    "verified_at": "2026-10-05T09:03:23.587190+00:00",
+    "repository": "Manutd1234/AlphaEngine",
+    "local_revision": "5225f3e2",
+    "observed_deployed_build": "726bbe7",
+    "local_docker": "daemon not running",
+    "oci_containers": {
+      "alphaengine_gateway": "running (healthy)",
+      "alphaengine_caddy": "running"
+    },
+    "oci_running_container_count": 2,
+    "data_volumes": "retained",
+    "disabled_workflows": [
+      "CI",
+      "Deploy gateway to OCI",
+      "End-to-end smoke",
+      "Keep Oracle ADB awake",
+      "Apply database schema"
+    ],
+    "remaining_active_workflows": [
+      "Observe public market data",
+      "Keep OpenBB service warm"
+    ],
+    "active_runs": 0,
+    "queued_runs": 0,
+    "oracle_vm_database": "Running/reachable; not terminated. Reconnected services can incur usage.",
+    "capture_oracle_api": "live; no request blocking",
+    "historical_shutdown": {
+      "verified_at": "2026-10-05",
+      "repository": "Manutd1234/AlphaEngine",
+      "local_revision": "5225f3e2",
+      "observed_deployed_build": "726bbe7",
+      "local_docker": "daemon not running",
+      "oci_containers": {
+        "alphaengine_gateway": "exited",
+        "alphaengine_caddy": "exited"
+      },
+      "oci_running_container_count": 0,
+      "data_volumes": "retained",
+      "disabled_workflows": [
+        "CI",
+        "Deploy gateway to OCI",
+        "End-to-end smoke",
+        "Keep Oracle ADB awake",
+        "Apply database schema"
+      ],
+      "remaining_active_workflows": [
+        "Observe public market data",
+        "Keep OpenBB service warm"
+      ],
+      "active_runs": 0,
+      "queued_runs": 0,
+      "oracle_vm_database": "not stopped or terminated through OCI; user chose GitHub-only control",
+      "capture_oracle_api": "requests aborted in isolated browser"
+    },
+    "reconnection_reason": "User requested Oracle and deployed Vercel dependencies connected before screenshot verification",
+    "workflow_policy": "Five Oracle-connected workflows remain disabled; no recurring reactivation requested explicitly"
+  }
+}

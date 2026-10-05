@@ -1,0 +1,17 @@
+▶ workspace hard-refresh bootstrap source contract
+  ✔ gates only the dashboard and always has a no-JavaScript escape (0.235125ms)
+  ✔ applies the location and measures both chrome rows before paint (0.218792ms)
+  ✔ reveals one animation-free target frame without collapsing the shell (0.29825ms)
+  ✔ retains the bounded dynamic console chunks (0.045333ms)
+✔ workspace hard-refresh bootstrap source contract (1.15675ms)
+▶ workspace hard-refresh geometry in Chromium
+  ✔ never exposes Overview while a Reliability deep link is booting (3532.258042ms)
+✔ workspace hard-refresh geometry in Chromium (3532.39775ms)
+ℹ tests 5
+ℹ suites 2
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3804.389542

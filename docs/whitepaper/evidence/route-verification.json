@@ -1,0 +1,1094 @@
+{
+  "date": "2026-10-05",
+  "origin": "local frontend with paid credentials blank and Oracle paths blocked; Portfolio and Risk use explicitly selected generated Sandbox",
+  "checks": "Hash navigation, expected visible workspace, non-empty visible content, uncaught page errors; not individual button or live-service success",
+  "passed": 120,
+  "failed": 0,
+  "pageErrors": [],
+  "results": [
+    {
+      "hash": "overview/loop",
+      "status": "passed",
+      "textLength": 823,
+      "subpanels": [
+        "overview-subpanel-loop"
+      ],
+      "controls": 14
+    },
+    {
+      "hash": "overview/desks",
+      "status": "passed",
+      "textLength": 1140,
+      "subpanels": [
+        "overview-subpanel-desks"
+      ],
+      "controls": 21
+    },
+    {
+      "hash": "overview/audit",
+      "status": "passed",
+      "textLength": 616,
+      "subpanels": [
+        "overview-subpanel-audit"
+      ],
+      "controls": 15
+    },
+    {
+      "hash": "research/summary",
+      "status": "passed",
+      "textLength": 2221,
+      "subpanels": [
+        "research-subpanel-summary",
+        "research-summary-view-panel"
+      ],
+      "controls": 24
+    },
+    {
+      "hash": "research/parameters",
+      "status": "passed",
+      "textLength": 2175,
+      "subpanels": [
+        "research-subpanel-parameters"
+      ],
+      "controls": 21
+    },
+    {
+      "hash": "research/walkforward",
+      "status": "passed",
+      "textLength": 1441,
+      "subpanels": [
+        "research-subpanel-walkforward"
+      ],
+      "controls": 19
+    },
+    {
+      "hash": "research/attribution",
+      "status": "passed",
+      "textLength": 2549,
+      "subpanels": [
+        "research-subpanel-attribution"
+      ],
+      "controls": 24
+    },
+    {
+      "hash": "research/lineage",
+      "status": "passed",
+      "textLength": 1191,
+      "subpanels": [
+        "research-subpanel-lineage"
+      ],
+      "controls": 29
+    },
+    {
+      "hash": "research/decision",
+      "status": "passed",
+      "textLength": 2245,
+      "subpanels": [
+        "research-subpanel-decision"
+      ],
+      "controls": 24
+    },
+    {
+      "hash": "research/runs",
+      "status": "passed",
+      "textLength": 857,
+      "subpanels": [
+        "research-subpanel-runs"
+      ],
+      "controls": 24
+    },
+    {
+      "hash": "research/fitted",
+      "status": "passed",
+      "textLength": 626,
+      "subpanels": [
+        "research-subpanel-fitted"
+      ],
+      "controls": 19
+    },
+    {
+      "hash": "research/codex",
+      "status": "passed",
+      "textLength": 2133,
+      "subpanels": [
+        "research-subpanel-codex",
+        "strategy-family-trend-panel"
+      ],
+      "controls": 43
+    },
+    {
+      "hash": "live/trade",
+      "status": "passed",
+      "textLength": 1857,
+      "subpanels": [
+        "execution-subpanel-trade"
+      ],
+      "controls": 23
+    },
+    {
+      "hash": "live/liquidity",
+      "status": "passed",
+      "textLength": 1564,
+      "subpanels": [
+        "execution-subpanel-liquidity"
+      ],
+      "controls": 25
+    },
+    {
+      "hash": "live/routing",
+      "status": "passed",
+      "textLength": 1334,
+      "subpanels": [
+        "execution-subpanel-routing"
+      ],
+      "controls": 43
+    },
+    {
+      "hash": "live/quality",
+      "status": "passed",
+      "textLength": 585,
+      "subpanels": [
+        "execution-subpanel-quality"
+      ],
+      "controls": 13
+    },
+    {
+      "hash": "live/activity",
+      "status": "passed",
+      "textLength": 678,
+      "subpanels": [
+        "execution-subpanel-activity"
+      ],
+      "controls": 19
+    },
+    {
+      "hash": "portfolio/overview",
+      "status": "passed",
+      "textLength": 1177,
+      "subpanels": [
+        "portfolio-subpanel-overview"
+      ],
+      "controls": 16
+    },
+    {
+      "hash": "portfolio/equity",
+      "status": "passed",
+      "textLength": 1996,
+      "subpanels": [
+        "portfolio-subpanel-equity"
+      ],
+      "controls": 16
+    },
+    {
+      "hash": "portfolio/positions",
+      "status": "passed",
+      "textLength": 921,
+      "subpanels": [
+        "portfolio-subpanel-positions"
+      ],
+      "controls": 21
+    },
+    {
+      "hash": "portfolio/allocation",
+      "status": "passed",
+      "textLength": 773,
+      "subpanels": [
+        "portfolio-subpanel-allocation"
+      ],
+      "controls": 18
+    },
+    {
+      "hash": "portfolio/performance",
+      "status": "passed",
+      "textLength": 1792,
+      "subpanels": [
+        "portfolio-subpanel-performance"
+      ],
+      "controls": 18
+    },
+    {
+      "hash": "risk/limits",
+      "status": "passed",
+      "textLength": 1436,
+      "subpanels": [
+        "risk-subpanel-limits"
+      ],
+      "controls": 19
+    },
+    {
+      "hash": "risk/model",
+      "status": "passed",
+      "textLength": 1079,
+      "subpanels": [
+        "risk-subpanel-model"
+      ],
+      "controls": 17
+    },
+    {
+      "hash": "risk/diagram",
+      "status": "passed",
+      "textLength": 1421,
+      "subpanels": [
+        "risk-subpanel-diagram"
+      ],
+      "controls": 19
+    },
+    {
+      "hash": "risk/drivers",
+      "status": "passed",
+      "textLength": 1524,
+      "subpanels": [
+        "risk-subpanel-drivers"
+      ],
+      "controls": 19
+    },
+    {
+      "hash": "risk/montecarlo",
+      "status": "passed",
+      "textLength": 2013,
+      "subpanels": [
+        "risk-subpanel-montecarlo"
+      ],
+      "controls": 27
+    },
+    {
+      "hash": "risk/oraclevar",
+      "status": "passed",
+      "textLength": 1281,
+      "subpanels": [
+        "risk-subpanel-oraclevar"
+      ],
+      "controls": 21
+    },
+    {
+      "hash": "risk/scenarios",
+      "status": "passed",
+      "textLength": 1906,
+      "subpanels": [
+        "risk-subpanel-scenarios"
+      ],
+      "controls": 34
+    },
+    {
+      "hash": "risk/controls",
+      "status": "passed",
+      "textLength": 767,
+      "subpanels": [
+        "risk-subpanel-controls"
+      ],
+      "controls": 19
+    },
+    {
+      "hash": "data/overview",
+      "status": "passed",
+      "textLength": 2065,
+      "subpanels": [
+        "data-subpanel-overview"
+      ],
+      "controls": 20
+    },
+    {
+      "hash": "data/feeds",
+      "status": "passed",
+      "textLength": 734,
+      "subpanels": [
+        "data-subpanel-feeds"
+      ],
+      "controls": 19
+    },
+    {
+      "hash": "data/quality",
+      "status": "passed",
+      "textLength": 644,
+      "subpanels": [
+        "data-subpanel-quality"
+      ],
+      "controls": 16
+    },
+    {
+      "hash": "data/incidents",
+      "status": "passed",
+      "textLength": 1074,
+      "subpanels": [
+        "data-subpanel-incidents"
+      ],
+      "controls": 14
+    },
+    {
+      "hash": "data/lineage",
+      "status": "passed",
+      "textLength": 1802,
+      "subpanels": [
+        "data-subpanel-lineage"
+      ],
+      "controls": 37
+    },
+    {
+      "hash": "data/providers",
+      "status": "passed",
+      "textLength": 1631,
+      "subpanels": [
+        "data-subpanel-providers"
+      ],
+      "controls": 32
+    },
+    {
+      "hash": "data/queue",
+      "status": "passed",
+      "textLength": 1165,
+      "subpanels": [
+        "data-subpanel-queue"
+      ],
+      "controls": 21
+    },
+    {
+      "hash": "reliability/overview",
+      "status": "passed",
+      "textLength": 1186,
+      "subpanels": [
+        "reliability-subpanel-overview"
+      ],
+      "controls": 19
+    },
+    {
+      "hash": "reliability/planes",
+      "status": "passed",
+      "textLength": 3402,
+      "subpanels": [
+        "reliability-subpanel-planes"
+      ],
+      "controls": 22
+    },
+    {
+      "hash": "reliability/services",
+      "status": "passed",
+      "textLength": 2811,
+      "subpanels": [
+        "reliability-subpanel-services"
+      ],
+      "controls": 48
+    },
+    {
+      "hash": "reliability/events",
+      "status": "passed",
+      "textLength": 664,
+      "subpanels": [
+        "reliability-subpanel-events"
+      ],
+      "controls": 21
+    },
+    {
+      "hash": "reliability/controls",
+      "status": "passed",
+      "textLength": 3894,
+      "subpanels": [
+        "reliability-subpanel-controls"
+      ],
+      "controls": 33
+    },
+    {
+      "hash": "developer/overview",
+      "status": "passed",
+      "textLength": 1083,
+      "subpanels": [
+        "developer-subpanel-overview"
+      ],
+      "controls": 16
+    },
+    {
+      "hash": "developer/readiness",
+      "status": "passed",
+      "textLength": 1846,
+      "subpanels": [
+        "developer-subpanel-readiness"
+      ],
+      "controls": 14
+    },
+    {
+      "hash": "developer/quality",
+      "status": "passed",
+      "textLength": 837,
+      "subpanels": [
+        "developer-subpanel-quality"
+      ],
+      "controls": 15
+    },
+    {
+      "hash": "developer/apis",
+      "status": "passed",
+      "textLength": 2391,
+      "subpanels": [
+        "developer-subpanel-apis"
+      ],
+      "controls": 21
+    },
+    {
+      "hash": "developer/codebase",
+      "status": "passed",
+      "textLength": 4865,
+      "subpanels": [
+        "developer-subpanel-codebase"
+      ],
+      "controls": 69
+    },
+    {
+      "hash": "developer/work",
+      "status": "passed",
+      "textLength": 856,
+      "subpanels": [
+        "developer-subpanel-work"
+      ],
+      "controls": 19
+    },
+    {
+      "hash": "research/summary/setup",
+      "status": "passed",
+      "textLength": 2278,
+      "subpanels": [
+        "research-subpanel-summary",
+        "research-summary-view-panel",
+        "radix-_r_2s_-content-core"
+      ],
+      "controls": 35
+    },
+    {
+      "hash": "markets/universe/baskets",
+      "status": "passed",
+      "textLength": 542,
+      "subpanels": [
+        "markets-subpanel-universe"
+      ],
+      "controls": 18
+    },
+    {
+      "hash": "markets/universe/positions",
+      "status": "passed",
+      "textLength": 553,
+      "subpanels": [
+        "markets-subpanel-universe"
+      ],
+      "controls": 19
+    },
+    {
+      "hash": "markets/universe/families",
+      "status": "passed",
+      "textLength": 602,
+      "subpanels": [
+        "markets-subpanel-universe"
+      ],
+      "controls": 20
+    },
+    {
+      "hash": "markets/settlement/reading",
+      "status": "passed",
+      "textLength": 597,
+      "subpanels": [
+        "markets-subpanel-settlement"
+      ],
+      "controls": 18
+    },
+    {
+      "hash": "markets/settlement/formation",
+      "status": "passed",
+      "textLength": 594,
+      "subpanels": [
+        "markets-subpanel-settlement"
+      ],
+      "controls": 19
+    },
+    {
+      "hash": "markets/settlement/pending",
+      "status": "passed",
+      "textLength": 600,
+      "subpanels": [
+        "markets-subpanel-settlement"
+      ],
+      "controls": 19
+    },
+    {
+      "hash": "markets/books/ladder",
+      "status": "passed",
+      "textLength": 521,
+      "subpanels": [
+        "markets-subpanel-books"
+      ],
+      "controls": 18
+    },
+    {
+      "hash": "markets/books/identity",
+      "status": "passed",
+      "textLength": 524,
+      "subpanels": [
+        "markets-subpanel-books"
+      ],
+      "controls": 19
+    },
+    {
+      "hash": "markets/books/history",
+      "status": "passed",
+      "textLength": 612,
+      "subpanels": [
+        "markets-subpanel-books"
+      ],
+      "controls": 20
+    },
+    {
+      "hash": "markets/dispersion/quotes",
+      "status": "passed",
+      "textLength": 633,
+      "subpanels": [
+        "markets-subpanel-dispersion"
+      ],
+      "controls": 17
+    },
+    {
+      "hash": "markets/dispersion/channel",
+      "status": "passed",
+      "textLength": 637,
+      "subpanels": [
+        "markets-subpanel-dispersion"
+      ],
+      "controls": 18
+    },
+    {
+      "hash": "markets/lattice/survival",
+      "status": "passed",
+      "textLength": 739,
+      "subpanels": [
+        "markets-subpanel-lattice"
+      ],
+      "controls": 19
+    },
+    {
+      "hash": "markets/lattice/mass",
+      "status": "passed",
+      "textLength": 732,
+      "subpanels": [
+        "markets-subpanel-lattice"
+      ],
+      "controls": 20
+    },
+    {
+      "hash": "markets/lattice/moments",
+      "status": "passed",
+      "textLength": 736,
+      "subpanels": [
+        "markets-subpanel-lattice"
+      ],
+      "controls": 20
+    },
+    {
+      "hash": "markets/lattice/support",
+      "status": "passed",
+      "textLength": 736,
+      "subpanels": [
+        "markets-subpanel-lattice"
+      ],
+      "controls": 20
+    },
+    {
+      "hash": "markets/stake/plan",
+      "status": "passed",
+      "textLength": 736,
+      "subpanels": [
+        "markets-subpanel-stake"
+      ],
+      "controls": 19
+    },
+    {
+      "hash": "markets/stake/capital",
+      "status": "passed",
+      "textLength": 730,
+      "subpanels": [
+        "markets-subpanel-stake"
+      ],
+      "controls": 20
+    },
+    {
+      "hash": "markets/stake/method",
+      "status": "passed",
+      "textLength": 733,
+      "subpanels": [
+        "markets-subpanel-stake"
+      ],
+      "controls": 20
+    },
+    {
+      "hash": "markets/stake/family",
+      "status": "passed",
+      "textLength": 733,
+      "subpanels": [
+        "markets-subpanel-stake"
+      ],
+      "controls": 20
+    },
+    {
+      "hash": "markets/fees/example",
+      "status": "passed",
+      "textLength": 835,
+      "subpanels": [
+        "markets-subpanel-fees"
+      ],
+      "controls": 20
+    },
+    {
+      "hash": "markets/fees/shape",
+      "status": "passed",
+      "textLength": 1167,
+      "subpanels": [
+        "markets-subpanel-fees"
+      ],
+      "controls": 23
+    },
+    {
+      "hash": "markets/fees/comparison",
+      "status": "passed",
+      "textLength": 793,
+      "subpanels": [
+        "markets-subpanel-fees"
+      ],
+      "controls": 20
+    },
+    {
+      "hash": "markets/fees/table",
+      "status": "passed",
+      "textLength": 796,
+      "subpanels": [
+        "markets-subpanel-fees"
+      ],
+      "controls": 20
+    },
+    {
+      "hash": "markets/shell/layout",
+      "status": "passed",
+      "textLength": 1704,
+      "subpanels": [
+        "markets-subpanel-shell"
+      ],
+      "controls": 23
+    },
+    {
+      "hash": "markets/shell/route",
+      "status": "passed",
+      "textLength": 1121,
+      "subpanels": [
+        "markets-subpanel-shell"
+      ],
+      "controls": 21
+    },
+    {
+      "hash": "markets/shell/tree",
+      "status": "passed",
+      "textLength": 766,
+      "subpanels": [
+        "markets-subpanel-shell"
+      ],
+      "controls": 24
+    },
+    {
+      "hash": "coherence/certificate/verdict",
+      "status": "passed",
+      "textLength": 1100,
+      "subpanels": [
+        "coherence-subpanel-certificate"
+      ],
+      "controls": 22
+    },
+    {
+      "hash": "coherence/certificate/proof",
+      "status": "passed",
+      "textLength": 1108,
+      "subpanels": [
+        "coherence-subpanel-certificate"
+      ],
+      "controls": 22
+    },
+    {
+      "hash": "coherence/certificate/checks",
+      "status": "passed",
+      "textLength": 1106,
+      "subpanels": [
+        "coherence-subpanel-certificate"
+      ],
+      "controls": 22
+    },
+    {
+      "hash": "coherence/certificate/prices",
+      "status": "passed",
+      "textLength": 1098,
+      "subpanels": [
+        "coherence-subpanel-certificate"
+      ],
+      "controls": 22
+    },
+    {
+      "hash": "coherence/certificate/sizes",
+      "status": "passed",
+      "textLength": 1101,
+      "subpanels": [
+        "coherence-subpanel-certificate"
+      ],
+      "controls": 22
+    },
+    {
+      "hash": "coherence/portfolio/cover",
+      "status": "passed",
+      "textLength": 1084,
+      "subpanels": [
+        "coherence-subpanel-portfolio"
+      ],
+      "controls": 20
+    },
+    {
+      "hash": "coherence/portfolio/basket",
+      "status": "passed",
+      "textLength": 1081,
+      "subpanels": [
+        "coherence-subpanel-portfolio"
+      ],
+      "controls": 20
+    },
+    {
+      "hash": "coherence/portfolio/size",
+      "status": "passed",
+      "textLength": 1095,
+      "subpanels": [
+        "coherence-subpanel-portfolio"
+      ],
+      "controls": 20
+    },
+    {
+      "hash": "coherence/combos/bands",
+      "status": "passed",
+      "textLength": 1966,
+      "subpanels": [
+        "coherence-subpanel-combos"
+      ],
+      "controls": 28
+    },
+    {
+      "hash": "coherence/combos/parlays",
+      "status": "passed",
+      "textLength": 1965,
+      "subpanels": [
+        "coherence-subpanel-combos"
+      ],
+      "controls": 28
+    },
+    {
+      "hash": "coherence/combos/inputs",
+      "status": "passed",
+      "textLength": 1976,
+      "subpanels": [
+        "coherence-subpanel-combos"
+      ],
+      "controls": 28
+    },
+    {
+      "hash": "coherence/combos/legs",
+      "status": "passed",
+      "textLength": 1974,
+      "subpanels": [
+        "coherence-subpanel-combos"
+      ],
+      "controls": 28
+    },
+    {
+      "hash": "coherence/combos/bounds",
+      "status": "passed",
+      "textLength": 1975,
+      "subpanels": [
+        "coherence-subpanel-combos"
+      ],
+      "controls": 28
+    },
+    {
+      "hash": "coherence/index/series",
+      "status": "passed",
+      "textLength": 980,
+      "subpanels": [
+        "coherence-subpanel-index"
+      ],
+      "controls": 19
+    },
+    {
+      "hash": "coherence/index/families",
+      "status": "passed",
+      "textLength": 980,
+      "subpanels": [
+        "coherence-subpanel-index"
+      ],
+      "controls": 19
+    },
+    {
+      "hash": "coherence/calibration/score",
+      "status": "passed",
+      "textLength": 1417,
+      "subpanels": [
+        "coherence-subpanel-calibration"
+      ],
+      "controls": 25
+    },
+    {
+      "hash": "coherence/calibration/decomposition",
+      "status": "passed",
+      "textLength": 1404,
+      "subpanels": [
+        "coherence-subpanel-calibration"
+      ],
+      "controls": 25
+    },
+    {
+      "hash": "coherence/calibration/components",
+      "status": "passed",
+      "textLength": 1413,
+      "subpanels": [
+        "coherence-subpanel-calibration"
+      ],
+      "controls": 25
+    },
+    {
+      "hash": "coherence/calibration/measures",
+      "status": "passed",
+      "textLength": 1422,
+      "subpanels": [
+        "coherence-subpanel-calibration"
+      ],
+      "controls": 25
+    },
+    {
+      "hash": "coherence/calibration/reliability",
+      "status": "passed",
+      "textLength": 1426,
+      "subpanels": [
+        "coherence-subpanel-calibration"
+      ],
+      "controls": 25
+    },
+    {
+      "hash": "coherence/calibration/bands",
+      "status": "passed",
+      "textLength": 1424,
+      "subpanels": [
+        "coherence-subpanel-calibration"
+      ],
+      "controls": 25
+    },
+    {
+      "hash": "coherence/corpus/composition",
+      "status": "passed",
+      "textLength": 1263,
+      "subpanels": [
+        "coherence-subpanel-corpus"
+      ],
+      "controls": 21
+    },
+    {
+      "hash": "coherence/corpus/trend",
+      "status": "passed",
+      "textLength": 1263,
+      "subpanels": [
+        "coherence-subpanel-corpus"
+      ],
+      "controls": 21
+    },
+    {
+      "hash": "coherence/lessons/prices",
+      "status": "passed",
+      "textLength": 2262,
+      "subpanels": [
+        "coherence-subpanel-lessons"
+      ],
+      "controls": 28
+    },
+    {
+      "hash": "coherence/lessons/structure",
+      "status": "passed",
+      "textLength": 3571,
+      "subpanels": [
+        "coherence-subpanel-lessons"
+      ],
+      "controls": 34
+    },
+    {
+      "hash": "coherence/lessons/bounds",
+      "status": "passed",
+      "textLength": 1894,
+      "subpanels": [
+        "coherence-subpanel-lessons"
+      ],
+      "controls": 26
+    },
+    {
+      "hash": "coherence/lessons/record",
+      "status": "passed",
+      "textLength": 2403,
+      "subpanels": [
+        "coherence-subpanel-lessons"
+      ],
+      "controls": 28
+    },
+    {
+      "hash": "coherence/lessons/coverage",
+      "status": "passed",
+      "textLength": 1153,
+      "subpanels": [
+        "coherence-subpanel-lessons"
+      ],
+      "controls": 25
+    },
+    {
+      "hash": "coherence/lessons/states",
+      "status": "passed",
+      "textLength": 936,
+      "subpanels": [
+        "coherence-subpanel-lessons"
+      ],
+      "controls": 22
+    },
+    {
+      "hash": "diffusion/arm/absorption",
+      "status": "passed",
+      "textLength": 848,
+      "subpanels": [
+        "diffusion-subpanel-arm"
+      ],
+      "controls": 16
+    },
+    {
+      "hash": "diffusion/arm/floor",
+      "status": "passed",
+      "textLength": 854,
+      "subpanels": [
+        "diffusion-subpanel-arm"
+      ],
+      "controls": 16
+    },
+    {
+      "hash": "diffusion/arm/clocks",
+      "status": "passed",
+      "textLength": 842,
+      "subpanels": [
+        "diffusion-subpanel-arm"
+      ],
+      "controls": 16
+    },
+    {
+      "hash": "diffusion/meetings/table",
+      "status": "passed",
+      "textLength": 919,
+      "subpanels": [
+        "diffusion-subpanel-meetings"
+      ],
+      "controls": 16
+    },
+    {
+      "hash": "diffusion/meetings/calendar",
+      "status": "passed",
+      "textLength": 1019,
+      "subpanels": [
+        "diffusion-subpanel-meetings"
+      ],
+      "controls": 16
+    },
+    {
+      "hash": "diffusion/meetings/mechanism",
+      "status": "passed",
+      "textLength": 832,
+      "subpanels": [
+        "diffusion-subpanel-meetings"
+      ],
+      "controls": 16
+    },
+    {
+      "hash": "diffusion/episodes/survival",
+      "status": "passed",
+      "textLength": 1025,
+      "subpanels": [
+        "diffusion-subpanel-episodes"
+      ],
+      "controls": 15
+    },
+    {
+      "hash": "diffusion/episodes/episodes",
+      "status": "passed",
+      "textLength": 936,
+      "subpanels": [
+        "diffusion-subpanel-episodes"
+      ],
+      "controls": 15
+    },
+    {
+      "hash": "diffusion/model/measurement",
+      "status": "passed",
+      "textLength": 1754,
+      "subpanels": [
+        "diffusion-subpanel-model"
+      ],
+      "controls": 19
+    },
+    {
+      "hash": "diffusion/instrument/instrument",
+      "status": "passed",
+      "textLength": 1582,
+      "subpanels": [
+        "diffusion-subpanel-instrument"
+      ],
+      "controls": 18
+    },
+    {
+      "hash": "diffusion/sandbox/halflife",
+      "status": "passed",
+      "textLength": 1127,
+      "subpanels": [
+        "diffusion-subpanel-sandbox"
+      ],
+      "controls": 22
+    },
+    {
+      "hash": "diffusion/sandbox/simulator",
+      "status": "passed",
+      "textLength": 1241,
+      "subpanels": [
+        "diffusion-subpanel-sandbox"
+      ],
+      "controls": 21
+    },
+    {
+      "hash": "diffusion/sandbox/spectrum",
+      "status": "passed",
+      "textLength": 1448,
+      "subpanels": [
+        "diffusion-subpanel-sandbox"
+      ],
+      "controls": 22
+    },
+    {
+      "hash": "diffusion/findings/plot",
+      "status": "passed",
+      "textLength": 1335,
+      "subpanels": [
+        "diffusion-subpanel-findings"
+      ],
+      "controls": 21
+    },
+    {
+      "hash": "diffusion/findings/table",
+      "status": "passed",
+      "textLength": 1157,
+      "subpanels": [
+        "diffusion-subpanel-findings"
+      ],
+      "controls": 16
+    },
+    {
+      "hash": "diffusion/findings/instrument",
+      "status": "passed",
+      "textLength": 1783,
+      "subpanels": [
+        "diffusion-subpanel-findings"
+      ],
+      "controls": 17
+    }
+  ]
+}

@@ -28,6 +28,11 @@ Thumbs.db
 # reader who clones this repository should get the document, not instructions for
 # producing it. Its Typst source is committed beside it in docs/whitepaper/.
 !/AlphaEngine_Institutional_Whitepaper.pdf
+!/docs/whitepaper/AlphaEngine_Institutional_Whitepaper.pdf
+
+# Local capture scratch files and duplicate publication build output.
+/tmp/
+/output/
 
 # ── Python (scoped to the gateway) ───────────────────────────────────────────
 /Part2_Infrastructure/venv/

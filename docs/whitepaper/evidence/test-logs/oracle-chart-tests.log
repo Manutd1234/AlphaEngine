@@ -1,0 +1,81 @@
+▶ the three sources this suite scans are actually being read
+  ✔ each loads with content (0.222625ms)
+✔ the three sources this suite scans are actually being read (0.566666ms)
+▶ the panel re-runs on a cadence, and the cadence is argued
+  ✔ the loop is the shared PollingController, not a hand-rolled interval (0.150791ms)
+  ✔ it runs only while someone is looking at this panel (0.330917ms)
+  ✔ the interval is defended by arithmetic, not chosen for feeling live (0.094291ms)
+  ✔ the loop re-reads one book rather than fetching a second one (0.057417ms)
+✔ the panel re-runs on a cadence, and the cadence is argued (0.734542ms)
+▶ a repeat at unchanged inputs is a measurement, not a duplicate
+  ✔ the point is keyed on the tick as well as the inputs (0.108459ms)
+  ✔ StrictMode is handled by the abort discipline, not by suppressing repeats (0.068125ms)
+✔ a repeat at unchanged inputs is a measurement, not a duplicate (0.252416ms)
+▶ no state on this card is silent about itself
+  ✔ a flat live book is named as the reason, not left as a wait (0.082833ms)
+  ✔ the chart's empty state explains itself in the register of its caption (0.042ms)
+  ✔ the cadence is disclosed on the card, derived from the constant (0.110834ms)
+✔ no state on this card is silent about itself (0.291666ms)
+▶ a good answer is never blanked
+  ✔ the file is being read, so every doesNotMatch below scans something (0.275166ms)
+  ✔ no skeleton is rendered at all (0.069208ms)
+  ✔ only two states come before the figures, and neither is in-flight (0.0395ms)
+  ✔ a re-run demotes the figures to `cached` instead of removing them (0.03825ms)
+  ✔ a held answer does not survive the Live/Sandbox toggle (0.04475ms)
+  ✔ the status line says which run the figures on screen came from (0.066708ms)
+  ✔ every tile describes the run it came from, not the request in flight (0.039791ms)
+  ✔ a figure that does not exist yet is a dash, never a zero (0.054458ms)
+  ✔ the reserve boxes both stay, so nothing bounces (0.055167ms)
+✔ a good answer is never blanked (1.138417ms)
+▶ the fast figure is on screen before the database is asked
+  ✔ the closed form is priced on the requested inputs, in this browser (0.855833ms)
+  ✔ it never becomes the divergence baseline (0.210708ms)
+  ✔ the pre-answer figure is a real number, not a placeholder (0.070041ms)
+✔ the fast figure is on screen before the database is asked (1.216625ms)
+▶ the re-run cadence is what the comments claim
+  ✔ the volatility input is bucketed, and the bucket is a basis point (0.055917ms)
+  ✔ a poll-sized volatility tick lands in the same bucket (0.043708ms)
+  ✔ the observation key collapses with it, so the trend records one fact once (0.040458ms)
+  ✔ the bucket discards less than the simulation's own sampling error (0.100958ms)
+  ✔ the equity bucket it works beside is untouched (0.024667ms)
+✔ the re-run cadence is what the comments claim (0.313375ms)
+▶ a superseded run lands nowhere
+  ✔ the effect cancels the request whose inputs no longer exist (0.083667ms)
+  ✔ a cancellation is not reported as a database that failed to answer (0.02925ms)
+  ✔ the deadline is still its own, and still reported (0.022542ms)
+✔ a superseded run lands nowhere (0.161833ms)
+▶ the chart is built from the in-tree primitives
+  ✔ adds no dependency and hand-rolls no scale (0.334333ms)
+  ✔ keys its draw animation on the data, never on the measured width (0.0765ms)
+  ✔ respects reduced motion by using the one animation contract (0.065875ms)
+✔ the chart is built from the in-tree primitives (0.844417ms)
+▶ the series never implies more history than it holds
+  ✔ says how many observations it has, in words, every time (0.06125ms)
+  ✔ reports the empty case instead of drawing an empty plot (0.048667ms)
+  ✔ a single observation is drawn as a point and says a line needs two (0.042334ms)
+  ✔ keeps the terminal-value figure off one scale with other horizons (0.036417ms)
+✔ the series never implies more history than it holds (0.283042ms)
+▶ a point that could not be computed is absent, not zero
+  ✔ nothing in the chart coerces a nullable figure (0.101542ms)
+  ✔ the line breaks at a missing point rather than bridging it (0.046209ms)
+  ✔ an unavailable run is still recorded, so the gap keeps its width (0.05275ms)
+  ✔ a horizon where every run failed reports rather than inventing a scale (0.086541ms)
+  ✔ the missing points are counted on screen (0.032292ms)
+✔ a point that could not be computed is absent, not zero (0.419125ms)
+▶ a re-run repaints the chart and does not move the card
+  ✔ the chart sits in a box reserved at its own height (0.056792ms)
+  ✔ the reserved box stands whether or not the chart draws (0.064042ms)
+✔ a re-run repaints the chart and does not move the card (0.157167ms)
+▶ one observation per input set, not per attempt
+  ✔ the point is keyed on the inputs the simulation ran on (0.138958ms)
+  ✔ the series is appended to, never reset (0.030458ms)
+  ✔ the trend is capped, and the cap is what the caption counts (0.026667ms)
+✔ one observation per input set, not per attempt (0.235542ms)
+ℹ tests 47
+ℹ suites 13
+ℹ pass 47
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 285.333625

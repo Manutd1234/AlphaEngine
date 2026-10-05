@@ -13,8 +13,8 @@
 #show: whitepaper.with(
   title: "AlphaEngine Quant OS",
   subtitle: "Institutional architecture, mathematical controls and operating contracts from signal to governed decision",
-  version: "Revision B - repository architecture 2026-08-29",
-  generated: "29 August 2026",
+  version: "Revision F - verified Oracle search, charts and paused workflows",
+  generated: "5 October 2026",
 )
 
 #include "sections/01-abstract-topology.typ"
@@ -23,3 +23,6 @@
 #include "sections/04-data-sre-developer.typ"
 #include "sections/05-mathematical-foundations.typ"
 #include "sections/06-infrastructure-telemetry.typ"
+
+#include "sections/08-research-protocol.typ"
+#include "sections/07-feature-atlas.typ"

@@ -1,0 +1,2824 @@
+{
+  "verified_at": "2026-10-05T10:39:13.542820+00:00",
+  "original_outage_states": 111,
+  "original_states": 210,
+  "canonical_views": 120,
+  "supplementary_states": 92,
+  "screenshot_references": 405,
+  "unique_screenshots": 399,
+  "viewport": "1600x1000",
+  "blank_images": 0,
+  "wrong_origin_rows": 0,
+  "transient_loading_flags": [],
+  "validation": "Every referenced PNG opened; dimensions, pixel variation, SHA256 and live-origin evidence checked. Contact sheets visually reviewed, with targeted full-size inspection. Source inventory is not exhaustive functional testing.",
+  "private_rfq": "Guest refusal retained; authenticated success not verified.",
+  "images": [
+    {
+      "file": "live-001-overview-loop.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 103.574,
+      "sha256": "c6efdfa256fbe04322964192692c12610f74950f343dc45a71e1bc8e2b489084"
+    },
+    {
+      "file": "live-002-overview-desks.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 105.417,
+      "sha256": "7c2d0763656ef16e0b626acb435b668b7cfa7e635602b7a4d678e03744a506fd"
+    },
+    {
+      "file": "live-003-overview-audit.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 95.254,
+      "sha256": "b0e0f8aa594217b5cfacd73ec63ca95c744e5ece4ff5979dfad2236a43dcbee9"
+    },
+    {
+      "file": "live-004-research-summary-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 122.897,
+      "sha256": "8a448cb67ad540bf46d537ee7dbcd93ab0e34c1933f2bd3e4c50bd83f37661c3"
+    },
+    {
+      "file": "live-004-research-summary-main-2.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 116.098,
+      "sha256": "3e00e8cdfe0b2b409ad817cdd7b03953330844e26ec5a10ffd7d134cfaf0f1e8"
+    },
+    {
+      "file": "live-004-research-summary.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 97.606,
+      "sha256": "f2bc9ba47e08a69a7d91e7d96a32cfc056c07e02e7870c82bd40b29663cbd638"
+    },
+    {
+      "file": "live-005-research-parameters-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 159.119,
+      "sha256": "87baa739c71e094c1386373bf4e2ad2686b5186b6b02fd8df3499250b4fc2efc"
+    },
+    {
+      "file": "live-005-research-parameters.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 157.492,
+      "sha256": "09a7470d7e68965eb0d5c17a563650de4bea4aa67096b2c6553befec600d2cd3"
+    },
+    {
+      "file": "live-006-research-walkforward-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 98.024,
+      "sha256": "4e1c8f077b7ec562d708c9ec0d55197fc74fa5b78cbad930d2af777a8d460d1e"
+    },
+    {
+      "file": "live-006-research-walkforward.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 99.392,
+      "sha256": "2984040e54be388a3fdc439a8149c60c9a69dfd3db43282c45ec6324fca995fa"
+    },
+    {
+      "file": "live-007-research-attribution-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 96.471,
+      "sha256": "1182a8c5a302a145729ce9eca9afe80366ac50205744fdf92ad04b3caee1f23b"
+    },
+    {
+      "file": "live-007-research-attribution.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 105.524,
+      "sha256": "cf72ab4115b23f33e7ba955beb0f06e54f447e7e3e80d11ef8a6c4b41d440b9d"
+    },
+    {
+      "file": "live-009-research-decision-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 111.237,
+      "sha256": "372ad96f5d4d21e94697f0ead5d92da5917c6f958df1e3c472437318e5e255e2"
+    },
+    {
+      "file": "live-009-research-decision.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 110.938,
+      "sha256": "8437b5ac893afa44093ce49a4362200cf1228ee29f789532c0f91eeaf82df56b"
+    },
+    {
+      "file": "live-010-research-runs.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 86.907,
+      "sha256": "8ad3b4a0185af8e55f3b1baab682303f94baf6ac188b3b338725e23e58a3ffaf"
+    },
+    {
+      "file": "live-011-research-fitted-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 92.121,
+      "sha256": "f189d8bdd5dcc85d8cb93a062504a12af7cb06f51255e7720460b043dd904d6b"
+    },
+    {
+      "file": "live-011-research-fitted.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 91.553,
+      "sha256": "365d98f129e853c55c34690ef08a9e9846372c0f1d2cbd5287bb4e4d63ecfe1f"
+    },
+    {
+      "file": "live-012-research-codex-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 105.618,
+      "sha256": "c3b1caa9e3c191e20faf7c31881e485eda47be2f6be10901ab4472748a0195bc"
+    },
+    {
+      "file": "live-012-research-codex.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 109.679,
+      "sha256": "bbd32fc2745eaba67987c3af4b04dd51a42e41d4e7c0b1c87d4e80f1089739c8"
+    },
+    {
+      "file": "live-013-live-trade.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 93.193,
+      "sha256": "7693254ce852aeccaed7697ab1c088aba3ce3fb7d26438e4a440d839ce3b2e6e"
+    },
+    {
+      "file": "live-014-live-liquidity-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 83.894,
+      "sha256": "9b90bfd816a6fba6319b5c05e7c813a635870a8ec7fe9738b119e77a23186ae2"
+    },
+    {
+      "file": "live-014-live-liquidity-main-2.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 85.341,
+      "sha256": "17003bbb9e7635f994e67c76b7f325d22fb49a29f61faeaef5bb11068c478630"
+    },
+    {
+      "file": "live-014-live-liquidity.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 102.111,
+      "sha256": "c8f0b61d8ec6a0812a0da902ef97410ee2d1d90b31f9be48ae21a77a9b9d9d3a"
+    },
+    {
+      "file": "live-015-live-routing-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 107.823,
+      "sha256": "6509a8d951b85a9a02a899bacdefefc3800c97b537d1d68115e06e037ff227bf"
+    },
+    {
+      "file": "live-015-live-routing.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 103.121,
+      "sha256": "15e6e81a266e594762efb4f49579390d08be103288b211c42d9d0045998f5104"
+    },
+    {
+      "file": "live-016-live-quality-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 127.155,
+      "sha256": "71d64263fe8d6a4d4577b6ab48a6e125f80742448c172aebad98a9448022a58a"
+    },
+    {
+      "file": "live-016-live-quality.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 127.004,
+      "sha256": "8a92e39170c1dcc7638b030137e43e68c78f7b53bd1f5cc57f47f5a8fd7ae86c"
+    },
+    {
+      "file": "live-017-live-activity-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 105.104,
+      "sha256": "dddad9b9bf11732a8103de1d666f3dde73a45448c35c415a88693814cb6fa3f8"
+    },
+    {
+      "file": "live-017-live-activity-main-2.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 104.595,
+      "sha256": "caecdc12a77d76d02adf6860948a055ac0e73b807ad1898b0742cfc067e3dbe5"
+    },
+    {
+      "file": "live-017-live-activity-main-3.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 102.437,
+      "sha256": "f986ed1c71cf14dc4229aafedb3def2f73732c9449aed9795904387ba6cbd7b5"
+    },
+    {
+      "file": "live-017-live-activity-main-4.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 102.261,
+      "sha256": "0720b1b5952182f9e0331d672fafc1476924745d280b202d4d48b0d3d39d36d9"
+    },
+    {
+      "file": "live-017-live-activity.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 97.53,
+      "sha256": "5cca069c8c8f9193ae44ca4035fd832a446008a8a99da4b285f723c8ce01d5be"
+    },
+    {
+      "file": "live-018-portfolio-overview.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 91.203,
+      "sha256": "cfd8086aba0e1dbde0f66160390b7be413f1bb626da51e369c4e2750269c105e"
+    },
+    {
+      "file": "live-019-portfolio-equity-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 106.956,
+      "sha256": "750b2e7c969e11b30e70ed939b82a8a83a87bdaaba73d5ab237488ec5f78a0cc"
+    },
+    {
+      "file": "live-019-portfolio-equity.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 108.669,
+      "sha256": "6a73237a2683c171fbb1478c13c379a66002776798e0ae978c3ec8ab1a027742"
+    },
+    {
+      "file": "live-020-portfolio-positions.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 83.174,
+      "sha256": "ae1f8d2a189a94780cbd7c0dd1266cdbde1c491bf549b54f913b2b931f136822"
+    },
+    {
+      "file": "live-021-portfolio-allocation.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 90.394,
+      "sha256": "69e4d3f26b100aa5b6261dd539fce219cc47b697e62e708e00aabdc80f92e907"
+    },
+    {
+      "file": "live-022-portfolio-performance-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 95.484,
+      "sha256": "b529a0f7d888c22a2d4939a84089cad467898e00cc1bbfc788e32de552e9ca78"
+    },
+    {
+      "file": "live-022-portfolio-performance.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 98.906,
+      "sha256": "b86d99a73ffd14b60862df162c0a74bdd07e198a7502f108e3625d62d48079e2"
+    },
+    {
+      "file": "live-023-risk-limits.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 96.273,
+      "sha256": "a515b9b085f17aabb2ca39bbddedca3f40d933a32ad5196bfdc0c3cd4dc11f06"
+    },
+    {
+      "file": "live-024-risk-model.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 86.997,
+      "sha256": "5ff588022dbd99fc4359860b18a570b961e3c78ef7e898c803bc4e590833675c"
+    },
+    {
+      "file": "live-025-risk-diagram-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 93.572,
+      "sha256": "59977565a98efeafa2af7ff31fa87c40edcdca0c2a507173398ab4d8d3f2be83"
+    },
+    {
+      "file": "live-025-risk-diagram.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 95.313,
+      "sha256": "4b0f8064f00fb87d3a98c70e7eb0511236798872569ce6a2dd6ce5c6ac9438ac"
+    },
+    {
+      "file": "live-026-risk-drivers.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 96.54,
+      "sha256": "7e961e755fdfaf80d8aeb8e35dd01dff88061c1efb2bdb69afa01d19cf568d35"
+    },
+    {
+      "file": "live-027-risk-montecarlo-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 114.088,
+      "sha256": "9565c7ca5144d83527a18055c7e1ee5d706522b45142f92a5f81fb8992402a6e"
+    },
+    {
+      "file": "live-027-risk-montecarlo.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 107.473,
+      "sha256": "c30d13922bcf7c02bd976e81d46a12b85537caad37f2753dea4a77323e6d5189"
+    },
+    {
+      "file": "live-029-risk-scenarios-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 87.603,
+      "sha256": "9fabb24ffd48bd25d9a32a2f6b0951cce8dbf49d98846c666f17ab08473550c5"
+    },
+    {
+      "file": "live-029-risk-scenarios-main-2.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 87.603,
+      "sha256": "56ea9cc23d56082a41e87540ad33143548588ccc3a371969adfc0f554ef74eed"
+    },
+    {
+      "file": "live-029-risk-scenarios.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 93.279,
+      "sha256": "1eee65ea732e5d8c0bf98ddb6bfeb77db8e9e523785846a8b5d1879381244555"
+    },
+    {
+      "file": "live-030-risk-controls.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 78.916,
+      "sha256": "8beda16ccbad72bd54575622f6fd572c3ac1fba8ab7a835e61778c926de7c995"
+    },
+    {
+      "file": "live-031-data-overview-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 145.213,
+      "sha256": "8932814225543d8f7512220e1ef056fc9bddb8e2120a146ed89fe5da059bcb09"
+    },
+    {
+      "file": "live-031-data-overview.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 101.671,
+      "sha256": "566b736b011eb3c83f16779e1769d48784d07904e4f736cd05e56846aa9c17fc"
+    },
+    {
+      "file": "live-032-data-feeds.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 83.398,
+      "sha256": "3a0353e7d7000a71e204cef7ca37a132e501714a5595749f6fd96fd031b966d1"
+    },
+    {
+      "file": "live-033-data-quality.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 81.869,
+      "sha256": "3935e555c59765df9284f726bf63eed331920eda80223deb2325d79280e95204"
+    },
+    {
+      "file": "live-034-data-incidents.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 95.391,
+      "sha256": "15515e34162045e6695d15a0415245174f1e5257f64e7366cfd8eab1fe818161"
+    },
+    {
+      "file": "live-035-data-lineage-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 78.539,
+      "sha256": "fec50561efa98ff2d56783bd1798ec333bc41836cdbc0139091e81c936a573d1"
+    },
+    {
+      "file": "live-035-data-lineage-main-2.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 79.493,
+      "sha256": "2756938f184cbc4b2e1199e5e08a67f8db456c2f1235a7e4f679fe8c82e36f21"
+    },
+    {
+      "file": "live-035-data-lineage.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 90.146,
+      "sha256": "dd18d3a85fe534a1cc414ae40f1ab1ae5bfd2a74e144e26447a846f1eab728da"
+    },
+    {
+      "file": "live-036-data-providers-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 102.9,
+      "sha256": "1e7c4c81589a5af574a50e88206130d86c353c4e56db25641d9cb9b0a83fd63f"
+    },
+    {
+      "file": "live-036-data-providers.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 103.045,
+      "sha256": "33897df901b932d05fa2ff78d2151eb4fe4a19fa51994a8e05695575ffc7c6e2"
+    },
+    {
+      "file": "live-037-data-queue-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 103.189,
+      "sha256": "505830c4c1d80afa7d6e42f1c04fc14bb2acb01beb2cea604a1da669c98ead67"
+    },
+    {
+      "file": "live-037-data-queue.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 110.46,
+      "sha256": "e67ae6f65c094e1c4961c2d9052dc6314478f864b52154b1fb5d44f7b634dcad"
+    },
+    {
+      "file": "live-038-reliability-overview.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 95.388,
+      "sha256": "6b371baaf95105eff8883b1dbe9586291ae550fd731f8d46bc58b39c465cf999"
+    },
+    {
+      "file": "live-039-reliability-planes-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 96.272,
+      "sha256": "77a7df5140fd55c50c8e200020f31ce80b4e38112a497cdd8ef0d1e7d6f8e554"
+    },
+    {
+      "file": "live-039-reliability-planes.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 109.363,
+      "sha256": "9964ddc8a1b953a2ede4b560d8cd6c7d2a92805383711e7bde78ec3b03ab4146"
+    },
+    {
+      "file": "live-040-reliability-services-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 96.11,
+      "sha256": "26b1cd9b7513465562edc6619273222238c770f6dcbfa5ae73dcd469f3bfb36b"
+    },
+    {
+      "file": "live-040-reliability-services.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 100.097,
+      "sha256": "66cec1a50219c00ab749f7a98d3e5013ae7236da513f44b1403f4ecac14c3372"
+    },
+    {
+      "file": "live-041-reliability-events-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 286.53,
+      "sha256": "d844740b7f817ddb3a669f51b97217d0a186744d35bf8feb859753ddaab79c81"
+    },
+    {
+      "file": "live-041-reliability-events.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 285.503,
+      "sha256": "fc52b31cc1417f28d76258d63c14e8f3b19d08ca1de011d5f913e523b0a0b226"
+    },
+    {
+      "file": "live-042-reliability-controls-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 93.413,
+      "sha256": "be073bea4ce266437d058ca56c0e1a5eecaf145897b7c9525311dafcf82f2419"
+    },
+    {
+      "file": "live-042-reliability-controls-main-2.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 99.097,
+      "sha256": "842abdc99edf4d9a9d7b5856d342cd44c9ccdba95f3a52592d1bf12ae98b4095"
+    },
+    {
+      "file": "live-042-reliability-controls.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 101.479,
+      "sha256": "ade3e29bdab15cad6ce7c5d2f8bf291305a21c4f54c125a078e5e5922ade83c0"
+    },
+    {
+      "file": "live-043-developer-overview.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 94.356,
+      "sha256": "dce070232cbebefac11b61d14ae2bed9fa77c77ee272c240a8092eab01b42fcd"
+    },
+    {
+      "file": "live-044-developer-readiness-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 92.382,
+      "sha256": "babde1bffa33cb01c99744b7baae76bb11de534a9cf4d6705e0e92486f7c7608"
+    },
+    {
+      "file": "live-044-developer-readiness.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 98.863,
+      "sha256": "1cc43793299fcef2ae11d37a85bd4fa48a2bb81e9a27e16d58d4b3dd850ce71c"
+    },
+    {
+      "file": "live-045-developer-quality.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 86.338,
+      "sha256": "0268dfcc10f575f3a2bbf7053f468ee6a057da09c6841424ca25b4757412b220"
+    },
+    {
+      "file": "live-046-developer-apis-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 106.172,
+      "sha256": "45102d4e9754a34c96724673c821cf24a865a4a7be8552d51e1e314f2abdc85a"
+    },
+    {
+      "file": "live-046-developer-apis.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 103.314,
+      "sha256": "73bea803c8e838c729edbbba0f48b01e0116abf0e96f04fee35a017d43de8364"
+    },
+    {
+      "file": "live-047-developer-codebase-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 101.309,
+      "sha256": "9e7f1a4c50624f04b5a965d29ee2dfcdcff0a27621e3268c7874494347022fda"
+    },
+    {
+      "file": "live-047-developer-codebase.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 103.092,
+      "sha256": "c1f4fc4c026325ec64afa607a1b5c43b449ce5cad535c94ebe26686b10a74900"
+    },
+    {
+      "file": "live-048-developer-work.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 91.582,
+      "sha256": "2134e26e6442389b38af67357448fff373edbd7f2e96bc8369ba9af676b28fb4"
+    },
+    {
+      "file": "live-049-research-summary-setup-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 96.386,
+      "sha256": "19757bc6f3e63c56e188546c139b57ff1dda8729ec435a07acc3e824b28359c1"
+    },
+    {
+      "file": "live-049-research-summary-setup.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 90.303,
+      "sha256": "21bba1142353b627ba8309f46631616a193c6d57272a5419f48ad008885b1517"
+    },
+    {
+      "file": "live-050-markets-universe-baskets-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 94.266,
+      "sha256": "88d631780413e60d6c2e1601022052abbb04008f78bdddea55ac8cf879f4dff4"
+    },
+    {
+      "file": "live-050-markets-universe-baskets-main-2.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 93.019,
+      "sha256": "7a1760fe4264586c4eb9b4e3d6e167309ee9592d0e66ee27c5bd9edd09c12d4e"
+    },
+    {
+      "file": "live-050-markets-universe-baskets-main-3.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 90.552,
+      "sha256": "bf3135656446d8b667cb1dbc21b9aede2969858f90d572e8f16e6b89f6f79464"
+    },
+    {
+      "file": "live-050-markets-universe-baskets-main-4.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 92.384,
+      "sha256": "dd01bbc3dba92957c86eab14666745c201d9d240e31e382e8c5ccecc71a38ede"
+    },
+    {
+      "file": "live-050-markets-universe-baskets.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 95.215,
+      "sha256": "fd08115cec77b5f1c01ef02fdc1a3ca209c36ca1112ce0aefba4f8f1120c6ce6"
+    },
+    {
+      "file": "live-051-markets-universe-positions-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 92.289,
+      "sha256": "116f7d4b1e8bf2f94db1c97c48647b98495239704271b17020a47880428e30b9"
+    },
+    {
+      "file": "live-051-markets-universe-positions.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 92.438,
+      "sha256": "4f2445c5d28b0c135a48bebb5b76b71ba0c8945d9dce80bb646acd6668a62411"
+    },
+    {
+      "file": "live-052-markets-universe-families-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 93.214,
+      "sha256": "c5bc98bb6ace1ab7892ef6aeb7f8a3ff1f8eb59ac492d3f469463c1976ea31ef"
+    },
+    {
+      "file": "live-052-markets-universe-families.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 102.794,
+      "sha256": "01bba038a88340706c494d8bd518402aea24ff9a4e60e3777c512025e8ce8fb9"
+    },
+    {
+      "file": "live-053-markets-settlement-reading-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 93.339,
+      "sha256": "c13bf15e4266e1688ed2258e2e920163c0b315026811d06e3e4e2ab27de74468"
+    },
+    {
+      "file": "live-053-markets-settlement-reading.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 98.15,
+      "sha256": "3d3e559a6294f8576d11231868088effb814a04e8cb16fceeb304d7a35fdc29b"
+    },
+    {
+      "file": "live-054-markets-settlement-formation-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 104.76,
+      "sha256": "172146074b92acb80a0ff3827002bf0d25e484058d195d834eb859f31b142ae2"
+    },
+    {
+      "file": "live-054-markets-settlement-formation.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 106.194,
+      "sha256": "d5dac5d461c3f08f8306c1cfd7f66adb7454431241c585096df40b0d40c426ee"
+    },
+    {
+      "file": "live-055-markets-settlement-pending-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 109.487,
+      "sha256": "006948354a004002bc6bfa7ca603fba9ead4ae4108c25a73232c4e579dec142b"
+    },
+    {
+      "file": "live-055-markets-settlement-pending.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 112.623,
+      "sha256": "a814c27a3f6047fcb980822cbd42db78c41b010f8757fac0374cc0c60c1a232d"
+    },
+    {
+      "file": "live-056-markets-books-ladder-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 107.189,
+      "sha256": "877f08d042e4c4158ef63a5a701928d5b48ab66363c0e5ec4af52493155511f6"
+    },
+    {
+      "file": "live-056-markets-books-ladder.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 107.963,
+      "sha256": "77d7f2613f822443a850ee3f1c0914e40ccf1dd434361e542b27156faba91620"
+    },
+    {
+      "file": "live-057-markets-books-identity-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 115.556,
+      "sha256": "eb777a169777375c63c26ad4578878c6faf009ff72b232d8d867a06156a8a6cf"
+    },
+    {
+      "file": "live-057-markets-books-identity.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 130.061,
+      "sha256": "c3703d2214b7bd7507ee5bef0dda8ee6f448e56eefba93ca8f1fea327ffe7d1a"
+    },
+    {
+      "file": "live-058-markets-books-history-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 96.407,
+      "sha256": "4b920e65f894b442f0d0545a004b4be399fab38970220899718493d9e8b42041"
+    },
+    {
+      "file": "live-058-markets-books-history.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 97.466,
+      "sha256": "62f56ab6890d828a6c02270fb47390aab3ddc63ac483955061add9e64cd270fc"
+    },
+    {
+      "file": "live-059-markets-dispersion-quotes-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 99.447,
+      "sha256": "d12339f7bb60a0a2f3a1dcc6e8dc4af5ea9990a2dc9b81df958f6b761a790d0a"
+    },
+    {
+      "file": "live-059-markets-dispersion-quotes.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 100.622,
+      "sha256": "d946e7853507d4def490159fe673cc4441ef995c07988aadc56a25537791be79"
+    },
+    {
+      "file": "live-060-markets-dispersion-channel-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 99.52,
+      "sha256": "31429737e2c6bb4410face8160d9625c2f9522772699a50086c4534b44382fde"
+    },
+    {
+      "file": "live-060-markets-dispersion-channel.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 100.706,
+      "sha256": "264012e10cf6cfb025db389185e43a0025b686bb10d6f0ee194ee3430596e34f"
+    },
+    {
+      "file": "live-061-markets-lattice-survival-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 91.179,
+      "sha256": "88a989c84954df32a60d53c5bb3f7cf227b68ac3f29079828855004e155c413e"
+    },
+    {
+      "file": "live-061-markets-lattice-survival.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 94.948,
+      "sha256": "4cb2bed7afb905e8d0ecd0c6344fa4ce226c282a9f1d0c585b4c8952e2743b35"
+    },
+    {
+      "file": "live-062-markets-lattice-mass-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 101.132,
+      "sha256": "b6d4b4278a691fd7e66e98d52a0e665cffce26db5bd28caa328612f09c1fd517"
+    },
+    {
+      "file": "live-062-markets-lattice-mass.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 104.92,
+      "sha256": "3acf5a00394a7e07bc59383027c8d4182cd77406b37d4267a1cc5c5d6e6de01e"
+    },
+    {
+      "file": "live-063-markets-lattice-moments-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 94.189,
+      "sha256": "b7278edbea09bb1094234068ce4bae3683a6074bb46218642e61cf0395446dd9"
+    },
+    {
+      "file": "live-063-markets-lattice-moments.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 96.362,
+      "sha256": "6fa4b9e76085aa9a3ed119a110d29e1a2efdbbd2844a52f1b784473fc6f40e0d"
+    },
+    {
+      "file": "live-064-markets-lattice-support-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 102.208,
+      "sha256": "eaf13713c360f9d63c2ef97d46a0c3116db6dc1fbdbabc18ff3d960c460439fa"
+    },
+    {
+      "file": "live-064-markets-lattice-support.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 103.428,
+      "sha256": "bdfa13109958f9e20674594712e6758b0dd2e45a2e45304fd60fcd7aa4d56ad1"
+    },
+    {
+      "file": "live-065-markets-stake-plan-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 92.709,
+      "sha256": "6e15c816fdac5de344c823c4513aa431eb998d2e84b86e93dac1de202cf8396b"
+    },
+    {
+      "file": "live-065-markets-stake-plan.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 98.542,
+      "sha256": "81288bf2ef8953e546ae7d183a1470624308f8a996ebac6218e6db038054134a"
+    },
+    {
+      "file": "live-066-markets-stake-capital-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 117.791,
+      "sha256": "73e7e00f8f1e6458c8b5f5d6c076a06457dd1867ca46472ce38781ae3119b6c3"
+    },
+    {
+      "file": "live-066-markets-stake-capital.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 97.497,
+      "sha256": "b527f311a79b0998e4e52fdf25b27f0c8656fc52b41b7135f78322ad7455efe4"
+    },
+    {
+      "file": "live-067-markets-stake-method-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 96.927,
+      "sha256": "e21933ad2c77749f24aa4539685e9f6850c6cf5d26ca6b5127817802a23a4774"
+    },
+    {
+      "file": "live-067-markets-stake-method.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 103.938,
+      "sha256": "619ecc3c9ff49c7395649c879c5556a6bd03edb605fce6fc305518b596838cd1"
+    },
+    {
+      "file": "live-068-markets-stake-family-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 99.006,
+      "sha256": "846ffa79214771e9b8a90901e9c33e9267b58d625686585a01efd05526b4af96"
+    },
+    {
+      "file": "live-068-markets-stake-family.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 105.489,
+      "sha256": "2b099e2eef682ca249e59b9a0bf85e88fbe47962efeaa1e1ebc7a96286dbdc72"
+    },
+    {
+      "file": "live-069-markets-fees-example-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 100.089,
+      "sha256": "9b798aeed7b787d47b130defcb7e3d14999b9ab1cfb8a16db5afed8cbe858966"
+    },
+    {
+      "file": "live-069-markets-fees-example.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 104.662,
+      "sha256": "b1a7fb3ce7749dfcec175b99da4c33517f539b5fec9e3595cb69f87493d8cde4"
+    },
+    {
+      "file": "live-070-markets-fees-shape-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 92.457,
+      "sha256": "9f2a960db2ec4b15ababe96aee43074f272f95b912f56f9e4d11939e2bb19a94"
+    },
+    {
+      "file": "live-070-markets-fees-shape.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 93.024,
+      "sha256": "d422e9888ca1fb208acfd0c8d3a763418bdb108abe808bc5a55872c6b74631b8"
+    },
+    {
+      "file": "live-071-markets-fees-comparison-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 147.536,
+      "sha256": "b928208c1bd68ee785989f4e42459b785bc58c865769ad6445b49ec661e336ff"
+    },
+    {
+      "file": "live-071-markets-fees-comparison.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 138.423,
+      "sha256": "542aa90956d31f8add57d95d0f68132596376c97c7523a391196a2ae10a4d6a2"
+    },
+    {
+      "file": "live-072-markets-fees-table-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 151.971,
+      "sha256": "b7c8a9fb9f177968a83dd3c70ebd8559bf2182e9e6b31c93b1cb3e4786112ec5"
+    },
+    {
+      "file": "live-072-markets-fees-table.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 152.34,
+      "sha256": "f23f066f3edfa61388c98755559f28e14e52c6276e5d7a4e09aba54368a168e2"
+    },
+    {
+      "file": "live-073-markets-shell-layout-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 87.764,
+      "sha256": "f06fce4a8652249e41e48ea96ac6d6ba6b1dfddd4b936a82800710294e587a76"
+    },
+    {
+      "file": "live-073-markets-shell-layout-main-2.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 88.641,
+      "sha256": "78be17590c489adc34770cddbfe4d5526038e5139da1626edd18d06d18b6cc29"
+    },
+    {
+      "file": "live-073-markets-shell-layout.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 94.93,
+      "sha256": "c60c1bb18d12e2f1e6bfe729e527b793412360d3eaa9a6148728aa130b4e9b85"
+    },
+    {
+      "file": "live-074-markets-shell-route-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 93.395,
+      "sha256": "d3069af3ecf8cd9bf2c14befec5e178c122ddd19bbb186c79e474d565c20533b"
+    },
+    {
+      "file": "live-074-markets-shell-route.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 97.667,
+      "sha256": "0a8b8d2f1624154ea7d7d8c65ad3d560b5074d4069b1b9f7fd3b3686e5f5e3fa"
+    },
+    {
+      "file": "live-075-markets-shell-tree-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 84.333,
+      "sha256": "72404864e113e568218200bb7e80fc5f2bd912a93eff372c148e8855c309555c"
+    },
+    {
+      "file": "live-075-markets-shell-tree.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 88.013,
+      "sha256": "101846107c03e6b7ab0b6b17418c4d9d132f8c64bac697975192cb712488a05d"
+    },
+    {
+      "file": "live-076-coherence-certificate-verdict-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 99.374,
+      "sha256": "11ba242cc1140489b7de6d625958e20425108da41603d9ed7104d861fe6d550a"
+    },
+    {
+      "file": "live-076-coherence-certificate-verdict.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 100.751,
+      "sha256": "fabba69340c9c8dc006129c16d84eb16ec4331aa031928f831f7f43d6c64f576"
+    },
+    {
+      "file": "live-077-coherence-certificate-proof-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 83.721,
+      "sha256": "ee39d2be845e4d92abef1d1ededa0e771d536230b4f5c0f58bc22b983d3f3c12"
+    },
+    {
+      "file": "live-077-coherence-certificate-proof.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 93.375,
+      "sha256": "8a3dd92505c87ee8897fffaf918109f869a15eceba089467b43015839a54788c"
+    },
+    {
+      "file": "live-078-coherence-certificate-checks-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 97.828,
+      "sha256": "9e560f425d8b50434f5c2a0a1a5c776fe0658504b91d890cb8d7561219df3419"
+    },
+    {
+      "file": "live-078-coherence-certificate-checks.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 100.242,
+      "sha256": "045921e55888124197978e6da6d3b98139c42c40954ffeb0355793dd4269d922"
+    },
+    {
+      "file": "live-079-coherence-certificate-prices-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 92.316,
+      "sha256": "c6e4d9a363b791f2cbcf575260df3652f0bccaa780b5dcaa243c213335242bcc"
+    },
+    {
+      "file": "live-079-coherence-certificate-prices.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 94.776,
+      "sha256": "789b7872757594a7649f9e4a448a9cd08ba734fa909b58a012f36f29f7dc63d5"
+    },
+    {
+      "file": "live-080-coherence-certificate-sizes-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 88.851,
+      "sha256": "163b69c234cb9fe09ec04ff40c7afb5710c93ad8f99bd2e7d1d6389a3a81679a"
+    },
+    {
+      "file": "live-080-coherence-certificate-sizes.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 95.333,
+      "sha256": "2af86b34464e68a81b652291aa9d9f763a5b3c72e26b840996697bb978f25fbf"
+    },
+    {
+      "file": "live-081-coherence-portfolio-cover-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 110.471,
+      "sha256": "3d7370bfeeb7092660140abafa9b575725d2024152fde5b0864b6eab2e4e7cf1"
+    },
+    {
+      "file": "live-081-coherence-portfolio-cover.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 115.832,
+      "sha256": "0b19a278faea667da666aa61346a55a1285df3718faa80408abb23d74a1d4f1c"
+    },
+    {
+      "file": "live-082-coherence-portfolio-basket-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 97.829,
+      "sha256": "3486cd2f79d4dc84de5a2bd46d6013ed8ee7dc9c5a86a3d07a577a7b6209dad2"
+    },
+    {
+      "file": "live-082-coherence-portfolio-basket.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 100.647,
+      "sha256": "02208e8a4c37659b22073f5784526e9bf70e110dffd7261c83fabaecfd1aa3e4"
+    },
+    {
+      "file": "live-083-coherence-portfolio-size-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 103.675,
+      "sha256": "dd45b9ebdd16d53cb0f98ea7e1212628036034fa6dd0bb1dc44ece7f55e6ffa9"
+    },
+    {
+      "file": "live-083-coherence-portfolio-size.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 106.312,
+      "sha256": "6260ed13c18ddda132b75e66c64bd55aca86d32eedc820fb74685680cfdf8806"
+    },
+    {
+      "file": "live-084-coherence-combos-bands-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 92.285,
+      "sha256": "b37d163b22368671c821ee8f42ee3a9f906937b3240adc774253069c1df272d8"
+    },
+    {
+      "file": "live-084-coherence-combos-bands.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 93.588,
+      "sha256": "1a05b6c76053c88388202142a53f13a37ea547dbde0f6caf94eb8384cec3a862"
+    },
+    {
+      "file": "live-085-coherence-combos-parlays-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 87.734,
+      "sha256": "68e9a68b2d86a693653ae17f277108298f89ad0e2895df7c8fc3c6b006bea59e"
+    },
+    {
+      "file": "live-085-coherence-combos-parlays.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 88.201,
+      "sha256": "33b5f7ff02cb35b85c89eae4ed3b572296642f0f5c13e1e5ea7189caf616d926"
+    },
+    {
+      "file": "live-086-coherence-combos-inputs-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 94.221,
+      "sha256": "a80d05421fa5f9ba1aecb706a326e25805d1054665aba75ee6b9bdf0a671c4af"
+    },
+    {
+      "file": "live-086-coherence-combos-inputs.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 95.362,
+      "sha256": "046cd2019958943fe308c4b843b0409206d18b2f89cbfbc2cd088417c80204e1"
+    },
+    {
+      "file": "live-087-coherence-combos-legs-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 91.838,
+      "sha256": "60b89d7ffd0b535d10b5ca1bddf6dd55b0867ee22858efab3ecc804bf6aebf87"
+    },
+    {
+      "file": "live-087-coherence-combos-legs.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 98.648,
+      "sha256": "00862a8de14061f13150505a6d8bbe364f7f6cd0bb49371ada92145ddfb51bac"
+    },
+    {
+      "file": "live-088-coherence-combos-bounds-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 82.519,
+      "sha256": "29e499f6e0a26ac4f12b05389f7faee22b8f946935bcc9209324246a73a42b9b"
+    },
+    {
+      "file": "live-088-coherence-combos-bounds.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 92.453,
+      "sha256": "2dd71741b717dbd56ba2115ccc4ed3987a3c22e18f3b3d5fbec49adc28dc21b4"
+    },
+    {
+      "file": "live-089-coherence-index-series-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 72.106,
+      "sha256": "3ff7f25ce63154549ea12790beab7a922afdd352accbe0a7fb40f5b32eb1e2df"
+    },
+    {
+      "file": "live-089-coherence-index-series-main-2.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 63.774,
+      "sha256": "f28e042f35fd425eddb05d862c6ae45ea87cf564d3e68ca28f13865b56ccbb6c"
+    },
+    {
+      "file": "live-089-coherence-index-series-main-3.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 70.393,
+      "sha256": "071f5aebd5bc14edaabd81e3a7e597dfeafce4884c28a77fd0a84b1b1c46f2e3"
+    },
+    {
+      "file": "live-089-coherence-index-series-main-4.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 80.959,
+      "sha256": "0cb63fc10746d349e3ce935aec8120efe3fff77ac61843bde668290caf479e9b"
+    },
+    {
+      "file": "live-089-coherence-index-series.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 92.328,
+      "sha256": "95ffe6384d7893f2b57aa10b1a20bd6133c78b23e4ee3898d304dbab1d1e86dd"
+    },
+    {
+      "file": "live-090-coherence-index-families-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 108.791,
+      "sha256": "38332a1925149d67635eed023d5bc47e3b3488251dc4d00afb5254b26b24004a"
+    },
+    {
+      "file": "live-090-coherence-index-families-main-2.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 85.818,
+      "sha256": "66f14ef6ec110bc2981067d3b37a9aeddb0c52644cabfd61660fbb41c73c8995"
+    },
+    {
+      "file": "live-090-coherence-index-families-main-3.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 92.523,
+      "sha256": "b5489261ede529b6733eba584fa3f99af16e73848b1770bc3b89b2f11c3ddf82"
+    },
+    {
+      "file": "live-090-coherence-index-families-main-4.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 90.401,
+      "sha256": "3a33f6076cde7a2c130620da8f9ea7e68f4efe6634614744073323b966bc1274"
+    },
+    {
+      "file": "live-090-coherence-index-families.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 108.393,
+      "sha256": "12a574577241683fc16ca9d2063c472cbef67b75f8130cb54ed7c01743c3fc32"
+    },
+    {
+      "file": "live-091-coherence-calibration-score-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 91.466,
+      "sha256": "c5ee5a2a4b1b0e8227433db9dd3b58c845ee185c0c87ff23c390e7a860b44e9b"
+    },
+    {
+      "file": "live-091-coherence-calibration-score.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 93.148,
+      "sha256": "87f908cb573560b3c0ccfdafc016179870926f54297dfe72651060b98882ae2f"
+    },
+    {
+      "file": "live-092-coherence-calibration-decomposition-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 94.913,
+      "sha256": "abc475e72575be5abdfd9f0b1e05f5b841e7dd7d0e0cf6dffd07a06bcba9c972"
+    },
+    {
+      "file": "live-092-coherence-calibration-decomposition.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 98.218,
+      "sha256": "b72595d4380a6c96154b5b11131f8138db1c5fb373899cc70788b39d57926944"
+    },
+    {
+      "file": "live-093-coherence-calibration-components-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 92.709,
+      "sha256": "eab9f490f3991cda8de97c768ec1f636a6a6ea1222f5995b2c4aa2b108470d5f"
+    },
+    {
+      "file": "live-093-coherence-calibration-components.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 94.101,
+      "sha256": "303d8193a1f3a0d198c3fe42b6acdd753554c89fa1591e25e0d9ab279865fe3d"
+    },
+    {
+      "file": "live-094-coherence-calibration-measures.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 103.103,
+      "sha256": "a86d3c36aed30ddc1829821c76f0fa5c3717623a7c166fda01754d09703c54ef"
+    },
+    {
+      "file": "live-095-coherence-calibration-reliability-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 86.271,
+      "sha256": "d8f76a1c30c2948ee1497dbfd99c90e2274562b01487100951a3910c5a674463"
+    },
+    {
+      "file": "live-095-coherence-calibration-reliability.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 90.273,
+      "sha256": "9cd837595a44f2268dab37adbfd9555d9a16a3105a064367f184e3739f7be836"
+    },
+    {
+      "file": "live-096-coherence-calibration-bands-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 89.5,
+      "sha256": "ef148275db9bd5277dfcb5541b1f4de3cb66bc1fb9d7781759eb5cdb6c2df7c2"
+    },
+    {
+      "file": "live-096-coherence-calibration-bands.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 94.879,
+      "sha256": "b200289f54cfa5e5dbb5a36da0ddf985f6b000d36e9030ea1d3a839d1b044759"
+    },
+    {
+      "file": "live-097-coherence-corpus-composition-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 87.395,
+      "sha256": "d46de075ae98befba59aa96a49d25db770e006d42840c91f3238b8ccd79c11fe"
+    },
+    {
+      "file": "live-097-coherence-corpus-composition.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 89.065,
+      "sha256": "23b85a4f3bd9cefd3ef62eb994bc6c7c33221c611deaf073e9fb08d90a8e9e99"
+    },
+    {
+      "file": "live-098-coherence-corpus-trend-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 116.061,
+      "sha256": "cf7b6e3f626baad67fed4a9a037a4b39a33a6626d977c6d2296a794bee5f3739"
+    },
+    {
+      "file": "live-098-coherence-corpus-trend.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 93.503,
+      "sha256": "c9ad2a92380ecd8d1bb7e27b3aca136a0b5afb06c28966a3c349ace29c2eda20"
+    },
+    {
+      "file": "live-099-coherence-lessons-prices-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 107.4,
+      "sha256": "2d686050863f0dc12dd742adb2d53f31c68674326fc02b332bea6512f65cedb8"
+    },
+    {
+      "file": "live-099-coherence-lessons-prices.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 104.754,
+      "sha256": "0377c25c43e34389bd2168721650ef194f2076ca199f8ec3ba223f2d53a79c4a"
+    },
+    {
+      "file": "live-100-coherence-lessons-structure-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 108.357,
+      "sha256": "e8300630e1df6c4838f90d10b146e6bc5be8bddc9321e4c520367d3fa6fc16da"
+    },
+    {
+      "file": "live-100-coherence-lessons-structure-main-2.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 104.379,
+      "sha256": "acd9549a91f7728953e3e23280aa18338abef315b1c002c59f382a02e940a45a"
+    },
+    {
+      "file": "live-100-coherence-lessons-structure.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 103.675,
+      "sha256": "c6ed05db2f043457a1dd16361d56c72b886a3816b8b20f3467b0d7777a61dc3e"
+    },
+    {
+      "file": "live-101-coherence-lessons-bounds-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 103.463,
+      "sha256": "92c28a660e8175d1d80f1cd9fe307e628e7b50087ab6f291152fc40f910ba830"
+    },
+    {
+      "file": "live-101-coherence-lessons-bounds.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 103.613,
+      "sha256": "593201f73de667cd8706ca4df0294cc95a0feaedb42578de3a9cf121253b23a8"
+    },
+    {
+      "file": "live-102-coherence-lessons-record-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 110.799,
+      "sha256": "f74cc1493f107dde2dff0bc5a439355d8fba957f2a5d9b90de962fd27a5a85c9"
+    },
+    {
+      "file": "live-102-coherence-lessons-record.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 105.971,
+      "sha256": "d7c02fb2803a255e109f3327a4b206557377e00e786ac86441a7a44b6de7bc7d"
+    },
+    {
+      "file": "live-103-coherence-lessons-coverage-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 97.942,
+      "sha256": "2637f2ca7216dc058db0b3ab7836aa6b10ab8d340d577c2fd1d56f258cf90d8d"
+    },
+    {
+      "file": "live-103-coherence-lessons-coverage.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 99.429,
+      "sha256": "5db1f04480c571dfb1a167315b5b63152b98fc6bf8948e2a1d5ebb9df599a176"
+    },
+    {
+      "file": "live-104-coherence-lessons-states.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 91.218,
+      "sha256": "8b74177df63032f9261e2a65cfcb22d665c89cef04e92e5b7df7875b0656aa70"
+    },
+    {
+      "file": "live-105-diffusion-arm-absorption-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 99.22,
+      "sha256": "7108b2414d9287d81fd4ed6f477bb071bd78d9e4988a768f848fff0a3e5d0a1b"
+    },
+    {
+      "file": "live-105-diffusion-arm-absorption.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 94.908,
+      "sha256": "dcd7f77594b753452dc71ca3b55d38c7c62f628ffa1c3ac1050ac1ccf2723f23"
+    },
+    {
+      "file": "live-106-diffusion-arm-floor-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 89.719,
+      "sha256": "48c2edbcc07ca457fe1ec4b64fe0a9cf57c5a902b9fc4a1c0620c601cbee93cd"
+    },
+    {
+      "file": "live-106-diffusion-arm-floor.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 96.316,
+      "sha256": "11d4d8d30f5f3ccf7305beb21f8a773a09565efdd0579b7595413176ceb2e9c1"
+    },
+    {
+      "file": "live-107-diffusion-arm-clocks-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 118.019,
+      "sha256": "a8956530d7d6f5dede9327e023896d3a470e39c75d9536d1f8b0654f13d28623"
+    },
+    {
+      "file": "live-107-diffusion-arm-clocks.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 117.477,
+      "sha256": "8936aa04fd74d40e4e7a011178deda2f23147e624a038f21961b475c1b37646c"
+    },
+    {
+      "file": "live-108-diffusion-meetings-table-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 100.777,
+      "sha256": "50efc19916e9937aaa5520f05ba0f796e2c04a275e746f74f4ac3942ae96e344"
+    },
+    {
+      "file": "live-108-diffusion-meetings-table.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 103.752,
+      "sha256": "204d609755413928933f8fcc028e5dbd71fa46f46483ea5b0e605767b38ec947"
+    },
+    {
+      "file": "live-109-diffusion-meetings-calendar-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 89.325,
+      "sha256": "8b67f83ff7745856ff2f68bf46b0fa218e48b306fde7d6b7774df780fa97ea62"
+    },
+    {
+      "file": "live-109-diffusion-meetings-calendar.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 89.412,
+      "sha256": "e8dc5a238e7d01038e63b62288eb3130523351b83fea0b9a3b83bad247e6c64f"
+    },
+    {
+      "file": "live-110-diffusion-meetings-mechanism-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 100.051,
+      "sha256": "c5dcb0b0e7b9469aceea699201bb9e9180ab46292ca9d9632d554f36dde89dfb"
+    },
+    {
+      "file": "live-110-diffusion-meetings-mechanism.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 93.628,
+      "sha256": "eedf34b0c87a16239cd4352d54693edcd0ed526f89d75ecc3e8ba4b2e366a936"
+    },
+    {
+      "file": "live-111-diffusion-episodes-survival-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 93.699,
+      "sha256": "d7cf4df919803279b16975099c7bf453c8434241edf32b7a9437865b81b42561"
+    },
+    {
+      "file": "live-111-diffusion-episodes-survival.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 93.054,
+      "sha256": "8b4c17e6853e7c0f5245165429feb51875ab2afc598dc72bf60e06d91d5e7e36"
+    },
+    {
+      "file": "live-112-diffusion-episodes-episodes-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 80.333,
+      "sha256": "55c88387ff40e050af82780e2911c579e5fa8fef13d9a3d4619f3f36375b68dd"
+    },
+    {
+      "file": "live-112-diffusion-episodes-episodes-main-2.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 80.027,
+      "sha256": "63a2aba34a50b58c0238d36c98fe968a30461f831a3421c5b7c6e23c48371d5a"
+    },
+    {
+      "file": "live-112-diffusion-episodes-episodes-main-3.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 92.029,
+      "sha256": "e59e00f99f7b0097c3758fc18f21ed20e4fa2025e3ba25d6c61f6ba332e6a2b3"
+    },
+    {
+      "file": "live-112-diffusion-episodes-episodes-main-4.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 104.914,
+      "sha256": "fba6de3853ffd2b1267170f7f21a2146f8556d6ff1a8d0bac833227eaa00fd4a"
+    },
+    {
+      "file": "live-112-diffusion-episodes-episodes.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 91.348,
+      "sha256": "aeae95c03e10fb36b8c65f03a4bc23c19da68805f0cf0f915ef3d819d9f13713"
+    },
+    {
+      "file": "live-113-diffusion-model-measurement-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 92.11,
+      "sha256": "27ed48625445165cbfb9da3a9d49eae0f443f24c366c655ea43528b0c510f5f4"
+    },
+    {
+      "file": "live-113-diffusion-model-measurement.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 97.309,
+      "sha256": "544878b344534e876e3798583f745bfdc61a3f835ce56a4a90bb5f270a73b569"
+    },
+    {
+      "file": "live-114-diffusion-instrument-instrument-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 97.332,
+      "sha256": "61134d738a740aff61bb4eea8f3f65612b2c58f6f0eb516ed17633c6aab22088"
+    },
+    {
+      "file": "live-114-diffusion-instrument-instrument.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 98.77,
+      "sha256": "43a3188fd9bcb7f37cdb638752dad8db229d2a33e1481e51e82d142f2d930bf2"
+    },
+    {
+      "file": "live-115-diffusion-sandbox-halflife-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 93.462,
+      "sha256": "6feeaca32aa0d9a0c7a39c997f006c608631d0b0046aa8c3c7d618f2d36aeb23"
+    },
+    {
+      "file": "live-115-diffusion-sandbox-halflife.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 96.398,
+      "sha256": "53c7a12b2d4d570f20243abc1a9f8c018e0cbc34f667bdf57e7f2b7d43dd3742"
+    },
+    {
+      "file": "live-116-diffusion-sandbox-simulator-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 94.836,
+      "sha256": "97752d9d43ffaff2f215375e23b6643259a8771c91b9cf5f38be7f8075f6a8f7"
+    },
+    {
+      "file": "live-116-diffusion-sandbox-simulator.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 98.498,
+      "sha256": "3ba9e52cac45d7753624c449d5f57e4319e59d3ada65b3993f0521d0f2c90ed9"
+    },
+    {
+      "file": "live-117-diffusion-sandbox-spectrum-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 99.853,
+      "sha256": "cb68c218868dd3bd3dab69d59c5124881294130f4102fa870859366ff3fec989"
+    },
+    {
+      "file": "live-117-diffusion-sandbox-spectrum.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 101.567,
+      "sha256": "a06f3ca92c7aefc333ab4b5ac36e63a17056c337347a2386be9ca9b83d9a3a40"
+    },
+    {
+      "file": "live-118-diffusion-findings-plot-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 93.113,
+      "sha256": "60cf1179f83d9bf2e9806fb9fed83bd844ac47f08608a49314c3c3ea5564e054"
+    },
+    {
+      "file": "live-118-diffusion-findings-plot.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 94.821,
+      "sha256": "eaa023b681167d4273333495c492a2ea1a6c87b01988245fdd7d35bdb0e4bd36"
+    },
+    {
+      "file": "live-119-diffusion-findings-table-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 100.987,
+      "sha256": "f9091fbe2ea2921c9f2192f6cbc22393f9499cb3cde534fed9197eeaa54dbf72"
+    },
+    {
+      "file": "live-119-diffusion-findings-table.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 101.147,
+      "sha256": "3060cc6b196cca25857b7f9ef755ffd10cf5e4702f2ab2e85b86bc8a351ae0a0"
+    },
+    {
+      "file": "live-120-diffusion-findings-instrument-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 78.301,
+      "sha256": "c144835489e94167d62e251173fca8b432fa534cbcd2ea90289c7a93c8b58fab"
+    },
+    {
+      "file": "live-120-diffusion-findings-instrument.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 88.289,
+      "sha256": "b388236972438e96ab48f756b00abae6748b9106b4ddc4e945e3998ce33b0708"
+    },
+    {
+      "file": "live-extra-001-data-overview-Response-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 110.678,
+      "sha256": "0ca6d2f709755e1028bf9bf4c3d5af2e2161fc2c443c68f683da8bd56e6012cf"
+    },
+    {
+      "file": "live-extra-001-data-overview-Response.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 118.252,
+      "sha256": "f23526ce6c9c0e768cb3e9063d6eea15c508ea913726734eab0738bbb450b121"
+    },
+    {
+      "file": "live-extra-002-data-overview-Composition.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 115.439,
+      "sha256": "b10006034e87b131d2a0b79655b1762f58badda86d32e7fa43c2621632f925ec"
+    },
+    {
+      "file": "live-extra-003-data-overview-expanded-explanations-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 111.937,
+      "sha256": "fd9392112e746f1a67dd507b81abd0a899bb8040ad089619acf0739cdeeaf2ea"
+    },
+    {
+      "file": "live-extra-003-data-overview-expanded-explanations.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 112.855,
+      "sha256": "3a09a0424a354c32f4979eeb92c8c6b0504531f65b49579dcbff528b8b58cc35"
+    },
+    {
+      "file": "live-extra-004-data-feeds-Contracts-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 93.735,
+      "sha256": "854a31b1223ee7ce8ca4060b36f98f870e53e1a91c7f6d73cf0617f8104eb0d6"
+    },
+    {
+      "file": "live-extra-004-data-feeds-Contracts.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 96.002,
+      "sha256": "a38f9a24404802beedc9ca5fcc380056d90d0789eae446930411fce346e76193"
+    },
+    {
+      "file": "live-extra-005-data-feeds-expanded-explanations-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 91.936,
+      "sha256": "7a5342ecc9a0f9a118d0b66e01995f6cf00a4f722d3c9d2759c996a69f3431d5"
+    },
+    {
+      "file": "live-extra-005-data-feeds-expanded-explanations.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 95.263,
+      "sha256": "335a338c1a59276b4310988de9a6eb495fb6bc97c9644fb51d4a01afd94e76ff"
+    },
+    {
+      "file": "live-extra-006-data-quality-expanded-explanations-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 87.703,
+      "sha256": "11157dc2da0d4b5f8d3de32c02b55638d9605b37340f19311f791cd527022a9f"
+    },
+    {
+      "file": "live-extra-006-data-quality-expanded-explanations-main-2.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 87.719,
+      "sha256": "0388890c298e68b97ce0d20cda005228a97d6d5a4f3fd4296c4b4cf9fd6911b1"
+    },
+    {
+      "file": "live-extra-006-data-quality-expanded-explanations.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 98.026,
+      "sha256": "0dfe8b4ed3fca9fb8aac29bae50741cc9c38cbf5e6e1d152cc37338ed75efcb8"
+    },
+    {
+      "file": "live-extra-007-data-lineage-bars-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 86.974,
+      "sha256": "c9eea688462939d660ab2f23e4e9836cece4dd28edec0bd2a0c1f76940520916"
+    },
+    {
+      "file": "live-extra-007-data-lineage-bars-main-2.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 79.196,
+      "sha256": "4f3c4e73dce03e7e9bfbc000367dff5b967f620f3005076d4f90966b849cba37"
+    },
+    {
+      "file": "live-extra-007-data-lineage-bars.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 103.039,
+      "sha256": "4f1c9e3e503d143d94131f0dab37584640ecde905c50f5715633deb19fefcb13"
+    },
+    {
+      "file": "live-extra-008-data-lineage-news-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 90.454,
+      "sha256": "5cdc34f694c624c7fc1eea6e0f442d28eb6fd75835fa8edd48be0d5103013411"
+    },
+    {
+      "file": "live-extra-008-data-lineage-news-main-2.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 101.793,
+      "sha256": "ae167b9d6dcd5f3c00ef715c09db9d857f040f75e753f33a1d37d2b836dcde37"
+    },
+    {
+      "file": "live-extra-008-data-lineage-news-main-3.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 96.685,
+      "sha256": "a12939dc73c592a2e5ed674360916ade73ff928a0b4451fd0b1fac782f7e00b8"
+    },
+    {
+      "file": "live-extra-008-data-lineage-news.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 90.261,
+      "sha256": "a51ea0daecaa3dd9676edb9a57f1587481b8423cd4a1cca052caa7326736613c"
+    },
+    {
+      "file": "live-extra-009-data-lineage-fundamentals-equity-only-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 88.796,
+      "sha256": "01d920a4c738dcc3cf65af538759c69dd63688f688356993b840d5e9b5f3473d"
+    },
+    {
+      "file": "live-extra-009-data-lineage-fundamentals-equity-only-main-2.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 85.221,
+      "sha256": "1dfacc9cbfd09b924b368f4bb5f2709b22e83be22a6f5fbcf5e82796fab708a9"
+    },
+    {
+      "file": "live-extra-009-data-lineage-fundamentals-equity-only.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 90.842,
+      "sha256": "e81996301dde6a20e445ea3c35659122e4a58c6aab28f8cf623de035fd73f8de"
+    },
+    {
+      "file": "live-extra-010-data-lineage-WebSocket-frames-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 87.648,
+      "sha256": "6176d55876cf4e2a2aa41715c21889c24fd3fce96472a6169d5658335d8bed93"
+    },
+    {
+      "file": "live-extra-010-data-lineage-WebSocket-frames.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 92.709,
+      "sha256": "a557723a167121b95e7e00e168d1b472bd4e35c1c427378e830a062f79b4b022"
+    },
+    {
+      "file": "live-extra-011-data-lineage-expanded-explanations-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 72.163,
+      "sha256": "c48431f2116d77af7442f36652475f0f66d00365e5e8d541a52252c7f1472357"
+    },
+    {
+      "file": "live-extra-011-data-lineage-expanded-explanations-main-2.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 92.975,
+      "sha256": "2682df6bb4b28755c6ac7a886eab2720768fdbce21633b7c73d813188245a940"
+    },
+    {
+      "file": "live-extra-011-data-lineage-expanded-explanations-main-3.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 92.925,
+      "sha256": "4a1edc7ee8fc75d42709868c6c1257a37fcbf08749284dfc286e4edaa425586d"
+    },
+    {
+      "file": "live-extra-011-data-lineage-expanded-explanations.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 89.241,
+      "sha256": "0819dff8b6444f4518703a520590416b9ad59ff61bac3341bf69c4fdb0765bae"
+    },
+    {
+      "file": "live-extra-012-data-providers-Budget.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 88.598,
+      "sha256": "53a18736d795c18c549e6fded4d74c2c403178fcd81f21ac7e7eb4aee70e56cb"
+    },
+    {
+      "file": "live-extra-013-data-providers-Equity-quotes-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 100.79,
+      "sha256": "6c87e253dd14cbb4c72c89795ad2fd8a620e98ce3f35da6fb5ec7f3e488705f9"
+    },
+    {
+      "file": "live-extra-013-data-providers-Equity-quotes.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 101.525,
+      "sha256": "abfd6be1cf6a953f5d56448e77214e089240e04c1b9437615c9a9d2f26f353f0"
+    },
+    {
+      "file": "live-extra-014-data-providers-Crypto-bars-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 100.842,
+      "sha256": "a3dbe3f951e14a8e9e0c4251e2d2878c9ffeb8c1b437277577f36c250a6b6f01"
+    },
+    {
+      "file": "live-extra-014-data-providers-Crypto-bars.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 99.078,
+      "sha256": "47daa014b002b506b57ff635ed7dbbc27a970426873844e238486aa1c906ae6c"
+    },
+    {
+      "file": "live-extra-015-data-providers-Equity-bars-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 100.565,
+      "sha256": "ded17332c58d5fdb07dc4e709372d8853665b4a5b913a18de47fe050b898764a"
+    },
+    {
+      "file": "live-extra-015-data-providers-Equity-bars.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 101.304,
+      "sha256": "f56b2d1c5dccd56530bcbaa6ed9f4b180f3dab1a43ef73f163e98d6c0fac657d"
+    },
+    {
+      "file": "live-extra-016-data-providers-Crypto-news-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 98.468,
+      "sha256": "9ab04157fae70b49b6692fd9503d1f10ffc4244bcee946f3fbeca8a7519ab4da"
+    },
+    {
+      "file": "live-extra-016-data-providers-Crypto-news.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 99.254,
+      "sha256": "fb385d7d8cfb95b224ae2e3dad9c7bba1c9aae797ef9422b6b17c39db51a3659"
+    },
+    {
+      "file": "live-extra-017-data-providers-Equity-news-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 100.611,
+      "sha256": "dcd7bd4adaf5408175c2b5a8e1dde427a5041937d270fbded2c850c015ee837a"
+    },
+    {
+      "file": "live-extra-017-data-providers-Equity-news.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 101.353,
+      "sha256": "11bd8747ef47ad927620c78af3ee820050fd3e9fb41922fecb9bb27e07850b68"
+    },
+    {
+      "file": "live-extra-018-data-providers-Equity-fundamentals-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 99.388,
+      "sha256": "0899a576533aa1058e2533ca002057d7e6ca900e3c1e924bc0724bc80dc917ec"
+    },
+    {
+      "file": "live-extra-018-data-providers-Equity-fundamentals.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 100.153,
+      "sha256": "cf8116f792bd6933f4b3f96f7d6736608203edb6e33ed098572ff2831fadebaa"
+    },
+    {
+      "file": "live-extra-019-data-providers-Web-search-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 92.561,
+      "sha256": "b4ea2ca1fb6e4c4de32e60181c210ebae99c1c7f3e382891bbebff0ba05408a4"
+    },
+    {
+      "file": "live-extra-019-data-providers-Web-search.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 93.355,
+      "sha256": "23cd5ec970c73fb6f6e9363c0c388077042a927284b58474a24f415aee285dc6"
+    },
+    {
+      "file": "live-extra-020-data-providers-Web-scrape-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 92.588,
+      "sha256": "cc287671f9b55d720668116d72a4282e679b93557f806ce6e5984d4ea468da03"
+    },
+    {
+      "file": "live-extra-020-data-providers-Web-scrape.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 93.381,
+      "sha256": "5e8c1b3a96fc7be8f1d5d2a724e45c4a02cae41252c6d71aa952708dfae618a9"
+    },
+    {
+      "file": "live-extra-021-data-providers-expanded-explanations.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 89.685,
+      "sha256": "41e43368b2594e2eef332501c0100d23d2083a346bdda8c365d80ad01012e1cb"
+    },
+    {
+      "file": "live-extra-022-reliability-overview-expanded-explanations-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 94.986,
+      "sha256": "06aa933de372795765a2cd5a3e68caf38e5b5a3a927f92b4e7963d2345158d0d"
+    },
+    {
+      "file": "live-extra-022-reliability-overview-expanded-explanations.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 95.974,
+      "sha256": "6bde51babad37f21264bac92f00a48ea8cba33f991306d44de292e77749390eb"
+    },
+    {
+      "file": "live-extra-023-reliability-planes-Live-dependency-DAG-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 73.421,
+      "sha256": "8e6c483fd82e1dc7c38ceed92c7ce2edadd02ab9701b533ec1e1a81b15fe48c0"
+    },
+    {
+      "file": "live-extra-023-reliability-planes-Live-dependency-DAG-main-2.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 78.381,
+      "sha256": "b8e5ffba7a9d5135f5e21364922cd7aa1aa6f76c4c2aad2e5c2c063c0575961f"
+    },
+    {
+      "file": "live-extra-023-reliability-planes-Live-dependency-DAG.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 87.184,
+      "sha256": "df649ebb6697da0560c7885c7b948c8e692d670426441a8a1dfa14b5b286ce24"
+    },
+    {
+      "file": "live-extra-024-reliability-planes-Providers-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 96.437,
+      "sha256": "96806b2879b5778aff441ddb2cbb074aca8364fe38b79acf6c9b456db7ca7b60"
+    },
+    {
+      "file": "live-extra-024-reliability-planes-Providers.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 96.885,
+      "sha256": "4d3160874a49e816845b021c2836d9a2f56be5e9e3e3e6176e563fe95aa35c5e"
+    },
+    {
+      "file": "live-extra-025-reliability-planes-Platform-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 102.621,
+      "sha256": "eb32d874de7a721aad1abfd55a0175c4d33f43778e7c701f18de9f06cadfab30"
+    },
+    {
+      "file": "live-extra-025-reliability-planes-Platform.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 103.661,
+      "sha256": "0456baecb5a6840c304028de25ef8c3a7b98ca8a0a593b134543a7e8275ec928"
+    },
+    {
+      "file": "live-extra-026-reliability-planes-Latency-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 80.674,
+      "sha256": "7098c0b0fb8ec6baa6c6850ceaffeab3f0df99202a21cc26ea5ab1908f31850e"
+    },
+    {
+      "file": "live-extra-026-reliability-planes-Latency-main-2.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 82.159,
+      "sha256": "4788807b11e7aa95fde9f94c718852405de7b996e27cf7c1eb6119d3b665edf4"
+    },
+    {
+      "file": "live-extra-026-reliability-planes-Latency.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 93.846,
+      "sha256": "79294dbf3c33d81cd3c4f496f5fbcea4731325ddd0df22fb822c4e13b51cad67"
+    },
+    {
+      "file": "live-extra-027-reliability-services-expanded-explanations-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 95.056,
+      "sha256": "18a3e99dfbb7d67b4afa209860098ab18590e85039c490e30306840564943a63"
+    },
+    {
+      "file": "live-extra-027-reliability-services-expanded-explanations.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 99.236,
+      "sha256": "947a2e13618a6815263038860165d557890227ae7fa96488744fc72987208b22"
+    },
+    {
+      "file": "live-extra-028-reliability-events-info-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 278.636,
+      "sha256": "07e4b98c419e8433e6e51eac9f3043f5efd29e9d7f5b91e58533cf2d9af19b4f"
+    },
+    {
+      "file": "live-extra-028-reliability-events-info.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 281.783,
+      "sha256": "7b5083acbbe14dc79f4e45f41fd82e1afc7d61ef169a79057b4837876533f07c"
+    },
+    {
+      "file": "live-extra-029-reliability-events-warn-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 254.883,
+      "sha256": "b61ae5d6857fc1c1c8f06adb1b6c6907c246a40e6bdb240244dcf29d274d0f1a"
+    },
+    {
+      "file": "live-extra-029-reliability-events-warn.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 253.856,
+      "sha256": "1d6888c844d871ef35b112e72968511db251779ec31b1f30a4dbcc87ed6dffb9"
+    },
+    {
+      "file": "live-extra-030-reliability-events-error.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 268.057,
+      "sha256": "bc34139b2b607719ff2f195c4b66baa0594f15653444a7ee64455a1d97a1e5fa"
+    },
+    {
+      "file": "live-extra-031-reliability-controls-Scope.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 90.554,
+      "sha256": "9ec7faafa590d14a4bbd1ce02bd45c3f5013df18a6a2134d87097f90ef3d9029"
+    },
+    {
+      "file": "live-extra-032-reliability-controls-Session.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 86.117,
+      "sha256": "ba8d59a51415521ad6e57f8c066bcad72ca3170df603d15ca03b88d7e0dd65c3"
+    },
+    {
+      "file": "live-extra-033-reliability-controls-Recovery.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 83.229,
+      "sha256": "b262ae6b9de6c4accda51dc5b2507cf8eb025f2dc24193d8cd536195290f4ab7"
+    },
+    {
+      "file": "live-extra-034-reliability-controls-History.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 81.729,
+      "sha256": "d5acf81912579edfd2d13dad289fc5003288c0f19cf5f7fa6a1a7ff7a055b771"
+    },
+    {
+      "file": "live-extra-035-reliability-controls-expanded-explanations.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 88.051,
+      "sha256": "1692bb1fd86c8c228e8deb331f105cfeb7100c04a94a1c2cedc661e6fee13bb3"
+    },
+    {
+      "file": "live-extra-036-developer-overview-expanded-explanations.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 95.979,
+      "sha256": "e17b62b49c9bce7695fc4bd3208035340fb9b1ce1f874f72bf1c6ee394496487"
+    },
+    {
+      "file": "live-extra-037-developer-readiness-expanded-explanations-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 92.915,
+      "sha256": "7c4c734f94a331eb76e65cfb8982ac7a27d7776650692c71820d6e59e0e15e94"
+    },
+    {
+      "file": "live-extra-037-developer-readiness-expanded-explanations.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 98.88,
+      "sha256": "29e851d5db55f372df73757966b7ee97062e46d433b6788c2104d9ecd3d4af44"
+    },
+    {
+      "file": "live-extra-038-developer-quality-Verification-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 107.284,
+      "sha256": "73cced68d91accf029377d7f8c7d1e04622d65468cc5d6e3a4633afc2b1fac6d"
+    },
+    {
+      "file": "live-extra-038-developer-quality-Verification.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 110.097,
+      "sha256": "dd537bcec6cfb01f31ed3f8ec47f07889782a10fa82243b4b93cbbd79f56ad2a"
+    },
+    {
+      "file": "live-extra-039-developer-quality-expanded-explanations-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 108.044,
+      "sha256": "2034f21667dbc20f27910cf5b1b3df69aef466de6c122706cc759e81a58ea2c6"
+    },
+    {
+      "file": "live-extra-039-developer-quality-expanded-explanations.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 110.098,
+      "sha256": "9184c7484c1909699711d2d6865c4d59128b8cb035b56e6db0d2f8fa59eb51c8"
+    },
+    {
+      "file": "live-extra-040-developer-apis-Routes-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 88.558,
+      "sha256": "5b7bf99349e2287db69c75469089e80135457eba793618473c580ee6c3ba959a"
+    },
+    {
+      "file": "live-extra-040-developer-apis-Routes.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 92.306,
+      "sha256": "68fc074f564351e91528391111cd004965ce754ad9aba066f9babaa896c48520"
+    },
+    {
+      "file": "live-extra-041-developer-apis-Numerics.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 108.219,
+      "sha256": "e08f2d573458bde912b0bdc768583d855ee086d27d8467671f72cfa9574eafbf"
+    },
+    {
+      "file": "live-extra-042-developer-apis-expanded-explanations-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 108.499,
+      "sha256": "928afbbe224efed0069b37230891ec989552e4e888e15b9e26be1d5a818ac932"
+    },
+    {
+      "file": "live-extra-042-developer-apis-expanded-explanations.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 109.056,
+      "sha256": "14e35d2c982c552bde7acaa09a36dedbf6b7a1d5b94a6ee624e4096e97f0fdab"
+    },
+    {
+      "file": "live-extra-043-research-summary-setup-expanded-explanations-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 95.841,
+      "sha256": "150c3a7ca10377f75de1516e78b597db8b2eac9052675aa402fc09104ef1098a"
+    },
+    {
+      "file": "live-extra-043-research-summary-setup-expanded-explanations.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 92.871,
+      "sha256": "93b09587711976559cb63ba2c3daca030101de25d9258b02e56f9182f439be0f"
+    },
+    {
+      "file": "live-extra-044-portfolio-overview-sandbox-default.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 97.81,
+      "sha256": "0429d1d3f9871cef55f67b71aa8638bfe918a8832e8c60fbc02d2e93e6753a69"
+    },
+    {
+      "file": "live-extra-045-portfolio-overview-Book-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 98.821,
+      "sha256": "2a062d225619eb02a432ae7fd256e34ed6c49e8a17a6eb37a4345b4878abcd25"
+    },
+    {
+      "file": "live-extra-045-portfolio-overview-Book.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 102.508,
+      "sha256": "88eef189e4e27b11a276304dbb8ea446c8f6dd1526ac2ad081aee41594dc6905"
+    },
+    {
+      "file": "live-extra-046-portfolio-equity-sandbox-default-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 105.885,
+      "sha256": "bd7f37a4836a7bd3cbfd8a7bf5cd6d28873a217533122ea7f921c73a63b75048"
+    },
+    {
+      "file": "live-extra-046-portfolio-equity-sandbox-default.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 110.322,
+      "sha256": "2f0125d81eed9793aa89adf7473c946d597921332a02b47fc0479a02d301064e"
+    },
+    {
+      "file": "live-extra-047-portfolio-equity-expanded-explanations-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 102.637,
+      "sha256": "f8d5f05a9329af5b41d565fdcc9388ff4c58b026bc286ccaf3af0332b617c54d"
+    },
+    {
+      "file": "live-extra-047-portfolio-equity-expanded-explanations.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 110.729,
+      "sha256": "0adf49295981cc973a4aaa67385cbd83e90dab72025117ae6194ee6ed77a40c4"
+    },
+    {
+      "file": "live-extra-048-portfolio-positions-sandbox-default.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 90.491,
+      "sha256": "b156dcf7ce804b0461099f90688884faea9baa06ea67b3261ad6c6fb87f9b8e1"
+    },
+    {
+      "file": "live-extra-049-portfolio-positions-Shape-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 97.411,
+      "sha256": "6b94dd44267fd369eabe7141fb0a25a3e49f83dafbb1adbc40873cd03c2f8b23"
+    },
+    {
+      "file": "live-extra-049-portfolio-positions-Shape.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 98.671,
+      "sha256": "527b1afb1262cad6736d145f607999ac013b00705771649bbe12abfd7ce8d14b"
+    },
+    {
+      "file": "live-extra-050-portfolio-positions-Exit-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 99.282,
+      "sha256": "348a3576f1c01a797cb23ba285bcd2ba83038d112533e2839ba9d1b0fc8aa1d1"
+    },
+    {
+      "file": "live-extra-050-portfolio-positions-Exit.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 97.761,
+      "sha256": "d04563753bf66a56464a5b967aea7d5b141ed5db95392c2e1fe9a2b5b7a112fc"
+    },
+    {
+      "file": "live-extra-051-portfolio-positions-expanded-explanations-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 101.728,
+      "sha256": "74b475e0274ebed154beac392117cec791de2c48cd5cf4f7e6e95035b92d41f3"
+    },
+    {
+      "file": "live-extra-051-portfolio-positions-expanded-explanations.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 98.484,
+      "sha256": "0bbb23e1a4f8ddc5a9f9d91a2d062388a2d7189ab404d84ceeaf448c6a2bd757"
+    },
+    {
+      "file": "live-extra-052-portfolio-allocation-sandbox-default.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 94.701,
+      "sha256": "f658c3933be8c5dea53823065582d9f8ee9fb0f2865caaef9c2b5b3d919bd2c7"
+    },
+    {
+      "file": "live-extra-053-portfolio-allocation-Targets-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 98.443,
+      "sha256": "6a6dad1e02de228381ee457937538923c7bcce607d243098fd149a7c4401c041"
+    },
+    {
+      "file": "live-extra-053-portfolio-allocation-Targets.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 105.016,
+      "sha256": "dfa9f89507add5a7538ba66c666dce8e3ad21b755be043b28c095886d8288b6d"
+    },
+    {
+      "file": "live-extra-054-portfolio-allocation-Composition.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 150.325,
+      "sha256": "8223293759522f4b7f39343ffb4675abc578a71bd4c7dba3b192880b97109e61"
+    },
+    {
+      "file": "live-extra-055-portfolio-allocation-expanded-explanations-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 150.167,
+      "sha256": "902c3952de24cc8c2a32f51a04e1ec1ad88d84b37af4a9cadf717a3c1bee08fa"
+    },
+    {
+      "file": "live-extra-055-portfolio-allocation-expanded-explanations.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 152.529,
+      "sha256": "9aa763bd8af8cb186be246455e16c0f4d252596dc594fbc64bcd5ff5c1d0310f"
+    },
+    {
+      "file": "live-extra-056-portfolio-performance-sandbox-default-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 87.237,
+      "sha256": "2faf5189555e2a2001a33abc3537933a048782a0f7f5d5408fc4ede15659ddb0"
+    },
+    {
+      "file": "live-extra-056-portfolio-performance-sandbox-default.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 96.757,
+      "sha256": "65fb70be5c0dba2a4ae14ce7de014800128da3beb06c1fe28476554463a60452"
+    },
+    {
+      "file": "live-extra-057-portfolio-performance-Trend-this-session.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 91.947,
+      "sha256": "86d47e72a63ad2607c92b645fec4807b5645583f2523dab5c79be21f6c198402"
+    },
+    {
+      "file": "live-extra-058-portfolio-performance-expanded-explanations.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 95.176,
+      "sha256": "e6dc11925e9499e5e4151cc32041fa1a862f0091eec075ffc7276027e98cf697"
+    },
+    {
+      "file": "live-extra-059-risk-limits-sandbox-default.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 102.079,
+      "sha256": "c0480f70360b8f1fc58cc1cbe74a5470a5fc0a9a6b8990cc2d9d4a162f8f587c"
+    },
+    {
+      "file": "live-extra-060-risk-limits-expanded-explanations-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 99.334,
+      "sha256": "292d2523d0e5841739685d6a8c41a0d563408ede501d67bc4fdab5943e85a87d"
+    },
+    {
+      "file": "live-extra-060-risk-limits-expanded-explanations.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 101.321,
+      "sha256": "b1f364a586ee39736f1b823fdffcce4ccd746a26936fd61b1ee20e61ab179ecb"
+    },
+    {
+      "file": "live-extra-061-risk-model-sandbox-default.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 91.132,
+      "sha256": "dfd648d32b936d4d4402f6ef8ab1242e70a5c1e717b71b404e4406707d2a9797"
+    },
+    {
+      "file": "live-extra-062-risk-diagram-sandbox-default-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 93.598,
+      "sha256": "50183e7de865d359173e4d9a86d96fb673762112daf1f338b4e520c0cd800595"
+    },
+    {
+      "file": "live-extra-062-risk-diagram-sandbox-default.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 97.406,
+      "sha256": "de68ac7921e8d7692131a2c1a4c30cb7b260260e9819ffe90752bbe16b4983c6"
+    },
+    {
+      "file": "live-extra-063-risk-diagram-expanded-explanations-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 91.097,
+      "sha256": "7b4459aae2ba3a906153be6dce135665c7fbb9379ed28a26186e578024f8e57e"
+    },
+    {
+      "file": "live-extra-063-risk-diagram-expanded-explanations-main-2.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 90.929,
+      "sha256": "fee82ee227a91feebf49e438a7c5f52d66c1889163e7860c9dcf262201d15eb1"
+    },
+    {
+      "file": "live-extra-063-risk-diagram-expanded-explanations.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 97.41,
+      "sha256": "e011af766fddea6a392ef31b4af63a79298e2158b8b0875ea8c83d7341053335"
+    },
+    {
+      "file": "live-extra-064-risk-drivers-sandbox-default.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 103.168,
+      "sha256": "e294d65aa8979b3e7578da592aa4b26d4e42ebeb41d1606b35b8b7d14696b4bf"
+    },
+    {
+      "file": "live-extra-065-risk-drivers-expanded-explanations-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 102.326,
+      "sha256": "f9b2ef0c4a5b5bd79be8daf382c64e75928b9ed33a7a2364310eede3868a64e5"
+    },
+    {
+      "file": "live-extra-065-risk-drivers-expanded-explanations.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 104.112,
+      "sha256": "e2118b69b1148711d586e58d56874f168db1dffa152c5b6dd230d13c6214a132"
+    },
+    {
+      "file": "live-extra-066-risk-montecarlo-sandbox-default-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 112.194,
+      "sha256": "f25c51ad7f7b03719089571938cdd8a0d99d868a124ad85bd7978d451f5db2a5"
+    },
+    {
+      "file": "live-extra-066-risk-montecarlo-sandbox-default.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 109.168,
+      "sha256": "5c432b2e52dc273e8339084c375fa223318ad1dec1ca09f416296d8093b0a60e"
+    },
+    {
+      "file": "live-extra-067-risk-montecarlo-1d-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 100.599,
+      "sha256": "f210c79c88b9dc1a43583f8513665c9cab287aa52e000b0012fc4cda9d8611ff"
+    },
+    {
+      "file": "live-extra-067-risk-montecarlo-1d.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 101.203,
+      "sha256": "5b85077f0042d1a03bd5cee510aec3d718fb39d2ce3d0559e57aaa5ff8a00850"
+    },
+    {
+      "file": "live-extra-068-risk-montecarlo-10d-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 104.443,
+      "sha256": "fc7e4e0c1a2afdbdfa79f9f2436daf9921c27a6a2dd9883b5bef1ad89f89a182"
+    },
+    {
+      "file": "live-extra-068-risk-montecarlo-10d.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 106.178,
+      "sha256": "7f0bac692b864a94549f1106aab038eb980b3ce39effb8ae859206900c144ab1"
+    },
+    {
+      "file": "live-extra-069-risk-montecarlo-90d-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 115.566,
+      "sha256": "c78de24ea94b8cce6aedb43c7514c96eac70fa517242df0640e712b873732a17"
+    },
+    {
+      "file": "live-extra-069-risk-montecarlo-90d.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 112.286,
+      "sha256": "90df5e6c6d0ab719151570c5f827252f783c31324ddb953a0e6b4711af7b689c"
+    },
+    {
+      "file": "live-extra-070-risk-montecarlo-expanded-explanations-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 116.827,
+      "sha256": "6c8906c0a43daeb04db4b72feadfe7768495ea4e69260ba0be35ca88a5c809f6"
+    },
+    {
+      "file": "live-extra-070-risk-montecarlo-expanded-explanations.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 113.176,
+      "sha256": "dc5fd01968e7faac5331dcd8ecf9714024d3146470e07a389ac3474cea0b21bf"
+    },
+    {
+      "file": "live-extra-075-risk-scenarios-sandbox-default-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 94.201,
+      "sha256": "e44147cb336426b40e8ef14a378ddb9dfd84cad8b2dda29a90f5b3819d4e9803"
+    },
+    {
+      "file": "live-extra-075-risk-scenarios-sandbox-default.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 99.774,
+      "sha256": "21570e037a7262bcbd1f1b2244915b291327ef8ce864ebb904a56ba517a7c8e7"
+    },
+    {
+      "file": "live-extra-076-risk-scenarios-Broad-risk-off-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 88.648,
+      "sha256": "c2fb70d1bb244602746af792bc90b0952d683e75f8cc306839b6efd893bb5902"
+    },
+    {
+      "file": "live-extra-076-risk-scenarios-Broad-risk-off.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 95.222,
+      "sha256": "98b9cb3e0203f62e66b78fd835f46ee605d67731335ec03ba1ae462eb0907835"
+    },
+    {
+      "file": "live-extra-077-risk-scenarios-Melt-up-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 89.214,
+      "sha256": "e7020766a9d477b7dd79028c272978ec87bd2911745d33bd6683ddfe0ae5b3a8"
+    },
+    {
+      "file": "live-extra-077-risk-scenarios-Melt-up.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 95.682,
+      "sha256": "c397543c6a08690f6822894a87ad7e15a3accac4d6100f02e1809064ae436281"
+    },
+    {
+      "file": "live-extra-078-risk-scenarios-No-shock-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 89.593,
+      "sha256": "ef1fd36d4f35b3ba14f823afe2c21c8255b8804c0298c22cc736ad08469205ff"
+    },
+    {
+      "file": "live-extra-078-risk-scenarios-No-shock.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 95.31,
+      "sha256": "e4f0efe88287c94619da0f731feca03ff421d16086462d5a7b0e1219a3bb2c01"
+    },
+    {
+      "file": "live-extra-079-risk-scenarios-Hand-shocks-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 89.702,
+      "sha256": "f673b344d0c4b2a7b92acbc249aaf8d1d3a895199af6d79c25f2bf177cfeeed1"
+    },
+    {
+      "file": "live-extra-079-risk-scenarios-Hand-shocks.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 95.59,
+      "sha256": "38c23a9bf5796417948b1c958afd97d842babf3d6a0cefe7f85d97ce07d8b246"
+    },
+    {
+      "file": "live-extra-080-risk-scenarios-expanded-explanations-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 90.001,
+      "sha256": "4d22b283dc31dac5a1d6c2bfdacbe963681ae4fd96b818cb823b88771becad01"
+    },
+    {
+      "file": "live-extra-080-risk-scenarios-expanded-explanations.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 95.002,
+      "sha256": "5c34b54cf6bfbc006d951f79d543e327f4d24d6c664f89043035088092f4a55a"
+    },
+    {
+      "file": "live-extra-081-risk-controls-sandbox-default.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 82.363,
+      "sha256": "f43cddd509a2631088223c14b99644e5b3c432d53c7cc3e0ac91d065b674c841"
+    },
+    {
+      "file": "live-extra-082-global-settings-light-standard.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 89.92,
+      "sha256": "2f98fa1ff58fed26f4930f73cfd813cc634a177d2c6cbb557a21fc9fa54b6184"
+    },
+    {
+      "file": "live-extra-083-global-settings-dark-theme.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 87.341,
+      "sha256": "0f689c36673528436398a472aa2a5dc8cc563f9d08be6d83b2d961dfa6c7ba8d"
+    },
+    {
+      "file": "live-extra-084-global-settings-full-detail.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 87.356,
+      "sha256": "935e45878e9079266813a76d0dd24e852d9a4e56dee7e3b038d06c85010eceb1"
+    },
+    {
+      "file": "live-extra-085-global-palette-all-destinations.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 82.817,
+      "sha256": "96211d77fa99365072a0986f15d76048f2ba3f02e8519fead0b88ad1cf89d396"
+    },
+    {
+      "file": "live-extra-086-auth-login-complete-login-form.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 76.175,
+      "sha256": "a23fc756bf0797c1027cf06eeb2d2a8bab974cacd916a24354a9d4a4933d259a"
+    },
+    {
+      "file": "live-extra-087-auth-register-account-creation-form-only.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 78.137,
+      "sha256": "b7d15fb5fe00221f91b9bb4878e105c2ad7ea7659830421b51a35ce6c321567d"
+    },
+    {
+      "file": "live-extra-088-auth-recovery-password-recovery-form-only.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 72.932,
+      "sha256": "1301d6148b43fd398abb4e6cdd0cf990177b8b661a2fb940f117be089fec8916"
+    },
+    {
+      "file": "live-extra-089-global-shortcuts-keyboard-shortcuts-and-tour.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 90.631,
+      "sha256": "37b542aa12e87dd429e1730f501c00a7dcc04efe6c9c9617b2c855fbe6374280"
+    },
+    {
+      "file": "live-extra-090-global-kill-guarded-control-panel.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 81.82,
+      "sha256": "af962d0effe119332feb5a9bb0685f421955fe5bb81bf467bce3e5ecf5e1b2c4"
+    },
+    {
+      "file": "login.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 76.175,
+      "sha256": "a23fc756bf0797c1027cf06eeb2d2a8bab974cacd916a24354a9d4a4933d259a"
+    },
+    {
+      "file": "repair-oracle-research-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 88.431,
+      "sha256": "05298e4ebf5b9282a38fc944133c76814ed3a6c0cc329f9413d1d8a862f45ab7"
+    },
+    {
+      "file": "repair-oracle-research.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 99.318,
+      "sha256": "9697b7a8a04e41591b096afba5582592179b01eed8e3c755d58d83e8ede61fac"
+    },
+    {
+      "file": "repair-oraclevar-10d-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 103.691,
+      "sha256": "b38f997c0d65474df532de0067ed5f0f5af5bd6e3ef1d67980ffe0f289a8b4bc"
+    },
+    {
+      "file": "repair-oraclevar-10d.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 99.441,
+      "sha256": "f0bd9745c7a23d37224cbb059298fbdf6c154c9368b402c2c72d81e54b403073"
+    },
+    {
+      "file": "repair-oraclevar-1d-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 101.547,
+      "sha256": "80e82a71a0f94268efb73cee1051a81f603dd5ad38d73f608c06d0288cff5acf"
+    },
+    {
+      "file": "repair-oraclevar-1d.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 98.81,
+      "sha256": "41d17c5f3a920a4eb049ddd3d9c19485f853c8e87953ef7fe156b4cc77aaa38b"
+    },
+    {
+      "file": "repair-oraclevar-30d-main-1.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 103.52,
+      "sha256": "4c048be3644426406128a5d9b48925e990b7e55f23f7bf8e9760374ce8928ecc"
+    },
+    {
+      "file": "repair-oraclevar-30d.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 99.289,
+      "sha256": "3e9af024a215b7b376752c36252e92e67e807fd26cf05fdf2dae6dc20c211c6a"
+    },
+    {
+      "file": "repair-supabase-outage.png",
+      "width": 1600,
+      "height": 1000,
+      "channel_std_sum": 102.651,
+      "sha256": "daf2557639b1489fa7d54c1167ef7091ad18ad3096c93f111a166020b618ae07"
+    }
+  ],
+  "visual_review": {
+    "contact_sheets_reviewed": 25,
+    "screenshots_on_contact_sheets": 400,
+    "login_duplicate_reviewed": true,
+    "pdf_checks": "All-page text bounds checked; representative pages rendered with Poppler and visually inspected",
+    "historical_defects": [
+      "Oracle trend currency tick clipping; local correction tested, not deployed"
+    ],
+    "known_deployed_defects": [
+      "Supabase search blocked by unreachable gateway; final service shutdown unverified"
+    ]
+  },
+  "latest_visual_review": "Actual Vercel Oracle search results and three Oracle VaR horizons visually checked; corrected full currency tick labels. Gateway outage remains documented.",
+  "all_features_functionally_verified": false
+}

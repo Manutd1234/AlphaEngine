@@ -1,0 +1,189 @@
+▶ every call site carries a deadline
+  ✔ no fetch in any of them is unbounded (1.568833ms)
+  ✔ the duration is a named constant, never a number dropped inline (0.412291ms)
+  ✔ each constant says why that number and not another (0.528917ms)
+  ✔ is not one blanket value wearing eight names (0.298125ms)
+✔ every call site carries a deadline (3.214417ms)
+▶ a poll's deadline fits inside its own interval
+  ✔ reads the cadence list rather than assuming one (0.056625ms)
+  ✔ never outlasts the interval, except at the deliberate floor (0.061709ms)
+  ✔ never outlasts the gateway's own budget (0.087416ms)
+✔ a poll's deadline fits inside its own interval (0.276125ms)
+▶ a timeout is not a failure, and does not say it is
+  ✔ the health poll distinguishes them (0.150583ms)
+  ✔ a timed-out poll is transient state, not a latch (0.108375ms)
+  ✔ an aborted operator action never claims nothing happened (0.082709ms)
+  ✔ a timed-out search does not report an index it never asked (0.0715ms)
+  ✔ a timed-out exit probe does not read as a missing book (0.052ms)
+  ✔ the favourites panel distinguishes them too (0.05625ms)
+  ✔ a failed credential probe never accuses the credential (0.082792ms)
+✔ a timeout is not a failure, and does not say it is (0.714167ms)
+▶ the streamed desk is wired, not orphaned
+  ✔ the hook has a consumer (0.693583ms)
+  ✔ the route never signals unavailability with a status code (0.080459ms)
+  ✔ the hook stops rather than reconnect-storming an unavailable stream (0.068875ms)
+  ✔ reconnection is the shared controller's, so it is hidden-gated and backed off (0.193792ms)
+  ✔ one connection serves every consumer (0.032ms)
+  ✔ every surface on the stream says which transport is live (0.425208ms)
+  ✔ the stream is a signal, not the only source (0.049542ms)
+✔ the streamed desk is wired, not orphaned (1.61675ms)
+▶ both vector stores embed at the same dimension
+  ✔ Oracle's VECTOR column matches lib/oracle/queries.ts (0.476917ms)
+  ✔ and matches the pgvector migration (0.192292ms)
+  ✔ and matches what the embedding service actually produces (0.102625ms)
+✔ both vector stores embed at the same dimension (1.298292ms)
+▶ the similarity query matches the committed schema
+  ✔ selects from the table the schema creates (0.197708ms)
+  ✔ every column it selects exists (0.332375ms)
+  ✔ declares exactly the binds it uses (0.447666ms)
+  ✔ excludes rows whose vector is not ready (0.078292ms)
+  ✔ filters by kinds the schema actually permits (0.137125ms)
+✔ the similarity query matches the committed schema (1.381833ms)
+▶ the VaR call matches the procedure
+  ✔ calls a procedure that exists (0.141708ms)
+  ✔ passes the right number of arguments in the right direction (0.225ms)
+  ✔ the route's cap cannot exceed the database's (0.161ms)
+  ✔ persists nothing (0.109ms)
+  ✔ the percentile is taken over one call's own paths (0.083542ms)
+  ✔ the procedure and the closed-form check share one day count (0.212667ms)
+✔ the VaR call matches the procedure (1.066041ms)
+▶ the client is configuration-safe by default
+  ✔ is unconfigured, not broken, with no environment (0.089417ms)
+  ✔ defaults to ADMIN so today's Vercel variables work unchanged (0.034916ms)
+  ✔ but the least-privilege user is one variable away (0.124167ms)
+  ✔ a missing schema is not reported as an unreachable database (0.110416ms)
+  ✔ no failure message can leak connection material (0.043417ms)
+✔ the client is configuration-safe by default (0.470458ms)
+▶ cosine distance maps to the similarity the panel renders
+  ✔ is 1 for an identical vector and 0 for an opposite one (0.062542ms)
+  ✔ stays inside [0, 1] for the whole cosine range (0.052417ms)
+✔ cosine distance maps to the similarity the panel renders (0.153917ms)
+▶ both indexes answer behind the same relevance floor
+  ✔ the TypeScript and Python floors are the same number (1.863709ms)
+  ✔ Oracle filters on distance, and the route binds it (0.15225ms)
+  ✔ Supabase is actually passed its floor rather than defaulting to zero (0.403875ms)
+✔ both indexes answer behind the same relevance floor (2.48625ms)
+▶ the three sources this suite scans are actually being read
+  ✔ each loads with content (0.242ms)
+✔ the three sources this suite scans are actually being read (0.66825ms)
+▶ the panel re-runs on a cadence, and the cadence is argued
+  ✔ the loop is the shared PollingController, not a hand-rolled interval (0.176416ms)
+  ✔ it runs only while someone is looking at this panel (0.313666ms)
+  ✔ the interval is defended by arithmetic, not chosen for feeling live (0.127125ms)
+  ✔ the loop re-reads one book rather than fetching a second one (0.069166ms)
+✔ the panel re-runs on a cadence, and the cadence is argued (0.81ms)
+▶ a repeat at unchanged inputs is a measurement, not a duplicate
+  ✔ the point is keyed on the tick as well as the inputs (0.12825ms)
+  ✔ StrictMode is handled by the abort discipline, not by suppressing repeats (0.087125ms)
+✔ a repeat at unchanged inputs is a measurement, not a duplicate (0.301625ms)
+▶ no state on this card is silent about itself
+  ✔ a flat live book is named as the reason, not left as a wait (0.0865ms)
+  ✔ the chart's empty state explains itself in the register of its caption (0.049042ms)
+  ✔ the cadence is disclosed on the card, derived from the constant (0.159167ms)
+✔ no state on this card is silent about itself (0.361125ms)
+▶ a good answer is never blanked
+  ✔ the file is being read, so every doesNotMatch below scans something (0.279709ms)
+  ✔ no skeleton is rendered at all (0.075792ms)
+  ✔ only two states come before the figures, and neither is in-flight (0.050625ms)
+  ✔ a re-run demotes the figures to `cached` instead of removing them (0.045084ms)
+  ✔ a held answer does not survive the Live/Sandbox toggle (0.051667ms)
+  ✔ the status line says which run the figures on screen came from (0.07225ms)
+  ✔ every tile describes the run it came from, not the request in flight (0.071042ms)
+  ✔ a figure that does not exist yet is a dash, never a zero (0.0635ms)
+  ✔ the reserve boxes both stay, so nothing bounces (0.103792ms)
+✔ a good answer is never blanked (1.320333ms)
+▶ the fast figure is on screen before the database is asked
+  ✔ the closed form is priced on the requested inputs, in this browser (1.054625ms)
+  ✔ it never becomes the divergence baseline (0.223917ms)
+  ✔ the pre-answer figure is a real number, not a placeholder (0.074167ms)
+✔ the fast figure is on screen before the database is asked (1.452333ms)
+▶ the re-run cadence is what the comments claim
+  ✔ the volatility input is bucketed, and the bucket is a basis point (0.058791ms)
+  ✔ a poll-sized volatility tick lands in the same bucket (0.046958ms)
+  ✔ the observation key collapses with it, so the trend records one fact once (0.058916ms)
+  ✔ the bucket discards less than the simulation's own sampling error (0.129791ms)
+  ✔ the equity bucket it works beside is untouched (0.032458ms)
+✔ the re-run cadence is what the comments claim (0.393ms)
+▶ a superseded run lands nowhere
+  ✔ the effect cancels the request whose inputs no longer exist (0.105083ms)
+  ✔ a cancellation is not reported as a database that failed to answer (0.035708ms)
+  ✔ the deadline is still its own, and still reported (0.024083ms)
+✔ a superseded run lands nowhere (0.1965ms)
+▶ the chart is built from the in-tree primitives
+  ✔ adds no dependency and hand-rolls no scale (0.360625ms)
+  ✔ keys its draw animation on the data, never on the measured width (0.08425ms)
+  ✔ respects reduced motion by using the one animation contract (0.071417ms)
+✔ the chart is built from the in-tree primitives (0.902958ms)
+▶ the series never implies more history than it holds
+  ✔ says how many observations it has, in words, every time (0.060083ms)
+  ✔ reports the empty case instead of drawing an empty plot (0.050542ms)
+  ✔ a single observation is drawn as a point and says a line needs two (0.037625ms)
+  ✔ keeps the terminal-value figure off one scale with other horizons (0.0375ms)
+✔ the series never implies more history than it holds (0.286ms)
+▶ a point that could not be computed is absent, not zero
+  ✔ nothing in the chart coerces a nullable figure (0.922166ms)
+  ✔ the line breaks at a missing point rather than bridging it (0.087ms)
+  ✔ an unavailable run is still recorded, so the gap keeps its width (0.0795ms)
+  ✔ a horizon where every run failed reports rather than inventing a scale (0.147292ms)
+  ✔ the missing points are counted on screen (0.04975ms)
+✔ a point that could not be computed is absent, not zero (1.494ms)
+▶ a re-run repaints the chart and does not move the card
+  ✔ the chart sits in a box reserved at its own height (0.055709ms)
+  ✔ the reserved box stands whether or not the chart draws (0.137708ms)
+✔ a re-run repaints the chart and does not move the card (0.2405ms)
+▶ one observation per input set, not per attempt
+  ✔ the point is keyed on the inputs the simulation ran on (0.156541ms)
+  ✔ the series is appended to, never reset (0.032542ms)
+  ✔ the trend is capped, and the cap is what the caption counts (0.025042ms)
+✔ one observation per input set, not per attempt (0.259708ms)
+▶ the corpus panel is actually reachable
+  ✔ is rendered by the research workspace (0.345666ms)
+  ✔ sits outside the StaleGate (0.103833ms)
+✔ the corpus panel is actually reachable (0.91325ms)
+▶ three unhappy outcomes stay three different sentences
+  ✔ reuses describeSearchOutcome rather than restating it (0.247667ms)
+  ✔ validates the response shape before trusting it (0.116333ms)
+  ✔ keeps idle apart from searched-and-empty (0.099459ms)
+  ✔ a transport failure says the index was not reached (0.148333ms)
+✔ three unhappy outcomes stay three different sentences (0.727ms)
+▶ the two backends are a choice, not a fallback
+  ✔ offers both and never silently substitutes one for the other (0.19275ms)
+✔ the two backends are a choice, not a fallback (0.265875ms)
+▶ results are legible as evidence
+  ✔ shows the similarity score, not just the ordering (0.129292ms)
+  ✔ renders the card text as it was embedded (0.307334ms)
+  ✔ uses tabular figures so a column of scores stays aligned (0.314291ms)
+✔ results are legible as evidence (0.841625ms)
+▶ the panel survives both themes and both column widths
+  ✔ uses tokens rather than literal colours (0.67825ms)
+  ✔ reflows on its own width, not the viewport's (0.207667ms)
+✔ the panel survives both themes and both column widths (0.945833ms)
+▶ server-side research embedding
+  ✔ reaches the corpus model directly without a configured gateway (7.980125ms)
+  ✔ rejects wrong models, dimensions, nonnumeric and zero vectors (0.457ms)
+  ✔ does not expose upstream error bodies or transmit credentials over plaintext (0.190875ms)
+  ✔ classifies timeouts and malformed responses (0.178125ms)
+✔ server-side research embedding (9.25825ms)
+▶ the proxy route
+  ✔ goes through callGateway with a shape validator (0.353ms)
+  ✔ hands callGateway an object, never a pre-serialised string (0.137417ms)
+  ✔ is read-shaped: no operator-token gate, token stays server-side (0.051666ms)
+  ✔ clamps rather than trusts the match count (0.04725ms)
+✔ the proxy route (1.092458ms)
+▶ the state vocabulary
+  ✔ accepts exactly the three gateway states (0.1425ms)
+  ✔ never renders unavailable as found-nothing (0.106291ms)
+✔ the state vocabulary (0.333417ms)
+▶ the outcome sentence carries a denominator when there is one
+  ✔ says how much was searched (0.1095ms)
+  ✔ says nothing about the total when the count is unknown (0.117ms)
+  ✔ keeps the empty case distinguishable from the unavailable one (0.057291ms)
+✔ the outcome sentence carries a denominator when there is one (0.397917ms)
+ℹ tests 117
+ℹ suites 32
+ℹ pass 117
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 262.197417

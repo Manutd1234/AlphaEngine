@@ -1,0 +1,4 @@
+*.pdf binary
+*.png binary
+# Verification logs are retained byte-for-byte with their recorded hashes.
+docs/whitepaper/evidence/test-logs/* -whitespace

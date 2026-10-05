@@ -1,0 +1,596 @@
+{
+  "verified_at": "2026-10-05T09:03:23.587190+00:00",
+  "environment": "https://alphaengine-workspace.vercel.app",
+  "checks": {
+    "ok": false,
+    "checks": [
+      {
+        "name": "gateway /health",
+        "state": "ok",
+        "detail": "ok \u00b7 production \u00b7 up 0.0h \u00b7 54ms",
+        "uptime_h": 0.04,
+        "latency_ms": 54
+      },
+      {
+        "name": "venue feeds",
+        "state": "ok",
+        "detail": "BINANCE 3 symbols \u00b7 BYBIT 3 symbols"
+      },
+      {
+        "name": "gateway auth",
+        "state": "fail",
+        "detail": "token rejected (HTTP 401)"
+      },
+      {
+        "name": "decision latency metrics",
+        "state": "ok",
+        "detail": "series present, 0 samples (no orders since restart \u2014 quantiles correctly absent)"
+      },
+      {
+        "name": "vercel app",
+        "state": "ok",
+        "detail": "200 in 82ms"
+      },
+      {
+        "name": "vercel root guard",
+        "state": "ok",
+        "detail": "307 in 94ms"
+      },
+      {
+        "name": "vercel /api/system/health",
+        "state": "ok",
+        "detail": "8/8 providers configured \u00b7 296ms",
+        "providers_ready": 8,
+        "providers_total": 8
+      },
+      {
+        "name": "vercel \u2192 gateway",
+        "state": "ok",
+        "detail": "proxied the book in 84ms"
+      },
+      {
+        "name": "market data (ohlcv)",
+        "state": "ok",
+        "detail": "120 real bars from bybit \u00b7 104ms"
+      },
+      {
+        "name": "backtest sweep",
+        "state": "ok",
+        "detail": "51 combos in 241ms \u00b7 best Sharpe 4.792523188979639",
+        "combos": 51,
+        "ms": 241
+      },
+      {
+        "name": "oracle adb",
+        "state": "ok",
+        "detail": "answered in 81ms"
+      },
+      {
+        "name": "supabase rls",
+        "state": "ok",
+        "detail": "anon correctly denied (401)"
+      },
+      {
+        "name": "supabase decision mirror",
+        "state": "fail",
+        "detail": "operations snapshot answered HTTP 401"
+      },
+      {
+        "name": "rag embed route",
+        "state": "fail",
+        "detail": "HTTP 401"
+      },
+      {
+        "name": "rag index drain",
+        "state": "fail",
+        "detail": "HTTP 401"
+      },
+      {
+        "name": "neo4j graph readback",
+        "state": "fail",
+        "detail": "communities answered HTTP 401"
+      }
+    ]
+  },
+  "interpretation": "Local direct gateway credential was rejected. Deployed Vercel proxy succeeds. Private dependency read-only checks repeated inside the gateway with its existing identity succeeded; do not interpret the initial overall false as a Vercel outage.",
+  "authenticated_gateway_dependency_checks": [
+    {
+      "path": "/api/ops/snapshot",
+      "status": 200,
+      "data": {
+        "supabase": {
+          "configured": true,
+          "running": true,
+          "queued": 0,
+          "written": 0,
+          "failed": 0,
+          "dropped": 0,
+          "last_error_kind": null
+        },
+        "research": null,
+        "backend": null,
+        "market_data": {
+          "enabled": true,
+          "status": "nominal",
+          "uptime_seconds": 276.6,
+          "stale_after_seconds": 10.0,
+          "synthetic_active": false,
+          "feeds": [
+            {
+              "venue": "BINANCE",
+              "status": "up",
+              "connected": true,
+              "reconnects": 0,
+              "uptime_seconds": 276.4,
+              "error_present": false,
+              "synthetic": false,
+              "symbols": [
+                {
+                  "symbol": "BTCUSDT",
+                  "age_seconds": 0.06,
+                  "updates_total": 2762,
+                  "update_rate_hz": 10.0,
+                  "stale": false
+                },
+                {
+                  "symbol": "ETHUSDT",
+                  "age_seconds": 0.06,
+                  "updates_total": 2733,
+                  "update_rate_hz": 10.0,
+                  "stale": false
+                },
+                {
+                  "symbol": "SOLUSDT",
+                  "age_seconds": 0.08,
+                  "updates_total": 2347,
+                  "update_rate_hz": 8.2,
+                  "stale": false
+                }
+              ]
+            },
+            {
+              "venue": "BYBIT",
+              "status": "up",
+              "connected": true,
+              "reconnects": 0,
+              "uptime_seconds": 276.3,
+              "error_present": false,
+              "synthetic": false,
+              "symbols": [
+                {
+                  "symbol": "BTCUSDT",
+                  "age_seconds": 0.01,
+                  "updates_total": 7954,
+                  "update_rate_hz": 19.4,
+                  "stale": false
+                },
+                {
+                  "symbol": "ETHUSDT",
+                  "age_seconds": 0.04,
+                  "updates_total": 4726,
+                  "update_rate_hz": 22.1,
+                  "stale": false
+                },
+                {
+                  "symbol": "SOLUSDT",
+                  "age_seconds": 0.31,
+                  "updates_total": 3944,
+                  "update_rate_hz": 10.8,
+                  "stale": false
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "path": "/api/research/rag/status",
+      "status": 200,
+      "data": {
+        "configured": true,
+        "running": true,
+        "indexed": 0,
+        "queued": 0,
+        "pending_embeddings": 0,
+        "failed": 0,
+        "dropped": 0,
+        "last_error_kind": null
+      }
+    },
+    {
+      "path": "/api/research/graph/communities",
+      "status": 200,
+      "data": {
+        "source": "neo4j",
+        "read_model": {
+          "detected": true,
+          "reason": null,
+          "source": "neo4j",
+          "sweep": "8b2437d35f29",
+          "documents": 16,
+          "edges": 57,
+          "communities": [
+            {
+              "id": 0,
+              "members": [
+                "07566f4e-4d05-4a35-8bb3-7c955aa75aca",
+                "125e09ce-5567-426e-86fb-7cc68bee0a74",
+                "15ef1f86-dd9c-4fc8-a4f9-701e4db9b05b",
+                "3a40a208-ca86-4dea-89a1-09ca8e2e5c86",
+                "5b9e8526-0f34-44f1-aac6-366ced0ee660",
+                "61239d23-bb5f-461a-8b05-4e4e72c6cc1c",
+                "6a7847f9-b32e-45c7-aeda-5596890019cb",
+                "ae613e0e-e81c-4801-bb0a-fa7624e4bf06",
+                "cbac3ca9-7dd9-4a7f-8d7a-8853b4f7856b",
+                "d68e1fee-2b83-4699-9612-c59fceeed336",
+                "de16b44e-3e27-43d8-bc3c-7ecbfeb7eed6"
+              ],
+              "size": 11,
+              "relations": {
+                "same_strategy": 45,
+                "same_symbol": 6
+              },
+              "dominant_relations": [
+                "same_strategy"
+              ]
+            },
+            {
+              "id": 1,
+              "members": [
+                "04a9e780-936b-455c-845e-355d0aeeb76c",
+                "199c6326-ddaf-40ac-a575-72d8926a5408",
+                "1df9e816-6f99-4e27-a7a6-0824b921fca4",
+                "47a60751-bed8-4f02-b028-da6f21bb2be1",
+                "a30a4916-b913-4c9c-a4b2-6c239fac2c5f"
+              ],
+              "size": 5,
+              "relations": {
+                "same_strategy": 6,
+                "same_symbol": 10
+              },
+              "dominant_relations": [
+                "same_symbol"
+              ]
+            }
+          ],
+          "community_count": 2,
+          "singletons": 0
+        },
+        "detection": {
+          "detected": true,
+          "reason": null,
+          "source": "neo4j",
+          "sweep": "8b2437d35f29",
+          "documents": 16,
+          "edges": 57,
+          "communities": [
+            {
+              "id": 0,
+              "members": [
+                "07566f4e-4d05-4a35-8bb3-7c955aa75aca",
+                "125e09ce-5567-426e-86fb-7cc68bee0a74",
+                "15ef1f86-dd9c-4fc8-a4f9-701e4db9b05b",
+                "3a40a208-ca86-4dea-89a1-09ca8e2e5c86",
+                "5b9e8526-0f34-44f1-aac6-366ced0ee660",
+                "61239d23-bb5f-461a-8b05-4e4e72c6cc1c",
+                "6a7847f9-b32e-45c7-aeda-5596890019cb",
+                "ae613e0e-e81c-4801-bb0a-fa7624e4bf06",
+                "cbac3ca9-7dd9-4a7f-8d7a-8853b4f7856b",
+                "d68e1fee-2b83-4699-9612-c59fceeed336",
+                "de16b44e-3e27-43d8-bc3c-7ecbfeb7eed6"
+              ],
+              "size": 11,
+              "relations": {
+                "same_strategy": 45,
+                "same_symbol": 6
+              },
+              "dominant_relations": [
+                "same_strategy"
+              ]
+            },
+            {
+              "id": 1,
+              "members": [
+                "04a9e780-936b-455c-845e-355d0aeeb76c",
+                "199c6326-ddaf-40ac-a575-72d8926a5408",
+                "1df9e816-6f99-4e27-a7a6-0824b921fca4",
+                "47a60751-bed8-4f02-b028-da6f21bb2be1",
+                "a30a4916-b913-4c9c-a4b2-6c239fac2c5f"
+              ],
+              "size": 5,
+              "relations": {
+                "same_strategy": 6,
+                "same_symbol": 10
+              },
+              "dominant_relations": [
+                "same_symbol"
+              ]
+            }
+          ],
+          "community_count": 2,
+          "singletons": 0
+        },
+        "ranking": null,
+        "sweep": "8b2437d35f29"
+      }
+    },
+    {
+      "path": "/api/research/graph/centrality",
+      "status": 200,
+      "data": {
+        "source": "neo4j",
+        "read_model": {
+          "ranked": true,
+          "reason": null,
+          "source": "neo4j",
+          "sweep": "8b2437d35f29",
+          "documents": 16,
+          "edges": 57,
+          "ranking": [
+            {
+              "id": "07566f4e-4d05-4a35-8bb3-7c955aa75aca",
+              "score": 0.07497148835276823
+            },
+            {
+              "id": "15ef1f86-dd9c-4fc8-a4f9-701e4db9b05b",
+              "score": 0.07497148835276823
+            },
+            {
+              "id": "3a40a208-ca86-4dea-89a1-09ca8e2e5c86",
+              "score": 0.07159519740014852
+            },
+            {
+              "id": "61239d23-bb5f-461a-8b05-4e4e72c6cc1c",
+              "score": 0.07159519740014852
+            },
+            {
+              "id": "d68e1fee-2b83-4699-9612-c59fceeed336",
+              "score": 0.07159519740014852
+            },
+            {
+              "id": "04a9e780-936b-455c-845e-355d0aeeb76c",
+              "score": 0.0675756369431047
+            },
+            {
+              "id": "199c6326-ddaf-40ac-a575-72d8926a5408",
+              "score": 0.0675756369431047
+            },
+            {
+              "id": "47a60751-bed8-4f02-b028-da6f21bb2be1",
+              "score": 0.0675756369431047
+            },
+            {
+              "id": "a30a4916-b913-4c9c-a4b2-6c239fac2c5f",
+              "score": 0.0675756369431047
+            },
+            {
+              "id": "125e09ce-5567-426e-86fb-7cc68bee0a74",
+              "score": 0.06036198645207593
+            },
+            {
+              "id": "5b9e8526-0f34-44f1-aac6-366ced0ee660",
+              "score": 0.06036198645207593
+            },
+            {
+              "id": "6a7847f9-b32e-45c7-aeda-5596890019cb",
+              "score": 0.06036198645207593
+            },
+            {
+              "id": "cbac3ca9-7dd9-4a7f-8d7a-8853b4f7856b",
+              "score": 0.06036198645207593
+            },
+            {
+              "id": "de16b44e-3e27-43d8-bc3c-7ecbfeb7eed6",
+              "score": 0.06036198645207593
+            },
+            {
+              "id": "1df9e816-6f99-4e27-a7a6-0824b921fca4",
+              "score": 0.042197452227581124
+            },
+            {
+              "id": "ae613e0e-e81c-4801-bb0a-fa7624e4bf06",
+              "score": 0.020961498833638393
+            }
+          ]
+        },
+        "detection": null,
+        "ranking": {
+          "ranked": true,
+          "reason": null,
+          "source": "neo4j",
+          "sweep": "8b2437d35f29",
+          "documents": 16,
+          "edges": 57,
+          "ranking": [
+            {
+              "id": "07566f4e-4d05-4a35-8bb3-7c955aa75aca",
+              "score": 0.07497148835276823
+            },
+            {
+              "id": "15ef1f86-dd9c-4fc8-a4f9-701e4db9b05b",
+              "score": 0.07497148835276823
+            },
+            {
+              "id": "3a40a208-ca86-4dea-89a1-09ca8e2e5c86",
+              "score": 0.07159519740014852
+            },
+            {
+              "id": "61239d23-bb5f-461a-8b05-4e4e72c6cc1c",
+              "score": 0.07159519740014852
+            },
+            {
+              "id": "d68e1fee-2b83-4699-9612-c59fceeed336",
+              "score": 0.07159519740014852
+            },
+            {
+              "id": "04a9e780-936b-455c-845e-355d0aeeb76c",
+              "score": 0.0675756369431047
+            },
+            {
+              "id": "199c6326-ddaf-40ac-a575-72d8926a5408",
+              "score": 0.0675756369431047
+            },
+            {
+              "id": "47a60751-bed8-4f02-b028-da6f21bb2be1",
+              "score": 0.0675756369431047
+            },
+            {
+              "id": "a30a4916-b913-4c9c-a4b2-6c239fac2c5f",
+              "score": 0.0675756369431047
+            },
+            {
+              "id": "125e09ce-5567-426e-86fb-7cc68bee0a74",
+              "score": 0.06036198645207593
+            },
+            {
+              "id": "5b9e8526-0f34-44f1-aac6-366ced0ee660",
+              "score": 0.06036198645207593
+            },
+            {
+              "id": "6a7847f9-b32e-45c7-aeda-5596890019cb",
+              "score": 0.06036198645207593
+            },
+            {
+              "id": "cbac3ca9-7dd9-4a7f-8d7a-8853b4f7856b",
+              "score": 0.06036198645207593
+            },
+            {
+              "id": "de16b44e-3e27-43d8-bc3c-7ecbfeb7eed6",
+              "score": 0.06036198645207593
+            },
+            {
+              "id": "1df9e816-6f99-4e27-a7a6-0824b921fca4",
+              "score": 0.042197452227581124
+            },
+            {
+              "id": "ae613e0e-e81c-4801-bb0a-fa7624e4bf06",
+              "score": 0.020961498833638393
+            }
+          ]
+        },
+        "sweep": null
+      }
+    }
+  ],
+  "paper_verification_orders": [
+    {
+      "symbol": "BTCUSDT",
+      "side": "BUY",
+      "notional_usd": 1000,
+      "result": "accepted"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "side": "BUY",
+      "notional_usd": 1500,
+      "result": "accepted"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "side": "BUY",
+      "notional_usd": 500,
+      "result": "accepted"
+    }
+  ],
+  "private_rfq": "Guest 401 is expected. Successful authenticated session and desk membership are still required; not verified.",
+  "coherence_probe_corrections": {
+    "fees": "contracts_fp=1.00 returns ok; old probe used invalid four-decimal 1.0000",
+    "settlement": "miami returns available; old probe NY not_covered",
+    "families": "Select supported multi-outcome family for stake and threshold family for survival; default single-market family cannot populate all models."
+  },
+  "automation": "Five Oracle-connected GitHub workflows remain paused; connections checked without running schema/deployment mutations.",
+  "historical_gateway_observation": "OCI gateway and Caddy running; gateway healthy",
+  "latest_repair": {
+    "verified_at": "2026-10-05T10:39:13.542820+00:00",
+    "deployed_build": "3b9918f6",
+    "github_commit": "https://github.com/Manutd1234/AlphaEngine/commit/3b9918f63cd1ac136d2874283f2351b93efc6a7c",
+    "oracle_search": {
+      "state": "ok",
+      "backend": "oracle",
+      "matches": [
+        {
+          "id": "1",
+          "kind": "backtest_run",
+          "source_ref": "56acbbe6ae09",
+          "symbol": "BTCUSDT",
+          "strategy": "ma_cross",
+          "occurred_at": "2026-08-09T15:46:33Z",
+          "title": "Backtest BTCUSDT 1h ma_cross 10/200",
+          "body": "Backtest BTCUSDT 1h ma_cross 10/200\nEngine: None\nCombinations tested: None\nBest Sharpe: 0.31221092089859154\nTotal return: 0.006105172129053926\nMax drawdown: -0.07904014031738593\nDeflated Sharpe (DSR): 0.2016\nWalk-forward OOS Sharpe: -0.293\nOverfit probability (PBO): 0.75\nData hash: d5031271f5ef84ff\nJob: 56acbbe6ae09",
+          "metrics": {
+            "sharpe": 0.31221092089859154,
+            "total_return": 0.006105172129053926,
+            "max_drawdown": -0.07904014031738593,
+            "dsr": 0.2016,
+            "oos_sharpe": -0.293,
+            "pbo": 0.75
+          },
+          "similarity": 0.8501158229989458
+        }
+      ]
+    },
+    "supabase_embedding": {
+      "http_status": 200,
+      "model": "gte-small",
+      "dimensions": 384,
+      "elapsed_seconds": 0.94,
+      "scope": "direct service diagnostic using existing local configuration"
+    },
+    "supabase_ui_search": {
+      "state": "blocked",
+      "code": "gateway_timeout",
+      "budget_ms": 8000
+    },
+    "gateway": "SSH port 22 and HTTPS port 8443 timed out; OCI sign-in pending",
+    "oracle_chart": "Repaired axis labels verified in production at 1d, 10d, 30d with explicit Sandbox inputs and real Oracle computation.",
+    "tests": {
+      "focused_passed": 117,
+      "failed": 0,
+      "typecheck_exit": 0
+    },
+    "all_features_verified": false,
+    "all_services_stopped": false
+  },
+  "historical_open_ui_issue": {
+    "component": "OracleVarTrend",
+    "deployed_issue": "Long currency tick labels clip their leading digits in the shared 52px left margin",
+    "local_correction": "Reserve margin from the longest formatted tick label",
+    "deployed": false,
+    "layout_check": {
+      "passed": true,
+      "rows": [
+        {
+          "label": "$2,020,000",
+          "left": 9.984375,
+          "right": 88
+        },
+        {
+          "label": "$2,025,000",
+          "left": 9.984375,
+          "right": 88
+        },
+        {
+          "label": "$2,030,000",
+          "left": 9.984375,
+          "right": 88
+        },
+        {
+          "label": "$2,035,000",
+          "left": 9.984375,
+          "right": 88
+        },
+        {
+          "label": "$2,040,000",
+          "left": 9.984375,
+          "right": 88
+        }
+      ]
+    },
+    "focused_tests": {
+      "passed": 47,
+      "failed": 0,
+      "log_sha256": "32f5f5a7068ae6a82533ecb82c15294a8fcf69cbc03dbcc16d591f479b62ed4c"
+    }
+  }
+}

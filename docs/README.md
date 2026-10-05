@@ -80,11 +80,13 @@ Three things worth knowing before editing it. Typst evaluates an `#include`d
 file in its own scope, so `main.typ`'s `#import "template.typ": *` does **not**
 reach the section files: every chapter carries its own
 `#import "../template.typ": …` line or fails with "unknown variable: measured".
-`.gitignore` excludes `*.pdf`, so **no built artefact is committed** and no CI
-job compiles the source — a broken chapter is found by whoever next runs the
-command. And the whitepaper is not this folder's to edit: the Typst source is
-owned separately from the markdown here, which is why it gets an index entry and
-no summary of its contents.
+The requested Revision F release includes the
+[compiled PDF](whitepaper/AlphaEngine_Institutional_Whitepaper.pdf), original UI screenshots,
+quantitative feature explanations and eleven embedded evidence files. This PDF has an explicit
+`.gitignore` exception; scratch captures and duplicate output remain excluded. Follow
+[REPRODUCE.txt](whitepaper/tools/REPRODUCE.txt) to regenerate the feature chapters and attachments.
+The current gateway-access and shutdown limitations are recorded in the paper and
+[operating-state evidence](whitepaper/evidence/shutdown-status.json).
 
 ## Not in this folder, deliberately
 

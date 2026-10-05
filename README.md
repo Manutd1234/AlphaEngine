@@ -290,13 +290,14 @@ this README, `Part2_Infrastructure/README.md` and the feature tour all use. The 
 ladder in its §2.3, run on a quiet machine, reads 12.4 / 23.1 µs. Neither is wrong; picking one and
 "correcting" the other is.
 
-**→ [`docs/whitepaper/`](docs/whitepaper/)** — the institutional whitepaper: Typst source, six
-chapters, one per audience cluster: topology; researcher and PM; risk and trader; data, SRE and
-developer; mathematical foundations; infrastructure and telemetry. Build it with
-`typst compile docs/whitepaper/main.typ docs/whitepaper/AlphaEngine_Institutional_Whitepaper.pdf`.
-The 2026-08-29 documentation release recompiles and visually verifies the PDF,
-but it remains outside CI and `*.pdf` remains ignored; source is the versioned
-authority.
+**→ [Institutional whitepaper PDF](docs/whitepaper/AlphaEngine_Institutional_Whitepaper.pdf)** —
+Revision F (5 October 2026): the six architecture chapters plus quantitative feature methods,
+an illustrated atlas of 120 views and 92 supplementary states, and a source-control inventory.
+The 891-page paper contains 405 screenshot placements from 399 distinct captures and eleven
+embedded evidence files. Rebuild with [`REPRODUCE.txt`](docs/whitepaper/tools/REPRODUCE.txt).
+The latest verification distinguishes the repaired, deployed Oracle search and charts from
+the unresolved gateway timeout. All seven GitHub workflows are paused; OCI service shutdown
+is **not verified**. See [`shutdown-status.json`](docs/whitepaper/evidence/shutdown-status.json).
 
 **→ [`.claude/skills/`](.claude/skills/)** — three Claude Code skills,
 `/start-alpha-engine`, `/tour` and `/verify`, described in
@@ -536,7 +537,7 @@ Described one line each, and indexed in full — with what each is *for* — in
 | [`docs/product/PRODUCT_GUIDE.md`](docs/product/PRODUCT_GUIDE.md) | What each tab is for, what a number on screen is allowed to be, what a click may change. |
 | [`docs/product/FEATURE_TOUR.md`](docs/product/FEATURE_TOUR.md) | The guided walkthrough of all eleven tabs, pinned to `lib/sections.ts` by a test. |
 | [`docs/testing/TESTING.md`](docs/testing/TESTING.md) | The testing philosophy — and the one document in `docs/` allowed to discuss test counts. |
-| [`docs/whitepaper/`](docs/whitepaper/) | The institutional whitepaper: six versioned Typst chapters and a 2026-08-29 locally compiled, visually verified release PDF. PDFs remain gitignored; source is authoritative. |
+| [`docs/whitepaper/`](docs/whitepaper/) | Revision F research paper, compiled PDF, feature screenshots, interaction inventory, verification evidence and reproducible Typst sources. |
 
 Operational documents live beside the code they operate, in
 [`Part2_Infrastructure/docs/`](Part2_Infrastructure/docs/):

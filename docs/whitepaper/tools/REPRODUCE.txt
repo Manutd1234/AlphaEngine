@@ -1,0 +1,30 @@
+AlphaEngine whitepaper: reproduce from the repository root
+
+1. python3 docs/whitepaper/tools/build_feature_appendix.py
+2. python3 docs/whitepaper/tools/build_research_chapter.py
+3. typst compile --root . docs/whitepaper/main.typ output/pdf/AlphaEngine_Whitepaper_Features_and_Interactions.pdf
+4. python3 docs/whitepaper/tools/attach_evidence.py
+
+The final command embeds eleven JSON evidence files and updates the repository PDF.
+Screenshots are original browser captures in docs/whitepaper/screenshots.
+Test logs are retained in docs/whitepaper/evidence/test-logs; their hashes are in verification-report.json.
+The source and deployed revisions differ, as disclosed in the paper.
+
+Optional local route verification, without restarting containers:
+Run python3 docs/whitepaper/tools/start_offline_web.py from the repository root.
+In another terminal, run node docs/whitepaper/tools/verify_routes.mjs.
+The frontend needs existing web dependencies and Playwright Chromium.
+The launcher blanks variables named in project .env files; the browser blocks Oracle API paths.
+Portfolio and Risk use the explicitly selected generated Sandbox.
+Stop the local preview after verification. This does not exercise live order/database writes.
+
+Revision E recaptured the deployed Vercel UI after OCI gateway/Caddy reconnection at the user request.
+401 screenshots cover 120 canonical views and 90 supplementary states.
+All captures use a 1600 x 1000 viewport. See screenshot-audit.json for image hashes and live-verification.json for dependency checks and limitations.
+Three accepted paper verification orders populated the live paper book; explicit Sandbox inputs are labelled.
+At the Revision E observation, five Oracle-connected workflows were paused and containers were running.
+The optional local verifier above describes the earlier offline scope, not the later live recapture.
+
+Revision F adds verified Oracle vector-search results and recaptured Oracle VaR charts from production build 3b9918f6.
+All seven workflows are paused. The current VM is unreachable; container and database shutdown remain unverified pending Oracle console sign-in.
+Supabase UI search remains blocked by the gateway timeout. Earlier running-state descriptions above are historical.

@@ -1,0 +1,93 @@
+{
+  "date": "2026-10-05",
+  "local_revision": "5225f3e2",
+  "deployed_build": "726bbe7",
+  "web": {
+    "tests": 6856,
+    "passed": 6850,
+    "failed": 0,
+    "skipped": 6
+  },
+  "gateway": {
+    "passed": 3500,
+    "failed": 0,
+    "count_method": "3500 pytest progress dots; process exit 0"
+  },
+  "openbb": {
+    "passed": 24,
+    "failed": 0,
+    "warnings": 1
+  },
+  "browser": {
+    "initial_tests": 23,
+    "initial_passed": 22,
+    "initial_failed": 1,
+    "targeted_recheck_tests": 5,
+    "targeted_recheck_passed": 5,
+    "unresolved_failures": 0,
+    "note": "Not a new aggregate 28-test run: targeted recheck overlaps initial suite."
+  },
+  "typecheck": {
+    "exit_code": 0
+  },
+  "test_correction": "workspace-refresh-bootstrap creates a row through New work / Add to triage before measuring controls; fresh queue is intentionally empty.",
+  "live_mutations_verified": "three paper BUY orders only; no real venue or destructive mutation",
+  "oracle_execution_verified": true,
+  "all_possible_interactions_verified": false,
+  "limits": [
+    "Source and deployed revisions differ",
+    "No private account submissions, real venue orders, or destructive remediations",
+    "Screenshots do not prove successful backend execution",
+    "Six opt-in cases skipped in the main web suite; five browser files run separately"
+  ],
+  "latest_repair": {
+    "deployed_build": "3b9918f6",
+    "focused_tests_passed": 117,
+    "failed": 0,
+    "typecheck_exit": 0,
+    "oracle_ui_search": "verified genuine result",
+    "supabase_ui_search": "blocked by gateway timeout",
+    "all_workflows_disabled": true,
+    "service_shutdown_verified": false
+  },
+  "logs": {
+    "web-tests-verified.log": {
+      "sha256": "bb1f30a9a6288a02c313bc8355c5a2f9daa86de34eb7ec5239656be01508d78a",
+      "bytes": 695664
+    },
+    "gateway-tests.log": {
+      "sha256": "8b42aa8ca7fb23d4dd8f17711310d84d446aaca985ef93a184c7ff4ed8ca0a5b",
+      "bytes": 3920
+    },
+    "openbb-tests.log": {
+      "sha256": "bd57e86837a20c1c63250557b7b181abedb29636cc343b4b7cc4de81401a9564",
+      "bytes": 665
+    },
+    "browser-tests.log": {
+      "sha256": "505364617268f15f14262318c379e4f2c64df988eecc63cbc43b7922b1e553cd",
+      "bytes": 3819
+    },
+    "browser-bootstrap-recheck.log": {
+      "sha256": "d07146e04f47a11fe719bcd12b8ae9f9c497fbaf00410a1e9cbcc7e0af9b55f7",
+      "bytes": 745
+    },
+    "typecheck-verified.log": {
+      "sha256": "40a06cb2aaeb1d3875060887ec8fb2de635412a31481a826fd42bcca36edee6e",
+      "bytes": 63
+    },
+    "repair-tests.log": {
+      "sha256": "9b746c5860789b272dfb6343afef225f69a9402bf0d467f8ee00a52504983bb7",
+      "bytes": 12030
+    },
+    "repair-typecheck.log": {
+      "sha256": "40a06cb2aaeb1d3875060887ec8fb2de635412a31481a826fd42bcca36edee6e",
+      "bytes": 63
+    }
+  },
+  "route_navigation": {
+    "passed": 120,
+    "failed": 0,
+    "uncaught_page_errors": 0,
+    "portfolio_and_risk": "generated Sandbox selected through the actual UI"
+  }
+}
