@@ -1,7 +1,18 @@
 #heading(level: 1)[#text("Research protocol, quantitative interpretation and verification")]
 
+#heading(level: 2)[#text("Revision G audit: deduplicated figures and interaction status")]
+
+#text("Revision G renames Chapter 9 to AlphaEngine Features, groups each supplementary pane with its parent section, and adds a linked Oracle page index plus registered-view and internal-subtab coverage tables. Exact image duplicates and repeated disclosure captures are not reprinted. The underlying original evidence remains attached and retained in the repository.")
+
+#text("New production captures include a byte-exact browser Monte Carlo parity result, six-provider cross-source reconciliation, settled Oracle search health, a 90-day Oracle VaR calculation, Research Adjustments, Robustness and Sharpe colouring, and previously omitted Execution panes. Gateway-dependent captures disclose the continuing outage. Some views are represented by earlier dated working captures because current gateway access is unavailable.")
+
+#text("The interaction matrix explicitly distinguishes source definitions, observed runtime controls, route-render checks and executed actions. Every inventoried entry has a status and evidence scope. Untested or blocked actions are not counted as successful. Creating a documentation task and recording a benchmark run were blocked by automatic approval review; their unsubmitted or existing states remain labelled. Private RFQ requires an authenticated desk account.")
+
+#text("The following Revision F results and earlier test counts are historical observations, retained with their original build identities. They do not imply a new full regression run or current backend availability. The latest UI sweep, capture fixes, publication plan, subtab coverage and interaction matrix are embedded as evidence.")
+
 #heading(level: 2)[#text("Latest verification: Oracle search repaired; gateway access unresolved")]
 
+#metadata("oracle-repair") <capture-oracle-repair>
 #text("Revision F was captured from production build 3b9918f6 on 5 October 2026. The exact query reported by the user, moving average crossover drawdown, now returns an Oracle research match in the deployed Vercel UI. The successful result is Backtest BTCUSDT 1h ma_cross 10/200, cosine similarity 0.8501158. The browser measured a 736 ms round trip. The result is a stored historical observation, not a newly successful trading strategy.")
 
 #text("The original search path was browser to Vercel to the OCI gateway VM to Supabase embeddings, then back to Vercel and Oracle ADB. The gateway did not answer within eight seconds. Independent checks showed that Supabase returned a valid 384-dimensional gte-small vector in 0.94 seconds and Vercel could execute the Oracle Monte Carlo procedure. The repair calls the same Supabase embedding function directly from the Vercel server, removing the unavailable VM hop for Oracle searches. Server credentials never enter the browser. The model name, dimension, finite coordinates and nonzero vector are validated; incompatible embeddings fail instead of producing arbitrary neighbours. Deployments without the server credential retain their existing gateway path.")
@@ -16,6 +27,7 @@
 
 #heading(level: 2)[#text("Interpreting the retrieved quant evidence")]
 
+#metadata("oracle-search-method") <capture-oracle-search-method>
 #text("Cosine similarity compares the direction of the query and document embeddings. For nonzero vectors q and d it is q dot d divided by the product of their Euclidean norms. Oracle stores the same 384-dimensional gte-small representation used by the embedding service. The score 0.8501 is a semantic proximity measure, not an 85% chance of profitability, a statistical p-value, or a calibrated forecast. The configured relevance floor determines which neighbours can be displayed. No match means no sufficiently similar indexed evidence was found; an unavailable request means no valid search outcome was obtained.")
 
 #text("The matched record reports historical total return 0.006105, maximum drawdown -0.079040, deflated-Sharpe evidence 0.2016, walk-forward out-of-sample Sharpe -0.293 and PBO 0.75. In percentage terms the stored return is about 0.61% and drawdown about -7.90%. The negative out-of-sample Sharpe and high reported overfit probability caution against treating retrieval as strategy approval. The stored engine and combination-count fields are None; they remain missing historical metadata and have not been fabricated for presentation. The source reference and data hash allow a reviewer to identify the evidence being discussed.")
@@ -26,7 +38,7 @@
 
 #text("This chapter documents AlphaEngine as an inspectable quantitative research system, with an empirical software-verification study and a visual instrument catalogue. It connects each registered workspace section to a research question, mathematical or operational method, input intervention and interpretation boundary. It is not a new backtest claiming profitable alpha. Its reproducible contribution is the linkage between the implemented estimator, the visible control that changes it, and the evidence needed to interpret its output.")
 
-#text("The observation set contains 11 tabs, 70 sections, 120 registered URL views and 92 supplementary interface states. The visual appendix contains 405 screenshot placements from 399 distinct browser captures. An AST inventory records 964 source control definitions and 49 event-listener registrations across 854 source files. These denominators describe different populations and must not be added together or treated as independent trials. One source definition can generate many runtime buttons; one view can require several screenshots.")
+#text("The observation set contains 11 tabs, 70 sections, 120 registered URL views and 92 supplementary interface states. The visual appendix contains 372 screenshot placements from 372 distinct browser captures. An AST inventory records 964 source control definitions and 49 event-listener registrations across 855 source files. These denominators describe different populations and must not be added together or treated as independent trials. One source definition can generate many runtime buttons; one view can require several screenshots.")
 
 #text("The study combines deployed-interface capture with local numerical, contract and browser tests. The deployed build observed during capture was 726bbe7; local source was 5225f3e2 plus the documented test fixture and Oracle chart-margin corrections. Deployment parity is therefore not established. The initial outage screenshots were rechecked and replaced after restoring the gateway at the user request. The deployed Vercel UI reads real providers, Oracle calculations and retained analytical history. Three accepted paper verification orders populate the live paper book. Supplemental portfolio/risk views explicitly select Sandbox and identify generated inputs. No real-money trade or destructive operator action was executed.")
 
@@ -88,6 +100,7 @@ $ "ES"_(.95) = 2.0627128054846826 E sigma_p, quad "RC"_i = w_i (Sigma w)_i / sig
 
 #heading(level: 2)[#text("Oracle comparison and Monte Carlo uncertainty")]
 
+#metadata("oracle-var-method") <capture-oracle-var-method>
 #text("The Oracle panel has a distinct terminal-value geometric Brownian motion reference. Annual drift mu, annual volatility sigma and forward days d must be identical in the database simulation and the analytical comparator. The local reference explicitly uses T = d/365 and floors a negative reported loss at zero. Comparing this model to a zero-drift normal approximation would conflate model discrepancy with Monte Carlo error.")
 
 $ S_T = E exp((mu - sigma^2 / 2) T + sigma sqrt(T) Z), quad Z ~ cal(N)(0,1) $
@@ -151,7 +164,7 @@ $ tau_H = integral_0^H (1-a(t)) dif t $
 [#text("Browser suite")],[#text("23 cases initially: 22 passed, 1 failed; targeted five-case recheck: all passed")],[#text("The failure was a test fixture assumption; no unresolved failure in these selected files.")],
 [#text("TypeScript")],[#text("Typecheck exit 0")],[#text("Static typing of local source after generated development types were available.")],
 [#text("Route navigation")],[#text("120 of 120 passed; no uncaught page errors")],[#text("Expected workspace and section visible with non-empty content; Portfolio/Risk use explicitly selected Sandbox.")],
-[#text("Visual census")],[#text("120 canonical views; 92 supplementary states; 405 screenshot placements")],[#text("Rendered coverage of live Vercel states, explicit Sandbox states and documented access/data limitations.")],
+[#text("Visual census")],[#text("120 canonical views; 92 supplementary states; 372 screenshot placements")],[#text("Rendered coverage of live Vercel states, explicit Sandbox states and documented access/data limitations.")],
 [#text("Source census")],[#text("964 controls; 49 listener registrations; 854 files scanned")],[#text("Implementation inventory, not a 964-of-964 behavioral success claim.")],
 )
 

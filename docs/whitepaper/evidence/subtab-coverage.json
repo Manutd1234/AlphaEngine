@@ -1,0 +1,473 @@
+{
+  "scope": "Presentation panes outside the registered third-segment URL inventory; parameter choices are additionally tracked in the interaction matrix.",
+  "panes": [
+    {
+      "hash": "research/summary/setup",
+      "group": "Setup",
+      "option": "Core parameters",
+      "capture_id": "F049",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "research/summary/setup",
+      "group": "Setup",
+      "option": "Adjustments",
+      "capture_id": "G012",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "research/attribution",
+      "group": "Attribution view",
+      "option": "Explain",
+      "capture_id": "F007",
+      "status": "captured",
+      "limitations": [
+        "no benchmark"
+      ],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "research/attribution",
+      "group": "Attribution view",
+      "option": "Robustness",
+      "capture_id": "G004",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "research/parameters",
+      "group": "Surface colouring",
+      "option": "Neighbourhood",
+      "capture_id": "F005",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "research/parameters",
+      "group": "Surface colouring",
+      "option": "Sharpe",
+      "capture_id": "G005",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "live/routing",
+      "group": "Routing view",
+      "option": "Routing",
+      "capture_id": "F015",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "live/routing",
+      "group": "Routing view",
+      "option": "TCA",
+      "capture_id": "G006",
+      "status": "captured",
+      "limitations": [
+        "gateway unavailable"
+      ],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "live/quality",
+      "group": "Fill quality view",
+      "option": "Cost",
+      "capture_id": "F016",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "live/quality",
+      "group": "Fill quality view",
+      "option": "Where",
+      "capture_id": "G007",
+      "status": "captured",
+      "limitations": [
+        "gateway unavailable"
+      ],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "live/activity",
+      "group": "Activity view",
+      "option": "Blotter",
+      "capture_id": "G013",
+      "status": "captured",
+      "limitations": [
+        "gateway unavailable"
+      ],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "live/activity",
+      "group": "Activity view",
+      "option": "Decision tape",
+      "capture_id": "G008",
+      "status": "captured",
+      "limitations": [
+        "gateway unavailable"
+      ],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "live/activity",
+      "group": "Activity view",
+      "option": "Alerts & risk events",
+      "capture_id": "G009",
+      "status": "captured",
+      "limitations": [
+        "gateway unavailable"
+      ],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "live/activity",
+      "group": "Blotter view",
+      "option": "Fills",
+      "capture_id": "F017",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "live/activity",
+      "group": "Blotter view",
+      "option": "Active",
+      "capture_id": "G013",
+      "status": "captured",
+      "limitations": [
+        "gateway unavailable"
+      ],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "live/activity",
+      "group": "Blotter view",
+      "option": "Cancelled & rejected",
+      "capture_id": "G014",
+      "status": "captured",
+      "limitations": [
+        "gateway unavailable"
+      ],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "portfolio/overview",
+      "group": "Overview view",
+      "option": "Standing",
+      "capture_id": "F018",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "portfolio/overview",
+      "group": "Overview view",
+      "option": "Book",
+      "capture_id": "F165",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "portfolio/positions",
+      "group": "Positions view",
+      "option": "Holdings",
+      "capture_id": "F020",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "portfolio/positions",
+      "group": "Positions view",
+      "option": "Shape",
+      "capture_id": "F169",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "portfolio/positions",
+      "group": "Positions view",
+      "option": "Exit",
+      "capture_id": "F170",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "portfolio/allocation",
+      "group": "Allocation view",
+      "option": "Mix",
+      "capture_id": "F021",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "portfolio/allocation",
+      "group": "Allocation view",
+      "option": "Targets",
+      "capture_id": "F173",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "portfolio/allocation",
+      "group": "Allocation view",
+      "option": "Composition",
+      "capture_id": "F174",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "portfolio/performance",
+      "group": "Performance view",
+      "option": "Flow, lifetime",
+      "capture_id": "F022",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "portfolio/performance",
+      "group": "Performance view",
+      "option": "Trend, this session",
+      "capture_id": "F177",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "data/overview",
+      "group": "Trust evidence view",
+      "option": "Verdict",
+      "capture_id": "F031",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "data/overview",
+      "group": "Trust evidence view",
+      "option": "Response",
+      "capture_id": "F121",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "data/overview",
+      "group": "Trust evidence view",
+      "option": "Composition",
+      "capture_id": "F122",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "data/feeds",
+      "group": "Feeds and contracts view",
+      "option": "Freshness",
+      "capture_id": "F032",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "data/feeds",
+      "group": "Feeds and contracts view",
+      "option": "Contracts",
+      "capture_id": "F124",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "data/lineage",
+      "group": "Inspector view",
+      "option": "REST pipeline",
+      "capture_id": "F035",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "data/lineage",
+      "group": "Inspector view",
+      "option": "WebSocket frames",
+      "capture_id": "F130",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "data/providers",
+      "group": "Providers and capacity view",
+      "option": "Routing",
+      "capture_id": "F036",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "data/providers",
+      "group": "Providers and capacity view",
+      "option": "Budget",
+      "capture_id": "F132",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "reliability/planes",
+      "group": "Dependency view",
+      "option": "Map",
+      "capture_id": "F039",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "reliability/planes",
+      "group": "Dependency view",
+      "option": "Live dependency DAG",
+      "capture_id": "F143",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "reliability/planes",
+      "group": "Dependency view",
+      "option": "Providers",
+      "capture_id": "F144",
+      "status": "captured",
+      "limitations": [
+        "provider failure"
+      ],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "reliability/planes",
+      "group": "Dependency view",
+      "option": "Platform",
+      "capture_id": "F145",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "reliability/planes",
+      "group": "Dependency view",
+      "option": "Latency",
+      "capture_id": "F146",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "reliability/controls",
+      "group": "Remediation view",
+      "option": "Mutations",
+      "capture_id": "F042",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "reliability/controls",
+      "group": "Remediation view",
+      "option": "Scope",
+      "capture_id": "F151",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "reliability/controls",
+      "group": "Remediation view",
+      "option": "Session",
+      "capture_id": "F152",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "reliability/controls",
+      "group": "Remediation view",
+      "option": "Recovery",
+      "capture_id": "F153",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "reliability/controls",
+      "group": "Remediation view",
+      "option": "History",
+      "capture_id": "F154",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "developer/quality",
+      "group": "CI / CD view",
+      "option": "Pipeline",
+      "capture_id": "F045",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "developer/quality",
+      "group": "CI / CD view",
+      "option": "Verification",
+      "capture_id": "F158",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "developer/apis",
+      "group": "API and schema view",
+      "option": "Contracts",
+      "capture_id": "F046",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "developer/apis",
+      "group": "API and schema view",
+      "option": "Routes",
+      "capture_id": "F160",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    },
+    {
+      "hash": "developer/apis",
+      "group": "API and schema view",
+      "option": "Numerics",
+      "capture_id": "F161",
+      "status": "captured",
+      "limitations": [],
+      "basis": "Named capture or source-default pane; image review required, no activation inferred."
+    }
+  ]
+}

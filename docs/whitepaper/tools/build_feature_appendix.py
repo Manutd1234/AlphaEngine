@@ -7,6 +7,10 @@ EV=WP/'evidence'
 m=json.loads((EV/'view-manifest.json').read_text())
 extras=json.loads((EV/'supplementary-views.json').read_text()) if (EV/'supplementary-views.json').exists() else []
 src=json.loads((EV/'source-controls.json').read_text())
+plan=json.loads((EV/'publication-plan.json').read_text())
+ledger=json.loads((EV/'interaction-matrix.json').read_text())
+records=plan['records']
+page_ref=lambda id:'#link(<capture-'+id+'>)[#context [page #counter(page).at(<capture-'+id+'>).first()]]'
 q=lambda x:json.dumps(str(x),ensure_ascii=False)
 t=lambda x:'#text('+q(x)+')'
 para=lambda x:t(x)+'\n\n'
@@ -36,10 +40,10 @@ head='''#import "../template.typ": note, accent, muted
 '''
 parts=[head,heading(1,'Illustrated feature guide and interaction inventory'),para('Capture edition: 5 October 2026. This chapter extends the original architecture whitepaper with a current website feature guide, screenshots, visible-control inventory and source-level interaction register.'),
 '#note("Evidence boundary", ['+t('The initial outage captures have been replaced with actual deployed Vercel UI captures after the user requested reconnection of the OCI gateway and Caddy. Oracle calculations, providers and saved analytical history were read live. Three paper verification orders populated the live paper book; supplemental Sandbox book values are explicitly generated. No real venue trade, flatten, purge, outage, account creation or credential change was submitted. Private RFQ access requires an authenticated desk account. This is a documentation inventory, not proof that every production interaction succeeds.')+'])\n\n',
-para('Coverage: 11 workspace tabs, 70 registered sections, 120 registered URL views; '+str(len(extras))+' supplementary states; '+str(sum(len(x.get('screenshots',[])) for x in m+extras)+1)+' screenshot placements including login; '+str(len(src['controls']))+' JSX control definitions and '+str(len(src['listeners']))+' event-listener registrations scanned across '+str(src['files'])+' source files.'),
-para('The baseline screenshots displayed build 726bbe7. Oracle search and Oracle chart recaptures display production build 3b9918f6. Each capture retains its date and mode. The original source-control inventory is revision 5225f3e2. These are different revisions. Runtime screenshots describe the deployed version; source entries describe the local repository and include conditional or reusable components. Dynamic rows, options and chart points are families of interactions, not a finite list of all future data values. A source definition is not proof of reachability from the current guest session.'),
+para('Coverage: 11 workspace tabs, 70 registered sections, 120 registered URL views; '+str(len(extras))+' supplementary states; '+str(plan['stats']['printed_screenshots'])+' unique printed screenshots including login; duplicate placements and repeated disclosure captures are cross-referenced rather than reprinted; '+str(len(src['controls']))+' JSX control definitions and '+str(len(src['listeners']))+' event-listener registrations scanned across '+str(src['files'])+' source files.'),
+para('The baseline screenshots displayed build 726bbe7. Oracle search and Oracle chart recaptures display production build 3b9918f6. Each capture retains its date and mode. The original source-control inventory is revision '+src.get('revision','unknown')+'. These are different revisions. Runtime screenshots describe the deployed version; source entries describe the local repository and include conditional or reusable components. Dynamic rows, options and chart points are families of interactions, not a finite list of all future data values. A source definition is not proof of reachability from the current guest session.'),
 heading(2,'Operating state and capture provenance'),
-para('Earlier captures followed a verified gateway reconnection. At the latest Revision F check, the gateway VM is unreachable over SSH and HTTPS; its current container state and final shutdown are unverified. Oracle ADB and the Supabase embedding service answer independently. Oracle vector search has been repaired and captured from production build 3b9918f6. No volumes, databases or audit history were deleted. See the latest verification chapter and operating-state attachment for the unresolved console-access requirement.'),
+para('Earlier captures followed a verified gateway reconnection. At the Revision F operating check, the gateway VM is unreachable over SSH and HTTPS; its current container state and final shutdown are unverified. Oracle ADB and the Supabase embedding service answer independently. Oracle vector search has been repaired and captured from production build 3b9918f6. No volumes, databases or audit history were deleted. See the latest verification chapter and operating-state attachment for the unresolved console-access requirement.'),
 para('Other GitHub workflows can contact Oracle: CI includes a live database check; End-to-end smoke probes Oracle; Deploy gateway to OCI can restart containers; Apply database schema can modify Oracle. All seven repository workflows were verified disabled_manually after explicit approval, including OpenBB keep-alive and public-market observation. No running or queued GitHub Actions runs were returned at verification. Their final verified states are recorded in the operational evidence file. Stopping GitHub calls or Docker processes does not itself stop an OCI virtual machine or a paid Autonomous Database resource. Oracle states that stopping an Autonomous Database halts its CPU billing; storage is billed separately. No Oracle resource termination was performed.'),
 para('Oracle reference: https://docs.oracle.com/en/cloud/paas/autonomous-database/serverless/adbsb/autonomous-stop.html ; billing: https://docs.oracle.com/en-us/iaas/autonomous-database-serverless/doc/autonomous-database-billing.html'),
 heading(2,'Shared navigation, access and interactions')]
@@ -57,11 +61,43 @@ for desk,(purpose,body) in explanations.items():
   parts.append('#table(columns: (25%, 30%, 45%), table.header([Section], [Address], [Feature]),\n')
   for id,label,desc in rows:parts.append(f'[{t(label)}], [{t("#"+desk+"/"+id)}], [{t(desc)}],\n')
   parts.append(')\n\n')
-parts.extend([heading(1,'Screenshot atlas'),para('Each route includes its actual captured screen and a control list. Continuation screenshots cover the internal scroll area with overlap. A control list records rendered controls including offscreen elements within the active section; options and disabled states are retained. Shared header controls are listed once above and omitted from repeated view tables. Source-level definitions later in the appendix cover conditional controls that data availability or guest access prevents from rendering.')])
+parts.extend([heading(2,'Revision G: screenshot and interaction audit'),
+para('The publication plan deduplicates identical screenshot pixels and removes repeated disclosure-expanded image sets while retaining their original controls and provenance in the embedded evidence. Supplementary panes now follow their owning section. A continuation image is retained when it reveals content below the viewport; it is not a duplicate just because the navigation header repeats.'),
+para('Current navigation and historical screenshots are separate observations. The deployed gateway still times out. Retained earlier live captures are dated evidence, not a claim that the backend is healthy now. New captures show the actual production state. A failed strategy gate, no admissible stake, or an unavailable private channel is not changed into invented success.'),
+para('Printed screenshots: '+str(plan['stats']['printed_screenshots'])+'. Repeated disclosure states omitted from print: '+str(plan['stats']['omitted_disclosure_states'])+'. Exact duplicate placements replaced by references: '+str(plan['stats']['exact_duplicate_placements'])+'. Original files and full evidence remain available.'),
+heading(3,'Verification status definitions'),
+para('Passed means an action was exercised and its stated postcondition observed. Rendered means the expected route was visible and non-empty; it does not prove backend success. Blocked means a named dependency, account restriction or approval prevented completion. Observed means a control was present. Source documented means its implementation was inventoried, without claiming activation. Disabled and intentionally empty states retain their real meaning.'),
+heading(2,'Oracle page index')])
+parts.append('#table(columns: (40%, 35%, 25%), table.header([Oracle feature], [Evidence scope], [Page]),\n')
+for name,scope,id in [('Repair and connection verification','Historical repair and current gateway limitation','oracle-repair'),('Search-result interpretation','Similarity, return, drawdown and overfit evidence','oracle-search-method'),('VaR method and assumptions','GBM reference, horizon and sampling uncertainty','oracle-var-method')]:
+ parts.append('['+t(name)+'], ['+t(scope)+'], ['+page_ref(id)+'],\n')
+for r in records:
+ if (r['hash']=='risk/oraclevar' or (r['hash']=='research/lineage' and 'Oracle' in r.get('state',''))) and r['print_screenshots']:
+  parts.append('['+t(r.get('state') or 'Oracle VaR')+'], ['+t('Generated Sandbox inputs; live database calculation' if r['hash']=='risk/oraclevar' else 'Historical research retrieval; gateway status disclosed')+'], ['+page_ref(r['capture_id'])+'],\n')
+parts.append(')\n\n')
+parts.extend([para('The Oracle figures use distinct horizons. The line joins repeated independent Monte Carlo estimates, not realised equity or a forecast path. Search similarity is semantic proximity, not a probability of trading success. The research-method chapter explains these interpretation limits.'),heading(2,'Every registered tab and subtab: coverage index')])
+parts.append('#set text(size: 8pt)\n#table(columns: (35%, 18%, 27%, 20%), table.header([Registered view], [Screenshot], [Current sweep], [Feature pages]),\n')
+for r in plan['coverage']:
+ status=r['current_navigation']+('; '+', '.join(r['current_limitations']) if r['current_limitations'] else '')
+ parts.append('['+t('#'+r['hash'])+'], ['+t(r['screenshot_status'])+'], ['+t(status)+'], ['+page_ref(r['capture_id'])+'],\n')
+parts.append(')\n#set text(size: 9.8pt)\n')
+parts.append(heading(3,'Internal subtabs without their own URL'))
+parts.append('#table(columns: (34%, 30%, 18%, 18%), table.header([Section / group], [Subtab], [Coverage], [Page]),\n')
+for r in plan['pane_coverage']:
+ parts.append('['+t('#'+r['hash']+' / '+r['group'])+'], ['+t(r['option'])+'], ['+t(r['status'])+'], ['+(page_ref(r['capture_id']) if r['capture_id'] else t('Missing'))+'],\n')
+parts.append(')\n\n')
+parts.extend([heading(2,'Interaction verification matrix'),para('The attached interaction-matrix.json and interaction-matrix.csv contain one row for every source control, event-listener registration, registered-route check, observed runtime control and executed audit action. Stable C, L, N, R and A identifiers distinguish those populations. Each row carries its scope, status and evidence reference; untested controls are explicitly untested, not silently counted as passed.'),para('Inventory counts: '+', '.join(str(v)+' '+k for k,v in ledger['counts'].items())+'.'),heading(3,'Executed audit actions and blockers')])
+parts.append('#table(columns: (14%, 40%, 16%, 30%), table.header([ID], [Action], [Status], [Observed result / blocker]),\n')
+for x in ledger['interactions']:
+ if x['kind']!='executed interaction':continue
+ detail=x.get('reason') or x.get('postcondition') or x.get('scope','')
+ parts.append('['+t(x['id'])+'], ['+t('#'+x['hash']+' / '+x['label'])+'], ['+t(x['status'])+'], ['+t(detail)+'],\n')
+parts.append(')\n\n')
+parts.extend([heading(1,'AlphaEngine Features'),para('Each registered view and distinct supplementary pane is grouped with its owning workspace section. Figures show actual browser captures. Captions state the data mode, capture time and known limitation. Exact image duplicates use page references. Rendered controls describe available interactions; their execution status belongs to the verification matrix, not to screenshot presence.')])
 # Screenshots use a large landscape sheet so dense analytical labels survive print.
 def page_landscape():return '#pagebreak()\n#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))\n'
 def page_portrait():return '#pagebreak()\n#set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))\n'
-parts.append(page_landscape()+heading(2,'Sign in and guest entry')+'#image("../screenshots/login.png", width: 100%, height: 233mm, fit: "contain")\n')
+parts.append(page_landscape()+heading(2,'Sign in and guest entry')+'#metadata("login") <capture-login>\n'+'#image("../screenshots/login.png", width: 100%, height: 233mm, fit: "contain")\n')
 def useful(c):
  l=c.get('label','');return c.get('role') not in ['tabpanel','region','radiogroup','tablist'] and (c.get('tag') in ['BUTTON','A','INPUT','SELECT','TEXTAREA','SUMMARY','svg','SVG'] or c.get('role') in ['button','tab','img','slider']) and not (c.get('role')=='tab' and l in ['Overview','Research','Execution','Portfolio','Risk','Data operations','Reliability','Developer','Prediction market quotes','Prediction market coherence','Information diffusion into prices']) and not any(l.startswith(x) for x in ['Skip to workspace','Open AlphaEngine','Open the command palette','Open reliability latency','Data source:','Open the kill switch','Open reliability.','Open quick settings']) and l not in ['Sign in','All Roles','Quant','PM','SRE','Dev']
 def action(c):
@@ -79,19 +115,24 @@ def action(c):
  if c.get('value') not in [None,'']:a.append('Captured value: '+str(c['value']))
  if not a:a.append('Activate the named action; exact event binding is indexed in the source register.')
  return ' '.join(a)
-for idx,x in enumerate(m+extras,1):
+seen_controls={}
+for idx,x in enumerate(records,1):
  desk=x.get('desk','global');sec=x.get('section','');sl,desc=sections.get((desk,sec),(sec.replace('-',' ').title(),''))
  title=f'{idx:03d}  {labels.get(desk,desk)} / {sl}'+(' / '+x['view'] if x.get('view') else '')+(' - '+x['state'] if x.get('state') else '')
- for si,im in enumerate(x.get('screenshots',[])):
+ for si,im in enumerate(x.get('print_screenshots',[])):
   parts.append(page_landscape())
-  if si==0:parts.append(heading(2,title))
+  if si==0:parts.append(heading(2,title)+'#metadata('+q(x['capture_id'])+') <capture-'+x['capture_id']+'>\n')
   else:parts.append('#text(size: 13pt, weight: "bold", '+q(title+' - continued')+')\n\n')
   parts.append('#text(size: 8pt, '+q('#'+x['hash']+' | '+desc+' | '+x.get('capture_mode', 'Deployed Vercel UI; live gateway'))+')\n\n')
-  if x['hash']=='risk/oraclevar':parts.append(para('Production build 3b9918f6: corrected currency-axis labels; explicitly generated Sandbox inputs with real Oracle computation.'))
+  parts.append('#text(size: 8pt, '+q('Captured '+x.get('captured_at','5 October 2026')+'; '+('Limitations: '+', '.join(x['limitations']) if x['limitations'] else 'Capture evidence only; current service availability is listed in the coverage index.'))+')\n\n')
   parts.append('#image('+q('../screenshots/'+im)+', width: 100%, height: 230mm, fit: "contain")\n')
+ if not x['print_screenshots']:
+  parts.append(page_portrait()+heading(2,title)+'#metadata('+q(x['capture_id'])+') <capture-'+x['capture_id']+'>\n')
+  parts.append(para('This state uses an identical image already printed. See the linked feature page; the original record remains in the evidence.'))
+ for ref in x.get('same_image_references',[]):parts.append(para('Identical screenshot reference: ')+page_ref(ref['target'])+'\n\n')
  cs=[c for c in x.get('controls',[]) if useful(c)]
  # One instance per identical rendered definition; repeated rows stay identified by label.
- unique=[];seen=set()
+ unique=[];seen=seen_controls.setdefault(x['hash'],set())
  for c in cs:
   key=(c.get('label'),c.get('tag'),c.get('role'),c.get('title'),str(c.get('options')))
   if key not in seen:unique.append(c);seen.add(key)
@@ -106,7 +147,7 @@ for idx,x in enumerate(m+extras,1):
    parts.append(f'[{t(label)}], [{t(state)}], [{t(detail)}],\n')
   parts.append(')\n#set text(size: 9.8pt)\n')
 parts.append(page_portrait()+heading(1,'Source-level control and interaction register'))
-parts.append(para('This register enumerates native buttons, links, inputs, selects, textareas and disclosures, common interactive primitives, and JSX elements with event props. Entries are source definitions, not runtime counts: one mapped definition may generate many buttons, and a reusable component may have several consumers. Inline handler excerpts and referenced function names state exactly where the behavior is implemented. Disabled/hidden predicates describe conditional reachability. The complete untruncated attributes, event bindings and global listener calls are included in the attached source-controls.json evidence file. Source root: Part2_Infrastructure/web; revision 5225f3e2.'))
+parts.append(para('This register enumerates native buttons, links, inputs, selects, textareas and disclosures, common interactive primitives, and JSX elements with event props. Entries are source definitions, not runtime counts: one mapped definition may generate many buttons, and a reusable component may have several consumers. Inline handler excerpts and referenced function names state exactly where the behavior is implemented. Disabled/hidden predicates describe conditional reachability. The complete untruncated attributes, event bindings and global listener calls are included in the attached source-controls.json evidence file. Source root: Part2_Infrastructure/web; revision '+src.get('revision','unknown')+'.'))
 parts.append('#set text(size: 8pt)\n')
 last=None
 for i,c in enumerate(src['controls'],1):
@@ -115,6 +156,7 @@ for i,c in enumerate(src['controls'],1):
  label=c['label'];label=label[1:-1] if label.startswith('"') and label.endswith('"') else label
  if len(label)>250:label=label[:250]+' ... [full expression attached]'
  parts.append('#block(breakable: true, above: 5pt, below: 5pt)[\n'+t(f'C{i:04d} | line {c["line"]} | {c["tag"]} | {label}')+'\n\n')
+ parts.append(t('Verification: source documented; individual activation untested unless a separately scoped A-row records the action. Evidence: interaction-matrix.json, '+f'C{i:04d}')+'\n\n')
  attrs=c['attributes'];info=[]
  for k in ['type','href','role','min','max','step','disabled','readOnly','aria-expanded','aria-pressed','aria-selected','tabIndex']:
   if k in attrs:info.append(k+': '+attrs[k])

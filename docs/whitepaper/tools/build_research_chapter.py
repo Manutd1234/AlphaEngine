@@ -6,9 +6,10 @@ from research_feature_specs import S
 ROOT=Path(__file__).resolve().parents[3]
 WP=ROOT/'docs/whitepaper'; EV=WP/'evidence'
 captures=json.loads((EV/'view-manifest.json').read_text())+json.loads((EV/'supplementary-views.json').read_text())
-screenshot_count=1+sum(len(r.get('screenshots',[])) for r in captures)
+plan=json.loads((EV/'publication-plan.json').read_text())
+screenshot_count=plan['stats']['printed_screenshots']
 extra_count=len(json.loads((EV/'supplementary-views.json').read_text()))
-unique_count=len({'login.png'} | {f for r in captures for f in r.get('screenshots',[])})
+unique_count=len(plan['unique_images'])
 q=lambda x:json.dumps(str(x),ensure_ascii=False)
 t=lambda x:'#text('+q(x)+')'
 p=lambda x:t(x)+'\n\n'
@@ -18,12 +19,20 @@ parts=[h(1,'Research protocol, quantitative interpretation and verification')]
 
 def section(title,*paragraphs):
  parts.append(h(2,title))
+ anchors={'Latest verification: Oracle search repaired; gateway access unresolved':'oracle-repair','Interpreting the retrieved quant evidence':'oracle-search-method','Oracle comparison and Monte Carlo uncertainty':'oracle-var-method'}
+ if title in anchors:parts.append('#metadata('+q(anchors[title])+') <capture-'+anchors[title]+'>\n')
  for a in paragraphs:parts.append(p(a))
 def equation(s):parts.append('$ '+s+' $\n\n')
 def table(headers,rows,widths='(1fr, 2fr, 2fr)'):
  parts.append('#table(columns: '+widths+', table.header('+','.join('['+t(c)+']' for c in headers)+'),\n')
  for row in rows:parts.append(','.join('['+t(c)+']' for c in row)+',\n')
  parts.append(')\n\n')
+
+section('Revision G audit: deduplicated figures and interaction status',
+ 'Revision G renames Chapter 9 to AlphaEngine Features, groups each supplementary pane with its parent section, and adds a linked Oracle page index plus registered-view and internal-subtab coverage tables. Exact image duplicates and repeated disclosure captures are not reprinted. The underlying original evidence remains attached and retained in the repository.',
+ 'New production captures include a byte-exact browser Monte Carlo parity result, six-provider cross-source reconciliation, settled Oracle search health, a 90-day Oracle VaR calculation, Research Adjustments, Robustness and Sharpe colouring, and previously omitted Execution panes. Gateway-dependent captures disclose the continuing outage. Some views are represented by earlier dated working captures because current gateway access is unavailable.',
+ 'The interaction matrix explicitly distinguishes source definitions, observed runtime controls, route-render checks and executed actions. Every inventoried entry has a status and evidence scope. Untested or blocked actions are not counted as successful. Creating a documentation task and recording a benchmark run were blocked by automatic approval review; their unsubmitted or existing states remain labelled. Private RFQ requires an authenticated desk account.',
+ 'The following Revision F results and earlier test counts are historical observations, retained with their original build identities. They do not imply a new full regression run or current backend availability. The latest UI sweep, capture fixes, publication plan, subtab coverage and interaction matrix are embedded as evidence.')
 
 section('Latest verification: Oracle search repaired; gateway access unresolved',
  'Revision F was captured from production build 3b9918f6 on 5 October 2026. The exact query reported by the user, moving average crossover drawdown, now returns an Oracle research match in the deployed Vercel UI. The successful result is Backtest BTCUSDT 1h ma_cross 10/200, cosine similarity 0.8501158. The browser measured a 736 ms round trip. The result is a stored historical observation, not a newly successful trading strategy.',
@@ -39,7 +48,7 @@ section('Interpreting the retrieved quant evidence',
 
 section('Abstract and contribution',
  'This chapter documents AlphaEngine as an inspectable quantitative research system, with an empirical software-verification study and a visual instrument catalogue. It connects each registered workspace section to a research question, mathematical or operational method, input intervention and interpretation boundary. It is not a new backtest claiming profitable alpha. Its reproducible contribution is the linkage between the implemented estimator, the visible control that changes it, and the evidence needed to interpret its output.',
- f'The observation set contains 11 tabs, 70 sections, 120 registered URL views and {extra_count} supplementary interface states. The visual appendix contains {screenshot_count} screenshot placements from {unique_count} distinct browser captures. An AST inventory records 964 source control definitions and 49 event-listener registrations across 854 source files. These denominators describe different populations and must not be added together or treated as independent trials. One source definition can generate many runtime buttons; one view can require several screenshots.',
+ f'The observation set contains 11 tabs, 70 sections, 120 registered URL views and {extra_count} supplementary interface states. The visual appendix contains {screenshot_count} screenshot placements from {unique_count} distinct browser captures. An AST inventory records 964 source control definitions and 49 event-listener registrations across 855 source files. These denominators describe different populations and must not be added together or treated as independent trials. One source definition can generate many runtime buttons; one view can require several screenshots.',
  'The study combines deployed-interface capture with local numerical, contract and browser tests. The deployed build observed during capture was 726bbe7; local source was 5225f3e2 plus the documented test fixture and Oracle chart-margin corrections. Deployment parity is therefore not established. The initial outage screenshots were rechecked and replaced after restoring the gateway at the user request. The deployed Vercel UI reads real providers, Oracle calculations and retained analytical history. Three accepted paper verification orders populate the live paper book. Supplemental portfolio/risk views explicitly select Sandbox and identify generated inputs. No real-money trade or destructive operator action was executed.')
 
 section('Live recapture: corrected data and operational evidence',
@@ -197,4 +206,4 @@ for text in [
  ]:parts.append(p(text))
 
 (WP/'sections/08-research-protocol.typ').write_text(''.join(parts).rstrip()+'\n')
-print('Research chapter: 70 feature methods, 46 strategy models, verification report and 11 evidence attachments.')
+print('Research chapter: 70 feature methods, 46 strategy models, verification report and the attached audit evidence.')

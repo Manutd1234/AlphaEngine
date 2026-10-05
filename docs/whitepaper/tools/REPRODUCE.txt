@@ -1,11 +1,15 @@
 AlphaEngine whitepaper: reproduce from the repository root
 
-1. python3 docs/whitepaper/tools/build_feature_appendix.py
-2. python3 docs/whitepaper/tools/build_research_chapter.py
-3. typst compile --root . docs/whitepaper/main.typ output/pdf/AlphaEngine_Whitepaper_Features_and_Interactions.pdf
-4. python3 docs/whitepaper/tools/attach_evidence.py
+1. node docs/whitepaper/tools/inventory_controls.cjs
+2. python3 docs/whitepaper/tools/build_audit_catalog.py
+3. python3 docs/whitepaper/tools/build_feature_appendix.py
+4. python3 docs/whitepaper/tools/build_research_chapter.py
+5. typst compile --root . docs/whitepaper/main.typ output/pdf/AlphaEngine_Whitepaper_Features_and_Interactions.pdf
+6. python3 docs/whitepaper/tools/verify_feature_pdf.py
+7. python3 docs/whitepaper/tools/attach_evidence.py
 
-The final command embeds eleven JSON evidence files and updates the repository PDF.
+The final command embeds the original and Revision G audit evidence, including the JSON/CSV interaction matrix, and updates the repository PDF.
+The PDF verification command validates exact screenshot pixels and page/link bounds, and adds current PDF page references to the interaction matrix.
 Screenshots are original browser captures in docs/whitepaper/screenshots.
 Test logs are retained in docs/whitepaper/evidence/test-logs; their hashes are in verification-report.json.
 The source and deployed revisions differ, as disclosed in the paper.
@@ -28,3 +32,9 @@ The optional local verifier above describes the earlier offline scope, not the l
 Revision F adds verified Oracle vector-search results and recaptured Oracle VaR charts from production build 3b9918f6.
 All seven workflows are paused. The current VM is unreachable; container and database shutdown remain unverified pending Oracle console sign-in.
 Supabase UI search remains blocked by the gateway timeout. Earlier running-state descriptions above are historical.
+
+Revision G groups supplementary panes beside their parent feature, renames Chapter 9 to AlphaEngine Features, and supplies linked Oracle and subtab indexes.
+publication-plan.json records every printed screenshot and every omission reason. Identical pixel images are printed once. Repeated disclosure-expanded captures stay in the original evidence but are omitted from print.
+ui-sweep.json is a fresh Vercel navigation/control observation of all 120 registered views; current gateway outages remain explicit.
+capture-fixes.json contains new observed parity, reconciliation, Oracle and missing-pane results. No response payloads or screenshot pixels were fabricated.
+interaction-matrix.json/csv distinguish source documentation, observed controls, navigation and executed actions. A rendered view is not a successful backend test.
