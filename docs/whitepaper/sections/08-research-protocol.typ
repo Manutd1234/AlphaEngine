@@ -1,5 +1,9 @@
 #heading(level: 1)[#text("Research protocol, quantitative interpretation and verification")]
 
+#heading(level: 2)[#text("Revision I connection recheck")]
+
+#text("Oracle Autonomous Database and the OCI gateway VM are distinct dependencies. Fresh production POST requests to Oracle research search and Oracle VaR both returned HTTP 200 with state ok. The Vercel UI returned one stored research match and rendered a real database Monte Carlo chart from explicitly generated Sandbox inputs. Two corresponding capture sets were replaced. In contrast, the portfolio and Supabase research proxy paths still returned HTTP 504, and direct VM SSH and HTTPS connections timed out. Production still targets the same gateway origin, last changed on 31 August. This establishes an unavailable VM network path, not its underlying power-state or firewall cause. No gateway credential, TLS setting or cloud resource was changed during this recheck.")
+
 #heading(level: 2)[#text("Revision H audit: visual content and selected subtabs")]
 
 #text("Chapter 9 remains AlphaEngine Features with a linked Oracle page index. Revision H replaces 37 image sets with focused active-panel browser captures and removes visually repeated content, including small-scroll overlaps that exact hashes missed. The fresh audit asserts all 70 selectable URL views and 50 internal presentation panes. Thirteen live Portfolio/Risk routes are blocked by the unreachable gateway; their generated Sandbox variants are checked separately. The underlying original evidence remains attached and retained in the repository. This is an incomplete live-service acceptance audit, not a claim that every feature works.")
@@ -13,7 +17,7 @@
 #heading(level: 2)[#text("Latest verification: Oracle search repaired; gateway access unresolved")]
 
 #metadata("oracle-repair") <capture-oracle-repair>
-#text("Revision F was captured from production build 3b9918f6 on 5 October 2026. The exact query reported by the user, moving average crossover drawdown, now returns an Oracle research match in the deployed Vercel UI. The successful result is Backtest BTCUSDT 1h ma_cross 10/200, cosine similarity 0.8501158. The browser measured a 736 ms round trip. The result is a stored historical observation, not a newly successful trading strategy.")
+#text("Revision F was captured from production build 3b9918f6 on 5 October 2026. The exact query reported by the user, moving average crossover drawdown, now returns an Oracle research match in the deployed Vercel UI. The successful result is Backtest BTCUSDT 1h ma_cross 10/200, cosine similarity 0.8501158. The original repair capture measured a 736 ms round trip; the Revision I UI recheck measured 571 ms. The result is a stored historical observation, not a newly successful trading strategy.")
 
 #text("The original search path was browser to Vercel to the OCI gateway VM to Supabase embeddings, then back to Vercel and Oracle ADB. The gateway did not answer within eight seconds. Independent checks showed that Supabase returned a valid 384-dimensional gte-small vector in 0.94 seconds and Vercel could execute the Oracle Monte Carlo procedure. The repair calls the same Supabase embedding function directly from the Vercel server, removing the unavailable VM hop for Oracle searches. Server credentials never enter the browser. The model name, dimension, finite coordinates and nonzero vector are validated; incompatible embeddings fail instead of producing arbitrary neighbours. Deployments without the server credential retain their existing gateway path.")
 
@@ -38,7 +42,7 @@
 
 #text("This chapter documents AlphaEngine as an inspectable quantitative research system, with an empirical software-verification study and a visual instrument catalogue. It connects each registered workspace section to a research question, mathematical or operational method, input intervention and interpretation boundary. It is not a new backtest claiming profitable alpha. Its reproducible contribution is the linkage between the implemented estimator, the visible control that changes it, and the evidence needed to interpret its output.")
 
-#text("The observation set contains 11 tabs, 70 sections, 120 registered URL views and 92 supplementary interface states. The visual appendix contains 315 screenshot placements from 315 distinct browser captures. An AST inventory records 964 source control definitions and 49 event-listener registrations across 855 source files. These denominators describe different populations and must not be added together or treated as independent trials. One source definition can generate many runtime buttons; one view can require several screenshots.")
+#text("The observation set contains 11 tabs, 70 sections, 120 registered URL views and 92 supplementary interface states. The visual appendix contains 313 screenshot placements from 313 distinct browser captures. An AST inventory records 964 source control definitions and 49 event-listener registrations across 855 source files. These denominators describe different populations and must not be added together or treated as independent trials. One source definition can generate many runtime buttons; one view can require several screenshots.")
 
 #text("The study combines deployed-interface capture with local numerical, contract and browser tests. The deployed build observed during capture was 726bbe7; local source was 5225f3e2 plus the documented test fixture and Oracle chart-margin corrections. Deployment parity is therefore not established. The initial outage screenshots were rechecked and replaced after restoring the gateway at the user request. The deployed Vercel UI reads real providers, Oracle calculations and retained analytical history. Three accepted paper verification orders populate the live paper book. Supplemental portfolio/risk views explicitly select Sandbox and identify generated inputs. No real-money trade or destructive operator action was executed.")
 
@@ -164,7 +168,7 @@ $ tau_H = integral_0^H (1-a(t)) dif t $
 [#text("Browser suite")],[#text("23 cases initially: 22 passed, 1 failed; targeted five-case recheck: all passed")],[#text("The failure was a test fixture assumption; no unresolved failure in these selected files.")],
 [#text("TypeScript")],[#text("Typecheck exit 0")],[#text("Static typing of local source after generated development types were available.")],
 [#text("Route navigation")],[#text("120 of 120 passed; no uncaught page errors")],[#text("Expected workspace and section visible with non-empty content; Portfolio/Risk use explicitly selected Sandbox.")],
-[#text("Visual census")],[#text("120 canonical views; 92 supplementary states; 315 screenshot placements")],[#text("Rendered coverage of live Vercel states, explicit Sandbox states and documented access/data limitations.")],
+[#text("Visual census")],[#text("120 canonical views; 92 supplementary states; 313 screenshot placements")],[#text("Rendered coverage of live Vercel states, explicit Sandbox states and documented access/data limitations.")],
 [#text("Source census")],[#text("964 controls; 49 listener registrations; 854 files scanned")],[#text("Implementation inventory, not a 964-of-964 behavioral success claim.")],
 )
 

@@ -13,7 +13,7 @@
 #show: whitepaper.with(
   title: "AlphaEngine Quant OS",
   subtitle: "Institutional architecture, mathematical controls and operating contracts from signal to governed decision",
-  version: "Revision H - visual-content and subtab audit",
+  version: "Revision I - Oracle connectivity recheck",
   generated: "5 October 2026",
 )
 

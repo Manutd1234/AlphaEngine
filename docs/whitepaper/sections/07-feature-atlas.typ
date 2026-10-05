@@ -6,7 +6,7 @@
 
 #note("Evidence boundary", [#text("The initial outage captures have been replaced with actual deployed Vercel UI captures after the user requested reconnection of the OCI gateway and Caddy. Oracle calculations, providers and saved analytical history were read live. Three paper verification orders populated the live paper book; supplemental Sandbox book values are explicitly generated. No real venue trade, flatten, purge, outage, account creation or credential change was submitted. Private RFQ access requires an authenticated desk account. This is a documentation inventory, not proof that every production interaction succeeds.")])
 
-#text("Coverage: 11 workspace tabs, 70 registered sections, 120 registered URL views; 92 supplementary states; 315 unique printed screenshots including login; duplicate placements and repeated disclosure captures are cross-referenced rather than reprinted; 964 JSX control definitions and 49 event-listener registrations scanned across 855 source files.")
+#text("Coverage: 11 workspace tabs, 70 registered sections, 120 registered URL views; 92 supplementary states; 313 unique printed screenshots including login; duplicate placements and repeated disclosure captures are cross-referenced rather than reprinted; 964 JSX control definitions and 49 event-listener registrations scanned across 855 source files.")
 
 #text("The baseline screenshots displayed build 726bbe7. Oracle search and Oracle chart recaptures display production build 3b9918f6. Each capture retains its date and mode. The original source-control inventory is revision 9e763f7232b8bd55c341e9cb16543accc1648dac. These are different revisions. Revision H captures also show the later production deployment after commit 23281d2. Runtime screenshots describe their observed deployed version; source entries describe the local repository and include conditional or reusable components. Dynamic rows, options and chart points are families of interactions, not a finite list of all future data values. A source definition is not proof of reachability from the current guest session.")
 
@@ -221,7 +221,11 @@
 
 #text("Current navigation and historical screenshots are separate observations. The deployed gateway still times out. Retained earlier live captures are dated evidence, not a claim that the backend is healthy now. New captures show the actual production state. A failed strategy gate, no admissible stake, or an unavailable private channel is not changed into invented success.")
 
-#text("Printed screenshots: 315. Repeated disclosure states omitted from print: 22. Exact duplicate placements replaced by references: 4. Original files and full evidence remain available.")
+#text("Printed screenshots: 313. Repeated disclosure states omitted from print: 22. Exact duplicate placements replaced by references: 0. Original files and full evidence remain available.")
+
+#heading(level: 3)[#text("Revision I: Oracle database and VM gateway are separate")]
+
+#text("Fresh production checks on 5 October 2026 confirm that Oracle vector search and Oracle VaR return HTTP 200. Two replacement captures show the actual research match and a 1-day in-database calculation using explicitly generated Sandbox inputs. These replace the earlier Oracle image sets rather than adding duplicate illustrations. The Sandbox default and explicit 1d entries both reference the new 1-day result, removing two older repeated images. The Vercel gateway origin is unchanged since 31 August; its SSH and HTTPS ports still time out. The Supabase search path also times out because it depends on that VM. The exact VM/network cause and container shutdown remain unverified while Oracle Cloud console account access is unavailable. See gateway-audit.json for the current checks.")
 
 #heading(level: 3)[#text("Verification status definitions")]
 
@@ -427,7 +431,7 @@
 
 #text("The attached interaction-matrix.json and interaction-matrix.csv contain one row for every source control, event-listener registration, registered-route check, observed runtime control and executed audit action. Stable C, L, N, R and A identifiers distinguish those populations. Each row carries its scope, status and evidence reference; untested controls are explicitly untested, not silently counted as passed.")
 
-#text("Inventory counts: 964 source control, 49 event listener, 120 route navigation, 75 executed interaction, 5230 runtime control.")
+#text("Inventory counts: 964 source control, 49 event listener, 120 route navigation, 77 executed interaction, 5230 runtime control.")
 
 #heading(level: 3)[#text("Executed audit actions and blockers")]
 
@@ -447,6 +451,8 @@
 [#text("A013")], [#text("#research/summary/setup / Adjustments subtab")], [#text("passed")], [#text("Selected state asserted after activation; screenshot retains the actual data availability.")],
 [#text("A014")], [#text("#live/activity / Blotter view / Active")], [#text("passed")], [#text("Selected state asserted after activation; screenshot retains the actual data availability.")],
 [#text("A015")], [#text("#live/activity / Blotter view / Cancelled & rejected")], [#text("passed")], [#text("Selected state asserted after activation; screenshot retains the actual data availability.")],
+[#text("A016")], [#text("#research/lineage / Revision I: Oracle search")], [#text("passed")], [#text("HTTP 200, state ok, one stored research match visibly rendered")],
+[#text("A017")], [#text("#risk/oraclevar / Revision I: 1-day Oracle VaR with explicit Sandbox inputs")], [#text("passed")], [#text("HTTP 200, state ok, 20000 database simulation paths; selected 1d and two chart observations visibly rendered")],
 [#text("H001")], [#text("#research/summary/setup / Setup / Core parameters")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
 [#text("H002")], [#text("#research/summary/setup / Setup / Adjustments")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
 [#text("H003")], [#text("#research/attribution / Attribution view / Explain")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
@@ -1135,20 +1141,13 @@
 #heading(level: 2)[#text("012  Research / Lineage - Oracle vector search - settled health and result")]
 
 #metadata("F008") <capture-F008>
-#text(size: 8pt, "#research/lineage | Signal path & desk memory | Vercel production; Revision G audit; gateway unavailable; real Oracle result; gateway health observed")
+#text(size: 8pt, "#research/lineage | Signal path & desk memory | Vercel production 724c17c7; actual Oracle research match; signal path truthfully shows VM gateway down.")
 
-#text(size: 8pt, "Captured 2026-10-05T12:16:25.098Z; Limitations: gateway unavailable")
+#text(size: 8pt, "Captured 2026-10-05T13:24:44.060Z; Limitations: gateway unavailable")
 
-#image("../screenshots/audit-g-oracle-search.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "012  Research / Lineage - Oracle vector search - settled health and result - continued")
+#image("../screenshots/audit-i-oracle-search-current.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values are historical. This replacement shows the current Oracle result. VM-dependent live features remain unavailable.")
 
-#text(size: 8pt, "#research/lineage | Signal path & desk memory | Vercel production; Revision G audit; gateway unavailable; real Oracle result; gateway health observed")
-
-#text(size: 8pt, "Captured 2026-10-05T12:16:25.098Z; Limitations: gateway unavailable")
-
-#image("../screenshots/audit-g-oracle-search-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
 #text(size: 13pt, weight: "bold", "012  Research / Lineage - Oracle vector search - settled health and result - controls")
@@ -2710,20 +2709,13 @@
 #heading(level: 2)[#text("058  Risk / Oracle VaR - Sandbox, 1d — repaired chart")]
 
 #metadata("F028") <capture-F028>
-#text(size: 8pt, "#risk/oraclevar | In-database GBM check | Vercel production build 3b9918f6; explicit Sandbox inputs with live Oracle computation")
+#text(size: 8pt, "#risk/oraclevar | In-database GBM check | Vercel production 724c17c7; explicitly selected generated Sandbox book; actual Oracle database computation; live gateway portfolio remains unavailable.")
 
-#text(size: 8pt, "Captured 2026-10-05T10:36:56.900Z; Capture evidence only; current service availability is listed in the coverage index.")
+#text(size: 8pt, "Captured 2026-10-05T13:25:22.755Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/repair-oraclevar-1d.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "058  Risk / Oracle VaR - Sandbox, 1d — repaired chart - continued")
+#image("../screenshots/audit-i-oracle-var-current.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values are historical. This replacement shows the current Oracle result. VM-dependent live features remain unavailable.")
 
-#text(size: 8pt, "#risk/oraclevar | In-database GBM check | Vercel production build 3b9918f6; explicit Sandbox inputs with live Oracle computation")
-
-#text(size: 8pt, "Captured 2026-10-05T10:36:56.900Z; Capture evidence only; current service availability is listed in the coverage index.")
-
-#image("../screenshots/repair-oraclevar-1d-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
 #text(size: 13pt, weight: "bold", "058  Risk / Oracle VaR - Sandbox, 1d — repaired chart - controls")
@@ -2759,13 +2751,9 @@
 #heading(level: 2)[#text("059  Risk / Oracle VaR - sandbox default")]
 
 #metadata("F191") <capture-F191>
-#text("This state uses an identical image already printed. See the linked feature page; the original record remains in the evidence.")
+#text("The Sandbox default and explicit 1d selection show the same Oracle VaR feature. Both reference the freshly verified 1-day capture; older independent simulation values do not warrant duplicate feature images.")
 
-#text("Identical screenshot reference: ")
-
-#link(<capture-F028>)[#context [page #counter(page).at(<capture-F028>).first()]]
-
-#text("Identical screenshot reference: ")
+#text("The Sandbox default and explicit 1d selection show the same Oracle VaR feature. Both reference the freshly verified 1-day capture; older independent simulation values do not warrant duplicate feature images.")
 
 #link(<capture-F028>)[#context [page #counter(page).at(<capture-F028>).first()]]
 
@@ -2774,13 +2762,9 @@
 #heading(level: 2)[#text("060  Risk / Oracle VaR - 1d")]
 
 #metadata("F192") <capture-F192>
-#text("This state uses an identical image already printed. See the linked feature page; the original record remains in the evidence.")
+#text("The Sandbox default and explicit 1d selection show the same Oracle VaR feature. Both reference the freshly verified 1-day capture; older independent simulation values do not warrant duplicate feature images.")
 
-#text("Identical screenshot reference: ")
-
-#link(<capture-F028>)[#context [page #counter(page).at(<capture-F028>).first()]]
-
-#text("Identical screenshot reference: ")
+#text("The Sandbox default and explicit 1d selection show the same Oracle VaR feature. Both reference the freshly verified 1-day capture; older independent simulation values do not warrant duplicate feature images.")
 
 #link(<capture-F028>)[#context [page #counter(page).at(<capture-F028>).first()]]
 

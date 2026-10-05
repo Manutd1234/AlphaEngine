@@ -105,6 +105,22 @@
       "status": "passed",
       "postcondition": "Selected state asserted after activation; screenshot retains the actual data availability.",
       "at": "2026-10-05T12:18:18.678Z"
+    },
+    {
+      "hash": "research/lineage",
+      "label": "Revision I: Oracle search",
+      "status": "passed",
+      "postcondition": "HTTP 200, state ok, one stored research match visibly rendered",
+      "at": "2026-10-05T13:24:44.060Z",
+      "scope": "Vercel production 724c17c7; actual Oracle research match; signal path truthfully shows VM gateway down."
+    },
+    {
+      "hash": "risk/oraclevar",
+      "label": "Revision I: 1-day Oracle VaR with explicit Sandbox inputs",
+      "status": "passed",
+      "postcondition": "HTTP 200, state ok, 20000 database simulation paths; selected 1d and two chart observations visibly rendered",
+      "at": "2026-10-05T13:25:22.755Z",
+      "scope": "Vercel production 724c17c7; explicitly selected generated Sandbox book; actual Oracle database computation; live gateway portfolio remains unavailable."
     }
   ],
   "captures": [
@@ -114,7 +130,7 @@
       "section": "apis",
       "state": "Numerics - executed parity check",
       "url": "https://alphaengine-workspace.vercel.app/dashboard#developer/apis",
-      "panelText": "Quant developer\n\nWhat is deployed, what CI proved, where the schema contracts stand.\n\nREPOSITORY\nDeveloper_Analyst_Infra\n?\nREVISION\nmain@9e763f7\n?\nENVIRONMENT\nVercel production\n?\nENGINEERING QUEUE\n0 open\n?\n\u25cf\nHealthy\nUpdated 8:14:43 PM\n9s ago; every 30 s\nTopology\nReadiness\nCI / CD\nAPI & Schema\nCode & Diffs\nTask Queue\nContracts\nRoutes\nNumerics\nNUMERICS CUSTODY\nParity check in this browser\nByte-exact\n\nThis browser (worker thread) reproduced the committed reference byte for byte; the digest is below.\n\nWhich three runtimes have to agree, and on what\nRun again\nSTEP 1: FIXTURE\nlib/mc-parity.ts\n2,000 paths, 30 bars\n\u25cf ran here\n\u2192\nrun the bootstrap\nSTEP 2: SIMULATION\nlib/mc-distribution.ts\nterminal distribution\n\u25cf ran here\n\u2192\ncanonicalise\nSTEP 3: CANONICAL BYTES\nlib/canonical-json.ts\n1,064 bytes\n\u25cf ran here\n\u2192\nSHA-256\nSTEP 4: DIGEST OF THIS RUN\ncrypto.subtle\n64 hex characters\n\u25cf hashed here\n\u2192\ncompare\nSTEP 5: COMMITTED REFERENCE AND VERDICT\nlib/mc-parity-reference.generated.ts\nreference and its digest\n\u25cf byte-exact\nSHA-256 \u2014 COMMITTED REFERENCE AND THIS BROWSER\n\u25cf byte-exact\n5ffe036e3dc9075e28dd47da2be1f42ca535ee0afe4523497f25e6ea0664a81d\n\nOne value, sixty-four hexadecimal characters. The committed reference and the bytes this tab produced (worker thread) hash to this same digest, so it is printed once.\n\nCode & Diffs \u2014 Repository paths & change custody\nContext\nOpen Code & Diffs\n\u2192",
+      "panelText": "Quant developer\n\nWhat is deployed, what CI proved, where the schema contracts stand.\n\nREPOSITORY\nDeveloper_Analyst_Infra\n?\nREVISION\nmain@9e763f7\n?\nENVIRONMENT\nVercel production\n?\nENGINEERING QUEUE\n0 open\n?\n●\nHealthy\nUpdated 8:14:43 PM\n9s ago; every 30 s\nTopology\nReadiness\nCI / CD\nAPI & Schema\nCode & Diffs\nTask Queue\nContracts\nRoutes\nNumerics\nNUMERICS CUSTODY\nParity check in this browser\nByte-exact\n\nThis browser (worker thread) reproduced the committed reference byte for byte; the digest is below.\n\nWhich three runtimes have to agree, and on what\nRun again\nSTEP 1: FIXTURE\nlib/mc-parity.ts\n2,000 paths, 30 bars\n● ran here\n→\nrun the bootstrap\nSTEP 2: SIMULATION\nlib/mc-distribution.ts\nterminal distribution\n● ran here\n→\ncanonicalise\nSTEP 3: CANONICAL BYTES\nlib/canonical-json.ts\n1,064 bytes\n● ran here\n→\nSHA-256\nSTEP 4: DIGEST OF THIS RUN\ncrypto.subtle\n64 hex characters\n● hashed here\n→\ncompare\nSTEP 5: COMMITTED REFERENCE AND VERDICT\nlib/mc-parity-reference.generated.ts\nreference and its digest\n● byte-exact\nSHA-256 — COMMITTED REFERENCE AND THIS BROWSER\n● byte-exact\n5ffe036e3dc9075e28dd47da2be1f42ca535ee0afe4523497f25e6ea0664a81d\n\nOne value, sixty-four hexadecimal characters. The committed reference and the bytes this tab produced (worker thread) hash to this same digest, so it is printed once.\n\nCode & Diffs — Repository paths & change custody\nContext\nOpen Code & Diffs\n→",
       "controls": [
         {
           "tag": "A",
@@ -300,12 +316,12 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "Open reliability latency evidence. Decision p99 \u2014; unreachable. The risk gateway did not answer within 1500ms.; network, polled \u2014 upstream p99 collecting n=4/20, 15-min pool",
+          "label": "Open reliability latency evidence. Decision p99 —; unreachable. The risk gateway did not answer within 1500ms.; network, polled — upstream p99 collecting n=4/20, 15-min pool",
           "type": "button",
           "disabled": false,
           "selected": null,
           "expanded": null,
-          "title": "The risk gateway did not answer within 1500ms.; network, polled \u2014 upstream p99 collecting n=4/20, 15-min pool",
+          "title": "The risk gateway did not answer within 1500ms.; network, polled — upstream p99 collecting n=4/20, 15-min pool",
           "href": null,
           "value": "",
           "options": null
@@ -331,7 +347,7 @@
           "disabled": false,
           "selected": null,
           "expanded": "false",
-          "title": "Guarded circuit breaker \u2014 halts all execution intents",
+          "title": "Guarded circuit breaker — halts all execution intents",
           "href": null,
           "value": "",
           "options": null
@@ -565,7 +581,7 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "STEP 1: FIXTURE lib/mc-parity.ts 2,000 paths, 30 bars \u25cf ran here",
+          "label": "STEP 1: FIXTURE lib/mc-parity.ts 2,000 paths, 30 bars ● ran here",
           "type": "button",
           "disabled": false,
           "selected": "false",
@@ -578,7 +594,7 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "STEP 2: SIMULATION lib/mc-distribution.ts terminal distribution \u25cf ran here",
+          "label": "STEP 2: SIMULATION lib/mc-distribution.ts terminal distribution ● ran here",
           "type": "button",
           "disabled": false,
           "selected": "false",
@@ -591,7 +607,7 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "STEP 3: CANONICAL BYTES lib/canonical-json.ts 1,064 bytes \u25cf ran here",
+          "label": "STEP 3: CANONICAL BYTES lib/canonical-json.ts 1,064 bytes ● ran here",
           "type": "button",
           "disabled": false,
           "selected": "false",
@@ -604,7 +620,7 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "STEP 4: DIGEST OF THIS RUN crypto.subtle 64 hex characters \u25cf hashed here",
+          "label": "STEP 4: DIGEST OF THIS RUN crypto.subtle 64 hex characters ● hashed here",
           "type": "button",
           "disabled": false,
           "selected": "false",
@@ -617,7 +633,7 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "STEP 5: COMMITTED REFERENCE AND VERDICT lib/mc-parity-reference.generated.ts reference and its digest \u25cf byte-exact",
+          "label": "STEP 5: COMMITTED REFERENCE AND VERDICT lib/mc-parity-reference.generated.ts reference and its digest ● byte-exact",
           "type": "button",
           "disabled": false,
           "selected": "false",
@@ -641,7 +657,7 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "Open Code & Diffs \u2192",
+          "label": "Open Code & Diffs →",
           "type": "button",
           "disabled": false,
           "selected": null,
@@ -695,7 +711,7 @@
       "section": "work",
       "state": "New work composer",
       "url": "https://alphaengine-workspace.vercel.app/dashboard#developer/work",
-      "panelText": "Quant developer\n\nWhat is deployed, what CI proved, where the schema contracts stand.\n\nREPOSITORY\nDeveloper_Analyst_Infra\n?\nREVISION\nmain@9e763f7\n?\nENVIRONMENT\nVercel production\n?\nENGINEERING QUEUE\n0 open\n?\n\u25cf\nHealthy\nUpdated 8:14:43 PM\n11s ago; every 30 s\nTopology\nReadiness\nCI / CD\nAPI & Schema\nCode & Diffs\nTask Queue\nENGINEERING IMPACT\nTask Queue\n\nData-pipeline work is triaged in Data operations.\n\nENGINEERING WORKFLOW\nFeatures, bugs & current tickets\nOPEN\n0\nBUGS\n0\nACTIVE\n0\nREVIEW\n0\nNew work\nNEW FEATURE\nCapture a reviewable unit of work\n\u00d7\nTITLE\nCONTEXT / ACCEPTANCE NOTE\nTYPE\nFeature\nBug\nTicket\nPRIORITY\nP0\nP1\nP2\nP3\nAREA\nDeveloper portal\nWeb shell\nContracts\nDelivery\nGateway\nProvider layer\nResearch engine\nRisk engine\nOWNER\nAdd to triage\nSEARCH WORK\nAll\nFeature\nBug\nTicket\nSTATUS\nAll statuses\nTriage\nPlanned\nIn progress\nIn review\nDone\nEngineering work queue stored in this browser\nWORK\tAREA / OWNER\tSTATUS\t\nACTIONS\nNo engineering work yet\nCreate a feature, bug or ticket; it will be stored in this browser.\n0 items shown.\nCode & Diffs \u2014 Repository paths & change custody\nContext\nOpen Code & Diffs\n\u2192",
+      "panelText": "Quant developer\n\nWhat is deployed, what CI proved, where the schema contracts stand.\n\nREPOSITORY\nDeveloper_Analyst_Infra\n?\nREVISION\nmain@9e763f7\n?\nENVIRONMENT\nVercel production\n?\nENGINEERING QUEUE\n0 open\n?\n●\nHealthy\nUpdated 8:14:43 PM\n11s ago; every 30 s\nTopology\nReadiness\nCI / CD\nAPI & Schema\nCode & Diffs\nTask Queue\nENGINEERING IMPACT\nTask Queue\n\nData-pipeline work is triaged in Data operations.\n\nENGINEERING WORKFLOW\nFeatures, bugs & current tickets\nOPEN\n0\nBUGS\n0\nACTIVE\n0\nREVIEW\n0\nNew work\nNEW FEATURE\nCapture a reviewable unit of work\n×\nTITLE\nCONTEXT / ACCEPTANCE NOTE\nTYPE\nFeature\nBug\nTicket\nPRIORITY\nP0\nP1\nP2\nP3\nAREA\nDeveloper portal\nWeb shell\nContracts\nDelivery\nGateway\nProvider layer\nResearch engine\nRisk engine\nOWNER\nAdd to triage\nSEARCH WORK\nAll\nFeature\nBug\nTicket\nSTATUS\nAll statuses\nTriage\nPlanned\nIn progress\nIn review\nDone\nEngineering work queue stored in this browser\nWORK\tAREA / OWNER\tSTATUS\t\nACTIONS\nNo engineering work yet\nCreate a feature, bug or ticket; it will be stored in this browser.\n0 items shown.\nCode & Diffs — Repository paths & change custody\nContext\nOpen Code & Diffs\n→",
       "controls": [
         {
           "tag": "A",
@@ -881,12 +897,12 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "Open reliability latency evidence. Decision p99 \u2014; unreachable. The risk gateway did not answer within 1500ms.; network, polled \u2014 upstream p99 collecting n=4/20, 15-min pool",
+          "label": "Open reliability latency evidence. Decision p99 —; unreachable. The risk gateway did not answer within 1500ms.; network, polled — upstream p99 collecting n=4/20, 15-min pool",
           "type": "button",
           "disabled": false,
           "selected": null,
           "expanded": null,
-          "title": "The risk gateway did not answer within 1500ms.; network, polled \u2014 upstream p99 collecting n=4/20, 15-min pool",
+          "title": "The risk gateway did not answer within 1500ms.; network, polled — upstream p99 collecting n=4/20, 15-min pool",
           "href": null,
           "value": "",
           "options": null
@@ -912,7 +928,7 @@
           "disabled": false,
           "selected": null,
           "expanded": "false",
-          "title": "Guarded circuit breaker \u2014 halts all execution intents",
+          "title": "Guarded circuit breaker — halts all execution intents",
           "href": null,
           "value": "",
           "options": null
@@ -1378,7 +1394,7 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "Open Code & Diffs \u2192",
+          "label": "Open Code & Diffs →",
           "type": "button",
           "disabled": false,
           "selected": null,
@@ -1437,7 +1453,7 @@
       "section": "attribution",
       "state": "Attribution view - Explain",
       "url": "https://alphaengine-workspace.vercel.app/dashboard#research/attribution",
-      "panelText": "Quant researcher\n\nBuild, validate and promote BTCUSDT experiments.\n\nINSTRUMENT\nBTCUSDT\n?\nCANDIDATE\nFAIL\n?\nEXPERIMENT TRAIL\n1\n?\nSummary\nParameters\nWalk-forward\nAttribution\nLineage\nDecision\nRuns\nFitted models\nStrategies\nAuto\nPinned\nRun now\n\nSweep complete: FAIL \u2014 DSR 0.57, 74 combinations\n\nExplain\nRobustness\nFactor exposure\n2,000 bars\n\nStrategy return regressed on three factors built from this instrument's own bars. A large loading means the edge is that exposure.\n\nSELECTED-STRATEGY SCOPE\nFactor exposure risk matrix\none fitted strategy \u00d7 3 factors\nOne selected strategy by its fitted factor loadings.\nSCOPE\tMARKET\tTREND (TSMOM)\tVOLATILITY REGIME\nSelected winner\t\n+\n0.378\n|t| \u2265 2\n\t\n+\n0.215\n|t| \u2265 2\n\t\n+\n0.115\n|t| \u2265 2\nMarket: \u03b2 0.378 \u00b7 t 40.88 \u00b7 p <0.001 \u00b7 significant\n\nOne fitted winner, not a portfolio \u00d7 strategy matrix. Sign, exact \u03b2 and |t| remain readable without colour.\n\nANNUALISED ALPHA\n+34.1%\nt = 1.88, not distinguishable from zero\nINFORMATION RATIO\n1.97\nalpha \u00f7 residual volatility\nEXPLAINED BY FACTORS\n55.3%\nR\u00b2, adjusted 55.2%\nIDIOSYNCRATIC\n44.7%\nvariance the factors do not explain\n!\nAlpha is not statistically distinguishable from zero (|t| = 1.88, below 2). What market, trend and volatility exposure do not explain is within this sample's noise.\nFactor loadings with t-statistics, p-values and a relative-magnitude bar.\nFACTOR\tLOADING\tT\tP\tMAGNITUDE\n\nMarket\nBuy and hold the instrument. A high loading means the strategy is mostly directional exposure.\n\t0.378\t40.88 \u25cf sig\t<0.001\t\n\n\nTrend (TSMOM)\nLong after a positive trailing 30-bar return, short after a negative one. A high loading means the edge is generic trend-following.\n\t0.215\t22.83 \u25cf sig\t<0.001\t\n\n\nVolatility regime\nLong while trailing 30-bar volatility is below its expanding average, short above. The threshold uses only prior bars, so the factor is implementable rather than built with hindsight.\n\t0.115\t12.16 \u25cf sig\t<0.001\t\nFactor correlations and method\nVersus benchmark\nnone selected\n\nNo benchmark selected. Alpha and beta need an instrument other than the one this strategy trades, so both are withheld.\n\nThe two measurements a benchmark would add, both withheld.\nMEASURE\tVALUE\tREADING\nAlpha (annualised)\t\u2014\tWhat a benchmark would not explain. No benchmark is selected.\nBeta\t\u2014\tExposure to a benchmark\u2019s own moves. No benchmark is selected.\n\nThe Summary stat row already answers whether the timing helped. Only a second instrument answers whether the position was worth holding.\n\nChoose a benchmark \u2192\nRisk engine \u2014 Loss estimates & validation\nContext\nOpen Risk engine\n\u2192",
+      "panelText": "Quant researcher\n\nBuild, validate and promote BTCUSDT experiments.\n\nINSTRUMENT\nBTCUSDT\n?\nCANDIDATE\nFAIL\n?\nEXPERIMENT TRAIL\n1\n?\nSummary\nParameters\nWalk-forward\nAttribution\nLineage\nDecision\nRuns\nFitted models\nStrategies\nAuto\nPinned\nRun now\n\nSweep complete: FAIL — DSR 0.57, 74 combinations\n\nExplain\nRobustness\nFactor exposure\n2,000 bars\n\nStrategy return regressed on three factors built from this instrument's own bars. A large loading means the edge is that exposure.\n\nSELECTED-STRATEGY SCOPE\nFactor exposure risk matrix\none fitted strategy × 3 factors\nOne selected strategy by its fitted factor loadings.\nSCOPE\tMARKET\tTREND (TSMOM)\tVOLATILITY REGIME\nSelected winner\t\n+\n0.378\n|t| ≥ 2\n\t\n+\n0.215\n|t| ≥ 2\n\t\n+\n0.115\n|t| ≥ 2\nMarket: β 0.378 · t 40.88 · p <0.001 · significant\n\nOne fitted winner, not a portfolio × strategy matrix. Sign, exact β and |t| remain readable without colour.\n\nANNUALISED ALPHA\n+34.1%\nt = 1.88, not distinguishable from zero\nINFORMATION RATIO\n1.97\nalpha ÷ residual volatility\nEXPLAINED BY FACTORS\n55.3%\nR², adjusted 55.2%\nIDIOSYNCRATIC\n44.7%\nvariance the factors do not explain\n!\nAlpha is not statistically distinguishable from zero (|t| = 1.88, below 2). What market, trend and volatility exposure do not explain is within this sample's noise.\nFactor loadings with t-statistics, p-values and a relative-magnitude bar.\nFACTOR\tLOADING\tT\tP\tMAGNITUDE\n\nMarket\nBuy and hold the instrument. A high loading means the strategy is mostly directional exposure.\n\t0.378\t40.88 ● sig\t<0.001\t\n\n\nTrend (TSMOM)\nLong after a positive trailing 30-bar return, short after a negative one. A high loading means the edge is generic trend-following.\n\t0.215\t22.83 ● sig\t<0.001\t\n\n\nVolatility regime\nLong while trailing 30-bar volatility is below its expanding average, short above. The threshold uses only prior bars, so the factor is implementable rather than built with hindsight.\n\t0.115\t12.16 ● sig\t<0.001\t\nFactor correlations and method\nVersus benchmark\nnone selected\n\nNo benchmark selected. Alpha and beta need an instrument other than the one this strategy trades, so both are withheld.\n\nThe two measurements a benchmark would add, both withheld.\nMEASURE\tVALUE\tREADING\nAlpha (annualised)\t—\tWhat a benchmark would not explain. No benchmark is selected.\nBeta\t—\tExposure to a benchmark’s own moves. No benchmark is selected.\n\nThe Summary stat row already answers whether the timing helped. Only a second instrument answers whether the position was worth holding.\n\nChoose a benchmark →\nRisk engine — Loss estimates & validation\nContext\nOpen Risk engine\n→",
       "controls": [
         {
           "tag": "A",
@@ -1623,12 +1639,12 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "Open reliability latency evidence. Decision p99 \u2014; unreachable. The risk gateway did not answer within 1500ms.; network, polled \u2014 upstream p99 collecting n=4/20, 15-min pool",
+          "label": "Open reliability latency evidence. Decision p99 —; unreachable. The risk gateway did not answer within 1500ms.; network, polled — upstream p99 collecting n=4/20, 15-min pool",
           "type": "button",
           "disabled": false,
           "selected": null,
           "expanded": null,
-          "title": "The risk gateway did not answer within 1500ms.; network, polled \u2014 upstream p99 collecting n=4/20, 15-min pool",
+          "title": "The risk gateway did not answer within 1500ms.; network, polled — upstream p99 collecting n=4/20, 15-min pool",
           "href": null,
           "value": "",
           "options": null
@@ -1654,7 +1670,7 @@
           "disabled": false,
           "selected": null,
           "expanded": "false",
-          "title": "Guarded circuit breaker \u2014 halts all execution intents",
+          "title": "Guarded circuit breaker — halts all execution intents",
           "href": null,
           "value": "",
           "options": null
@@ -1967,7 +1983,7 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "Choose a benchmark \u2192",
+          "label": "Choose a benchmark →",
           "type": "button",
           "disabled": false,
           "selected": null,
@@ -1991,7 +2007,7 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "Open Risk engine \u2192",
+          "label": "Open Risk engine →",
           "type": "button",
           "disabled": false,
           "selected": null,
@@ -2045,7 +2061,7 @@
       "section": "attribution",
       "state": "Attribution view - Robustness",
       "url": "https://alphaengine-workspace.vercel.app/dashboard#research/attribution",
-      "panelText": "Quant researcher\n\nBuild, validate and promote BTCUSDT experiments.\n\nINSTRUMENT\nBTCUSDT\n?\nCANDIDATE\nFAIL\n?\nEXPERIMENT TRAIL\n1\n?\nSummary\nParameters\nWalk-forward\nAttribution\nLineage\nDecision\nRuns\nFitted models\nStrategies\nAuto\nPinned\nRun now\n\nSweep complete: FAIL \u2014 DSR 0.57, 74 combinations\n\nExplain\nRobustness\nREGIMES\nPerformance by market state\n1,801 of 2,000 bars classified\nStrategy performance conditioned on trend and volatility regimes\nREGIME\t% OF BARS\tSHARPE\tRETURN\tMAX DD\tWIN\tEXPOSURE\tBARS\n\u25b2 Bull\t41%\t5.82\t+99.2%\t-5.3%\t51%\t94%\t736\n\u25bc Bear\t32%\t-4.13\t-11.9%\t-10.6%\t2%\t6%\t576\n\u25c6 Sideways\t27%\t-5.75\t-24.7%\t-30.4%\t19%\t43%\t489\n\u2191 High vol\t50%\t1.87\t+24.4%\t-9.7%\t19%\t38%\t985\n\u2193 Low vol\t50%\t0.47\t+3.8%\t-11.9%\t32%\t60%\t985\nHISTORICAL STRESS WINDOWS\nStrategy performance inside named historical stress windows\nWINDOW\tCOVERAGE\tRETURN\tMAX DD\tWIN\tBARS\nCOVID crash (Mar 2020)\t0%\t\u2014\t\u2014\t\u2014\t\u2014\n2022 crypto crash (Luna/3AC, Apr\u2013Jun)\t0%\t\u2014\t\u2014\t\u2014\t\u2014\nFTX collapse (Nov 2022)\t0%\t\u2014\t\u2014\t\u2014\t\u2014\n\n\u2014 marks a window outside the loaded bars; extend the bar count to test it.\n\nHow were these regimes classified, and what can they not be used for?\nRISK\nTail risk & return distribution\nper 4h bar, 2,000 observations\nVAR 95\n-0.84%\n1 bar in 20 loses at least this\nCVAR 95\n-1.31%\naverage loss inside that tail\nCVAR 99\n-2.05%\naverage of the worst 1%\nTAIL RATIO\n0.98\nupside p95 \u00f7 downside p5\nULCER INDEX\n6.52%\nRMS drawdown \u2014 depth \u00d7 duration\nANNUALISED TURNOVER\n27.4\u00d7\nof the book\nEXTREMES & STREAKS\nThe best and worst single bars, the share of positive bars and the longest losing run\nBEST BAR\tWORST BAR\tPOSITIVE BARS\tLONGEST LOSING RUN\n+6.25%\t-2.69%\t24.9%\t10 bars\nMONTHLY RETURNS\nHow a calendar month is totalled\nStrategy return by calendar month and year, with an annual total.\nYEAR\tJAN\tFEB\tMAR\tAPR\tMAY\tJUN\tJUL\tAUG\tSEP\tOCT\tNOV\tDEC\tYEAR\n2025\t\n\u2014\n\t\n\u2014\n\t\n\u2014\n\t\n\u2014\n\t\n\u2014\n\t\n\u2014\n\t\n\u2014\n\t\n\u2014\n\t\n\u2014\n\t\n\u2014\n\t\n0.0\n\t\n-2.9\n\t-2.9%\n2026\t\n2.3\n\t\n-2.3\n\t\n-5.1\n\t\n10.8\n\t\n2.4\n\t\n-2.8\n\t\n0.8\n\t\n19.4\n\t\n2.6\n\t\n3.0\n\t\n\u2014\n\t\n\u2014\n\t+33.0%\nRisk engine \u2014 Loss estimates & validation\nContext\nOpen Risk engine\n\u2192",
+      "panelText": "Quant researcher\n\nBuild, validate and promote BTCUSDT experiments.\n\nINSTRUMENT\nBTCUSDT\n?\nCANDIDATE\nFAIL\n?\nEXPERIMENT TRAIL\n1\n?\nSummary\nParameters\nWalk-forward\nAttribution\nLineage\nDecision\nRuns\nFitted models\nStrategies\nAuto\nPinned\nRun now\n\nSweep complete: FAIL — DSR 0.57, 74 combinations\n\nExplain\nRobustness\nREGIMES\nPerformance by market state\n1,801 of 2,000 bars classified\nStrategy performance conditioned on trend and volatility regimes\nREGIME\t% OF BARS\tSHARPE\tRETURN\tMAX DD\tWIN\tEXPOSURE\tBARS\n▲ Bull\t41%\t5.82\t+99.2%\t-5.3%\t51%\t94%\t736\n▼ Bear\t32%\t-4.13\t-11.9%\t-10.6%\t2%\t6%\t576\n◆ Sideways\t27%\t-5.75\t-24.7%\t-30.4%\t19%\t43%\t489\n↑ High vol\t50%\t1.87\t+24.4%\t-9.7%\t19%\t38%\t985\n↓ Low vol\t50%\t0.47\t+3.8%\t-11.9%\t32%\t60%\t985\nHISTORICAL STRESS WINDOWS\nStrategy performance inside named historical stress windows\nWINDOW\tCOVERAGE\tRETURN\tMAX DD\tWIN\tBARS\nCOVID crash (Mar 2020)\t0%\t—\t—\t—\t—\n2022 crypto crash (Luna/3AC, Apr–Jun)\t0%\t—\t—\t—\t—\nFTX collapse (Nov 2022)\t0%\t—\t—\t—\t—\n\n— marks a window outside the loaded bars; extend the bar count to test it.\n\nHow were these regimes classified, and what can they not be used for?\nRISK\nTail risk & return distribution\nper 4h bar, 2,000 observations\nVAR 95\n-0.84%\n1 bar in 20 loses at least this\nCVAR 95\n-1.31%\naverage loss inside that tail\nCVAR 99\n-2.05%\naverage of the worst 1%\nTAIL RATIO\n0.98\nupside p95 ÷ downside p5\nULCER INDEX\n6.52%\nRMS drawdown — depth × duration\nANNUALISED TURNOVER\n27.4×\nof the book\nEXTREMES & STREAKS\nThe best and worst single bars, the share of positive bars and the longest losing run\nBEST BAR\tWORST BAR\tPOSITIVE BARS\tLONGEST LOSING RUN\n+6.25%\t-2.69%\t24.9%\t10 bars\nMONTHLY RETURNS\nHow a calendar month is totalled\nStrategy return by calendar month and year, with an annual total.\nYEAR\tJAN\tFEB\tMAR\tAPR\tMAY\tJUN\tJUL\tAUG\tSEP\tOCT\tNOV\tDEC\tYEAR\n2025\t\n—\n\t\n—\n\t\n—\n\t\n—\n\t\n—\n\t\n—\n\t\n—\n\t\n—\n\t\n—\n\t\n—\n\t\n0.0\n\t\n-2.9\n\t-2.9%\n2026\t\n2.3\n\t\n-2.3\n\t\n-5.1\n\t\n10.8\n\t\n2.4\n\t\n-2.8\n\t\n0.8\n\t\n19.4\n\t\n2.6\n\t\n3.0\n\t\n—\n\t\n—\n\t+33.0%\nRisk engine — Loss estimates & validation\nContext\nOpen Risk engine\n→",
       "controls": [
         {
           "tag": "A",
@@ -2231,12 +2247,12 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "Open reliability latency evidence. Decision p99 \u2014; unreachable. The risk gateway did not answer within 1500ms.; network, polled \u2014 upstream p99 collecting n=8/20, 15-min pool",
+          "label": "Open reliability latency evidence. Decision p99 —; unreachable. The risk gateway did not answer within 1500ms.; network, polled — upstream p99 collecting n=8/20, 15-min pool",
           "type": "button",
           "disabled": false,
           "selected": null,
           "expanded": null,
-          "title": "The risk gateway did not answer within 1500ms.; network, polled \u2014 upstream p99 collecting n=8/20, 15-min pool",
+          "title": "The risk gateway did not answer within 1500ms.; network, polled — upstream p99 collecting n=8/20, 15-min pool",
           "href": null,
           "value": "",
           "options": null
@@ -2262,7 +2278,7 @@
           "disabled": false,
           "selected": null,
           "expanded": "false",
-          "title": "Guarded circuit breaker \u2014 halts all execution intents",
+          "title": "Guarded circuit breaker — halts all execution intents",
           "href": null,
           "value": "",
           "options": null
@@ -2558,7 +2574,7 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "Open Risk engine \u2192",
+          "label": "Open Risk engine →",
           "type": "button",
           "disabled": false,
           "selected": null,
@@ -2612,7 +2628,7 @@
       "section": "parameters",
       "state": "Surface colouring - Sharpe",
       "url": "https://alphaengine-workspace.vercel.app/dashboard#research/parameters",
-      "panelText": "Quant researcher\n\nBuild, validate and promote BTCUSDT experiments.\n\nINSTRUMENT\nBTCUSDT\n?\nCANDIDATE\nFAIL\n?\nEXPERIMENT TRAIL\n1\n?\nSummary\nParameters\nWalk-forward\nAttribution\nLineage\nDecision\nRuns\nFitted models\nStrategies\nAuto\nPinned\nRun now\n\nSweep complete: FAIL \u2014 DSR 0.57, 74 combinations\n\nROBUSTNESS\nParameter surface & stability\nSharpe\nNeighbourhood\n\u2713 The winner sits on a plateau\n\nNeighbouring combinations retain 62% of the winner's Sharpe on average (0.75 against 1.21). The result does not depend on hitting one exact coordinate, which is what a robust parameterisation looks like \u2014 necessary, not sufficient.\n\nWINNER\n10/120\nSharpe 1.21\nNEIGHBOUR SHARPE\n62%\nretained across 8 neighbours\nWORST NEIGHBOUR\n0.33\nSharpe one grid step away\nGRID SHAPE\n59 / 1\nplateau / cliff cells of 74 classified\nAnnualised Sharpe\n-1.2\n0\n+1.2\nbeige = no edge; click a cell for its parameters\n5\n10\n15\n20\n25\n30\n35\n40\n20\n40\n60\n80\n100\n120\n140\n160\n180\n200\nslow period \u2192\nfast period \u2193\nHover a cell for its metrics.\nGRID SEARCH\nCandidate ranking\n15/15\n\nThe top 15 combinations behind the winner. Select a row to inspect that pair without losing the sweep.\n\nTop 15 parameter combinations ranked by annualised Sharpe ratio\nFAST / SLOW\tSHARPE\tRETURN\tCAGR\tMAX DD\tCALMAR\tTRADES\tWIN\tEXPOSURE\tFEES\n10/120\t1.21\t29.2%\t32.4%\t-15.5%\t2.09\t13\t38%\t49%\t$2,018\n15/120\t1.14\t27.1%\t30.0%\t-12.2%\t2.47\t13\t46%\t48%\t$1,968\n30/60\t1.09\t25.8%\t28.5%\t-14.2%\t2.01\t17\t59%\t48%\t$2,777\n20/60\t0.96\t22.2%\t24.5%\t-14.8%\t1.66\t19\t53%\t46%\t$2,957\n40/100\t0.96\t21.6%\t23.9%\t-12.1%\t1.97\t9\t56%\t51%\t$1,460\n20/80\t0.96\t21.7%\t23.9%\t-10.4%\t2.31\t17\t59%\t49%\t$2,746\n25/200\t0.95\t20.1%\t22.3%\t-14.1%\t1.58\t6\t33%\t48%\t$855\n15/200\t0.94\t20.3%\t22.4%\t-21.0%\t1.06\t7\t29%\t48%\t$966\n30/200\t0.93\t19.4%\t21.4%\t-14.7%\t1.45\t6\t50%\t48%\t$854\n20/100\t0.90\t19.9%\t22.0%\t-13.1%\t1.69\t11\t55%\t49%\t$1,662\n5/120\t0.88\t19.4%\t21.4%\t-17.7%\t1.21\t21\t38%\t48%\t$3,159\n15/140\t0.86\t18.3%\t20.3%\t-17.4%\t1.16\t11\t36%\t46%\t$1,582\n5/200\t0.86\t17.8%\t19.6%\t-20.4%\t0.96\t12\t17%\t47%\t$1,678\n35/200\t0.84\t17.2%\t19.0%\t-14.6%\t1.30\t6\t33%\t48%\t$849\n25/80\t0.84\t18.5%\t20.4%\t-13.3%\t1.53\t15\t47%\t50%\t$2,426\nWalk-forward \u2014 Out-of-sample evidence\nContext\nOpen Walk-forward\n\u2192",
+      "panelText": "Quant researcher\n\nBuild, validate and promote BTCUSDT experiments.\n\nINSTRUMENT\nBTCUSDT\n?\nCANDIDATE\nFAIL\n?\nEXPERIMENT TRAIL\n1\n?\nSummary\nParameters\nWalk-forward\nAttribution\nLineage\nDecision\nRuns\nFitted models\nStrategies\nAuto\nPinned\nRun now\n\nSweep complete: FAIL — DSR 0.57, 74 combinations\n\nROBUSTNESS\nParameter surface & stability\nSharpe\nNeighbourhood\n✓ The winner sits on a plateau\n\nNeighbouring combinations retain 62% of the winner's Sharpe on average (0.75 against 1.21). The result does not depend on hitting one exact coordinate, which is what a robust parameterisation looks like — necessary, not sufficient.\n\nWINNER\n10/120\nSharpe 1.21\nNEIGHBOUR SHARPE\n62%\nretained across 8 neighbours\nWORST NEIGHBOUR\n0.33\nSharpe one grid step away\nGRID SHAPE\n59 / 1\nplateau / cliff cells of 74 classified\nAnnualised Sharpe\n-1.2\n0\n+1.2\nbeige = no edge; click a cell for its parameters\n5\n10\n15\n20\n25\n30\n35\n40\n20\n40\n60\n80\n100\n120\n140\n160\n180\n200\nslow period →\nfast period ↓\nHover a cell for its metrics.\nGRID SEARCH\nCandidate ranking\n15/15\n\nThe top 15 combinations behind the winner. Select a row to inspect that pair without losing the sweep.\n\nTop 15 parameter combinations ranked by annualised Sharpe ratio\nFAST / SLOW\tSHARPE\tRETURN\tCAGR\tMAX DD\tCALMAR\tTRADES\tWIN\tEXPOSURE\tFEES\n10/120\t1.21\t29.2%\t32.4%\t-15.5%\t2.09\t13\t38%\t49%\t$2,018\n15/120\t1.14\t27.1%\t30.0%\t-12.2%\t2.47\t13\t46%\t48%\t$1,968\n30/60\t1.09\t25.8%\t28.5%\t-14.2%\t2.01\t17\t59%\t48%\t$2,777\n20/60\t0.96\t22.2%\t24.5%\t-14.8%\t1.66\t19\t53%\t46%\t$2,957\n40/100\t0.96\t21.6%\t23.9%\t-12.1%\t1.97\t9\t56%\t51%\t$1,460\n20/80\t0.96\t21.7%\t23.9%\t-10.4%\t2.31\t17\t59%\t49%\t$2,746\n25/200\t0.95\t20.1%\t22.3%\t-14.1%\t1.58\t6\t33%\t48%\t$855\n15/200\t0.94\t20.3%\t22.4%\t-21.0%\t1.06\t7\t29%\t48%\t$966\n30/200\t0.93\t19.4%\t21.4%\t-14.7%\t1.45\t6\t50%\t48%\t$854\n20/100\t0.90\t19.9%\t22.0%\t-13.1%\t1.69\t11\t55%\t49%\t$1,662\n5/120\t0.88\t19.4%\t21.4%\t-17.7%\t1.21\t21\t38%\t48%\t$3,159\n15/140\t0.86\t18.3%\t20.3%\t-17.4%\t1.16\t11\t36%\t46%\t$1,582\n5/200\t0.86\t17.8%\t19.6%\t-20.4%\t0.96\t12\t17%\t47%\t$1,678\n35/200\t0.84\t17.2%\t19.0%\t-14.6%\t1.30\t6\t33%\t48%\t$849\n25/80\t0.84\t18.5%\t20.4%\t-13.3%\t1.53\t15\t47%\t50%\t$2,426\nWalk-forward — Out-of-sample evidence\nContext\nOpen Walk-forward\n→",
       "controls": [
         {
           "tag": "A",
@@ -2798,12 +2814,12 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "Open reliability latency evidence. Decision p99 \u2014; unreachable. The risk gateway did not answer within 1500ms.; network, polled \u2014 upstream p99 collecting n=8/20, 15-min pool",
+          "label": "Open reliability latency evidence. Decision p99 —; unreachable. The risk gateway did not answer within 1500ms.; network, polled — upstream p99 collecting n=8/20, 15-min pool",
           "type": "button",
           "disabled": false,
           "selected": null,
           "expanded": null,
-          "title": "The risk gateway did not answer within 1500ms.; network, polled \u2014 upstream p99 collecting n=8/20, 15-min pool",
+          "title": "The risk gateway did not answer within 1500ms.; network, polled — upstream p99 collecting n=8/20, 15-min pool",
           "href": null,
           "value": "",
           "options": null
@@ -2829,7 +2845,7 @@
           "disabled": false,
           "selected": null,
           "expanded": "false",
-          "title": "Guarded circuit breaker \u2014 halts all execution intents",
+          "title": "Guarded circuit breaker — halts all execution intents",
           "href": null,
           "value": "",
           "options": null
@@ -3930,7 +3946,7 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "Open Walk-forward \u2192",
+          "label": "Open Walk-forward →",
           "type": "button",
           "disabled": false,
           "selected": null,
@@ -3989,7 +4005,7 @@
       "section": "routing",
       "state": "Routing view - TCA",
       "url": "https://alphaengine-workspace.vercel.app/dashboard#live/routing",
-      "panelText": "Quant trader\n\nWhat it would cost to trade BTCUSDT now, and what it actually cost.\n\nINSTRUMENT\nBTCUSDT\n?\nINTENT\nBUY $25,000\n?\nAUTHORITY\nPaper only\n?\nTrade\nLiquidity\nRouting & TCA\nFill quality\nBlotter\nLIVE MARKET CONTEXT\nWatchlist\nDirect L2 streaming\nBTCUSDT\n86,145.71\n24h +1.1%\nETHUSDT\n2,716.59\n24h +0.7%\nSOLUSDT\n120.590\n24h -0.7%\nBNBUSDT\n790.030\n24h +0.2%\nXRPUSDT\n1.513\n24h +1.0%\nADAUSDT\n0.27200\n24h +11.2%\nDOGEUSDT\n0.09601\n24h +2.7%\nAVAXUSDT\n10.967\n24h -0.1%\nLINKUSDT\n14.188\n24h +1.0%\nDOTUSDT\n1.217\n24h +2.2%\nLTCUSDT\n70.900\n24h -0.1%\nTRXUSDT\n0.33690\n24h +0.2%\nBINANCE\nlive\n33 updates\nBYBIT\nlive\n71 updates\nBook state unavailable\n\n/api/gateway/portfolio did not answer within 2500ms.\n\nRetry\nRESEARCH CONTEXT ATTACHED\nMoving-average crossover 10/120, FAIL\nModel budget 2 bps; live impact is 2.87 bps inside budget\nReview evidence\nVerify feed\nRouting\nTCA\nTRANSACTION COST\nWhat this order costs\nBUY $25.0k BTCUSDT\nBLENDED VWAP\n86,137.70\naggressive: pay the spread, fill now\nSLIPPAGE\n-0.87 bps\nvs consolidated mid\nPASSIVE (JOIN TOUCH)\n86,145.71\nearns -0.06 bps \u2014 if filled; no guarantee\nSAVED VS WORST VENUE\n$2.33\non this order\nCROSSED \u2014 THIN\nBuy BYBIT 86,137.70 \u2192 sell BINANCE 86,145.71\n0.9 bps, $1.67 gross on 0.2085 units\nUnder 10 bps \u2014 two taker legs cost more than this. Reported, not tradeable.\nHow the live routing feed works\nReview positions and P&L attribution\nContext\nNext step\n\u2192",
+      "panelText": "Quant trader\n\nWhat it would cost to trade BTCUSDT now, and what it actually cost.\n\nINSTRUMENT\nBTCUSDT\n?\nINTENT\nBUY $25,000\n?\nAUTHORITY\nPaper only\n?\nTrade\nLiquidity\nRouting & TCA\nFill quality\nBlotter\nLIVE MARKET CONTEXT\nWatchlist\nDirect L2 streaming\nBTCUSDT\n86,145.71\n24h +1.1%\nETHUSDT\n2,716.59\n24h +0.7%\nSOLUSDT\n120.590\n24h -0.7%\nBNBUSDT\n790.030\n24h +0.2%\nXRPUSDT\n1.513\n24h +1.0%\nADAUSDT\n0.27200\n24h +11.2%\nDOGEUSDT\n0.09601\n24h +2.7%\nAVAXUSDT\n10.967\n24h -0.1%\nLINKUSDT\n14.188\n24h +1.0%\nDOTUSDT\n1.217\n24h +2.2%\nLTCUSDT\n70.900\n24h -0.1%\nTRXUSDT\n0.33690\n24h +0.2%\nBINANCE\nlive\n33 updates\nBYBIT\nlive\n71 updates\nBook state unavailable\n\n/api/gateway/portfolio did not answer within 2500ms.\n\nRetry\nRESEARCH CONTEXT ATTACHED\nMoving-average crossover 10/120, FAIL\nModel budget 2 bps; live impact is 2.87 bps inside budget\nReview evidence\nVerify feed\nRouting\nTCA\nTRANSACTION COST\nWhat this order costs\nBUY $25.0k BTCUSDT\nBLENDED VWAP\n86,137.70\naggressive: pay the spread, fill now\nSLIPPAGE\n-0.87 bps\nvs consolidated mid\nPASSIVE (JOIN TOUCH)\n86,145.71\nearns -0.06 bps — if filled; no guarantee\nSAVED VS WORST VENUE\n$2.33\non this order\nCROSSED — THIN\nBuy BYBIT 86,137.70 → sell BINANCE 86,145.71\n0.9 bps, $1.67 gross on 0.2085 units\nUnder 10 bps — two taker legs cost more than this. Reported, not tradeable.\nHow the live routing feed works\nReview positions and P&L attribution\nContext\nNext step\n→",
       "controls": [
         {
           "tag": "A",
@@ -4175,12 +4191,12 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "Open reliability latency evidence. Decision p99 \u2014; unreachable. The risk gateway did not answer within 1500ms.; network, polled \u2014 upstream p99 collecting n=8/20, 15-min pool",
+          "label": "Open reliability latency evidence. Decision p99 —; unreachable. The risk gateway did not answer within 1500ms.; network, polled — upstream p99 collecting n=8/20, 15-min pool",
           "type": "button",
           "disabled": false,
           "selected": null,
           "expanded": null,
-          "title": "The risk gateway did not answer within 1500ms.; network, polled \u2014 upstream p99 collecting n=8/20, 15-min pool",
+          "title": "The risk gateway did not answer within 1500ms.; network, polled — upstream p99 collecting n=8/20, 15-min pool",
           "href": null,
           "value": "",
           "options": null
@@ -4206,7 +4222,7 @@
           "disabled": false,
           "selected": null,
           "expanded": "false",
-          "title": "Guarded circuit breaker \u2014 halts all execution intents",
+          "title": "Guarded circuit breaker — halts all execution intents",
           "href": null,
           "value": "",
           "options": null
@@ -4607,7 +4623,7 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "Next step \u2192",
+          "label": "Next step →",
           "type": "button",
           "disabled": false,
           "selected": null,
@@ -4656,7 +4672,7 @@
       "section": "quality",
       "state": "Fill quality view - Where",
       "url": "https://alphaengine-workspace.vercel.app/dashboard#live/quality",
-      "panelText": "Quant trader\n\nWhat it would cost to trade BTCUSDT now, and what it actually cost.\n\nINSTRUMENT\nBTCUSDT\n?\nINTENT\nBUY $25,000\n?\nAUTHORITY\nPaper only\n?\nTrade\nLiquidity\nRouting & TCA\nFill quality\nBlotter\nBook state unavailable\n\n/api/gateway/portfolio did not answer within 2500ms.\n\nRetry\nCost\nWhere\nEffective spread and fee\n\nNo audit log is reachable here, so no fill has a price to measure a spread against.\n\nShare of fills by venue\n\nNo audit log is reachable here, so there are no fills to attribute to a venue.\n\nFill quality by hour and venue\n\nno priced fills to grid; the audit feed has no source while Live gateway is selected\n\nRouting & TCA \u2014 Cost & venue allocation\nContext\nOpen Routing & TCA\n\u2192",
+      "panelText": "Quant trader\n\nWhat it would cost to trade BTCUSDT now, and what it actually cost.\n\nINSTRUMENT\nBTCUSDT\n?\nINTENT\nBUY $25,000\n?\nAUTHORITY\nPaper only\n?\nTrade\nLiquidity\nRouting & TCA\nFill quality\nBlotter\nBook state unavailable\n\n/api/gateway/portfolio did not answer within 2500ms.\n\nRetry\nCost\nWhere\nEffective spread and fee\n\nNo audit log is reachable here, so no fill has a price to measure a spread against.\n\nShare of fills by venue\n\nNo audit log is reachable here, so there are no fills to attribute to a venue.\n\nFill quality by hour and venue\n\nno priced fills to grid; the audit feed has no source while Live gateway is selected\n\nRouting & TCA — Cost & venue allocation\nContext\nOpen Routing & TCA\n→",
       "controls": [
         {
           "tag": "A",
@@ -4842,12 +4858,12 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "Open reliability latency evidence. Decision p99 \u2014; unreachable. The risk gateway did not answer within 1500ms.; network, polled \u2014 upstream p99 collecting n=8/20, 15-min pool",
+          "label": "Open reliability latency evidence. Decision p99 —; unreachable. The risk gateway did not answer within 1500ms.; network, polled — upstream p99 collecting n=8/20, 15-min pool",
           "type": "button",
           "disabled": false,
           "selected": null,
           "expanded": null,
-          "title": "The risk gateway did not answer within 1500ms.; network, polled \u2014 upstream p99 collecting n=8/20, 15-min pool",
+          "title": "The risk gateway did not answer within 1500ms.; network, polled — upstream p99 collecting n=8/20, 15-min pool",
           "href": null,
           "value": "",
           "options": null
@@ -4873,7 +4889,7 @@
           "disabled": false,
           "selected": null,
           "expanded": "false",
-          "title": "Guarded circuit breaker \u2014 halts all execution intents",
+          "title": "Guarded circuit breaker — halts all execution intents",
           "href": null,
           "value": "",
           "options": null
@@ -5069,7 +5085,7 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "Open Routing & TCA \u2192",
+          "label": "Open Routing & TCA →",
           "type": "button",
           "disabled": false,
           "selected": null,
@@ -5117,7 +5133,7 @@
       "section": "activity",
       "state": "Activity view - Decision tape",
       "url": "https://alphaengine-workspace.vercel.app/dashboard#live/activity",
-      "panelText": "Quant trader\n\nWhat it would cost to trade BTCUSDT now, and what it actually cost.\n\nINSTRUMENT\nBTCUSDT\n?\nINTENT\nBUY $25,000\n?\nAUTHORITY\nPaper only\n?\nTrade\nLiquidity\nRouting & TCA\nFill quality\nBlotter\nBook state unavailable\n\n/api/gateway/portfolio did not answer within 2500ms.\n\nRetry\nBlotter\nDecision tape\nAlerts & risk events\nPOSTGRES REALTIME\nDecision tape\nLIVE\n\nFiltered to BTCUSDT.\n\nWhy is this not the record?\n\n10 earlier decisions came from an opening read of the mirror rather than from the stream, marked opening read in the origin column.\n\nDecisions on the tape for BTCUSDT, newest first. The origin column says whether a row was watched arriving on the Postgres channel or came from the opening read taken when this pane opened. A dash means the mirror recorded no value in that column.\nTIME\tORIGIN\tSIDE\tNOTIONAL\tVERDICT\tDECISION LATENCY\n16:37:32\topening read\tBUY\t$1,000\taccepted\t235\u00a0\u00b5s\n23:16:35\topening read\tBUY\t$25,000\taccepted\t247\u00a0\u00b5s\n11:36:31\topening read\tBUY\t$25,000\taccepted\t225\u00a0\u00b5s\n17:02:45\topening read\tBUY\t$25,000\taccepted\t255\u00a0\u00b5s\n14:48:22\topening read\tBUY\t$10\taccepted\t\u2014\n14:45:11\topening read\tBUY\t$10\taccepted\t\u2014\n14:35:07\topening read\tBUY\t$1,000\trate limit\t116\u00a0\u00b5s\n14:35:07\topening read\tBUY\t$1,000\taccepted\t121\u00a0\u00b5s\n14:35:07\topening read\tBUY\t$1,000\taccepted\t118\u00a0\u00b5s\n14:35:07\topening read\tBUY\t$1,000\taccepted\t116\u00a0\u00b5s\nReview positions and P&L attribution\nContext\nNext step\n\u2192",
+      "panelText": "Quant trader\n\nWhat it would cost to trade BTCUSDT now, and what it actually cost.\n\nINSTRUMENT\nBTCUSDT\n?\nINTENT\nBUY $25,000\n?\nAUTHORITY\nPaper only\n?\nTrade\nLiquidity\nRouting & TCA\nFill quality\nBlotter\nBook state unavailable\n\n/api/gateway/portfolio did not answer within 2500ms.\n\nRetry\nBlotter\nDecision tape\nAlerts & risk events\nPOSTGRES REALTIME\nDecision tape\nLIVE\n\nFiltered to BTCUSDT.\n\nWhy is this not the record?\n\n10 earlier decisions came from an opening read of the mirror rather than from the stream, marked opening read in the origin column.\n\nDecisions on the tape for BTCUSDT, newest first. The origin column says whether a row was watched arriving on the Postgres channel or came from the opening read taken when this pane opened. A dash means the mirror recorded no value in that column.\nTIME\tORIGIN\tSIDE\tNOTIONAL\tVERDICT\tDECISION LATENCY\n16:37:32\topening read\tBUY\t$1,000\taccepted\t235 µs\n23:16:35\topening read\tBUY\t$25,000\taccepted\t247 µs\n11:36:31\topening read\tBUY\t$25,000\taccepted\t225 µs\n17:02:45\topening read\tBUY\t$25,000\taccepted\t255 µs\n14:48:22\topening read\tBUY\t$10\taccepted\t—\n14:45:11\topening read\tBUY\t$10\taccepted\t—\n14:35:07\topening read\tBUY\t$1,000\trate limit\t116 µs\n14:35:07\topening read\tBUY\t$1,000\taccepted\t121 µs\n14:35:07\topening read\tBUY\t$1,000\taccepted\t118 µs\n14:35:07\topening read\tBUY\t$1,000\taccepted\t116 µs\nReview positions and P&L attribution\nContext\nNext step\n→",
       "controls": [
         {
           "tag": "A",
@@ -5303,12 +5319,12 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "Open reliability latency evidence. Decision p99 \u2014; unreachable. The risk gateway did not answer within 1500ms.; network, polled \u2014 upstream p99 collecting n=8/20, 15-min pool",
+          "label": "Open reliability latency evidence. Decision p99 —; unreachable. The risk gateway did not answer within 1500ms.; network, polled — upstream p99 collecting n=8/20, 15-min pool",
           "type": "button",
           "disabled": false,
           "selected": null,
           "expanded": null,
-          "title": "The risk gateway did not answer within 1500ms.; network, polled \u2014 upstream p99 collecting n=8/20, 15-min pool",
+          "title": "The risk gateway did not answer within 1500ms.; network, polled — upstream p99 collecting n=8/20, 15-min pool",
           "href": null,
           "value": "",
           "options": null
@@ -5334,7 +5350,7 @@
           "disabled": false,
           "selected": null,
           "expanded": "false",
-          "title": "Guarded circuit breaker \u2014 halts all execution intents",
+          "title": "Guarded circuit breaker — halts all execution intents",
           "href": null,
           "value": "",
           "options": null
@@ -5555,7 +5571,7 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "Next step \u2192",
+          "label": "Next step →",
           "type": "button",
           "disabled": false,
           "selected": null,
@@ -5609,7 +5625,7 @@
       "section": "activity",
       "state": "Activity view - Alerts & risk events",
       "url": "https://alphaengine-workspace.vercel.app/dashboard#live/activity",
-      "panelText": "Quant trader\n\nWhat it would cost to trade BTCUSDT now, and what it actually cost.\n\nINSTRUMENT\nBTCUSDT\n?\nINTENT\nBUY $25,000\n?\nAUTHORITY\nPaper only\n?\nTrade\nLiquidity\nRouting & TCA\nFill quality\nBlotter\nBook state unavailable\n\n/api/gateway/portfolio did not answer within 2500ms.\n\nRetry\nBlotter\nDecision tape\nAlerts & risk events\nAlerts & risk events\n\nEverything the gateway decided unasked, the stream the Telegram companion pushes.\n\nWarnings and above\n\nThe event stream has no source in this deployment.\n\nReview positions and P&L attribution\nContext\nNext step\n\u2192",
+      "panelText": "Quant trader\n\nWhat it would cost to trade BTCUSDT now, and what it actually cost.\n\nINSTRUMENT\nBTCUSDT\n?\nINTENT\nBUY $25,000\n?\nAUTHORITY\nPaper only\n?\nTrade\nLiquidity\nRouting & TCA\nFill quality\nBlotter\nBook state unavailable\n\n/api/gateway/portfolio did not answer within 2500ms.\n\nRetry\nBlotter\nDecision tape\nAlerts & risk events\nAlerts & risk events\n\nEverything the gateway decided unasked, the stream the Telegram companion pushes.\n\nWarnings and above\n\nThe event stream has no source in this deployment.\n\nReview positions and P&L attribution\nContext\nNext step\n→",
       "controls": [
         {
           "tag": "A",
@@ -5795,12 +5811,12 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "Open reliability latency evidence. Decision p99 \u2014; unreachable. The risk gateway did not answer within 1500ms.; network, polled \u2014 upstream p99 collecting n=8/20, 15-min pool",
+          "label": "Open reliability latency evidence. Decision p99 —; unreachable. The risk gateway did not answer within 1500ms.; network, polled — upstream p99 collecting n=8/20, 15-min pool",
           "type": "button",
           "disabled": false,
           "selected": null,
           "expanded": null,
-          "title": "The risk gateway did not answer within 1500ms.; network, polled \u2014 upstream p99 collecting n=8/20, 15-min pool",
+          "title": "The risk gateway did not answer within 1500ms.; network, polled — upstream p99 collecting n=8/20, 15-min pool",
           "href": null,
           "value": "",
           "options": null
@@ -5826,7 +5842,7 @@
           "disabled": false,
           "selected": null,
           "expanded": "false",
-          "title": "Guarded circuit breaker \u2014 halts all execution intents",
+          "title": "Guarded circuit breaker — halts all execution intents",
           "href": null,
           "value": "",
           "options": null
@@ -6049,7 +6065,7 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "Next step \u2192",
+          "label": "Next step →",
           "type": "button",
           "disabled": false,
           "selected": null,
@@ -6102,7 +6118,7 @@
       "section": "quality",
       "state": "Reconciliation result",
       "url": "https://alphaengine-workspace.vercel.app/dashboard#data/quality",
-      "panelText": "Data engineer\n\nCan the desk trust the number it is about to use?\n\nPAYLOADS EVALUATED\n0\n?\nFATAL FINDINGS\n0\n?\nWARN / DRIFT\n0 / 0\n?\n\u25b2\nReview before use\nUpdated 8:15:48 PM\n29s ago; every 30 s\nRefresh evidence\nTrust Summary\nFeeds & Contracts\nQuality\nIncidents\nLineage & Payloads\nProviders & Capacity\nWork Queue\nDATA QUALITY\nCross-source reconciliation\nran 8:16:07 PM\n\nThis check spends a call per provider, so it runs only when you ask.\n\nWhat a median across sources catches\nReconcile BTCUSDT across all sources\nCONSENSUS (MEDIAN)\n86,104.30\nSPREAD ACROSS SOURCES\n48.7 bps\nAVAILABLE ADAPTERS\n6\nCONFIGURED\n6\nANSWERING\n6\nOUTLIERS > 50BPS\nnone\nPer-source price, market-data timestamp, deviation from the median in basis points, staleness against the freshest print, and latency.\nSOURCE\tPRICE\tAS OF (UTC)\t\u0394 VS CONSENSUS\tSTALENESS\tLATENCY\nBinance (public)\t86,110.36\t2026-10-05 12:16:04.156Z\t+0.7 bps\tfreshest\t20ms\nTiingo\t86,098.24\t2026-10-05 12:15:56.700Z\t-0.7 bps\t7s\t875ms\nAlpha Vantage (delayed)\t86,115.24\t2026-10-05 00:00:00 UTC\t+1.3 bps\t44164s\t300ms\nOpenBB (delayed)\t86,087.53\t2026-10-05 00:00:00 UTC\t-1.9 bps\t44164s\t3051ms\nFinancial Modeling Prep\t86,087.52\t2026-10-05 12:16:04 UTC\t-1.9 bps\tfreshest\t865ms\nMassive (delayed)\t86,507.11\t2026-10-04 23:59:59.999Z\t+46.8 bps\t44164s\t639ms\nDATA QUALITY\nQuality ledger & escalations\ngateway ledger not returned\nCheck SRE telemetry and circuit health\nContext\nNext step\n\u2192",
+      "panelText": "Data engineer\n\nCan the desk trust the number it is about to use?\n\nPAYLOADS EVALUATED\n0\n?\nFATAL FINDINGS\n0\n?\nWARN / DRIFT\n0 / 0\n?\n▲\nReview before use\nUpdated 8:15:48 PM\n29s ago; every 30 s\nRefresh evidence\nTrust Summary\nFeeds & Contracts\nQuality\nIncidents\nLineage & Payloads\nProviders & Capacity\nWork Queue\nDATA QUALITY\nCross-source reconciliation\nran 8:16:07 PM\n\nThis check spends a call per provider, so it runs only when you ask.\n\nWhat a median across sources catches\nReconcile BTCUSDT across all sources\nCONSENSUS (MEDIAN)\n86,104.30\nSPREAD ACROSS SOURCES\n48.7 bps\nAVAILABLE ADAPTERS\n6\nCONFIGURED\n6\nANSWERING\n6\nOUTLIERS > 50BPS\nnone\nPer-source price, market-data timestamp, deviation from the median in basis points, staleness against the freshest print, and latency.\nSOURCE\tPRICE\tAS OF (UTC)\tΔ VS CONSENSUS\tSTALENESS\tLATENCY\nBinance (public)\t86,110.36\t2026-10-05 12:16:04.156Z\t+0.7 bps\tfreshest\t20ms\nTiingo\t86,098.24\t2026-10-05 12:15:56.700Z\t-0.7 bps\t7s\t875ms\nAlpha Vantage (delayed)\t86,115.24\t2026-10-05 00:00:00 UTC\t+1.3 bps\t44164s\t300ms\nOpenBB (delayed)\t86,087.53\t2026-10-05 00:00:00 UTC\t-1.9 bps\t44164s\t3051ms\nFinancial Modeling Prep\t86,087.52\t2026-10-05 12:16:04 UTC\t-1.9 bps\tfreshest\t865ms\nMassive (delayed)\t86,507.11\t2026-10-04 23:59:59.999Z\t+46.8 bps\t44164s\t639ms\nDATA QUALITY\nQuality ledger & escalations\ngateway ledger not returned\nCheck SRE telemetry and circuit health\nContext\nNext step\n→",
       "controls": [
         {
           "tag": "A",
@@ -6288,12 +6304,12 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "Open reliability latency evidence. Decision p99 \u2014; unreachable. The risk gateway did not answer within 1500ms.; network, polled \u2014 upstream p99 collecting n=8/20, 15-min pool",
+          "label": "Open reliability latency evidence. Decision p99 —; unreachable. The risk gateway did not answer within 1500ms.; network, polled — upstream p99 collecting n=8/20, 15-min pool",
           "type": "button",
           "disabled": false,
           "selected": null,
           "expanded": null,
-          "title": "The risk gateway did not answer within 1500ms.; network, polled \u2014 upstream p99 collecting n=8/20, 15-min pool",
+          "title": "The risk gateway did not answer within 1500ms.; network, polled — upstream p99 collecting n=8/20, 15-min pool",
           "href": null,
           "value": "",
           "options": null
@@ -6319,7 +6335,7 @@
           "disabled": false,
           "selected": null,
           "expanded": "false",
-          "title": "Guarded circuit breaker \u2014 halts all execution intents",
+          "title": "Guarded circuit breaker — halts all execution intents",
           "href": null,
           "value": "",
           "options": null
@@ -6548,7 +6564,7 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "Next step \u2192",
+          "label": "Next step →",
           "type": "button",
           "disabled": false,
           "selected": null,
@@ -6582,7 +6598,7 @@
       "section": "lineage",
       "state": "Oracle vector search - settled health and result",
       "url": "https://alphaengine-workspace.vercel.app/dashboard#research/lineage",
-      "panelText": "Quant researcher\n\nBuild, validate and promote BTCUSDT experiments.\n\nINSTRUMENT\nBTCUSDT\n?\nCANDIDATE\nFAIL\n?\nEXPERIMENT TRAIL\n1\n?\nSummary\nParameters\nWalk-forward\nAttribution\nLineage\nDecision\nRuns\nFitted models\nStrategies\nAuto\nPinned\nRun now\n\nSweep complete: FAIL \u2014 DSR 0.57, 74 combinations\n\nDATA LINEAGE & PIPELINE\nSignal path\n1 OF 5 DOWN\n\nConsolidated depth through the pre-trade battery to a paper order: no funds, no real venue. Each stage is read from the health snapshot.\n\nSTEP 1: 2 DIRECT REST CLIENTS\nVenue market data\ncollecting, n=2 of 20\n\u25cf healthy\n\u2192\nSTEP 2: NEXT.JS ROUTE HANDLERS\nProvider registry & cache\ncollecting, n=4 of 20\n\u25cf healthy\n\u2192\nSTEP 3: THIS BROWSER\nResearch engine\nnot measured\n\u25cf healthy\n\u2192\nSTEP 4: FASTAPI\nPre-trade risk gateway\nnot measured\n\u2715 down\n\u2192\nSTEP 5: APPEND-ONLY GATEWAY\nPaper execution & audit\nnot measured\n\u25cc not observed\nVECTOR SEARCH\nHas the desk seen this before?\nWhat this searches over\nSearch the research corpus\nIndex\nSupabase pgvector \u2014 live\nOracle 23ai \u2014 backfilled\nSearch\n\n1 similar report found. in 522 ms\n\nBacktest BTCUSDT 1h ma_cross 10/200\n0.850\nWhat the corpus holds for Backtest BTCUSDT 1h ma_cross 10/200\nKind\tbacktest run\nInstrument\tBTCUSDT\nStrategy\tma_cross\nOccurred\t8/9/2026\nEngine\tNone\nCombinations tested\tNone\nBest Sharpe\t0.31221092089859154\nTotal return\t0.006105172129053926\nMax drawdown\t-0.07904014031738593\nDeflated Sharpe (DSR)\t0.2016\nWalk-forward OOS Sharpe\t-0.293\nOverfit probability (PBO)\t0.75\nData hash\td5031271f5ef84ff\nJob\t56acbbe6ae09\nWhat is connected to this\nLineage & Payloads \u2014 Trace source, cache & coercion\nContext\nOpen Lineage & Payloads\n\u2192",
+      "panelText": "Quant researcher\n\nBuild, validate and promote BTCUSDT experiments.\n\nINSTRUMENT\nBTCUSDT\n?\nCANDIDATE\nFAIL\n?\nEXPERIMENT TRAIL\n1\n?\nSummary\nParameters\nWalk-forward\nAttribution\nLineage\nDecision\nRuns\nFitted models\nStrategies\nAuto\nPinned\nRun now\n\nSweep complete: FAIL — DSR 0.57, 74 combinations\n\nDATA LINEAGE & PIPELINE\nSignal path\n1 OF 5 DOWN\n\nConsolidated depth through the pre-trade battery to a paper order: no funds, no real venue. Each stage is read from the health snapshot.\n\nSTEP 1: 2 DIRECT REST CLIENTS\nVenue market data\ncollecting, n=2 of 20\n● healthy\n→\nSTEP 2: NEXT.JS ROUTE HANDLERS\nProvider registry & cache\ncollecting, n=4 of 20\n● healthy\n→\nSTEP 3: THIS BROWSER\nResearch engine\nnot measured\n● healthy\n→\nSTEP 4: FASTAPI\nPre-trade risk gateway\nnot measured\n✕ down\n→\nSTEP 5: APPEND-ONLY GATEWAY\nPaper execution & audit\nnot measured\n◌ not observed\nVECTOR SEARCH\nHas the desk seen this before?\nWhat this searches over\nSearch the research corpus\nIndex\nSupabase pgvector — live\nOracle 23ai — backfilled\nSearch\n\n1 similar report found. in 522 ms\n\nBacktest BTCUSDT 1h ma_cross 10/200\n0.850\nWhat the corpus holds for Backtest BTCUSDT 1h ma_cross 10/200\nKind\tbacktest run\nInstrument\tBTCUSDT\nStrategy\tma_cross\nOccurred\t8/9/2026\nEngine\tNone\nCombinations tested\tNone\nBest Sharpe\t0.31221092089859154\nTotal return\t0.006105172129053926\nMax drawdown\t-0.07904014031738593\nDeflated Sharpe (DSR)\t0.2016\nWalk-forward OOS Sharpe\t-0.293\nOverfit probability (PBO)\t0.75\nData hash\td5031271f5ef84ff\nJob\t56acbbe6ae09\nWhat is connected to this\nLineage & Payloads — Trace source, cache & coercion\nContext\nOpen Lineage & Payloads\n→",
       "controls": [
         {
           "tag": "A",
@@ -6768,12 +6784,12 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "Open reliability latency evidence. Decision p99 \u2014; unreachable. The risk gateway did not answer within 1500ms.; network, polled \u2014 upstream p99 collecting n=2/20, 15-min pool",
+          "label": "Open reliability latency evidence. Decision p99 —; unreachable. The risk gateway did not answer within 1500ms.; network, polled — upstream p99 collecting n=2/20, 15-min pool",
           "type": "button",
           "disabled": false,
           "selected": null,
           "expanded": null,
-          "title": "The risk gateway did not answer within 1500ms.; network, polled \u2014 upstream p99 collecting n=2/20, 15-min pool",
+          "title": "The risk gateway did not answer within 1500ms.; network, polled — upstream p99 collecting n=2/20, 15-min pool",
           "href": null,
           "value": "",
           "options": null
@@ -6799,7 +6815,7 @@
           "disabled": false,
           "selected": null,
           "expanded": "false",
-          "title": "Guarded circuit breaker \u2014 halts all execution intents",
+          "title": "Guarded circuit breaker — halts all execution intents",
           "href": null,
           "value": "",
           "options": null
@@ -7034,7 +7050,7 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "STEP 1: 2 DIRECT REST CLIENTS Venue market data collecting, n=2 of 20 \u25cf healthy",
+          "label": "STEP 1: 2 DIRECT REST CLIENTS Venue market data collecting, n=2 of 20 ● healthy",
           "type": "button",
           "disabled": false,
           "selected": "false",
@@ -7047,7 +7063,7 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "STEP 2: NEXT.JS ROUTE HANDLERS Provider registry & cache collecting, n=4 of 20 \u25cf healthy",
+          "label": "STEP 2: NEXT.JS ROUTE HANDLERS Provider registry & cache collecting, n=4 of 20 ● healthy",
           "type": "button",
           "disabled": false,
           "selected": "false",
@@ -7060,7 +7076,7 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "STEP 3: THIS BROWSER Research engine not measured \u25cf healthy",
+          "label": "STEP 3: THIS BROWSER Research engine not measured ● healthy",
           "type": "button",
           "disabled": false,
           "selected": "false",
@@ -7073,7 +7089,7 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "STEP 4: FASTAPI Pre-trade risk gateway not measured \u2715 down",
+          "label": "STEP 4: FASTAPI Pre-trade risk gateway not measured ✕ down",
           "type": "button",
           "disabled": false,
           "selected": "false",
@@ -7086,7 +7102,7 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "STEP 5: APPEND-ONLY GATEWAY Paper execution & audit not measured \u25cc not observed",
+          "label": "STEP 5: APPEND-ONLY GATEWAY Paper execution & audit not measured ◌ not observed",
           "type": "button",
           "disabled": false,
           "selected": "false",
@@ -7133,11 +7149,11 @@
           "value": "oracle",
           "options": [
             {
-              "text": "Supabase pgvector \u2014 live",
+              "text": "Supabase pgvector — live",
               "value": "supabase"
             },
             {
-              "text": "Oracle 23ai \u2014 backfilled",
+              "text": "Oracle 23ai — backfilled",
               "value": "oracle"
             }
           ]
@@ -7180,7 +7196,7 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "Open Lineage & Payloads \u2192",
+          "label": "Open Lineage & Payloads →",
           "type": "button",
           "disabled": false,
           "selected": null,
@@ -7219,7 +7235,7 @@
       "section": "summary",
       "state": "Adjustments",
       "url": "https://alphaengine-workspace.vercel.app/dashboard#research/summary/setup",
-      "panelText": "Quant researcher\n\nBuild, validate and promote BTCUSDT experiments.\n\nINSTRUMENT\nBTCUSDT\n?\nCANDIDATE\nFAIL\n?\nEXPERIMENT TRAIL\n1\n?\nSummary\nParameters\nWalk-forward\nAttribution\nLineage\nDecision\nRuns\nFitted models\nStrategies\nAuto\nPinned\nRun now\n\nSweep complete: FAIL \u2014 DSR 0.57, 74 combinations\n\nResults\nSetup\nExperiment setup\n\nBTCUSDT at 4h, Moving-average crossover, 74 combos\n\nWhen the sweep re-runs\nCore parameters\nAdjustments\nFEE BPS\nSLIPPAGE BPS\nWF FOLDS\nFrictions\nFLAT BPS ONLY\nParameters \u2014 Stability & ranking\nContext\nOpen Parameters\n\u2192",
+      "panelText": "Quant researcher\n\nBuild, validate and promote BTCUSDT experiments.\n\nINSTRUMENT\nBTCUSDT\n?\nCANDIDATE\nFAIL\n?\nEXPERIMENT TRAIL\n1\n?\nSummary\nParameters\nWalk-forward\nAttribution\nLineage\nDecision\nRuns\nFitted models\nStrategies\nAuto\nPinned\nRun now\n\nSweep complete: FAIL — DSR 0.57, 74 combinations\n\nResults\nSetup\nExperiment setup\n\nBTCUSDT at 4h, Moving-average crossover, 74 combos\n\nWhen the sweep re-runs\nCore parameters\nAdjustments\nFEE BPS\nSLIPPAGE BPS\nWF FOLDS\nFrictions\nFLAT BPS ONLY\nParameters — Stability & ranking\nContext\nOpen Parameters\n→",
       "controls": [
         {
           "tag": "A",
@@ -7405,12 +7421,12 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "Open reliability latency evidence. Decision p99 \u2014; unreachable. The risk gateway did not answer within 1500ms.; network, polled \u2014 upstream p99 collecting n=10/20, 15-min pool",
+          "label": "Open reliability latency evidence. Decision p99 —; unreachable. The risk gateway did not answer within 1500ms.; network, polled — upstream p99 collecting n=10/20, 15-min pool",
           "type": "button",
           "disabled": false,
           "selected": null,
           "expanded": null,
-          "title": "The risk gateway did not answer within 1500ms.; network, polled \u2014 upstream p99 collecting n=10/20, 15-min pool",
+          "title": "The risk gateway did not answer within 1500ms.; network, polled — upstream p99 collecting n=10/20, 15-min pool",
           "href": null,
           "value": "",
           "options": null
@@ -7436,7 +7452,7 @@
           "disabled": false,
           "selected": null,
           "expanded": "false",
-          "title": "Guarded circuit breaker \u2014 halts all execution intents",
+          "title": "Guarded circuit breaker — halts all execution intents",
           "href": null,
           "value": "",
           "options": null
@@ -7847,7 +7863,7 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "Open Parameters \u2192",
+          "label": "Open Parameters →",
           "type": "button",
           "disabled": false,
           "selected": null,
@@ -7884,7 +7900,7 @@
       "section": "activity",
       "state": "Blotter view - Active",
       "url": "https://alphaengine-workspace.vercel.app/dashboard#live/activity",
-      "panelText": "Quant trader\n\nWhat it would cost to trade BTCUSDT now, and what it actually cost.\n\nINSTRUMENT\nBTCUSDT\n?\nINTENT\nBUY $25,000\n?\nAUTHORITY\nPaper only\n?\nTrade\nLiquidity\nRouting & TCA\nFill quality\nBlotter\nBook state unavailable\n\n/api/gateway/portfolio did not answer within 2500ms.\n\nRetry\nBlotter\nDecision tape\nAlerts & risk events\nActive\nFills\nCancelled & rejected\nCOMMITTED, NOT YET SPENT\nWorking orders\n\u2014\n\u00b7\u00b7\u00b7\n\nNo gateway in this deployment is answering, so no resting book to read.\n\nHow resting orders meet the pre-trade caps\nReview positions and P&L attribution\nContext\nNext step\n\u2192",
+      "panelText": "Quant trader\n\nWhat it would cost to trade BTCUSDT now, and what it actually cost.\n\nINSTRUMENT\nBTCUSDT\n?\nINTENT\nBUY $25,000\n?\nAUTHORITY\nPaper only\n?\nTrade\nLiquidity\nRouting & TCA\nFill quality\nBlotter\nBook state unavailable\n\n/api/gateway/portfolio did not answer within 2500ms.\n\nRetry\nBlotter\nDecision tape\nAlerts & risk events\nActive\nFills\nCancelled & rejected\nCOMMITTED, NOT YET SPENT\nWorking orders\n—\n···\n\nNo gateway in this deployment is answering, so no resting book to read.\n\nHow resting orders meet the pre-trade caps\nReview positions and P&L attribution\nContext\nNext step\n→",
       "controls": [
         {
           "tag": "A",
@@ -8070,12 +8086,12 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "Open reliability latency evidence. Decision p99 \u2014; unreachable. The risk gateway did not answer within 1500ms.; network, polled \u2014 upstream p99 collecting n=10/20, 15-min pool",
+          "label": "Open reliability latency evidence. Decision p99 —; unreachable. The risk gateway did not answer within 1500ms.; network, polled — upstream p99 collecting n=10/20, 15-min pool",
           "type": "button",
           "disabled": false,
           "selected": null,
           "expanded": null,
-          "title": "The risk gateway did not answer within 1500ms.; network, polled \u2014 upstream p99 collecting n=10/20, 15-min pool",
+          "title": "The risk gateway did not answer within 1500ms.; network, polled — upstream p99 collecting n=10/20, 15-min pool",
           "href": null,
           "value": "",
           "options": null
@@ -8101,7 +8117,7 @@
           "disabled": false,
           "selected": null,
           "expanded": "false",
-          "title": "Guarded circuit breaker \u2014 halts all execution intents",
+          "title": "Guarded circuit breaker — halts all execution intents",
           "href": null,
           "value": "",
           "options": null
@@ -8390,7 +8406,7 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "Next step \u2192",
+          "label": "Next step →",
           "type": "button",
           "disabled": false,
           "selected": null,
@@ -8463,7 +8479,7 @@
       "section": "activity",
       "state": "Blotter view - Cancelled & rejected",
       "url": "https://alphaengine-workspace.vercel.app/dashboard#live/activity",
-      "panelText": "Quant trader\n\nWhat it would cost to trade BTCUSDT now, and what it actually cost.\n\nINSTRUMENT\nBTCUSDT\n?\nINTENT\nBUY $25,000\n?\nAUTHORITY\nPaper only\n?\nTrade\nLiquidity\nRouting & TCA\nFill quality\nBlotter\nBook state unavailable\n\n/api/gateway/portfolio did not answer within 2500ms.\n\nRetry\nBlotter\nDecision tape\nAlerts & risk events\nActive\nFills\nCancelled & rejected\nOrder blotter\n\nEvery gateway decision, newest first, from the append-only audit log.\n\n\u00b7\u00b7\u00b7\n\nNo audit log is reachable here, so nothing can be listed.\n\nReview positions and P&L attribution\nContext\nNext step\n\u2192",
+      "panelText": "Quant trader\n\nWhat it would cost to trade BTCUSDT now, and what it actually cost.\n\nINSTRUMENT\nBTCUSDT\n?\nINTENT\nBUY $25,000\n?\nAUTHORITY\nPaper only\n?\nTrade\nLiquidity\nRouting & TCA\nFill quality\nBlotter\nBook state unavailable\n\n/api/gateway/portfolio did not answer within 2500ms.\n\nRetry\nBlotter\nDecision tape\nAlerts & risk events\nActive\nFills\nCancelled & rejected\nOrder blotter\n\nEvery gateway decision, newest first, from the append-only audit log.\n\n···\n\nNo audit log is reachable here, so nothing can be listed.\n\nReview positions and P&L attribution\nContext\nNext step\n→",
       "controls": [
         {
           "tag": "A",
@@ -8649,12 +8665,12 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "Open reliability latency evidence. Decision p99 \u2014; unreachable. The risk gateway did not answer within 1500ms.; network, polled \u2014 upstream p99 collecting n=10/20, 15-min pool",
+          "label": "Open reliability latency evidence. Decision p99 —; unreachable. The risk gateway did not answer within 1500ms.; network, polled — upstream p99 collecting n=10/20, 15-min pool",
           "type": "button",
           "disabled": false,
           "selected": null,
           "expanded": null,
-          "title": "The risk gateway did not answer within 1500ms.; network, polled \u2014 upstream p99 collecting n=10/20, 15-min pool",
+          "title": "The risk gateway did not answer within 1500ms.; network, polled — upstream p99 collecting n=10/20, 15-min pool",
           "href": null,
           "value": "",
           "options": null
@@ -8680,7 +8696,7 @@
           "disabled": false,
           "selected": null,
           "expanded": "false",
-          "title": "Guarded circuit breaker \u2014 halts all execution intents",
+          "title": "Guarded circuit breaker — halts all execution intents",
           "href": null,
           "value": "",
           "options": null
@@ -8958,7 +8974,7 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "Next step \u2192",
+          "label": "Next step →",
           "type": "button",
           "disabled": false,
           "selected": null,
@@ -9031,7 +9047,7 @@
       "section": "oraclevar",
       "state": "90d",
       "url": "https://alphaengine-workspace.vercel.app/dashboard#risk/oraclevar",
-      "panelText": "Risk manager\n\nHow much this book can lose before a limit stops it, and what does the stopping.\n\nTRADING STATE\nActive\n?\nBINDING CONSTRAINT\nSymbol exposure\n?\nTAIL RISK\n$288,715\n?\nEXECUTION SLEEVE\nMoving-average crossover\n?\nSandbox book (generated)\nThese positions do not exist. Equity, P&L, exposure and every risk figure below come from a fixed seed. Execution handoffs are disabled.\nLimits\nRisk engine\nRisk diagram\nRisk drivers\nMonte Carlo\nOracle VaR\nStress tests\nControls\nLive\nSandbox\nRefresh\nForward horizon\n1d\n10d\n30d\n90d\nINDEPENDENT COMPUTATION\nIn-database Monte Carlo VaR\n90-day horizon\n\nSimulated by Oracle 23ai: a terminal-value GBM VaR over the horizon, not the one-day book VaR on the Risk engine section.\n\nORACLE VAR 99\n$3,290,409\n20,000 paths over 90 d\nPARAMETRIC VAR 99\n$3,242,939\nclosed form, same GBM drift and volatility\nDIVERGENCE\n+1.5%\nsimulated vs closed form\nEXPECTED EQUITY\n$10,194,944\nmean terminal value; computed in 282 ms\n\nThe two agree within sampling error. Generated sandbox book, so the equity input is not a real position.\n\n Simulated in Oracle 23ai\n Closed form, dashed\nTerminal-value 99% VaR over 90 days, simulated against the closed form\n\u21b3\n$3,240,000\n$3,260,000\n$3,280,000\n\nThe dashed line is the analytic answer; the question is how far the simulation sits from it, and the dash says which one is analytic without relying on colour.\n\n2 observations of this panel re-running, oldest left. One every 30 seconds while this section is on screen, and the simulation seeds nothing, so a repeat on unchanged inputs is an independent draw: the spread between these points is its sampling error. 1 more answered a different horizon and are not on one scale with these.\n\nBook equity $10,000,000; the next simulation runs when it crosses into the next $1,000. It re-runs every 30 seconds besides, so the trend below accumulates independent draws rather than holding one answer.\n\nVerify data lineage and feed freshness\nContext\nNext step\n\u2192",
+      "panelText": "Risk manager\n\nHow much this book can lose before a limit stops it, and what does the stopping.\n\nTRADING STATE\nActive\n?\nBINDING CONSTRAINT\nSymbol exposure\n?\nTAIL RISK\n$288,715\n?\nEXECUTION SLEEVE\nMoving-average crossover\n?\nSandbox book (generated)\nThese positions do not exist. Equity, P&L, exposure and every risk figure below come from a fixed seed. Execution handoffs are disabled.\nLimits\nRisk engine\nRisk diagram\nRisk drivers\nMonte Carlo\nOracle VaR\nStress tests\nControls\nLive\nSandbox\nRefresh\nForward horizon\n1d\n10d\n30d\n90d\nINDEPENDENT COMPUTATION\nIn-database Monte Carlo VaR\n90-day horizon\n\nSimulated by Oracle 23ai: a terminal-value GBM VaR over the horizon, not the one-day book VaR on the Risk engine section.\n\nORACLE VAR 99\n$3,290,409\n20,000 paths over 90 d\nPARAMETRIC VAR 99\n$3,242,939\nclosed form, same GBM drift and volatility\nDIVERGENCE\n+1.5%\nsimulated vs closed form\nEXPECTED EQUITY\n$10,194,944\nmean terminal value; computed in 282 ms\n\nThe two agree within sampling error. Generated sandbox book, so the equity input is not a real position.\n\n Simulated in Oracle 23ai\n Closed form, dashed\nTerminal-value 99% VaR over 90 days, simulated against the closed form\n↳\n$3,240,000\n$3,260,000\n$3,280,000\n\nThe dashed line is the analytic answer; the question is how far the simulation sits from it, and the dash says which one is analytic without relying on colour.\n\n2 observations of this panel re-running, oldest left. One every 30 seconds while this section is on screen, and the simulation seeds nothing, so a repeat on unchanged inputs is an independent draw: the spread between these points is its sampling error. 1 more answered a different horizon and are not on one scale with these.\n\nBook equity $10,000,000; the next simulation runs when it crosses into the next $1,000. It re-runs every 30 seconds besides, so the trend below accumulates independent draws rather than holding one answer.\n\nVerify data lineage and feed freshness\nContext\nNext step\n→",
       "controls": [
         {
           "tag": "A",
@@ -9217,12 +9233,12 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "Open reliability latency evidence. Decision p99 \u2014; unreachable. The risk gateway did not answer within 1500ms.; network, polled \u2014 upstream p99 collecting n=4/20, 15-min pool",
+          "label": "Open reliability latency evidence. Decision p99 —; unreachable. The risk gateway did not answer within 1500ms.; network, polled — upstream p99 collecting n=4/20, 15-min pool",
           "type": "button",
           "disabled": false,
           "selected": null,
           "expanded": null,
-          "title": "The risk gateway did not answer within 1500ms.; network, polled \u2014 upstream p99 collecting n=4/20, 15-min pool",
+          "title": "The risk gateway did not answer within 1500ms.; network, polled — upstream p99 collecting n=4/20, 15-min pool",
           "href": null,
           "value": "",
           "options": null
@@ -9248,7 +9264,7 @@
           "disabled": false,
           "selected": null,
           "expanded": "false",
-          "title": "Guarded circuit breaker \u2014 halts all execution intents",
+          "title": "Guarded circuit breaker — halts all execution intents",
           "href": null,
           "value": "",
           "options": null
@@ -9550,7 +9566,7 @@
         {
           "tag": "BUTTON",
           "role": null,
-          "label": "Next step \u2192",
+          "label": "Next step →",
           "type": "button",
           "disabled": false,
           "selected": null,

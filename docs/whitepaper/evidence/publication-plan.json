@@ -10036,7 +10036,7 @@
       "section": "lineage",
       "state": "Oracle vector search - settled health and result",
       "url": "https://alphaengine-workspace.vercel.app/dashboard#research/lineage",
-      "panelText": "Quant researcher\n\nBuild, validate and promote BTCUSDT experiments.\n\nINSTRUMENT\nBTCUSDT\n?\nCANDIDATE\nFAIL\n?\nEXPERIMENT TRAIL\n1\n?\nSummary\nParameters\nWalk-forward\nAttribution\nLineage\nDecision\nRuns\nFitted models\nStrategies\nAuto\nPinned\nRun now\n\nSweep complete: FAIL — DSR 0.57, 74 combinations\n\nDATA LINEAGE & PIPELINE\nSignal path\n1 OF 5 DOWN\n\nConsolidated depth through the pre-trade battery to a paper order: no funds, no real venue. Each stage is read from the health snapshot.\n\nSTEP 1: 2 DIRECT REST CLIENTS\nVenue market data\ncollecting, n=2 of 20\n● healthy\n→\nSTEP 2: NEXT.JS ROUTE HANDLERS\nProvider registry & cache\ncollecting, n=4 of 20\n● healthy\n→\nSTEP 3: THIS BROWSER\nResearch engine\nnot measured\n● healthy\n→\nSTEP 4: FASTAPI\nPre-trade risk gateway\nnot measured\n✕ down\n→\nSTEP 5: APPEND-ONLY GATEWAY\nPaper execution & audit\nnot measured\n◌ not observed\nVECTOR SEARCH\nHas the desk seen this before?\nWhat this searches over\nSearch the research corpus\nIndex\nSupabase pgvector — live\nOracle 23ai — backfilled\nSearch\n\n1 similar report found. in 522 ms\n\nBacktest BTCUSDT 1h ma_cross 10/200\n0.850\nWhat the corpus holds for Backtest BTCUSDT 1h ma_cross 10/200\nKind\tbacktest run\nInstrument\tBTCUSDT\nStrategy\tma_cross\nOccurred\t8/9/2026\nEngine\tNone\nCombinations tested\tNone\nBest Sharpe\t0.31221092089859154\nTotal return\t0.006105172129053926\nMax drawdown\t-0.07904014031738593\nDeflated Sharpe (DSR)\t0.2016\nWalk-forward OOS Sharpe\t-0.293\nOverfit probability (PBO)\t0.75\nData hash\td5031271f5ef84ff\nJob\t56acbbe6ae09\nWhat is connected to this\nLineage & Payloads — Trace source, cache & coercion\nContext\nOpen Lineage & Payloads\n→",
+      "panelText": "DATA LINEAGE & PIPELINE\nSignal path\n1 OF 5 DOWN\n\nConsolidated depth through the pre-trade battery to a paper order: no funds, no real venue. Each stage is read from the health snapshot.\n\nSTEP 1: 2 DIRECT REST CLIENTS\nVenue market data\ncollecting, n=3 of 20\n● healthy\n→\nSTEP 2: NEXT.JS ROUTE HANDLERS\nProvider registry & cache\ncollecting, n=5 of 20\n● healthy\n→\nSTEP 3: THIS BROWSER\nResearch engine\nnot measured\n● healthy\n→\nSTEP 4: FASTAPI\nPre-trade risk gateway\nnot measured\n✕ down\n→\nSTEP 5: APPEND-ONLY GATEWAY\nPaper execution & audit\nnot measured\n◌ not observed\nVECTOR SEARCH\nHas the desk seen this before?\nWhat this searches over\nSearch the research corpus\nIndex\nSupabase pgvector — live\nOracle 23ai — backfilled\nSearch\n\n1 similar report found. in 571 ms\n\nBacktest BTCUSDT 1h ma_cross 10/200\n0.850\nWhat the corpus holds for Backtest BTCUSDT 1h ma_cross 10/200\nKind\tbacktest run\nInstrument\tBTCUSDT\nStrategy\tma_cross\nOccurred\t8/9/2026\nEngine\tNone\nCombinations tested\tNone\nBest Sharpe\t0.31221092089859154\nTotal return\t0.006105172129053926\nMax drawdown\t-0.07904014031738593\nDeflated Sharpe (DSR)\t0.2016\nWalk-forward OOS Sharpe\t-0.293\nOverfit probability (PBO)\t0.75\nData hash\td5031271f5ef84ff\nJob\t56acbbe6ae09\nWhat is connected to this",
       "controls": [
         {
           "tag": "A",
@@ -10660,17 +10660,16 @@
       ],
       "graphs": [],
       "screenshots": [
-        "audit-g-oracle-search.png",
-        "audit-g-oracle-search-main-1.png"
+        "audit-i-oracle-search-current.png"
       ],
-      "captured_at": "2026-10-05T12:16:25.098Z",
-      "capture_mode": "Vercel production; Revision G audit; gateway unavailable; real Oracle result; gateway health observed",
+      "captured_at": "2026-10-05T13:24:44.060Z",
+      "capture_mode": "Vercel production 724c17c7; actual Oracle research match; signal path truthfully shows VM gateway down.",
       "replaces_capture_id": "F008",
       "capture_id": "F008",
       "canonical": true,
+      "catalogue_note": "Control catalogue retained from the original capture; its values are historical. This replacement shows the current Oracle result. VM-dependent live features remain unavailable.",
       "print_screenshots": [
-        "audit-g-oracle-search.png",
-        "audit-g-oracle-search-main-1.png"
+        "audit-i-oracle-search-current.png"
       ],
       "same_image_references": [],
       "limitations": [
@@ -39495,7 +39494,7 @@
       "url": "https://alphaengine-workspace.vercel.app/dashboard#risk/oraclevar",
       "title": "AlphaEngine — Quant Operating System (Developer Case Study)",
       "text": "Skip to workspace content\nα\nAlphaEngine\nDesk\nMarket engine\nOverview\nResearch\nExecution\nPortfolio\nRisk\nData\nReliability\nDeveloper\nMarkets\nProofs\nDiffusion\n⌘K\nDECISION P99\n—\n◇\nKill\n8/8\nSign in\nRisk manager\n\nHow much this book can lose before a limit stops it, and what does the stopping.\n\nTRADING STATE\nActive\n?\nBINDING CONSTRAINT\nSymbol exposure\n?\nTAIL RISK\n$288,715\n?\nEXECUTION SLEEVE\nMoving-average crossover\n?\nSandbox book (generated)\nThese positions do not exist. Equity, P&L, exposure and every risk figure below come from a fixed seed. Execution handoffs are disabled.\nLimits\nRisk engine\nRisk diagram\nRisk drivers\nMonte Carlo\nOracle VaR\nStress tests\nControls\nLive\nSandbox\nRefresh\nForward horizon\n1d\n10d\n30d\n90d\nINDEPENDENT COMPUTATION\nIn-database Monte Carlo VaR\n1-day horizon\n\nSimulated by Oracle 23ai: a terminal-value GBM VaR over the horizon, not the one-day book VaR on the Risk engine section.\n\nORACLE VAR 99\n$411,877\n20,000 paths over 1 d\nPARAMETRIC VAR 99\n$409,443\nclosed form, same GBM drift and volatility\nDIVERGENCE\n+0.6%\nsimulated vs closed form\nEXPECTED EQUITY\n$10,003,879\nmean terminal value; computed in 251 ms\n\nThe two agree within sampling error. Generated sandbox book, so the equity input is not a real position.\n\n Simulated in Oracle 23ai\n Closed form, dashed\nTerminal-value 99% VaR over 1 days, simulated against the closed form\n↳\n$406,000\n$408,000\n$410,000\n\nThe dashed line is the analytic answer; the question is how far the simulation sits from it, and the dash says which one is analytic without relying on colour.\n\n2 observations of this panel re-running, oldest left. One every 30 seconds while this section is on screen, and the simulation seeds nothing, so a repeat on unchanged inputs is an independent draw: the spread between these points is its sampling error.\n\nBook equity $10,000,000; the next simulation runs when it crosses into the next $1,000. It re-runs every 30 seconds besides, so the trend below accumulates independent draws rather than holding one answer.\n\nVerify data lineage and feed freshness\nContext\nNext step\n→\nAlphaEngine\n\nEducational demonstration, not a brokerage or investment service and not investment advice. No brokerage accounts, no funds, no real orders; execution is paper-only, gated by the risk gateway. Public reads and local preferences allow guest access; account-private RFQ reads require a verified sign-in.",
-      "panelText": "Risk manager\n\nHow much this book can lose before a limit stops it, and what does the stopping.\n\nTRADING STATE\nActive\n?\nBINDING CONSTRAINT\nSymbol exposure\n?\nTAIL RISK\n$288,715\n?\nEXECUTION SLEEVE\nMoving-average crossover\n?\nSandbox book (generated)\nThese positions do not exist. Equity, P&L, exposure and every risk figure below come from a fixed seed. Execution handoffs are disabled.\nLimits\nRisk engine\nRisk diagram\nRisk drivers\nMonte Carlo\nOracle VaR\nStress tests\nControls\nLive\nSandbox\nRefresh\nForward horizon\n1d\n10d\n30d\n90d\nINDEPENDENT COMPUTATION\nIn-database Monte Carlo VaR\n1-day horizon\n\nSimulated by Oracle 23ai: a terminal-value GBM VaR over the horizon, not the one-day book VaR on the Risk engine section.\n\nORACLE VAR 99\n$411,877\n20,000 paths over 1 d\nPARAMETRIC VAR 99\n$409,443\nclosed form, same GBM drift and volatility\nDIVERGENCE\n+0.6%\nsimulated vs closed form\nEXPECTED EQUITY\n$10,003,879\nmean terminal value; computed in 251 ms\n\nThe two agree within sampling error. Generated sandbox book, so the equity input is not a real position.\n\n Simulated in Oracle 23ai\n Closed form, dashed\nTerminal-value 99% VaR over 1 days, simulated against the closed form\n↳\n$406,000\n$408,000\n$410,000\n\nThe dashed line is the analytic answer; the question is how far the simulation sits from it, and the dash says which one is analytic without relying on colour.\n\n2 observations of this panel re-running, oldest left. One every 30 seconds while this section is on screen, and the simulation seeds nothing, so a repeat on unchanged inputs is an independent draw: the spread between these points is its sampling error.\n\nBook equity $10,000,000; the next simulation runs when it crosses into the next $1,000. It re-runs every 30 seconds besides, so the trend below accumulates independent draws rather than holding one answer.\n\nVerify data lineage and feed freshness\nContext\nNext step\n→",
+      "panelText": "Risk manager\n\nHow much this book can lose before a limit stops it, and what does the stopping.\n\nTRADING STATE\nActive\n?\nBINDING CONSTRAINT\nSymbol exposure\n?\nTAIL RISK\n$288,715\n?\nEXECUTION SLEEVE\nMoving-average crossover\n?\nSandbox book (generated)\nThese positions do not exist. Equity, P&L, exposure and every risk figure below come from a fixed seed. Execution handoffs are disabled.\nLimits\nRisk engine\nRisk diagram\nRisk drivers\nMonte Carlo\nOracle VaR\nStress tests\nControls\nLive\nSandbox\nRefresh\nForward horizon\n1d\n10d\n30d\n90d\nINDEPENDENT COMPUTATION\nIn-database Monte Carlo VaR\n1-day horizon\n\nSimulated by Oracle 23ai: a terminal-value GBM VaR over the horizon, not the one-day book VaR on the Risk engine section.\n\nORACLE VAR 99\n$408,200\n20,000 paths over 1 d\nPARAMETRIC VAR 99\n$409,443\nclosed form, same GBM drift and volatility\nDIVERGENCE\n-0.3%\nsimulated vs closed form\nEXPECTED EQUITY\n$10,001,854\nmean terminal value; computed in 246 ms\n\nThe two agree within sampling error. Generated sandbox book, so the equity input is not a real position.\n\n Simulated in Oracle 23ai\n Closed form, dashed\nTerminal-value 99% VaR over 1 days, simulated against the closed form\n↳\n$407,500\n$408,000\n$408,500\n$409,000\n\nThe dashed line is the analytic answer; the question is how far the simulation sits from it, and the dash says which one is analytic without relying on colour.\n\n2 observations of this panel re-running, oldest left. One every 30 seconds while this section is on screen, and the simulation seeds nothing, so a repeat on unchanged inputs is an independent draw: the spread between these points is its sampling error.\n\nBook equity $10,000,000; the next simulation runs when it crosses into the next $1,000. It re-runs every 30 seconds besides, so the trend below accumulates independent draws rather than holding one answer.\n\nVerify data lineage and feed freshness\nContext\nNext step\n→",
       "controls": [
         {
           "tag": "A",
@@ -40057,17 +40056,16 @@
         }
       ],
       "screenshots": [
-        "repair-oraclevar-1d.png",
-        "repair-oraclevar-1d-main-1.png"
+        "audit-i-oracle-var-current.png"
       ],
-      "captured_at": "2026-10-05T10:36:56.900Z",
-      "capture_mode": "Vercel production build 3b9918f6; explicit Sandbox inputs with live Oracle computation",
+      "captured_at": "2026-10-05T13:25:22.755Z",
+      "capture_mode": "Vercel production 724c17c7; explicitly selected generated Sandbox book; actual Oracle database computation; live gateway portfolio remains unavailable.",
       "state": "Sandbox, 1d — repaired chart",
       "capture_id": "F028",
       "canonical": true,
+      "catalogue_note": "Control catalogue retained from the original capture; its values are historical. This replacement shows the current Oracle result. VM-dependent live features remain unavailable.",
       "print_screenshots": [
-        "repair-oraclevar-1d.png",
-        "repair-oraclevar-1d-main-1.png"
+        "audit-i-oracle-var-current.png"
       ],
       "same_image_references": [],
       "limitations": []
@@ -40641,23 +40639,22 @@
           "total": 1176
         }
       ],
-      "screenshots": [
-        "repair-oraclevar-1d.png",
-        "repair-oraclevar-1d-main-1.png"
-      ],
+      "screenshots": [],
       "captured_at": "2026-10-05T10:36:56.900Z",
       "capture_mode": "Vercel production build 3b9918f6; explicit Sandbox inputs with live Oracle computation",
       "capture_id": "F191",
       "canonical": false,
+      "shared_state": {
+        "capture_id": "F191",
+        "target": "F028",
+        "reason": "The Sandbox default and explicit 1d selection show the same Oracle VaR feature. Both reference the freshly verified 1-day capture; older independent simulation values do not warrant duplicate feature images."
+      },
       "print_screenshots": [],
       "same_image_references": [
         {
-          "file": "repair-oraclevar-1d.png",
-          "target": "F028"
-        },
-        {
-          "file": "repair-oraclevar-1d-main-1.png",
-          "target": "F028"
+          "target": "F028",
+          "reason": "The Sandbox default and explicit 1d selection show the same Oracle VaR feature. Both reference the freshly verified 1-day capture; older independent simulation values do not warrant duplicate feature images.",
+          "kind": "shared feature state"
         }
       ],
       "limitations": []
@@ -41231,23 +41228,22 @@
           "total": 1176
         }
       ],
-      "screenshots": [
-        "repair-oraclevar-1d.png",
-        "repair-oraclevar-1d-main-1.png"
-      ],
+      "screenshots": [],
       "captured_at": "2026-10-05T10:36:56.900Z",
       "capture_mode": "Vercel production build 3b9918f6; explicit Sandbox inputs with live Oracle computation",
       "capture_id": "F192",
       "canonical": false,
+      "shared_state": {
+        "capture_id": "F192",
+        "target": "F028",
+        "reason": "The Sandbox default and explicit 1d selection show the same Oracle VaR feature. Both reference the freshly verified 1-day capture; older independent simulation values do not warrant duplicate feature images."
+      },
       "print_screenshots": [],
       "same_image_references": [
         {
-          "file": "repair-oraclevar-1d.png",
-          "target": "F028"
-        },
-        {
-          "file": "repair-oraclevar-1d-main-1.png",
-          "target": "F028"
+          "target": "F028",
+          "reason": "The Sandbox default and explicit 1d selection show the same Oracle VaR feature. Both reference the freshly verified 1-day capture; older independent simulation values do not warrant duplicate feature images.",
+          "kind": "shared feature state"
         }
       ],
       "limitations": []
@@ -147829,6 +147825,22 @@
       "reason": "Replaced by focused Revision H active-panel capture."
     },
     {
+      "capture_id": "F008",
+      "screenshots": [
+        "audit-g-oracle-search.png",
+        "audit-g-oracle-search-main-1.png"
+      ],
+      "reason": "Replaced by focused Revision H active-panel capture."
+    },
+    {
+      "capture_id": "F028",
+      "screenshots": [
+        "repair-oraclevar-1d.png",
+        "repair-oraclevar-1d-main-1.png"
+      ],
+      "reason": "Replaced by focused Revision H active-panel capture."
+    },
+    {
       "capture_id": "F016",
       "file": "live-016-live-quality.png",
       "reason": "Visually reviewed overlap: only 143px of scroll. The remaining capture contains the complete feature panel and its selected subtab."
@@ -147983,6 +147995,24 @@
       "screenshots": [
         "live-extra-084-global-settings-full-detail.png"
       ]
+    },
+    {
+      "capture_id": "F191",
+      "target": "F028",
+      "reason": "The Sandbox default and explicit 1d selection show the same Oracle VaR feature. Both reference the freshly verified 1-day capture; older independent simulation values do not warrant duplicate feature images.",
+      "screenshots": [
+        "repair-oraclevar-1d.png",
+        "repair-oraclevar-1d-main-1.png"
+      ]
+    },
+    {
+      "capture_id": "F192",
+      "target": "F028",
+      "reason": "The Sandbox default and explicit 1d selection show the same Oracle VaR feature. Both reference the freshly verified 1-day capture; older independent simulation values do not warrant duplicate feature images.",
+      "screenshots": [
+        "repair-oraclevar-1d.png",
+        "repair-oraclevar-1d-main-1.png"
+      ]
     }
   ],
   "unique_images": [
@@ -147997,8 +148027,7 @@
     "live-006-research-walkforward.png",
     "live-006-research-walkforward-main-1.png",
     "audit-h-pane-03.png",
-    "audit-g-oracle-search.png",
-    "audit-g-oracle-search-main-1.png",
+    "audit-i-oracle-search-current.png",
     "live-009-research-decision.png",
     "live-009-research-decision-main-1.png",
     "live-010-research-runs.png",
@@ -148031,8 +148060,7 @@
     "live-026-risk-drivers.png",
     "live-027-risk-montecarlo.png",
     "live-027-risk-montecarlo-main-1.png",
-    "repair-oraclevar-1d.png",
-    "repair-oraclevar-1d-main-1.png",
+    "audit-i-oracle-var-current.png",
     "live-029-risk-scenarios.png",
     "live-029-risk-scenarios-main-1.png",
     "live-030-risk-controls.png",
@@ -148314,8 +148342,7 @@
     "live-006-research-walkforward.png": "F006",
     "live-006-research-walkforward-main-1.png": "F006",
     "audit-h-pane-03.png": "F007",
-    "audit-g-oracle-search.png": "F008",
-    "audit-g-oracle-search-main-1.png": "F008",
+    "audit-i-oracle-search-current.png": "F008",
     "live-009-research-decision.png": "F009",
     "live-009-research-decision-main-1.png": "F009",
     "live-010-research-runs.png": "F010",
@@ -148348,8 +148375,7 @@
     "live-026-risk-drivers.png": "F026",
     "live-027-risk-montecarlo.png": "F027",
     "live-027-risk-montecarlo-main-1.png": "F027",
-    "repair-oraclevar-1d.png": "F028",
-    "repair-oraclevar-1d-main-1.png": "F028",
+    "audit-i-oracle-var-current.png": "F028",
     "live-029-risk-scenarios.png": "F029",
     "live-029-risk-scenarios-main-1.png": "F029",
     "live-030-risk-controls.png": "F030",
@@ -148622,10 +148648,10 @@
   "stats": {
     "canonical_views": 120,
     "published_states": 199,
-    "printed_screenshots": 315,
+    "printed_screenshots": 313,
     "prior_placements": 405,
     "omitted_disclosure_states": 22,
-    "exact_duplicate_placements": 4
+    "exact_duplicate_placements": 0
   },
   "coverage": [
     {

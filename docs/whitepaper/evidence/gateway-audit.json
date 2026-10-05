@@ -1,20 +1,85 @@
 {
-  "checked_at": "2026-10-05T12:35:57.714Z",
+  "checked_at": "2026-10-05T13:26:07.535857+00:00",
   "vercel_portfolio": {
     "url": "https://alphaengine-workspace.vercel.app/api/gateway/portfolio",
     "response": {
       "code": "gateway_timeout",
       "error": "The risk gateway did not answer within 8000ms."
-    }
+    },
+    "http_status": 504
   },
   "oracle_vm": {
     "host": "149.118.48.255",
     "ssh_port_22": "connect timeout",
     "tls_port_8443": "connect timeout; pinned CA retained"
   },
-  "runtime_logs": "No warning/error entries returned for the 30-minute filter; this is not evidence of health.",
+  "runtime_logs": "Vercel error-cluster query for the preceding hour returned no runtime errors; independent proxy requests returned HTTP 504.",
   "repair_status": "blocked: Oracle Cloud console sign-in required to inspect VM state and network path",
   "configuration_change": "none; no speculative origin, TLS or auth changes",
   "workflow_policy": "Leave all seven workflows disabled; temporary validation does not authorize recurring schedules.",
-  "account_access": "User reports Oracle sign-in does not work for their account; exact error pending. Console access and VM repair remain blocked."
+  "account_access": "User reports Oracle sign-in does not work for their account; exact error pending. Console access and VM repair remain blocked.",
+  "prior_checked_at": "2026-10-05T12:35:57.714Z",
+  "oracle_database": {
+    "research": {
+      "http_status": 200,
+      "state": "ok",
+      "matches": 1
+    },
+    "var": {
+      "http_status": 200,
+      "state": "ok",
+      "diagnostic_paths": 100
+    },
+    "ui": [
+      {
+        "path": "/api/oracle/research",
+        "http": 200,
+        "state": "ok",
+        "backend": "oracle",
+        "matches": 1
+      },
+      {
+        "path": "/api/oracle/var",
+        "http": 200,
+        "state": "ok",
+        "backend": "oracle",
+        "pathsUsed": 20000,
+        "computedInMs": 673
+      },
+      {
+        "path": "/api/oracle/var",
+        "http": 200,
+        "state": "ok",
+        "backend": "oracle",
+        "pathsUsed": 20000,
+        "computedInMs": 246
+      }
+    ],
+    "interpretation": "Oracle Autonomous Database is reachable independently of the OCI gateway VM."
+  },
+  "supabase_ui_search": {
+    "http_status": 504,
+    "code": "gateway_timeout",
+    "dependency": "OCI VM gateway; preserves desk scoping, retrieval stages and audit trail"
+  },
+  "production": {
+    "commit": "724c17c7ffa86b4b1859643103eec569ad19afca",
+    "deployment_state": "READY",
+    "gateway_origin": "https://149.118.48.255:8443",
+    "gateway_origin_updated_at": "2026-08-31T19:37:51.094Z",
+    "recovery_origin_configured": false
+  },
+  "browser": {
+    "captured_at": [
+      "2026-10-05T13:24:44.060Z",
+      "2026-10-05T13:25:22.755Z"
+    ],
+    "javascript_errors": [],
+    "screenshots": [
+      "audit-i-oracle-search-current.png",
+      "audit-i-oracle-var-current.png"
+    ]
+  },
+  "disabled_workflows_verified": 7,
+  "underlying_vm_cause": "Unknown without OCI access: cannot distinguish stopped VM, changed public IP, network policy, or host failure from a connect timeout."
 }
