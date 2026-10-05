@@ -2,14 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { withOracle } from "@/lib/oracle/client";
 import {
-  EMBEDDING_DIMENSIONS,
   RAG_MIN_SIMILARITY,
   RAG_SEARCH_SQL,
   RESEARCH_KINDS,
   similarityFromDistance,
   type ResearchKind,
 } from "@/lib/oracle/queries";
-import { callGateway } from "@/lib/gateway";
+import { embedResearchQuery } from "@/lib/research-embedding-server";
 import type { ResearchRagSearchResponse } from "@/lib/research-rag";
 
 export const runtime = "nodejs";
@@ -45,31 +44,6 @@ interface RagRow {
   DISTANCE: number;
 }
 
-/**
- * Embeds the query through the same service that embedded the corpus.
- *
- * This must not become a second embedding vendor. Vectors are only comparable
- * within one model, so a query embedded by anything other than the `gte-small`
- * session in `supabase/functions/embed-research` would return confident,
- * meaningless neighbours — a failure that looks exactly like success.
- */
-async function embed(query: string): Promise<number[] | null> {
-  const result = await callGateway<{ embeddings: number[][] }>("/api/research/rag/embed", {
-    method: "POST",
-    body: { texts: [query] },
-    subject: "the embedding service",
-    validate: (value): value is { embeddings: number[][] } =>
-      typeof value === "object" && value !== null && Array.isArray((value as { embeddings?: unknown }).embeddings),
-  });
-  if (!result.ok) return null;
-  const vector = result.data.embeddings[0];
-  // A dimension mismatch means the corpus and the query were embedded by
-  // different models. Returning null surfaces it as `embed_failed` rather than
-  // as a search that quietly ranked nonsense.
-  if (!Array.isArray(vector) || vector.length !== EMBEDDING_DIMENSIONS) return null;
-  return vector;
-}
-
 export async function POST(request: NextRequest) {
   let body: unknown;
   try {
@@ -87,19 +61,20 @@ export async function POST(request: NextRequest) {
   const matchCount = Number.isFinite(asked) ? Math.min(Math.max(Math.trunc(asked), 1), 20) : 3;
   const kind = RESEARCH_KINDS.includes(record.kind as ResearchKind) ? (record.kind as ResearchKind) : null;
 
-  const vector = await embed(query);
-  if (!vector) {
-    const unavailable: ResearchRagSearchResponse & { backend: string } = {
+  const embedding = await embedResearchQuery(query);
+  if (!embedding.ok) {
+    const unavailable = {
       state: "embed_failed",
       matches: [],
       backend: "oracle",
+      ...embedding.failure,
     };
-    return NextResponse.json(unavailable, { status: 200, headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json(unavailable, { status: embedding.failure.status, headers: { "Cache-Control": "no-store" } });
   }
 
   const result = await withOracle("Research similarity search", async (connection) => {
     const query_ = await connection.execute<RagRow>(RAG_SEARCH_SQL, {
-      query_vector: JSON.stringify(vector),
+      query_vector: JSON.stringify(embedding.vector),
       kind,
       match_count: matchCount,
       // Cosine distance is 1 - similarity, so the floor becomes a ceiling here.
@@ -116,6 +91,7 @@ export async function POST(request: NextRequest) {
       matches: [],
       backend: "oracle",
       reason: result.failure.code,
+      ...result.failure,
     };
     return NextResponse.json(payload, { status: result.failure.status });
   }

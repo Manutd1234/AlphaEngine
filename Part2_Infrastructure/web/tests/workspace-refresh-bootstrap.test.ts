@@ -172,6 +172,12 @@ describe("workspace hard-refresh geometry in Chromium", () => {
 
       await page.evaluate(() => { window.location.hash = "developer/work"; });
       await page.locator("#developer-subpanel-work").waitFor({ state: "visible", timeout: 15_000 });
+      // A fresh browser intentionally has an empty engineering queue. Create
+      // the row through its real form instead of depending on removed demo data.
+      await page.getByRole("button", { name: "New work", exact: true }).click();
+      const composer = page.locator("#developer-work-composer");
+      await composer.getByLabel("Title", { exact: true }).fill("Verify task control geometry");
+      await composer.getByRole("button", { name: "Add to triage", exact: true }).click();
       const statusSelect = page.locator(".developer-work__table tbody tr select").first();
       const deleteButton = page.locator(".developer-work__table tbody tr .developer-work__delete").first();
       await statusSelect.waitFor({ state: "visible" });

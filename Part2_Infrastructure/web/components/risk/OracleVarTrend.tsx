@@ -185,7 +185,15 @@ export default function OracleVarTrend({
     );
   }
 
-  const m = DEFAULT_MARGIN;
+  // Grid uses 13px monospace labels anchored eight pixels before the axis.
+  // Reserve the full currency label: the shared 52px margin clips the leading
+  // digits of million-dollar VaR values and can change their apparent scale.
+  const [lo, hi] = extent([...shown.map((o) => o.var99), ...shown.map((o) => o.clientVar)]);
+  const axisTicks = ticks(lo, hi, 3);
+  const m = {
+    ...DEFAULT_MARGIN,
+    left: Math.max(DEFAULT_MARGIN.left, 16 + 8 * Math.max(0, ...axisTicks.map((v) => usd(v, 0).length))),
+  };
   const x0 = m.left;
   const y0 = HEIGHT - m.bottom;
   const y1 = m.top;
@@ -193,7 +201,6 @@ export default function OracleVarTrend({
   // Both series enter the extent. A closed form that sits well away from the
   // simulated quantile is the finding this panel exists to surface, so it must
   // be on screen rather than clipped to flatter the agreement.
-  const [lo, hi] = extent([...shown.map((o) => o.var99), ...shown.map((o) => o.clientVar)]);
   const yScale = linearScale(lo, hi, y0, y1);
 
   const latest = shown[shown.length - 1];
@@ -269,7 +276,7 @@ export default function OracleVarTrend({
             const clientPoints = shown.map((o, i) => ({ x: xScale(i), y: o.clientVar === null ? null : yScale(o.clientVar) }));
             return (
               <>
-        <Grid yTicks={ticks(lo, hi, 3)} yScale={yScale} x0={x0} x1={x1} format={(v) => usd(v, 0)} />
+        <Grid yTicks={axisTicks} yScale={yScale} x0={x0} x1={x1} format={(v) => usd(v, 0)} />
 
         {shown.slice(1).map((o, i) => {
           const previous = shown[i];

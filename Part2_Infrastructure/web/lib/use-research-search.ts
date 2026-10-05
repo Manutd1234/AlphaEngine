@@ -119,6 +119,14 @@ export function useResearchSearch() {
       body = null;
     }
 
+    // The server classifies transport/auth failures without exposing secrets.
+    // Preserve that explanation instead of calling every outage an unreadable index.
+    if (!response.ok && typeof body === "object" && body !== null
+      && "error" in body && typeof body.error === "string") {
+      setState({ status: "error", matches: [], outcome: body.error, backend, elapsedMs });
+      return;
+    }
+
     // Validated rather than trusted. A route that changed shape should surface
     // as an error the reader can see, not as a silently empty result list that
     // reads exactly like "nothing similar is recorded".
